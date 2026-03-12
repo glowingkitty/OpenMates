@@ -443,6 +443,24 @@ def _format_address(loc: Dict[str, Any]) -> str:
     return ", ".join(parts)
 
 
+def _extract_gps(loc: Dict[str, Any]) -> Optional[Dict[str, float]]:
+    """Extract GPS coordinates from a Doctolib location dict.
+
+    Returns {latitude, longitude} or None if coordinates are unavailable.
+    The Doctolib API provides a gpsPoint string like "lat,lon".
+    """
+    gps_point = loc.get("gpsPoint", "")
+    if not gps_point or "," not in str(gps_point):
+        return None
+    try:
+        parts = str(gps_point).split(",")
+        lat = float(parts[0].strip())
+        lon = float(parts[1].strip())
+        return {"latitude": lat, "longitude": lon}
+    except (ValueError, IndexError):
+        return None
+
+
 def _result_hash(practice_id: int, visit_motive_id: int) -> str:
     """Generate a stable short hash for a result item."""
     key = f"{practice_id}:{visit_motive_id}"
@@ -610,6 +628,7 @@ async def _process_single_doctolib_request(
                 "gender": provider.get("gender"),
                 "doctor_type": provider.get("type"),  # PERSON | ORGANIZATION
                 "address": _format_address(provider.get("location", {})),
+                "gps_coordinates": _extract_gps(provider.get("location", {})),
                 "speciality": provider.get("speciality", {}).get("name", ""),
                 "languages": provider.get("languages", []),
                 "telehealth": online_booking.get("telehealth", False),

@@ -17,8 +17,8 @@
 //
 // CACHE: public, s-maxage=3600 (1h CDN) + stale-while-revalidate=86400 (24h background refresh)
 
-import { env } from '$env/dynamic/private';
 import type { PageServerLoad } from './$types';
+import { getBackendUrl } from '$lib/backendUrl';
 
 /** A demo chat entry as returned by GET /v1/demo/chats. */
 interface DemoChatListItem {
@@ -65,7 +65,7 @@ export const load: PageServerLoad = async ({ fetch, setHeaders, url }) => {
 		hostname === 'localhost' ||
 		hostname === '127.0.0.1';
 
-	const backendUrl = env.BACKEND_URL || 'https://app.dev.openmates.org';
+	const backendUrl = getBackendUrl(url);
 
 	let allChats: DemoChatListItem[] = [];
 

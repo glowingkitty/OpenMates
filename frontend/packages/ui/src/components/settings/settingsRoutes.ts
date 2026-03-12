@@ -22,6 +22,11 @@ import SettingsDarkMode from "./interface/SettingsDarkMode.svelte";
 import SettingsChat from "./SettingsChat.svelte";
 import SettingsChatNotifications from "./chat/SettingsChatNotifications.svelte";
 
+// Notifications (top-level hub + sub-pages)
+import SettingsNotifications from "./SettingsNotifications.svelte";
+import SettingsNotificationsChatNotifications from "./notifications/SettingsChatNotifications.svelte";
+import SettingsBackupReminders from "./notifications/SettingsBackupReminders.svelte";
+
 // Privacy
 import SettingsPrivacy from "./SettingsPrivacy.svelte";
 import SettingsHidePersonalData from "./privacy/SettingsHidePersonalData.svelte";
@@ -37,7 +42,9 @@ import SettingsTimezone from "./account/SettingsTimezone.svelte";
 import SettingsUsername from "./account/SettingsUsername.svelte";
 import SettingsEmail from "./account/SettingsEmail.svelte";
 import SettingsDeleteAccount from "./account/SettingsDeleteAccount.svelte";
+import SettingsAccountChats from "./account/SettingsAccountChats.svelte";
 import SettingsExportAccount from "./account/SettingsExportAccount.svelte";
+import SettingsImportAccount from "./account/SettingsImportAccount.svelte";
 import SettingsStorage from "./account/SettingsStorage.svelte";
 import SettingsStorageFiles from "./account/SettingsStorageFiles.svelte";
 import SettingsProfilePicture from "./account/SettingsProfilePicture.svelte";
@@ -46,6 +53,9 @@ import SettingsPasskeys from "./SettingsPasskeys.svelte";
 import SettingsPassword from "./security/SettingsPassword.svelte";
 import SettingsTwoFactorAuth from "./security/SettingsTwoFactorAuth.svelte";
 import SettingsRecoveryKey from "./security/SettingsRecoveryKey.svelte";
+import SettingsSessions from "./security/SettingsSessions.svelte";
+import SettingsSessionsPairInitiate from "./security/SettingsSessionsPairInitiate.svelte";
+import SettingsSessionsConfirmPair from "./security/SettingsSessionsConfirmPair.svelte";
 
 // Pricing (unauthenticated users only)
 import SettingsPricing from "./SettingsPricing.svelte";
@@ -103,6 +113,7 @@ import SettingsCommunitySuggestions from "./server/SettingsCommunitySuggestions.
 import SettingsStats from "./server/SettingsStats.svelte";
 import SettingsGiftCardGenerator from "./server/SettingsGiftCardGenerator.svelte";
 import SettingsTests from "./server/SettingsTests.svelte";
+import SettingsLogs from "./SettingsLogs.svelte";
 
 // Mates
 import SettingsMates from "./SettingsMates.svelte";
@@ -128,7 +139,11 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   "billing/invoices": SettingsInvoices,
   // Chat
   chat: SettingsChat,
-  "chat/notifications": SettingsChatNotifications,
+  "chat/notifications": SettingsChatNotifications, // kept as backward-compat alias
+  // Notifications — top-level hub consolidating all notification preferences
+  notifications: SettingsNotifications,
+  "notifications/chat": SettingsNotificationsChatNotifications,
+  "notifications/backup": SettingsBackupReminders,
   // Settings & Memories hub — lists all user-created settings and memories across apps
   settings_memories: SettingsMemoriesHub,
   // Privacy settings — anonymization, device permissions, auto deletion
@@ -147,13 +162,13 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   "app_store/all": SettingsAllApps,
   // Mates
   mates: SettingsMates,
-  // Gift Cards
-  gift_cards: SettingsGiftCards,
-  "gift_cards/redeem": SettingsGiftCardsRedeem,
-  "gift_cards/redeemed": SettingsGiftCardsRedeemed,
-  "gift_cards/buy": SettingsGiftCardsBuy,
-  "gift_cards/buy/payment": SettingsGiftCardsBuyPayment,
-  "gift_cards/buy/confirmation": SettingsGiftCardsPurchaseConfirmation,
+  // Gift Cards — nested under Billing & Usage
+  "billing/gift-cards": SettingsGiftCards,
+  "billing/gift-cards/redeem": SettingsGiftCardsRedeem,
+  "billing/gift-cards/redeemed": SettingsGiftCardsRedeemed,
+  "billing/gift-cards/buy": SettingsGiftCardsBuy,
+  "billing/gift-cards/buy/payment": SettingsGiftCardsBuyPayment,
+  "billing/gift-cards/buy/confirmation": SettingsGiftCardsPurchaseConfirmation,
   // Shared
   shared: SettingsShared,
   "shared/share": SettingsShare,
@@ -177,6 +192,8 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   "server/stats": SettingsStats,
   "server/gift-cards": SettingsGiftCardGenerator,
   "server/tests": SettingsTests,
+  // Admin logs viewer
+  logs: SettingsLogs,
 
   // Incognito
   "incognito/info": SettingsIncognitoInfo,
@@ -190,7 +207,12 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   "account/security/password": SettingsPassword,
   "account/security/2fa": SettingsTwoFactorAuth,
   "account/security/recovery-key": SettingsRecoveryKey,
+  "account/security/sessions": SettingsSessions,
+  "account/security/sessions/pair-initiate": SettingsSessionsPairInitiate,
+  "account/security/sessions/confirm-pair": SettingsSessionsConfirmPair,
   "account/export": SettingsExportAccount,
+  "account/import": SettingsImportAccount,
+  "account/chats": SettingsAccountChats,
   "account/storage": SettingsStorage,
   // Per-category file list sub-pages — all use the same component.
   // The category is derived from the last path segment inside the component.

@@ -20,7 +20,7 @@ services:
       DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
       DRAGONFLY_URL: "cache:6379"
       VAULT_URL: "http://vault:8200"
-      MONITORING_URL: "http://prometheus:9090"
+      MONITORING_URL: "http://openobserve:5080"
       TRANSLATIONS_DIR: "/translations"
       DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
       INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
@@ -167,11 +167,15 @@ services:
       TRANSLATIONS_DIR: "/translations"
       DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
       VAULT_URL: "http://vault:8200"
-      CELERY_QUEUES: "email,user_init,persistence,health_check,server_stats,demo,e2e_tests,reminder" # Used by celery_config to determine which services to initialize
+      CELERY_QUEUES: "email,user_init,persistence,health_check,server_stats,demo,e2e_tests,reminder,push" # Used by celery_config to determine which services to initialize
       CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}" # Maximum concurrent processes (default: 10)
       CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}" # Minimum concurrent processes (default: 3)
       CELERY_METRICS_PORT: "9101" # Port for prometheus_client metrics server — scraped by Prometheus
       # E2E test configuration - set these env vars to enable automated testing
+      # Note: SECRET__CORE_SERVER__ADMIN_LOG_API_KEY is loaded from env_file (../../.env).
+      # Do NOT explicitly set it here — compose variable interpolation would resolve
+      # against backend/core/.env (which doesn't exist), overwriting the real value.
+      # This key is needed by Celery task run_daily_all_tests to auth with the sidecar.
       E2E_TEST_DEV_ENABLED: "${E2E_TEST_DEV_ENABLED:-true}"
       E2E_TEST_DEV_BASE_URL: "${E2E_TEST_DEV_BASE_URL:-https://app.dev.openmates.org}"
       E2E_TEST_PROD_ENABLED: "${E2E_TEST_PROD_ENABLED:-false}"
@@ -183,7 +187,7 @@ services:
              chmod -R 777 /app/logs /app/backend/core/api/logs && \
              gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
              --loglevel=info \
-             --queues=email,user_init,persistence,health_check,server_stats,demo,e2e_tests,reminder \
+             --queues=email,user_init,persistence,health_check,server_stats,demo,e2e_tests,reminder,push \
              --autoscale=${CELERY_AUTOSCALE_MAX},${CELERY_AUTOSCALE_MIN} \
              --max-tasks-per-child=50 \
              --max-memory-per-child=600000 \
@@ -1430,8 +1434,45 @@ services:
              echo 'Setup complete.'"
 
   #########################################################################
-  ##### Monitoring (Prometheus/Grafana/Loki)
+  ##### Monitoring (OpenObserve)
   #########################################################################
+  openobserve:
+    container_name: openobserve
+    # Pinned to v0.70.0-rc3 (2026-03-09) — upgraded from v0.60.4 because the data volume already had
+    # schema migrations from a newer version (m20260214_000001_create_incident_events_table),
+    # causing a startup panic. v0.70.0-rc3 is the latest available build that includes those migrations.
+    # Do NOT use :latest — unintended upgrades can break the Loki-compat and Prometheus remote_write APIs.
+    image: public.ecr.aws/zinclabs/openobserve:v0.70.0-rc3
+    restart: unless-stopped
+    env_file: ../../.env
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 768M
+    environment:
+      ZO_ROOT_USER_EMAIL: "${OPENOBSERVE_ROOT_EMAIL}"
+      ZO_ROOT_USER_PASSWORD: "${OPENOBSERVE_ROOT_PASSWORD}"
+      ZO_DATA_DIR: "/data"
+      ZO_HTTP_PORT: "5080"
+      ZO_TELEMETRY: "false"
+      # Retention policy for operational log/metric streams (API logs, container logs, Prometheus metrics).
+      # Compliance log streams (audit-compliance, financial-compliance) have stream-level overrides
+      # configured via the OpenObserve API on startup (see backend/core/api/main.py compliance_log_backup_task).
+      # Legal basis: operational logs have no mandatory minimum; 14 days covers incident investigation windows.
+      ZO_COMPACT_DATA_RETENTION_DAYS: "14"
+    volumes:
+      - openobserve-data:/data
+    networks:
+      - openmates
+    healthcheck:
+      # OpenObserve uses a distroless image (no curl/wget/shell).
+      # We test TCP reachability by attempting an HTTP GET via /dev/tcp
+      # from a busybox shell injected as the health-check image alternative.
+      # Since no other service requires service_healthy on openobserve,
+      # HEALTHCHECK NONE (disable) keeps docker ps clean without false "unhealthy".
+      disable: true
+
   prometheus:
     container_name: prometheus
     image: prom/prometheus:v3.2.1
@@ -1449,7 +1490,6 @@ services:
       - "--storage.tsdb.path=/prometheus"
       - "--web.console.libraries=/usr/share/prometheus/console_libraries"
       - "--web.console.templates=/usr/share/prometheus/consoles"
-    # Ports removed for base config
     networks:
       - openmates
     healthcheck:
@@ -1457,8 +1497,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-    labels:
-      - "promtail.scrape=true"
 
   alertmanager:
     container_name: alertmanager
@@ -1472,12 +1510,12 @@ services:
     volumes:
       - ./monitoring/alertmanager:/etc/alertmanager
     command:
-      - "--config.file=/etc/alertmanager/alertmanager.yml"
-      - "--storage.path=/alertmanager"
+      - sh
+      - -c
+      - |
+        sed "s|\${INTERNAL_API_SHARED_TOKEN}|${INTERNAL_API_SHARED_TOKEN}|g" /etc/alertmanager/alertmanager.yml > /tmp/alertmanager.runtime.yml
+        exec /bin/alertmanager --config.file=/tmp/alertmanager.runtime.yml --storage.path=/alertmanager
     environment:
-      # Internal API token for securing the alert webhook endpoint.
-      # Alertmanager sends this token in the X-Internal-Service-Token header when posting
-      # to POST /internal/alerts/webhook on the API container.
       INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
     networks:
       - openmates
@@ -1486,8 +1524,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-    labels:
-      - "promtail.scrape=true"
 
   # System monitoring containers
   cadvisor:
@@ -1500,7 +1536,6 @@ services:
         limits:
           cpus: "0.5"
           memory: 256M
-    # Reduce cAdvisor overhead: longer housekeeping, disable unneeded metrics
     command:
       - "--housekeeping_interval=30s"
       - "--docker_only=true"
@@ -1520,38 +1555,11 @@ services:
       timeout: 10s
       retries: 3
 
-  loki:
-    container_name: loki
-    image: grafana/loki:3.4.2
-    restart: unless-stopped
-    user: "0" # Run as root to avoid permission issues
-    deploy:
-      resources:
-        limits:
-          cpus: "1.0"
-          memory: 512M
-    volumes:
-      - ./monitoring/loki:/etc/loki
-      - loki-data:/loki
-      - loki-wal:/wal # Add volume for WAL data
-    command:
-      - "-config.file=/etc/loki/loki-config.yaml"
-      - "-validation.allow-structured-metadata=false" # Disable structured metadata check
-    networks:
-      - openmates
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3100/ready"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    labels:
-      - "promtail.scrape=true"
-
   promtail:
     container_name: promtail
     image: grafana/promtail:3.4.2
     restart: unless-stopped
-    env_file: ../../.env # Add env_file to access SERVER_ENVIRONMENT
+    env_file: ../../.env
     deploy:
       resources:
         limits:
@@ -1559,15 +1567,15 @@ services:
           memory: 256M
     volumes:
       - ./monitoring/promtail:/etc/promtail
-      - /var/run/docker.sock:/var/run/docker.sock:ro # Mount Docker socket for service discovery
-      - ./api/logs:/var/log/api:ro # Make sure this path exists
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./api/logs:/var/log/api:ro
     command:
       - "-config.file=/etc/promtail/promtail-config.yaml"
+      - "-config.expand-env=true"
     depends_on:
-      - loki
+      - openobserve
     networks:
       - openmates
-
   # Grafana removed — the UI dashboard was unused and consumed ~220 MB RAM.
   # Prometheus, Loki, and Promtail remain as they are actively used by the backend.
   # To re-enable Grafana, uncomment the block below and add grafana-data volume back.
@@ -1805,12 +1813,8 @@ volumes:
     name: openmates-cache-data
   prometheus-data:
     name: openmates-prometheus-data
-  loki-data:
-    name: openmates-loki-data
-  loki-wal:
-    name: openmates-loki-wal # Add volume for WAL data
-  # grafana-data:
-  #   name: openmates-grafana-data
+  openobserve-data:
+    name: openmates-openobserve-data
   vault-data:
     name: openmates-vault-data
   vault-setup-data:

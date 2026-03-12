@@ -928,53 +928,53 @@ password_required_info_embed:
   verified_by_human: []
 
 encryption_info:
-  context: Info text explaining that the chat remains encrypted (for chats)
-  en: Chat remains end-to-end encrypted. The encryption key is included in the link.
-  de: Der Chat bleibt Ende-zu-Ende verschlüsselt. Der Verschlüsselungsschlüssel ist im Link enthalten.
-  zh: 聊天保持端到端加密。加密密钥包含在链接中。
-  es: El chat permanece cifrado de extremo a extremo. La clave de cifrado está incluida en el enlace.
-  fr: Le chat reste chiffré de bout en bout. La clé de chiffrement est incluse dans le lien.
-  pt: O chat permanece criptografado de ponta a ponta. A chave de criptografia está incluída no link.
-  ru: Чат остается зашифрованным из конца в конец. Ключ шифрования включен в ссылку.
-  ja: チャットはエンドツーエンドで暗号化されたままです。暗号化キーはリンクに含まれています。
-  ko: 채팅은 종단간 암호화가 유지됩니다. 암호화 키가 링크에 포함되어 있습니다.
-  it: La chat rimane crittografata end-to-end. La chiave di crittografia è inclusa nel link.
-  tr: Sohbet uçtan uca şifrelenmiş olarak kalır. Şifreleme anahtarı bağlantıya dahildir.
-  vi: Cuộc trò chuyện vẫn được mã hóa đầu cuối. Khóa mã hóa được bao gồm trong liên kết.
-  id: Obrolan tetap terenkripsi end-to-end. Kunci enkripsi disertakan dalam tautan.
-  pl: Czat pozostaje zaszyfrowany end-to-end. Klucz szyfrowania jest zawarty w linku.
-  nl: Chat blijft end-to-end versleuteld. De encryptiesleutel is opgenomen in de link.
-  ar: تظل المحادثة مشفرة من طرف إلى طرف. مفتاح التشفير مضمن في الرابط.
-  hi: चैट एंड-टू-एंड एन्क्रिप्टेड रहती है। एन्क्रिप्शन कुंजी लिंक में शामिल है।
-  th: แชทยังคงเข้ารหัสแบบ end-to-end คีย์เข้ารหัสรวมอยู่ในลิงก์
-  cs: Chat zůstává end-to-end šifrovaný. Šifrovací klíč je součástí odkazu.
-  sv: Chatten förblir end-to-end-krypterad. Krypteringsnyckeln ingår i länken.
-  he: "הצ'אט נשאר מוצפן מקצה לקצה. מפתח ההצפנה כלול בקישור."
+  context: Info text explaining that the chat remains zero-knowledge encrypted (for chats)
+  en: Only your device can decrypt this chat. The decryption key is included in the link.
+  de: Nur dein Gerät kann diesen Chat entschlüsseln. Der Entschlüsselungsschlüssel ist im Link enthalten.
+  zh: 只有您的设备可以解密此聊天。解密密钥包含在链接中。
+  es: Solo tu dispositivo puede descifrar este chat. La clave de descifrado está incluida en el enlace.
+  fr: Seul votre appareil peut déchiffrer ce chat. La clé de déchiffrement est incluse dans le lien.
+  pt: Somente o seu dispositivo pode descriptografar este chat. A chave de descriptografia está incluída no link.
+  ru: Только ваше устройство может расшифровать этот чат. Ключ расшифровки включён в ссылку.
+  ja: このチャットはあなたのデバイスのみが復号できます。復号キーはリンクに含まれています。
+  ko: 이 채팅은 귀하의 기기만 복호화할 수 있습니다. 복호화 키가 링크에 포함되어 있습니다.
+  it: Solo il tuo dispositivo può decrittare questa chat. La chiave di decrittazione è inclusa nel link.
+  tr: Bu sohbeti yalnızca cihazınız şifresini çözebilir. Şifre çözme anahtarı bağlantıya dahildir.
+  vi: Chỉ thiết bị của bạn mới có thể giải mã cuộc trò chuyện này. Khóa giải mã được bao gồm trong liên kết.
+  id: Hanya perangkat Anda yang dapat mendekripsi obrolan ini. Kunci dekripsi disertakan dalam tautan.
+  pl: Tylko Twoje urządzenie może odszyfrować ten czat. Klucz deszyfrowania jest zawarty w linku.
+  nl: Alleen uw apparaat kan deze chat ontsleutelen. De ontsleutelingssleutel is opgenomen in de link.
+  ar: جهازك فقط يستطيع فك تشفير هذه المحادثة. مفتاح فك التشفير مضمن في الرابط.
+  hi: केवल आपका डिवाइस इस चैट को डिक्रिप्ट कर सकता है। डिक्रिप्शन कुंजी लिंक में शामिल है।
+  th: เฉพาะอุปกรณ์ของคุณเท่านั้นที่สามารถถอดรหัสแชทนี้ได้ คีย์ถอดรหัสรวมอยู่ในลิงก์
+  cs: Tento chat může dešifrovat pouze vaše zařízení. Dešifrovací klíč je součástí odkazu.
+  sv: Endast din enhet kan dekryptera den här chatten. Dekrypteringsnyckeln ingår i länken.
+  he: "רק המכשיר שלך יכול לפענח את הצ'אט הזה. מפתח הפענוח כלול בקישור."
   verified_by_human: []
 
 encryption_info_embed:
-  context: Info text explaining that the embed remains encrypted (for embeds)
-  en: Embed remains end-to-end encrypted. The encryption key is included in the link.
-  de: Das Embed bleibt Ende-zu-Ende verschlüsselt. Der Verschlüsselungsschlüssel ist im Link enthalten.
-  zh: 嵌入保持端到端加密。加密密钥包含在链接中。
-  es: El embed permanece cifrado de extremo a extremo. La clave de cifrado está incluida en el enlace.
-  fr: L'embed reste chiffré de bout en bout. La clé de chiffrement est incluse dans le lien.
-  pt: O embed permanece criptografado de ponta a ponta. A chave de criptografia está incluída no link.
-  ru: Встраивание остается зашифрованным из конца в конец. Ключ шифрования включен в ссылку.
-  ja: 埋め込みはエンドツーエンドで暗号化されたままです。暗号化キーはリンクに含まれています。
-  ko: 임베드는 종단간 암호화가 유지됩니다. 암호화 키가 링크에 포함되어 있습니다.
-  it: L'embed rimane crittografato end-to-end. La chiave di crittografia è inclusa nel link.
-  tr: Embed uçtan uca şifrelenmiş olarak kalır. Şifreleme anahtarı bağlantıya dahildir.
-  vi: Embed vẫn được mã hóa đầu cuối. Khóa mã hóa được bao gồm trong liên kết.
-  id: Embed tetap terenkripsi end-to-end. Kunci enkripsi disertakan dalam tautan.
-  pl: Embed pozostaje zaszyfrowany end-to-end. Klucz szyfrowania jest zawarty w linku.
-  nl: Embed blijft end-to-end versleuteld. De encryptiesleutel is opgenomen in de link.
-  ar: يظل التضمين مشفرًا من طرف إلى طرف. مفتاح التشفير مضمن في الرابط.
-  hi: एम्बेड एंड-टू-एंड एन्क्रिप्टेड रहता है। एन्क्रिप्शन कुंजी लिंक में शामिल है।
-  th: embed ยังคงเข้ารหัสแบบ end-to-end คีย์เข้ารหัสรวมอยู่ในลิงก์
-  cs: Embed zůstává end-to-end šifrovaný. Šifrovací klíč je součástí odkazu.
-  sv: Embeden förblir end-to-end-krypterad. Krypteringsnyckeln ingår i länken.
-  he: ההטמעה נשארת מוצפנת מקצה לקצה. מפתח ההצפנה כלול בקישור.
+  context: Info text explaining that the embed remains zero-knowledge encrypted (for embeds)
+  en: Only your device can decrypt this embed. The decryption key is included in the link.
+  de: Nur dein Gerät kann dieses Embed entschlüsseln. Der Entschlüsselungsschlüssel ist im Link enthalten.
+  zh: 只有您的设备可以解密此嵌入内容。解密密钥包含在链接中。
+  es: Solo tu dispositivo puede descifrar este embed. La clave de descifrado está incluida en el enlace.
+  fr: Seul votre appareil peut déchiffrer cet embed. La clé de déchiffrement est incluse dans le lien.
+  pt: Somente o seu dispositivo pode descriptografar este embed. A chave de descriptografia está incluída no link.
+  ru: Только ваше устройство может расшифровать этот элемент. Ключ расшифровки включён в ссылку.
+  ja: この埋め込みはあなたのデバイスのみが復号できます。復号キーはリンクに含まれています。
+  ko: 이 임베드는 귀하의 기기만 복호화할 수 있습니다. 복호화 키가 링크에 포함되어 있습니다.
+  it: Solo il tuo dispositivo può decrittare questo embed. La chiave di decrittazione è inclusa nel link.
+  tr: Bu embed'i yalnızca cihazınız şifresini çözebilir. Şifre çözme anahtarı bağlantıya dahildir.
+  vi: Chỉ thiết bị của bạn mới có thể giải mã embed này. Khóa giải mã được bao gồm trong liên kết.
+  id: Hanya perangkat Anda yang dapat mendekripsi embed ini. Kunci dekripsi disertakan dalam tautan.
+  pl: Tylko Twoje urządzenie może odszyfrować ten embed. Klucz deszyfrowania jest zawarty w linku.
+  nl: Alleen uw apparaat kan dit embed ontsleutelen. De ontsleutelingssleutel is opgenomen in de link.
+  ar: جهازك فقط يستطيع فك تشفير هذا التضمين. مفتاح فك التشفير مضمن في الرابط.
+  hi: केवल आपका डिवाइस इस एम्बेड को डिक्रिप्ट कर सकता है। डिक्रिप्शन कुंजी लिंक में शामिल है।
+  th: เฉพาะอุปกรณ์ของคุณเท่านั้นที่สามารถถอดรหัส embed นี้ได้ คีย์ถอดรหัสรวมอยู่ในลิงก์
+  cs: Tento embed může dešifrovat pouze vaše zařízení. Dešifrovací klíč je součástí odkazu.
+  sv: Endast din enhet kan dekryptera detta embed. Dekrypteringsnyckeln ingår i länken.
+  he: "רק המכשיר שלך יכול לפענח את ההטמעה הזו. מפתח הפענוח כלול בקישור."
   verified_by_human: []
 
 share_with_community:
@@ -1024,7 +1024,7 @@ share_with_community_info:
   th: 'หากคุณเลือก "แชร์กับชุมชน" แชทของคุณอาจถูกเลือกให้แสดงแก่ผู้ใช้อื่นบนแพลตฟอร์ม รวมถึงบนโซเชียลมีเดียและในกิจกรรม'
   cs: 'Pokud vyberete "Sdílet s komunitou", váš chat může být také vybrán k zobrazení jiným uživatelům na platformě, stejně jako na sociálních médiích a na akcích.'
   sv: 'Om du väljer "Dela med gemenskapen", kan din chatt också väljas för att visas för andra användare på plattformen, samt på sociala medier och vid evenemang.'
-  he: "אם תבחר ב\"שתף עם הקהילה\", הצ'אט שלך עשוי להיבחר להצגה למשתמשים אחרים בפלטפורמה, וכן ברשתות חברתיות ובאירועים."
+  he: 'אם תבחר ב"שתף עם הקהילה", הצ''אט שלך עשוי להיבחר להצגה למשתמשים אחרים בפלטפורמה, וכן ברשתות חברתיות ובאירועים.'
   verified_by_human: []
 
 include_sensitive_data:

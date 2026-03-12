@@ -31,6 +31,11 @@ class UserResponse(BaseModel):
     storage_used_bytes: int = 0 # Total S3 storage used in bytes
     # Auto-deletion settings (privacy)
     auto_delete_chats_after_days: Optional[int] = None # Days after which chats are auto-deleted (None = never)
+    # Push notification fields (browser Web Push API)
+    push_notification_enabled: bool = False # Whether push notifications are enabled for this user
+    push_notification_subscription: Optional[str] = None # JSON string of browser PushSubscription
+    push_notification_preferences: Optional[dict] = None # e.g. {"aiResponses": true}
+    push_notification_banner_shown: bool = False # Whether the "Enable push?" banner has been dismissed
 
     class Config:
         json_schema_extra = {

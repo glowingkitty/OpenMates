@@ -21,7 +21,7 @@
         isAuthenticated?: boolean; // Whether user is authenticated (for future modification features)
     }
     
-    let { appId, isAuthenticated = false }: Props = $props();
+    let { appId, _isAuthenticated = false }: Props = $props();
     
     // Get store state reactively (Svelte 5)
     let storeState = $state(appSkillsStore.getState());

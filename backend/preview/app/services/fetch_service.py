@@ -244,6 +244,108 @@ class FetchService:
         
         return url
     
+    async def _stream_image(
+        self,
+        client: httpx.AsyncClient,
+        validated_url: str,
+        headers: dict,
+        max_size: int,
+        min_size: int,
+        client_name: str
+    ) -> Tuple[bytes, str]:
+        """
+        Internal: stream an image from a URL using the given client and headers.
+
+        Validates the upstream Content-Type and size constraints, then returns the
+        raw bytes and content-type string.
+
+        Args:
+            client: httpx.AsyncClient to use for the request
+            validated_url: Pre-validated image URL
+            headers: HTTP headers to send with the request
+            max_size: Maximum allowed response size in bytes
+            min_size: Minimum required response size in bytes (0 = no minimum)
+            client_name: Label used in log messages (e.g. "direct", "proxy")
+
+        Returns:
+            Tuple of (image_bytes, content_type)
+
+        Raises:
+            FetchError: On HTTP error, unsupported content-type, or size violation
+            httpx.TimeoutException: On request timeout
+            httpx.RequestError: On network-level error
+        """
+        async with client.stream("GET", validated_url, headers=headers) as response:
+            if response.status_code != 200:
+                logger.warning(
+                    f"[FetchService] Image fetch failed ({client_name}): "
+                    f"{response.status_code} for {validated_url[:50]}..."
+                )
+                raise FetchError(
+                    f"Failed to fetch image: HTTP {response.status_code}",
+                    response.status_code
+                )
+
+            # Validate Content-Type before reading the body
+            content_type = response.headers.get("content-type", "").split(";")[0].strip()
+            if content_type not in settings.allowed_image_types:
+                logger.warning(
+                    f"[FetchService] Invalid content type ({client_name}): "
+                    f"{content_type!r} for {validated_url[:50]}..."
+                )
+                raise FetchError(
+                    f"Invalid content type: {content_type}",
+                    415  # Unsupported Media Type
+                )
+
+            # Reject oversized images early via Content-Length header
+            content_length = response.headers.get("content-length")
+            if content_length and int(content_length) > max_size:
+                logger.warning(
+                    f"[FetchService] Image too large ({client_name}): "
+                    f"{content_length} bytes for {validated_url[:50]}..."
+                )
+                raise FetchError(
+                    f"Image too large: {content_length} bytes (max: {max_size})",
+                    413
+                )
+
+            # Stream with a running size limit
+            chunks = []
+            total_size = 0
+
+            async for chunk in response.aiter_bytes(chunk_size=8192):
+                total_size += len(chunk)
+                if total_size > max_size:
+                    logger.warning(
+                        f"[FetchService] Image exceeded size limit during download "
+                        f"({client_name}): {validated_url[:50]}..."
+                    )
+                    raise FetchError(
+                        f"Image too large: exceeded {max_size} bytes",
+                        413
+                    )
+                chunks.append(chunk)
+
+            image_data = b"".join(chunks)
+
+            if min_size > 0 and len(image_data) < min_size:
+                logger.warning(
+                    f"[FetchService] Image too small ({client_name}): "
+                    f"{len(image_data)} bytes (min: {min_size}) for {validated_url[:50]}..."
+                )
+                raise FetchError(
+                    f"Image too small: {len(image_data)} bytes (min: {min_size})",
+                    422
+                )
+
+            logger.debug(
+                f"[FetchService] Fetched image ({client_name}): "
+                f"{len(image_data)} bytes, {content_type} from {validated_url[:50]}..."
+            )
+
+            return image_data, content_type
+
     async def fetch_image(
         self,
         url: str,
@@ -251,101 +353,90 @@ class FetchService:
         min_size: int = 0
     ) -> Tuple[bytes, str]:
         """
-        Fetch an image from URL.
-        
+        Fetch an image from URL using smart browser-like headers.
+
+        Strategy (in order):
+        1. Direct fetch with image-specific browser headers (randomised UA, correct
+           Sec-Fetch-* values, origin-derived Referer). This resolves the majority
+           of CDN anti-hotlink 415s where the host checks headers rather than IP.
+        2. Proxy retry (if configured and use_proxy_for_images is True, or on
+           non-network failures like 403/415 that indicate the direct IP is blocked).
+           The Webshare rotating residential proxy provides a different egress IP,
+           bypassing datacenter IP blocks.
+
         Args:
             url: Image URL
-            max_size: Maximum allowed size in bytes (uses default if not provided)
+            max_size: Maximum allowed size in bytes (uses server default if not provided)
             min_size: Minimum required size in bytes (default: 0, no minimum)
-            
+
         Returns:
             Tuple of (image_bytes, content_type)
-            
+
         Raises:
-            FetchError: If fetch fails or validation fails
+            FetchError: If all fetch attempts fail
         """
         max_size = max_size or settings.max_image_size_bytes
-        
-        # Validate URL first
+
+        # Validate URL first (SSRF protection)
         validated_url = await self._validate_url(url)
-        
+
+        # Per-request image headers: randomised UA + image-appropriate Sec-Fetch-*
+        # and an origin-derived Referer header. These convince most CDN hotlink guards
+        # that the request comes from a browser rendering a page on the same host.
+        headers = self._get_image_headers(validated_url)
+
+        # --- Attempt 1: direct fetch with smart headers ---
+        direct_error: Optional[FetchError] = None
         try:
-            # Use streaming to check size before downloading full content
-            async with self._client.stream("GET", validated_url) as response:
-                # Check status code
-                if response.status_code != 200:
-                    logger.warning(
-                        f"[FetchService] Image fetch failed: {response.status_code} for {url[:50]}..."
-                    )
-                    raise FetchError(
-                        f"Failed to fetch image: HTTP {response.status_code}",
-                        response.status_code
-                    )
-                
-                # Check content type
-                content_type = response.headers.get("content-type", "").split(";")[0].strip()
-                if content_type not in settings.allowed_image_types:
-                    logger.warning(
-                        f"[FetchService] Invalid content type: {content_type} for {url[:50]}..."
-                    )
-                    raise FetchError(
-                        f"Invalid content type: {content_type}",
-                        415  # Unsupported Media Type
-                    )
-                
-                # Check content length if provided
-                content_length = response.headers.get("content-length")
-                if content_length and int(content_length) > max_size:
-                    logger.warning(
-                        f"[FetchService] Image too large: {content_length} bytes for {url[:50]}..."
-                    )
-                    raise FetchError(
-                        f"Image too large: {content_length} bytes (max: {max_size})",
-                        413  # Payload Too Large
-                    )
-                
-                # Download content with size limit
-                chunks = []
-                total_size = 0
-                
-                async for chunk in response.aiter_bytes(chunk_size=8192):
-                    total_size += len(chunk)
-                    if total_size > max_size:
-                        logger.warning(
-                            f"[FetchService] Image exceeded size limit during download: {url[:50]}..."
-                        )
-                        raise FetchError(
-                            f"Image too large: exceeded {max_size} bytes",
-                            413
-                        )
-                    chunks.append(chunk)
-                
-                image_data = b"".join(chunks)
-                
-                # Check minimum size requirement
-                if min_size > 0 and len(image_data) < min_size:
-                    logger.warning(
-                        f"[FetchService] Image too small: {len(image_data)} bytes "
-                        f"(min: {min_size}) for {url[:50]}..."
-                    )
-                    raise FetchError(
-                        f"Image too small: {len(image_data)} bytes (min: {min_size})",
-                        422  # Unprocessable Entity
-                    )
-                
-                logger.debug(
-                    f"[FetchService] Fetched image ({len(image_data)} bytes, {content_type}) "
-                    f"from {url[:50]}..."
-                )
-                
-                return image_data, content_type
-                
+            return await self._stream_image(
+                self._client, validated_url, headers, max_size, min_size, "direct"
+            )
+        except FetchError as e:
+            direct_error = e
+            # Only retry through proxy for header/IP-related rejections.
+            # Size violations (413/422) and genuine 404s are final.
+            retryable = e.status_code in (403, 415) or (400 <= e.status_code < 500 and e.status_code not in (404, 413, 422))
+            if not retryable:
+                raise
+            logger.warning(
+                f"[FetchService] Direct image fetch failed ({e.status_code}), "
+                f"will retry via proxy if available: {validated_url[:50]}..."
+            )
         except httpx.TimeoutException:
-            logger.warning(f"[FetchService] Timeout fetching image: {url[:50]}...")
+            logger.warning(f"[FetchService] Timeout fetching image (direct): {validated_url[:50]}...")
             raise FetchError("Request timeout", 504)
         except httpx.RequestError as e:
-            logger.error(f"[FetchService] Request error fetching image: {e}")
+            logger.error(f"[FetchService] Request error fetching image (direct): {e}")
             raise FetchError(f"Request failed: {str(e)}", 502)
+
+        # --- Attempt 2: proxy retry (if configured) ---
+        # Triggered when direct fetch returns 403/415 — usually means the CDN is
+        # blocking our datacenter IP or missing the right headers.
+        if self._proxy_client is not None:
+            logger.info(
+                f"[FetchService] Retrying image fetch via Webshare proxy: {validated_url[:50]}..."
+            )
+            try:
+                return await self._stream_image(
+                    self._proxy_client, validated_url, headers, max_size, min_size, "proxy"
+                )
+            except FetchError as e:
+                logger.warning(
+                    f"[FetchService] Proxy image fetch also failed ({e.status_code}): "
+                    f"{validated_url[:50]}..."
+                )
+                # Raise the proxy error — it is the most recent and most informative
+                raise
+            except httpx.TimeoutException:
+                logger.warning(f"[FetchService] Timeout fetching image (proxy): {validated_url[:50]}...")
+                raise FetchError("Request timeout", 504)
+            except httpx.RequestError as e:
+                logger.error(f"[FetchService] Request error fetching image (proxy): {e}")
+                raise FetchError(f"Request failed: {str(e)}", 502)
+
+        # No proxy configured — re-raise the original direct error
+        assert direct_error is not None
+        raise direct_error
     
     async def fetch_favicon(self, url: str) -> Tuple[bytes, str]:
         """
@@ -432,6 +523,57 @@ class FetchService:
             "Sec-Fetch-Site": "none",
             "Sec-Fetch-User": "?1",
             "Connection": "close",  # Force connection close for IP rotation with proxy
+        }
+    
+    def _get_image_headers(self, image_url: str) -> dict:
+        """
+        Generate browser-like headers for fetching images.
+
+        Many CDNs and media hosts (e.g. NatGeo, Getty, Reuters) block plain server
+        requests by checking the User-Agent, Referer, and Sec-Fetch-* headers.
+        This mimics what a real browser sends when loading an <img> tag embedded
+        in a page from the same origin, which is the most permissive CDN allowlist
+        case and avoids anti-hotlink rejections.
+
+        Key differences from the HTML headers (_get_randomized_headers):
+        - Accept: image/* instead of text/html (tells CDN we want the actual image)
+        - Sec-Fetch-Dest: image  (browser signals it is loading an <img> element)
+        - Sec-Fetch-Mode: no-cors (matches browser <img> fetch mode)
+        - Sec-Fetch-Site: cross-site (honest signal; some CDNs only check Dest/Mode)
+        - Referer: set to the image's own origin so same-origin hotlink checks pass
+
+        Args:
+            image_url: The URL being fetched (used to derive the Referer origin)
+
+        Returns:
+            Dict of HTTP headers for image fetching
+        """
+        accept_languages = [
+            "en-US,en;q=0.9",
+            "en-US,en;q=0.8",
+            "en-GB,en;q=0.9",
+        ]
+
+        # Derive Referer from image origin so same-origin hotlink checks pass.
+        # e.g. "https://i.natgeofe.com/..." → referer = "https://i.natgeofe.com/"
+        try:
+            parsed = urlparse(image_url)
+            referer = f"{parsed.scheme}://{parsed.netloc}/"
+        except Exception:
+            referer = "https://www.google.com/"
+
+        user_agent = _generate_random_user_agent()
+
+        return {
+            "User-Agent": user_agent,
+            "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+            "Accept-Language": random.choice(accept_languages),
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache",
+            "Referer": referer,
+            "Sec-Fetch-Dest": "image",
+            "Sec-Fetch-Mode": "no-cors",
+            "Sec-Fetch-Site": "cross-site",
         }
     
     async def _fetch_html_with_client(

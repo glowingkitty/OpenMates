@@ -41,6 +41,8 @@
          * it visible even when showSendButton is true). Set by parent on a short tap.
          */
         highlightPressHold?: boolean;
+        /** Whether the sketch overlay is currently open (highlights the sketch button). */
+        isSketchOpen?: boolean;
     }
     let {
         showSendButton = false,
@@ -48,7 +50,8 @@
         isAuthenticated = true,
         hasNoCredits = false,
         micPermissionState = 'unknown',
-        highlightPressHold = false
+        highlightPressHold = false,
+        isSketchOpen = false
     }: Props = $props();
 
     const dispatch = createEventDispatcher();
@@ -56,6 +59,7 @@
     function handleFileSelectClick() { dispatch('fileSelect'); }
     function handleLocationClick() { dispatch('locationClick'); }
     function handleCameraClick() { dispatch('cameraClick'); }
+    function handleSketchClick() { dispatch('sketchClick'); }
     function handleSendMessageClick() { dispatch('sendMessage'); }
     function handleSignUpClick() { dispatch('signUpClick'); }
     function handleBuyCreditsClick() { dispatch('buyCreditsClick'); }
@@ -100,6 +104,12 @@
             class="clickable-icon icon_maps"
             onclick={handleLocationClick}
             aria-label={$text('enter_message.attachments.share_location')}
+            use:tooltip
+        ></button>
+        <button
+            class="clickable-icon icon_sketch {isSketchOpen ? 'active' : ''}"
+            onclick={handleSketchClick}
+            aria-label={$text('enter_message.attachments.sketch')}
             use:tooltip
         ></button>
     </div>
@@ -229,6 +239,11 @@
         15%  { color: var(--color-font-primary,  rgba(0, 0, 0, 0.85)); font-weight: 600; }
         60%  { color: var(--color-font-primary,  rgba(0, 0, 0, 0.85)); font-weight: 600; }
         100% { color: var(--color-font-tertiary, rgba(0, 0, 0, 0.4)); font-weight: 400; }
+    }
+
+    /* Highlight sketch button when the sketch overlay is open */
+    .icon_sketch.active {
+        color: var(--color-accent, #007AFF);
     }
 
     /* Prevent page scroll during the press-and-hold recording gesture.

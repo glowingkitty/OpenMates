@@ -81,7 +81,7 @@
     /** Whether to use mobile layout */
     isMobile?: boolean;
     /** Click handler for fullscreen - receives fetched metadata so fullscreen can display it */
-    onFullscreen?: (metadata: VideoMetadata) => void;
+    onFullscreen: (metadata: VideoMetadata) => void;
     // === Metadata from decodedContent (embed store) ===
     /** Channel name */
     channelName?: string;
@@ -284,8 +284,6 @@
    * All data comes from props (loaded from IndexedDB embed store)
    */
   function handleFullscreen() {
-    if (!onFullscreen) return;
-    
     // Pass metadata values from props to fullscreen
     // Note: Pass raw thumbnail URLs so fullscreen can proxy them at higher resolution
     const metadata: VideoMetadata = {

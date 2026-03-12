@@ -1,7 +1,7 @@
 // frontend/packages/ui/src/message_parsing/migration.ts
 // Migration utilities for converting old embed node types to the new unified embed structure
 
-import { EmbedNodeAttributes } from './types';
+import { EmbedNodeAttributes, TipTapNode, TipTapDoc } from './types';
 import { generateUUID } from './utils';
 
 /**
@@ -9,7 +9,7 @@ import { generateUUID } from './utils';
  * This handles the conversion from individual node types (webEmbed, codeEmbed, etc.)
  * to the unified embed node with type attributes
  */
-export function migrateEmbedNodes(content: any): any {
+export function migrateEmbedNodes(content: TipTapDoc): TipTapDoc {
   if (!content || !content.content) {
     return content;
   }
@@ -17,7 +17,7 @@ export function migrateEmbedNodes(content: any): any {
   // Recursively process all nodes in the document
   const migratedContent = {
     ...content,
-    content: content.content.map((node: any) => migrateNode(node))
+    content: content.content.map((node: TipTapNode) => migrateNode(node))
   };
 
   return migratedContent;
@@ -26,7 +26,7 @@ export function migrateEmbedNodes(content: any): any {
 /**
  * Migrate a single node, handling embed conversions
  */
-function migrateNode(node: any): any {
+function migrateNode(node: TipTapNode): TipTapNode {
   // If this is an old embed node type, convert it to the new unified structure
   if (isOldEmbedNode(node)) {
     return convertOldEmbedToNew(node);
@@ -36,7 +36,7 @@ function migrateNode(node: any): any {
   if (node.content && Array.isArray(node.content)) {
     return {
       ...node,
-      content: node.content.map((childNode: any) => migrateNode(childNode))
+      content: node.content.map((childNode: TipTapNode) => migrateNode(childNode))
     };
   }
 
@@ -46,7 +46,7 @@ function migrateNode(node: any): any {
 /**
  * Check if a node is an old embed node type that needs migration
  */
-function isOldEmbedNode(node: any): boolean {
+function isOldEmbedNode(node: TipTapNode): boolean {
   const oldEmbedTypes = [
     'webEmbed',
     'codeEmbed', 
@@ -68,7 +68,7 @@ function isOldEmbedNode(node: any): boolean {
 /**
  * Convert an old embed node to the new unified embed structure
  */
-function convertOldEmbedToNew(oldNode: any): any {
+function convertOldEmbedToNew(oldNode: TipTapNode): TipTapNode {
   const id = generateUUID();
   const attrs = oldNode.attrs || {};
 
@@ -118,7 +118,7 @@ function convertOldEmbedToNew(oldNode: any): any {
 /**
  * Check if content needs migration (contains old embed node types)
  */
-export function needsMigration(content: any): boolean {
+export function needsMigration(content: TipTapDoc): boolean {
   if (!content || !content.content) {
     return false;
   }
@@ -129,7 +129,7 @@ export function needsMigration(content: any): boolean {
 /**
  * Recursively check if any nodes are old embed types
  */
-function hasOldEmbedNodes(nodes: any[]): boolean {
+function hasOldEmbedNodes(nodes: TipTapNode[]): boolean {
   for (const node of nodes) {
     if (isOldEmbedNode(node)) {
       return true;

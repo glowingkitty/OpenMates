@@ -27,8 +27,8 @@
     
     // Logger for debugging
     const logger = {
-        debug: (...args: any[]) => console.debug('[Audio]', ...args),
-        info: (...args: any[]) => console.info('[Audio]', ...args)
+        debug: (...args: unknown[]) => console.debug('[Audio]', ...args),
+        info: (...args: unknown[]) => console.info('[Audio]', ...args)
     };
 
     // Convert duration string (MM:SS) to seconds

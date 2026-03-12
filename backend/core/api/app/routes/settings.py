@@ -8,7 +8,7 @@ import os
 import hashlib
 import json
 import glob
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone, timedelta
 from pydantic import BaseModel, Field # Import BaseModel and Field for response models
 
@@ -18,11 +18,13 @@ from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_compliance_service, get_current_user, get_encryption_service, get_current_user_or_api_key, get_current_user_optional
 from backend.core.api.app.routes.auth_routes.auth_utils import validate_username
+from backend.core.api.app.services.directus.user.user_lookup import hash_username
 from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip # Updated imports
 from backend.core.api.app.schemas.settings import UsernameUpdateRequest, LanguageUpdateRequest, DarkModeUpdateRequest, TimezoneUpdateRequest, AutoTopUpLowBalanceRequest, BillingOverviewResponse, InvoiceResponse, AutoDeleteChatsRequest, period_to_days, AiModelDefaultsRequest, StorageOverviewResponse, StorageCategoryBreakdown, StorageFileItem, StorageFilesListResponse, StorageDeleteFilesRequest, StorageDeleteFilesResponse  # Import request/response models
 from backend.apps.reminder.utils import format_reminder_time
+from backend.core.api.app.routes.websockets import manager as ws_manager
 
 # Create an optional API key scheme that doesn't fail if missing (for endpoints that support both session and API key auth)
 optional_api_key_scheme = HTTPBearer(
@@ -383,7 +385,7 @@ async def update_username(
 
     # Check username uniqueness server-wide (case-insensitive via SHA-256 hash).
     # exclude_user_id ensures that keeping the same username is allowed (not a conflict).
-    hashed_username = directus_service.hash_username(new_username)
+    hashed_username = hash_username(new_username)
     username_taken, _, _ = await directus_service.get_user_by_hashed_username(
         hashed_username, exclude_user_id=user_id
     )
@@ -700,7 +702,7 @@ class ApiKeyCreateRequest(BaseModel):
 class ApiKeyResponse(BaseModel):
     """Response model for API key information (encrypted fields excluded for REST API)"""
     id: str
-    created_at: str
+    created_at: Optional[str] = None  # Optional: Directus may return null on newly-created keys
     expires_at: Optional[str] = None
     last_used_at: Optional[str] = None
     # Note: encrypted_name and encrypted_key_prefix are excluded from REST API responses
@@ -738,8 +740,8 @@ async def get_api_keys(
         if api_keys_data:
             for key in api_keys_data:
                 try:
-                    # Format timestamps - Directus may return datetime objects or ISO strings
-                    created_at = key.get('created_at', '')
+                    # Format timestamps - Directus may return datetime objects, ISO strings, or None
+                    created_at = key.get('created_at')
                     if created_at and not isinstance(created_at, str):
                         # Convert datetime object to ISO string
                         if hasattr(created_at, 'isoformat'):
@@ -3303,7 +3305,22 @@ async def get_export_manifest(
         }
         
         logger.info(f"[EXPORT] Manifest ready for user {user_id}: {len(all_chat_ids)} chats, {invoice_count} invoices, {usage_count} usage entries")
-        
+
+        # Record export timestamp so the daily notification dispatcher can reset the
+        # backup reminder interval. Fire-and-forget — don't block the export response
+        # or fail it if the update fails.
+        try:
+            from datetime import datetime, timezone as _tz
+            await directus_service.update_user(
+                user_id,
+                {"last_export_at": datetime.now(_tz.utc).isoformat()},
+            )
+            # Invalidate cached profile so the next request sees the updated timestamp.
+            await cache_service.delete(f"user_profile:{user_id}")
+            logger.info(f"[EXPORT] Updated last_export_at for user {user_id}")
+        except Exception as update_err:
+            logger.warning(f"[EXPORT] Could not update last_export_at for user {user_id}: {update_err}")
+
         return ExportManifestResponse(
             success=True,
             manifest=manifest
@@ -3549,21 +3566,23 @@ async def get_export_data(
             export_data["user_profile"] = None
         
         # === COMPLIANCE LOGS (consent history) ===
-        # Compliance logs contain privacy policy and terms of service consent records
-        # These are stored in /app/logs/compliance.log and rotated files (compliance.log.YYYY-MM-DD)
-        # We need to read ALL log files to capture the full history (including user creation/consent from past days)
+        # Compliance logs are split into two streams (see setup_compliance_logging.py):
+        #   audit-compliance.log*     — consent, user creation, auth events (2-year retention / GDPR)
+        #   financial-compliance.log* — financial transactions, refunds (10-year retention / AO §147)
+        # For GDPR data export we read audit logs (consent history) + financial logs (transaction history).
         try:
             compliance_logs = []
             log_dir = os.getenv('LOG_DIR', '/app/logs')
             
-            # Find all compliance log files (main file and rotated files)
-            # Pattern matches: compliance.log, compliance.log.2025-12-28, etc.
-            log_pattern = os.path.join(log_dir, 'compliance.log*')
-            log_files = glob.glob(log_pattern)
+            # Collect log files from both compliance streams (current + all rotated backups).
+            # Also includes legacy compliance.log* files from before the stream split (migration).
+            log_files = (
+                glob.glob(os.path.join(log_dir, 'audit-compliance.log*'))
+                + glob.glob(os.path.join(log_dir, 'financial-compliance.log*'))
+                + glob.glob(os.path.join(log_dir, 'compliance.log*'))  # Legacy: pre-split files
+            )
             
-            # Sort log files to ensure consistent ordering (oldest first)
-            log_files.sort()
-            
+            log_files = sorted(set(log_files))  # Deduplicate and sort (oldest first)
             logger.info(f"[EXPORT] Found {len(log_files)} compliance log files to search: {[os.path.basename(f) for f in log_files]}")
             
             # Event types to include in export:
@@ -4785,3 +4804,616 @@ async def delete_storage_files(
     except Exception as e:
         logger.error(f"{log_prefix} Unexpected error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to delete storage files")
+
+
+# ─── Chat Statistics & Management ────────────────────────────────────────────
+# Architecture: docs/architecture/security.md (hashed_user_id privacy model)
+# created_at is stored as a Unix timestamp integer in Directus, NOT ISO string.
+# Total count and preview use aggregate[count]=* (meta=total_count ignores filters).
+# Delete and preview filters use int Unix cutoff: int(time.time()) - days*86400.
+
+
+class ChatStatsResponse(BaseModel):
+    """Response for GET /v1/settings/chats."""
+    total_count: int = Field(description="Total number of chats in the account")
+
+
+class ChatPreviewResponse(BaseModel):
+    """Response for GET /v1/settings/chats/preview."""
+    count: int = Field(description="Number of chats that would be deleted")
+
+
+class DeleteOldChatsRequest(BaseModel):
+    """Request body for POST /v1/settings/chats/delete-old."""
+    older_than_days: int = Field(
+        ge=0,
+        description=(
+            "Delete chats older than this many days. "
+            "Use 0 to delete ALL chats for the user regardless of age."
+        )
+    )
+
+
+class DeleteOldChatsResponse(BaseModel):
+    """Response for POST /v1/settings/chats/delete-old."""
+    deleted_count: int = Field(description="Number of chats permanently deleted")
+    deleted_ids: list[str] = Field(
+        default_factory=list,
+        description="IDs of deleted chats so the client can clean up IndexedDB"
+    )
+
+
+@router.get("/chats", response_model=ChatStatsResponse, include_in_schema=False)
+@limiter.limit("30/minute")
+async def get_chat_stats(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> ChatStatsResponse:
+    """
+    Return total chat count for the current user's account.
+
+    Uses Directus aggregate[count]=* (not meta=total_count which ignores filters)
+    to return the accurate server-side total for this user.
+    created_at is a Unix int; this endpoint does not filter by date.
+    """
+    import hashlib as _hashlib
+
+    user_id = current_user.id
+    hashed_user_id = _hashlib.sha256(user_id.encode()).hexdigest()
+
+    logger.info(f"[ChatStats] Fetching total count for user {user_id}")
+
+    try:
+        token = await directus_service.ensure_auth_token(admin_required=False)
+        headers = {"Authorization": f"Bearer {token}"}
+        url = f"{directus_service.base_url}/items/chats"
+        # Use aggregate[count]=* — meta=total_count ignores filters and always
+        # returns the collection total, making it useless for per-user counts.
+        params = {
+            'filter[hashed_user_id][_eq]': hashed_user_id,
+            'aggregate[count]': '*',
+        }
+        response = await directus_service._make_api_request("GET", url, headers=headers, params=params)
+        response.raise_for_status()
+        body = response.json()
+        data = body.get('data', [{}])
+        total_count = int(data[0].get('count', 0)) if data else 0
+
+        logger.info(f"[ChatStats] user {user_id}: {total_count} total chats")
+        return ChatStatsResponse(total_count=total_count)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[ChatStats] Unexpected error for user {user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch chat statistics")
+
+
+@router.get("/chats/preview", response_model=ChatPreviewResponse, include_in_schema=False)
+@limiter.limit("30/minute")
+async def preview_old_chats(
+    request: Request,
+    older_than_days: int,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> ChatPreviewResponse:
+    """
+    Preview how many chats would be deleted for a given age threshold.
+
+    Uses aggregate[count]=* with a Unix timestamp cutoff filter (not meta=total_count
+    which ignores filters) so the client can show how many will be deleted.
+    created_at is stored as a Unix int, so the cutoff is also a Unix int.
+    """
+    import hashlib as _hashlib
+
+    if older_than_days < 0:
+        raise HTTPException(status_code=422, detail="older_than_days must be >= 0")
+
+    user_id = current_user.id
+    hashed_user_id = _hashlib.sha256(user_id.encode()).hexdigest()
+    cutoff_unix = int(time.time()) - (older_than_days * 86400)
+
+    logger.info(
+        f"[ChatPreview] user {user_id}: preview older_than_days={older_than_days} "
+        f"cutoff_unix={cutoff_unix}"
+    )
+
+    try:
+        token = await directus_service.ensure_auth_token(admin_required=False)
+        headers = {"Authorization": f"Bearer {token}"}
+        url = f"{directus_service.base_url}/items/chats"
+        # Use aggregate[count]=* — meta=total_count ignores filters and always
+        # returns the collection total, not the filtered count.
+        # older_than_days=0 means "all chats" — omit the date filter.
+        params: dict = {
+            'filter[hashed_user_id][_eq]': hashed_user_id,
+            'aggregate[count]': '*',
+        }
+        if older_than_days > 0:
+            params['filter[last_edited_overall_timestamp][_lt]'] = cutoff_unix
+        response = await directus_service._make_api_request("GET", url, headers=headers, params=params)
+        response.raise_for_status()
+        body = response.json()
+        data = body.get('data', [{}])
+        count = int(data[0].get('count', 0)) if data else 0
+
+        logger.info(f"[ChatPreview] user {user_id}: {count} chats would be deleted")
+        return ChatPreviewResponse(count=count)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[ChatPreview] Unexpected error for user {user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to preview chat deletion")
+
+
+@router.post("/chats/delete-old", response_model=DeleteOldChatsResponse, include_in_schema=False)
+@limiter.limit("5/minute")
+async def delete_old_chats(
+    request: Request,
+    request_data: DeleteOldChatsRequest,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    compliance_service: ComplianceService = Depends(get_compliance_service),
+) -> DeleteOldChatsResponse:
+    """
+    Permanently delete chats for the authenticated user.
+
+    When older_than_days > 0: deletes chats whose last_edited_overall_timestamp (last activity) is older
+    than the cutoff. When older_than_days == 0: deletes ALL chats for the user.
+
+    Only chats belonging to the user (matched via hashed_user_id) are deleted.
+    The operation is irreversible -- compliance event is logged.
+    Returns the list of deleted chat IDs so the client can clean up IndexedDB.
+    """
+    import hashlib as _hashlib
+
+    user_id = current_user.id
+    hashed_user_id = _hashlib.sha256(user_id.encode()).hexdigest()
+    cutoff_days = request_data.older_than_days
+    cutoff_unix = int(time.time()) - (cutoff_days * 86400)
+    client_ip = _extract_client_ip(
+        request.headers, request.client.host if request.client else None
+    )
+
+    # older_than_days=0 means delete ALL chats — omit the date filter
+    delete_all = (cutoff_days == 0)
+
+    logger.info(
+        f"[DeleteOldChats] user {user_id}: "
+        + ("deleting ALL chats" if delete_all else
+           f"deleting chats older_than_days={cutoff_days} cutoff_unix={cutoff_unix}")
+    )
+
+    # Collect all matching chat IDs
+    chat_ids_to_delete: list[str] = []
+    offset = 0
+    PAGE_SIZE = 500
+
+    try:
+        while True:
+            params: dict = {
+                'filter[hashed_user_id][_eq]': hashed_user_id,
+                'fields': 'id',
+                'limit': PAGE_SIZE,
+                'offset': offset,
+            }
+            if not delete_all:
+                params['filter[last_edited_overall_timestamp][_lt]'] = cutoff_unix
+            page = await directus_service.get_items('chats', params=params)
+            if not page or not isinstance(page, list):
+                break
+            chat_ids_to_delete.extend(item['id'] for item in page if item.get('id'))
+            if len(page) < PAGE_SIZE:
+                break
+            offset += PAGE_SIZE
+
+        if not chat_ids_to_delete:
+            logger.info(f"[DeleteOldChats] user {user_id}: no chats to delete")
+            return DeleteOldChatsResponse(deleted_count=0, deleted_ids=[])
+
+        logger.info(
+            f"[DeleteOldChats] user {user_id}: found {len(chat_ids_to_delete)} chats to delete"
+        )
+
+        # Delete each chat -- reuse the existing helper that handles cascading
+        deleted_ids: list[str] = []
+        for chat_id in chat_ids_to_delete:
+            try:
+                success = await directus_service.chat.persist_delete_chat(chat_id)
+                if success:
+                    deleted_ids.append(chat_id)
+                else:
+                    logger.warning(
+                        f"[DeleteOldChats] persist_delete_chat returned False for {chat_id}"
+                    )
+            except Exception as del_err:
+                logger.warning(
+                    f"[DeleteOldChats] Error deleting chat {chat_id}: {del_err}"
+                )
+
+        deleted_count = len(deleted_ids)
+
+        # Compliance log
+        compliance_service.log_auth_event(
+            event_type="bulk_delete_old_chats",
+            user_id=user_id,
+            ip_address=client_ip,
+            status="success",
+            details={
+                "deleted_count": deleted_count,
+                "older_than_days": cutoff_days,
+                "delete_all": delete_all,
+                "cutoff_unix": cutoff_unix if not delete_all else None,
+            },
+        )
+
+        logger.info(
+            f"[DeleteOldChats] user {user_id}: deleted {deleted_count}/{len(chat_ids_to_delete)} chats"
+        )
+
+        # Broadcast chat_deleted to all connected devices for this user so every device
+        # removes the deleted chats from IndexedDB immediately via the WS sync pipeline.
+        # Mirrors the broadcast in delete_chat_handler.py (WebSocket path).
+        for deleted_id in deleted_ids:
+            try:
+                await ws_manager.broadcast_to_user(
+                    {
+                        "type": "chat_deleted",
+                        "payload": {"chat_id": deleted_id, "tombstone": True},
+                    },
+                    user_id,
+                    exclude_device_hash=None,
+                )
+            except Exception as broadcast_err:
+                # Non-fatal: client will re-sync on next connection
+                logger.warning(
+                    f"[DeleteOldChats] Failed to broadcast chat_deleted for {deleted_id}: {broadcast_err}"
+                )
+        if deleted_ids:
+            logger.info(
+                f"[DeleteOldChats] Broadcasted chat_deleted for {len(deleted_ids)} chats to user {user_id}"
+            )
+
+        return DeleteOldChatsResponse(deleted_count=deleted_count, deleted_ids=deleted_ids)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[DeleteOldChats] Unexpected error for user {user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to delete old chats")
+
+
+# ---------------------------------------------------------------------------
+# Chat Import
+# ---------------------------------------------------------------------------
+
+# Valid assistant categories (mirrors the frontend list in assistantCategories.ts)
+_VALID_ASSISTANT_CATEGORIES = {
+    "general knowledge",
+    "coding",
+    "writing",
+    "analysis",
+    "math",
+    "research",
+    "creative",
+    "productivity",
+    "language",
+    "science",
+}
+
+# Tokens per credit for the safety model ($0.075/M input = 333.33/0.075 = 4444)
+_IMPORT_TOKENS_PER_CREDIT = 4444
+
+# Blocked message content placeholder shown to the user
+_IMPORT_BLOCKED_PLACEHOLDER = "[Message blocked by safety scanner]"
+
+
+class ImportMessageModel(BaseModel):
+    """Single message from an imported chat YAML."""
+    role: str = Field(..., description="Message role: user | assistant | system")
+    content: str = Field(default="", max_length=200_000)
+    completed_at: Optional[str] = Field(default=None)
+    assistant_category: Optional[str] = Field(default=None)
+    thinking: Optional[str] = Field(default=None)
+    has_thinking: Optional[bool] = Field(default=None)
+    thinking_tokens: Optional[int] = Field(default=None)
+
+
+class ImportChatModel(BaseModel):
+    """A single chat to import (parsed from YAML by the frontend)."""
+    title: Optional[str] = Field(default=None, max_length=500)
+    draft: Optional[str] = Field(default=None, max_length=10_000)
+    summary: Optional[str] = Field(default=None, max_length=5_000)
+    messages: List[ImportMessageModel] = Field(default_factory=list)
+
+
+class ImportChatRequest(BaseModel):
+    """Request body for POST /v1/settings/import-chat."""
+    chats: List[ImportChatModel] = Field(..., min_length=1, max_length=100)
+
+
+class ImportedChatResult(BaseModel):
+    """Result for a single imported chat."""
+    chat_id: str
+    title: Optional[str]
+    messages_imported: int
+    messages_blocked: int
+    credits_charged: int
+
+
+class ImportChatResponse(BaseModel):
+    """Response for POST /v1/settings/import-chat."""
+    imported: List[ImportedChatResult]
+    total_credits_charged: int
+
+
+def _get_billing_service_for_import(
+    cache_service: CacheService = Depends(get_cache_service),
+    directus_service: DirectusService = Depends(get_directus_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+):
+    """Factory for BillingService used by the import endpoint."""
+    from backend.core.api.app.services.billing_service import BillingService
+    return BillingService(cache_service, directus_service, encryption_service)
+
+
+@router.post("/import-chat", include_in_schema=False)
+@limiter.limit("3/minute")
+async def import_chat(
+    request: Request,
+    body: ImportChatRequest,
+    current_user: User = Depends(get_current_user),
+    cache_service: CacheService = Depends(get_cache_service),
+    directus_service: DirectusService = Depends(get_directus_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+) -> ImportChatResponse:
+    """
+    Import one or more chats from a parsed YAML export file.
+
+    Each message is safety-scanned via gpt-oss-safeguard-20b on OpenRouter
+    before being stored. Blocked messages are replaced with a visible
+    placeholder. The user is charged for input tokens consumed by non-blocked
+    chats only.
+
+    Rate-limited to 3/minute to prevent abuse.
+    Endpoint: POST /v1/settings/import-chat
+    """
+    from backend.core.api.app.utils.secrets_manager import SecretsManager
+    from backend.core.api.app.services.billing_service import BillingService
+    from backend.apps.ai.processing.content_sanitization import sanitize_message_for_import
+    import uuid as _uuid
+
+    user_id: str = current_user.id
+    user_id_hash: str = hashlib.sha256(user_id.encode()).hexdigest()
+
+    billing_service = BillingService(cache_service, directus_service, encryption_service)
+    secrets_manager = SecretsManager(cache_service=cache_service)
+
+    results: List[ImportedChatResult] = []
+    total_credits = 0
+
+    for chat_index, chat in enumerate(body.chats):
+        chat_task_id = f"import_{user_id[:8]}_{chat_index}"
+        new_chat_id = str(_uuid.uuid4())
+
+        # Sanitize each message sequentially (respects OpenRouter 100 RPM limit)
+        sanitized_messages = []
+        messages_blocked = 0
+        total_input_tokens = 0
+
+        for msg_index, msg in enumerate(chat.messages):
+            content = msg.content or ""
+            total_input_tokens += max(1, len(content) // 4)  # conservative token estimate
+
+            if not content.strip():
+                # Empty messages pass through unchanged (no safety cost)
+                sanitized_messages.append({
+                    "role": msg.role,
+                    "content": content,
+                    "completed_at": msg.completed_at,
+                    "assistant_category": msg.assistant_category,
+                    "thinking": msg.thinking,
+                    "has_thinking": msg.has_thinking,
+                    "thinking_tokens": msg.thinking_tokens,
+                })
+                continue
+
+            msg_task_id = f"{chat_task_id}_msg{msg_index}"
+            try:
+                scanned = await sanitize_message_for_import(
+                    content=content,
+                    task_id=msg_task_id,
+                    secrets_manager=secrets_manager,
+                    cache_service=cache_service,
+                )
+            except Exception as scan_err:
+                logger.error(
+                    f"[ImportChat] Safety scan error for {msg_task_id}: {scan_err}",
+                    exc_info=True,
+                )
+                # Treat scan error as block (fail-closed)
+                scanned = ""
+
+            if scanned == "":
+                # Message was blocked
+                messages_blocked += 1
+                final_content = _IMPORT_BLOCKED_PLACEHOLDER
+            else:
+                final_content = scanned
+
+            # Normalise assistant_category
+            category = (msg.assistant_category or "").strip().lower()
+            if category not in _VALID_ASSISTANT_CATEGORIES:
+                category = "general knowledge"
+
+            sanitized_messages.append({
+                "role": msg.role,
+                "content": final_content,
+                "completed_at": msg.completed_at,
+                "assistant_category": category if msg.role == "assistant" else None,
+                "thinking": msg.thinking if msg.role == "assistant" else None,
+                "has_thinking": msg.has_thinking if msg.role == "assistant" else None,
+                "thinking_tokens": msg.thinking_tokens if msg.role == "assistant" else None,
+            })
+
+        # Do not charge if ALL messages were blocked
+        messages_imported = len(sanitized_messages) - messages_blocked
+        credits_to_charge = 0
+        if messages_imported > 0 and total_input_tokens > 0:
+            credits_to_charge = max(1, total_input_tokens // _IMPORT_TOKENS_PER_CREDIT)
+
+        # ----------------------------------------------------------------
+        # Store chat + messages in Directus
+        # ----------------------------------------------------------------
+        try:
+            # Create the chat record
+            chat_payload: Dict[str, Any] = {
+                "id": new_chat_id,
+                "user_id": user_id,
+                "title": (chat.title or "").strip() or None,
+                "draft": chat.draft,
+                "summary": chat.summary,
+                "imported": True,
+            }
+            await directus_service.create_item("chats", chat_payload)
+
+            # Create each message
+            for msg_data in sanitized_messages:
+                msg_id = str(_uuid.uuid4())
+                msg_payload: Dict[str, Any] = {
+                    "id": msg_id,
+                    "chat_id": new_chat_id,
+                    "user_id": user_id,
+                    "role": msg_data["role"],
+                    "content": msg_data["content"],
+                }
+                if msg_data.get("completed_at"):
+                    msg_payload["completed_at"] = msg_data["completed_at"]
+                if msg_data.get("assistant_category"):
+                    msg_payload["assistant_category"] = msg_data["assistant_category"]
+                if msg_data.get("thinking"):
+                    msg_payload["thinking"] = msg_data["thinking"]
+                if msg_data.get("has_thinking") is not None:
+                    msg_payload["has_thinking"] = msg_data["has_thinking"]
+                if msg_data.get("thinking_tokens") is not None:
+                    msg_payload["thinking_tokens"] = msg_data["thinking_tokens"]
+                await directus_service.create_item("messages", msg_payload)
+
+        except Exception as store_err:
+            logger.error(
+                f"[ImportChat] Failed to store chat {new_chat_id} for user {user_id}: {store_err}",
+                exc_info=True,
+            )
+            raise HTTPException(status_code=500, detail=f"Failed to store imported chat {chat_index + 1}")
+
+        # ----------------------------------------------------------------
+        # Charge credits for this chat
+        # ----------------------------------------------------------------
+        if credits_to_charge > 0:
+            try:
+                await billing_service.charge_user_credits(
+                    user_id=user_id,
+                    credits_to_deduct=credits_to_charge,
+                    user_id_hash=user_id_hash,
+                    app_id="settings",
+                    skill_id="chat_import",
+                    usage_details={
+                        "title": "Chat import & safety check",
+                        "chat_id": new_chat_id,
+                        "input_tokens": total_input_tokens,
+                    },
+                )
+                total_credits += credits_to_charge
+            except Exception as billing_err:
+                logger.error(
+                    f"[ImportChat] Billing failed for chat {new_chat_id}, user {user_id}: {billing_err}",
+                    exc_info=True,
+                )
+                # Non-fatal: chat is already stored, log and continue
+
+        # ----------------------------------------------------------------
+        # Broadcast new chat to all user's connected devices via WS
+        # ----------------------------------------------------------------
+        try:
+            await ws_manager.broadcast_to_user(
+                {
+                    "type": "chat_imported",
+                    "payload": {"chat_id": new_chat_id},
+                },
+                user_id,
+                exclude_device_hash=None,
+            )
+        except Exception:
+            pass  # Non-fatal
+
+        results.append(ImportedChatResult(
+            chat_id=new_chat_id,
+            title=chat.title,
+            messages_imported=messages_imported,
+            messages_blocked=messages_blocked,
+            credits_charged=credits_to_charge,
+        ))
+
+        logger.info(
+            f"[ImportChat] user={user_id} chat={new_chat_id} "
+            f"msgs={len(sanitized_messages)} blocked={messages_blocked} "
+            f"credits={credits_to_charge}"
+        )
+
+    return ImportChatResponse(
+        imported=results,
+        total_credits_charged=total_credits,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Issue-Report Console Log Push
+# ---------------------------------------------------------------------------
+
+class IssueLogsRequest(BaseModel):
+    """Request body for pushing issue-report-time console logs to OpenObserve."""
+    issue_id: str = Field(..., max_length=100, description="Directus issue record ID")
+    logs_text: str = Field(..., max_length=60000, description="Pre-formatted console log text")
+    page_url: str = Field(default="", max_length=500)
+    user_agent: str = Field(default="", max_length=500)
+
+
+@router.post("/issue-logs", include_in_schema=False)
+@limiter.limit("5/minute")
+async def push_issue_logs(
+    request: Request,
+    body: IssueLogsRequest,
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """
+    Push the console log snapshot captured at issue-report time to OpenObserve.
+
+    Called by the frontend immediately after a successful issue submission.
+    Available to all authenticated users (not admin-only) so any user who
+    files a report gets their logs indexed for admin investigation.
+
+    Rate-limited to 5/minute to prevent abuse (a user would never submit
+    more than 1-2 issue reports per minute in normal operation).
+    """
+    from backend.core.api.app.services.openobserve_push_service import openobserve_push_service
+
+    success = await openobserve_push_service.push_issue_logs(
+        logs_text=body.logs_text,
+        issue_id=body.issue_id,
+        user_id=current_user.id,
+        metadata={
+            "pageUrl": body.page_url,
+            "userAgent": body.user_agent,
+        },
+    )
+
+    if not success:
+        import logging as _logging
+        _logging.getLogger(__name__).warning(
+            f"Failed to push issue logs to OpenObserve for user {current_user.id}, issue {body.issue_id}"
+        )
+
+    # Always return 200 — log push failures must not break the issue submission UX.
+    return {"success": success}

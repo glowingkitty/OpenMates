@@ -227,3 +227,96 @@ def generate_device_fingerprint_hash(
 # Removed: should_require_2fa function
 # Removed: STORED_FINGERPRINT_FIELDS constant
 # Removed: RISK_THRESHOLD_2FA constant
+
+
+def truncate_ip(ip_address: str) -> str:
+    """
+    Truncate an IP address for privacy: removes the last octet (IPv4) or last group (IPv6).
+    Examples:
+        "192.168.1.100"  -> "192.168.1.x"
+        "2001:0db8:85a3:0000:0000:8a2e:0370:7334" -> "2001:0db8:85a3:0000:0000:8a2e:0370:x"
+        "unknown" -> "unknown"
+    """
+    if not ip_address or ip_address.lower() == "unknown" or not _is_valid_ip_format(ip_address):
+        return "unknown"
+
+    try:
+        parsed = ipaddress.ip_address(ip_address)
+        if isinstance(parsed, ipaddress.IPv4Address):
+            parts = ip_address.split(".")
+            parts[-1] = "x"
+            return ".".join(parts)
+        elif isinstance(parsed, ipaddress.IPv6Address):
+            full_form = parsed.exploded
+            parts = full_form.split(":")
+            parts[-1] = "x"
+            return ":".join(parts)
+    except Exception as e:
+        logger.warning(f"Error truncating IP '{ip_address}': {e}")
+
+    return "unknown"
+
+
+def derive_device_name(user_agent: str) -> str:
+    """
+    Derive a human-friendly device name from User-Agent string.
+    Returns names like "iPhone", "iPad", "Mac", "Windows PC", "Android Phone", etc.
+
+    Args:
+        user_agent: The raw User-Agent header string.
+
+    Returns:
+        A short, human-readable device label.
+    """
+    if not user_agent or user_agent.lower() == "unknown":
+        return "Unknown Device"
+
+    try:
+        from user_agents import parse
+        ua = parse(user_agent)
+
+        os_family = (ua.os.family or "").lower()
+        device_family = (ua.device.family or "").lower()
+
+        # iOS devices: distinguish iPhone vs iPad
+        if "ios" in os_family or "iphone" in device_family:
+            if "ipad" in device_family or ua.is_tablet:
+                return "iPad"
+            return "iPhone"
+
+        # macOS
+        if "mac os" in os_family or "macos" in os_family:
+            return "Mac"
+
+        # Windows
+        if "windows" in os_family:
+            return "Windows PC"
+
+        # Android: distinguish phone vs tablet
+        if "android" in os_family:
+            if ua.is_tablet:
+                return "Android Tablet"
+            return "Android Phone"
+
+        # ChromeOS
+        if "chrome os" in os_family or "chromeos" in os_family:
+            return "Chromebook"
+
+        # Linux
+        if "linux" in os_family:
+            return "Linux"
+
+        # Fallback based on device type flags
+        if ua.is_mobile:
+            return "Mobile Device"
+        if ua.is_tablet:
+            return "Tablet"
+        if ua.is_pc:
+            return "Desktop"
+
+    except ImportError:
+        logger.error("The 'user-agents' library is not installed for derive_device_name.")
+    except Exception as e:
+        logger.error(f"Error deriving device name from user agent: {e}", exc_info=True)
+
+    return "Unknown Device"

@@ -214,6 +214,7 @@ backend/preview/Caddyfile
 # Claude Code — ignore runtime state, allow config/hooks/skills
 .claude/sessions.json
 .claude/sessions.json.tmp
+.claude/sessions.lock
 .claude/sessions.md
 .claude/project-index.json
 .claude/settings.local.json
@@ -225,6 +226,9 @@ frontend/packages/ui/src/i18n/locales/*.json
 
 # Generated app metadata (built from backend app.yml files)
 frontend/packages/ui/src/data/appsMetadata.ts
+frontend/packages/ui/src/data/embedRegistry.generated.ts
+frontend/packages/ui/src/data/modelsMetadata.ts
+frontend/packages/ui/src/data/providersMetadata.ts
 backend/core/api/logs/*.log.*
 
 # Test results (JSON files for manual inspection)
@@ -251,3 +255,10 @@ frontend/apps/web_app/test-results*
 # Personal/local data
 personaldata/
 rankings.json
+
+# Local debug and cache artifacts
+debug_output*.yml
+shared/cache/web_analytics_backup.json
+
+# OpenCode AI editor local state
+.opencode/

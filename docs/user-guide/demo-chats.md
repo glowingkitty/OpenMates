@@ -528,7 +528,7 @@ Display IDs (`demo-1` through `demo-10`) are generated client-side based on posi
 
 ## Security Considerations
 
-1. **Zero-Knowledge Maintained**: The user's original chat remains zero-knowledge encrypted. The server never receives the encryption key for the original chat, maintaining end-to-end encryption for user data.
+1. **Zero-Knowledge Maintained**: The user's original chat remains zero-knowledge encrypted. The server never receives the encryption key for the original chat — only your device can decrypt your data.
 
 2. **Explicit User Consent**: Users explicitly opt-in when sharing with community. The UI clearly indicates that the chat content will be sent to the server for review and translation.
 

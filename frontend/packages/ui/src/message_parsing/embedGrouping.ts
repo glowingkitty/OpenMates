@@ -5,6 +5,7 @@
 // Also handles merging non-consecutive (scattered) app-skill-use embeds into one group.
 
 import { groupHandlerRegistry } from "./groupHandlers";
+import { TipTapNode, TipTapDoc, EmbedNodeAttributes } from "./types";
 
 /**
  * Group consecutive embeds in a TipTap document structure.
@@ -13,7 +14,7 @@ import { groupHandlerRegistry } from "./groupHandlers";
  * @param doc - TipTap document with individual embed nodes
  * @returns TipTap document with grouped embeds
  */
-export function groupConsecutiveEmbedsInDocument(doc: any): any {
+export function groupConsecutiveEmbedsInDocument(doc: TipTapDoc): TipTapDoc {
   if (!doc || !doc.content) {
     return doc;
   }
@@ -21,7 +22,7 @@ export function groupConsecutiveEmbedsInDocument(doc: any): any {
   console.debug("[groupConsecutiveEmbedsInDocument] Processing document");
 
   // First, group embeds within each paragraph
-  const contentWithParagraphGrouping = doc.content.map((contentNode: any) => {
+  const contentWithParagraphGrouping = doc.content.map((contentNode: TipTapNode) => {
     if (contentNode.type === "paragraph" && contentNode.content) {
       return groupConsecutiveEmbedsInParagraph(contentNode);
     }
@@ -70,10 +71,10 @@ export function groupConsecutiveEmbedsInDocument(doc: any): any {
  * @param content - Array of top-level TipTap document nodes
  * @returns Filtered content without empty paragraphs trailing embeds
  */
-function removeEmptyParagraphsAfterEmbeds(content: any[]): any[] {
+function removeEmptyParagraphsAfterEmbeds(content: TipTapNode[]): TipTapNode[] {
   if (content.length <= 1) return content;
 
-  const result: any[] = [];
+  const result: TipTapNode[] = [];
 
   for (let i = 0; i < content.length; i++) {
     const node = content[i];
@@ -91,7 +92,7 @@ function removeEmptyParagraphsAfterEmbeds(content: any[]): any[] {
       node?.type === "paragraph" &&
       (!node.content ||
         node.content.length === 0 ||
-        node.content.every((child: any) => {
+        node.content.every((child: TipTapNode) => {
           if (!child) return true;
           if (child.type === "hardBreak") return true;
           if (child.type === "text") return (child.text || "").trim() === "";
@@ -119,23 +120,23 @@ function removeEmptyParagraphsAfterEmbeds(content: any[]): any[] {
  * @param content - Array of content nodes (paragraphs, etc.)
  * @returns Modified content with grouped embed paragraphs
  */
-function groupConsecutiveEmbedParagraphs(content: any[]): any[] {
-  const newContent: any[] = [];
-  let currentGroup: any[] = [];
+function groupConsecutiveEmbedParagraphs(content: TipTapNode[]): TipTapNode[] {
+  const newContent: TipTapNode[] = [];
+  let currentGroup: TipTapNode[] = [];
   let currentGroupType: string | null = null;
-  let pendingSpacerParagraphs: any[] = [];
+  let pendingSpacerParagraphs: TipTapNode[] = [];
 
-  const isEmbedParagraph = (node: any): boolean =>
+  const isEmbedParagraph = (node: TipTapNode): boolean =>
     node?.type === "paragraph" &&
     Array.isArray(node.content) &&
     node.content.length === 1 &&
     node.content[0]?.type === "embed";
 
-  const isIgnorableParagraph = (node: any): boolean => {
+  const isIgnorableParagraph = (node: TipTapNode): boolean => {
     if (node?.type !== "paragraph") return false;
     if (!node.content || node.content.length === 0) return true;
     // Consider paragraphs that contain only whitespace text and/or line breaks as "empty"
-    return node.content.every((child: any) => {
+    return node.content.every((child: TipTapNode) => {
       if (!child) return true;
       if (child.type === "hardBreak") return true;
       if (child.type === "text") return (child.text || "").trim() === "";
@@ -160,8 +161,8 @@ function groupConsecutiveEmbedParagraphs(content: any[]): any[] {
 
       if (sameTypeOrBothAppSkill && currentGroup.length > 0) {
         const canGroupWithLast = groupHandlerRegistry.canGroup(
-          currentGroup[currentGroup.length - 1].content[0].attrs,
-          embedNode.attrs,
+          currentGroup[currentGroup.length - 1].content![0].attrs as EmbedNodeAttributes,
+          embedNode.attrs as EmbedNodeAttributes,
         );
 
         if (canGroupWithLast) {
@@ -254,7 +255,7 @@ function groupConsecutiveEmbedParagraphs(content: any[]): any[] {
  * @param embedType - The type of embeds in this group
  * @returns Array with either individual paragraphs or a grouped paragraph
  */
-function flushEmbedParagraphGroup(group: any[], embedType: string): any[] {
+function flushEmbedParagraphGroup(group: TipTapNode[], embedType: string): TipTapNode[] {
   if (group.length === 1) {
     // Single embed paragraph - return as is
     console.debug(
@@ -274,7 +275,7 @@ function flushEmbedParagraphGroup(group: any[], embedType: string): any[] {
     );
 
     // Extract the embed attributes from the paragraphs
-    const embedAttrs = group.map((paragraph) => paragraph.content[0].attrs);
+    const embedAttrs = group.map((paragraph) => paragraph.content![0].attrs as EmbedNodeAttributes);
 
     // Use the group handler to create the group
     const groupAttrs = groupHandlerRegistry.createGroup(embedAttrs);
@@ -321,13 +322,13 @@ function flushEmbedParagraphGroup(group: any[], embedType: string): any[] {
  * @param paragraph - TipTap paragraph node
  * @returns Modified paragraph with grouped embeds
  */
-function groupConsecutiveEmbedsInParagraph(paragraph: any): any {
+function groupConsecutiveEmbedsInParagraph(paragraph: TipTapNode): TipTapNode {
   if (!paragraph.content || paragraph.content.length === 0) {
     return paragraph;
   }
 
-  const newContent: any[] = [];
-  let currentGroup: any[] = [];
+  const newContent: TipTapNode[] = [];
+  let currentGroup: TipTapNode[] = [];
   let currentGroupType: string | null = null;
 
   for (let i = 0; i < paragraph.content.length; i++) {
@@ -346,8 +347,8 @@ function groupConsecutiveEmbedsInParagraph(paragraph: any): any {
       if (sameTypeOrBothAppSkill && currentGroup.length > 0) {
         // Check if they can actually be grouped using the handler
         const canGroupWithLast = groupHandlerRegistry.canGroup(
-          currentGroup[currentGroup.length - 1].attrs,
-          node.attrs,
+          currentGroup[currentGroup.length - 1].attrs as EmbedNodeAttributes,
+          node.attrs as EmbedNodeAttributes,
         );
 
         if (canGroupWithLast) {
@@ -448,7 +449,7 @@ function groupConsecutiveEmbedsInParagraph(paragraph: any): any {
  * @param embedType - The type of embeds in this group
  * @returns Array with either individual embeds or a group embed
  */
-function flushEmbedGroup(group: any[], embedType: string): any[] {
+function flushEmbedGroup(group: TipTapNode[], embedType: string): TipTapNode[] {
   if (group.length === 1) {
     // Single embed - return as is
     console.debug(
@@ -468,7 +469,7 @@ function flushEmbedGroup(group: any[], embedType: string): any[] {
     );
 
     // Extract the embed attributes from the nodes
-    const embedAttrs = group.map((node) => node.attrs);
+    const embedAttrs = group.map((node) => node.attrs as EmbedNodeAttributes);
 
     // Use the group handler to create the group
     const groupAttrs = groupHandlerRegistry.createGroup(embedAttrs);
@@ -523,16 +524,16 @@ function flushEmbedGroup(group: any[], embedType: string): any[] {
  * @param content - Array of content nodes (already processed by consecutive grouping)
  * @returns Modified content with scattered embeds grouped
  */
-function groupScatteredAppSkillEmbeds(content: any[]): any[] {
+function groupScatteredAppSkillEmbeds(content: TipTapNode[]): TipTapNode[] {
   // Phase 1: Collect all app-skill-use embeds and their positions
   type EmbedLocation = {
     nodeIndex: number;
     // For embeds inside a paragraph
     isInParagraph: boolean;
-    attrs: any;
+    attrs: EmbedNodeAttributes;
     // For groups: the existing grouped items
     isGroup: boolean;
-    groupedItems?: any[];
+    groupedItems?: EmbedNodeAttributes[];
   };
 
   // Single list for ALL app-skill-use embeds (no longer keyed by app_id:skill_id)
@@ -549,7 +550,7 @@ function groupScatteredAppSkillEmbeds(content: any[]): any[] {
     ) {
       const embedNode = node.content[0];
       if (embedNode?.type === "embed" && embedNode.attrs) {
-        const attrs = embedNode.attrs;
+        const attrs = embedNode.attrs as EmbedNodeAttributes;
 
         if (attrs.type === "app-skill-use") {
           allLocations.push({
@@ -588,7 +589,7 @@ function groupScatteredAppSkillEmbeds(content: any[]): any[] {
   });
 
   // Collect all individual embed attrs (expand existing groups)
-  const allEmbedAttrs: any[] = [];
+  const allEmbedAttrs: EmbedNodeAttributes[] = [];
   for (const loc of allLocations) {
     if (loc.isGroup && loc.groupedItems) {
       // Existing group - add all its items
@@ -633,7 +634,7 @@ function groupScatteredAppSkillEmbeds(content: any[]): any[] {
     return content;
   }
 
-  return content.filter((_: any, index: number) => !indicesToRemove.has(index));
+  return content.filter((_: TipTapNode, index: number) => !indicesToRemove.has(index));
 }
 
 // Legacy functions removed - use groupConsecutiveEmbedsInDocument for all grouping

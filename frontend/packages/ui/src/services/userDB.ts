@@ -323,6 +323,45 @@ class UserDatabaseService {
             "[UserDatabase] ERROR: auto_topup_low_balance_currency missing from backend response!",
           );
         }
+        // Save email notification fields
+        if ("email_notifications_enabled" in userData) {
+          store.put(
+            !!userData.email_notifications_enabled,
+            "email_notifications_enabled",
+          );
+        }
+        if ("email_notification_preferences" in userData) {
+          // Serialize to plain JSON string — Svelte proxy objects cannot be cloned by IDB.
+          store.put(
+            JSON.stringify(userData.email_notification_preferences ?? {}),
+            "email_notification_preferences",
+          );
+        }
+        // Save push notification fields
+        if ("push_notification_enabled" in userData) {
+          store.put(
+            !!userData.push_notification_enabled,
+            "push_notification_enabled",
+          );
+        }
+        if ("push_notification_subscription" in userData) {
+          store.put(
+            userData.push_notification_subscription ?? null,
+            "push_notification_subscription",
+          );
+        }
+        if ("push_notification_preferences" in userData) {
+          store.put(
+            JSON.stringify(userData.push_notification_preferences ?? {}),
+            "push_notification_preferences",
+          );
+        }
+        if ("push_notification_banner_shown" in userData) {
+          store.put(
+            !!userData.push_notification_banner_shown,
+            "push_notification_banner_shown",
+          );
+        }
       };
 
       lastOpenedRequest.onerror = () => {
@@ -417,6 +456,45 @@ class UserDatabaseService {
         } else {
           console.error(
             "[UserDatabase] ERROR: auto_topup_low_balance_currency missing from backend response (error path)!",
+          );
+        }
+        // Save email notification fields
+        if ("email_notifications_enabled" in userData) {
+          store.put(
+            !!userData.email_notifications_enabled,
+            "email_notifications_enabled",
+          );
+        }
+        if ("email_notification_preferences" in userData) {
+          // Serialize to plain JSON string — Svelte proxy objects cannot be cloned by IDB.
+          store.put(
+            JSON.stringify(userData.email_notification_preferences ?? {}),
+            "email_notification_preferences",
+          );
+        }
+        // Save push notification fields
+        if ("push_notification_enabled" in userData) {
+          store.put(
+            !!userData.push_notification_enabled,
+            "push_notification_enabled",
+          );
+        }
+        if ("push_notification_subscription" in userData) {
+          store.put(
+            userData.push_notification_subscription ?? null,
+            "push_notification_subscription",
+          );
+        }
+        if ("push_notification_preferences" in userData) {
+          store.put(
+            JSON.stringify(userData.push_notification_preferences ?? {}),
+            "push_notification_preferences",
+          );
+        }
+        if ("push_notification_banner_shown" in userData) {
+          store.put(
+            !!userData.push_notification_banner_shown,
+            "push_notification_banner_shown",
           );
         }
       };
@@ -516,6 +594,27 @@ class UserDatabaseService {
       const autoTopupLowBalanceCurrencyRequest = store.get(
         "auto_topup_low_balance_currency",
       );
+      // Email notification fields
+      const emailNotificationsEnabledRequest = store.get(
+        "email_notifications_enabled",
+      );
+      const emailNotificationPreferencesRequest = store.get(
+        "email_notification_preferences",
+      );
+      // Push notification fields
+      const pushNotificationEnabledRequest = store.get(
+        "push_notification_enabled",
+      );
+      const pushNotificationSubscriptionRequest = store.get(
+        "push_notification_subscription",
+      );
+      const pushNotificationPreferencesRequest = store.get(
+        "push_notification_preferences",
+      );
+      const pushNotificationBannerShownRequest = store.get(
+        "push_notification_banner_shown",
+      );
+      const totalChatCountRequest = store.get("total_chat_count");
 
       idRequest.onsuccess = () => {
         profile.user_id = idRequest.result || null;
@@ -647,6 +746,71 @@ class UserDatabaseService {
       autoTopupLowBalanceCurrencyRequest.onsuccess = () => {
         profile.auto_topup_low_balance_currency =
           autoTopupLowBalanceCurrencyRequest.result || undefined;
+      };
+
+      // Handle email notification fields retrieval
+      emailNotificationsEnabledRequest.onsuccess = () => {
+        profile.email_notifications_enabled =
+          emailNotificationsEnabledRequest.result !== undefined
+            ? !!emailNotificationsEnabledRequest.result
+            : undefined;
+      };
+      emailNotificationPreferencesRequest.onsuccess = () => {
+        if (emailNotificationPreferencesRequest.result) {
+          try {
+            profile.email_notification_preferences =
+              typeof emailNotificationPreferencesRequest.result === "string"
+                ? JSON.parse(emailNotificationPreferencesRequest.result)
+                : emailNotificationPreferencesRequest.result;
+          } catch (e) {
+            console.warn(
+              "[UserDatabase] Failed to parse email_notification_preferences:",
+              e,
+            );
+            profile.email_notification_preferences = undefined;
+          }
+        }
+      };
+
+      // Handle push notification fields retrieval
+      pushNotificationEnabledRequest.onsuccess = () => {
+        profile.push_notification_enabled =
+          pushNotificationEnabledRequest.result !== undefined
+            ? !!pushNotificationEnabledRequest.result
+            : undefined;
+      };
+      pushNotificationSubscriptionRequest.onsuccess = () => {
+        profile.push_notification_subscription =
+          pushNotificationSubscriptionRequest.result ?? undefined;
+      };
+      pushNotificationPreferencesRequest.onsuccess = () => {
+        if (pushNotificationPreferencesRequest.result) {
+          try {
+            profile.push_notification_preferences =
+              typeof pushNotificationPreferencesRequest.result === "string"
+                ? JSON.parse(pushNotificationPreferencesRequest.result)
+                : pushNotificationPreferencesRequest.result;
+          } catch (e) {
+            console.warn(
+              "[UserDatabase] Failed to parse push_notification_preferences:",
+              e,
+            );
+            profile.push_notification_preferences = undefined;
+          }
+        }
+      };
+      pushNotificationBannerShownRequest.onsuccess = () => {
+        profile.push_notification_banner_shown =
+          pushNotificationBannerShownRequest.result !== undefined
+            ? !!pushNotificationBannerShownRequest.result
+            : undefined;
+      };
+
+      totalChatCountRequest.onsuccess = () => {
+        profile.total_chat_count =
+          totalChatCountRequest.result !== undefined
+            ? (totalChatCountRequest.result as number)
+            : undefined;
       };
 
       transaction.oncomplete = () => {
@@ -969,9 +1133,37 @@ class UserDatabaseService {
         );
       }
       if (partialData.email_notification_preferences !== undefined) {
+        // Serialize to plain JSON string — Svelte $state() proxy objects cannot be
+        // cloned by the IndexedDB structured clone algorithm (throws DataCloneError).
         store.put(
-          partialData.email_notification_preferences,
+          JSON.stringify(partialData.email_notification_preferences),
           "email_notification_preferences",
+        );
+      }
+
+      // Handle push notification fields
+      if (partialData.push_notification_enabled !== undefined) {
+        store.put(
+          !!partialData.push_notification_enabled,
+          "push_notification_enabled",
+        );
+      }
+      if (partialData.push_notification_subscription !== undefined) {
+        store.put(
+          partialData.push_notification_subscription ?? null,
+          "push_notification_subscription",
+        );
+      }
+      if (partialData.push_notification_preferences !== undefined) {
+        store.put(
+          JSON.stringify(partialData.push_notification_preferences),
+          "push_notification_preferences",
+        );
+      }
+      if (partialData.push_notification_banner_shown !== undefined) {
+        store.put(
+          !!partialData.push_notification_banner_shown,
+          "push_notification_banner_shown",
         );
       }
 
@@ -987,6 +1179,11 @@ class UserDatabaseService {
           partialData.default_ai_model_complex,
           "default_ai_model_complex",
         );
+      }
+
+      // Total chat count — updated on Phase 3 sync and chat deletion
+      if (partialData.total_chat_count !== undefined) {
+        store.put(partialData.total_chat_count, "total_chat_count");
       }
 
       transaction.oncomplete = () => {

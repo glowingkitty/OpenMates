@@ -23,7 +23,8 @@
         stayLoggedIn = $bindable(false),
         isPasskeyLoading = false,
         onPasskeyClick = () => {},
-        onCancelPasskey = () => {}
+        onCancelPasskey = () => {},
+        onPairLoginClick = undefined
     }: {
         email?: string;
         isLoading?: boolean;
@@ -32,9 +33,11 @@
         isPasskeyLoading?: boolean;
         onPasskeyClick?: () => void;
         onCancelPasskey?: () => void;
+        onPairLoginClick?: () => void;
     } = $props();
     
     // State for showing passkey button (updated after lookup)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
     let showPasskeyButton = $state(false);
 
     // Form data
@@ -336,6 +339,18 @@
                 </button>
             {/if}
 
+            <!-- Pair login button — sign in via another trusted device (phone/PC) -->
+            {#if onPairLoginClick}
+                <button
+                    type="button"
+                    class="passkey-button pair-login-button"
+                    onclick={onPairLoginClick}
+                >
+                    <span class="clickable-icon icon_phone"></span>
+                    {$text('login.login_with_phone_or_pc')}
+                </button>
+            {/if}
+
             <!-- Or separator - third element -->
             <div class="divider">
                 <span>{$text('login.or')}</span>
@@ -478,5 +493,10 @@
 
     .passkey-button .clickable-icon {
         margin-right: 0;
+    }
+
+    /* Pair login button sits directly below the passkey button — reduce top margin */
+    .passkey-button.pair-login-button {
+        margin-top: -8px;
     }
 </style>

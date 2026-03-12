@@ -35,6 +35,11 @@
     onCopy?: () => void;
     onDownload?: () => void;
     onReportIssue?: () => void;
+    /** Whether to show the admin debug toggle button. */
+    showDebug?: boolean;
+    /** Whether debug mode is currently active (highlights the button). */
+    debugActive?: boolean;
+    onToggleDebug?: () => void;
     onShowChat?: () => void;
     onTogglePII?: () => void;
   }
@@ -51,6 +56,9 @@
     onCopy,
     onDownload,
     onReportIssue,
+    showDebug = false,
+    debugActive = false,
+    onToggleDebug,
     onShowChat,
     onTogglePII,
   }: Props = $props();
@@ -117,6 +125,19 @@
       ></button>
     </div>
 
+    <!-- Debug toggle (admin-only, controlled by parent) -->
+    {#if showDebug && onToggleDebug}
+      <div class="button-wrapper">
+        <button
+          class="clickable-icon icon_task top-button"
+          class:debug-mode-active={debugActive}
+          onclick={onToggleDebug}
+          aria-label={debugActive ? 'End debugging' : 'Start debugging'}
+          title={debugActive ? 'End debugging' : 'Start debugging'}
+        ></button>
+      </div>
+    {/if}
+
     <!-- PII toggle -->
     {#if showPIIToggle && onTogglePII}
       <div class="button-wrapper">
@@ -162,6 +183,10 @@
     pointer-events: none;
     /* Sits above EmbedHeader (z-index 2) and Leaflet panes (z-index 400+) */
     z-index: 1000;
+  }
+
+  .debug-mode-active {
+    color: var(--color-primary) !important;
   }
 
   .top-bar-left,

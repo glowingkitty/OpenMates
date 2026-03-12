@@ -35,6 +35,8 @@
   import { resolveEmbed, decodeToonContent } from '../../services/embedResolver';
   import { chatSyncService } from '../../services/chatSyncService';
   import { searchTextHighlightStore } from '../../stores/messageHighlightStore';
+  import { chatDebugStore } from '../../stores/chatDebugStore';
+  import { userProfile } from '../../stores/userProfile';
   import EmbedTopBar from './EmbedTopBar.svelte';
   import EmbedHeader from './EmbedHeader.svelte';
   
@@ -45,6 +47,7 @@
   
   // Track if we're in the process of closing (for animation timing)
   let isClosing = $state(false);
+  let lastDebugEmbedInspectionId = $state<string | null>(null);
   
   /**
    * Context passed to the content snippet when child embeds are used
@@ -771,6 +774,17 @@
   onMount(() => {
     // Listen for chat selection events to close fullscreen
     window.addEventListener('globalChatSelected', handleChatSelected);
+
+    // Warn loudly if share is visible but no embed ID was provided — share will silently no-op.
+    // Every fullscreen component MUST pass currentEmbedId. If this fires, trace the call stack
+    // back to the *EmbedFullscreen component and add currentEmbedId={embedId} to its
+    // UnifiedEmbedFullscreen (or EntryWithMapTemplate) call.
+    if (showShare && !currentEmbedId && !onShare) {
+      console.warn(
+        `[UnifiedEmbedFullscreen] Missing currentEmbedId for appId="${appId}" skillId="${skillId}". ` +
+        'Share button will not work. Pass currentEmbedId={embedId} to this component.'
+      );
+    }
     
     // Subscribe to embed updates if currentEmbedId is provided
     // This enables reactive updates during streaming
@@ -824,6 +838,42 @@
   // ============================================
   // Search Text Highlighting (in embed fullscreen)
   // ============================================
+
+  let isAdminUser = $derived($userProfile.is_admin === true);
+
+  async function handleToggleEmbedDebug(): Promise<void> {
+    await chatDebugStore.toggle();
+  }
+
+  let debugEmbedCopied = $state(false);
+  let debugEmbedCopyTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function copyDebugEmbedText(): void {
+    const text = $chatDebugStore.embedReport;
+    if (!text) return;
+    void navigator.clipboard.writeText(text).then(() => {
+      debugEmbedCopied = true;
+      if (debugEmbedCopyTimer) clearTimeout(debugEmbedCopyTimer);
+      debugEmbedCopyTimer = setTimeout(() => { debugEmbedCopied = false; }, 2000);
+    });
+  }
+
+  // Debug mode for embeds: run window.debug.embed and show its output in fullscreen.
+  $effect(() => {
+    const debugActive = $chatDebugStore.rawTextMode;
+    const isAdmin = $userProfile.is_admin === true;
+
+    if (!debugActive || !isAdmin) {
+      lastDebugEmbedInspectionId = null;
+      return;
+    }
+
+    if (!currentEmbedId) return;
+    if (lastDebugEmbedInspectionId === currentEmbedId) return;
+
+    lastDebugEmbedInspectionId = currentEmbedId;
+    void chatDebugStore.runEmbedDebug(currentEmbedId);
+  });
 
   /** Reference to the scrollable content area — TreeWalker is rooted here */
   let contentAreaElement = $state<HTMLElement | undefined>(undefined);
@@ -951,35 +1001,53 @@
          via position: absolute so no space is reserved for it here. -->
     <div class="content-area" bind:this={contentAreaElement}>
 
-      <!-- ── Gradient Header Banner (EmbedHeader) ──
-           Scrolls with content — fixed height (never grows).
-           EmbedTopBar floats above it as a transparent overlay.
-           If a CTA is present it pokes out from the banner's bottom edge
-           and the embed content must provide enough top spacing to clear it. -->
-      <EmbedHeader
-        {appId}
-        {skillIconName}
-        {showSkillIcon}
-        onHeaderIconClick={handleEmbedHeaderIconClick}
-        title={embedHeaderTitle}
-        subtitle={embedHeaderSubtitle}
-        faviconUrl={embedHeaderFaviconUrl}
-        faviconIsCircular={embedHeaderFaviconIsCircular}
-        hasCta={!!embedHeaderCta}
-        {embedHeaderCta}
-        {hasPreviousEmbed}
-        {hasNextEmbed}
-        onNavigatePrevious={handleNavigatePrevious}
-        onNavigateNext={handleNavigateNext}
-      />
-
-      <!-- ── Embed-specific content ── -->
-      {#if content}
-        {@render content(childEmbedContext)}
-      {:else}
-        <div class="missing-content-fallback">
-          <p>Content unavailable</p>
+      {#if $chatDebugStore.rawTextMode && $userProfile.is_admin}
+        <div class="embed-debug-output selectable">
+          <div class="embed-debug-header-row">
+            <div class="embed-debug-title">window.debug.embed</div>
+            <button class="embed-debug-copy-btn" onclick={copyDebugEmbedText} disabled={!$chatDebugStore.embedReport || $chatDebugStore.embedReportEmbedId !== currentEmbedId}>
+              {debugEmbedCopied ? 'Copied!' : 'Copy'}
+            </button>
+          </div>
+          {#if $chatDebugStore.embedReportLoading && $chatDebugStore.embedReportEmbedId === currentEmbedId}
+            <div class="embed-debug-loading">Loading embed debug report...</div>
+          {:else if $chatDebugStore.embedReport && $chatDebugStore.embedReportEmbedId === currentEmbedId}
+            <pre class="embed-debug-pre selectable">{$chatDebugStore.embedReport}</pre>
+          {:else}
+            <div class="embed-debug-loading">No embed debug report available yet.</div>
+          {/if}
         </div>
+      {:else}
+        <!-- ── Gradient Header Banner (EmbedHeader) ──
+             Scrolls with content — fixed height (never grows).
+             EmbedTopBar floats above it as a transparent overlay.
+             If a CTA is present it pokes out from the banner's bottom edge
+             and the embed content must provide enough top spacing to clear it. -->
+        <EmbedHeader
+          {appId}
+          {skillIconName}
+          {showSkillIcon}
+          onHeaderIconClick={handleEmbedHeaderIconClick}
+          title={embedHeaderTitle}
+          subtitle={embedHeaderSubtitle}
+          faviconUrl={embedHeaderFaviconUrl}
+          faviconIsCircular={embedHeaderFaviconIsCircular}
+          hasCta={!!embedHeaderCta}
+          {embedHeaderCta}
+          {hasPreviousEmbed}
+          {hasNextEmbed}
+          onNavigatePrevious={handleNavigatePrevious}
+          onNavigateNext={handleNavigateNext}
+        />
+
+        <!-- ── Embed-specific content ── -->
+        {#if content}
+          {@render content(childEmbedContext)}
+        {:else}
+          <div class="missing-content-fallback">
+            <p>Content unavailable</p>
+          </div>
+        {/if}
       {/if}
 
     </div>
@@ -1002,6 +1070,9 @@
       onReportIssue={handleReportIssue}
       onShowChat={handleShowChatClick}
       {onTogglePII}
+      showDebug={isAdminUser}
+      debugActive={$chatDebugStore.rawTextMode}
+      onToggleDebug={handleToggleEmbedDebug}
     />
 
   </div>
@@ -1116,6 +1187,63 @@
     color: var(--color-grey-70);
     font-size: 16px;
     text-align: center;
+  }
+
+  .embed-debug-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.35rem;
+  }
+
+  .embed-debug-copy-btn {
+    all: unset;
+    cursor: pointer;
+    font-size: 0.75rem;
+    color: var(--color-primary);
+    flex-shrink: 0;
+  }
+
+  .embed-debug-copy-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  .embed-debug-output {
+    padding: 1rem;
+    margin: 5rem 1rem 1rem;
+    border-radius: 0.75rem;
+    border: 1px solid var(--color-grey-30);
+    background: var(--color-grey-10);
+  }
+
+  .embed-debug-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-font-secondary);
+    margin-bottom: 0.5rem;
+  }
+
+  .embed-debug-loading {
+    font-size: 0.85rem;
+    color: var(--color-font-secondary);
+  }
+
+  .embed-debug-pre {
+    margin: 0;
+    font-family: monospace;
+    font-size: 0.8rem;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: calc(100vh - 12rem);
+    overflow: auto;
+    color: var(--color-font-primary);
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    -webkit-touch-callout: default;
   }
 
   /* ===========================================

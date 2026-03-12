@@ -14,7 +14,7 @@
 
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
-  // @ts-ignore - @repo/ui module exists at runtime
+  // @ts-expect-error -- @repo/ui module exists at runtime
   import { text } from '@repo/ui';
   import { chatSyncService } from '../../../services/chatSyncService';
   
@@ -53,7 +53,7 @@
     /** Whether to use mobile layout */
     isMobile?: boolean;
     /** Click handler for fullscreen */
-    onFullscreen?: () => void;
+    onFullscreen: () => void;
   }
   
   let {

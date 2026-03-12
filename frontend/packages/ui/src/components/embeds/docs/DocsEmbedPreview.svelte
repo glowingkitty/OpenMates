@@ -45,7 +45,7 @@
     /** Whether to use mobile layout */
     isMobile?: boolean;
     /** Click handler for fullscreen */
-    onFullscreen?: () => void;
+    onFullscreen: () => void;
     /** HTML content (full HTML for preview extraction) */
     htmlContent?: string;
   }

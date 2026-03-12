@@ -203,6 +203,7 @@ step_5_top_content_svelte:
 
         {#if backupCodes.length > 0}
         <button
+            id="signup-backup-codes-download"
             class="clickable-icon icon_download download-button"
             onclick={downloadBackupCodes}
             aria-label={$text('enter_message.press_and_hold_menu.download')}

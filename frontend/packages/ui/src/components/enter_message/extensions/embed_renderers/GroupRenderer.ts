@@ -7,6 +7,7 @@ import { groupHandlerRegistry } from "../../../../message_parsing/groupHandlers"
 import {
   resolveEmbed,
   decodeToonContent,
+  type EmbedData,
 } from "../../../../services/embedResolver";
 import {
   downloadCodeFilesAsZip,
@@ -42,11 +43,31 @@ import PdfViewEmbedPreview from "../../../embeds/pdf/PdfViewEmbedPreview.svelte"
 import PdfSearchEmbedPreview from "../../../embeds/pdf/PdfSearchEmbedPreview.svelte";
 import MailEmbedPreview from "../../../embeds/mail/MailEmbedPreview.svelte";
 import EventEmbedPreview from "../../../embeds/events/EventEmbedPreview.svelte";
-import MapsLocationEmbedPreview from "../../../embeds/maps/MapsLocationEmbedPreview.svelte";
+import MapLocationEmbedPreview from "../../../embeds/maps/MapLocationEmbedPreview.svelte";
 import { proxyFavicon, proxyImage } from "../../../../utils/imageProxy";
 
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
+
+/**
+ * Permissive record type for TOON-decoded embed content.
+ * TOON serialisation produces dynamic objects whose shape depends on the embed type
+ * (web, code, docs, mail, travel, etc.).  The decoded payload is intrinsically
+ * schemaless — over 100 distinct field names are accessed across the various
+ * embed renderers — so a single `Record<string, …>` is the correct representation.
+ *
+ * eslint-disable is applied only to this one-liner; every *usage* site is `any`-free.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- TOON-decoded content is genuinely schemaless (100+ dynamic fields across embed types)
+type DecodedEmbedContent = Record<string, any>;
+
+/** Match result from PDF search skill (mirrors PdfSearchEmbedFullscreen.SearchMatch) */
+interface PdfSearchMatch {
+  page_num?: number;
+  match_text?: string;
+  context?: string;
+  char_offset?: number;
+}
 
 /**
  * Safely extract a string[] from TOON-decoded content.
@@ -104,8 +125,8 @@ function extractToonArray(
  */
 type IndividualMounter = (
   item: EmbedNodeAttributes,
-  embedData: any,
-  decodedContent: any,
+  embedData: EmbedData | null,
+  decodedContent: DecodedEmbedContent | null,
   content: HTMLElement,
 ) => Promise<void>;
 
@@ -427,8 +448,8 @@ export class GroupRenderer implements EmbedRenderer {
   private async renderIndividualItem(
     item: EmbedNodeAttributes,
     baseType: string,
-    embedData: any = null,
-    decodedContent: any = null,
+    embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
   ): Promise<string> {
     // Load embed content if not provided and contentRef is present
     if (!embedData && item.contentRef && item.contentRef.startsWith("embed:")) {
@@ -460,8 +481,8 @@ export class GroupRenderer implements EmbedRenderer {
   private async renderItemContent(
     item: EmbedNodeAttributes,
     baseType: string,
-    embedData: any = null,
-    decodedContent: any = null,
+    embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
   ): Promise<string> {
     switch (baseType) {
       case "app-skill-use":
@@ -507,8 +528,8 @@ export class GroupRenderer implements EmbedRenderer {
 
   private async renderAppSkillUseItem(
     item: EmbedNodeAttributes,
-    embedData: any = null,
-    decodedContent: any = null,
+    embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
   ): Promise<string> {
     const skillId = decodedContent?.skill_id || "";
     const appId = decodedContent?.app_id || "web";
@@ -878,9 +899,9 @@ export class GroupRenderer implements EmbedRenderer {
         type: item.type,
         status: item.status,
         contentRef: item.contentRef,
-        app_id: (item as any).app_id,
-        skill_id: (item as any).skill_id,
-        query: (item as any).query,
+        app_id: item.app_id,
+        skill_id: item.skill_id,
+        query: item.query,
       })),
     });
 
@@ -954,18 +975,18 @@ export class GroupRenderer implements EmbedRenderer {
     // These are preserved from the original embed parsing and are available
     // even before embed data arrives from the server via WebSocket.
     // This allows proper rendering during streaming.
-    const itemAppId = (item as any).app_id || "";
-    const itemSkillId = (item as any).skill_id || "";
-    const itemQuery = (item as any).query || "";
-    const itemProvider = (item as any).provider || "";
+    const itemAppId = item.app_id || "";
+    const itemSkillId = item.skill_id || "";
+    const itemQuery = item.query || "";
+    const itemProvider = item.provider || "";
 
     // Resolve content for this app-skill-use item from EmbedStore
     const embedId = item.contentRef?.startsWith("embed:")
       ? item.contentRef.replace("embed:", "")
       : "";
 
-    let embedData: any = null;
-    let decodedContent: any = null;
+    let embedData: EmbedData | null = null;
+    let decodedContent: DecodedEmbedContent | null = null;
 
     if (embedId) {
       try {
@@ -1258,6 +1279,11 @@ export class GroupRenderer implements EmbedRenderer {
         appId === "images" &&
         (skillId === "generate" || skillId === "generate_draft")
       ) {
+        const inputEmbedIdsGroup: string[] = Array.isArray(
+          decodedContent?.input_embed_ids,
+        )
+          ? decodedContent.input_embed_ids
+          : [];
         const component = mount(ImageGenerateEmbedPreview, {
           target,
           props: {
@@ -1274,6 +1300,8 @@ export class GroupRenderer implements EmbedRenderer {
             taskId,
             isMobile: false,
             onFullscreen: handleFullscreen,
+            inputEmbedIds:
+              inputEmbedIdsGroup.length > 0 ? inputEmbedIdsGroup : undefined,
           },
         });
         mountedComponents.set(target, component);
@@ -1497,7 +1525,7 @@ export class GroupRenderer implements EmbedRenderer {
           decodedContent?.total_matches ?? undefined;
         const truncated: boolean = decodedContent?.truncated ?? false;
         // Extract matches array from results[0].matches
-        const matches: any[] =
+        const matches: PdfSearchMatch[] =
           decodedContent?.results?.[0]?.matches ||
           decodedContent?.matches ||
           [];
@@ -1711,7 +1739,7 @@ export class GroupRenderer implements EmbedRenderer {
     query: string,
     totalMatches: number | undefined,
     truncated: boolean,
-    matches: any[],
+    matches: PdfSearchMatch[],
   ): void {
     const event = new CustomEvent("pdfsearchfullscreen", {
       detail: {
@@ -1840,7 +1868,7 @@ export class GroupRenderer implements EmbedRenderer {
           ? item.contentRef.replace("embed:", "")
           : "";
 
-        let decodedContent: any = null;
+        let decodedContent: DecodedEmbedContent | null = null;
 
         if (embedId) {
           const embedData = await resolveEmbed(embedId);
@@ -1961,8 +1989,8 @@ export class GroupRenderer implements EmbedRenderer {
       ? item.contentRef.replace("embed:", "")
       : "";
 
-    let embedData: any = null;
-    let decodedContent: any = null;
+    let embedData: EmbedData | null = null;
+    let decodedContent: DecodedEmbedContent | null = null;
 
     if (embedId) {
       try {
@@ -2062,8 +2090,8 @@ export class GroupRenderer implements EmbedRenderer {
       ? item.contentRef.replace("preview:code:", "")
       : "";
 
-    let embedData: any = null;
-    let decodedContent: any = null;
+    let embedData: EmbedData | null = null;
+    let decodedContent: DecodedEmbedContent | null = null;
 
     if (embedId) {
       try {
@@ -2174,8 +2202,8 @@ export class GroupRenderer implements EmbedRenderer {
    */
   private async renderWebsiteComponent(
     item: EmbedNodeAttributes,
-    embedData: any = null,
-    decodedContent: any = null,
+    embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
     content: HTMLElement,
   ): Promise<void> {
     // Use decoded content if available, otherwise fall back to item attributes
@@ -2293,10 +2321,10 @@ export class GroupRenderer implements EmbedRenderer {
    */
   private async renderWebsiteItemHTML(
     item: EmbedNodeAttributes,
-    embedData: any = null,
-    decodedContent: any = null,
+    _embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
   ): Promise<string> {
-    const isProcessing = item.status === "processing";
+    const _isProcessing = item.status === "processing";
 
     // Use decoded content if available, otherwise fall back to item attributes
     const websiteUrl = decodedContent?.url || item.url;
@@ -2315,12 +2343,8 @@ export class GroupRenderer implements EmbedRenderer {
       // SUCCESS STATE: Full design with metadata
       const displayTitle = websiteTitle || new URL(websiteUrl).hostname;
       const displayDescription = websiteDescription || "";
-      const faviconUrl =
-        favicon ||
-        proxyFavicon(websiteUrl);
-      const imageUrl =
-        image ||
-        proxyImage(websiteUrl);
+      const faviconUrl = favicon || proxyFavicon(websiteUrl);
+      const imageUrl = image || proxyImage(websiteUrl);
 
       // Add click handler for fullscreen
       const embedId = item.contentRef?.replace("embed:", "") || "";
@@ -2375,8 +2399,8 @@ export class GroupRenderer implements EmbedRenderer {
    */
   private async renderWebsiteItem(
     item: EmbedNodeAttributes,
-    embedData: any = null,
-    decodedContent: any = null,
+    embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
   ): Promise<string> {
     return this.renderWebsiteItemHTML(item, embedData, decodedContent);
   }
@@ -2386,8 +2410,8 @@ export class GroupRenderer implements EmbedRenderer {
    */
   private async renderVideoComponent(
     item: EmbedNodeAttributes,
-    embedData: any = null,
-    decodedContent: any = null,
+    embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
     content: HTMLElement,
   ): Promise<void> {
     // Use decoded content if available, otherwise fall back to item attributes
@@ -2519,8 +2543,8 @@ export class GroupRenderer implements EmbedRenderer {
    */
   private async renderVideoItemHTML(
     item: EmbedNodeAttributes,
-    embedData: any = null,
-    decodedContent: any = null,
+    embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
   ): Promise<string> {
     return this.renderVideoItem(item, embedData, decodedContent);
   }
@@ -2531,8 +2555,8 @@ export class GroupRenderer implements EmbedRenderer {
    */
   private async renderCodeComponent(
     item: EmbedNodeAttributes,
-    embedData: any = null,
-    decodedContent: any = null,
+    embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
     content: HTMLElement,
   ): Promise<void> {
     // Use decoded content if available, otherwise fall back to item attributes
@@ -2628,8 +2652,8 @@ export class GroupRenderer implements EmbedRenderer {
    */
   private async renderDocsComponent(
     item: EmbedNodeAttributes,
-    embedData: any = null,
-    decodedContent: any = null,
+    embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
     content: HTMLElement,
   ): Promise<void> {
     // Use decoded content if available, otherwise fall back to item attributes
@@ -2707,8 +2731,8 @@ export class GroupRenderer implements EmbedRenderer {
    */
   private async renderSheetComponent(
     item: EmbedNodeAttributes,
-    embedData: any = null,
-    decodedContent: any = null,
+    embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
     content: HTMLElement,
   ): Promise<void> {
     // Use decoded content if available, otherwise fall back to item attributes.
@@ -2876,8 +2900,8 @@ export class GroupRenderer implements EmbedRenderer {
       ? item.contentRef.replace("preview:sheets-sheet:", "")
       : "";
 
-    let embedData: any = null;
-    let decodedContent: any = null;
+    let embedData: EmbedData | null = null;
+    let decodedContent: DecodedEmbedContent | null = null;
 
     if (embedId) {
       try {
@@ -2984,10 +3008,10 @@ export class GroupRenderer implements EmbedRenderer {
 
   private async renderVideoItem(
     item: EmbedNodeAttributes,
-    embedData: any = null,
-    decodedContent: any = null,
+    _embedData: EmbedData | null = null,
+    _decodedContent: DecodedEmbedContent | null = null,
   ): Promise<string> {
-    const isProcessing = item.status === "processing";
+    const _isProcessing = item.status === "processing";
     const videoUrl = item.url;
 
     // Extract video ID for YouTube URLs
@@ -3048,8 +3072,8 @@ export class GroupRenderer implements EmbedRenderer {
 
   private async renderCodeItem(
     item: EmbedNodeAttributes,
-    embedData: any = null,
-    decodedContent: any = null,
+    _embedData: EmbedData | null = null,
+    _decodedContent: DecodedEmbedContent | null = null,
   ): Promise<string> {
     const language = item.language || "text";
     const filename = item.filename || `code.${language}`;
@@ -3074,8 +3098,8 @@ export class GroupRenderer implements EmbedRenderer {
 
   private async renderDocItem(
     item: EmbedNodeAttributes,
-    embedData: any = null,
-    decodedContent: any = null,
+    _embedData: EmbedData | null = null,
+    _decodedContent: DecodedEmbedContent | null = null,
   ): Promise<string> {
     const title = item.title || "Document";
     const isProcessing = item.status === "processing";
@@ -3099,8 +3123,8 @@ export class GroupRenderer implements EmbedRenderer {
 
   private async renderSheetItem(
     item: EmbedNodeAttributes,
-    embedData: any = null,
-    decodedContent: any = null,
+    _embedData: EmbedData | null = null,
+    _decodedContent: DecodedEmbedContent | null = null,
   ): Promise<string> {
     const title = item.title || "Spreadsheet";
     const rows = item.rows || 0;
@@ -3133,8 +3157,8 @@ export class GroupRenderer implements EmbedRenderer {
    */
   private async renderMailComponent(
     item: EmbedNodeAttributes,
-    embedData: any = null,
-    decodedContent: any = null,
+    embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
     content: HTMLElement,
   ): Promise<void> {
     const receiver = decodedContent?.receiver || "";
@@ -3260,8 +3284,8 @@ export class GroupRenderer implements EmbedRenderer {
       ? item.contentRef.replace("embed:", "")
       : "";
 
-    let embedData: any = null;
-    let decodedContent: any = null;
+    let embedData: EmbedData | null = null;
+    let decodedContent: DecodedEmbedContent | null = null;
 
     if (embedId) {
       try {
@@ -3340,8 +3364,8 @@ export class GroupRenderer implements EmbedRenderer {
    */
   private async renderMailItem(
     item: EmbedNodeAttributes,
-    embedData: any = null,
-    decodedContent: any = null,
+    _embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
   ): Promise<string> {
     const subject = decodedContent?.subject || item.title || "Email Draft";
     const receiver = decodedContent?.receiver || "";
@@ -3369,8 +3393,8 @@ export class GroupRenderer implements EmbedRenderer {
    */
   private async renderTravelConnectionComponent(
     item: EmbedNodeAttributes,
-    embedData: any = null,
-    decodedContent: any = null,
+    embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
     content: HTMLElement,
   ): Promise<void> {
     const price = decodedContent?.price?.toString() || "";
@@ -3428,13 +3452,6 @@ export class GroupRenderer implements EmbedRenderer {
     }
 
     try {
-      // No onFullscreen: TravelConnectionEmbedFullscreen is only accessible as a child
-      // overlay inside TravelSearchEmbedFullscreen (drill-down pattern). There is no
-      // top-level route in ActiveChat.svelte for individual travel-connection embeds.
-      // To enable fullscreen from [!](embed:ref) large previews, add a branch in ActiveChat
-      // for embedType === 'travel-connection' (or app-skill-use with skill_id === 'connection')
-      // and then wire onFullscreen here.
-
       const component = mount(TravelConnectionEmbedPreview, {
         target: content,
         props: {
@@ -3455,6 +3472,8 @@ export class GroupRenderer implements EmbedRenderer {
           isCheapest,
           status,
           isMobile: false,
+          onFullscreen: () =>
+            this.openFullscreen(item, embedData, decodedContent),
         },
       });
 
@@ -3488,8 +3507,8 @@ export class GroupRenderer implements EmbedRenderer {
    */
   private async renderTravelConnectionItem(
     _item: EmbedNodeAttributes,
-    _embedData?: any,
-    decodedContent: any = null,
+    _embedData?: EmbedData | null,
+    decodedContent: DecodedEmbedContent | null = null,
   ): Promise<string> {
     const origin = decodedContent?.origin || "";
     const destination = decodedContent?.destination || "";
@@ -3517,8 +3536,8 @@ export class GroupRenderer implements EmbedRenderer {
    */
   private async renderTravelStayComponent(
     item: EmbedNodeAttributes,
-    embedData: any = null,
-    decodedContent: any = null,
+    embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
     content: HTMLElement,
   ): Promise<void> {
     const name = decodedContent?.name || "";
@@ -3568,13 +3587,6 @@ export class GroupRenderer implements EmbedRenderer {
     }
 
     try {
-      // No onFullscreen: TravelStayEmbedFullscreen is only accessible as a child overlay
-      // inside TravelStaysEmbedFullscreen (drill-down pattern). There is no top-level route
-      // in ActiveChat.svelte for individual travel-stay embeds.
-      // To enable fullscreen from [!](embed:ref) large previews, add a branch in ActiveChat
-      // for embedType === 'travel-stay' (or app-skill-use with skill_id === 'stay')
-      // and then wire onFullscreen here.
-
       const component = mount(TravelStayEmbedPreview, {
         target: content,
         props: {
@@ -3593,6 +3605,8 @@ export class GroupRenderer implements EmbedRenderer {
           freeCancellation,
           status,
           isMobile: false,
+          onFullscreen: () =>
+            this.openFullscreen(item, embedData, decodedContent),
         },
       });
 
@@ -3625,8 +3639,8 @@ export class GroupRenderer implements EmbedRenderer {
    */
   private async renderTravelStayItem(
     _item: EmbedNodeAttributes,
-    _embedData?: any,
-    decodedContent: any = null,
+    _embedData?: EmbedData | null,
+    decodedContent: DecodedEmbedContent | null = null,
   ): Promise<string> {
     const name = decodedContent?.name || "Accommodation";
     const ratePerNight =
@@ -3661,8 +3675,8 @@ export class GroupRenderer implements EmbedRenderer {
    */
   private async renderEventComponent(
     item: EmbedNodeAttributes,
-    embedData: any = null,
-    decodedContent: any = null,
+    embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
     content: HTMLElement,
   ): Promise<void> {
     const embedId = item.contentRef?.replace("embed:", "") || item.id || "";
@@ -3728,8 +3742,8 @@ export class GroupRenderer implements EmbedRenderer {
           id: embedId,
           event: eventResult,
           isMobile: false,
-          // No onFullscreen: EventEmbedFullscreen has no top-level route in ActiveChat.
-          // Once a top-level route is added, dispatch embedfullscreen here.
+          onFullscreen: () =>
+            this.openFullscreen(item, embedData, decodedContent),
         },
       });
 
@@ -3762,8 +3776,8 @@ export class GroupRenderer implements EmbedRenderer {
    */
   private async renderEventItem(
     _item: EmbedNodeAttributes,
-    _embedData?: any,
-    decodedContent: any = null,
+    _embedData?: EmbedData | null,
+    decodedContent: DecodedEmbedContent | null = null,
   ): Promise<string> {
     const title = decodedContent?.title || "Event";
     const dateStart = decodedContent?.date_start || "";
@@ -3786,19 +3800,17 @@ export class GroupRenderer implements EmbedRenderer {
   // =========================================================================
 
   /**
-   * Render a single maps-place embed using MapsLocationEmbedPreview.
+   * Render a single maps-place embed using MapLocationEmbedPreview.
    *
-   * Note: maps-place child embeds from a search result carry different data than
-   * the user-inserted maps (direct "location" type). The Preview component accepts
-   * flat fields: name, address, locationType, placeType, mapImageUrl, status.
-   *
-   * Fullscreen: not dispatched — MapsLocationEmbedFullscreen for individual place results
-   * has no top-level route in ActiveChat.svelte. Add one to enable fullscreen from [!] previews.
+   * maps-place child embeds from a search result carry different data than
+   * the user-inserted maps (direct "location" type). This component shows
+   * a compact preview card (name, rating, address, type) that opens
+   * MapLocationEmbedFullscreen on click via embedfullscreen event dispatch.
    */
   private async renderMapsPlaceComponent(
     item: EmbedNodeAttributes,
-    embedData: any = null,
-    decodedContent: any = null,
+    embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
     content: HTMLElement,
   ): Promise<void> {
     const embedId = item.contentRef?.replace("embed:", "") || item.id || "";
@@ -3808,20 +3820,24 @@ export class GroupRenderer implements EmbedRenderer {
       "finished") as "processing" | "finished" | "error";
 
     // Extract flat props from TOON content — field names follow the backend schema
-    const name =
-      decodedContent?.name ||
+    const displayName =
       (decodedContent?.displayName as string | undefined) ||
+      (decodedContent?.name as string | undefined) ||
       "";
-    const address =
-      decodedContent?.formatted_address ||
+    const formattedAddress =
       (decodedContent?.formattedAddress as string | undefined) ||
-      decodedContent?.address ||
+      (decodedContent?.formatted_address as string | undefined) ||
+      (decodedContent?.address as string | undefined) ||
       "";
-    const locationType =
-      (decodedContent?.location_type as string | undefined) || "";
+    const rating = decodedContent?.rating as number | undefined;
+    const userRatingCount = decodedContent?.userRatingCount as
+      | number
+      | undefined;
     const placeType = (decodedContent?.place_type as string | undefined) || "";
-    const mapImageUrl =
-      (decodedContent?.map_image_url as string | undefined) || "";
+
+    const handleFullscreen = () => {
+      this.openFullscreen(item, embedData, decodedContent);
+    };
 
     const existingComponent = mountedComponents.get(content);
     if (existingComponent) {
@@ -3835,41 +3851,40 @@ export class GroupRenderer implements EmbedRenderer {
 
     if (!content.isConnected) {
       console.warn(
-        "[GroupRenderer] Skipping MapsLocationEmbedPreview mount — target detached from DOM",
+        "[GroupRenderer] Skipping MapLocationEmbedPreview mount — target detached from DOM",
       );
       return;
     }
 
     try {
-      const component = mount(MapsLocationEmbedPreview, {
+      const component = mount(MapLocationEmbedPreview, {
         target: content,
         props: {
           id: embedId,
-          name,
-          address,
-          locationType,
+          displayName,
+          formattedAddress,
+          rating,
+          userRatingCount,
           placeType,
-          mapImageUrl,
           status,
           isMobile: false,
-          // No onFullscreen: MapsLocationEmbedFullscreen has no top-level route in ActiveChat.
-          // Once a top-level route is added, dispatch embedfullscreen here.
+          onFullscreen: handleFullscreen,
         },
       });
 
       mountedComponents.set(content, component);
       console.debug(
-        "[GroupRenderer] Mounted MapsLocationEmbedPreview component:",
+        "[GroupRenderer] Mounted MapLocationEmbedPreview component:",
         {
           embedId,
-          name,
+          displayName,
           status,
         },
       );
     } catch (error) {
       const err = error as Error;
       console.error(
-        "[GroupRenderer] Error mounting MapsLocationEmbedPreview:",
+        "[GroupRenderer] Error mounting MapLocationEmbedPreview:",
         err?.name,
         err?.message,
         err?.stack,
@@ -3889,8 +3904,8 @@ export class GroupRenderer implements EmbedRenderer {
    */
   private async renderMapsPlaceItem(
     _item: EmbedNodeAttributes,
-    _embedData?: any,
-    decodedContent: any = null,
+    _embedData?: EmbedData | null,
+    decodedContent: DecodedEmbedContent | null = null,
   ): Promise<string> {
     const name =
       decodedContent?.name ||
@@ -3918,8 +3933,8 @@ export class GroupRenderer implements EmbedRenderer {
    */
   private async renderImageResultComponent(
     item: EmbedNodeAttributes,
-    embedData: any = null,
-    decodedContent: any = null,
+    embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
     content: HTMLElement,
   ): Promise<void> {
     const embedId = item.contentRef?.replace("embed:", "") || item.id || "";
@@ -3957,10 +3972,15 @@ export class GroupRenderer implements EmbedRenderer {
       const component = mount(ImageResultEmbedPreview, {
         target: content,
         props: {
+          id: embedId,
           title,
           sourceDomain,
           thumbnailUrl,
           faviconUrl,
+          status,
+          isMobile: false,
+          onFullscreen: () =>
+            this.openFullscreen(item, embedData, decodedContent),
         },
       });
 
@@ -3996,8 +4016,8 @@ export class GroupRenderer implements EmbedRenderer {
    */
   private async renderImageResultItem(
     _item: EmbedNodeAttributes,
-    _embedData?: any,
-    decodedContent: any = null,
+    _embedData?: EmbedData | null,
+    decodedContent: DecodedEmbedContent | null = null,
   ): Promise<string> {
     const title =
       (decodedContent?.title as string | undefined) || "Image result";
@@ -4044,8 +4064,8 @@ export class GroupRenderer implements EmbedRenderer {
    */
   private async openFullscreen(
     attrs: EmbedNodeAttributes,
-    embedData: any,
-    decodedContent: any,
+    embedData: EmbedData | null,
+    decodedContent: DecodedEmbedContent | null,
   ): Promise<void> {
     // Determine embed type from attrs
     const embedType = attrs.type === "web-website" ? "website" : attrs.type;

@@ -3,6 +3,7 @@
 
 import { parse_message, parseEmbedNodes, handleStreamingSemantics } from './parse_message';
 import { tipTapToCanonicalMarkdown, createEmbedClipboardData } from './serializers';
+import type { TipTapDoc } from './types';
 import { embedStore } from '../services/embedStore';
 
 console.log('🧪 Testing Unified Message Parsing Architecture');
@@ -126,7 +127,7 @@ try {
     ]
   };
   
-  const markdown = tipTapToCanonicalMarkdown(tiptapDoc);
+  const markdown = tipTapToCanonicalMarkdown(tiptapDoc as TipTapDoc);
   console.log('✅ Serialization works');
   console.log('Generated markdown:', markdown);
 } catch (error) {
@@ -215,7 +216,7 @@ And a YouTube video: https://www.youtube.com/watch?v=dQw4w9WgXcQ
   console.log('Content items:', result.content?.length || 0);
   
   // Count embed nodes
-  const embedCount = result.content?.filter((item: any) => item.type === 'embed').length || 0;
+  const embedCount = result.content?.filter((item: { type: string }) => item.type === 'embed').length || 0;
   console.log('Embed nodes found:', embedCount);
   
   // Test serialization round-trip

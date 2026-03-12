@@ -2,7 +2,6 @@
     import { text } from '@repo/ui';
     import { hiddenChatStore } from '../../stores/hiddenChatStore';
     import { notificationStore } from '../../stores/notificationStore';
-    import { onMount } from 'svelte';
 
     interface Props {
         show?: boolean;
@@ -208,9 +207,9 @@
                 confirmPassword = '';
                 passwordInput?.focus();
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('[HiddenChatUnlock] Error unlocking:', error);
-            errorMessage = error.message || $text('chats.hidden_chats.unlock_error', {
+            errorMessage = (error instanceof Error ? error.message : undefined) || $text('chats.hidden_chats.unlock_error', {
                 default: 'An error occurred. Please try again.'
             });
         } finally {

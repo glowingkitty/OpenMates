@@ -43,7 +43,7 @@
     /** Whether to use mobile layout */
     isMobile?: boolean;
     /** Click handler for fullscreen */
-    onFullscreen?: () => void;
+    onFullscreen: () => void;
     /** Table content (markdown format) */
     tableContent?: string;
   }
@@ -87,7 +87,13 @@
   let taskId = $derived(localTaskId);
   
   // Maximum rows to show in preview
-  const MAX_PREVIEW_ROWS = 4;
+  // Large variant (400px container) shows more rows to fill the taller space
+  const MAX_PREVIEW_ROWS_STANDARD = 4;
+  const MAX_PREVIEW_ROWS_LARGE = 8;
+
+  // isLargePreview is set reactively from the snippet param (isLarge)
+  let isLargePreview = $state(false);
+  let maxPreviewRows = $derived(isLargePreview ? MAX_PREVIEW_ROWS_LARGE : MAX_PREVIEW_ROWS_STANDARD);
   
   // Subscribe to the global embed PII store to get the current chat's PII state.
   // This allows the preview to reactively apply PII masking without needing
@@ -122,8 +128,8 @@
   let actualColCount = $derived(colCount > 0 ? colCount : parsedTable.colCount);
   
   // Get preview rows
-  let previewRows = $derived(parsedTable.rows.slice(0, MAX_PREVIEW_ROWS));
-  let hasMoreRows = $derived(parsedTable.rowCount > MAX_PREVIEW_ROWS);
+  let previewRows = $derived(parsedTable.rows.slice(0, maxPreviewRows));
+  let hasMoreRows = $derived(parsedTable.rowCount > maxPreviewRows);
   
   // Build skill name for BasicInfosBar
   let skillName = $derived.by(() => renderTitle || $text('embeds.table'));
@@ -140,12 +146,6 @@
    * Handle embed data updates from server
    */
   function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> | null }) {
-    console.debug('[SheetEmbedPreview] Received embed data update:', {
-      embedId: id,
-      status: data.status,
-      hasContent: !!data.decodedContent
-    });
-    
     if (data.status === 'processing' || data.status === 'finished' || data.status === 'error') {
       localStatus = data.status;
     }
@@ -179,7 +179,8 @@
   showSkillIcon={false}
   onEmbedDataUpdated={handleEmbedDataUpdated}
 >
-  {#snippet details({ isMobile: isMobileSnippet })}
+  {#snippet details({ isMobile: isMobileSnippet, isLarge: isLargeSnippet })}
+    {(isLargePreview = isLargeSnippet, undefined)}
     <div class="sheet-preview" class:mobile={isMobileSnippet}>
       {#if status === 'processing'}
         <!-- Skeleton loading -->
@@ -195,7 +196,7 @@
       {:else if status === 'finished' && parsedTable.headers.length > 0}
         <!-- Table preview — scrolls horizontally for wide tables -->
         <div class="table-scroll">
-          <table class="preview-table">
+          <table class="preview-table" class:large-desktop={isLargeSnippet && !isMobileSnippet}>
             <thead>
               <tr>
                 {#each parsedTable.headers as header}
@@ -214,7 +215,7 @@
               {#if hasMoreRows}
                 <tr class="more-rows">
                   <td colspan={actualColCount}>
-                    <span class="more-indicator">+{parsedTable.rowCount - MAX_PREVIEW_ROWS} more rows</span>
+                    <span class="more-indicator">+{parsedTable.rowCount - maxPreviewRows} more rows</span>
                   </td>
                 </tr>
               {/if}
@@ -233,7 +234,8 @@
 
 <style>
   /* ═══════════════════════════════════════════════════════════
-     Sheet Preview — compact Excel-like table, always white.
+     Sheet Preview — compact Excel-like table, theme-adaptive.
+     Uses CSS custom properties so dark mode renders correctly.
      ═══════════════════════════════════════════════════════════ */
   
   .sheet-preview {
@@ -244,7 +246,6 @@
     overflow: hidden;
     padding: 0;
     box-sizing: border-box;
-    background: #ffffff;
   }
   
   /* ── Skeleton loading ────────────────────────────────── */
@@ -256,7 +257,7 @@
     width: 100%;
     padding: 6px;
     box-sizing: border-box;
-    background: #fff;
+    background: var(--color-grey-0);
   }
   
   .skeleton-row {
@@ -265,13 +266,13 @@
   }
   
   .skeleton-row.header .skeleton-cell {
-    background: #e8e8e8;
+    background: var(--color-grey-30);
   }
   
   .skeleton-cell {
     flex: 1;
     height: 18px;
-    background: #f0f0f0;
+    background: var(--color-grey-20);
     border-radius: 2px;
     animation: pulse 1.5s ease-in-out infinite;
   }
@@ -288,7 +289,6 @@
     width: 100%;
     flex: 1;
     overflow: hidden;
-    background: #ffffff;
   }
   
   /* ── Preview table — edge-to-edge, fills available width ── */
@@ -300,36 +300,40 @@
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     width: 100%;
     table-layout: fixed;
-    background: #ffffff;
+    margin-top: 15px;
+  }
+
+  .preview-table.large-desktop {
+    font-size: 13px;
   }
   
   .preview-table th,
   .preview-table td {
-    border: 1px solid #e2e2e2;
+    border: 1px solid var(--color-grey-25);
     padding: 4px 8px;
     text-align: left;
-    color: #202124;
+    color: var(--color-font-primary);
   }
   
   .preview-table th {
-    background: #f8f9fa;
+    background: var(--color-grey-10);
     font-weight: 600;
-    color: #202124;
-    border-bottom: 2px solid #dadce0;
+    color: var(--color-font-primary);
+    border-bottom: 2px solid var(--color-grey-30);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   
   .preview-table td {
-    color: #3c4043;
+    color: var(--color-font-secondary);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   
   .preview-table tbody tr:nth-child(even) td {
-    background: #f8f9fb;
+    background: var(--color-grey-10);
   }
   
   .preview-table tbody tr:last-child td {
@@ -341,12 +345,12 @@
   .more-rows td {
     text-align: center !important;
     padding: 3px 8px;
-    background: #f8f9fa !important;
-    border-top: 1px solid #e2e2e2;
+    background: var(--color-grey-10) !important;
+    border-top: 1px solid var(--color-grey-25);
   }
   
   .more-indicator {
-    color: #80868b;
+    color: var(--color-font-tertiary);
     font-size: 10px;
     font-style: italic;
   }
@@ -360,7 +364,7 @@
     width: 100%;
     height: 100%;
     min-height: 80px;
-    background: #fff;
+    background: var(--color-grey-0);
   }
   
   .empty-icon {
@@ -378,5 +382,58 @@
   .mobile .preview-table td {
     padding: 3px 6px;
     max-width: 80px;
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     Dark mode — spreadsheet-style dark (see screenshot)
+     Background: near-black, header: dark grey, green accents.
+     Uses CSS custom properties so values stay in sync with the
+     theme system (vars flip automatically in [data-theme="dark"]).
+     ══════════════════════════════════════════════════════════ */
+
+  :global(.dark) .skeleton-table {
+    background: var(--color-grey-10);
+  }
+
+  :global(.dark) .skeleton-row.header .skeleton-cell {
+    background: var(--color-grey-30);
+  }
+
+  :global(.dark) .skeleton-cell {
+    background: var(--color-grey-20);
+  }
+
+  :global(.dark) .preview-table th,
+  :global(.dark) .preview-table td {
+    border-color: var(--color-grey-30);
+    color: var(--color-grey-80);
+  }
+
+  :global(.dark) .preview-table th {
+    background: var(--color-grey-25);
+    color: var(--color-grey-80);
+    font-weight: 700;
+    border-bottom-color: var(--color-grey-40);
+  }
+
+  :global(.dark) .preview-table td {
+    color: var(--color-grey-80);
+  }
+
+  :global(.dark) .preview-table tbody tr:nth-child(even) td {
+    background: var(--color-grey-20);
+  }
+
+  :global(.dark) .more-rows td {
+    background: var(--color-grey-25) !important;
+    border-top-color: var(--color-grey-30);
+  }
+
+  :global(.dark) .more-indicator {
+    color: var(--color-grey-50);
+  }
+
+  :global(.dark) .empty-state {
+    background: var(--color-grey-10);
   }
 </style>

@@ -3,7 +3,6 @@ import type { Editor } from '@tiptap/core';
 import { get } from 'svelte/store';
 import { recordingState } from '../recordingStore';
 import {
-    handleRecordMouseDown,
     handleRecordMouseUp,
     handleRecordMouseLeave
 } from './recordingHandlers';

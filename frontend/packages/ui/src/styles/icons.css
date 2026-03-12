@@ -326,6 +326,12 @@ div.clickable-icon {
   mask-image: url("@openmates/ui/static/icons/maps.svg");
 }
 
+/* Sketch / drawing canvas overlay button (whiteboard icon) */
+.clickable-icon.icon_sketch {
+  -webkit-mask-image: url("@openmates/ui/static/icons/whiteboard.svg");
+  mask-image: url("@openmates/ui/static/icons/whiteboard.svg");
+}
+
 .clickable-icon.icon_location {
   -webkit-mask-image: url("@openmates/ui/static/icons/current_location.svg");
   mask-image: url("@openmates/ui/static/icons/current_location.svg");
@@ -386,6 +392,11 @@ div.clickable-icon {
 .clickable-icon.icon_passkey {
   -webkit-mask-image: url("@openmates/ui/static/icons/passkey.svg");
   mask-image: url("@openmates/ui/static/icons/passkey.svg");
+}
+
+.clickable-icon.icon_phone {
+  -webkit-mask-image: url("@openmates/ui/static/icons/phone.svg");
+  mask-image: url("@openmates/ui/static/icons/phone.svg");
 }
 
 .clickable-icon.icon_password {
@@ -800,6 +811,20 @@ div.clickable-icon {
   }
 }
 
+.icon_rounded.events {
+  background: var(--color-app-events);
+  &::after {
+    background-image: url("@openmates/ui/static/icons/event.svg");
+  }
+}
+
+.icon_rounded.health {
+  background: var(--color-app-health);
+  &::after {
+    background-image: url("@openmates/ui/static/icons/heart.svg");
+  }
+}
+
 @media (max-width: 600px) {
   .icon {
     width: 77.69px;
@@ -1080,6 +1105,14 @@ div.clickable-icon {
 
   &::before {
     background-image: url("@openmates/ui/static/icons/chat.svg");
+  }
+}
+
+.icon.notifications {
+  background: var(--color-primary);
+
+  &::before {
+    background-image: url("@openmates/ui/static/icons/announcement.svg");
   }
 }
 

@@ -167,6 +167,9 @@ export const apiEndpoints = {
       lowBalance: "/v1/settings/auto-topup/low-balance", // Update low balance auto top-up settings (requires 2FA)
     },
     autoDeleteChats: "/v1/settings/auto-delete-chats", // Persist chat auto-deletion period
+    chatStats: "/v1/settings/chats", // GET: total chat count for Settings > Account > Chats
+    previewOldChats: "/v1/settings/chats/preview", // GET: count of chats older than N days (preview before delete)
+    deleteOldChats: "/v1/settings/chats/delete-old", // POST: permanently delete chats older than N days
     aiModelDefaults: "/v1/settings/ai-model-defaults", // Persist default AI model preferences (simple/complex)
     software_update: {
       check: "/v1/settings/software_update/check", // Check for software updates
@@ -182,6 +185,8 @@ export const apiEndpoints = {
     exportAccountManifest: "/v1/settings/export-account-manifest", // Get export manifest (list of all data IDs)
     exportAccountData: "/v1/settings/export-account-data", // Get export data (usage, invoices, profile)
     updatePassword: "/v1/settings/update-password", // Add or change user password
+    issueLogs: "/v1/settings/issue-logs", // Push console logs to OpenObserve when any auth user submits an issue report
+    importChat: "/v1/settings/import-chat", // Import chats from YAML export file (safety-scanned server-side)
   },
   payments: {
     config: "/v1/payments/config", // Get public config for payment provider
@@ -215,7 +220,7 @@ export const apiEndpoints = {
   admin: {
     generateGiftCards: "/v1/admin/generate-gift-cards", // Admin-only: generate gift card codes
     listGiftCards: "/v1/admin/gift-cards", // Admin-only: list all active (unredeemed) gift cards
-    clientLogs: "/v1/admin/client-logs", // Admin-only: forward browser console logs to Loki for centralized debugging
+    clientLogs: "/v1/admin/client-logs", // Admin-only: live-stream browser console logs to OpenObserve (active for admin users)
   },
   server: {
     info: "/v1/server", // Get server information (domain and self_hosted flag based on request validation)
@@ -241,6 +246,11 @@ export const apiEndpoints = {
   emailBlock: {
     blockEmail: "/v1/block-email", // Block email address from all emails (signup, newsletter, etc.)
   },
+  push: {
+    vapidPublicKey: "/v1/push/vapid-public-key", // GET: fetch VAPID public key for Web Push subscription
+    subscribe: "/v1/push/subscribe", // POST: register a browser PushSubscription
+    unsubscribe: "/v1/push/subscribe", // DELETE: remove a browser PushSubscription
+  },
 } as const;
 
 // Helper to get full API endpoint URL
@@ -256,11 +266,9 @@ export function getApiEndpoint(path: string = ""): string {
 // The preview server proxies external images for privacy, resizing, and caching.
 export const previewUrls = {
   development:
-    import.meta.env.VITE_PREVIEW_URL_DEV ||
-    "https://preview.openmates.org",
+    import.meta.env.VITE_PREVIEW_URL_DEV || "https://preview.openmates.org",
   production:
-    import.meta.env.VITE_PREVIEW_URL_PROD ||
-    "https://preview.openmates.org",
+    import.meta.env.VITE_PREVIEW_URL_PROD || "https://preview.openmates.org",
 } as const;
 
 // Helper to get the preview server base URL

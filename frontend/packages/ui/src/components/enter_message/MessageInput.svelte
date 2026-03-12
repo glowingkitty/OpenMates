@@ -36,11 +36,14 @@
     import CameraView from './CameraView.svelte';
     import RecordAudio from './RecordAudio.svelte'; // Import type for ref
     import MapsView from './MapsView.svelte';
+    import SketchView from './SketchView.svelte';
     import PressAndHoldMenu from './in_message_previews/PressAndHoldMenu.svelte';
     import ActionButtons from './ActionButtons.svelte';
     import KeyboardShortcuts from '../KeyboardShortcuts.svelte';
     import Toggle from '../Toggle.svelte';
     import { Decoration, DecorationSet } from 'prosemirror-view';
+    import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
+    import type { Content } from '@tiptap/core';
     import type { FocusModeMetadata } from '../../types/apps';
 
     // Utils
@@ -49,11 +52,10 @@
         isContentEmptyExceptMention,
         getInitialContent
     } from './utils';
-    
+
     // Unified parser imports
     import { parse_message } from '../../message_parsing/parse_message';
     import { tipTapToCanonicalMarkdown, parseEmbedClipboardData } from '../../message_parsing/serializers';
-    import { isDesktop } from '../../utils/platform';
     
     // URL metadata service - creates proper embeds with embed_id for LLM context
     import { createEmbedFromUrl } from './services/urlMetadataService';
@@ -97,7 +99,6 @@
         handleRecordTouchEnd as handleRecordTouchEndLogic,
         handleStopRecordingCleanup
     } from './handlers/recordingHandlers';
-    import { handleKeyboardShortcut } from './handlers/keyboardShortcutHandler';
     
     // PII Detection
     import { detectPII, type PIIMatch, type PIIDetectionOptions, type PersonalDataForDetection } from './services/piiDetectionService';
@@ -117,6 +118,22 @@
         findPendingSendByEmbedId,
     } from '../../stores/pendingUploadStore';
     import { embedStore } from '../../services/embedStore';
+
+    /** Unclosed block from streaming semantics analysis (code blocks, tables, URLs, etc.) */
+    interface UnclosedBlock {
+        type: string;
+        startLine: number;
+        content: string;
+        tokenStartCol?: number;
+        tokenEndCol?: number;
+    }
+
+    /** Minimal TipTap document structure returned by parse_message() */
+    interface ParsedTipTapDoc {
+        type: string;
+        content?: { type: string; content?: { type: string; attrs?: Record<string, unknown> }[] }[];
+        _streamingData?: { unclosedBlocks: UnclosedBlock[] };
+    }
 
     const dispatch = createEventDispatcher();
 
@@ -189,6 +206,7 @@
     // --- Local UI State ---
     let showCamera = $state(false);
     let showMaps = $state(false);
+    let showSketch = $state(false);
     // Keep the bindable isMapsOpen prop in sync with the local showMaps state so
     // the parent (ActiveChat) can react to the map overlay opening/closing.
     $effect(() => { isMapsOpen = showMaps; });
@@ -269,19 +287,20 @@
     personalDataStore.enabledEntries.subscribe((entries) => { cachedPIIEnabledEntries = entries; });
     let defaultImprecise = $derived(locationSettingsState.impreciseByDefault);
     let isMessageFieldFocused = $state(false);
-    
+
     // --- Mention Dropdown State ---
     let showMentionDropdown = $state(false);
     let mentionQuery = $state('');
 
     let mentionDropdownY = $state(0);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
     let isScrollable = $state(false);
     let showMenu = $state(false);
     let menuX = $state(0);
     let menuY = $state(0);
     let selectedEmbedId: string | null = null;
     let menuType = $state<'default' | 'pdf' | 'web'>('default');
-    let selectedNode = $state<{ node: any; pos: number } | null>(null);
+    let selectedNode = $state<{ node: ProseMirrorNode; pos: number } | null>(null);
     let isMenuInteraction = false;
     let previousHeight = 0;
 
@@ -369,83 +388,6 @@
     // --- Blur timeout tracking ---
     let blurTimeoutId: NodeJS.Timeout | null = null; // Track blur timeout to cancel it if focus is regained
     
-    // --- Mobile keyboard viewport scroll fix ---
-    // On iOS Safari the virtual keyboard resizes window.visualViewport but does NOT
-    // reliably scroll the focused element into view, causing the message input to be
-    // hidden behind the keyboard until the user taps multiple times. Android Chrome
-    // handles this better natively, but edge cases exist there too (e.g. complex
-    // flex layouts, PWA mode). Applying the fix universally on touch devices is safe
-    // because scrollIntoView({ block: 'nearest' }) is a no-op when already visible.
-    // We track the listener reference so we can clean it up on blur and on destroy.
-    let viewportResizeListener: (() => void) | null = null;
-    // Scroll timeout used to debounce the viewport-resize scroll callback
-    let scrollIntoViewTimeout: ReturnType<typeof setTimeout> | null = null;
-
-    /** Returns true when running on a touch-capable device (mobile / tablet). */
-    function isTouchDevice(): boolean {
-        if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
-        return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-    }
-
-    /**
-     * Scroll the message input wrapper into the visible area after the mobile
-     * keyboard has animated in and resized window.visualViewport.
-     * Called both from the visualViewport resize handler and as a plain timeout
-     * fallback for browsers without visualViewport support.
-     */
-    function scrollInputIntoView() {
-        if (!messageInputWrapper) return;
-        try {
-            messageInputWrapper.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-            console.debug('[MessageInput] Scrolled input into view after keyboard open');
-        } catch {
-            // Fallback for browsers that don't support options on scrollIntoView
-            try { messageInputWrapper.scrollIntoView(false); } catch { /* ignore */ }
-        }
-    }
-
-    /**
-     * Attach the viewport-resize listener that fires once the mobile keyboard has
-     * finished appearing and scrolls the input into view.
-     * Only runs on touch devices; safe no-op on desktop.
-     */
-    function attachViewportListener() {
-        if (!isTouchDevice()) return;
-        detachViewportListener(); // Ensure no duplicate listeners
-
-        if (window.visualViewport) {
-            // visualViewport fires 'resize' when the keyboard appears/disappears.
-            // Debounce because the event can fire multiple times during keyboard animation.
-            viewportResizeListener = () => {
-                if (scrollIntoViewTimeout) clearTimeout(scrollIntoViewTimeout);
-                scrollIntoViewTimeout = setTimeout(scrollInputIntoView, 80);
-            };
-            window.visualViewport.addEventListener('resize', viewportResizeListener);
-            console.debug('[MessageInput] Attached visualViewport resize listener for mobile keyboard');
-        }
-
-        // Unconditional fallback timeout — fires ~300 ms after focus (keyboard animation
-        // typically completes within 250–300 ms on both iOS and Android). Covers devices
-        // where visualViewport is unavailable or the resize event misfires.
-        if (scrollIntoViewTimeout) clearTimeout(scrollIntoViewTimeout);
-        scrollIntoViewTimeout = setTimeout(scrollInputIntoView, 320);
-    }
-
-    /**
-     * Remove the viewport-resize listener and cancel any pending scroll timeout.
-     */
-    function detachViewportListener() {
-        if (viewportResizeListener && window.visualViewport) {
-            window.visualViewport.removeEventListener('resize', viewportResizeListener);
-            viewportResizeListener = null;
-            console.debug('[MessageInput] Detached visualViewport resize listener');
-        }
-        if (scrollIntoViewTimeout) {
-            clearTimeout(scrollIntoViewTimeout);
-            scrollIntoViewTimeout = null;
-        }
-    }
-
     // --- Initial mount tracking ---
     let isInitialMount = $state(true); // Flag to prevent auto-focus during initial mount
     let mountCompleteTimeout: NodeJS.Timeout | null = null; // Track when mount is complete
@@ -458,7 +400,7 @@
     let piiExclusions = $state<Set<string>>(new Set());
     // Cache of current PII Decoration objects to merge with unclosed-block decorations.
     // Stored separately so they survive when applyHighlightingColors rebuilds the decoration set.
-    let currentPIIDecorations: any[] = [];
+    let currentPIIDecorations: Decoration[] = [];
     // Cache the last text we ran PII detection on to skip redundant work
     let lastPIIText = '';
     // Debounce timer for PII detection - safety net fallback for edge cases
@@ -622,7 +564,7 @@
      * Check if a parsed document contains preview embeds (closed code blocks, tables, etc.)
      * Preview embeds have contentRef starting with 'preview:'
      */
-    function hasPreviewEmbeds(doc: any): boolean {
+    function hasPreviewEmbeds(doc: ParsedTipTapDoc): boolean {
         if (!doc || !doc.content) return false;
         
         for (const node of doc.content) {
@@ -669,7 +611,7 @@
         const codeBlockPatterns = [
             /```json_embed\n[\s\S]*?\n```/g,           // json_embed blocks
             /```document_html\n[\s\S]*?\n```/g,        // document_html blocks
-            /```[\w]*[:\w\/\.]*\n[\s\S]*?\n```/g       // regular code blocks (with optional language and path)
+            /```[\w]*[:\w/.]*\n[\s\S]*?\n```/g       // regular code blocks (with optional language and path)
         ];
         
         for (const pattern of codeBlockPatterns) {
@@ -972,7 +914,7 @@
      * Apply TipTap decorations to highlight unclosed blocks in write mode
      * Uses TipTap's native decoration system to avoid DOM conflicts
      */
-    function applyHighlightingColors(editor: Editor, unclosedBlocks: any[]) {
+    function applyHighlightingColors(editor: Editor, unclosedBlocks: UnclosedBlock[]) {
         // Debug: unclosed blocks for decoration (logged only at info level to reduce keystroke overhead)
 
         const { state, view } = editor;
@@ -1009,7 +951,7 @@
                     case 'code': className = 'unclosed-block-code'; break;
                     case 'table': className = 'unclosed-block-table'; break;
                     case 'document_html': className = 'unclosed-block-html'; break;
-                    case 'url':
+                    case 'url': {
                         // Check if this is a YouTube URL from the block content
                         // Use the same pattern as EMBED_PATTERNS.YOUTUBE_URL for consistency
                         // Note: This is a fallback - YouTube URLs should be detected as 'video' type in streamingSemantics
@@ -1023,6 +965,7 @@
                             className = 'unclosed-block-url';
                         }
                         break;
+                    }
                     case 'video':
                         // YouTube videos should always use red color (#A70B09)
                         className = 'unclosed-block-video';
@@ -1066,8 +1009,8 @@
                     const url = block.content;
                     let urlStartPos: number;
                     
-                    if (typeof (block as any).tokenStartCol === 'number') {
-                        urlStartPos = startLineOffset + (block as any).tokenStartCol;
+                    if (typeof block.tokenStartCol === 'number') {
+                        urlStartPos = startLineOffset + block.tokenStartCol;
                     } else {
                         const startIndex = text.indexOf(url, startLineOffset);
                         if (startIndex === -1) continue; // URL not found, skip
@@ -1095,9 +1038,9 @@
                     }
                     
                     // Use precise character positions when available (preferred)
-                    if (typeof (block as any).tokenStartCol === 'number' && typeof (block as any).tokenEndCol === 'number') {
-                        const tokenStartCol = (block as any).tokenStartCol as number;
-                        const tokenEndCol = (block as any).tokenEndCol as number;
+                    if (typeof block.tokenStartCol === 'number' && typeof block.tokenEndCol === 'number') {
+                        const tokenStartCol = block.tokenStartCol as number;
+                        const tokenEndCol = block.tokenEndCol as number;
                         const from = clampToDoc(startLineOffset + tokenStartCol + 1);
                         const to = clampToDoc(startLineOffset + tokenEndCol + 1);
                         if (from < to) {
@@ -1156,9 +1099,9 @@
                 }
 
                 // Markdown token highlighting: use tokenStartCol/tokenEndCol when present
-                if (block.type === 'markdown' && typeof (block as any).tokenStartCol === 'number' && typeof (block as any).tokenEndCol === 'number') {
-                    const tokenStartCol = (block as any).tokenStartCol as number;
-                    const tokenEndCol = (block as any).tokenEndCol as number;
+                if (block.type === 'markdown' && typeof block.tokenStartCol === 'number' && typeof block.tokenEndCol === 'number') {
+                    const tokenStartCol = block.tokenStartCol as number;
+                    const tokenEndCol = block.tokenEndCol as number;
                     const from = clampToDoc(startLineOffset + tokenStartCol + 1);
                     const to = clampToDoc(startLineOffset + tokenEndCol + 1);
                     if (from < to) decorations.push({ from, to, className, type: block.type });
@@ -1243,7 +1186,7 @@
             embedGroupResizeObserver.disconnect();
         }
         
-        embedGroupResizeObserver = new ResizeObserver((entries) => {
+        embedGroupResizeObserver = new ResizeObserver((_entries) => {
             // Debounce the layout updates to avoid excessive recalculations
             clearTimeout(layoutUpdateTimeout);
             layoutUpdateTimeout = setTimeout(() => {
@@ -1328,10 +1271,10 @@
             // Fallback when containerRect is not yet available (initial render edge case).
             return `height: ${MESSAGE_FIELD_FULLSCREEN_FALLBACK_VH * 100}dvh; max-height: ${MESSAGE_FIELD_FULLSCREEN_FALLBACK_VH * 100}dvh;`;
         }
-        // Maps/camera overlay open (non-fullscreen only): grow to fixed height so the
+        // Maps/camera/sketch overlay open (non-fullscreen only): grow to fixed height so the
         // overlay fills edge-to-edge. When closing, we fall through to the default below
         // which correctly restores `height: auto` without affecting fullscreen state.
-        if (showMaps || showCamera) {
+        if (showMaps || showCamera || showSketch) {
             return `height: ${MESSAGE_FIELD_MAPS_HEIGHT}px; max-height: ${MESSAGE_FIELD_MAPS_HEIGHT}px;`;
         }
         return `height: auto; max-height: ${MESSAGE_FIELD_MAX_HEIGHT}px;`;
@@ -1372,7 +1315,7 @@
             onUpdate: handleEditorUpdate,
             editorProps: {
                 // Handle paste events at the ProseMirror level to intercept before default handling
-                handlePaste: (view, event, slice) => {
+                handlePaste: (view, event, _slice) => {
                     // ── Embed paste detection (highest priority) ───────────────────────
                     // Two detection paths:
                     //
@@ -1759,22 +1702,12 @@
             editor.commands.focus('end');
         }
         
-        // Mobile keyboards (iOS Safari, Android Chrome, etc.): attach a viewport-
-        // resize listener so the input scrolls into view after the virtual keyboard
-        // finishes animating in. Fixes the common issue where the message field is
-        // hidden behind the keyboard and only becomes visible after multiple taps.
-        attachViewportListener();
-        
         // Re-check mention trigger when focus is regained
         // This ensures the dropdown reappears if cursor is right after '@'
         checkMentionTrigger(editor);
     }
 
     function handleEditorBlur({ editor }: { editor: Editor }) {
-        // Mobile: remove viewport-resize listener as soon as the editor loses focus
-        // (keyboard is about to hide — no need to scroll anymore).
-        detachViewportListener();
-
         // Cancel any existing blur timeout before creating a new one
         if (blurTimeoutId) {
             clearTimeout(blurTimeoutId);
@@ -2473,8 +2406,6 @@
             clearTimeout(mountCompleteTimeout);
             mountCompleteTimeout = null;
         }
-        // Always clean up the viewport listener on destroy
-        detachViewportListener();
         document.removeEventListener('embedclick', handleEmbedClick as EventListener);
         document.removeEventListener('mateclick', handleMateClick as EventListener);
         editorElement?.removeEventListener('embed-context-menu', handleEmbedContextMenu as EventListener);
@@ -2612,9 +2543,9 @@
             // Optimistic state update: clear activeAITasks Map to prevent new messages from being queued
             // This ensures the frontend state matches what we're trying to do (cancel the task)
             if (chatSyncService && currentChatId) {
-                const taskInfo = (chatSyncService as any).activeAITasks.get(currentChatId);
+                const taskInfo = chatSyncService.activeAITasks.get(currentChatId);
                 if (taskInfo && taskInfo.taskId === taskId) {
-                    (chatSyncService as any).activeAITasks.delete(currentChatId);
+                    chatSyncService.activeAITasks.delete(currentChatId);
                     console.debug('[MessageInput] Optimistically cleared activeAITasks entry on cancel');
                 }
             }
@@ -2757,8 +2688,8 @@
         customEvent.stopPropagation?.();
 
         // Find the matching TipTap node by embed ID
-        let foundNode: { node: any; pos: number } | null = null;
-        editor.state.doc.descendants((node: any, pos: number) => {
+        let foundNode: { node: ProseMirrorNode; pos: number } | null = null;
+        editor.state.doc.descendants((node: ProseMirrorNode, pos: number) => {
             if (foundNode) return false;
             // Match by id attr (used by inline embeds) or by contentRef containing embed ID
             if (node.attrs?.id === embedId ||
@@ -2796,7 +2727,7 @@
         }
 
         // Determine menu type from the node attrs
-        const nodeAttrs = (foundNode as { node: any; pos: number }).node.attrs ?? {};
+        const nodeAttrs = (foundNode as { node: ProseMirrorNode; pos: number }).node.attrs ?? {};
         let resolvedMenuType: 'default' | 'pdf' | 'web' = 'default';
         if (nodeAttrs.type === 'website' || nodeAttrs.type === 'web') {
             resolvedMenuType = 'web';
@@ -2809,7 +2740,7 @@
         menuY = calcMenuY;
         selectedEmbedId = embedId;
         menuType = resolvedMenuType;
-        selectedNode = foundNode as { node: any; pos: number };
+        selectedNode = foundNode as { node: ProseMirrorNode; pos: number };
         showMenu = true;
 
         console.debug('[MessageInput] Opened embed context menu via embed-context-menu event:', {
@@ -2847,7 +2778,9 @@
     function handleJsonCodeBlockBackspace(event: KeyboardEvent) {
         if (!editor) return;
         
-        const { from, to } = editor.state.selection;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
+
+        const { from, to: _to } = editor.state.selection;
         
         // Check for json_embed blocks first (new format)
         const textBeforeCursor = editor.state.doc.textBetween(Math.max(0, from - 300), from);
@@ -2905,7 +2838,7 @@
                     }
                     return;
                 }
-            } catch (error) {
+            } catch (_error) {
                 console.debug('[MessageInput] Not a valid json_embed block, using default backspace');
             }
         }
@@ -3296,6 +3229,34 @@
         handleStopRecordingCleanup(); // Called here after recording is inserted
     }
     function handleLocationClick() { showMaps = true; }
+
+    /** Open the sketch canvas overlay. */
+    function handleSketchClick() {
+        showSketch = true;
+    }
+
+    /**
+     * Handle sketch captured from SketchView.
+     * Converts the canvas PNG Blob to a File and passes it to insertImage(),
+     * same pipeline as camera photo capture.
+     *
+     * Future: when sketch embed type is implemented, also save the raw canvas
+     * ImageData / SVG path data as a "sketch" embed so the user can re-open
+     * and edit the drawing later.
+     */
+    async function handleSketchCaptured(event: CustomEvent<{ blob: Blob }>) {
+        const { blob } = event.detail;
+        const file = new File([blob], `sketch_${Date.now()}.jpg`, { type: 'image/jpeg' });
+        showSketch = false;
+        await tick();
+        await insertImage(editor, file, false, undefined, undefined, $authStore.isAuthenticated);
+        hasContent = true;
+        tick().then(() => {
+            updateEmbedGroupLayouts();
+            observeEmbedGroupContainers();
+        });
+    }
+
     async function handleLocationSelected(event: CustomEvent<{ type: string; attrs: Record<string, unknown> }>) {
         showMaps = false;
         await tick();
@@ -3355,8 +3316,7 @@
      *
      * Returns null if the text cannot be determined.
      */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async function getEmbedTextContent(node: any): Promise<string | null> {
+    async function getEmbedTextContent(node: ProseMirrorNode): Promise<string | null> {
         const attrs = node.attrs ?? {};
 
         // Recording embed: use the transcript directly
@@ -3716,7 +3676,7 @@
         window.dispatchEvent(new CustomEvent('openSignupInterface'));
     }
 
-    function handleInsertSpace() {
+    function _handleInsertSpace() {
         if (editor && !editor.isDestroyed) {
             editor.commands.insertContent(' ');
         }
@@ -3754,7 +3714,7 @@
     function onRecordMouseDown(event: CustomEvent<{ originalEvent: MouseEvent }>) {
         handleRecordMouseDownLogic(event.detail.originalEvent);
     }
-    async function onRecordMouseUp(event: CustomEvent<{ originalEvent: MouseEvent }>) {
+    async function onRecordMouseUp(_event: CustomEvent<{ originalEvent: MouseEvent }>) {
         // Wait for Svelte to render RecordAudio (bind:this is set after the #if block mounts).
         // If the user releases exactly when the 200ms hold timer fires, showRecordAudioUI
         // becomes true but the DOM update hasn't committed yet, so recordAudioComponent is
@@ -3762,7 +3722,7 @@
         await tick();
         handleRecordMouseUpLogic(recordAudioComponent);
     }
-    async function onRecordMouseLeave(event: CustomEvent<{ originalEvent: MouseEvent }>) {
+    async function onRecordMouseLeave(_event: CustomEvent<{ originalEvent: MouseEvent }>) {
         // When the recording overlay is active, the overlay covers the mic button and
         // the browser fires a synthetic mouseleave. Ignore it — RecordAudio's own
         // document-level listeners handle all stop/cancel logic from this point.
@@ -3775,7 +3735,7 @@
     function onRecordTouchStart(event: CustomEvent<{ originalEvent: TouchEvent }>) {
         handleRecordTouchStartLogic(event.detail.originalEvent);
     }
-    async function onRecordTouchEnd(event: CustomEvent<{ originalEvent: TouchEvent }>) {
+    async function onRecordTouchEnd(_event: CustomEvent<{ originalEvent: TouchEvent }>) {
         // Same tick() reasoning as onRecordMouseUp.
         await tick();
         handleRecordTouchEndLogic(recordAudioComponent);
@@ -3815,7 +3775,7 @@
         }
         return '';
     }
-    export function setDraftContent(chatId: string | null, draftContent: any | null, version: number, shouldFocus: boolean = false) {
+    export function setDraftContent(chatId: string | null, draftContent: Content | null, version: number, shouldFocus: boolean = false) {
         // CRITICAL: setCurrentChatContext already sets the editor content (to draftContent or initial content)
         // So we don't need to clear it again if draftContent is null - that would trigger unnecessary update events
         // The setCurrentChatContext function handles setting the editor content with emitUpdate: false to prevent triggering saves
@@ -4223,11 +4183,13 @@
             </div>
         {/if}
 
-        <!-- Fullscreen expand/collapse button: visible when focused or has content.
+        <!-- Fullscreen expand/collapse button: visible when focused, has content, or an overlay is open.
              Shows icon_fullscreen to expand, icon_minimize to collapse.
              On wide screens (≥1024px), expand breaks the field into the embed panel area.
-             On narrow screens, expand grows the field height to 65dvh. -->
-        {#if isFullscreen || hasContent || isMessageFieldFocused}
+             On narrow screens, expand grows the field height to 65dvh.
+             Hidden when overlays are open — each overlay renders its own maximize button
+             in the top-right corner so the button stays visible above the overlay content. -->
+        {#if (isFullscreen || hasContent || isMessageFieldFocused) && !showCamera && !showSketch && !showMaps}
             <button
                 class="clickable-icon {isFullscreen ? 'icon_minimize' : 'icon_fullscreen'} fullscreen-button"
                 onclick={toggleFullscreen}
@@ -4249,7 +4211,23 @@
 
         {#if showCamera}
             <!-- on:videorecorded removed — video recording disabled until upload support is added -->
-            <CameraView bind:videoElement on:close={() => showCamera = false} on:focusEditor={focus} on:photocaptured={handlePhotoCaptured} />
+            <CameraView
+                bind:videoElement
+                {isFullscreen}
+                on:close={() => showCamera = false}
+                on:focusEditor={focus}
+                on:photocaptured={handlePhotoCaptured}
+                on:toggleFullscreen={toggleFullscreen}
+            />
+        {/if}
+
+        {#if showSketch}
+            <SketchView
+                {isFullscreen}
+                on:close={() => { showSketch = false; focus(); }}
+                on:sketchcaptured={handleSketchCaptured}
+                on:toggleFullscreen={toggleFullscreen}
+            />
         {/if}
 
         <!-- Action Buttons Component: fades in when input is focused, fades out when unfocused.
@@ -4264,9 +4242,11 @@
                     isRecordButtonPressed={$recordingState.isRecordButtonPressed}
                     micPermissionState={$recordingState.micPermissionState}
                     {highlightPressHold}
+                    isSketchOpen={showSketch}
                     on:fileSelect={handleFileSelect}
                     on:locationClick={handleLocationClick}
                     on:cameraClick={handleCameraClick}
+                    on:sketchClick={handleSketchClick}
                     on:sendMessage={handleSendMessage}
                     on:signUpClick={handleSignUpClick}
                     on:buyCreditsClick={handleBuyCreditsClick}
@@ -4335,8 +4315,10 @@
         {#if showMaps}
             <MapsView
                 defaultImprecise={defaultImprecise}
+                {isFullscreen}
                 on:close={() => showMaps = false}
                 on:locationselected={handleLocationSelected}
+                on:toggleFullscreen={toggleFullscreen}
             />
         {/if}
     </div>

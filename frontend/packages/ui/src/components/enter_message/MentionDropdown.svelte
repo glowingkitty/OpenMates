@@ -161,7 +161,7 @@
         event.stopPropagation();
     }
 
-    function handleMouseEnter(index: number) {
+    function _handleMouseEnter(index: number) {
         selectedIndex = index;
     }
 

@@ -786,6 +786,11 @@
   color: #868686;
 }
 
+/* Error state for failed searches */
+:global(.ProseMirror .app-skill-preview-container .skill-status-bar.search-error .skill-status-text) {
+  color: #c0392b;
+}
+
 /* Results indicator */
 :global(.ProseMirror .app-skill-preview-container .skill-results-indicator) {
   font-size: 14px;

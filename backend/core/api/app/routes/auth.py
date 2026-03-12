@@ -17,6 +17,10 @@ from backend.core.api.app.routes.auth_routes.auth_recoverykey import router as r
 from backend.core.api.app.routes.auth_routes.auth_passkey import router as passkey_router
 # Import account recovery router
 from backend.core.api.app.routes.auth_routes.auth_recovery import router as recovery_router
+# Import sessions management router
+from backend.core.api.app.routes.auth_routes.auth_sessions import router as sessions_router
+# Import pair login router (magic QR / token-based cross-device login)
+from backend.core.api.app.routes.auth_routes.auth_pair import router as pair_router
 
 # IMPORTANT INSTRUCTION START (DO NOT DELETE/MODIFY)
 #
@@ -81,3 +85,7 @@ router.include_router(recoverykey_router)
 router.include_router(passkey_router)
 # Include account recovery router
 router.include_router(recovery_router)
+# Include sessions management router
+router.include_router(sessions_router)
+# Include pair login router
+router.include_router(pair_router)

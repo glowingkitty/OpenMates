@@ -19,7 +19,7 @@
     } = $props();
 
     // If there are any links to design guidelines or documentation
-    const designDocsLink = routes.docs.designGuidelines;
+    const _designDocsLink = routes.docs.designGuidelines;
 
     // Function to sanitize HTML, allowing only <mark> and <br> tags
     function sanitizeHtml(html: string) {
@@ -34,7 +34,7 @@
     }
 
     // Handle navigation for subheading links
-    const handleSubheadingClick = (link?: string) => {
+    const _handleSubheadingClick = (link?: string) => {
         if (link) {
             goto(link);
         }

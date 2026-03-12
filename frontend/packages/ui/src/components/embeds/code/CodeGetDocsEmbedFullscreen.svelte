@@ -111,19 +111,11 @@
    * This is the CENTRALIZED way to receive updates - no need for custom subscription
    */
   function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown>; results?: unknown[] }) {
-    console.debug(`[CodeGetDocsEmbedFullscreen] 🔄 Received embed data update for ${embedId}:`, {
-      status: data.status,
-      hasContent: !!data.decodedContent,
-      hasResults: !!data.results,
-      resultsCount: data.results?.length || 0
-    });
     
     // Update get-docs-specific fields from decoded content or results
     if (data.results && Array.isArray(data.results) && data.results.length > 0) {
-      console.debug(`[CodeGetDocsEmbedFullscreen] ✅ Updated results from callback:`, data.results.length);
       localResults = data.results as CodeGetDocsResult[];
     } else if (data.decodedContent?.results && Array.isArray(data.decodedContent.results)) {
-      console.debug(`[CodeGetDocsEmbedFullscreen] ✅ Updated results from decodedContent:`, data.decodedContent.results.length);
       localResults = data.decodedContent.results as CodeGetDocsResult[];
     }
     
@@ -195,19 +187,7 @@
   let renderedMarkdown = $state<string>('');
   let isRenderingMarkdown = $state(false);
   
-  // Debug logging
-  $effect(() => {
-    console.debug('[CodeGetDocsEmbedFullscreen] Rendering with:', {
-      resultsCount: results.length,
-      libraryId,
-      displayQuestion,
-      wordCount,
-      hasPreviewData: !!previewData,
-      hasDocumentation: !!firstResult?.documentation,
-      localLibrary,
-      localQuestion
-    });
-  });
+
   
   /**
    * Render markdown to HTML using markdown-it
@@ -217,7 +197,6 @@
    * but we still sanitize for defense in depth.
    */
   async function renderDocumentation(markdown: string): Promise<void> {
-    console.debug(`[CodeGetDocsEmbedFullscreen] renderDocumentation called, markdown length: ${markdown?.length || 0}`);
     
     if (!markdown) {
       renderedMarkdown = '';
@@ -292,7 +271,6 @@
       // Remove hook after use to prevent memory leaks
       DOMPurify.removeHook('afterSanitizeAttributes');
       
-      console.debug(`[CodeGetDocsEmbedFullscreen] ✅ Rendered & sanitized markdown, HTML length: ${sanitizedHtml.length}`);
       
       renderedMarkdown = sanitizedHtml;
     } catch (error) {
@@ -309,10 +287,14 @@
     }
   }
   
-  // Render markdown when documentation changes
+  // Render markdown when documentation changes.
+  // Tracks documentation content directly — re-renders whenever the source changes
+  // (e.g., embed data update, variant switch in dev preview).
+  let lastRenderedDocumentation = $state<string>('');
   $effect(() => {
     const documentation = firstResult?.documentation;
-    if (documentation && !renderedMarkdown) {
+    if (documentation && documentation !== lastRenderedDocumentation) {
+      lastRenderedDocumentation = documentation;
       renderDocumentation(documentation);
     }
   });
@@ -348,7 +330,6 @@
         
         const clipResult = await copyToClipboard(content);
         if (!clipResult.success) throw new Error(clipResult.error || 'Copy failed');
-        console.debug('[CodeGetDocsEmbedFullscreen] Copied documentation to clipboard');
         // Show success notification
         const { notificationStore } = await import('../../../stores/notificationStore');
         notificationStore.success('Documentation copied to clipboard');
@@ -391,7 +372,6 @@
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        console.debug('[CodeGetDocsEmbedFullscreen] Downloaded documentation as markdown');
       }
     } catch (error) {
       console.error('[CodeGetDocsEmbedFullscreen] Failed to download documentation:', error);
@@ -403,7 +383,6 @@
    */
   async function handleShare() {
     try {
-      console.debug('[CodeGetDocsEmbedFullscreen] Opening share settings:', { embedId, libraryId });
       
       if (!embedId) {
         console.warn('[CodeGetDocsEmbedFullscreen] No embed_id available - cannot create share link');

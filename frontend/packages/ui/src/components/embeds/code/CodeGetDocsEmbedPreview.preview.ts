@@ -13,17 +13,22 @@ const defaultProps = {
 	question: 'How to use $state rune in Svelte 5?',
 	results: [
 		{
-			title: '$state — Svelte 5 Runes',
-			content:
-				'The $state rune declares reactive state. When you assign to a $state variable, ' +
+			library: {
+				id: '/sveltejs/svelte',
+				title: 'Svelte',
+				description: 'Cybernetically enhanced web apps'
+			},
+			documentation:
+				'The `$state` rune declares reactive state. When you assign to a `$state` variable, ' +
 				'Svelte automatically updates all DOM nodes that depend on it.\n\n' +
+				'## Basic Usage\n\n' +
 				'```svelte\n<script>\nlet count = $state(0);\n</script>\n<button onclick={() => count++}>{count}</button>\n```',
-			url: 'https://svelte.dev/docs/svelte/$state',
-			source: 'svelte.dev'
+			word_count: 48,
+			source: 'context7'
 		}
 	],
 	isMobile: false,
-	onFullscreen: () => console.log('[Preview] Fullscreen clicked')
+	onFullscreen: () => {}
 };
 
 export default defaultProps;
@@ -40,6 +45,26 @@ export const variants = {
 		isMobile: false
 	},
 
+	/** FastAPI docs */
+	fastapi: {
+		id: 'preview-code-getdocs-fastapi',
+		status: 'finished' as const,
+		library: 'fastapi',
+		question: 'How to define path parameters?',
+		results: [
+			{
+				library: {
+					id: '/tiangolo/fastapi',
+					title: 'FastAPI'
+				},
+				documentation: 'Path parameters are defined using Python type hints in the function signature.',
+				word_count: 62,
+				source: 'context7'
+			}
+		],
+		isMobile: false
+	},
+
 	/** Error state */
 	error: {
 		id: 'preview-code-getdocs-error',
@@ -48,34 +73,5 @@ export const variants = {
 		question: 'How to use unknown feature?',
 		results: [],
 		isMobile: false
-	},
-
-	/** Multiple results */
-	multipleResults: {
-		...defaultProps,
-		id: 'preview-code-getdocs-multi',
-		library: 'fastapi',
-		question: 'How to define path parameters?',
-		results: [
-			{
-				title: 'Path Parameters — FastAPI',
-				content: 'Path parameters are defined using Python type hints in the function signature.',
-				url: 'https://fastapi.tiangolo.com/tutorial/path-params/',
-				source: 'fastapi.tiangolo.com'
-			},
-			{
-				title: 'Path Parameters and Numeric Validations',
-				content: 'Use Path() to add validation to path parameters.',
-				url: 'https://fastapi.tiangolo.com/tutorial/path-params-numeric-validations/',
-				source: 'fastapi.tiangolo.com'
-			}
-		]
-	},
-
-	/** Mobile view */
-	mobile: {
-		...defaultProps,
-		id: 'preview-code-getdocs-mobile',
-		isMobile: true
 	}
 };

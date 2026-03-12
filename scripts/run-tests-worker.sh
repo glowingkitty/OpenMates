@@ -10,6 +10,8 @@
 #   $2 - Pipe-separated list of spec filenames (e.g. "chat-flow.spec.ts|login.spec.ts")
 #   $3 - Work directory for result output
 #   $4 - Project root directory
+#   $5 - (optional) PLAYWRIGHT_TEST_BASE_URL override (empty = use E2E_DEV_TEST_BASE_URL from host env)
+#   $6 - (optional) "true" to use OPENMATES_PROD_TEST_ACCOUNT_* creds instead of slot creds
 #
 # Abort-on-first-failure behaviour:
 #   All workers share a single $WORK_DIR/abort_signal file. The first worker to
@@ -27,6 +29,8 @@ SLOT="$1"
 SPECS_RAW="$2"
 WORK_DIR="$3"
 PROJECT_ROOT="$4"
+PLAYWRIGHT_BASE_URL_OVERRIDE="${5:-}"
+USE_PROD_ACCOUNT="${6:-false}"
 
 # Shared abort signal file. Written atomically by the first worker that records
 # a failure. All workers check this before starting the next spec.
@@ -64,8 +68,33 @@ print(json.dumps(entry))
 
   # Run the spec in the Playwright Docker container with the slot's credentials.
   # The PLAYWRIGHT_WORKER_SLOT env var tells getTestAccount() which account to use.
+  # For prod smoke tests: PLAYWRIGHT_TEST_BASE_URL is overridden and
+  # OPENMATES_PROD_TEST_ACCOUNT_* creds are passed in place of slot creds.
   spec_output=""
   spec_exit=0
+
+  # Build extra docker -e flags for optional overrides
+  DOCKER_EXTRA_ARGS=()
+  # Determine which base URL to use:
+  #   - Prod smoke test: PLAYWRIGHT_BASE_URL_OVERRIDE is set (e.g. https://openmates.org)
+  #   - Dev run: fall back to E2E_DEV_TEST_BASE_URL from the host environment
+  # In both cases we pass it explicitly so docker-compose.playwright.yml never
+  # needs a hardcoded fallback value.
+  EFFECTIVE_BASE_URL="${PLAYWRIGHT_BASE_URL_OVERRIDE:-${E2E_DEV_TEST_BASE_URL:-}}"
+  if [[ -n "$EFFECTIVE_BASE_URL" ]]; then
+    DOCKER_EXTRA_ARGS+=(-e "PLAYWRIGHT_TEST_BASE_URL=$EFFECTIVE_BASE_URL")
+  fi
+  if [[ "$USE_PROD_ACCOUNT" == "true" ]]; then
+    # Pass prod account creds as slot-1 vars so getTestAccount() picks them up.
+    # The prod account env vars (OPENMATES_PROD_TEST_ACCOUNT_EMAIL etc.) are
+    # defined on the dev server and forwarded to the container here.
+    DOCKER_EXTRA_ARGS+=(
+      -e "OPENMATES_TEST_ACCOUNT_1_EMAIL=${OPENMATES_PROD_TEST_ACCOUNT_EMAIL:-}"
+      -e "OPENMATES_TEST_ACCOUNT_1_PASSWORD=${OPENMATES_PROD_TEST_ACCOUNT_PASSWORD:-}"
+      -e "OPENMATES_TEST_ACCOUNT_1_OTP_KEY=${OPENMATES_PROD_TEST_ACCOUNT_OTP_KEY:-}"
+    )
+  fi
+
   spec_output="$(
     cd "$PROJECT_ROOT" && \
     docker compose --env-file .env -f docker-compose.playwright.yml run --rm \
@@ -74,6 +103,7 @@ print(json.dumps(entry))
       -e SIGNUP_TEST_EMAIL_DOMAINS \
       -e MAILOSAUR_API_KEY \
       -e MAILOSAUR_SERVER_ID \
+      "${DOCKER_EXTRA_ARGS[@]}" \
       playwright 2>&1
   )" || spec_exit=$?
 

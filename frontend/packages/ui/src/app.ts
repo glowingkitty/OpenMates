@@ -30,6 +30,8 @@ export async function initializeApp(
     // These allow inspecting IndexedDB data via window.debugChat(), etc.
     initDebugUtils();
 
+    // Initialize OpenObserve RUM SDK — non-blocking, no-op if endpoint not configured
+
     // Initialize databases
     await chatDB.init();
     await userDB.init();

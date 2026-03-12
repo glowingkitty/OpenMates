@@ -16,7 +16,7 @@
     const STEP_CREDITS = 'credits';
     const STEP_PAYMENT = 'payment';
     const STEP_AUTO_TOP_UP = 'auto_top_up';
-    const STEP_COMPLETION = 'completion';
+    const _STEP_COMPLETION = 'completion';
 
     // Define the step sequences
     // Note: STEP_COMPLETION is not included as it's not a visible step - users go directly to the app after auto top-up

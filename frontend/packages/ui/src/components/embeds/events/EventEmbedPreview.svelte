@@ -65,7 +65,7 @@
     /** Whether to use mobile layout */
     isMobile?: boolean;
     /** Click handler that opens EventEmbedFullscreen drill-down */
-    onFullscreen?: () => void;
+    onFullscreen: () => void;
   }
 
   let {
@@ -79,22 +79,44 @@
 
   /**
    * Format a date_start ISO string to a short readable date+time.
-   * Example: "Sat, Mar 15 · 7:00 PM"
+   * Shows relative day labels for today/tomorrow.
+   * Examples: "Today, Mar 13 - 5:30 PM", "Sat, Mar 15 - 7:00 PM"
    */
   function formatEventDate(dateStr: string | undefined): string {
     if (!dateStr) return '';
     try {
       const d = new Date(dateStr);
       if (isNaN(d.getTime())) return '';
-      return (
-        d.toLocaleDateString(undefined, {
-          weekday: 'short',
-          month: 'short',
-          day: 'numeric',
-        }) +
-        ' · ' +
-        d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
-      );
+      const now = new Date();
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const startOfTomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      const startOfDayAfterTomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2);
+      const dateOnly = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+      const monthDay = d.toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+      });
+      const time = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+
+      if (dateOnly.getTime() === startOfToday.getTime()) {
+        return `Today, ${monthDay} - ${time}`;
+      }
+
+      if (dateOnly.getTime() === startOfTomorrow.getTime()) {
+        return `Tomorrow, ${monthDay} - ${time}`;
+      }
+
+      const dayLabel =
+        dateOnly >= startOfDayAfterTomorrow
+          ? d.toLocaleDateString(undefined, {
+              weekday: 'short',
+              month: 'short',
+              day: 'numeric',
+            })
+          : monthDay;
+
+      return `${dayLabel} - ${time}`;
     } catch {
       return '';
     }
@@ -112,11 +134,27 @@
     return parts.join(', ');
   }
 
+  /**
+   * Map backend provider slugs to human-readable display names.
+   * Providers: meetup, luma, classictic, berlin_philharmonic, bachtrack
+   */
+  function getProviderLabel(provider: string | undefined): string {
+    switch (provider?.toLowerCase()) {
+      case 'meetup':              return 'Meetup';
+      case 'luma':                return 'Luma';
+      case 'classictic':          return 'Classictic';
+      case 'berlin_philharmonic': return 'Berlin Philharmonic';
+      case 'bachtrack':           return 'Bachtrack';
+      default:                    return provider || '';
+    }
+  }
+
   // Derived display values
   let eventDate     = $derived(formatEventDate(event.date_start));
   let eventLocation = $derived(getEventLocation(event));
   let isOnline      = $derived(event.event_type === 'ONLINE');
   let isPaid        = $derived(event.is_paid ?? false);
+  let providerLabel = $derived(getProviderLabel(event.provider));
 
   // Format fee for display (e.g. "€12.00")
   let feeDisplay = $derived.by(() => {
@@ -166,7 +204,7 @@
         {/if}
       </div>
 
-      <!-- Bottom row: type badge + RSVP count / fee -->
+      <!-- Bottom row: type badge + RSVP count / fee + source -->
       <div class="event-footer">
         {#if event.event_type}
           <span class="event-type-badge" class:online={isOnline}>
@@ -177,6 +215,9 @@
           <span class="event-fee">{feeDisplay}</span>
         {:else if event.rsvp_count != null && event.rsvp_count > 0}
           <span class="event-rsvp">{event.rsvp_count.toLocaleString()} RSVPs</span>
+        {/if}
+        {#if providerLabel}
+          <span class="event-source">{providerLabel}</span>
         {/if}
       </div>
     </div>
@@ -202,7 +243,7 @@
   /* ── Event title ─────────────────────────────────────────────────────────── */
 
   .event-title {
-    font-size: 14px;
+    font-size: 0.875rem;
     font-weight: 600;
     color: var(--color-grey-100);
     line-height: 1.35;
@@ -216,7 +257,7 @@
   }
 
   .event-preview-details.mobile .event-title {
-    font-size: 13px;
+    font-size: 0.8125rem;
     -webkit-line-clamp: 4;
     line-clamp: 4;
   }
@@ -230,7 +271,7 @@
   }
 
   .event-date {
-    font-size: 12px;
+    font-size: 0.75rem;
     color: var(--color-grey-70);
     font-weight: 500;
     white-space: nowrap;
@@ -239,14 +280,14 @@
   }
 
   .event-location {
-    font-size: 11px;
+    font-size: 0.6875rem;
     color: var(--color-grey-60);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
-  /* ── Footer: type badge + RSVP / fee ────────────────────────────────────── */
+  /* ── Footer: type badge + RSVP / fee + source ────────────────────────────── */
 
   .event-footer {
     display: flex;
@@ -257,24 +298,32 @@
 
   /* Type badge: "Online" (teal) or "In Person" (events brand red) */
   .event-type-badge {
-    font-size: 10px;
+    font-size: 0.625rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     padding: 2px 6px;
     border-radius: 20px;
     background: var(--color-app-events-start, #a20000);
-    color: #fff;
+    color: #fff; /* intentional: always white on brand colour */
     flex-shrink: 0;
   }
 
   .event-type-badge.online {
-    background: #1a6b5a;
+    background: #1a6b5a; /* intentional: brand teal for online events */
   }
 
   .event-fee,
   .event-rsvp {
-    font-size: 11px;
+    font-size: 0.6875rem;
     color: var(--color-grey-60);
+  }
+
+  .event-source {
+    font-size: 0.6875rem;
+    color: var(--color-font-secondary);
+    font-weight: 500;
+    margin-left: auto;
+    flex-shrink: 0;
   }
 </style>

@@ -7,7 +7,7 @@ const defaultProps = {
   plotSpec: "f(x) = sin(x)\nf(x) = cos(x)\nf(x) = tan(x)",
   title: "Trigonometric Functions",
   embedId: "preview-math-plot-fullscreen-1",
-  onClose: () => console.log("[Preview] Close clicked"),
+  onClose: () => {},
   hasPreviousEmbed: false,
   hasNextEmbed: false,
 };

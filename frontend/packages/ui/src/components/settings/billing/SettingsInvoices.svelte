@@ -131,12 +131,12 @@ Invoices Settings - View and download past invoices
                     const errorData = await responseClone.json();
                     errorDetail = errorData.detail || errorData.message || '';
                     console.error('Error response body:', errorData);
-                } catch (e) {
+                } catch (_e) {
                     // If JSON parsing fails, try to get text from original response
                     try {
                         errorDetail = await response.text();
                         console.error('Error response text:', errorDetail);
-                    } catch (e2) {
+                    } catch (_e2) {
                         console.error('Could not parse error response');
                     }
                 }
@@ -306,7 +306,7 @@ Invoices Settings - View and download past invoices
     }
     
     // Format refund date for display
-    function formatRefundDate(refundedAt: string | null | undefined): string {
+    function _formatRefundDate(refundedAt: string | null | undefined): string {
         if (!refundedAt) {
             return '';
         }
@@ -357,7 +357,7 @@ Invoices Settings - View and download past invoices
                 // Decode the filename (it may be URL-encoded)
                 try {
                     filename = decodeURIComponent(filenameMatch[1]);
-                } catch (e) {
+                } catch (_e) {
                     filename = filenameMatch[1];
                 }
             } else {
@@ -431,7 +431,7 @@ Invoices Settings - View and download past invoices
                 // Decode the filename (it may be URL-encoded)
                 try {
                     filename = decodeURIComponent(filenameMatch[1]);
-                } catch (e) {
+                } catch (_e) {
                     filename = filenameMatch[1];
                 }
             } else {
@@ -477,7 +477,7 @@ Invoices Settings - View and download past invoices
         if (invoices.length > 0 && !isLoading) {
             // Check for refund deep link in URL hash (e.g., #settings/billing/invoices/{invoice_id}/refund)
             const hash = window.location.hash;
-            const refundMatch = hash.match(/^#settings\/billing\/invoices\/([^\/]+)\/refund$/);
+            const refundMatch = hash.match(/^#settings\/billing\/invoices\/([^/]+)\/refund$/);
             
             if (refundMatch) {
                 const refundInvoiceId = refundMatch[1];

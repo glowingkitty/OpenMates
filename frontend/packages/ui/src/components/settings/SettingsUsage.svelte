@@ -300,7 +300,7 @@ Usage Settings - View usage statistics and export usage data
     }
 
     // Group entries by chat ID
-    function groupByChat(entries: UsageEntry[]): Record<string, UsageEntry[]> {
+    function _groupByChat(entries: UsageEntry[]): Record<string, UsageEntry[]> {
         const groups: Record<string, UsageEntry[]> = {};
         
         entries.forEach(entry => {
@@ -372,7 +372,7 @@ Usage Settings - View usage statistics and export usage data
     }
     
     // Check if a chat exists in local IndexedDB (for clickable usage entries)
-    async function checkChatExists(chatId: string | null | undefined): Promise<boolean> {
+    async function _checkChatExists(chatId: string | null | undefined): Promise<boolean> {
         if (!chatId) return false;
         try {
             const chat = await chatDB.getChat(chatId);
@@ -689,7 +689,7 @@ Usage Settings - View usage statistics and export usage data
         }
         
         // Sort summaries within each month by total credits (descending)
-        groupedByMonth.forEach((summaries, month) => {
+        groupedByMonth.forEach((summaries, _month) => {
             summaries.sort((a, b) => b.totalCredits - a.totalCredits);
         });
         
@@ -751,7 +751,7 @@ Usage Settings - View usage statistics and export usage data
         }
         
         // Sort summaries within each month by total credits (descending)
-        groupedByMonth.forEach((summaries, month) => {
+        groupedByMonth.forEach((summaries, _month) => {
             summaries.sort((a, b) => b.totalCredits - a.totalCredits);
         });
         
@@ -805,7 +805,7 @@ Usage Settings - View usage statistics and export usage data
         }
         
         // Sort summaries within each month by total credits (descending)
-        groupedByMonth.forEach((summaries, month) => {
+        groupedByMonth.forEach((summaries, _month) => {
             summaries.sort((a, b) => b.totalCredits - a.totalCredits);
         });
         
@@ -882,7 +882,7 @@ Usage Settings - View usage statistics and export usage data
     }
 
     // Export usage data as PDF (placeholder - would need PDF library)
-    async function exportToPDF() {
+    async function _exportToPDF() {
         notificationStore.info($text('settings.usage.pdf_coming_soon'));
         // TODO: Implement PDF export using a library like jsPDF
     }
@@ -1098,7 +1098,7 @@ Usage Settings - View usage statistics and export usage data
     
     // Derived value to check if we have any chat summaries
     const hasChatSummaries = $derived(chatsByMonth.size > 0 && Array.from(chatsByMonth.values()).some(arr => arr.length > 0));
-    let isLoadingChatMetadata = $state(false);
+    let _isLoadingChatMetadata = $state(false);
 
     // Chat summaries are now loaded from API, not computed from usageEntries
 
@@ -1226,7 +1226,7 @@ Usage Settings - View usage statistics and export usage data
     /**
      * Shorten a decrypted API key prefix for display so users can identify keys without leaking full values.
      */
-    function shortenKeyPrefix(prefix: string | null | undefined): string {
+    function _shortenKeyPrefix(prefix: string | null | undefined): string {
         if (!prefix) {
             return '';
         }
@@ -1244,7 +1244,7 @@ Usage Settings - View usage statistics and export usage data
     async function getApiKeyLabel(summary: ApiKeyUsageSummary): Promise<{ title: string; subtitle: string }> {
         let name = '';
         let prefix = '';
-        let prefixFromBackend = false; // Track if prefix came from backend encrypted field
+        let _prefixFromBackend = false; // Track if prefix came from backend encrypted field
         
         // Try to decrypt encrypted fields from summary (preferred method)
         if (summary.encrypted_name || summary.encrypted_key_prefix) {
@@ -1259,7 +1259,7 @@ Usage Settings - View usage statistics and export usage data
                     const decrypted = await decryptWithMasterKey(summary.encrypted_key_prefix);
                     if (decrypted) {
                         prefix = decrypted.trim();
-                        prefixFromBackend = true; // Prefix came from backend (already shortened)
+                        _prefixFromBackend = true; // Prefix came from backend (already shortened)
                     }
                 }
             } catch (err) {
@@ -1439,22 +1439,9 @@ Usage Settings - View usage statistics and export usage data
 
     // Process and group usage data for display
     const processedUsage = $derived.by(() => {
-        console.log('Processing usage entries:', {
-            totalEntries: usageEntries.length,
-            activeTab,
-            timeGrouping,
-            sortOption
-        });
-        
         const filtered = filterByTab(usageEntries);
-        console.log('Filtered entries:', filtered.length);
-        
         const sorted = sortEntries(filtered);
-        console.log('Sorted entries:', sorted.length);
-        
         const grouped = groupByTime(sorted);
-        console.log('Grouped entries:', Object.keys(grouped).length, 'groups');
-        console.log('Grouped data:', grouped);
         
         // Calculate totals for each group
         const groupsWithTotals: Record<string, { entries: UsageEntry[], total: number }> = {};

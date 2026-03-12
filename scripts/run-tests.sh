@@ -10,11 +10,20 @@
 #   ./scripts/run-tests.sh [options]
 #
 # Options:
-#   --all            Also run pytest integration tests (default: unit only)
-#   --only-failed    Rerun only tests that failed in the last run
-#   --suite SUITE    Run only: vitest|pytest|playwright|all (default: all)
-#   --workers N      Number of parallel Playwright workers/accounts (1-5, default: 5)
-#   --help           Show this help message
+#   --all                Also run pytest integration tests (default: unit only)
+#   --only-failed        Rerun only tests that failed in the last run
+#   --suite SUITE        Run only: vitest|pytest|playwright|all (default: all)
+#   --workers N          Number of parallel Playwright workers/accounts (1-5, default: 5)
+#   --environment ENV    "development" (default) or "production"
+#   --base-url URL       Override PLAYWRIGHT_TEST_BASE_URL for this run (prod smoke test)
+#   --prod-account       Use OPENMATES_PROD_TEST_ACCOUNT_* creds instead of slot-based creds
+#   --help               Show this help message
+#
+# Production mode (--environment production):
+#   Limits tests to avoid LLM inference and third-party API costs:
+#   - Playwright: only chat-flow.spec.ts (1 inference test)
+#   - pytest integration: skipped entirely
+#   - vitest + pytest unit: run in full (no cost)
 #
 # Output:
 #   test-results/run-<ISO-timestamp>.json
@@ -31,6 +40,13 @@ SUITE="all"
 UNIT_ONLY=true
 ONLY_FAILED=false
 MAX_WORKERS=5
+# Read environment from CLI arg; fall back to DAILY_RUN_ENVIRONMENT env var
+# (set by run-tests-daily.sh), then default to "development".
+ENVIRONMENT="${DAILY_RUN_ENVIRONMENT:-development}"
+# Optional: override PLAYWRIGHT_TEST_BASE_URL (used for prod smoke test)
+PLAYWRIGHT_BASE_URL_OVERRIDE=""
+# Optional: use OPENMATES_PROD_TEST_ACCOUNT_* creds instead of slot-based creds
+USE_PROD_ACCOUNT=false
 
 # --- Parse CLI args ---
 while [[ $# -gt 0 ]]; do
@@ -39,6 +55,9 @@ while [[ $# -gt 0 ]]; do
     --only-failed) ONLY_FAILED=true; shift ;;
     --suite)      SUITE="$2"; shift 2 ;;
     --workers)    MAX_WORKERS="$2"; shift 2 ;;
+    --environment) ENVIRONMENT="$2"; shift 2 ;;
+    --base-url)   PLAYWRIGHT_BASE_URL_OVERRIDE="$2"; shift 2 ;;
+    --prod-account) USE_PROD_ACCOUNT=true; shift ;;
     --help|-h)
       sed -n '2,/^# =====/p' "$0" | grep '^#' | sed 's/^# \?//'
       exit 0
@@ -46,6 +65,18 @@ while [[ $# -gt 0 ]]; do
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
 done
+
+# Normalise
+ENVIRONMENT="${ENVIRONMENT,,}"
+if [[ "$ENVIRONMENT" != "development" && "$ENVIRONMENT" != "production" ]]; then
+  echo "WARNING: unknown --environment '$ENVIRONMENT' — defaulting to 'development'"
+  ENVIRONMENT="development"
+fi
+
+# On production: force UNIT_ONLY so pytest integration tests are skipped
+if [[ "$ENVIRONMENT" == "production" ]]; then
+  UNIT_ONLY=true
+fi
 
 # Validate --suite
 case "$SUITE" in
@@ -161,9 +192,12 @@ run_vitest() {
     return
   fi
 
-  local vitest_output
   local vitest_exit=0
-  vitest_output="$(cd "$vitest_dir" && npx vitest run --config vitest.simple.config.ts --reporter=json 2>&1)" || vitest_exit=$?
+  # Write output to a temp file to avoid "Argument list too long" (execve limit
+  # ~130K bytes) when passing large JSON output as a shell argument.
+  local vitest_tmp="$WORK_DIR/vitest_raw_output.txt"
+  (cd "$vitest_dir" && npx vitest run --config vitest.simple.config.ts --reporter=json 2>&1) \
+    > "$vitest_tmp" || vitest_exit=$?
 
   local suite_dur=$(( $(now_seconds) - suite_start ))
 
@@ -171,10 +205,13 @@ run_vitest() {
   python3 -c "
 import json, sys
 
-raw = sys.argv[1]
+output_file = sys.argv[1]
 exit_code = int(sys.argv[2])
 dur = int(sys.argv[3])
 work_dir = sys.argv[4]
+
+with open(output_file, 'r', errors='replace') as fh:
+    raw = fh.read()
 
 # Try to extract JSON from the output (vitest --reporter=json outputs JSON)
 # The JSON may be mixed with other output, so find the JSON object
@@ -227,7 +264,7 @@ with open(work_dir + '/vitest_suite.json', 'w') as f:
 passed = sum(1 for t in tests if t['status'] == 'passed')
 failed = sum(1 for t in tests if t['status'] == 'failed')
 print(f'  {passed} passed, {failed} failed ({dur}s)')
-" "$vitest_output" "$vitest_exit" "$suite_dur" "$WORK_DIR"
+" "$vitest_tmp" "$vitest_exit" "$suite_dur" "$WORK_DIR"
 }
 
 # =============================================================================
@@ -285,7 +322,7 @@ run_pytest() {
       done
       [[ "$found" == "false" ]] && continue
     fi
-    unit_args+=("tests/$t")
+    unit_args+=("backend/tests/$t")
   done
 
   if [[ ${#unit_args[@]} -eq 0 ]]; then
@@ -293,16 +330,22 @@ run_pytest() {
     echo '{"status":"skipped","reason":"no matching tests","duration_seconds":0,"tests":[]}' \
       > "$WORK_DIR/pytest_unit_suite.json"
   else
-    unit_output="$($pytest_bin -m pytest --tb=short -q "${unit_args[@]}" 2>&1)" || unit_exit=$?
+    # Write output to a temp file to avoid "Argument list too long" (execve limit).
+    local unit_tmp="$WORK_DIR/pytest_unit_raw_output.txt"
+    ($pytest_bin -m pytest --tb=short -q "${unit_args[@]}" 2>&1) \
+      > "$unit_tmp" || unit_exit=$?
     local unit_dur=$(( $(now_seconds) - unit_start ))
 
     python3 -c "
 import json, re, sys
 
-raw = sys.argv[1]
+output_file = sys.argv[1]
 exit_code = int(sys.argv[2])
 dur = int(sys.argv[3])
 work_dir = sys.argv[4]
+
+with open(output_file, 'r', errors='replace') as fh:
+    raw = fh.read()
 
 tests = []
 suite_status = 'passed' if exit_code == 0 else 'failed'
@@ -335,12 +378,18 @@ with open(work_dir + '/pytest_unit_suite.json', 'w') as f:
 passed = sum(1 for t in tests if t['status'] == 'passed')
 failed = sum(1 for t in tests if t['status'] == 'failed')
 print(f'  Unit: {passed} passed, {failed} failed ({dur}s)')
-" "$unit_output" "$unit_exit" "$unit_dur" "$WORK_DIR"
+" "$unit_tmp" "$unit_exit" "$unit_dur" "$WORK_DIR"
   fi
 
   # --- Integration tests ---
+  # On production, UNIT_ONLY is forced true (set at top of script) to avoid
+  # LLM inference and third-party API costs (ai, apps, web, images tests).
   if [[ "$UNIT_ONLY" == "true" ]]; then
-    echo "  Integration tests: skipped (use --all to include)"
+    if [[ "$ENVIRONMENT" == "production" ]]; then
+      echo "  Integration tests: skipped (production — no inference/API costs allowed)"
+    else
+      echo "  Integration tests: skipped (use --all to include)"
+    fi
     echo '{"status":"skipped","reason":"--unit-only","duration_seconds":0,"tests":[]}' \
       > "$WORK_DIR/pytest_integration_suite.json"
   else
@@ -368,7 +417,7 @@ print(f'  Unit: {passed} passed, {failed} failed ({dur}s)')
         done
         [[ "$found" == "false" ]] && continue
       fi
-      integ_args+=("tests/$t")
+      integ_args+=("backend/tests/$t")
     done
 
     if [[ ${#integ_args[@]} -eq 0 ]]; then
@@ -376,15 +425,20 @@ print(f'  Unit: {passed} passed, {failed} failed ({dur}s)')
       echo '{"status":"skipped","reason":"no matching tests","duration_seconds":0,"tests":[]}' \
         > "$WORK_DIR/pytest_integration_suite.json"
     else
-      integ_output="$($pytest_bin -m pytest --tb=short -q "${integ_args[@]}" 2>&1)" || integ_exit=$?
+      # Write output to a temp file to avoid "Argument list too long" (execve limit).
+      local integ_tmp="$WORK_DIR/pytest_integ_raw_output.txt"
+      ($pytest_bin -m pytest --tb=short -q "${integ_args[@]}" 2>&1) \
+        > "$integ_tmp" || integ_exit=$?
       local integ_dur=$(( $(now_seconds) - integ_start ))
 
       python3 -c "
 import json, sys
-raw = sys.argv[1]
+output_file = sys.argv[1]
 exit_code = int(sys.argv[2])
 dur = int(sys.argv[3])
 work_dir = sys.argv[4]
+with open(output_file, 'r', errors='replace') as fh:
+    raw = fh.read()
 tests = []
 suite_status = 'passed' if exit_code == 0 else 'failed'
 for line in raw.split('\n'):
@@ -410,7 +464,7 @@ with open(work_dir + '/pytest_integration_suite.json', 'w') as f:
 passed = sum(1 for t in tests if t['status'] == 'passed')
 failed = sum(1 for t in tests if t['status'] == 'failed')
 print(f'  Integration: {passed} passed, {failed} failed ({dur}s)')
-" "$integ_output" "$integ_exit" "$integ_dur" "$WORK_DIR"
+" "$integ_tmp" "$integ_exit" "$integ_dur" "$WORK_DIR"
     fi
   fi
 }
@@ -439,6 +493,22 @@ run_playwright() {
     echo '{"status":"skipped","reason":"no specs found","duration_seconds":0,"workers":0,"tests":[]}' \
       > "$WORK_DIR/playwright_suite.json"
     return
+  fi
+
+  # On production: limit to the single inference-safe smoke test.
+  # This avoids LLM inference costs for every spec while still verifying the
+  # core chat flow (login → send message → AI response → decrypt) on prod.
+  if [[ "$ENVIRONMENT" == "production" ]]; then
+    local prod_spec="chat-flow.spec.ts"
+    if [[ " ${all_specs[*]} " == *" $prod_spec "* ]]; then
+      echo "  [production] Limiting Playwright to $prod_spec (1 of ${#all_specs[@]} specs)"
+      all_specs=("$prod_spec")
+    else
+      echo "  [production] WARNING: $prod_spec not found — running no Playwright specs"
+      echo '{"status":"skipped","reason":"production: chat-flow.spec.ts not found","duration_seconds":0,"workers":0,"tests":[]}' \
+        > "$WORK_DIR/playwright_suite.json"
+      return
+    fi
   fi
 
   # Filter for --only-failed if applicable
@@ -493,7 +563,9 @@ run_playwright() {
       "$slot_num" \
       "$specs_for_slot" \
       "$WORK_DIR" \
-      "$PROJECT_ROOT" &
+      "$PROJECT_ROOT" \
+      "$PLAYWRIGHT_BASE_URL_OVERRIDE" \
+      "$USE_PROD_ACCOUNT" &
     pids+=($!)
   done
 
@@ -551,9 +623,20 @@ echo "║  OpenMates Test Runner                                   ║"
 echo "╠═══════════════════════════════════════════════════════════╣"
 printf "║  Run ID:    %-45s║\n" "$RUN_ID"
 printf "║  Git:       %-45s║\n" "$GIT_SHA ($GIT_BRANCH)"
+printf "║  Environment: %-43s║\n" "$ENVIRONMENT"
 printf "║  Suite:     %-45s║\n" "$SUITE"
 printf "║  Unit only: %-45s║\n" "$UNIT_ONLY"
 printf "║  Workers:   %-45s║\n" "$MAX_WORKERS"
+if [[ -n "$PLAYWRIGHT_BASE_URL_OVERRIDE" ]]; then
+  printf "║  Base URL:  %-45s║\n" "$PLAYWRIGHT_BASE_URL_OVERRIDE"
+fi
+if [[ "$USE_PROD_ACCOUNT" == "true" ]]; then
+  printf "║  %-55s║\n" "Using prod test account credentials"
+fi
+if [[ "$ENVIRONMENT" == "production" ]]; then
+  printf "║  %-55s║\n" "PRODUCTION: playwright limited to chat-flow.spec.ts"
+  printf "║  %-55s║\n" "PRODUCTION: pytest integration skipped"
+fi
 if [[ "$ONLY_FAILED" == "true" ]]; then
   printf "║  Mode:      %-45s║\n" "rerun failed (${#FAILED_SPECS[@]} tests)"
 fi

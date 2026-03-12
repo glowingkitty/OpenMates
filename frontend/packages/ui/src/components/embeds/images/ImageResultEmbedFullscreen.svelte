@@ -43,7 +43,7 @@
     sourcePageUrl,
     imageUrl,
     thumbnailUrl,
-    faviconUrl,
+    faviconUrl: _faviconUrl,
     embedId,
     hasPreviousEmbed = false,
     hasNextEmbed = false,
@@ -123,18 +123,6 @@
 
       <!-- Metadata section -->
       <div class="meta-section">
-        <!-- Source site info -->
-        {#if faviconUrl || sourceDomain}
-          <div class="source-line">
-            {#if faviconUrl}
-              <img src={faviconUrl} alt="" class="favicon" use:handleImageError />
-            {/if}
-            {#if sourceDomain}
-              <span class="source-domain">{sourceDomain}</span>
-            {/if}
-          </div>
-        {/if}
-
         <!-- Title -->
         {#if title}
           <h2 class="result-title">{title}</h2>
@@ -240,27 +228,6 @@
     align-self: center;
   }
 
-  .source-line {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .favicon {
-    width: 16px;
-    height: 16px;
-    flex-shrink: 0;
-    object-fit: contain;
-  }
-
-  .source-domain {
-    font-size: 13px;
-    color: var(--color-grey-50, #888);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
   .result-title {
     font-family: 'Lexend Deca', sans-serif;
     font-size: 16px;
@@ -315,10 +282,6 @@
 
   :global(.dark) .result-title {
     color: var(--color-grey-10, #f5f5f5);
-  }
-
-  :global(.dark) .source-domain {
-    color: var(--color-grey-50, #888);
   }
 
   :global(.dark) .source-link,

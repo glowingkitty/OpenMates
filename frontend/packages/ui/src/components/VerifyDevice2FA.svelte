@@ -54,7 +54,7 @@ login_2fa_svelte:
 
 <script lang="ts">
     import { text } from '@repo/ui';
-    import { onMount, onDestroy, createEventDispatcher } from 'svelte';
+    import { onMount, createEventDispatcher } from 'svelte';
     import InputWarning from './common/InputWarning.svelte';
     import { getApiEndpoint, apiEndpoints } from '../config/api';
     import { tfaAppIcons } from '../config/tfa';
@@ -89,10 +89,10 @@ login_2fa_svelte:
     let otpInput: HTMLInputElement = $state();
 
     // TFA app display logic
-    let currentAppIndex = 0;
-    let animationInterval: number | null = null;
+    let _currentAppIndex = 0;
+    let _animationInterval: number | null = null;
     let currentDisplayedApp = previewMode ? previewTfaAppName : (tfaAppName || '');
-    const appNames = Object.keys(tfaAppIcons);
+    const _appNames = Object.keys(tfaAppIcons);
 
     // Get the icon class for the app name, or undefined if not found using Svelte 5 runes
     let tfaAppIconClass = $derived(currentDisplayedApp in tfaAppIcons ? tfaAppIcons[currentDisplayedApp] : undefined);

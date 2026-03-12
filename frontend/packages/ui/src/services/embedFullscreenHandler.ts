@@ -183,6 +183,11 @@ async function initializeRegistry(): Promise<void> {
       ) {
         const { default: component } =
           await import("../components/embeds/images/ImageGenerateEmbedFullscreen.svelte");
+        const inputEmbedIdsHandler: string[] = Array.isArray(
+          data.decodedContent?.input_embed_ids,
+        )
+          ? data.decodedContent.input_embed_ids
+          : [];
         return {
           component,
           props: {
@@ -198,6 +203,10 @@ async function initializeRegistry(): Promise<void> {
             onClose: data.onClose,
             embedId: data.embedId,
             skillId: data.decodedContent?.skill_id || skillId || "generate",
+            inputEmbedIds:
+              inputEmbedIdsHandler.length > 0
+                ? inputEmbedIdsHandler
+                : undefined,
           },
         };
       }

@@ -115,8 +115,31 @@
     let viewportWidth = $state(0);
     let viewportHeight = $state(0);
     // Embed sharing context detection
-    // Check if we're sharing an embed instead of a chat
-    let embedContext = $state<EmbedContext | null>(null);
+    // Check if we're sharing an embed instead of a chat.
+    //
+    // IMPORTANT: Consume window.__embedShareContext SYNCHRONOUSLY at script
+    // initialization time, before any $effect or onMount timer can fire.
+    // This ensures isEmbedSharing is true from the very first render, which
+    // prevents the chat-share $effect (line ~244) from reading activeChatStore
+    // and kicking off chat link generation before we know this is an embed share.
+    //
+    // Without this, there is a timing race: the chat-share $effect fires
+    // immediately on mount (deepLink === 'shared/share' + !isEmbedSharing),
+    // schedules checkAndGenerateLink() at 150ms, and beats the onMount 100ms
+    // timer that was supposed to detect the embed context first.
+    let embedContext = $state<EmbedContext | null>(
+        (() => {
+            if (typeof window !== 'undefined') {
+                const ctx = (window as EmbedWindow).__embedShareContext;
+                if (ctx) {
+                    // Consume immediately to prevent double-read
+                    (window as EmbedWindow).__embedShareContext = null;
+                    return ctx;
+                }
+            }
+            return null;
+        })()
+    );
     let isEmbedSharing = $derived(embedContext !== null);
     
     /**
@@ -144,13 +167,13 @@
             const contentRef = `embed:${embedId}`;
             const embedData = await embedStore.get(contentRef);
             
-            if (!embedData || !embedData.content) {
+            if (!embedData || typeof embedData === 'string' || !embedData.content) {
                 console.warn('[SettingsShare] No embed content available for preview');
                 return null;
             }
             
             // Decode the content
-            const decodedContent = await decodeToonContent(embedData.content);
+            const decodedContent = await decodeToonContent(embedData.content as string);
             if (!decodedContent) {
                 console.warn('[SettingsShare] Failed to decode embed content');
                 return null;
@@ -158,9 +181,9 @@
 
             console.debug('[SettingsShare] Delegating to embedPreviewRegistry for:', {
                 embedId,
-                app_id: embedData.app_id || decodedContent.app_id,
-                skill_id: embedData.skill_id || decodedContent.skill_id,
-                type: embedData.type,
+                app_id: (embedData.app_id as string) || decodedContent.app_id,
+                skill_id: (embedData.skill_id as string) || decodedContent.skill_id,
+                type: embedData.type as string,
             });
 
             // onFullscreen is a no-op in the share preview — there is no active chat to
@@ -663,6 +686,7 @@
             try {
                 const { chatDB } = await import('../../../services/db');
                 const { getMessagesForChat } = await import('../../../services/db/messageOperations');
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any -- chatDB satisfies ChatDatabaseInstance at runtime
                 const messages = await getMessagesForChat(chatDB as any, chatId);
                 if (messages && messages.length > 0) {
                     chatHasPII = messages.some(m => m.pii_mappings && m.pii_mappings.length > 0);
@@ -905,6 +929,7 @@
                     
                     // Get all messages for this chat (already decrypted by getMessagesForChat)
                     // NOTE: message.content from DB has PLACEHOLDERS (e.g., "[EMAIL_1]")
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- chatDB satisfies ChatDatabaseInstance at runtime
                     const messages = await getMessagesForChat(chatDB as any, currentChatId);
                     if (messages && messages.length > 0) {
                         // Build cumulative PII mappings from user messages for restoration
@@ -996,11 +1021,11 @@
                                 console.debug(`[SettingsShare] Decrypting embed ${i + 1}/${embedEntries.length}: ${embedEntry.embed_id}`);
                                 const embedData = await embedStore.get(contentRef);
                                 
-                                if (embedData && embedData.content) {
+                                if (embedData && typeof embedData !== 'string' && embedData.content) {
                                     decryptedEmbeds.push({
                                         embed_id: embedEntry.embed_id || '',
                                         type: embedEntry.type || 'unknown',
-                                        content: embedData.content || '',
+                                        content: String(embedData.content),
                                         created_at: embedEntry.createdAt || Date.now()
                                     });
                                     console.debug(`[SettingsShare] ✅ Successfully decrypted embed: ${embedEntry.embed_id}`);
@@ -1015,8 +1040,21 @@
                         console.debug(`[SettingsShare] Successfully decrypted ${decryptedEmbeds.length}/${embedEntries.length} embeds for community sharing`);
                     }
                 } catch (error) {
-                    console.error(`[SettingsShare] Error decrypting messages/embeds for community sharing: chat_id=${currentChatId}`, error);
-                    // Continue anyway - backend will handle missing data
+                    // Check if this is an embed validation error (missing embeds = cannot share)
+                    // vs a transient decryption error (can still proceed without community sharing)
+                    if (error instanceof Error && error.message.includes('embeds in your messages')) {
+                        // CRITICAL: Embed validation failure — surface to user and block community sharing.
+                        // This prevents demo chats from being created with embed references in
+                        // messages but no embed data, which results in empty embed preview cards.
+                        console.error(`[SettingsShare] ❌ Embed validation failed, blocking community sharing: chat_id=${currentChatId}`, error);
+                    } else {
+                        console.error(`[SettingsShare] Error decrypting messages/embeds for community sharing: chat_id=${currentChatId}`, error);
+                    }
+                    // Both cases: disable community sharing but allow regular sharing to proceed.
+                    // The user still gets their share link — only the community submission is skipped.
+                    shareWithCommunity = false;
+                    decryptedMessages = null;
+                    decryptedEmbeds = null;
                 }
             }
             
@@ -1640,7 +1678,9 @@
                     title="Click to enlarge QR code"
                 >
                     {#if qrCodeSvg}
-                        {@html qrCodeSvg}
+                        <!-- eslint-disable-next-line svelte/no-at-html-tags -- QR code is generated from trusted library -->
+                        <!-- eslint-disable-next-line svelte/no-at-html-tags -- QR code is generated from trusted library -->
+                {@html qrCodeSvg}
                     {:else}
                         <div class="qr-code-placeholder">Generating QR code...</div>
                     {/if}
@@ -1682,6 +1722,7 @@
         <!-- Centered QR Code - Uses full viewport with 20px padding, maintaining aspect ratio -->
         <div class="qr-large-container">
             {#if qrCodeSvg}
+                <!-- eslint-disable-next-line svelte/no-at-html-tags -- QR code is generated from trusted library -->
                 {@html qrCodeSvg}
             {/if}
         </div>

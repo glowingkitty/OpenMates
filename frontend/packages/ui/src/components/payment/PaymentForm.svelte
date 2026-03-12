@@ -1,14 +1,13 @@
 <script lang="ts">
     import { text } from '@repo/ui';
-    import { getWebsiteUrl, routes } from '../../config/links';
     import { fade } from 'svelte/transition';
-    import { createEventDispatcher, onMount } from 'svelte';
+    import { createEventDispatcher } from 'svelte';
 
     // Props using Svelte 5 runes
     let { 
         purchasePrice = 20,
         currency = 'EUR',
-        userEmail = null,
+        _userEmail = null,
         requireConsent = true,
         isSupportContribution = false,
         hasConsentedToLimitedRefund = false,
@@ -17,12 +16,12 @@
         isPaymentElementComplete = $bindable(false),
         isLoading = false,
         isButtonCooldown = false,
-        stripe = null,
-        elements = null,
-        clientSecret = null,
+        _stripe = null,
+        _elements = null,
+        _clientSecret = null,
         fallbackUrl = null,
         fallbackButtonLabel = null,
-        darkmode = false
+        _darkmode = false
     }: {
         purchasePrice?: number;
         currency?: string;
@@ -44,6 +43,7 @@
     } = $props();
 
     // Track if form was submitted
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
     let attemptedSubmit = false;
 
     // Event dispatcher for parent communication

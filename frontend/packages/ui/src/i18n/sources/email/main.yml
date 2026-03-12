@@ -52,6 +52,51 @@ password_security_reminder.open_passkey_settings:
   en: Add passkey
   de: Passkey hinzufügen
   verified_by_human: []
+backup_reminder.subject:
+  context: Subject line for periodic backup reminder emails
+  en: "Time to back up your OpenMates data"
+  de: "Zeit, deine OpenMates-Daten zu sichern"
+  verified_by_human: []
+backup_reminder.header:
+  context: Header in backup reminder email
+  en: Back up your data
+  de: Deine Daten sichern
+  verified_by_human: []
+backup_reminder.description:
+  context: Intro paragraph in backup reminder email
+  en: Your chats, settings, and files are encrypted and stored securely — but keeping a local backup is always a good idea.
+  de: Deine Chats, Einstellungen und Dateien sind verschlüsselt gespeichert — dennoch ist ein lokales Backup immer empfehlenswert.
+  verified_by_human: []
+backup_reminder.last_export_label:
+  context: Label before the date of the last export in backup reminder email
+  en: "Your last export:"
+  de: "Dein letzter Export:"
+  verified_by_human: []
+backup_reminder.never_exported:
+  context: Shown when user has never exported their data in backup reminder email
+  en: You have never exported your data.
+  de: Du hast deine Daten noch nie exportiert.
+  verified_by_human: []
+backup_reminder.cta_title:
+  context: Call-to-action title before the export button in backup reminder email
+  en: "Export your data now:"
+  de: "Daten jetzt exportieren:"
+  verified_by_human: []
+backup_reminder.export_button:
+  context: Button label for opening the export settings page from backup reminder email
+  en: Export my data
+  de: Meine Daten exportieren
+  verified_by_human: []
+backup_reminder.unsubscribe_hint:
+  context: Short sentence before the notification settings link in backup reminder email footer
+  en: "To stop receiving these reminders,"
+  de: "Um diese Erinnerungen zu deaktivieren,"
+  verified_by_human: []
+backup_reminder.unsubscribe_link:
+  context: Clickable link text in backup reminder email footer — opens notification settings
+  en: update your notification settings
+  de: Benachrichtigungseinstellungen öffnen
+  verified_by_human: []
 welcome_to_openmates:
   context: Email subheader for account created confirmation
   en: Welcome to OpenMates!
@@ -1280,6 +1325,130 @@ test_run_summary.footer_note:
   he: "דוח זה נוצר על ידי מערכת הניטור האוטומטית היומית של בדיקות."
   verified_by_human: []
 
+test_run_started.title:
+  context: Email subject/title for test run started notification (admin only)
+  en: "Test Run Started"
+  de: "Testlauf gestartet"
+  zh: "测试运行已启动"
+  es: "Ejecución de pruebas iniciada"
+  fr: "Démarrage du test"
+  pt: "Execução de testes iniciada"
+  ru: "Запуск тестов начат"
+  ja: "テスト実行開始"
+  ko: "테스트 실행 시작됨"
+  it: "Test avviato"
+  tr: "Test çalıştırması başladı"
+  vi: "Chạy kiểm tra đã bắt đầu"
+  id: "Tes dimulai"
+  pl: "Uruchomienie testów rozpoczęte"
+  nl: "Testrun gestart"
+  ar: "بدأ تشغيل الاختبار"
+  hi: "परीक्षण चलाना शुरू हो गया"
+  th: "เริ่มรันการทดสอบแล้ว"
+  cs: "Spuštění testů zahájeno"
+  sv: "Testkörning startad"
+  he: "הרצת הבדיקות החלה"
+  verified_by_human: []
+
+test_run_started.header:
+  context: Main heading in test run started notification email (admin only)
+  en: "Test Run Started"
+  de: "Testlauf gestartet"
+  zh: "测试运行已启动"
+  es: "Ejecución de pruebas iniciada"
+  fr: "Démarrage du test"
+  pt: "Execução de testes iniciada"
+  ru: "Запуск тестов начат"
+  ja: "テスト実行開始"
+  ko: "테스트 실행 시작됨"
+  it: "Test avviato"
+  tr: "Test çalıştırması başladı"
+  vi: "Chạy kiểm tra đã bắt đầu"
+  id: "Tes dimulai"
+  pl: "Uruchomienie testów rozpoczęte"
+  nl: "Testrun gestart"
+  ar: "بدأ تشغيل الاختبار"
+  hi: "परीक्षण चलाना शुरू हो गया"
+  th: "เริ่มรันการทดสอบแล้ว"
+  cs: "Spuštění testů zahájeno"
+  sv: "Testkörning startad"
+  he: "הרצת הבדיקות החלה"
+  verified_by_human: []
+
+test_run_started.trigger_label:
+  context: Label for how the test run was triggered in the test run started email (admin only)
+  en: "Triggered by"
+  de: "Ausgelöst von"
+  zh: "触发方式"
+  es: "Iniciado por"
+  fr: "Déclenché par"
+  pt: "Acionado por"
+  ru: "Инициировано"
+  ja: "トリガー"
+  ko: "트리거"
+  it: "Avviato da"
+  tr: "Tetikleyen"
+  vi: "Kích hoạt bởi"
+  id: "Dipicu oleh"
+  pl: "Wyzwolone przez"
+  nl: "Gestart door"
+  ar: "بدأ بواسطة"
+  hi: "द्वारा ट्रिगर किया गया"
+  th: "ทริกเกอร์โดย"
+  cs: "Spuštěno"
+  sv: "Startad av"
+  he: "הופעל על ידי"
+  verified_by_human: []
+
+test_run_started.started_at_label:
+  context: Label for the start timestamp in the test run started email (admin only)
+  en: "Started at"
+  de: "Gestartet um"
+  zh: "启动时间"
+  es: "Iniciado a las"
+  fr: "Démarré à"
+  pt: "Iniciado às"
+  ru: "Начало"
+  ja: "開始時刻"
+  ko: "시작 시각"
+  it: "Avviato alle"
+  tr: "Başlangıç zamanı"
+  vi: "Bắt đầu lúc"
+  id: "Dimulai pada"
+  pl: "Uruchomiono o"
+  nl: "Gestart om"
+  ar: "بدأ في"
+  hi: "शुरू हुआ"
+  th: "เริ่มเมื่อ"
+  cs: "Spuštěno v"
+  sv: "Startades"
+  he: "התחיל ב"
+  verified_by_human: []
+
+test_run_started.footer_note:
+  context: Footer note in test run started notification email (admin only)
+  en: "You will receive another email once the test run completes."
+  de: "Sie erhalten eine weitere E-Mail, sobald der Testlauf abgeschlossen ist."
+  zh: "测试运行完成后，您将收到另一封电子邮件。"
+  es: "Recibirá otro correo electrónico cuando finalice la ejecución de pruebas."
+  fr: "Vous recevrez un autre e-mail à la fin du test."
+  pt: "Você receberá outro e-mail quando a execução dos testes for concluída."
+  ru: "Вы получите ещё одно письмо после завершения тестов."
+  ja: "テストが完了すると、別のメールが届きます。"
+  ko: "테스트 실행이 완료되면 다른 이메일을 받으실 것입니다."
+  it: "Riceverai un'altra email al completamento del test."
+  tr: "Test tamamlandığında başka bir e-posta alacaksınız."
+  vi: "Bạn sẽ nhận được email khác khi quá trình chạy kiểm tra hoàn thành."
+  id: "Anda akan menerima email lain setelah tes selesai."
+  pl: "Otrzymasz kolejną wiadomość e-mail po zakończeniu testów."
+  nl: "U ontvangt nog een e-mail zodra de testrun is voltooid."
+  ar: "ستتلقى بريدًا إلكترونيًا آخر بمجرد اكتمال تشغيل الاختبار."
+  hi: "परीक्षण पूरा होने पर आपको एक और ईमेल मिलेगा।"
+  th: "คุณจะได้รับอีเมลอีกฉบับเมื่อการรันการทดสอบเสร็จสิ้น"
+  cs: "Po dokončení testů obdržíte další e-mail."
+  sv: "Du kommer att få ett till e-postmeddelande när testkörningen är klar."
+  he: "תקבל מייל נוסף לאחר שהרצת הבדיקות תסתיים."
+  verified_by_human: []
 
 prometheus_alert.title:
   context: Email subject/title for Prometheus alert notification (admin only)
@@ -5389,4 +5558,155 @@ action_verification_subject:
   th: "รหัสยืนยันของคุณ: {code}"
   cs: "Váš ověřovací kód: {code}"
   sv: "Din verifieringskod: {code}"
+  verified_by_human: []
+
+# ── API Key: new device notification ────────────────────────────────────────
+security_alert_new_api_key_device:
+  context: Email subject for security alert when a new device/IP uses an API key
+  en: "Security Alert: New device used your API key"
+  de: "Sicherheitswarnung: Neues Gerät hat Ihren API-Schlüssel verwendet"
+  zh: "安全警报：新设备使用了您的 API 密钥"
+  es: "Alerta de seguridad: Un nuevo dispositivo usó tu clave de API"
+  fr: "Alerte de sécurité : Un nouvel appareil a utilisé votre clé d'API"
+  pt: ""
+  ru: ""
+  ja: "セキュリティアラート：新しいデバイスがAPIキーを使用しました"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: ""
+  verified_by_human: []
+
+new_api_key_device_used:
+  context: Email header — a new IP/device attempted to use the user's API key
+  en: New device used your API key
+  de: Neues Gerät hat Ihren API-Schlüssel verwendet
+  zh: 新设备使用了您的 API 密钥
+  es: Un nuevo dispositivo usó tu clave de API
+  fr: Un nouvel appareil a utilisé votre clé d'API
+  pt: ""
+  ru: ""
+  ja: 新しいデバイスがAPIキーを使用しました
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: ""
+  verified_by_human: []
+
+new_api_key_device_details:
+  context: Body text for new API key device email — shows anonymized IP, region, and timestamp. {anonymized_ip} e.g. "184.149.xxx", {region} e.g. "California, US", {YYYY}/{MM}/{DD} date, {time} HH:MM, {timezone_name} e.g. UTC
+  en: "On {YYYY}/{MM}/{DD} at {time} ({timezone_name}),\na request was made to your API key\nfrom IP {anonymized_ip} ({region})."
+  de: "Am {YYYY}/{MM}/{DD} um {time} ({timezone_name})\nwurde eine Anfrage mit Ihrem API-Schlüssel\nvon IP {anonymized_ip} ({region}) gesendet."
+  zh: "在 {YYYY}/{MM}/{DD} {time} ({timezone_name})，\n有人从 IP {anonymized_ip} ({region})\n使用了您的 API 密钥。"
+  es: "El {YYYY}/{MM}/{DD} a las {time} ({timezone_name}),\nse realizó una solicitud con tu clave de API\ndesde la IP {anonymized_ip} ({region})."
+  fr: "Le {YYYY}/{MM}/{DD} à {time} ({timezone_name}),\nune requête a été effectuée avec votre clé d'API\ndepuis l'IP {anonymized_ip} ({region})."
+  pt: ""
+  ru: ""
+  ja: "{YYYY}/{MM}/{DD} {time} ({timezone_name}) に、\nIP {anonymized_ip} ({region}) から\nAPIキーへのリクエストが行われました。"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: ""
+  verified_by_human: []
+
+new_api_key_device_blocked:
+  context: Explains that the API request was blocked and the user must approve the device
+  en: "The request was blocked. You must approve this device in Developer Settings before it can use your API key."
+  de: "Die Anfrage wurde blockiert. Sie müssen dieses Gerät in den Entwicklereinstellungen genehmigen, bevor es Ihren API-Schlüssel verwenden kann."
+  zh: "该请求已被拦截。您必须在开发者设置中批准此设备，才能使用您的 API 密钥。"
+  es: "La solicitud fue bloqueada. Debes aprobar este dispositivo en la Configuración de desarrollador antes de que pueda usar tu clave de API."
+  fr: "La requête a été bloquée. Vous devez approuver cet appareil dans les Paramètres développeur avant qu'il puisse utiliser votre clé d'API."
+  pt: ""
+  ru: ""
+  ja: "リクエストはブロックされました。APIキーを使用する前に、開発者設定でこのデバイスを承認する必要があります。"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: ""
+  verified_by_human: []
+
+new_api_key_device_cta:
+  context: Button label to open Developer Settings > Devices
+  en: Review in Developer Settings
+  de: In Entwicklereinstellungen prüfen
+  zh: 在开发者设置中查看
+  es: Revisar en Configuración de desarrollador
+  fr: Voir dans les Paramètres développeur
+  pt: ""
+  ru: ""
+  ja: 開発者設定で確認する
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: ""
+  verified_by_human: []
+
+new_api_key_device_not_you:
+  context: Security note at the bottom of the new API key device email — if the user didn't make the request
+  en: "If this was you, you can ignore this email.\nIf this wasn't you, revoke your API key immediately in Developer Settings."
+  de: "Wenn Sie das waren, können Sie diese E-Mail ignorieren.\nWenn Sie das nicht waren, widerrufen Sie sofort Ihren API-Schlüssel in den Entwicklereinstellungen."
+  zh: "如果是您本人操作，可以忽略此邮件。\n如果不是，请立即在开发者设置中吊销您的 API 密钥。"
+  es: "Si fuiste tú, puedes ignorar este correo.\nSi no fuiste tú, revoca tu clave de API de inmediato en Configuración de desarrollador."
+  fr: "Si c'était vous, vous pouvez ignorer cet e-mail.\nSi ce n'était pas vous, révoquez immédiatement votre clé d'API dans les Paramètres développeur."
+  pt: ""
+  ru: ""
+  ja: "ご自身の操作であればこのメールは無視してください。\n身に覚えがない場合は、開発者設定でAPIキーを直ちに無効化してください。"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: ""
   verified_by_human: []

@@ -10,7 +10,7 @@
 -->
 <script lang="ts">
     import { text, notificationStore, activeChatStore, activeEmbedStore, websocketStatus, isOnline, phasedSyncState } from '@repo/ui';
-    import { getApiEndpoint } from '../../config/api';
+    import { getApiEndpoint, apiEndpoints } from '../../config/api';
     import { externalLinks } from '../../config/links';
     import InputWarning from '../common/InputWarning.svelte';
     import Toggle from '../Toggle.svelte';
@@ -624,6 +624,24 @@
                 // Write the issue ID to the shared store so the confirmation sub-page
                 // can read it without prop drilling through the settings router.
                 submittedIssueIdStore.set(issueId);
+
+                // Push console logs to OpenObserve tagged with the issue ID so admins
+                // can correlate client-side events with the submitted report.
+                // Fire-and-forget: never block the confirmation navigation.
+                if (issueId && $authStore.isAuthenticated) {
+                    const logsText = logCollector.getLogsAsText(150);
+                    void fetch(getApiEndpoint(apiEndpoints.settings.issueLogs), {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            issue_id: issueId,
+                            logs_text: logsText,
+                            page_url: window.location.pathname,
+                            user_agent: navigator.userAgent,
+                        }),
+                    }).catch(() => { /* non-critical */ });
+                }
+
                 dispatch('openSettings', {
                     settingsPath: 'report_issue/confirmation',
                     direction: 'forward',

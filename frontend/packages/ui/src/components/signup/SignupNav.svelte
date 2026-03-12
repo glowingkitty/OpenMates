@@ -240,7 +240,7 @@ let skipButtonText = $derived(
     {/if}
     
     {#if showActualSkipButton}
-        <button class="nav-button" onclick={handleSkipClick}>
+        <button id="signup-nav-skip" class="nav-button" onclick={handleSkipClick}>
             {skipButtonText}
             <div class="clickable-icon icon_back icon-mirrored"></div>
         </button>

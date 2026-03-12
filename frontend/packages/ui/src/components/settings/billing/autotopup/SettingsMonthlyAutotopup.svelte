@@ -8,7 +8,6 @@ Allows creating new subscriptions if user has a saved payment method
     import { text } from '@repo/ui';
     import { apiEndpoints, getApiEndpoint } from '../../../../config/api';
     import { pricingTiers } from '../../../../config/pricing';
-    import Toggle from '../../../Toggle.svelte';
 
     let isLoading = $state(false);
     let hasSubscription = $state(false);
@@ -196,7 +195,7 @@ Allows creating new subscriptions if user has a saved payment method
                 throw new Error(errorData.detail || 'Failed to update billing day preference');
             }
 
-            const result = await response.json();
+            const _result = await response.json();
 
             // Update local state
             billingDayPreference = newPreference;

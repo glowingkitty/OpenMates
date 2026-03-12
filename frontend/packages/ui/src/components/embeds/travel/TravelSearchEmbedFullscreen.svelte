@@ -1,33 +1,74 @@
 <!--
   frontend/packages/ui/src/components/embeds/travel/TravelSearchEmbedFullscreen.svelte
-  
+
   Fullscreen view for Travel Search Connections skill embeds.
-  Uses UnifiedEmbedFullscreen as base with unified child embed loading.
-  
+  Uses SearchResultsTemplate for unified grid + overlay + loading pattern.
+
   Shows:
-  - Header with route summary and "via {provider}" formatting
-  - Connection cards in a grid (auto-responsive columns)
-  - Consistent BasicInfosBar at the bottom
-  - Top bar with share and minimize buttons
-  
-  Child embeds are automatically loaded by UnifiedEmbedFullscreen from embedIds prop.
-  
-  Connection Fullscreen Navigation (Overlay Pattern):
-  - Connection results grid is ALWAYS rendered (base layer)
-  - When a connection card is clicked, TravelConnectionEmbedFullscreen renders as OVERLAY
-  - When connection fullscreen is closed, overlay is removed revealing results beneath
+  - Header with derived route summary, date, connection count, price range
+  - Connection preview cards in a responsive grid with cheapest 20% highlighting
+  - Drill-down: clicking a card opens TravelConnectionEmbedFullscreen overlay with sibling nav
+
+  Complex header: route summary, departure date, connection count, "via {provider}",
+  and "from EUR {price}" are all derived from loaded child results.
+
+  Child embeds are automatically loaded by SearchResultsTemplate/UnifiedEmbedFullscreen.
+
+  See docs/architecture/embeds.md
 -->
 
 <script lang="ts">
-  import UnifiedEmbedFullscreen, { type ChildEmbedContext } from '../UnifiedEmbedFullscreen.svelte';
-  import ChildEmbedOverlay from '../ChildEmbedOverlay.svelte';
+  import SearchResultsTemplate from '../SearchResultsTemplate.svelte';
   import TravelConnectionEmbedPreview from './TravelConnectionEmbedPreview.svelte';
   import TravelConnectionEmbedFullscreen from './TravelConnectionEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
-  
+
+  /** Layover data between segments */
+  interface LayoverData {
+    airport: string;
+    airport_code?: string;
+    duration?: string;
+    duration_minutes?: number;
+    overnight?: boolean;
+  }
+
+  /** Segment data within a leg */
+  interface SegmentData {
+    carrier: string;
+    carrier_code?: string;
+    number?: string;
+    departure_station: string;
+    departure_time: string;
+    departure_latitude?: number;
+    departure_longitude?: number;
+    arrival_station: string;
+    arrival_time: string;
+    arrival_latitude?: number;
+    arrival_longitude?: number;
+    duration: string;
+    airplane?: string;
+    airline_logo?: string;
+    legroom?: string;
+    travel_class?: string;
+    extensions?: string[];
+    often_delayed?: boolean;
+  }
+
+  /** Leg data for fullscreen detail view */
+  interface LegData {
+    leg_index: number;
+    origin: string;
+    destination: string;
+    departure: string;
+    arrival: string;
+    duration: string;
+    stops: number;
+    segments: SegmentData[];
+    layovers?: LayoverData[];
+  }
+
   /**
    * Connection result interface (transformed from child embeds)
-   * Contains all data needed to display connection in both preview and fullscreen
    */
   interface ConnectionResult {
     embed_id: string;
@@ -51,102 +92,32 @@
     carriers?: string[];
     carrier_codes?: string[];
     hash?: string;
-    /** Full leg data for detailed fullscreen view */
     legs?: LegData[];
-    /** Rich metadata from Google Flights */
     airline_logo?: string;
     co2_kg?: number;
     co2_typical_kg?: number;
     co2_difference_percent?: number;
   }
-  
-  /** Layover data between segments */
-  interface LayoverData {
-    airport: string;
-    airport_code?: string;
-    duration?: string;
-    duration_minutes?: number;
-    overnight?: boolean;
-  }
-  
-  /** Leg data for fullscreen detail view */
-  interface LegData {
-    leg_index: number;
-    origin: string;
-    destination: string;
-    departure: string;
-    arrival: string;
-    duration: string;
-    stops: number;
-    segments: SegmentData[];
-    layovers?: LayoverData[];
-  }
-  
-  /** Segment data within a leg */
-  interface SegmentData {
-    carrier: string;
-    carrier_code?: string;
-    number?: string;
-    departure_station: string;
-    departure_time: string;
-    departure_latitude?: number;
-    departure_longitude?: number;
-    arrival_station: string;
-    arrival_time: string;
-    arrival_latitude?: number;
-    arrival_longitude?: number;
-    duration: string;
-    /** Rich metadata from Google Flights */
-    airplane?: string;
-    airline_logo?: string;
-    legroom?: string;
-    travel_class?: string;
-    extensions?: string[];
-    often_delayed?: boolean;
-  }
-  
-  /**
-   * Props for travel search embed fullscreen
-   */
+
   interface Props {
-    /** Route summary query (e.g., "Munich → London") */
     query?: string;
-    /** Search provider (e.g., 'Google') */
     provider?: string;
-    /** Pipe-separated embed IDs or array of embed IDs for child connection embeds */
     embedIds?: string | string[];
-    /** Processing status */
     status?: 'processing' | 'finished' | 'error' | 'cancelled';
-    /** Optional error message */
     errorMessage?: string;
-    /** Legacy: results array (used if embedIds not provided) */
     results?: ConnectionResult[];
-    /** Close handler */
     onClose: () => void;
-    /** Optional: Embed ID for sharing */
     embedId?: string;
-    /** Whether there is a previous embed to navigate to */
     hasPreviousEmbed?: boolean;
-    /** Whether there is a next embed to navigate to */
     hasNextEmbed?: boolean;
-    /** Handler to navigate to the previous embed */
     onNavigatePrevious?: () => void;
-    /** Handler to navigate to the next embed */
     onNavigateNext?: () => void;
-    /** Direction of navigation ('previous' | 'next') — set transiently during prev/next transitions */
     navigateDirection?: 'previous' | 'next';
-    /** Whether to show the "chat" button */
     showChatButton?: boolean;
-    /** Callback when user clicks the "chat" button */
     onShowChat?: () => void;
-    /**
-     * Child embed ID to auto-open on mount (set when arriving from an inline badge click).
-     * When provided, the fullscreen will immediately open the TravelConnectionEmbedFullscreen
-     * overlay for that specific connection result once the child results have loaded.
-     */
     initialChildEmbedId?: string;
   }
-  
+
   let {
     query: queryProp,
     provider: providerProp,
@@ -165,30 +136,16 @@
     onShowChat,
     initialChildEmbedId
   }: Props = $props();
-  
-  // Currently selected connection index for fullscreen detail view (-1 = none)
-  let selectedConnectionIndex = $state<number>(-1);
-  
-  // All loaded connection results (from child embeds or legacy) — needed for navigation
-  let connectionResultsForNav = $state<ConnectionResult[]>([]);
 
-  // Local reactive state — synced from props via $effect below.
-  let localQuery = $state<string>('');
-  let localProvider = $state<string>('');
-  // embedIdsOverride: only set during streaming when embed_ids change dynamically.
-  // Otherwise, embedIds prop is used directly via embedIdsValue $derived below.
+  // Local reactive state for streaming updates
+  let localQuery = $state('');
+  let localProvider = $state('');
   let embedIdsOverride = $state<string | string[] | undefined>(undefined);
+  let embedIdsValue = $derived(embedIdsOverride ?? embedIds);
   let localResults = $state<unknown[]>([]);
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('finished');
-  let localErrorMessage = $state<string>('');
-  
-  /**
-   * Loaded connection results — populated via onChildrenLoaded callback.
-   * Used to derive the embed header banner content (route, date, provider, price summary).
-   */
-  let headerConnectionResults = $state<ConnectionResult[]>([]);
-  
-  // Keep local state in sync with prop changes
+  let localErrorMessage = $state('');
+
   $effect(() => {
     localQuery = queryProp || '';
     localProvider = providerProp || 'Google';
@@ -196,76 +153,51 @@
     localStatus = statusProp || 'finished';
     localErrorMessage = errorMessageProp || '';
   });
-  
-  // Derived state
+
   let query = $derived(localQuery);
   let provider = $derived(localProvider);
-  // Use override if set during streaming, otherwise use the prop directly
-  let embedIdsValue = $derived(embedIdsOverride ?? embedIds);
   let legacyResults = $derived(localResults);
-  let status = $derived(localStatus);
+  let viaProvider = $derived(`${$text('embeds.via')} ${provider}`);
 
-  let errorMessage = $derived(localErrorMessage || $text('chat.an_error_occured'));
-  
-  // "via {provider}" text
-  let viaProvider = $derived(
-    `${$text('embeds.via')} ${provider}`
-  );
-  
-  /**
-   * Route summary for the embed header banner.
-   * Uses origin/destination from the first loaded connection result, or falls back to the query.
-   * Example: "Berlin (BER) → Bangkok (BKK)"
-   */
+  // Track loaded results for header derivation
+  let headerResults = $state<ConnectionResult[]>([]);
+
+  // =========================================================================
+  // Derived Header
+  // =========================================================================
+
   let headerRouteSummary = $derived.by(() => {
-    if (headerConnectionResults.length > 0) {
-      const first = headerConnectionResults[0];
-      if (first.origin && first.destination) {
-        return `${first.origin} → ${first.destination}`;
-      }
+    if (headerResults.length > 0) {
+      const first = headerResults[0];
+      if (first.origin && first.destination) return `${first.origin} \u2192 ${first.destination}`;
     }
     return query || '';
   });
-  
-  /**
-   * Date string for the embed header banner.
-   * Formatted as "Mon, Mar 2" (short weekday + month + day).
-   * Example: "Mon, Mar 2, 2026"
-   */
+
   let headerDateDisplay = $derived.by(() => {
-    if (headerConnectionResults.length === 0) return '';
-    const first = headerConnectionResults[0];
+    if (headerResults.length === 0) return '';
+    const first = headerResults[0];
     if (!first.departure) return '';
     try {
       const date = new Date(first.departure);
       return date.toLocaleDateString([], { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric' });
-    } catch {
-      return '';
-    }
+    } catch { return ''; }
   });
-  
-  /**
-   * Price summary for the embed header banner.
-   * Example: "from EUR 310"
-   */
+
   let headerPriceInfo = $derived.by(() => {
-    if (headerConnectionResults.length === 0) return '';
-    const prices = headerConnectionResults
+    if (headerResults.length === 0) return '';
+    const prices = headerResults
       .filter(r => r.total_price)
       .map(r => parseFloat(r.total_price!))
       .filter(p => !isNaN(p));
     if (prices.length === 0) return '';
-    const currency = headerConnectionResults[0]?.currency || 'EUR';
+    const currency = headerResults[0]?.currency || 'EUR';
     const minPrice = Math.min(...prices);
     return `${$text('embeds.from')} ${currency} ${Math.round(minPrice)}`;
   });
-  
-  /**
-   * Connection count + price line for the embed header subtitle.
-   * Example: "5 connections  ·  via Google  ·  from EUR 310"
-   */
+
   let headerSubtitle = $derived.by(() => {
-    const count = headerConnectionResults.length;
+    const count = headerResults.length;
     const parts: string[] = [];
     if (count > 0) {
       const countLabel = count === 1
@@ -274,36 +206,84 @@
       parts.push(countLabel);
     }
     parts.push(viaProvider);
-    if (headerPriceInfo) {
-      parts.push(headerPriceInfo);
-    }
-    return parts.join('  ·  ');
+    if (headerPriceInfo) parts.push(headerPriceInfo);
+    return parts.join('  \u00b7  ');
   });
-  
-  /**
-   * Header title for the embed banner.
-   * Shows the route and travel date once results are loaded.
-   * Falls back to the query string during loading.
-   */
+
   let headerTitle = $derived.by(() => {
     if (!headerRouteSummary) return query || '';
-    if (headerDateDisplay) return `${headerRouteSummary}  ·  ${headerDateDisplay}`;
+    if (headerDateDisplay) return `${headerRouteSummary}  \u00b7  ${headerDateDisplay}`;
     return headerRouteSummary;
   });
-  
-  /**
-   * Transform raw embed content to ConnectionResult format.
-   * Used by UnifiedEmbedFullscreen's childEmbedTransformer.
-   * 
-   * TOON encoding flattens nested objects, so legs_0_origin becomes a top-level key.
-   * We need to reconstruct the legs array from the flattened keys.
-   */
+
+  // =========================================================================
+  // TOON Reconstruction
+  // =========================================================================
+
+  function reconstructBookingContext(content: Record<string, unknown>): Record<string, string> | undefined {
+    if (content.booking_context && typeof content.booking_context === 'object' && !Array.isArray(content.booking_context)) {
+      return content.booking_context as Record<string, string>;
+    }
+    const contextKeys = ['departure_id', 'arrival_id', 'outbound_date', 'return_date', 'type', 'currency', 'gl', 'adults', 'travel_class'];
+    const ctx: Record<string, string> = {};
+    let found = false;
+    for (const key of contextKeys) {
+      const val = content[`booking_context_${key}`];
+      if (val !== undefined && val !== null) { ctx[key] = String(val); found = true; }
+    }
+    return found ? ctx : undefined;
+  }
+
+  function reconstructLegs(content: Record<string, unknown>): LegData[] {
+    const legs: LegData[] = [];
+    for (let i = 0; i < 10; i++) {
+      const origin = content[`legs_${i}_origin`];
+      if (typeof origin !== 'string') break;
+      legs.push({
+        leg_index: (content[`legs_${i}_leg_index`] as number) ?? i,
+        origin,
+        destination: (content[`legs_${i}_destination`] as string) || '',
+        departure: (content[`legs_${i}_departure`] as string) || '',
+        arrival: (content[`legs_${i}_arrival`] as string) || '',
+        duration: (content[`legs_${i}_duration`] as string) || '',
+        stops: (content[`legs_${i}_stops`] as number) || 0,
+        segments: reconstructSegments(content, i),
+      });
+    }
+    return legs;
+  }
+
+  function reconstructSegments(content: Record<string, unknown>, legIndex: number): SegmentData[] {
+    const segments: SegmentData[] = [];
+    for (let j = 0; j < 10; j++) {
+      const carrier = content[`legs_${legIndex}_segments_${j}_carrier`];
+      if (typeof carrier !== 'string') break;
+      segments.push({
+        carrier,
+        carrier_code: content[`legs_${legIndex}_segments_${j}_carrier_code`] as string | undefined,
+        number: content[`legs_${legIndex}_segments_${j}_number`] as string | undefined,
+        departure_station: (content[`legs_${legIndex}_segments_${j}_departure_station`] as string) || '',
+        departure_time: (content[`legs_${legIndex}_segments_${j}_departure_time`] as string) || '',
+        departure_latitude: content[`legs_${legIndex}_segments_${j}_departure_latitude`] as number | undefined,
+        departure_longitude: content[`legs_${legIndex}_segments_${j}_departure_longitude`] as number | undefined,
+        arrival_station: (content[`legs_${legIndex}_segments_${j}_arrival_station`] as string) || '',
+        arrival_time: (content[`legs_${legIndex}_segments_${j}_arrival_time`] as string) || '',
+        arrival_latitude: content[`legs_${legIndex}_segments_${j}_arrival_latitude`] as number | undefined,
+        arrival_longitude: content[`legs_${legIndex}_segments_${j}_arrival_longitude`] as number | undefined,
+        duration: (content[`legs_${legIndex}_segments_${j}_duration`] as string) || '',
+        airplane: content[`legs_${legIndex}_segments_${j}_airplane`] as string | undefined,
+        airline_logo: content[`legs_${legIndex}_segments_${j}_airline_logo`] as string | undefined,
+        legroom: content[`legs_${legIndex}_segments_${j}_legroom`] as string | undefined,
+        travel_class: content[`legs_${legIndex}_segments_${j}_travel_class`] as string | undefined,
+        often_delayed: content[`legs_${legIndex}_segments_${j}_often_delayed`] as boolean | undefined,
+      });
+    }
+    return segments;
+  }
+
   function transformToConnectionResult(embedId: string, content: Record<string, unknown>): ConnectionResult {
-    // Try to get legs data - could be already structured or TOON-flattened
     let legs: LegData[] = [];
-    
     if (Array.isArray(content.legs)) {
-      // Direct legs array (not TOON-flattened)
       legs = (content.legs as Record<string, unknown>[]).map((leg, i) => ({
         leg_index: (leg.leg_index as number) ?? i,
         origin: (leg.origin as string) || '',
@@ -312,7 +292,7 @@
         arrival: (leg.arrival as string) || '',
         duration: (leg.duration as string) || '',
         stops: (leg.stops as number) || 0,
-        segments: Array.isArray(leg.segments) 
+        segments: Array.isArray(leg.segments)
           ? (leg.segments as Record<string, unknown>[]).map(seg => ({
               carrier: (seg.carrier as string) || '',
               carrier_code: seg.carrier_code as string | undefined,
@@ -345,41 +325,31 @@
           : undefined,
       }));
     } else {
-      // Try to reconstruct legs from TOON-flattened format (legs_0_origin, legs_0_destination, etc.)
       legs = reconstructLegs(content);
     }
-    
-    // Extract carriers - could be direct array or TOON-flattened
+
     let carriers: string[] = [];
     if (Array.isArray(content.carriers)) {
       carriers = content.carriers as string[];
     } else {
-      // Reconstruct from TOON-flattened (carriers_0, carriers_1, etc.)
       for (let i = 0; i < 20; i++) {
         const c = content[`carriers_${i}`];
-        if (typeof c === 'string') {
-          carriers.push(c);
-        } else {
-          break;
-        }
+        if (typeof c === 'string') carriers.push(c);
+        else break;
       }
     }
-    
-    // Extract carrier_codes - could be direct array or TOON-flattened
+
     let carrier_codes: string[] = [];
     if (Array.isArray(content.carrier_codes)) {
       carrier_codes = content.carrier_codes as string[];
     } else {
       for (let i = 0; i < 20; i++) {
         const cc = content[`carrier_codes_${i}`];
-        if (typeof cc === 'string') {
-          carrier_codes.push(cc);
-        } else {
-          break;
-        }
+        if (typeof cc === 'string') carrier_codes.push(cc);
+        else break;
       }
     }
-    
+
     return {
       embed_id: embedId,
       type: (content.type as string) || 'connection',
@@ -409,118 +379,13 @@
       co2_difference_percent: content.co2_difference_percent as number | undefined,
     };
   }
-  
-  /**
-   * Reconstruct booking_context dict from TOON-flattened content.
-   * TOON flattening turns booking_context.departure_id → booking_context_departure_id.
-   * If content already has a native booking_context object (non-TOON path), return it as-is.
-   */
-  function reconstructBookingContext(content: Record<string, unknown>): Record<string, string> | undefined {
-    // If the content already has a native booking_context object, use it directly
-    if (content.booking_context && typeof content.booking_context === 'object' && !Array.isArray(content.booking_context)) {
-      return content.booking_context as Record<string, string>;
-    }
-    
-    // Reconstruct from TOON-flattened keys: booking_context_departure_id, booking_context_arrival_id, etc.
-    const contextKeys = [
-      'departure_id', 'arrival_id', 'outbound_date', 'return_date',
-      'type', 'currency', 'gl', 'adults', 'travel_class',
-    ];
-    const ctx: Record<string, string> = {};
-    let found = false;
-    for (const key of contextKeys) {
-      const val = content[`booking_context_${key}`];
-      if (val !== undefined && val !== null) {
-        ctx[key] = String(val);
-        found = true;
-      }
-    }
-    return found ? ctx : undefined;
-  }
-  
-  /**
-   * Reconstruct legs array from TOON-flattened content.
-   * TOON flattens nested objects: legs[0].origin → legs_0_origin
-   */
-  function reconstructLegs(content: Record<string, unknown>): LegData[] {
-    const legs: LegData[] = [];
-    for (let i = 0; i < 10; i++) {
-      const origin = content[`legs_${i}_origin`];
-      if (typeof origin !== 'string') break;
-      
-      legs.push({
-        leg_index: (content[`legs_${i}_leg_index`] as number) ?? i,
-        origin: origin,
-        destination: (content[`legs_${i}_destination`] as string) || '',
-        departure: (content[`legs_${i}_departure`] as string) || '',
-        arrival: (content[`legs_${i}_arrival`] as string) || '',
-        duration: (content[`legs_${i}_duration`] as string) || '',
-        stops: (content[`legs_${i}_stops`] as number) || 0,
-        segments: reconstructSegments(content, i),
-      });
-    }
-    return legs;
-  }
-  
-  /**
-   * Reconstruct segments array from TOON-flattened content for a given leg index.
-   * legs[0].segments[0].carrier → legs_0_segments_0_carrier
-   */
-  function reconstructSegments(content: Record<string, unknown>, legIndex: number): SegmentData[] {
-    const segments: SegmentData[] = [];
-    for (let j = 0; j < 10; j++) {
-      const carrier = content[`legs_${legIndex}_segments_${j}_carrier`];
-      if (typeof carrier !== 'string') break;
-      
-      segments.push({
-        carrier: carrier,
-        carrier_code: content[`legs_${legIndex}_segments_${j}_carrier_code`] as string | undefined,
-        number: content[`legs_${legIndex}_segments_${j}_number`] as string | undefined,
-        departure_station: (content[`legs_${legIndex}_segments_${j}_departure_station`] as string) || '',
-        departure_time: (content[`legs_${legIndex}_segments_${j}_departure_time`] as string) || '',
-        departure_latitude: content[`legs_${legIndex}_segments_${j}_departure_latitude`] as number | undefined,
-        departure_longitude: content[`legs_${legIndex}_segments_${j}_departure_longitude`] as number | undefined,
-        arrival_station: (content[`legs_${legIndex}_segments_${j}_arrival_station`] as string) || '',
-        arrival_time: (content[`legs_${legIndex}_segments_${j}_arrival_time`] as string) || '',
-        arrival_latitude: content[`legs_${legIndex}_segments_${j}_arrival_latitude`] as number | undefined,
-        arrival_longitude: content[`legs_${legIndex}_segments_${j}_arrival_longitude`] as number | undefined,
-        duration: (content[`legs_${legIndex}_segments_${j}_duration`] as string) || '',
-        airplane: content[`legs_${legIndex}_segments_${j}_airplane`] as string | undefined,
-        airline_logo: content[`legs_${legIndex}_segments_${j}_airline_logo`] as string | undefined,
-        legroom: content[`legs_${legIndex}_segments_${j}_legroom`] as string | undefined,
-        travel_class: content[`legs_${legIndex}_segments_${j}_travel_class`] as string | undefined,
-        often_delayed: content[`legs_${legIndex}_segments_${j}_often_delayed`] as boolean | undefined,
-      });
-    }
-    return segments;
-  }
-  
-  /**
-   * Transform legacy results to ConnectionResult format
-   */
+
   function transformLegacyResults(results: unknown[]): ConnectionResult[] {
-    return (results as Array<Record<string, unknown>>).map((r, i) => {
-      const result = transformToConnectionResult(`legacy-${i}`, r);
-      return result;
-    });
+    return (results as Array<Record<string, unknown>>).map((r, i) =>
+      transformToConnectionResult(`legacy-${i}`, r)
+    );
   }
-  
-  /**
-   * Get connection results from context (children or legacy)
-   */
-  function getConnectionResults(ctx: ChildEmbedContext): ConnectionResult[] {
-    if (ctx.children && ctx.children.length > 0) {
-      return ctx.children as ConnectionResult[];
-    }
-    if (ctx.legacyResults && ctx.legacyResults.length > 0) {
-      return transformLegacyResults(ctx.legacyResults);
-    }
-    return [];
-  }
-  
-  /**
-   * Calculate the cheapest 20% price threshold for highlighting
-   */
+
   function getCheapestThreshold(results: ConnectionResult[]): number {
     const prices = results
       .filter(r => r.total_price)
@@ -528,74 +393,17 @@
       .filter(p => !isNaN(p))
       .sort((a, b) => a - b);
     if (prices.length === 0) return 0;
-    // Bottom 20% index (at least 1 result)
     const idx = Math.max(0, Math.ceil(prices.length * 0.2) - 1);
     return prices[idx];
   }
-  
-  /**
-   * Handle connection card click - shows detail fullscreen
-   */
-  function handleConnectionFullscreen(connection: ConnectionResult, results: ConnectionResult[]) {
-    console.debug('[TravelSearchEmbedFullscreen] Opening connection fullscreen:', {
-      embedId: connection.embed_id,
-      origin: connection.origin,
-      destination: connection.destination,
-      price: connection.total_price,
-    });
-    connectionResultsForNav = results;
-    const idx = results.findIndex(r => r.embed_id === connection.embed_id);
-    selectedConnectionIndex = idx >= 0 ? idx : 0;
-  }
-  
-  /**
-   * Handle closing the connection detail fullscreen.
-   *
-   * Behaviour depends on how the child overlay was opened:
-   * - Opened via inline badge (initialChildEmbedId set): close the entire
-   *   fullscreen immediately — the user used a direct link and has no
-   *   expectation of a parent results grid.
-   * - Opened normally (by clicking a card in the grid): go back to the
-   *   parent results grid (selectedConnectionIndex = -1).
-   */
-  function handleConnectionFullscreenClose() {
-    if (initialChildEmbedId) {
-      // Opened via inline badge — skip the parent grid and close completely
-      onClose();
-    } else {
-      selectedConnectionIndex = -1;
-      connectionResultsForNav = [];
-    }
-  }
-  
-  /**
-   * Navigate to the previous connection in the overlay
-   */
-  function handleConnectionNavigatePrevious() {
-    if (selectedConnectionIndex > 0) {
-      selectedConnectionIndex -= 1;
-    }
-  }
-  
-  /**
-   * Navigate to the next connection in the overlay
-   */
-  function handleConnectionNavigateNext() {
-    if (selectedConnectionIndex < connectionResultsForNav.length - 1) {
-      selectedConnectionIndex += 1;
-    }
-  }
-  
-  /**
-   * Handle embed data updates during streaming
-   */
+
+  let cheapestThreshold = $derived(getCheapestThreshold(headerResults));
+
   function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> }) {
     if (!data.decodedContent) return;
-    
     if (data.status === 'processing' || data.status === 'finished' || data.status === 'error' || data.status === 'cancelled') {
       localStatus = data.status;
     }
-    
     const content = data.decodedContent;
     if (typeof content.query === 'string') localQuery = content.query;
     if (typeof content.provider === 'string') localProvider = content.provider;
@@ -603,69 +411,34 @@
     if (Array.isArray(content.results)) localResults = content.results as unknown[];
     if (typeof content.error === 'string') localErrorMessage = content.error;
   }
-  
-  // Share is handled by UnifiedEmbedFullscreen's built-in share handler
-  // which uses currentEmbedId, appId, and skillId to construct the embed
-  // share context and properly opens the settings panel (including on mobile).
-  
-  /**
-   * Handle children loaded callback from UnifiedEmbedFullscreen.
-   * Stores the loaded connection results so we can derive the header banner content.
-   */
-  function handleChildrenLoaded(children: unknown[]) {
-    headerConnectionResults = children as ConnectionResult[];
-  }
-  
+
   // Also populate header results from legacy results when no embedIds are used.
   $effect(() => {
-    if (localResults.length > 0 && headerConnectionResults.length === 0) {
-      headerConnectionResults = transformLegacyResults(localResults);
+    if (localResults.length > 0 && headerResults.length === 0) {
+      headerResults = transformLegacyResults(localResults);
     }
   });
-
-  // Auto-open logic for initialChildEmbedId is handled by UnifiedEmbedFullscreen's
-  // onAutoOpenChild callback — no local $effect or _autoOpenFired guard needed.
-  
-  /**
-   * Handle closing the entire search fullscreen.
-   *
-   * When opened via inline badge (initialChildEmbedId set) and a child overlay
-   * is currently shown, close the entire fullscreen rather than going back to
-   * the parent results grid — the user arrived directly at the child result.
-   */
-  function handleMainClose() {
-    if (selectedConnectionIndex >= 0 && !initialChildEmbedId) {
-      // Normal flow: child open, go back to parent grid
-      selectedConnectionIndex = -1;
-      connectionResultsForNav = [];
-    } else {
-      onClose();
-    }
-  }
 </script>
 
-<!-- Connection results view - ALWAYS rendered (base layer) -->
-<UnifiedEmbedFullscreen
+<SearchResultsTemplate
   appId="travel"
   skillId="search_connections"
-  onClose={handleMainClose}
-  skillIconName="search"
   embedHeaderTitle={headerTitle}
   embedHeaderSubtitle={headerSubtitle}
+  skillIconName="search"
+  showSkillIcon={true}
+  {onClose}
+  currentEmbedId={embedId}
   embedIds={embedIdsValue}
   childEmbedTransformer={transformToConnectionResult}
-  legacyResults={legacyResults}
-  currentEmbedId={embedId}
+  {legacyResults}
+  legacyResultTransformer={transformLegacyResults}
+  status={localStatus}
+  errorMessage={localErrorMessage}
   onEmbedDataUpdated={handleEmbedDataUpdated}
-  onChildrenLoaded={handleChildrenLoaded}
+  onResultsLoaded={(results) => { headerResults = results; }}
   {initialChildEmbedId}
-  onAutoOpenChild={(index, children) => {
-    const connections = children as ConnectionResult[];
-    headerConnectionResults = connections;
-    if (connections[index]) {
-      handleConnectionFullscreen(connections[index], connections);
-    }
-  }}
+  minCardWidth="260px"
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}
@@ -674,143 +447,45 @@
   {showChatButton}
   {onShowChat}
 >
-  {#snippet content(ctx)}
-    {@const connectionResults = getConnectionResults(ctx)}
-    {@const cheapestThreshold = getCheapestThreshold(connectionResults)}
-    
-    <!-- Error state -->
-    {#if status === 'error'}
-      <div class="error-state">
-        <div class="error-title">{$text('embeds.search_failed')}</div>
-        <div class="error-message">{errorMessage}</div>
-      </div>
-    {:else}
-      {#if connectionResults.length === 0}
-        {#if ctx.isLoadingChildren}
-          <div class="loading-state">
-            <p>{$text('embeds.loading')}</p>
-          </div>
-        {:else}
-          <div class="no-results">
-            <p>{$text('embeds.no_results')}</p>
-          </div>
-        {/if}
-      {:else}
-        <!-- Connection cards grid -->
-        <div class="connection-embeds-grid">
-          {#each connectionResults as result}
-            <TravelConnectionEmbedPreview
-              id={result.embed_id}
-              price={result.total_price}
-              currency={result.currency}
-              transportMethod={result.transport_method}
-              tripType={result.trip_type}
-              origin={result.origin}
-              destination={result.destination}
-              departure={result.departure}
-              arrival={result.arrival}
-              duration={result.duration}
-              stops={result.stops}
-              carriers={result.carriers}
-              carrierCodes={result.carrier_codes}
-              bookableSeats={result.bookable_seats}
-              isCheapest={cheapestThreshold > 0 && result.total_price != null && parseFloat(result.total_price) <= cheapestThreshold}
-              status="finished"
-              isMobile={false}
-              onFullscreen={() => handleConnectionFullscreen(result, connectionResults)}
-            />
-          {/each}
-        </div>
-      {/if}
-    {/if}
-  {/snippet}
-</UnifiedEmbedFullscreen>
-
-<!-- Connection detail fullscreen overlay -->
-{#if selectedConnectionIndex >= 0 && connectionResultsForNav[selectedConnectionIndex]}
-  {@const selectedConnection = connectionResultsForNav[selectedConnectionIndex]}
-  <ChildEmbedOverlay>
-    <TravelConnectionEmbedFullscreen
-      connection={selectedConnection}
-      onClose={handleConnectionFullscreenClose}
-      embedId={selectedConnection.embed_id}
-      hasPreviousEmbed={selectedConnectionIndex > 0}
-      hasNextEmbed={selectedConnectionIndex < connectionResultsForNav.length - 1}
-      onNavigatePrevious={handleConnectionNavigatePrevious}
-      onNavigateNext={handleConnectionNavigateNext}
+  {#snippet resultCard({ result, onSelect })}
+    <TravelConnectionEmbedPreview
+      id={result.embed_id}
+      price={result.total_price}
+      currency={result.currency}
+      transportMethod={result.transport_method}
+      tripType={result.trip_type}
+      origin={result.origin}
+      destination={result.destination}
+      departure={result.departure}
+      arrival={result.arrival}
+      duration={result.duration}
+      stops={result.stops}
+      carriers={result.carriers}
+      carrierCodes={result.carrier_codes}
+      bookableSeats={result.bookable_seats}
+      isCheapest={cheapestThreshold > 0 && result.total_price != null && parseFloat(result.total_price) <= cheapestThreshold}
+      status="finished"
+      isMobile={false}
+      onFullscreen={onSelect}
     />
-  </ChildEmbedOverlay>
-{/if}
+  {/snippet}
+
+  {#snippet childFullscreen(nav)}
+    <TravelConnectionEmbedFullscreen
+      connection={nav.result}
+      onClose={nav.onClose}
+      embedId={nav.result.embed_id}
+      hasPreviousEmbed={nav.hasPrevious}
+      hasNextEmbed={nav.hasNext}
+      onNavigatePrevious={nav.onPrevious}
+      onNavigateNext={nav.onNext}
+    />
+  {/snippet}
+</SearchResultsTemplate>
 
 <style>
-  /* ===========================================
-     Loading and No Results States
-     =========================================== */
-  
-  .loading-state,
-  .no-results {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 200px;
-    color: var(--color-font-secondary);
-    font-size: 16px;
+  :global(.unified-embed-fullscreen-overlay .skill-icon[data-skill-icon="search"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/search.svg');
+    mask-image: url('@openmates/ui/static/icons/search.svg');
   }
-  
-  .error-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 24px 16px;
-    color: var(--color-font-secondary);
-    text-align: center;
-  }
-  
-  .error-title {
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--color-error);
-  }
-  
-  .error-message {
-    font-size: 14px;
-    line-height: 1.4;
-    max-width: 520px;
-    word-break: break-word;
-  }
-  
-  /* ===========================================
-     Connection Embeds Grid
-     =========================================== */
-  
-  .connection-embeds-grid {
-    display: grid;
-    gap: 16px;
-    width: calc(100% - 20px);
-    max-width: 1000px;
-    margin: 0 auto;
-    padding: 0 10px;
-    padding-bottom: 120px;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  }
-  
-  @container fullscreen (max-width: 500px) {
-    .connection-embeds-grid {
-      grid-template-columns: 1fr;
-    }
-  }
-  
-  .connection-embeds-grid :global(.unified-embed-preview) {
-    width: 100%;
-    max-width: 320px;
-    margin: 0 auto;
-  }
-  
-  /* ===========================================
-     Skill Icon Styling
-     =========================================== */
-  
-  /* Skill icon uses the existing 'search' icon mapping from BasicInfosBar */
 </style>

@@ -39,6 +39,7 @@ const STAY_LOGGED_IN_FLAG = 'openmates_was_stay_logged_in';
 // Module-level memory storage for stayLoggedIn=false sessions
 // Keys in memory are automatically cleared when the page closes (no async cleanup needed)
 let memoryMasterKey: CryptoKey | null = null;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- reassigned in module functions
 let memoryKeyStayLoggedIn: boolean | null = null; // Track if memory key should persist
 
 /**
@@ -102,7 +103,7 @@ export async function saveMasterKey(key: CryptoKey, stayLoggedIn: boolean): Prom
     // Clear IndexedDB if it exists (cleanup from previous session)
     try {
       await clearMasterKeyFromIndexedDB();
-    } catch (error) {
+    } catch (_error) {
       // Ignore errors - IndexedDB might not exist or already be cleared
       console.debug('[cryptoKeyStorage] No IndexedDB key to clear (or already cleared)');
     }
@@ -168,7 +169,7 @@ export async function getMasterKey(): Promise<CryptoKey | null> {
         await clearMasterKeyFromIndexedDB();
         sessionStorage.removeItem('clear_master_key_on_unload');
         console.debug('[cryptoKeyStorage] Cleared IndexedDB key due to stayLoggedIn=false flag');
-      } catch (error) {
+      } catch (_error) {
         // Ignore errors - IndexedDB might not exist or already be cleared
       }
     }

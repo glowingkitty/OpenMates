@@ -461,6 +461,10 @@ export interface SendEmbedDataPayload {
     text_length_chars?: number; // Character count for text-based embeds (LLM compression decision)
     encryption_mode?: string; // "client" | "vault" — controls how embed is encrypted/stored
     vault_key_id?: string; // Key ID for server-managed (Vault) encryption
+    // Routing metadata — included by server for child embeds so frontend doesn't
+    // need to decode TOON to determine which renderer to use.
+    app_id?: string; // Parent app ID (e.g. "images")
+    skill_id?: string; // Child type as skill_id (e.g. "image_result") — NOT the parent's skill
   };
 }
 // --- End AI Task and Stream related event payloads ---

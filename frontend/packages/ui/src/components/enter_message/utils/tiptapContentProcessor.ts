@@ -1,11 +1,16 @@
 // frontend/packages/ui/src/components/enter_message/utils/tiptapContentProcessor.ts
 
+interface TiptapMark {
+    type: string;
+    attrs?: Record<string, unknown>;
+}
+
 interface TiptapNode {
     type: string;
-    attrs?: Record<string, any>;
+    attrs?: Record<string, unknown>;
     content?: TiptapNode[];
     text?: string;
-    marks?: any[]; // Define more specifically if needed
+    marks?: TiptapMark[];
 }
 
 interface TiptapDoc {
@@ -33,7 +38,7 @@ function processTextNodeForEmbeds(textNode: TiptapNode): TiptapNode[] {
 
     // IMPORTANT: If this text node already has a link mark, it's part of a markdown link [text](url)
     // Skip URL processing entirely to preserve the inline link format
-    const hasLinkMark = textNode.marks && textNode.marks.some((mark: any) => mark.type === 'link');
+    const hasLinkMark = textNode.marks && textNode.marks.some((mark: TiptapMark) => mark.type === 'link');
     if (hasLinkMark) {
         // This is already a link - don't convert URLs to embeds
         return [textNode];
@@ -42,7 +47,7 @@ function processTextNodeForEmbeds(textNode: TiptapNode): TiptapNode[] {
     // First, process for code blocks as they are more distinct
     let match;
     while ((match = markdownCodeBlockRegex.exec(text)) !== null) {
-        const [fullMatch, lang, codeContent] = match;
+        const [fullMatch, lang, _codeContent] = match;
         const matchStart = match.index;
         const matchEnd = matchStart + fullMatch.length;
 

@@ -1,7 +1,6 @@
 <script lang="ts">
     import { createEventDispatcher, onMount, tick } from 'svelte';
     import { text } from '@repo/ui';
-    import { authStore } from '../stores/authStore';
 
     interface Props {
         x?: number;
@@ -15,8 +14,8 @@
         x = 0,
         y = 0,
         show = false,
-        suggestionText = '',
-        suggestionId = ''
+        _suggestionText = '',
+        _suggestionId = ''
     }: Props = $props();
 
     const dispatch: {

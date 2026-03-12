@@ -1116,11 +1116,13 @@ class ChatMethods:
         """
         logger.info(f"Updating read status for chat {chat_id}: unread_count = {unread_count}")
         try:
-            import time
-            current_timestamp = int(time.time())
+            # INTENTIONALLY not updating updated_at here.
+            # updated_at is used as a fallback tiebreaker in chat sorting — bumping it
+            # when marking a chat as read would cause old chats to silently jump to the
+            # top of the list on the next cache warming / sync cycle.
+            # Read status is a view-tracking concern and must not affect sort order.
             update_data = {
                 "unread_count": unread_count,
-                "updated_at": current_timestamp
             }
             
             success = await self.directus_service.update_item('chats', chat_id, update_data)

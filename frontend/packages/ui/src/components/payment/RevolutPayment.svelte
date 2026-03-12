@@ -2,13 +2,13 @@
     import { onMount, createEventDispatcher, tick } from 'svelte';
     import RevolutCheckout from '@revolut/checkout';
     import { apiEndpoints, getApiEndpoint } from '../../config/api';
-    import { userProfile, updateProfile } from '../../stores/userProfile';
+    import { userProfile } from '../../stores/userProfile';
 
     const dispatch = createEventDispatcher();
 
     // Props using Svelte 5 runes
     let { 
-        purchasePrice = 20,
+        _purchasePrice = 20,
         currency = 'EUR',
         credits_amount = 21000,
         paymentFormComponent = null
@@ -22,17 +22,21 @@
     let revolutPublicKey: string | null = null;
     let revolutEnvironment: 'production' | 'sandbox' = 'sandbox';
     let orderToken: string | null = null;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
     let lastOrderId: string | null = null;
     let cardFieldInstance: any = null;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
     let cardFieldLoaded: boolean = false;
-    let paymentRequestInstance: any = null;
-    let paymentRequestTargetElement: HTMLElement | null = null;
-    let showPaymentRequestButton = false;
+    let _paymentRequestInstance: any = null;
+    let _paymentRequestTargetElement: HTMLElement | null = null;
+    let _showPaymentRequestButton = false;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
     let isLoading = false;
     let errorMessage: string | null = null;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
     let validationErrors: string | null = null;
-    let pollTimeoutId: any = null;
-    let isPollingStopped = false;
+    let _pollTimeoutId: any = null;
+    let _isPollingStopped = false;
     let cardSubmitTimeoutId: any = null;
     let cardFieldTarget: HTMLElement;
     
@@ -51,7 +55,7 @@
     let darkmode = false;
     let locale: typeof allowedRevolutLocales[number] = "en";
 
-    let userProfileUnsubscribe = userProfile.subscribe(profile => {
+    let _userProfileUnsubscribe = userProfile.subscribe(profile => {
         darkmode = !!profile.darkmode;
         locale = mapLocale(profile.language);
     });

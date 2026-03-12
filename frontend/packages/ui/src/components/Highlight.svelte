@@ -21,6 +21,7 @@
     } = $props();
 
     // Add a prop to track visibility
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
     let isVisible = false;
     let highlightElement: HTMLElement;
     let observer: IntersectionObserver;

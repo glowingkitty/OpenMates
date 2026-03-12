@@ -32,6 +32,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
 
+from backend.shared.python_utils.geo_utils import CITY_COORDS
+
 logger = logging.getLogger(__name__)
 
 
@@ -41,68 +43,7 @@ logger = logging.getLogger(__name__)
 
 GRAPHQL_URL = "https://www.meetup.com/gql2"
 
-# Well-known city coordinates for fast local lookup (no network request needed).
-# Format: city_key → (lat, lon, display_name, ISO 3166-1 alpha-2 country code)
-CITY_COORDS: Dict[str, Tuple[float, float, str, str]] = {
-    "berlin": (52.52, 13.405, "Berlin", "de"),
-    "munich": (48.137, 11.576, "Munich", "de"),
-    "hamburg": (53.551, 9.993, "Hamburg", "de"),
-    "cologne": (50.938, 6.957, "Cologne", "de"),
-    "frankfurt": (50.110, 8.682, "Frankfurt", "de"),
-    "stuttgart": (48.775, 9.182, "Stuttgart", "de"),
-    "dusseldorf": (51.227, 6.773, "Düsseldorf", "de"),
-    "london": (51.507, -0.128, "London", "gb"),
-    "manchester": (53.480, -2.242, "Manchester", "gb"),
-    "birmingham": (52.480, -1.902, "Birmingham", "gb"),
-    "paris": (48.857, 2.352, "Paris", "fr"),
-    "lyon": (45.764, 4.836, "Lyon", "fr"),
-    "amsterdam": (52.374, 4.898, "Amsterdam", "nl"),
-    "rotterdam": (51.924, 4.477, "Rotterdam", "nl"),
-    "zurich": (47.376, 8.548, "Zurich", "ch"),
-    "vienna": (48.208, 16.373, "Vienna", "at"),
-    "brussels": (50.851, 4.352, "Brussels", "be"),
-    "stockholm": (59.333, 18.065, "Stockholm", "se"),
-    "oslo": (59.913, 10.752, "Oslo", "no"),
-    "copenhagen": (55.676, 12.568, "Copenhagen", "dk"),
-    "helsinki": (60.169, 24.938, "Helsinki", "fi"),
-    "madrid": (40.416, -3.703, "Madrid", "es"),
-    "barcelona": (41.386, 2.170, "Barcelona", "es"),
-    "rome": (41.902, 12.496, "Rome", "it"),
-    "milan": (45.464, 9.189, "Milan", "it"),
-    "lisbon": (38.716, -9.139, "Lisbon", "pt"),
-    "warsaw": (52.229, 21.012, "Warsaw", "pl"),
-    "prague": (50.087, 14.421, "Prague", "cz"),
-    "budapest": (47.498, 19.040, "Budapest", "hu"),
-    "new york": (40.713, -74.006, "New York", "us"),
-    "los angeles": (34.052, -118.244, "Los Angeles", "us"),
-    "chicago": (41.878, -87.630, "Chicago", "us"),
-    "san francisco": (37.775, -122.418, "San Francisco", "us"),
-    "seattle": (47.606, -122.332, "Seattle", "us"),
-    "boston": (42.360, -71.059, "Boston", "us"),
-    "austin": (30.267, -97.743, "Austin", "us"),
-    "new york city": (40.713, -74.006, "New York", "us"),
-    "nyc": (40.713, -74.006, "New York", "us"),
-    "sf": (37.775, -122.418, "San Francisco", "us"),
-    "toronto": (43.651, -79.347, "Toronto", "ca"),
-    "vancouver": (49.283, -123.121, "Vancouver", "ca"),
-    "montreal": (45.508, -73.588, "Montreal", "ca"),
-    "sydney": (-33.868, 151.209, "Sydney", "au"),
-    "melbourne": (-37.814, 144.963, "Melbourne", "au"),
-    "tokyo": (35.689, 139.691, "Tokyo", "jp"),
-    "osaka": (34.694, 135.502, "Osaka", "jp"),
-    "seoul": (37.566, 126.978, "Seoul", "kr"),
-    "beijing": (39.906, 116.391, "Beijing", "cn"),
-    "shanghai": (31.228, 121.474, "Shanghai", "cn"),
-    "singapore": (1.352, 103.820, "Singapore", "sg"),
-    "bangalore": (12.972, 77.594, "Bangalore", "in"),
-    "mumbai": (19.076, 72.877, "Mumbai", "in"),
-    "delhi": (28.614, 77.209, "Delhi", "in"),
-    "dubai": (25.204, 55.270, "Dubai", "ae"),
-    "cape town": (-33.925, 18.424, "Cape Town", "za"),
-    "sao paulo": (-23.548, -46.637, "São Paulo", "br"),
-    "buenos aires": (-34.608, -58.437, "Buenos Aires", "ar"),
-    "mexico city": (19.432, -99.133, "Mexico City", "mx"),
-}
+# CITY_COORDS is imported from backend.shared.python_utils.geo_utils — shared with Luma.
 
 # HTTP headers that mimic what the Meetup web application sends.
 # Necessary to avoid being treated as an automated bot.

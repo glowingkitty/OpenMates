@@ -290,10 +290,10 @@
     /* Grow to fill whatever vertical space remains after the formula header */
     flex: 1 1 0;
     min-height: 200px;
-    background: var(--color-grey-5, #fafafa);
+    background: var(--color-grey-0);
     border-radius: 12px;
     overflow: hidden;
-    border: 1px solid var(--color-grey-20, #e5e5e5);
+    border: 1px solid var(--color-grey-20);
   }
 
   :global(.plot-fullscreen-content .function-plot) {
@@ -302,15 +302,16 @@
   }
 
   /* ── Axis / tick label visibility ────────────────────────────────────────────
-     function-plot renders an SVG; by default its tick text inherits a very light
-     colour that is invisible on the light plot background.  Force it to a dark,
-     readable shade. */
+     function-plot renders an SVG; its tick text and axis lines must be explicitly
+     coloured since they don't inherit CSS custom properties.
+     Light mode: dark labels/lines on light background.
+     Dark mode: light labels/lines on dark background. */
   :global(.plot-fullscreen-content .function-plot text) {
     fill: #333333 !important;
     font-size: 11px;
   }
 
-  /* Axis lines and grid */
+  /* Axis lines and grid (light mode) */
   :global(.plot-fullscreen-content .function-plot .x.axis path),
   :global(.plot-fullscreen-content .function-plot .x.axis line),
   :global(.plot-fullscreen-content .function-plot .y.axis path),
@@ -318,13 +319,25 @@
     stroke: #555555 !important;
   }
 
+  /* Dark mode: light labels and lines */
+  :global([data-theme="dark"] .plot-fullscreen-content .function-plot text) {
+    fill: #cccccc !important;
+  }
+
+  :global([data-theme="dark"] .plot-fullscreen-content .function-plot .x.axis path),
+  :global([data-theme="dark"] .plot-fullscreen-content .function-plot .x.axis line),
+  :global([data-theme="dark"] .plot-fullscreen-content .function-plot .y.axis path),
+  :global([data-theme="dark"] .plot-fullscreen-content .function-plot .y.axis line) {
+    stroke: #888888 !important;
+  }
+
   /* ── Function formulas header (above the plot) ───────────────────────────── */
 
   .functions-header {
-    background: var(--color-grey-10, #f5f5f5);
+    background: var(--color-grey-10);
     border-radius: 12px;
     padding: 16px 20px;
-    border: 1px solid var(--color-grey-20, #e5e5e5);
+    border: 1px solid var(--color-grey-20);
   }
 
   .formula-list {

@@ -36,12 +36,14 @@ async def handle_email_notification_settings(
     {
         "enabled": bool,
         "email": str | None,  # Plaintext email when enabling (will be encrypted server-side)
-        "preferences": {"aiResponses": bool}
+        "preferences": {"aiResponses": bool, "backupReminder": bool},
+        "backup_reminder_interval_days": int | None  # Optional; persisted when present
     }
     """
     enabled = payload.get("enabled", False)
     email = payload.get("email")  # Plaintext email from client
     preferences = payload.get("preferences", {"aiResponses": True})
+    backup_reminder_interval_days = payload.get("backup_reminder_interval_days")
     
     logger.info(f"Processing email_notification_settings for user {user_id}: enabled={enabled}")
     
@@ -51,6 +53,18 @@ async def handle_email_notification_settings(
             "email_notifications_enabled": enabled,
             "email_notification_preferences": preferences
         }
+
+        # Persist backup reminder interval if provided (set from Backup Reminders settings page)
+        if backup_reminder_interval_days is not None:
+            try:
+                interval_int = int(backup_reminder_interval_days)
+                if interval_int > 0:
+                    update_data["backup_reminder_interval_days"] = interval_int
+            except (ValueError, TypeError):
+                logger.warning(
+                    f"Invalid backup_reminder_interval_days value for user {user_id}: "
+                    f"{backup_reminder_interval_days!r}"
+                )
         
         if enabled and email:
             # Encrypt email using server-side vault encryption
@@ -116,15 +130,25 @@ async def handle_email_notification_settings(
             )
             return
         
+        # Build shared payload — include backup interval when it was updated so
+        # other devices can keep their local store in sync without a full reload.
+        broadcast_payload: dict[str, Any] = {
+            "enabled": enabled,
+            "preferences": preferences,
+        }
+        if backup_reminder_interval_days is not None:
+            try:
+                interval_int = int(backup_reminder_interval_days)
+                if interval_int > 0:
+                    broadcast_payload["backup_reminder_interval_days"] = interval_int
+            except (ValueError, TypeError):
+                pass
+
         # Send success acknowledgement to the requesting device
         await manager.send_personal_message(
             message={
                 "type": "email_notification_settings_ack",
-                "payload": {
-                    "success": True,
-                    "enabled": enabled,
-                    "preferences": preferences
-                }
+                "payload": {"success": True, **broadcast_payload}
             },
             user_id=user_id,
             device_fingerprint_hash=device_fingerprint_hash
@@ -134,10 +158,7 @@ async def handle_email_notification_settings(
         await manager.broadcast_to_user(
             message={
                 "type": "email_notification_settings_updated",
-                "payload": {
-                    "enabled": enabled,
-                    "preferences": preferences
-                }
+                "payload": broadcast_payload
             },
             user_id=user_id,
             exclude_device_hash=device_fingerprint_hash

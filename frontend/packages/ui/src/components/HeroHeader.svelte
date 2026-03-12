@@ -11,6 +11,7 @@
   let currentApp = $state('');
   
   // Add state for mobile view using Svelte 5 $state
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
   let isMobile = $state(false);
   let screenWidth = $state(0);
 

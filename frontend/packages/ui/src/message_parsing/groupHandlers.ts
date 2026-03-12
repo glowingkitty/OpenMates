@@ -1,7 +1,7 @@
 // Generic group handler system for embed grouping
 // Provides extensible interfaces for different embed type grouping behaviors
 
-import { EmbedNodeAttributes } from "./types";
+import { EmbedNodeAttributes, TipTapNode } from "./types";
 
 /**
  * Generate a deterministic group ID based on the first item's ID.
@@ -85,7 +85,7 @@ export interface GroupBackspaceResult {
   /**
    * Content to replace the group with (for TipTap)
    */
-  replacementContent?: any[];
+  replacementContent?: TipTapNode[];
 
   /**
    * Plain text to replace with (fallback)
@@ -119,7 +119,7 @@ export class WebWebsiteGroupHandler implements EmbedGroupHandler {
     // Extract only the essential, serializable attributes for groupedItems
     const serializableGroupedItems = sortedEmbeds.map((embed) => ({
       id: embed.id,
-      type: embed.type as any, // Type assertion to avoid complex type issues
+      type: embed.type,
       status: embed.status as "processing" | "finished", // Type assertion for status
       contentRef: embed.contentRef,
       url: embed.url,
@@ -159,7 +159,7 @@ export class WebWebsiteGroupHandler implements EmbedGroupHandler {
       const remainingGroupAttrs = this.createGroup(remainingItems);
 
       // Build the replacement content: group + editable text
-      const replacementContent: any[] = [
+      const replacementContent: TipTapNode[] = [
         {
           type: "embed",
           attrs: remainingGroupAttrs,
@@ -179,7 +179,7 @@ export class WebWebsiteGroupHandler implements EmbedGroupHandler {
       const lastItem = groupedItems[groupedItems.length - 1];
 
       // Create individual embed nodes for the remaining items
-      const replacementContent: any[] = [
+      const replacementContent: TipTapNode[] = [
         {
           type: "embed",
           attrs: {
@@ -216,7 +216,7 @@ export class WebWebsiteGroupHandler implements EmbedGroupHandler {
     const groupedItems = groupAttrs.groupedItems || [];
     return groupedItems
       .map((item) => {
-        const websiteData: any = {
+        const websiteData: Record<string, string | undefined> = {
           type: "website",
           url: item.url,
         };
@@ -288,7 +288,7 @@ export class VideosVideoGroupHandler implements EmbedGroupHandler {
       const remainingGroupAttrs = this.createGroup(remainingItems);
 
       // Build the replacement content: group + editable text
-      const replacementContent: any[] = [
+      const replacementContent: TipTapNode[] = [
         {
           type: "embed",
           attrs: remainingGroupAttrs,
@@ -308,7 +308,7 @@ export class VideosVideoGroupHandler implements EmbedGroupHandler {
       const lastItem = groupedItems[groupedItems.length - 1];
 
       // Create individual embed nodes for the remaining items
-      const replacementContent: any[] = [
+      const replacementContent: TipTapNode[] = [
         {
           type: "embed",
           attrs: {
@@ -408,7 +408,7 @@ export class CodeCodeGroupHandler implements EmbedGroupHandler {
       const lastItemMarkdown = `\`\`\`${language}${filename}\n\`\`\``;
 
       // Build the replacement content: group + editable text
-      const replacementContent: any[] = [
+      const replacementContent: TipTapNode[] = [
         {
           type: "embed",
           attrs: remainingGroupAttrs,
@@ -427,7 +427,7 @@ export class CodeCodeGroupHandler implements EmbedGroupHandler {
       const lastItem = groupedItems[groupedItems.length - 1];
 
       // Create individual embed nodes for the remaining items
-      const replacementContent: any[] = [
+      const replacementContent: TipTapNode[] = [
         {
           type: "embed",
           attrs: {
@@ -529,7 +529,7 @@ export class DocsDocGroupHandler implements EmbedGroupHandler {
       const lastItemMarkdown = `\`\`\`document_html\n${title}\`\`\``;
 
       // Build the replacement content: group + editable text
-      const replacementContent: any[] = [
+      const replacementContent: TipTapNode[] = [
         {
           type: "embed",
           attrs: remainingGroupAttrs,
@@ -548,7 +548,7 @@ export class DocsDocGroupHandler implements EmbedGroupHandler {
       const lastItem = groupedItems[groupedItems.length - 1];
 
       // Create individual embed nodes for the remaining items
-      const replacementContent: any[] = [
+      const replacementContent: TipTapNode[] = [
         {
           type: "embed",
           attrs: {
@@ -652,7 +652,7 @@ export class SheetsSheetGroupHandler implements EmbedGroupHandler {
       const lastItemMarkdown = `${title}| Column 1 | Column 2 |\n|----------|----------|\n| Data     | Data     |`;
 
       // Build the replacement content: group + editable text
-      const replacementContent: any[] = [
+      const replacementContent: TipTapNode[] = [
         {
           type: "embed",
           attrs: remainingGroupAttrs,
@@ -671,7 +671,7 @@ export class SheetsSheetGroupHandler implements EmbedGroupHandler {
       const lastItem = groupedItems[groupedItems.length - 1];
 
       // Create individual embed nodes for the remaining items
-      const replacementContent: any[] = [
+      const replacementContent: TipTapNode[] = [
         {
           type: "embed",
           attrs: {
@@ -767,7 +767,7 @@ export class AppSkillUseGroupHandler implements EmbedGroupHandler {
     // Without these, the group items will render as empty/generic fallback HTML.
     const serializableGroupedItems = sortedEmbeds.map((embed) => ({
       id: embed.id,
-      type: embed.type as any,
+      type: embed.type,
       status: embed.status as "processing" | "finished" | "error",
       contentRef: embed.contentRef,
       // Preserve app skill metadata for rendering during streaming
@@ -809,7 +809,7 @@ export class AppSkillUseGroupHandler implements EmbedGroupHandler {
       const remainingGroupAttrs = this.createGroup(remainingItems);
 
       // Build the replacement content: group (last item is removed, can't edit app_skill_use as text)
-      const replacementContent: any[] = [
+      const replacementContent: TipTapNode[] = [
         {
           type: "embed",
           attrs: remainingGroupAttrs,
@@ -829,7 +829,7 @@ export class AppSkillUseGroupHandler implements EmbedGroupHandler {
       const lastItem = groupedItems[groupedItems.length - 1];
 
       // Create individual embed nodes for both items
-      const replacementContent: any[] = [
+      const replacementContent: TipTapNode[] = [
         {
           type: "embed",
           attrs: {
@@ -854,7 +854,7 @@ export class AppSkillUseGroupHandler implements EmbedGroupHandler {
     } else if (groupedItems.length === 1) {
       // Single item group - convert back to individual embed
       const singleItem = groupedItems[0];
-      const replacementContent: any[] = [
+      const replacementContent: TipTapNode[] = [
         {
           type: "embed",
           attrs: {
@@ -883,7 +883,7 @@ export class AppSkillUseGroupHandler implements EmbedGroupHandler {
       .map((item) => {
         // Extract embed_id from contentRef (format: "embed:...")
         const embedId = item.contentRef?.replace("embed:", "") || "";
-        const embedData: any = {
+        const embedData: Record<string, string> = {
           type: "app_skill_use",
           embed_id: embedId,
         };

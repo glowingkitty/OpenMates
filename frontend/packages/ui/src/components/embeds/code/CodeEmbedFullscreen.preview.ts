@@ -42,11 +42,11 @@ const defaultProps = {
 	filename: 'SearchableList.svelte',
 	lineCount: 32,
 	codeContent: sampleCode,
-	onClose: () => console.log('[Preview] Close clicked'),
+	onClose: () => {},
 	hasPreviousEmbed: true,
 	hasNextEmbed: true,
-	onNavigatePrevious: () => console.log('[Preview] Navigate previous'),
-	onNavigateNext: () => console.log('[Preview] Navigate next')
+	onNavigatePrevious: () => {},
+	onNavigateNext: () => {}
 };
 
 export default defaultProps;

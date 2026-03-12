@@ -38,7 +38,7 @@ import { text } from "../i18n/translations"; // Import text store for translatio
 import { chatListCache } from "../services/chatListCache"; // Import chatListCache to clear stale chat data on session expiry
 import { chatMetadataCache } from "../services/chatMetadataCache"; // Import chatMetadataCache to clear stale decrypted title/metadata cache on logout
 import { clearAllSharedChatKeys } from "../services/sharedChatKeyStorage"; // Import to clear shared chat keys on session expiry
-import { clientLogForwarder } from "../services/clientLogForwarder"; // Import admin console log forwarder
+import { clientLogForwarder } from "../services/clientLogForwarder"; // Admin live log streaming to OpenObserve
 import { appSettingsMemoriesStore } from "./appSettingsMemoriesStore"; // Import to pre-load entries for @ mention dropdown
 import { applyServerDarkMode } from "./theme"; // Apply server dark mode preference on session restore
 
@@ -222,12 +222,41 @@ export async function checkAuth(
 
         // CRITICAL: Navigate to demo-for-everyone IMMEDIATELY (synchronously) BEFORE auth state changes
         // This ensures any component reading activeChatStore will see demo-for-everyone, not the old chat
+        //
+        // EXCEPTION: If a shared chat redirect is in progress, do NOT override with demo-for-everyone.
+        // Shared chats use URL-embedded encryption keys (not the master key), so they work perfectly
+        // fine without a master key. The sessionStorage flag 'openmates_skip_orphan_detection' is set
+        // by the share chat page to indicate a shared chat session is active.
+        // The 'openmates_shared_chat_redirect' flag is set just before navigating from share page to root.
+        const isSharedChatSession =
+          typeof window !== "undefined" &&
+          typeof sessionStorage !== "undefined" &&
+          (sessionStorage.getItem("openmates_skip_orphan_detection") ===
+            "true" ||
+            sessionStorage.getItem("openmates_shared_chat_redirect") !== null);
+
+        // OG image mode (?og=1): skip demo-for-everyone redirect so the welcome screen
+        // (daily inspiration + for-everyone card) stays visible in /dev/og-image iframes.
+        const isOgImageMode =
+          typeof window !== "undefined" &&
+          new URLSearchParams(window.location.search).get("og") === "1";
+
         if (typeof window !== "undefined") {
-          activeChatStore.setActiveChat("demo-for-everyone");
-          window.location.hash = "chat-id=demo-for-everyone";
-          console.debug(
-            "[AuthSessionActions] Navigated to demo-for-everyone chat IMMEDIATELY (synchronous) - missing master key",
-          );
+          if (isSharedChatSession) {
+            console.debug(
+              "[AuthSessionActions] Skipping demo-for-everyone override — shared chat session detected (key in URL fragment, not master key)",
+            );
+          } else if (isOgImageMode) {
+            console.debug(
+              "[AuthSessionActions] Skipping demo-for-everyone override — og=1 mode (welcome screen should stay visible)",
+            );
+          } else {
+            activeChatStore.setActiveChat("demo-for-everyone");
+            window.location.hash = "chat-id=demo-for-everyone";
+            console.debug(
+              "[AuthSessionActions] Navigated to demo-for-everyone chat IMMEDIATELY (synchronous) - missing master key",
+            );
+          }
         }
 
         // Set auth state (don't block on database deletion)
@@ -238,8 +267,9 @@ export async function checkAuth(
         }));
 
         // Show notification with context-appropriate message — but only if we haven't already
-        // shown one (when +page.svelte sets the flag, it shows its own notification via setTimeout)
-        if (!alreadyForcedLogout) {
+        // shown one (when +page.svelte sets the flag, it shows its own notification via setTimeout).
+        // Also skip for shared chat sessions — users opening a share link shouldn't see logout alerts.
+        if (!alreadyForcedLogout && !isSharedChatSession) {
           const $text = get(text);
           const { wasStayLoggedIn } =
             await import("../services/cryptoKeyStorage");
@@ -268,57 +298,67 @@ export async function checkAuth(
           }
         }
 
-        // CRITICAL: Set isLoggingOut flag to true BEFORE navigating to demo-for-everyone
-        // This ensures ActiveChat component knows we're explicitly logging out and should clear shared chats
-        // and load demo-for-everyone, even if the chat is a shared chat
-        isLoggingOut.set(true);
-        console.debug(
-          "[AuthSessionActions] Set isLoggingOut to true for missing master key logout",
-        );
-
-        // CRITICAL: Close the settings menu and reset to main page during forced logout.
-        // This prevents users from being stuck in an auth-only settings sub-page (e.g. account/security)
-        // after being forced out. Dispatches a window event that Settings.svelte listens to,
-        // avoiding circular module dependencies from importing the component directly.
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(new CustomEvent("forceCloseSettings"));
+        // CRITICAL: For shared chat sessions, skip destructive logout.
+        // Shared chats are stored in IndexedDB with their own encryption keys (from the URL
+        // fragment). The logout() call below deletes the entire database, which would wipe
+        // the shared chat data. The user is effectively unauthenticated — they just have stale
+        // profile data from a previous session. Simply clearing auth state is sufficient.
+        if (!isSharedChatSession) {
+          isLoggingOut.set(true);
           console.debug(
-            "[AuthSessionActions] Dispatched forceCloseSettings event on forced logout",
+            "[AuthSessionActions] Set isLoggingOut to true for missing master key logout",
           );
-        }
 
-        // Trigger server logout and local data cleanup
-        // Database deletion is handled by the logout() function's background IIFE
-        // CRITICAL: Do NOT reset forcedLogoutInProgress until AFTER database deletion completes
-        // This prevents race conditions where other code re-opens the database during logout
-        logout({
-          skipServerLogout: false, // Explicitly send logout request to server
-          isSessionExpiredLogout: true, // Custom flag for this scenario
-          afterLocalLogout: async () => {
-            // NOTE: Do NOT reset flags here - database deletion happens in logout()'s background IIFE
-            // and we need forcedLogoutInProgress to remain true until deletion completes
-            // This prevents chatDB.init() from being called during the deletion window
+          // CRITICAL: Close the settings menu and reset to main page during forced logout.
+          // This prevents users from being stuck in an auth-only settings sub-page (e.g. account/security)
+          // after being forced out. Dispatches a window event that Settings.svelte listens to,
+          // avoiding circular module dependencies from importing the component directly.
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("forceCloseSettings"));
             console.debug(
-              "[AuthSessionActions] afterLocalLogout called - flags NOT reset yet (waiting for DB cleanup)",
+              "[AuthSessionActions] Dispatched forceCloseSettings event on forced logout",
             );
-          },
-          afterServerCleanup: async () => {
-            // CRITICAL: Reset flags AFTER database deletion completes (in logout()'s background IIFE)
-            // This ensures forcedLogoutInProgress stays true during the entire deletion process
+          }
+
+          // Trigger server logout and local data cleanup
+          // Database deletion is handled by the logout() function's background IIFE
+          // CRITICAL: Do NOT reset forcedLogoutInProgress until AFTER database deletion completes
+          // This prevents race conditions where other code re-opens the database during logout
+          logout({
+            skipServerLogout: false, // Explicitly send logout request to server
+            isSessionExpiredLogout: true, // Custom flag for this scenario
+            afterLocalLogout: async () => {
+              // NOTE: Do NOT reset flags here - database deletion happens in logout()'s background IIFE
+              // and we need forcedLogoutInProgress to remain true until deletion completes
+              // This prevents chatDB.init() from being called during the deletion window
+              console.debug(
+                "[AuthSessionActions] afterLocalLogout called - flags NOT reset yet (waiting for DB cleanup)",
+              );
+            },
+            afterServerCleanup: async () => {
+              // CRITICAL: Reset flags AFTER database deletion completes (in logout()'s background IIFE)
+              // This ensures forcedLogoutInProgress stays true during the entire deletion process
+              isLoggingOut.set(false);
+              resetForcedLogoutInProgress();
+              console.debug(
+                "[AuthSessionActions] Reset logout flags after server cleanup and DB deletion",
+              );
+            },
+          }).catch((err) => {
+            console.error("[AuthSessionActions] Logout failed:", err);
+            // Reset logout flags even if logout fails
             isLoggingOut.set(false);
             resetForcedLogoutInProgress();
-            console.debug(
-              "[AuthSessionActions] Reset logout flags after server cleanup and DB deletion",
-            );
-          },
-        }).catch((err) => {
-          console.error("[AuthSessionActions] Logout failed:", err);
-          // Reset logout flags even if logout fails
-          isLoggingOut.set(false);
-          resetForcedLogoutInProgress();
-        });
+          });
 
-        deleteSessionId(); // Remove session_id on forced logout
+          deleteSessionId(); // Remove session_id on forced logout
+        } else {
+          console.debug(
+            "[AuthSessionActions] Skipping destructive logout for shared chat session — only clearing auth state",
+          );
+          // Still reset forcedLogoutInProgress since we're not doing a full logout
+          resetForcedLogoutInProgress();
+        }
         cryptoService.clearAllEmailData(); // Clear email encryption key, encrypted email, and salt
         deleteAllCookies(); // Clear all cookies on forced logout
         return false;
@@ -577,16 +617,51 @@ export async function checkAuth(
         console.error("Failed to save user data to database:", dbError);
       }
 
-      // Start admin console log forwarding on session restore if user is admin.
-      // IMPORTANT: This is intentionally outside the DB try/catch above so that a database
-      // error (e.g. IndexedDB quota exceeded) does NOT silently prevent log forwarding from
-      // starting. Log forwarding must activate regardless of DB save success.
-      // Only admin users have logs forwarded - regular users are never affected.
-      console.debug(
-        `[AuthSessionActions] is_admin check for log forwarder: ${data.user.is_admin}`,
-      );
+      // Start live console log streaming for admin users on session restore.
       if (data.user.is_admin) {
         clientLogForwarder.start();
+      }
+
+      // Register encrypted session metadata if the server indicates it hasn't been done yet.
+      // The /session response includes session_device_info (plaintext device name, IP, country)
+      // which the client encrypts with the master key and POSTs back. This is a one-time
+      // operation per session, piggybacking on the existing /session flow.
+      if (data.session_device_info && !data.session_meta_registered) {
+        (async () => {
+          try {
+            const metaJson = JSON.stringify(data.session_device_info);
+            const encryptedBlob =
+              await cryptoService.encryptWithMasterKey(metaJson);
+            if (encryptedBlob) {
+              const res = await fetch(
+                getApiEndpoint("/v1/auth/sessions/register-meta"),
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  credentials: "include",
+                  body: JSON.stringify({
+                    encrypted_meta: encryptedBlob,
+                  }),
+                },
+              );
+              if (res.ok) {
+                console.warn(
+                  "[AuthSessionActions] Session metadata registered successfully",
+                );
+              } else {
+                console.warn(
+                  "[AuthSessionActions] Failed to register session metadata:",
+                  res.status,
+                );
+              }
+            }
+          } catch (err) {
+            console.warn(
+              "[AuthSessionActions] Error registering session metadata (non-fatal):",
+              err,
+            );
+          }
+        })();
       }
 
       // Pre-load all settings/memories entries from IndexedDB so they are immediately
@@ -610,8 +685,8 @@ export async function checkAuth(
         data.message,
       );
 
-      // Stop admin console log forwarding on session expiry (before clearing auth state)
-      clientLogForwarder.stop();
+      // Stop admin log streaming on session expiry
+      void clientLogForwarder.stop();
 
       // Check if master key was present before clearing (to determine if user was previously authenticated)
       const hadMasterKey = !!(await cryptoService.getKeyFromStorage());
@@ -735,15 +810,25 @@ export async function checkAuth(
         // CRITICAL: Navigate to demo-for-everyone chat to hide the previously open chat
         // This ensures the previous chat is not visible after logout
         // Small delay to ensure auth state changes are processed first
-        setTimeout(() => {
-          if (typeof window !== "undefined") {
-            activeChatStore.setActiveChat("demo-for-everyone");
-            window.location.hash = "chat-id=demo-for-everyone";
-            console.debug(
-              "[AuthSessionActions] Navigated to demo-for-everyone chat after logout notification",
-            );
-          }
-        }, 50);
+        // OG image mode (?og=1): skip demo-for-everyone redirect so the welcome screen stays visible
+        const isOgImageModeLogout =
+          typeof window !== "undefined" &&
+          new URLSearchParams(window.location.search).get("og") === "1";
+        if (!isOgImageModeLogout) {
+          setTimeout(() => {
+            if (typeof window !== "undefined") {
+              activeChatStore.setActiveChat("demo-for-everyone");
+              window.location.hash = "chat-id=demo-for-everyone";
+              console.debug(
+                "[AuthSessionActions] Navigated to demo-for-everyone chat after logout notification",
+              );
+            }
+          }, 50);
+        } else {
+          console.debug(
+            "[AuthSessionActions] Skipping demo-for-everyone redirect after logout — og=1 mode",
+          );
+        }
 
         // Clear master key and all email data from storage
         await cryptoService.clearKeyFromStorage();
@@ -958,6 +1043,17 @@ export async function checkAuth(
           isInitialized: true,
         }));
 
+        // Start clientLogForwarder for admin users in offline-first mode.
+        // The normal (online) path starts the forwarder in checkAuth()'s happy path.
+        // But if the server is unreachable, we restore auth from local IndexedDB here
+        // without ever reaching the online success path — so we must start it here.
+        if (localProfile.is_admin) {
+          console.debug(
+            "[AuthSessionActions] Admin user detected (offline-first) — starting clientLogForwarder",
+          );
+          clientLogForwarder.start();
+        }
+
         // Check if user is in signup flow (offline-first mode)
         // A user is in signup flow only if last_opened explicitly indicates signup
         // Avoid using tfa_enabled=false to keep passkey-only users out of OTP setup
@@ -995,15 +1091,6 @@ export async function checkAuth(
             );
             locale.set(localProfile.language);
           }
-        }
-
-        // Start admin console log forwarding in offline-first mode if user is admin.
-        // The local profile from IndexedDB preserves is_admin from the last successful session.
-        if (localProfile.is_admin) {
-          console.debug(
-            "[AuthSessionActions] Starting admin log forwarder (offline-first mode)",
-          );
-          clientLogForwarder.start();
         }
 
         return true; // Return true to indicate optimistic authentication
@@ -1091,4 +1178,15 @@ export function setAuthenticatedState(): void {
   needsDeviceVerification.set(false);
   deviceVerificationType.set(null);
   deviceVerificationReason.set(null);
+
+  // Start live console log streaming for admin users on fresh login.
+  // The user profile is populated by PasswordAndTfaOtp.svelte (via updateProfile) before
+  // dispatching loginSuccess, so is_admin is available here when called from ActiveChat.
+  const profile = get(userProfile);
+  if (profile.is_admin) {
+    console.debug(
+      "[setAuthenticatedState] Admin user detected — starting clientLogForwarder",
+    );
+    clientLogForwarder.start();
+  }
 }

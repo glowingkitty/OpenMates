@@ -1,9 +1,10 @@
 <script lang="ts">
+    /* eslint-disable no-console */
     import MessageInput from './enter_message/MessageInput.svelte';
     import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
     import ChatHistory from './ChatHistory.svelte';
     import NewChatSuggestions from './NewChatSuggestions.svelte';
-    import FollowUpSuggestions from './FollowUpSuggestions.svelte';
+    // FollowUpSuggestions has been moved to ChatHistory.svelte (rendered below last assistant message)
     // AppSettingsMemoriesPermissionDialog is now rendered inside ChatHistory.svelte
     // so it scrolls with the messages instead of being fixed at the bottom
     import { isMobileView, loginInterfaceOpen } from '../stores/uiStateStore';
@@ -26,6 +27,7 @@
     import VideosSearchEmbedFullscreen from './embeds/videos/VideosSearchEmbedFullscreen.svelte';
     import MapsSearchEmbedFullscreen from './embeds/maps/MapsSearchEmbedFullscreen.svelte';
     import MapsLocationEmbedFullscreen from './embeds/maps/MapsLocationEmbedFullscreen.svelte';
+    import MapLocationEmbedFullscreen from './embeds/maps/MapLocationEmbedFullscreen.svelte';
     import CodeEmbedFullscreen from './embeds/code/CodeEmbedFullscreen.svelte';
     import DocsEmbedFullscreen from './embeds/docs/DocsEmbedFullscreen.svelte';
     import MailEmbedFullscreen from './embeds/mail/MailEmbedFullscreen.svelte';
@@ -41,9 +43,13 @@
     import HealthSearchEmbedFullscreen from './embeds/health/HealthSearchEmbedFullscreen.svelte';
     import ShoppingSearchEmbedFullscreen from './embeds/shopping/ShoppingSearchEmbedFullscreen.svelte';
     import EventsSearchEmbedFullscreen from './embeds/events/EventsSearchEmbedFullscreen.svelte';
+    import EventEmbedFullscreen from './embeds/events/EventEmbedFullscreen.svelte';
+    import TravelConnectionEmbedFullscreen from './embeds/travel/TravelConnectionEmbedFullscreen.svelte';
+    import TravelStayEmbedFullscreen from './embeds/travel/TravelStayEmbedFullscreen.svelte';
     import ImagesSearchEmbedFullscreen from './embeds/images/ImagesSearchEmbedFullscreen.svelte';
     import ImageGenerateEmbedFullscreen from './embeds/images/ImageGenerateEmbedFullscreen.svelte';
     import ImageEmbedFullscreen from './embeds/images/ImageEmbedFullscreen.svelte';
+    import ImageResultEmbedFullscreen from './embeds/images/ImageResultEmbedFullscreen.svelte';
     import MathCalculateEmbedFullscreen from './embeds/math/MathCalculateEmbedFullscreen.svelte';
     import MathPlotEmbedFullscreen from './embeds/math/MathPlotEmbedFullscreen.svelte';
     import PDFEmbedFullscreen from './embeds/pdf/PDFEmbedFullscreen.svelte';
@@ -90,8 +96,9 @@
     import { activeEmbedStore } from '../stores/activeEmbedStore'; // For managing embed URL hash
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore'; // For opening settings to specific page (share)
     import { settingsMenuVisible } from '../components/Settings.svelte'; // Import settingsMenuVisible store to control Settings visibility
+    import { chatDebugStore } from '../stores/chatDebugStore';
     import { videoIframeStore } from '../stores/videoIframeStore'; // For standalone VideoIframe component with CSS-based PiP
-    import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, translateDemoChat } from '../demo_chats'; // Import demo chat utilities
+    import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, translateDemoChat, getAllCommunityDemoChats, communityDemoStore } from '../demo_chats'; // Import demo chat utilities
     import { convertDemoChatToChat } from '../demo_chats/convertToChat'; // Import conversion function
     import { incognitoChatService } from '../services/incognitoChatService'; // Import incognito chat service
     import { incognitoMode } from '../stores/incognitoModeStore'; // Import incognito mode store
@@ -114,6 +121,8 @@
     import type { DailyInspiration } from '../stores/dailyInspirationStore'; // Type for inspiration handler
     import { chatListCache } from '../services/chatListCache'; // For invalidating stale 'sending' status in sidebar cache
     import { updateNavFromCache } from '../stores/chatNavigationStore'; // Populate prev/next nav state from cache when sidebar hasn't been opened yet
+    import { sortChats } from './chats/utils/chatSortUtils'; // For recent-chats horizontal scroll sort order
+    import { chatMetadataCache } from '../services/chatMetadataCache'; // For decrypting recent chat titles
     import type { 
         WebSearchSkillPreviewData,
         VideoTranscriptSkillPreviewData,
@@ -128,6 +137,34 @@
     type EventListenerCallback = (event: Event) => void;
     type UserProfileRecord = { user_id?: string | null };
     type HiddenChatFlag = { is_hidden?: boolean | null };
+
+    const OG_EXAMPLE_SHARED_CHAT_CUTTLEFISH = 'shared_chat_cuttlefish';
+
+    function isOgExampleSharedChatCuttlefish(): boolean {
+        if (typeof window === 'undefined') {
+            return false;
+        }
+        const searchParams = new URLSearchParams(window.location.search);
+        return searchParams.get('og') === '1' && searchParams.get('og_example') === OG_EXAMPLE_SHARED_CHAT_CUTTLEFISH;
+    }
+
+    function getOgExampleResumeChat(): Chat {
+        const nowTs = Math.floor(Date.now() / 1000);
+        return {
+            chat_id: 'c3343b34-c645-4576-be38-87bef9d0b899',
+            encrypted_title: null,
+            messages_v: 0,
+            title_v: 0,
+            last_edited_overall_timestamp: nowTs,
+            unread_count: 0,
+            created_at: nowTs,
+            updated_at: nowTs,
+            title: 'Cuttlefish Camouflage Mechanism',
+            chat_summary: 'Exploring cuttlefish camouflage mechanisms and examples.',
+            category: 'general_knowledge',
+            icon: 'sparkles'
+        };
+    }
 
     type ChatHistoryRef = {
         updateMessages: (messages: ChatMessageModel[], isNewChat?: boolean) => void;
@@ -415,6 +452,7 @@
     // Get username from the store using Svelte 5 $derived
     // Use empty string for non-authenticated users - translation will handle "Hey there!" vs "Hey {username}!"
     let username = $derived($userProfile.username || '');
+    let isAdminUser = $derived($userProfile.is_admin === true);
 
     // Split translation strings that include <br> into safe text parts for rendering.
     function splitHtmlLineBreaks(text: string): string[] {
@@ -615,7 +653,6 @@
         try {
             const pendingDeepLink = sessionStorage.getItem('pendingDeepLink');
             if (pendingDeepLink) {
-                console.debug(`[ActiveChat] Found pending deep link after login: ${pendingDeepLink}`);
                 // Remove the pending deep link from sessionStorage
                 sessionStorage.removeItem('pendingDeepLink');
                 
@@ -623,7 +660,6 @@
                 // This ensures the deep link is processed after auth state is fully updated
                 // Use a small delay to ensure auth state propagation is complete
                 setTimeout(() => {
-                    console.debug(`[ActiveChat] Processing pending deep link: ${pendingDeepLink}`);
                     window.dispatchEvent(new CustomEvent('processPendingDeepLink', {
                         detail: { hash: pendingDeepLink }
                     }));
@@ -665,6 +701,12 @@
                     return;
                 }
 
+                // OG image mode (?og=1): skip demo-for-everyone so the welcome screen stays visible
+                if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('og') === '1') {
+                    console.debug('[ActiveChat] Skipping handleLogout demo load - og=1 mode');
+                    return;
+                }
+
                 // Clear current chat and load welcome chat
                 currentChat = null;
                 currentMessages = [];
@@ -703,6 +745,13 @@
             // to overwrite the draft immediately after it loaded.
             if (get(deepLinkProcessing)) {
                 console.debug('[ActiveChat] Skipping auth state effect - deep link processing in progress');
+                return;
+            }
+
+            // OG image mode (?og=1): skip demo-for-everyone auto-load so the welcome screen
+            // (daily inspiration + for-everyone card) stays visible in /dev/og-image iframes.
+            if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('og') === '1') {
+                console.debug('[ActiveChat] Skipping auth state effect - og=1 mode (welcome screen should stay visible)');
                 return;
             }
             
@@ -756,6 +805,12 @@
                         // Check if deep link processing is happening
                         if (get(deepLinkProcessing)) {
                             console.debug('[ActiveChat] Skipping welcome chat backup - deep link processing in progress');
+                            return;
+                        }
+
+                        // OG image mode (?og=1): skip demo-for-everyone so the welcome screen stays visible
+                        if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('og') === '1') {
+                            console.debug('[ActiveChat] Skipping backup auth handler demo load - og=1 mode');
                             return;
                         }
 
@@ -2197,6 +2252,177 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let resumeChatIsCreditsError = $state(false);
     let resumeChatUserMessagePreview = $state<string | null>(null);
 
+    // ─── Recent Chats Horizontal Scroll ────────────────────────────────
+    // Additional recent chats shown alongside the primary resume card in
+    // a horizontal scrollable row.  The resume card is always first/centered;
+    // extra chats scroll to the right.
+    type RecentChatMeta = {
+        chat: Chat;
+        title: string | null;
+        category: string | null;
+        icon: string | null;
+        summary: string | null;
+    };
+    let recentChats = $state<RecentChatMeta[]>([]);
+    let recentChatsScrollEl = $state<HTMLElement | null>(null);
+    // Set to true the first time the user manually scrolls the carousel so
+    // that reactive effects don't snap it back to the initial position.
+    let recentChatsScrolledByUser = false;
+    const RECENT_CHATS_LIMIT = 10;
+
+    /**
+     * Load up to RECENT_CHATS_LIMIT recent real chats from IndexedDB.
+     * The first entry (last-opened) is excluded because it's shown as the
+     * primary resume card — this list only contains the *remaining* chats.
+     */
+    async function loadRecentChats(): Promise<void> {
+        if (!$authStore.isAuthenticated) return;
+        try {
+            await chatDB.init();
+            let chats: Chat[] = chatListCache.getCache(false) ?? await chatDB.getAllChats();
+            const filteredChats = chats.filter((c) => !isPublicChat(c.chat_id));
+            const sorted = sortChats(filteredChats, []);
+
+            // Exclude the primary resume chat (it's rendered separately)
+            const lastOpenedId = $userProfile.last_opened;
+            const remaining = sorted.filter((c) => c.chat_id !== lastOpenedId);
+            const topChats = remaining.slice(0, RECENT_CHATS_LIMIT);
+
+            const metas: RecentChatMeta[] = await Promise.all(
+                topChats.map(async (chat) => {
+                    if (chat.title) {
+                        return { chat, title: chat.title, category: chat.category ?? null, icon: chat.icon ?? null, summary: chat.chat_summary ?? null };
+                    }
+                    try {
+                        const meta = await chatMetadataCache.getDecryptedMetadata(chat);
+                        return { chat, title: meta?.title ?? null, category: meta?.category ?? null, icon: meta?.icon ?? null, summary: meta?.summary ?? null };
+                    } catch {
+                        return { chat, title: null, category: null, icon: null, summary: null };
+                    }
+                })
+            );
+            recentChats = metas;
+        } catch (err) {
+            console.warn('[ActiveChat] Failed to load recent chats:', err);
+        }
+    }
+
+    /**
+     * Scroll the container so the first card (the primary resume card) is
+     * horizontally centred.
+     */
+    async function centerFirstRecentChat(): Promise<void> {
+        if (!recentChatsScrollEl) return;
+        await tick();
+        const container = recentChatsScrollEl;
+        const firstItem = container.querySelector('.resume-chat-large-card, .resume-chat-card') as HTMLElement | null;
+        if (!firstItem) return;
+        const containerWidth = container.offsetWidth;
+        const itemLeft = firstItem.offsetLeft;
+        const itemWidth = firstItem.offsetWidth;
+        const scrollTarget = itemLeft - (containerWidth / 2) + (itemWidth / 2);
+        container.scrollLeft = Math.max(0, scrollTarget);
+    }
+
+    /**
+     * Build the scrollable intro list for non-authenticated users.
+     * Combines static DEMO_CHATS (intro chats, excluding legal) with
+     * community demo chats loaded from the server, in that order.
+     * Returns Chat[] ready for rendering with the standard card components.
+     */
+    function loadNonAuthRecentChats(): RecentChatMeta[] {
+        // 1. Static intro chats (DEMO_CHATS = INTRO_CHATS, already excludes LEGAL_CHATS)
+        const introMetas: RecentChatMeta[] = DEMO_CHATS.map((demoChat) => {
+            const translated = translateDemoChat(demoChat);
+            const chat = convertDemoChatToChat(translated);
+            return {
+                chat,
+                title: translated.title ?? null,
+                category: translated.metadata.category ?? null,
+                icon: translated.metadata.icon_names?.[0] ?? null,
+                summary: translated.description ?? null,
+            };
+        });
+
+        // 2. Community demo chats (server-fetched, already Chat objects, no legal chats)
+        const communityMetas: RecentChatMeta[] = getAllCommunityDemoChats().map((chat) => ({
+            chat,
+            title: chat.title ?? null,
+            category: chat.category ?? null,
+            icon: chat.icon?.split(',')[0] ?? null,
+            summary: chat.chat_summary ?? null,
+        }));
+
+        return [...introMetas, ...communityMetas];
+    }
+
+    // State for non-authenticated users' intro + example chats scroll list
+    let nonAuthRecentChats = $state<RecentChatMeta[]>([]);
+
+    // Refresh recent chats when welcome screen appears or auth/sync changes.
+    // Reset the user-scroll guard each time fresh data is loaded so the newly
+    // centred card is correct for the new data set.
+    $effect(() => {
+        const isWelcome = showWelcome;
+        const isAuth = $authStore.isAuthenticated;
+        void $phasedSyncState.initialSyncCompleted;
+        void $userProfile.last_opened;
+        void $userProfile.total_chat_count;
+        // Subscribe to communityDemoStore so this effect re-runs when demos load
+        void $communityDemoStore;
+        if (!isWelcome) {
+            recentChats = [];
+            nonAuthRecentChats = [];
+            return;
+        }
+        if (isAuth) {
+            nonAuthRecentChats = [];
+            recentChatsScrolledByUser = false;
+            loadRecentChats().then(() => centerFirstRecentChat());
+        } else {
+            recentChats = [];
+            recentChatsScrolledByUser = false;
+            nonAuthRecentChats = loadNonAuthRecentChats();
+            centerFirstRecentChat();
+        }
+    });
+
+    // Center when the scroll element or data first becomes available.
+    // Attach a one-shot scroll listener so we stop auto-centering once the
+    // user has intentionally swiped the carousel (prevents snap-back).
+    $effect(() => {
+        const el = recentChatsScrollEl;
+        void recentChats.length;
+        void nonAuthRecentChats.length;
+        void resumeChatData;
+        if (!el) return;
+
+        if (!recentChatsScrolledByUser) {
+            centerFirstRecentChat();
+        }
+
+        function onUserScroll() {
+            recentChatsScrolledByUser = true;
+            el!.removeEventListener('scroll', onUserScroll);
+        }
+        el.addEventListener('scroll', onUserScroll, { passive: true });
+        return () => el.removeEventListener('scroll', onUserScroll);
+    });
+
+    /**
+     * Open a chat from the recent-chats scroll list.
+     * Uses the same pattern as handleResumeLastChat.
+     */
+    async function handleOpenRecentChat(chat: Chat) {
+        console.info(`[ActiveChat] Opening recent chat: ${chat.chat_id}`);
+        phasedSyncState.markInitialChatLoaded();
+        activeChatStore.setActiveChat(chat.chat_id);
+        await loadChat(chat);
+        window.dispatchEvent(new CustomEvent('globalChatSelected', {
+            bubbles: true, composed: true, detail: { chatId: chat.chat_id }
+        }));
+    }
+
     /**
      * Load the last-opened chat from IndexedDB using $userProfile.last_opened.
      * Decrypts title, category, icon, and summary for the resume card display.
@@ -2342,6 +2568,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const lastOpened = $userProfile.last_opened;
         // Read activeChatStore to make this effect reactive to it
         const currentActiveChat = $activeChatStore;
+        const isOgExample = isOgExampleSharedChatCuttlefish();
+
+        if (isOgExample && isWelcome && !currentActiveChat) {
+            const chat = getOgExampleResumeChat();
+            resumeChatData = chat;
+            resumeChatTitle = chat.title || 'Untitled Chat';
+            resumeChatCategory = chat.category || 'general_knowledge';
+            resumeChatIcon = chat.icon || 'sparkles';
+            resumeChatSummary = chat.chat_summary || null;
+            resumeChatIsCreditsError = false;
+            resumeChatUserMessagePreview = null;
+            return;
+        }
 
         // Only show resume card when on welcome screen, authenticated, and last_opened is a real chat ID
         // (not empty, not '/chat/new' which means the user was already on the new chat screen,
@@ -2736,12 +2975,21 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Track if message input is focused (for showing follow-up suggestions)
     let messageInputFocused = $state(false);
 
+    // Track whether this runtime is touch-capable (phone/tablet).
+    let isTouchEnvironment = $state(false);
+
     // Track viewport height for small-screen adjustments (e.g. hide suggestions on short screens).
     // Initialised at mount and kept in sync via resize listener in onMount below.
     let viewportHeight = $state(typeof window !== 'undefined' ? window.innerHeight : 800);
 
     /** Keep viewportHeight reactive on window resize. Registered/cleaned up in onMount. */
     function handleViewportResize() {
+        // iOS Safari keyboard open/close can emit transient resize values that
+        // trigger layout oscillation. While the input is focused, keep the
+        // previous viewportHeight stable.
+        if (messageInputFocused && isTouchEnvironment) {
+            return;
+        }
         viewportHeight = window.innerHeight;
     }
 
@@ -2829,6 +3077,43 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         resumeLargeCardMouseY = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
     }
 
+    // ─── Per-card tilt state for the recent-chats scroll ─────────────────
+    // Each card gets its own independent tilt instance so they tilt
+    // independently while the user hovers.
+    class RecentChatTiltState {
+        el = $state<HTMLButtonElement | null>(null);
+        hovering = $state(false);
+        mouseX = $state(0);
+        mouseY = $state(0);
+
+        get tiltTransform(): string {
+            if (!this.hovering) return '';
+            const rotateY = this.mouseX * RESUME_CARD_TILT_MAX_ANGLE;
+            const rotateX = -this.mouseY * RESUME_CARD_TILT_MAX_ANGLE;
+            return `perspective(${RESUME_CARD_TILT_PERSPECTIVE}px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(${RESUME_CARD_TILT_SCALE})`;
+        }
+
+        onMouseEnter(e: MouseEvent) { this.hovering = true; this.updatePosition(e); }
+        onMouseMove(e: MouseEvent) { if (!this.hovering || !this.el) return; this.updatePosition(e); }
+        onMouseLeave() { this.hovering = false; this.mouseX = 0; this.mouseY = 0; }
+
+        private updatePosition(e: MouseEvent) {
+            if (!this.el) return;
+            const rect = this.el.getBoundingClientRect();
+            this.mouseX = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
+            this.mouseY = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
+        }
+    }
+
+    let recentChatTiltStates = $derived(
+        recentChats.map(() => new RecentChatTiltState())
+    );
+
+    // Separate tilt state array for non-authenticated users' intro+example chats carousel
+    let nonAuthChatTiltStates = $derived(
+        nonAuthRecentChats.map(() => new RecentChatTiltState())
+    );
+
     // ─── Height-based suggestions overlap detection ──────────────────────────
     // Reliable DOM-measurement approach: measure whether the new-chat suggestions
     // (rendered above the message input) would visually overlap the resume-chat
@@ -2870,6 +3155,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      * Called by the ResizeObserver and whenever relevant state changes.
      */
     function recalculateSuggestionsOverlap() {
+        // While typing on touch devices, avoid overlap re-measurement churn that
+        // can cause welcome/suggestions visibility oscillation during keyboard
+        // animation on iOS Safari.
+        if (messageInputFocused && isTouchEnvironment) {
+            return;
+        }
+
         if (!chatSideEl) {
             suggestionsWouldOverlapWelcome = false;
             return;
@@ -3064,7 +3356,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // In both cases the user has signalled intent to type — hiding the greeting frees up
     // vertical space so the suggestions are visible without collision.
     let hideWelcomeForKeyboard = $derived(
-        messageInputFocused && (isEffectivelyNarrow || suggestionsWouldOverlapWelcome)
+        messageInputFocused && (isTouchEnvironment || isEffectivelyNarrow || suggestionsWouldOverlapWelcome)
     );
 
     // Effective chat width: The actual width of the chat area
@@ -3096,6 +3388,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Add state for current chat and messages using $state - MUST be declared before $derived that uses them
     let currentChat = $state<Chat | null>(null);
     let currentMessages = $state<ChatMessageModel[]>([]); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
+    let lastDebugChatInspectionId = $state<string | null>(null);
 
     // Decrypted active focus mode ID for the current chat (e.g. "jobs-career_insights").
     // Updated whenever the chat changes or a focus_mode_activated / focusModeDeactivated event fires.
@@ -3215,9 +3508,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         messageInputFocused
     );
     
-    // Reactive variable to determine when to show follow-up suggestions
-    // Only show when user has explicitly focused the message input (clicked to type)
-    let showFollowUpSuggestions = $derived(!showWelcome && messageInputFocused && followUpSuggestions.length > 0);
+    // Reactive variable to determine when to show follow-up suggestions in ChatHistory.
+    // Show whenever there are suggestions and the welcome screen is not active.
+    // No longer requires messageInputFocused — suggestions are visible below the last
+    // assistant message without the user having to click the input first.
+    let showFollowUpSuggestions = $derived(!showWelcome && followUpSuggestions.length > 0);
 
     // Load and refresh the active focus ID whenever the current chat changes.
     // Uses chatMetadataCache to decrypt encrypted_active_focus_id from IndexedDB.
@@ -4397,9 +4692,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // have activeChatStore=null while currentChat has the correct chat_id. This causes AI
         // streaming responses to be treated as "background" messages (wrong chat routing) because
         // chatSyncServiceHandlersAI checks activeChatStore to decide foreground vs background.
-        if (currentChat?.chat_id && activeChatStore.get() !== currentChat.chat_id) {
+        //
+        // CRITICAL: Only fix when activeChatStore holds a *different* chat ID (genuine mismatch).
+        // If activeChatStore is null the user intentionally navigated to "new chat" mode AFTER this
+        // handleSendMessage started — do NOT override that by writing the old chat ID back into the
+        // store and URL hash. Doing so triggers hashchange → handleChatDeepLink → loadChat which
+        // auto-reopens the previous chat while the user is already composing a new one.
+        const storeValueAfterSend = activeChatStore.get();
+        if (currentChat?.chat_id && storeValueAfterSend !== null && storeValueAfterSend !== currentChat.chat_id) {
             console.warn(`[ActiveChat] handleSendMessage: activeChatStore mismatch after send — ` +
-                `store=${activeChatStore.get()}, currentChat=${currentChat.chat_id}. Fixing.`);
+                `store=${storeValueAfterSend}, currentChat=${currentChat.chat_id}. Fixing.`);
             activeChatStore.setActiveChat(currentChat.chat_id);
         }
 
@@ -4618,30 +4920,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         window.dispatchEvent(globalSelectEvent);
 
         console.debug('[ActiveChat] Resume chat loaded and events dispatched');
-    }
-
-    /**
-     * Handler for opening the for-everyone intro chat from the new chat screen.
-     * Shown only to non-authenticated users so they can easily get back to the explainer intro (e.g. on mobile).
-     */
-    async function handleOpenIntroChat() {
-        const welcomeDemo = DEMO_CHATS.find((chat) => chat.chat_id === 'demo-for-everyone');
-        if (!welcomeDemo) {
-            console.warn('[ActiveChat] demo-for-everyone not found in DEMO_CHATS');
-            return;
-        }
-        const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
-        const welcomeChat = convertDemoChatToChat(translatedWelcomeDemo);
-        phasedSyncState.markInitialChatLoaded();
-        activeChatStore.setActiveChat('demo-for-everyone');
-        await loadChat(welcomeChat);
-        const globalSelectEvent = new CustomEvent('globalChatSelected', {
-            bubbles: true,
-            composed: true,
-            detail: { chatId: 'demo-for-everyone' }
-        });
-        window.dispatchEvent(globalSelectEvent);
-        console.debug('[ActiveChat] Loaded demo-for-everyone from intro link');
     }
 
     // Note: handleDismissResumeChat removed – the resume card is always visible
@@ -5493,6 +5771,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         settingsDeepLink.set('report_issue');
     }
 
+    async function handleToggleDebugMode() {
+        if (!isAdminUser) return;
+        await chatDebugStore.toggle({ chatId: currentChat?.chat_id });
+    }
+
     /**
      * Handler for minimizing the chat in side-by-side mode.
      * When in ultra-wide mode with side-by-side layout, this hides the chat
@@ -5513,6 +5796,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         console.debug('[ActiveChat] Show chat clicked - switching to side-by-side mode');
         forceOverlayMode = false;
     }
+
+    // Keep debug chat report aligned with the currently opened chat.
+    // When debug mode is active and the user changes chats, trigger a fresh window.debug.chat run.
+    $effect(() => {
+        const activeChatId = currentChat?.chat_id ?? null;
+        const debugActive = $chatDebugStore.rawTextMode;
+
+        if (!debugActive || !isAdminUser) {
+            lastDebugChatInspectionId = null;
+            return;
+        }
+
+        if (!activeChatId) return;
+        if (lastDebugChatInspectionId === activeChatId) return;
+
+        lastDebugChatInspectionId = activeChatId;
+        void chatDebugStore.runChatDebug(activeChatId);
+    });
 
     // Update handler for chat updates to be more selective
     async function handleChatUpdated(event: CustomEvent) {
@@ -5901,7 +6202,27 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
          // Reset the chat header state when switching to any chat.
          // For new chats, handleSendMessage will set isNewChatGeneratingTitle=true.
          // For existing chats, we decrypt title/category/icon below (after currentChat is set).
-         resetChatHeaderState();
+         //
+         // CRITICAL: Skip resetChatHeaderState when loadChat is called for the already-active chat
+         // while the new-chat header is still showing (isNewChatGeneratingTitle=true or streaming
+         // messages are in flight). This happens because sendHandlers.ts sets
+         // draftEditorUIState.newlyCreatedChatIdToSelect which causes Chats.svelte to call
+         // handleChatClick → dispatch chatSelected → +page.svelte calls loadChat() — all
+         // while the AI response is still streaming. Without this guard, resetChatHeaderState()
+         // clears isNewChatGeneratingTitle and the banner disappears mid-stream.
+         const isSameActiveChat = chat.chat_id === currentChat?.chat_id;
+         const isNewChatHeaderActive = isNewChatGeneratingTitle || isNewChatCreditsError;
+         const hasStreamingMessages = currentMessages.some(m => m.status === 'streaming');
+         if (!(isSameActiveChat && (isNewChatHeaderActive || hasStreamingMessages))) {
+             resetChatHeaderState();
+         } else {
+             console.debug('[ActiveChat] loadChat: skipping resetChatHeaderState — same chat, header/streaming active', {
+                 chat_id: chat.chat_id,
+                 isNewChatGeneratingTitle,
+                 isNewChatCreditsError,
+                 hasStreamingMessages,
+             });
+         }
 
          // Ensure the chatNavigationStore has up-to-date prev/next state even when
          // Chats.svelte (the sidebar) has never been opened. On mobile the sidebar
@@ -7027,6 +7348,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         
         // Listen for event to load demo chat after logout from signup
         const handleLoadDemoChat = () => {
+            // OG image mode (?og=1): skip demo-for-everyone so the welcome screen stays visible
+            if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('og') === '1') {
+                console.debug('[ActiveChat] Skipping loadDemoChat event - og=1 mode');
+                return;
+            }
             console.debug("[ActiveChat] Loading demo chat after logout from signup");
 
             // Ensure login interface is closed
@@ -7270,6 +7596,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Listen for logout event to clear user chat and load demo chat
         // CRITICAL: This handler must work reliably on mobile, even if component isn't fully initialized
         handleLogoutEvent = async () => {
+            // OG image mode (?og=1): skip demo-for-everyone so the welcome screen stays visible
+            if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('og') === '1') {
+                console.debug('[ActiveChat] Skipping userLoggingOut handler - og=1 mode');
+                return;
+            }
             console.debug('[ActiveChat] Logout event received - clearing user chat and loading demo chat');
             
             try {
@@ -7582,6 +7913,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
         };
         
+        // Detect touch-capable devices once per mount (used for keyboard
+        // stabilization logic on iOS/iPadOS).
+        isTouchEnvironment = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
         // Listen to both events to catch language changes
         // 'language-changed' fires immediately, 'language-changed-complete' fires after a delay
         window.addEventListener('language-changed', handleLanguageChange);
@@ -7765,6 +8100,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     if (chatHistoryRef) {
                         chatHistoryRef.updateMessages(currentMessages);
                     }
+                }
+
+                if ($chatDebugStore.rawTextMode && isAdminUser && currentChat?.chat_id) {
+                    void chatDebugStore.runChatDebug(currentChat.chat_id);
                 }
             }
         }) as EventListenerCallback;
@@ -8471,6 +8810,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 >
                                 </button>
                             </div>
+                            {#if isAdminUser}
+                                <div class="new-chat-button-wrapper">
+                                    <button
+                                        class="clickable-icon icon_task top-button"
+                                        class:debug-mode-active={$chatDebugStore.rawTextMode}
+                                        aria-label={$chatDebugStore.rawTextMode ? $text('chats.context_menu.end_debugging') : $text('chats.context_menu.start_debugging')}
+                                        onclick={handleToggleDebugMode}
+                                        use:tooltip
+                                    >
+                                    </button>
+                                </div>
+                            {/if}
                             <!-- PII hide/unhide toggle - only shows when chat has sensitive data -->
                             {#if chatHasPII && !showWelcome}
                                 <div class="new-chat-button-wrapper">
@@ -8526,7 +8877,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         <div
                             class="center-content"
                             bind:this={welcomeContentEl}
-                            transition:fade={{ duration: 300 }}
                         >
                             <div class="team-profile">
                                 <!-- <div class="team-image" class:disabled={!isTeamEnabled}></div> -->
@@ -8536,11 +8886,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                             <span>{part}</span>{#if index < welcomeHeadingParts.length - 1}<br>{/if}
                                         {/each}
                                     </h2>
-                                    <!-- Subtitle: "Continue where you left off" when resume chat, "Back to the intro" above for-everyone card for non-auth, else default prompt -->
-                                    {#if resumeChatData}
+                                    <!-- Subtitle: "Continue where you left off" when resume chat or recent chats, "Explore OpenMates:" for non-auth scrollable list, else default prompt -->
+                                    {#if resumeChatData || ($authStore.isAuthenticated && recentChats.length > 0)}
                                         <p>{$text('chats.resume_last_chat.title')}</p>
                                     {:else if !$authStore.isAuthenticated}
-                                        <p>{$text('chats.back_to_intro.title')}</p>
+                                        <p>{$text('chats.explore_openmates.title')}</p>
                                     {:else}
                                         <p>
                                             {#each welcomePromptParts as part, index}
@@ -8551,170 +8901,267 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 </div>
                             </div>
 
-                            <!-- Resume card: shown below greeting when there's a chat to resume (authenticated users only) -->
-                            {#if resumeChatData}
-                                {#if isTallViewport && !resumeChatIsCreditsError}
-                                    <!-- Tall viewport (≥800px, e.g. iPad vertical, large monitors):
-                                         Large ChatEmbedPreview-style card with full category gradient background.
-                                         Matches the linked-chat card design used in the for-everyone chat. -->
-                                    {@const category = resumeChatCategory || 'general_knowledge'}
-                                    {@const gradientColors = getCategoryGradientColors(category)}
-                                    {@const iconName = getValidIconName(resumeChatIcon || '', category)}
-                                    {@const IconComponent = getLucideIcon(iconName)}
-                                    <button
-                                        bind:this={resumeLargeCardElement}
-                                        class="resume-chat-large-card"
-                                        class:hovering={isResumeLargeCardHovering}
-                                        style={getResumeLargeCardStyle(
-                                            gradientColors
-                                                ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})`
-                                                : 'background: var(--color-primary)',
-                                            gradientColors
-                                        )}
-                                        onclick={handleResumeLastChat}
-                                        onmouseenter={handleResumeLargeCardMouseEnter}
-                                        onmousemove={handleResumeLargeCardMouseMove}
-                                        onmouseleave={handleResumeLargeCardMouseLeave}
-                                        type="button"
-                                    >
-                                        <!-- Living gradient orbs — same technique as ChatHeader/DailyInspirationBanner -->
-                                        <div class="resume-large-orbs" aria-hidden="true">
-                                            <div class="resume-orb resume-orb-1"></div>
-                                            <div class="resume-orb resume-orb-2"></div>
-                                            <div class="resume-orb resume-orb-3"></div>
-                                        </div>
-                                        <!-- Large decorative icons at card edges (matching ChatEmbedPreview) -->
-                                        {#if IconComponent}
-                                            <div class="resume-large-deco resume-large-deco-left">
-                                                <IconComponent size={80} color="white" />
-                                            </div>
-                                            <div class="resume-large-deco resume-large-deco-right">
-                                                <IconComponent size={80} color="white" />
-                                            </div>
-                                        {/if}
-                                        <!-- Centered content: icon + title + summary -->
-                                        <div class="resume-large-content">
-                                            {#if IconComponent}
-                                                <div class="resume-large-icon">
-                                                    <IconComponent size={32} color="white" />
-                                                </div>
-                                            {/if}
-                                            <span class="resume-large-title">{resumeChatTitle || 'Untitled Chat'}</span>
-                                            {#if resumeChatSummary}
-                                                <p class="resume-large-summary">{resumeChatSummary}</p>
-                                            {/if}
-                                        </div>
-                                    </button>
-                                {:else}
-                                    <!-- Compact card: short screens or credits-error state -->
-                                    {@const ChevronRight = getLucideIcon('chevron-right')}
-                                    <button 
-                                        class="resume-chat-card"
-                                        onclick={handleResumeLastChat}
-                                        type="button"
-                                    >
-                                        {#if resumeChatIsCreditsError}
-                                            <!-- Credits-error layout: no category circle, show label + user message preview -->
-                                            <!-- Matches the draft-only-layout design used in Chat.svelte sidebar -->
-                                            <div class="resume-chat-content resume-chat-credits-content">
-                                                <span class="resume-chat-credits-label">{$text('chat.credits_needed')}</span>
-                                                {#if resumeChatUserMessagePreview}
-                                                    <span class="resume-chat-credits-preview">{resumeChatUserMessagePreview.slice(0, 60)}</span>
-                                                {/if}
-                                            </div>
-                                        {:else}
+                            <!-- Resume card + recent chats horizontal scroll (authenticated users) -->
+                            {#if resumeChatData || ($authStore.isAuthenticated && recentChats.length > 0)}
+                                <div
+                                    class="recent-chats-scroll-container"
+                                    bind:this={recentChatsScrollEl}
+                                >
+                                    <!-- ── Primary resume card (most recent / last-opened) ── -->
+                                    {#if resumeChatData}
+                                        {#if isTallViewport && !resumeChatIsCreditsError}
                                             {@const category = resumeChatCategory || 'general_knowledge'}
                                             {@const gradientColors = getCategoryGradientColors(category)}
                                             {@const iconName = getValidIconName(resumeChatIcon || '', category)}
                                             {@const IconComponent = getLucideIcon(iconName)}
-                                            <div 
-                                                class="resume-chat-category-circle"
-                                                style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: #cccccc'}
+                                            <button
+                                                bind:this={resumeLargeCardElement}
+                                                class="resume-chat-large-card"
+                                                class:hovering={isResumeLargeCardHovering}
+                                                style={getResumeLargeCardStyle(
+                                                    gradientColors
+                                                        ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})`
+                                                        : 'background: var(--color-primary)',
+                                                    gradientColors
+                                                )}
+                                                onclick={handleResumeLastChat}
+                                                onmouseenter={handleResumeLargeCardMouseEnter}
+                                                onmousemove={handleResumeLargeCardMouseMove}
+                                                onmouseleave={handleResumeLargeCardMouseLeave}
+                                                type="button"
                                             >
-                                                <div class="resume-chat-category-icon">
-                                                    <IconComponent size={16} color="white" />
+                                                <div class="resume-large-orbs" aria-hidden="true">
+                                                    <div class="resume-orb resume-orb-1"></div>
+                                                    <div class="resume-orb resume-orb-2"></div>
+                                                    <div class="resume-orb resume-orb-3"></div>
                                                 </div>
-                                            </div>
-                                            <div class="resume-chat-content">
-                                                <span class="resume-chat-title">{resumeChatTitle || 'Untitled Chat'}</span>
-                                            </div>
-                                        {/if}
-                                        <div class="resume-chat-arrow">
-                                            <ChevronRight size={16} color="var(--color-grey-50)" />
-                                        </div>
-                                    </button>
-                                {/if}
-                            <!-- Same card as above, for non-auth: link to for-everyone chat (same design as "last chat" card) -->
-                            {:else if !$authStore.isAuthenticated}
-                                {@const gradientColors = getCategoryGradientColors('openmates_official')}
-                                {@const iconName = getValidIconName('sparkles', 'openmates_official')}
-                                {@const IconComponent = getLucideIcon(iconName)}
-                                {#if isTallViewport}
-                                    <!-- Tall viewport: large gradient card matching ChatEmbedPreview style -->
-                                    <button
-                                        bind:this={resumeLargeCardElement}
-                                        class="resume-chat-large-card"
-                                        class:hovering={isResumeLargeCardHovering}
-                                        style={getResumeLargeCardStyle(
-                                            gradientColors
-                                                ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})`
-                                                : 'background: var(--color-primary)',
-                                            gradientColors
-                                        )}
-                                        onclick={handleOpenIntroChat}
-                                        onmouseenter={handleResumeLargeCardMouseEnter}
-                                        onmousemove={handleResumeLargeCardMouseMove}
-                                        onmouseleave={handleResumeLargeCardMouseLeave}
-                                        type="button"
-                                    >
-                                        <!-- Living gradient orbs -->
-                                        <div class="resume-large-orbs" aria-hidden="true">
-                                            <div class="resume-orb resume-orb-1"></div>
-                                            <div class="resume-orb resume-orb-2"></div>
-                                            <div class="resume-orb resume-orb-3"></div>
-                                        </div>
-                                        {#if IconComponent}
-                                            <div class="resume-large-deco resume-large-deco-left">
-                                                <IconComponent size={80} color="white" />
-                                            </div>
-                                            <div class="resume-large-deco resume-large-deco-right">
-                                                <IconComponent size={80} color="white" />
-                                            </div>
-                                        {/if}
-                                        <div class="resume-large-content">
-                                            {#if IconComponent}
-                                                <div class="resume-large-icon">
-                                                    <IconComponent size={32} color="white" />
+                                                {#if IconComponent}
+                                                    <div class="resume-large-deco resume-large-deco-left">
+                                                        <IconComponent size={80} color="white" />
+                                                    </div>
+                                                    <div class="resume-large-deco resume-large-deco-right">
+                                                        <IconComponent size={80} color="white" />
+                                                    </div>
+                                                {/if}
+                                                <div class="resume-large-content">
+                                                    {#if IconComponent}
+                                                        <div class="resume-large-icon">
+                                                            <IconComponent size={32} color="white" />
+                                                        </div>
+                                                    {/if}
+                                                    <span class="resume-large-title">{resumeChatTitle || 'Untitled Chat'}</span>
+                                                    {#if resumeChatSummary}
+                                                        <p class="resume-large-summary">{resumeChatSummary}</p>
+                                                    {/if}
                                                 </div>
-                                            {/if}
-                                            <span class="resume-large-title">{$text('demo_chats.for_everyone.title')}</span>
-                                            <p class="resume-large-summary">{$text('demo_chats.for_everyone.description')}</p>
-                                        </div>
-                                    </button>
-                                {:else}
-                                    <!-- Compact card: short screens -->
-                                    {@const ChevronRight = getLucideIcon('chevron-right')}
-                                    <button 
-                                        class="resume-chat-card"
-                                        onclick={handleOpenIntroChat}
-                                        type="button"
-                                    >
-                                        <div 
-                                            class="resume-chat-category-circle"
-                                            style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: #cccccc'}
+                                            </button>
+                                        {:else}
+                                            <!-- Compact card: short screens or credits-error state -->
+                                            {@const ChevronRight = getLucideIcon('chevron-right')}
+                                            <button
+                                                class="resume-chat-card"
+                                                onclick={handleResumeLastChat}
+                                                type="button"
+                                            >
+                                                {#if resumeChatIsCreditsError}
+                                                    <div class="resume-chat-content resume-chat-credits-content">
+                                                        <span class="resume-chat-credits-label">{$text('chat.credits_needed')}</span>
+                                                        {#if resumeChatUserMessagePreview}
+                                                            <span class="resume-chat-credits-preview">{resumeChatUserMessagePreview.slice(0, 60)}</span>
+                                                        {/if}
+                                                    </div>
+                                                {:else}
+                                                    {@const category = resumeChatCategory || 'general_knowledge'}
+                                                    {@const gradientColors = getCategoryGradientColors(category)}
+                                                    {@const iconName = getValidIconName(resumeChatIcon || '', category)}
+                                                    {@const IconComponent = getLucideIcon(iconName)}
+                                                    <div
+                                                        class="resume-chat-category-circle"
+                                                        style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: #cccccc'}
+                                                    >
+                                                        <div class="resume-chat-category-icon">
+                                                            <IconComponent size={16} color="white" />
+                                                        </div>
+                                                    </div>
+                                                    <div class="resume-chat-content">
+                                                        <span class="resume-chat-title">{resumeChatTitle || 'Untitled Chat'}</span>
+                                                    </div>
+                                                {/if}
+                                                <div class="resume-chat-arrow">
+                                                    <ChevronRight size={16} color="var(--color-grey-50)" />
+                                                </div>
+                                            </button>
+                                        {/if}
+                                    {/if}
+
+                                    <!-- ── Additional recent chats (scrollable after primary card) ── -->
+                                    {#each recentChats as meta, i (meta.chat.chat_id)}
+                                        {@const tilt = recentChatTiltStates[i]}
+                                        {@const category = meta.category || 'general_knowledge'}
+                                        {@const gradientColors = getCategoryGradientColors(category)}
+                                        {@const iconName = getValidIconName(meta.icon || '', category)}
+                                        {@const IconComponent = getLucideIcon(iconName)}
+                                        {#if isTallViewport}
+                                            {@const bgStyle = gradientColors
+                                                ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end}); --orb-color-a: ${gradientColors.start}; --orb-color-b: ${gradientColors.end}`
+                                                : 'background: var(--color-primary); --orb-color-a: #4867cd; --orb-color-b: #a0beff'}
+                                            {@const cardStyle = tilt?.tiltTransform
+                                                ? `${bgStyle}; transform: ${tilt.tiltTransform}`
+                                                : bgStyle}
+                                            <button
+                                                bind:this={tilt.el}
+                                                class="resume-chat-large-card"
+                                                class:hovering={tilt?.hovering}
+                                                type="button"
+                                                style={cardStyle}
+                                                onclick={() => handleOpenRecentChat(meta.chat)}
+                                                onmouseenter={(e) => tilt?.onMouseEnter(e)}
+                                                onmousemove={(e) => tilt?.onMouseMove(e)}
+                                                onmouseleave={() => tilt?.onMouseLeave()}
+                                            >
+                                                <div class="resume-large-orbs" aria-hidden="true">
+                                                    <div class="resume-orb resume-orb-1"></div>
+                                                    <div class="resume-orb resume-orb-2"></div>
+                                                    <div class="resume-orb resume-orb-3"></div>
+                                                </div>
+                                                {#if IconComponent}
+                                                    <div class="resume-large-deco resume-large-deco-left">
+                                                        <IconComponent size={80} color="white" />
+                                                    </div>
+                                                    <div class="resume-large-deco resume-large-deco-right">
+                                                        <IconComponent size={80} color="white" />
+                                                    </div>
+                                                {/if}
+                                                <div class="resume-large-content">
+                                                    {#if IconComponent}
+                                                        <div class="resume-large-icon">
+                                                            <IconComponent size={32} color="white" />
+                                                        </div>
+                                                    {/if}
+                                                    <span class="resume-large-title">{meta.title || $text('chat.untitled_chat')}</span>
+                                                    {#if meta.summary}
+                                                        <p class="resume-large-summary">{meta.summary}</p>
+                                                    {/if}
+                                                </div>
+                                            </button>
+                                        {:else}
+                                            <!-- Compact card for short viewports -->
+                                            {@const ChevronRight = getLucideIcon('chevron-right')}
+                                            <button
+                                                class="resume-chat-card"
+                                                onclick={() => handleOpenRecentChat(meta.chat)}
+                                                type="button"
+                                            >
+                                                <div
+                                                    class="resume-chat-category-circle"
+                                                    style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: #cccccc'}
+                                                >
+                                                    <div class="resume-chat-category-icon">
+                                                        <IconComponent size={16} color="white" />
+                                                    </div>
+                                                </div>
+                                                <div class="resume-chat-content">
+                                                    <span class="resume-chat-title">{meta.title || $text('chat.untitled_chat')}</span>
+                                                </div>
+                                                <div class="resume-chat-arrow">
+                                                    <ChevronRight size={16} color="var(--color-grey-50)" />
+                                                </div>
+                                            </button>
+                                        {/if}
+                                    {/each}
+
+                                    <!-- "+N more" overflow button -->
+                                    {#if ($userProfile.total_chat_count ?? 0) > ((resumeChatData ? 1 : 0) + recentChats.length)}
+                                        <button
+                                            class="recent-chat-overflow"
+                                            type="button"
+                                            onclick={() => panelState.toggleChats()}
                                         >
-                                            <div class="resume-chat-category-icon">
-                                                <IconComponent size={16} color="white" />
-                                            </div>
-                                        </div>
-                                        <div class="resume-chat-content">
-                                            <span class="resume-chat-title">{$text('demo_chats.for_everyone.title')}</span>
-                                        </div>
-                                        <div class="resume-chat-arrow">
-                                            <ChevronRight size={16} color="var(--color-grey-50)" />
-                                        </div>
-                                    </button>
-                                {/if}
+                                            +{($userProfile.total_chat_count ?? 0) - ((resumeChatData ? 1 : 0) + recentChats.length)}
+                                        </button>
+                                    {/if}
+                                </div>
+                            <!-- Non-auth: scrollable list of intro + example chats (same card design as auth recent chats) -->
+                            {:else if !$authStore.isAuthenticated && nonAuthRecentChats.length > 0}
+                                <div
+                                    class="recent-chats-scroll-container"
+                                    bind:this={recentChatsScrollEl}
+                                >
+                                    {#each nonAuthRecentChats as meta, i (meta.chat.chat_id)}
+                                        {@const tilt = nonAuthChatTiltStates[i]}
+                                        {@const category = meta.category || 'general_knowledge'}
+                                        {@const gradientColors = getCategoryGradientColors(category)}
+                                        {@const iconName = getValidIconName(meta.icon || '', category)}
+                                        {@const IconComponent = getLucideIcon(iconName)}
+                                        {#if isTallViewport}
+                                            {@const bgStyle = gradientColors
+                                                ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end}); --orb-color-a: ${gradientColors.start}; --orb-color-b: ${gradientColors.end}`
+                                                : 'background: var(--color-primary); --orb-color-a: #4867cd; --orb-color-b: #a0beff'}
+                                            {@const cardStyle = tilt?.tiltTransform
+                                                ? `${bgStyle}; transform: ${tilt.tiltTransform}`
+                                                : bgStyle}
+                                            <button
+                                                bind:this={tilt.el}
+                                                class="resume-chat-large-card"
+                                                class:hovering={tilt?.hovering}
+                                                type="button"
+                                                style={cardStyle}
+                                                onclick={() => handleOpenRecentChat(meta.chat)}
+                                                onmouseenter={(e) => tilt?.onMouseEnter(e)}
+                                                onmousemove={(e) => tilt?.onMouseMove(e)}
+                                                onmouseleave={() => tilt?.onMouseLeave()}
+                                            >
+                                                <div class="resume-large-orbs" aria-hidden="true">
+                                                    <div class="resume-orb resume-orb-1"></div>
+                                                    <div class="resume-orb resume-orb-2"></div>
+                                                    <div class="resume-orb resume-orb-3"></div>
+                                                </div>
+                                                {#if IconComponent}
+                                                    <div class="resume-large-deco resume-large-deco-left">
+                                                        <IconComponent size={80} color="white" />
+                                                    </div>
+                                                    <div class="resume-large-deco resume-large-deco-right">
+                                                        <IconComponent size={80} color="white" />
+                                                    </div>
+                                                {/if}
+                                                <div class="resume-large-content">
+                                                    {#if IconComponent}
+                                                        <div class="resume-large-icon">
+                                                            <IconComponent size={32} color="white" />
+                                                        </div>
+                                                    {/if}
+                                                    <span class="resume-large-title">{meta.title || $text('chat.untitled_chat')}</span>
+                                                    {#if meta.summary}
+                                                        <p class="resume-large-summary">{meta.summary}</p>
+                                                    {/if}
+                                                </div>
+                                            </button>
+                                        {:else}
+                                            <!-- Compact card for short viewports -->
+                                            {@const ChevronRight = getLucideIcon('chevron-right')}
+                                            <button
+                                                class="resume-chat-card"
+                                                onclick={() => handleOpenRecentChat(meta.chat)}
+                                                type="button"
+                                            >
+                                                <div
+                                                    class="resume-chat-category-circle"
+                                                    style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: #cccccc'}
+                                                >
+                                                    <div class="resume-chat-category-icon">
+                                                        <IconComponent size={16} color="white" />
+                                                    </div>
+                                                </div>
+                                                <div class="resume-chat-content">
+                                                    <span class="resume-chat-title">{meta.title || $text('chat.untitled_chat')}</span>
+                                                </div>
+                                                <div class="resume-chat-arrow">
+                                                    <ChevronRight size={16} color="var(--color-grey-50)" />
+                                                </div>
+                                            </button>
+                                        {/if}
+                                    {/each}
+                                </div>
                             {/if}
                         </div>
                     {/if}
@@ -8736,6 +9183,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          {isCreditsRestored}
                          isIncognito={!!currentChat?.is_incognito}
                          onResend={handleResendAfterCreditsRestored}
+                         followUpSuggestions={showFollowUpSuggestions ? followUpSuggestions : []}
+                         onSuggestionClick={handleSuggestionClick}
                          on:messagesChange={handleMessagesChange}
                          on:chatUpdated={handleChatUpdated}
                          on:scrollPositionUI={handleScrollPositionUI}
@@ -8825,14 +9274,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             <ForkProgressBanner />
                         {/if}
 
-                        <!-- Follow-up suggestions when input is focused -->
-                        {#if showFollowUpSuggestions}
-                            <FollowUpSuggestions
-                                suggestions={followUpSuggestions}
-                                messageInputContent={liveInputText}
-                                onSuggestionClick={handleSuggestionClick}
-                            />
-                        {/if}
+                        <!-- Follow-up suggestions have been moved to ChatHistory.svelte
+                             so they appear below the last assistant message without requiring
+                             the user to click the message input first. -->
 
                         <!-- App settings/memories permission dialog has been moved to ChatHistory.svelte -->
                         <!-- This allows it to scroll with messages instead of being fixed at the bottom -->
@@ -8880,7 +9324,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 on:draftSaved={handleDraftSaved}
                                 on:textchange={(e) => { 
                                     const t = (e.detail?.text || '');
-                                    console.debug('[ActiveChat] textchange event received:', { text: t, length: t.length });
                                     liveInputText = t;
                                     // NOTE: messageInputHasContent is NOT set here from text alone —
                                     // bind:hasContent below is the authoritative source and correctly
@@ -9374,6 +9817,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             embedId={embedFullscreenData.embedId}
                             skillId={skillId === 'generate_draft' ? 'generate_draft' : 'generate'}
                             generatedAt={imgContent.generated_at ? String(imgContent.generated_at) : undefined}
+                            inputEmbedIds={Array.isArray(imgContent.input_embed_ids) ? imgContent.input_embed_ids as string[] : undefined}
                             {hasPreviousEmbed}
                             {hasNextEmbed}
                             onNavigatePrevious={handleNavigatePreviousEmbed}
@@ -9559,6 +10003,45 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                              />
                         {/await}
                     {/if}
+                {:else if embedFullscreenData.embedType === 'images-image-result'}
+                    <!-- Image Result Fullscreen (child embed from [!](embed:ref) large preview) -->
+                    <ImageResultEmbedFullscreen
+                        title={typeof embedFullscreenData.decodedContent?.title === 'string' ? embedFullscreenData.decodedContent.title : undefined}
+                        sourceDomain={typeof embedFullscreenData.decodedContent?.source_domain === 'string' ? embedFullscreenData.decodedContent.source_domain : undefined}
+                        sourcePageUrl={typeof embedFullscreenData.decodedContent?.source_page_url === 'string' ? embedFullscreenData.decodedContent.source_page_url : undefined}
+                        imageUrl={typeof embedFullscreenData.decodedContent?.image_url === 'string' ? embedFullscreenData.decodedContent.image_url : undefined}
+                        thumbnailUrl={typeof embedFullscreenData.decodedContent?.thumbnail_url === 'string' ? embedFullscreenData.decodedContent.thumbnail_url : undefined}
+                        faviconUrl={typeof embedFullscreenData.decodedContent?.favicon_url === 'string' ? embedFullscreenData.decodedContent.favicon_url : undefined}
+                        embedId={embedFullscreenData.embedId}
+                        onClose={handleCloseEmbedFullscreen}
+                        {hasPreviousEmbed}
+                        {hasNextEmbed}
+                        onNavigatePrevious={handleNavigatePreviousEmbed}
+                        onNavigateNext={handleNavigateNextEmbed}
+                    />
+                {:else if embedFullscreenData.embedType === 'maps-place'}
+                    <!-- Maps Place Fullscreen (child embed of a Maps Search result) -->
+                    <!-- Data comes from the place's decodedContent (displayName, formattedAddress, location, etc.) -->
+                    <MapLocationEmbedFullscreen
+                        displayName={typeof embedFullscreenData.decodedContent?.displayName === 'string' ? embedFullscreenData.decodedContent.displayName : (typeof embedFullscreenData.decodedContent?.name === 'string' ? embedFullscreenData.decodedContent.name : undefined)}
+                        formattedAddress={typeof embedFullscreenData.decodedContent?.formattedAddress === 'string' ? embedFullscreenData.decodedContent.formattedAddress : (typeof embedFullscreenData.decodedContent?.formatted_address === 'string' ? embedFullscreenData.decodedContent.formatted_address : undefined)}
+                        lat={typeof (embedFullscreenData.decodedContent?.location as Record<string, unknown> | undefined)?.latitude === 'number' ? (embedFullscreenData.decodedContent?.location as Record<string, unknown>).latitude as number : undefined}
+                        lon={typeof (embedFullscreenData.decodedContent?.location as Record<string, unknown> | undefined)?.longitude === 'number' ? (embedFullscreenData.decodedContent?.location as Record<string, unknown>).longitude as number : undefined}
+                        rating={typeof embedFullscreenData.decodedContent?.rating === 'number' ? embedFullscreenData.decodedContent.rating : undefined}
+                        userRatingCount={typeof embedFullscreenData.decodedContent?.userRatingCount === 'number' ? embedFullscreenData.decodedContent.userRatingCount : undefined}
+                        placeType={typeof embedFullscreenData.decodedContent?.place_type === 'string' ? embedFullscreenData.decodedContent.place_type : undefined}
+                        websiteUri={typeof embedFullscreenData.decodedContent?.websiteUri === 'string' ? embedFullscreenData.decodedContent.websiteUri : undefined}
+                        placeId={typeof embedFullscreenData.decodedContent?.placeId === 'string' ? embedFullscreenData.decodedContent.placeId : undefined}
+                        embedId={embedFullscreenData.embedId}
+                        onClose={handleCloseEmbedFullscreen}
+                        {hasPreviousEmbed}
+                        {hasNextEmbed}
+                        onNavigatePrevious={handleNavigatePreviousEmbed}
+                        onNavigateNext={handleNavigateNextEmbed}
+                        navigateDirection={embedNavigateDirection}
+                        showChatButton={showChatButtonInFullscreen}
+                        onShowChat={handleShowChat}
+                    />
                 {:else if embedFullscreenData.embedType === 'maps'}
                     <!-- Maps Location Fullscreen (user-inserted via MapsView picker) -->
                     <!-- Coordinates / address come from decodedContent (EmbedStore TOON) or attrs fallback.
@@ -9613,6 +10096,110 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         onShowChat={handleShowChat}
                         piiMappings={cumulativePIIMappingsArray}
                         piiRevealed={piiRevealed}
+                    />
+                {:else if embedFullscreenData.embedType === 'events-event'}
+                    <!-- Single Event Fullscreen (child embed from [!](embed:ref) large preview) -->
+                    <!-- Reconstructs EventResult from decodedContent to render EventEmbedFullscreen directly -->
+                    <EventEmbedFullscreen
+                        embedId={embedFullscreenData.embedId}
+                        event={{
+                            embed_id: embedFullscreenData.embedId ?? '',
+                            id: typeof embedFullscreenData.decodedContent?.id === 'string' ? embedFullscreenData.decodedContent.id : undefined,
+                            provider: typeof embedFullscreenData.decodedContent?.provider === 'string' ? embedFullscreenData.decodedContent.provider : undefined,
+                            title: typeof embedFullscreenData.decodedContent?.title === 'string' ? embedFullscreenData.decodedContent.title : undefined,
+                            description: typeof embedFullscreenData.decodedContent?.description === 'string' ? embedFullscreenData.decodedContent.description : undefined,
+                            url: typeof embedFullscreenData.decodedContent?.url === 'string' ? embedFullscreenData.decodedContent.url : undefined,
+                            date_start: typeof embedFullscreenData.decodedContent?.date_start === 'string' ? embedFullscreenData.decodedContent.date_start : undefined,
+                            date_end: typeof embedFullscreenData.decodedContent?.date_end === 'string' ? embedFullscreenData.decodedContent.date_end : undefined,
+                            timezone: typeof embedFullscreenData.decodedContent?.timezone === 'string' ? embedFullscreenData.decodedContent.timezone : undefined,
+                            event_type: typeof embedFullscreenData.decodedContent?.event_type === 'string' ? embedFullscreenData.decodedContent.event_type : undefined,
+                            venue: embedFullscreenData.decodedContent?.venue as Record<string, unknown> | undefined,
+                            organizer: embedFullscreenData.decodedContent?.organizer as Record<string, unknown> | undefined,
+                            rsvp_count: typeof embedFullscreenData.decodedContent?.rsvp_count === 'number' ? embedFullscreenData.decodedContent.rsvp_count : undefined,
+                            is_paid: typeof embedFullscreenData.decodedContent?.is_paid === 'boolean' ? embedFullscreenData.decodedContent.is_paid : undefined,
+                            fee: embedFullscreenData.decodedContent?.fee as Record<string, unknown> | undefined,
+                            image_url: typeof embedFullscreenData.decodedContent?.image_url === 'string' ? embedFullscreenData.decodedContent.image_url : null,
+                        }}
+                        onClose={handleCloseEmbedFullscreen}
+                        {hasPreviousEmbed}
+                        {hasNextEmbed}
+                        onNavigatePrevious={handleNavigatePreviousEmbed}
+                        onNavigateNext={handleNavigateNextEmbed}
+                    />
+                {:else if embedFullscreenData.embedType === 'travel-connection'}
+                    <!-- Single Travel Connection Fullscreen (child embed from [!](embed:ref) large preview) -->
+                    <!-- Reconstructs ConnectionData from decodedContent to render TravelConnectionEmbedFullscreen directly -->
+                    <TravelConnectionEmbedFullscreen
+                        connection={{
+                            embed_id: embedFullscreenData.embedId ?? '',
+                            type: typeof embedFullscreenData.decodedContent?.type === 'string' ? embedFullscreenData.decodedContent.type : undefined,
+                            transport_method: typeof embedFullscreenData.decodedContent?.transport_method === 'string' ? embedFullscreenData.decodedContent.transport_method : undefined,
+                            trip_type: typeof embedFullscreenData.decodedContent?.trip_type === 'string' ? embedFullscreenData.decodedContent.trip_type : undefined,
+                            total_price: typeof embedFullscreenData.decodedContent?.total_price === 'string' ? embedFullscreenData.decodedContent.total_price : (typeof embedFullscreenData.decodedContent?.price === 'string' ? embedFullscreenData.decodedContent.price : undefined),
+                            currency: typeof embedFullscreenData.decodedContent?.currency === 'string' ? embedFullscreenData.decodedContent.currency : undefined,
+                            bookable_seats: typeof embedFullscreenData.decodedContent?.bookable_seats === 'number' ? embedFullscreenData.decodedContent.bookable_seats : undefined,
+                            last_ticketing_date: typeof embedFullscreenData.decodedContent?.last_ticketing_date === 'string' ? embedFullscreenData.decodedContent.last_ticketing_date : undefined,
+                            booking_url: typeof embedFullscreenData.decodedContent?.booking_url === 'string' ? embedFullscreenData.decodedContent.booking_url : undefined,
+                            booking_provider: typeof embedFullscreenData.decodedContent?.booking_provider === 'string' ? embedFullscreenData.decodedContent.booking_provider : undefined,
+                            booking_token: typeof embedFullscreenData.decodedContent?.booking_token === 'string' ? embedFullscreenData.decodedContent.booking_token : undefined,
+                            booking_context: embedFullscreenData.decodedContent?.booking_context as Record<string, string> | undefined,
+                            origin: typeof embedFullscreenData.decodedContent?.origin === 'string' ? embedFullscreenData.decodedContent.origin : undefined,
+                            destination: typeof embedFullscreenData.decodedContent?.destination === 'string' ? embedFullscreenData.decodedContent.destination : undefined,
+                            departure: typeof embedFullscreenData.decodedContent?.departure === 'string' ? embedFullscreenData.decodedContent.departure : undefined,
+                            arrival: typeof embedFullscreenData.decodedContent?.arrival === 'string' ? embedFullscreenData.decodedContent.arrival : undefined,
+                            duration: typeof embedFullscreenData.decodedContent?.duration === 'string' ? embedFullscreenData.decodedContent.duration : undefined,
+                            stops: typeof embedFullscreenData.decodedContent?.stops === 'number' ? embedFullscreenData.decodedContent.stops : undefined,
+                            carriers: Array.isArray(embedFullscreenData.decodedContent?.carriers) ? embedFullscreenData.decodedContent.carriers as string[] : undefined,
+                            carrier_codes: Array.isArray(embedFullscreenData.decodedContent?.carrier_codes) ? embedFullscreenData.decodedContent.carrier_codes as string[] : undefined,
+                            hash: typeof embedFullscreenData.decodedContent?.hash === 'string' ? embedFullscreenData.decodedContent.hash : undefined,
+                            legs: Array.isArray(embedFullscreenData.decodedContent?.legs) ? embedFullscreenData.decodedContent.legs as never[] : undefined,
+                            airline_logo: typeof embedFullscreenData.decodedContent?.airline_logo === 'string' ? embedFullscreenData.decodedContent.airline_logo : undefined,
+                            co2_kg: typeof embedFullscreenData.decodedContent?.co2_kg === 'number' ? embedFullscreenData.decodedContent.co2_kg : undefined,
+                            co2_typical_kg: typeof embedFullscreenData.decodedContent?.co2_typical_kg === 'number' ? embedFullscreenData.decodedContent.co2_typical_kg : undefined,
+                            co2_difference_percent: typeof embedFullscreenData.decodedContent?.co2_difference_percent === 'number' ? embedFullscreenData.decodedContent.co2_difference_percent : undefined,
+                        }}
+                        embedId={embedFullscreenData.embedId}
+                        onClose={handleCloseEmbedFullscreen}
+                        {hasPreviousEmbed}
+                        {hasNextEmbed}
+                        onNavigatePrevious={handleNavigatePreviousEmbed}
+                        onNavigateNext={handleNavigateNextEmbed}
+                    />
+                {:else if embedFullscreenData.embedType === 'travel-stay'}
+                    <!-- Single Travel Stay Fullscreen (child embed from [!](embed:ref) large preview) -->
+                    <!-- Reconstructs StayData from decodedContent to render TravelStayEmbedFullscreen directly -->
+                    <TravelStayEmbedFullscreen
+                        embedId={embedFullscreenData.embedId}
+                        stay={{
+                            type: typeof embedFullscreenData.decodedContent?.type === 'string' ? embedFullscreenData.decodedContent.type : undefined,
+                            name: typeof embedFullscreenData.decodedContent?.name === 'string' ? embedFullscreenData.decodedContent.name : undefined,
+                            description: typeof embedFullscreenData.decodedContent?.description === 'string' ? embedFullscreenData.decodedContent.description : undefined,
+                            property_type: typeof embedFullscreenData.decodedContent?.property_type === 'string' ? embedFullscreenData.decodedContent.property_type : undefined,
+                            link: typeof embedFullscreenData.decodedContent?.link === 'string' ? embedFullscreenData.decodedContent.link : undefined,
+                            property_token: typeof embedFullscreenData.decodedContent?.property_token === 'string' ? embedFullscreenData.decodedContent.property_token : undefined,
+                            gps_coordinates: embedFullscreenData.decodedContent?.gps_coordinates as { latitude: number; longitude: number } | undefined,
+                            hotel_class: typeof embedFullscreenData.decodedContent?.hotel_class === 'number' ? embedFullscreenData.decodedContent.hotel_class : undefined,
+                            overall_rating: typeof embedFullscreenData.decodedContent?.overall_rating === 'number' ? embedFullscreenData.decodedContent.overall_rating : undefined,
+                            reviews: typeof embedFullscreenData.decodedContent?.reviews === 'number' ? embedFullscreenData.decodedContent.reviews : undefined,
+                            rate_per_night: typeof embedFullscreenData.decodedContent?.rate_per_night === 'string' ? embedFullscreenData.decodedContent.rate_per_night : undefined,
+                            extracted_rate_per_night: typeof embedFullscreenData.decodedContent?.extracted_rate_per_night === 'number' ? embedFullscreenData.decodedContent.extracted_rate_per_night : undefined,
+                            total_rate: typeof embedFullscreenData.decodedContent?.total_rate === 'string' ? embedFullscreenData.decodedContent.total_rate : undefined,
+                            extracted_total_rate: typeof embedFullscreenData.decodedContent?.extracted_total_rate === 'number' ? embedFullscreenData.decodedContent.extracted_total_rate : undefined,
+                            currency: typeof embedFullscreenData.decodedContent?.currency === 'string' ? embedFullscreenData.decodedContent.currency : undefined,
+                            check_in_time: typeof embedFullscreenData.decodedContent?.check_in_time === 'string' ? embedFullscreenData.decodedContent.check_in_time : undefined,
+                            check_out_time: typeof embedFullscreenData.decodedContent?.check_out_time === 'string' ? embedFullscreenData.decodedContent.check_out_time : undefined,
+                            amenities: Array.isArray(embedFullscreenData.decodedContent?.amenities) ? embedFullscreenData.decodedContent.amenities as string[] : undefined,
+                            images: Array.isArray(embedFullscreenData.decodedContent?.images) ? embedFullscreenData.decodedContent.images as never[] : undefined,
+                            thumbnail: typeof embedFullscreenData.decodedContent?.thumbnail === 'string' ? embedFullscreenData.decodedContent.thumbnail : undefined,
+                            nearby_places: Array.isArray(embedFullscreenData.decodedContent?.nearby_places) ? embedFullscreenData.decodedContent.nearby_places as never[] : undefined,
+                            eco_certified: typeof embedFullscreenData.decodedContent?.eco_certified === 'boolean' ? embedFullscreenData.decodedContent.eco_certified : undefined,
+                            free_cancellation: typeof embedFullscreenData.decodedContent?.free_cancellation === 'boolean' ? embedFullscreenData.decodedContent.free_cancellation : undefined,
+                        }}
+                        onClose={handleCloseEmbedFullscreen}
+                        {hasPreviousEmbed}
+                        {hasNextEmbed}
+                        onNavigatePrevious={handleNavigatePreviousEmbed}
+                        onNavigateNext={handleNavigateNextEmbed}
                     />
                 {:else}
                     <!-- Fallback for unknown embed types -->
@@ -10038,9 +10625,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         position: absolute;
         /*
          * Center vertically in the space below the daily inspiration banner.
-         * Offset of 60px pushes the content just below the banner midpoint.
+         * Offset of 80px keeps welcome content clear of top-left actions.
          */
-        top: calc(50% + 60px);
+        top: calc(50% + 80px);
         left: 50%;
         transform: translate(-50%, -50%);
         text-align: center;
@@ -10052,11 +10639,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         display: flex;
         flex-direction: column;
         align-items: center;
-    }
-
-    /* Adjust welcome content position for narrow containers */
-    .active-chat-container.narrow .center-content {
-        top: calc(50% + 60px);
+        /*
+         * CRITICAL: must match the chat-side positioned ancestor width.
+         * Without this, center-content has no explicit width and grows to match its
+         * widest child (recent-chats-scroll-container). That child uses width:100% +
+         * padding:calc(50%-150px), creating a circular dependency that inflates the
+         * container to thousands of pixels — breaking centering and scroll entirely.
+         */
+        width: 100%;
     }
 
     .team-profile {
@@ -10088,11 +10678,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         display: flex;
         flex-direction: column;
         align-items: center;
+        justify-content: flex-end;
         gap: 2px;
         text-align: center;
         font-size: 1rem;
         color: var(--color-grey-60);
-        padding: 10px 16px 8px;
+        min-height: 76px;
+        padding: 22px 16px 6px;
         font-style: italic;
         /* Gradient background so the text remains readable when positioned over chat messages.
            Uses the active chat background color (--color-grey-20) fading from transparent at the top
@@ -10100,10 +10692,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         background: linear-gradient(
             to bottom,
             transparent 0%,
-            var(--color-grey-20) 55%
+            transparent 14%,
+            var(--color-grey-20) 56%,
+            var(--color-grey-20) 100%
         );
         position: relative;
         z-index: 1;
+    }
+
+    .typing-indicator + .message-input-container {
+        padding-top: 0;
     }
     
     /* Primary line: "{mate} is typing..." — prominent */
@@ -10156,6 +10754,71 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
     }
     
+    /* Horizontal scroll container for resume + recent chat cards */
+    .recent-chats-scroll-container {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 16px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scroll-behavior: smooth;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        /* Left padding = half container width minus half card width (300/2=150)
+           so the first card starts centred relative to the chat-wrapper.
+           box-sizing: border-box ensures padding is included in width: 100%
+           so the element never exceeds the center-content container bounds. */
+        padding: 12px 48px 12px calc(50% - 150px);
+        box-sizing: border-box;
+        pointer-events: auto;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .recent-chats-scroll-container::-webkit-scrollbar {
+        display: none;
+    }
+
+    /* Make resume-chat-card a fixed-width flex item inside scroll container */
+    .recent-chats-scroll-container .resume-chat-card {
+        min-width: 300px;
+        max-width: 300px;
+        flex-shrink: 0;
+    }
+
+    /* Make resume-chat-large-card a fixed-width flex item inside scroll container */
+    .recent-chats-scroll-container .resume-chat-large-card {
+        flex-shrink: 0;
+    }
+
+    /* "+N" overflow pill matching card height */
+    .recent-chat-overflow {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 56px;
+        min-width: 56px;
+        height: 200px;
+        border-radius: 20px;
+        background: var(--color-grey-20, rgba(0, 0, 0, 0.07));
+        border: 1.5px dashed var(--color-grey-40);
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--color-grey-60);
+        cursor: pointer;
+        flex-shrink: 0;
+        transition: background 0.15s ease, color 0.15s ease;
+        pointer-events: auto;
+    }
+
+    .recent-chat-overflow:hover {
+        background: var(--color-grey-30, rgba(0, 0, 0, 0.12));
+        color: var(--color-grey-80);
+        border-color: var(--color-grey-50);
+    }
+
     /* Resume chat card - shown in center-content below welcome greeting */
     .resume-chat-card {
         display: flex;
@@ -10331,7 +10994,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     /* Centered content overlay */
     .resume-large-content {
         position: relative;
-        z-index: 2;
+        z-index: 3;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -10339,6 +11002,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         padding: 16px 24px;
         max-width: 260px;
         width: 100%;
+        /* Ensure text is readable over the gradient orbs */
+        text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
     }
 
     .resume-large-icon {
@@ -10388,7 +11053,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     .resume-large-orbs {
         position: absolute;
         inset: 0;
-        z-index: 0;
+        z-index: -1;
         pointer-events: none;
         overflow: hidden;
         border-radius: 30px; /* match card border-radius so orbs don't bleed */
@@ -10406,7 +11071,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             transparent 85%
         );
         filter: blur(22px);
-        opacity: 0.55;
+        opacity: 0.35;
         will-change: transform, border-radius;
     }
 
@@ -10811,6 +11476,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     /* PII toggle button: subtle orange tint when PII is revealed (warns sensitive data exposed) */
     .pii-toggle-active {
         background-color: rgba(245, 158, 11, 0.3) !important;
+    }
+
+    /* Admin debug mode button: highlighted while debug mode is active. */
+    .debug-mode-active {
+        background-color: var(--color-warning);
     }
 
     /* Background wrapper for new chat button to ensure it's always visible */

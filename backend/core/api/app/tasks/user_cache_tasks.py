@@ -227,9 +227,10 @@ async def _warm_cache_phase_one(
             encrypted_chat_tags=chat_details.get("encrypted_chat_tags"),
             encrypted_follow_up_request_suggestions=chat_details.get("encrypted_follow_up_request_suggestions"),
             encrypted_active_focus_id=chat_details.get("encrypted_active_focus_id"),
-            last_message_timestamp=chat_details.get("last_message_timestamp"),
+            last_message_timestamp=chat_details.get("last_edited_overall_timestamp") or chat_details.get("last_message_timestamp"),
             is_shared=chat_details.get("is_shared"),
             is_private=chat_details.get("is_private"),
+            pinned=chat_details.get("pinned"),
             user_id=user_id  # Cache the owner ID
         )
         await cache_service.set_chat_list_item_data(user_id, target_immediate_chat_id, list_item_data)
@@ -263,14 +264,18 @@ async def _warm_cache_phase_one(
         if embed_count > 0:
             logger.info(f"User {user_id}: Cached {embed_count} embed(s) for chat {target_immediate_chat_id} in Phase 1")
         
-        chat_own_update_ts = chat_details.get("updated_at", 0)
+        # Use last_edited_overall_timestamp (message-only) for sort score, NOT updated_at.
+        # updated_at gets bumped by view-tracking operations (read status, scroll position)
+        # which would cause old chats to jump to the top when merely opened.
+        # Fall back to updated_at only for legacy chats that predate this field.
+        chat_sort_ts = chat_details.get("last_edited_overall_timestamp", 0) or chat_details.get("updated_at", 0)
         hashed_user_id_for_draft_ph1 = hashlib.sha256(user_id.encode()).hexdigest()
         user_draft = await directus_service.chat.get_user_draft_from_directus(
             hashed_user_id_for_draft_ph1, target_immediate_chat_id
         )
         draft_updated_at_ts = user_draft.get("updated_at", 0) if user_draft else 0
         
-        effective_timestamp = max(chat_own_update_ts, draft_updated_at_ts, chat_details.get("created_at", 0))
+        effective_timestamp = max(chat_sort_ts, draft_updated_at_ts, chat_details.get("created_at", 0))
         
         await cache_service.add_chat_to_ids_versions(user_id, target_immediate_chat_id, effective_timestamp)
         
@@ -311,7 +316,7 @@ async def _warm_cache_phase_two_optimized(
             chat_data = item["chat_details"]
             chat_id = chat_data["id"]
 
-            effective_timestamp = max(chat_data.get("updated_at", 0), item.get("draft_updated_at", 0), chat_data.get("created_at", 0))
+            effective_timestamp = max(chat_data.get("last_edited_overall_timestamp", 0) or chat_data.get("updated_at", 0), item.get("draft_updated_at", 0), chat_data.get("created_at", 0))
             versions = CachedChatVersions(messages_v=chat_data["messages_v"], title_v=chat_data["title_v"])
 
             list_item = CachedChatListItemData(
@@ -326,9 +331,10 @@ async def _warm_cache_phase_two_optimized(
                 encrypted_chat_tags=chat_data.get("encrypted_chat_tags"),
                 encrypted_follow_up_request_suggestions=chat_data.get("encrypted_follow_up_request_suggestions"),
                 encrypted_active_focus_id=chat_data.get("encrypted_active_focus_id"),
-                last_message_timestamp=chat_data.get("last_message_timestamp"),
+                last_message_timestamp=chat_data.get("last_edited_overall_timestamp") or chat_data.get("last_message_timestamp"),
                 is_shared=chat_data.get("is_shared"),
                 is_private=chat_data.get("is_private"),
+                pinned=chat_data.get("pinned"),
                 user_id=user_id  # Cache the owner ID
             )
 
@@ -353,7 +359,7 @@ async def _warm_cache_phase_two_optimized(
                     chat_data = item["chat_details"]
                     chat_id = chat_data["id"]
 
-                    effective_timestamp = max(chat_data.get("updated_at", 0), item.get("draft_updated_at", 0), chat_data.get("created_at", 0))
+                    effective_timestamp = max(chat_data.get("last_edited_overall_timestamp", 0) or chat_data.get("updated_at", 0), item.get("draft_updated_at", 0), chat_data.get("created_at", 0))
                     await cache_service.add_chat_to_ids_versions(user_id, chat_id, effective_timestamp)
 
                     versions = CachedChatVersions(messages_v=chat_data["messages_v"], title_v=chat_data["title_v"])
@@ -372,9 +378,10 @@ async def _warm_cache_phase_two_optimized(
                         encrypted_chat_tags=chat_data.get("encrypted_chat_tags"),
                         encrypted_follow_up_request_suggestions=chat_data.get("encrypted_follow_up_request_suggestions"),
                         encrypted_active_focus_id=chat_data.get("encrypted_active_focus_id"),
-                        last_message_timestamp=chat_data.get("last_message_timestamp"),
+                        last_message_timestamp=chat_data.get("last_edited_overall_timestamp") or chat_data.get("last_message_timestamp"),
                         is_shared=chat_data.get("is_shared"),
                         is_private=chat_data.get("is_private"),
+                        pinned=chat_data.get("pinned"),
                         user_id=user_id  # Cache the owner ID
                     )
                     await cache_service.set_chat_list_item_data(user_id, chat_id, list_item)
@@ -428,7 +435,7 @@ async def _warm_cache_phase_two(
             chat_data = item["chat_details"]
             chat_id = chat_data["id"]
 
-            effective_timestamp = max(chat_data.get("updated_at", 0), item.get("draft_updated_at", 0), chat_data.get("created_at", 0))
+            effective_timestamp = max(chat_data.get("last_edited_overall_timestamp", 0) or chat_data.get("updated_at", 0), item.get("draft_updated_at", 0), chat_data.get("created_at", 0))
             await cache_service.add_chat_to_ids_versions(user_id, chat_id, effective_timestamp)
 
             versions = CachedChatVersions(messages_v=chat_data["messages_v"], title_v=chat_data["title_v"])
@@ -482,7 +489,7 @@ async def _warm_cache_phase_three_optimized(
             chat_data = item["chat_details"]
             chat_id = chat_data["id"]
 
-            effective_timestamp = max(chat_data.get("updated_at", 0), item.get("draft_updated_at", 0), chat_data.get("created_at", 0))
+            effective_timestamp = max(chat_data.get("last_edited_overall_timestamp", 0) or chat_data.get("updated_at", 0), item.get("draft_updated_at", 0), chat_data.get("created_at", 0))
             versions = CachedChatVersions(messages_v=chat_data["messages_v"], title_v=chat_data["title_v"])
 
             list_item = CachedChatListItemData(
@@ -497,9 +504,10 @@ async def _warm_cache_phase_three_optimized(
                 encrypted_chat_tags=chat_data.get("encrypted_chat_tags"),
                 encrypted_follow_up_request_suggestions=chat_data.get("encrypted_follow_up_request_suggestions"),
                 encrypted_active_focus_id=chat_data.get("encrypted_active_focus_id"),
-                last_message_timestamp=chat_data.get("last_message_timestamp"),
+                last_message_timestamp=chat_data.get("last_edited_overall_timestamp") or chat_data.get("last_message_timestamp"),
                 is_shared=chat_data.get("is_shared"),
                 is_private=chat_data.get("is_private"),
+                pinned=chat_data.get("pinned"),
                 user_id=user_id  # Cache the owner ID
             )
 
@@ -524,7 +532,7 @@ async def _warm_cache_phase_three_optimized(
                     chat_data = item["chat_details"]
                     chat_id = chat_data["id"]
 
-                    effective_timestamp = max(chat_data.get("updated_at", 0), item.get("draft_updated_at", 0), chat_data.get("created_at", 0))
+                    effective_timestamp = max(chat_data.get("last_edited_overall_timestamp", 0) or chat_data.get("updated_at", 0), item.get("draft_updated_at", 0), chat_data.get("created_at", 0))
                     await cache_service.add_chat_to_ids_versions(user_id, chat_id, effective_timestamp)
 
                     versions = CachedChatVersions(messages_v=chat_data["messages_v"], title_v=chat_data["title_v"])
@@ -543,9 +551,10 @@ async def _warm_cache_phase_three_optimized(
                         encrypted_chat_tags=chat_data.get("encrypted_chat_tags"),
                         encrypted_follow_up_request_suggestions=chat_data.get("encrypted_follow_up_request_suggestions"),
                         encrypted_active_focus_id=chat_data.get("encrypted_active_focus_id"),
-                        last_message_timestamp=chat_data.get("last_message_timestamp"),
+                        last_message_timestamp=chat_data.get("last_edited_overall_timestamp") or chat_data.get("last_message_timestamp"),
                         is_shared=chat_data.get("is_shared"),
                         is_private=chat_data.get("is_private"),
+                        pinned=chat_data.get("pinned"),
                         user_id=user_id  # Cache the owner ID
                     )
                     await cache_service.set_chat_list_item_data(user_id, chat_id, list_item)
@@ -626,7 +635,7 @@ async def _warm_cache_phase_three(
             chat_data = item["chat_details"]
             chat_id = chat_data["id"]
 
-            effective_timestamp = max(chat_data.get("updated_at", 0), item.get("draft_updated_at", 0), chat_data.get("created_at", 0))
+            effective_timestamp = max(chat_data.get("last_edited_overall_timestamp", 0) or chat_data.get("updated_at", 0), item.get("draft_updated_at", 0), chat_data.get("created_at", 0))
             await cache_service.add_chat_to_ids_versions(user_id, chat_id, effective_timestamp)
 
             versions = CachedChatVersions(messages_v=chat_data["messages_v"], title_v=chat_data["title_v"])
@@ -645,9 +654,10 @@ async def _warm_cache_phase_three(
                 encrypted_chat_tags=chat_data.get("encrypted_chat_tags"),
                 encrypted_follow_up_request_suggestions=chat_data.get("encrypted_follow_up_request_suggestions"),
                 encrypted_active_focus_id=chat_data.get("encrypted_active_focus_id"),
-                last_message_timestamp=chat_data.get("last_message_timestamp"),
+                last_message_timestamp=chat_data.get("last_edited_overall_timestamp") or chat_data.get("last_message_timestamp"),
                 is_shared=chat_data.get("is_shared"),
                 is_private=chat_data.get("is_private"),
+                pinned=chat_data.get("pinned"),
                 user_id=user_id  # Cache the owner ID
             )
             await cache_service.set_chat_list_item_data(user_id, chat_id, list_item)

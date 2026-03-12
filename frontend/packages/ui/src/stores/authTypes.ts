@@ -23,6 +23,8 @@ export interface SessionCheckResult {
   token_refresh_needed?: boolean;
   require_invite_code?: boolean; // Indicates if invite code is required for signup
   ws_token?: string; // WebSocket authentication token (for Safari iOS compatibility)
+  session_device_info?: { device_name: string; ip_truncated: string; country_code: string | null; city: string | null }; // Plaintext session device info for client-side encryption
+  session_meta_registered?: boolean; // Whether encrypted session metadata has been registered
 }
 
 // Define return type for the login API response

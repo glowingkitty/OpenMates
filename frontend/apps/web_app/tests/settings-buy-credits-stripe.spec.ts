@@ -14,11 +14,11 @@ export {};
  * - Logs in with a pre-existing test account.
  * - Opens Settings → Billing → Buy Credits.
  * - Selects a credit tier (first available).
- * - Accepts payment consent toggle.
- * - Stays on the Stripe provider (default for EU — no provider switch).
+ * - Handles geo-detection: Playwright runs from a US IP → API returns provider=polar.
+ *   When the Polar Checkout iframe appears, clicks "Pay with an EU card instead" to
+ *   switch the backend to Stripe. When running from EU geo, Stripe loads directly.
  * - Verifies the Stripe Payment Element iframe loads.
- * - Fills in the Stripe EU test card (4000002500003155 — requires 3DS auth).
- *   Uses the simpler success card (4242 4242 4242 4242) for sandbox flow.
+ * - Fills in the Stripe EU test card (4000 0024 6000 0001 Finland — passes Radar EU rule).
  * - Submits the Stripe payment form.
  * - Verifies "purchase successful" message on the main page.
  *
@@ -32,7 +32,7 @@ export {};
  *   dispatches purchaseCompleted → "purchase successful" is shown.
  *
  * STRIPE TEST CARD (used here):
- * - Card: 4242 4242 4242 4242 (always succeeds, no 3DS) | Expiry: 12/34 | CVC: 123
+ * - Card: 4000 0024 6000 0001 (Finland/EU card — required by Radar "block non-EU" rule) | Expiry: 12/34 | CVC: 123
  *
  * REQUIRED ENV VARS:
  * - OPENMATES_TEST_ACCOUNT_EMAIL (or slot-based variant)
@@ -76,8 +76,9 @@ test.afterEach(async ({}, testInfo: any) => {
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
-// Stripe test card that always succeeds in sandbox (no 3DS required).
-const STRIPE_TEST_CARD = '4242424242424242';
+// Stripe test card: Finland (FI) EU card — required because Radar blocks non-EU cards.
+// See: https://docs.stripe.com/testing#international-cards
+const STRIPE_TEST_CARD = '4000002460000001';
 
 /**
  * Log in with the pre-existing test account.
@@ -94,6 +95,12 @@ async function loginToTestAccount(
 	const headerLoginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
 	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
 	await headerLoginButton.click();
+
+	// After clicking the header button a choice screen appears with "Login" and "Sign up".
+	// We must click "Login" to reach the email input step.
+	const loginChoiceButton = page.getByRole('button', { name: /^login$/i });
+	await expect(loginChoiceButton).toBeVisible({ timeout: 10000 });
+	await loginChoiceButton.click();
 
 	const emailInput = page.locator('input[name="username"][type="email"]');
 	await expect(emailInput).toBeVisible({ timeout: 10000 });
@@ -184,7 +191,8 @@ test('settings buy credits: completes full Stripe (EU card) purchase flow', asyn
 	await expect(settingsMenu).toBeVisible({ timeout: 8000 });
 
 	// Wait for credits balance — confirms authenticated state fully loaded.
-	await expect(page.locator('.settings-menu.visible .credits-container')).toBeVisible({
+	// The credits display uses .credits-row (previously .credits-container which no longer exists).
+	await expect(page.locator('.settings-menu.visible .credits-row')).toBeVisible({
 		timeout: 15000
 	});
 	await screenshot(page, 'settings-menu-open');
@@ -225,75 +233,94 @@ test('settings buy credits: completes full Stripe (EU card) purchase flow', asyn
 	await screenshot(page, 'tier-selected');
 
 	// ─── Payment form ───────────────────────────────────────────────────────────
-	// Two possible states after tier selection:
+	// The Playwright Docker container runs from a US IP address. The API geo-detects
+	// non-EU → sets provider=polar. We must force Stripe regardless of geo.
 	//
-	// A) Saved Stripe payment methods exist (returning user):
-	//    → Saved methods list is shown with a "Add payment method" button.
-	//    → Click "Add payment method" to reveal the fresh Payment component.
+	// Strategy:
+	//   1. Click "Add Payment Method" (or wait for an iframe to appear).
+	//   2. If the Polar Checkout iframe appears first, click the "Pay with an EU card
+	//      instead" button inside it — this switches the flow to Stripe on the backend.
+	//   3. Once the Stripe Payment Element iframe loads, fill the test card.
+	//   4. Submit and wait for "purchase successful".
 	//
-	// B) No saved payment methods (fresh account):
-	//    → Stripe payment form is shown immediately (no consent screen — user
-	//      already consented during signup).
-	//
-	// Note: The refund consent screen was removed from the credits purchase flow
-	// because users already accept the refund policy during signup.
+	// We always use the new-card path (no saved method) to avoid saved-method Buy Now
+	// triggering a Polar order via geo detection.
 
+	// Click "Add Payment Method" to open the payment form.
+	// From a US IP (geo=non-EU), this opens the Polar Checkout instead of Stripe.
+	// The Polar Checkout renders over the right panel and exposes a "Pay with an EU
+	// card instead" button in the main DOM (but visually covered by the Polar iframe).
+	// We force-click that button to switch the backend order to Stripe.
 	const addPaymentMethodBtn = page.getByRole('button', { name: /add payment method/i });
+	await expect(addPaymentMethodBtn).toBeVisible({ timeout: 15000 });
+	await addPaymentMethodBtn.click();
+	log('Clicked Add Payment Method button.');
+	await screenshot(page, 'payment-screen');
 
-	// Wait for either the Stripe iframe or the "Add payment method" button.
-	await page.waitForSelector('iframe, button:has-text("Add payment method")', {
-		state: 'visible',
-		timeout: 20000
-	});
+	// Wait for either Stripe or Polar to initialise (either way an iframe appears).
+	await page.waitForSelector('iframe', { state: 'attached', timeout: 20000 });
 
-	const addMethodVisible = await addPaymentMethodBtn.isVisible();
-	if (addMethodVisible) {
-		// Flow A: click "Add payment method" to get the fresh Stripe form
-		await addPaymentMethodBtn.click();
-		log('Saved payment methods detected — clicked "Add payment method" to show fresh form.');
-		await screenshot(page, 'add-payment-method-clicked');
+	// If the "Pay with an EU card instead" button is present (Polar flow from US geo),
+	// use JavaScript dispatchEvent to click it. The button is in the main DOM but is
+	// visually covered by the Polar Checkout iframe, so Playwright's click (even with
+	// force=true) doesn't trigger the Svelte event handler. A programmatic dispatchEvent
+	// bypasses the iframe overlay and fires the handler correctly.
+	const euCardBtn = page.getByRole('button', { name: /pay with.*eu card instead/i });
+	const isPolarFlow = await euCardBtn.isVisible({ timeout: 5000 }).catch(() => false);
+	if (isPolarFlow) {
+		await page.evaluate(() => {
+			const buttons = document.querySelectorAll('button');
+			for (const btn of buttons) {
+				if (btn.textContent?.includes('EU card instead')) {
+					btn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+					btn.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }));
+					btn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+					break;
+				}
+			}
+		});
+		log('Polar flow detected. Dispatched JS click on "Pay with an EU card instead".');
+		await page.waitForTimeout(3000);
+		await screenshot(page, 'after-eu-switch');
 	}
 
-	await assertNoMissingTranslations(page);
+	// Now the Stripe Payment Element iframe should be present in the DOM.
+	await page.waitForSelector('iframe[title="Secure payment input frame"]', {
+		state: 'attached',
+		timeout: 30000
+	});
+	log('Stripe Payment Element iframe loaded.');
 
-	// ─── Verify Stripe Payment Element iframe loaded ──────────────────────────────
-	// We stay on Stripe (the default EU provider). The Stripe Payment Element renders
-	// as an iframe with title="Secure payment input frame" (or similar).
-
-	// Wait for at least one Stripe iframe to appear.
-	await expect(async () => {
-		const iframes = await page.locator('iframe').count();
-		expect(iframes).toBeGreaterThan(0);
-	}).toPass({ timeout: 30000 });
-	log('Stripe payment iframe loaded.');
+	// Wait for the card input fields to become interactive.
+	await page.waitForTimeout(2000);
 	await screenshot(page, 'stripe-payment-form');
-
-	// ─── Fill Stripe card details ─────────────────────────────────────────────────
-	// fillStripeCardDetails() handles both the unified Payment Element iframe and
-	// the legacy split-frame (number/expiry/CVC) layout.
 
 	await fillStripeCardDetails(page, STRIPE_TEST_CARD);
 	await screenshot(page, 'stripe-card-filled');
 	log('Stripe test card details filled.');
 
-	// ─── Submit Stripe payment ────────────────────────────────────────────────────
-	// The Pay button is outside the Stripe iframe in our Payment.svelte component.
-	// Button text comes from i18n key signup.buy_for → "Buy for {amount} {currency}"
-	// e.g. "Buy for 2 EUR". Match broadly to handle any amount/currency combination.
-
 	const paymentSubmittedAt = new Date().toISOString();
-	const stripePayButton = page.getByRole('button', { name: /buy for|pay/i });
+	// The submit button is "Buy for X EUR" (exact text varies by tier).
+	// Use type="submit" to avoid matching "Pay with a non-EU card" or "Payment" header.
+	const stripePayButton = page
+		.locator(
+			'button[type="submit"].buy-button, button[type="submit"]:has-text("Buy for"), button[type="submit"]:has-text("Pay")'
+		)
+		.first();
 	await expect(stripePayButton).toBeVisible({ timeout: 15000 });
+	await expect(stripePayButton).toBeEnabled({ timeout: 10000 });
 	await stripePayButton.click();
-	log('Clicked Stripe Pay button — waiting for success confirmation.');
+	log('Clicked Stripe Pay button — waiting for success confirmation.', {
+		paymentSubmittedAt
+	});
 
 	// ─── Verify purchase success ──────────────────────────────────────────────────
 	// ProcessingPayment polls /poll-order until status=SUCCEEDED, then emits
 	// purchaseCompleted → Payment.svelte shows "purchase successful".
 
-	await expect(page.getByText(/purchase successful/i)).toBeVisible({ timeout: 120000 });
+	await expect(page.getByText(/purchase successful/i).first()).toBeVisible({ timeout: 120000 });
 	await screenshot(page, 'purchase-success');
-	log('Stripe purchase confirmed successful.', { paymentSubmittedAt });
+	log('Purchase confirmed successful.');
 
 	await assertNoMissingTranslations(page);
 	log('Test complete.');

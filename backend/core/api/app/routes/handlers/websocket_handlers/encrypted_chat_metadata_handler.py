@@ -312,6 +312,12 @@ async def handle_encrypted_chat_metadata(
             now_ts = int(datetime.now(timezone.utc).timestamp())
             chat_update_fields["updated_at"] = now_ts
             
+            # Pass the client's original created_at so the persistence task uses it
+            # instead of server time when creating a new chat record.
+            # created_at is a plaintext Unix timestamp (not encrypted).
+            if created_at:
+                chat_update_fields["created_at"] = created_at
+            
             # Add version info for chat creation/update
             # The metadata task will use these when creating the chat
             # Use sensible defaults if not provided (current timestamp, messages_v=1 since we just got a message)

@@ -17,6 +17,7 @@ import type { EmbedKeyEntry } from "./embedStore";
 import type { EmbedType } from "../message_parsing/types";
 import { chatDB } from "./db";
 import { userDB } from "./userDB";
+import { updateTotalChatCount } from "../stores/userProfile";
 import { activeChatStore } from "../stores/activeChatStore";
 import { unreadMessagesStore } from "../stores/unreadMessagesStore";
 
@@ -207,6 +208,13 @@ export async function handlePhase3FullSyncImpl(
       );
     } else {
       console.debug("[ChatSyncService] No new chat suggestions to store");
+    }
+
+    // Persist total_chat_count to IndexedDB and in-memory userProfile store so:
+    // - ActiveChat welcome screen can show the "+N" overflow counter without a server round-trip
+    // - SettingsAccountChats can use the cached value as a fallback
+    if (total_chat_count && total_chat_count > 0) {
+      updateTotalChatCount(total_chat_count);
     }
 
     // Dispatch event for UI components - use event name that Chats.svelte listens for

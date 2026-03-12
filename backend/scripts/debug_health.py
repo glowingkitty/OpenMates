@@ -14,7 +14,7 @@ import json
 import logging
 import time
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import httpx
 
@@ -49,7 +49,8 @@ def _section(text: str) -> str: return f"\n{BOLD}{CYAN}{'─'*4} {text} {'─'*(
 # ─── Prometheus query helpers ────────────────────────────────────────────────
 
 PROMETHEUS_URL = "http://prometheus:9090"
-LOKI_URL = "http://loki:3100"
+OPENOBSERVE_URL = "http://openobserve:5080"
+OPENOBSERVE_ORG = "default"
 
 # Maximum chars per line in health output
 MAX_LINE_LEN = 80
@@ -90,47 +91,184 @@ async def _prom_query_series(query: str) -> List[Dict]:
         return []
 
 
-async def _loki_recent_errors(limit: int = 10, since_minutes: int = 30) -> List[Dict]:
+async def _openobserve_recent_errors(limit: int = 10, since_minutes: int = 30) -> List[Dict]:
     """
-    Fetch recent error-level log entries from Loki across all services.
+    Fetch recent error-level log entries from OpenObserve across all services.
     Returns list of {ts, service, message} dicts, newest-first.
+    Uses OpenObserve SQL search API: POST /api/{org}/{stream}/_search
     """
     try:
-        now_ns = int(time.time() * 1e9)
-        start_ns = int((time.time() - since_minutes * 60) * 1e9)
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(
-                f"{LOKI_URL}/loki/api/v1/query_range",
-                params={
-                    "query": '{job=~".+"} | json | level =~ "ERROR|error|CRITICAL|critical"',
-                    "start": str(start_ns),
-                    "end": str(now_ns),
-                    "limit": limit,
-                    "direction": "backward",
-                }
-            )
+        import os
+        email = os.getenv("OPENOBSERVE_ROOT_EMAIL", "")
+        password = os.getenv("OPENOBSERVE_ROOT_PASSWORD", "")
+
+        start_us = int((time.time() - since_minutes * 60) * 1_000_000)
+        end_us = int(time.time() * 1_000_000)
+
+        sql = (
+            f"SELECT _timestamp, container, service, log, message, level "
+            f"FROM \"default\" "
+            f"WHERE (LOWER(level) IN ('error', 'critical') "
+            f"OR LOWER(log) LIKE '%error%' OR LOWER(log) LIKE '%critical%') "
+            f"ORDER BY _timestamp DESC LIMIT {limit}"
+        )
+
+        url = f"{OPENOBSERVE_URL}/api/{OPENOBSERVE_ORG}/default/_search"
+        body = {"query": {"sql": sql, "start_time": start_us, "end_time": end_us}}
+
+        async with httpx.AsyncClient(timeout=10.0, auth=(email, password)) as client:
+            resp = await client.post(url, json=body)
             if resp.status_code != 200:
                 return []
             data = resp.json()
             results = []
-            for stream in data.get("data", {}).get("result", []):
-                svc = stream.get("stream", {}).get("container_name", stream.get("stream", {}).get("job", "?"))
-                for ts_str, line in stream.get("values", []):
-                    try:
-                        entry = json.loads(line)
-                        msg = entry.get("message", line[:120])
-                    except Exception:
-                        msg = line[:120]
-                    results.append({
-                        "ts": int(ts_str),
-                        "service": svc,
-                        "message": msg,
-                    })
-            # Sort newest first and limit
-            results.sort(key=lambda x: x["ts"], reverse=True)
-            return results[:limit]
+            for hit in data.get("hits", []):
+                ts_us = hit.get("_timestamp", 0)
+                svc = hit.get("container", hit.get("service", "?"))
+                msg = hit.get("message", hit.get("log", ""))[:120]
+                results.append({
+                    "ts": int(ts_us) * 1000,  # convert µs → ns for display consistency
+                    "service": svc,
+                    "message": msg,
+                })
+            return results
     except Exception:
         return []
+
+
+# ─── Log access health check ─────────────────────────────────────────────────
+
+# Production Admin Debug API — same constant as debug_logs.py
+PROD_API_BASE = "https://api.openmates.org/v1/admin/debug"
+
+
+async def check_log_access() -> Tuple[bool, bool]:
+    """
+    Verify that Claude can actually read logs before starting any debug task.
+
+    Checks:
+      1. Local OpenObserve (dev) — POST a minimal SQL query and expect HTTP 200.
+      2. Production server — GET the Admin Debug API /ping endpoint with the
+         Vault-sourced API key and expect HTTP 200.
+
+    Returns:
+        (local_ok, prod_ok) — True means the source is reachable and authenticated.
+
+    Prints a clear summary so the caller can decide whether to stop.
+    Failures are shown as ✗ with actionable hints; do NOT silently swallow them.
+    """
+    import os
+
+    print(_section("Log Access Check"))
+
+    # ── 1. Local OpenObserve ──────────────────────────────────────────────────
+    local_ok = False
+    email = os.getenv("OPENOBSERVE_ROOT_EMAIL", "")
+    password = os.getenv("OPENOBSERVE_ROOT_PASSWORD", "")
+
+    if not email or not password:
+        print(_err("  Local OpenObserve — credentials not set"))
+        print(_c(DIM, "    Set OPENOBSERVE_ROOT_EMAIL and OPENOBSERVE_ROOT_PASSWORD env vars."))
+    else:
+        # Minimal SQL that returns quickly and proves the stream exists
+        probe_sql = 'SELECT _timestamp FROM "default" ORDER BY _timestamp DESC LIMIT 1'
+        now_us = int(time.time() * 1_000_000)
+        start_us = now_us - 5 * 60 * 1_000_000  # 5-minute window
+        body = {"query": {"sql": probe_sql, "start_time": start_us, "end_time": now_us}}
+        urls = (
+            f"{OPENOBSERVE_URL}/api/{OPENOBSERVE_ORG}/_search",
+            f"{OPENOBSERVE_URL}/api/{OPENOBSERVE_ORG}/default/_search",
+        )
+        try:
+            async with httpx.AsyncClient(timeout=8.0) as client:
+                for url in urls:
+                    resp = await client.post(
+                        url, json=body,
+                        auth=(email, password),
+                    )
+                    if resp.status_code == 200:
+                        local_ok = True
+                        break
+                    if resp.status_code == 404:
+                        continue
+                    print(_err(f"  Local OpenObserve — HTTP {resp.status_code}"))
+                    print(_c(DIM, f"    URL: {url}"))
+                    break
+        except Exception as exc:
+            print(_err(f"  Local OpenObserve — cannot connect: {exc}"))
+            print(_c(DIM, f"    Expected at {OPENOBSERVE_URL}. Is the openobserve container running?"))
+            print(_c(DIM, "    Run: docker compose ps openobserve"))
+
+    if local_ok:
+        print(_ok("  Local OpenObserve — reachable and authenticated"))
+
+    # ── 2. Production server (Admin Debug API) ────────────────────────────────
+    prod_ok = False
+    try:
+        from debug_utils import get_api_key_from_vault  # local import to avoid circular deps
+        api_key = await get_api_key_from_vault()
+    except SystemExit:
+        # get_api_key_from_vault() calls sys.exit(1) if the key is missing
+        print(_err("  Production logs — Admin API key not found in Vault"))
+        print(_c(DIM, "    See: SECRET__ADMIN__DEBUG_CLI__API_KEY setup in debugging-ref.md"))
+        api_key = None
+    except Exception as exc:
+        print(_err(f"  Production logs — Vault unreachable: {exc}"))
+        print(_c(DIM, "    Is the vault container running? Check: docker compose ps vault"))
+        api_key = None
+
+    if api_key:
+        # /allowed-services is a cheap, auth-required endpoint — ideal as a connectivity probe
+        probe_url = f"{PROD_API_BASE}/allowed-services"
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(
+                    probe_url,
+                    headers={"Authorization": f"Bearer {api_key}"},
+                )
+            if resp.status_code == 200:
+                prod_ok = True
+                print(_ok("  Production logs   — Admin API reachable and authenticated"))
+            elif resp.status_code in (401, 403):
+                print(_err(f"  Production logs — API key rejected (HTTP {resp.status_code})"))
+                print(_c(DIM, "    Regenerate the key: admin user → API Keys → create new, update SECRET__ADMIN__DEBUG_CLI__API_KEY"))
+            else:
+                print(_err(f"  Production logs — unexpected HTTP {resp.status_code} from {probe_url}"))
+        except Exception as exc:
+            print(_err(f"  Production logs — cannot reach {probe_url}: {exc}"))
+            print(_c(DIM, "    Check that the production API is up and DNS resolves from inside Docker."))
+
+    print()
+    return local_ok, prod_ok
+
+
+async def run_log_access_check() -> None:
+    """
+    Standalone entrypoint for `debug.py health --log-access` (or just `debug.py health`).
+
+    Runs check_log_access() and exits non-zero if either source is inaccessible,
+    printing a clear stop message so Claude knows to halt the task and ask the user.
+    """
+    import sys
+    local_ok, prod_ok = await check_log_access()
+
+    if local_ok and prod_ok:
+        print(_ok("  Log sources healthy — safe to proceed with debugging."))
+        print()
+        return
+
+    # One or both sources are down — print a prominent stop banner
+    print(_c(RED + BOLD, "  ══ STOP — log access issues detected ══"))
+    if not local_ok:
+        print(_c(RED, "    ✗ Local OpenObserve is not accessible."))
+        print(_c(DIM, "      Dev-server logs and OpenObserve presets will not work."))
+    if not prod_ok:
+        print(_c(RED, "    ✗ Production Admin API is not accessible."))
+        print(_c(DIM, "      Production log queries (--production / run_prod_mode) will fail."))
+    print()
+    print("  Please resolve the issues above and re-run `debug.py health` before proceeding.")
+    print()
+    sys.exit(1)
 
 
 # ─── Redis queue depth helper ─────────────────────────────────────────────────
@@ -169,19 +307,34 @@ async def _get_celery_queue_depths() -> Dict[str, int]:
 
 # ─── Main health check ────────────────────────────────────────────────────────
 
-async def run_health_check(verbose: bool = False) -> None:
+async def run_health_check(verbose: bool = False, skip_log_access: bool = False) -> None:
     """
     Run a comprehensive system health check:
+    - Log access (OpenObserve local + production Admin API) — mandatory first step
     - Prometheus target status (api, prometheus self)
     - API error rate and latency from Prometheus
     - Celery queue depths from Redis
-    - Recent error logs from Loki
+    - Recent error logs from OpenObserve
     - Celery task failure count (if metrics available)
+
+    Args:
+        verbose: Show extended metrics (request breakdown, celery failures, error fingerprints).
+        skip_log_access: Skip log access check (for callers that already ran it).
     """
     print(_section("OpenMates System Health"))
     print(_c(DIM, f"  {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} UTC\n"))
 
     issues_found = 0
+
+    # ── 0. Log access — verify we can actually read logs before proceeding ────
+    if not skip_log_access:
+        local_ok, prod_ok = await check_log_access()
+        if not local_ok or not prod_ok:
+            import sys
+            print(_c(RED + BOLD, "  STOP — cannot access one or more log sources (see above)."))
+            print("  Resolve the issues and re-run `debug.py health` before debugging.")
+            print()
+            sys.exit(1)
 
     # ── 1. Prometheus targets ──────────────────────────────────────────────
     print(_c(BOLD, "  Prometheus Targets"))
@@ -279,10 +432,10 @@ async def run_health_check(verbose: bool = False) -> None:
             else:
                 print(_c(DIM, f"  {q}: {n} pending"))
 
-    # ── 4. Recent errors from Loki ─────────────────────────────────────────
+    # ── 4. Recent errors from OpenObserve ──────────────────────────────────
     since_min = 60 if not verbose else 30
     limit = 5 if not verbose else 10
-    recent_errors = await _loki_recent_errors(limit=limit, since_minutes=since_min)
+    recent_errors = await _openobserve_recent_errors(limit=limit, since_minutes=since_min)
     print()
     if recent_errors:
         print(_c(BOLD, f"  Recent Errors (last {since_min} min, newest first)"))
@@ -657,7 +810,7 @@ async def show_error_fingerprints(top: int = 10) -> None:
             print(f"  {_c(color, str(count).rjust(6))}  {exc_type:<30}  {location}")
 
         print()
-        # Also sample recent occurrences from Loki for each fingerprint
+        # Also sample recent occurrences from OpenObserve for each fingerprint
         print(_c(DIM, "  Tip: Run `debug.py logs <email>` to trace errors to specific users."))
         await cache.close()
     except Exception as exc:
@@ -670,59 +823,63 @@ async def show_error_fingerprints(top: int = 10) -> None:
 
 async def replay_request(request_id: str) -> None:
     """
-    Reconstruct the full timeline of a request by querying Loki for all
+    Reconstruct the full timeline of a request by querying OpenObserve for all
     log entries with the given request_id across all services.
     """
     print(_section(f"Request Replay: {request_id}"))
 
     try:
+        import os
+        email = os.getenv("OPENOBSERVE_ROOT_EMAIL", "")
+        password = os.getenv("OPENOBSERVE_ROOT_PASSWORD", "")
+
         since_min = 1440  # 24h — request_id logs may be from yesterday
-        now_ns = int(time.time() * 1e9)
-        start_ns = int((time.time() - since_min * 60) * 1e9)
+        start_us = int((time.time() - since_min * 60) * 1_000_000)
+        end_us = int(time.time() * 1_000_000)
 
-        # LogQL: match request_id in JSON logs
-        loki_query = '{job=~".+"} | json | request_id=`' + request_id + '`'
+        # OpenObserve SQL: search for request_id in JSON log body
+        sql = (
+            f"SELECT _timestamp, container, service, log, message, level "
+            f"FROM \"default\" "
+            f"WHERE log LIKE '%{request_id}%' OR message LIKE '%{request_id}%' "
+            f"ORDER BY _timestamp ASC LIMIT 500"
+        )
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.get(
-                f"{LOKI_URL}/loki/api/v1/query_range",
-                params={
-                    "query": loki_query,
-                    "start": str(start_ns),
-                    "end": str(now_ns),
-                    "limit": 500,
-                    "direction": "forward",
-                }
-            )
+        url = f"{OPENOBSERVE_URL}/api/{OPENOBSERVE_ORG}/default/_search"
+        body = {"query": {"sql": sql, "start_time": start_us, "end_time": end_us}}
+
+        async with httpx.AsyncClient(timeout=30.0, auth=(email, password)) as client:
+            resp = await client.post(url, json=body)
 
         if resp.status_code != 200:
-            print(_err(f"  Loki returned {resp.status_code}: {resp.text[:200]}"))
+            print(_err(f"  OpenObserve returned {resp.status_code}: {resp.text[:200]}"))
             return
 
         data = resp.json()
         all_events = []
-        for stream in data.get("data", {}).get("result", []):
-            svc = stream.get("stream", {}).get("container_name",
-                  stream.get("stream", {}).get("job", "?"))
-            for ts_str, line in stream.get("values", []):
-                try:
-                    entry = json.loads(line)
-                    level = entry.get("level", entry.get("levelname", "info")).upper()
-                    msg = entry.get("message", line[:160])
-                except Exception:
-                    level = "INFO"
-                    msg = line[:160]
-                all_events.append({
-                    "ts": int(ts_str),
-                    "service": svc,
-                    "level": level,
-                    "message": msg,
-                })
+        for hit in data.get("hits", []):
+            ts_us = hit.get("_timestamp", 0)
+            svc = hit.get("container", hit.get("service", "?"))
+            log_line = hit.get("log", hit.get("message", ""))
+            try:
+                entry = json.loads(log_line)
+                level = entry.get("level", entry.get("levelname", "info")).upper()
+                msg = entry.get("message", log_line[:160])
+            except Exception:
+                level = hit.get("level", "INFO").upper()
+                msg = log_line[:160]
+            all_events.append({
+                "ts": int(ts_us) * 1000,  # µs → ns for display consistency
+                "service": svc,
+                "level": level,
+                "message": msg,
+            })
 
         if not all_events:
             print(_warn(f"  No log entries found for request_id={request_id}"))
             print(_c(DIM, "  Note: Only requests with request_id propagation are traceable."))
-            print(_c(DIM, "  Loki retention is 7 days."))
+            print(_c(DIM, "  OpenObserve retention: 14 days for operational logs (ZO_COMPACT_DATA_RETENTION_DAYS)."))
+            print(_c(DIM, "  Compliance streams: audit-compliance=2yr, financial-compliance=10yr (stream-level overrides)."))
             print()
             return
 
@@ -773,10 +930,18 @@ async def _async_main():
     parser = argparse.ArgumentParser(description="Health, replay, and errors")
     sub = parser.add_subparsers(dest="command")
 
-    health_p = sub.add_parser("health", help="System health check")
+    health_p = sub.add_parser("health", help="System health check (includes log access verification)")
     health_p.add_argument("-v", "--verbose", action="store_true")
+    health_p.add_argument(
+        "--log-access", action="store_true",
+        help="Run ONLY the log access check (OpenObserve + production API). Exit 1 if any source is down.",
+    )
+    health_p.add_argument(
+        "--skip-log-access", action="store_true",
+        help="Skip the log access check (useful when called from another health workflow).",
+    )
 
-    replay_p = sub.add_parser("replay", help="Replay request trace from Loki")
+    replay_p = sub.add_parser("replay", help="Replay request trace from OpenObserve")
     replay_p.add_argument("request_id", help="Request ID")
 
     errors_p = sub.add_parser("errors", help="Top error fingerprints")
@@ -785,7 +950,11 @@ async def _async_main():
     args = parser.parse_args()
 
     if args.command == "health":
-        await run_health_check(verbose=args.verbose)
+        if args.log_access:
+            # Only run the log access check — exit 1 on failure (see run_log_access_check)
+            await run_log_access_check()
+        else:
+            await run_health_check(verbose=args.verbose, skip_log_access=args.skip_log_access)
     elif args.command == "replay":
         await replay_request(request_id=args.request_id)
     elif args.command == "errors":

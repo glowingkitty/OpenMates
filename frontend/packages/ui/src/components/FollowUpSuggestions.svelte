@@ -96,26 +96,27 @@
   }
 
   /**
-   * Strip HTML tags from text to display as plain text
-   * Converts HTML like "<strong><mark>Open</mark>Mates</strong>" to "OpenMates"
+   * Strip HTML tags from text to display as plain text.
+   * Converts HTML like "<strong><mark>Open</mark>Mates</strong>" to "OpenMates".
+   * Uses DOM in the browser; falls back to a simple regex during SSR prerender
+   * where `document` is not available.
    */
   function stripHtmlTags(html: string): string {
     if (!html) return '';
-    // Create a temporary div to parse HTML
-    const tmp = document.createElement('div');
-    tmp.innerHTML = html;
-    return tmp.textContent || tmp.innerText || '';
+    if (typeof document !== 'undefined') {
+      // Browser: use DOM for accurate HTML parsing
+      const tmp = document.createElement('div');
+      tmp.innerHTML = html;
+      return tmp.textContent || tmp.innerText || '';
+    }
+    // SSR fallback: strip tags with a simple regex
+    return html.replace(/<[^>]+>/g, '');
   }
 
-  // Detect if device is touch-capable
-  // Checks for ontouchstart event support and maxTouchPoints
-  const isTouchDevice = () => {
-    return (('ontouchstart' in window) ||
-            (navigator.maxTouchPoints > 0) ||
-            ((navigator as Navigator & { msMaxTouchPoints?: number }).msMaxTouchPoints > 0));
-  };
-
-  let touchDevice = $state(isTouchDevice());
+  // Detect if device is touch-capable.
+  // `window`/`navigator` are not available during SSR prerender — start as false
+  // and update in onMount once running in the browser.
+  let touchDevice = $state(false);
 
   // Full suggestions pool - computed from prop to avoid duplicates.
   // Strip HTML tags and parse prefix. Search is done over the full raw string
@@ -132,19 +133,12 @@
     // When input is empty, show first 3 suggestions
     if (!messageInputContent || messageInputContent.trim() === '') {
       const displayedSuggestions = fullSuggestions.slice(0, 3);
-      console.debug('[FollowUpSuggestions] Showing first 3 suggestions (input empty):', displayedSuggestions.length);
       return displayedSuggestions.map(parsed => ({ ...parsed, matchIndex: -1, matchLength: 0 }));
     }
 
     // When user is typing, filter across the FULL pool (searching over body text)
     const searchTerm = messageInputContent.trim();
     const searchTermLower = searchTerm.toLowerCase();
-
-    console.debug('[FollowUpSuggestions] Filtering with search term:', {
-      searchTerm,
-      searchTermLower,
-      fullPoolSize: fullSuggestions.length
-    });
 
     // Search over body text (not the prefix) so prefix doesn't interfere with filtering
     const filtered = fullSuggestions
@@ -163,7 +157,6 @@
       // Limit to top 3 unique matches
       .slice(0, 3);
 
-    console.debug('[FollowUpSuggestions] Filtered results:', filtered.length, 'unique matches');
 
     return filtered;
   });
@@ -192,11 +185,17 @@
     onSuggestionClick(body, mentionSyntax);
   }
 
-  // Update currentLocale when language changes to force component re-render
+  // Update currentLocale when language changes to force component re-render.
+  // Also resolve touch capability here — `window`/`navigator` are only safe in the browser.
   onMount(() => {
+    // Resolve touch capability now that we are in the browser
+    touchDevice =
+      'ontouchstart' in window ||
+      navigator.maxTouchPoints > 0 ||
+      (navigator as Navigator & { msMaxTouchPoints?: number }).msMaxTouchPoints > 0;
+
     const handleLanguageChange = () => {
       currentLocale = $locale;
-      console.debug('[FollowUpSuggestions] Language changed, updating locale:', currentLocale);
     };
     
     window.addEventListener('language-changed', handleLanguageChange);

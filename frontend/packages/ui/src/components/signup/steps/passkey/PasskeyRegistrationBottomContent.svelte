@@ -14,7 +14,6 @@
     import { text } from '@repo/ui';
     import { fade } from 'svelte/transition';
     import { createEventDispatcher } from 'svelte';
-    import { getWebsiteUrl, routes } from '../../../../config/links';
     import { getApiEndpoint, apiEndpoints } from '../../../../config/api';
     import { signupStore } from '../../../../stores/signupStore';
     import { requireInviteCode } from '../../../../stores/signupRequirements';
@@ -311,7 +310,7 @@
             
             // Step 15: Extract credential data for backend
             const credentialId = arrayBufferToBase64Url(credential.rawId);
-            const clientDataJSON = new TextDecoder().decode(response.clientDataJSON);
+            const _clientDataJSON = new TextDecoder().decode(response.clientDataJSON);
             const clientDataJSONB64 = cryptoService.uint8ArrayToBase64(new Uint8Array(response.clientDataJSON));
             const attestationObject = new Uint8Array(response.attestationObject);
             const attestationObjectB64 = cryptoService.uint8ArrayToBase64(attestationObject);

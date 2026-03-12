@@ -16,7 +16,6 @@ import {
 import * as sessionActions from "./authSessionActions";
 import * as loginLogoutActions from "./authLoginLogoutActions";
 import * as miscActions from "./authMiscActions";
-import * as derivedStores from "./authDerivedStores";
 
 // Combine the core store with all action functions
 export const authStore = {

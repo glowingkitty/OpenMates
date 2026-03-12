@@ -8,7 +8,7 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
     import { getApiEndpoint } from '../../../config/api';
     import { encryptWithMasterKey, decryptWithMasterKey } from '../../../services/cryptoService';
 
-    const dispatch = createEventDispatcher();
+    const _dispatch = createEventDispatcher();
 
     // State using Svelte 5 $state() runes
     let devices = $state<Array<{

@@ -84,10 +84,19 @@ test('completes full signup flow with email + 2FA + purchase', async ({
 		networkActivities.push(`[${timestamp}] >> ${request.method()} ${request.url()}`);
 	});
 
-	// Listen for network responses
-	page.on('response', (response: any) => {
+	// Listen for network responses (log body for auth endpoints to debug failures)
+	page.on('response', async (response: any) => {
 		const timestamp = new Date().toISOString();
-		networkActivities.push(`[${timestamp}] << ${response.status()} ${response.url()}`);
+		const url: string = response.url();
+		networkActivities.push(`[${timestamp}] << ${response.status()} ${url}`);
+		if (url.includes('/auth/') && response.status() < 500) {
+			try {
+				const body = await response.text();
+				networkActivities.push(`[${timestamp}]    body: ${body.slice(0, 300)}`);
+			} catch {
+				// ignore body read errors
+			}
+		}
 	});
 
 	test.slow();
@@ -218,8 +227,8 @@ test('completes full signup flow with email + 2FA + purchase', async ({
 	await confirmEmailInput.fill(emailCode);
 
 	// Secure account step: choose password-based setup.
-	const passwordOption = page.getByRole('button', { name: /password/i });
-	await expect(passwordOption).toBeVisible();
+	const passwordOption = page.locator('#signup-password-option');
+	await expect(passwordOption).toBeVisible({ timeout: 15000 });
 	await takeStepScreenshot(page, 'secure-account');
 	await passwordOption.click();
 	await takeStepScreenshot(page, 'password-step');
@@ -236,19 +245,19 @@ test('completes full signup flow with email + 2FA + purchase', async ({
 	const passwordManagerLink = page.getByRole('link', { name: /password manager/i });
 	await expect(passwordManagerLink).toHaveAttribute('href', /^https?:/i);
 
-	await page.getByRole('button', { name: /continue/i }).click();
+	await page.locator('#signup-password-continue').click();
 	await takeStepScreenshot(page, 'one-time-codes');
 	logSignupCheckpoint('Reached one-time codes step.');
 
 	// One-time codes step: show QR, copy secret, validate selectable secret input.
-	const qrButton = page.getByRole('button', { name: /scan via 2fa app/i });
+	const qrButton = page.locator('#signup-2fa-scan-qr');
 	await qrButton.click();
 	await expect(page.locator('.qr-code')).toBeVisible();
 	await takeStepScreenshot(page, 'one-time-codes-qr');
 	await qrButton.click();
 	await expect(page.locator('.qr-code')).toBeHidden();
 
-	const copySecretButton = page.getByRole('button', { name: /copy secret/i });
+	const copySecretButton = page.locator('#signup-2fa-copy-secret');
 	await copySecretButton.click();
 
 	const secretInput = page.locator('input[aria-label="2FA Secret Key"]');
@@ -279,13 +288,13 @@ test('completes full signup flow with email + 2FA + purchase', async ({
 	const appResult = page.getByRole('button', { name: /google authenticator/i });
 	await appResult.click();
 
-	const tfaContinueButton = page.getByRole('button', { name: /continue/i });
+	const tfaContinueButton = page.locator('#signup-2fa-reminder-continue');
 	await tfaContinueButton.click();
 	await takeStepScreenshot(page, 'backup-codes');
 	logSignupCheckpoint('Reached backup codes step.');
 
 	// Backup codes step: download and confirm stored.
-	const backupDownloadButton = page.getByRole('button', { name: /download/i }).first();
+	const backupDownloadButton = page.locator('#signup-backup-codes-download');
 	const [backupDownload] = await Promise.all([
 		page.waitForEvent('download'),
 		backupDownloadButton.click()
@@ -299,7 +308,7 @@ test('completes full signup flow with email + 2FA + purchase', async ({
 	logSignupCheckpoint('Confirmed backup code storage.');
 
 	// Recovery key step: download, copy, print, and confirm stored.
-	const recoveryDownloadButton = page.getByRole('button', { name: /download/i }).first();
+	const recoveryDownloadButton = page.locator('#signup-recovery-key-download');
 	const [recoveryDownload] = await Promise.all([
 		page.waitForEvent('download'),
 		recoveryDownloadButton.click()
@@ -308,12 +317,12 @@ test('completes full signup flow with email + 2FA + purchase', async ({
 	expect(await recoveryDownload.suggestedFilename()).toMatch(/recovery/i);
 	logSignupCheckpoint('Downloaded recovery key.');
 
-	const recoveryCopyButton = page.getByRole('button', { name: /^copy$/i });
+	const recoveryCopyButton = page.locator('#signup-recovery-key-copy');
 	await recoveryCopyButton.click();
 
 	const [printPage] = await Promise.all([
 		context.waitForEvent('page'),
-		page.getByRole('button', { name: /print/i }).click()
+		page.locator('#signup-recovery-key-print').click()
 	]);
 	await printPage.close();
 	await takeStepScreenshot(page, 'recovery-key-actions');
@@ -325,16 +334,16 @@ test('completes full signup flow with email + 2FA + purchase', async ({
 	logSignupCheckpoint('Reached credits step.');
 
 	// Credits step: exercise gift card path (cancel) and navigation buttons.
-	const giftCardButton = page.locator('.gift-card-button');
+	const giftCardButton = page.locator('#signup-credits-gift-card');
 	await giftCardButton.scrollIntoViewIfNeeded();
 	await giftCardButton.click();
 	await takeStepScreenshot(page, 'credits-giftcard');
-	await page.getByRole('button', { name: /cancel/i }).click();
+	await page.locator('#signup-gift-card-cancel').click();
 	await takeStepScreenshot(page, 'credits-ready');
 	logSignupCheckpoint('Completed credits step actions.');
 
-	const moreButton = page.getByRole('button', { name: /more/i });
-	const lessButton = page.getByRole('button', { name: /less/i });
+	const moreButton = page.locator('#signup-credits-more');
+	const lessButton = page.locator('#signup-credits-less');
 	if (await moreButton.isVisible()) {
 		await moreButton.click();
 	}
@@ -375,10 +384,7 @@ test('completes full signup flow with email + 2FA + purchase', async ({
 	logSignupCheckpoint('Purchase completed successfully.');
 
 	// Auto top-up step: finish setup and confirm redirect into the app.
-	await page
-		.getByRole('button', { name: /finish setup/i })
-		.first()
-		.click();
+	await page.locator('#signup-finish-setup').click();
 	await page.waitForURL(/chat/);
 	await takeStepScreenshot(page, 'chat');
 	logSignupCheckpoint('Arrived in chat after signup.');

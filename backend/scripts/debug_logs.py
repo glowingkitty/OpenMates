@@ -7,7 +7,7 @@ Combines backend logs, compliance events, container logs, client console logs,
 and satellite server logs.  Supports multiple modes:
 
   1. User timeline (default):  Per-user activity log across all services.
-  2. Browser console logs:     Search admin browser console logs in Loki.
+  2. Browser console logs:     Search admin browser console logs in OpenObserve.
   3. Satellite server logs:    Fetch Docker logs from upload/preview servers.
   4. Satellite server update:  Trigger git-pull + rebuild on upload/preview.
   5. Satellite server status:  Poll last update status on upload/preview.
@@ -30,11 +30,20 @@ Usage — Browser Console Log Mode (no email required):
     docker exec api python /app/backend/scripts/debug_logs.py --browser --since 10
     docker exec api python /app/backend/scripts/debug_logs.py --browser --level error
     docker exec api python /app/backend/scripts/debug_logs.py --browser --user jan41139
+    docker exec api python /app/backend/scripts/debug_logs.py --browser --device iphone
+    docker exec api python /app/backend/scripts/debug_logs.py --browser --device iphone --level error
     docker exec api python /app/backend/scripts/debug_logs.py --browser --search "decrypt"
     docker exec api python /app/backend/scripts/debug_logs.py --browser --limit 100
     docker exec api python /app/backend/scripts/debug_logs.py --browser --follow
     docker exec api python /app/backend/scripts/debug_logs.py --browser --json
     docker exec api python /app/backend/scripts/debug_logs.py --browser --prod
+
+Usage — OpenObserve Summary Mode (no email required):
+    docker exec api python /app/backend/scripts/debug_logs.py --o2 --preset web-app-health --since 60
+    docker exec api python /app/backend/scripts/debug_logs.py --o2 --preset web-search-failures --since 1440
+    docker exec api python /app/backend/scripts/debug_logs.py --o2 --preset api-failed-requests --since 1440
+    docker exec api python /app/backend/scripts/debug_logs.py --o2 --sql "SELECT * FROM \"default\" ORDER BY _timestamp DESC" --quiet-health
+    docker exec api python /app/backend/scripts/debug_logs.py --o2 --sql "SELECT level, COUNT(*) as c FROM \"default\" GROUP BY level"
 
 Usage — Satellite Server Logs:
     docker exec api python /app/backend/scripts/debug_logs.py --upload-logs
@@ -58,6 +67,7 @@ import logging
 import re
 import sys
 import time
+from collections import Counter
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, List, Optional, Tuple
@@ -98,7 +108,8 @@ script_logger = configure_script_logging(
 
 # ─── Constants ────────────────────────────────────────────────────────────────
 
-LOKI_URL = "http://loki:3100"
+OPENOBSERVE_URL = "http://openobserve:5080"
+OPENOBSERVE_ORG = "default"
 DEFAULT_SINCE_MINUTES = 1440  # 24 hours
 MAX_LOKI_ENTRIES = 5000
 FOLLOW_POLL_INTERVAL_SECONDS = 5
@@ -116,6 +127,19 @@ PREVIEW_SERVER_STATUS_URL = "https://preview.openmates.org/admin/update/status"
 # Default settings for browser log mode
 BROWSER_LOG_DEFAULT_SINCE_MINUTES = 30
 BROWSER_LOG_DEFAULT_LIMIT = 200
+O2_DEFAULT_SINCE_MINUTES = 60
+O2_DEFAULT_MAX_ROWS = 200
+O2_PRESETS = (
+    "web-app-health",
+    "web-search-failures",
+    "api-failed-requests",
+    "top-warnings-errors",
+    "chat-processing",
+)
+HEALTH_NOISE_PATHS = (
+    " /health ",
+    " /healthz ",
+)
 
 
 # Category → colour mapping
@@ -270,7 +294,7 @@ async def resolve_user(email: str) -> Optional[Dict[str, Any]]:
         admin_username = None
         if is_admin:
             # Admin username is stored in the account_id field or we can derive from email
-            # For Loki client logs, user_email label is the admin username (email prefix)
+            # For OpenObserve client logs, user_email field is the admin username (email prefix)
             admin_username = email.split("@")[0] if "@" in email else email
 
         return {
@@ -311,7 +335,7 @@ def classify_event(message: str, level: str, source: str) -> Tuple[str, str]:
 
 
 def parse_timestamp_ns(ns_str: str) -> Tuple[str, int]:
-    """Convert Loki nanosecond timestamp → (ISO string, ns int)."""
+    """Convert a nanosecond timestamp → (ISO string, ns int)."""
     ns = int(ns_str)
     ts_seconds = ns / 1_000_000_000
     dt = datetime.fromtimestamp(ts_seconds, tz=timezone.utc)
@@ -330,84 +354,118 @@ def extract_level_from_message(message: str) -> str:
     return "info"
 
 
-# ─── Loki querying ───────────────────────────────────────────────────────────
+# ─── OpenObserve querying ────────────────────────────────────────────────────
 
-async def query_loki(
-    query: str,
+async def query_openobserve(
+    stream: str,
+    sql: str,
     since_minutes: int,
     limit: int = MAX_LOKI_ENTRIES,
-    start_ns: Optional[int] = None,
+    start_us: Optional[int] = None,
 ) -> List[LogEvent]:
-    """Query Loki and return parsed LogEvent list."""
-    if start_ns:
-        start_param = str(start_ns)
-    else:
-        start_seconds = time.time() - (since_minutes * 60)
-        start_param = str(int(start_seconds * 1_000_000_000))
+    """Query OpenObserve via SQL search API and return parsed LogEvent list.
 
-    end_param = str(int(time.time() * 1_000_000_000))
-
-    params = {
-        "query": query,
-        "limit": str(limit),
-        "start": start_param,
-        "end": end_param,
-        "direction": "forward",
-    }
+    OpenObserve SQL search: POST /api/{org}/{stream}/_search
+    Body: {"query": {"sql": "...", "start_time": <µs>, "end_time": <µs>}}
+    """
+    if start_us is None:
+        start_us = int((time.time() - since_minutes * 60) * 1_000_000)
+    hits = await _query_openobserve_sql_hits(
+        sql=sql,
+        since_minutes=since_minutes,
+        max_rows=limit,
+        start_us=start_us,
+    )
 
     events: List[LogEvent] = []
-    try:
-        timeout = aiohttp.ClientTimeout(total=30)
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.get(f"{LOKI_URL}/loki/api/v1/query_range", params=params) as resp:
-                if resp.status != 200:
-                    error_text = await resp.text()
-                    script_logger.warning(f"Loki query failed ({resp.status}): {error_text[:200]}")
-                    return events
-                data = await resp.json()
-    except aiohttp.ClientError as e:
-        script_logger.warning(f"Cannot connect to Loki: {e}")
-        return events
+    for hit in hits:
+        ts_us_val = hit.get("_timestamp", 0)
+        # OpenObserve returns microseconds; convert to nanoseconds for internal consistency
+        ts_ns = int(ts_us_val) * 1000
+        ts_str = datetime.fromtimestamp(ts_us_val / 1_000_000, tz=timezone.utc).strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
 
-    results = data.get("data", {}).get("result", [])
-    for stream in results:
-        labels = stream.get("stream", {})
-        stream_level = labels.get("level", "info")
-        stream_source = labels.get("container", labels.get("service", "unknown"))
-        # For client console logs, source is "browser"
-        if labels.get("job") == "client-console":
+        message = hit.get("log", hit.get("message", "")).strip()
+        level = hit.get("level", extract_level_from_message(message))
+
+        # Determine source from stream metadata
+        stream_source = hit.get("container", hit.get("service", "unknown"))
+        job = hit.get("job", "")
+        if job == "client-console":
             stream_source = "browser"
-        # For compliance logs, source is "compliance"
-        if labels.get("job") == "compliance-logs":
+        elif job == "compliance-logs":
             stream_source = "compliance"
 
-        for value in stream.get("values", []):
-            ts_ns_str, message = value[0], value[1]
-            ts_str, ts_ns = parse_timestamp_ns(ts_ns_str)
+        category, event_name = classify_event(message, level, stream_source)
 
-            # Determine level
-            level = stream_level or extract_level_from_message(message)
+        display_msg = message
+        if len(display_msg) > 300:
+            display_msg = display_msg[:297] + "..."
 
-            # Classify
-            category, event_name = classify_event(message, level, stream_source)
-
-            # Truncate message for display
-            display_msg = message.strip()
-            if len(display_msg) > 300:
-                display_msg = display_msg[:297] + "..."
-
-            events.append(LogEvent(
-                timestamp=ts_str,
-                timestamp_ns=ts_ns,
-                category=category,
-                event_name=event_name,
-                source=stream_source,
-                level=level,
-                message=display_msg,
-                raw=message.strip(),
-            ))
+        events.append(LogEvent(
+            timestamp=ts_str,
+            timestamp_ns=ts_ns,
+            category=category,
+            event_name=event_name,
+            source=stream_source,
+            level=level,
+            message=display_msg,
+            raw=message,
+        ))
 
     return events
+
+
+async def _query_openobserve_sql_hits(
+    sql: str,
+    since_minutes: int,
+    max_rows: int,
+    start_us: Optional[int] = None,
+) -> List[Dict[str, Any]]:
+    """Execute OpenObserve SQL and return raw hits list."""
+    import os
+
+    email = os.getenv("OPENOBSERVE_ROOT_EMAIL", "")
+    password = os.getenv("OPENOBSERVE_ROOT_PASSWORD", "")
+
+    if start_us is None:
+        start_us = int((time.time() - since_minutes * 60) * 1_000_000)
+    end_us = int(time.time() * 1_000_000)
+
+    sql_text = sql.strip().rstrip(";")
+    if " limit " not in sql_text.lower():
+        sql_text = f"{sql_text} LIMIT {max_rows}"
+
+    body = {"query": {"sql": sql_text, "start_time": start_us, "end_time": end_us}}
+    urls = (
+        f"{OPENOBSERVE_URL}/api/{OPENOBSERVE_ORG}/_search",
+        f"{OPENOBSERVE_URL}/api/{OPENOBSERVE_ORG}/default/_search",
+    )
+
+    timeout = aiohttp.ClientTimeout(total=30)
+    try:
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            for url in urls:
+                async with session.post(url, json=body, auth=aiohttp.BasicAuth(email, password)) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        return data.get("hits", [])
+
+                    error_text = await resp.text()
+                    if resp.status == 404:
+                        continue
+
+                    script_logger.warning(
+                        f"OpenObserve query failed ({resp.status}) at {url}: {error_text[:200]}"
+                    )
+                    return []
+    except aiohttp.ClientError as exc:
+        script_logger.warning(f"Cannot connect to OpenObserve: {exc}")
+        return []
+
+    script_logger.warning("OpenObserve query failed: no working _search endpoint found")
+    return []
 
 
 async def query_satellite_logs(
@@ -494,25 +552,18 @@ async def query_satellite_logs(
 
 # ─── Main log aggregation ────────────────────────────────────────────────────
 
-def loki_escape(s: str) -> str:
-    """Escape a string for use inside a Loki regex filter |~ "...".
-    UUIDs and hex strings only need hyphen-safe treatment.
-    Loki uses RE2 syntax inside double-quoted strings where backslash
-    escapes like \\- are invalid. Hyphens are literal in RE2 outside
-    character classes, so no escaping is needed for UUID-like strings.
-    """
-    # For UUIDs/hex, no special chars need escaping.
-    # For safety, escape only truly special regex chars (not hyphens).
-    return re.sub(r'([.+*?^${}()\[\]\\|])', r'\\\1', s)
+def sql_escape(s: str) -> str:
+    """Escape a string for safe embedding in an OpenObserve SQL clause."""
+    return s.replace("'", "''")  # escape single quotes for SQL\[\]\\|])', r'\\\1', s)
 
 
 def build_chat_id_regex(chat_ids: List[str], max_ids: int = 20) -> str:
-    """Build a Loki regex alternation for a list of chat IDs."""
+    """Build an OR pattern for a list of chat IDs (used in SQL LIKE queries)."""
     if not chat_ids:
         return ""
     # Limit to avoid overly long regex
     ids = chat_ids[:max_ids]
-    return "|".join(loki_escape(cid) for cid in ids)
+    return "|".join(sql_escape(cid) for cid in ids)
 
 
 async def gather_all_events(
@@ -520,7 +571,7 @@ async def gather_all_events(
     since_minutes: int,
     chat_id_filter: Optional[str] = None,
 ) -> List[LogEvent]:
-    """Fire all Loki queries in parallel and merge results."""
+    """Fire all OpenObserve SQL queries in parallel and merge results."""
     user_id = user_info["user_id"]
     chat_ids = user_info["chat_ids"]
     is_admin = user_info["is_admin"]
@@ -529,7 +580,7 @@ async def gather_all_events(
     # Build search patterns
     # user_id is the primary match; also match on first 6 chars (legacy truncated format)
     user_id_short = user_id[:6]
-    user_id_regex = f"{loki_escape(user_id)}|{loki_escape(user_id_short)}"
+    user_id_regex = f"{sql_escape(user_id)}|{sql_escape(user_id_short)}"
 
     if chat_id_filter:
         chat_ids = [chat_id_filter]
@@ -542,7 +593,7 @@ async def gather_all_events(
     # Build queries
     queries: List[Tuple[str, str]] = []  # (query, description)
 
-    # 1. Compliance logs (user_id is a Loki label — fast!)
+    # 1. Compliance logs — labelled stream
     queries.append((
         f'{{job="compliance-logs", user_id="{user_id}"}}',
         "compliance",
@@ -580,8 +631,11 @@ async def gather_all_events(
             "client-console",
         ))
 
-    # Fire all Loki queries in parallel
-    tasks = [query_loki(q, since_minutes) for q, _ in queries]
+    # Fire all OpenObserve queries in parallel
+    tasks = []
+    for query_entry in queries:
+        sql = query_entry[0]
+        tasks.append(query_openobserve("default", sql, since_minutes))
 
     # Also query satellite servers in parallel
     satellite_search = user_id
@@ -595,14 +649,14 @@ async def gather_all_events(
 
     # Merge
     all_events: List[LogEvent] = []
-    query_descs = [desc for _, desc in queries] + ["upload", "preview"]
+    query_descs = [entry[1] for entry in queries] + ["upload", "preview"]
 
     for i, result in enumerate(all_results):
         desc = query_descs[i] if i < len(query_descs) else f"query-{i}"
-        if isinstance(result, Exception):
+        if isinstance(result, BaseException):
             script_logger.warning(f"Query '{desc}' failed: {result}")
             continue
-        if result:
+        if isinstance(result, list) and result:
             all_events.extend(result)
 
     # Sort by timestamp
@@ -831,7 +885,7 @@ async def follow_mode(
 # Admin Debug API base URL (production) — accessed from inside the Docker network
 PROD_API_BASE = "https://api.openmates.org/v1/admin/debug"
 
-# Services to query for user-specific logs — mirrors the Loki queries in gather_all_events
+# Services to query for user-specific logs — mirrors the OpenObserve queries in gather_all_events
 PROD_LOG_SERVICES = ["api", "task-worker", "task-scheduler", "app-ai", "app-ai-worker",
                      "app-web", "app-web-worker", "app-events"]
 
@@ -921,7 +975,7 @@ async def run_prod_mode(
     verbose: bool = False,
 ) -> None:
     """
-    Production mode: query user logs via the Admin Debug API instead of local Loki.
+    Production mode: query user logs via the Admin Debug API instead of local OpenObserve.
 
     Flow:
       1. Get admin API key from Vault
@@ -1018,13 +1072,14 @@ async def run_prod_mode(
 
 
 # ─── Browser console log mode ────────────────────────────────────────────────
-# Queries Loki for admin browser console logs (job="client-console").
+# Queries OpenObserve for admin browser console logs (stream: client-console).
 # Does NOT require a user email — can search across ALL admins.
 
 def _build_browser_log_query(
     level: Optional[str] = None,
     user: Optional[str] = None,
     search: Optional[str] = None,
+    device: Optional[str] = None,
 ) -> str:
     """Build a LogQL query for browser console logs."""
     labels = ['job="client-console"']
@@ -1032,6 +1087,8 @@ def _build_browser_log_query(
         labels.append(f'level="{level}"')
     if user:
         labels.append(f'user_email="{user}"')
+    if device:
+        labels.append(f'device_type="{device.lower()}"')
 
     query = "{" + ", ".join(labels) + "}"
 
@@ -1041,93 +1098,115 @@ def _build_browser_log_query(
     return query
 
 
-def _print_browser_log_entry(timestamp_ns: str, message: str, level: str, user: str) -> None:
+def _print_browser_log_entry(
+    timestamp_ns: str,
+    message: str,
+    level: str,
+    user: str,
+    device_type: str = "",
+) -> None:
     """Print a single formatted browser console log entry."""
     ts = parse_timestamp_ns(timestamp_ns)[0]
     level_colors = {"error": C_RED, "warn": C_YELLOW, "info": C_GREEN, "debug": C_GRAY}
     level_color = level_colors.get(level, C_DIM)
     level_str = f"{level_color}{level.upper():5s}{C_RESET}"
     user_str = f"{C_DIM}[{user}]{C_RESET}"
-    print(f"{C_DIM}{ts}{C_RESET} {level_str} {user_str} {message}")
+    device_str = f"{C_DIM}[{device_type}]{C_RESET}" if device_type else ""
+    suffix = f" {device_str}" if device_str else ""
+    print(f"{C_DIM}{ts}{C_RESET} {level_str} {user_str}{suffix} {message}")
 
 
-async def _query_browser_logs_loki(
+async def _query_browser_logs_openobserve(
     since_minutes: int,
     limit: int,
     level: Optional[str],
     user: Optional[str],
     search: Optional[str],
     as_json: bool,
-    start_ns: Optional[int] = None,
+    start_us: Optional[int] = None,
+    device: Optional[str] = None,
 ) -> Optional[int]:
     """
-    Query Loki for client console logs.
+    Query OpenObserve for client console logs.
 
     Returns the latest timestamp (in nanoseconds) seen, or None if no results.
+    Browser logs are pushed by admin_client_logs via OpenObservePushService using the
+    Loki-compatible push endpoint. Despite the stream label being "client-console",
+    Loki-compat pushes land in the "default" stream with job='client-console' as a
+    searchable field — there is no separate stream named "client-console".
+
+    The 'device_type' label is set by openobserve_push_service.derive_device_type()
+    and is one of: iphone, ipad, android, windows-phone, windows, mac, linux,
+    chromeos, unknown.
     """
-    query = _build_browser_log_query(level, user, search)
+    import os
+    email = os.getenv("OPENOBSERVE_ROOT_EMAIL", "")
+    password = os.getenv("OPENOBSERVE_ROOT_PASSWORD", "")
 
-    if start_ns:
-        start_param = str(start_ns)
-    else:
-        start_seconds = time.time() - (since_minutes * 60)
-        start_param = str(int(start_seconds * 1_000_000_000))
+    # job='client-console' is the label set by openobserve_push_service.push_client_logs()
+    where_clauses = ["job = 'client-console'"]
+    if level:
+        where_clauses.append(f"level = '{sql_escape(level)}'")
+    if user:
+        # user_email stores the admin username (not full email)
+        where_clauses.append(f"user_email = '{sql_escape(user)}'")
+    if device:
+        # device_type is the derived label: iphone, ipad, android, mac, windows, etc.
+        where_clauses.append(f"device_type = '{sql_escape(device.lower())}'")
+    if search:
+        where_clauses.append(f"message LIKE '%{sql_escape(search)}%'")
 
-    end_param = str(int(time.time() * 1_000_000_000))
+    where_sql = " AND ".join(where_clauses)
+    sql = (
+        f"SELECT _timestamp, message, level, user_email, device_type "
+        f'FROM "default" '
+        f"WHERE {where_sql} "
+        f"ORDER BY _timestamp ASC LIMIT {limit}"
+    )
 
-    params = {
-        "query": query,
-        "limit": str(limit),
-        "start": start_param,
-        "end": end_param,
-        "direction": "forward",
-    }
+    if start_us is None:
+        start_us = int((time.time() - since_minutes * 60) * 1_000_000)
+    end_us = int(time.time() * 1_000_000)
+
+    # Loki-compat pushes land in "default" stream — use /_search, not /client-console/_search
+    url = f"{OPENOBSERVE_URL}/api/{OPENOBSERVE_ORG}/_search"
+    body = {"query": {"sql": sql, "start_time": start_us, "end_time": end_us}}
 
     try:
         timeout = aiohttp.ClientTimeout(total=15)
         async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.get(f"{LOKI_URL}/loki/api/v1/query_range", params=params) as resp:
+            async with session.post(
+                url, json=body, auth=aiohttp.BasicAuth(email, password)
+            ) as resp:
                 if resp.status != 200:
                     error_text = await resp.text()
-                    script_logger.warning(f"Loki query failed (HTTP {resp.status}): {error_text}")
+                    script_logger.warning(f"OpenObserve query failed (HTTP {resp.status}): {error_text}")
                     return None
                 data = await resp.json()
     except aiohttp.ClientError as e:
-        script_logger.warning(f"Cannot connect to Loki at {LOKI_URL}: {e}")
+        script_logger.warning(f"Cannot connect to OpenObserve at {OPENOBSERVE_URL}: {e}")
         script_logger.warning("Make sure this script is running inside the API container (docker exec api ...)")
         return None
 
     if as_json:
         print(json.dumps(data, indent=2))
-        latest_ns = None
-        for stream in data.get("data", {}).get("result", []):
-            for value in stream.get("values", []):
-                ns = int(value[0])
-                if latest_ns is None or ns > latest_ns:
-                    latest_ns = ns
-        return latest_ns
+        latest_us = max((int(h.get("_timestamp", 0)) for h in data.get("hits", [])), default=None)
+        return latest_us * 1000 if latest_us else None
 
-    results = data.get("data", {}).get("result", [])
-    if not results:
+    hits = data.get("hits", [])
+    if not hits:
         return None
 
-    # Collect all entries, then sort by timestamp
-    all_entries = []
-    for stream in results:
-        stream_labels = stream.get("stream", {})
-        stream_level = stream_labels.get("level", "info")
-        stream_user = stream_labels.get("user_email", "unknown")
+    for hit in hits:
+        ts_us = hit.get("_timestamp", 0)
+        ts_ns_str = str(int(ts_us) * 1000)
+        message = hit.get("message", "")
+        entry_level = hit.get("level", "info")
+        entry_user = hit.get("user_email", "unknown")
+        entry_device = hit.get("device_type", "")
+        _print_browser_log_entry(ts_ns_str, message, entry_level, entry_user, entry_device)
 
-        for value in stream.get("values", []):
-            timestamp_ns, message = value[0], value[1]
-            all_entries.append((timestamp_ns, message, stream_level, stream_user))
-
-    all_entries.sort(key=lambda e: int(e[0]))
-
-    for timestamp_ns, message, entry_level, entry_user in all_entries:
-        _print_browser_log_entry(timestamp_ns, message, entry_level, entry_user)
-
-    return int(all_entries[-1][0]) if all_entries else None
+    return int(hits[-1].get("_timestamp", 0)) * 1000
 
 
 async def _browser_log_follow_mode(
@@ -1137,23 +1216,24 @@ async def _browser_log_follow_mode(
     user: Optional[str],
     search: Optional[str],
     as_json: bool,
+    device: Optional[str] = None,
 ) -> None:
-    """Continuously poll Loki for new browser console log entries."""
-    query = _build_browser_log_query(level, user, search)
+    """Continuously poll OpenObserve for new browser console log entries."""
+    query = _build_browser_log_query(level, user, search, device)
     print(f"{C_BOLD}Following client logs: {query}{C_RESET}")
     print(f"{C_DIM}Press Ctrl+C to stop{C_RESET}")
     print()
 
-    latest_ns = await _query_browser_logs_loki(since_minutes, limit, level, user, search, as_json)
+    latest_ns = await _query_browser_logs_openobserve(since_minutes, limit, level, user, search, as_json, device=device)
 
     while True:
         await asyncio.sleep(FOLLOW_POLL_INTERVAL_SECONDS)
         start_from = (latest_ns + 1) if latest_ns else None
         if start_from is None:
-            new_latest = await _query_browser_logs_loki(since_minutes, limit, level, user, search, as_json)
+            new_latest = await _query_browser_logs_openobserve(since_minutes, limit, level, user, search, as_json, device=device)
         else:
-            new_latest = await _query_browser_logs_loki(
-                since_minutes, limit, level, user, search, as_json, start_ns=start_from
+            new_latest = await _query_browser_logs_openobserve(
+                since_minutes, limit, level, user, search, as_json, start_us=start_from, device=device
             )
         if new_latest:
             latest_ns = new_latest
@@ -1161,9 +1241,9 @@ async def _browser_log_follow_mode(
 
 async def run_browser_logs_mode(args) -> None:
     """
-    Browser console log mode — query Loki for admin browser console logs.
+    Browser console log mode — query OpenObserve for admin browser console logs.
 
-    Supports --prod to fall back to the Admin Debug API when local Loki
+    Supports --prod to fall back to the Admin Debug API when local OpenObserve
     has no results (or when explicitly requested for production data).
     """
     since = getattr(args, 'since', BROWSER_LOG_DEFAULT_SINCE_MINUTES)
@@ -1174,26 +1254,28 @@ async def run_browser_logs_mode(args) -> None:
     search = getattr(args, 'search', None)
     as_json = getattr(args, 'as_json', False)
     use_prod = getattr(args, 'prod', False)
+    # Device type filter: iphone, ipad, android, mac, windows, linux, chromeos
+    device_filter = getattr(args, 'device', None)
 
     if getattr(args, 'follow', False):
         try:
-            await _browser_log_follow_mode(since, limit, level, user_filter, search, as_json)
+            await _browser_log_follow_mode(since, limit, level, user_filter, search, as_json, device=device_filter)
         except KeyboardInterrupt:
             print(f"\n{C_DIM}Stopped.{C_RESET}")
         return
 
-    query = _build_browser_log_query(level, user_filter, search)
+    query = _build_browser_log_query(level, user_filter, search, device_filter)
     print(f"{C_DIM}Query: {query}  (last {since} min, limit {limit}){C_RESET}")
     print()
 
-    latest_ns = await _query_browser_logs_loki(since, limit, level, user_filter, search, as_json)
+    latest_ns = await _query_browser_logs_openobserve(since, limit, level, user_filter, search, as_json, device=device_filter)
 
     if latest_ns is None and not as_json:
         print(f"{C_DIM}No client console logs found for the given filters.{C_RESET}")
         if not use_prod:
             print(f"{C_DIM}Ensure an admin user has the app open in their browser.{C_RESET}")
 
-        # If --prod is set and local Loki had no results, try the Admin Debug API
+        # If --prod is set and local OpenObserve had no results, try the Admin Debug API
         if use_prod:
             print(f"\n{C_YELLOW}Trying production via Admin Debug API...{C_RESET}")
             await _browser_logs_prod_fallback(since, limit, level, user_filter, search, as_json)
@@ -1673,6 +1755,413 @@ async def run_preview_status_mode(args) -> None:
     )
 
 
+# ─── OpenObserve summary mode (token-efficient) ─────────────────────────────
+
+def _extract_structured_message(raw_message: str) -> str:
+    """Extract the inner message from JSON-formatted log lines when available."""
+    try:
+        parsed = json.loads(raw_message)
+        if isinstance(parsed, dict):
+            return str(parsed.get("message", raw_message))
+    except (json.JSONDecodeError, TypeError):
+        pass
+    return raw_message
+
+
+def _normalize_path(path: str) -> str:
+    """Normalize IDs in API paths for grouping."""
+    normalized = re.sub(r"/[0-9a-fA-F-]{8,}", "/:id", path)
+    normalized = re.sub(r"/\d+", "/:n", normalized)
+    return normalized
+
+
+def _is_health_noise_hit(hit: Dict[str, Any]) -> bool:
+    """Return True when a log record is routine health-check noise."""
+    raw_message = str(hit.get("message", ""))
+    message = _extract_structured_message(raw_message).lower()
+
+    has_success_200 = re.search(r"\s200(?:\s|$)", message) is not None
+
+    if '"get /health' in message or '"get /healthz' in message:
+        if has_success_200:
+            return True
+
+    if "health check" in message and "error" not in message and "fail" not in message:
+        return True
+
+    for marker in HEALTH_NOISE_PATHS:
+        if marker in message and has_success_200:
+            return True
+
+    return False
+
+
+def _apply_quiet_health_filter(hits: List[Dict[str, Any]], enabled: bool) -> List[Dict[str, Any]]:
+    """Filter out routine health-check hits when enabled."""
+    if not enabled:
+        return hits
+    return [hit for hit in hits if not _is_health_noise_hit(hit)]
+
+
+def _print_compact_kv(title: str, rows: List[Tuple[str, int]], max_items: int = 8) -> None:
+    """Print compact key/value ranking lines."""
+    print(f"{C_BOLD}{title}:{C_RESET}")
+    if not rows:
+        print(f"  {C_DIM}(no data){C_RESET}")
+        return
+    for key, value in rows[:max_items]:
+        print(f"  - {key}: {value}")
+
+
+async def _o2_preset_web_app_health(args) -> None:
+    level_hits = await _query_openobserve_sql_hits(
+        sql=(
+            'SELECT level, COUNT(*) as c FROM "default" '
+            "WHERE service='app-web' GROUP BY level ORDER BY c DESC"
+        ),
+        since_minutes=args.since,
+        max_rows=args.max_rows,
+    )
+
+    warn_hits = await _query_openobserve_sql_hits(
+        sql=(
+            'SELECT _timestamp, message FROM "default" '
+            "WHERE service='app-web' AND (level='WARNING' OR level='ERROR') "
+            "ORDER BY _timestamp DESC"
+        ),
+        since_minutes=args.since,
+        max_rows=args.max_rows,
+    )
+
+    level_rows = [
+        (str(hit.get("level", "UNKNOWN")).lower(), int(hit.get("c", 0)))
+        for hit in level_hits
+    ]
+
+    issue_counter: Counter[str] = Counter()
+    examples: Dict[str, str] = {}
+    for hit in warn_hits:
+        msg = _extract_structured_message(str(hit.get("message", "")))
+        msg_lower = msg.lower()
+        issue = "other"
+        if "brave" in msg_lower and "429" in msg_lower:
+            issue = "Brave API rate limiting"
+        elif "translation key" in msg_lower and "web.search" in msg_lower:
+            issue = "Missing web.search translation keys"
+        elif "web.search completed with" in msg_lower and "error" in msg_lower:
+            issue = "web.search partial failures"
+        issue_counter[issue] += 1
+        examples.setdefault(issue, msg[:180])
+
+    print(f"{C_BOLD}OpenObserve preset: web-app-health{C_RESET}")
+    print(f"{C_DIM}Time window: last {args.since} minutes{C_RESET}\n")
+    _print_compact_kv("app-web level counts", level_rows)
+    _print_compact_kv(
+        "app-web warning/error categories",
+        [(k, v) for k, v in issue_counter.most_common()],
+    )
+
+    if args.raw:
+        print(f"\n{C_BOLD}Examples:{C_RESET}")
+        for key, sample in examples.items():
+            print(f"  - {key}: {sample}")
+
+
+async def _o2_preset_web_search_failures(args) -> None:
+    hits = await _query_openobserve_sql_hits(
+        sql=(
+            'SELECT _timestamp, level, message FROM "default" '
+            "WHERE service='app-web' AND ("
+            "message LIKE '%web.search%' OR message LIKE '%Brave%' OR message LIKE '%brave%') "
+            "ORDER BY _timestamp DESC"
+        ),
+        since_minutes=args.since,
+        max_rows=args.max_rows,
+    )
+
+    categories: Counter[str] = Counter()
+    samples: Dict[str, str] = {}
+    for hit in hits:
+        msg = _extract_structured_message(str(hit.get("message", "")))
+        msg_lower = msg.lower()
+        key = "other"
+        if "brave" in msg_lower and "429" in msg_lower:
+            key = "Brave 429 rate limits"
+        elif "translation key" in msg_lower:
+            key = "Missing translations"
+        elif "web.search" in msg_lower and "error" in msg_lower:
+            key = "web.search errors"
+        categories[key] += 1
+        samples.setdefault(key, msg[:180])
+
+    print(f"{C_BOLD}OpenObserve preset: web-search-failures{C_RESET}")
+    print(f"{C_DIM}Time window: last {args.since} minutes{C_RESET}\n")
+    _print_compact_kv("Failure categories", [(k, v) for k, v in categories.most_common()])
+
+    if args.raw:
+        print(f"\n{C_BOLD}Examples:{C_RESET}")
+        for key, sample in samples.items():
+            print(f"  - {key}: {sample}")
+
+
+async def _o2_preset_api_failed_requests(args) -> None:
+    hits = await _query_openobserve_sql_hits(
+        sql=(
+            'SELECT _timestamp, message FROM "default" '
+            "WHERE service='api' AND level='WARNING' AND message LIKE '%Request failed:%' "
+            "ORDER BY _timestamp DESC"
+        ),
+        since_minutes=args.since,
+        max_rows=args.max_rows,
+    )
+
+    hits = _apply_quiet_health_filter(hits, args.quiet_health)
+
+    pattern = re.compile(r"Request failed: (GET|POST|PUT|PATCH|DELETE|OPTIONS) ([^ ]+) - (\d{3})")
+    grouped: Counter[Tuple[str, str, str]] = Counter()
+    for hit in hits:
+        msg = _extract_structured_message(str(hit.get("message", "")))
+        match = pattern.search(msg)
+        if not match:
+            continue
+        method, path, status = match.groups()
+        grouped[(method, _normalize_path(path), status)] += 1
+
+    rows = [
+        (f"{method} {path} -> {status}", count)
+        for (method, path, status), count in grouped.most_common()
+    ]
+
+    print(f"{C_BOLD}OpenObserve preset: api-failed-requests{C_RESET}")
+    print(f"{C_DIM}Time window: last {args.since} minutes{C_RESET}\n")
+    _print_compact_kv("Top failing routes", rows)
+
+
+async def _o2_preset_top_warnings_errors(args) -> None:
+    hits = await _query_openobserve_sql_hits(
+        sql=(
+            'SELECT service, level, COUNT(*) as c FROM "default" '
+            "WHERE level IN ('WARNING','ERROR','CRITICAL') "
+            "GROUP BY service, level ORDER BY c DESC"
+        ),
+        since_minutes=args.since,
+        max_rows=args.max_rows,
+    )
+
+    rows = []
+    for hit in hits:
+        service = str(hit.get("service") or "unknown")
+        level = str(hit.get("level") or "unknown").lower()
+        rows.append((f"{service} ({level})", int(hit.get("c", 0))))
+
+    print(f"{C_BOLD}OpenObserve preset: top-warnings-errors{C_RESET}")
+    print(f"{C_DIM}Time window: last {args.since} minutes{C_RESET}\n")
+    _print_compact_kv("Top noisy services", rows)
+
+
+async def _o2_custom_sql(args) -> None:
+    hits = await _query_openobserve_sql_hits(
+        sql=args.sql,
+        since_minutes=args.since,
+        max_rows=args.max_rows,
+    )
+    hits = _apply_quiet_health_filter(hits, args.quiet_health)
+    if args.as_json:
+        print(json.dumps({"hits": hits}, indent=2, default=str))
+        return
+
+    print(f"{C_BOLD}OpenObserve custom SQL{C_RESET}")
+    print(f"{C_DIM}Rows returned: {len(hits)}{C_RESET}")
+    for hit in hits[: min(len(hits), args.max_rows)]:
+        print(f"- {json.dumps(hit, default=str)[:240]}")
+
+async def _o2_preset_chat_processing(args) -> None:
+    """
+    Compact summary of a single chat request pipeline:
+    api (WebSocket) → app-ai (skill dispatch) → task-worker (Celery) → persistence.
+
+    Shows the key lifecycle milestones and any errors/warnings.
+    Optional --chat-id <id> narrows results to a specific conversation.
+    """
+    since = args.since
+    chat_id = getattr(args, "chat_id", None)
+
+    chat_filter = f"AND (message LIKE '%{chat_id}%')" if chat_id else ""
+
+    # Run three targeted queries in parallel: api, app-ai, task-worker
+    api_sql = (
+        f'SELECT _timestamp, message FROM "default" '
+        f"WHERE compose_project = 'openmates-core' AND service = 'api' "
+        f"AND (message LIKE '%skill_ask%' OR message LIKE '%AI app ask%' "
+        f"   OR message LIKE '%Message handler%' OR message LIKE '%PERF%' "
+        f"   OR message LIKE '%ws_auth%' OR level IN ('WARNING','ERROR')) "
+        f"{chat_filter} ORDER BY _timestamp ASC LIMIT 200"
+    )
+    ai_sql = (
+        f'SELECT _timestamp, message FROM "default" '
+        f"WHERE compose_project = 'openmates-core' AND service = 'app-ai' "
+        f"AND (message LIKE '%SKILL_ROUTE%' OR message LIKE '%AskSkill%' "
+        f"   OR message LIKE '%Celery task%' OR level IN ('WARNING','ERROR')) "
+        f"{chat_filter} ORDER BY _timestamp ASC LIMIT 100"
+    )
+    worker_sql = (
+        f'SELECT _timestamp, message FROM "default" '
+        f"WHERE compose_project = 'openmates-core' AND service = 'task-worker' "
+        f"AND (message LIKE '%skill_ask%' OR message LIKE '%persist_new_chat%' "
+        f"   OR message LIKE '%persist_ai_response%' OR message LIKE '%TASK_LIFECYCLE%' "
+        f"   OR message LIKE '%SYNC_CACHE%' OR level IN ('WARNING','ERROR')) "
+        f"{chat_filter} ORDER BY _timestamp ASC LIMIT 200"
+    )
+
+    api_hits, ai_hits, worker_hits = await asyncio.gather(
+        _query_openobserve_sql_hits(api_sql, since, 200),
+        _query_openobserve_sql_hits(ai_sql, since, 100),
+        _query_openobserve_sql_hits(worker_sql, since, 200),
+    )
+
+    # Merge and sort all hits by timestamp
+    def _label(hits, source):
+        for h in hits:
+            h["_source"] = source
+        return hits
+
+    all_hits = sorted(
+        _label(api_hits, "api") + _label(ai_hits, "app-ai") + _label(worker_hits, "task-worker"),
+        key=lambda h: h.get("_timestamp", 0),
+    )
+
+    # Classify each line into a pipeline stage
+    _STAGE_PATTERNS = [
+        ("message_received",      r"Message handler started|PERF.*Message handler started"),
+        ("vault_key",             r"Vault key retrieval|PERF.*Vault"),
+        ("ai_dispatched",         r"AI app ask skill|skill_ask.*dispatched|AskSkill executed|SKILL_ROUTE.*ask"),
+        ("task_started",          r"TASK_STARTED.*skill_ask"),
+        ("task_success",          r"TASK_SUCCESS.*skill_ask"),
+        ("ai_response_persisted", r"persist_ai_response|AI response.*persisted"),
+        ("chat_persisted",        r"persist_new_chat_message|Message created in Directus"),
+        ("suggestions_persisted", r"persist_new_chat_suggestions"),
+        ("sync_cache_updated",    r"SYNC_CACHE_UPDATE"),
+        ("message_completed",     r"Message handler completed|PERF.*Message handler completed"),
+        ("error",                 r"ERROR|CRITICAL|Exception|Traceback"),
+        ("warning",               r"WARNING|WARN"),
+    ]
+    _STAGE_RE = [(re.compile(pattern, re.IGNORECASE), stage_name) for stage_name, pattern in _STAGE_PATTERNS]
+
+    def classify_stage(msg):
+        for pattern, stage in _STAGE_RE:
+            if pattern.search(msg):
+                return stage
+        return None
+
+    stage_counts = Counter()
+    errors = []
+    warnings = []
+    timeline_lines = []
+
+    for h in all_hits:
+        raw_msg = str(h.get("message", ""))
+        msg = _extract_structured_message(raw_msg)
+        ts_us = h.get("_timestamp", 0)
+        ts_str = datetime.fromtimestamp(ts_us / 1_000_000, tz=timezone.utc).strftime("%H:%M:%S")
+        source = h.get("_source", "?")
+        stage = classify_stage(msg)
+
+        level_in_msg = "error" if re.search(r"ERROR|CRITICAL", msg, re.I) else (
+            "warn" if re.search(r"WARNING|WARN", msg, re.I) else "info"
+        )
+
+        if stage:
+            stage_counts[stage] += 1
+
+        if level_in_msg == "error":
+            errors.append(f"  [{ts_str}] [{source}] {msg[:200]}")
+        elif level_in_msg == "warn":
+            warnings.append(f"  [{ts_str}] [{source}] {msg[:200]}")
+
+        if args.raw or stage in ("error", "warning", "ai_dispatched", "task_started",
+                                  "task_success", "ai_response_persisted", "sync_cache_updated",
+                                  "message_completed"):
+            color = C_RED if level_in_msg == "error" else (C_YELLOW if level_in_msg == "warn" else C_DIM)
+            stage_label = f" [{stage}]" if stage else ""
+            timeline_lines.append(
+                f" {C_DIM}{ts_str}{C_RESET} {C_CYAN}[{source}]{C_RESET}{color}{stage_label}{C_RESET}"
+                f" {msg[:180]}"
+            )
+
+    # Pipeline milestone summary
+    PIPELINE_STAGES = [
+        "message_received", "vault_key", "ai_dispatched", "task_started",
+        "task_success", "ai_response_persisted", "chat_persisted",
+        "suggestions_persisted", "sync_cache_updated", "message_completed",
+    ]
+
+    print(f"{C_BOLD}OpenObserve preset: chat-processing{C_RESET}")
+    if chat_id:
+        print(f"{C_DIM}Chat ID filter: {chat_id}{C_RESET}")
+    print(f"{C_DIM}Time window: last {since} minutes  |  "
+          f"api={len(api_hits)} hits  app-ai={len(ai_hits)} hits  task-worker={len(worker_hits)} hits{C_RESET}")
+
+    print(f"{C_BOLD}Pipeline milestones:{C_RESET}")
+    for stage in PIPELINE_STAGES:
+        count = stage_counts.get(stage, 0)
+        icon = f"{C_GREEN}✓{C_RESET}" if count > 0 else f"{C_DIM}–{C_RESET}"
+        print(f"  {icon} {stage:<30s} {C_DIM}(x{count}){C_RESET}")
+
+    if errors:
+        print(f"\n{C_RED}{C_BOLD}Errors ({len(errors)}):{C_RESET}")
+        for e in errors[:10]:
+            print(e)
+        if len(errors) > 10:
+            print(f"  {C_DIM}... and {len(errors) - 10} more{C_RESET}")
+
+    if warnings:
+        print(f"\n{C_YELLOW}Warnings ({len(warnings)}):{C_RESET}")
+        for w in warnings[:5]:
+            print(w)
+        if len(warnings) > 5:
+            print(f"  {C_DIM}... and {len(warnings) - 5} more{C_RESET}")
+
+    if timeline_lines:
+        print(f"\n{C_BOLD}Key events timeline:{C_RESET}")
+        for line in timeline_lines:
+            print(line)
+
+    if not all_hits:
+        print(f"\n{C_DIM}No chat processing activity found in the last {since} minutes.{C_RESET}")
+        print(f"{C_DIM}Try --since 60 or add --chat-id <id> to filter.{C_RESET}")
+
+
+async def run_o2_logs_mode(args) -> None:
+    """Run compact OpenObserve summaries and ad-hoc SQL queries."""
+    if args.sql:
+        await _o2_custom_sql(args)
+        return
+
+    if not args.preset:
+        print(
+            "Error: --preset or --sql is required in --o2 mode\n"
+            f"Available presets: {', '.join(O2_PRESETS)}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    if args.preset == "web-app-health":
+        await _o2_preset_web_app_health(args)
+        return
+    if args.preset == "web-search-failures":
+        await _o2_preset_web_search_failures(args)
+        return
+    if args.preset == "api-failed-requests":
+        await _o2_preset_api_failed_requests(args)
+        return
+    if args.preset == "top-warnings-errors":
+        await _o2_preset_top_warnings_errors(args)
+        return
+    if args.preset == "chat-processing":
+        await _o2_preset_chat_processing(args)
+        return
+
+
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 async def main():
@@ -1687,6 +2176,8 @@ async def main():
     # Mode selectors
     parser.add_argument("--browser", action="store_true",
                         help="Browser console log mode — query admin browser logs (no email needed)")
+    parser.add_argument("--o2", action="store_true",
+                        help="Token-efficient OpenObserve summary mode (no email needed)")
     parser.add_argument("--upload-logs", action="store_true", dest="upload_logs",
                         help="Fetch Docker logs from the upload server")
     parser.add_argument("--preview-logs", action="store_true", dest="preview_logs",
@@ -1724,10 +2215,28 @@ async def main():
     # Browser log options
     parser.add_argument("--user", type=str, default=None,
                         help="Filter browser logs by admin username (browser mode only)")
+    parser.add_argument("--device", type=str, default=None,
+                        help=(
+                            "Filter browser logs by device type (browser mode only). "
+                            "Values: iphone, ipad, android, mac, windows, linux, chromeos, unknown. "
+                            "Example: --device iphone"
+                        ))
     parser.add_argument("--search", type=str, default=None,
                         help="Search log message content (browser/satellite modes)")
     parser.add_argument("--limit", type=int, default=None,
                         help="Max log entries (default: 200 for browser, 200 for satellite)")
+
+    # OpenObserve summary mode options
+    parser.add_argument("--preset", type=str, choices=O2_PRESETS, default=None,
+                        help="Preset for --o2 mode")
+    parser.add_argument("--sql", type=str, default=None,
+                        help="Custom OpenObserve SQL query for --o2 mode")
+    parser.add_argument("--max-rows", type=int, default=O2_DEFAULT_MAX_ROWS,
+                        help="Row cap for --o2 mode (default: 200)")
+    parser.add_argument("--raw", action="store_true",
+                        help="Include representative raw examples in --o2 mode")
+    parser.add_argument("--quiet-health", action="store_true",
+                        help="Filter routine /health and /healthz 200 logs in --o2 mode")
 
     # Satellite log options
     parser.add_argument("--services", type=str, default=None,
@@ -1778,12 +2287,19 @@ async def main():
         await run_browser_logs_mode(args)
         return
 
+    # OpenObserve summary mode
+    if args.o2:
+        if args.since is None:
+            args.since = O2_DEFAULT_SINCE_MINUTES
+        await run_o2_logs_mode(args)
+        return
+
     # ── User timeline mode (requires email) ──────────────────────────────────
     if not args.email:
         parser.error(
             "email is required for user timeline mode.\n"
-            "Use --browser for browser console logs, or --upload-logs / --preview-logs "
-            "for satellite server logs."
+            "Use --browser for browser console logs, --o2 for OpenObserve summaries, "
+            "or --upload-logs / --preview-logs for satellite server logs."
         )
 
     if args.since is None:

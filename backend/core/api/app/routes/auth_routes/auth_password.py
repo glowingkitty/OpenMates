@@ -12,9 +12,11 @@ from backend.core.api.app.utils.invite_code import validate_invite_code, get_sig
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_metrics_service, get_compliance_service, get_encryption_service
 from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin, validate_username
+from backend.core.api.app.services.directus.user.user_lookup import hash_username
 from backend.core.api.app.routes.auth_routes.auth_login import finalize_login_session
 from backend.core.api.app.schemas.auth import LoginRequest
 from backend.core.api.app.utils.newsletter_utils import update_newsletter_registration_status
+from backend.core.api.app.tasks.celery_config import app as celery_app
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -82,7 +84,7 @@ async def setup_password(
             )
 
         # Check username uniqueness server-wide (case-insensitive via SHA-256 hash)
-        hashed_username = directus_service.hash_username(setup_request.username)
+        hashed_username = hash_username(setup_request.username)
         username_taken, _, _ = await directus_service.get_user_by_hashed_username(hashed_username)
         if username_taken:
             logger.warning("Signup rejected: username already taken")

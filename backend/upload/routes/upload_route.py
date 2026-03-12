@@ -722,24 +722,30 @@ async def upload_file(
     # IMAGE BRANCH: original pipeline continues below
     # ===========================================================================
 
-    # --- 7. [Images] SightEngine content safety scan (BLOCKING — rejects on violation) ---
-    # Check for nudity, sexual content, violence, and gore. Same thresholds as
-    # ImageSafetyService.check_profile_image() in the core API. If the image fails,
-    # we report the rejection to the core API (for per-user tracking + account deletion)
-    # and return 422 to the client with a user-facing error message.
+    # --- 7. [Images] SightEngine combined check (content safety + AI detection, ONE request) ---
+    # Single API call with models=nudity-2.0,offensive,gore,genai replaces the previous
+    # two sequential calls, saving one full HTTP round-trip to the SightEngine API.
+    #
+    # Safety check (nudity/violence/gore) is BLOCKING — rejects on violation.
+    # AI detection (genai) is NON-BLOCKING — result stored as metadata only.
+    #
+    # If the image fails safety, we report the rejection to the core API (for per-user
+    # tracking + account deletion) and return 422 to the client.
     sightengine = request.app.state.sightengine
+    ai_detection_result = None
     if is_image and sightengine.is_enabled:
         logger.info(
-            f"{log_prefix} [7a/13] Content safety: running SightEngine nudity/violence/gore check..."
+            f"{log_prefix} [7/13] SightEngine combined check: "
+            f"nudity/violence/gore + AI detection (single request)..."
         )
-        safety_start = time.monotonic()
-        safety_result = await sightengine.check_content_safety(file_bytes, filename=filename)
-        safety_elapsed = (time.monotonic() - safety_start) * 1000
+        sightengine_start = time.monotonic()
+        safety_result, ai_result = await sightengine.check_all(file_bytes, filename=filename)
+        sightengine_elapsed = (time.monotonic() - sightengine_start) * 1000
 
         if not safety_result.is_safe:
             logger.warning(
-                f"{log_prefix} [7a/13] Content safety REJECTED — "
-                f"reason: {safety_result.reason} ({safety_elapsed:.0f} ms)"
+                f"{log_prefix} [7/13] Content safety REJECTED — "
+                f"reason: {safety_result.reason} ({sightengine_elapsed:.0f} ms)"
             )
             # Report rejection to core API (tracks reject count, handles account deletion)
             rejection_report = await _report_content_safety_rejection_via_api(
@@ -773,48 +779,30 @@ async def upload_file(
             )
         else:
             logger.info(
-                f"{log_prefix} [7a/13] Content safety: PASSED ✓ ({safety_elapsed:.0f} ms)"
+                f"{log_prefix} [7/13] Content safety: PASSED ✓ ({sightengine_elapsed:.0f} ms)"
+            )
+
+        if ai_result is not None:
+            ai_detection_result = AIDetectionMetadata(
+                ai_generated=ai_result.ai_generated,
+                provider=ai_result.provider,
+            )
+            logger.info(
+                f"{log_prefix} [7/13] AI detection: score={ai_result.ai_generated:.3f} "
+                f"(included in same request, no extra round-trip)"
+            )
+        else:
+            logger.warning(
+                f"{log_prefix} [7/13] AI detection: SightEngine returned None "
+                f"(non-fatal, upload continues without score)"
             )
     elif is_image:
         logger.info(
-            f"{log_prefix} [7a/13] Content safety: SKIPPED "
+            f"{log_prefix} [7/13] SightEngine checks: SKIPPED "
             f"(SightEngine not configured — set SECRET__SIGHTENGINE__* to enable)"
         )
     else:
-        logger.info(f"{log_prefix} [7a/13] Content safety: SKIPPED (non-image file)")
-
-    # --- 7b. [Images] SightEngine AI detection (non-blocking — never rejects upload) ---
-    ai_detection_result = None
-    if is_image:
-        if sightengine.is_enabled:
-            logger.info(f"{log_prefix} [7b/13] AI detection: running SightEngine genai check...")
-            ai_start = time.monotonic()
-            ai_result = await sightengine.check_image(file_bytes, filename=filename)
-            ai_elapsed = (time.monotonic() - ai_start) * 1000
-            if ai_result is not None:
-                ai_detection_result = AIDetectionMetadata(
-                    ai_generated=ai_result.ai_generated,
-                    provider=ai_result.provider,
-                )
-                label = "LIKELY AI-GENERATED" if ai_result.ai_generated > 0.7 else (
-                    "possibly AI" if ai_result.ai_generated > 0.4 else "likely real/photo"
-                )
-                logger.info(
-                    f"{log_prefix} [7b/13] AI detection: score={ai_result.ai_generated:.3f} "
-                    f"→ {label} ({ai_elapsed:.0f} ms)"
-                )
-            else:
-                logger.warning(
-                    f"{log_prefix} [7b/13] AI detection: SightEngine returned None "
-                    f"(non-fatal, upload continues without score) ({ai_elapsed:.0f} ms)"
-                )
-        else:
-            logger.info(
-                f"{log_prefix} [7b/13] AI detection: SKIPPED "
-                f"(SightEngine not configured — set SECRET__SIGHTENGINE__* to enable)"
-            )
-    else:
-        logger.info(f"{log_prefix} [7b/13] AI detection: SKIPPED (non-image file)")
+        logger.info(f"{log_prefix} [7/13] SightEngine checks: SKIPPED (non-image file)")
 
     # --- 8. [Images] Preview generation ---
     logger.info(f"{log_prefix} [8/13] Generating WEBP previews (original + full + preview variants)...")

@@ -59,12 +59,12 @@
     taskId?: string;
     /** Whether to use mobile layout */
     isMobile?: boolean;
-    /** Click handler for fullscreen */
-    onFullscreen?: () => void;
+    /** Click handler for fullscreen — REQUIRED: every embed must have a fullscreen version */
+    onFullscreen: () => void;
     /** Click handler for stop button */
     onStop?: () => void;
     /** Snippet for details content (skill-specific) - REQUIRED but made optional for defensive programming */
-    details?: import('svelte').Snippet<[{ isMobile: boolean }]>;
+    details?: import('svelte').Snippet<[{ isMobile: boolean; isLarge?: boolean }]>;
     /** Whether to show status line in basic infos bar (default: true) */
     showStatus?: boolean;
     /** Custom favicon URL for basic infos bar (shows instead of app icon) */
@@ -139,10 +139,6 @@
       return;
     }
     
-    console.debug(`[UnifiedEmbedPreview] 🔄 Received embedUpdated for ${id}:`, {
-      newStatus,
-      previousStatus: localStatus
-    });
     
     // Update status immediately from event if provided
     if (newStatus && (newStatus === 'processing' || newStatus === 'finished' || newStatus === 'error' || newStatus === 'cancelled')) {
@@ -154,7 +150,6 @@
     // call resolveEmbed() which would find nothing and re-request from server,
     // creating an infinite loop. The status update above is sufficient for the UI.
     if (newStatus === 'error' || newStatus === 'cancelled') {
-      console.debug(`[UnifiedEmbedPreview] Skipping refetch for ${newStatus} embed ${id}`);
       return;
     }
     
@@ -182,7 +177,6 @@
     // Skip refetch for legacy IDs - these are synthetic IDs from legacy results
     // that don't exist in IndexedDB. The data is already available from props.
     if (id.startsWith('legacy-')) {
-      console.debug(`[UnifiedEmbedPreview] Skipping refetch for synthetic legacy ID: ${id}`);
       return;
     }
     
@@ -191,10 +185,6 @@
       // This is essential for demo chats where embeds are stored in a separate store
       const embedData = await resolveEmbed(id);
       if (embedData) {
-        console.debug(`[UnifiedEmbedPreview] Refetched data from store for ${id}:`, {
-          status: embedData.status,
-          hasContent: !!embedData.content
-        });
         
         // Update status from fetched data
         if (embedData.status && (embedData.status === 'processing' || embedData.status === 'finished' || embedData.status === 'error' || embedData.status === 'cancelled')) {
@@ -221,7 +211,6 @@
   let embedUpdateListener: ((event: Event) => void) | null = null;
   
   onMount(() => {
-    console.debug(`[UnifiedEmbedPreview] Mounted component for embed ${id}`);
     
     // Subscribe to embedUpdated events from chatSyncService
     embedUpdateListener = handleEmbedUpdate as (event: Event) => void;
@@ -230,6 +219,9 @@
     // Do an initial fetch to ensure we have the latest data
     // (in case the embed was updated between render and mount)
     refetchFromStore();
+
+    // Enable scroll-driven pseudo tilt on coarse-pointer devices.
+    viewportListenerCleanup = setupScrollTiltListeners();
   });
   
   onDestroy(() => {
@@ -237,6 +229,11 @@
     if (embedUpdateListener) {
       chatSyncService.removeEventListener('embedUpdated', embedUpdateListener);
       embedUpdateListener = null;
+    }
+
+    if (viewportListenerCleanup) {
+      viewportListenerCleanup();
+      viewportListenerCleanup = null;
     }
     
     // Clean up context menu reset timer
@@ -319,10 +316,12 @@
   let isHovering = $state(false);
   let mouseX = $state(0); // Normalized -1 to 1 (center = 0)
   let mouseY = $state(0); // Normalized -1 to 1 (center = 0)
+  let scrollTiltY = $state(0); // Normalized -1 to 1 from viewport center offset
+  let isTouchTiltEnabled = $state(false);
   
   // Configuration for the tilt effect
   // NOTE: Keep values subtle for a polished feel without being distracting.
-  // Large preview cards (.unified-embed-preview-large ancestor) use even more
+  // Large preview cards (.embed-preview-large-container ancestor) use even more
   // reduced tilt because the 3D effect is too pronounced on wider/taller cards.
   const TILT_MAX_ANGLE_STANDARD = 3;      // Standard card max tilt (degrees)
   const TILT_MAX_ANGLE_LARGE = 1;         // Large card max tilt (degrees)
@@ -331,37 +330,150 @@
   const TILT_SCALE_STANDARD = 0.985;       // Standard scale on hover
   const TILT_SCALE_LARGE = 0.995;          // Large scale — barely noticeable
 
-  // Detect whether this card is inside a large preview wrapper.
+  // Detect whether this card is inside a large preview context.
   // Checked once when previewElement is bound (not reactive to DOM changes).
+  // Matches both production (.embed-preview-large-container in EmbedPreviewLarge.svelte)
+  // and dev showcase (.large-container in the dev preview page) wrappers —
+  // both set container-name: embed-preview and trigger the @container CSS query.
   let isLargeContext = $state(false);
   $effect(() => {
     if (previewElement) {
-      isLargeContext = !!previewElement.closest('.unified-embed-preview-large');
+      isLargeContext = !!(
+        previewElement.closest('.embed-preview-large-container') ||
+        previewElement.closest('.large-container')
+      );
     }
   });
 
   let TILT_MAX_ANGLE = $derived(isLargeContext ? TILT_MAX_ANGLE_LARGE : TILT_MAX_ANGLE_STANDARD);
   let TILT_PERSPECTIVE = $derived(isLargeContext ? TILT_PERSPECTIVE_LARGE : TILT_PERSPECTIVE_STANDARD);
   let TILT_SCALE = $derived(isLargeContext ? TILT_SCALE_LARGE : TILT_SCALE_STANDARD);
+  let isScrollTilting = $derived(
+    status === 'finished' &&
+    !isHovering &&
+    isTouchTiltEnabled &&
+    Math.abs(scrollTiltY) > 0.01
+  );
   
   /**
    * Calculate CSS transform string for the 3D tilt effect
-   * Only applies when hovering over a finished embed
+   * - Fine pointer: hover tilt from mouse position (X + Y)
+   * - Coarse pointer: pseudo tilt from scroll position (Y only)
    */
   let tiltTransform = $derived.by(() => {
-    // Only apply tilt to finished embeds that are being hovered
-    if (!isHovering || status !== 'finished') {
+    // Only apply tilt to finished embeds
+    if (status !== 'finished') {
       return '';
     }
-    
-    // Calculate rotation angles based on mouse position
-    // mouseX/Y are normalized to -1 to 1, where center is 0
-    // Positive mouseX (right side) -> rotate Y positive (tilt right edge away)
-    // Positive mouseY (bottom) -> rotate X negative (tilt bottom edge away)
-    const rotateY = mouseX * TILT_MAX_ANGLE;
-    const rotateX = -mouseY * TILT_MAX_ANGLE;
-    
-    return `perspective(${TILT_PERSPECTIVE}px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(${TILT_SCALE})`;
+
+    if (isHovering) {
+      const rotateY = mouseX * TILT_MAX_ANGLE;
+      const rotateX = -mouseY * TILT_MAX_ANGLE;
+      return `perspective(${TILT_PERSPECTIVE}px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(${TILT_SCALE})`;
+    }
+
+    if (isTouchTiltEnabled) {
+      const rotateX = -scrollTiltY * TILT_MAX_ANGLE;
+      return `perspective(${TILT_PERSPECTIVE}px) rotateX(${rotateX}deg) rotateY(0deg) scale(${TILT_SCALE})`;
+    }
+
+    return '';
+  });
+
+  let viewportListenerCleanup: (() => void) | null = null;
+  let scrollTiltAnimationFrame: number | null = null;
+
+  function updateScrollTiltFromViewport() {
+    if (!previewElement || typeof window === 'undefined' || !isTouchTiltEnabled || status !== 'finished') {
+      scrollTiltY = 0;
+      return;
+    }
+
+    const rect = previewElement.getBoundingClientRect();
+    const viewportHalfHeight = Math.max(window.innerHeight / 2, 1);
+    const elementCenterY = rect.top + rect.height / 2;
+    const viewportCenterY = viewportHalfHeight;
+    const normalizedY = (elementCenterY - viewportCenterY) / viewportHalfHeight;
+    scrollTiltY = Math.max(-1, Math.min(1, normalizedY));
+  }
+
+  function scheduleScrollTiltUpdate() {
+    if (typeof window === 'undefined' || scrollTiltAnimationFrame !== null) {
+      return;
+    }
+
+    scrollTiltAnimationFrame = window.requestAnimationFrame(() => {
+      scrollTiltAnimationFrame = null;
+      updateScrollTiltFromViewport();
+    });
+  }
+
+  function setupScrollTiltListeners() {
+    if (typeof window === 'undefined') {
+      return () => {};
+    }
+
+    const coarsePointerQuery = window.matchMedia('(pointer: coarse)');
+    const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const addQueryListener = (query: MediaQueryList, handler: () => void) => {
+      if ('addEventListener' in query) {
+        query.addEventListener('change', handler);
+      } else {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- legacy API fallback for older browsers
+        (query as any).addListener(handler);
+      }
+    };
+    const removeQueryListener = (query: MediaQueryList, handler: () => void) => {
+      if ('removeEventListener' in query) {
+        query.removeEventListener('change', handler);
+      } else {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- legacy API fallback for older browsers
+        (query as any).removeListener(handler);
+      }
+    };
+
+    const updateTiltAvailability = () => {
+      isTouchTiltEnabled = coarsePointerQuery.matches && !reducedMotionQuery.matches;
+      if (isTouchTiltEnabled) {
+        scheduleScrollTiltUpdate();
+      } else {
+        scrollTiltY = 0;
+      }
+    };
+
+    const handleViewportChange = () => {
+      if (!isTouchTiltEnabled || status !== 'finished') {
+        return;
+      }
+      scheduleScrollTiltUpdate();
+    };
+
+    window.addEventListener('scroll', handleViewportChange, { passive: true });
+    window.addEventListener('resize', handleViewportChange, { passive: true });
+    addQueryListener(coarsePointerQuery, updateTiltAvailability);
+    addQueryListener(reducedMotionQuery, updateTiltAvailability);
+    updateTiltAvailability();
+
+    return () => {
+      window.removeEventListener('scroll', handleViewportChange);
+      window.removeEventListener('resize', handleViewportChange);
+      removeQueryListener(coarsePointerQuery, updateTiltAvailability);
+      removeQueryListener(reducedMotionQuery, updateTiltAvailability);
+
+      if (scrollTiltAnimationFrame !== null) {
+        window.cancelAnimationFrame(scrollTiltAnimationFrame);
+        scrollTiltAnimationFrame = null;
+      }
+
+      scrollTiltY = 0;
+      isTouchTiltEnabled = false;
+    };
+  }
+
+  $effect(() => {
+    if (status === 'finished' && isTouchTiltEnabled) {
+      scheduleScrollTiltUpdate();
+    }
   });
   
   /**
@@ -434,7 +546,6 @@
     // Start long-press timer
     touchTimer = setTimeout(() => {
       if (touchTarget && previewElement) {
-        console.debug('[UnifiedEmbedPreview] Long-press detected - triggering context menu');
         
         // Mark that we're handling a context menu (with auto-reset)
         markContextMenuHandled();
@@ -523,13 +634,6 @@
       return;
     }
     
-    console.debug('[UnifiedEmbedPreview] Click handler called:', { 
-      status, 
-      hasOnFullscreen: !!onFullscreen,
-      embedId: id,
-      eventType: e.type,
-      target: e.target
-    });
     
     // Stop event propagation to prevent the click from bubbling to ReadOnlyMessage
     // which would show the context menu instead of opening fullscreen
@@ -537,11 +641,9 @@
     e.stopPropagation();
     
     if ((status === 'finished' || status === 'error') && onFullscreen) {
-      console.debug('[UnifiedEmbedPreview] Calling onFullscreen for embed:', id);
       
       try {
         onFullscreen();
-        console.debug('[UnifiedEmbedPreview] onFullscreen called successfully');
       } catch (error) {
         console.error('[UnifiedEmbedPreview] Error calling onFullscreen:', error);
       }
@@ -638,7 +740,6 @@
     // that would resolve on next reload. No silent data loss occurs.
     if (localStatus === 'processing') {
       localStatus = 'cancelled';
-      console.debug(`[UnifiedEmbedPreview] Optimistically marked embed ${id} as cancelled`);
     }
   }
 </script>
@@ -652,6 +753,7 @@
   class:finished={status === 'finished'}
   class:clickable={status === 'finished' || status === 'error'}
   class:hovering={isHovering && status === 'finished'}
+  class:scroll-tilting={isScrollTilting}
   class:error={status === 'error'}
   data-embed-id={id}
   data-app-id={appId}
@@ -685,7 +787,7 @@
       <!-- Details content (skill-specific) - with defensive guard -->
       <div class="details-section">
         {#if details}
-          {@render details({ isMobile: true })}
+          {@render details({ isMobile: true, isLarge: false })}
         {:else}
           <!-- Fallback when details snippet is missing -->
           <div class="missing-details-fallback">
@@ -719,7 +821,7 @@
       <!-- Details content (skill-specific) at top - with defensive guard -->
       <div class="details-section" class:full-width-image={hasFullWidthImage}>
         {#if details}
-          {@render details({ isMobile: false })}
+          {@render details({ isMobile: false, isLarge: isLargeContext })}
         {:else}
           <!-- Fallback when details snippet is missing -->
           <div class="missing-details-fallback">
@@ -818,7 +920,8 @@
   }
   
   /* Hovering state (controlled by JS for tilt effect) */
-  .unified-embed-preview.finished.hovering {
+  .unified-embed-preview.finished.hovering,
+  .unified-embed-preview.finished.scroll-tilting {
     /* Pressed down → closer to surface → tighter, smaller shadow */
     box-shadow: 
       0 4px 12px rgba(0, 0, 0, 0.12),
@@ -874,14 +977,15 @@
     padding-left: 20px;
   }
   
-  /* Full-width image content: remove padding and add negative margin at bottom */
-  /* The negative margin allows the image to extend into the BasicInfosBar area */
-  /* to fill the rounded corners and reach approximately the center of the bar */
-  /* BasicInfosBar is 61px tall, so -55px extends roughly to its center */
+  /* Full-width image content: remove padding, extend into BasicInfosBar area, */
+  /* clip the image to rounded card corners. -61px covers the full bar height   */
+  /* so the image fills the container with no grey gap at the bottom.            */
   .desktop-layout .details-section.full-width-image {
     padding-right: 0;
     padding-left: 0;
-    margin-bottom: -55px;
+    margin-bottom: -61px;
+    border-radius: 30px;
+    overflow: hidden;
   }
   
   /* ===========================================
@@ -926,5 +1030,87 @@
     -webkit-line-clamp: 3;
     line-clamp: 3;
     -webkit-box-orient: vertical;
+  }
+
+  /* ===========================================
+     Responsive Expanded Layout (Container Query)
+     ===========================================
+     When this card is inside a container named "embed-preview" (set by
+     EmbedPreviewLarge.svelte) wider than 400px, the card expands to
+     full-width × 400px with the BasicInfosBar constrained to 300px and
+     protruding 15px below the card. This replaces the old separate
+     UnifiedEmbedPreviewLarge component.
+     =========================================== */
+
+  @container embed-preview (min-width: 401px) {
+    .unified-embed-preview.desktop {
+      width: 100% !important;
+      min-width: unset !important;
+      max-width: unset !important;
+      height: 400px !important;
+      min-height: 400px !important;
+      max-height: 400px !important;
+      margin-top: 10px;
+      margin-bottom: 30px;
+      overflow: visible !important;
+    }
+
+    .desktop-layout {
+      overflow: visible !important;
+    }
+
+    /* BasicInfosBar stays at ~300px width, centered, protruding below the card */
+    .desktop-layout :global(.basic-infos-bar.desktop) {
+      width: 300px;
+      max-width: 300px;
+      min-width: unset;
+      margin-left: auto;
+      margin-right: auto;
+      flex-shrink: 0;
+      transform: translateY(15px);
+      /* Shadow on the protruding info bar for depth — consistent across all embed types */
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    /* ── Website-specific expanded overrides ────────────────────────────────
+       Description text: 30% width, 16 lines visible in the taller card.
+       Preview image: fills remaining space at 400px height.
+       These MUST live here (not in WebsiteEmbedPreview) because on share
+       pages the appId may not resolve, so the fallback path renders directly
+       and still needs correct expanded styling. */
+
+    .desktop-layout :global(.website-description) {
+      max-width: 30% !important;
+      width: 30% !important;
+      flex: 0 1 30% !important;
+      min-width: 0 !important;
+      overflow: hidden !important;
+      -webkit-line-clamp: 16 !important;
+      line-clamp: 16 !important;
+      margin-left: 20px !important;
+    }
+
+    .desktop-layout :global(.website-content-row) {
+      align-items: stretch;
+      height: 100%;
+    }
+
+    .desktop-layout :global(.website-preview-image:not(.full-width)) {
+      flex: 1 1 0 !important;
+      min-width: 0 !important;
+      height: 400px !important;
+      max-height: none !important;
+      transform: none !important;
+      overflow: hidden !important;
+      border-radius: 0 30px 30px 0 !important;
+    }
+
+    .desktop-layout :global(.website-preview-image:not(.full-width) img) {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+      display: block;
+    }
   }
 </style>

@@ -94,6 +94,30 @@ share_location:
   sv: "Dela plats"
   he: שתף מיקום
   verified_by_human: []
+sketch:
+  context: Tooltip for the sketch button — opens the drawing canvas overlay
+  en: Sketch
+  de: Skizze
+  zh: 草图
+  es: Boceto
+  fr: Esquisse
+  pt: Esboço
+  ru: Эскиз
+  ja: スケッチ
+  ko: 스케치
+  it: Schizzo
+  tr: Taslak
+  vi: Phác thảo
+  id: Sketsa
+  pl: Szkic
+  nl: Schets
+  ar: رسم
+  hi: स्केच
+  th: ภาพร่าง
+  cs: Nákres
+  sv: Skiss
+  he: סקיצה
+  verified_by_human: []
 drop_files:
   context: Overlay text shown when the user drags files over the message input area
   en: Drop files to upload

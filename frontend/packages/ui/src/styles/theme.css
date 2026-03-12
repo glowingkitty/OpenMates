@@ -1,4 +1,7 @@
 :root {
+  /* Layout */
+  --chat-content-max-width: 1000px;
+
   /* Icon */
   --icon-background-start: var(--color-grey-20);
   --icon-background-end: var(--color-grey-30);

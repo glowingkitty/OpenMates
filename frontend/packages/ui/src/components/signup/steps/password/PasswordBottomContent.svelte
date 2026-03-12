@@ -21,7 +21,6 @@
     import { text } from '@repo/ui';
     import { fade } from 'svelte/transition';
     import { createEventDispatcher } from 'svelte';
-    import { getWebsiteUrl, routes } from '../../../../config/links';
     import { getApiEndpoint, apiEndpoints } from '../../../../config/api';
     import { signupStore } from '../../../../stores/signupStore';
     import { requireInviteCode } from '../../../../stores/signupRequirements';
@@ -90,6 +89,7 @@
     }
     
     // Get password data from parent component using Svelte 5 runes
+    /* eslint-disable @typescript-eslint/no-unused-vars -- props used in Svelte template */
     let { 
         password = '',
         passwordRepeat = '',
@@ -99,6 +99,7 @@
         passwordRepeat?: string,
         isFormValid?: boolean
     } = $props();
+    /* eslint-enable @typescript-eslint/no-unused-vars */
     
     // Create a local variable to track form validity
     // Update local variable when props change using Svelte 5 runes
@@ -348,6 +349,7 @@
 <div class="password-bottom-content" in:fade={{ duration: 300 }} out:fade={{ duration: 200 }}>
     <div class="action-button-container">
         <button 
+            id="signup-password-continue"
             class="action-button signup-button" 
             class:loading={isLoading}
             disabled={!localIsFormValid || isLoading}

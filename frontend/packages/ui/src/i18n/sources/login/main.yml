@@ -294,7 +294,7 @@ auto_logout_notification.message:
   th: เปิดใช้งาน "เข้าสู่ระบบค้างไว้" ขณะเข้าสู่ระบบเพื่อป้องกันปัญหานี้
   cs: Aktivujte "Zůstat přihlášen" při přihlašování, abyste tomu zabránili.
   sv: Aktivera "Förbli inloggad" vid inloggning för att förhindra detta.
-  he: "יש להפעיל את האפשרות \"הישאר מחובר\" במהלך ההתחברות כדי למנוע זאת."
+  he: 'יש להפעיל את האפשרות "הישאר מחובר" במהלך ההתחברות כדי למנוע זאת.'
   verified_by_human: []
 auto_logout_notification.storage_evicted_title:
   context: Title for the auto-logout notification when the browser unexpectedly cleared local storage (e.g. Safari on iOS evicted IndexedDB data). Different from the normal auto-logout which is caused by not enabling 'stay logged in'.
@@ -1476,7 +1476,7 @@ recovery_use_recovery_key:
   th: หากคุณมีคีย์กู้คืน โปรดใช้ "เข้าสู่ระบบด้วยคีย์กู้คืน" แทน - จะเก็บรักษาข้อมูลทั้งหมดของคุณไว้
   cs: Pokud máte svůj klíč pro obnovu, použijte "Přihlásit se klíčem pro obnovu" - zachová to všechna vaše data.
   sv: Om du har din återställningsnyckel, använd "Logga in med återställningsnyckel" istället - det bevarar all din data.
-  he: "אם יש לך את מפתח השחזור שלך, השתמש ב-\"התחברות באמצעות מפתח שחזור\" במקום - זה שומר על כל הנתונים שלך."
+  he: 'אם יש לך את מפתח השחזור שלך, השתמש ב-"התחברות באמצעות מפתח שחזור" במקום - זה שומר על כל הנתונים שלך.'
   verified_by_human: []
 request_reset_code:
   context: Button text for requesting account reset code
@@ -2089,4 +2089,14 @@ use_authenticator_app:
   en: Use authenticator app
   de: Authenticator-App verwenden
   he: שימוש באפליקציית אימות
+  verified_by_human: []
+sign_in_via_trusted_device:
+  context: Button text on the login screen to start the magic pair login flow — lets the user sign in by having another device (phone, laptop) that is already logged in authorize the new session
+  en: Sign in via a trusted device
+  de: Über ein vertrauenswürdiges Gerät anmelden
+  verified_by_human: []
+login_with_phone_or_pc:
+  context: Small text link button on the login screen to start the pair login flow — shown below the passkey button, styled the same way (gradient text, phone icon)
+  en: Login with phone or PC
+  de: Mit Telefon oder PC einloggen
   verified_by_human: []

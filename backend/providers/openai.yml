@@ -96,6 +96,42 @@ models:
       - "fast responses"
       - "has a very strong tendency to always include tables in the response"
 
+  - id: "gpt-oss-safeguard-20b-openrouter" # OpenRouter-primary alias for bulk/import scanning (avoids Groq daily cap)
+    name: "GPT-OSS-Safeguard-20b (OpenRouter)"
+    description: "Open-source safety model with 20B parameters, served via OpenRouter. Used for chat import safety scanning to avoid Groq daily token cap."
+    country_origin: "US"
+    for_app_skill: "ai.safety_check"
+    release_date: "2025-04-01"
+    allow_auto_select: false
+    external_ids:
+      lmarena: "llama-guard-3-8b"
+      openrouter: "openai/gpt-oss-safeguard-20b"
+    input_types:
+      - text
+    output_types:
+      - text
+    default_server: "openrouter" # Default server for this alias — OpenRouter, not Groq
+    servers:
+      - id: "openrouter"
+        name: "OpenRouter API"
+        model_id: "openai/gpt-oss-safeguard-20b"
+        region: "US"
+    pricing:
+      tokens:
+        input:
+          per_credit_unit: 4400 # 1 credit per 4400 input tokens (0.075 USD per 1M tokens)
+        output:
+          per_credit_unit: 1100 # 1 credit per 1100 output tokens (0.30 USD per 1M tokens)
+    costs:
+      input_per_million_token:
+        price: 0.075
+        currency: USD
+        max_context: 131000
+      output_per_million_token:
+        price: 0.30
+        currency: USD
+        max_context: 131000
+
   - id: "gpt-oss-safeguard-20b" # Model ID without provider prefix
     name: "GPT-OSS-Safeguard-20b"
     description: "Open-source safety model with 20B parameters, served via Groq API for ultra-fast inference."

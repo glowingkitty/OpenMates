@@ -1,35 +1,62 @@
 <!--
   frontend/packages/ui/src/components/embeds/images/ImageResultEmbedPreview.svelte
 
-  Preview card for a single image_result child embed.
-  Displays a thumbnail image covering the full preview container,
-  similar to ImageEmbedPreview's full-bleed image style.
+  Preview card for a single image_result embed.
+  Always wraps in UnifiedEmbedPreview for consistent styling across all contexts:
+  grid cards inside search fullscreens, standalone inline previews, etc.
 
-  Used by ImagesSearchEmbedFullscreen as child cards in the image grid.
-  External images are proxied by the caller (ImagesSearchEmbedFullscreen).
+  Displays a thumbnail image covering the full preview container with a gradient
+  overlay showing the source domain and title at the bottom.
+
+  External images must be proxied by the caller (ImagesSearchEmbedFullscreen
+  proxies via proxyImage(), AppSkillUseRenderer proxies for standalone use).
 
   Architecture: See docs/architecture/embeds.md
 -->
 
 <script lang="ts">
   import { handleImageError } from '../../../utils/offlineImageHandler';
+  import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
 
   interface Props {
+    /** Unique embed ID */
+    id?: string;
     /** Image title */
     title?: string;
     /** Source domain name (e.g., "flickr.com") */
     sourceDomain?: string;
     /** Proxied thumbnail URL (caller must proxy before passing) */
     thumbnailUrl?: string;
+    /** Full-size image URL (fallback display image) */
+    imageUrl?: string;
     /** Favicon URL for the source site */
     faviconUrl?: string;
+    /** Processing status */
+    status?: 'processing' | 'finished' | 'error';
+    /** Task ID for cancellation */
+    taskId?: string;
+    /** Whether to use mobile layout */
+    isMobile?: boolean;
+    /** Click handler for fullscreen */
+    onFullscreen: () => void;
+    /**
+     * @deprecated No longer used. Kept for backward compatibility — always renders
+     * with UnifiedEmbedPreview. Will be removed in a future cleanup.
+     */
+    standalone?: boolean;
   }
 
   let {
+    id = '',
     title,
     sourceDomain,
     thumbnailUrl,
-    faviconUrl
+    imageUrl,
+    faviconUrl,
+    status = 'finished',
+    taskId = '',
+    isMobile = false,
+    onFullscreen,
   }: Props = $props();
 
   let imageLoaded = $state(false);
@@ -42,52 +69,66 @@
   function handleFail() {
     imageFailed = true;
   }
+
+  /** The display image — prefer full-size imageUrl, fallback to thumbnailUrl */
+  let displayImage = $derived(imageUrl || thumbnailUrl);
+
+  function handleStop() {
+    // no-op for image results (already resolved server-side)
+  }
 </script>
 
-<div class="image-result-card">
-  {#if thumbnailUrl && !imageFailed}
-    <img
-      src={thumbnailUrl}
-      alt={title || ''}
-      class="result-image"
-      class:visible={imageLoaded}
-      onload={handleLoad}
-      onerror={handleFail}
-      use:handleImageError
-    />
-  {:else}
-    <!-- Fallback placeholder -->
-    <div class="image-placeholder">
-      <span class="placeholder-icon clickable-icon icon_image"></span>
-    </div>
-  {/if}
-
-  <!-- Overlay info at bottom -->
-  {#if (title || sourceDomain) && imageLoaded}
-    <div class="card-overlay">
-      {#if sourceDomain}
-        <div class="source-line">
-          {#if faviconUrl}
-            <img src={faviconUrl} alt="" class="favicon" use:handleImageError />
-          {/if}
-          <span class="source-domain">{sourceDomain}</span>
+<UnifiedEmbedPreview
+  {id}
+  appId="images"
+  skillId="image_result"
+  skillIconName="image"
+  {status}
+  skillName={sourceDomain || 'Image'}
+  {isMobile}
+  showSkillIcon={false}
+  {faviconUrl}
+  showStatus={false}
+  hasFullWidthImage={true}
+  {taskId}
+  {onFullscreen}
+  onStop={handleStop}
+>
+  {#snippet details()}
+    <div class="image-result-content">
+      {#if displayImage && !imageFailed && status === 'finished'}
+        <img
+          src={displayImage}
+          alt={title || ''}
+          class="result-image"
+          class:visible={imageLoaded}
+          onload={handleLoad}
+          onerror={handleFail}
+          use:handleImageError
+        />
+        {#if imageLoaded && title}
+          <div class="card-overlay">
+            <span class="result-title">{title}</span>
+          </div>
+        {/if}
+      {:else if status === 'processing'}
+        <div class="skeleton-image"></div>
+      {:else}
+        <div class="image-placeholder">
+          <span class="placeholder-icon clickable-icon icon_image"></span>
         </div>
       {/if}
-      {#if title}
-        <span class="result-title">{title}</span>
-      {/if}
     </div>
-  {/if}
-</div>
+  {/snippet}
+</UnifiedEmbedPreview>
 
 <style>
-  .image-result-card {
-    position: relative;
+  .image-result-content {
     width: 100%;
-    aspect-ratio: 4/3;
-    border-radius: 10px;
+    height: 100%;
+    position: relative;
     overflow: hidden;
-    background: var(--color-grey-15, #ebebeb);
+    border-radius: 30px 30px 0 0;
   }
 
   .result-image {
@@ -103,7 +144,6 @@
     opacity: 1;
   }
 
-  /* Fallback when image fails to load */
   .image-placeholder {
     width: 100%;
     height: 100%;
@@ -119,45 +159,20 @@
     background: var(--color-grey-40, #bbb) !important;
   }
 
-  /* Overlay at bottom with gradient for readability */
   .card-overlay {
     position: absolute;
-    bottom: 0;
+    top: 0;
     left: 0;
     right: 0;
-    padding: 20px 10px 8px;
-    background: linear-gradient(transparent, rgba(0, 0, 0, 0.55));
+    padding: 12px 14px 32px;
+    background: linear-gradient(rgba(0, 0, 0, 0.5), transparent);
     display: flex;
     flex-direction: column;
-    gap: 2px;
-  }
-
-  .source-line {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-
-  .favicon {
-    width: 12px;
-    height: 12px;
-    flex-shrink: 0;
-    object-fit: contain;
-    border-radius: 2px;
-  }
-
-  .source-domain {
-    font-size: 10px;
-    color: rgba(255, 255, 255, 0.75);
-    line-height: 1.3;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 100%;
+    gap: 3px;
   }
 
   .result-title {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 500;
     color: rgba(255, 255, 255, 0.95);
     line-height: 1.3;
@@ -169,11 +184,19 @@
     word-break: break-word;
   }
 
-  /* Dark mode */
-  :global(.dark) .image-result-card {
-    background: var(--color-grey-85, #222);
+  .skeleton-image {
+    width: 100%;
+    height: 100%;
+    background: var(--color-grey-15, #ebebeb);
+    animation: pulse 1.5s ease-in-out infinite;
   }
 
+  @keyframes pulse {
+    0%, 100% { opacity: 0.6; }
+    50%       { opacity: 1; }
+  }
+
+  :global(.dark) .skeleton-image,
   :global(.dark) .image-placeholder {
     background: var(--color-grey-85, #222);
   }

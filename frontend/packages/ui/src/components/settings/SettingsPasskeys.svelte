@@ -4,17 +4,17 @@ Passkey Management - View, rename, delete, and add passkeys
 
 <script lang="ts">
     import { onMount } from 'svelte';
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
     import { text } from '@repo/ui';
     import { apiEndpoints, getApiEndpoint } from '../../config/api';
-    import SettingsItem from '../SettingsItem.svelte';
     import { createEventDispatcher } from 'svelte';
-    import { encryptWithMasterKey, decryptWithMasterKey, getEmailDecryptedWithMasterKey, hashEmail, getEmailSalt, deriveWrappingKeyFromPRF, encryptKey, hashKeyFromPRF, uint8ArrayToBase64, base64ToUint8Array } from '../../services/cryptoService';
+    import { encryptWithMasterKey, decryptWithMasterKey, getEmailDecryptedWithMasterKey, hashEmail, getEmailSalt, deriveWrappingKeyFromPRF, encryptKey, hashKeyFromPRF, uint8ArrayToBase64 } from '../../services/cryptoService';
     import { getMasterKeyFromIndexedDB, isDeviceTrusted } from '../../services/cryptoKeyStorage';
     import { userProfile } from '../../stores/userProfile';
     import { generateDeviceName } from '../../utils/deviceName';
-    import * as cryptoService from '../../services/cryptoService';
 
-    const dispatch = createEventDispatcher();
+    const _dispatch = createEventDispatcher();
 
     // State
     // Only store essential passkey data needed for the settings UI

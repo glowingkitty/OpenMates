@@ -158,6 +158,54 @@ want_to_learn.description:
     - en
     - de
 
+coding_setup:
+  context: Settings/memory name for preferred coding setup
+  en: Coding Setup
+  de: Coding-Setup
+  verified_by_human:
+    - en
+    - de
+
+coding_setup.description:
+  context: Description for preferred coding setup settings/memory
+  en: How you like to code, collaborate with AI, and enter instructions
+  de: Wie du am liebsten codest, mit KI zusammenarbeitest und Eingaben machst
+  verified_by_human:
+    - en
+    - de
+
+coding_setup.example_1:
+  context: Example entry title for coding setup (terminal-heavy workflow)
+  en: Terminal-first setup
+  de: Terminal-first-Setup
+  verified_by_human:
+    - en
+    - de
+
+coding_setup.example_2:
+  context: Example entry title for coding setup (guided web workflow)
+  en: Guided web workflow
+  de: Geführter Web-Workflow
+  verified_by_human:
+    - en
+    - de
+
+coding_setup.example_1.notes:
+  context: Example notes for coding setup entry 1
+  en: Neovim + tmux, short suggestions only
+  de: Neovim + tmux, nur kurze Vorschläge
+  verified_by_human:
+    - en
+    - de
+
+coding_setup.example_2.notes:
+  context: Example notes for coding setup entry 2
+  en: Prefers presets and one-click actions
+  de: Bevorzugt Presets und One-Click-Aktionen
+  verified_by_human:
+    - en
+    - de
+
 # Example entries shown to non-authenticated users to illustrate what each category stores
 
 preferred_tech.example_1:

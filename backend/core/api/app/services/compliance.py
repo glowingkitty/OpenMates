@@ -1,13 +1,17 @@
 import logging
-import json
 from datetime import datetime
 from typing import Optional, Dict, Any, Union
 import ipaddress
-from datetime import datetime # Ensure datetime is imported
-from backend.core.api.app.utils.device_fingerprint import hash_ip_address, _extract_client_ip
+from backend.core.api.app.utils.device_fingerprint import hash_ip_address
 
-# Configure a special logger for compliance events
-compliance_logger = logging.getLogger("compliance")
+# Compliance loggers are split by retention requirement (see setup_compliance_logging.py):
+#
+#   compliance.audit      → audit-compliance.log  (2-year retention — GDPR / BSI)
+#   compliance.financial  → financial-compliance.log (10-year retention — AO §147 / HGB §257)
+#
+# setup_compliance_logging() in main.py configures the handlers; here we just reference the named loggers.
+audit_compliance_logger = logging.getLogger("compliance.audit")
+financial_compliance_logger = logging.getLogger("compliance.financial")
 # Get the standard logger for API events
 api_logger = logging.getLogger(__name__)
 # Get the specialized event logger for important business events
@@ -61,7 +65,7 @@ class ComplianceService:
             log_data["details"] = sanitized_details
             
         # Log the raw dictionary - let the JSON handler format it
-        compliance_logger.info(log_data)
+        audit_compliance_logger.info(log_data)
     
     @staticmethod
     def log_user_creation(
@@ -94,7 +98,7 @@ class ComplianceService:
             log_data["details"] = sanitized_details
             
         # Log the raw dictionary - let the JSON handler format it
-        compliance_logger.info(log_data)
+        audit_compliance_logger.info(log_data)
 
         # Log consent events immediately after user creation log
         # These logs intentionally omit IP, device fingerprint, and location
@@ -113,7 +117,7 @@ class ComplianceService:
         # Add sanitized details if they exist from the original call
         if 'details' in log_data:
              privacy_consent_log["details"] = log_data['details']
-        compliance_logger.info(privacy_consent_log)
+        audit_compliance_logger.info(privacy_consent_log)
 
         # Log Terms of Service consent
         terms_consent_log = {
@@ -128,7 +132,7 @@ class ComplianceService:
         # Add sanitized details if they exist from the original call
         if 'details' in log_data:
              terms_consent_log["details"] = log_data['details']
-        compliance_logger.info(terms_consent_log)
+        audit_compliance_logger.info(terms_consent_log)
 
     @staticmethod
     def log_api_event(
@@ -196,7 +200,7 @@ class ComplianceService:
             log_data["details"] = sanitized_details
             
         # Log the event - pass log_data directly to preserve structured data
-        compliance_logger.info(log_data)
+        audit_compliance_logger.info(log_data)
     
     @staticmethod
     def log_consent(
@@ -230,7 +234,7 @@ class ComplianceService:
             log_data["details"] = sanitized_details
             
         # Log the event - pass log_data directly to preserve structured data
-        compliance_logger.info(log_data)
+        audit_compliance_logger.info(log_data)
 
     @staticmethod
     def log_auth_event_safe(
@@ -271,7 +275,7 @@ class ComplianceService:
             log_data["details"] = sanitized_details
             
         # Log the raw dictionary - let the JSON handler format it
-        compliance_logger.info(log_data)
+        audit_compliance_logger.info(log_data)
 
     @staticmethod
     def log_account_deletion(
@@ -321,7 +325,7 @@ class ComplianceService:
             
         # Log to compliance logger with warning level for high visibility
         # Pass log_data directly to preserve structured data for monitoring tools
-        compliance_logger.warning(log_data)
+        audit_compliance_logger.warning(log_data)
         
         # Also log to regular API logger
         api_logger.warning(
@@ -362,7 +366,7 @@ class ComplianceService:
             
         # Log to compliance logger
         # Pass log_data directly to preserve structured data for monitoring tools
-        compliance_logger.info(log_data)
+        audit_compliance_logger.info(log_data)
         
         # Optionally, also log to regular API logger for operational visibility if needed
         api_logger.info(
@@ -413,7 +417,8 @@ class ComplianceService:
             log_data["details"] = sanitized_details
             
         # Log to compliance logger - pass log_data directly to preserve structured data
-        compliance_logger.info(log_data)
+        # Financial transactions require 10-year retention (AO §147 / HGB §257)
+        financial_compliance_logger.info(log_data)
         
         # Also log to regular API logger for operational visibility
         amount_str = f" {amount}" if amount is not None else ""
@@ -489,8 +494,8 @@ class ComplianceService:
                               if k not in ['password', 'token', 'secret', 'payment_method_id', 'card_number']}
             log_data["details"] = sanitized_details
             
-        # Log to compliance logger - pass log_data directly to preserve structured data
-        compliance_logger.info(log_data)
+        # Refund requests require 10-year retention (AO §147 / HGB §257)
+        financial_compliance_logger.info(log_data)
         
         # Also log to regular API logger for operational visibility
         amount_str = f" {refund_amount}" if refund_amount is not None else ""
@@ -500,9 +505,7 @@ class ComplianceService:
             f"REFUND REQUEST: User {user_id} - Invoice {invoice_id}{amount_str}{currency_str}{credits_str} - {status}"
         )
 
-# TODO: Implement S3 archive functionality for compliance logs
-# This will:
-# 1. Periodically (daily) collect logs older than 48 hours
-# 2. Encrypt them using Vault keys
-# 3. Upload to S3 Hetzner
-# 4. Verify upload and then delete from local storage
+# S3 backup of compliance logs is handled by compliance_log_backup_task() in main.py.
+# It runs nightly and uploads rotated .log.YYYY-MM-DD files to S3 Hetzner:
+#   financial-compliance/  → 10-year lifecycle (AO §147 / HGB §257)
+#   audit-compliance/      → 2-year lifecycle  (GDPR / BSI §34 BDSG)

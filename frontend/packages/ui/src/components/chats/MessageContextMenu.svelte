@@ -3,6 +3,8 @@
     import { text } from '@repo/ui';
     import { authStore } from '../../stores/authStore';
     import { apiEndpoints, getApiEndpoint } from '../../config/api';
+    import { chatDebugStore } from '../../stores/chatDebugStore'; // Chat debug mode toggle
+    import { userProfile } from '../../stores/userProfile';
     import type { MessageRole } from '../../types/chat';
 
     // Props using Svelte 5 $props()
@@ -195,6 +197,13 @@
         onClose?.();
     }
 
+    async function handleToggleDebug(event: Event) {
+        event.stopPropagation();
+        event.preventDefault();
+        await chatDebugStore.toggle();
+        onClose?.();
+    }
+
     // Add scroll handler
     function handleScroll() {
         if (show) {
@@ -291,6 +300,19 @@
                 {#if !confirmingDelete}
                     {$text('chats.context_menu.delete_message')}
                 {/if}
+            </button>
+        {/if}
+
+        {#if $userProfile.is_admin}
+            <!-- Debug mode toggle: admin only -->
+            <div class="menu-separator"></div>
+            <button
+                class="menu-item debug"
+                class:debug-active={$chatDebugStore.rawTextMode}
+                onclick={handleToggleDebug}
+            >
+                <div class="clickable-icon icon_bug"></div>
+                {$chatDebugStore.rawTextMode ? $text('chats.context_menu.end_debugging') : $text('chats.context_menu.start_debugging')}
             </button>
         {/if}
     </div>
@@ -444,6 +466,23 @@
         opacity: 0.35;
         cursor: not-allowed;
         pointer-events: none;
+    }
+
+    /* Debug mode button */
+    .menu-item.debug {
+        color: var(--color-font-secondary);
+    }
+
+    .menu-item.debug .clickable-icon {
+        background: var(--color-font-secondary);
+    }
+
+    .menu-item.debug.debug-active {
+        color: var(--color-warning, #e67e22);
+    }
+
+    .menu-item.debug.debug-active .clickable-icon {
+        background: var(--color-warning, #e67e22);
     }
 
     .clickable-icon {

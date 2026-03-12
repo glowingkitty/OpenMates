@@ -244,7 +244,7 @@ async function loadCodeEmbedsRecursively(
 
       // Recursively load child embeds
       if (uniqueChildEmbedIds.length > 0) {
-        console.debug(
+        console.warn(
           "[ZipExportService] Loading nested embeds for code processing:",
           {
             parentEmbedId: embed.embed_id,
@@ -274,7 +274,7 @@ async function loadCodeEmbedsRecursively(
 /**
  * Gets all code embeds from a chat including nested embeds
  */
-async function getCodeEmbedsForChat(messages: Message[]): Promise<
+export async function getCodeEmbedsForChat(messages: Message[]): Promise<
   Array<{
     embed_id: string;
     language: string;
@@ -471,7 +471,7 @@ async function loadVideoTranscriptEmbedsRecursively(
 
       // Recursively load child embeds
       if (uniqueChildEmbedIds.length > 0) {
-        console.debug(
+        console.warn(
           "[ZipExportService] Loading nested embeds for transcript processing:",
           {
             parentEmbedId: embed.embed_id,
@@ -504,7 +504,7 @@ async function loadVideoTranscriptEmbedsRecursively(
  * Extracts video transcript embeds (app_skill_use with app_id='videos' and skill_id='get_transcript')
  * and formats them as markdown files similar to VideoTranscriptEmbedFullscreen handleDownload
  */
-async function getVideoTranscriptEmbedsForChat(messages: Message[]): Promise<
+export async function getVideoTranscriptEmbedsForChat(messages: Message[]): Promise<
   Array<{
     embed_id: string;
     filename: string;
@@ -605,7 +605,7 @@ async function loadImageEmbedsRecursively(
   // Load embeds from EmbedStore
   const loadedEmbeds = await loadEmbeds(newEmbedIds);
 
-  console.debug(
+  console.warn(
     "[ZipExportService] loadImageEmbedsRecursively: loaded embeds from store:",
     {
       requestedIds: newEmbedIds.length,
@@ -623,7 +623,7 @@ async function loadImageEmbedsRecursively(
   for (const embed of loadedEmbeds) {
     try {
       if (!embed.content || typeof embed.content !== "string") {
-        console.debug(
+        console.warn(
           "[ZipExportService] Skipping embed with no/invalid content:",
           {
             embed_id: embed.embed_id,
@@ -638,7 +638,7 @@ async function loadImageEmbedsRecursively(
       // Decode TOON content to get actual embed values
       const decodedContent = await decodeToonContent(embed.content);
 
-      console.debug("[ZipExportService] Image embed check:", {
+      console.warn("[ZipExportService] Image embed check:", {
         embed_id: embed.embed_id,
         embed_type: embed.type,
         decoded_app_id: decodedContent?.app_id,
@@ -673,7 +673,7 @@ async function loadImageEmbedsRecursively(
           decodedContent.files.full ||
           decodedContent.files.preview;
 
-        console.debug("[ZipExportService] Found image embed, fileEntry:", {
+        console.warn("[ZipExportService] Found image embed, fileEntry:", {
           embed_id: embed.embed_id,
           hasOriginal: !!decodedContent.files.original,
           hasFull: !!decodedContent.files.full,
@@ -729,7 +729,7 @@ async function loadImageEmbedsRecursively(
 
       // Recursively load child embeds
       if (uniqueChildEmbedIds.length > 0) {
-        console.debug(
+        console.warn(
           "[ZipExportService] Loading nested embeds for image processing:",
           {
             parentEmbedId: embed.embed_id,
@@ -761,7 +761,7 @@ async function loadImageEmbedsRecursively(
  * Downloads, decrypts, and embeds PNG metadata for each image.
  * @returns Array of image data ready to be added to zip
  */
-async function getImageEmbedsForChat(messages: Message[]): Promise<
+export async function getImageEmbedsForChat(messages: Message[]): Promise<
   Array<{
     filename: string;
     blob: Blob;
@@ -791,7 +791,7 @@ async function getImageEmbedsForChat(messages: Message[]): Promise<
       }
     }
 
-    console.debug(
+    console.warn(
       "[ZipExportService] getImageEmbedsForChat: extracted embed references:",
       {
         messageCount: messages.length,
@@ -815,7 +815,7 @@ async function getImageEmbedsForChat(messages: Message[]): Promise<
       return [];
     }
 
-    console.debug(
+    console.warn(
       "[ZipExportService] Found image embeds to download:",
       imageEmbedInfos.length,
     );
@@ -968,7 +968,7 @@ async function fetchAndDecryptBlob(
  *   { app_id: "audio", skill_id: "transcribe", files: { original: { s3_key, size_bytes } },
  *     aes_key, aes_nonce, transcript, filename, mime_type, duration }
  */
-async function getAudioRecordingsForChat(messages: Message[]): Promise<
+export async function getAudioRecordingsForChat(messages: Message[]): Promise<
   Array<{
     /** Sanitised filename for the zip (e.g. "recording_01.webm") */
     filename: string;
@@ -1078,7 +1078,7 @@ async function getAudioRecordingsForChat(messages: Message[]): Promise<
         const transcript = (decoded.transcript as string | undefined) ?? "";
 
         results.push({ filename, blob, transcript });
-        console.debug(
+        console.warn(
           "[ZipExportService] Added audio recording to zip:",
           filename,
           "size:",
@@ -1117,7 +1117,7 @@ async function getAudioRecordingsForChat(messages: Message[]): Promise<
  * The original encrypted PDF binary is NOT re-exported (the plaintext PDF
  * itself is never stored on the client — only the page screenshots are).
  */
-async function getPDFEmbedsForChat(messages: Message[]): Promise<
+export async function getPDFEmbedsForChat(messages: Message[]): Promise<
   Array<{
     /** Sub-folder name derived from the PDF filename (e.g. "report") */
     folderName: string;
@@ -1176,7 +1176,7 @@ async function getPDFEmbedsForChat(messages: Message[]): Promise<
 
         // No screenshots means the OCR hasn't finished yet — skip gracefully
         if (!screenshotKeys || Object.keys(screenshotKeys).length === 0) {
-          console.debug(
+          console.warn(
             "[ZipExportService] PDF embed has no screenshot_s3_keys (OCR pending?), skipping:",
             embed.embed_id,
           );
@@ -1232,7 +1232,7 @@ async function getPDFEmbedsForChat(messages: Message[]): Promise<
 
         if (pages.length > 0) {
           results.push({ folderName, pdfFilename, pages });
-          console.debug(
+          console.warn(
             "[ZipExportService] Added PDF to zip:",
             pdfFilename,
             `(${pages.length}/${totalPages} pages)`,
@@ -1298,7 +1298,7 @@ export async function downloadChatAsZip(
   piiOptions?: PIIExportOptions,
 ): Promise<void> {
   try {
-    console.debug(
+    console.warn(
       "[ZipExportService] Starting zip download for chat:",
       chat.chat_id,
     );
@@ -1393,7 +1393,7 @@ export async function downloadChatAsZip(
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
-    console.debug(
+    console.warn(
       "[ZipExportService] Zip download completed for chat:",
       chat.chat_id,
     );
@@ -1411,7 +1411,7 @@ export async function downloadChatsAsZip(
   messagesMap: Map<string, Message[]>,
 ): Promise<void> {
   try {
-    console.debug(
+    console.warn(
       "[ZipExportService] Starting bulk zip download for",
       chats.length,
       "chats",
@@ -1540,7 +1540,7 @@ export async function downloadChatsAsZip(
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
-    console.debug(
+    console.warn(
       "[ZipExportService] Bulk zip download completed:",
       successCount,
       "chats",
@@ -1569,7 +1569,7 @@ export async function downloadCodeFilesAsZip(
   codeFiles: CodeFileData[],
 ): Promise<void> {
   try {
-    console.debug("[ZipExportService] Downloading code files as zip:", {
+    console.warn("[ZipExportService] Downloading code files as zip:", {
       fileCount: codeFiles.length,
     });
 
@@ -1651,7 +1651,7 @@ export async function downloadCodeFilesAsZip(
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
-    console.debug(
+    console.warn(
       "[ZipExportService] Code files zip download completed:",
       codeFiles.length,
       "files",
@@ -1675,7 +1675,7 @@ export async function downloadCodeFile(
   filename?: string,
 ): Promise<void> {
   try {
-    console.debug("[ZipExportService] Downloading code file:", {
+    console.warn("[ZipExportService] Downloading code file:", {
       language,
       filename,
     });
@@ -1703,7 +1703,7 @@ export async function downloadCodeFile(
       downloadFilename = `code_snippet.${ext}`;
     }
 
-    console.debug("[ZipExportService] Resolved download filename:", {
+    console.warn("[ZipExportService] Resolved download filename:", {
       originalFilename: filename,
       parsedFilename: parsed.filename,
       downloadFilename,
@@ -1720,7 +1720,7 @@ export async function downloadCodeFile(
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
-    console.debug(
+    console.warn(
       "[ZipExportService] Code file download completed:",
       downloadFilename,
     );

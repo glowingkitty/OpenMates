@@ -80,6 +80,8 @@ step_4_bottom_content_svelte:
     import { onMount } from 'svelte';
     import { createEventDispatcher } from 'svelte';
     import { fade } from 'svelte/transition';
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
     import { routes } from '../../../../config/links';
     import { getApiEndpoint, apiEndpoints } from '../../../../config/api';
     import { userProfile } from '../../../../stores/userProfile'; // Import userProfile store
@@ -93,7 +95,7 @@ step_4_bottom_content_svelte:
     
     let otpCode = $state('');
     let otpInput: HTMLInputElement = $state();
-    let isLoading = $state(false);
+    let _isLoading = $state(false);
     const dispatch = createEventDispatcher();
     
     // Detect device OS

@@ -1,9 +1,8 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount } from 'svelte';
 	import type { DemoChat as DemoChatType } from '../demo_chats/types';
 	import ReadOnlyMessage from './ReadOnlyMessage.svelte';
-	import { fade, fly } from 'svelte/transition';
-	import { authStore } from '../stores/authStore';
+	import { fly } from 'svelte/transition';
 	import { translateDemoChat } from '../demo_chats/translateDemoChat';
 	import { locale } from 'svelte-i18n';
 
@@ -23,7 +22,7 @@
 	// Include $locale in the derived to force re-translation when locale changes
 	let translatedDemoChat = $derived.by(() => {
 		// Access $locale to make this reactive to locale changes
-		const currentLocale = $locale;
+		const _currentLocale = $locale;
 		// translateDemoChat uses get(text) internally, which reads from the locale store
 		// By accessing $locale here, we ensure this derived re-runs when locale changes
 		return translateDemoChat(initialDemoChat);

@@ -9,8 +9,7 @@ changes to the documentation (to keep the documentation up to date).
 
 -->
 <script lang="ts">
-    import { text, notificationStore } from '@repo/ui';
-    import { locale } from 'svelte-i18n';
+    import { text } from '@repo/ui';
     import { getApiEndpoint, apiEndpoints } from '../../config/api';
     import InputWarning from '../common/InputWarning.svelte';
     import { replaceState } from '$app/navigation';

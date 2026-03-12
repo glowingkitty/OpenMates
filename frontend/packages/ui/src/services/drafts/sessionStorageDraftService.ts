@@ -3,8 +3,8 @@
 // These drafts are stored as cleartext (no encryption) and are migrated to IndexedDB after login/signup
 
 import { tipTapToCanonicalMarkdown } from '../../message_parsing/serializers';
-import { parse_message } from '../../message_parsing/parse_message';
 import type { TiptapJSON } from '../../types/chat';
+import type { TipTapDoc } from '../../message_parsing/types';
 
 /**
  * SessionStorage key prefix for drafts
@@ -88,7 +88,7 @@ export function saveSessionStorageDraft(
 ): void {
 	try {
 		// Convert TipTap JSON to markdown for storage
-		const markdown = tipTapToCanonicalMarkdown(tiptapJSON);
+		const markdown = tipTapToCanonicalMarkdown(tiptapJSON as unknown as TipTapDoc);
 		
 		const draft: SessionStorageDraft = {
 			markdown,
@@ -229,7 +229,11 @@ export function getAllDraftChatIdsWithDrafts(): string[] {
  * @param encryptWithMasterKey Function to encrypt content with master key
  */
 export async function migrateSessionStorageDraftsToIndexedDB(
-	chatDB: any,
+	chatDB: {
+		getChat(chatId: string): Promise<import('../../types/chat').Chat | undefined>;
+		createNewChatWithCurrentUserDraft(encryptedMarkdown: string, encryptedPreview: string | null): Promise<import('../../types/chat').Chat>;
+		saveCurrentUserChatDraft(chatId: string, encryptedMarkdown: string, encryptedPreview: string | null): Promise<import('../../types/chat').Chat>;
+	},
 	encryptWithMasterKey: (content: string) => Promise<string | null>
 ): Promise<void> {
 	try {

@@ -400,10 +400,24 @@ def run_daily_all_tests(self, force: bool = False) -> Dict[str, Any]:
     For daily Beat runs, force=False (respects the 24h commit-activity gate).
     For manual triggers via the admin API, force=True is passed.
 
+    Env gate: E2E_DAILY_RUN_ENABLED must be set to "true" for this task to run.
+    This env var is NOT set on production — the Beat schedule entry is already
+    gated in celery_config.py, but this check provides a second layer of
+    protection in case the task is triggered manually on the wrong server.
+
     Returns:
         dict with keys: status, sidecar_response
     """
     import time as _time
+
+    # Env gate: abort if daily test runs are not enabled on this server.
+    # Production servers must never have E2E_DAILY_RUN_ENABLED set.
+    if os.environ.get("E2E_DAILY_RUN_ENABLED", "").lower() != "true":
+        logger.info(
+            "Daily test run skipped: E2E_DAILY_RUN_ENABLED is not set to 'true' "
+            "(set this env var on the dev server to enable automated test runs)"
+        )
+        return {"status": "skipped", "reason": "E2E_DAILY_RUN_ENABLED not set"}
 
     sidecar_url = os.environ.get("CORE_SIDECAR_URL", "http://core-admin-sidecar:8001")
     sidecar_key = os.environ.get("SECRET__CORE_SERVER__ADMIN_LOG_API_KEY", "")
@@ -415,6 +429,47 @@ def run_daily_all_tests(self, force: bool = False) -> Dict[str, Any]:
 
     try:
         import httpx
+        from datetime import datetime, timezone
+
+        # Notify admin that the test run is starting — sent before the sidecar
+        # call so the admin knows the run kicked off even if the sidecar is slow.
+        server_environment = os.environ.get("SERVER_ENVIRONMENT", "development")
+        admin_email = os.environ.get("ADMIN_NOTIFY_EMAIL") or os.environ.get("SERVER_OWNER_EMAIL")
+        if admin_email:
+            try:
+                trigger_type = "Manual (admin)" if force else "Scheduled (daily)"
+                # Collect git info (best-effort)
+                git_sha, git_branch = "unknown", "unknown"
+                try:
+                    import subprocess
+                    git_sha = subprocess.check_output(
+                        ["git", "rev-parse", "--short", "HEAD"],
+                        stderr=subprocess.DEVNULL, text=True,
+                    ).strip()
+                    git_branch = subprocess.check_output(
+                        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                        stderr=subprocess.DEVNULL, text=True,
+                    ).strip()
+                except Exception:
+                    pass
+                started_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+                app.send_task(
+                    name="app.tasks.email_tasks.test_run_started_email_task.send_test_run_started",
+                    args=[admin_email, trigger_type, git_sha, git_branch, started_at, server_environment],
+                    queue="email",
+                )
+                logger.info(
+                    "Dispatched test run started email (trigger=%s, environment=%s)",
+                    trigger_type, server_environment,
+                )
+            except Exception as email_err:
+                # Non-fatal: a failed start email must not block the test run
+                logger.warning("Could not dispatch test run started email: %s", email_err)
+        else:
+            logger.warning(
+                "ADMIN_NOTIFY_EMAIL / SERVER_OWNER_EMAIL not set — "
+                "skipping test run started email"
+            )
 
         # Trigger the test run on the sidecar (returns 202 immediately)
         with httpx.Client(timeout=15.0) as client:

@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Chat flow test: login with existing account + 2FA, then send a message and validate
- * end-to-end encryption health through multiple lifecycle phases:
+ * zero-knowledge encryption health through multiple lifecycle phases:
  *
  *   1. Initial login → send message → confirm AI response
  *   2. Console warn/error capture → save to file if any occurred

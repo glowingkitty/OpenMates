@@ -40,7 +40,7 @@ const ONBOARDING_FOCUS_ID = "openmates-welcome";
  * Creates the onboarding chat with Suki's welcome message.
  *
  * This function:
- * 1. Generates a new chat with standard E2E encryption (chat key + master key)
+ * 1. Generates a new chat with zero-knowledge encryption (chat key + master key)
  * 2. Creates a pre-built assistant welcome message from i18n
  * 3. Pre-activates the onboarding focus mode on the chat
  * 4. Includes follow-up suggestion chips

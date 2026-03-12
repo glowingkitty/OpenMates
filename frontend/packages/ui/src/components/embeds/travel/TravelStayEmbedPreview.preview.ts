@@ -22,7 +22,7 @@ const defaultProps = {
 	freeCancellation: true,
 	status: 'finished' as const,
 	isMobile: false,
-	onFullscreen: () => console.log('[Preview] Fullscreen clicked')
+	onFullscreen: () => {}
 };
 
 export default defaultProps;

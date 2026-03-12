@@ -503,18 +503,42 @@ async def update_share_metadata(
         if payload.share_with_community and payload.decrypted_messages:
             demo_chat_id = None
             try:
-                # Create a pending demo_chat entry with status='pending_approval'
-                # Store messages and embeds encrypted with Vault (not the user's chat key)
-                demo_chat = await directus_service.demo_chat.create_pending_demo_chat_with_content(
-                    chat_id=chat_id,
-                    title=payload.title,
-                    summary=payload.summary,
-                    category=payload.category,
-                    icon=payload.icon,
-                    follow_up_suggestions=payload.follow_up_suggestions,
-                    decrypted_messages=payload.decrypted_messages,  # [{role, content, created_at}]
-                    decrypted_embeds=payload.decrypted_embeds or []  # [{embed_id, type, content, created_at}]
-                )
+                # GUARD: Validate that messages referencing embeds have matching embed data.
+                # Without this, demo chats get published with empty embed cards (embed references
+                # in message content but no actual embed data in demo_embeds table).
+                import re as _re
+                _embed_ref_pattern = _re.compile(r'"embed_id"\s*:\s*"([a-f0-9-]{36})"')
+                _referenced_ids = set()
+                for _msg in payload.decrypted_messages:
+                    _content = _msg.get("content", "")
+                    if isinstance(_content, str):
+                        _referenced_ids.update(_embed_ref_pattern.findall(_content))
+                _provided_ids = {e.get("embed_id") for e in (payload.decrypted_embeds or []) if e.get("embed_id")}
+                _missing_ids = _referenced_ids - _provided_ids
+
+                demo_chat = None
+                if _missing_ids:
+                    logger.warning(
+                        f"Community share for chat {chat_id} blocked: messages reference "
+                        f"{len(_referenced_ids)} embed(s) but {len(_missing_ids)} are missing from "
+                        f"decrypted_embeds. Missing: {_missing_ids}"
+                    )
+                    # Don't create demo chat — it would have broken embeds.
+                    # Regular sharing still proceeds (only community sharing is skipped).
+                else:
+                    # All referenced embeds are present — proceed with demo chat creation
+                    # Create a pending demo_chat entry with status='pending_approval'
+                    # Store messages and embeds encrypted with Vault (not the user's chat key)
+                    demo_chat = await directus_service.demo_chat.create_pending_demo_chat_with_content(
+                        chat_id=chat_id,
+                        title=payload.title,
+                        summary=payload.summary,
+                        category=payload.category,
+                        icon=payload.icon,
+                        follow_up_suggestions=payload.follow_up_suggestions,
+                        decrypted_messages=payload.decrypted_messages,  # [{role, content, created_at}]
+                        decrypted_embeds=payload.decrypted_embeds or []  # [{embed_id, type, content, created_at}]
+                    )
                 if demo_chat:
                     demo_chat_id = demo_chat.get("id")  # UUID, not demo_id string
                     logger.info(f"Created pending demo chat {demo_chat_id} for community-shared chat {chat_id}")

@@ -3,6 +3,7 @@
   import type { SvelteComponent } from 'svelte';
   import { flip } from 'svelte/animate';
   import ChatMessage from "./ChatMessage.svelte";
+  import FollowUpSuggestions from './FollowUpSuggestions.svelte';
   import { fade } from "svelte/transition";
   import type { MessageStatus, ProcessingPhase } from '../types/chat'; // Import global MessageStatus and ProcessingPhase
 
@@ -42,6 +43,7 @@
   import type { PendingPermissionRequest, AppSettingsMemoriesCategory } from '../services/chatSyncServiceHandlersAppSettings';
   import { formatDisplayName, getAppGradient } from '../services/chatSyncServiceHandlersAppSettings';
   import { text } from '@repo/ui'; // Used for compression summary UI labels
+  import { chatDebugStore } from '../stores/chatDebugStore';
 
   type AppCardData = {
     component: new (...args: unknown[]) => SvelteComponent;
@@ -173,7 +175,10 @@
       // CRITICAL FIX: Use 'write' mode for streaming messages to show 'processing' status on embeds
       // This ensures users see "processing" state during streaming instead of waiting for embed data
       const parseMode = incomingMessage.status === 'streaming' ? 'write' : 'read';
-      const tiptapJson = parse_message(contentToProcess, parseMode, { unifiedParsingEnabled: true });
+      const tiptapJson = parse_message(contentToProcess, parseMode, {
+        unifiedParsingEnabled: true,
+        role: incomingMessage.role
+      });
       processedContent = preprocessTiptapJsonForEmbeds(tiptapJson);
 
       // Apply truncation at TipTap level for user messages to avoid breaking node structure
@@ -287,17 +292,7 @@
     
     // Debug: count system messages to understand what we're working with
     const systemMessages = messages.filter(m => m.role === 'system');
-    if (systemMessages.length > 0) {
-      console.log(`[ChatHistory][RequestMap] Processing ${messages.length} messages (${systemMessages.length} system). System msgs:`,
-        systemMessages.map(m => ({
-          id: m.id,
-          hasOriginal: !!m.original_message,
-          hasContent: !!m.original_message?.content,
-          contentType: typeof m.original_message?.content,
-          contentPreview: typeof m.original_message?.content === 'string' ? m.original_message.content.substring(0, 80) : undefined
-        }))
-      );
-    }
+
     
     for (const msg of messages) {
       if (msg.role === 'system') {
@@ -308,9 +303,7 @@
       }
     }
     
-    if (map.size > 0) {
-      console.log(`[ChatHistory][RequestMap] Found ${map.size} request(s):`, [...map.keys()]);
-    }
+
     
     return map;
   });
@@ -337,7 +330,6 @@
       if (msg.role === 'system') {
         const response = parseAppSettingsMemoriesResponse(msg.original_message?.content);
         if (response) {
-          console.log(`[ChatHistory][ResponseMap] Found response:`, { user_message_id: response.user_message_id, action: response.action, msgId: msg.id });
           // Use user_message_id directly as the map key — same strategy as the request map.
           // Both request and response system messages store the same user_message_id
           // (the client-generated ID of the user message that triggered the request).
@@ -361,9 +353,7 @@
       }
     }
     
-    if (map.size > 0) {
-      console.log(`[ChatHistory][ResponseMap] Found ${map.size} response(s):`, [...map.keys()]);
-    }
+
     
     return map;
   });
@@ -443,6 +433,28 @@
     });
   });
 
+  let debugChatCopied = $state(false);
+  let debugChatCopyTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function copyDebugChatText(): void {
+    const text = $chatDebugStore.chatReport;
+    if (!text) return;
+    void navigator.clipboard.writeText(text).then(() => {
+      debugChatCopied = true;
+      if (debugChatCopyTimer) clearTimeout(debugChatCopyTimer);
+      debugChatCopyTimer = setTimeout(() => { debugChatCopied = false; }, 2000);
+    });
+  }
+
+  let lastAssistantMessageId = $derived.by(() => {
+    for (let i = displayMessages.length - 1; i >= 0; i--) {
+      if (displayMessages[i].role === 'assistant') {
+        return displayMessages[i].id;
+      }
+    }
+    return null;
+  });
+
   // Show/hide the messages block for fade-out animation using $state (Svelte 5 runes mode)
   let showMessages = $state(true);
 
@@ -469,6 +481,8 @@
     isCreditsRestored = false,
     onResend = undefined,
     isIncognito = false,
+    followUpSuggestions = [],
+    onSuggestionClick = undefined,
   }: {
     messageInputHeight?: number;
     containerWidth?: number;
@@ -501,6 +515,12 @@
     /** True when the active chat is an incognito chat.
      *  Shows the incognito-specific ChatHeader variant immediately (no shimmer needed). */
     isIncognito?: boolean;
+    /** Follow-up suggestions to display below the last assistant message.
+     *  Passed from ActiveChat; shown without input-focus requirement so users
+     *  see them immediately without clicking the message input. */
+    followUpSuggestions?: string[];
+    /** Callback fired when the user clicks a follow-up suggestion. */
+    onSuggestionClick?: (suggestion: string, mentionSyntax?: string) => void;
   } = $props();
 
   // Add reactive statement to handle height changes using $derived (Svelte 5 runes mode)
@@ -540,8 +560,6 @@
       if (!appSettingsMemoriesResponseMap.has(userMessageId)) {
         console.warn(`[ChatHistory][UnpairedRequest] Request for user_message_id="${userMessageId}" has NO matching response. Response map keys:`, [...appSettingsMemoriesResponseMap.keys()]);
         return request;
-      } else {
-        console.log(`[ChatHistory][UnpairedRequest] Request for user_message_id="${userMessageId}" is PAIRED with response.`);
       }
     }
     return null;
@@ -617,6 +635,18 @@
   let isCurrentlyStreaming = $derived(
     messages.some(m => m.status === 'streaming')
   );
+
+  /**
+   * Show follow-up suggestions below the last assistant message when:
+   * 1. There are suggestions to show
+   * 2. The last message is from the assistant
+   * 3. No message is currently streaming
+   */
+  let showFollowUpSuggestionsInHistory = $derived(
+    followUpSuggestions.length > 0 &&
+    lastAssistantMessageId !== null &&
+    !isCurrentlyStreaming
+  );
   
   // NOTE: The centered AI status overlay has been removed. The spacer system directly uses
   // `processingPhase !== null` to know when AI processing is happening (affects scroll behaviour).
@@ -661,7 +691,6 @@
    * @param incomingMessage - The new message object, likely conforming to global Message type.
    */
   export function addMessage(incomingMessage: GlobalMessage) {
-    console.debug('Adding message to chat history (raw):', incomingMessage);
     
     // Build cumulative PII mappings from existing messages + the new message
     // This allows assistant messages to restore PII from any preceding user message
@@ -672,7 +701,6 @@
     const piiMappings = buildCumulativePIIMappings(allOriginalMessages);
     
     const messageForHistory: InternalMessage = G_mapToInternalMessage(incomingMessage, piiMappings);
-    console.debug('Adding message to chat history (processed):', messageForHistory);
     
     // Track if this is a new user message for scrolling behavior
     if (messageForHistory.role === 'user') {
@@ -812,20 +840,15 @@
             if (oldContentStr === newContentStr) {
                 // Content is identical, reuse old reference for optimization
                 newInternalMessage.content = oldMessage.content;
-            } else {
-                // Content is different - log for debugging
-                console.debug('[ChatHistory] Message content changed for', newMessage.message_id);
             }
         } else if (hasEmbedUpdate) {
             // Embed was updated - force new content to re-render embed NodeViews
-            console.debug('[ChatHistory] Embed update detected - forcing new content for', newMessage.message_id);
             newInternalMessage.content = JSON.parse(JSON.stringify(newInternalMessage.content));
         } else if (localeChanged) {
             // Locale changed - always use new content even if it appears identical
             // This ensures translations are refreshed
             // CRITICAL: Force new content object reference to break any object equality checks
             // This ensures ReadOnlyMessage detects the change and re-renders
-            console.debug('[ChatHistory] Locale changed - forcing new content for', newMessage.message_id);
             // Create a completely new content object to force reactivity
             // This breaks object reference equality, forcing Svelte to detect the change
             newInternalMessage.content = JSON.parse(JSON.stringify(newInternalMessage.content));
@@ -1571,8 +1594,35 @@
                         {isCreditsRestored}
                         {onResend}
                     />
+
                 </div>
             {/each}
+
+            <!-- Admin debug panel: shown after the last assistant message when debug mode is active.
+                 Must be OUTSIDE the {#each} loop — message-wrapper uses display:flex which would
+                 place anything inside it beside the message, not below it. -->
+            {#if $chatDebugStore.rawTextMode && lastAssistantMessageId}
+              <div class="debug-history-output selectable">
+                <div class="debug-history-header-row">
+                  <div class="debug-history-title">window.debug.chat</div>
+                  <button class="debug-history-copy-btn" onclick={copyDebugChatText} disabled={!$chatDebugStore.chatReport}>
+                    {debugChatCopied ? 'Copied!' : 'Copy'}
+                  </button>
+                </div>
+                {#if $chatDebugStore.chatReportLoading}
+                  <div class="debug-history-loading">Loading debug chat report...</div>
+                {:else if $chatDebugStore.chatReport}
+                  <pre class="debug-history-pre selectable">{$chatDebugStore.chatReport}</pre>
+                {:else}
+                  <div class="debug-history-loading">No debug chat report available yet.</div>
+                {/if}
+
+                {#if isCurrentlyStreaming || $chatDebugStore.streamLogs.length > 0}
+                  <div class="debug-history-title logs">Streaming warn/error logs</div>
+                  <pre class="debug-history-pre selectable">{$chatDebugStore.streamLogs.join('\n')}</pre>
+                {/if}
+              </div>
+            {/if}
             
             <!-- App settings/memories permission dialog (inline, scrolls with messages) -->
             <!-- Placed BEFORE the spacer so it appears right under the user message, not pushed below -->
@@ -1590,8 +1640,17 @@
                 <div class="streaming-spacer" style="height: {spacerHeight}px;"></div>
             {/if}
             
-            <!-- Settings/memories suggestions shown after the last assistant message -->
-            <!-- These are generated during AI post-processing Phase 2 -->
+            <!-- Follow-up suggestions shown after the last assistant message.
+                 Visible without requiring the user to focus the message input first. -->
+            {#if showFollowUpSuggestionsInHistory && onSuggestionClick}
+                <div class="follow-up-suggestions-wrapper" in:fade={{ duration: 200 }}>
+                    <FollowUpSuggestions
+                        suggestions={followUpSuggestions}
+                        messageInputContent=""
+                        onSuggestionClick={onSuggestionClick}
+                    />
+                </div>
+            {/if}
         </div>
     {/if}
     
@@ -1635,6 +1694,67 @@
     );
   }
 
+  .debug-history-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.35rem;
+  }
+
+  .debug-history-copy-btn {
+    all: unset;
+    cursor: pointer;
+    font-size: 0.75rem;
+    color: var(--color-primary);
+    flex-shrink: 0;
+  }
+
+  .debug-history-copy-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  .debug-history-output {
+    margin-top: 0.5rem;
+    margin-left: 2.25rem;
+    margin-right: 0.75rem;
+    padding: 0.75rem;
+    border-radius: 0.75rem;
+    border: 1px solid var(--color-grey-30);
+    background: var(--color-grey-10);
+  }
+
+  .debug-history-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--color-font-secondary);
+  }
+
+  .debug-history-title.logs {
+    margin-top: 0.65rem;
+  }
+
+  .debug-history-loading {
+    font-size: 0.8rem;
+    color: var(--color-font-secondary);
+  }
+
+  .debug-history-pre {
+    margin: 0;
+    font-family: monospace;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--color-font-primary);
+    overflow: visible;
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    -webkit-touch-callout: default;
+  }
+
   /* When scrolled to the top, remove the top gradient so the banner edges aren't faded */
   .chat-history-container.is-at-top {
     mask-image: linear-gradient(to bottom, 
@@ -1659,7 +1779,7 @@
   /* Add styles for the content wrapper - aligned to top for ChatGPT-style behavior */
   .chat-history-content {
     width: 100%;
-    max-width: 900px;
+    max-width: var(--chat-content-max-width, 1000px);
     margin: 0 auto;
   }
 
@@ -1692,7 +1812,24 @@
     margin-top: 10px;
   }
 
-  /* Settings/memories suggestions wrapper - shown after last assistant message */
+  /* Follow-up suggestions wrapper — shown inline in the chat history after the last
+     assistant message so users can see them without clicking the message input. */
+  .follow-up-suggestions-wrapper {
+    padding: 8px 0 16px;
+    /* Align with assistant message bubbles (left-aligned) */
+    display: flex;
+    justify-content: flex-start;
+  }
+
+  :global([dir="rtl"]) .follow-up-suggestions-wrapper {
+    justify-content: flex-end;
+  }
+
+  /* Hide the upward-fade gradient that was designed for use above the MessageInput.
+     Inside ChatHistory the gradient would bleed over preceding messages, so we suppress it. */
+  .follow-up-suggestions-wrapper :global(.suggestions-container::before) {
+    display: none;
+  }
 
   /* Bottom spacer that fills remaining viewport space during AI streaming.
      Creates visual space below user message that fills as the response streams in. */
@@ -1734,7 +1871,6 @@
 
   .message-wrapper :global(.chat-message) {
     width: 100%;
-    max-width: 900px;
   }
 
   /* "Show earlier messages" toggle button for compressed chats.

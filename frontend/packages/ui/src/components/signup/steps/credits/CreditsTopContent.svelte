@@ -156,7 +156,7 @@ step_9_top_content_svelte:
                 
                 <div class="footer-container">
                     <!-- Gift Card Button -->
-                    <button onclick={() => showGiftCardInput = true} class="text-button gift-card-button">
+                    <button id="signup-credits-gift-card" onclick={() => showGiftCardInput = true} class="text-button gift-card-button">
                         {@html $text('settings.billing.gift_card.have_code')}
                     </button>
                     

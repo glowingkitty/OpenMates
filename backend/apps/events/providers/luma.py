@@ -26,6 +26,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
 
+from backend.shared.python_utils.geo_utils import geocode_address
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -318,8 +320,8 @@ async def search_events_async(
     # Take only as many as requested.
     raw_entries = raw_entries[:count]
 
-    # Normalise all entries into canonical event dicts.
-    events = [_normalise_event(e, city_name) for e in raw_entries]
+    # Normalise all entries into canonical event dicts (async for geocoding).
+    events = list(await asyncio.gather(*[_normalise_event(e, city_name) for e in raw_entries]))
 
     # Fetch descriptions in parallel from lu.ma/<slug> pages.
     if fetch_descriptions and events:
@@ -349,9 +351,19 @@ async def search_events_async(
 # ---------------------------------------------------------------------------
 
 
-def _normalise_event(entry: Dict[str, Any], city_fallback: str = "") -> Dict[str, Any]:
+async def _normalise_event(entry: Dict[str, Any], city_fallback: str = "") -> Dict[str, Any]:
     """
     Normalise a raw Luma API entry into the canonical event provider schema.
+
+    Async because: when Luma omits lat/lon from the coordinate field (common
+    for many events), we geocode the venue address via geo_utils.geocode_address
+    so the frontend can show an interactive map in EventEmbedFullscreen.
+
+    Geocoding strategy (cheapest-first):
+    1. Use Luma's coordinate field if present.
+    2. Fall back to geo_utils city table (zero network cost).
+    3. Fall back to Nominatim (OpenStreetMap) for full street addresses.
+    4. Leave lat/lon as None if all strategies fail — no map is shown.
 
     RSVP display logic:
     - show_guest_list=True  -> show guest_count (0 means genuinely 0 RSVPs)
@@ -369,6 +381,20 @@ def _normalise_event(entry: Dict[str, Any], city_fallback: str = "") -> Dict[str
     # Build venue only for offline/in-person events with location data.
     venue: Optional[Dict[str, Any]] = None
     if ev.get("location_type") == "offline" and (geo.get("city") or coord.get("latitude")):
+        lat: Optional[float] = coord.get("latitude")
+        lon: Optional[float] = coord.get("longitude")
+
+        # Geocode when Luma omits coordinates — use full address for precision,
+        # falling back to city-level if the address lookup fails.
+        if lat is None or lon is None:
+            coords = await geocode_address(
+                address=geo.get("full_address") or geo.get("short_address"),
+                city=geo.get("city") or city_fallback or None,
+                country=geo.get("country"),
+            )
+            if coords:
+                lat, lon = coords
+
         venue = {
             "name": geo.get("address"),
             "full_address": geo.get("full_address"),
@@ -377,8 +403,8 @@ def _normalise_event(entry: Dict[str, Any], city_fallback: str = "") -> Dict[str
             "state": geo.get("region"),
             "country": geo.get("country"),
             "country_code": geo.get("country_code"),
-            "lat": coord.get("latitude"),
-            "lon": coord.get("longitude"),
+            "lat": lat,
+            "lon": lon,
         }
 
     # When show_guest_list=False the API returns 0 by default — not a real zero.

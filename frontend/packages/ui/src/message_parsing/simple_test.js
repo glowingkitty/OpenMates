@@ -206,7 +206,7 @@ function markdownToTipTap(markdown) {
     };
 }
 
-function enhanceDocumentWithEmbeds(doc, embedNodes, mode) {
+function enhanceDocumentWithEmbeds(doc, embedNodes, _mode) {
     if (!doc || !doc.content || embedNodes.length === 0) {
         return doc;
     }

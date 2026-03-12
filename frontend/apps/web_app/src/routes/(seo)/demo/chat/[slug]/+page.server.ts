@@ -15,8 +15,8 @@
 //   - SSR fallback (new slugs added after last build): s-maxage=3600 so CDN caches for 1h.
 
 import { error } from '@sveltejs/kit';
-import { env } from '$env/dynamic/private';
 import type { PageServerLoad } from './$types';
+import { getBackendUrl } from '$lib/backendUrl';
 
 /** Shape of a single message as returned by the backend demo API. */
 interface DemoMessage {
@@ -66,7 +66,7 @@ export const load: PageServerLoad = async ({ params, fetch, setHeaders, url }) =
 		hostname === 'localhost' ||
 		hostname === '127.0.0.1';
 
-	const backendUrl = env.BACKEND_URL || 'https://app.dev.openmates.org';
+	const backendUrl = getBackendUrl(url);
 
 	let chatData: DemoChatResponse;
 

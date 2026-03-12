@@ -1,7 +1,7 @@
 // frontend/packages/ui/src/services/searchService.ts
 // Core search engine service for offline full-text search across chats, messages, settings,
 // apps, skills, focus modes, and memories.
-// Uses an in-memory index (Option D: Hybrid warm cache) for E2E encryption compatibility.
+// Uses an in-memory index (Option D: Hybrid warm cache) for zero-knowledge encryption compatibility.
 // All data lives in RAM only — nothing is persisted to disk as plaintext.
 //
 // EMBED CONTENT SEARCH:

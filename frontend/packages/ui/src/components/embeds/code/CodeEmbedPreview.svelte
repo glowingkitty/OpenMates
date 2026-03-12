@@ -16,10 +16,11 @@
 
 <script lang="ts">
   import { onMount } from 'svelte';
-  // Import highlight.js theme - using github-dark for dark mode compatibility
+  // Import highlight.js themes - github theme for light mode (good contrast), github-dark for dark mode
+  // We import github-dark as base (used for dark mode) and override for light mode via CSS below
   import 'highlight.js/styles/github-dark.css';
   // Import shared highlighting utilities (includes all language support + Svelte)
-  import { highlightToElement } from './codeHighlighting';
+  import { highlightToElement, highlightToLines } from './codeHighlighting';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
   import { countCodeLines, formatLanguageName, parseCodeEmbedContent } from './codeEmbedContent';
@@ -46,7 +47,7 @@
     /** Whether to use mobile layout */
     isMobile?: boolean;
     /** Click handler for fullscreen */
-    onFullscreen?: () => void;
+    onFullscreen: () => void;
     /** Code content (full code for preview extraction) */
     codeContent?: string;
   }
@@ -93,7 +94,11 @@
   let taskId = $derived(localTaskId);
   
   // Maximum lines to show in preview
-  const MAX_PREVIEW_LINES = 8;
+  // Large variant (400px container): user-visible lines. The per-line gutter rendering
+  // (0.8rem/19.2px per line) would fit ~16 lines in 323px usable height; we show 21
+  // so the last partial line is visible, confirming there is more content below.
+  const MAX_PREVIEW_LINES_STANDARD = 8;
+  const MAX_PREVIEW_LINES_LARGE = 21;
   
   // Reference to the code element for syntax highlighting
   let codeElement: HTMLElement | null = $state(null);
@@ -119,7 +124,6 @@
       if (cancelled) return;
       if (mappings.length > 0) {
         addEmbedPIIMappings(id, mappings);
-        console.debug('[CodeEmbedPreview] Registered embed-level PII mappings:', id, mappings.length);
       }
     });
     return () => {
@@ -149,16 +153,27 @@
   let renderFilename = $derived(parsedContent.filename);
   let displayLanguage = $derived.by(() => formatLanguageName(renderLanguage));
   
-  // Extract preview lines (max 8 lines)
+  // isLargePreview is set reactively from the snippet param (isLarge).
+  // This drives previewLines and syntax highlighting to use more lines
+  // when the embed is rendered in the expanded (400px) large container.
+  let isLargePreview = $state(false);
+
   let previewLines = $derived.by(() => {
-    const content = renderCodeContent;
-    if (!content) return [];
-    const lines = content.split('\n');
-    return lines.slice(0, MAX_PREVIEW_LINES);
+    const c = renderCodeContent;
+    if (!c) return [];
+    const lines = c.split('\n');
+    const maxLines = isLargePreview ? MAX_PREVIEW_LINES_LARGE : MAX_PREVIEW_LINES_STANDARD;
+    return lines.slice(0, maxLines);
   });
   
-  // Preview text (joined lines)
   let previewText = $derived(previewLines.join('\n'));
+
+  // Per-line highlighted HTML for the large variant (mirrors CodeEmbedFullscreen structure).
+  // Only computed when isLargePreview to avoid unnecessary work in the small variant.
+  let largeHighlightedLines = $derived.by(() => {
+    if (!isLargePreview || !renderCodeContent) return [];
+    return highlightToLines(previewText, renderLanguage);
+  });
   
   // Calculate actual line count from content if not provided
   let actualLineCount = $derived.by(() => {
@@ -208,14 +223,15 @@
   // Map skillId to icon name
   const skillIconName = 'coding';
   
-  // Apply syntax highlighting after mount and when content changes
+  // Apply syntax highlighting for the small variant (uses highlightToElement on a <code> element).
+  // Large variant uses highlightToLines (reactive derived) — no manual DOM update needed.
   onMount(() => {
-    highlightToElement(codeElement, previewText, renderLanguage);
+    if (!isLargePreview) highlightToElement(codeElement, previewText, renderLanguage);
   });
   
-  // Re-highlight when code content changes
+  // Re-highlight small variant when code content changes
   $effect(() => {
-    highlightToElement(codeElement, previewText, renderLanguage);
+    if (!isLargePreview) highlightToElement(codeElement, previewText, renderLanguage);
   });
   
   /**
@@ -236,18 +252,11 @@
    * This enables real-time updates during streaming without requiring page reload
    */
   function handleEmbedDataUpdated(data: { status: string; decodedContent: DecodedCodeContent | null }) {
-    console.debug(`[CodeEmbedPreview] 🔄 Received embed data update for ${id}:`, {
-      status: data.status,
-      hasContent: !!data.decodedContent,
-      hasCode: !!data.decodedContent?.code
-    });
-    
     // Update local state from decoded content
     if (data.decodedContent) {
       // Update code content if available
       if (data.decodedContent.code !== undefined) {
         localCodeContent = data.decodedContent.code || '';
-        console.debug(`[CodeEmbedPreview] Updated code content: ${localCodeContent.length} chars`);
       }
       
       // Update language if available
@@ -280,7 +289,6 @@
   // Handle stop button click (not applicable for code, but included for consistency)
   async function handleStop() {
     // Code embeds don't have cancellable tasks, but we include this for API consistency
-    console.debug('[CodeEmbedPreview] Stop requested (not applicable for code)');
   }
 </script>
 
@@ -300,12 +308,27 @@
   showSkillIcon={false}
   onEmbedDataUpdated={handleEmbedDataUpdated}
 >
-	  {#snippet details({ isMobile: isMobileLayout })}
+	  {#snippet details({ isMobile: isMobileLayout, isLarge: isLargeLayout })}
+	    {(isLargePreview = isLargeLayout, undefined)}
 	    <div class="code-details" class:mobile={isMobileLayout}>
 	      {#if renderCodeContent}
 	        <!-- Code preview with syntax highlighting -->
 	        <div class="code-preview-container">
-	          <pre class="code-preview"><code bind:this={codeElement}>{previewText}</code></pre>
+	          {#if isLargePreview}
+	            <!-- Large variant: per-line gutter rendering matching CodeEmbedFullscreen -->
+	            <div class="preview-lines-container">
+	              {#each largeHighlightedLines as lineHtml, i}
+	                <div class="preview-line">
+	                  <span class="preview-line-gutter" aria-hidden="true">{i + 1}</span>
+	                  <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+	                  <code class="preview-line-text">{@html lineHtml}</code>
+	                </div>
+	              {/each}
+	            </div>
+	          {:else}
+	            <!-- Small variant: single highlighted block -->
+	            <pre class="code-preview"><code bind:this={codeElement}>{previewText}</code></pre>
+	          {/if}
 	        </div>
 	      {:else if status === 'processing'}
 	        <!-- Processing state -->
@@ -361,8 +384,9 @@
   
   .code-preview {
     margin: 0;
-    padding: 0;
-    font-size: 12px;
+    /* Top padding gives first line breathing room from the card edge */
+    padding: 0.75rem 0 0 0;
+    font-size: 0.75rem;
     line-height: 1.5;
     overflow: hidden;
     white-space: pre;
@@ -488,5 +512,139 @@
   :global(.unified-embed-preview.mobile .skill-icon[data-skill-icon="coding"]) {
     -webkit-mask-image: url('@openmates/ui/static/icons/coding.svg');
     mask-image: url('@openmates/ui/static/icons/coding.svg');
+  }
+
+  /* ===========================================
+     Light Mode Contrast Fix for Syntax Highlighting
+     highlight.js github-dark theme has hardcoded dark background colors
+     which show poor contrast in light mode (light card background + dark theme colors).
+     We override the hljs token colors for light mode using github light theme colors.
+     =========================================== */
+
+  /* Light mode: use github light theme colors for good contrast on light backgrounds */
+  :global([data-theme="light"] .unified-embed-preview .hljs-doctag),
+  :global([data-theme="light"] .unified-embed-preview .hljs-keyword),
+  :global([data-theme="light"] .unified-embed-preview .hljs-meta .hljs-keyword),
+  :global([data-theme="light"] .unified-embed-preview .hljs-template-tag),
+  :global([data-theme="light"] .unified-embed-preview .hljs-template-variable),
+  :global([data-theme="light"] .unified-embed-preview .hljs-type),
+  :global([data-theme="light"] .unified-embed-preview .hljs-variable\.language_) {
+    /* github light: prettylights-syntax-keyword */
+    color: #d73a49; /* intentional: syntax highlight color, must be hardcoded */
+  }
+
+  :global([data-theme="light"] .unified-embed-preview .hljs-title),
+  :global([data-theme="light"] .unified-embed-preview .hljs-title\.class_),
+  :global([data-theme="light"] .unified-embed-preview .hljs-title\.function_) {
+    /* github light: prettylights-syntax-entity */
+    color: #6f42c1; /* intentional: syntax highlight color, must be hardcoded */
+  }
+
+  :global([data-theme="light"] .unified-embed-preview .hljs-attr),
+  :global([data-theme="light"] .unified-embed-preview .hljs-attribute),
+  :global([data-theme="light"] .unified-embed-preview .hljs-literal),
+  :global([data-theme="light"] .unified-embed-preview .hljs-number),
+  :global([data-theme="light"] .unified-embed-preview .hljs-operator),
+  :global([data-theme="light"] .unified-embed-preview .hljs-variable),
+  :global([data-theme="light"] .unified-embed-preview .hljs-selector-attr),
+  :global([data-theme="light"] .unified-embed-preview .hljs-selector-class),
+  :global([data-theme="light"] .unified-embed-preview .hljs-selector-id) {
+    /* github light: prettylights-syntax-constant */
+    color: #005cc5; /* intentional: syntax highlight color, must be hardcoded */
+  }
+
+  :global([data-theme="light"] .unified-embed-preview .hljs-regexp),
+  :global([data-theme="light"] .unified-embed-preview .hljs-string),
+  :global([data-theme="light"] .unified-embed-preview .hljs-meta .hljs-string) {
+    /* github light: prettylights-syntax-string */
+    color: #032f62; /* intentional: syntax highlight color, must be hardcoded */
+  }
+
+  :global([data-theme="light"] .unified-embed-preview .hljs-built_in),
+  :global([data-theme="light"] .unified-embed-preview .hljs-symbol) {
+    /* github light: prettylights-syntax-variable */
+    color: #e36209; /* intentional: syntax highlight color, must be hardcoded */
+  }
+
+  :global([data-theme="light"] .unified-embed-preview .hljs-comment),
+  :global([data-theme="light"] .unified-embed-preview .hljs-code),
+  :global([data-theme="light"] .unified-embed-preview .hljs-formula) {
+    /* github light: prettylights-syntax-comment */
+    color: #6a737d; /* intentional: syntax highlight color, must be hardcoded */
+  }
+
+  :global([data-theme="light"] .unified-embed-preview .hljs-name),
+  :global([data-theme="light"] .unified-embed-preview .hljs-bullet),
+  :global([data-theme="light"] .unified-embed-preview .hljs-deletion) {
+    /* github light: prettylights-syntax-markup */
+    color: #b31d28; /* intentional: syntax highlight color, must be hardcoded */
+  }
+
+  :global([data-theme="light"] .unified-embed-preview .hljs-section),
+  :global([data-theme="light"] .unified-embed-preview .hljs-link) {
+    color: #0366d6; /* intentional: syntax highlight color, must be hardcoded */
+  }
+
+  /* In light mode the base hljs text should be dark for readability */
+  :global([data-theme="light"] .unified-embed-preview code.hljs) {
+    color: #24292e; /* intentional: github light base text color, must be hardcoded */
+  }
+
+  /* Large preview: use 0.8rem (≈12.8px) so more lines fit in the 400px container. */
+  @container embed-preview (min-width: 401px) {
+    .code-preview {
+      font-size: 0.8rem;
+      padding-top: 1rem;
+    }
+  }
+
+  /* ===========================================
+     Large preview: per-line gutter rendering
+     Mirrors CodeEmbedFullscreen .code-lines-container structure.
+     =========================================== */
+
+  /* Container for all preview lines — overflow hidden to clip at card edge */
+  .preview-lines-container {
+    width: 100%;
+    overflow: hidden;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', 'Consolas', monospace;
+    padding-top: 1rem;
+  }
+
+  /* Each line: gutter number on left, code text on right */
+  .preview-line {
+    display: flex;
+    align-items: baseline;
+    white-space: pre;
+  }
+
+  /* Gutter: right-aligned line numbers, not selectable, dimmed */
+  .preview-line-gutter {
+    flex: 0 0 auto;
+    min-width: 32px;
+    padding-right: 10px;
+    text-align: right;
+    color: var(--color-font-tertiary);
+    user-select: none;
+    -webkit-user-select: none;
+    font-size: inherit;
+    line-height: inherit;
+    font-family: inherit;
+  }
+
+  /* Code text: no wrapping, inherits font */
+  .preview-line-text {
+    flex: 1 1 auto;
+    display: block;
+    white-space: pre;
+    color: var(--color-font-primary);
+    background: transparent;
+    padding: 0;
+    margin: 0;
+    font-size: inherit;
+    line-height: inherit;
+    font-family: inherit;
   }
 </style>

@@ -1,6 +1,7 @@
 // frontend/packages/ui/src/demo_chats/loadDefaultInspirations.ts
 //
 // Loads Daily Inspiration entries for the DailyInspirationBanner on page load.
+/* eslint-disable no-console */
 //
 // PRIORITY ORDER (highest to lowest):
 //   1. IndexedDB — persisted personalised inspirations from previous WS delivery
@@ -31,6 +32,89 @@ import {
 
 const LOG_PREFIX = "[loadDefaultInspirations]";
 
+const OG_EXAMPLE_SHARED_CHAT_CUTTLEFISH = "shared_chat_cuttlefish";
+
+function getOgExampleInspirations(exampleId: string): DailyInspiration[] {
+  if (exampleId !== OG_EXAMPLE_SHARED_CHAT_CUTTLEFISH) {
+    return [];
+  }
+
+  return [
+    {
+      inspiration_id: "og-cut-1",
+      phrase: "How cuttlefish camouflage works",
+      title: "Cuttlefish Camouflage Mechanism",
+      category: "biology",
+      content_type: "video",
+      video: {
+        youtube_id: "3s0LTDhqe5A",
+        title: "How Cuttlefish Instantly Change Color",
+        thumbnail_url: "https://i.ytimg.com/vi/3s0LTDhqe5A/hqdefault.jpg",
+        channel_name: "Nature Explained",
+        view_count: 824000,
+        duration_seconds: 412,
+        published_at: "2024-02-14T00:00:00Z",
+      },
+      generated_at: 1731000000,
+      assistant_response:
+        "Cuttlefish use chromatophores, iridophores, and papillae to blend into coral, sand, and rocks in milliseconds.",
+      follow_up_suggestions: [
+        "Show real-world camouflage examples",
+        "Explain chromatophores simply",
+        "Compare cuttlefish and octopus camouflage",
+      ],
+    },
+    {
+      inspiration_id: "og-cut-2",
+      phrase: "Mimicry in marine animals",
+      title: "Marine Mimicry in Action",
+      category: "nature",
+      content_type: "video",
+      video: {
+        youtube_id: "rK8eM4pS4wA",
+        title: "Ocean Masters of Disguise",
+        thumbnail_url: "https://i.ytimg.com/vi/rK8eM4pS4wA/hqdefault.jpg",
+        channel_name: "Ocean Lab",
+        view_count: 512000,
+        duration_seconds: 355,
+        published_at: "2023-11-03T00:00:00Z",
+      },
+      generated_at: 1731000300,
+      assistant_response:
+        "Many marine species imitate textures, movement, and color patterns to avoid predators and surprise prey.",
+      follow_up_suggestions: [
+        "Top 5 mimicry species",
+        "How mimicry evolved",
+        "Mimicry vs camouflage",
+      ],
+    },
+    {
+      inspiration_id: "og-cut-3",
+      phrase: "Animal intelligence in cephalopods",
+      title: "Cephalopod Intelligence Facts",
+      category: "science",
+      content_type: "video",
+      video: {
+        youtube_id: "Y7Qb2T7k4fY",
+        title: "Why Cephalopods Are So Smart",
+        thumbnail_url: "https://i.ytimg.com/vi/Y7Qb2T7k4fY/hqdefault.jpg",
+        channel_name: "Bio Stories",
+        view_count: 691000,
+        duration_seconds: 498,
+        published_at: "2024-01-09T00:00:00Z",
+      },
+      generated_at: 1731000600,
+      assistant_response:
+        "Cuttlefish and octopuses solve puzzles, remember environments, and adapt behavior quickly in changing conditions.",
+      follow_up_suggestions: [
+        "Examples of puzzle-solving",
+        "How memory is tested",
+        "Best cephalopod documentaries",
+      ],
+    },
+  ];
+}
+
 /**
  * Populate the daily inspiration store on page load.
  *
@@ -45,6 +129,25 @@ export async function loadDefaultInspirations(
 ): Promise<void> {
   try {
     const { allowIndexedDB = true } = options;
+
+    const ogExample =
+      typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search).get("og_example")
+        : null;
+
+    if (ogExample) {
+      const fixtureInspirations = getOgExampleInspirations(ogExample);
+      if (fixtureInspirations.length > 0) {
+        dailyInspirationStore.setInspirations(fixtureInspirations, {
+          personalized: false,
+        });
+        console.debug(
+          `${LOG_PREFIX} Loaded ${fixtureInspirations.length} OG fixture inspiration(s) for ${ogExample}`,
+        );
+        return;
+      }
+    }
+
     // Skip immediately if the store is already populated by a WS delivery
     // that raced ahead of us (e.g. fast reconnect).
     const current = get(dailyInspirationStore);

@@ -5,7 +5,6 @@ Support Monthly Payment Confirmation - Success screen after monthly support paym
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
-    import SettingsItem from '../../SettingsItem.svelte';
 
     const dispatch = createEventDispatcher();
 

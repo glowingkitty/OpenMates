@@ -925,9 +925,11 @@ def _run_test_script(force: bool = False) -> tuple[bool, str, int]:
     if force:
         inner_cmd += " --force"
 
-    # Pass env vars the test script needs (email recipient, internal API token)
+    # Pass env vars the test script needs (email recipient, internal API token,
+    # and the server environment so the script can apply production limits).
     admin_email = os.environ.get("ADMIN_NOTIFY_EMAIL", "")
     internal_token = os.environ.get("INTERNAL_API_SHARED_TOKEN", "")
+    server_environment = os.environ.get("SERVER_ENVIRONMENT", "development")
 
     # Use `docker run` with host root mounted at /host_root, then chroot into it.
     # --rm: auto-remove container after exit
@@ -944,8 +946,29 @@ def _run_test_script(force: bool = False) -> tuple[bool, str, int]:
         "chroot", "/host_root",
         "/bin/bash", "-c",
         (
+            # The chroot starts with a minimal PATH that lacks user-installed
+            # binaries (node, npx, pnpm, pip tools). Explicitly set PATH and
+            # HOME so the host's Node.js, pnpm, pytest, etc. are found.
+            #
+            # GIT_CONFIG_COUNT / GIT_CONFIG_KEY_0 / GIT_CONFIG_VALUE_0:
+            # When HOME=/home/superdev is set inside the chroot, git reads the
+            # host's /home/superdev/.gitconfig which has no [safe] directory
+            # entry, causing git to exit 128 ("detected dubious ownership").
+            # With set -euo pipefail in run-tests-daily.sh this aborts the
+            # whole script in ~0.5s. Using git's environment-variable config
+            # injection (available since git 2.32) bypasses the need to write
+            # to .gitconfig and works even though debian:bookworm-slim has no
+            # git binary (the variable is read by the HOST's git binary after
+            # chroot re-execs into the host filesystem).
+            f"export HOME=/home/superdev && "
+            f"export PATH=/home/superdev/.npm-global/bin:/home/superdev/.local/bin:"
+            f"/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin && "
             f"export ADMIN_NOTIFY_EMAIL='{admin_email}' && "
             f"export INTERNAL_API_SHARED_TOKEN='{internal_token}' && "
+            f"export SERVER_ENVIRONMENT='{server_environment}' && "
+            f"export GIT_CONFIG_COUNT=1 && "
+            f"export GIT_CONFIG_KEY_0=safe.directory && "
+            f"export GIT_CONFIG_VALUE_0='{work_dir}' && "
             f"{inner_cmd}"
         ),
     ]

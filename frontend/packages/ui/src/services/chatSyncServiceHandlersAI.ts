@@ -1043,17 +1043,58 @@ export async function handleAITypingStartedImpl( // Changed to async
 
       // Get chat key: should already be in cache from sendEncryptedStoragePackage (originator)
       // or from the encrypted_chat_key decrypted above (secondary device).
-      // Only create a new key if this is the originating device for a brand-new chat.
+      //
+      // CRITICAL: NEVER generate a new key here. This handler runs on ALL connected
+      // devices, including secondary ones that did NOT create this chat. Generating a
+      // key on a secondary device produces a DIFFERENT key than the originator, causing
+      // half the messages to be encrypted with key A and half with key B — making both
+      // unreadable on the other device. See docs/architecture/zero-knowledge-storage.md.
+      //
+      // If the key is not available, skip the entire ai_typing_started processing for
+      // this new chat. The originating device will handle metadata encryption and the
+      // sendEncryptedStoragePackage(). The secondary device will receive the correct
+      // metadata via the encrypted_chat_metadata broadcast.
       let chatKey = chatKeyManager.getKeySync(payload.chat_id);
       if (!chatKey) {
         chatKey = await chatKeyManager.getKey(payload.chat_id);
       }
       if (!chatKey) {
-        // Last resort: originating device creating a new chat — safe to generate
-        console.info(
-          `[ChatSyncService:AI] No cached key for ${payload.chat_id} in ai_typing_started, creating new key (originator)`,
+        console.warn(
+          `[ChatSyncService:AI] No chat key available for ${payload.chat_id} in ai_typing_started — ` +
+            `this is a secondary device that has not yet received the key. ` +
+            `Skipping metadata encryption; the originating device will handle it.`,
         );
-        chatKey = chatKeyManager.createKeyForNewChat(payload.chat_id);
+        // Do NOT call flushPendingMessagesForChat here — the key hasn't been set yet,
+        // so saveMessage → encryptMessageFields would throw. The flush will happen
+        // when the key arrives via encrypted_chat_metadata broadcast (handleEncryptedChatMetadataImpl)
+        // or from a new_chat_message event that carries the key.
+        //
+        // As a safety net, schedule a delayed retry: the encrypted_chat_metadata broadcast
+        // typically arrives within 1-3 seconds. If the key has been cached by then, flush.
+        const chatIdForRetry = payload.chat_id;
+        setTimeout(async () => {
+          try {
+            const retryKey = chatKeyManager.getKeySync(chatIdForRetry);
+            if (retryKey) {
+              console.info(
+                `[ChatSyncService:AI] Delayed retry: key now available for ${chatIdForRetry}, flushing pending messages`,
+              );
+              await flushPendingMessagesForChat(chatIdForRetry);
+              await flushPendingSystemMessagesForChat(chatIdForRetry);
+            } else {
+              console.debug(
+                `[ChatSyncService:AI] Delayed retry: key still not available for ${chatIdForRetry} — will arrive via encrypted_chat_metadata broadcast`,
+              );
+            }
+          } catch (e) {
+            console.error(
+              `[ChatSyncService:AI] Delayed retry flush failed for ${chatIdForRetry}:`, e,
+            );
+          }
+        }, 3000);
+        // Return early — do NOT proceed with metadata encryption or sendEncryptedStoragePackage
+        // on a secondary device without the correct key. The originating device handles all of it.
+        return;
       }
       // Flush regular messages and system messages queued waiting for this key (cross-device sync fix)
       await flushPendingMessagesForChat(payload.chat_id);
@@ -3448,19 +3489,29 @@ export async function handleSendEmbedDataImpl(
         const decoded = await decodeToonContentSafe(embedData.content);
         if (decoded && typeof decoded === "object" && decoded !== null) {
           const decodedObj = decoded as Record<string, unknown>;
+          // CRITICAL: For child embeds (e.g. image_result from images/search),
+          // the TOON content has the parent's skill_id ("search"), NOT the child type.
+          // The server now sends the correct skill_id (= child type, e.g. "image_result")
+          // in the WebSocket payload top-level. Prefer that over the TOON content.
           preExtractedMetadata = {
             app_id:
-              typeof decodedObj.app_id === "string"
-                ? decodedObj.app_id
-                : undefined,
+              typeof embedData.app_id === "string"
+                ? embedData.app_id
+                : typeof decodedObj.app_id === "string"
+                  ? decodedObj.app_id
+                  : undefined,
             skill_id:
-              typeof decodedObj.skill_id === "string"
-                ? decodedObj.skill_id
-                : undefined,
+              typeof embedData.skill_id === "string"
+                ? embedData.skill_id
+                : typeof decodedObj.skill_id === "string"
+                  ? decodedObj.skill_id
+                  : undefined,
           };
           console.debug(
             "[ChatSyncService:AI] Pre-extracted app metadata from plaintext:",
             preExtractedMetadata,
+            "payload skill_id override:",
+            embedData.skill_id,
           );
 
           // Register embed_ref → embed_id mapping for inline embed link resolution.
@@ -3697,6 +3748,11 @@ export async function handleSendEmbedDataImpl(
       );
     }
   } catch (error) {
+    // If a finalized embed failed anywhere after being marked as processed,
+    // allow the next send_embed_data/request_embed retry to process it again.
+    // Without this, a transient failure (for example chat-key cache race while
+    // wrapping key_type='chat') can permanently skip key-wrapper persistence.
+    unmarkEmbedAsProcessed(embedData.embed_id);
     console.error(
       `[ChatSyncService:AI] Error handling send_embed_data for embed ${embedData.embed_id}:`,
       error,

@@ -15,7 +15,7 @@ from backend.core.api.app.services.metrics import MetricsService
 from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.limiter import limiter
 from typing import Optional
-from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip, get_geo_data_from_ip, parse_user_agent # Updated imports
+from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip, get_geo_data_from_ip, parse_user_agent, truncate_ip, derive_device_name # Updated imports
 from backend.core.api.app.routes.auth_routes.auth_dependencies import (
     get_directus_service, get_cache_service, get_metrics_service,
     get_compliance_service, get_encryption_service
@@ -235,15 +235,20 @@ async def login(
         user_profile["consent_privacy_and_apps_default_settings"] = bool(user_profile.get("consent_privacy_and_apps_default_settings"))
         user_profile["consent_mates_default_settings"] = bool(user_profile.get("consent_mates_default_settings"))
 
-        # --- Scenario 1: 2FA Not Enabled OR Recovery Key Login OR Passkey Login ---
-        # Recovery keys and Passkeys bypass 2FA as they are standalone/strong authentication methods
+        # --- Scenario 1: 2FA Not Enabled OR Recovery Key / Passkey / Pair Login ---
+        # Recovery keys, passkeys, and pair logins bypass 2FA — all are standalone strong
+        # authentication methods. Pair login: both devices explicitly approved the session
+        # and the credentials bundle was ZK-encrypted; 2FA on top is redundant and breaks the flow.
         is_passkey_login = login_data.login_method == "passkey"
+        is_pair_login = login_data.login_method == "pair"
         
-        if not tfa_enabled or is_recovery_key_login or is_passkey_login:
+        if not tfa_enabled or is_recovery_key_login or is_passkey_login or is_pair_login:
             if is_recovery_key_login:
                 logger.info("Recovery key login detected - bypassing 2FA and proceeding with login finalization.")
             elif is_passkey_login:
                 logger.info("Passkey login detected - bypassing 2FA and proceeding with login finalization.")
+            elif is_pair_login:
+                logger.info("Pair login detected - bypassing 2FA and proceeding with login finalization.")
             else:
                 logger.info("2FA not enabled, proceeding with standard login finalization.")
             # Finalize login (set cookies, cache user, etc.)
@@ -325,8 +330,13 @@ async def login(
             
             # Get encryption key - use appropriate login method
             hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
-            # Use the login_method from the request if provided, otherwise default based on recovery_key flag
-            if login_data.login_method:
+            # Use the login_method from the request if provided, otherwise default based on recovery_key flag.
+            # Pair login: the client already has the master key from the ZK-encrypted bundle,
+            # so we look up the "password" encryption key (the original one) for the response.
+            # There is no separate "pair" encryption key stored in the DB.
+            if is_pair_login:
+                login_method_for_key = "password"
+            elif login_data.login_method and login_data.login_method != "pair":
                 login_method_for_key = login_data.login_method
             elif is_recovery_key_login:
                 login_method_for_key = "recovery_key"
@@ -407,9 +417,10 @@ async def login(
                 encryption_key_data = await directus_service.get_any_passkey_encryption_key(hashed_user_id)
             
             if not encryption_key_data:
-                if is_passkey_login:
-                    logger.warning(f"Encryption key not found for user {user_id} with login method {login_method_for_key}. Continuing anyway as client likely has key from verify step.")
-                    # Don't fail login for passkey if key not found here, as client already has it
+                if is_passkey_login or is_pair_login:
+                    logger.warning(f"Encryption key not found for user {user_id} with login method {login_method_for_key}. Continuing anyway as client already has key from {'verify step' if is_passkey_login else 'pair bundle'}.")
+                    # Don't fail login for passkey/pair if key not found here, as client already has it.
+                    # Pair login bundles include the exported master key directly — no DB encryption key needed.
                 else:
                     logger.error(f"Encryption key not found for user {user_id} with login method {login_method_for_key}. Login failed.")
                     return LoginResponse(success=False, message="Login failed. Please try again later.")
@@ -523,14 +534,18 @@ async def login(
                     user_email_salt=user_profile.get("user_email_salt"),
                     # Low balance auto top-up fields
                     # Use bool() to convert None to False, as .get() only uses default when key doesn't exist, not when value is None
-                    auto_topup_low_balance_enabled=bool(user_profile.get("auto_topup_low_balance_enabled", False)),
-                    auto_topup_low_balance_threshold=user_profile.get("auto_topup_low_balance_threshold"),
-                    auto_topup_low_balance_amount=user_profile.get("auto_topup_low_balance_amount"),
-                    auto_topup_low_balance_currency=user_profile.get("auto_topup_low_balance_currency"),
-                    has_accepted_refund_policy=bool(user_profile.get("consent_withdrawal_waiver_timestamp"))
-                ),
-                ws_token=refresh_token  # Return token for WebSocket auth (Safari iOS compatibility)
-            )
+                        auto_topup_low_balance_enabled=bool(user_profile.get("auto_topup_low_balance_enabled", False)),
+                        auto_topup_low_balance_threshold=user_profile.get("auto_topup_low_balance_threshold"),
+                        auto_topup_low_balance_amount=user_profile.get("auto_topup_low_balance_amount"),
+                        auto_topup_low_balance_currency=user_profile.get("auto_topup_low_balance_currency"),
+                        has_accepted_refund_policy=bool(user_profile.get("consent_withdrawal_waiver_timestamp")),
+                        push_notification_enabled=bool(user_profile.get("push_notification_enabled", False)),
+                        push_notification_subscription=user_profile.get("push_notification_subscription"),
+                        push_notification_preferences=user_profile.get("push_notification_preferences", {}),
+                        push_notification_banner_shown=bool(user_profile.get("push_notification_banner_shown", False)),
+                    ),
+                    ws_token=refresh_token  # Return token for WebSocket auth (Safari iOS compatibility)
+                )
 
         # --- 2FA IS Enabled ---
         
@@ -750,7 +765,11 @@ async def login(
                         auto_topup_low_balance_threshold=user_profile.get("auto_topup_low_balance_threshold"),
                         auto_topup_low_balance_amount=user_profile.get("auto_topup_low_balance_amount"),
                         auto_topup_low_balance_currency=user_profile.get("auto_topup_low_balance_currency"),
-                        has_accepted_refund_policy=bool(user_profile.get("consent_withdrawal_waiver_timestamp"))
+                        has_accepted_refund_policy=bool(user_profile.get("consent_withdrawal_waiver_timestamp")),
+                        push_notification_enabled=bool(user_profile.get("push_notification_enabled", False)),
+                        push_notification_subscription=user_profile.get("push_notification_subscription"),
+                        push_notification_preferences=user_profile.get("push_notification_preferences", {}),
+                        push_notification_banner_shown=bool(user_profile.get("push_notification_banner_shown", False)),
                     ),
                     ws_token=refresh_token  # Return token for WebSocket auth (Safari iOS compatibility)
                 )
@@ -1064,7 +1083,11 @@ async def login(
                         auto_topup_low_balance_threshold=user_profile.get("auto_topup_low_balance_threshold"),
                         auto_topup_low_balance_amount=user_profile.get("auto_topup_low_balance_amount"),
                         auto_topup_low_balance_currency=user_profile.get("auto_topup_low_balance_currency"),
-                        has_accepted_refund_policy=bool(user_profile.get("consent_withdrawal_waiver_timestamp"))
+                        has_accepted_refund_policy=bool(user_profile.get("consent_withdrawal_waiver_timestamp")),
+                        push_notification_enabled=bool(user_profile.get("push_notification_enabled", False)),
+                        push_notification_subscription=user_profile.get("push_notification_subscription"),
+                        push_notification_preferences=user_profile.get("push_notification_preferences", {}),
+                        push_notification_banner_shown=bool(user_profile.get("push_notification_banner_shown", False)),
                     ),
                     ws_token=refresh_token  # Return token for WebSocket auth (Safari iOS compatibility)
                 )
@@ -1349,7 +1372,23 @@ async def finalize_login_session(
             token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
             user_tokens_key = f"user_tokens:{user_id}"
             current_tokens = await cache_service.get(user_tokens_key) or {}
-            current_tokens[token_hash] = int(time.time())
+            # Store rich session metadata for the Active Sessions feature.
+            # Sensitive fields (device_name, ip_truncated, city, country_code) are
+            # replaced by client-encrypted blobs after the client calls
+            # POST /v1/auth/sessions/register-meta.  Until then the plaintext
+            # fields serve as server-side fallback for listing sessions.
+            user_agent = request.headers.get("User-Agent", "unknown")
+            current_tokens[token_hash] = {
+                "created_at": int(time.time()),
+                "device_hash": current_device_hash,
+                "stay_logged_in": login_data.stay_logged_in,
+                "device_name": derive_device_name(user_agent),
+                "ip_truncated": truncate_ip(client_ip),
+                "country_code": country_code or "Unknown",
+                "city": device_location_str.split(",")[0].strip() if device_location_str else None,
+                "encrypted_meta": None,
+                "encrypted_meta_iv": None,
+            }
             # Token list TTL should be longer than individual session TTL
             token_list_ttl = cache_ttl * 7 if login_data.stay_logged_in else cache_service.SESSION_TTL * 7
             await cache_service.set(user_tokens_key, current_tokens, ttl=token_list_ttl)
@@ -1578,11 +1617,16 @@ async def lookup_user(
                             "auto_topup_low_balance_threshold": user_profile.get("auto_topup_low_balance_threshold"),
                             "auto_topup_low_balance_amount": user_profile.get("auto_topup_low_balance_amount"),
                             "auto_topup_low_balance_currency": user_profile.get("auto_topup_low_balance_currency"),
-                            # Email notification fields (encrypted_notification_email is vault-encrypted)
-                            "email_notifications_enabled": user_profile.get("email_notifications_enabled", False),
-                            "email_notification_preferences": user_profile.get("email_notification_preferences", {}),
-                            "encrypted_notification_email": user_profile.get("encrypted_notification_email"),
-                        }
+                             # Email notification fields (encrypted_notification_email is vault-encrypted)
+                             "email_notifications_enabled": user_profile.get("email_notifications_enabled", False),
+                             "email_notification_preferences": user_profile.get("email_notification_preferences", {}),
+                             "encrypted_notification_email": user_profile.get("encrypted_notification_email"),
+                             # Push notification fields
+                             "push_notification_enabled": user_profile.get("push_notification_enabled", False),
+                             "push_notification_subscription": user_profile.get("push_notification_subscription"),
+                             "push_notification_preferences": user_profile.get("push_notification_preferences", {}),
+                             "push_notification_banner_shown": user_profile.get("push_notification_banner_shown", False),
+                         }
                         
                         # CACHE TFA DATA: Cache encrypted TFA secret for faster login
                         if user_profile.get("tfa_enabled", False):

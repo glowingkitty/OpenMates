@@ -7,6 +7,8 @@
     import { chatMetadataCache } from '../../services/chatMetadataCache'; // Import chat metadata cache for decrypted summary
     import { chatDB } from '../../services/db'; // Import chatDB for fresh chat reads
     import { apiEndpoints, getApiEndpoint } from '../../config/api'; // Import API endpoints for usage lookup
+    import { chatDebugStore } from '../../stores/chatDebugStore'; // Chat debug mode toggle
+    import { userProfile } from '../../stores/userProfile';
 
     // Props using Svelte 5 $props()
     interface Props {
@@ -315,6 +317,13 @@
         }
     }
 
+    async function handleToggleDebug(event: Event) {
+        event.stopPropagation();
+        event.preventDefault();
+        await chatDebugStore.toggle({ chatId: chat?.chat_id });
+        dispatch('close', 'close');
+    }
+
     // Add scroll handler - don't close while downloading
     function handleScroll() {
         if (show && !downloading) {
@@ -489,7 +498,7 @@
                 </button>
             {/if}
 
-            {#if chat && !chat.is_incognito && !(chat as any).is_hidden && !isPublicChat(chat.chat_id)}
+            {#if chat && !chat.is_incognito && !chat.is_hidden && !isPublicChat(chat.chat_id)}
                 <button
                     class="menu-item hide"
                     class:disabled={!$authStore.isAuthenticated}
@@ -505,7 +514,7 @@
                 </button>
             {/if}
 
-            {#if chat && (chat as any).is_hidden}
+            {#if chat && chat.is_hidden}
                 <button
                     class="menu-item unhide"
                     class:disabled={!$authStore.isAuthenticated}
@@ -580,6 +589,19 @@
                 >
                     <div class="clickable-icon icon_delete"></div>
                     {deleteConfirmMode ? $text('chats.context_menu.confirm') : $text('chats.context_menu.delete')}
+                </button>
+            {/if}
+
+            {#if $userProfile.is_admin}
+                <!-- Debug mode toggle: admin only -->
+                <div class="menu-separator"></div>
+                <button
+                    class="menu-item debug"
+                    class:debug-active={$chatDebugStore.rawTextMode}
+                    onclick={handleToggleDebug}
+                >
+                    <div class="clickable-icon icon_bug"></div>
+                    {$chatDebugStore.rawTextMode ? $text('chats.context_menu.end_debugging') : $text('chats.context_menu.start_debugging')}
                 </button>
             {/if}
         {/if}
@@ -814,6 +836,23 @@
 
     .menu-item.downloading:active {
         transform: none;
+    }
+
+    /* Debug mode button */
+    .menu-item.debug {
+        color: var(--color-font-secondary);
+    }
+
+    .menu-item.debug .clickable-icon {
+        background: var(--color-font-secondary);
+    }
+
+    .menu-item.debug.debug-active {
+        color: var(--color-warning, #e67e22);
+    }
+
+    .menu-item.debug.debug-active .clickable-icon {
+        background: var(--color-warning, #e67e22);
     }
 
     /* Shimmer gradient animation for loading state (text and icon) */

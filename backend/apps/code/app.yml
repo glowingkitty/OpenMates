@@ -95,6 +95,50 @@ settings_and_memories:
           is_title: true
       required:
         - name
+  # Coding setup: capture preferred environment and amount of AI support
+  - id: coding_setup
+    name_translation_key: code.coding_setup
+    description_translation_key: code.coding_setup.description
+    icon_image: library.svg
+    type: list
+    stage: production
+    example_translation_keys:
+      - "code.coding_setup.example_1"
+      - "code.coding_setup.example_2"
+    example_entries:
+      - workspace: "terminal"
+        ai_level: "low"
+        input_style: "free_text"
+        notes: "code.coding_setup.example_1.notes"
+      - workspace: "web_ui"
+        ai_level: "high"
+        input_style: "guided_choices"
+        notes: "code.coding_setup.example_2.notes"
+    schema:
+      type: object
+      properties:
+        workspace:
+          type: string
+          description: Main coding workspace used most often
+          enum: ["ide", "terminal", "web_ui", "mixed"]
+          is_title: true
+        ai_level:
+          type: string
+          description: Amount of AI support preferred while coding
+          enum: ["off", "low", "medium", "high"]
+          is_subtitle: true
+        input_style:
+          type: string
+          description: Preferred balance between guided choices and free input
+          enum: ["guided_choices", "free_text", "mixed"]
+        notes:
+          type: string
+          description: Optional details about tools or workflow preferences
+          multiline: true
+      required:
+        - workspace
+        - ai_level
+        - input_style
 
 # IMPORTANT lerning:
 # if we let ai code for too long extensive code changes and then start to test it, it becomes a huge broken mess. instead we need to find other ways. Maybe by reminding llm to break tasks down into smaller steps (that also allows for placebolder code), and build it up so that we can test individual steps better if they work and if so we continue to the next step.

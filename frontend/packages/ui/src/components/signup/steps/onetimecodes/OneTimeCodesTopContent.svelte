@@ -397,7 +397,7 @@ step_4_top_content_svelte:
             
             <div class="button-row" class:move-up={showQrCode}>
                 <span class="or-text">{@html $text('signup.or')}</span>
-                <button class="text-button with-icon" onclick={toggleQrCode} disabled={!qrCodeSvg}>
+                <button id="signup-2fa-scan-qr" class="text-button with-icon" onclick={toggleQrCode} disabled={!qrCodeSvg}>
                     <span class="button-icon camera-icon"></span>
                     <span>{@html $text('signup.scan_via_2fa_app')}</span>
                 </button>
@@ -405,7 +405,7 @@ step_4_top_content_svelte:
 
             <div class="button-row">
                 <span class="or-text">{@html $text('signup.or')}</span>
-                <button class="text-button with-icon" onclick={copySecret} disabled={!secret}>
+                <button id="signup-2fa-copy-secret" class="text-button with-icon" onclick={copySecret} disabled={!secret}>
                     <span class="button-icon copy-icon"></span>
                     <span>
                         {#if showCopiedText}

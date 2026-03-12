@@ -133,10 +133,11 @@ TASK_CONFIG = [
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.default_inspiration_tasks'},  # Daily defaults selection from pool (replaces old admin-curated pipeline)
     {'name': 'server_stats', 'module': 'backend.core.api.app.tasks.web_analytics_tasks'},  # Web analytics flush tasks (privacy-preserving aggregate counters)
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.app_analytics_tasks'},  # App analytics daily aggregation tasks
-    {'name': 'server_stats', 'module': 'backend.core.api.app.tasks.software_update_tasks'},  # Software update auto-check tasks
-    # Add new task configurations here, e.g.:
-    # {'name': 'new_queue', 'module': 'backend.core.api.app.tasks.new_tasks'}, # Example updated
-]
+     {'name': 'server_stats', 'module': 'backend.core.api.app.tasks.software_update_tasks'},  # Software update auto-check tasks
+     {'name': 'push',        'module': 'backend.core.api.app.tasks.push_notification_task'},  # Browser Web Push notifications
+     # Add new task configurations here, e.g.:
+     # {'name': 'new_queue', 'module': 'backend.core.api.app.tasks.new_tasks'}, # Example updated
+ ]
 
 
 # Force immediate logger configuration for Celery
@@ -953,9 +954,12 @@ _EXPLICIT_TASK_ROUTES = {
     # App analytics tasks (daily aggregation of raw app_analytics events)
     "app_analytics.aggregate_daily": "persistence",
 
-    # Software update auto-check task
-    "software_update.auto_check": "server_stats",
-}
+     # Software update auto-check task
+     "software_update.auto_check": "server_stats",
+
+     # Browser Web Push notification task
+     "app.tasks.push_notification_task.send_push_notification": "push",
+ }
 
 def get_expected_queue_for_task(task_name: str) -> Optional[str]:
     """
@@ -1095,29 +1099,22 @@ app.conf.beat_schedule = {
         'options': {'queue': 'leaderboard'},  # Route to leaderboard queue
         # Fetches all categories (overall, coding, math, creative) for Best-of aliases
     },
-    # E2E Test Automation - hourly test runs for development environment
-    'e2e-tests-dev-hourly': {
-        'task': 'e2e_tests.run_dev_tests',
-        'schedule': crontab(minute=0),  # Every hour at minute 0
-        'options': {'queue': 'e2e_tests'},  # Route to e2e_tests queue
-    },
-    # E2E Test Automation - signup tests run less frequently (once per day)
-    # These consume Mailosaur credits and create real accounts
-    'e2e-tests-signup-daily': {
-        'task': 'e2e_tests.run_signup_tests',
-        'schedule': crontab(hour=6, minute=30),  # Daily at 6:30 AM UTC
-        'options': {'queue': 'e2e_tests'},  # Route to e2e_tests queue
-        'kwargs': {'environment': 'development'},
-    },
     # Full automated daily test run — shells out to scripts/run-tests-daily.sh
+    # Only active when E2E_DAILY_RUN_ENABLED=true in the environment.
+    # This env var is intentionally NOT set on production, so the Beat scheduler
+    # on production is completely silent — no test tasks ever fire there.
+    # Set E2E_DAILY_RUN_ENABLED=true only on the dev server.
+    #
     # Skips automatically if no git commits were made in the last 24 hours.
     # Sends a single summary email: "All tests successful" or "Warning: X of Y tests failed!"
     # 03:00 UTC = 04:00 CET (avoids the 02:xx UTC maintenance window for other jobs)
-    'e2e-tests-daily-full': {
-        'task': 'e2e_tests.run_daily_all_tests',
-        'schedule': crontab(hour=3, minute=0),  # Daily at 03:00 UTC (04:00 CET / Berlin time)
-        'options': {'queue': 'e2e_tests'},
-    },
+    **({
+        'e2e-tests-daily-full': {
+            'task': 'e2e_tests.run_daily_all_tests',
+            'schedule': crontab(hour=3, minute=0),  # Daily at 03:00 UTC (04:00 CET / Berlin time)
+            'options': {'queue': 'e2e_tests'},
+        },
+    } if os.environ.get('E2E_DAILY_RUN_ENABLED', '').lower() == 'true' else {}),
     # 'cleanup-uncompleted-signups': {
     #     'task': 'app.tasks.persistence_tasks.cleanup_uncompleted_signups',
     #     'schedule': crontab(hour=3, minute=0),  # Every day at 3 AM UTC
@@ -1132,6 +1129,14 @@ app.conf.beat_schedule = {
     'password-security-reminders-daily': {
         'task': 'app.tasks.email_tasks.password_security_reminder_email_task.process_password_security_reminders',
         'schedule': crontab(hour=8, minute=0),  # Daily at 08:00 UTC
+        'options': {'queue': 'email'},
+    },
+    # Unified daily notification dispatcher — single sweep that dispatches all per-user
+    # notification emails (backup reminders, future: tips & tricks, etc.). Runs at 09:00 UTC
+    # so it does not overlap with the password security reminder at 08:00.
+    'daily-notification-dispatcher': {
+        'task': 'app.tasks.email_tasks.daily_notification_dispatcher.run_daily_notifications',
+        'schedule': crontab(hour=9, minute=0),  # Daily at 09:00 UTC
         'options': {'queue': 'email'},
     },
     # Pending delivery audit - logs users with undelivered messages (reminders + AI responses)

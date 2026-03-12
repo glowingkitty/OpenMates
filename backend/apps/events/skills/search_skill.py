@@ -46,6 +46,37 @@ logger = logging.getLogger(__name__)
 # Valid provider values. "auto" runs all applicable providers in parallel.
 _VALID_PROVIDERS = {"auto", "meetup", "luma"}
 
+# Platform-brand and generic filler words that narrow provider results unnecessarily.
+# Both Meetup and Luma use literal keyword matching — passing "meetup" to Meetup or
+# "luma" to Luma filters out any event that doesn't contain that word in its title,
+# dramatically reducing results. "event/events" is equally useless on an events platform.
+_QUERY_STOPWORDS: frozenset = frozenset({
+    "meetup", "meetups",
+    "luma",
+    "eventbrite",
+    "event", "events",
+})
+
+
+def _sanitize_query(query: str) -> str:
+    """Strip platform-brand and filler stopwords from an event search query.
+
+    Both Meetup and Luma do literal keyword matching, so including the platform
+    name or generic words like "event" in the query dramatically reduces results.
+
+    Examples:
+        "AI meetup"        -> "AI"
+        "tech meetup"      -> "tech"
+        "Python events"    -> "Python"
+        "luma tech events" -> "tech"
+        "meetup"           -> ""  (caller falls back to original query)
+
+    Returns empty string if every word is a stopword (caller preserves original).
+    """
+    words = query.strip().split()
+    filtered = [w for w in words if w.lower() not in _QUERY_STOPWORDS]
+    return " ".join(filtered).strip()
+
 # Default number of events to return per request.
 _DEFAULT_COUNT = 10
 
@@ -367,6 +398,18 @@ class SearchSkill(BaseSkill):
         query = req.get("query") or req.get("q")
         if not query:
             return (request_id, [], "Missing 'query' parameter", 0)
+
+        # Strip platform-brand and filler stopwords before passing to providers.
+        # e.g. "AI meetup" -> "AI", "tech events" -> "tech". Falls back to the
+        # original query if sanitization would produce an empty string.
+        sanitized = _sanitize_query(query)
+        if sanitized:
+            if sanitized != query:
+                logger.debug(
+                    "[events:search] Sanitized query %r -> %r (stopwords removed)",
+                    query, sanitized,
+                )
+            query = sanitized
 
         # --- Provider selection ---
         provider_choice = str(req.get("provider", "auto")).lower().strip()

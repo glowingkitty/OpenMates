@@ -22,7 +22,7 @@ const defaultProps = {
 	rowCount: 8,
 	colCount: 6,
 	tableContent: sampleTable,
-	onClose: () => console.log('[Preview] Close clicked'),
+	onClose: () => {},
 	hasPreviousEmbed: false,
 	hasNextEmbed: false
 };
@@ -36,8 +36,8 @@ export const variants = {
 		...defaultProps,
 		hasPreviousEmbed: true,
 		hasNextEmbed: true,
-		onNavigatePrevious: () => console.log('[Preview] Navigate previous'),
-		onNavigateNext: () => console.log('[Preview] Navigate next')
+		onNavigatePrevious: () => {},
+		onNavigateNext: () => {}
 	},
 
 	/** Minimal — no title */
@@ -45,6 +45,6 @@ export const variants = {
 		tableContent: `| A | B | C |\n|---|---|---|\n| 1 | 2 | 3 |`,
 		rowCount: 1,
 		colCount: 3,
-		onClose: () => console.log('[Preview] Close clicked')
+		onClose: () => {}
 	}
 };

@@ -163,7 +163,7 @@ class ChatDatabase {
     if (typeof sessionStorage !== "undefined") {
       sessionStorage.setItem(ChatDatabase.SKIP_ORPHAN_DETECTION_KEY, "true");
     }
-    console.debug(
+    console.warn(
       "[ChatDatabase] Enabled skipOrphanDetection mode for shared chat session",
     );
   }
@@ -176,7 +176,7 @@ class ChatDatabase {
     if (typeof sessionStorage !== "undefined") {
       sessionStorage.removeItem(ChatDatabase.SKIP_ORPHAN_DETECTION_KEY);
     }
-    console.debug("[ChatDatabase] Disabled skipOrphanDetection mode");
+    console.warn("[ChatDatabase] Disabled skipOrphanDetection mode");
   }
 
   /**
@@ -282,7 +282,7 @@ class ChatDatabase {
           const { authStore } = await import("../stores/authStore");
           const isAuthenticated = get(authStore).isAuthenticated;
           if (isAuthenticated) {
-            console.debug(
+            console.warn(
               "[ChatDatabase] Skipping orphan detection: memory-only key session with valid auth (stayLoggedIn=false)",
             );
             // Skip the async key check entirely — fall through to normal DB init
@@ -304,7 +304,7 @@ class ChatDatabase {
               : Infinity;
 
           if (timeSinceResume < RESUME_ORPHAN_GRACE_MS) {
-            console.debug(
+            console.warn(
               `[ChatDatabase] Skipping orphan detection: within ${RESUME_ORPHAN_GRACE_MS}ms resume grace period (${Math.round(timeSinceResume)}ms since resume)`,
             );
             // Skip — will re-run on next init() call outside the grace window
@@ -334,7 +334,7 @@ class ChatDatabase {
       !isAuthInProgress &&
       !shouldSkipOrphanDetection
     ) {
-      console.debug(
+      console.warn(
         "[ChatDatabase] Skipping init() - logout in progress (forcedLogout:",
         get(forcedLogoutInProgress),
         ", isLoggingOut:",
@@ -353,7 +353,7 @@ class ChatDatabase {
     }
 
     this.initializationPromise = new Promise((resolve, reject) => {
-      console.debug(
+      console.warn(
         "[ChatDatabase] Initializing database, Version:",
         this.VERSION,
       );
@@ -374,7 +374,7 @@ class ChatDatabase {
       };
 
       request.onsuccess = async () => {
-        console.debug("[ChatDatabase] Database opened successfully");
+        console.warn("[ChatDatabase] Database opened successfully");
         this.db = request.result;
 
         // Set marker in localStorage to indicate database has been initialized
@@ -427,7 +427,7 @@ class ChatDatabase {
       };
 
       request.onupgradeneeded = (event) => {
-        console.debug("[ChatDatabase] Database upgrade needed");
+        console.warn("[ChatDatabase] Database upgrade needed");
         const db = (event.target as IDBOpenDBRequest).result;
         const transaction = (event.target as IDBOpenDBRequest).transaction;
 
@@ -592,7 +592,7 @@ class ChatDatabase {
     // Remove old User Drafts store if it exists
     const oldUserDraftsStoreName = "user_drafts";
     if (db.objectStoreNames.contains(oldUserDraftsStoreName)) {
-      console.info(
+      console.warn(
         `[ChatDatabase] Deleting old store: ${oldUserDraftsStoreName}`,
       );
       db.deleteObjectStore(oldUserDraftsStoreName);
@@ -615,7 +615,7 @@ class ChatDatabase {
         unique: false,
       });
       suggestionsStore.createIndex("chat_id", "chat_id", { unique: false });
-      console.debug("[ChatDatabase] Created new_chat_suggestions store");
+      console.warn("[ChatDatabase] Created new_chat_suggestions store");
     }
 
     // Embeds store
@@ -631,23 +631,23 @@ class ChatDatabase {
       embedsStore.createIndex("hashed_chat_id", "hashed_chat_id", {
         unique: false,
       });
-      console.debug("[ChatDatabase] Created embeds store for unified parsing");
+      console.warn("[ChatDatabase] Created embeds store for unified parsing");
     } else if (transaction) {
       const embedsStore = transaction.objectStore(EMBEDS_STORE_NAME);
       if (!embedsStore.indexNames.contains("app_id")) {
         embedsStore.createIndex("app_id", "app_id", { unique: false });
-        console.debug("[ChatDatabase] Added app_id index to embeds store");
+        console.warn("[ChatDatabase] Added app_id index to embeds store");
       }
       if (!embedsStore.indexNames.contains("skill_id")) {
         embedsStore.createIndex("skill_id", "skill_id", { unique: false });
-        console.debug("[ChatDatabase] Added skill_id index to embeds store");
+        console.warn("[ChatDatabase] Added skill_id index to embeds store");
       }
       // Version 16: Add hashed_chat_id index for embed cleanup on chat deletion
       if (!embedsStore.indexNames.contains("hashed_chat_id")) {
         embedsStore.createIndex("hashed_chat_id", "hashed_chat_id", {
           unique: false,
         });
-        console.debug(
+        console.warn(
           "[ChatDatabase] Added hashed_chat_id index to embeds store",
         );
       }
@@ -666,7 +666,7 @@ class ChatDatabase {
       embedKeysStore.createIndex("hashed_chat_id", "hashed_chat_id", {
         unique: false,
       });
-      console.debug(
+      console.warn(
         "[ChatDatabase] Created embed_keys store for wrapped key architecture",
       );
     }
@@ -685,7 +685,7 @@ class ChatDatabase {
       appSettingsStore.createIndex("item_version", "item_version", {
         unique: false,
       });
-      console.debug("[ChatDatabase] Created app_settings_memories store");
+      console.warn("[ChatDatabase] Created app_settings_memories store");
     }
 
     // Pending OG metadata updates store
@@ -698,7 +698,7 @@ class ChatDatabase {
       ogMetadataStore.createIndex("created_at", "created_at", {
         unique: false,
       });
-      console.debug("[ChatDatabase] Created pending_og_metadata_updates store");
+      console.warn("[ChatDatabase] Created pending_og_metadata_updates store");
     }
 
     // Pending embed share updates store (v18)
@@ -711,7 +711,7 @@ class ChatDatabase {
       embedShareStore.createIndex("created_at", "created_at", {
         unique: false,
       });
-      console.debug("[ChatDatabase] Created pending_embed_share_updates store");
+      console.warn("[ChatDatabase] Created pending_embed_share_updates store");
     }
 
     // Pending embed operations store (v19) - offline queue for embed encryption
@@ -728,7 +728,7 @@ class ChatDatabase {
       pendingEmbedOpsStore.createIndex("created_at", "created_at", {
         unique: false,
       });
-      console.debug("[ChatDatabase] Created pending_embed_operations store");
+      console.warn("[ChatDatabase] Created pending_embed_operations store");
     }
 
     // Daily inspirations store (v20) - client-side persistence for personalised inspiration carousel.
@@ -745,7 +745,7 @@ class ChatDatabase {
       dailyInspirationsStore.createIndex("is_opened", "is_opened", {
         unique: false,
       });
-      console.debug("[ChatDatabase] Created daily_inspirations store (v20)");
+      console.warn("[ChatDatabase] Created daily_inspirations store (v20)");
     }
 
     // Note: app_settings_memories_actions store was removed in favor of system messages
@@ -778,7 +778,7 @@ class ChatDatabase {
         const isOldFormat =
           /^\d+$/.test(suffix) || /^[0-9a-f]{8}$/.test(suffix);
         if (isOldFormat) {
-          console.debug(
+          console.warn(
             `[ChatDatabase] v21 migration: removing stale demo chat ${chatId}`,
           );
           cursor.delete();
@@ -807,7 +807,7 @@ class ChatDatabase {
    * Migrate messages from Chat.messages to separate messages store (v6)
    */
   private migrateMessagesFromChats(transaction: IDBTransaction): void {
-    console.info(
+    console.warn(
       `[ChatDatabase] Migrating messages from chats to messages store`,
     );
     const chatStore = transaction.objectStore(this.CHATS_STORE_NAME);
@@ -828,7 +828,7 @@ class ChatDatabase {
         }
         cursor.continue();
       } else {
-        console.info("[ChatDatabase] Message migration completed.");
+        console.warn("[ChatDatabase] Message migration completed.");
       }
     };
     cursorRequest.onerror = (e) => {
@@ -843,7 +843,7 @@ class ChatDatabase {
    * Migrate message timestamps from timestamp to created_at (v7)
    */
   private migrateMessageTimestamps(transaction: IDBTransaction): void {
-    console.info(
+    console.warn(
       `[ChatDatabase] Migrating message timestamps: renaming timestamp to created_at`,
     );
     const messagesStore = transaction.objectStore(this.MESSAGES_STORE_NAME);
@@ -860,7 +860,7 @@ class ChatDatabase {
         }
         cursor.continue();
       } else {
-        console.info("[ChatDatabase] Message timestamp migration completed.");
+        console.warn("[ChatDatabase] Message timestamp migration completed.");
       }
     };
     cursorRequest.onerror = (e) => {
@@ -878,7 +878,7 @@ class ChatDatabase {
     transaction: IDBTransaction,
     embedsStoreName: string,
   ): void {
-    console.info(
+    console.warn(
       `[ChatDatabase] Migrating embeds: converting JSON string to separate fields`,
     );
     const embedsStore = transaction.objectStore(embedsStoreName);
@@ -948,7 +948,7 @@ class ChatDatabase {
             migratedCount++;
 
             if (migratedCount % 10 === 0) {
-              console.debug(
+              console.warn(
                 `[ChatDatabase] Migrated ${migratedCount} embeds...`,
               );
             }
@@ -965,7 +965,7 @@ class ChatDatabase {
 
         cursor.continue();
       } else {
-        console.info(
+        console.warn(
           `[ChatDatabase] Embed migration completed. Migrated: ${migratedCount}, Skipped: ${skippedCount}`,
         );
       }
@@ -1184,7 +1184,7 @@ class ChatDatabase {
     messageIdsToDelete: string[],
     transaction: IDBTransaction,
   ): Promise<void> {
-    console.debug(
+    console.warn(
       `[ChatDatabase] Batch processing: ${chatsToUpdate.length} chat updates, ${messagesToSave.length} message saves, ${chatIdsToDelete.length} chat deletions, ${messageIdsToDelete.length} message deletions.`,
     );
 
@@ -1315,7 +1315,7 @@ class ChatDatabase {
 
   async clearAllChatData(): Promise<void> {
     await this.init();
-    console.debug(
+    console.warn(
       "[ChatDatabase] Clearing all chat data (chats, messages, pending_sync_changes).",
     );
     if (!this.db) {
@@ -1334,7 +1334,7 @@ class ChatDatabase {
     const transaction = await this.getTransaction(storesToClear, "readwrite");
     return new Promise((resolve, reject) => {
       transaction.oncomplete = () => {
-        console.debug(
+        console.warn(
           "[ChatDatabase] All chat data stores cleared successfully.",
         );
         resolve();
@@ -1364,7 +1364,7 @@ class ChatDatabase {
    * Deletes the IndexedDB database.
    */
   async deleteDatabase(): Promise<void> {
-    console.debug(
+    console.warn(
       `[ChatDatabase] Attempting to delete database: ${this.DB_NAME}`,
     );
 
@@ -1374,7 +1374,7 @@ class ChatDatabase {
       if (this.db) {
         this.db.close();
         this.db = null;
-        console.debug(
+        console.warn(
           `[ChatDatabase] Database connection closed for ${this.DB_NAME}.`,
         );
       }
@@ -1384,7 +1384,7 @@ class ChatDatabase {
         const request = indexedDB.deleteDatabase(this.DB_NAME);
 
         request.onsuccess = () => {
-          console.debug(
+          console.warn(
             `[ChatDatabase] Database ${this.DB_NAME} deleted successfully.`,
           );
           this.isDeleting = false;
@@ -1393,7 +1393,7 @@ class ChatDatabase {
           if (typeof localStorage !== "undefined") {
             localStorage.removeItem("openmates_chats_db_initialized");
             localStorage.removeItem("openmates_needs_cleanup");
-            console.debug(
+            console.warn(
               "[ChatDatabase] Cleared localStorage markers after database deletion",
             );
           }
@@ -1415,6 +1415,11 @@ class ChatDatabase {
             `[ChatDatabase] Deletion of database ${this.DB_NAME} is waiting for other connections to close.`,
             event,
           );
+          // Reset isDeleting so init() is not permanently blocked if the deletion
+          // gets stuck (e.g. another tab holds an open connection). The browser will
+          // keep retrying the deletion in the background, but we cannot leave the
+          // singleton in a permanently unusable state across a re-login.
+          this.isDeleting = false;
         };
       }, 100);
     });
@@ -1472,13 +1477,13 @@ class ChatDatabase {
             loadedCount++;
           }
         }
-        console.debug(
+        console.warn(
           `[ChatDatabase] Loaded ${loadedCount} shared chat keys from storage`,
         );
       }
     } catch (error) {
       // Non-critical: shared key storage might not exist yet (first visit)
-      console.debug(
+      console.warn(
         "[ChatDatabase] Could not load shared chat keys (may not exist yet):",
         error,
       );

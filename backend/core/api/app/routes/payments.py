@@ -1156,7 +1156,35 @@ async def payment_webhook(
                             f"Error logging withdrawal waiver consent for user {user_id}, order {webhook_order_id}: {str(consent_err)}",
                             exc_info=True
                         )
-                    
+
+                    # Log successful financial transaction for compliance
+                    # Covers both regular credit purchases and gift card purchases
+                    try:
+                        transaction_type = "gift_card_purchase" if is_gift_card else "credit_purchase"
+                        tx_details = {
+                            "order_id": webhook_order_id,
+                            "provider": provider_name,
+                        }
+                        if is_gift_card:
+                            tx_details["gift_card_code"] = gift_card_code
+                        else:
+                            tx_details["previous_credits"] = current_credits
+                            tx_details["new_credits"] = new_total_credits_calculated
+                        ComplianceService.log_financial_transaction(
+                            user_id=user_id,
+                            transaction_type=transaction_type,
+                            amount=credits_purchased,
+                            currency=order_currency,
+                            status="success",
+                            details=tx_details,
+                        )
+                    except Exception as fin_log_err:
+                        # Non-blocking: don't fail the payment if compliance logging errors
+                        logger.error(
+                            f"Error logging financial transaction for user {user_id}, order {webhook_order_id}: {fin_log_err}",
+                            exc_info=True,
+                        )
+
                     if is_gift_card:
                         logger.info(f"Successfully created gift card {gift_card_code} for user {user_id}.")
                         
@@ -1296,6 +1324,27 @@ async def payment_webhook(
                     else:
                         logger.error(f"Failed to update Directus credits for user {user_id}.")
 
+                    # Log failed financial transaction for compliance
+                    try:
+                        failed_transaction_type = "gift_card_purchase" if is_gift_card else "credit_purchase"
+                        ComplianceService.log_financial_transaction(
+                            user_id=user_id,
+                            transaction_type=failed_transaction_type,
+                            amount=credits_purchased,
+                            currency=cached_order_data.get("currency", "eur"),
+                            status="failed",
+                            details={
+                                "order_id": webhook_order_id,
+                                "provider": provider_name,
+                                "reason": "directus_update_failed",
+                            },
+                        )
+                    except Exception as fin_log_err:
+                        logger.error(
+                            f"Error logging failed financial transaction for user {user_id}, order {webhook_order_id}: {fin_log_err}",
+                            exc_info=True,
+                        )
+
             except Exception as processing_err:
                 logger.error(f"Error during payment processing for user {user_id}: {processing_err}", exc_info=True)
                 await cache_service.update_order_status(webhook_order_id, "failed_processing_error")
@@ -1339,7 +1388,36 @@ async def payment_webhook(
              (provider_name == "stripe" and event_type == "checkout.session.async_payment_failed") or \
              (provider_name == "polar" and event_type == "checkout.updated"
               and (event_payload.get("data") or {}).get("status") in ("failed", "expired")):
-            logger.warning(f"Payment for order {webhook_order_id} failed or was cancelled.")
+
+            # Extract detailed failure info for Stripe PaymentIntent failures.
+            # last_payment_error contains the decline code, error type, and message
+            # which are essential for diagnosing test failures vs. real declines.
+            if provider_name == "stripe" and event_type == "payment_intent.payment_failed":
+                pi_obj = event_payload.get("data", {}).get("object", {})
+                last_err = pi_obj.get("last_payment_error") or {}
+                err_code = last_err.get("code", "unknown")
+                err_decline_code = last_err.get("decline_code", "n/a")
+                err_type = last_err.get("type", "unknown")
+                err_message = last_err.get("message", "no message")
+                err_param = last_err.get("param", "")
+                pi_status = pi_obj.get("status", "unknown")
+                pi_amount = pi_obj.get("amount")
+                pi_currency = pi_obj.get("currency")
+                pi_customer = pi_obj.get("customer")
+                pi_setup_future_usage = pi_obj.get("setup_future_usage")
+                pm_details = last_err.get("payment_method", {}) or {}
+                pm_type = pm_details.get("type", "unknown")
+                pm_id = pm_details.get("id", "unknown")
+                logger.warning(
+                    f"Stripe payment_intent.payment_failed for order {webhook_order_id}: "
+                    f"pi_status={pi_status}, amount={pi_amount} {pi_currency}, "
+                    f"customer={pi_customer}, setup_future_usage={pi_setup_future_usage}, "
+                    f"err_type={err_type}, err_code={err_code}, decline_code={err_decline_code}, "
+                    f"err_param={err_param!r}, pm_type={pm_type}, pm_id={pm_id}, "
+                    f"message={err_message!r}"
+                )
+            else:
+                logger.warning(f"Payment for order {webhook_order_id} failed or was cancelled.")
             await cache_service.update_order_status(webhook_order_id, "failed")
             
             # Get user_id from cached order data to send notification

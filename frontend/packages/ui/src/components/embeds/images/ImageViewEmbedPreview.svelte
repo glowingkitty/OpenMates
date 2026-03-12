@@ -51,7 +51,7 @@
      * Implemented by AppSkillUseRenderer: resolves original upload embed
      * and fires 'imagefullscreen' CustomEvent.
      */
-    onFullscreen?: () => void;
+    onFullscreen: () => void;
     // --- Data from original image upload embed (resolved by AppSkillUseRenderer) ---
     /** S3 base URL from original image embed */
     s3BaseUrl?: string;

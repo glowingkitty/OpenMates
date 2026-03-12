@@ -262,14 +262,14 @@ test('completes passkey signup flow with email + purchase', async ({
 		await confirmEmailInput.fill(emailCode);
 
 		// Secure account step: choose passkey-based setup.
-		const passkeyOption = page.getByRole('button', { name: /passkey/i });
-		await expect(passkeyOption).toBeVisible();
+		const passkeyOption = page.locator('#signup-passkey-option');
+		await expect(passkeyOption).toBeVisible({ timeout: 15000 });
 		await takeStepScreenshot(page, 'secure-account');
 		await passkeyOption.click();
 		logSignupCheckpoint('Selected passkey signup path.');
 
 		// Recovery key step: wait for passkey registration to complete and the next step to appear.
-		const recoveryDownloadButton = page.getByRole('button', { name: /download/i }).first();
+		const recoveryDownloadButton = page.locator('#signup-recovery-key-download');
 		await expect(recoveryDownloadButton).toBeVisible({ timeout: 60000 });
 		await takeStepScreenshot(page, 'recovery-key');
 		logSignupCheckpoint('Reached recovery key step after passkey registration.');
@@ -282,12 +282,12 @@ test('completes passkey signup flow with email + purchase', async ({
 		expect(await recoveryDownload.suggestedFilename()).toMatch(/recovery/i);
 		logSignupCheckpoint('Downloaded recovery key.');
 
-		const recoveryCopyButton = page.getByRole('button', { name: /^copy$/i });
+		const recoveryCopyButton = page.locator('#signup-recovery-key-copy');
 		await recoveryCopyButton.click();
 
 		const [printPage] = await Promise.all([
 			context.waitForEvent('page'),
-			page.getByRole('button', { name: /print/i }).click()
+			page.locator('#signup-recovery-key-print').click()
 		]);
 		await printPage.close();
 		await takeStepScreenshot(page, 'recovery-key-actions');
@@ -299,16 +299,16 @@ test('completes passkey signup flow with email + purchase', async ({
 		logSignupCheckpoint('Reached credits step.');
 
 		// Credits step: exercise gift card path (cancel) and navigation buttons.
-		const giftCardButton = page.locator('.gift-card-button');
+		const giftCardButton = page.locator('#signup-credits-gift-card');
 		await giftCardButton.scrollIntoViewIfNeeded();
 		await giftCardButton.click();
 		await takeStepScreenshot(page, 'credits-giftcard');
-		await page.getByRole('button', { name: /cancel/i }).click();
+		await page.locator('#signup-gift-card-cancel').click();
 		await takeStepScreenshot(page, 'credits-ready');
 		logSignupCheckpoint('Completed credits step actions.');
 
-		const moreButton = page.getByRole('button', { name: /more/i });
-		const lessButton = page.getByRole('button', { name: /less/i });
+		const moreButton = page.locator('#signup-credits-more');
+		const lessButton = page.locator('#signup-credits-less');
 		if (await moreButton.isVisible()) {
 			await moreButton.click();
 		}
@@ -349,10 +349,7 @@ test('completes passkey signup flow with email + purchase', async ({
 		logSignupCheckpoint('Purchase completed successfully.');
 
 		// Auto top-up step: finish setup and confirm redirect into the app.
-		await page
-			.getByRole('button', { name: /finish setup/i })
-			.first()
-			.click();
+		await page.locator('#signup-finish-setup').click();
 		await page.waitForURL(/chat/);
 		await takeStepScreenshot(page, 'chat');
 		logSignupCheckpoint('Arrived in chat after passkey signup.');

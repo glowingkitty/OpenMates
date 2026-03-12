@@ -315,6 +315,33 @@ class SecretsManager:
             logger.error(f"Error in Vault request to {path}: {str(e)}")
             raise
     
+    async def store_secrets_at_path(self, secret_path: str, data: Dict[str, Any]) -> bool:
+        """
+        Write (create or update) key-value secrets at a given Vault KV v2 path.
+
+        Vault KV v2 POST body must be: {"data": {...}} — the outer wrapper is added here.
+        Existing keys at the path that are not in `data` are preserved (Vault patches, not replaces,
+        when using the /metadata endpoint, but for /data a POST always creates a new version).
+
+        Args:
+            secret_path: Full Vault path (e.g. "kv/data/providers/vapid").
+            data: Dict of key-value pairs to store.
+
+        Returns:
+            True on success, False on failure.
+        """
+        try:
+            await self._vault_request("post", secret_path, {"data": data})
+            logger.info(f"[SecretsManager] Stored {len(data)} secret(s) at path '{secret_path}'")
+            # Invalidate any cached values for this path so next read fetches the new version
+            keys_to_invalidate = [k for k in self._secrets_cache if k.startswith(f"{secret_path}/")]
+            for k in keys_to_invalidate:
+                del self._secrets_cache[k]
+            return True
+        except Exception as e:
+            logger.error(f"[SecretsManager] Failed to store secrets at '{secret_path}': {e}", exc_info=True)
+            return False
+
     async def get_secret(self, secret_path: str, secret_key: str) -> Optional[str]:
         """
         Get a specific secret key from a given path in Vault.

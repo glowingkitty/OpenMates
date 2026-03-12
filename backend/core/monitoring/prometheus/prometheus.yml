@@ -13,6 +13,18 @@ alerting:
 rule_files:
   - "/etc/prometheus/alert_rules.yml"
 
+# Forward all scraped metrics to OpenObserve for unified storage and dashboards.
+# OpenObserve accepts Prometheus remote_write at this endpoint and supports
+# both SQL and PromQL for querying.
+# See docs/architecture/logging-and-monitoring.md
+remote_write:
+  - url: "http://openobserve:5080/api/default/prometheus/api/v1/write"
+    basic_auth:
+      username_file: /etc/prometheus/openobserve_user
+      password_file: /etc/prometheus/openobserve_pass
+    queue_config:
+      max_samples_per_send: 10000
+
 scrape_configs:
   - job_name: "prometheus"
     static_configs:

@@ -1,7 +1,7 @@
 // Serializers for the unified message parsing architecture
 // Handles conversion between different formats and clipboard operations
 
-import { EmbedNodeAttributes, EmbedClipboardData } from "./types";
+import { EmbedNodeAttributes, EmbedClipboardData, TipTapNode, TipTapDoc } from "./types";
 import { groupHandlerRegistry } from "./groupHandlers";
 import { parseMarkdownToTiptap } from "../components/enter_message/utils/markdownParser";
 import { copyToClipboard } from "../utils/clipboardUtils";
@@ -10,7 +10,7 @@ import { copyToClipboard } from "../utils/clipboardUtils";
  * Convert TipTap document JSON to canonical markdown format for sending
  * This ensures embeds are serialized in a standard way that can be parsed consistently
  */
-export function tipTapToCanonicalMarkdown(doc: any): string {
+export function tipTapToCanonicalMarkdown(doc: TipTapDoc): string {
   if (!doc || !doc.content) {
     return "";
   }
@@ -24,7 +24,7 @@ export function tipTapToCanonicalMarkdown(doc: any): string {
         break;
 
       case "embed":
-        lines.push(serializeEmbedToMarkdown(node.attrs));
+        lines.push(serializeEmbedToMarkdown(node.attrs as EmbedNodeAttributes));
         break;
 
       case "heading":
@@ -64,7 +64,7 @@ export function tipTapToCanonicalMarkdown(doc: any): string {
  * Convert markdown to TipTap document JSON format for display
  * This parses markdown and creates appropriate TipTap nodes including embeds
  */
-export function markdownToTipTap(markdown: string): any {
+export function markdownToTipTap(markdown: string): TipTapDoc {
   // Use the full markdown parser that handles headings, bold, code blocks, etc.
   // console.debug('[markdownToTipTap] Parsing markdown:', markdown.substring(0, 100));
 
@@ -400,6 +400,7 @@ export async function writeMessageWithEmbedsToClipboard(
 function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
   switch (attrs.type) {
     case "web-website":
+      {
       // Check if this is a proper embed with embed_id (stored in EmbedStore)
       if (attrs.contentRef?.startsWith("embed:")) {
         // Serialize to proper embed reference format
@@ -409,7 +410,7 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       }
 
       // Legacy: Serialize website embeds to json_embed blocks with inline metadata
-      const websiteData: any = {
+      const websiteData: Record<string, string | undefined> = {
         type: "website",
         url: attrs.url,
       };
@@ -423,6 +424,7 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       const jsonContent = JSON.stringify(websiteData, null, 2);
       return `\`\`\`json_embed\n${jsonContent}\n\`\`\``;
 
+      }
     case "videos-video":
       // Check if this is a proper embed with embed_id (stored in EmbedStore)
       if (attrs.contentRef?.startsWith("embed:")) {
@@ -435,6 +437,7 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       return attrs.url || "";
 
     case "code-code":
+      {
       // Check if this is a proper embed with embed_id (stored in EmbedStore)
       if (attrs.contentRef?.startsWith("embed:")) {
         // Serialize to proper embed reference format - this allows drafts to restore the embed
@@ -450,7 +453,9 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       const codeContent = attrs.code || "";
       return `\`\`\`${languagePrefix}${pathSuffix}\n${codeContent}\n\`\`\``;
 
+      }
     case "docs-doc":
+      {
       // Check if this is a proper embed with embed_id (stored in EmbedStore)
       if (attrs.contentRef?.startsWith("embed:")) {
         const embed_id = attrs.contentRef.replace("embed:", "");
@@ -469,7 +474,9 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       docResult += "```";
       return docResult;
 
+      }
     case "sheets-sheet":
+      {
       let tableResult = "";
       if (attrs.title) {
         tableResult += `<!-- title: "${attrs.title}" -->\n\n`;
@@ -480,6 +487,7 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       tableResult += "| Data     | Data     |";
       return tableResult;
 
+      }
     case "image":
       // User-uploaded images: serialized as embed references when contentRef is set
       // (contentRef is set by handleSend after storing TOON content in EmbedStore)
@@ -570,7 +578,7 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
  * separated from surrounding text with double newlines. Otherwise the markdown parser
  * won't recognize the code fence properly.
  */
-function serializeParagraph(node: any): string {
+function serializeParagraph(node: TipTapNode): string {
   if (!node.content) return "";
 
   // First pass: serialize all children and track which are block-level embeds
@@ -594,9 +602,10 @@ function serializeParagraph(node: any): string {
               text = `\`${text}\``;
               break;
             case "link":
+              {
               // If the link text is the same as the href (plain URL), output just the URL
               // This preserves user input without adding unnecessary markdown link syntax
-              const href = mark.attrs?.href || "";
+              const href = String(mark.attrs?.href || "");
               if (text === href || text.trim() === href.trim()) {
                 // Plain URL - output as-is without markdown link syntax
                 text = href;
@@ -605,6 +614,7 @@ function serializeParagraph(node: any): string {
                 text = `[${text}](${href})`;
               }
               break;
+              }
           }
         }
       }
@@ -613,7 +623,7 @@ function serializeParagraph(node: any): string {
     } else if (child.type === "embed") {
       // Handle inline unified embed nodes
       // For all embed types, use the standard serialization logic
-      const embedMarkdown = serializeEmbedToMarkdown(child.attrs || {});
+      const embedMarkdown = serializeEmbedToMarkdown((child.attrs || {}) as EmbedNodeAttributes);
       // Check if this embed produces block-level markdown (contains code fences)
       const isBlockEmbed = embedMarkdown.includes("```");
       serializedParts.push({ content: embedMarkdown, isBlockEmbed });
@@ -685,7 +695,7 @@ function serializeParagraph(node: any): string {
 /**
  * Serialize heading node to markdown
  */
-function serializeHeading(node: any): string {
+function serializeHeading(node: TipTapNode): string {
   const level = node.attrs?.level || 1;
   const prefix = "#".repeat(Math.min(level, 6));
   const text = extractTextContent(node);
@@ -695,13 +705,13 @@ function serializeHeading(node: any): string {
 /**
  * Serialize list node to markdown
  */
-function serializeList(node: any): string {
+function serializeList(node: TipTapNode): string {
   if (!node.content) return "";
 
   const isOrdered = node.type === "orderedList";
   const lines: string[] = [];
 
-  node.content.forEach((item: any, index: number) => {
+  node.content.forEach((item: TipTapNode, index: number) => {
     const prefix = isOrdered ? `${index + 1}. ` : "- ";
     const text = extractTextContent(item);
     lines.push(`${prefix}${text}`);
@@ -713,7 +723,7 @@ function serializeList(node: any): string {
 /**
  * Serialize blockquote node to markdown
  */
-function serializeBlockquote(node: any): string {
+function serializeBlockquote(node: TipTapNode): string {
   const text = extractTextContent(node);
   return text
     .split("\n")
@@ -729,7 +739,7 @@ function serializeBlockquote(node: any): string {
  * containing a link with href="embed:ref", which convertEmbedLinks converts
  * to embedInline, which convertSourceQuotes then converts back to sourceQuote.
  */
-function serializeSourceQuote(node: any): string {
+function serializeSourceQuote(node: TipTapNode): string {
   const quoteText = node.attrs?.quoteText || "";
   const embedRef = node.attrs?.embedRef || "";
   return `> [${quoteText}](embed:${embedRef})`;
@@ -738,7 +748,7 @@ function serializeSourceQuote(node: any): string {
 /**
  * Extract text content from a node recursively
  */
-function extractTextContent(node: any): string {
+function extractTextContent(node: TipTapNode): string {
   if (!node) return "";
 
   if (node.type === "text") {

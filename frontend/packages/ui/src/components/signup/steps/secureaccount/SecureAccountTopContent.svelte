@@ -6,7 +6,6 @@
      * For passkey, immediately triggers WebAuthn registration.
      */
     import { text } from '@repo/ui';
-    import { theme } from '../../../../stores/theme';
     import { createEventDispatcher } from 'svelte';
     import { userDB } from '../../../../services/userDB';
     import { signupStore } from '../../../../stores/signupStore';
@@ -403,7 +402,7 @@
             
             // Step 15: Extract credential data for backend
             const credentialId = arrayBufferToBase64Url(credential.rawId);
-            const clientDataJSON = new TextDecoder().decode(response.clientDataJSON);
+            const _clientDataJSON = new TextDecoder().decode(response.clientDataJSON);
             const clientDataJSONB64 = cryptoService.uint8ArrayToBase64(new Uint8Array(response.clientDataJSON));
             const attestationObject = new Uint8Array(response.attestationObject);
             const attestationObjectB64 = cryptoService.uint8ArrayToBase64(attestationObject);
@@ -592,6 +591,7 @@
                 <span>{@html $text('signup.recommended')}</span>
             </div>
             <button
+                id="signup-passkey-option"
                 class="option-button"
                 class:selected={selectedOption === 'passkey'}
                 class:loading={isRegisteringPasskey}
@@ -616,6 +616,7 @@
 
         <!-- Password Option -->
         <button
+            id="signup-password-option"
             class="option-button"
             class:selected={selectedOption === 'password'}
             class:loading={isRegisteringPasskey}

@@ -10,10 +10,9 @@
     import { BestModelMentionNode } from '../components/enter_message/extensions/BestModelMentionNode';
     import { EmbedInlineNode } from '../components/enter_message/extensions/EmbedInlineNode';
     import { SourceQuoteNode } from '../components/enter_message/extensions/SourceQuoteNode';
-    import { EmbedPreviewSmallNode } from '../components/enter_message/extensions/EmbedPreviewSmallNode';
     import { EmbedPreviewLargeNode } from '../components/enter_message/extensions/EmbedPreviewLargeNode';
     import { MarkdownExtensions } from '../components/enter_message/extensions/MarkdownExtensions';
-    import { parseMarkdownToTiptap, isMarkdownContent } from '../components/enter_message/utils/markdownParser';
+    import { isMarkdownContent } from '../components/enter_message/utils/markdownParser';
     import { parse_message } from '../message_parsing/parse_message';
     import { applyIncrementalUpdate } from '../message_parsing/streamingDocDiff';
     import { createEventDispatcher } from 'svelte';
@@ -24,6 +23,10 @@
     import type { PIIMapping } from '../types/chat';
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
     import { panelState } from '../stores/panelStateStore';
+
+    // Bump this when parse/render semantics change so stale in-memory parsed docs
+    // (cached by markdown text) are invalidated and re-parsed with new logic.
+    const READ_ONLY_PARSE_CACHE_VERSION = 'v2-assistant-large-embed-promotion';
 
     // Props using Svelte 5 runes mode
     // _embedUpdateTimestamp is used to force re-render when embed data becomes available
@@ -37,7 +40,7 @@
         piiRevealed = false,
         role = undefined
     }: { 
-        content: any; 
+        content: string | Record<string, unknown> | null; 
         isStreaming?: boolean; 
         _embedUpdateTimestamp?: number;
         selectable?: boolean;
@@ -146,16 +149,64 @@
     // when the timer fires, so no content is ever lost.
     const STREAMING_DEBOUNCE_MS = 80;
     let streamingDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-    let pendingStreamContent: any = null;
+    let pendingStreamContent: string | Record<string, unknown> | null = null;
+    const STREAM_CHUNK_FADE_DURATION_MS = 220;
+    let streamFadeResetTimer: ReturnType<typeof setTimeout> | null = null;
+    let streamFadeTargetEl: HTMLElement | null = null;
+
+    function getStreamFadeTargetElement(): HTMLElement | null {
+        if (!editorElement) return null;
+
+        const proseRoot = editorElement.querySelector('.ProseMirror');
+        if (!(proseRoot instanceof HTMLElement)) return null;
+
+        let candidate: Element | null = proseRoot.lastElementChild;
+        if (!candidate) return proseRoot;
+
+        while (candidate?.lastElementChild) {
+            candidate = candidate.lastElementChild;
+        }
+
+        return candidate instanceof HTMLElement ? candidate : proseRoot;
+    }
+
+    function triggerStreamChunkFadePulse() {
+        if (!isStreaming) return;
+
+        const targetEl = getStreamFadeTargetElement();
+        if (!targetEl) return;
+
+        if (streamFadeTargetEl && streamFadeTargetEl !== targetEl) {
+            streamFadeTargetEl.classList.remove('stream-fade-tail');
+        }
+
+        streamFadeTargetEl = targetEl;
+        streamFadeTargetEl.classList.remove('stream-fade-tail');
+
+        requestAnimationFrame(() => {
+            if (streamFadeTargetEl === targetEl) {
+                targetEl.classList.add('stream-fade-tail');
+            }
+        });
+
+        if (streamFadeResetTimer) {
+            clearTimeout(streamFadeResetTimer);
+        }
+
+        streamFadeResetTimer = setTimeout(() => {
+            streamFadeTargetEl?.classList.remove('stream-fade-tail');
+            streamFadeResetTimer = null;
+        }, STREAM_CHUNK_FADE_DURATION_MS);
+    }
 
     // Logger for debugging
     const logger = {
-        debug: (...args: any[]) => console.debug('[ReadOnlyMessage]', ...args),
-        info: (...args: any[]) => console.info('[ReadOnlyMessage]', ...args)
+        debug: (...args: unknown[]) => console.debug('[ReadOnlyMessage]', ...args),
+        info: (...args: unknown[]) => console.info('[ReadOnlyMessage]', ...args)
     };
 
     // Handle embed interactions directly from the editor element
-    function handleEmbedClick(event: CustomEvent) {
+    function _handleEmbedClick(event: CustomEvent) {
         event.stopPropagation();
         const target = event.target as HTMLElement;
         // Look for any embed container with either data attribute
@@ -359,7 +410,7 @@
     /**
      * Handle touch end - cancel long-press timer
      */
-    function handleTouchEnd(event: TouchEvent) {
+    function handleTouchEnd(_event: TouchEvent) {
         clearTouchTimer();
     }
 
@@ -460,7 +511,7 @@
         touchTarget = null;
     }
 
-    function processContent(inputContent: any) {
+    function processContent(inputContent: string | Record<string, unknown> | null) {
         if (!inputContent) return null;
         
         try {
@@ -480,7 +531,7 @@
                 // This handles the case where embed data becomes available after initial render
                 // (the markdown is unchanged but embeds can now be decrypted and rendered)
                 const currentLocale = $locale || 'en';
-                const cacheKey = `${currentLocale}:${role || 'unknown'}:${inputContent}`;
+                const cacheKey = `${READ_ONLY_PARSE_CACHE_VERSION}:${currentLocale}:${role || 'unknown'}:${inputContent}`;
                 
                 // Bypass cache if embed update is pending - forces fresh parsing and re-rendering
                 // This is necessary because embed NodeViews need to call resolveEmbed() again
@@ -611,8 +662,7 @@
             GenericMentionNode, // For @skill:, @focus:, @memory: mentions
             EmbedInlineNode, // For inline [text](embed:ref) links produced by the LLM
             SourceQuoteNode, // For > [quoted text](embed:ref) verified source quotes
-            EmbedPreviewSmallNode, // For [](embed:ref) — inline small preview card
-            EmbedPreviewLargeNode, // For [!](embed:ref) — full-width large preview card (carousel-capable)
+            EmbedPreviewLargeNode, // For [!](embed:ref) and [](embed:ref) — responsive preview card (carousel-capable)
             ...MarkdownExtensions, // Spread the array of markdown extensions
         ];
         
@@ -955,7 +1005,7 @@
      * @param streaming - Whether this is a streaming update
      * @param forceFullReplace - Force setContent() even during streaming (locale/embed updates)
      */
-    function applyContentUpdate(processedContent: any, streaming: boolean, forceFullReplace: boolean) {
+    function applyContentUpdate(processedContent: Record<string, unknown> | null, streaming: boolean, forceFullReplace: boolean) {
         if (!editor || editor.isDestroyed) return;
         
         if (streaming && !forceFullReplace) {
@@ -1001,6 +1051,9 @@
         
         // Re-apply PII decorations after content update
         applyPIIDecorations(editor);
+
+        // Visual polish: fade in every freshly rendered streaming update chunk.
+        triggerStreamChunkFadePulse();
         
         // Update min-height to match actual rendered content
         if (streaming && editorElement) {
@@ -1085,8 +1138,13 @@
     // Re-apply PII decorations when piiRevealed changes (user toggled visibility)
     // This allows instant switching between showing placeholders and original values
     // without re-processing the entire message content.
-    let previousPiiRevealed = $state(piiRevealed);
+    let previousPiiRevealed = $state<boolean | null>(null);
     $effect(() => {
+        if (previousPiiRevealed === null) {
+            previousPiiRevealed = piiRevealed;
+            return;
+        }
+
         if (piiRevealed !== previousPiiRevealed) {
             previousPiiRevealed = piiRevealed;
             if (editor && !editor.isDestroyed) {
@@ -1113,6 +1171,12 @@
                 clearTimeout(streamingDebounceTimer);
                 streamingDebounceTimer = null;
             }
+            if (streamFadeResetTimer) {
+                clearTimeout(streamFadeResetTimer);
+                streamFadeResetTimer = null;
+            }
+            streamFadeTargetEl?.classList.remove('stream-fade-tail');
+            streamFadeTargetEl = null;
             pendingStreamContent = null;
             editor.destroy();
             editor = null;
@@ -1171,6 +1235,25 @@
            Without this, the browser tries to "helpfully" adjust scroll position when
            content above the anchor changes height, causing visual jumps. */
         overflow-anchor: none;
+    }
+
+    .read-only-message.is-streaming :global(.stream-fade-tail) {
+        animation: stream-chunk-fade var(--stream-chunk-fade-duration, 220ms) ease-out;
+    }
+
+    @keyframes stream-chunk-fade {
+        0% {
+            opacity: 0.5;
+        }
+        100% {
+            opacity: 1;
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .read-only-message.is-streaming :global(.stream-fade-tail) {
+            animation: none;
+        }
     }
 
     /* Style overrides for read-only mode */

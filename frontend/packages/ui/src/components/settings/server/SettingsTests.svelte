@@ -78,6 +78,11 @@
     let expandedSuites = $state<Record<string, boolean>>({});
     let expandedErrors = $state<Record<string, boolean>>({});
 
+    // Optimistic "running" state — set immediately on trigger to prevent
+    // double-clicks, cleared when the next poll confirms actual state.
+    let optimisticRunning = $state(false);
+    let optimisticRunStartedAt = $state<string | null>(null);
+
     // Auto-refresh interval ID
     let refreshIntervalId: ReturnType<typeof setInterval> | undefined;
 
@@ -91,7 +96,7 @@
 
     let lastRun = $derived(data?.last_run ?? null);
     let summary = $derived(lastRun?.summary ?? null);
-    let isRunning = $derived(data?.is_running ?? false);
+    let isRunning = $derived(optimisticRunning || (data?.is_running ?? false));
 
     let lastRunTimeAgo = $derived.by(() => {
         if (!data?.last_run_timestamp) return null;
@@ -205,6 +210,13 @@
             console.error('[SettingsTests] Failed to fetch test results:', e);
         } finally {
             isLoading = false;
+
+            // Clear optimistic running state once the server confirms
+            // the run has finished (or was never started).
+            if (optimisticRunning && data && !data.is_running) {
+                optimisticRunning = false;
+                optimisticRunStartedAt = null;
+            }
         }
     }
 
@@ -226,7 +238,12 @@
             triggerMessage = result.message;
 
             if (result.success) {
-                // Refresh to show running state
+                // Set optimistic running state immediately — prevents double-clicks
+                // and shows "Running" feedback before the next poll confirms it.
+                optimisticRunning = true;
+                optimisticRunStartedAt = new Date().toISOString();
+
+                // Refresh to get authoritative state from server
                 await fetchTestResults();
                 // Switch to faster polling while running
                 setupAutoRefresh();
@@ -235,6 +252,9 @@
             const errMsg = e instanceof Error ? e.message : String(e);
             triggerMessage = `Failed to start tests: ${errMsg}`;
             console.error('[SettingsTests] Failed to trigger test run:', e);
+            // Clear optimistic state on error so the button re-enables
+            optimisticRunning = false;
+            optimisticRunStartedAt = null;
         } finally {
             isTriggering = false;
         }
@@ -309,8 +329,8 @@
                     <div class="spinner small"></div>
                     <span>Test run in progress...</span>
                 </div>
-                {#if data.run_started_at}
-                    <span class="running-since">Started {formatTimeAgo(data.run_started_at)}</span>
+                {#if data.run_started_at || optimisticRunStartedAt}
+                    <span class="running-since">Started {formatTimeAgo(data.run_started_at ?? optimisticRunStartedAt ?? '')}</span>
                 {/if}
             </div>
         {/if}

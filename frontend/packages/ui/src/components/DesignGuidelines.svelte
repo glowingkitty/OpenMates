@@ -2,7 +2,7 @@
     import { _, waitLocale } from 'svelte-i18n';
     import DesignGuideline from './DesignGuideline.svelte';
     import LargeSeparator from '../components/LargeSeparator.svelte';
-    import { onMount, tick } from 'svelte';
+    import { onMount } from 'svelte';
 
     // Props using Svelte 5 runes
     let { sectionTitle = undefined }: { sectionTitle?: string | undefined } = $props();

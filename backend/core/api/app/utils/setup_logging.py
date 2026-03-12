@@ -46,7 +46,8 @@ else:
     LOGS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "logs")
 
 API_LOG_PATH = os.path.join(LOGS_DIR, "api.log")
-COMPLIANCE_LOG_PATH = os.path.join(LOGS_DIR, "compliance.log")
+AUDIT_COMPLIANCE_LOG_PATH = os.path.join(LOGS_DIR, "audit-compliance.log")
+FINANCIAL_COMPLIANCE_LOG_PATH = os.path.join(LOGS_DIR, "financial-compliance.log")
 
 # Create logs directory if it doesn't exist, with proper permissions
 # Use mode 0o777 to ensure all users can write (needed for Docker containers with different users)
@@ -85,7 +86,7 @@ def can_write_to_file(filepath: str) -> bool:
 # Check if we can write to log files before including them in the config
 # This prevents permission errors during logging setup
 CAN_WRITE_API_LOG = can_write_to_file(API_LOG_PATH)
-CAN_WRITE_COMPLIANCE_LOG = can_write_to_file(COMPLIANCE_LOG_PATH)
+CAN_WRITE_COMPLIANCE_LOG = can_write_to_file(AUDIT_COMPLIANCE_LOG_PATH)
 
 # Create sensitive data filter instance
 sensitive_filter = SensitiveDataFilter() # Keep the filter instance
@@ -115,28 +116,17 @@ if CAN_WRITE_API_LOG:
         "backupCount": LOG_BACKUP_COUNT,  # Keep this many backup files (default: 5)
     }
 
-if CAN_WRITE_COMPLIANCE_LOG:
-    handlers_config["compliance_file"] = {
-        "class": "logging.handlers.TimedRotatingFileHandler",
-        "level": "INFO",
-        "formatter": "compliance_json",
-        "filters": ["sensitive_data"], # Apply filter to handler
-        "filename": COMPLIANCE_LOG_PATH,
-        "when": COMPLIANCE_LOG_WHEN,  # 'D' (daily), 'W' (weekly), 'M' (monthly)
-        "interval": COMPLIANCE_LOG_INTERVAL,  # Rotate every N days/weeks/months
-        "encoding": "utf-8",
-        "backupCount": COMPLIANCE_LOG_BACKUP_COUNT,  # 0 = keep ALL backups (no auto-deletion)
-        # CRITICAL: backupCount=0 means compliance logs are NEVER automatically deleted
-        # Manual deletion/archiving must be done based on legal retention requirements
-    }
+# Compliance log handlers are configured by setup_compliance_logging.py (called from main.py startup).
+# The compliance.audit and compliance.financial loggers are declared in the dictConfig below as
+# propagate=False so they don't double-log to root, but their file handlers are added by
+# setup_compliance_logging() which creates TimedRotatingFileHandlers for each stream.
+# This approach avoids dictConfig limitations around TimedRotatingFileHandler backupCount=0.
 
 # Build logger handlers list based on available file handlers
 # Default to console-only if file handlers aren't available
 default_handlers = ["console"]
 if CAN_WRITE_API_LOG:
     default_handlers.append("api_file")
-
-compliance_handlers = ["compliance_file"] if CAN_WRITE_COMPLIANCE_LOG else ["console"]
 
 LOGGING_CONFIG = {
     "version": 1,
@@ -180,9 +170,17 @@ LOGGING_CONFIG = {
                 "level": LOG_LEVEL,
                 "propagate": False,
             },
-            "compliance": { # Specific logger for compliance (legal retention)
-                "handlers": compliance_handlers,
-                "level": "INFO", # Always keep compliance logging at INFO
+            # Compliance loggers — handlers are configured by setup_compliance_logging() in main.py startup.
+            # Declaring them here with propagate=False prevents double-logging to root.
+            # Streams: audit-compliance.log (2yr/GDPR) and financial-compliance.log (10yr/AO§147).
+            "compliance.audit": {
+                "handlers": [],  # Handlers added by setup_compliance_logging() at startup
+                "level": "INFO",
+                "propagate": False,
+            },
+            "compliance.financial": {
+                "handlers": [],  # Handlers added by setup_compliance_logging() at startup
+                "level": "INFO",
                 "propagate": False,
             },
             # Configure noisy third-party loggers

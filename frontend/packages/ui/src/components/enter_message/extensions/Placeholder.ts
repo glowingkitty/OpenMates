@@ -10,7 +10,7 @@ import { text } from '@repo/ui'; // Use text store from @repo/ui for reactive tr
 const isTouchDevice = () => {
     return (('ontouchstart' in window) ||
             (navigator.maxTouchPoints > 0) ||
-            // @ts-ignore - MS specific property
+            // @ts-expect-error -- msMaxTouchPoints is a non-standard MS property
             (navigator.msMaxTouchPoints > 0));
 };
 

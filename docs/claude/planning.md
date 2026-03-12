@@ -13,6 +13,37 @@ Before writing any code for a non-trivial task, you MUST create a structured imp
 
 ## Planning Steps
 
+### 0. State Your Understanding (ALWAYS FIRST)
+
+**Before any planning or coding, write out your understanding of the task in plain language and wait for the user to confirm it.**
+
+This is not optional — even when the request seems obvious. The goal is to surface misunderstandings before effort is wasted.
+
+State:
+
+- **What** the user asked for (in your own words — not a paraphrase of their exact message)
+- **Why** you think that is the correct interpretation
+- **What you will NOT do** (related things you are explicitly not tackling)
+- For bug reports specifically: what the user expected, what actually happened, and which part of the system you believe is responsible
+
+Then ask: **"Is this correct, or did I misunderstand something?"**
+
+Wait for a yes/no before proceeding to planning.
+
+**Example (feature request):**
+
+> I understand you want to add a "copy link" button to each chat message — not to the whole chat, but to individual messages — so users can share a direct link to a specific point in the conversation. I'll add a button to the message action row, generate a per-message anchor URL, and copy it to the clipboard. I won't touch the existing chat share flow.
+>
+> Is that correct?
+
+**Example (bug report):**
+
+> As I understand it: when a user sends a message with an embedded location, the AI responds as if the location isn't there — it gives a generic answer instead of using the location data. I believe the embed resolution step is failing silently before the message reaches the AI. I'll investigate the embed resolution pipeline.
+>
+> Is that correct?
+
+---
+
 ### 1. Define Scope
 
 State clearly what is in scope and what is NOT:
@@ -62,13 +93,56 @@ Write it as a numbered sequence describing what happens at each step — from tr
 
 For complex features, include multiple scenarios (happy path, error case, edge case).
 
-### 5. Define "Done" Criteria
+### 5. Define Acceptance Criteria
 
-State explicitly what success looks like and how to verify it:
+**Write a checklist of specific, verifiable outcomes.** Each item must be independently checkable — not vague, not aspirational.
 
-- What behavior should be observable when this is complete?
-- What specific test or check proves it works?
-- Are there UI states, API responses, or log outputs to verify?
+Format each criterion as a checkbox:
+
+```
+**Acceptance Criteria:**
+- [ ] <observable outcome 1>
+- [ ] <observable outcome 2>
+- [ ] <error/edge case behavior>
+```
+
+**Rules:**
+
+- Write criteria from the user's perspective, not the implementation's ("user sees X" not "function returns X")
+- Each criterion must be falsifiable — you must be able to say with certainty whether it passes or fails
+- For **reproducible bugs**: include a Firecrawl verification step as the final criterion (see below)
+- For **features**: cover the happy path, at least one error state, and any critical edge case
+
+**Firecrawl verification (required for reproducible bugs):**
+
+If the bug can be reproduced in a browser, the final acceptance criterion must be:
+
+```
+- [ ] Verified fixed via Firecrawl: open app.dev.openmates.org, reproduce the original steps, confirm the broken behavior no longer occurs
+```
+
+This ensures the fix is confirmed in an actual browser environment, not just by reading code.
+
+**Example (bug fix — embed not resolving):**
+
+```
+Acceptance Criteria:
+- [ ] Sending a message with an embedded location causes the AI to respond using the location data (not a generic answer)
+- [ ] No "embed_id" strings appear raw in the AI request payload (verified via debug.py requests)
+- [ ] If the embed key is expired, the user sees a clear error rather than a silent fallback
+- [ ] Verified fixed via Firecrawl: open app.dev.openmates.org, insert a location embed, send a message, confirm AI uses the location
+```
+
+**Example (feature — copy message link):**
+
+```
+Acceptance Criteria:
+- [ ] A "copy link" button appears in the message action row on hover
+- [ ] Clicking the button copies a URL of the form /chat/<id>#msg-<msg_id> to clipboard
+- [ ] A toast confirms "Link copied"
+- [ ] Pasting the URL navigates to and highlights the correct message
+- [ ] Button is not visible when the chat is not shareable
+```
 
 ### 6. Suggest E2E Test Specs
 
@@ -115,6 +189,14 @@ List anything that could block progress, cause regressions, or require rework:
 Use this template for your plan. Keep it concise — bullet points, not essays.
 
 ```
+## My Understanding
+
+<2-4 sentences: what you believe the user wants, what you will NOT do, and for bugs: expected vs. actual behavior>
+
+Is this correct?
+
+---
+
 ## Implementation Plan
 
 **Task:** <one-line summary>
@@ -137,9 +219,10 @@ Use this template for your plan. Keep it concise — bullet points, not essays.
 > 2. <step 2>
 > ...
 
-**Done When:**
-- <criterion 1>
-- <criterion 2>
+**Acceptance Criteria:**
+- [ ] <observable outcome — user perspective>
+- [ ] <error/edge case behavior>
+- [ ] Verified fixed via Firecrawl: <steps> *(bug fixes only)*
 
 **Suggested E2E Tests:**
 - `should <test description 1>`
@@ -155,9 +238,29 @@ Use this template for your plan. Keep it concise — bullet points, not essays.
 
 ## Common Planning Mistakes to Avoid
 
+- **Skipping the understanding step** — Always state your interpretation and wait for confirmation before planning
 - **Jumping straight to code** — Always plan first for non-trivial work
 - **Vague scope** — "Improve the chat" is not a plan. Be specific about what changes
-- **Missing the processing example** — This is the most important part. Do not skip it
+- **Vague acceptance criteria** — "It works" is not a criterion. Write checkboxes the user can evaluate
+- **Missing Firecrawl verification** — For reproducible bugs, always include a browser verification step in AC
+- **Missing the processing example** — This is the most important part of the plan. Do not skip it
 - **Assuming you know the codebase** — Verify by reading actual files, not from memory
 - **Ignoring concurrent work** — Other assistants may be changing the same files. Check git status
 - **Planning too much** — The plan should take 2-5 minutes, not 30. If you're writing an essay, simplify
+
+---
+
+## Feature Implementation Lifecycle
+
+Complements the planning template above with the end-to-end lifecycle.
+
+1. **Understand** — State your interpretation and wait for confirmation (Step 0 above)
+2. **Clarify** — Resolve ambiguities, search codebase for similar implementations (DRY), check `docs/architecture/`
+3. **Plan** — Follow the template above. Check `sessions.py status` for file conflicts.
+4. **Test strategy** — Decide before implementation: TDD when behavior is clearly defined, test-after when API is still being designed.
+5. **Implement** — Backend first, then frontend, then integration. Track every file. Lint incrementally.
+6. **Verify** — Work through Acceptance Criteria checklist. All tests pass, `pnpm build` succeeds (frontend).
+7. **Deploy** — `deploy-docs` → `prepare-deploy` → `deploy`. Rebuild Docker if backend changed.
+8. **Confirm** — Task Summary to user → wait for confirmation → delete issue if any → `end` session.
+
+If a test fails and you're stuck after 2 attempts: STOP and report.

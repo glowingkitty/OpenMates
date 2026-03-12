@@ -37,6 +37,7 @@ export interface UserProfile {
   random_explore_apps_timestamp?: number; // Unix timestamp when random apps were generated (for daily refresh)
   // Push notification settings (synced with server)
   push_notification_enabled?: boolean;
+  push_notification_subscription?: PushSubscriptionJSON | null; // Browser push subscription object (stored server-side)
   push_notification_preferences?: {
     newMessages: boolean;
     serverEvents: boolean;
@@ -61,7 +62,15 @@ export interface UserProfile {
   email_notification_email?: string; // Decrypted notification email (separate from login email)
   email_notification_preferences?: {
     aiResponses: boolean; // Notify when AI completes a response
+    backupReminder: boolean; // Periodic backup reminder emails (Settings → Notifications → Backup Reminders)
   };
+  // Backup reminder fields — synced with server via the email notification settings WebSocket flow.
+  // last_export_at: set server-side when the user fetches the export manifest.
+  // backup_reminder_dismissed_at: set when user dismisses an in-app backup reminder banner.
+  // backup_reminder_interval_days: user-configurable cadence in Settings → Notifications → Backup Reminders.
+  last_export_at?: string | null;
+  backup_reminder_dismissed_at?: string | null;
+  backup_reminder_interval_days?: number;
   // Incognito mode explainer screen: once the user activates incognito for the first time and
   // confirms the explainer, we set this flag so the explainer is never shown again.
   // Stored in IndexedDB only — no backend sync needed (device-local UX preference).
@@ -71,6 +80,11 @@ export interface UserProfile {
   // Format: "provider/model_id" (e.g., "anthropic/claude-haiku-4-5-20251001").
   default_ai_model_simple?: string | null;
   default_ai_model_complex?: string | null;
+  // Total chat count as reported by the server during Phase 3 sync.
+  // Stored in IndexedDB so it persists across sessions without a server round-trip.
+  // Used by: ActiveChat.svelte overflow "+N" counter, SettingsAccountChats.svelte display.
+  // Updated on: Phase 3 sync completion, chat deletion. Cleared on logout.
+  total_chat_count?: number;
 }
 
 // Default currency is now EUR
@@ -106,10 +120,6 @@ export async function loadUserProfileFromDB(): Promise<void> {
         ...currentProfile, // Keep any existing non-persistent state if needed
         ...profileFromDB, // Overwrite with fresh data from DB (includes consents)
       }));
-      console.debug(
-        "[UserProfileStore] Profile loaded from DB:",
-        profileFromDB,
-      );
 
       // Sync push notification settings from profile to push notification store
       // This ensures bannerShownBefore, enabled, and preferences are loaded from server-synced data
@@ -120,10 +130,6 @@ export async function loadUserProfileFromDB(): Promise<void> {
         push_notification_banner_shown:
           profileFromDB.push_notification_banner_shown,
       });
-    } else {
-      console.debug(
-        "[UserProfileStore] No profile found in DB, using default.",
-      );
     }
   } catch (error) {
     console.error("Failed to load user profile from database:", error);
@@ -180,4 +186,21 @@ export function getUserProfile(): UserProfile {
   let profile: UserProfile;
   userProfile.subscribe((value) => (profile = value))();
   return profile;
+}
+
+/**
+ * Update the total chat count in both the in-memory store and IndexedDB.
+ * Called by chatSyncServiceHandlersPhasedSync on Phase 3 completion,
+ * and decremented by chat deletion handlers.
+ */
+export function updateTotalChatCount(count: number): void {
+  userProfile.update((profile) => ({ ...profile, total_chat_count: count }));
+  userDB
+    .updateUserData({ total_chat_count: count })
+    .catch((err) =>
+      console.warn(
+        "[UserProfileStore] Failed to persist total_chat_count:",
+        err,
+      ),
+    );
 }

@@ -25,7 +25,7 @@ const defaultProps = {
 		{ date: '2026-03-28', price: 155, currency: 'EUR' }
 	],
 	isMobile: false,
-	onFullscreen: () => console.log('[Preview] Fullscreen clicked')
+	onFullscreen: () => {}
 };
 
 export default defaultProps;

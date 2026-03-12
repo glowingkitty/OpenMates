@@ -27,8 +27,6 @@ import {
   saveMasterKey,
   getMasterKey,
   clearMasterKey,
-  saveMasterKeyToIndexedDB,
-  getMasterKeyFromIndexedDB,
   clearMasterKeyFromIndexedDB,
   deleteCryptoDatabase,
 } from "./cryptoKeyStorage";
@@ -205,7 +203,7 @@ export function setupMasterKeyUnloadHandler(): void {
             "[cryptoService] IndexedDB validated and cleared on page unload",
           );
         })
-        .catch((error) => {
+        .catch((_error) => {
           // Ignore errors - page load check will handle cleanup
           console.debug(
             "[cryptoService] IndexedDB validation on unload incomplete (will be handled on next page load)",
@@ -257,7 +255,7 @@ export function startMasterKeyValidation(): void {
           console.debug(
             "[cryptoService] Periodic validation: Cleared IndexedDB key (stayLoggedIn was false)",
           );
-        } catch (error) {
+        } catch (_error) {
           // Ignore errors - might already be cleared
           console.debug(
             "[cryptoService] Periodic validation: IndexedDB already cleared or error (ignored)",
@@ -877,6 +875,12 @@ export function clearAllEmailData(): void {
   clearEmailEncryptionKey();
   clearEmailEncryptedWithMasterKey();
   clearEmailSalt();
+  // Clear pair login credentials stored during password login (used by SettingsSessionsConfirmPair)
+  if (typeof window !== "undefined") {
+    sessionStorage.removeItem("openmates_pair_lookup_hash");
+    sessionStorage.removeItem("openmates_pair_encrypted_key");
+    sessionStorage.removeItem("openmates_pair_salt");
+  }
 }
 
 // ============================================================================

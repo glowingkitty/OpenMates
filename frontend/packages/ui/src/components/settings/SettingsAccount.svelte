@@ -7,6 +7,7 @@ Account Settings - Main menu for account-related settings including Security, Ex
     import { text } from '@repo/ui';
     import SettingsItem from '../SettingsItem.svelte';
     import { userProfile } from '../../stores/userProfile';
+    import { isRestrictedSession } from '../../stores/pairSessionStore';
 
     const dispatch = createEventDispatcher();
 
@@ -24,6 +25,42 @@ Account Settings - Main menu for account-related settings including Security, Ex
 
     // Current username from user profile (displayed as subtitle in the menu item)
     let currentUsername = $derived($userProfile.username || '');
+    let isAdminUser = $derived($userProfile.is_admin === true);
+    let accountDebugOutput = $state<string>('');
+    let accountDebugLoading = $state(false);
+
+    async function loadAccountDebugOutput() {
+        if (!isAdminUser || typeof window === 'undefined') return;
+        const debugApi = (window as unknown as { debug?: { user?: () => unknown } }).debug;
+        if (!debugApi?.user) {
+            accountDebugOutput = 'window.debug.user() is not available in this runtime.';
+            return;
+        }
+
+        accountDebugLoading = true;
+        try {
+            const result = await Promise.resolve(debugApi.user());
+            if (typeof result === 'string') {
+                accountDebugOutput = result;
+            } else if (result === undefined) {
+                accountDebugOutput = 'window.debug.user() executed. Check console output and logs below.';
+            } else {
+                accountDebugOutput = JSON.stringify(result, null, 2);
+            }
+        } catch (error) {
+            accountDebugOutput = error instanceof Error
+                ? `window.debug.user() failed: ${error.message}`
+                : `window.debug.user() failed: ${String(error)}`;
+        } finally {
+            accountDebugLoading = false;
+        }
+    }
+
+    $effect(() => {
+        if (isAdminUser) {
+            void loadAccountDebugOutput();
+        }
+    });
 
     /**
      * Navigate to Username submenu.
@@ -105,6 +142,19 @@ Account Settings - Main menu for account-related settings including Security, Ex
     }
 
     /**
+     * Navigate to Import Data submenu.
+     * Allows importing chats from a previously exported YAML file.
+     */
+    function navigateToImportData() {
+        dispatch('openSettings', {
+            settingsPath: 'account/import',
+            direction: 'forward',
+            icon: 'upload',
+            title: $text('settings.account.import')
+        });
+    }
+
+    /**
      * Navigate to Storage overview submenu.
      * Shows total storage usage, per-category breakdown, and billing info.
      */
@@ -129,7 +179,38 @@ Account Settings - Main menu for account-related settings including Security, Ex
             title: $text('settings.account.delete')
         });
     }
+
+    /**
+     * Navigate to Chats submenu.
+     * Shows total chat count, creation timeline graph, and bulk delete tools.
+     */
+    function navigateToChats() {
+        dispatch('openSettings', {
+            settingsPath: 'account/chats',
+            direction: 'forward',
+            icon: 'chat',
+            title: $text('settings.account.chats')
+        });
+    }
 </script>
+
+{#if $isRestrictedSession}
+    <div class="restricted-notice">
+        Account settings are not available in restricted sessions.
+    </div>
+{:else}
+
+{#if isAdminUser}
+    <div class="account-debug-box selectable">
+        <div class="account-debug-header-row">
+            <span class="account-debug-title">window.debug.user()</span>
+            <button class="account-debug-refresh" onclick={loadAccountDebugOutput} disabled={accountDebugLoading}>
+                {accountDebugLoading ? 'Loading...' : 'Refresh'}
+            </button>
+        </div>
+        <pre class="account-debug-pre selectable">{accountDebugOutput || 'No debug output yet.'}</pre>
+    </div>
+{/if}
 
 <SettingsItem
     type="subsubmenu"
@@ -177,9 +258,23 @@ Account Settings - Main menu for account-related settings including Security, Ex
 
 <SettingsItem
     type="submenu"
+    icon="upload"
+    title={$text('settings.account.import')}
+    onClick={navigateToImportData}
+/>
+
+<SettingsItem
+    type="submenu"
     icon="storage"
     title={$text('settings.storage')}
     onClick={navigateToStorage}
+/>
+
+<SettingsItem
+    type="submenu"
+    icon="chat"
+    title={$text('settings.account.chats')}
+    onClick={navigateToChats}
 />
 
 <SettingsItem
@@ -188,3 +283,66 @@ Account Settings - Main menu for account-related settings including Security, Ex
     title={$text('settings.account.delete')}
     onClick={navigateToDeleteAccount}
 />
+
+{/if}
+
+<style>
+    .restricted-notice {
+        padding: 1rem;
+        border-radius: 0.75rem;
+        background: rgba(223, 27, 65, 0.06);
+        border: 1px solid rgba(223, 27, 65, 0.2);
+        color: var(--color-font-secondary);
+        font-size: var(--processing-details-font-size);
+        text-align: center;
+    }
+
+    .account-debug-box {
+        margin: 0 0 0.75rem;
+        padding: 0.75rem;
+        border-radius: 0.75rem;
+        border: 1px solid var(--color-grey-30);
+        background: var(--color-grey-10);
+    }
+
+    .account-debug-header-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+
+    .account-debug-title {
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--color-font-secondary);
+    }
+
+    .account-debug-refresh {
+        all: unset;
+        cursor: pointer;
+        font-size: 0.78rem;
+        color: var(--color-primary);
+    }
+
+    .account-debug-refresh:disabled {
+        opacity: 0.6;
+        cursor: default;
+    }
+
+    .account-debug-pre {
+        margin: 0;
+        max-height: 12rem;
+        overflow: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-family: monospace;
+        font-size: 0.76rem;
+        line-height: 1.4;
+        color: var(--color-font-primary);
+        user-select: text;
+        -webkit-user-select: text;
+        -moz-user-select: text;
+        -ms-user-select: text;
+    }
+</style>

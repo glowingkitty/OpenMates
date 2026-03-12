@@ -13,15 +13,15 @@ Matches the design from the signup flow screenshot.
     import { apiEndpoints, getApiUrl } from '../../config/api';
     import { getEmailDecryptedWithMasterKey } from '../../services/cryptoService';
 
-    const dispatch = createEventDispatcher();
+    const _dispatch = createEventDispatcher();
 
     // Use Svelte 5 runes for props
     let {
-        purchasedCredits = 0,
-        purchasedPrice = 0,
+        _purchasedCredits = 0,
+        _purchasedPrice = 0,
         currency = 'eur',
         paymentMethodSaved = true,
-        paymentMethodSaveError = null,
+        _paymentMethodSaveError = null,
         oncomplete,
         'onactivate-subscription': onactivateSubscription
     }: {
@@ -38,6 +38,7 @@ Matches the design from the signup flow screenshot.
     let lowBalanceEnabled = $state(false);
     let monthlyEnabled = $state(false);
     let isProcessing = $state(false);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
     let isLoadingSettings = $state(true);
     let lowBalanceEmailError: string | null = $state(null);
     
@@ -443,6 +444,7 @@ Matches the design from the signup flow screenshot.
 
 <!-- Finish Button -->
 <button
+    id="signup-finish-setup"
     onclick={handleFinish}
     disabled={isProcessing}
 >

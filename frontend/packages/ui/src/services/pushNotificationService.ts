@@ -16,6 +16,7 @@ import {
   pushNotificationStore,
   type NotificationPermission,
 } from "../stores/pushNotificationStore";
+import { getApiEndpoint, apiEndpoints } from "../config/api";
 
 // Browser check for SSR safety
 const browser = typeof window !== "undefined";
@@ -86,7 +87,7 @@ class PushNotificationService {
     if ("serviceWorker" in navigator) {
       try {
         this.serviceWorkerRegistration = await navigator.serviceWorker.ready;
-        console.debug(
+        console.warn(
           "[PushNotificationService] Service worker ready:",
           this.serviceWorkerRegistration,
         );
@@ -96,9 +97,7 @@ class PushNotificationService {
           await this.serviceWorkerRegistration.pushManager.getSubscription();
         if (subscription) {
           pushNotificationStore.setSubscription(subscription);
-          console.debug(
-            "[PushNotificationService] Existing subscription found",
-          );
+          console.warn("[PushNotificationService] Existing subscription found");
         }
       } catch (error) {
         console.error(
@@ -145,6 +144,46 @@ class PushNotificationService {
   }
 
   /**
+   * Show a confirmation notification immediately after the user grants permission.
+   * Uses the direct Notification API (no service worker or VAPID needed) so it
+   * always works even before the push subscription is set up.
+   */
+  async showActivationConfirmation(): Promise<void> {
+    if (!browser || !("Notification" in window)) return;
+    if (Notification.permission !== "granted") return;
+
+    try {
+      // Prefer service worker path (shows badge on mobile) but fall back gracefully
+      if (this.serviceWorkerRegistration) {
+        await this.serviceWorkerRegistration.showNotification(
+          "Push notifications activated",
+          {
+            body: "You will now receive notifications from OpenMates.",
+            icon: "/icons/icon-192x192.png",
+            badge: "/icons/badge-72x72.png",
+            tag: "push-activated",
+          },
+        );
+      } else {
+        new Notification("Push notifications activated", {
+          body: "You will now receive notifications from OpenMates.",
+          icon: "/icons/icon-192x192.png",
+          tag: "push-activated",
+        });
+      }
+      console.warn(
+        "[PushNotificationService] Activation confirmation notification shown",
+      );
+    } catch (error) {
+      // Non-critical — log but don't surface to the user
+      console.warn(
+        "[PushNotificationService] Could not show activation confirmation:",
+        error,
+      );
+    }
+  }
+
+  /**
    * Request notification permission from the browser
    * Returns the result of the permission request
    */
@@ -186,7 +225,9 @@ class PushNotificationService {
       if (permission === "granted") {
         // Enable push notifications automatically when permission is granted
         pushNotificationStore.setEnabled(true);
-        // Try to subscribe
+        // Show confirmation notification so the user immediately sees it working
+        await this.showActivationConfirmation();
+        // Try to subscribe (best-effort — fails gracefully if VAPID not yet configured)
         await this.subscribe();
       }
 
@@ -251,7 +292,7 @@ class PushNotificationService {
       }
 
       pushNotificationStore.setSubscription(subscription);
-      console.debug(
+      console.warn(
         "[PushNotificationService] Subscribed to push notifications",
       );
 
@@ -281,7 +322,7 @@ class PushNotificationService {
       // Notify server of unsubscription
       await this.removeSubscriptionFromServer(state.subscription);
 
-      console.debug(
+      console.warn(
         "[PushNotificationService] Unsubscribed from push notifications",
       );
       return true;
@@ -302,7 +343,7 @@ class PushNotificationService {
 
     // Check if we have permission
     if (state.permission !== "granted") {
-      console.debug(
+      console.warn(
         "[PushNotificationService] Cannot show notification: permission not granted",
       );
       return false;
@@ -310,7 +351,7 @@ class PushNotificationService {
 
     // Check if notifications are enabled
     if (!state.enabled) {
-      console.debug(
+      console.warn(
         "[PushNotificationService] Cannot show notification: notifications disabled",
       );
       return false;
@@ -441,42 +482,88 @@ class PushNotificationService {
   }
 
   /**
-   * Get VAPID public key from server
-   * TODO: Implement actual server fetch
+   * Fetch the VAPID public key from the backend.
+   * Returns null if the server hasn't configured VAPID keys yet.
    */
   private async getVapidPublicKey(): Promise<string | null> {
-    // TODO: Fetch from server API endpoint
-    // For now, return null to indicate not yet configured
-    console.warn(
-      "[PushNotificationService] VAPID public key not configured - server endpoint needed",
-    );
-    return null;
+    try {
+      const response = await fetch(
+        getApiEndpoint(apiEndpoints.push.vapidPublicKey),
+        { credentials: "include" },
+      );
+      if (!response.ok) {
+        console.error(
+          "[PushNotificationService] VAPID key fetch failed:",
+          response.status,
+        );
+        return null;
+      }
+      const data = await response.json();
+      return (data.vapid_public_key as string) ?? null;
+    } catch (error) {
+      console.error("[PushNotificationService] VAPID key fetch error:", error);
+      return null;
+    }
   }
 
   /**
-   * Send subscription to server for push delivery
+   * Send a new PushSubscription to the server so it can send push messages.
    */
   private async sendSubscriptionToServer(
     subscription: PushSubscription,
   ): Promise<void> {
-    // TODO: Implement API call to send subscription to server
-    console.debug(
-      "[PushNotificationService] TODO: Send subscription to server",
-      subscription.endpoint,
-    );
+    try {
+      const response = await fetch(
+        getApiEndpoint(apiEndpoints.push.subscribe),
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ subscription: JSON.stringify(subscription) }),
+        },
+      );
+      if (!response.ok) {
+        console.error(
+          "[PushNotificationService] Subscribe request failed:",
+          response.status,
+        );
+      }
+    } catch (error) {
+      console.error(
+        "[PushNotificationService] Subscribe request error:",
+        error,
+      );
+    }
   }
 
   /**
-   * Remove subscription from server
+   * Notify the server that the user has unsubscribed so it removes the stored subscription.
    */
   private async removeSubscriptionFromServer(
     subscription: PushSubscription,
   ): Promise<void> {
-    // TODO: Implement API call to remove subscription from server
-    console.debug(
-      "[PushNotificationService] TODO: Remove subscription from server",
-      subscription.endpoint,
-    );
+    try {
+      const response = await fetch(
+        getApiEndpoint(apiEndpoints.push.unsubscribe),
+        {
+          method: "DELETE",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ endpoint: subscription.endpoint }),
+        },
+      );
+      if (!response.ok) {
+        console.error(
+          "[PushNotificationService] Unsubscribe request failed:",
+          response.status,
+        );
+      }
+    } catch (error) {
+      console.error(
+        "[PushNotificationService] Unsubscribe request error:",
+        error,
+      );
+    }
   }
 
   /**

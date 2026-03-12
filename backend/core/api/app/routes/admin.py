@@ -1096,7 +1096,11 @@ async def get_test_results(
 
     next_run_utc, hours_until = _compute_next_daily_run_utc()
 
-    # Check if a manual run is in progress
+    # Check if a manual run is in progress.
+    # The Redis flag is set when a run is triggered and has a 1-hour TTL.
+    # However, the sidecar may finish (or fail) much sooner. To avoid stale
+    # "running" state, we cross-check with the sidecar's actual status and
+    # clear the Redis flag if the sidecar reports the run is no longer active.
     is_running = False
     run_started_at = None
     try:
@@ -1104,6 +1108,29 @@ async def get_test_results(
         if run_data and run_data.get("status") == "running":
             is_running = True
             run_started_at = run_data.get("started_at")
+
+            # Cross-check with sidecar: if sidecar says idle, clear stale flag
+            try:
+                import httpx
+                sidecar_url = os.environ.get("CORE_SIDECAR_URL", "http://core-admin-sidecar:8001")
+                sidecar_key = os.environ.get("SECRET__CORE_SERVER__ADMIN_LOG_API_KEY", "")
+                async with httpx.AsyncClient(timeout=3.0) as client:
+                    status_resp = await client.get(
+                        f"{sidecar_url}/admin/run-tests/status",
+                        headers={"X-Admin-Log-Key": sidecar_key},
+                    )
+                if status_resp.status_code == 200:
+                    sidecar_data = status_resp.json()
+                    sidecar_status = sidecar_data.get("status", "")
+                    if sidecar_status != "in_progress":
+                        # Sidecar is idle — run finished or failed; clear stale flag
+                        logger.info("Sidecar reports idle but Redis flag was 'running' — clearing stale flag")
+                        await cache_service.redis.delete(MANUAL_TEST_RUN_CACHE_KEY)
+                        is_running = False
+                        run_started_at = None
+            except Exception as sidecar_err:
+                # If we can't reach the sidecar, keep the Redis state as-is
+                logger.debug(f"Could not verify sidecar status: {sidecar_err}")
     except Exception as e:
         logger.warning(f"Failed to check test run status from cache: {e}")
 
@@ -1224,6 +1251,44 @@ async def trigger_test_run(
         raise HTTPException(status_code=500, detail=f"Failed to trigger test run: {e}")
 
     logger.info(f"Manual test run triggered via sidecar by admin {admin_user.id}")
+
+    # Notify admin that the test run has started.
+    # This is non-fatal — a missing email must not break the trigger response.
+    try:
+        admin_email = os.environ.get("ADMIN_NOTIFY_EMAIL") or os.environ.get("SERVER_OWNER_EMAIL")
+        if admin_email:
+            import subprocess as _subprocess
+            git_sha, git_branch = "unknown", "unknown"
+            try:
+                git_sha = _subprocess.check_output(
+                    ["git", "rev-parse", "--short", "HEAD"],
+                    stderr=_subprocess.DEVNULL, text=True,
+                ).strip()
+                git_branch = _subprocess.check_output(
+                    ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                    stderr=_subprocess.DEVNULL, text=True,
+                ).strip()
+            except Exception:
+                pass
+            from backend.core.api.app.tasks.celery_config import app as celery_app
+            server_environment = os.environ.get("SERVER_ENVIRONMENT", "development")
+            celery_app.send_task(
+                name="app.tasks.email_tasks.test_run_started_email_task.send_test_run_started",
+                args=[admin_email, "Manual (admin)", git_sha, git_branch, started_at, server_environment],
+                queue="email",
+            )
+            logger.info(
+                "Dispatched test run started email for manual trigger (environment=%s)",
+                server_environment,
+            )
+        else:
+            logger.warning(
+                "ADMIN_NOTIFY_EMAIL / SERVER_OWNER_EMAIL not set — "
+                "skipping test run started email"
+            )
+    except Exception as email_err:
+        logger.warning(f"Could not dispatch test run started email: {email_err}")
+
     return TriggerTestRunResponse(
         success=True,
         message="Test run started on the host. Results will appear once the run completes.",

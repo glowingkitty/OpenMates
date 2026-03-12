@@ -18,7 +18,7 @@ const initialState: TipData = {
     videoUrl: undefined
 };
 
-const { subscribe, set, update } = writable<TipData>(initialState);
+const { subscribe, set, update: _update } = writable<TipData>(initialState);
 
 export const tipStore = {
     subscribe,

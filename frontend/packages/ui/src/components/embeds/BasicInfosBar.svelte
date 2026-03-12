@@ -326,6 +326,11 @@
     mask-image: url('@openmates/ui/static/icons/event.svg');
   }
 
+  .basic-infos-bar .skill-icon[data-skill-icon="health"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/heart.svg');
+    mask-image: url('@openmates/ui/static/icons/heart.svg');
+  }
+
   .basic-infos-bar .skill-icon[data-skill-icon="mail"] {
     -webkit-mask-image: url('@openmates/ui/static/icons/mail.svg');
     mask-image: url('@openmates/ui/static/icons/mail.svg');

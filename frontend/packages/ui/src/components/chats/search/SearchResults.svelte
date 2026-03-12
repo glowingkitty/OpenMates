@@ -540,7 +540,7 @@
 
   {#if settingsByType.myEmbeds.length > 0}
     <div class="search-section">
-      <h3 class="search-section-title">{$text('chats.search.my_embeds')}</h3>
+      <h3 class="search-section-title">{$text('settings.app_settings_memories.my_settings_and_memories')}</h3>
       {#each settingsByType.myEmbeds as settingResult}
         {@const itemId = settingResult.entry.path}
         {@const isFocused = allFocusableItems[focusedIndex]?.id === itemId}

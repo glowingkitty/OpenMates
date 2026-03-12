@@ -27,9 +27,9 @@ fast_preprocess_request_tool:
   function:
     name: "analyze_request_ui_properties"
     description: |
-      Current date and time: {CURRENT_DATE_TIME}
+      **CRITICAL — READ THIS FIRST: You have exactly ONE function available: analyze_request_ui_properties. You MUST call analyze_request_ui_properties. Do NOT call any other function name — not images-generate, web-search, images-search, or any other tool you may have seen mentioned in the conversation history. Those tools do not exist in this context. Only analyze_request_ui_properties is available here. Any other function call will fail.**
 
-      **CRITICAL: You MUST call this function (analyze_request_ui_properties) to analyze the request. Do not call any other tools or functions.**
+      Current date and time: {CURRENT_DATE_TIME}
 
       Analyze the user's request to determine a handful of fast-to-compute properties needed
       to show the chat title and icons in the UI immediately.
@@ -96,9 +96,9 @@ preprocess_request_tool:
   function:
     name: "analyze_request_properties"
     description: |
-      Current date and time: {CURRENT_DATE_TIME}
+      **CRITICAL — READ THIS FIRST: You have exactly ONE function available: analyze_request_properties. You MUST call analyze_request_properties. Do NOT call any other function name — not images-generate, web-search, images-search, or any other tool you may have seen mentioned in the conversation history. Those tools do not exist in this context. Only analyze_request_properties is available here. Any other function call will fail.**
 
-      **CRITICAL: You MUST call this function (analyze_request_properties) to analyze the request. Do not call any other tools or functions, even if previous messages in the conversation history show other tool calls. Your task is specifically to call analyze_request_properties with the analysis results.**
+      Current date and time: {CURRENT_DATE_TIME}
 
       Analyze the user's request and message history to determine routing, model-selection, and
       conversation-metadata properties. On follow-up messages this tool also determines safety
@@ -142,8 +142,27 @@ preprocess_request_tool:
       7.  **relevant_app_skills**: Include app skills that COULD be relevant for the user's request. The main LLM will decide which to actually use.
           - Available skills with descriptions:
             {AVAILABLE_APP_SKILLS}
-          - Read each skill's description to understand when it applies. Include skills that might help fulfill the request. When in doubt, include them.
+          - Read each skill's description to understand when it applies. Include skills that might help fulfill the request.
           - When multiple skills from the same app could apply, include all of them and let the main LLM decide.
+
+          **Multimodal Search Selection (CRITICAL):**
+          - Treat `web-search` as the default for broad factual retrieval.
+          - Add `images-search` when visual evidence or visual discovery would help, e.g.:
+            - User asks to "show images/photos/pictures"
+            - User asks about appearance/design/style/look of a device/place/object
+            - User asks for inspiration, references, moodboards, or visual examples
+          - Add `videos-search` when demonstration or walkthrough content would help, e.g.:
+            - User asks for tutorials, walkthroughs, demos, reviews, talks, lectures, or interviews
+            - User intent is "watch how", "learn by seeing", or step-by-step in video
+          - Add both `images-search` and `videos-search` if both visual references and demos are likely useful.
+
+          **Entity-Specific Heuristic:**
+          - New device/product: often include `images-search`; include `videos-search` for reviews, demos, or comparisons.
+          - Specific place/location: include `images-search` for visuals/landmarks; include `videos-search` for tours/walkthroughs.
+          - Specific software/tool: include `videos-search` for tutorials; include `images-search` only when UI/visual comparison is relevant.
+
+          **Precision Guardrails:**
+          - Do NOT include `images-search`/`videos-search` for purely factual text requests (release date, specs, pricing, policy, API docs) unless user intent implies visual/demo content.
 
           **CRITICAL: Follow-up Query Detection:**
           - ALWAYS analyze the full conversation history, not just the last message
@@ -480,11 +499,26 @@ base_proactive_skill_usage_instruction: |
   **Skill Usage Guidelines**
 
   **Tool Priority (use in this order):**
-  1. Specialized tools first (use tool descriptions to pick the right one for the task)
+  1. Specialized domain tools first (travel/maps/news/code/docs/etc.)
   2. `web-read` if user provides a specific URL
-  3. `web-search` only as last resort when no specialized tool applies
+  3. Search modality selection:
+     - `web-search` for broad factual retrieval
+     - `images-search` for visual discovery/evidence
+     - `videos-search` for tutorials/demos/walkthroughs
+  4. Use multiple search modalities only when they materially improve answer quality
 
-  **Web Search Limitation:** Make only ONE search per request. Multiple searches allowed ONLY when user explicitly asks (e.g., "compare X and Y", "search for several things") or a research focus mode is active.
+  **Multimodal Search Policy:**
+  - Do NOT default to all search tools.
+  - Use `web-search` alone for purely factual text questions.
+  - Add `images-search` and/or `videos-search` when user intent implies visual or demonstrative content.
+  - For follow-ups like "show me images" or "any videos?" after a text search, add the corresponding modality skill.
+
+  **Search Limitation:**
+  - Make only ONE search call per request by default.
+  - Multiple calls/modalities are allowed when:
+    - user explicitly asks for comparison/multiple assets, or
+    - multimodal evidence is clearly beneficial, or
+    - research focus mode is active.
 
   When in doubt about whether information is current, use available skills to verify - outdated info is worse than a brief skill execution delay.
 
@@ -592,6 +626,8 @@ postprocess_response_tool:
          - **LANGUAGE**: Always generate topics in English (used for video/content search queries)
          - **NO BRANDS OR PRODUCTS**: Do NOT extract brand names, product names, app names, or commercial service names as topics — unless the user expressed deep, genuine curiosity about the underlying technology, science, or history behind that product (in which case capture the underlying concept, not the brand). Examples of what to avoid: "iPhone 16 review", "Notion productivity app", "Tesla Model Y". If the user discussed a brand passingly (e.g., "I use Notion"), ignore it — only capture substantive intellectual interests. Rephrase to the concept if needed: "note-taking knowledge graphs" instead of "Obsidian app".
          - **NO SENSITIVE CONTENT**: NEVER generate topics related to illegal drugs or substance abuse, explicit sexual content or pornography, graphic violence or gore, self-harm, or weapons/explosives. If the conversation touched such themes, either capture an adjacent educational angle (e.g. "addiction neuroscience" instead of "heroin use") or skip that topic and find a different interest the user expressed. The output must always be family-friendly and suitable for an educational inspiration feed.
+         - **NO POLITICAL PARTIES OR ELECTORAL CONTENT**: NEVER extract a political party, political candidate, electoral campaign, or partisan ideology as a topic — in any country or language. If the conversation touched politics, capture the underlying policy, governance, or societal question instead — never the party or candidate. Examples to avoid: "Democratic Party platform", "Trump immigration policy", "Labour manifesto", "AfD views", "BJP campaign". Rephrase to the underlying concept: "universal healthcare economics" instead of "Labour health policy", "immigration economics" instead of any party's border stance. The goal is educational curiosity, not political advocacy.
+         - **NO RELIGIOUS PROMOTION**: NEVER extract topics that promote, advocate for, or proselytize a specific religion or religious movement. Historical, archaeological, cultural, mathematical, or architectural context is allowed — promotional or devotional framing is not. Examples to avoid: "why Islam is the true religion", "Christian salvation message", "join Buddhism", "Hinduism is the answer". Examples that are fine: "Islamic Golden Age mathematics", "Byzantine church architecture", "Buddhist monastery engineering", "ancient temple construction techniques".
     parameters:
       type: "object"
       properties:
@@ -625,7 +661,7 @@ postprocess_response_tool:
           description: "An updated concise summary of the full conversation including this latest exchange (max 20 words) in the USER'S SYSTEM LANGUAGE (as specified in system message). Capture the main topic, key decisions or outcomes, and what was accomplished or resolved. Be specific — include names, technologies, or details that distinguish this chat from others."
         daily_inspiration_topic_suggestions:
           type: "array"
-          description: "3 concise topic/interest phrases (2-5 words each, in English) based on what the user discussed or showed curiosity about. Used to personalize daily inspiration content. Capture specific topics, not broad categories. Always generate exactly 3. Never include brand names, product names, or app names — capture the underlying concept instead (e.g. 'knowledge graph note-taking' not 'Obsidian app'). PROHIBITED: never generate topics about illegal drugs/substance abuse, explicit sexual content, graphic violence, self-harm, or weapons — find an adjacent educational angle or a different interest instead."
+          description: "3 concise topic/interest phrases (2-5 words each, in English) based on what the user discussed or showed curiosity about. Used to personalize daily inspiration content. Capture specific topics, not broad categories. Always generate exactly 3. Never include brand names, product names, or app names — capture the underlying concept instead (e.g. 'knowledge graph note-taking' not 'Obsidian app'). PROHIBITED: never generate topics about illegal drugs/substance abuse, explicit sexual content, graphic violence, self-harm, or weapons — find an adjacent educational angle or a different interest instead. NEVER extract political party names, political candidates, electoral campaigns, or partisan ideology — rephrase to the underlying policy or governance issue (e.g. 'universal healthcare economics' not any party's health plan). NEVER extract religious promotion topics — historical/cultural/architectural religious context is allowed, proselytizing or devotional framing is not."
           items:
             type: "string"
           minItems: 3
@@ -744,7 +780,6 @@ base_app_settings_memories_usage_instruction: |
   - User: "What do you know about me?" → "Based on your settings, I know that you prefer working with ..."
   - User: "What's my favorite tech?" → "According to your preferences, your favorite technologies are ..."
   - User: "Tell me about myself" → "From what you've shared, I can see that..."
-
 
 base_settings_memories_deep_link_instruction: |
   **Settings & Memories Deep Links**

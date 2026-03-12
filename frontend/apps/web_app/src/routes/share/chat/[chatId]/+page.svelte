@@ -31,7 +31,7 @@
 	} from '@repo/ui';
 	import { goto } from '$app/navigation';
 	import { getApiEndpoint } from '@repo/ui';
-	import { deriveParentByChildEmbeds } from '../shareChatEmbedUtils';
+	import { deriveParentByChildEmbeds, type ShareChatEmbedLike } from '../shareChatEmbedUtils';
 
 	// CRITICAL: Configure shared chat mode IMMEDIATELY on script load (before any other code runs)
 	// This prevents chatDB.init() from blocking during shared chat access.
@@ -429,7 +429,35 @@
 				// Some payloads include `parent_embed_id` directly; otherwise we can derive it from parent `embed_ids`.
 				const derivedParentByChild = deriveParentByChildEmbeds(fetchedEmbeds);
 
-				for (const embed of fetchedEmbeds) {
+				// CRITICAL: Pre-cache embed keys for child embeds.
+				// putEncrypted tries to decrypt content to extract embed_ref, which requires
+				// the embed key. For child embeds, getEmbedKey does getRawEntry(childContentRef)
+				// to find parent_embed_id, but the child hasn't been stored yet at that point.
+				// By pre-caching the parent's key under the child's ID, getEmbedKey finds it
+				// immediately in cache without needing the IDB lookup chain.
+				for (const [childId, parentId] of derivedParentByChild.entries()) {
+					const parentKey = embedStore.getEmbedKeyFromCache(parentId, hashedChatId);
+					if (parentKey) {
+						embedStore.setEmbedKeyInCache(childId, parentKey, hashedChatId);
+					}
+				}
+
+				// CRITICAL: Sort embeds so parents are processed BEFORE children.
+				// putEncrypted tries to decrypt content to extract embed_ref for the in-memory
+				// ref→id index. For child embeds, getEmbedKey needs the parent's key, which
+				// requires the parent to already be in the memory cache (via a prior putEncrypted).
+				// Without this ordering, child embeds can't resolve their parent's key, so their
+				// content can't be decrypted and embed_ref never gets registered — causing
+				// "Loading preview..." stuck state in EmbedReferencePreview / EmbedPreviewLarge.
+				const parentEmbeds = fetchedEmbeds.filter(
+					(e: ShareChatEmbedLike) => Array.isArray(e.embed_ids) && (e.embed_ids as unknown[]).length > 0
+				);
+				const childEmbeds = fetchedEmbeds.filter(
+					(e: ShareChatEmbedLike) => !Array.isArray(e.embed_ids) || (e.embed_ids as unknown[]).length === 0
+				);
+				const sortedEmbeds = [...parentEmbeds, ...childEmbeds];
+
+				for (const embed of sortedEmbeds) {
 					try {
 						const contentRef = `embed:${embed.embed_id}`;
 						// Store the embed with its already-encrypted content (no re-encryption)
@@ -452,7 +480,7 @@
 						console.warn(`[ShareChat] Error storing embed ${embed.embed_id}:`, embedError);
 					}
 				}
-				console.debug(`[ShareChat] Stored ${fetchedEmbeds.length} embeds`);
+				console.debug(`[ShareChat] Stored ${fetchedEmbeds.length} embeds (${parentEmbeds.length} parents first, then ${childEmbeds.length} children)`);
 			}
 
 			// NOTE: Shared chat keys are now persisted in IndexedDB via sharedChatKeyStorage

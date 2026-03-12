@@ -14,6 +14,8 @@
 import logging
 import os
 import asyncio
+from email.utils import parsedate_to_datetime
+from datetime import datetime, timezone
 import httpx
 from typing import Dict, Any, List, Optional
 
@@ -29,8 +31,41 @@ BRAVE_API_KEY_NAME = "api_key"
 BRAVE_API_BASE_URL = "https://api.search.brave.com/res/v1"
 
 # Retry configuration for 429 rate limit responses
-MAX_429_RETRIES = 3  # Maximum number of retries on 429
+MAX_429_RETRIES = 6  # Maximum number of retries on 429
 DEFAULT_429_RETRY_DELAY = 1.1  # Default delay in seconds when Retry-After header is missing
+
+
+def _parse_retry_after_seconds(response: httpx.Response) -> float:
+    """
+    Parse retry delay from provider headers.
+
+    Supports both standard Retry-After values:
+    - delta-seconds (e.g., "2")
+    - HTTP date (e.g., "Wed, 21 Oct 2015 07:28:00 GMT")
+    """
+    retry_after = response.headers.get("Retry-After")
+    if retry_after:
+        try:
+            return max(float(retry_after), 0.1)
+        except (TypeError, ValueError):
+            try:
+                retry_dt = parsedate_to_datetime(retry_after)
+                if retry_dt.tzinfo is None:
+                    retry_dt = retry_dt.replace(tzinfo=timezone.utc)
+                return max((retry_dt - datetime.now(timezone.utc)).total_seconds(), 0.1)
+            except (TypeError, ValueError):
+                pass
+
+    # Brave may return an epoch timestamp reset header depending on plan/proxy path.
+    reset_header = response.headers.get("X-RateLimit-Reset")
+    if reset_header:
+        try:
+            reset_epoch = float(reset_header)
+            return max(reset_epoch - datetime.now(timezone.utc).timestamp(), 0.1)
+        except (TypeError, ValueError):
+            pass
+
+    return DEFAULT_429_RETRY_DELAY
 
 
 async def _request_with_429_retry(
@@ -83,15 +118,7 @@ async def _request_with_429_retry(
             )
             response.raise_for_status()
         
-        # Determine wait time from Retry-After header or default
-        retry_after = response.headers.get("Retry-After")
-        if retry_after:
-            try:
-                wait_seconds = float(retry_after)
-            except (ValueError, TypeError):
-                wait_seconds = DEFAULT_429_RETRY_DELAY
-        else:
-            wait_seconds = DEFAULT_429_RETRY_DELAY
+        wait_seconds = _parse_retry_after_seconds(response)
         
         logger.info(
             f"Brave {search_type} search rate limited (429) for query '{query}' "

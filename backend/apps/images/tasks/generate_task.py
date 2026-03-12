@@ -802,6 +802,9 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
             "aspect_ratio": aspect_ratio,
             "output_filetype": output_filetype,                 # "png", "jpg", or "svg"
             "generated_at": generated_at,
+            # Input reference image embed IDs (non-empty only for image-to-image generation).
+            # Used by the frontend to display thumbnails of the source images above the prompt.
+            "input_embed_ids": reference_image_embed_ids or [],
         }
         
         # 9b. Cache S3 file keys for server-side cleanup (S3 deletion on chat/embed deletion)

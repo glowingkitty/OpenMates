@@ -431,6 +431,10 @@ class EmailTemplateService:
                 elif template == "password-security-reminder":
                     subject_key = "email.password_security_reminder.subject"
                     subject = self.translation_service.get_nested_translation(subject_key, lang, context)
+                elif template == "backup-reminder":
+                    # Key uses underscores in YAML but template name uses hyphens.
+                    subject_key = "email.backup_reminder.subject"
+                    subject = self.translation_service.get_nested_translation(subject_key, lang, context)
                 else:
                     subject_key = f"email.{template}.subject"
                     subject = self.translation_service.get_nested_translation(subject_key, lang, context)

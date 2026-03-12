@@ -404,7 +404,7 @@ export async function decryptShareKeyBlob(
           passwordKey,
         );
         chatEncryptionKey = decoder.decode(decryptedKeyBytes);
-      } catch (error) {
+      } catch (_error) {
         console.debug(
           "[ShareEncryption] Password decryption failed - invalid password",
         );

@@ -174,10 +174,12 @@ skills:
     name_translation_key: ai.ask
     description_translation_key: ai.ask.description
     icon_image: ai.svg
-    # Internal: this is the main AI entry-point skill, invoked implicitly on every
-    # request. It should never appear in the @mention dropdown, app suggestions, or
-    # follow-up / new-chat skill suggestions — all AI requests already use it.
-    internal: true
+    # Note: this is the main AI entry-point skill, invoked implicitly on every request.
+    # It should never appear in the @mention dropdown, app suggestions, or follow-up /
+    # new-chat skill suggestions — all AI requests already use it.
+    # The @mention dropdown filtering is handled in mentionSearchService.ts (hardcoded skip).
+    # Do NOT mark as internal=true — that would hide it from the App Store/Settings,
+    # where it needs to appear so users can configure their AI models.
     stage: production
     class_path: |
       ai.skills.ask_skill.AskSkill
@@ -199,6 +201,8 @@ skills:
         main_processing_complex: alibaba/qwen3-235b-a22b-2507
         main_processing_complex_name: Qwen3
         content_sanitization_model: openai/gpt-oss-safeguard-20b
+        # Chat import uses OpenRouter (not Groq) to avoid the shared 200k token/day Groq daily cap
+        chat_import_sanitization_model: openai/gpt-oss-safeguard-20b-openrouter
       preprocessing_thresholds:
         harmful_content_score: 7
         misuse_risk_score: 8

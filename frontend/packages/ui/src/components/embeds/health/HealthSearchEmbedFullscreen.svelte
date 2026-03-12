@@ -2,30 +2,26 @@
   frontend/packages/ui/src/components/embeds/health/HealthSearchEmbedFullscreen.svelte
 
   Fullscreen view for the Health Search Appointments skill embed.
-  Follows the exact same pattern as TravelSearchEmbedFullscreen.svelte.
+  Uses SearchResultsTemplate for unified grid + overlay + loading pattern.
 
   Shows:
-  - Header with search summary and "via Doctolib"
-  - Grid of doctor cards (HealthAppointmentEmbedPreview), sorted by next slot
-  - Per-doctor detail overlay (HealthAppointmentEmbedFullscreen) when a card is clicked
-  - Loading / empty / error states
+  - Header with skill label
+  - Grid of HealthAppointmentEmbedPreview cards (one per doctor)
+  - Drill-down: clicking a card opens HealthAppointmentEmbedFullscreen overlay with sibling nav
 
-  Child embed loading:
-  - Uses UnifiedEmbedFullscreen's built-in child embed loading via embedIds prop
-  - Each child embed is an individual appointment result decoded via childEmbedTransformer
+  Child embeds are automatically loaded by SearchResultsTemplate/UnifiedEmbedFullscreen.
+
+  See docs/architecture/embeds.md
 -->
 
 <script lang="ts">
-  import UnifiedEmbedFullscreen, { type ChildEmbedContext } from '../UnifiedEmbedFullscreen.svelte';
-  import ChildEmbedOverlay from '../ChildEmbedOverlay.svelte';
+  import SearchResultsTemplate from '../SearchResultsTemplate.svelte';
   import HealthAppointmentEmbedPreview from './HealthAppointmentEmbedPreview.svelte';
   import HealthAppointmentEmbedFullscreen from './HealthAppointmentEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
-  import { getProviderIconUrl } from '../../../data/providerIcons';
 
   /**
-   * A single appointment slot — datetime only.
-   * booking_url is optional for backward-compat with cached embeds but is not rendered.
+   * A single appointment slot.
    */
   interface SlotData {
     datetime: string;
@@ -33,11 +29,9 @@
   }
 
   /**
-   * Appointment result interface — one doctor with their available slots.
-   * Used for both the grid cards and the detail overlay.
+   * Appointment result — one doctor with their available slots.
    */
   interface AppointmentResult {
-    /** Unique embed ID (used as React-like key and for overlay navigation) */
     embed_id: string;
     type?: string;
     name?: string;
@@ -45,50 +39,29 @@
     address?: string;
     slots_count?: number;
     next_slot?: string;
-    /**
-     * Legacy field — kept for backward-compat with cached embeds but not rendered.
-     * Slot deep-links expire; the practice_url is used for booking instead.
-     */
     next_slot_url?: string;
-    /** Available slots (next few, datetimes only) */
     slots?: SlotData[];
     insurance?: string;
     telehealth?: boolean;
-    /** Live availability page — always valid */
     practice_url?: string;
     provider?: string;
   }
 
   interface Props {
-    /** Search query display string (e.g., "Augenarzt in Berlin") */
     query?: string;
-    /** Provider platform name (e.g., "Doctolib") */
     provider?: string;
-    /** Pipe-separated or array of child embed IDs (one per doctor result) */
     embedIds?: string | string[];
-    /** Processing status */
     status?: 'processing' | 'finished' | 'error' | 'cancelled';
-    /** Optional error message */
     errorMessage?: string;
-    /** Legacy: inline results array (used if embedIds not provided) */
     results?: unknown[];
-    /** Close handler */
     onClose: () => void;
-    /** Optional embed ID for sharing */
     embedId?: string;
-    /** Whether there is a previous embed to navigate to */
     hasPreviousEmbed?: boolean;
-    /** Whether there is a next embed to navigate to */
     hasNextEmbed?: boolean;
-    /** Handler to navigate to the previous embed */
     onNavigatePrevious?: () => void;
-    /** Handler to navigate to the next embed */
     onNavigateNext?: () => void;
-    /** Direction of navigation ('previous' | 'next') — set transiently during prev/next transitions */
     navigateDirection?: 'previous' | 'next';
-    /** Whether to show the "chat" button */
     showChatButton?: boolean;
-    /** Callback when user clicks the "chat" button */
     onShowChat?: () => void;
   }
 
@@ -109,24 +82,13 @@
     onShowChat
   }: Props = $props();
 
-  // Index-based selection for sibling navigation in the overlay
-  /** Index of selected appointment in allAppointmentResults (-1 = none) */
-  let selectedAppointmentIndex = $state<number>(-1);
-  
-  /** Flat array of all loaded appointment results for sibling navigation */
-  let allAppointmentResults = $state<AppointmentResult[]>([]);
-  
-  /** Currently selected appointment (derived from index) */
-  let selectedAppointment = $derived(selectedAppointmentIndex >= 0 ? allAppointmentResults[selectedAppointmentIndex] ?? null : null);
-
-  // Local reactive state — initialized with defaults, synced from props via $effect below
-  let localQuery = $state<string>('');
+  // Local reactive state for streaming updates
+  let localQuery = $state('');
   let localEmbedIds = $state<string | string[] | undefined>(undefined);
   let localResults = $state<unknown[]>([]);
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('finished');
-  let localErrorMessage = $state<string>('');
+  let localErrorMessage = $state('');
 
-  // Keep local state in sync with prop changes
   $effect(() => {
     localQuery = queryProp || '';
     localEmbedIds = embedIds;
@@ -135,38 +97,22 @@
     localErrorMessage = errorMessageProp || '';
   });
 
-  // Derived state
-  let query = $derived(localQuery);
   let embedIdsValue = $derived(localEmbedIds);
   let legacyResults = $derived(localResults);
-  let status = $derived(localStatus);
-
-  let errorMessage = $derived(localErrorMessage || $text('chat.an_error_occured'));
 
   /**
-   * Transform raw embed content (TOON-decoded) into AppointmentResult format.
-   * Used as childEmbedTransformer by UnifiedEmbedFullscreen.
-   *
-   * TOON encoding flattens nested objects, so slots[0].datetime → slots_0_datetime.
-   * We reconstruct the slots array from these flattened keys when needed.
+   * Transform raw embed content to AppointmentResult format.
+   * Handles TOON-flattened slots and native arrays.
    */
   function transformToAppointmentResult(embedId: string, content: Record<string, unknown>): AppointmentResult {
-    // Reconstruct slots array from TOON-flattened or native format.
-    // booking_url is preserved for backward-compat but is not rendered in the UI.
-    //
-    // New embeds: slots is [{datetime}] — no booking_url.
-    // Old cached embeds: slots is [{datetime, booking_url}] or TOON-flattened
-    //   slots_0_datetime / slots_0_booking_url keys, or a legacy pipe-joined string.
     let slots: SlotData[] = [];
 
     if (Array.isArray(content.slots)) {
-      // Native (non-TOON-flattened) slots array
       slots = (content.slots as Record<string, unknown>[]).map(s => ({
         datetime: (s.datetime as string) || '',
         booking_url: (s.booking_url as string) || undefined,
       }));
     } else {
-      // Try TOON-flattened object-list path: slots_0_datetime, (slots_0_booking_url), …
       for (let i = 0; i < 20; i++) {
         const dt = content[`slots_${i}_datetime`];
         if (typeof dt !== 'string') break;
@@ -175,13 +121,10 @@
           booking_url: (content[`slots_${i}_booking_url`] as string) || undefined,
         });
       }
-
-      // Legacy fallback: backend used to emit slots as a pipe-joined ISO string
+      // Legacy: pipe-joined ISO string
       if (slots.length === 0 && typeof content.slots === 'string' && content.slots) {
         const datetimes = (content.slots as string).split('|');
-        slots = datetimes
-          .filter(dt => dt)
-          .map(dt => ({ datetime: dt }));
+        slots = datetimes.filter(dt => dt).map(dt => ({ datetime: dt }));
       }
     }
 
@@ -193,7 +136,6 @@
       address: content.address as string | undefined,
       slots_count: (content.slots_count as number) || 0,
       next_slot: content.next_slot as string | undefined,
-      // next_slot_url kept for legacy compat but not rendered; practice_url is used instead
       next_slot_url: (content.next_slot_url as string | undefined) || undefined,
       slots,
       insurance: content.insurance as string | undefined,
@@ -204,7 +146,7 @@
   }
 
   /**
-   * Transform legacy inline results (non-embed-child path) into AppointmentResult format.
+   * Transform legacy inline results to AppointmentResult format.
    */
   function transformLegacyResults(results: unknown[]): AppointmentResult[] {
     return (results as Array<Record<string, unknown>>).map((r, i) =>
@@ -213,100 +155,37 @@
   }
 
   /**
-   * Get appointment results from context (child embeds or legacy inline results).
-   */
-  function getAppointmentResults(ctx: ChildEmbedContext): AppointmentResult[] {
-    if (ctx.children && ctx.children.length > 0) {
-      return ctx.children as AppointmentResult[];
-    }
-    if (ctx.legacyResults && ctx.legacyResults.length > 0) {
-      return transformLegacyResults(ctx.legacyResults);
-    }
-    return [];
-  }
-
-  /**
-   * Open the per-doctor detail overlay.
-   * Uses index-based selection so prev/next arrows navigate within siblings.
-   */
-  function handleAppointmentFullscreen(appointment: AppointmentResult) {
-    console.debug('[HealthSearchEmbedFullscreen] Opening appointment fullscreen:', {
-      embedId: appointment.embed_id,
-      name: appointment.name,
-      slotsCount: appointment.slots_count,
-    });
-    const idx = allAppointmentResults.findIndex(r => r.embed_id === appointment.embed_id);
-    if (idx >= 0) {
-      selectedAppointmentIndex = idx;
-    } else {
-      allAppointmentResults = [appointment];
-      selectedAppointmentIndex = 0;
-    }
-  }
-
-  /**
-   * Close the per-doctor detail overlay, returning to the grid.
-   */
-  function handleAppointmentFullscreenClose() {
-    selectedAppointmentIndex = -1;
-  }
-  
-  /** Navigate to the previous sibling appointment */
-  function handleAppointmentNavigatePrevious() {
-    if (selectedAppointmentIndex > 0) selectedAppointmentIndex -= 1;
-  }
-  
-  /** Navigate to the next sibling appointment */
-  function handleAppointmentNavigateNext() {
-    if (selectedAppointmentIndex < allAppointmentResults.length - 1) selectedAppointmentIndex += 1;
-  }
-
-  /**
    * Handle embed data updates during streaming.
    */
   function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> }) {
     if (!data.decodedContent) return;
-
-    if (
-      data.status === 'processing' ||
-      data.status === 'finished' ||
-      data.status === 'error' ||
-      data.status === 'cancelled'
-    ) {
+    if (data.status === 'processing' || data.status === 'finished' || data.status === 'error' || data.status === 'cancelled') {
       localStatus = data.status;
     }
-
     const content = data.decodedContent;
     if (typeof content.query === 'string') localQuery = content.query;
     if (content.embed_ids) localEmbedIds = content.embed_ids as string | string[];
     if (Array.isArray(content.results)) localResults = content.results as unknown[];
     if (typeof content.error === 'string') localErrorMessage = content.error;
   }
-
-  /**
-   * Handle main close — if a detail overlay is open, close it first.
-   */
-  function handleMainClose() {
-    if (selectedAppointmentIndex >= 0) {
-      selectedAppointmentIndex = -1;
-    } else {
-      onClose();
-    }
-  }
 </script>
 
-<!-- Doctor results grid — ALWAYS rendered (base layer) -->
-<UnifiedEmbedFullscreen
+<SearchResultsTemplate
   appId="health"
   skillId="search_appointments"
-  onClose={handleMainClose}
-  skillIconName="health"
   embedHeaderTitle={$text('app_skills.health.search_appointments')}
+  skillIconName="health"
+  showSkillIcon={true}
+  {onClose}
+  currentEmbedId={embedId}
   embedIds={embedIdsValue}
   childEmbedTransformer={transformToAppointmentResult}
-  legacyResults={legacyResults}
-  currentEmbedId={embedId}
+  {legacyResults}
+  legacyResultTransformer={transformLegacyResults}
+  status={localStatus}
+  errorMessage={localErrorMessage}
   onEmbedDataUpdated={handleEmbedDataUpdated}
+  minCardWidth="260px"
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}
@@ -315,203 +194,32 @@
   {showChatButton}
   {onShowChat}
 >
-  {#snippet content(ctx)}
-    {@const appointmentResults = getAppointmentResults(ctx)}
-    <!-- Sync allAppointmentResults for sibling navigation -->
-    {#if appointmentResults.length > 0 && appointmentResults !== allAppointmentResults}
-      {allAppointmentResults = appointmentResults}
-    {/if}
-
-    <!-- Header: search summary + provider -->
-    <div class="fullscreen-header">
-      <div class="search-query">{query}</div>
-      <div class="search-provider">
-        <span>{$text('embeds.via')}</span>
-        <img
-          src={getProviderIconUrl('icons/doctolib.svg')}
-          alt="Doctolib"
-          class="provider-logo"
-        />
-      </div>
-    </div>
-
-    <!-- Error state -->
-    {#if status === 'error'}
-      <div class="error-state">
-        <div class="error-title">{$text('embeds.search_failed')}</div>
-        <div class="error-message">{errorMessage}</div>
-      </div>
-    {:else if appointmentResults.length === 0}
-      {#if ctx.isLoadingChildren}
-        <div class="loading-state">
-          <p>{$text('embeds.loading')}</p>
-        </div>
-      {:else}
-        <div class="no-results">
-          <p>{$text('embeds.health.no_appointments_found')}</p>
-        </div>
-      {/if}
-    {:else}
-      <!-- Doctor cards grid -->
-      <div class="appointment-embeds-grid">
-        {#each appointmentResults as result}
-          <HealthAppointmentEmbedPreview
-            id={result.embed_id}
-            name={result.name}
-            speciality={result.speciality}
-            address={result.address}
-            slotsCount={result.slots_count}
-            nextSlot={result.next_slot}
-            nextSlotUrl={result.next_slot_url}
-            insurance={result.insurance}
-            telehealth={result.telehealth}
-            status="finished"
-            isMobile={false}
-            onFullscreen={() => handleAppointmentFullscreen(result)}
-          />
-        {/each}
-      </div>
-    {/if}
-  {/snippet}
-</UnifiedEmbedFullscreen>
-
-<!-- Per-doctor detail fullscreen overlay — sibling navigation between all appointment results -->
-{#if selectedAppointment}
-  <ChildEmbedOverlay>
-    <HealthAppointmentEmbedFullscreen
-      appointment={selectedAppointment}
-      onClose={handleAppointmentFullscreenClose}
-      embedId={selectedAppointment.embed_id}
-      hasPreviousEmbed={selectedAppointmentIndex > 0}
-      hasNextEmbed={selectedAppointmentIndex < allAppointmentResults.length - 1}
-      onNavigatePrevious={handleAppointmentNavigatePrevious}
-      onNavigateNext={handleAppointmentNavigateNext}
+  {#snippet resultCard({ result, onSelect })}
+    <HealthAppointmentEmbedPreview
+      id={result.embed_id}
+      name={result.name}
+      speciality={result.speciality}
+      address={result.address}
+      slotsCount={result.slots_count}
+      nextSlot={result.next_slot}
+      nextSlotUrl={result.next_slot_url}
+      insurance={result.insurance}
+      telehealth={result.telehealth}
+      status="finished"
+      isMobile={false}
+      onFullscreen={onSelect}
     />
-  </ChildEmbedOverlay>
-{/if}
+  {/snippet}
 
-<style>
-  /* ===========================================
-     Fullscreen Header
-     =========================================== */
-
-  .fullscreen-header {
-    margin-top: 60px;
-    margin-bottom: 40px;
-    padding: 0 16px;
-    text-align: center;
-  }
-
-  .search-query {
-    font-size: 24px;
-    font-weight: 600;
-    color: var(--color-font-primary);
-    line-height: 1.3;
-    word-break: break-word;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .search-provider {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 16px;
-    color: var(--color-font-secondary);
-    margin-top: 8px;
-  }
-
-  .search-provider .provider-logo {
-    height: 16px;
-    width: auto;
-    flex-shrink: 0;
-  }
-
-  @container fullscreen (max-width: 500px) {
-    .fullscreen-header {
-      margin-top: 70px;
-      margin-bottom: 24px;
-    }
-
-    .search-query {
-      font-size: 20px;
-    }
-
-    .search-provider {
-      font-size: 14px;
-    }
-
-    .search-provider .provider-logo {
-      height: 14px;
-    }
-  }
-
-  /* ===========================================
-     Loading and Empty States
-     =========================================== */
-
-  .loading-state,
-  .no-results {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 200px;
-    color: var(--color-font-secondary);
-    font-size: 16px;
-  }
-
-  .error-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 24px 16px;
-    color: var(--color-font-secondary);
-    text-align: center;
-  }
-
-  .error-title {
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--color-error);
-  }
-
-  .error-message {
-    font-size: 14px;
-    line-height: 1.4;
-    max-width: 520px;
-    word-break: break-word;
-  }
-
-  /* ===========================================
-     Doctor Cards Grid
-     =========================================== */
-
-  .appointment-embeds-grid {
-    display: grid;
-    gap: 16px;
-    width: calc(100% - 20px);
-    max-width: 1000px;
-    margin: 0 auto;
-    padding: 0 10px;
-    padding-bottom: 120px;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  }
-
-  @container fullscreen (max-width: 500px) {
-    .appointment-embeds-grid {
-      grid-template-columns: 1fr;
-    }
-  }
-
-  .appointment-embeds-grid :global(.unified-embed-preview) {
-    width: 100%;
-    max-width: 320px;
-    margin: 0 auto;
-  }
-</style>
+  {#snippet childFullscreen(nav)}
+    <HealthAppointmentEmbedFullscreen
+      appointment={nav.result}
+      onClose={nav.onClose}
+      embedId={nav.result.embed_id}
+      hasPreviousEmbed={nav.hasPrevious}
+      hasNextEmbed={nav.hasNext}
+      onNavigatePrevious={nav.onPrevious}
+      onNavigateNext={nav.onNext}
+    />
+  {/snippet}
+</SearchResultsTemplate>

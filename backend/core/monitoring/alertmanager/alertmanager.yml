@@ -56,5 +56,4 @@ receivers:
         # The internal service token secures this endpoint
         http_config:
           http_headers:
-            X-Internal-Service-Token:
-              secrets: ["${INTERNAL_API_SHARED_TOKEN}"]
+            X-Internal-Service-Token: "${INTERNAL_API_SHARED_TOKEN}"

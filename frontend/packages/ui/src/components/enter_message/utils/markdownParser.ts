@@ -180,6 +180,35 @@ function extractMathFormulas(markdownText: string): {
 
 // Helper function to pre-process markdown to ensure double newlines create empty paragraphs
 function preprocessMarkdown(markdownText: string): string {
+  // Normalise embed ```json fences so markdown-it sees them at column 0.
+  //
+  // LLMs occasionally emit embed references in two broken forms:
+  //
+  // 1. Indented inside a list item (e.g. 4 leading spaces):
+  //      The indented ``` line causes markdown-it to misparse the whole block,
+  //      swallowing subsequent content as code text.
+  //
+  // 2. Prefixed with a stray punctuation character (e.g. a bare colon):
+  //      `:```json` is not a valid fence opener — markdown-it treats the whole
+  //      line as a paragraph, rendering the raw fence syntax as visible text.
+  //
+  // Fix: strip any leading whitespace-or-single-punctuation prefix from ```json
+  // fences whose single content line contains "embed_id". Regular JSON code blocks
+  // (no "embed_id") are left untouched.
+  //
+  // Pattern breakdown:
+  //   ^            — line start (multiline mode)
+  //   (?:[^\S\n]*[^`\w\s][^\S\n]*|[ \t]+)  — either:
+  //                   a) optional spaces, one punctuation char, optional spaces, OR
+  //                   b) one-or-more spaces/tabs (pure indentation)
+  //   (```json)    — captured fence opener
+  //   \n(...)      — single JSON content line containing "embed_id"
+  //   \n[ \t]*(```) — closing fence (with optional leading whitespace)
+  markdownText = markdownText.replace(
+    /^(?:[^\S\n]*[^`\w\s][^\S\n]*|[ \t]+)(```json)\n([ \t]*\{[^\n]*"embed_id"[^\n]*\})\n[ \t]*(```)/gm,
+    "$1\n$2\n$3",
+  );
+
   // First extract math formulas
   const { processed: textWithMathExtracted, formulas } =
     extractMathFormulas(markdownText);
@@ -187,18 +216,40 @@ function preprocessMarkdown(markdownText: string): string {
   mathFormulas.clear();
   formulas.forEach((value, key) => mathFormulas.set(key, value));
 
-  // Split the text by double newlines and process each section
+  // Split the text by double newlines and process each section.
+  //
+  // IMPORTANT: splitting on \n\n can split inside a fenced code block if the block
+  // contains blank lines. Inserting <!-- EMPTY_PARAGRAPH --> inside a fence causes
+  // markdown-it to render it as literal text (not an HTML comment), which then appears
+  // visibly in the UI. We therefore track fence open/close state across sections and
+  // only insert the marker when we are NOT inside an open fence.
   const sections = textWithMathExtracted.split(/\n\n+/);
   const processedSections: string[] = [];
+
+  // Track whether we are currently inside an open code fence.
+  // A fence is opened by a line starting with ``` (with optional language tag) and
+  // closed by a subsequent line that is exactly ```.
+  let insideFence = false;
 
   for (let i = 0; i < sections.length; i++) {
     const section = sections[i].trim();
     if (section) {
       processedSections.push(section);
+
+      // Update fence tracking: count unmatched opening/closing fence lines.
+      // A line starting with ``` opens or closes a fence.
+      const fenceLines = section.split("\n");
+      for (const line of fenceLines) {
+        if (/^```/.test(line)) {
+          insideFence = !insideFence;
+        }
+      }
     }
 
-    // Add empty paragraph marker between sections (except for the last one)
-    if (i < sections.length - 1) {
+    // Only insert the empty-paragraph marker between sections when we are not
+    // inside an open code fence. Inside a fence, the marker would be rendered as
+    // literal text rather than an HTML comment node, corrupting the output.
+    if (i < sections.length - 1 && !insideFence) {
       processedSections.push("<!-- EMPTY_PARAGRAPH -->");
     }
   }

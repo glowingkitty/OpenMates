@@ -9,7 +9,7 @@
     import { text } from '@repo/ui';
     import { isInSignupProcess, isLoggingOut } from '../stores/signupState'; // Import the signup state and logging out state
     import { panelState } from '../stores/panelStateStore'; // Import panel state store
-    import { isMobileView, loginInterfaceOpen } from '../stores/uiStateStore'; // Import mobile view state and login interface visibility
+    import { loginInterfaceOpen } from '../stores/uiStateStore'; // Import mobile view state and login interface visibility
     import { authStore } from '../stores/authStore'; // Import auth store to check login status
 
     // Props using Svelte 5 runes
@@ -40,7 +40,7 @@
         { href: routes.docs.main, text: $text('navigation.docs') }
     ].filter(item => item.href && isPageVisible(item.href)));
 
-    interface NavItem {
+    interface _NavItem {
         href: string;
         text: string;
     }
@@ -166,7 +166,7 @@
                     // Use server_edition from request-based validation (includes "development" for dev subdomains)
                     // server_edition can be: "production" | "development" | "self_hosted"
                     serverEdition = status.server_edition || null;
-                    console.log(`[Header] Server edition: ${serverEdition}, domain: ${status.domain || 'localhost'}, is_self_hosted: ${status.is_self_hosted}`);
+                    // server_edition detection logged for debugging: production | development | self_hosted
                 }
             } catch (error) {
                 console.error('[Header] Error fetching server status:', error);
@@ -182,7 +182,7 @@
     let loginButtonText = $derived(isMobile ? $text('signup.sign_up') : `${$text('login.login')} / ${$text('signup.sign_up')}`);
 
     // Update menu toggle logic to consider the logging out state as well
-    const toggleMenu = () => {
+    const _toggleMenu = () => {
         if (isLoggedIn && !$isInSignupProcess && !$isLoggingOut) {
             isMenuOpen.set(!$isMenuOpen);
         }
@@ -203,7 +203,7 @@
     });
 
     // Add custom transition function
-    function slideFade(node: HTMLElement, { 
+    function _slideFade(node: HTMLElement, { 
         duration = 200 
     }) {
         const width = node.offsetWidth; // Get the natural width
@@ -268,7 +268,7 @@
                                 onkeydown={(e) => {
                                     if (e.key === 'Enter' || e.key === ' ') {
                                         e.preventDefault();
-                                        handleLogoClick(e as any);
+                                        handleLogoClick(e as unknown as MouseEvent);
                                     }
                                 }}
                             >
@@ -339,8 +339,8 @@
                         class="login-signup-button"
                         onclick={(e) => {
                             e.preventDefault();
-                            // Dispatch event to open signup interface
-                            window.dispatchEvent(new CustomEvent('openSignupInterface'));
+                            // Dispatch event to open login interface (which includes Login/Sign up tabs)
+                            window.dispatchEvent(new CustomEvent('openLoginInterface'));
                         }}
                         aria-label={loginButtonText}
                     >

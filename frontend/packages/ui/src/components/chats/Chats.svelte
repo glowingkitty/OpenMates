@@ -19,7 +19,7 @@
 	import { phasedSyncState } from '../../stores/phasedSyncStateStore'; // For tracking sync state across component lifecycle
 	import { activeChatStore } from '../../stores/activeChatStore'; // For persisting active chat across component lifecycle
 	import { userProfile } from '../../stores/userProfile'; // For hidden_demo_chats
-	import { INTRO_CHATS, LEGAL_CHATS, isDemoChat, translateDemoChat, isLegalChat, getDemoMessages, isPublicChat, addCommunityDemo, getAllCommunityDemoChats, communityDemoStore, loadCommunityDemos } from '../../demo_chats'; // For demo/intro chats
+	import { INTRO_CHATS, LEGAL_CHATS, isDemoChat, translateDemoChat, isLegalChat, getDemoMessages, isPublicChat, getAllCommunityDemoChats, communityDemoStore, loadCommunityDemos } from '../../demo_chats'; // For demo/intro chats
 	import { convertDemoChatToChat } from '../../demo_chats/convertToChat'; // For converting demo chats to Chat type
 	import { getAllDraftChatIdsWithDrafts, clearAllSessionStorageDrafts } from '../../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
 	import { notificationStore } from '../../stores/notificationStore'; // For notifications
@@ -48,7 +48,7 @@
 	const dispatch = createEventDispatcher();
 
 // --- Debounce timer for updateChatListFromDB calls ---
-let updateChatListDebounceTimer: any = null;
+let updateChatListDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 // 300ms debounce prevents redundant DB reads during rapid sync events mid-session.
 // On cold boot (initial mount) the skipDebounce flag bypasses this for instant display.
 const UPDATE_DEBOUNCE_MS = 300;
@@ -497,7 +497,7 @@ let _chatUpdatedFlushPending = false;
 		if (!$authStore.isAuthenticated) {
 			return sorted;
 		}
-		return sorted.filter(chat => !(chat as any).is_hidden && !(chat as any).is_hidden_candidate);
+		return sorted.filter(chat => !chat.is_hidden && !chat.is_hidden_candidate);
 	})());
 
 	// Separate list for hidden chats (only shown when unlocked)
@@ -505,7 +505,7 @@ let _chatUpdatedFlushPending = false;
 		if (!hiddenChatState.isUnlocked) {
 			return [];
 		}
-		return sortedAllChats.filter(chat => (chat as any).is_hidden);
+		return sortedAllChats.filter(chat => chat.is_hidden);
 	})());
 
 	// Group hidden chats for display
@@ -740,8 +740,8 @@ let _chatUpdatedFlushPending = false;
 	 * Handles 'chatUpdated' events from chatSyncService.
 	 * Refreshes the chat list from DB and re-dispatches selection if the updated chat was selected.
 	 */
-	const handleChatUpdatedEvent = async (event: CustomEvent<{ chat_id: string; newMessage?: Message; type?: string; chat?: ChatType }>) => {
-		const detail = event.detail as any;
+	const handleChatUpdatedEvent = async (event: CustomEvent<{ chat_id: string; newMessage?: Message; type?: string; chat?: ChatType; messagesUpdated?: boolean }>) => {
+		const detail = event.detail;
 		console.debug(`[Chats] Chat updated event received for chat_id: ${detail.chat_id}, type: ${detail.type}`);
 		
 		// Invalidate decrypted metadata cache only when metadata may have changed.
@@ -1023,7 +1023,7 @@ let _chatUpdatedFlushPending = false;
 		* Handles 'phasedSyncComplete' events from the new phased sync system.
 		* This indicates the entire 3-phase sync process is complete.
 		*/
-	const handlePhasedSyncCompleteEvent = async (event: CustomEvent<any>) => {
+	const handlePhasedSyncCompleteEvent = async (event: CustomEvent<{ phase: string; timestamp: number }>) => {
 		console.info(`[Chats] Phased sync complete:`, event.detail);
 		
 		// CRITICAL: Update chat list FIRST, before marking sync complete
@@ -1422,7 +1422,7 @@ let _chatUpdatedFlushPending = false;
 			// FIXED: Dispatch chatSelected to ensure the chat actually loads (important for SEO and user experience)
 			// CRITICAL: URL hash chat has priority - skip welcome chat if active chat is already set by deep link handler
 			// Use activeChatStore instead of checking hash directly to avoid race conditions
-			const hasActiveChatSet = currentActiveChat !== null;
+			const _hasActiveChatSet = currentActiveChat !== null;
 
 			// DISABLED: Auto-selection now handled by unified deep link system in +page.svelte
 			// This prevents conflicts with deep link processing and ensures consistent behavior
@@ -1468,17 +1468,25 @@ let _chatUpdatedFlushPending = false;
 		handleLogoutEvent = async () => {
 			console.debug('[Chats] Logout event received - clearing user chats and resetting state immediately');
 			
-			// CRITICAL: Clear all user chats from state IMMEDIATELY (keep only demo/legal chats)
-			// This ensures the UI updates right away, even if database deletion is still in progress
-			allChatsFromDB = [];
-			selectedChatId = null;
+			// CRITICAL: Clear user chats from state IMMEDIATELY, but PRESERVE shared-by-others chats.
+			// Shared chats use URL-embedded encryption keys (not the master key), so they remain
+			// valid even when the master key is gone. Clearing them would force the user to re-open
+			// the share link to see the chat again.
+			allChatsFromDB = allChatsFromDB.filter(c => c.is_shared_by_others);
+			// Preserve selection if the active chat is a shared chat that survived the filter above
+			const activeIsShared = selectedChatId && allChatsFromDB.some(c => c.chat_id === selectedChatId);
+			if (!activeIsShared) {
+				selectedChatId = null;
+			}
 			_chatIdToSelectAfterUpdate = null;
 			currentServerSortOrder = [];
 			// Note: syncing is derived from authStore - will be false when not authenticated
 			syncComplete = false;
 			
-			// Clear the persistent store
-			activeChatStore.clearActiveChat();
+			// Clear the persistent store — but only if the active chat isn't a shared chat
+			if (!activeIsShared) {
+				activeChatStore.clearActiveChat();
+			}
 			
 			// Belt-and-suspenders: clear sessionStorage drafts here too in case this event
 			// fires before authLoginLogoutActions.ts had a chance to (e.g. session expiry path)
@@ -1516,7 +1524,7 @@ let _chatUpdatedFlushPending = false;
 			await tick();
 
 			// Check if active chat is already set by deep link handler (more reliable than checking hash)
-			const currentActiveChatAfterTick = $activeChatStore;
+			const _currentActiveChatAfterTick = $activeChatStore;
 
 			// DISABLED: Chat selection after logout now handled by unified deep link system
 			// This prevents conflicts and ensures consistent behavior across all entry points
@@ -1549,7 +1557,7 @@ let _chatUpdatedFlushPending = false;
 				// Use tick() to ensure reactive updates have processed
 				// CRITICAL: URL hash chat has priority - skip welcome chat if active chat already set
 				await tick();
-				const currentActiveChatAfterAuthChange = $activeChatStore;
+				const _currentActiveChatAfterAuthChange = $activeChatStore;
 
 				// DISABLED: Chat selection after auth change now handled by unified deep link system
 				// This prevents conflicts and ensures consistent behavior
@@ -1612,8 +1620,16 @@ let _chatUpdatedFlushPending = false;
 					console.debug(`[Chats] Global chat selected event received, updating selectedChatId to: ${newChatId}`);
 					selectedChatId = newChatId;
 					
-					// Update the persistent store so the selection survives component unmount/remount
-					activeChatStore.setActiveChat(newChatId);
+					// Update the persistent store so the selection survives component unmount/remount.
+					// CRITICAL: Skip if activeChatStore is already null — that means the user
+					// navigated to "new chat" mode AFTER the globalChatSelected event was dispatched
+					// (async race). Writing the old chat ID back here would trigger hashchange →
+					// handleChatDeepLink → loadChat, auto-reopening the previous chat.
+					if (activeChatStore.get() !== null) {
+						activeChatStore.setActiveChat(newChatId);
+					} else {
+						console.debug(`[Chats] Skipping activeChatStore.setActiveChat — user is in new-chat mode (store is null)`);
+					}
 				}
 			}
 		};
@@ -1908,7 +1924,7 @@ let _chatUpdatedFlushPending = false;
 			} catch (initError) {
 				const error = initError as Error;
 				// If database is being deleted (e.g., during logout), skip database access
-				if (error?.message?.includes('being deleted') || error?.message?.includes('cannot be initialized')) {
+				if (error instanceof Error && (error.message?.includes('being deleted') || error.message?.includes('cannot be initialized'))) {
 					console.debug("[Chats] Database is being deleted, skipping initialization - demo/legal chats will be shown");
 					allChatsFromDB = []; // Clear user chats, keep only demo/legal chats
 					return; // Exit early - demo/legal chats are already in visiblePublicChats
@@ -2071,7 +2087,7 @@ let _chatUpdatedFlushPending = false;
 		// IndexedDB update happens for all users (authenticated and non-authenticated) for tab reload persistence
 		// Server sync (via WebSocket) only happens for authenticated users (handled by sendSetActiveChatImpl)
 		// SECURITY: Don't store hidden chats as last_opened - they require password after page reload
-		if (!(chat as any).is_hidden) {
+		if (!chat.is_hidden) {
 			try {
 				const { chatSyncService } = await import('../../services/chatSyncService');
 				await chatSyncService.sendSetActiveChat(chat.chat_id);
@@ -2106,7 +2122,7 @@ let _chatUpdatedFlushPending = false;
 	}
 
 	/** Handles keyboard navigation events from KeyboardShortcuts component. */
-    function handleKeyboardNavigation(event: CustomEvent<{ type: 'nextChat' | 'previousChat' }>) { // Type from my thought process
+    function _handleKeyboardNavigation(event: CustomEvent<{ type: 'nextChat' | 'previousChat' }>) { // Type from my thought process
         if (event.detail.type === 'nextChat') navigateToNextChat(); // Use event.detail.type
         else if (event.detail.type === 'previousChat') navigateToPreviousChat(); // Use event.detail.type
     }
@@ -2394,8 +2410,8 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 				// Check if database is being deleted (e.g., during logout)
 				try {
 					await chatDB.init();
-				} catch (initError: any) {
-					if (initError?.message?.includes('being deleted') || initError?.message?.includes('cannot be initialized') || initError?.message?.includes('Database initialization blocked')) {
+				} catch (initError: unknown) {
+					if (initError instanceof Error && (initError.message?.includes('being deleted') || initError.message?.includes('cannot be initialized') || initError.message?.includes('Database initialization blocked'))) {
 						console.debug("[Chats] Database unavailable, skipping shared chat load");
 						allChatsFromDB = [];
 						return;
@@ -2524,7 +2540,12 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 		// }
 
 	} catch (error) {
-		console.error("[Chats] Error updating chat list from DB:", error);
+		// Extract explicit fields from DOMException/Error — plain `error` serializes as {} in console
+		const err = error as DOMException | Error;
+		console.error(
+			`[Chats] Error updating chat list from DB: ${err?.name}: ${err?.message}` +
+			(('code' in err && err.code) ? ` (code: ${(err as DOMException).code})` : '')
+		);
 		allChatsFromDB = []; // Reset chats on error - Corrected variable
 		selectedChatId = null;
 	} finally {
@@ -2649,7 +2670,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
      * Handle scroll event
      * Ensures scroll can reach 0 when hidden chats are unlocked
      */
-    function handleScroll(event: Event) {
+    function handleScroll(_event: Event) {
         if (!activityHistoryElement) return;
         
         // Update scroll position
@@ -2867,7 +2888,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
      * Handles entering select mode and individual chat selection/unselection
      * Bulk actions (download/copy/delete) are handled via the 'chatContextMenuBulkAction' event
      */
-    function handleContextMenuAction(event: CustomEvent<string>) {
+    function _handleContextMenuAction(event: CustomEvent<string>) {
         const action = event.detail;
         console.debug('[Chats] Context menu action received:', action);
 
@@ -2877,7 +2898,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
             lastSelectedChatId = null; // Clear last selected
             console.debug('[Chats] Entered select mode');
         } else if (action === 'unselect') {
-            const chatId = (event as any).detail;
+            const chatId = event.detail;
             if (chatId && selectedChatIds.has(chatId)) {
                 selectedChatIds.delete(chatId);
                 selectedChatIds = new Set(selectedChatIds); // Trigger reactivity
@@ -2888,7 +2909,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
                 }
             }
         } else if (action === 'selectChat') {
-            const chatId = (event as any).detail;
+            const chatId = event.detail;
             if (chatId) {
                 selectedChatIds.add(chatId);
                 selectedChatIds = new Set(selectedChatIds); // Trigger reactivity
@@ -2935,9 +2956,9 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
             
             const messages = await chatDB.getMessagesForChat(chatId);
             return { chat, messages };
-        } catch (error: any) {
+        } catch (error: unknown) {
             // If database is being deleted, return empty
-            if (error?.message?.includes('being deleted') || error?.message?.includes('cannot be initialized')) {
+            if (error instanceof Error && (error.message?.includes('being deleted') || error.message?.includes('cannot be initialized'))) {
                 console.debug(`[Chats] Database unavailable for chat ${chatId}`);
                 return { chat: null, messages: [] };
             }
@@ -2957,7 +2978,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
             console.debug('[Chats] Starting bulk copy for', selectedChatIds.size, 'chats');
             const { convertChatToYaml } = await import('../../services/chatExportService');
             
-            const chatObjects: any[] = [];
+            const chatObjects: Array<{ chat: { title: string | null; exported_at: string; message_count: number; draft: string | null; link: string }; messages: Array<{ role: string; completed_at: string; content: string; assistant_category?: string }> }> = [];
             
             // Process each selected chat
             for (const chatId of selectedChatIds) {
@@ -2969,11 +2990,11 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 
                 // Convert to YAML with link (for clipboard) - this returns a string
                 // We need to parse it back to an object to combine into a proper structure
-                const yamlContent = await convertChatToYaml(chat, messages, true);
+                const _yamlContent = await convertChatToYaml(chat, messages, true);
                 
                 // Create chat object structure for the combined YAML
                 const { generateChatLink } = await import('../../services/chatExportService');
-                const chatData: any = {
+                const chatData: { chat: { title: string | null; exported_at: string; message_count: number; draft: string | null; link: string }; messages: Array<{ role: string; completed_at: string; content: string; assistant_category?: string }> } = {
                     chat: {
                         title: null,
                         exported_at: new Date().toISOString(),
@@ -3012,9 +3033,10 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
                 
                 // Add messages
                 for (const message of messages) {
-                    const messageData: any = {
+                    const messageData: { role: string; completed_at: string; content: string; assistant_category?: string } = {
                         role: message.role,
-                        completed_at: new Date(message.created_at * 1000).toISOString()
+                        completed_at: new Date(message.created_at * 1000).toISOString(),
+                        content: ''
                     };
                     
                     if (message.role === 'assistant' && message.category) {
@@ -3069,10 +3091,10 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
      * Convert JavaScript object to YAML string
      * Simple YAML conversion for chat export
      */
-    function convertObjectToYamlString(data: any): string {
+    function convertObjectToYamlString(data: Record<string, unknown>): string {
         const yamlLines: string[] = [];
         
-        function convertValue(key: string, value: any, indent: number = 0): void {
+        function convertValue(key: string, value: unknown, indent: number = 0): void {
             const spaces = '  '.repeat(indent);
             
             if (value === null || value === undefined) {

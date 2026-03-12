@@ -70,7 +70,7 @@ const defaultProps = {
   query: "AI meetups in Berlin",
   provider: "Meetup",
   results: sampleResults,
-  onClose: () => console.log("[Preview] Close clicked"),
+  onClose: () => {},
   hasPreviousEmbed: false,
   hasNextEmbed: false,
 };
@@ -84,8 +84,8 @@ export const variants = {
     ...defaultProps,
     hasPreviousEmbed: true,
     hasNextEmbed: true,
-    onNavigatePrevious: () => console.log("[Preview] Navigate previous"),
-    onNavigateNext: () => console.log("[Preview] Navigate next"),
+    onNavigatePrevious: () => {},
+    onNavigateNext: () => {},
   },
 
   /** Empty results */
@@ -93,6 +93,6 @@ export const variants = {
     query: "extremely rare events",
     provider: "Meetup",
     results: [],
-    onClose: () => console.log("[Preview] Close clicked"),
+    onClose: () => {},
   },
 };

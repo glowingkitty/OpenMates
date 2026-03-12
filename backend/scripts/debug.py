@@ -13,19 +13,24 @@ USAGE
   docker exec api python /app/backend/scripts/debug.py [command] [options]
 
 Commands:
-  (none)          Quick system health check
-  health          System health check (Prometheus + Loki + queues)
+  (none)          System health check (includes log access verification — run this first)
+  health          System health check (log access + Prometheus + queues + recent errors)
+    --log-access  Check ONLY log access (OpenObserve local + production API); exits 1 on failure
   chat            Inspect a chat (messages, embeds, keys, cache)
   embed           Inspect an embed (decode, linkage, cache)
   user            Inspect a user (items, cache, credits)
-  logs            User activity timeline / browser console logs
+  logs            User timeline, browser logs, or OpenObserve summaries
   requests        Recent AI requests (admin only)
   issue           Inspect/list/delete issue reports
   newsletter      Newsletter subscriber stats
   daily           Daily inspiration state
   demo            Demo chat state
-  replay          Replay a request trace from Loki
+  replay          Replay a request trace from OpenObserve
   errors          Top error fingerprints
+  vercel          Fetch Vercel build logs (works for ERROR deployments via REST API)
+    --all           Show full log (default: errors + warnings only)
+    --url <id>      Inspect a specific deployment URL or ID
+    --n <N>         Check last N deployments (default: 1)
   upload-logs     Logs from the upload server (satellite VM)
   preview-logs    Logs from the preview server (satellite VM)
   upload-update   Trigger git pull + rebuild on upload server
@@ -41,9 +46,16 @@ Examples:
   debug.py chat <id> -v --decrypt       # full chat inspection
   debug.py logs <email> --since 60      # user activity timeline
   debug.py logs --browser --search X    # browser console logs
+  debug.py logs --browser --device iphone         # iPhone-only browser logs
+  debug.py logs --browser --device iphone --level error  # iPhone errors only
+  debug.py logs --o2 --preset web-app-health --since 60
+  debug.py logs --o2 --sql "SELECT * FROM \"default\" ORDER BY _timestamp DESC" --quiet-health
   debug.py requests --errors-only       # recent AI errors
   debug.py issue --list                 # list open issues
   debug.py errors --top 20             # top error fingerprints
+  debug.py vercel                       # latest deployment errors/warnings
+  debug.py vercel --all                 # latest deployment full build log
+  debug.py vercel --n 3                 # last 3 deployments errors/warnings
 """
 
 import os
@@ -73,6 +85,7 @@ COMMANDS = {
     'newsletter':      'debug_newsletter',
     'daily':           'debug_daily_inspiration',
     'demo':            'debug_demo_chat',
+    'vercel':          'debug_vercel',
     'upload-logs':     'debug_logs',
     'preview-logs':    'debug_logs',
     'upload-update':   'debug_logs',
@@ -152,7 +165,7 @@ def main():
         return
 
     if args[0] in ('-h', '--help'):
-        print(__doc__.strip())
+        print((__doc__ or "").strip())
         return
 
     _dispatch(args[0], args[1:])

@@ -22,7 +22,7 @@ const defaultProps = {
 	status: 'finished' as const,
 	tableContent: sampleTable,
 	isMobile: false,
-	onFullscreen: () => console.log('[Preview] Fullscreen clicked')
+	onFullscreen: () => {}
 };
 
 export default defaultProps;

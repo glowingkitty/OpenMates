@@ -328,6 +328,28 @@ directus_users:
       nullable: false
       note: "Number of consecutive weekly storage billing failures due to insufficient credits. Incremented each Sunday when charge_storage_fees cannot deduct credits. Reset to 0 on successful charge. When this reaches 4, all user upload files are deleted from S3 and upload_files records are purged."
 
+    # Backup reminder fields
+    # Tracks when user last exported their data (set server-side when export manifest is fetched).
+    # Used by the daily notification dispatcher to determine backup reminder eligibility.
+    last_export_at:
+      type: timestamp
+      nullable: true
+      note: "Timestamp of the user's most recent full data export. Set when the export manifest endpoint is called. Used to calculate backup reminder intervals."
+
+    # Timestamp of the last time the user dismissed a backup reminder (in-app or email snooze).
+    # Dismissing a reminder resets the interval timer rather than cancelling reminders entirely.
+    backup_reminder_dismissed_at:
+      type: timestamp
+      nullable: true
+      note: "Timestamp when user last dismissed a backup reminder. Dismissing snoozes rather than cancels — the next reminder will fire after backup_reminder_interval_days from this date."
+
+    # User-configurable reminder cadence (days). Default 30. Configurable in Settings → Notifications → Backup Reminders.
+    backup_reminder_interval_days:
+      type: integer
+      default: 30
+      nullable: false
+      note: "How many days between backup reminders (after last export or last dismissal). Configurable per user. Default: 30."
+
     # Email notification fields
     email_notifications_enabled:
       type: boolean
@@ -342,8 +364,8 @@ directus_users:
 
     email_notification_preferences:
       type: json
-      note: "User's email notification preferences: { aiResponses: boolean }. Controls which events trigger email notifications."
-      default: '{"aiResponses": true}'
+      note: "User's email notification preferences. Controls which events trigger email notifications. Keys: aiResponses (boolean), backupReminder (boolean)."
+      default: '{"aiResponses": true, "backupReminder": true}'
 
     # Default model preferences for AI Ask skill (cross-device sync)
     default_ai_model_simple:

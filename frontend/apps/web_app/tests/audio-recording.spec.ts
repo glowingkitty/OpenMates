@@ -39,7 +39,8 @@ test.beforeEach(async ({ page }) => {
 	});
 });
 
-test.afterEach(async (_fixtures, testInfo) => {
+// eslint-disable-next-line no-empty-pattern
+test.afterEach(async ({}, testInfo) => {
 	if (testInfo.status !== 'passed') {
 		console.log('\n--- DEBUG INFO ON FAILURE ---');
 		console.log('\n[RECENT CONSOLE LOGS]');

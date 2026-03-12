@@ -57,7 +57,7 @@
     /** Whether to render in mobile layout */
     isMobile?: boolean;
     /** Callback when user clicks to open fullscreen */
-    onFullscreen?: () => void;
+    onFullscreen: () => void;
   }
 
   let {

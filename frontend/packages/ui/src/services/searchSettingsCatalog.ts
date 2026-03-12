@@ -157,7 +157,7 @@ const SETTINGS_CATALOG: SettingsCatalogEntry[] = [
   },
   // Gift Cards — requires authentication (tied to user account)
   {
-    path: "gift_cards",
+    path: "billing/gift-cards",
     translationKey: "settings.gift_cards",
     icon: "icon_gift",
     access: "authenticated",

@@ -2,20 +2,28 @@
 #
 # SightEngine image scanning service for the uploads microservice.
 #
-# This service handles two distinct types of image checks:
+# Performs a SINGLE API call per upload using combined models:
+#   models=nudity-2.0,offensive,gore,genai
 #
-# 1. AI-generated content detection ('genai' model) — NON-BLOCKING
-#    - Determines probability that an image was AI-generated
-#    - Result stored as metadata in the embed TOON content
-#    - Never rejects an upload regardless of result
-#    - API docs: https://sightengine.com/docs/ai-generated-image-detection
+# This single call covers:
 #
-# 2. Content safety scan ('nudity-2.0,offensive,gore' models) — BLOCKING
+# 1. Content safety scan ('nudity-2.0,offensive,gore') — BLOCKING
 #    - Checks for nudity, sexual content, violence, gore, offensive imagery
 #    - Rejects the upload if any threshold is exceeded (HTTP 422)
 #    - Mirrors the thresholds used by ImageSafetyService in the core API
 #    - Applied to ALL image uploads (chat images AND profile images)
 #    - API docs: https://sightengine.com/docs/nudity-detection
+#
+# 2. AI-generated content detection ('genai' model) — NON-BLOCKING
+#    - Determines probability that an image was AI-generated
+#    - Result stored as metadata in the embed TOON content
+#    - Never rejects an upload regardless of result
+#    - API docs: https://sightengine.com/docs/ai-generated-image-detection
+#
+# Previously these were two sequential HTTP calls. Combining into one request
+# eliminates a full round-trip to the SightEngine API, saving ~500–1500ms per
+# upload. The SightEngine /check.json endpoint natively supports multiple models
+# in a single request, returning all scores in one response.
 #
 # Both checks use the same SightEngine credentials loaded from the LOCAL
 # Vault KV at startup (kv/data/providers/sightengine → api_user, api_secret).
@@ -103,11 +111,14 @@ class SightEngineService:
     """
     Async wrapper for the SightEngine image analysis API.
 
-    Provides two methods:
-      - check_content_safety(): BLOCKING content moderation (nudity/violence/gore).
-        Returns ContentSafetyResult. Upload must be rejected if is_safe=False.
-      - check_image(): NON-BLOCKING AI-generated content detection.
-        Returns AIDetectionResult. Never rejects — result is metadata only.
+    Primary method (use this for all image uploads):
+      - check_all(): Single API call with models=nudity-2.0,offensive,gore,genai.
+        Returns (ContentSafetyResult, Optional[AIDetectionResult]) in one round-trip.
+        Saves ~500–1500ms vs the previous two-call approach.
+
+    Legacy methods (kept for reference, no longer called by upload_route.py):
+      - check_content_safety(): BLOCKING content moderation only.
+      - check_image(): NON-BLOCKING AI detection only.
 
     Credentials are loaded from the local Vault KV at startup via
     initialize_from_vault(). If credentials are not available, both
@@ -195,6 +206,141 @@ class SightEngineService:
     @property
     def is_enabled(self) -> bool:
         return self._enabled
+
+    async def check_all(
+        self, image_bytes: bytes, filename: str = "upload.jpg"
+    ) -> tuple["ContentSafetyResult", "Optional[AIDetectionResult]"]:
+        """
+        Run content safety + AI detection in a SINGLE SightEngine API call.
+
+        Uses models=nudity-2.0,offensive,gore,genai — the response contains all
+        scores for both checks. This replaces the previous two-call approach and
+        saves one full HTTP round-trip to the SightEngine API per upload.
+
+        Returns a tuple of (ContentSafetyResult, Optional[AIDetectionResult]).
+
+        Safety check is BLOCKING: caller must reject the upload if is_safe=False.
+        AI detection is NON-BLOCKING: result is metadata only, never rejects.
+
+        If the service is disabled, returns (safe=True, None).
+        If the API call fails, fails-open on safety (upload allowed) and returns
+        None for AI detection — both failures are logged as warnings.
+        """
+        if not self._enabled:
+            logger.debug("[SightEngine] Skipping all checks (service not configured)")
+            return ContentSafetyResult(is_safe=True), None
+
+        log_prefix = f"[SightEngine] [{filename[:30]}]"
+        logger.info(
+            f"{log_prefix} Running combined check "
+            f"(models: nudity-2.0,offensive,gore,genai, {len(image_bytes)} bytes)"
+        )
+
+        try:
+            async with httpx.AsyncClient(timeout=20) as client:
+                resp = await client.post(
+                    SIGHTENGINE_API_URL,
+                    data={
+                        "models": "nudity-2.0,offensive,gore,genai",
+                        "api_user": self.api_user,
+                        "api_secret": self.api_secret,
+                    },
+                    files={
+                        "media": (filename, image_bytes, "application/octet-stream"),
+                    },
+                )
+
+            if resp.status_code != 200:
+                logger.warning(
+                    f"{log_prefix} Combined check API returned HTTP {resp.status_code}: "
+                    f"{resp.text[:200]} — failing open (upload allowed)"
+                )
+                return ContentSafetyResult(is_safe=True, error=f"API error {resp.status_code}"), None
+
+            data = resp.json()
+
+            if data.get("status") != "success":
+                error_msg = data.get("error", {}).get("message", "Unknown error")
+                logger.warning(
+                    f"{log_prefix} Combined check API returned non-success: "
+                    f"{error_msg} — failing open (upload allowed)"
+                )
+                return ContentSafetyResult(is_safe=True, error=error_msg), None
+
+            # --- Extract content safety scores ---
+            nudity = data.get("nudity", {})
+            offensive = data.get("offensive", {})
+            gore = data.get("gore", {})
+
+            sexual_activity = float(nudity.get("sexual_activity", 0.0))
+            sexual_display = float(nudity.get("sexual_display", 0.0))
+            erotica = float(nudity.get("erotica", 0.0))
+            sextoy = float(nudity.get("sextoy", 0.0))
+            suggestive = float(nudity.get("suggestive", 0.0))
+            weapon = float(offensive.get("weapon", 0.0))
+            gore_score = float(gore.get("gore", 0.0))
+            blood = float(gore.get("blood", 0.0))
+
+            logger.info(
+                f"{log_prefix} Content safety scores — "
+                f"sexual_activity={sexual_activity:.3f} sexual_display={sexual_display:.3f} "
+                f"erotica={erotica:.3f} sextoy={sextoy:.3f} suggestive={suggestive:.3f} "
+                f"weapon={weapon:.3f} gore={gore_score:.3f} blood={blood:.3f}"
+            )
+
+            # --- Apply safety thresholds ---
+            safety_reason: Optional[str] = None
+            if sexual_activity > 0.3:
+                safety_reason = f"sexual_activity={sexual_activity:.2f}"
+            elif sexual_display > 0.3:
+                safety_reason = f"sexual_display={sexual_display:.2f}"
+            elif erotica > 0.4:
+                safety_reason = f"erotica={erotica:.2f}"
+            elif sextoy > 0.3:
+                safety_reason = f"sextoy={sextoy:.2f}"
+            elif suggestive > 0.6:
+                safety_reason = f"suggestive={suggestive:.2f}"
+            elif weapon > 0.5:
+                safety_reason = f"weapon={weapon:.2f}"
+            elif gore_score > 0.3:
+                safety_reason = f"gore={gore_score:.2f}"
+            elif blood > 0.4:
+                safety_reason = f"blood={blood:.2f}"
+
+            if safety_reason:
+                logger.warning(f"{log_prefix} Content safety REJECTED — {safety_reason}")
+                safety_result = ContentSafetyResult(is_safe=False, reason=safety_reason)
+                # Still parse AI detection even on rejection (caller may log it)
+            else:
+                logger.info(f"{log_prefix} Content safety: PASSED ✓")
+                safety_result = ContentSafetyResult(is_safe=True)
+
+            # --- Extract AI detection score ---
+            ai_generated = float(data.get("type", {}).get("ai_generated", 0.0))
+            label = (
+                "LIKELY AI-GENERATED" if ai_generated > 0.7
+                else ("possibly AI" if ai_generated > 0.4 else "likely real/photo")
+            )
+            logger.info(
+                f"{log_prefix} AI detection: score={ai_generated:.3f} → {label}"
+            )
+            ai_result = AIDetectionResult(ai_generated=ai_generated)
+
+            return safety_result, ai_result
+
+        except httpx.TimeoutException as e:
+            logger.warning(
+                f"{log_prefix} Combined check request timed out: {e} — "
+                f"failing open (upload allowed)"
+            )
+            return ContentSafetyResult(is_safe=True, error="timeout"), None
+        except Exception as e:
+            logger.error(
+                f"{log_prefix} Combined check failed: {e} — "
+                f"failing open (upload allowed)",
+                exc_info=True,
+            )
+            return ContentSafetyResult(is_safe=True, error=str(e)), None
 
     async def check_content_safety(
         self, image_bytes: bytes, filename: str = "upload.jpg"

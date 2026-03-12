@@ -57,6 +57,8 @@
 		isProgrammaticHashUpdate,
 		isProgrammaticEmbedHashUpdate
 	} from '@repo/ui';
+	import { pushNotificationService } from '@repo/ui';
+	import { rehydratePairSession, registerPairLogoutCallback, pendingPairToken } from '@repo/ui';
 	import { onMount, onDestroy, untrack } from 'svelte';
 	import { locale, waitLocale } from 'svelte-i18n';
 	import { get } from 'svelte/store';
@@ -79,7 +81,7 @@
 
 	function openGiftCardRedeemSettings(): void {
 		hasAutoOpenedGiftCardRedeemAfterAuth = true;
-		settingsDeepLink.set('gift_cards/redeem');
+		settingsDeepLink.set('billing/gift-cards/redeem');
 		setTimeout(() => panelState.openSettings(), 100);
 	}
 
@@ -655,8 +657,11 @@
 		// PRIORITY 3: Default chat (only if no last opened chat was loaded)
 		// For non-authenticated users: demo-for-everyone
 		// For authenticated users: new chat window
+		// Exception: ?og=1 skips the demo-for-everyone redirect so the welcome screen
+		// (with daily inspiration + for-everyone card) stays visible — used by /dev/og-image iframes.
+		const isOgMode = browser && new URLSearchParams(window.location.search).get('og') === '1';
 		if (!$activeChatStore && activeChat) {
-			if (!$authStore.isAuthenticated) {
+			if (!$authStore.isAuthenticated && !isOgMode) {
 				// Non-auth: load demo-for-everyone
 				console.debug(
 					'[+page.svelte] No last opened chat, loading demo-for-everyone (default for non-auth)'
@@ -758,7 +763,6 @@
 	 */
 	async function handlePendingDeepLink(event: CustomEvent<{ hash: string }>) {
 		const hash = event.detail.hash;
-		console.debug(`[+page.svelte] Processing pending deep link: ${hash}`);
 
 		const handlers: DeepLinkHandlers = {
 			onChat: handleChatDeepLink,
@@ -769,6 +773,12 @@
 				loginInterfaceOpen.set(true);
 			},
 			onEmbed: handleEmbedDeepLink,
+			onPair: (token: string) => {
+				// User just logged in — now open the confirm-pair settings page.
+				pendingPairToken.set(token);
+				panelState.openSettings();
+				settingsDeepLink.set('account/security/sessions/confirm-pair');
+			},
 			requiresAuthentication,
 			isAuthenticated: () => $authStore.isAuthenticated,
 			openSettings: () => panelState.openSettings(),
@@ -781,6 +791,25 @@
 
 	onMount(async () => {
 		console.debug('[+page.svelte] onMount started');
+
+		// --- Pair session rehydration ---
+		// Restores pair-session state (restricted mode, auto-logout timer) that may have been
+		// active before a page reload. Must run before any auth checks.
+		rehydratePairSession();
+
+		// Register the logout callback so the pair auto-logout timer can call it.
+		// Uses checkAuth(undefined, true) — same path as WebSocket auth error logout.
+		registerPairLogoutCallback(async () => {
+			const { checkAuth } = await import('@repo/ui');
+			await checkAuth(undefined, true);
+		});
+
+		// --- OG image mode (?og=1) ---
+		// When loaded inside /dev/og-image iframes, add a body class so CSS can hide
+		// dev-only UI (development server label, report issue button).
+		if (browser && new URLSearchParams(window.location.search).get('og') === '1') {
+			document.body.classList.add('og-mode');
+		}
 
 		// --- Developer Console activation via /#console-on ---
 		// Check for the special #console-on hash BEFORE any other hash processing.
@@ -830,7 +859,9 @@
 			? sessionStorage.getItem('openmates_shared_chat_redirect')
 			: null;
 		if (sharedChatRedirectId && browser) {
-			sessionStorage.removeItem('openmates_shared_chat_redirect');
+			// NOTE: Do NOT remove the flag here — checkAuth() in authSessionActions.ts also
+			// needs to read it to avoid overriding the shared chat with demo-for-everyone.
+			// The flag is removed after initialize() / checkAuth() has completed (see below).
 			console.debug(
 				'[+page.svelte] [INIT] Shared chat redirect detected for:',
 				sharedChatRedirectId
@@ -869,6 +900,13 @@
 		// PRIORITY 1: Check last_opened for signup step BEFORE processing hash
 		// Load user profile first to check last_opened
 		await loadUserProfileFromDB();
+
+		// Initialise push notification service (registers SW, refreshes permission state,
+		// checks for existing PushSubscription). Non-blocking — runs in background.
+		pushNotificationService.initialize().catch((err) => {
+			console.error('[+page.svelte] Push notification service init failed:', err);
+		});
+
 		const initialProfile = $userProfile;
 		const hasSignupInLastOpened =
 			initialProfile?.last_opened && isSignupPath(initialProfile.last_opened);
@@ -902,6 +940,19 @@
 				isAuthenticated: true,
 				isInitialized: true // Mark as initialized so UI updates immediately
 			}));
+
+			// Start clientLogForwarder for admin users on session restore (page reload).
+			// On a fresh login, setAuthenticatedState() handles this. But on page reload the
+			// optimistic auth path sets isInitialized=true early and initialize() returns
+			// immediately, skipping checkAuth() — so clientLogForwarder.start() would never
+			// be called without this explicit check here.
+			if (localProfile.is_admin) {
+				console.debug(
+					'[+page.svelte] Admin user detected on session restore — starting clientLogForwarder'
+				);
+				const { clientLogForwarder } = await import('@repo/ui/services/clientLogForwarder');
+				clientLogForwarder.start();
+			}
 		} else {
 			console.debug('[+page.svelte] No local auth data found - user will remain unauthenticated');
 
@@ -918,45 +969,63 @@
 				console.warn(
 					'[+page.svelte] ⚠️ User profile exists but master key is missing (stayLoggedIn=false reload)'
 				);
-				console.debug(
-					'[+page.svelte] Setting forcedLogoutInProgress=true IMMEDIATELY to prevent encrypted chat loading'
-				);
-				setForcedLogoutInProgress();
+
+				// EXCEPTION: For shared chat sessions, skip forcedLogoutInProgress.
+				// Shared chats use URL-embedded keys (not master key) — they're fully functional.
+				// Setting the flag would interfere with chatDB.init() and trigger destructive cleanup
+				// that wipes the shared chat data.
+				if (sharedChatRedirectId) {
+					console.debug(
+						'[+page.svelte] Skipping forcedLogoutInProgress — shared chat redirect in progress, stale profile is harmless'
+					);
+				} else {
+					console.debug(
+						'[+page.svelte] Setting forcedLogoutInProgress=true IMMEDIATELY to prevent encrypted chat loading'
+					);
+					setForcedLogoutInProgress();
+				}
 
 				// Show auto-logout notification with context-appropriate message.
 				// This must be triggered here because checkAuth() will skip its notification
 				// when forcedLogoutInProgress is already true (to prevent duplicate triggers).
+				// EXCEPTION: Skip for shared chat sessions — users opening a share link
+				// shouldn't see logout alerts. The shared chat is valid without master key.
 				// Use setTimeout to ensure the notification container is rendered first.
-				setTimeout(async () => {
-					const t = get(text);
-					const { wasStayLoggedIn } = await import('@repo/ui');
-					const wasStorageEvicted = wasStayLoggedIn();
-
-					if (wasStorageEvicted) {
-						// User had stayLoggedIn=true but browser evicted IndexedDB
-						// Show reassuring message that data is safe
-						console.warn(
-							'[+page.svelte] Storage eviction detected: user had stayLoggedIn=true but master key is missing'
-						);
-						notificationStore.autoLogout(
-							t('login.auto_logout_notification.storage_evicted_message'),
-							undefined,
-							10000,
-							t('login.auto_logout_notification.storage_evicted_title')
-						);
-					} else {
-						// Normal case: stayLoggedIn=false, suggest enabling it
-						notificationStore.autoLogout(
-							t('login.auto_logout_notification.message'),
-							undefined,
-							7000,
-							t('login.auto_logout_notification.title')
-						);
-					}
+				if (sharedChatRedirectId) {
 					console.debug(
-						`[+page.svelte] Showed auto-logout notification (storageEvicted=${wasStorageEvicted})`
+						'[+page.svelte] Suppressing auto-logout notification — shared chat redirect in progress'
 					);
-				}, 500);
+				} else
+					setTimeout(async () => {
+						const t = get(text);
+						const { wasStayLoggedIn } = await import('@repo/ui');
+						const wasStorageEvicted = wasStayLoggedIn();
+
+						if (wasStorageEvicted) {
+							// User had stayLoggedIn=true but browser evicted IndexedDB
+							// Show reassuring message that data is safe
+							console.warn(
+								'[+page.svelte] Storage eviction detected: user had stayLoggedIn=true but master key is missing'
+							);
+							notificationStore.autoLogout(
+								t('login.auto_logout_notification.storage_evicted_message'),
+								undefined,
+								10000,
+								t('login.auto_logout_notification.storage_evicted_title')
+							);
+						} else {
+							// Normal case: stayLoggedIn=false, suggest enabling it
+							notificationStore.autoLogout(
+								t('login.auto_logout_notification.message'),
+								undefined,
+								7000,
+								t('login.auto_logout_notification.title')
+							);
+						}
+						console.debug(
+							`[+page.svelte] Showed auto-logout notification (storageEvicted=${wasStorageEvicted})`
+						);
+					}, 500);
 
 				// Check if URL hash points to an encrypted chat (not demo-/legal-)
 				// If so, clear the hash and navigate to demo-for-everyone to prevent loading broken chat
@@ -1049,9 +1118,14 @@
 				originalHash &&
 				(originalHash.startsWith('#chat-id=') || originalHash.startsWith('#chat-id='))
 			) {
-				originalHashChatId = originalHash.startsWith('#chat-id=')
+				// CRITICAL: Extract only the chat ID, stopping at '&' to avoid including
+				// &messageid= or &embed-id= parameters. This ensures comparisons with
+				// sharedChatRedirectId (which is just a clean UUID) work correctly.
+				const rawHashChatId = originalHash.startsWith('#chat-id=')
 					? originalHash.substring('#chat-id='.length)
 					: originalHash.substring('#chat-id='.length);
+				const ampIdx = rawHashChatId.indexOf('&');
+				originalHashChatId = ampIdx !== -1 ? rawHashChatId.substring(0, ampIdx) : rawHashChatId;
 
 				// CRITICAL: Don't set active chat to encrypted chat ID during forced logout
 				// The encrypted chat can't be decrypted without master key
@@ -1430,6 +1504,13 @@
 		// Initialize authentication state (panelState will react to this)
 		await initialize(); // Call the imported initialize function
 		console.debug('[+page.svelte] initialize() finished');
+
+		// NOW safe to consume the shared chat redirect flag from sessionStorage.
+		// checkAuth() (called inside initialize()) has already had a chance to read it.
+		if (sharedChatRedirectId && browser) {
+			sessionStorage.removeItem('openmates_shared_chat_redirect');
+			console.debug('[+page.svelte] Consumed openmates_shared_chat_redirect after initialize()');
+		}
 
 		// CRITICAL: Re-check signup hash AFTER initialize() completes
 		// This ensures hash-based signup state persists even if checkAuth() reset it
@@ -1900,6 +1981,12 @@
 	 * we should restore their most recent draft instead of overwriting with the demo chat.
 	 */
 	async function loadDemoWelcomeChat() {
+		// OG image mode: skip demo-for-everyone so the welcome screen stays visible
+		// This guards ALL callers (onNoHash, handleChatDeepLink, etc.)
+		if (browser && new URLSearchParams(window.location.search).get('og') === '1') {
+			console.debug('[+page.svelte] loadDemoWelcomeChat: og=1 mode, skipping demo-for-everyone');
+			return;
+		}
 		console.debug('[+page.svelte] loadDemoWelcomeChat called for non-authenticated user');
 
 		// CRITICAL: Check if user has any sessionStorage drafts (new chat drafts)
@@ -2061,10 +2148,19 @@
 				if (isAuth) {
 					// For authenticated users: try to load last_opened chat, otherwise create new chat
 					await loadLastOpenedChatOrCreateNew();
+				} else if (browser && new URLSearchParams(window.location.search).get('og') === '1') {
+					// OG image mode: skip demo-for-everyone so the welcome screen stays visible
+					console.debug('[+page.svelte] onNoHash: og=1 mode, skipping demo-for-everyone load');
 				} else {
 					// For non-authenticated users: load demo-for-everyone chat
 					await loadDemoWelcomeChat();
 				}
+			},
+			onPair: (token: string) => {
+				// Set the token store BEFORE navigating so SettingsSessionsConfirmPair reads it on mount.
+				pendingPairToken.set(token);
+				panelState.openSettings();
+				settingsDeepLink.set('account/security/sessions/confirm-pair');
 			},
 			requiresAuthentication,
 			isAuthenticated: () => $authStore.isAuthenticated,
@@ -2468,12 +2564,6 @@
 	.chat-container {
 		display: flex;
 		flex-direction: row;
-		/*
-		 * Subtract both the header height (82px) and the dev console height (0px when
-		 * closed, DEV_CONSOLE_HEIGHT when open). Using a CSS custom property lets the
-		 * script switch between the two states reactively via the style attribute on
-		 * .main-content, without touching inline styles on .chat-container itself.
-		 */
 		/* Fallback for browsers that don't support dvh */
 		height: calc(100vh - 82px - var(--dev-console-height, 0px));
 		/* Modern browsers will use this */
@@ -2617,5 +2707,16 @@
 		/* Sit above chat content but below modals/notifications */
 		z-index: 50;
 		overflow: hidden;
+	}
+
+	/* ── OG image mode (?og=1) ─────────────────────────────────────────── */
+	/* Hide dev-only UI when the page is rendered inside /dev/og-image iframes.
+	   Uses :global() so rules reach into child components (Header, ActiveChat). */
+	:global(body.og-mode .server-edition) {
+		display: none;
+	}
+	/* Report issue button wrapper — icon_bug class is unique to that button */
+	:global(body.og-mode .new-chat-button-wrapper:has(.icon_bug)) {
+		display: none;
 	}
 </style>

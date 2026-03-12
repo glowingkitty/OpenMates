@@ -19,6 +19,7 @@ from backend.core.api.app.utils.newsletter_utils import hash_email, check_ignore
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_metrics_service, get_compliance_service, get_encryption_service
 from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin, validate_username
+from backend.core.api.app.services.directus.user.user_lookup import hash_username
 from backend.core.api.app.tasks.celery_config import app as celery_app
 
 router = APIRouter()
@@ -70,7 +71,7 @@ async def request_confirm_email_code(
         # If invite code is required, validate it
         if require_invite_code:
             if not invite_code:
-                logger.warning(f"Missing invite code in email verification request when required")
+                logger.warning("Missing invite code in email verification request when required")
                 return RequestEmailCodeResponse(
                     success=False,
                     message="Missing invite code. Please go back and try again.",
@@ -80,14 +81,14 @@ async def request_confirm_email_code(
             # Validate the invite code
             is_valid, message, code_data = await validate_invite_code(invite_code, directus_service, cache_service)
             if not is_valid:
-                logger.warning(f"Invalid invite code used in email verification request")
+                logger.warning("Invalid invite code used in email verification request")
                 return RequestEmailCodeResponse(
                     success=False,
                     message="Invalid invite code. Please go back and start again.",
                     error_code="INVALID_INVITE_CODE"
                 )
         else:
-            logger.info(f"Invite code not required, skipping validation")
+            logger.info("Invite code not required, skipping validation")
         
         # Check domain security policies (validates against encrypted restricted domains list)
         # Only check if domain security service is available (it's optional for signup validation)
@@ -127,7 +128,7 @@ async def request_confirm_email_code(
             )
         
         # Check if email is already registered
-        logger.info(f"Checking if email is already registered...")
+        logger.info("Checking if email is already registered...")
         
         exists_result, existing_user, error_msg = await directus_service.get_user_by_hashed_email(hashed_email)
 
@@ -140,16 +141,16 @@ async def request_confirm_email_code(
             )
 
         if exists_result:
-            logger.warning(f"Attempted to register with existing email")
+            logger.warning("Attempted to register with existing email")
             return RequestEmailCodeResponse(
                 success=False,
                 message="This email is already registered. Please log in instead.",
                 error_code="EMAIL_ALREADY_EXISTS"
             )
 
-        logger.info(f"Email check passed, not already registered")
+        logger.info("Email check passed, not already registered")
 
-        logger.info(f"Submitting email verification task to Celery")
+        logger.info("Submitting email verification task to Celery")
 
         # Send the task with explicit task name
         task = celery_app.send_task(
@@ -213,13 +214,13 @@ async def check_confirm_email_code(
             # First, validate that the invite code is still valid
             is_valid, message, code_data = await validate_invite_code(invite_code, directus_service, cache_service)
             if not is_valid:
-                logger.warning(f"Invalid invite code used in email verification check")
+                logger.warning("Invalid invite code used in email verification check")
                 return CheckEmailCodeResponse(
                     success=False,
                     message="Invalid invite code. Please go back and start again."
                 )
         else:
-            logger.info(f"Invite code not required, skipping validation")
+            logger.info("Invite code not required, skipping validation")
 
         # Note: Domain validation should have already happened in request_confirm_email_code
         # We don't validate here again to avoid blocking users who already received a code
@@ -231,7 +232,7 @@ async def check_confirm_email_code(
 
         # Check if we have a code for this email
         if not stored_code:
-            logger.warning(f"Email verification attempted with no code on record")
+            logger.warning("Email verification attempted with no code on record")
             return CheckEmailCodeResponse(
                 success=False,
                 message="No verification code requested for this email or code expired."
@@ -239,7 +240,7 @@ async def check_confirm_email_code(
 
         # Check if code matches
         if str(stored_code) != str(code_request.code):
-            logger.warning(f"Invalid verification code.")
+            logger.warning("Invalid verification code.")
             return CheckEmailCodeResponse(
                 success=False,
                 message="Invalid verification code. Please try again."
@@ -249,8 +250,8 @@ async def check_confirm_email_code(
         await cache_service.delete(cache_key)
 
         # Log successful verification
-        event_logger.info(f"Email verified successfully")
-        logger.info(f"Email verified successfully")
+        event_logger.info("Email verified successfully")
+        logger.info("Email verified successfully")
 
         # Validate username format
         username_valid, username_error = validate_username(code_request.username)
@@ -262,7 +263,7 @@ async def check_confirm_email_code(
             )
 
         # Check username uniqueness server-wide (case-insensitive via SHA-256 hash)
-        hashed_username = directus_service.hash_username(code_request.username)
+        hashed_username = hash_username(code_request.username)
         username_taken, _, _ = await directus_service.get_user_by_hashed_username(hashed_username)
         if username_taken:
             logger.warning("Email verification rejected: username already taken")
@@ -279,7 +280,7 @@ async def check_confirm_email_code(
         
         exists_result, existing_user, _ = await directus_service.get_user_by_hashed_email(hashed_email)
         if exists_result and existing_user:
-            logger.warning(f"Attempted to register with existing email")
+            logger.warning("Attempted to register with existing email")
             return CheckEmailCodeResponse(
                 success=False,
                 message="This email is already registered. Please log in instead."
@@ -301,7 +302,7 @@ async def check_confirm_email_code(
         verification_cache_key = f"email_verified:{hashed_email}"
         await cache_service.set(verification_cache_key, verification_data, ttl=1800)  # 30 minutes
         
-        logger.info(f"Email verification successful, stored verification data in cache")
+        logger.info("Email verification successful, stored verification data in cache")
 
         # Track signup funnel: email confirmed step
         try:
@@ -360,7 +361,7 @@ async def check_username_valid(
             return CheckUsernameResponse(available=False, message=error_msg)
 
         # 2. Uniqueness check — hash the username and query Directus
-        hashed = directus_service.hash_username(username)
+        hashed = hash_username(username)
         found, _, _ = await directus_service.get_user_by_hashed_username(hashed)
 
         if found:

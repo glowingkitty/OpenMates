@@ -22,7 +22,7 @@ export function tooltip(node: HTMLElement) {
     // Check if device is touch-enabled
     const isTouchDevice = ('ontouchstart' in window) || 
         (navigator.maxTouchPoints > 0) || 
-        // @ts-ignore
+        // @ts-expect-error -- msMaxTouchPoints is a non-standard MS property
         (navigator.msMaxTouchPoints > 0);
     
     // Don't initialize tooltip on touch devices

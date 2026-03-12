@@ -75,7 +75,7 @@ export const text: Readable<TranslateFunction> = browser
               let translated: string;
               try {
                   translated = $translate(lookupKey, vars);
-              } catch (err) {
+              } catch (_err) {
                   // i18n not ready yet — show visible placeholder
                   reportMissingTranslation(key, 'i18n not initialized');
                   return missingPlaceholder(key);

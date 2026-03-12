@@ -804,8 +804,10 @@ export async function handlePhase1LastChatImpl(
     }
 
     // CRITICAL FIX: Add delay to ensure ALL IndexedDB operations are queryable
-    // This includes chat suggestions which use their own transaction
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    // This includes chat suggestions which use their own transaction.
+    // 250ms gives IDB transactions enough time to commit and become visible to
+    // subsequent reads from AppSkillUseRenderer (was 50ms — too short on slower devices).
+    await new Promise((resolve) => setTimeout(resolve, 250));
   } catch (error) {
     console.error(
       "[ChatSyncService:CoreSync] Error saving Phase 1 data to IndexedDB:",

@@ -1,126 +1,66 @@
 <!--
   frontend/packages/ui/src/components/embeds/videos/VideosSearchEmbedFullscreen.svelte
-  
+
   Fullscreen view for Videos Search skill embeds.
-  Uses UnifiedEmbedFullscreen as base with unified child embed loading.
-  
+  Uses SearchResultsTemplate for unified grid + overlay + loading pattern.
+
   Shows:
-  - Header with search query and "via {provider}" formatting (60px top margin, 40px bottom margin)
-  - Video embeds in a grid (auto-responsive columns)
-  - Each video uses VideoEmbedPreview component (NOT WebsiteEmbedPreview)
-  - Consistent BasicInfosBar at the bottom (matches preview - "Search" + "Completed")
-  - Top bar with share, copy, and minimize buttons
-  
-  Child embeds are automatically loaded by UnifiedEmbedFullscreen from embedIds prop.
-  
-  Video Fullscreen Navigation (Overlay Pattern):
-  - Search results grid is ALWAYS rendered (base layer)
-  - When a video result is clicked, VideoEmbedFullscreen renders as an OVERLAY on top
-  - When VideoEmbedFullscreen is closed, overlay is removed revealing search results beneath
-  
-  Benefits of overlay approach:
-  - No re-animation when returning to search results (they're already rendered beneath)
-  - No re-loading of child embeds
-  - Scroll position preserved on search results
-  - Instant close transition since search results are always visible
-  
-  Video Data Flow:
-  - Child embeds contain full video metadata (title, channelTitle, duration, viewCount, etc.)
-  - VideoEmbedPreview receives all metadata as props (no additional fetch needed)
-  - When clicked, VideoEmbedFullscreen receives metadata for proper display
+  - Header with search query and "via {provider}"
+  - Video cards in responsive grid (VideoEmbedPreview)
+  - Drill-down: clicking a card opens VideoEmbedFullscreen overlay with sibling nav
+
+  Special: VideoEmbedPreview.onFullscreen returns VideoMetadata (not just a click).
+  We track a videoMetadataMap to preserve metadata across sibling navigation.
+
+  Child embeds are automatically loaded by SearchResultsTemplate/UnifiedEmbedFullscreen.
+
+  See docs/architecture/embeds.md
 -->
 
 <script lang="ts">
-  import UnifiedEmbedFullscreen, { type ChildEmbedContext } from '../UnifiedEmbedFullscreen.svelte';
-  import ChildEmbedOverlay from '../ChildEmbedOverlay.svelte';
+  import SearchResultsTemplate from '../SearchResultsTemplate.svelte';
   import VideoEmbedPreview from './VideoEmbedPreview.svelte';
   import VideoEmbedFullscreen from './VideoEmbedFullscreen.svelte';
   import type { VideoMetadata } from './VideoEmbedPreview.svelte';
   import { text } from '@repo/ui';
-  
+
   /**
    * Video search result interface (transformed from child embeds)
-   * Contains all video metadata needed for VideoEmbedPreview and VideoEmbedFullscreen
-   * 
-   * Field mapping from TOON-encoded embed content:
-   * - title: video title
-   * - url: YouTube URL
-   * - channelTitle -> channelName: channel name
-   * - meta_url_profile_image -> channelThumbnail: channel profile picture
-   * - thumbnail_original -> thumbnail: video thumbnail URL
-   * - duration: ISO 8601 duration string (e.g., "PT18M4S")
-   * - viewCount: number of views
-   * - likeCount: number of likes
-   * - publishedAt: ISO 8601 date string
-   * - description: video description
    */
   interface VideoSearchResult {
     embed_id: string;
     title?: string;
     url: string;
-    /** Video thumbnail URL */
     thumbnail?: string;
-    /** Channel profile picture URL */
     channelThumbnail?: string;
-    /** Channel name */
     channelName?: string;
-    /** Channel ID */
     channelId?: string;
-    /** Video description */
     description?: string;
-    /** Duration in seconds */
     durationSeconds?: number;
-    /** Duration formatted (e.g., "17:08") */
     durationFormatted?: string;
-    /** View count */
     viewCount?: number;
-    /** Like count */
     likeCount?: number;
-    /** Published date (ISO string) */
     publishedAt?: string;
-    /** Video ID extracted from URL */
     videoId?: string;
   }
-  
-  /**
-   * Props for videos search embed fullscreen
-   * Child embeds are loaded automatically via UnifiedEmbedFullscreen
-   */
+
   interface Props {
-    /** Search query */
     query: string;
-    /** Search provider (e.g., 'Brave Search') */
     provider: string;
-    /** Pipe-separated embed IDs or array of embed IDs for child video embeds */
     embedIds?: string | string[];
-    /** Legacy: Direct results (fallback if embedIds not provided) */
     results?: VideoSearchResult[];
-    /** Close handler */
     onClose: () => void;
-    /** Optional: Embed ID for sharing (from embed:{embed_id} contentRef) */
     embedId?: string;
-    /** Whether there is a previous embed to navigate to */
     hasPreviousEmbed?: boolean;
-    /** Whether there is a next embed to navigate to */
     hasNextEmbed?: boolean;
-    /** Handler to navigate to the previous embed */
     onNavigatePrevious?: () => void;
-    /** Handler to navigate to the next embed */
     onNavigateNext?: () => void;
-    /** Direction of navigation ('previous' | 'next') — set transiently during prev/next transitions */
     navigateDirection?: 'previous' | 'next';
-    /** Whether to show the "chat" button to restore chat visibility (ultra-wide forceOverlayMode) */
     showChatButton?: boolean;
-    /** Callback when user clicks the "chat" button to restore chat visibility */
     onShowChat?: () => void;
-    /**
-     * Child embed ID to auto-open on mount (set when arriving from an inline badge click).
-     * When provided, the fullscreen will immediately open the VideoEmbedFullscreen overlay
-     * for that specific video once results have loaded.
-     */
     initialChildEmbedId?: string;
   }
-  
+
   let {
     query,
     provider,
@@ -137,72 +77,34 @@
     onShowChat,
     initialChildEmbedId
   }: Props = $props();
-  
-  // ============================================
-  // State: Track which video is shown in fullscreen
-  // ============================================
-  
-  /** Index of selected video in allVideoResults (-1 = none) */
-  let selectedVideoIndex = $state<number>(-1);
-  
-  /** Flat array of all loaded video results for sibling navigation */
-  let allVideoResults = $state<VideoSearchResult[]>([]);
-  
-  /** Currently selected video (derived from index) */
-  let selectedVideo = $derived(selectedVideoIndex >= 0 ? allVideoResults[selectedVideoIndex] ?? null : null);
-  
-  // Determine if mobile layout
-  let isMobile = $derived(
-    typeof window !== 'undefined' && window.innerWidth <= 500
-  );
-  
-  // Get "via {provider}" text from translations
-  let viaProvider = $derived(
-    `${$text('embeds.via')} ${provider}`
-  );
-  
+
+  let viaProvider = $derived(`${$text('embeds.via')} ${provider}`);
+
   /**
-   * Parse ISO 8601 duration string to seconds and formatted string
-   * Example: "PT18M4S" -> { totalSeconds: 1084, formatted: "18:04" }
-   * 
-   * @param isoDuration - ISO 8601 duration string (e.g., "PT18M4S", "PT1H2M3S")
-   * @returns Object with totalSeconds and formatted string, or undefined if invalid
+   * Parse ISO 8601 duration string to seconds and formatted string.
    */
   function parseIsoDuration(isoDuration: string | undefined): { totalSeconds: number; formatted: string } | undefined {
     if (!isoDuration || typeof isoDuration !== 'string') return undefined;
-    
-    // Match ISO 8601 duration format: PT[hours]H[minutes]M[seconds]S
     const match = isoDuration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
     if (!match) return undefined;
-    
     const hours = parseInt(match[1] || '0', 10);
     const minutes = parseInt(match[2] || '0', 10);
     const seconds = parseInt(match[3] || '0', 10);
-    
     const totalSeconds = hours * 3600 + minutes * 60 + seconds;
-    
-    // Format as HH:MM:SS or MM:SS
     let formatted: string;
     if (hours > 0) {
       formatted = `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
     } else {
       formatted = `${minutes}:${seconds.toString().padStart(2, '0')}`;
     }
-    
     return { totalSeconds, formatted };
   }
-  
+
   /**
-   * Extract video ID from YouTube URL
-   * Supports various YouTube URL formats (watch, youtu.be, embed, shorts)
-   * 
-   * @param videoUrl - YouTube URL
-   * @returns Video ID or undefined
+   * Extract video ID from YouTube URL.
    */
   function extractVideoId(videoUrl: string): string | undefined {
     if (!videoUrl) return undefined;
-    
-    // YouTube URL patterns
     const patterns = [
       /(?:youtube\.com\/watch\?.*v=)([a-zA-Z0-9_-]{11})/,
       /(?:youtu\.be\/)([a-zA-Z0-9_-]{11})/,
@@ -210,91 +112,43 @@
       /(?:youtube\.com\/v\/)([a-zA-Z0-9_-]{11})/,
       /(?:youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/,
     ];
-    
     for (const pattern of patterns) {
       const match = videoUrl.match(pattern);
-      if (match) {
-        return match[1];
-      }
+      if (match) return match[1];
     }
-    
     return undefined;
   }
-  
+
   /**
-   * Transform raw embed content to VideoSearchResult format
-   * Used by UnifiedEmbedFullscreen's childEmbedTransformer
-   * 
-   * Extracts ALL video metadata from TOON-encoded content for proper display
-   * in VideoEmbedPreview and VideoEmbedFullscreen
-   * 
-   * Field mapping from TOON-encoded embed content:
-   * - title: video title
-   * - url: YouTube URL
-   * - channelTitle -> channelName: channel name
-   * - meta_url_profile_image -> channelThumbnail: channel profile picture
-   * - thumbnail_original -> thumbnail: video thumbnail URL
-   * - duration: ISO 8601 duration string (e.g., "PT18M4S") -> parsed to seconds/formatted
-   * - viewCount: number of views
-   * - likeCount: number of likes
-   * - publishedAt: ISO 8601 date string
-   * - description: video description
+   * Transform raw embed content to VideoSearchResult format.
    */
   function transformToVideoResult(embedId: string, content: Record<string, unknown>): VideoSearchResult {
-    // Handle nested thumbnail and meta_url objects (fallback for non-flattened data)
     const thumbnail = content.thumbnail as Record<string, string> | undefined;
     const metaUrl = content.meta_url as Record<string, string> | undefined;
-    
-    // Extract video URL
     const url = content.url as string || '';
-    
-    // Parse ISO 8601 duration to seconds and formatted string
     const duration = parseIsoDuration(content.duration as string | undefined);
-    
-    // Extract video ID from URL
     const videoId = extractVideoId(url);
-    
-    // DEBUG: Log transformed data for first few results
-    console.debug(`[VideosSearchEmbedFullscreen] Transforming embed ${embedId}:`, {
-      title: (content.title as string)?.substring(0, 40),
-      channelTitle: content.channelTitle,
-      meta_url_profile_image: content.meta_url_profile_image,
-      duration: content.duration,
-      parsedDuration: duration,
-      viewCount: content.viewCount,
-      likeCount: content.likeCount,
-      publishedAt: content.publishedAt
-    });
-    
+
     return {
       embed_id: embedId,
       title: content.title as string | undefined,
-      url: url,
-      // Video thumbnail: prefer flattened format, fall back to nested
+      url,
       thumbnail: (content.thumbnail_original as string) || thumbnail?.original || thumbnail?.src,
-      // Channel profile picture: prefer TOON-flattened format
       channelThumbnail: (content.meta_url_profile_image as string) || metaUrl?.profile_image,
-      // Channel name: from channelTitle field
       channelName: content.channelTitle as string | undefined,
-      // Channel ID (if available)
       channelId: content.channelId as string | undefined,
-      // Video description
       description: (content.description as string) || (content.snippet as string),
-      // Duration: parsed from ISO 8601 format
       durationSeconds: duration?.totalSeconds,
       durationFormatted: duration?.formatted,
-      // View and like counts
       viewCount: content.viewCount as number | undefined,
       likeCount: content.likeCount as number | undefined,
-      // Published date (ISO string)
       publishedAt: content.publishedAt as string | undefined,
-      // Video ID extracted from URL
-      videoId: videoId
+      videoId,
     };
   }
-  
+
   /**
-   * Transform legacy results to VideoSearchResult format (for backwards compatibility)
+   * Transform legacy results for backwards compatibility.
    */
   function transformLegacyResults(results: unknown[]): VideoSearchResult[] {
     return (results as Array<Record<string, unknown>>).map((r, i) => {
@@ -303,11 +157,11 @@
       const url = r.url as string || '';
       const duration = parseIsoDuration(r.duration as string | undefined);
       const videoId = extractVideoId(url);
-      
+
       return {
         embed_id: `legacy-${i}`,
         title: r.title as string | undefined,
-        url: url,
+        url,
         thumbnail: (r.thumbnail_original as string) || thumbnail?.original || thumbnail?.src,
         channelThumbnail: (r.meta_url_profile_image as string) || metaUrl?.profile_image,
         channelName: r.channelTitle as string | undefined,
@@ -318,107 +172,13 @@
         viewCount: r.viewCount as number | undefined,
         likeCount: r.likeCount as number | undefined,
         publishedAt: r.publishedAt as string | undefined,
-        videoId: videoId
+        videoId,
       };
     });
   }
-  
+
   /**
-   * Get video results from context (children or legacy)
-   * Children are cast to VideoSearchResult[] since we pass transformToVideoResult as transformer
-   */
-  function getVideoResults(ctx: ChildEmbedContext): VideoSearchResult[] {
-    // Use loaded children if available (cast since transformer returns VideoSearchResult)
-    if (ctx.children && ctx.children.length > 0) {
-      return ctx.children as VideoSearchResult[];
-    }
-    // Fallback to legacy results
-    if (ctx.legacyResults && ctx.legacyResults.length > 0) {
-      return transformLegacyResults(ctx.legacyResults);
-    }
-    return [];
-  }
-  
-  // Share is handled by UnifiedEmbedFullscreen's built-in share handler
-  // which uses currentEmbedId, appId, and skillId to construct the embed
-  // share context and properly opens the settings panel (including on mobile).
-  
-  /** Metadata map: embed_id -> VideoMetadata (populated on click) */
-  let videoMetadataMap = $state<Map<string, VideoMetadata>>(new Map());
-  
-  /** Metadata for the currently selected video */
-  let selectedVideoMetadata = $derived(selectedVideo ? (videoMetadataMap.get(selectedVideo.embed_id) ?? null) : null);
-  
-  /**
-   * Handle video click - shows the video in fullscreen mode.
-   * Uses index-based selection so prev/next arrows navigate within siblings.
-   */
-  function handleVideoFullscreen(videoData: VideoSearchResult, metadata: VideoMetadata) {
-    console.debug('[VideosSearchEmbedFullscreen] Opening video fullscreen:', {
-      embedId: videoData.embed_id,
-      url: videoData.url,
-      title: videoData.title,
-      channelName: metadata.channelName,
-      duration: metadata.duration?.formatted,
-      viewCount: metadata.viewCount
-    });
-    // Store metadata for this video
-    const newMap = new Map(videoMetadataMap);
-    newMap.set(videoData.embed_id, metadata);
-    videoMetadataMap = newMap;
-    
-    const idx = allVideoResults.findIndex(r => r.embed_id === videoData.embed_id);
-    if (idx >= 0) {
-      selectedVideoIndex = idx;
-    } else {
-      allVideoResults = [videoData];
-      selectedVideoIndex = 0;
-    }
-  }
-  
-  /**
-   * Handle closing the video fullscreen.
-   *
-   * When opened via inline badge (initialChildEmbedId set): close the entire
-   * fullscreen immediately — no parent results grid expected.
-   * When opened normally (card click): return to the parent search results grid.
-   */
-  function handleVideoFullscreenClose() {
-    if (initialChildEmbedId) {
-      // Opened via inline badge — skip the parent grid and close completely
-      console.debug('[VideosSearchEmbedFullscreen] Closing video fullscreen (inline badge origin) — closing entire fullscreen');
-      onClose();
-    } else {
-      console.debug('[VideosSearchEmbedFullscreen] Closing video fullscreen, returning to search results');
-      selectedVideoIndex = -1;
-    }
-  }
-  
-  /** Navigate to the previous sibling video */
-  function handleVideoNavigatePrevious() {
-    if (selectedVideoIndex > 0) selectedVideoIndex -= 1;
-  }
-  
-  /** Navigate to the next sibling video */
-  function handleVideoNavigateNext() {
-    if (selectedVideoIndex < allVideoResults.length - 1) selectedVideoIndex += 1;
-  }
-  
-  /**
-   * Handle closing the entire search fullscreen.
-   * If a child overlay is open (and was NOT from an inline badge), close it first.
-   */
-  function handleMainClose() {
-    if (selectedVideoIndex >= 0 && !initialChildEmbedId) {
-      selectedVideoIndex = -1;
-    } else {
-      onClose();
-    }
-  }
-  
-  /**
-   * Create VideoMetadata object from VideoSearchResult for passing to VideoEmbedFullscreen
-   * This converts the search result format to the metadata format expected by VideoEmbedFullscreen
+   * Create VideoMetadata object from VideoSearchResult.
    */
   function createVideoMetadata(result: VideoSearchResult): VideoMetadata {
     return {
@@ -429,57 +189,37 @@
       channelId: result.channelId,
       channelThumbnail: result.channelThumbnail,
       thumbnailUrl: result.thumbnail,
-      duration: result.durationSeconds !== undefined || result.durationFormatted 
+      duration: result.durationSeconds !== undefined || result.durationFormatted
         ? { totalSeconds: result.durationSeconds || 0, formatted: result.durationFormatted || '' }
         : undefined,
       viewCount: result.viewCount,
       likeCount: result.likeCount,
-      publishedAt: result.publishedAt
+      publishedAt: result.publishedAt,
     };
   }
+
+  /**
+   * Metadata map: embed_id -> VideoMetadata (populated on click).
+   * Preserved across sibling navigation so metadata isn't lost.
+   */
+  let videoMetadataMap = $state<Map<string, VideoMetadata>>(new Map());
 </script>
 
-<!-- 
-  Overlay-based rendering approach for smooth transitions:
-  - VideosSearchEmbedFullscreen (search results grid) is ALWAYS mounted
-  - VideoEmbedFullscreen renders as an OVERLAY on top when a video is selected
-  
-  Benefits of this approach:
-  - No re-animation when returning to search results (already visible beneath)
-  - No re-loading of child embeds
-  - Scroll position is preserved on search results
-  - Instant close transition since search results are already there
--->
-
-<!-- Search results view - ALWAYS rendered (base layer) -->
-<!-- 
-  Pass skillName and showStatus to UnifiedEmbedFullscreen for consistent BasicInfosBar
-  that matches the embed preview (shows "Search" + "Completed", not the query)
-  
-  Child embeds are loaded automatically via embedIds prop and passed to content snippet
-  The childEmbedTransformer converts raw embed data to VideoSearchResult format
--->
-<UnifiedEmbedFullscreen
+<SearchResultsTemplate
   appId="videos"
   skillId="search"
+  minCardWidth="260px"
   embedHeaderTitle={query}
   embedHeaderSubtitle={viaProvider}
   skillIconName="search"
   showSkillIcon={true}
-  onClose={handleMainClose}
+  {onClose}
   currentEmbedId={embedId}
   {embedIds}
   childEmbedTransformer={transformToVideoResult}
   legacyResults={resultsProp}
-  onChildrenLoaded={(children) => { allVideoResults = children as VideoSearchResult[]; }}
+  legacyResultTransformer={transformLegacyResults}
   {initialChildEmbedId}
-  onAutoOpenChild={(index, children) => {
-    allVideoResults = children as VideoSearchResult[];
-    const video = allVideoResults[index];
-    if (video) {
-      handleVideoFullscreen(video, createVideoMetadata(video));
-    }
-  }}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}
@@ -488,107 +228,49 @@
   {showChatButton}
   {onShowChat}
 >
-  {#snippet content(ctx)}
-    {@const videoResults = getVideoResults(ctx)}
-    
-    {#if ctx.isLoadingChildren}
-      <div class="loading-state">
-        <p>{$text('embeds.loading')}</p>
-      </div>
-    {:else if videoResults.length === 0}
-      <div class="no-results">
-        <p>{$text('embeds.no_results')}</p>
-      </div>
-    {:else}
-      <!-- Video embeds grid - responsive auto-fill columns -->
-      <!-- Uses VideoEmbedPreview for proper video display with channel info, duration, etc. -->
-      <div class="video-embeds-grid" class:mobile={isMobile}>
-        {#each videoResults as result}
-          <VideoEmbedPreview
-            id={result.embed_id}
-            url={result.url}
-            title={result.title}
-            status="finished"
-            isMobile={false}
-            channelName={result.channelName}
-            channelId={result.channelId}
-            channelThumbnail={result.channelThumbnail}
-            thumbnail={result.thumbnail}
-            durationSeconds={result.durationSeconds}
-            durationFormatted={result.durationFormatted}
-            viewCount={result.viewCount}
-            likeCount={result.likeCount}
-            publishedAt={result.publishedAt}
-            videoId={result.videoId}
-            onFullscreen={(metadata) => {
-              allVideoResults = videoResults;
-              handleVideoFullscreen(result, metadata);
-            }}
-          />
-        {/each}
-      </div>
-    {/if}
-  {/snippet}
-</UnifiedEmbedFullscreen>
-
-<!-- Video fullscreen overlay - rendered ON TOP when a video is selected -->
-<!-- Uses ChildEmbedOverlay for consistent overlay positioning across all search fullscreens -->
-<!-- Passes full metadata to VideoEmbedFullscreen for proper display (no additional fetch needed) -->
-<!-- Sibling navigation: prev/next cycle through all search result videos -->
-{#if selectedVideo}
-  <ChildEmbedOverlay>
-    <VideoEmbedFullscreen
-      url={selectedVideo.url}
-      title={selectedVideo.title}
-      onClose={handleVideoFullscreenClose}
-      embedId={selectedVideo.embed_id}
-      videoId={selectedVideo.videoId}
-      metadata={selectedVideoMetadata || createVideoMetadata(selectedVideo)}
-      hasPreviousEmbed={selectedVideoIndex > 0}
-      hasNextEmbed={selectedVideoIndex < allVideoResults.length - 1}
-      onNavigatePrevious={handleVideoNavigatePrevious}
-      onNavigateNext={handleVideoNavigateNext}
+  {#snippet resultCard({ result, onSelect })}
+    <VideoEmbedPreview
+      id={result.embed_id}
+      url={result.url}
+      title={result.title}
+      status="finished"
+      isMobile={false}
+      channelName={result.channelName}
+      channelId={result.channelId}
+      channelThumbnail={result.channelThumbnail}
+      thumbnail={result.thumbnail}
+      durationSeconds={result.durationSeconds}
+      durationFormatted={result.durationFormatted}
+      viewCount={result.viewCount}
+      likeCount={result.likeCount}
+      publishedAt={result.publishedAt}
+      videoId={result.videoId}
+      onFullscreen={(metadata) => {
+        const newMap = new Map(videoMetadataMap);
+        newMap.set(result.embed_id, metadata);
+        videoMetadataMap = newMap;
+        onSelect();
+      }}
     />
-  </ChildEmbedOverlay>
-{/if}
+  {/snippet}
+
+  {#snippet childFullscreen(nav)}
+    <VideoEmbedFullscreen
+      url={nav.result.url}
+      title={nav.result.title}
+      onClose={nav.onClose}
+      embedId={nav.result.embed_id}
+      videoId={nav.result.videoId}
+      metadata={videoMetadataMap.get(nav.result.embed_id) || createVideoMetadata(nav.result)}
+      hasPreviousEmbed={nav.hasPrevious}
+      hasNextEmbed={nav.hasNext}
+      onNavigatePrevious={nav.onPrevious}
+      onNavigateNext={nav.onNext}
+    />
+  {/snippet}
+</SearchResultsTemplate>
 
 <style>
-  /* ===========================================
-     Loading and No Results States
-     =========================================== */
-  
-  .loading-state,
-  .no-results {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 200px;
-    color: var(--color-font-secondary);
-    font-size: 16px;
-  }
-  
-  /* ===========================================
-     Video Embeds Grid - Responsive Layout
-     =========================================== */
-  
-  .video-embeds-grid {
-    display: grid;
-    gap: 16px;
-    width: calc(100% - 20px);
-    max-width: 1000px;
-    margin: 0 auto;
-    padding: 0 10px;
-    padding-bottom: 120px; /* Space for bottom bar + gradient */
-    /* Responsive: auto-fit columns with minimum 280px width */
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  }
-  
-  /* Mobile: single column (stacked) */
-  .video-embeds-grid.mobile {
-    grid-template-columns: 1fr;
-  }
-  
-  /* Ensure each embed maintains proper size */
   .video-embeds-grid :global(.unified-embed-preview) {
     width: 100%;
     max-width: 320px;

@@ -1,6 +1,13 @@
 # backend/core/api/app/utils/api_key_auth.py
 #
-# This module provides API key authentication for external API access
+# API key authentication for external REST API access.
+# On new-device detection: sends a WebSocket push notification (user_notification
+# event) to all active browser sessions, and dispatches a security email via
+# Celery regardless of the user's email_notifications_enabled preference.
+#
+# Architecture: docs/architecture/developer-settings.md
+# Notification pattern mirrors the reminder_fired / user_notification flow in
+# websockets.py + chatSyncServiceHandlersAppSettings.ts.
 
 import hashlib
 import logging
@@ -25,9 +32,17 @@ class DeviceNotApprovedError(Exception):
 class ApiKeyAuthService:
     """Service for API key authentication"""
 
-    def __init__(self, directus_service: DirectusService, cache_service: CacheService):
+    def __init__(
+        self,
+        directus_service: DirectusService,
+        cache_service: CacheService,
+        app=None,
+    ):
         self.directus_service = directus_service
         self.cache_service = cache_service
+        # FastAPI app instance — used to reach connection_manager (WebSocket broadcast)
+        # and encryption_service (decrypt notification email).  May be None in tests.
+        self._app = app
 
     async def hash_api_key(self, api_key: str) -> str:
         """Hash an API key using SHA-256"""
@@ -198,7 +213,7 @@ class ApiKeyAuthService:
                 if not approved_at:
                     logger.warning(f"API key access denied (cached): Device {device_hash[:8]}... not approved for API key {api_key_id}")
                     raise DeviceNotApprovedError(
-                        f"Device not approved. Please confirm this device in Settings > Developers > Devices before using the API key."
+                        "Device not approved. Please confirm this device in Settings > Developers > Devices before using the API key."
                     )
                 
                 # Device is approved - update last access timestamp (async, don't wait)
@@ -238,7 +253,7 @@ class ApiKeyAuthService:
                 if not approved_at:
                     logger.warning(f"API key access denied: Device {device_hash[:8]}... not approved for API key {api_key_id}")
                     raise DeviceNotApprovedError(
-                        f"Device not approved. Please confirm this device in Settings > Developers > Devices before using the API key."
+                        "Device not approved. Please confirm this device in Settings > Developers > Devices before using the API key."
                     )
                 
                 # Device is approved - update last access timestamp (async, don't wait)
@@ -276,16 +291,28 @@ class ApiKeyAuthService:
                     )
                     
                     logger.info(f"New device registered for API key {api_key_id}: {device_hash[:8]}... (blocked until approved)")
-                    # TODO: Send notification to user about new device (via WebSocket or email)
+
+                    # Fire-and-forget: notify user via WebSocket + security email.
+                    # Both notifications run in the background so they never delay
+                    # the 403 response back to the API caller.
+                    import asyncio as _asyncio
+                    _asyncio.create_task(
+                        self._notify_new_device(
+                            user_id=user_id,
+                            device_record=device_record,
+                            client_ip=client_ip,
+                        )
+                    )
+
                     # BLOCK API access until device is approved in web UI
                     raise DeviceNotApprovedError(
-                        f"New device detected. Please confirm this device in Settings > Developers > Devices before using the API key."
+                        "New device detected. Please confirm this device in Settings > Developers > Devices before using the API key."
                     )
                 else:
                     logger.error(f"Failed to create device record: {message}")
                     # If device record creation fails, we still block access for security
                     raise DeviceNotApprovedError(
-                        f"Device registration failed. Please try again or contact support."
+                        "Device registration failed. Please try again or contact support."
                     )
         except DeviceNotApprovedError:
             # Re-raise device approval errors
@@ -294,12 +321,200 @@ class ApiKeyAuthService:
             # Log unexpected errors but still block access for security
             logger.error(f"Error checking/registering device: {e}", exc_info=True)
             raise DeviceNotApprovedError(
-                f"Device verification failed. Please try again or contact support."
+                "Device verification failed. Please try again or contact support."
             )
                     
     # Note: _update_api_key_last_used is no longer needed here
     # The update is now handled by directus_service.update_api_key_last_used(key_hash)
     # which directly updates the api_keys collection
+
+    # -----------------------------------------------------------------------
+    # New-device notification helpers
+    # -----------------------------------------------------------------------
+
+    async def _notify_new_device(
+        self,
+        user_id: str,
+        device_record: Dict[str, Any],
+        client_ip: str,
+    ) -> None:
+        """
+        Send a WebSocket push notification and a security email when a new device
+        is detected for an API key.
+
+        Called as an asyncio background task immediately after the device record
+        is created in _check_and_register_device.  Errors here are logged but
+        never surface to the caller (the 403 is already on its way).
+
+        Security email policy: always sent — security notifications are independent
+        of the user's email_notifications_enabled preference.
+        """
+        try:
+            anonymized_ip, region = self._extract_display_info(device_record, client_ip)
+            await self._send_websocket_notification(user_id, anonymized_ip, region)
+            await self._send_security_email(user_id, anonymized_ip, region)
+        except Exception as e:
+            logger.error(f"_notify_new_device error for user {user_id[:6]}...: {e}", exc_info=True)
+
+    def _extract_display_info(
+        self,
+        device_record: Dict[str, Any],
+        client_ip: str,
+    ):
+        """
+        Pull the human-readable anonymized IP and region out of the freshly
+        created (still unencrypted in-memory) device_record returned by
+        create_api_key_device, or fall back to deriving them from client_ip.
+        """
+        # create_api_key_device returns the Directus record which has encrypted
+        # fields.  We re-derive the anonymized IP from client_ip directly since
+        # decryption would require an async vault round-trip.
+        ip_parts = client_ip.split(".")
+        if len(ip_parts) >= 2:
+            anonymized_ip = f"{ip_parts[0]}.{ip_parts[1]}.xxx"
+        else:
+            anonymized_ip = "unknown.xxx"
+
+        # Region: try to get from geo-data (synchronous geoip lookup)
+        try:
+            from backend.core.api.app.utils.device_fingerprint import get_geo_data_from_ip
+            geo = get_geo_data_from_ip(client_ip)
+            parts = [p for p in [geo.get("city"), geo.get("region"), geo.get("country_code")] if p]
+            region = ", ".join(parts) if parts else "Unknown"
+        except Exception:
+            region = "Unknown"
+
+        return anonymized_ip, region
+
+    async def _send_websocket_notification(
+        self,
+        user_id: str,
+        anonymized_ip: str,
+        region: str,
+    ) -> None:
+        """
+        Broadcast a user_notification WebSocket event to all active browser
+        sessions for user_id.
+
+        The frontend's handleUserNotificationImpl already handles this event
+        type and renders a dismissible toast with an optional deep-link button
+        (see chatSyncServiceHandlersAppSettings.ts).
+        """
+        if not self._app:
+            logger.debug("_send_websocket_notification: no app instance, skipping")
+            return
+
+        try:
+            from backend.core.api.app.routes.websockets import manager
+            location_str = f"{anonymized_ip} ({region})"
+            await manager.broadcast_to_user_specific_event(
+                user_id=user_id,
+                event_name="user_notification",
+                payload={
+                    "notification_type": "warning",
+                    "message": (
+                        f"A new device attempted to use your API key from {location_str}. "
+                        "The request was blocked. Please review and approve it in Developer Settings."
+                    ),
+                    "action_label": "Review in Developer Settings",
+                    "action_deep_link": "developers/devices",
+                    "duration": 20000,
+                },
+            )
+            logger.info(f"Sent new-device WebSocket notification to user {user_id[:6]}...")
+        except Exception as e:
+            logger.warning(f"Failed to send WebSocket notification for user {user_id[:6]}...: {e}")
+
+    async def _send_security_email(
+        self,
+        user_id: str,
+        anonymized_ip: str,
+        region: str,
+    ) -> None:
+        """
+        Dispatch a Celery task that sends the new-api-key-device security email.
+
+        Security emails are ALWAYS sent — the user's email_notifications_enabled
+        preference controls only chat-related notifications.
+
+        The notification email address is vault-encrypted in the user's cache
+        record (encrypted_notification_email + vault_key_id), following the same
+        decryption pattern used in websockets._send_offline_email_notification.
+        """
+        if not self._app:
+            logger.debug("_send_security_email: no app instance, skipping")
+            return
+
+        try:
+            # ── 1. Retrieve user data from cache ──────────────────────────
+            cache_service = self.cache_service
+            cached_user = await cache_service.get_user_by_id(user_id)
+            if not cached_user:
+                logger.warning(
+                    f"_send_security_email: user {user_id[:6]}... not in cache, cannot send email"
+                )
+                return
+
+            encrypted_notification_email = cached_user.get("encrypted_notification_email")
+            if not encrypted_notification_email:
+                logger.debug(
+                    f"_send_security_email: no notification email configured for user {user_id[:6]}..."
+                )
+                return
+
+            vault_key_id = cached_user.get("vault_key_id")
+            if not vault_key_id:
+                logger.warning(
+                    f"_send_security_email: no vault_key_id for user {user_id[:6]}..., cannot decrypt email"
+                )
+                return
+
+            # ── 2. Decrypt the notification email ─────────────────────────
+            if not hasattr(self._app.state, "encryption_service"):
+                logger.warning("_send_security_email: encryption_service not in app.state")
+                return
+
+            encryption_service = self._app.state.encryption_service
+            recipient_email = await encryption_service.decrypt_with_user_key(
+                encrypted_notification_email, vault_key_id
+            )
+            if not recipient_email:
+                logger.warning(f"_send_security_email: email decryption returned empty for user {user_id[:6]}...")
+                return
+
+            # ── 3. Resolve language + dark-mode preference from cache ─────
+            language = cached_user.get("language", "en") or "en"
+            darkmode = bool(cached_user.get("darkmode", False))
+
+            # ── 4. Build developer settings URL ───────────────────────────
+            # Use the app's base URL if available; otherwise fall back to a
+            # relative hash-route (works as a mailto-style deep link in the email).
+            base_url = getattr(getattr(self._app, "state", None), "base_url", None) or "https://app.openmates.org"
+            developer_settings_url = f"{base_url}/#settings/developers/devices"
+
+            # ── 5. Dispatch Celery task (fire-and-forget) ─────────────────
+            from backend.core.api.app.tasks.celery_config import app as celery_app
+            celery_app.send_task(
+                name="app.tasks.email_tasks.new_api_key_device_email_task.send_new_api_key_device_email",
+                kwargs={
+                    "recipient_email": recipient_email,
+                    "anonymized_ip": anonymized_ip,
+                    "region": region,
+                    "developer_settings_url": developer_settings_url,
+                    "language": language,
+                    "darkmode": darkmode,
+                },
+                queue="email",
+            )
+            logger.info(
+                f"Queued new_api_key_device security email for user {user_id[:6]}... "
+                f"({anonymized_ip}, {region})"
+            )
+
+        except Exception as e:
+            logger.error(
+                f"_send_security_email error for user {user_id[:6]}...: {e}", exc_info=True
+            )
 
 
 # Dependency functions
@@ -307,7 +522,8 @@ def get_api_key_auth_service(request: Request) -> ApiKeyAuthService:
     """Get API key authentication service from app state"""
     directus_service = request.app.state.directus_service
     cache_service = request.app.state.cache_service
-    return ApiKeyAuthService(directus_service, cache_service)
+    app = request.app
+    return ApiKeyAuthService(directus_service, cache_service, app=app)
 
 
 async def verify_api_key(

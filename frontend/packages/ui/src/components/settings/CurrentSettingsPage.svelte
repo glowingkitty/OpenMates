@@ -138,11 +138,12 @@
         // Stop propagation to prevent document click handler from closing menu
         if (event) event.stopPropagation();
 
+        const isLogsView = viewName === 'logs';
         dispatch('openSettings', { 
             settingsPath: viewName, 
             direction: 'forward',
-            icon: viewName,
-            title: $text(`settings.${viewName}`)
+            icon: isLogsView ? 'server' : viewName,
+            title: isLogsView ? 'Logs' : $text(`settings.${viewName}`)
         });
         
         // Find settings content element and scroll to top
@@ -171,6 +172,7 @@
 
     // Get credits from userProfile store using Svelte 5 runes
     let credits = $derived($userProfile.credits || 0);
+    let isAdminUser = $derived($userProfile.is_admin === true);
     
     /**
      * Track measured content height for submenu views.
@@ -317,7 +319,6 @@
                             // once from the label's synthetic click event). Without this guard,
                             // deactivation would immediately re-activate incognito mode.
                             if (incognitoClickInProgress) {
-                                console.debug('[CurrentSettingsPage] incognito onClick: ignoring duplicate fire');
                                 return;
                             }
                             incognitoClickInProgress = true;
@@ -373,10 +374,10 @@
             {/if}
 
             <!-- Regular Settings -->
-            {#each Object.entries(settingsViews).filter(([key]) => isTopLevelView(key)) as [key]}
+            {#each Object.entries(settingsViews).filter(([key]) => isTopLevelView(key) && (key !== 'logs' || isAdminUser)) as [key]}
                 <SettingsItem 
-                    icon={key} 
-                    title={$text(`settings.${key}`)} 
+                    icon={key === 'logs' ? 'server' : key}
+                    title={key === 'logs' ? 'Logs' : $text(`settings.${key}`)}
                     onClick={() => showSettingsView(key, null)} 
                 />
             {/each}
@@ -550,4 +551,5 @@
     .settings-submenu-content.active {
         pointer-events: auto;
     }
+
 </style>

@@ -333,7 +333,7 @@ Supports both saved payment methods and new payment form
                         sessionStorage.setItem('gift_card_delayed', 'true');
                         // Navigate to confirmation page which will show delayed payment message
                         dispatch('openSettings', {
-                            settingsPath: 'gift_cards/buy/confirmation',
+                            settingsPath: 'billing/gift-cards/buy/confirmation',
                             direction: 'forward',
                             icon: 'check',
                             title: $text('settings.gift_cards.purchase_successful')
@@ -375,7 +375,7 @@ Supports both saved payment methods and new payment form
                 sessionStorage.setItem('gift_card_credits', creditsValue.toString());
             }
             dispatch('openSettings', {
-                settingsPath: 'gift_cards/buy/confirmation',
+                settingsPath: 'billing/gift-cards/buy/confirmation',
                 direction: 'forward',
                 icon: 'check',
                 title: $text('settings.gift_cards.purchase_successful')
@@ -395,7 +395,7 @@ Supports both saved payment methods and new payment form
                 // Navigate to confirmation page which will show delayed payment message
                 // The confirmation page will wait for the gift_card_created event
                 dispatch('openSettings', {
-                    settingsPath: 'gift_cards/buy/confirmation',
+                    settingsPath: 'billing/gift-cards/buy/confirmation',
                     direction: 'forward',
                     icon: 'check',
                     title: $text('settings.gift_cards.purchase_successful')

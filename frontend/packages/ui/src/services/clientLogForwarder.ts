@@ -1,304 +1,295 @@
 /**
- * Client Log Forwarder Service
+ * Client Log Forwarder — Admin Live Streaming
  *
- * Forwards browser console logs from admin users to the backend for centralized
- * storage in Loki. This provides a unified view of client-side and server-side
- * logs in Grafana, making it significantly easier to debug issues without
- * requiring manual "Report Issue" submissions.
+ * Forwards browser console logs in real-time to OpenObserve (via the backend
+ * proxy at /v1/admin/client-logs) for authenticated admin users only.
  *
- * Privacy guarantees:
- * - Only activates when the authenticated user has is_admin === true
- * - Non-admin users never have logs forwarded (enforced on both client and server)
- * - All logs pass through logCollector's existing sanitization (API keys, tokens, passwords redacted)
- * - The backend endpoint double-checks admin status before accepting logs
+ * Non-admin users: this service is never started.
+ * Any user (on issue submit): see /v1/settings/issue-logs for the separate
+ *   one-shot push path used at issue-report time.
  *
- * Architecture:
- * - Subscribes to logCollector's onNewLog() callback to receive entries in real-time
- * - Batches entries and flushes every FLUSH_INTERVAL_MS or when the buffer reaches MAX_BATCH_SIZE
- * - POSTs batched logs to /v1/admin/client-logs (cookie-authenticated, admin-only)
- * - Generates a unique tab ID per browser tab for multi-tab disambiguation in Grafana
+ * Architecture context: docs/architecture/admin-console-log-forwarding.md
+ *
+ * Flow:
+ *   login/session-restore (admin) -> start() -> hooks logCollector.onNewLog
+ *   -> batches every FLUSH_INTERVAL_MS -> POST /v1/admin/client-logs
+ *   logout -> stop() -> unhooks listener, drains any remaining buffer
  */
 
 import { logCollector } from "./logCollector";
 import type { ConsoleLogEntry } from "./logCollector";
 import { getApiEndpoint, apiEndpoints } from "../config/api";
 
-/** How often to flush buffered logs to the server (milliseconds) */
+// ----- Configuration -------------------------------------------------------
+
+/** How often (ms) to flush the pending batch to the backend. */
 const FLUSH_INTERVAL_MS = 5_000;
 
-/** Maximum number of log entries per batch request */
+/** Maximum entries per batch (matches backend validation limit). */
 const MAX_BATCH_SIZE = 50;
 
-/**
- * Maximum number of entries to buffer before dropping the oldest.
- * This prevents unbounded memory growth during sustained log bursts
- * (e.g. sync operations generating hundreds of debug messages).
- */
-const MAX_BUFFER_SIZE = 200;
+/** Maximum batches sent in one flush cycle to avoid request spikes. */
+const MAX_BATCHES_PER_FLUSH = 25;
 
-/** Generate a short random ID to uniquely identify this browser tab in logs */
-function generateTabId(): string {
-  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
-  let id = "";
-  for (let i = 0; i < 8; i++) {
-    id += chars.charAt(Math.floor(Math.random() * chars.length));
+/** IndexedDB database name for durable admin log queue. */
+const QUEUE_DB_NAME = "openmates_admin_client_log_queue";
+
+/** IndexedDB object store holding unsent admin log entries. */
+const QUEUE_STORE_NAME = "pending_entries";
+
+/** Schema version for the durable admin log queue DB. */
+/** Bumped 1→2: force onupgradeneeded on clients with broken schema-less v1 DB */
+const QUEUE_DB_VERSION = 2;
+
+// ---------------------------------------------------------------------------
+
+/** Unique tab ID generated once per page load — disambiguates multiple open tabs. */
+const TAB_ID = Math.random().toString(36).slice(2, 8);
+
+function getPagePath(): string {
+  try {
+    return window.location.pathname;
+  } catch {
+    return "";
   }
-  return id;
 }
 
-/** Status snapshot returned by getStatus() for debug health checks */
-export interface ClientLogForwarderStatus {
-  /** Whether the forwarder is currently running (start() was called, stop() was not) */
-  isRunning: boolean;
-  /** Unique tab ID for this browser tab (regenerated on each start()) */
-  tabId: string;
-  /** Number of log entries currently buffered awaiting flush */
-  bufferSize: number;
-  /** Total number of flush attempts since last start() */
-  totalFlushAttempts: number;
-  /** Number of flushes that returned HTTP 2xx */
-  successfulFlushes: number;
-  /** Number of flushes that failed (network error, non-2xx response) */
-  failedFlushes: number;
-  /** HTTP status of the most recent flush attempt, or null if none yet */
-  lastFlushStatus: number | null;
-  /** ISO timestamp of the most recent flush attempt, or null if none yet */
-  lastFlushTime: string | null;
-  /** Error message from the most recent flush failure, or null */
-  lastFlushError: string | null;
-  /** Whether the very first flush after start() has been attempted */
-  firstFlushAttempted: boolean;
+type QueuedLogEntry = {
+  id?: number;
+  timestamp: number;
+  level: ConsoleLogEntry["level"];
+  message: string;
+};
+
+function openQueueDb(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    if (typeof indexedDB === "undefined") {
+      reject(new Error("IndexedDB unavailable"));
+      return;
+    }
+
+    const request = indexedDB.open(QUEUE_DB_NAME, QUEUE_DB_VERSION);
+
+    request.onerror = () =>
+      reject(request.error ?? new Error("Failed to open queue DB"));
+
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(QUEUE_STORE_NAME)) {
+        db.createObjectStore(QUEUE_STORE_NAME, {
+          keyPath: "id",
+          autoIncrement: true,
+        });
+      }
+    };
+
+    request.onsuccess = () => resolve(request.result);
+  });
 }
 
-class ClientLogForwarder {
-  private buffer: ConsoleLogEntry[] = [];
+class ClientLogForwarderService {
+  private running = false;
   private flushTimer: ReturnType<typeof setInterval> | null = null;
-  private isRunning = false;
-  private tabId: string = generateTabId();
+  private flushInProgress = false;
 
-  // ── Diagnostic counters (reset on each start()) ──
-  private totalFlushAttempts = 0;
-  private successfulFlushes = 0;
-  private failedFlushes = 0;
-  private lastFlushStatus: number | null = null;
-  private lastFlushTime: string | null = null;
-  private lastFlushError: string | null = null;
-  private firstFlushAttempted = false;
+  // Fallback queue if IndexedDB is unavailable in the runtime.
+  private volatileQueue: QueuedLogEntry[] = [];
 
-  /**
-   * Bound reference to the listener function so we can unsubscribe cleanly.
-   * Arrow function ensures `this` context is preserved.
-   */
-  private logListener = (entry: ConsoleLogEntry): void => {
-    if (!this.isRunning) return;
-
-    this.buffer.push(entry);
-
-    // Drop oldest entries if buffer exceeds max to prevent memory issues during bursts
-    if (this.buffer.length > MAX_BUFFER_SIZE) {
-      this.buffer = this.buffer.slice(-MAX_BUFFER_SIZE);
-    }
-
-    // Flush immediately if we hit the batch size limit
-    if (this.buffer.length >= MAX_BATCH_SIZE) {
-      void this.flush();
-    }
+  private readonly logListener = (entry: ConsoleLogEntry): void => {
+    void this.enqueue(entry);
   };
 
   /**
-   * Return a snapshot of the forwarder's current status for debug health checks.
-   * Called by window.debug() health check.
+   * Start forwarding. Call only for admin users after successful auth.
+   * Safe to call multiple times — idempotent.
    */
-  public getStatus(): ClientLogForwarderStatus {
-    return {
-      isRunning: this.isRunning,
-      tabId: this.tabId,
-      bufferSize: this.buffer.length,
-      totalFlushAttempts: this.totalFlushAttempts,
-      successfulFlushes: this.successfulFlushes,
-      failedFlushes: this.failedFlushes,
-      lastFlushStatus: this.lastFlushStatus,
-      lastFlushTime: this.lastFlushTime,
-      lastFlushError: this.lastFlushError,
-      firstFlushAttempted: this.firstFlushAttempted,
-    };
-  }
-
-  /**
-   * Start forwarding console logs to the server.
-   * Should only be called when the authenticated user is confirmed to be an admin.
-   * Safe to call multiple times (idempotent) - will not create duplicate listeners.
-   */
-  public start(): void {
-    if (this.isRunning) return;
-
-    this.isRunning = true;
-    this.tabId = generateTabId();
-
-    // Reset diagnostic counters for this session
-    this.totalFlushAttempts = 0;
-    this.successfulFlushes = 0;
-    this.failedFlushes = 0;
-    this.lastFlushStatus = null;
-    this.lastFlushTime = null;
-    this.lastFlushError = null;
-    this.firstFlushAttempted = false;
-
-    // Subscribe to real-time log entries from the collector
+  start(): void {
+    if (this.running) return;
+    this.running = true;
     logCollector.onNewLog(this.logListener);
-
-    // Set up periodic flush interval
-    this.flushTimer = setInterval(() => {
-      void this.flush();
-    }, FLUSH_INTERVAL_MS);
-
-    // Use warn level so this is visible even when debug logging is filtered in browser dev tools.
-    // This is a critical diagnostic breadcrumb confirming the forwarder activated for the admin user.
-    // logCollector intercepts this console.warn and routes it through logListener into the buffer,
-    // so the very first flush will include it as a positive "forwarder alive" signal in Loki.
-    console.warn(`[ClientLogForwarder] Started - tab=${this.tabId}`);
-
-    // Flush immediately so the startup breadcrumb reaches Loki without waiting up to
-    // FLUSH_INTERVAL_MS (5s). This also acts as an early session-validity probe —
-    // if the session cookie is not yet set (offline-first race), the 401 response is
-    // now logged-and-continued rather than killing the forwarder.
+    this.flushTimer = setInterval(() => void this.flush(), FLUSH_INTERVAL_MS);
+    // Drain any durable backlog from previous connectivity/auth failures.
     void this.flush();
   }
 
   /**
-   * Stop forwarding console logs.
-   * Called on logout or when admin status is revoked.
-   * Flushes any remaining buffered entries before stopping.
+   * Stop forwarding and drain any buffered entries.
+   * Call on logout or when admin status is lost.
    */
-  public stop(): void {
-    if (!this.isRunning) return;
-
-    console.debug("[ClientLogForwarder] Stopping");
-
-    this.isRunning = false;
-
-    // Unsubscribe from log collector
+  async stop(): Promise<void> {
+    if (!this.running) return;
+    this.running = false;
     logCollector.offNewLog(this.logListener);
-
-    // Clear the flush timer
     if (this.flushTimer !== null) {
       clearInterval(this.flushTimer);
       this.flushTimer = null;
     }
+    // Best-effort final drain before teardown.
+    await this.flush(true);
+  }
 
-    // Flush remaining entries (best-effort, non-blocking)
-    void this.flush();
+  private async enqueue(entry: ConsoleLogEntry): Promise<void> {
+    const queued: QueuedLogEntry = {
+      timestamp: entry.timestamp,
+      level: entry.level,
+      message: entry.message,
+    };
+
+    try {
+      const db = await openQueueDb();
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction([QUEUE_STORE_NAME], "readwrite");
+        const store = tx.objectStore(QUEUE_STORE_NAME);
+        const request = store.add(queued);
+        request.onerror = () =>
+          reject(request.error ?? new Error("Failed to enqueue log entry"));
+        tx.oncomplete = () => resolve();
+        tx.onerror = () =>
+          reject(tx.error ?? new Error("Queue write transaction failed"));
+      });
+      db.close();
+    } catch {
+      this.volatileQueue.push(queued);
+    }
+
+    if (this.running) {
+      void this.flush();
+    }
+  }
+
+  private async readQueuedBatch(limit: number): Promise<QueuedLogEntry[]> {
+    try {
+      const db = await openQueueDb();
+      const rows = await new Promise<QueuedLogEntry[]>((resolve, reject) => {
+        const tx = db.transaction([QUEUE_STORE_NAME], "readonly");
+        const store = tx.objectStore(QUEUE_STORE_NAME);
+        const request = store.openCursor();
+        const acc: QueuedLogEntry[] = [];
+
+        request.onerror = () =>
+          reject(request.error ?? new Error("Failed to read queued logs"));
+        request.onsuccess = () => {
+          const cursor = request.result;
+          if (!cursor || acc.length >= limit) {
+            resolve(acc);
+            return;
+          }
+          acc.push(cursor.value as QueuedLogEntry);
+          cursor.continue();
+        };
+
+        tx.onerror = () =>
+          reject(tx.error ?? new Error("Queue read transaction failed"));
+      });
+      db.close();
+      return rows;
+    } catch {
+      return [];
+    }
+  }
+
+  private async deleteQueuedBatch(ids: number[]): Promise<void> {
+    if (ids.length === 0) return;
+
+    try {
+      const db = await openQueueDb();
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction([QUEUE_STORE_NAME], "readwrite");
+        const store = tx.objectStore(QUEUE_STORE_NAME);
+        for (const id of ids) {
+          store.delete(id);
+        }
+        tx.oncomplete = () => resolve();
+        tx.onerror = () =>
+          reject(tx.error ?? new Error("Queue delete transaction failed"));
+      });
+      db.close();
+    } catch {
+      // Keep entries in persistent queue when deletion fails; retry on next flush.
+    }
   }
 
   /**
-   * Send buffered log entries to the backend.
-   * Entries are removed from the buffer before the request is made to avoid
-   * re-sending on retry. If the request fails, entries are silently dropped
-   * (this is non-critical debug data, not business logic).
+   * Flush the current buffer to the backend.
+   * Never throws — log forwarding must never break the app.
    */
-  private async flush(): Promise<void> {
-    if (this.buffer.length === 0) return;
+  private async flush(force: boolean = false): Promise<void> {
+    if (this.flushInProgress) return;
+    if (!this.running && !force) return;
 
-    // Take entries from the buffer (drain it) so new entries can accumulate
-    // while this request is in flight
-    const entries = this.buffer.splice(0, MAX_BATCH_SIZE);
-
-    const endpoint = getApiEndpoint(apiEndpoints.admin.clientLogs);
-    const isFirstFlush = !this.firstFlushAttempted;
-    this.firstFlushAttempted = true;
-    this.totalFlushAttempts++;
-    this.lastFlushTime = new Date().toISOString();
-
-    // Log first flush attempt at warn level so it is always visible in the browser console.
-    // This is the key diagnostic breadcrumb: if this line appears, the forwarder started
-    // and is actively attempting to send logs. If it does NOT appear, start() was never called.
-    if (isFirstFlush) {
-      console.warn(
-        `[ClientLogForwarder] First flush attempt — sending ${entries.length} entries to ${endpoint}`,
-      );
-    } else {
-      console.debug(
-        `[ClientLogForwarder] Flushing ${entries.length} entries to ${endpoint}`,
-      );
-    }
-
+    this.flushInProgress = true;
     try {
-      const payload = {
-        logs: entries.map((entry) => ({
-          timestamp: entry.timestamp,
-          level: entry.level,
-          message: entry.message,
-        })),
-        metadata: {
-          userAgent: navigator.userAgent,
-          pageUrl: window.location.pathname + window.location.search,
-          tabId: this.tabId,
-        },
-      };
+      let processedBatches = 0;
+      while (this.running || force) {
+        if (processedBatches >= MAX_BATCHES_PER_FLUSH) {
+          break;
+        }
 
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        credentials: "include", // Send auth cookies
-        body: JSON.stringify(payload),
-      });
+        const volatileBatch = this.volatileQueue.slice(0, MAX_BATCH_SIZE);
+        const durableBatch =
+          volatileBatch.length > 0
+            ? []
+            : await this.readQueuedBatch(MAX_BATCH_SIZE);
+        const batch = volatileBatch.length > 0 ? volatileBatch : durableBatch;
 
-      this.lastFlushStatus = response.status;
-      this.lastFlushError = null;
+        if (batch.length === 0) {
+          break;
+        }
 
-      if (response.ok) {
-        this.successfulFlushes++;
-      } else {
-        this.failedFlushes++;
+        const entries = batch.map((e) => ({
+          timestamp: e.timestamp,
+          level: e.level,
+          message: e.message,
+        }));
+
+        const metadata = {
+          userAgent:
+            typeof navigator !== "undefined" ? navigator.userAgent : "",
+          pageUrl: getPagePath(),
+          tabId: TAB_ID,
+        };
+
+        let responseOk = false;
+        try {
+          const response = await fetch(
+            getApiEndpoint(apiEndpoints.admin.clientLogs),
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ logs: entries, metadata }),
+              credentials: "include",
+              // keepalive: drain succeeds even if page unloads during logout flush
+              keepalive: true,
+            },
+          );
+          responseOk = response.ok;
+        } catch {
+          responseOk = false;
+        }
+
+        if (!responseOk) {
+          break;
+        }
+
+        processedBatches += 1;
+
+        if (volatileBatch.length > 0) {
+          this.volatileQueue.splice(0, volatileBatch.length);
+        } else {
+          const ids = durableBatch
+            .map((row) => row.id)
+            .filter((id): id is number => typeof id === "number");
+          await this.deleteQueuedBatch(ids);
+        }
+
+        if (batch.length < MAX_BATCH_SIZE) {
+          break;
+        }
       }
-
-      // Log first successful flush at warn level for diagnostic visibility
-      if (isFirstFlush) {
-        console.warn(
-          `[ClientLogForwarder] First flush response: ${response.status} ${response.ok ? "(OK)" : "(FAILED)"}`,
-        );
-      } else {
-        console.debug(
-          `[ClientLogForwarder] Flush response: ${response.status}`,
-        );
-      }
-
-      // Auth errors (401/403) are logged but do NOT stop the forwarder.
-      //
-      // Rationale: the forwarder is started optimistically during the offline-first
-      // phase (before the session cookie is fully established). A 401 at that point
-      // would kill the forwarder permanently, and the subsequent start() call from
-      // the login completion path may be missed if is_admin is momentarily missing
-      // from the response — leaving no forwarding for the rest of the session.
-      //
-      // Instead we let the forwarder keep running. The backend validates admin status
-      // on every request, so a genuine de-admin event will simply cause all future
-      // flushes to return 401 (harmless network chatter). When the session becomes
-      // valid again after login, the next flush succeeds automatically.
-      if (response.status === 401 || response.status === 403) {
-        console.warn(
-          `[ClientLogForwarder] Auth error (${response.status}) — keeping forwarder alive, will retry on next flush`,
-        );
-      } else if (!response.ok) {
-        // Log unexpected non-2xx responses at error level so they are visible and reach Loki
-        console.error(
-          `[ClientLogForwarder] Unexpected flush response: ${response.status} ${response.statusText}`,
-        );
-      }
-    } catch (err) {
-      this.failedFlushes++;
-      this.lastFlushStatus = null;
-      this.lastFlushError = err instanceof Error ? err.message : String(err);
-
-      // Network error or other fetch failure - log at error level so it is visible
-      // in the browser console AND forwarded to Loki on the next successful flush.
-      console.error("[ClientLogForwarder] Flush failed (network error):", err);
+    } finally {
+      this.flushInProgress = false;
     }
   }
 }
 
-/** Singleton instance - import this to start/stop forwarding */
-export const clientLogForwarder = new ClientLogForwarder();
+export const clientLogForwarder = new ClientLogForwarderService();

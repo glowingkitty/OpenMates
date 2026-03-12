@@ -437,8 +437,12 @@ async def login_user_with_lookup_hash(self, hashed_email: str, lookup_hash: str)
     """
     try:
         # First, verify the lookup_hash is valid for the user
+        # IMPORTANT: must request lookup_hashes explicitly — it's a custom field not in Directus defaults
         url = f"{self.base_url}/users"
-        params = {"filter": json.dumps({"hashed_email": {"_eq": hashed_email}})}
+        params = {
+            "filter": json.dumps({"hashed_email": {"_eq": hashed_email}}),
+            "fields": "id,lookup_hashes",
+        }
         
         response = await self._make_api_request("GET", url, params=params)
         

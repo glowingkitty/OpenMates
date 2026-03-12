@@ -143,26 +143,32 @@
     onNavigatePrevious,
     onNavigateNext,
   }: Props = $props();
+
+  // Defensive: connection may be undefined during async component loading in dev preview
+  type MaybeConnection = ConnectionData | undefined;
   
   // Format price
   let formattedPrice = $derived.by(() => {
-    if (!connection.total_price) return '';
-    const num = parseFloat(connection.total_price);
-    if (isNaN(num)) return `${connection.currency || 'EUR'} ${connection.total_price}`;
-    return `${connection.currency || 'EUR'} ${num.toFixed(num % 1 === 0 ? 0 : 2)}`;
+    const conn = connection as MaybeConnection;
+    if (!conn?.total_price) return '';
+    const num = parseFloat(conn.total_price);
+    if (isNaN(num)) return `${conn.currency || 'EUR'} ${conn.total_price}`;
+    return `${conn.currency || 'EUR'} ${num.toFixed(num % 1 === 0 ? 0 : 2)}`;
   });
   
   // Route summary
   let routeDisplay = $derived.by(() => {
-    if (connection.origin && connection.destination) {
-      return `${connection.origin} → ${connection.destination}`;
+    const conn = connection as MaybeConnection;
+    if (conn?.origin && conn?.destination) {
+      return `${conn.origin} → ${conn.destination}`;
     }
     return '';
   });
   
   // Trip type label
   let tripTypeLabel = $derived.by(() => {
-    switch (connection.trip_type) {
+    const conn = connection as MaybeConnection;
+    switch (conn?.trip_type) {
       case 'round_trip': return 'Round trip';
       case 'multi_city': return 'Multi-city';
       default: return 'One way';
@@ -228,15 +234,16 @@
 
   // Sync initial booking values from the connection prop (once, reactive to connection changes)
   $effect(() => {
-    if (connection.booking_url && bookingState === 'idle') {
-      resolvedBookingUrl = connection.booking_url;
-      resolvedBookingProvider = connection.booking_provider || '';
+    const conn = connection as MaybeConnection;
+    if (conn?.booking_url && bookingState === 'idle') {
+      resolvedBookingUrl = conn.booking_url;
+      resolvedBookingProvider = conn.booking_provider || '';
       bookingState = 'loaded';
     }
   });
   
   // Primary carrier name (for display when provider not yet known)
-  let primaryCarrier = $derived(connection.carriers?.[0] || '');
+  let primaryCarrier = $derived((connection as MaybeConnection)?.carriers?.[0] || '');
   
   // Hashed chat ID for linking usage entries to the chat where the embed lives.
   // Loaded from the embed store on mount so it's available for the booking link request.
@@ -271,8 +278,9 @@
 
   // If flight_track is already persisted in the connection data, skip to loaded state.
   $effect(() => {
-    if (connection.flight_track && flightTrackState === 'idle') {
-      resolvedFlightTrack = connection.flight_track;
+    const conn = connection as MaybeConnection;
+    if (conn?.flight_track && flightTrackState === 'idle') {
+      resolvedFlightTrack = conn.flight_track;
       flightTrackState = 'loaded';
     }
   });
@@ -282,8 +290,9 @@
    * Returns null if no air segment with a flight number is found.
    */
   let firstAirFlightNumber = $derived.by(() => {
-    if (!connection.legs) return null;
-    for (const leg of connection.legs) {
+    const conn = connection as MaybeConnection;
+    if (!conn?.legs) return null;
+    for (const leg of conn.legs) {
       if (!leg.segments) continue;
       for (const seg of leg.segments) {
         if (seg.number && seg.number.trim()) {
@@ -296,7 +305,8 @@
 
   /** Departure date extracted from the first leg's departure ISO string */
   let firstDepartureDate = $derived.by(() => {
-    const depIso = connection.legs?.[0]?.departure || connection.departure;
+    const conn = connection as MaybeConnection;
+    const depIso = conn?.legs?.[0]?.departure || conn?.departure;
     if (!depIso) return null;
     return depIso.split('T')[0] || null;
   });
@@ -304,11 +314,12 @@
   // Auto-trigger: once we have a flight number + date, auto-load the track.
   // Only fires when: we have an air segment, state is idle, track not yet persisted.
   $effect(() => {
+    const conn = connection as MaybeConnection;
     if (
       firstAirFlightNumber &&
       firstDepartureDate &&
       flightTrackState === 'idle' &&
-      connection.transport_method === 'airplane'
+      conn?.transport_method === 'airplane'
     ) {
       loadFlightDetails(firstAirFlightNumber, firstDepartureDate);
     }
@@ -1026,12 +1037,13 @@
    * following the flight path from first departure to final arrival.
    */
   let routeWaypoints = $derived.by(() => {
-    if (!connection.legs || connection.legs.length === 0) return [];
+    const conn = connection as MaybeConnection;
+    if (!conn?.legs || conn.legs.length === 0) return [];
     
     const waypoints: Array<{ lat: number; lng: number; code: string }> = [];
     const seen = new Set<string>();
     
-    for (const leg of connection.legs) {
+    for (const leg of conn.legs) {
       if (!leg.segments) continue;
       for (const seg of leg.segments) {
         // Add departure airport
@@ -1230,6 +1242,7 @@
   });
 </script>
 
+{#if connection}
 <UnifiedEmbedFullscreen
   appId="travel"
   skillId="connection"
@@ -1491,6 +1504,7 @@
     </div>
   {/snippet}
 </UnifiedEmbedFullscreen>
+{/if}
 
 <style>
   /* ===========================================

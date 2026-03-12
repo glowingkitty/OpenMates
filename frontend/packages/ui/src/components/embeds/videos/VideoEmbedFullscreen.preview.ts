@@ -11,7 +11,7 @@ const defaultProps = {
 	url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
 	title: 'Understanding Svelte 5 Runes — Complete Tutorial',
 	videoId: 'dQw4w9WgXcQ',
-	onClose: () => console.log('[Preview] Close clicked'),
+	onClose: () => {},
 	hasPreviousEmbed: false,
 	hasNextEmbed: false
 };
@@ -25,8 +25,8 @@ export const variants = {
 		...defaultProps,
 		hasPreviousEmbed: true,
 		hasNextEmbed: true,
-		onNavigatePrevious: () => console.log('[Preview] Navigate previous'),
-		onNavigateNext: () => console.log('[Preview] Navigate next')
+		onNavigatePrevious: () => {},
+		onNavigateNext: () => {}
 	},
 
 	/** With metadata passed from preview */
@@ -48,6 +48,6 @@ export const variants = {
 	/** Minimal — just URL */
 	minimal: {
 		url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-		onClose: () => console.log('[Preview] Close clicked')
+		onClose: () => {}
 	}
 };
