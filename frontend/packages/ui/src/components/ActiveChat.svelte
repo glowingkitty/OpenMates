@@ -10101,6 +10101,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     <!-- Single Event Fullscreen (child embed from [!](embed:ref) large preview) -->
                     <!-- Reconstructs EventResult from decodedContent to render EventEmbedFullscreen directly -->
                     <EventEmbedFullscreen
+                        embedId={embedFullscreenData.embedId}
                         event={{
                             embed_id: embedFullscreenData.embedId ?? '',
                             id: typeof embedFullscreenData.decodedContent?.id === 'string' ? embedFullscreenData.decodedContent.id : undefined,
@@ -10168,6 +10169,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     <!-- Single Travel Stay Fullscreen (child embed from [!](embed:ref) large preview) -->
                     <!-- Reconstructs StayData from decodedContent to render TravelStayEmbedFullscreen directly -->
                     <TravelStayEmbedFullscreen
+                        embedId={embedFullscreenData.embedId}
                         stay={{
                             type: typeof embedFullscreenData.decodedContent?.type === 'string' ? embedFullscreenData.decodedContent.type : undefined,
                             name: typeof embedFullscreenData.decodedContent?.name === 'string' ? embedFullscreenData.decodedContent.name : undefined,

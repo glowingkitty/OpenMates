@@ -50,6 +50,8 @@
 
   interface Props {
     event: EventResult;
+    /** Embed ID forwarded to UnifiedEmbedFullscreen for the share handler */
+    embedId?: string;
     onClose: () => void;
     hasPreviousEmbed?: boolean;
     hasNextEmbed?: boolean;
@@ -59,6 +61,7 @@
 
   let {
     event,
+    embedId,
     onClose,
     hasPreviousEmbed = false,
     hasNextEmbed = false,
@@ -286,6 +289,7 @@
   {mapCenter}
   mapZoom={13}
   {mapMarkers}
+  currentEmbedId={embedId}
 >
   {#snippet detailContent()}
     <!-- Type badge + RSVP row + source -->

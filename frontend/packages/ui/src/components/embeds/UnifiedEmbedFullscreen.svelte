@@ -774,6 +774,17 @@
   onMount(() => {
     // Listen for chat selection events to close fullscreen
     window.addEventListener('globalChatSelected', handleChatSelected);
+
+    // Warn loudly if share is visible but no embed ID was provided — share will silently no-op.
+    // Every fullscreen component MUST pass currentEmbedId. If this fires, trace the call stack
+    // back to the *EmbedFullscreen component and add currentEmbedId={embedId} to its
+    // UnifiedEmbedFullscreen (or EntryWithMapTemplate) call.
+    if (showShare && !currentEmbedId && !onShare) {
+      console.warn(
+        `[UnifiedEmbedFullscreen] Missing currentEmbedId for appId="${appId}" skillId="${skillId}". ` +
+        'Share button will not work. Pass currentEmbedId={embedId} to this component.'
+      );
+    }
     
     // Subscribe to embed updates if currentEmbedId is provided
     // This enables reactive updates during streaming

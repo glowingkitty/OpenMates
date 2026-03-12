@@ -36,7 +36,7 @@
     property_type?: string;
     link?: string;
     property_token?: string;
-    gps_coordinates?: { latitude: number; longitude: number };
+    gps_coordinates?: { latitude?: number; longitude?: number };
     hotel_class?: number;
     overall_rating?: number;
     reviews?: number;
@@ -58,6 +58,8 @@
   
   interface Props {
     stay: StayData;
+    /** Embed ID forwarded to UnifiedEmbedFullscreen for the share handler */
+    embedId?: string;
     onClose: () => void;
     hasPreviousEmbed?: boolean;
     hasNextEmbed?: boolean;
@@ -67,6 +69,7 @@
   
   let {
     stay,
+    embedId,
     onClose,
     hasPreviousEmbed = false,
     hasNextEmbed = false,
@@ -148,6 +151,7 @@
   {mapCenter}
   mapZoom={15}
   {mapMarkers}
+  currentEmbedId={embedId}
 >
   {#snippet embedHeaderCta()}
     {#if bookingUrl}

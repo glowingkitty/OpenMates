@@ -91,7 +91,7 @@
   }: Props = $props();
 
   // Local reactive state for streaming updates
-  let localQuery = $state('');
+  let _localQuery = $state('');
   let localProvider = $state('Google');
   let embedIdsOverride = $state<string | string[] | undefined>(undefined);
   let embedIdsValue = $derived(embedIdsOverride ?? embedIds);
@@ -100,7 +100,7 @@
   let localErrorMessage = $state('');
 
   $effect(() => {
-    localQuery = queryProp || '';
+    _localQuery = queryProp || '';
     localProvider = providerProp || 'Google';
     localResults = resultsProp || [];
     localStatus = statusProp || 'finished';
@@ -256,7 +256,7 @@
       localStatus = data.status;
     }
     const content = data.decodedContent;
-    if (typeof content.query === 'string') localQuery = content.query;
+    if (typeof content.query === 'string') _localQuery = content.query;
     if (typeof content.provider === 'string') localProvider = content.provider;
     if (content.embed_ids) embedIdsOverride = content.embed_ids as string | string[];
     if (Array.isArray(content.results)) localResults = content.results as unknown[];

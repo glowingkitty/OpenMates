@@ -270,6 +270,7 @@
   {#snippet childFullscreen(nav)}
     <EventEmbedFullscreen
       event={nav.result}
+      embedId={nav.result.embed_id}
       onClose={nav.onClose}
       hasPreviousEmbed={nav.hasPrevious}
       hasNextEmbed={nav.hasNext}
