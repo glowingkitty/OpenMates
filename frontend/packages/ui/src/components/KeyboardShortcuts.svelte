@@ -1,9 +1,8 @@
 <script lang="ts">
   /* eslint-disable no-console */
   import { onMount, createEventDispatcher } from 'svelte';
-  import { get } from 'svelte/store';
   import { isDesktop } from '../utils/platform';
-  import { panelState, isActivityHistoryOpen } from '../stores/panelStateStore';
+  import { panelState } from '../stores/panelStateStore';
   import { openSearch } from '../stores/searchStore';
 
   type WindowWithKeyboardShortcutsFlag = Window & {
@@ -84,11 +83,10 @@
         event.stopPropagation();
 
         // Ensure the chats sidebar is open before activating search.
-        // This must happen at the global shortcut layer because Chats.svelte may be
-        // unmounted while the panel is closed (especially on mobile/small viewports).
-        if (!get(isActivityHistoryOpen)) {
-          panelState.toggleChats();
-        }
+        // Uses openChats() (not toggleChats()) so it works on mobile too — the
+        // derived store normally forces the panel closed on mobile, but openChats()
+        // sets intent="open" which bypasses that guard.
+        panelState.openChats();
 
         // Open search directly via store so search state is preserved even if
         // Chats.svelte mounts after this keyboard event.

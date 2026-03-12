@@ -1,9 +1,10 @@
+/* eslint-disable no-console */
 import { writable, derived, get } from "svelte/store";
 import { authStore } from "./authStore";
 import { isInSignupProcess, isLoggingOut } from "./signupState";
 import { isMobileView, loginInterfaceOpen } from "./uiStateStore";
 
-type ActivityHistoryUserIntent = "auto" | "closed";
+type ActivityHistoryUserIntent = "auto" | "closed" | "open";
 
 // --- Internal Writable Stores ---
 const _isActivityHistoryOpen = writable<boolean>(false);
@@ -75,6 +76,29 @@ function toggleChats(): void {
 }
 
 /**
+ * Explicitly opens the Activity History (Chats) panel.
+ * Unlike toggleChats(), this works on mobile — used by Cmd+F search shortcut
+ * so the sidebar opens even on narrow viewports to reveal the search bar.
+ * Guards (signup process, login interface open) are still respected.
+ */
+function openChats(): void {
+  const inSignupProcess = get(isInSignupProcess);
+  const loginOpen = get(loginInterfaceOpen);
+
+  if (inSignupProcess || loginOpen) {
+    console.debug(
+      "[PanelState] openChats blocked — signup or login interface active",
+    );
+    return;
+  }
+
+  // "open" intent bypasses the mobile guard in the derived store so the
+  // panel mounts even on narrow viewports (e.g. Cmd+F from mobile).
+  _activityHistoryUserIntent.set("open");
+  _isActivityHistoryOpen.set(true);
+}
+
+/**
  * Opens the Settings panel.
  */
 function openSettings(): void {
@@ -127,9 +151,9 @@ const intendedActivityHistoryOpen = derived(
       console.debug("[PanelState] Intended AH Closed: Login Interface Open");
       return false; // Must be closed when login interface is open
     }
-    if ($isMobileView) {
+    if ($isMobileView && $activityHistoryUserIntent !== "open") {
       console.debug("[PanelState] Intended AH Closed: Mobile View");
-      return false; // Must be closed on mobile
+      return false; // Must be closed on mobile unless explicitly force-opened (e.g. Cmd+F)
     }
     if ($activityHistoryUserIntent === "closed") {
       console.debug("[PanelState] Intended AH Closed: User Manually Closed");
@@ -246,6 +270,7 @@ export const panelState = {
     }),
   ).subscribe,
   toggleChats,
+  openChats,
   openSettings,
   closeSettings,
   // Expose reset for potential use elsewhere if needed, e.g., deep linking
