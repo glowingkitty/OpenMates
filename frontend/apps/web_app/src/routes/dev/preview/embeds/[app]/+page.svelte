@@ -12,9 +12,12 @@
     1. Inline Link         (simulated visual replica)
     2. Quote Block         (simulated visual replica)
     3. Group — Small       (horizontal scroll row of all data variants, isMobile=false → 300x200px)
-    4. Preview — Large     (default variant in large container, container-type:inline-size >300px)
-    5. Group — Large       (slideshow carousel of all data variants with prev/next)
-    6. Fullscreen          (clipped inline, cycles through variants with prev/next)
+    4. Group — Large       (slideshow carousel of all data variants with prev/next) — hidden for app skills
+    5. Fullscreen          (clipped inline, cycles through variants with prev/next)
+
+  "Preview — Large" was removed (Group — Large already covers that use case).
+  "Group — Large" is also hidden for app-skill embeds, since app skills are never
+  promoted to a large single-embed carousel in production.
 
   "Data variants" = all named variants except 'error'/'mobile'/'processing' + the default.
 
@@ -35,6 +38,8 @@
 		fullscreenPath: string;
 		inlineLinkText: string;
 		quoteText: string;
+		/** True for app-skill-use embeds (AppSkillUseRenderer). Group — Large is hidden for these. */
+		isAppSkill?: boolean;
 	}
 
 	const APP_REGISTRY: Record<string, EmbedSection[]> = {
@@ -53,7 +58,8 @@
 				previewPath: 'embeds/code/CodeGetDocsEmbedPreview',
 				fullscreenPath: 'embeds/code/CodeGetDocsEmbedFullscreen',
 				inlineLinkText: 'Svelte $state documentation',
-				quoteText: 'The $state rune declares reactive state that updates the UI automatically.'
+				quoteText: 'The $state rune declares reactive state that updates the UI automatically.',
+				isAppSkill: true
 			}
 		],
 		docs: [
@@ -74,7 +80,8 @@
 				fullscreenPath: 'embeds/web/WebSearchEmbedFullscreen',
 				inlineLinkText: 'Best restaurants in Berlin',
 				quoteText:
-					'Discover the best dining experiences in Berlin, from traditional German cuisine to international flavors.'
+					'Discover the best dining experiences in Berlin, from traditional German cuisine to international flavors.',
+				isAppSkill: true
 			},
 			{
 				skillLabel: 'Read',
@@ -83,7 +90,8 @@
 				fullscreenPath: 'embeds/web/WebReadEmbedFullscreen',
 				inlineLinkText: 'Migrating from Svelte 4 to 5',
 				quoteText:
-					'Svelte 5 introduces runes, a powerful new reactivity system that replaces $: reactive statements.'
+					'Svelte 5 introduces runes, a powerful new reactivity system that replaces $: reactive statements.',
+				isAppSkill: true
 			},
 			{
 				skillLabel: 'Website',
@@ -110,7 +118,8 @@
 				previewPath: 'embeds/videos/VideoTranscriptEmbedPreview',
 				fullscreenPath: 'embeds/videos/VideoTranscriptEmbedFullscreen',
 				inlineLinkText: 'Svelte 5 Runes transcript',
-				quoteText: 'Today we are going to learn about Svelte 5 runes.'
+				quoteText: 'Today we are going to learn about Svelte 5 runes.',
+				isAppSkill: true
 			},
 			{
 				skillLabel: 'Search',
@@ -118,7 +127,8 @@
 				previewPath: 'embeds/videos/VideosSearchEmbedPreview',
 				fullscreenPath: 'embeds/videos/VideosSearchEmbedFullscreen',
 				inlineLinkText: 'Svelte 5 tutorial search',
-				quoteText: 'Found 24 results for "svelte 5 tutorial" — curated from YouTube.'
+				quoteText: 'Found 24 results for "svelte 5 tutorial" — curated from YouTube.',
+				isAppSkill: true
 			}
 		],
 		images: [
@@ -128,7 +138,8 @@
 				previewPath: 'embeds/images/ImageGenerateEmbedPreview',
 				fullscreenPath: 'embeds/images/ImageGenerateEmbedFullscreen',
 				inlineLinkText: 'Cat wearing a top hat',
-				quoteText: 'Generated image: a quick sketch of a cat wearing a top hat, pencil style.'
+				quoteText: 'Generated image: a quick sketch of a cat wearing a top hat, pencil style.',
+				isAppSkill: true
 			},
 			{
 				skillLabel: 'Search',
@@ -136,7 +147,8 @@
 				previewPath: 'embeds/images/ImagesSearchEmbedPreview',
 				fullscreenPath: 'embeds/images/ImagesSearchEmbedFullscreen',
 				inlineLinkText: 'Golden Gate Bridge photos',
-				quoteText: 'Found 24 images of the Golden Gate Bridge via Brave Image Search.'
+				quoteText: 'Found 24 images of the Golden Gate Bridge via Brave Image Search.',
+				isAppSkill: true
 			},
 			{
 				skillLabel: 'Image Result',
@@ -161,7 +173,8 @@
 				fullscreenPath: 'embeds/images/ImageEmbedFullscreen',
 				inlineLinkText: 'View: golden-gate-sunset.jpg',
 				quoteText:
-					'I analyzed the image: a vibrant sunset photograph taken at the Golden Gate Bridge.'
+					'I analyzed the image: a vibrant sunset photograph taken at the Golden Gate Bridge.',
+				isAppSkill: true
 			}
 		],
 		news: [
@@ -181,7 +194,8 @@
 				fullscreenPath: 'embeds/news/NewsSearchEmbedFullscreen',
 				inlineLinkText: 'Latest technology news 2026',
 				quoteText:
-					'New AI-powered development tools are changing how developers write, test, and deploy software.'
+					'New AI-powered development tools are changing how developers write, test, and deploy software.',
+				isAppSkill: true
 			}
 		],
 		travel: [
@@ -191,7 +205,8 @@
 				previewPath: 'embeds/travel/TravelSearchEmbedPreview',
 				fullscreenPath: 'embeds/travel/TravelSearchEmbedFullscreen',
 				inlineLinkText: 'Munich to London, Mar 15',
-				quoteText: 'Lufthansa LH2485: Munich to London Heathrow, 2h 10m, from 89 EUR.'
+				quoteText: 'Lufthansa LH2485: Munich to London Heathrow, 2h 10m, from 89 EUR.',
+				isAppSkill: true
 			},
 			{
 				skillLabel: 'Connection',
@@ -207,7 +222,8 @@
 				previewPath: 'embeds/travel/TravelPriceCalendarEmbedPreview',
 				fullscreenPath: 'embeds/travel/TravelPriceCalendarEmbedFullscreen',
 				inlineLinkText: 'Munich to Barcelona prices, March',
-				quoteText: 'Cheapest day: March 18 at 62 EUR. Prices shown for Munich to Barcelona.'
+				quoteText: 'Cheapest day: March 18 at 62 EUR. Prices shown for Munich to Barcelona.',
+				isAppSkill: true
 			},
 			{
 				skillLabel: 'Stay',
@@ -223,7 +239,8 @@
 				previewPath: 'embeds/travel/TravelStaysEmbedPreview',
 				fullscreenPath: 'embeds/travel/TravelStaysEmbedFullscreen',
 				inlineLinkText: 'Hotels in Barcelona, Mar 15-18',
-				quoteText: 'Found 8 hotels in Barcelona for Mar 15-18. Top pick: Hotel Arts Barcelona.'
+				quoteText: 'Found 8 hotels in Barcelona for Mar 15-18. Top pick: Hotel Arts Barcelona.',
+				isAppSkill: true
 			}
 		],
 		maps: [
@@ -233,7 +250,8 @@
 				previewPath: 'embeds/maps/MapsSearchEmbedPreview',
 				fullscreenPath: 'embeds/maps/MapsSearchEmbedFullscreen',
 				inlineLinkText: 'Coffee shops near Marienplatz',
-				quoteText: 'Man vs. Machine Coffee Roasters — Rated 4.7, 0.3km from Marienplatz, Munich.'
+				quoteText: 'Man vs. Machine Coffee Roasters — Rated 4.7, 0.3km from Marienplatz, Munich.',
+				isAppSkill: true
 			}
 		],
 		math: [
@@ -243,7 +261,8 @@
 				previewPath: 'embeds/math/MathCalculateEmbedPreview',
 				fullscreenPath: 'embeds/math/MathCalculateEmbedFullscreen',
 				inlineLinkText: 'sin(pi/4) + cos(pi/3)',
-				quoteText: 'Result: sin(pi/4) + cos(pi/3) = sqrt(2)/2 + 1/2 approx 1.207'
+				quoteText: 'Result: sin(pi/4) + cos(pi/3) = sqrt(2)/2 + 1/2 approx 1.207',
+				isAppSkill: true
 			},
 			{
 				skillLabel: 'Plot',
@@ -269,7 +288,8 @@
 				previewPath: 'embeds/events/EventsSearchEmbedPreview',
 				fullscreenPath: 'embeds/events/EventsSearchEmbedFullscreen',
 				inlineLinkText: 'AI meetups in Berlin',
-				quoteText: 'Found 3 upcoming AI & tech events in Berlin this month.'
+				quoteText: 'Found 3 upcoming AI & tech events in Berlin this month.',
+				isAppSkill: true
 			}
 		],
 		reminder: [
@@ -279,7 +299,8 @@
 				previewPath: 'embeds/reminder/ReminderEmbedPreview',
 				fullscreenPath: 'embeds/reminder/ReminderEmbedFullscreen',
 				inlineLinkText: 'Reminder: tomorrow 9:00 AM',
-				quoteText: 'Reminder set! I will send a message in this chat tomorrow at 9:00 AM.'
+				quoteText: 'Reminder set! I will send a message in this chat tomorrow at 9:00 AM.',
+				isAppSkill: true
 			}
 		],
 		sheets: [
@@ -317,7 +338,8 @@
 				previewPath: 'embeds/health/HealthSearchEmbedPreview',
 				fullscreenPath: 'embeds/health/HealthSearchEmbedFullscreen',
 				inlineLinkText: 'Cardiologists near Munich',
-				quoteText: 'Found 5 cardiologists within 5km. Top result: Prof. Weber, rated 4.9.'
+				quoteText: 'Found 5 cardiologists within 5km. Top result: Prof. Weber, rated 4.9.',
+				isAppSkill: true
 			}
 		],
 		mail: [
@@ -347,7 +369,8 @@
 				fullscreenPath: 'embeds/pdf/PdfReadEmbedFullscreen',
 				inlineLinkText: 'Architecture whitepaper — page 12',
 				quoteText:
-					'The microservices architecture enables independent scaling of each service component.'
+					'The microservices architecture enables independent scaling of each service component.',
+				isAppSkill: true
 			},
 			{
 				skillLabel: 'Search',
@@ -355,7 +378,8 @@
 				previewPath: 'embeds/pdf/PdfSearchEmbedPreview',
 				fullscreenPath: 'embeds/pdf/PdfSearchEmbedFullscreen',
 				inlineLinkText: 'Search "authentication" in docs',
-				quoteText: 'Found 7 mentions of "authentication" across 3 documents.'
+				quoteText: 'Found 7 mentions of "authentication" across 3 documents.',
+				isAppSkill: true
 			}
 		],
 		shopping: [
@@ -366,7 +390,8 @@
 				fullscreenPath: 'embeds/shopping/ShoppingSearchEmbedFullscreen',
 				inlineLinkText: 'Wireless headphones under 100 EUR',
 				quoteText:
-					'Found 12 wireless headphones under 100 EUR. Top pick: Sony WH-1000XM4 at 89 EUR.'
+					'Found 12 wireless headphones under 100 EUR. Top pick: Sony WH-1000XM4 at 89 EUR.',
+				isAppSkill: true
 			}
 		]
 	};
@@ -721,8 +746,6 @@
 					{:else if s.loadError}
 						<p class="section-error">{s.loadError}</p>
 					{:else}
-						{@const props = getEffectiveProps(s)}
-
 						<!-- Props editor -->
 						{#if s.showPropsEditor}
 							<div class="props-panel">
@@ -794,7 +817,7 @@
 							</div>
 						</div>
 
-						<!-- 3. Group — Small + 4. Preview — Large -->
+						<!-- 3. Group — Small + 4. Group — Large -->
 						{#if s.PreviewComponent}
 							{@const Preview = s.PreviewComponent}
 							{@const dataVars = getDataVariants(s)}
@@ -820,20 +843,8 @@
 								</div>
 							{/if}
 
-							<!-- 4. Preview — Large (default variant in large container — mirrors assistant large-promotion) -->
-							<div class="dt">
-								<h3 class="dt-heading">
-									Preview — Large <span class="size-hint">default variant · large container</span>
-								</h3>
-								<div class="dt-body dt-body--flush">
-									<div class="large-container">
-										<Preview {...props} isMobile={false} />
-									</div>
-								</div>
-							</div>
-
-							<!-- 5. Group — Large (slideshow of all data variants) -->
-							{#if dataVars.length > 1}
+							<!-- 4. Group — Large (slideshow of all data variants) — hidden for app skills -->
+							{#if dataVars.length > 1 && !section.isAppSkill}
 								{@const totalSlides = dataVars.length}
 								{@const slideIdx = s.largeSlideIndex}
 								{@const [, slideProps] = dataVars[slideIdx]}
