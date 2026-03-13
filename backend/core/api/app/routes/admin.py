@@ -4,7 +4,6 @@ REST API endpoints for server administration functionality.
 """
 
 import logging
-import os
 import random
 import string
 from typing import Dict, Any, List, Optional
@@ -1077,12 +1076,6 @@ async def delete_compression_threshold(
 # See scripts/run-tests.sh and scripts/run-tests-daily.sh for the file format.
 # =============================================================================
 
-# Cache key for tracking whether a manual test run is currently in progress
-MANUAL_TEST_RUN_CACHE_KEY = "admin:manual_test_run"
-# How long to keep the "in progress" flag before it auto-expires (seconds)
-MANUAL_TEST_RUN_TTL_SECONDS = 3600  # 1 hour max
-
-
 class TestResultsResponse(BaseModel):
     """Response model for GET /v1/admin/test-results."""
     has_results: bool = Field(description="Whether any test results are available")
@@ -1090,15 +1083,6 @@ class TestResultsResponse(BaseModel):
     last_run_timestamp: Optional[str] = Field(None, description="ISO timestamp of last run")
     next_scheduled_run_utc: str = Field(description="ISO timestamp of next scheduled daily run (03:00 UTC)")
     hours_until_next_run: float = Field(description="Hours until next scheduled daily run")
-    is_running: bool = Field(False, description="Whether a test run is currently in progress")
-    run_started_at: Optional[str] = Field(None, description="ISO timestamp when current run started (if running)")
-
-
-class TriggerTestRunResponse(BaseModel):
-    """Response model for POST /v1/admin/tests/run."""
-    success: bool = Field(description="Whether the test run was triggered")
-    message: str = Field(description="Status message")
-    already_running: bool = Field(False, description="True if a run was already in progress")
 
 
 def _get_project_root():
@@ -1139,12 +1123,13 @@ def _compute_next_daily_run_utc() -> tuple:
 async def get_test_results(
     request: Request,
     admin_user: User = Depends(require_admin),
-    cache_service: CacheService = Depends(get_cache_service),
 ) -> TestResultsResponse:
     """
     Get the latest test run results and scheduling info.
 
     Reads test-results/last-run.json from disk and computes scheduling metadata.
+    Daily tests are triggered by a system crontab (see `crontab -l` on the host).
+    Manual runs can be started via: ./scripts/run-tests-daily.sh --force
     Admin-only endpoint.
     """
     import json
@@ -1153,44 +1138,6 @@ async def get_test_results(
 
     next_run_utc, hours_until = _compute_next_daily_run_utc()
 
-    # Check if a manual run is in progress.
-    # The Redis flag is set when a run is triggered and has a 1-hour TTL.
-    # However, the sidecar may finish (or fail) much sooner. To avoid stale
-    # "running" state, we cross-check with the sidecar's actual status and
-    # clear the Redis flag if the sidecar reports the run is no longer active.
-    is_running = False
-    run_started_at = None
-    try:
-        run_data = await cache_service.redis.hgetall(MANUAL_TEST_RUN_CACHE_KEY)
-        if run_data and run_data.get("status") == "running":
-            is_running = True
-            run_started_at = run_data.get("started_at")
-
-            # Cross-check with sidecar: if sidecar says idle, clear stale flag
-            try:
-                import httpx
-                sidecar_url = os.environ.get("CORE_SIDECAR_URL", "http://core-admin-sidecar:8001")
-                sidecar_key = os.environ.get("SECRET__CORE_SERVER__ADMIN_LOG_API_KEY", "")
-                async with httpx.AsyncClient(timeout=3.0) as client:
-                    status_resp = await client.get(
-                        f"{sidecar_url}/admin/run-tests/status",
-                        headers={"X-Admin-Log-Key": sidecar_key},
-                    )
-                if status_resp.status_code == 200:
-                    sidecar_data = status_resp.json()
-                    sidecar_status = sidecar_data.get("status", "")
-                    if sidecar_status != "in_progress":
-                        # Sidecar is idle — run finished or failed; clear stale flag
-                        logger.info("Sidecar reports idle but Redis flag was 'running' — clearing stale flag")
-                        await cache_service.redis.delete(MANUAL_TEST_RUN_CACHE_KEY)
-                        is_running = False
-                        run_started_at = None
-            except Exception as sidecar_err:
-                # If we can't reach the sidecar, keep the Redis state as-is
-                logger.debug(f"Could not verify sidecar status: {sidecar_err}")
-    except Exception as e:
-        logger.warning(f"Failed to check test run status from cache: {e}")
-
     if not last_run_path.exists():
         return TestResultsResponse(
             has_results=False,
@@ -1198,8 +1145,6 @@ async def get_test_results(
             last_run_timestamp=None,
             next_scheduled_run_utc=next_run_utc,
             hours_until_next_run=hours_until,
-            is_running=is_running,
-            run_started_at=run_started_at,
         )
 
     try:
@@ -1214,8 +1159,6 @@ async def get_test_results(
             last_run_timestamp=last_run_timestamp,
             next_scheduled_run_utc=next_run_utc,
             hours_until_next_run=hours_until,
-            is_running=is_running,
-            run_started_at=run_started_at,
         )
     except json.JSONDecodeError as e:
         logger.error(f"Failed to parse last-run.json: {e}", exc_info=True)
@@ -1223,131 +1166,3 @@ async def get_test_results(
     except Exception as e:
         logger.error(f"Failed to read test results: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to read test results")
-
-
-@router.post("/tests/run", response_model=TriggerTestRunResponse)
-@limiter.limit("5/minute")
-async def trigger_test_run(
-    request: Request,
-    admin_user: User = Depends(require_admin),
-    cache_service: CacheService = Depends(get_cache_service),
-) -> TriggerTestRunResponse:
-    """
-    Trigger an out-of-schedule full test run via the admin sidecar.
-
-    The sidecar executes scripts/run-tests-daily.sh on the host filesystem
-    (where Node.js, pnpm, pytest, and Docker CLI are available). The --force
-    flag is passed to skip the 24h commit-activity gate.
-    Only one run can be active at a time.
-    Admin-only endpoint.
-    """
-    import httpx
-    from datetime import datetime, timezone
-
-    # Check if a run is already in progress
-    try:
-        run_data = await cache_service.redis.hgetall(MANUAL_TEST_RUN_CACHE_KEY)
-        if run_data and run_data.get("status") == "running":
-            return TriggerTestRunResponse(
-                success=False,
-                message="A test run is already in progress",
-                already_running=True,
-            )
-    except Exception as e:
-        logger.warning(f"Failed to check test run status: {e}")
-
-    # Mark run as in progress
-    started_at = datetime.now(timezone.utc).isoformat()
-    try:
-        await cache_service.redis.hset(MANUAL_TEST_RUN_CACHE_KEY, mapping={
-            "status": "running",
-            "started_at": started_at,
-            "triggered_by": admin_user.id,
-        })
-        await cache_service.redis.expire(MANUAL_TEST_RUN_CACHE_KEY, MANUAL_TEST_RUN_TTL_SECONDS)
-    except Exception as e:
-        logger.warning(f"Failed to set test run status in cache: {e}")
-
-    # Trigger test run via the admin sidecar HTTP endpoint.
-    # The sidecar runs the script on the host filesystem where all tools exist.
-    # Manual triggers always use --force to skip the commit-activity gate.
-    sidecar_url = os.environ.get("CORE_SIDECAR_URL", "http://core-admin-sidecar:8001")
-    sidecar_key = os.environ.get("SECRET__CORE_SERVER__ADMIN_LOG_API_KEY", "")
-
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.post(
-                f"{sidecar_url}/admin/run-tests",
-                params={"force": "true"},
-                headers={"X-Admin-Log-Key": sidecar_key},
-            )
-            if resp.status_code == 409:
-                return TriggerTestRunResponse(
-                    success=False,
-                    message="A test run is already in progress on the sidecar",
-                    already_running=True,
-                )
-            if resp.status_code != 202:
-                raise Exception(f"Sidecar returned {resp.status_code}: {resp.text[:200]}")
-    except httpx.ConnectError:
-        logger.error("Failed to connect to admin sidecar at %s", sidecar_url)
-        try:
-            await cache_service.redis.delete(MANUAL_TEST_RUN_CACHE_KEY)
-        except Exception:
-            pass
-        raise HTTPException(
-            status_code=503,
-            detail="Admin sidecar not reachable. Ensure core-admin-sidecar container is running.",
-        )
-    except Exception as e:
-        logger.error(f"Failed to trigger test run via sidecar: {e}", exc_info=True)
-        try:
-            await cache_service.redis.delete(MANUAL_TEST_RUN_CACHE_KEY)
-        except Exception:
-            pass
-        raise HTTPException(status_code=500, detail=f"Failed to trigger test run: {e}")
-
-    logger.info(f"Manual test run triggered via sidecar by admin {admin_user.id}")
-
-    # Notify admin that the test run has started.
-    # This is non-fatal — a missing email must not break the trigger response.
-    try:
-        admin_email = os.environ.get("ADMIN_NOTIFY_EMAIL") or os.environ.get("SERVER_OWNER_EMAIL")
-        if admin_email:
-            import subprocess as _subprocess
-            git_sha, git_branch = "unknown", "unknown"
-            try:
-                git_sha = _subprocess.check_output(
-                    ["git", "rev-parse", "--short", "HEAD"],
-                    stderr=_subprocess.DEVNULL, text=True,
-                ).strip()
-                git_branch = _subprocess.check_output(
-                    ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-                    stderr=_subprocess.DEVNULL, text=True,
-                ).strip()
-            except Exception:
-                pass
-            from backend.core.api.app.tasks.celery_config import app as celery_app
-            server_environment = os.environ.get("SERVER_ENVIRONMENT", "development")
-            celery_app.send_task(
-                name="app.tasks.email_tasks.test_run_started_email_task.send_test_run_started",
-                args=[admin_email, "Manual (admin)", git_sha, git_branch, started_at, server_environment],
-                queue="email",
-            )
-            logger.info(
-                "Dispatched test run started email for manual trigger (environment=%s)",
-                server_environment,
-            )
-        else:
-            logger.warning(
-                "ADMIN_NOTIFY_EMAIL / SERVER_OWNER_EMAIL not set — "
-                "skipping test run started email"
-            )
-    except Exception as email_err:
-        logger.warning(f"Could not dispatch test run started email: {email_err}")
-
-    return TriggerTestRunResponse(
-        success=True,
-        message="Test run started on the host. Results will appear once the run completes.",
-        already_running=False,
-    )

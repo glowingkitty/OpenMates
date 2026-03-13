@@ -98,10 +98,9 @@ def dispatch_email() -> None:
     Read last-run.json (and optionally last-run-prod-smoke.json) and dispatch
     the test run summary email via POST /internal/dispatch-test-summary-email.
 
-    This script runs inside the admin-sidecar container (which does not have
-    celery installed), so we use an HTTP call to the API container instead of
-    importing celery directly. The API container dispatches the Celery email
-    task on our behalf.
+    This script runs on the host (via crontab), so we use an HTTP call to the
+    API container instead of importing celery directly. The API container
+    dispatches the Celery email task on our behalf.
 
     Required env vars (read from .env if not in environment):
         ADMIN_NOTIFY_EMAIL          — recipient for the summary email
@@ -230,8 +229,8 @@ def dispatch_email() -> None:
                 })
 
     # Dispatch via internal API endpoint.
-    # When running on the host (via docker+chroot from admin-sidecar), use
-    # localhost:8000 since port 8000 is forwarded from the API container.
+    # When running on the host (via crontab), use localhost:8000 since
+    # port 8000 is forwarded from the API container.
     api_url = os.environ.get(
         "INTERNAL_API_URL",
         "http://localhost:8000",

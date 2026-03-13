@@ -6,20 +6,21 @@
 # saves separate pass/fail log files, then dispatches a single summary email
 # via the existing Celery email infrastructure (Brevo/Mailjet — no SMTP needed).
 #
-# Called by the Celery Beat scheduled task (e2e_test_tasks.run_daily_all_tests).
+# Triggered by a system crontab entry (see `crontab -l`):
+#   0 3 * * * . /path/to/.env && /path/to/scripts/run-tests-daily.sh
+#
 # Can also be invoked manually:
 #   ./scripts/run-tests-daily.sh
 #   ./scripts/run-tests-daily.sh --force   # skip the commit-activity check
 #
-# Environment variables:
+# Environment variables (sourced from .env by the crontab entry):
 #   ADMIN_NOTIFY_EMAIL        — recipient for the summary email (required)
+#   INTERNAL_API_SHARED_TOKEN — auth token for internal API email dispatch
 #
 # Env-gate variables (set on dev server only — NOT on production):
 #   E2E_DAILY_RUN_ENABLED     — must be "true" for this script to run at all.
-#                               If not set, the Celery Beat schedule in
-#                               celery_config.py never fires this task.
-#                               This script also checks it directly so a manual
-#                               invocation on the wrong server is also safe.
+#                               This script checks it directly so a manual
+#                               invocation on the wrong server is a safe no-op.
 #
 # Prod smoke test (optional — runs from dev server against production URL):
 #   E2E_PROD_TEST_ENABLED     — set to "true" to also run a smoke test against
@@ -56,8 +57,7 @@ done
 
 # --- Env gate ---
 # If E2E_DAILY_RUN_ENABLED is not "true", exit silently.
-# The Beat schedule in celery_config.py already gates this, but we double-check
-# here so manual invocations on production are also a safe no-op.
+# This prevents manual invocations on production from running tests.
 if [[ "${E2E_DAILY_RUN_ENABLED:-}" != "true" ]]; then
   echo "[daily-runner] E2E_DAILY_RUN_ENABLED is not set — skipping test run."
   echo "[daily-runner] Set E2E_DAILY_RUN_ENABLED=true on the dev server to enable tests."

@@ -1449,11 +1449,9 @@ async def dispatch_test_summary_email(
 
 
 # --- Test Run Started Email Dispatch ---
-# Called by:
-#   1. scripts/_daily_runner_helper.py (host-side sidecar path, no Celery available)
-#   2. e2e_test_tasks.run_daily_all_tests (Celery Beat, directly via celery_app.send_task)
-#   3. POST /v1/admin/tests/run (admin API, directly via celery_app.send_task)
-# All three trigger paths ultimately share the same Celery task.
+# Called by scripts/_daily_runner_helper.py (run from crontab on the host).
+# The helper has no Celery dependency, so it POSTs here and we dispatch
+# the email task via Celery.
 
 class TestRunStartedEmailPayload(BaseModel):
     """Payload for dispatching a test run started notification email via Celery."""

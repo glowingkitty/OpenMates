@@ -124,7 +124,6 @@ TASK_CONFIG = [
     {'name': 'server_stats', 'module': 'backend.core.api.app.tasks.server_stats_tasks'},  # Server stats
     {'name': 'demo',        'module': 'backend.core.api.app.tasks.demo_tasks'},  # Demo chat tasks
     {'name': 'leaderboard', 'module': 'backend.core.api.app.tasks.leaderboard_tasks'},  # Leaderboard aggregation tasks
-    {'name': 'e2e_tests',   'module': 'backend.core.api.app.tasks.e2e_test_tasks'},  # E2E test automation tasks
     {'name': 'reminder',    'module': 'backend.apps.reminder.tasks'},  # Reminder app tasks
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.storage_billing_tasks'},  # Storage billing tasks (routed to persistence queue)
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.auto_delete_tasks'},  # Auto-delete tasks (routed to persistence queue)
@@ -1099,22 +1098,10 @@ app.conf.beat_schedule = {
         'options': {'queue': 'leaderboard'},  # Route to leaderboard queue
         # Fetches all categories (overall, coding, math, creative) for Best-of aliases
     },
-    # Full automated daily test run — shells out to scripts/run-tests-daily.sh
-    # Only active when E2E_DAILY_RUN_ENABLED=true in the environment.
-    # This env var is intentionally NOT set on production, so the Beat scheduler
-    # on production is completely silent — no test tasks ever fire there.
-    # Set E2E_DAILY_RUN_ENABLED=true only on the dev server.
-    #
-    # Skips automatically if no git commits were made in the last 24 hours.
-    # Sends a single summary email: "All tests successful" or "Warning: X of Y tests failed!"
-    # 03:00 UTC = 04:00 CET (avoids the 02:xx UTC maintenance window for other jobs)
-    **({
-        'e2e-tests-daily-full': {
-            'task': 'e2e_tests.run_daily_all_tests',
-            'schedule': crontab(hour=3, minute=0),  # Daily at 03:00 UTC (04:00 CET / Berlin time)
-            'options': {'queue': 'e2e_tests'},
-        },
-    } if os.environ.get('E2E_DAILY_RUN_ENABLED', '').lower() == 'true' else {}),
+    # Daily test run — replaced by a system crontab entry (see crontab -l).
+    # The crontab runs scripts/run-tests-daily.sh directly on the host at 03:00 UTC,
+    # eliminating the Celery Beat → Celery task → admin sidecar → docker+chroot
+    # indirection that silently failed whenever any layer was down at trigger time.
     # 'cleanup-uncompleted-signups': {
     #     'task': 'app.tasks.persistence_tasks.cleanup_uncompleted_signups',
     #     'schedule': crontab(hour=3, minute=0),  # Every day at 3 AM UTC
