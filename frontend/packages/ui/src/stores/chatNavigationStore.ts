@@ -66,6 +66,19 @@ let chatList: Chat[] = [];
 let currentChatId: string | null = null;
 
 /**
+ * True when Chats.svelte (the sidebar) has explicitly set the chat list via
+ * setChatNavigationList(). This distinguishes the authoritative sidebar list
+ * from the interim list built by updateNavFromCache() during cold boot.
+ *
+ * Without this flag, the communityDemoStore subscription in updateNavFromCache
+ * sees a non-empty chatList (populated by _applyNavigableList with intro/legal
+ * chats only) and incorrectly assumes Chats.svelte owns the list, causing it
+ * to bail out before community demo chats arrive — so nav arrows skip examples
+ * on first load.
+ */
+let chatListOwnedByChatsComponent = false;
+
+/**
  * Update the internal chat list and active chat ID used for navigation.
  * Called by Chats.svelte whenever the list or selection changes.
  */
@@ -75,6 +88,7 @@ export function setChatNavigationList(
 ): void {
   chatList = chats;
   currentChatId = activeChatId;
+  chatListOwnedByChatsComponent = true;
 }
 
 /**
@@ -89,6 +103,7 @@ export function setChatNavigationList(
 export function resetChatNavigationList(): void {
   chatList = [];
   currentChatId = null;
+  chatListOwnedByChatsComponent = false;
   chatNavigationStore.set({ hasPrev: false, hasNext: false });
 }
 
@@ -246,8 +261,12 @@ export function updateNavFromCache(activeChatId: string): void {
     let done = false;
     unsub[0] = communityDemoStore.subscribe(() => {
       if (done) return;
-      // Skip if Chats.svelte has since mounted and taken ownership
-      if (chatList.length > 0) {
+      // Skip if Chats.svelte has since mounted and taken ownership of the list.
+      // We check the explicit flag rather than chatList.length > 0 because our
+      // own _applyNavigableList() also populates chatList (with intro/legal
+      // chats) — checking length alone would bail out on the synchronous first
+      // invocation before community demos have a chance to load.
+      if (chatListOwnedByChatsComponent) {
         done = true;
         unsub[0]?.();
         return;
@@ -278,7 +297,7 @@ export function updateNavFromCache(activeChatId: string): void {
     .then(({ chatDB }) => chatDB.getAllChats())
     .then((dbChats) => {
       // Skip if Chats.svelte has since mounted and taken ownership
-      if (chatList.length > 0) return;
+      if (chatListOwnedByChatsComponent) return;
       // Skip if there are no user chats to add (avoids re-sorting unnecessarily)
       if (!dbChats || dbChats.length === 0) return;
 
