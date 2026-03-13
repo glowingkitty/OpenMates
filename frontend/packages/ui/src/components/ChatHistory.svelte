@@ -1817,30 +1817,22 @@
 
   /* Follow-up suggestions wrapper — shown inline in the chat history after the last
      assistant message. Aligns with mate-message-content by matching the assistant
-     message layout: offset by the avatar width (60px + 10px margin = 70px) on the
-     inline-start side, mirroring .message-align-left from chat.css. */
+     message layout: padding-inline-start offsets content to where the message bubble
+     starts (past the 60px avatar + 10px margin = ~80px), mirroring .message-align-left
+     from chat.css. On mobile (≤500px), avatar stacks above so offset is removed. */
   .follow-up-suggestions-wrapper {
     padding: 8px 0 16px;
-    display: flex;
-    justify-content: flex-start;
-    /* Match .message-align-left width constraint so the gradient card
-       aligns with the assistant message bubble edges */
-    max-width: calc(100% - 70px);
-    margin-inline-end: auto;
-    padding-inline-end: 12px;
+    /* Offset to align with assistant message content (avatar 60px + margins ~20px) */
+    padding-inline-start: 80px;
     box-sizing: border-box;
-  }
-
-  :global([dir="rtl"]) .follow-up-suggestions-wrapper {
-    justify-content: flex-end;
+    width: 100%;
   }
 
   /* When assistant messages are in mobile stacked layout (avatar stacks above),
      the wrapper can go full-width since there's no side avatar offset. */
   @media (max-width: 500px) {
     .follow-up-suggestions-wrapper {
-      max-width: calc(100% - 10px);
-      padding-inline-end: 0px;
+      padding-inline-start: 0;
     }
   }
 

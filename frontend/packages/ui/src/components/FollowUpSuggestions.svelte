@@ -343,6 +343,30 @@
       {/key}
     </div>
 
+    <!-- Navigation arrows (absolute-positioned relative to .suggestions-wrapper) -->
+    {#if totalPages > 1 && currentPage > 0}
+      <button
+        class="nav-arrow nav-arrow-left"
+        onclick={handlePrevPage}
+        onmousedown={(e) => e.preventDefault()}
+        aria-label="Previous suggestions"
+        type="button"
+      >
+        <ChevronLeft size={22} color="rgba(255,255,255,0.85)" />
+      </button>
+    {/if}
+    {#if totalPages > 1 && currentPage < totalPages - 1}
+      <button
+        class="nav-arrow nav-arrow-right"
+        onclick={handleNextPage}
+        onmousedown={(e) => e.preventDefault()}
+        aria-label="Next suggestions"
+        type="button"
+      >
+        <ChevronRight size={22} color="rgba(255,255,255,0.85)" />
+      </button>
+    {/if}
+
     <!-- Gradient card with animated orbs and suggestions -->
     <div class="suggestions-card" style={cardStyle}>
       <!-- Living gradient orbs (same as ChatHeader) -->
@@ -360,30 +384,6 @@
         <div class="deco-icon deco-icon-right">
           <DecoIconComponent size={90} color="white" />
         </div>
-      {/if}
-
-      <!-- Navigation arrows for paging through suggestions -->
-      {#if totalPages > 1 && currentPage > 0}
-        <button
-          class="nav-arrow nav-arrow-left"
-          onclick={handlePrevPage}
-          onmousedown={(e) => e.preventDefault()}
-          aria-label="Previous suggestions"
-          type="button"
-        >
-          <ChevronLeft size={22} color="rgba(255,255,255,0.85)" />
-        </button>
-      {/if}
-      {#if totalPages > 1 && currentPage < totalPages - 1}
-        <button
-          class="nav-arrow nav-arrow-right"
-          onclick={handleNextPage}
-          onmousedown={(e) => e.preventDefault()}
-          aria-label="Next suggestions"
-          type="button"
-        >
-          <ChevronRight size={22} color="rgba(255,255,255,0.85)" />
-        </button>
       {/if}
 
       <!-- Suggestion items -->
@@ -436,6 +436,8 @@
   .suggestions-wrapper {
     animation: fadeIn 200ms ease-out;
     width: 100%;
+    /* Establish positioning context for the absolute-positioned nav arrows */
+    position: relative;
   }
 
   @keyframes fadeIn {
@@ -455,7 +457,7 @@
   }
 
   .header-title {
-    color: var(--color-grey-50);
+    color: var(--color-grey-70);
     font-size: 1rem;
     font-weight: 700;
     letter-spacing: 0.3px;
@@ -463,9 +465,9 @@
   }
 
   .header-subtitle {
-    color: var(--color-grey-40);
+    color: var(--color-grey-70);
     font-size: 0.875rem;
-    font-weight: 400;
+    font-weight: 500;
     text-align: center;
   }
 
@@ -476,15 +478,17 @@
     width: 100%;
     border-radius: 14px;
     overflow: hidden;
-    padding: 1rem 2.75rem;
+    padding: 1rem 1rem;
     box-sizing: border-box;
     /* Smooth background transition when category changes */
     transition: background 0.5s ease;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
     user-select: none;
-    min-height: 80px;
+    /* Fixed height prevents layout glitches when paging between suggestion sets */
+    height: 170px;
     display: flex;
     align-items: center;
+    justify-content: center;
   }
 
   /* ─── Living gradient orbs (same as ChatHeader) ─────────────────────────── */
@@ -584,18 +588,18 @@
     }
   }
 
-  /* ─── Navigation arrows (prev/next page) ────────────────────────────────── */
+  /* ─── Navigation arrows (absolute-positioned relative to .suggestions-wrapper) ─ */
 
   .nav-arrow {
     position: absolute;
-    top: 0;
+    /* Vertically align with the gradient card (skip the header text area) */
     bottom: 0;
+    height: 170px;
     padding: 0 !important;
     min-width: unset !important;
     width: 36px !important;
-    height: 100% !important;
-    border-radius: 0 !important;
-    background-color: transparent !important;
+    border-radius: 14px !important;
+    background-color: rgba(0, 0, 0, 0.08) !important;
     filter: none !important;
     margin: 0 !important;
     border: none;
@@ -610,24 +614,22 @@
   }
 
   .nav-arrow:hover {
-    background-color: rgba(255, 255, 255, 0.1) !important;
+    background-color: rgba(0, 0, 0, 0.15) !important;
     scale: none !important;
   }
 
   .nav-arrow:active {
-    background-color: rgba(255, 255, 255, 0.18) !important;
+    background-color: rgba(0, 0, 0, 0.22) !important;
     scale: none !important;
     filter: none !important;
   }
 
   .nav-arrow-left {
-    left: 0;
-    border-radius: 14px 0 0 14px !important;
+    left: -42px;
   }
 
   .nav-arrow-right {
-    right: 0;
-    border-radius: 0 14px 14px 0 !important;
+    right: -42px;
   }
 
   /* ─── Suggestions list ──────────────────────────────────────────────────── */
@@ -639,6 +641,9 @@
     z-index: 2;
     position: relative;
     width: 100%;
+    /* Center the suggestions list within the gradient card */
+    max-width: 700px;
+    margin: 0 auto;
   }
 
   .suggestion-item {
@@ -759,8 +764,9 @@
 
   @media (max-width: 730px) {
     .suggestions-card {
-      padding: 0.75rem 2.25rem;
-      min-height: 70px;
+      padding: 0.75rem 0.75rem;
+      /* Taller on mobile to accommodate text wrapping from reduced width */
+      height: 195px;
     }
 
     .deco-icon {
@@ -788,6 +794,34 @@
 
     .suggestions-header {
       padding: 0 0.9375rem;
+    }
+
+    /* Nav arrows: match mobile card height and tuck closer on narrow viewports */
+    .nav-arrow {
+      height: 195px;
+      width: 30px !important;
+      left: auto;
+      right: auto;
+    }
+
+    .nav-arrow-left {
+      left: -34px;
+    }
+
+    .nav-arrow-right {
+      right: -34px;
+    }
+  }
+
+  /* ─── Very narrow viewports: hide nav arrows to avoid overflow ──────────── */
+
+  @media (max-width: 500px) {
+    .nav-arrow-left {
+      left: -4px;
+    }
+
+    .nav-arrow-right {
+      right: -4px;
     }
   }
 </style>
