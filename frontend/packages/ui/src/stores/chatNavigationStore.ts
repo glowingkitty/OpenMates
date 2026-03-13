@@ -79,6 +79,21 @@ let currentChatId: string | null = null;
 let chatListOwnedByChatsComponent = false;
 
 /**
+ * Replace the internal navigation list without marking it as owned by Chats.svelte.
+ *
+ * Used by updateNavFromCache() during cold boot while building a provisional list
+ * from in-memory/public/cache sources. This keeps the list independent from sidebar
+ * mount state and allows follow-up refinements (community demos + DB chats) to land.
+ */
+function setProvisionalChatNavigationList(
+  chats: Chat[],
+  activeChatId: string | null,
+): void {
+  chatList = chats;
+  currentChatId = activeChatId;
+}
+
+/**
  * Update the internal chat list and active chat ID used for navigation.
  * Called by Chats.svelte whenever the list or selection changes.
  */
@@ -232,7 +247,7 @@ export function updateNavFromCache(activeChatId: string): void {
   const shouldBootstrapCommunityDemos =
     communityChats.length === 0 &&
     !communityDemoStore.isLoading() &&
-    !communityDemoStore.isCacheLoaded();
+    !communityDemoStore.isLoaded();
   if (shouldBootstrapCommunityDemos) {
     loadCommunityDemos().catch((error) => {
       console.warn(
@@ -359,7 +374,10 @@ function _applyNavigableList(allChats: Chat[], activeChatId: string): void {
     );
   });
 
-  setChatNavigationList(navigable, activeChatId);
+  // Keep this list provisional unless Chats.svelte explicitly overwrites it via
+  // setChatNavigationList(). This ensures cold-boot updates (community demos,
+  // IndexedDB chats) keep flowing even when the sidebar never mounts.
+  setProvisionalChatNavigationList(navigable, activeChatId);
   const idx = navigable.findIndex((c) => c.chat_id === activeChatId);
   chatNavigationStore.set({
     hasPrev: idx > 0,
