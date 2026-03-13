@@ -42,6 +42,16 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 RESULTS_DIR="$PROJECT_ROOT/test-results"
 
+# --- Source .env if present (makes manual invocation work without pre-exporting) ---
+# The crontab entry also sources .env, but doing it here too means
+# `./scripts/run-tests-daily.sh --force` works out of the box.
+if [[ -f "$PROJECT_ROOT/.env" ]]; then
+  set -a
+  # shellcheck disable=SC1091
+  source "$PROJECT_ROOT/.env"
+  set +a
+fi
+
 # --- Parse CLI args ---
 FORCE=false
 while [[ $# -gt 0 ]]; do
