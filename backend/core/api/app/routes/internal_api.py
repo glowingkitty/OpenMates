@@ -29,6 +29,7 @@ from backend.core.api.app.services.s3.service import S3UploadService
 from backend.core.api.app.services.email_template import EmailTemplateService
 from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService
 from backend.core.api.app.services.payment.payment_service import PaymentService
+from backend.core.api.app.services.openobserve_push_service import openobserve_push_service
 from typing import List
 
 logger = logging.getLogger(__name__)
@@ -1398,6 +1399,23 @@ class TestRunSummaryEmailPayload(BaseModel):
     failed_tests: List[Dict[str, Any]]
 
 
+class TestRunOpenObservePayload(BaseModel):
+    """Payload for forwarding a normalized daily test run summary to OpenObserve."""
+
+    environment: str = "development"
+    run_id: str
+    git_sha: str
+    git_branch: str
+    duration_seconds: int
+    total: int
+    passed: int
+    failed: int
+    skipped: int
+    not_started: int
+    suites: List[Dict[str, Any]]
+    failed_tests: List[Dict[str, Any]]
+
+
 @router.post("/dispatch-test-summary-email")
 async def dispatch_test_summary_email(
     payload: TestRunSummaryEmailPayload,
@@ -1446,6 +1464,37 @@ async def dispatch_test_summary_email(
     except Exception as e:
         logger.error(f"[InternalAPI] Failed to dispatch test summary email: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to dispatch email task: {str(e)}")
+
+
+@router.post("/openobserve/push-test-run")
+async def push_test_run_to_openobserve(
+    payload: TestRunOpenObservePayload,
+) -> Dict[str, Any]:
+    """
+    Forward the normalized daily test-run summary to OpenObserve test-runs stream.
+
+    Called by scripts/_daily_runner_helper.py after run-tests-daily.sh completes.
+    """
+    status = "failed" if payload.failed > 0 else "passed"
+    logger.info(
+        "[InternalAPI] Pushing test run summary to OpenObserve "
+        f"(run_id={payload.run_id}, status={status}, failed={payload.failed}, total={payload.total})"
+    )
+
+    push_payload = payload.dict()
+    push_payload["status"] = status
+    push_payload["suite"] = "daily"
+
+    pushed = await openobserve_push_service.push_test_run_summary(push_payload)
+    if not pushed:
+        raise HTTPException(status_code=502, detail="Failed to push test run summary to OpenObserve")
+
+    return {
+        "status": "pushed",
+        "run_id": payload.run_id,
+        "failed": payload.failed,
+        "total": payload.total,
+    }
 
 
 # --- Test Run Started Email Dispatch ---

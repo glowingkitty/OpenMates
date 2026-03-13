@@ -35,6 +35,10 @@
 #   last-passed-tests.json     — passing tests only from the latest run
 #   last-failed-tests.json     — failing tests only from the latest run
 #   daily-run-<YYYY-MM-DD>.json — per-day archive; pruned to keep last 30
+#
+# Observability:
+#   After each run, a normalized summary is forwarded to OpenObserve test-runs
+#   stream via /internal/openobserve/push-test-run (best-effort, non-fatal).
 # =============================================================================
 set -euo pipefail
 
@@ -203,6 +207,14 @@ echo "[daily-runner] Coverage collection complete."
 # --- Save split pass/fail log files for easy Claude consumption ---
 export RESULTS_DIR
 python3 "$SCRIPT_DIR/_daily_runner_helper.py" split-results
+
+# --- Push normalized test-run summary to OpenObserve (non-fatal) ---
+# This writes one compact event per daily run into the OpenObserve test-runs
+# stream so failures can be correlated with backend/container logs by git SHA,
+# branch, environment, and run window.
+echo "[daily-runner] Pushing test run summary to OpenObserve..."
+python3 "$SCRIPT_DIR/_daily_runner_helper.py" dispatch-openobserve-test-run || \
+  echo "[daily-runner] WARNING: could not push test run summary to OpenObserve (non-fatal)"
 
 # --- Archive daily result (one file per calendar day, UTC) ---
 TODAY="$(date -u '+%Y-%m-%d')"
