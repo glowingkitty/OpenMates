@@ -1,48 +1,72 @@
+explore_next:
+  context: Bold title text above the follow-up suggestions gradient card
+  en: "What do you want to explore next?"
+  de: "Was möchtest du als Nächstes erkunden?"
+  zh: 接下来你想探索什么？
+  es: "¿Qué quieres explorar a continuación?"
+  fr: "Que voulez-vous explorer ensuite ?"
+  pt: "O que você quer explorar a seguir?"
+  ru: "Что вы хотите исследовать дальше?"
+  ja: "次に何を探求しますか？"
+  ko: "다음에 무엇을 탐구하시겠어요?"
+  it: "Cosa vuoi esplorare dopo?"
+  tr: "Sonra ne keşfetmek istersin?"
+  vi: "Bạn muốn khám phá gì tiếp theo?"
+  id: "Apa yang ingin Anda eksplorasi selanjutnya?"
+  pl: "Co chcesz zbadać dalej?"
+  nl: "Wat wil je als volgende verkennen?"
+  ar: "ماذا تريد أن تستكشف بعد ذلك؟"
+  hi: "आगे आप क्या खोजना चाहते हैं?"
+  th: "คุณต้องการสำรวจอะไรต่อไป?"
+  cs: "Co chcete prozkoumat dál?"
+  sv: "Vad vill du utforska härnäst?"
+  he: "מה אתה רוצה לחקור הלאה?"
+  verified_by_human: []
 header_click:
-  context: Header text for suggestions on non-touch devices
-  en: 'Click to copy to message input:'
-  de: 'Klicken, um in Nachrichteneingabe zu kopieren:'
-  zh: 单击以复制到消息输入：
-  es: 'Haz clic para copiar a la entrada de mensajes:'
-  fr: 'Cliquez pour copier dans la saisie de message :'
-  pt: 'Clique para copiar para a entrada de mensagem:'
-  ru: 'Нажмите, чтобы скопировать в ввод сообщения:'
-  ja: 'メッセージ入力にコピーするにはクリックしてください：'
-  ko: '메시지 입력으로 복사하려면 클릭:'
-  it: 'Fai clic per copiare nell''input del messaggio:'
-  tr: 'İleti girişine kopyalamak için tıkla:'
-  vi: 'Nhấp để sao chép vào nhập tin nhắn:'
-  id: 'Klik untuk menyalin ke input pesan:'
-  pl: 'Kliknij, aby skopiować do wpisania wiadomości:'
-  nl: 'Klik om naar berichtinvoer te kopiëren:'
-  ar: 'انقر لنسخ إلى إدخال الرسالة:'
-  hi: 'संदेश इनपुट में कॉपी करने के लिए क्लिक करें:'
-  th: 'คลิกเพื่อคัดลอกไปยังการป้อนข้อความ:'
-  cs: 'Klikněte pro kopírování do vstupu zprávy:'
-  sv: 'Klicka för att kopiera till meddelandeinmatning:'
-  he: "לחץ כדי להעתיק לשורת ההודעה:"
+  context: Subtitle text below the explore_next title for non-touch devices
+  en: "Click to copy to your message:"
+  de: "Klicken, um in deine Nachricht zu kopieren:"
+  zh: 单击以复制到您的消息：
+  es: "Haz clic para copiar a tu mensaje:"
+  fr: "Cliquez pour copier dans votre message :"
+  pt: "Clique para copiar para a sua mensagem:"
+  ru: "Нажмите, чтобы скопировать в ваше сообщение:"
+  ja: "メッセージにコピーするにはクリック："
+  ko: "메시지로 복사하려면 클릭:"
+  it: "Fai clic per copiare nel tuo messaggio:"
+  tr: "Mesajına kopyalamak için tıkla:"
+  vi: "Nhấp để sao chép vào tin nhắn của bạn:"
+  id: "Klik untuk menyalin ke pesan Anda:"
+  pl: "Kliknij, aby skopiować do wiadomości:"
+  nl: "Klik om naar je bericht te kopiëren:"
+  ar: "انقر لنسخ إلى رسالتك:"
+  hi: "अपने संदेश में कॉपी करने के लिए क्लिक करें:"
+  th: "คลิกเพื่อคัดลอกไปยังข้อความของคุณ:"
+  cs: "Klikněte pro kopírování do vaší zprávy:"
+  sv: "Klicka för att kopiera till ditt meddelande:"
+  he: "לחץ כדי להעתיק להודעה שלך:"
   verified_by_human: []
 header_tap:
-  context: Header text for suggestions on touch devices
-  en: 'Tap to copy to message input:'
-  de: 'Tippen, um in Nachrichteneingabe zu kopieren:'
-  zh: 点击以复制到消息输入：
-  es: 'Toca para copiar a la entrada de mensajes:'
-  fr: 'Appuyez pour copier dans la saisie de message :'
-  pt: 'Toque para copiar para a entrada de mensagem:'
-  ru: 'Коснитесь, чтобы скопировать в ввод сообщения:'
-  ja: 'メッセージ入力にコピーするにはタップしてください：'
-  ko: '메시지 입력으로 복사하려면 탭:'
-  it: 'Tocca per copiare nell''input del messaggio:'
-  tr: 'İleti girişine kopyalamak için dokun:'
-  vi: 'Chạm để sao chép vào nhập tin nhắn:'
-  id: 'Ketuk untuk menyalin ke input pesan:'
-  pl: 'Dotknij, aby skopiować do wpisania wiadomości:'
-  nl: 'Tik om naar berichtinvoer te kopiëren:'
-  ar: 'اضغط لنسخ إلى إدخال الرسالة:'
-  hi: 'संदेश इनपुट में कॉपी करने के लिए टैप करें:'
-  th: 'แตะเพื่อคัดลอกไปยังการป้อนข้อความ:'
-  cs: 'Klepněte pro kopírování do vstupu zprávy:'
-  sv: 'Tryck för att kopiera till meddelandeinmatning:'
-  he: "הקש כדי להעתיק לשורת ההודעה:"
+  context: Subtitle text below the explore_next title for touch devices
+  en: "Tap to copy to your message:"
+  de: "Tippen, um in deine Nachricht zu kopieren:"
+  zh: 点击以复制到您的消息：
+  es: "Toca para copiar a tu mensaje:"
+  fr: "Appuyez pour copier dans votre message :"
+  pt: "Toque para copiar para a sua mensagem:"
+  ru: "Коснитесь, чтобы скопировать в ваше сообщение:"
+  ja: "メッセージにコピーするにはタップ："
+  ko: "메시지로 복사하려면 탭:"
+  it: "Tocca per copiare nel tuo messaggio:"
+  tr: "Mesajına kopyalamak için dokun:"
+  vi: "Chạm để sao chép vào tin nhắn của bạn:"
+  id: "Ketuk untuk menyalin ke pesan Anda:"
+  pl: "Dotknij, aby skopiować do wiadomości:"
+  nl: "Tik om naar je bericht te kopiëren:"
+  ar: "اضغط لنسخ إلى رسالتك:"
+  hi: "अपने संदेश में कॉपी करने के लिए टैप करें:"
+  th: "แตะเพื่อคัดลอกไปยังข้อความของคุณ:"
+  cs: "Klepněte pro kopírování do vaší zprávy:"
+  sv: "Tryck för att kopiera till ditt meddelande:"
+  he: "הקש כדי להעתיק להודעה שלך:"
   verified_by_human: []

@@ -1641,13 +1641,16 @@
             {/if}
             
             <!-- Follow-up suggestions shown after the last assistant message.
-                 Visible without requiring the user to focus the message input first. -->
+                 Visible without requiring the user to focus the message input first.
+                 Passes chatCategory and chatIcon so the gradient card matches the ChatHeader style. -->
             {#if showFollowUpSuggestionsInHistory && onSuggestionClick}
                 <div class="follow-up-suggestions-wrapper" in:fade={{ duration: 200 }}>
                     <FollowUpSuggestions
                         suggestions={followUpSuggestions}
                         messageInputContent=""
                         onSuggestionClick={onSuggestionClick}
+                        category={chatCategory}
+                        icon={chatIcon}
                     />
                 </div>
             {/if}
@@ -1813,22 +1816,32 @@
   }
 
   /* Follow-up suggestions wrapper — shown inline in the chat history after the last
-     assistant message so users can see them without clicking the message input. */
+     assistant message. Aligns with mate-message-content by matching the assistant
+     message layout: offset by the avatar width (60px + 10px margin = 70px) on the
+     inline-start side, mirroring .message-align-left from chat.css. */
   .follow-up-suggestions-wrapper {
     padding: 8px 0 16px;
-    /* Align with assistant message bubbles (left-aligned) */
     display: flex;
     justify-content: flex-start;
+    /* Match .message-align-left width constraint so the gradient card
+       aligns with the assistant message bubble edges */
+    max-width: calc(100% - 70px);
+    margin-inline-end: auto;
+    padding-inline-end: 12px;
+    box-sizing: border-box;
   }
 
   :global([dir="rtl"]) .follow-up-suggestions-wrapper {
     justify-content: flex-end;
   }
 
-  /* Hide the upward-fade gradient that was designed for use above the MessageInput.
-     Inside ChatHistory the gradient would bleed over preceding messages, so we suppress it. */
-  .follow-up-suggestions-wrapper :global(.suggestions-container::before) {
-    display: none;
+  /* When assistant messages are in mobile stacked layout (avatar stacks above),
+     the wrapper can go full-width since there's no side avatar offset. */
+  @media (max-width: 500px) {
+    .follow-up-suggestions-wrapper {
+      max-width: calc(100% - 10px);
+      padding-inline-end: 0px;
+    }
   }
 
   /* Bottom spacer that fills remaining viewport space during AI streaming.

@@ -1,18 +1,46 @@
+<!--
+  FollowUpSuggestions.svelte
+
+  Gradient banner card displayed below the last assistant message in ChatHistory.
+  Shows follow-up suggestion prompts that users can click to copy into their message input.
+
+  Visual design mirrors ChatHeader.svelte:
+  - Category gradient background with animated living gradient orbs
+  - Large decorative Lucide icons at left/right edges (same category icon as ChatHeader)
+  - Chevron navigation arrows to page through groups of 3 suggestions
+  - White text on gradient background for suggestion items
+
+  Each suggestion row shows an icon to the left:
+  - Skill icon (if the suggestion includes a valid [app-skill] prefix with a skill icon)
+  - App icon (if the suggestion includes a valid app prefix but the skill has no icon)
+  - Fallback arrow icon (back.svg flipped to point right) when no app/skill is present
+
+  Architecture: relies on shared animations from animations.css (orbMorph, orbDrift,
+  decoEnter, decoFloat keyframes) — same as ChatHeader and DailyInspirationBanner.
+  See docs/architecture/banner-animations.md for the shared keyframe strategy.
+-->
 <script lang="ts">
   import { fade } from 'svelte/transition';
   import { onMount } from 'svelte';
   import { locale } from 'svelte-i18n';
   import Icon from './Icon.svelte';
   import { appSkillsStore } from '../stores/appSkillsStore';
+  import { getCategoryGradientColors, getValidIconName, getLucideIcon } from '../utils/categoryUtils';
 
   let {
     suggestions = [],
     messageInputContent = '',
-    onSuggestionClick
+    onSuggestionClick,
+    category = null,
+    icon = null,
   }: {
     suggestions: string[];
     messageInputContent?: string;
     onSuggestionClick: (suggestion: string, mentionSyntax?: string) => void;
+    /** Chat category string (e.g. "technology") for the gradient background and decorative icons. */
+    category?: string | null;
+    /** Chat icon name (e.g. "cpu") for the decorative side icons. */
+    icon?: string | null;
   } = $props();
 
   // Import text function for translations
@@ -23,6 +51,15 @@
 
   // Apps metadata for icon resolution
   let appsMetadata = $state(appSkillsStore.getState());
+
+  // ─── Pagination ────────────────────────────────────────────────────────────
+  // Groups of 3 suggestions, navigated with prev/next arrows.
+
+  let currentPage = $state(0);
+
+  /** Lucide chevron icons for prev/next arrows. */
+  const ChevronLeft = getLucideIcon('chevron-left');
+  const ChevronRight = getLucideIcon('chevron-right');
 
   /**
    * Parsed suggestion: splits "[app_id-skill_id] body text" into parts.
@@ -43,7 +80,8 @@
    * in the skill name portion (e.g. "reminder-set-reminder") instead of underscores
    * ("reminder-set_reminder") — we correct for this by replacing dashes in the
    * subId portion with underscores, then validate against the known app skills store.
-   * If no valid app+skill pair is found, appId/subId are set to null so no icons render.
+   * If no valid app+skill pair is found, we still keep the appId if the app exists
+   * (for app-level icon fallback). If the app doesn't exist, appId/subId are null.
    */
   function parseSuggestion(raw: string): ParsedSuggestion {
     // Allow dashes anywhere in the prefix (LLMs may use dashes instead of underscores in skill names)
@@ -55,6 +93,12 @@
     const body = match[2].trim();
     const dashIdx = prefix.indexOf('-');
     if (dashIdx === -1) {
+      // No dash: could be an app-only prefix like "[web]"
+      const appOnly = prefix;
+      const app = appsMetadata?.apps?.[appOnly];
+      if (app) {
+        return { raw, prefix: appOnly, appId: appOnly, subId: null, body };
+      }
       return { raw, prefix: null, appId: null, subId: null, body: raw };
     }
     const appId = prefix.substring(0, dashIdx);
@@ -68,7 +112,10 @@
     const isValidSkill = app?.skills?.some(s => s.id === subId) ?? false;
     const isValidFocus = app?.focus_modes?.some(f => f.id === subId) ?? false;
     if (!isValidSkill && !isValidFocus) {
-      // Unknown skill — keep body text but don't render any app/skill icons
+      // Unknown skill — but if the app itself exists, keep appId for app-level icon
+      if (app) {
+        return { raw, prefix, appId, subId: null, body };
+      }
       return { raw, prefix: null, appId: null, subId: null, body };
     }
 
@@ -76,23 +123,40 @@
   }
 
   /**
-   * Resolve the icon image name for a skill or focus mode.
-   * Returns the icon_image string (svg filename without extension) if found,
-   * or null if not resolvable.
+   * Resolve the icon for a suggestion.
+   * Priority: skill/focus mode icon → app-level icon → fallback (back.svg).
+   * Returns { type, name } where type indicates how to render the icon.
    */
-  function resolveSubIcon(appId: string, subId: string): string | null {
+  function resolveSuggestionIcon(appId: string | null, subId: string | null): { type: 'skill' | 'app' | 'fallback'; name: string } {
+    if (!appId) {
+      return { type: 'fallback', name: 'back' };
+    }
+
     const app = appsMetadata?.apps?.[appId];
-    if (!app) return null;
+    if (!app) {
+      return { type: 'fallback', name: 'back' };
+    }
 
-    // Check skills first
-    const skill = app.skills?.find(s => s.id === subId);
-    if (skill?.icon_image) return skill.icon_image.replace(/\.svg$/i, '');
+    // Try skill icon first
+    if (subId) {
+      const skill = app.skills?.find(s => s.id === subId);
+      if (skill?.icon_image) {
+        return { type: 'skill', name: skill.icon_image.replace(/\.svg$/i, '') };
+      }
 
-    // Check focus modes
-    const focus = app.focus_modes?.find(f => f.id === subId);
-    if (focus?.icon_image) return focus.icon_image.replace(/\.svg$/i, '');
+      // Try focus mode icon
+      const focus = app.focus_modes?.find(f => f.id === subId);
+      if (focus?.icon_image) {
+        return { type: 'skill', name: focus.icon_image.replace(/\.svg$/i, '') };
+      }
+    }
 
-    return null;
+    // Fallback to app-level icon
+    if (app.icon_image) {
+      return { type: 'app', name: app.icon_image.replace(/\.svg$/i, '') };
+    }
+
+    return { type: 'fallback', name: 'back' };
   }
 
   /**
@@ -119,20 +183,29 @@
   let touchDevice = $state(false);
 
   // Full suggestions pool - computed from prop to avoid duplicates.
-  // Strip HTML tags and parse prefix. Search is done over the full raw string
-  // (including "[prefix]") so users can type "web" to find web-skill suggestions.
+  // Strip HTML tags and parse prefix.
   let fullSuggestions = $derived(
     Array.from(new Set(suggestions))
       .map(s => parseSuggestion(stripHtmlTags(s)))
   );
 
-  // Filtered and displayed suggestions based on input content.
-  // matchIndex/matchLength are relative to `parsed.raw` (full string with prefix)
-  // so the highlight stays on the body text after the prefix chip is rendered separately.
+  // Reset page when suggestions change (e.g. new chat)
+  $effect(() => {
+    // Re-read fullSuggestions to track changes
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    fullSuggestions;
+    currentPage = 0;
+  });
+
+  /** Total number of pages (groups of 3). */
+  let totalPages = $derived(Math.ceil(fullSuggestions.length / 3));
+
+  // Filtered and displayed suggestions based on input content and pagination.
   let filteredSuggestions = $derived.by(() => {
-    // When input is empty, show first 3 suggestions
+    // When input is empty, show paginated groups of 3
     if (!messageInputContent || messageInputContent.trim() === '') {
-      const displayedSuggestions = fullSuggestions.slice(0, 3);
+      const start = currentPage * 3;
+      const displayedSuggestions = fullSuggestions.slice(start, start + 3);
       return displayedSuggestions.map(parsed => ({ ...parsed, matchIndex: -1, matchLength: 0 }));
     }
 
@@ -141,7 +214,7 @@
     const searchTermLower = searchTerm.toLowerCase();
 
     // Search over body text (not the prefix) so prefix doesn't interfere with filtering
-    const filtered = fullSuggestions
+    const allFiltered = fullSuggestions
       .map(parsed => {
         const lowerBody = parsed.body.toLowerCase();
         const matchIndex = lowerBody.indexOf(searchTermLower);
@@ -153,12 +226,11 @@
       })
       .filter(item => item.matchIndex !== -1)
       // Exclude exact matches
-      .filter(item => item.body.toLowerCase() !== searchTermLower)
-      // Limit to top 3 unique matches
-      .slice(0, 3);
+      .filter(item => item.body.toLowerCase() !== searchTermLower);
 
-
-    return filtered;
+    // Apply pagination to filtered results too
+    const start = currentPage * 3;
+    return allFiltered.slice(start, start + 3);
   });
 
   function renderHighlightedText(suggestion: ParsedSuggestion & { matchIndex: number; matchLength: number }) {
@@ -185,6 +257,59 @@
     onSuggestionClick(body, mentionSyntax);
   }
 
+  /** Navigate to the previous page of suggestions. */
+  function handlePrevPage(e: MouseEvent) {
+    e.stopPropagation();
+    e.preventDefault();
+    if (currentPage > 0) {
+      currentPage--;
+    }
+  }
+
+  /** Navigate to the next page of suggestions. */
+  function handleNextPage(e: MouseEvent) {
+    e.stopPropagation();
+    e.preventDefault();
+    if (currentPage < totalPages - 1) {
+      currentPage++;
+    }
+  }
+
+  // ─── Gradient & decorative icon state ──────────────────────────────────────
+
+  /** Gradient background style for the card. Uses the chat's category gradient,
+   *  falling back to var(--color-primary) when no category exists.
+   *  Also emits --orb-color-a and --orb-color-b for the living gradient orbs. */
+  let cardStyle = $derived.by(() => {
+    if (!category) {
+      return [
+        'background: var(--color-primary)',
+        '--orb-color-a: #4867cd',
+        '--orb-color-b: #a0beff',
+      ].join(';');
+    }
+    const colors = getCategoryGradientColors(category);
+    if (!colors) {
+      return [
+        'background: var(--color-primary)',
+        '--orb-color-a: #4867cd',
+        '--orb-color-b: #a0beff',
+      ].join(';');
+    }
+    return [
+      `background: linear-gradient(135deg, ${colors.start}, ${colors.end})`,
+      `--orb-color-a: ${colors.start}`,
+      `--orb-color-b: ${colors.end}`,
+    ].join(';');
+  });
+
+  /** Lucide icon component for the category, resolved from icon name + fallback. */
+  let DecoIconComponent = $derived.by(() => {
+    if (!category) return null;
+    const iconName = getValidIconName(icon || '', category);
+    return getLucideIcon(iconName);
+  });
+
   // Update currentLocale when language changes to force component re-render.
   // Also resolve touch capability here — `window`/`navigator` are only safe in the browser.
   onMount(() => {
@@ -208,112 +333,327 @@
 
 {#if filteredSuggestions.length > 0}
   <div class="suggestions-wrapper" transition:fade={{ duration: 200 }}>
+    <!-- Header text above the gradient card -->
     <div class="suggestions-header">
       {#key currentLocale}
-        {touchDevice ? $text('chat.suggestions.header_tap') : $text('chat.suggestions.header_click')}
+        <span class="header-title">{$text('chat.suggestions.explore_next')}</span>
+        <span class="header-subtitle">
+          {touchDevice ? $text('chat.suggestions.header_tap') : $text('chat.suggestions.header_click')}
+        </span>
       {/key}
     </div>
-    <div class="suggestions-container">
-      {#each filteredSuggestions as suggestion (suggestion.raw)}
-        {@const highlighted = renderHighlightedText(suggestion)}
-        {@const subIconName = suggestion.appId && suggestion.subId ? resolveSubIcon(suggestion.appId, suggestion.subId) : null}
+
+    <!-- Gradient card with animated orbs and suggestions -->
+    <div class="suggestions-card" style={cardStyle}>
+      <!-- Living gradient orbs (same as ChatHeader) -->
+      <div class="card-orbs" aria-hidden="true">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+      </div>
+
+      <!-- Decorative category icons at left/right edges -->
+      {#if DecoIconComponent}
+        <div class="deco-icon deco-icon-left">
+          <DecoIconComponent size={90} color="white" />
+        </div>
+        <div class="deco-icon deco-icon-right">
+          <DecoIconComponent size={90} color="white" />
+        </div>
+      {/if}
+
+      <!-- Navigation arrows for paging through suggestions -->
+      {#if totalPages > 1 && currentPage > 0}
         <button
-          class="suggestion-item"
-          onmousedown={(event) => {
-            event.preventDefault();
-          }}
-          onclick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            handleSuggestionClick(suggestion.appId, suggestion.subId, suggestion.body);
-          }}
-          transition:fade={{ duration: 150 }}
+          class="nav-arrow nav-arrow-left"
+          onclick={handlePrevPage}
+          onmousedown={(e) => e.preventDefault()}
+          aria-label="Previous suggestions"
+          type="button"
         >
-          {#if suggestion.appId}
-            <span class="app-skill-icons">
-              <Icon name={suggestion.appId} type="app" size="16px" noAnimation noMargin />
-              {#if subIconName}
-                <Icon name={subIconName} type="skill" size="14px" noAnimation noMargin />
+          <ChevronLeft size={22} color="rgba(255,255,255,0.85)" />
+        </button>
+      {/if}
+      {#if totalPages > 1 && currentPage < totalPages - 1}
+        <button
+          class="nav-arrow nav-arrow-right"
+          onclick={handleNextPage}
+          onmousedown={(e) => e.preventDefault()}
+          aria-label="Next suggestions"
+          type="button"
+        >
+          <ChevronRight size={22} color="rgba(255,255,255,0.85)" />
+        </button>
+      {/if}
+
+      <!-- Suggestion items -->
+      <div class="suggestions-list">
+        {#each filteredSuggestions as suggestion (suggestion.raw)}
+          {@const highlighted = renderHighlightedText(suggestion)}
+          {@const iconInfo = resolveSuggestionIcon(suggestion.appId, suggestion.subId)}
+          <button
+            class="suggestion-item"
+            onmousedown={(event) => {
+              event.preventDefault();
+            }}
+            onclick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              handleSuggestionClick(suggestion.appId, suggestion.subId, suggestion.body);
+            }}
+            transition:fade={{ duration: 150 }}
+          >
+            <!-- Suggestion icon -->
+            <span class="suggestion-icon">
+              {#if iconInfo.type === 'skill'}
+                <Icon name={iconInfo.name} type="skill" size="18px" noAnimation noMargin />
+              {:else if iconInfo.type === 'app'}
+                <Icon name={iconInfo.name} type="app" size="18px" noAnimation noMargin />
+              {:else}
+                <!-- Fallback: back.svg flipped to point right -->
+                <span class="fallback-icon"></span>
               {/if}
             </span>
-          {/if}
-          {#if typeof highlighted === 'string'}
-            {highlighted}
-          {:else}
-            <span class="text-part">{highlighted.before}</span><span class="text-match">{highlighted.match}</span><span class="text-part">{highlighted.after}</span>
-          {/if}
-        </button>
-      {/each}
+
+            <!-- Suggestion text -->
+            <span class="suggestion-text">
+              {#if typeof highlighted === 'string'}
+                {highlighted}
+              {:else}
+                <span class="text-part">{highlighted.before}</span><span class="text-match">{highlighted.match}</span><span class="text-part">{highlighted.after}</span>
+              {/if}
+            </span>
+          </button>
+        {/each}
+      </div>
     </div>
   </div>
 {/if}
 
 <style>
+  /* ─── Wrapper: aligns with mate-message-content ─────────────────────────── */
+
   .suggestions-wrapper {
     animation: fadeIn 200ms ease-out;
     width: 100%;
-    max-width: 629px;
   }
 
   @keyframes fadeIn {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
+    from { opacity: 0; }
+    to   { opacity: 1; }
   }
+
+  /* ─── Header text above the card ────────────────────────────────────────── */
 
   .suggestions-header {
-    color: var(--color-grey-50);
-    font-size: 16px;
-    font-weight: 500;
-    padding: 0 18px;
-    letter-spacing: 0.5px;
-    opacity: 0.9;
-    position: relative;
-    z-index: 60;
-  }
-
-  .suggestions-container {
     display: flex;
     flex-direction: column;
-    gap: 5px;
-    padding: 6px 10px;
-    border-radius: 10px;
-    position: relative;
-    z-index: 50;
+    align-items: center;
+    gap: 0.125rem;
+    padding: 0 1.125rem;
+    margin-bottom: 0.5rem;
   }
 
-  /* Gradient fade background that extends slightly above the suggestions
-     to 10px below the top of the message input field, with 10px edge margins.
-     Positioned to not cover the header text. */
-  .suggestions-container::before {
-    content: '';
+  .header-title {
+    color: var(--color-grey-50);
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    text-align: center;
+  }
+
+  .header-subtitle {
+    color: var(--color-grey-40);
+    font-size: 0.875rem;
+    font-weight: 400;
+    text-align: center;
+  }
+
+  /* ─── Gradient card ─────────────────────────────────────────────────────── */
+
+  .suggestions-card {
+    position: relative;
+    width: 100%;
+    border-radius: 14px;
+    overflow: hidden;
+    padding: 1rem 2.75rem;
+    box-sizing: border-box;
+    /* Smooth background transition when category changes */
+    transition: background 0.5s ease;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+    user-select: none;
+    min-height: 80px;
+    display: flex;
+    align-items: center;
+  }
+
+  /* ─── Living gradient orbs (same as ChatHeader) ─────────────────────────── */
+
+  .card-orbs {
     position: absolute;
-    top: -100px;
-    bottom: -10px;
-    left: -9999px;
-    right: -9999px;
-    /* Gradient stays solid longer with a smoother, more gradual fade at the top
-       This ensures smooth transition while maintaining readability */
-    background: linear-gradient(to top, var(--color-grey-20) 0%, var(--color-grey-20) 60%, transparent 100%);
-    border-radius: 10px;
-    z-index: -1;
+    inset: 0;
+    z-index: 0;
     pointer-events: none;
+    overflow: hidden;
+  }
+
+  .orb {
+    position: absolute;
+    width: 320px;
+    height: 280px;
+    background: radial-gradient(
+      ellipse at center,
+      var(--orb-color-b) 0%,
+      var(--orb-color-b) 40%,
+      transparent 85%
+    );
+    filter: blur(28px);
+    opacity: 0.55;
+    will-change: transform, border-radius;
+  }
+
+  .orb-1 {
+    top: -60px;
+    left: -80px;
+    animation:
+      orbMorph1 11s ease-in-out infinite,
+      orbDrift1 19s ease-in-out infinite;
+  }
+
+  .orb-2 {
+    bottom: -80px;
+    right: -80px;
+    width: 300px;
+    height: 260px;
+    animation:
+      orbMorph2 13s ease-in-out infinite,
+      orbDrift2 23s ease-in-out infinite;
+  }
+
+  .orb-3 {
+    top: -10px;
+    left: 25%;
+    width: 240px;
+    height: 200px;
+    opacity: 0.38;
+    animation:
+      orbMorph3 17s ease-in-out infinite,
+      orbDrift3 29s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .orb { animation: none !important; }
+  }
+
+  /* ─── Decorative category icons at card edges ───────────────────────────── */
+
+  .deco-icon {
+    position: absolute;
+    width: 90px;
+    height: 90px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+    pointer-events: none;
+    --float-rx: 6px;
+    --float-ry: 8px;
+    animation:
+      decoEnter 0.6s ease-out 0.1s both,
+      decoFloat 16s linear 0.7s infinite;
+  }
+
+  .deco-icon-left {
+    left: -20px;
+    top: 50%;
+    transform: translateY(-50%);
+    --deco-rotate: -15deg;
+  }
+
+  .deco-icon-right {
+    right: -20px;
+    top: 50%;
+    transform: translateY(-50%);
+    --deco-rotate: 15deg;
+    animation-delay: 0.1s, -8s;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .deco-icon {
+      animation: decoEnter 0.6s ease-out 0.1s both !important;
+    }
+  }
+
+  /* ─── Navigation arrows (prev/next page) ────────────────────────────────── */
+
+  .nav-arrow {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    padding: 0 !important;
+    min-width: unset !important;
+    width: 36px !important;
+    height: 100% !important;
+    border-radius: 0 !important;
+    background-color: transparent !important;
+    filter: none !important;
+    margin: 0 !important;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+    z-index: 20;
+    pointer-events: auto;
+    flex-shrink: 0;
+  }
+
+  .nav-arrow:hover {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    scale: none !important;
+  }
+
+  .nav-arrow:active {
+    background-color: rgba(255, 255, 255, 0.18) !important;
+    scale: none !important;
+    filter: none !important;
+  }
+
+  .nav-arrow-left {
+    left: 0;
+    border-radius: 14px 0 0 14px !important;
+  }
+
+  .nav-arrow-right {
+    right: 0;
+    border-radius: 0 14px 14px 0 !important;
+  }
+
+  /* ─── Suggestions list ──────────────────────────────────────────────────── */
+
+  .suggestions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    z-index: 2;
+    position: relative;
+    width: 100%;
   }
 
   .suggestion-item {
     background-color: transparent;
     border: none;
-    padding: 2px 8px;
-    font-size: 16px;
-    color: var(--color-grey-60);
+    padding: 0.375rem 0.5rem;
+    font-size: 1rem;
+    /* Intentionally white on gradient — branded card, not a theme surface.
+       Same approach as ChatHeader.svelte loaded-title. */
+    color: #ffffff;
     cursor: pointer;
-    transition: color 0.15s ease;
+    transition: background-color 0.15s ease;
     white-space: normal;
-    border-radius: 6px;
-    line-height: 1.2;
+    border-radius: 8px;
+    line-height: 1.35;
     text-align: left;
     height: auto;
     min-height: unset;
@@ -323,68 +663,131 @@
     width: 100%;
     display: flex;
     flex-direction: row;
-    flex-wrap: wrap;
-    gap: 0 6px;
+    gap: 0.5rem;
     justify-content: flex-start;
     align-items: center;
     scale: 1;
-  }
-
-  /* App + skill icon pair rendered before the suggestion body text.
-     Shows the gradient app icon (square with rounded edges) alongside
-     the smaller skill-specific icon for clear visual identification. */
-  .app-skill-icons {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    flex-shrink: 0;
-    opacity: 0.8;
-  }
-
-  /* Override Icon animation/border so it blends into the suggestion row */
-  .app-skill-icons :global(.icon) {
-    animation: none !important;
-    opacity: 1 !important;
-    border: none !important;
+    pointer-events: auto;
   }
 
   .suggestion-item:hover {
-    color: var(--color-grey-70);
+    background-color: rgba(255, 255, 255, 0.1);
     scale: 1;
   }
 
   .suggestion-item:active {
+    background-color: rgba(255, 255, 255, 0.18);
     scale: 1;
   }
 
-  .suggestion-item:hover .text-part {
-    color: var(--color-grey-70);
+  /* ─── Suggestion icon (left of text) ────────────────────────────────────── */
+
+  .suggestion-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
   }
 
-  .suggestion-item .text-part {
-    color: var(--color-grey-60);
+  /* Override Icon component styling for white-on-gradient appearance */
+  .suggestion-icon :global(.icon) {
+    animation: none !important;
+    opacity: 0.9 !important;
+    border: none !important;
+    background: transparent !important;
+    width: 18px !important;
+    height: 18px !important;
+    min-width: 18px !important;
+    min-height: 18px !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    filter: none !important;
+  }
+
+  /* Make the icon itself white via CSS filter (invert + brightness for white on gradient) */
+  .suggestion-icon :global(.icon::before) {
+    filter: brightness(0) invert(1);
+    opacity: 0.9;
+    /* Use larger icon within the 18px container */
+    background-size: 80% !important;
+  }
+
+  /* Fallback icon: back.svg flipped to point right */
+  .fallback-icon {
+    width: 18px;
+    height: 18px;
+    -webkit-mask-image: url('@openmates/ui/static/icons/back.svg');
+    mask-image: url('@openmates/ui/static/icons/back.svg');
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    background-color: rgba(255, 255, 255, 0.9);
+    /* Flip horizontally: left-pointing arrow → right-pointing arrow */
+    transform: scaleX(-1);
+  }
+
+  /* ─── Suggestion text ───────────────────────────────────────────────────── */
+
+  .suggestion-text {
+    flex: 1;
+    font-weight: 600;
+    /* Intentionally white on gradient — branded card, not a theme surface.
+       Same approach as ChatHeader.svelte loaded-title. */
+    color: #ffffff;
+  }
+
+  .suggestion-text .text-part {
+    color: rgba(255, 255, 255, 0.85);
     transition: color 0.15s ease;
   }
 
-  .suggestion-item .text-match {
-    color: var(--color-grey-100);
-    font-weight: 500;
+  .suggestion-text .text-match {
+    color: #ffffff;
+    font-weight: 700;
   }
 
+  .suggestion-item:hover .suggestion-text .text-part {
+    color: #ffffff;
+  }
+
+  /* ─── Mobile adjustments (≤730px) ───────────────────────────────────────── */
+
   @media (max-width: 730px) {
-    .suggestions-container {
-      gap: 5px;
-      margin-bottom: 6px;
-      padding: 5px 8px;
+    .suggestions-card {
+      padding: 0.75rem 2.25rem;
+      min-height: 70px;
+    }
+
+    .deco-icon {
+      width: 64px;
+      height: 64px;
+    }
+
+    .deco-icon :global(svg) {
+      width: 64px !important;
+      height: 64px !important;
+    }
+
+    .deco-icon-left {
+      left: -14px;
+    }
+
+    .deco-icon-right {
+      right: -14px;
     }
 
     .suggestion-item {
-      font-size: 16px;
-      padding: 2px 7px;
+      font-size: 0.9375rem;
+      padding: 0.25rem 0.375rem;
     }
 
     .suggestions-header {
-      padding: 0 15px;
+      padding: 0 0.9375rem;
     }
   }
 </style>
