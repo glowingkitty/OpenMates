@@ -1980,6 +1980,56 @@ search.go_to_message:
   he: מעבר להודעה
   verified_by_human: []
 
+search.summary_match:
+  context: Label shown before a search match found in the chat summary (metadata-only search for chats beyond the initial 100)
+  en: Summary
+  de: Zusammenfassung
+  zh: 摘要
+  es: Resumen
+  fr: Résumé
+  pt: Resumo
+  ru: Резюме
+  ja: 概要
+  ko: 요약
+  it: Riepilogo
+  tr: Özet
+  vi: Tóm tắt
+  id: Ringkasan
+  pl: Podsumowanie
+  nl: Samenvatting
+  ar: ملخص
+  hi: सारांश
+  th: สรุป
+  cs: Shrnutí
+  sv: Sammanfattning
+  he: סיכום
+  verified_by_human: []
+
+search.tag_match:
+  context: Label shown before a search match found in the chat tags (metadata-only search for chats beyond the initial 100)
+  en: Tag
+  de: Tag
+  zh: 标签
+  es: Etiqueta
+  fr: Étiquette
+  pt: Tag
+  ru: Тег
+  ja: タグ
+  ko: 태그
+  it: Tag
+  tr: Etiket
+  vi: Thẻ
+  id: Tag
+  pl: Tag
+  nl: Tag
+  ar: علامة
+  hi: टैग
+  th: แท็ก
+  cs: Štítek
+  sv: Tagg
+  he: תגית
+  verified_by_human: []
+
 scroll_to_active_chat:
   context: Accessible aria-label for the sticky pin button that scrolls the active chat back into view when it is out of the visible chat list
   en: Scroll to active chat

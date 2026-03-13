@@ -1075,6 +1075,22 @@ class ChatDatabase {
     );
   }
 
+  /**
+   * Batch-save metadata-only chats (positions 101–1000) for expanded search.
+   * Skips chats already stored as full chats to avoid data loss.
+   */
+  async batchSaveMetadataChats(chats: Chat[]): Promise<number> {
+    return chatCrudOps.batchSaveMetadataChats(this, chats);
+  }
+
+  /**
+   * Get IDs of all metadata-only chats in IndexedDB.
+   * Used during sync to tell the server which chats the client already has.
+   */
+  async getMetadataOnlyChatIds(): Promise<string[]> {
+    return chatCrudOps.getMetadataOnlyChatIds(this);
+  }
+
   // ============================================================================
   // MESSAGE OPERATIONS (delegated to messageOperations.ts)
   // ============================================================================

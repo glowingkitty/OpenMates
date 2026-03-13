@@ -813,6 +813,26 @@
             {/each}
           </div>
         {/if}
+
+        <!-- Metadata match snippets (summary/tags — shown for metadata-only or supplementary matches) -->
+        {#if chatResult.metadataSnippets.length > 0 && chatResult.messageSnippets.length === 0}
+          <div class="message-snippets">
+            {#each chatResult.metadataSnippets as metaSnippet}
+              <button
+                class="message-snippet metadata-snippet"
+                onclick={() => onChatClick(chatResult.chat)}
+              >
+                {#if metaSnippet.matchSource === 'tags'}
+                  <span class="metadata-source-label">{$text('chats.search.tag_match')}</span>
+                {:else}
+                  <span class="metadata-source-label">{$text('chats.search.summary_match')}</span>
+                {/if}
+                <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+                {@html highlightText(metaSnippet.snippet, query)}
+              </button>
+            {/each}
+          </div>
+        {/if}
       {/each}
     </div>
   {/each}
@@ -979,6 +999,19 @@
     outline: none;
   }
 
+  /* Metadata source label (e.g., "Summary" or "Tag") for metadata-only search matches.
+   * Uses the same visual style as embed-source-label for consistency. */
+  .metadata-source-label {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-font-tertiary, var(--color-font-secondary));
+    opacity: 0.75;
+    margin-right: 4px;
+  }
+
   /* Embed source label (e.g., "Web page ·" or "Code ·") shown before embed-sourced snippets.
    * Styled as a muted badge so it doesn't compete with the match text. */
   .embed-source-label {
@@ -1024,6 +1057,19 @@
    * (gradient text effect). That property takes priority over `color` in WebKit/Blink browsers,
    * making text invisible unless we explicitly reset -webkit-text-fill-color here. */
   .message-snippet :global(mark) {
+    background: none;
+    background-color: rgba(255, 213, 0, 0.4);
+    -webkit-background-clip: unset;
+    background-clip: unset;
+    -webkit-text-fill-color: unset;
+    color: inherit;
+    font-weight: inherit;
+    border-radius: 2px;
+    padding: 1px 0;
+  }
+
+  /* <mark> inside metadata snippets (summary/tag matches) — same style as message snippets */
+  .metadata-snippet :global(mark) {
     background: none;
     background-color: rgba(255, 213, 0, 0.4);
     -webkit-background-clip: unset;

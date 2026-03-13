@@ -15,6 +15,7 @@ export interface DecryptedChatMetadata {
   icon: string | null; // Decrypted icon name
   category: string | null; // Decrypted category name
   summary: string | null; // Decrypted chat summary (2-3 sentences)
+  tags: string[] | null; // Decrypted chat tags (up to 10 tags for search)
   activeFocusId: string | null; // Decrypted active focus mode ID (e.g., "jobs-career_insights")
   lastDecrypted: number; // Timestamp when this metadata was last decrypted
 }
@@ -157,10 +158,11 @@ class ChatMetadataCache {
         // });
       }
 
-      // Decrypt icon, category, summary, and active focus ID with chat-specific key
+      // Decrypt icon, category, summary, tags, and active focus ID with chat-specific key
       let icon: string | null = null;
       let category: string | null = null;
       let summary: string | null = null;
+      let tags: string[] | null = null;
       let activeFocusId: string | null = null;
       const chatKey = chatDB.getChatKey(chat.chat_id);
       if (chatKey) {
@@ -193,6 +195,27 @@ class ChatMetadataCache {
           );
         }
 
+        if (chat.encrypted_chat_tags) {
+          const tagsStr = await decryptWithChatKey(
+            chat.encrypted_chat_tags,
+            chatKey,
+          );
+          if (tagsStr) {
+            try {
+              tags = JSON.parse(tagsStr);
+            } catch {
+              // Tags might be a comma-separated string rather than JSON
+              tags = tagsStr
+                .split(",")
+                .map((t: string) => t.trim())
+                .filter(Boolean);
+            }
+          }
+          console.debug(
+            `[ChatMetadataCache] Decrypted tags for chat ${chat.chat_id}: ${tags?.join(", ")}`,
+          );
+        }
+
         if (chat.encrypted_active_focus_id) {
           activeFocusId = await decryptWithChatKey(
             chat.encrypted_active_focus_id,
@@ -211,6 +234,7 @@ class ChatMetadataCache {
         icon,
         category,
         summary,
+        tags,
         activeFocusId,
         lastDecrypted: Date.now(),
       };

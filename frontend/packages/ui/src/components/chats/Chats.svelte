@@ -33,7 +33,7 @@
 	// --- Search imports ---
 	import SearchBar from './search/SearchBar.svelte';
 	import SearchResults from './search/SearchResults.svelte';
-	import { search as performSearch, warmUpSearchIndex, type SearchResults as SearchResultsType } from '../../services/searchService';
+	import { search as performSearch, warmUpSearchIndex, warmUpMetadataSearchIndex, type SearchResults as SearchResultsType } from '../../services/searchService';
 	import { searchStore, openSearch, closeSearch, setSearchQuery, setSearching } from '../../stores/searchStore';
 	import { navigateToSettings } from '../../stores/settingsNavigationStore';
 	import { messageHighlightStore, searchTextHighlightStore } from '../../stores/messageHighlightStore';
@@ -1017,6 +1017,23 @@ let _chatUpdatedFlushPending = false;
 				console.error('[Chats] Search index warm-up error (phase 3):', err),
 			);
 		}
+
+		// Phase 4: Automatically sync metadata-only chats (101–1000) for expanded search
+		if (hasMoreOnServer && totalServerChatCount > 100) {
+			console.info(`[Chats] Phase 4: Requesting metadata chats for expanded search (total=${totalServerChatCount})`);
+			// Get existing metadata-only chat IDs from IndexedDB so server can skip them
+			chatDB.getMetadataOnlyChatIds().then(existingIds => {
+				chatSyncService.sendSyncMetadataChats(existingIds).catch(err =>
+					console.error('[Chats] Error requesting metadata chats sync:', err),
+				);
+			}).catch(err => {
+				console.error('[Chats] Error getting metadata chat IDs:', err);
+				// Fall back: request without existing IDs
+				chatSyncService.sendSyncMetadataChats([]).catch(err2 =>
+					console.error('[Chats] Error requesting metadata chats sync (fallback):', err2),
+				);
+			});
+		}
 	};
 
 	/**
@@ -1187,6 +1204,36 @@ let _chatUpdatedFlushPending = false;
 		serverPaginationOffset = offset + chats.length;
 		loadingMoreChats = false;
 		loadTier = 'all_local'; // Reset from 'loading_server' back to 'all_local'
+	};
+
+	/**
+	 * Handles 'metadata_chats_ready' events from Phase 4 metadata sync.
+	 * These are metadata-only chats (positions 101–1000) now stored in IndexedDB.
+	 * Updates the chat list and warms up the metadata search index.
+	 */
+	const handleMetadataChatsReadyEvent = async (event: CustomEvent<{ chat_count: number; total_count: number }>) => {
+		const { chat_count, total_count } = event.detail;
+		console.info(`[Chats] Metadata chats ready: ${chat_count} chats synced (total on server: ${total_count})`);
+
+		if (chat_count > 0) {
+			// Refresh the chat list from IndexedDB (now includes metadata-only chats)
+			chatListCache.markDirty();
+			await updateChatListFromDB(true);
+
+			// Update pagination — metadata chats (101–1000) are now in IndexedDB,
+			// so "show more" only applies beyond position 1000
+			totalServerChatCount = total_count;
+			hasMoreOnServer = total_count > (100 + chat_count);
+			serverPaginationOffset = 100 + chat_count;
+
+			// Warm up the metadata search index for the newly synced metadata-only chats
+			const metadataChats = allChatsFromDB.filter(c => c.is_metadata_only);
+			if (metadataChats.length > 0) {
+				warmUpMetadataSearchIndex(metadataChats).catch(err =>
+					console.error('[Chats] Metadata search index warm-up error:', err),
+				);
+			}
+		}
 	};
 
 	/**
@@ -1598,6 +1645,7 @@ let _chatUpdatedFlushPending = false;
 		chatSyncService.addEventListener('phase_3_last_100_chats_ready', handlePhase3Last100ChatsReadyEvent as EventListener);
 		chatSyncService.addEventListener('phasedSyncComplete', handlePhasedSyncCompleteEvent as EventListener);
 		chatSyncService.addEventListener('load_more_chats_ready', handleLoadMoreChatsReadyEvent as EventListener);
+		chatSyncService.addEventListener('metadata_chats_ready', handleMetadataChatsReadyEvent as EventListener);
 
 		// Subscribe to draftEditorUIState to select newly created chats
 		unsubscribeDraftState = draftEditorUIState.subscribe(async value => { // Use renamed store
@@ -1965,6 +2013,7 @@ let _chatUpdatedFlushPending = false;
 		chatSyncService.removeEventListener('phase_3_last_100_chats_ready', handlePhase3Last100ChatsReadyEvent as EventListener);
 		chatSyncService.removeEventListener('phasedSyncComplete', handlePhasedSyncCompleteEvent as EventListener);
 		chatSyncService.removeEventListener('load_more_chats_ready', handleLoadMoreChatsReadyEvent as EventListener);
+		chatSyncService.removeEventListener('metadata_chats_ready', handleMetadataChatsReadyEvent as EventListener);
 
 		if (handleGlobalChatSelectedEvent) {
 			window.removeEventListener('globalChatSelected', handleGlobalChatSelectedEvent);

@@ -1224,3 +1224,151 @@ export async function addOrUpdateChatWithFullData(
       });
   });
 }
+
+// ============================================================================
+// METADATA-ONLY CHAT OPERATIONS (for expanded search coverage)
+// ============================================================================
+
+/**
+ * Batch-save metadata-only chats to IndexedDB.
+ *
+ * These are chats from positions 101–1000 that have metadata (title, summary,
+ * tags, icon, category) but no messages. They're stored in the same `chats`
+ * object store as full chats, with `is_metadata_only: true` to distinguish them.
+ *
+ * Uses a single IndexedDB transaction for efficiency (~1-2ms per chat).
+ * Skips chats that already exist in IndexedDB (avoids overwriting full chats
+ * that may have been promoted from metadata-only).
+ *
+ * @param dbInstance - ChatDatabase instance
+ * @param chats - Array of metadata-only Chat objects (with is_metadata_only: true)
+ * @returns Number of chats actually saved (excludes already-existing ones)
+ */
+export async function batchSaveMetadataChats(
+  dbInstance: ChatDatabaseInstance,
+  chats: Chat[],
+): Promise<number> {
+  if (chats.length === 0) return 0;
+
+  await dbInstance.init();
+
+  // Pre-process all chats: encrypt and prepare for storage (async work done before transaction)
+  const prepared: Chat[] = [];
+  for (const chat of chats) {
+    try {
+      const chatToSave = await encryptChatForStorage(dbInstance, {
+        ...chat,
+        is_metadata_only: true,
+        draft_v: chat.draft_v ?? 0,
+        title_v: chat.title_v ?? 0,
+        messages_v: chat.messages_v ?? 0,
+        last_edited_overall_timestamp:
+          chat.last_edited_overall_timestamp ??
+          chat.updated_at ??
+          chat.created_at ??
+          Math.floor(Date.now() / 1000),
+      });
+      delete chatToSave.messages;
+      prepared.push(chatToSave);
+    } catch (error) {
+      console.error(
+        `[ChatDatabase] Error preparing metadata chat ${chat.chat_id} for storage:`,
+        error,
+      );
+    }
+  }
+
+  if (prepared.length === 0) return 0;
+
+  return new Promise<number>((resolve, reject) => {
+    (async () => {
+      try {
+        const transaction = await dbInstance.getTransaction(
+          dbInstance.CHATS_STORE_NAME,
+          "readwrite",
+        );
+        const store = transaction.objectStore(dbInstance.CHATS_STORE_NAME);
+        let savedCount = 0;
+
+        for (const chat of prepared) {
+          // Use put (upsert) — if the chat already exists as a full chat, keep it.
+          // Check first: only save if not already present OR if already metadata-only.
+          const getRequest = store.get(chat.chat_id);
+          getRequest.onsuccess = () => {
+            const existing = getRequest.result;
+            if (existing && !existing.is_metadata_only) {
+              // Already a full chat — don't overwrite with metadata-only
+              return;
+            }
+            // Save metadata-only chat (new or updating existing metadata-only)
+            store.put(chat);
+            savedCount++;
+          };
+        }
+
+        transaction.oncomplete = () => {
+          console.debug(
+            `[ChatDatabase] Batch saved ${savedCount}/${prepared.length} metadata-only chats`,
+          );
+          resolve(savedCount);
+        };
+        transaction.onerror = () => {
+          console.error(
+            "[ChatDatabase] Batch save metadata chats transaction failed:",
+            transaction.error,
+          );
+          reject(transaction.error);
+        };
+      } catch (error) {
+        reject(error);
+      }
+    })();
+  });
+}
+
+/**
+ * Get all metadata-only chat IDs currently in IndexedDB.
+ * Used to send existing_chat_ids to the server during metadata sync
+ * so unchanged chats can be skipped.
+ *
+ * @param dbInstance - ChatDatabase instance
+ * @returns Array of chat IDs that are metadata-only
+ */
+export async function getMetadataOnlyChatIds(
+  dbInstance: ChatDatabaseInstance,
+): Promise<string[]> {
+  await dbInstance.init();
+
+  return new Promise<string[]>((resolve, reject) => {
+    (async () => {
+      try {
+        const transaction = await dbInstance.getTransaction(
+          dbInstance.CHATS_STORE_NAME,
+          "readonly",
+        );
+        const store = transaction.objectStore(dbInstance.CHATS_STORE_NAME);
+        const request = store.openCursor();
+        const metadataOnlyIds: string[] = [];
+
+        request.onsuccess = () => {
+          const cursor = request.result;
+          if (cursor) {
+            if (cursor.value.is_metadata_only) {
+              metadataOnlyIds.push(cursor.value.chat_id);
+            }
+            cursor.continue();
+          }
+        };
+
+        transaction.oncomplete = () => {
+          resolve(metadataOnlyIds);
+        };
+        transaction.onerror = () => {
+          reject(transaction.error);
+        };
+      } catch (error) {
+        reject(error);
+      }
+    })();
+  });
+}

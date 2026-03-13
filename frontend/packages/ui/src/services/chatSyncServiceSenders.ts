@@ -2648,8 +2648,6 @@ export async function sendDeleteNewChatSuggestionByIdImpl(
   }
 }
 
-
-
 /**
  * Request additional older chats from the server beyond the initial 100.
  * Used by the "Show more" button for on-demand pagination.
@@ -2671,6 +2669,34 @@ export async function sendLoadMoreChatsImpl(
   } catch (error) {
     console.error(
       "[ChatSyncService:Senders] Error requesting more chats:",
+      error,
+    );
+  }
+}
+
+// ─── Metadata chats sync (expanded search: chats 101–1000) ─────────────────
+
+/**
+ * Request metadata-only chat records for chats 101–1000 from the server.
+ * Triggered automatically after Phase 3 completes when total_chat_count > 100.
+ *
+ * Sends existing metadata-only chat IDs so the server can skip unchanged chats.
+ * Response is handled by handleSyncMetadataChatsResponseImpl.
+ */
+export async function sendSyncMetadataChatsImpl(
+  serviceInstance: ChatSynchronizationService,
+  existingChatIds: string[] = [],
+): Promise<void> {
+  try {
+    await webSocketService.sendMessage("sync_metadata_chats", {
+      existing_chat_ids: existingChatIds,
+    });
+    console.info(
+      `[ChatSyncService:Senders] Requested metadata chats sync (existing_on_client=${existingChatIds.length})`,
+    );
+  } catch (error) {
+    console.error(
+      "[ChatSyncService:Senders] Error requesting metadata chats sync:",
       error,
     );
   }

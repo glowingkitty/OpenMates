@@ -41,6 +41,7 @@ from .handlers.websocket_handlers.delete_new_chat_suggestion_handler import hand
 from .handlers.websocket_handlers.system_message_handler import handle_chat_system_message_added # Handler for system messages (app settings/memories response, etc.)
 from .handlers.websocket_handlers.email_notification_settings_handler import handle_email_notification_settings # Handler for email notification settings
 from .handlers.websocket_handlers.load_more_chats_handler import handle_load_more_chats # Handler for loading additional older chats on demand
+from .handlers.websocket_handlers.sync_metadata_chats_handler import handle_sync_metadata_chats # Handler for syncing metadata-only chats 101–1000
 from .handlers.websocket_handlers.inspiration_viewed_handler import handle_inspiration_viewed # Handler for daily inspiration view tracking
 from .handlers.websocket_handlers.inspiration_received_handler import handle_inspiration_received  # ACK handler for pending inspiration delivery
 from .handlers.websocket_handlers.sync_inspiration_chat_handler import handle_sync_inspiration_chat  # Handler for syncing inspiration-created chats across devices
@@ -2463,6 +2464,18 @@ async def websocket_endpoint(
 
             elif message_type == "load_more_chats":
                 await handle_load_more_chats(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload
+                )
+
+            elif message_type == "sync_metadata_chats":
+                await handle_sync_metadata_chats(
                     websocket=websocket,
                     manager=manager,
                     cache_service=cache_service,

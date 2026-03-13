@@ -35,6 +35,7 @@ import type {
   Phase2RecentChatsPayload,
   Phase3FullSyncPayload,
   LoadMoreChatsResponsePayload,
+  MetadataChatsResponsePayload,
   // Client to Server specific payloads (if not already covered or if preferred to list them all here)
   // UpdateTitlePayload, // Now in types/chat.ts
   // UpdateDraftPayload, // Now in types/chat.ts
@@ -303,6 +304,12 @@ export class ChatSynchronizationService extends EventTarget {
       phasedSyncHandlers.handleLoadMoreChatsResponseImpl(
         this,
         payload as LoadMoreChatsResponsePayload,
+      ),
+    );
+    webSocketService.on("sync_metadata_chats_response", (payload) =>
+      phasedSyncHandlers.handleSyncMetadataChatsResponseImpl(
+        this,
+        payload as MetadataChatsResponsePayload,
       ),
     );
     webSocketService.on("phased_sync_complete", (payload) =>
@@ -1514,6 +1521,17 @@ export class ChatSynchronizationService extends EventTarget {
     limit: number = 20,
   ): Promise<void> {
     await senders.sendLoadMoreChatsImpl(this, offset, limit);
+  }
+
+  /**
+   * Request metadata-only chat records for chats 101–1000 from the server.
+   * Triggered automatically after Phase 3 when total_chat_count > 100.
+   * These chats are stored in IndexedDB for expanded search coverage.
+   */
+  public async sendSyncMetadataChats(
+    existingChatIds: string[] = [],
+  ): Promise<void> {
+    await senders.sendSyncMetadataChatsImpl(this, existingChatIds);
   }
 
   /**

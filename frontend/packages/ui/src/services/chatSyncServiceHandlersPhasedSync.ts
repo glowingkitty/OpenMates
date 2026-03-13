@@ -9,6 +9,7 @@ import type {
   PhasedSyncCompletePayload,
   SyncStatusResponsePayload,
   LoadMoreChatsResponsePayload,
+  MetadataChatsResponsePayload,
   SyncEmbed,
   Chat,
   Message,
@@ -1215,6 +1216,106 @@ export async function handleLoadMoreChatsResponseImpl(
   } catch (error) {
     console.error(
       "[ChatSyncService] Error handling load more chats response:",
+      error,
+    );
+  }
+}
+
+/**
+ * Handle "sync_metadata_chats_response" from the server.
+ * These are metadata-only chats (positions 101–1000) synced for expanded search.
+ * They are stored in IndexedDB (cheap — metadata only, no messages) and
+ * searchable by title, summary, and tags.
+ */
+export async function handleSyncMetadataChatsResponseImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: MetadataChatsResponsePayload,
+): Promise<void> {
+  console.info(
+    `[ChatSyncService] Metadata chats sync response: ${payload.chats?.length || 0} chats, total=${payload.total_count}`,
+  );
+
+  try {
+    if (payload.error) {
+      console.error(
+        `[ChatSyncService] Server error syncing metadata chats: ${payload.error}`,
+      );
+      return;
+    }
+
+    // Convert server chat format to the Chat type with is_metadata_only flag
+    const chats: Chat[] = (payload.chats || [])
+      .map((chatWrapper) => {
+        const details = chatWrapper.chat_details;
+        if (!details?.id) return null;
+
+        return {
+          chat_id: details.id,
+          encrypted_title: details.encrypted_title || null,
+          title: null,
+          messages_v: details.messages_v || 0,
+          title_v: details.title_v || 0,
+          draft_v: 0,
+          encrypted_draft_md: null,
+          encrypted_draft_preview: null,
+          last_edited_overall_timestamp:
+            details.last_edited_overall_timestamp ||
+            details.updated_at ||
+            Math.floor(Date.now() / 1000),
+          unread_count: details.unread_count || 0,
+          created_at: details.created_at || Math.floor(Date.now() / 1000),
+          updated_at: details.updated_at || Math.floor(Date.now() / 1000),
+          processing_metadata: false,
+          waiting_for_metadata: false,
+          encrypted_category: details.encrypted_category || null,
+          encrypted_icon: details.encrypted_icon || null,
+          encrypted_chat_key: details.encrypted_chat_key || null,
+          encrypted_chat_summary: details.encrypted_chat_summary || null,
+          encrypted_chat_tags: details.encrypted_chat_tags || null,
+          encrypted_follow_up_request_suggestions:
+            details.encrypted_follow_up_request_suggestions || null,
+          encrypted_active_focus_id: details.encrypted_active_focus_id || null,
+          pinned: details.pinned || false,
+          is_shared: details.is_shared || false,
+          is_private: details.is_private || false,
+          is_metadata_only: true,
+        } as Chat;
+      })
+      .filter((c): c is Chat => c !== null);
+
+    if (chats.length === 0) {
+      console.info("[ChatSyncService] No metadata chats to save.");
+      serviceInstance.dispatchEvent(
+        new CustomEvent("metadata_chats_ready", {
+          detail: { chat_count: 0, total_count: payload.total_count },
+        }),
+      );
+      return;
+    }
+
+    // Batch-save to IndexedDB (skips chats already stored as full chats)
+    const savedCount = await chatDB.batchSaveMetadataChats(chats);
+    console.info(
+      `[ChatSyncService] Saved ${savedCount} metadata-only chats to IndexedDB`,
+    );
+
+    // Update total chat count
+    if (payload.total_count && payload.total_count > 0) {
+      updateTotalChatCount(payload.total_count);
+    }
+
+    // Dispatch event to Chats.svelte for UI update and search index warm-up
+    serviceInstance.dispatchEvent(
+      new CustomEvent("metadata_chats_ready", {
+        detail: {
+          chat_count: chats.length,
+          total_count: payload.total_count,
+        },
+      }),
+    );
+  } catch (error) {
+    console.error(
+      "[ChatSyncService] Error handling metadata chats response:",
       error,
     );
   }
