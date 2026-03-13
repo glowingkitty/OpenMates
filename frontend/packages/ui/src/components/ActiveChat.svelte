@@ -7344,11 +7344,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 console.warn("[ActiveChat] Welcome demo chat not found in DEMO_CHATS");
             }
             
-            // Only open chats panel on desktop (not mobile) when closing login interface
-            // On mobile, let the user manually open the panel if they want to see the chat list
-            // Do this AFTER loading the chat so the event is dispatched first
-            if (!$panelState.isActivityHistoryOpen && !$isMobileView) {
-                panelState.toggleChats();
+            // Keep chats panel closed by default when returning from login/signup demo flow.
+            // Users can always open it manually from the header/menu button.
+            if ($panelState.isActivityHistoryOpen) {
+                panelState.closeChats();
             }
         };
         
