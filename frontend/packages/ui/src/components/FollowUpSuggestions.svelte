@@ -619,8 +619,8 @@
     padding: 0 !important;
     min-width: unset !important;
     width: 36px !important;
-    border-radius: 14px !important;
-    background-color: rgba(0, 0, 0, 0.08) !important;
+    border-radius: 0 !important;
+    background-color: transparent !important;
     filter: none !important;
     margin: 0 !important;
     border: none;
@@ -635,22 +635,24 @@
   }
 
   .nav-arrow:hover {
-    background-color: rgba(0, 0, 0, 0.15) !important;
+    background-color: rgba(255, 255, 255, 0.1) !important;
     scale: none !important;
   }
 
   .nav-arrow:active {
-    background-color: rgba(0, 0, 0, 0.22) !important;
+    background-color: rgba(255, 255, 255, 0.18) !important;
     scale: none !important;
     filter: none !important;
   }
 
   .nav-arrow-left {
     left: 0;
+    border-radius: 0 10px 10px 0 !important;
   }
 
   .nav-arrow-right {
     right: 0;
+    border-radius: 10px 0 0 10px !important;
   }
 
   /* ─── Suggestions list ──────────────────────────────────────────────────── */
