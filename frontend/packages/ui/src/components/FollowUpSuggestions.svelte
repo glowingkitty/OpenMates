@@ -438,6 +438,8 @@
     width: 100%;
     /* Establish positioning context for the absolute-positioned nav arrows */
     position: relative;
+    /* Clip deco icons and nav arrows that extend beyond the wrapper bounds */
+    overflow: hidden;
   }
 
   @keyframes fadeIn {
@@ -625,11 +627,11 @@
   }
 
   .nav-arrow-left {
-    left: -42px;
+    left: 0;
   }
 
   .nav-arrow-right {
-    right: -42px;
+    right: 0;
   }
 
   /* ─── Suggestions list ──────────────────────────────────────────────────── */
@@ -640,9 +642,10 @@
     gap: 0.375rem;
     z-index: 2;
     position: relative;
-    width: 100%;
-    /* Center the suggestions list within the gradient card */
+    /* Shrink to the width of the longest text item, up to 700px max */
+    width: fit-content;
     max-width: 700px;
+    /* Center the block horizontally within the gradient card */
     margin: 0 auto;
   }
 
@@ -796,32 +799,10 @@
       padding: 0 0.9375rem;
     }
 
-    /* Nav arrows: match mobile card height and tuck closer on narrow viewports */
+    /* Nav arrows: match mobile card height */
     .nav-arrow {
       height: 195px;
       width: 30px !important;
-      left: auto;
-      right: auto;
-    }
-
-    .nav-arrow-left {
-      left: -34px;
-    }
-
-    .nav-arrow-right {
-      right: -34px;
-    }
-  }
-
-  /* ─── Very narrow viewports: hide nav arrows to avoid overflow ──────────── */
-
-  @media (max-width: 500px) {
-    .nav-arrow-left {
-      left: -4px;
-    }
-
-    .nav-arrow-right {
-      right: -4px;
     }
   }
 </style>
