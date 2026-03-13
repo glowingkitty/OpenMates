@@ -259,9 +259,9 @@ export function updateNavFromCache(activeChatId: string): void {
 
   // ── Case 3b: Community demos not loaded yet ───────────────────────────────
   // Community demos are fetched asynchronously, so cold boot often starts with
-  // intro/legal only. Subscribe once and rebuild the navigation list when demos
-  // arrive, even if the active chat is already found in intro/legal.
-  // Without this, header prev/next can keep skipping examples until sidebar mount.
+  // intro/legal only. Subscribe and keep rebuilding the navigation list while
+  // demos stream in so header navigation improves immediately and progressively,
+  // without waiting for Chats.svelte to mount.
   //
   // FIX: Svelte's subscribe() fires the callback synchronously on the first call,
   // BEFORE the return value (unsubscribe function) is assigned. If `chatList`
@@ -291,11 +291,21 @@ export function updateNavFromCache(activeChatId: string): void {
           ...chat,
           group_key: "examples" as const,
         }));
-      if (updatedCommunityChats.length === 0) return; // still loading
-      const rebuilt = [...introChats, ...updatedCommunityChats, ...legalChats];
-      _applyNavigableList(rebuilt, activeChatId);
-      done = true;
-      unsub[0]?.(); // one-shot: stop listening after first successful update
+      if (updatedCommunityChats.length > 0) {
+        const rebuilt = [
+          ...introChats,
+          ...updatedCommunityChats,
+          ...legalChats,
+        ];
+        _applyNavigableList(rebuilt, activeChatId);
+      }
+
+      // Stop listening once the demo loader finished. Until then, keep the
+      // subscription active so each newly-loaded demo chat is reflected in nav.
+      if (communityDemoStore.isLoaded()) {
+        done = true;
+        unsub[0]?.();
+      }
     });
     // If the synchronous first call already resolved (chatList was populated),
     // unsubscribe immediately now that the function is available.
