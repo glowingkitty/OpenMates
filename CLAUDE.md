@@ -10,12 +10,15 @@ Essential guidelines for AI assistants. Detailed standards are loaded automatica
 
 **Absolute order requirement:** `sessions.py start` must be the very first action in a task, before any file search, file read, context lookup, debugging command, or other repository operation.
 
+**Completion requirement:** `sessions.py end` must always be called when the task is complete (either explicitly with `sessions.py end` or implicitly via `sessions.py deploy --end`). No session may be left open.
+
 ```bash
 # 1. FIRST thing:
 python3 scripts/sessions.py start --task "brief description"
 # → Saves session ID (e.g. "a3f2"). Use this ID in ALL subsequent commands.
 # → Auto-infers tags from task (override: --tags "frontend,debug").
 # → Prints: git status, recent commits, active sessions, relevant instruction docs.
+# → Automatically runs the debug health preflight; do not run a separate startup health command.
 # → READ the instruction docs — they contain project-specific rules.
 #
 # IMPORTANT: When you already have an issue/chat/embed ID, pass it DIRECTLY
@@ -41,6 +44,7 @@ python3 scripts/sessions.py deploy --session <ID> --title "fix: description" --m
 
 # 4. If not using --end above:
 python3 scripts/sessions.py end --session <ID>
+# → MANDATORY at task completion when deploy was not run with --end.
 ```
 
 ### On-Demand Doc Loading
@@ -175,6 +179,57 @@ Only remove debug logs after user confirms the issue is fixed.
 ### Issue Resolution
 
 After user confirms fix: `docker exec api python /app/backend/scripts/debug.py issue <id> --delete --yes`
+
+### New Features Require E2E Test Proposal (CRITICAL)
+
+After implementing any new **auth flow, payment flow, or user-facing feature**, you MUST propose an E2E test plan describing:
+
+1. The user flow to test (step-by-step)
+2. The expected assertions
+3. Which existing `*.spec.ts` to extend or which new spec to create
+
+**Wait for user confirmation before writing any test code.** This aligns with Rule 1 in `testing.md` but makes the _proposal_ mandatory, not optional.
+
+### Sidebar-Closed as Default Test Scenario
+
+When testing any chat-related feature, always verify with the **sidebar defaulting to closed** (the current default for viewports <=1440px). Five consecutive bugs were caused by stores assuming the sidebar component was mounted.
+
+### Cold-Boot Verification
+
+After fixing a chat, navigation, or sync bug, verify by **clearing IndexedDB and localStorage** in the browser, then reloading. Five bugs only manifested on cold boot with empty cache.
+
+### Two-Commit Rule for Refactors
+
+When moving a function between modules (e.g., class method to module-level function), **ALL call sites must be updated in the same commit**. Never split a refactor across commits where intermediate states break imports. Run unit tests before committing.
+
+### Cache-Miss Fallback Pattern (Backend)
+
+Cache reads MUST have a database fallback. **Never treat a cache miss as a terminal error.** Pattern:
+
+```python
+value = await cache.get(key)
+if value is None:
+    value = await db.get(key)
+    await cache.set(key, value)
+```
+
+### Required Props Over Optional Props (Frontend)
+
+Callback props that are required for functionality (`onFullscreen`, `onClose`, `onSubmit`) MUST be typed as **required**, not optional. If a prop is sometimes not needed, use two component variants or a discriminated union type.
+
+### Use Playwright Specs for Verification (Not Firecrawl)
+
+For feature/fix verification, prefer writing or extending Playwright `*.spec.ts` tests over one-off Firecrawl browser sessions. Specs are repeatable, automated, and don't consume Firecrawl API quota. Reserve Firecrawl for **debugging** when a spec fails and you need to manually investigate.
+
+### GitHub Actions CI
+
+Pushes to `dev` trigger GitHub Actions CI (`.github/workflows/ci.yml`) which runs:
+
+- Frontend: vitest unit tests, svelte-check, i18n validation
+- Backend: pytest unit tests (non-integration)
+- Failure notifications via internal API email
+
+This is lightweight and external — it does NOT replace the daily E2E cron or Vercel builds.
 
 ---
 

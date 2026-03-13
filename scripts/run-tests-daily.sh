@@ -160,6 +160,43 @@ if [[ "${E2E_PROD_TEST_ENABLED:-}" == "true" ]]; then
   fi
 fi
 
+# --- Collect coverage metrics (informational, non-blocking) ---
+echo "[daily-runner] Collecting coverage metrics..."
+COVERAGE_DIR="$RESULTS_DIR/coverage"
+mkdir -p "$COVERAGE_DIR"
+
+# Frontend (vitest) coverage — writes JSON summary
+VITEST_DIR="$PROJECT_ROOT/frontend/packages/ui"
+if [[ -f "$VITEST_DIR/vitest.simple.config.ts" ]]; then
+  echo "[daily-runner] Running vitest with coverage..."
+  (cd "$VITEST_DIR" && npx vitest run --config vitest.simple.config.ts --coverage --coverage.reporter=json-summary 2>/dev/null) || true
+  if [[ -f "$VITEST_DIR/coverage/coverage-summary.json" ]]; then
+    cp "$VITEST_DIR/coverage/coverage-summary.json" "$COVERAGE_DIR/vitest-coverage.json"
+    echo "[daily-runner] Vitest coverage saved."
+  fi
+fi
+
+# Backend (pytest) coverage — requires pytest-cov
+PYTEST_BIN="$PROJECT_ROOT/backend/.venv/bin/python3"
+if [[ ! -x "$PYTEST_BIN" ]]; then
+  PYTEST_BIN="/OpenMates/.venv/bin/python3"
+fi
+if [[ -x "$PYTEST_BIN" ]]; then
+  echo "[daily-runner] Running pytest with coverage..."
+  ($PYTEST_BIN -m pytest backend/tests/test_auth_endpoints.py \
+    backend/tests/test_encryption_service.py \
+    backend/tests/test_url_validator.py \
+    backend/tests/test_model_selection.py \
+    backend/tests/test_toon_fake_tool_call_filter.py \
+    --cov=backend/core/api/app --cov-report=json:"$COVERAGE_DIR/pytest-coverage.json" \
+    -q --tb=no -m "not integration" 2>/dev/null) || true
+  if [[ -f "$COVERAGE_DIR/pytest-coverage.json" ]]; then
+    echo "[daily-runner] Pytest coverage saved."
+  fi
+fi
+
+echo "[daily-runner] Coverage collection complete."
+
 # --- Save split pass/fail log files for easy Claude consumption ---
 export RESULTS_DIR
 python3 "$SCRIPT_DIR/_daily_runner_helper.py" split-results

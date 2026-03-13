@@ -75,15 +75,15 @@ Standards for modifying frontend code in `frontend/` - Svelte 5 components, Type
 
 **Never use raw color literals.** The dark theme inverts the entire grey scale via `[data-theme="dark"]` — a hardcoded `white` or `#fff` will be invisible or broken in dark mode. Always use theme variables:
 
-| Use case | Variable | Never use |
-|---|---|---|
-| Page / card background | `var(--color-grey-0)` | `white`, `#fff`, `#ffffff` |
-| Subtle surface / input bg | `var(--color-grey-10)` – `var(--color-grey-20)` | `#f9f9f9`, `#f3f3f3` |
-| Dividers / borders | `var(--color-grey-25)` – `var(--color-grey-30)` | `#e3e3e3`, `rgba(0,0,0,0.1)` |
-| Body text | `var(--color-font-primary)` | `black`, `#000`, `#222` |
-| Secondary / muted text | `var(--color-font-secondary)`, `var(--color-font-tertiary)` | `#a9a9a9`, `#6b6b6b`, `gray` |
-| Error states | `var(--color-error)`, `var(--color-error-light)` | `#e74c3c`, `red` |
-| Warning states | `var(--color-warning)`, `var(--color-warning-bg)` | `#e67e22`, `orange` |
+| Use case                  | Variable                                                    | Never use                    |
+| ------------------------- | ----------------------------------------------------------- | ---------------------------- |
+| Page / card background    | `var(--color-grey-0)`                                       | `white`, `#fff`, `#ffffff`   |
+| Subtle surface / input bg | `var(--color-grey-10)` – `var(--color-grey-20)`             | `#f9f9f9`, `#f3f3f3`         |
+| Dividers / borders        | `var(--color-grey-25)` – `var(--color-grey-30)`             | `#e3e3e3`, `rgba(0,0,0,0.1)` |
+| Body text                 | `var(--color-font-primary)`                                 | `black`, `#000`, `#222`      |
+| Secondary / muted text    | `var(--color-font-secondary)`, `var(--color-font-tertiary)` | `#a9a9a9`, `#6b6b6b`, `gray` |
+| Error states              | `var(--color-error)`, `var(--color-error-light)`            | `#e74c3c`, `red`             |
+| Warning states            | `var(--color-warning)`, `var(--color-warning-bg)`           | `#e67e22`, `orange`          |
 
 **Exception:** Intentionally hardcoded values (syntax highlighting, brand gradients) must have an inline comment explaining why.
 
@@ -91,14 +91,14 @@ Standards for modifying frontend code in `frontend/` - Svelte 5 components, Type
 
 `px` is fixed and ignores the user's browser font size preference (accessibility: zoom, large-text). Always use `rem`.
 
-| Context | Variable | Never use |
-|---|---|---|
-| Body / paragraphs | `var(--font-size-p)` | `font-size: 16px` |
-| Headings | `var(--font-size-h1)` – `var(--font-size-h4)` | `font-size: 24px` |
-| Buttons | `var(--button-font-size)` | `font-size: 16px` |
-| Inputs | `var(--input-font-size)` (must stay >= 1rem — iOS Safari auto-zoom) | `font-size: 16px` |
-| Small / secondary text | `var(--processing-details-font-size)` | `font-size: 14px` |
-| One-off size (no variable fits) | `0.875rem`, `1.125rem`, etc. | `14px`, `18px` |
+| Context                         | Variable                                                            | Never use         |
+| ------------------------------- | ------------------------------------------------------------------- | ----------------- |
+| Body / paragraphs               | `var(--font-size-p)`                                                | `font-size: 16px` |
+| Headings                        | `var(--font-size-h1)` – `var(--font-size-h4)`                       | `font-size: 24px` |
+| Buttons                         | `var(--button-font-size)`                                           | `font-size: 16px` |
+| Inputs                          | `var(--input-font-size)` (must stay >= 1rem — iOS Safari auto-zoom) | `font-size: 16px` |
+| Small / secondary text          | `var(--processing-details-font-size)`                               | `font-size: 14px` |
+| One-off size (no variable fits) | `0.875rem`, `1.125rem`, etc.                                        | `14px`, `18px`    |
 
 **`rem` vs `em`:** Use `rem` for `font-size` (relative to root — consistent, non-compounding). `em` is acceptable for `padding`/`margin`/`line-height` inside a text container where scaling with local font size is intentional. Never use `em` for `font-size` in components.
 
@@ -118,6 +118,27 @@ Standards for modifying frontend code in `frontend/` - Svelte 5 components, Type
 - **Stores** must NOT import from other stores' internal modules. Use barrel exports (e.g., import from `authStore.ts`, not `authSessionActions.ts`).
 - **Shared components** live in `frontend/packages/ui/src/components/`. If you find the same component logic in 2+ app-specific files, extract it.
 - **Shared services/utils** live in `frontend/packages/ui/src/services/` and `src/utils/`. Search there before writing new utility functions.
+
+---
+
+## Component Preview Requirements
+
+Every new `.svelte` component in `frontend/packages/ui/src/components/` MUST have a companion `.preview.ts` file:
+
+- **File location:** Next to the component: `ComponentName.preview.ts` alongside `ComponentName.svelte`
+- **Default export:** `Record<string, unknown>` — realistic mock props for the default state
+- **Variants export (recommended):** `Record<string, Record<string, unknown>>` — named variant prop sets for different states (e.g., `processing`, `error`, `loading`, `mobile`)
+- **Verify on dev preview:** After creating a new component, verify it renders at `app.dev.openmates.org/dev/preview/<component-path>` with the preview data
+
+This enables the `/dev/preview/` system to render every component for visual inspection and testing. Components without preview files show a "Render Error" panel.
+
+---
+
+## Required Props Over Optional Props
+
+Callback props that are required for functionality (`onFullscreen`, `onClose`, `onSubmit`) MUST be typed as **required**, not optional. This is enforced because 40+ embed previews silently failed when `onFullscreen` was typed as optional and callers forgot to pass it.
+
+If a prop is sometimes not needed, use two component variants or a discriminated union type instead of `prop?: Type`.
 
 ---
 

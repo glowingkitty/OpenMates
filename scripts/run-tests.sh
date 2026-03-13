@@ -303,6 +303,7 @@ run_pytest() {
     "test_payment_provider_routing.py"
     "test_integration_encryption.py"
     "test_app_skills.py"
+    "test_auth_endpoints.py"
   )
 
   echo "  Running unit tests..."
@@ -400,6 +401,7 @@ print(f'  Unit: {passed} passed, {failed} failed ({dur}s)')
     local integ_tests=(
       "test_rest_api_ai.py"
       "test_rest_api_apps.py"
+      "test_rest_api_auth.py"
       "test_rest_api_core.py"
       "test_rest_api_images.py"
       "test_rest_api_media.py"
