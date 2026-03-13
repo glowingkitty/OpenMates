@@ -2,11 +2,7 @@
 import { writable, derived, get } from "svelte/store";
 import { authStore } from "./authStore";
 import { isInSignupProcess, isLoggingOut } from "./signupState";
-import {
-  isMobileView,
-  isChatsDefaultOpenViewport,
-  loginInterfaceOpen,
-} from "./uiStateStore";
+import { isMobileView, loginInterfaceOpen } from "./uiStateStore";
 
 type ActivityHistoryUserIntent = "auto" | "closed" | "open";
 
@@ -115,6 +111,14 @@ function openChats(): void {
 }
 
 /**
+ * Explicitly closes the Activity History (Chats) panel.
+ */
+function closeChats(): void {
+  _activityHistoryUserIntent.set("closed");
+  _isActivityHistoryOpen.set(false);
+}
+
+/**
  * Opens the Settings panel.
  */
 function openSettings(): void {
@@ -145,7 +149,6 @@ const intendedActivityHistoryOpen = derived(
     isInSignupProcess,
     isLoggingOut,
     isMobileView,
-    isChatsDefaultOpenViewport,
     loginInterfaceOpen,
     _activityHistoryUserIntent,
   ],
@@ -154,7 +157,6 @@ const intendedActivityHistoryOpen = derived(
     $isInSignupProcess,
     ,
     $isMobileView,
-    $isChatsDefaultOpenViewport,
     $loginInterfaceOpen,
     $activityHistoryUserIntent,
   ]) => {
@@ -181,14 +183,9 @@ const intendedActivityHistoryOpen = derived(
       console.debug("[PanelState] Intended AH Open: User Manually Opened");
       return true;
     }
-    // Default behavior: open only on very wide screens.
-    console.debug(
-      "[PanelState] Intended AH based on viewport default-open rule",
-      {
-        isChatsDefaultOpenViewport: $isChatsDefaultOpenViewport,
-      },
-    );
-    return $isChatsDefaultOpenViewport;
+    // Default behavior: keep chats closed unless explicitly opened.
+    console.debug("[PanelState] Intended AH Closed: Default behavior");
+    return false;
   },
 );
 
@@ -315,6 +312,7 @@ export const panelState = {
   ).subscribe,
   toggleChats,
   openChats,
+  closeChats,
   openSettings,
   closeSettings,
   // Expose reset for potential use elsewhere if needed, e.g., deep linking

@@ -81,6 +81,10 @@
 	let globalOpenSearchShortcutHandler: ((event: KeyboardEvent) => void) | null = null; // Persistent Cmd/Ctrl+F handler
 	let hasAutoOpenedGiftCardRedeemAfterAuth = $state(false);
 
+	const SHORTCUT_OPEN_SEARCH_KEY = 'f';
+	const SHORTCUT_TOGGLE_CHATS_CODE = 'Backslash';
+	const SHORTCUT_TOGGLE_SETTINGS_KEY = '.';
+
 	function openGiftCardRedeemSettings(): void {
 		hasAutoOpenedGiftCardRedeemAfterAuth = true;
 		settingsDeepLink.set('billing/gift-cards/redeem');
@@ -801,23 +805,84 @@
 		const handleGlobalOpenSearchShortcut = (event: KeyboardEvent) => {
 			const isMac = navigator.platform.toUpperCase().includes('MAC');
 			const isCmdOrCtrlPressed = isMac ? event.metaKey : event.ctrlKey;
-			if (!isCmdOrCtrlPressed || event.key.toLowerCase() !== 'f') {
+			if (!isCmdOrCtrlPressed) {
 				return;
 			}
 
-			event.preventDefault();
-			event.stopPropagation();
-			event.stopImmediatePropagation();
+			const closeChatsIfOpen = () => {
+				if ($panelState.isActivityHistoryOpen) {
+					panelState.toggleChats();
+				}
+			};
 
-			panelState.openChats();
+			const key = event.key.toLowerCase();
 
-			// Wait for sidebar mount before firing openSearch so Chats.svelte has attached
-			// its listener even when it was initially unmounted.
-			requestAnimationFrame(() => {
+			if (key === SHORTCUT_OPEN_SEARCH_KEY) {
+				event.preventDefault();
+				event.stopPropagation();
+				event.stopImmediatePropagation();
+
+				const wasChatsOpen = $panelState.isActivityHistoryOpen;
+				panelState.openChats();
+
+				// Wait for sidebar mount before firing openSearch so Chats.svelte has attached
+				// its listener even when it was initially unmounted.
 				requestAnimationFrame(() => {
-					window.dispatchEvent(new Event('openSearch'));
+					requestAnimationFrame(() => {
+						window.dispatchEvent(
+							new CustomEvent('openSearch', {
+								detail: {
+									closeChatsOnEscape: !wasChatsOpen
+								}
+							})
+						);
+					});
 				});
-			});
+				return;
+			}
+
+			if (!event.shiftKey && event.code === SHORTCUT_TOGGLE_CHATS_CODE) {
+				event.preventDefault();
+				event.stopPropagation();
+				event.stopImmediatePropagation();
+
+				if ($panelState.isActivityHistoryOpen) {
+					panelState.toggleChats();
+				} else {
+					panelState.closeSettings();
+					panelState.openChats();
+				}
+				return;
+			}
+
+			if (!event.shiftKey && key === SHORTCUT_TOGGLE_SETTINGS_KEY) {
+				event.preventDefault();
+				event.stopPropagation();
+				event.stopImmediatePropagation();
+
+				if ($panelState.isSettingsOpen) {
+					panelState.closeSettings();
+				} else {
+					closeChatsIfOpen();
+					panelState.openSettings();
+				}
+				return;
+			}
+
+			if (event.shiftKey && event.code === SHORTCUT_TOGGLE_CHATS_CODE) {
+				event.preventDefault();
+				event.stopPropagation();
+				event.stopImmediatePropagation();
+
+				const areBothOpen = $panelState.isActivityHistoryOpen && $panelState.isSettingsOpen;
+				if (areBothOpen) {
+					closeChatsIfOpen();
+					panelState.closeSettings();
+				} else {
+					panelState.openChats();
+					panelState.openSettings();
+				}
+			}
 		};
 		globalOpenSearchShortcutHandler = handleGlobalOpenSearchShortcut;
 		window.addEventListener('keydown', handleGlobalOpenSearchShortcut, true);

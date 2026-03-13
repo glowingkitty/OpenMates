@@ -17,7 +17,7 @@
     /** Called when the debounced search query changes */
     onSearch: (query: string) => void;
     /** Called when search is closed (X button or Escape) */
-    onClose: () => void;
+    onClose: (reason: 'button' | 'escape') => void;
     /** Called when ArrowDown is pressed in the input (to move focus to results) */
     onArrowDown?: () => void;
     /** Called when ArrowUp is pressed in the input (to move focus within results) */
@@ -34,8 +34,8 @@
 
   let { onSearch, onClose, onArrowDown, onArrowUp, onEnter, initialQuery = '' }: Props = $props();
 
-  // Local state — initialize from initialQuery so the search is restored on panel reopen
-  let query = $state(initialQuery);
+  // Local state — populated on mount from initialQuery so search restores on reopen
+  let query = $state('');
   let inputElement: HTMLInputElement | null = $state(null);
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -65,7 +65,7 @@
     if (event.key === 'Escape') {
       event.preventDefault();
       event.stopPropagation();
-      handleClose();
+      handleClose('escape');
     } else if (event.key === 'ArrowDown') {
       event.preventDefault();
       onArrowDown?.();
@@ -81,12 +81,12 @@
   /**
    * Close search: clear query and notify parent.
    */
-  function handleClose(): void {
+  function handleClose(reason: 'button' | 'escape' = 'button'): void {
     query = '';
     if (debounceTimer) {
       clearTimeout(debounceTimer);
     }
-    onClose();
+    onClose(reason);
   }
 
   /**
@@ -103,6 +103,8 @@
   }
 
   onMount(() => {
+    query = initialQuery;
+
     // Focus the search input when the component mounts
     // Use a short delay to ensure the DOM is ready
     setTimeout(() => {
@@ -144,7 +146,7 @@
   <button
     class="search-close-button clickable-icon icon_close"
     aria-label={$text('activity.close')}
-    onclick={handleClose}
+    onclick={() => handleClose('button')}
   ></button>
 </div>
 
