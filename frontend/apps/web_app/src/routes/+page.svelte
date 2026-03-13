@@ -51,7 +51,8 @@
 		NEW_CHAT_SENTINEL,
 		loadCommunityDemos,
 		loadDefaultInspirations,
-		DevConsole
+		DevConsole,
+		openSearch
 	} from '@repo/ui';
 	import {
 		checkAndClearMasterKeyOnLoad,
@@ -823,21 +824,12 @@
 				event.stopImmediatePropagation();
 
 				const wasChatsOpen = $panelState.isActivityHistoryOpen;
+				// Open the chats panel (required so the search bar is visible)
 				panelState.openChats();
-
-				// Wait for sidebar mount before firing openSearch so Chats.svelte has attached
-				// its listener even when it was initially unmounted.
-				requestAnimationFrame(() => {
-					requestAnimationFrame(() => {
-						window.dispatchEvent(
-							new CustomEvent('openSearch', {
-								detail: {
-									closeChatsOnEscape: !wasChatsOpen
-								}
-							})
-						);
-					});
-				});
+				// Activate search via the global store — no window event needed.
+				// The store state persists across the Chats component mount boundary,
+				// so the SearchBar renders immediately when Chats mounts.
+				openSearch({ closeChatsOnEscape: !wasChatsOpen });
 				return;
 			}
 

@@ -24,6 +24,12 @@ export interface SearchState {
    * While search is open, all matches in the active chat should be visually highlighted.
    */
   activeSearchChatId: string | null;
+  /**
+   * When true, pressing Escape to close search should also close the Chats panel.
+   * Set when Cmd/Ctrl+F opened search while the sidebar was previously closed,
+   * so Escape restores the prior closed state.
+   */
+  closeChatsOnEscape: boolean;
 }
 
 const initialState: SearchState = {
@@ -32,18 +38,21 @@ const initialState: SearchState = {
   isSearching: false,
   activeMessageId: null,
   activeSearchChatId: null,
+  closeChatsOnEscape: false,
 };
 
 export const searchStore = writable<SearchState>(initialState);
 
 /**
  * Open search mode (show the search bar).
- * Called when user clicks the search icon or presses Cmd+K.
+ * Called when user clicks the search icon or presses Cmd+F.
+ * @param options.closeChatsOnEscape - When true, closing search via Escape also closes the Chats panel.
  */
-export function openSearch(): void {
+export function openSearch(options?: { closeChatsOnEscape?: boolean }): void {
   searchStore.update((state) => ({
     ...state,
     isActive: true,
+    closeChatsOnEscape: options?.closeChatsOnEscape ?? false,
   }));
 }
 

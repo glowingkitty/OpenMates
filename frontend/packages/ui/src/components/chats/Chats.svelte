@@ -122,9 +122,6 @@ let _chatUpdatedFlushPending = false;
 	let searchState = $derived($searchStore);
 	// Search results from the last completed search
 	let searchResults: SearchResultsType | null = $state(null);
-	// True when Cmd/Ctrl+F opened search while chats were previously closed.
-	// Used so Escape can restore the prior closed state.
-	let shouldCloseChatsOnSearchEscape = $state(false);
 	// Reference to the SearchResults component for keyboard navigation
 	let searchResultsComponent: { focusNext: () => void; focusPrevious: () => void; activateFocused: () => void } | null = $state(null);
 	
@@ -708,7 +705,7 @@ let _chatUpdatedFlushPending = false;
 	let handleHiddenChatsAutoLocked: () => void; // Handler for hidden chats auto-locked event
 	let handleChatHidden: (event: Event) => void; // Handler for chat hidden event
 	let handleChatUnhidden: (event: Event) => void; // Handler for chat unhidden event
-	let handleOpenSearchEvent: (event: Event) => void; // Handler for global 'openSearch' window event (Cmd+F)
+	let handleOpenSearchEvent: EventListener; // Handler for global 'openSearch' window event (Cmd+F)
 	// NOTE: navigateChatPrevious/navigateChatNext window event listeners were removed.
 	// Navigation is now handled directly by chatNavigationStore.navigatePrev()/navigateNext()
 	// which works even when this sidebar component is unmounted.
@@ -1885,10 +1882,7 @@ let _chatUpdatedFlushPending = false;
 
 		// Handle global 'openSearch' event dispatched by KeyboardShortcuts (Cmd+F / Ctrl+F).
 		// Ensures the Chats panel is open (on any viewport) and activates the search bar.
-		handleOpenSearchEvent = (event: Event) => {
-			const customEvent = event as CustomEvent<{ closeChatsOnEscape?: boolean }>;
-			shouldCloseChatsOnSearchEscape = Boolean(customEvent.detail?.closeChatsOnEscape);
-
+		handleOpenSearchEvent = (_event: Event) => {
 			// Open the Chats panel if it is currently closed — on any screen size.
 			// panelState.toggleChats() is a toggle, so we only call it when the panel is closed.
 			if (!$isActivityHistoryOpen) {
@@ -2242,10 +2236,10 @@ let _chatUpdatedFlushPending = false;
 	 * Handle search close — clears query and hides search results.
 	 */
 	function handleSearchClose(reason: 'button' | 'escape' = 'button'): void {
-		const shouldCloseChats = reason === 'escape' && shouldCloseChatsOnSearchEscape;
+		// Read the flag BEFORE closeSearch() resets the store to initial state
+		const shouldCloseChats = reason === 'escape' && searchState.closeChatsOnEscape;
 		closeSearch();
 		searchResults = null;
-		shouldCloseChatsOnSearchEscape = false;
 		if (shouldCloseChats && $isActivityHistoryOpen) {
 			panelState.toggleChats();
 		}
@@ -3414,10 +3408,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 						<button
 							class="clickable-icon icon_search top-button"
 							aria-label="Search"
-							onclick={() => {
-								shouldCloseChatsOnSearchEscape = false;
-								openSearch();
-							}}
+							onclick={() => openSearch()}
 							use:tooltip
 						></button>
 						<button
