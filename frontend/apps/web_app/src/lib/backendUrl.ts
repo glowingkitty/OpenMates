@@ -30,6 +30,18 @@ export function getBackendUrl(url: URL): string {
 }
 
 /**
+ * Resolve the canonical site origin used by SEO routes.
+ * During prerender builds SvelteKit provides a synthetic origin
+ * (http://sveltekit-prerender) which must never leak into canonical/og URLs.
+ */
+export function getSiteOrigin(url: URL): string {
+	if (url.hostname === 'sveltekit-prerender') {
+		return 'https://openmates.org';
+	}
+	return url.origin;
+}
+
+/**
  * Backend URL for build-time use (entries() generators, prerender).
  * Reads BACKEND_URL from the environment so dev and prod Vercel builds
  * each prerender against their own backend. Falls back to prod if unset.

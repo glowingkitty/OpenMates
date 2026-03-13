@@ -366,8 +366,8 @@ async def approve_demo_chat(
     Updates an existing demo_chat entry (status='pending_approval') to
     status='translating' and triggers the translation task.
     
-    Enforces a limit of 10 published demo chats total (6 for_everyone + 4 for_developers).
     Admin selects the demo_chat_category ("for_everyone" or "for_developers") during approval.
+    Published demo chats are retained until an admin explicitly removes them.
     """
     try:
         from datetime import datetime, timezone
@@ -378,10 +378,6 @@ async def approve_demo_chat(
                 status_code=400,
                 detail=f"Invalid demo_chat_category: {payload.demo_chat_category}. Must be 'for_everyone' or 'for_developers'."
             )
-        
-        # Category-specific limits: 6 for "for_everyone", 4 for "for_developers"
-        CATEGORY_LIMITS = {"for_everyone": 6, "for_developers": 4}
-        category_limit = CATEGORY_LIMITS[payload.demo_chat_category]
         
         # Verify the pending demo_chat exists (payload.demo_chat_id is the UUID)
         demo_chats = await directus_service.get_items("demo_chats", {
@@ -407,51 +403,6 @@ async def approve_demo_chat(
         # The demo_chat entry already contains all content needed for translation,
         # independent of whether the original user chat was deleted.
 
-        # Check current published demo chat count for the selected category
-        # Query Directus directly to avoid cache format issues
-        current_demos = await directus_service.get_items("demo_chats", {
-            "filter": {
-                "is_active": {"_eq": True},
-                "status": {"_eq": "published"}
-            },
-            "sort": "-created_at"
-        })
-        current_demos = current_demos or []
-        # Filter demos by the target category
-        category_demos = [d for d in current_demos if d.get("demo_chat_category") == payload.demo_chat_category]
-        
-        if len(category_demos) >= category_limit:
-            # Determine which demo to replace (from the same category)
-            demo_to_remove_id = None
-            
-            if payload.replace_demo_chat_id:
-                # Admin specified which demo to replace - validate it exists in current demos
-                demo_ids = [d["id"] for d in current_demos]
-                if payload.replace_demo_chat_id not in demo_ids:
-                    raise HTTPException(
-                        status_code=400, 
-                        detail="Specified replacement demo chat not found or not currently published"
-                    )
-                demo_to_remove_id = payload.replace_demo_chat_id
-                logger.info(f"Admin selected demo chat {demo_to_remove_id} for replacement")
-            else:
-                # No replacement specified - fall back to oldest demo in the same category
-                category_demos.sort(key=lambda x: x.get("created_at", ""))
-                demo_to_remove_id = category_demos[0]["id"]
-                logger.info(f"No replacement specified, defaulting to oldest '{payload.demo_chat_category}' demo chat {demo_to_remove_id}")
-            
-            logger.info(f"Deleting demo chat {demo_to_remove_id} to make room for new demo")
-            
-            # Batch delete all related data using filters
-            # Note: Directus batch delete uses filter parameters
-            await directus_service.delete_items("demo_messages", {"demo_chat_id": {"_eq": demo_to_remove_id}}, admin_required=True)
-            await directus_service.delete_items("demo_embeds", {"demo_chat_id": {"_eq": demo_to_remove_id}}, admin_required=True)
-            await directus_service.delete_items("demo_chat_translations", {"demo_chat_id": {"_eq": demo_to_remove_id}}, admin_required=True)
-            
-            # Finally, delete the demo_chat entry itself
-            await directus_service.delete_item("demo_chats", demo_to_remove_id, admin_required=True)
-            logger.info(f"Deleted demo chat {demo_to_remove_id} and all related data")
-        
         # Update the demo_chat entry: status -> 'translating', approved_by_admin -> admin UUID, demo_chat_category
         updates = {
             "status": "translating",
@@ -629,8 +580,7 @@ async def get_admin_demo_chats(
         return {
             "demo_chats": enriched_demos,
             "count": len(enriched_demos),
-            "limit": 10,
-            "category_limits": {"for_everyone": 6, "for_developers": 4}
+            "ui_limits": {"for_everyone": 10, "for_developers": 4}
         }
 
     except Exception as e:
@@ -687,8 +637,7 @@ async def update_demo_chat_category(
     """
     Update the demo_chat_category of an existing published demo chat.
     
-    Enforces per-category limits (6 for_everyone, 4 for_developers).
-    If the target category is already at its limit, the request is rejected.
+    No hard cap is enforced; categories can contain any number of published chats.
     """
     try:
         new_category = payload.demo_chat_category
@@ -714,25 +663,6 @@ async def update_demo_chat_category(
                 "message": "Category unchanged",
                 "demo_chat_category": new_category
             }
-
-        # Check that the target category has room (excluding this demo from the count)
-        # Query Directus directly to avoid cache format issues
-        CATEGORY_LIMITS = {"for_everyone": 6, "for_developers": 4}
-        published_demos = await directus_service.get_items("demo_chats", {
-            "filter": {
-                "is_active": {"_eq": True},
-                "status": {"_eq": "published"},
-                "demo_chat_category": {"_eq": new_category},
-                "id": {"_neq": demo_chat_id}
-            }
-        })
-        target_category_count = len(published_demos) if published_demos else 0
-
-        if target_category_count >= CATEGORY_LIMITS[new_category]:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Category '{new_category}' is already at its limit of {CATEGORY_LIMITS[new_category]}. Remove a demo from that category first."
-            )
 
         # Update the category
         result = await directus_service.update_item(

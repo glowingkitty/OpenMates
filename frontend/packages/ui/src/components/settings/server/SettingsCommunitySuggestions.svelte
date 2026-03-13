@@ -2,7 +2,7 @@
     Settings Community Suggestions Component
 
     Shows pending community chat suggestions for admin approval.
-    Allows admins to approve chats to become demo chats with a limit of 5.
+    Allows admins to approve chats to become demo chats.
 -->
 <script lang="ts">
     import { createEventDispatcher, onMount, onDestroy } from 'svelte';
@@ -68,12 +68,10 @@
     let currentDemoChats = $state<DemoChat[]>([]);
     let isSubmitting = $state(false);
     let pendingSuggestion = $state<Suggestion | null>(null);
-    let selectedReplacementChatId = $state<string>('');
     let selectedDemoChatCategory = $state<string>('for_everyone');  // Category to assign when approving
 
-    // Category limits for demo chats
-    const CATEGORY_LIMITS: Record<string, number> = { for_everyone: 6, for_developers: 4 };
-    const TOTAL_LIMIT = 10;
+    // UI visibility limits (published demos can exceed these; older demos remain link-accessible)
+    const UI_CATEGORY_LIMITS: Record<string, number> = { for_everyone: 10, for_developers: 4 };
 
     // Translation progress tracking
     let translationProgress = $state<Map<string, TranslationProgress>>(new Map());
@@ -231,7 +229,6 @@
                 body: JSON.stringify({
                     demo_chat_id: suggestion.demo_chat_id,  // UUID of the pending entry
                     chat_id: suggestion.chat_id,
-                    replace_demo_chat_id: selectedReplacementChatId || null,  // ID of demo chat to replace (null for auto-replacement)
                     demo_chat_category: selectedDemoChatCategory  // Target audience: for_everyone or for_developers
                 })
             });
@@ -265,9 +262,6 @@
 
             // Remove from suggestions list
             suggestions = suggestions.filter(s => s.demo_chat_id !== suggestion.demo_chat_id);
-
-            // Clear replacement selection
-            selectedReplacementChatId = '';
 
             // Show success message
             dispatch('showToast', {
@@ -737,17 +731,6 @@
         return translationProgress.get(demoChatId);
     }
 
-    /**
-     * Count demo chats by demo_chat_category
-     */
-    function getCategoryCount(cat: string): number {
-        return currentDemoChats.filter(d => (d.demo_chat_category || 'for_everyone') === cat).length;
-    }
-
-    /**
-     * Check if the selected category is at its limit
-     */
-    let isCategoryAtLimit = $derived(getCategoryCount(selectedDemoChatCategory) >= (CATEGORY_LIMITS[selectedDemoChatCategory] || 6));
 </script>
 
 <div class="community-suggestions">
@@ -760,8 +743,8 @@
     <!-- Current Demo Chats Section -->
     <div class="section">
         <div class="section-header">
-            <h3>Active Demo Chats ({currentDemoChats.length}/{TOTAL_LIMIT})</h3>
-            <span class="limit-info">For everyone: {getCategoryCount('for_everyone')}/{CATEGORY_LIMITS.for_everyone} | For developers: {getCategoryCount('for_developers')}/{CATEGORY_LIMITS.for_developers}</span>
+            <h3>Active Demo Chats ({currentDemoChats.length})</h3>
+            <span class="limit-info">UI visible: latest {UI_CATEGORY_LIMITS.for_everyone} for everyone, latest {UI_CATEGORY_LIMITS.for_developers} for developers</span>
         </div>
 
         {#if currentDemoChats.length === 0}
@@ -893,25 +876,10 @@
                             bind:value={selectedDemoChatCategory}
                             class="replacement-select"
                         >
-                            <option value="for_everyone">For everyone ({getCategoryCount('for_everyone')}/{CATEGORY_LIMITS.for_everyone})</option>
-                            <option value="for_developers">For developers ({getCategoryCount('for_developers')}/{CATEGORY_LIMITS.for_developers})</option>
+                            <option value="for_everyone">For everyone</option>
+                            <option value="for_developers">For developers</option>
                         </select>
                     </div>
-                    {#if isCategoryAtLimit}
-                        <div class="replacement-selection">
-                            <label for="replacement-select-email" class="replacement-label">Replace existing demo chat:</label>
-                            <select
-                                id="replacement-select-email"
-                                bind:value={selectedReplacementChatId}
-                                class="replacement-select"
-                            >
-                                <option value="">Select chat to replace...</option>
-                                {#each currentDemoChats.filter(d => (d.demo_chat_category || 'for_everyone') === selectedDemoChatCategory) as demo}
-                                    <option value={demo.id}>{demo.title || 'Demo Chat'}</option>
-                                {/each}
-                            </select>
-                        </div>
-                    {/if}
                     <button
                         onclick={() => rejectPendingSuggestion(pendingSuggestion!)}
                         class="btn btn-danger btn-small"
@@ -922,17 +890,9 @@
                     <button
                         onclick={() => approvePendingSuggestion(pendingSuggestion!)}
                         class="btn btn-primary btn-small"
-                        disabled={isSubmitting || (isCategoryAtLimit && !selectedReplacementChatId)}
+                        disabled={isSubmitting}
                     >
-                        {#if isCategoryAtLimit}
-                            {#if selectedReplacementChatId}
-                                Approve & Replace
-                            {:else}
-                                Select Chat to Replace
-                            {/if}
-                        {:else}
-                            Approve as Demo
-                        {/if}
+                        Approve as Demo
                     </button>
                 </div>
             </div>
@@ -995,25 +955,10 @@
                                     bind:value={selectedDemoChatCategory}
                                     class="replacement-select"
                                 >
-                                    <option value="for_everyone">For everyone ({getCategoryCount('for_everyone')}/{CATEGORY_LIMITS.for_everyone})</option>
-                                    <option value="for_developers">For developers ({getCategoryCount('for_developers')}/{CATEGORY_LIMITS.for_developers})</option>
+                                    <option value="for_everyone">For everyone</option>
+                                    <option value="for_developers">For developers</option>
                                 </select>
                             </div>
-                            {#if isCategoryAtLimit}
-                                <div class="replacement-selection">
-                                    <label for="replacement-select-{suggestion.chat_id}" class="replacement-label">Replace existing demo chat:</label>
-                                    <select
-                                        id="replacement-select-{suggestion.chat_id}"
-                                        bind:value={selectedReplacementChatId}
-                                        class="replacement-select"
-                                    >
-                                        <option value="">Select chat to replace...</option>
-                                        {#each currentDemoChats.filter(d => (d.demo_chat_category || 'for_everyone') === selectedDemoChatCategory) as demo}
-                                            <option value={demo.id}>{demo.title || 'Demo Chat'}</option>
-                                        {/each}
-                                    </select>
-                                </div>
-                            {/if}
                             <button
                                 onclick={() => rejectSuggestion(suggestion.demo_chat_id, suggestion.chat_id)}
                                 class="btn btn-danger btn-small"
@@ -1024,17 +969,9 @@
                             <button
                                 onclick={() => approveDemoChat(suggestion)}
                                 class="btn btn-primary btn-small"
-                                disabled={isSubmitting || (isCategoryAtLimit && !selectedReplacementChatId)}
+                                disabled={isSubmitting}
                             >
-                                {#if isCategoryAtLimit}
-                                    {#if selectedReplacementChatId}
-                                        Approve & Replace
-                                    {:else}
-                                        Select Chat to Replace
-                                    {/if}
-                                {:else}
-                                    Approve as Demo
-                                {/if}
+                                Approve as Demo
                             </button>
                         </div>
                     </div>
@@ -1050,11 +987,11 @@
             <ul>
                 <li>Demo chats are shown to non-authenticated users</li>
                 <li>They showcase OpenMates capabilities to potential users</li>
-                <li>Maximum of 10 demo chats: 6 "For everyone" + 4 "For developers"</li>
+                <li>No hard publish cap: older demo chats remain available until manually removed</li>
                 <li>"For everyone" chats are shown in the main intro chat</li>
                 <li>"For developers" chats are shown in the developers intro chat</li>
-                <li>All demo chats appear in the "Example Chats" sidebar group</li>
-                <li>Oldest demos in the same category are replaced when at limit</li>
+                <li>Only the latest 10 "For everyone" and latest 4 "For developers" are shown in UI lists</li>
+                <li>Older demo chats remain accessible via direct /demo/chat/{'{slug}'} links</li>
                 <li>Click a chat preview to view the full conversation with embeds</li>
             </ul>
         </div>

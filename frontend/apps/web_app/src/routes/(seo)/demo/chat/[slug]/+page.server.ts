@@ -16,7 +16,7 @@
 
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { getBackendUrl } from '$lib/backendUrl';
+import { getBackendUrl, getSiteOrigin } from '$lib/backendUrl';
 
 /** Shape of a single message as returned by the backend demo API. */
 interface DemoMessage {
@@ -99,7 +99,7 @@ export const load: PageServerLoad = async ({ params, fetch, setHeaders, url }) =
 	});
 
 	// Build the canonical URL for this page
-	const siteOrigin = url.origin;
+	const siteOrigin = getSiteOrigin(url);
 	const canonicalUrl = `${siteOrigin}/demo/chat/${slug}`;
 
 	// Build JSON-LD structured data.

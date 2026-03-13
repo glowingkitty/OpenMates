@@ -18,7 +18,7 @@
 // CACHE: public, s-maxage=3600 (1h CDN) + stale-while-revalidate=86400 (24h background refresh)
 
 import type { PageServerLoad } from './$types';
-import { getBackendUrl } from '$lib/backendUrl';
+import { getBackendUrl, getSiteOrigin } from '$lib/backendUrl';
 
 /** A demo chat entry as returned by GET /v1/demo/chats. */
 interface DemoChatListItem {
@@ -110,7 +110,7 @@ export const load: PageServerLoad = async ({ fetch, setHeaders, url }) => {
 			return orderA - orderB;
 		});
 
-	const canonicalUrl = `${url.origin}/demo/chat`;
+	const canonicalUrl = `${getSiteOrigin(url)}/demo/chat`;
 
 	return {
 		groups,

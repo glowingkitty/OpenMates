@@ -27,7 +27,7 @@ import { chatListCache } from "../services/chatListCache";
 import {
   INTRO_CHATS,
   LEGAL_CHATS,
-  getAllCommunityDemoChats,
+  getUiVisibleCommunityDemoChats,
   communityDemoStore,
   loadCommunityDemos,
   translateDemoChat,
@@ -196,10 +196,12 @@ export function updateNavFromCache(activeChatId: string): void {
     return chat;
   });
   // Community demos are already Chat objects with group_key='examples'
-  const communityChats: Chat[] = getAllCommunityDemoChats().map((chat) => ({
-    ...chat,
-    group_key: "examples" as const,
-  }));
+  const communityChats: Chat[] = getUiVisibleCommunityDemoChats().map(
+    (chat) => ({
+      ...chat,
+      group_key: "examples" as const,
+    }),
+  );
 
   // Apply public-only list immediately (synchronous) so arrows are visible right away.
   // This is especially important after logout on mobile (sidebar closed = Chats.svelte
@@ -237,9 +239,11 @@ export function updateNavFromCache(activeChatId: string): void {
         unsubscribeCommunity();
         return;
       }
-      const updatedCommunityChats: Chat[] = getAllCommunityDemoChats().map(
-        (chat) => ({ ...chat, group_key: "examples" as const }),
-      );
+      const updatedCommunityChats: Chat[] =
+        getUiVisibleCommunityDemoChats().map((chat) => ({
+          ...chat,
+          group_key: "examples" as const,
+        }));
       if (updatedCommunityChats.length === 0) return; // still loading
       const rebuilt = [...introChats, ...updatedCommunityChats, ...legalChats];
       _applyNavigableList(rebuilt, activeChatId);
@@ -263,7 +267,7 @@ export function updateNavFromCache(activeChatId: string): void {
       const allChats = [
         ...dbChats,
         ...introChats,
-        ...getAllCommunityDemoChats().map((chat) => ({
+        ...getUiVisibleCommunityDemoChats().map((chat) => ({
           ...chat,
           group_key: "examples" as const,
         })),

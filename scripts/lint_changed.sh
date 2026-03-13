@@ -288,13 +288,13 @@ for path in "${changed_files[@]}"; do
   esac
 done
 
-# Combine for ESLint (which handles TS, Svelte, CSS, and HTML)
-# Note: ESLint can lint TypeScript, Svelte, CSS, and HTML files
+# Combine for ESLint (TS, Svelte, CSS only)
+# HTML files are intentionally excluded because our flat ESLint config does not
+# include an HTML processor and reports ignored-file warnings as lint failures.
 declare -a js_files=()
 ${check_ts} && js_files+=("${ts_files[@]}")
 ${check_svelte} && js_files+=("${svelte_files[@]}")
 ${check_css} && js_files+=("${css_files[@]}")
-${check_html} && js_files+=("${html_files[@]}")
 
 run_yaml_lint() {
   if (( ${#yml_files[@]} == 0 )); then

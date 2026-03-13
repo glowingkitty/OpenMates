@@ -9,11 +9,17 @@
 // 4. Fetched from server when cache is empty/stale
 //
 // This provides full offline support while avoiding database blocking issues during logout.
+/* eslint-disable no-console */
 
 import { writable, get } from "svelte/store";
 import type { Chat, Message } from "../types/chat";
 import { demoChatsDB } from "../services/demoChatsDB";
 import type { DemoEmbed } from "../services/demoChatsDB";
+
+export const COMMUNITY_DEMO_UI_LIMITS = {
+  for_everyone: 10,
+  for_developers: 4,
+} as const;
 
 // ============================================================================
 // TYPES
@@ -180,9 +186,70 @@ export function getCommunityDemoEmbed(embedId: string): DemoEmbed | null {
  * Get all community demo chats as Chat objects
  * @returns Array of all community demo Chat objects
  */
-export function getAllCommunityDemoChats(): Chat[] {
+function getAllStoredCommunityDemoChats(): Chat[] {
   const state = get(store);
   return Array.from(state.chats.values()).map((data) => data.chat);
+}
+
+/**
+ * Returns community demos intended for UI list rendering.
+ * Older demos remain stored and accessible by direct chat_id lookups.
+ */
+export function getAllCommunityDemoChats(): Chat[] {
+  return getUiVisibleCommunityDemoChats();
+}
+
+function getChatTimestamp(chat: Chat): number {
+  return (
+    chat.last_edited_overall_timestamp ||
+    chat.updated_at ||
+    chat.created_at ||
+    0
+  );
+}
+
+/**
+ * Returns the UI-visible community demo chats only.
+ * Caps per-audience visibility while keeping older chats accessible via direct links.
+ */
+export function getUiVisibleCommunityDemoChats(): Chat[] {
+  const chats = getAllStoredCommunityDemoChats();
+  const sorted = [...chats].sort(
+    (a, b) => getChatTimestamp(b) - getChatTimestamp(a),
+  );
+
+  const everyone = sorted
+    .filter(
+      (chat) => (chat.demo_chat_category || "for_everyone") === "for_everyone",
+    )
+    .slice(0, COMMUNITY_DEMO_UI_LIMITS.for_everyone);
+
+  const developers = sorted
+    .filter(
+      (chat) =>
+        (chat.demo_chat_category || "for_everyone") === "for_developers",
+    )
+    .slice(0, COMMUNITY_DEMO_UI_LIMITS.for_developers);
+
+  return [...everyone, ...developers].sort(
+    (a, b) => getChatTimestamp(b) - getChatTimestamp(a),
+  );
+}
+
+/**
+ * Returns UI-visible community demos for one audience category.
+ */
+export function getUiVisibleCommunityDemoChatsByCategory(
+  demoChatCategory: "for_everyone" | "for_developers",
+): Chat[] {
+  const limit = COMMUNITY_DEMO_UI_LIMITS[demoChatCategory];
+  return getAllStoredCommunityDemoChats()
+    .filter(
+      (chat) =>
+        (chat.demo_chat_category || "for_everyone") === demoChatCategory,
+    )
+    .sort((a, b) => getChatTimestamp(b) - getChatTimestamp(a))
+    .slice(0, limit);
 }
 
 /**
@@ -355,6 +422,8 @@ export const communityDemoStore = {
   getEmbeds: getCommunityDemoEmbeds,
   getEmbed: getCommunityDemoEmbed,
   getAllChats: getAllCommunityDemoChats,
+  getUiVisibleChats: getUiVisibleCommunityDemoChats,
+  getUiVisibleChatsByCategory: getUiVisibleCommunityDemoChatsByCategory,
   isDemo: isCommunityDemo,
   isLoaded,
   isCacheLoaded,
