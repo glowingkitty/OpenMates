@@ -184,15 +184,47 @@ export async function navigateNext(): Promise<void> {
  * Called by ActiveChat.loadChat() on every chat switch.
  */
 export function updateNavFromCache(activeChatId: string): void {
-  // ── Case 1: Chats.svelte already owns the list ───────────────────────────
+  // ── Case 1: List already populated ───────────────────────────────────────
+  //
+  // If Chats.svelte owns the list (sidebar is/was open), it keeps the list
+  // up-to-date via its own reactive $effect, so we can safely reuse it here.
+  //
+  // If the list is only provisional (built during cold boot from intro/legal
+  // with possibly zero community demos), we must check whether community
+  // demos have since loaded. If the active chat is missing from the list OR
+  // new community demos are available, we fall through to Case 3 to rebuild
+  // rather than returning stale hasPrev=false / hasNext=false.
   if (chatList.length > 0) {
-    currentChatId = activeChatId;
+    if (chatListOwnedByChatsComponent) {
+      // Chats.svelte manages the list — just update position.
+      currentChatId = activeChatId;
+      const idx = chatList.findIndex((c) => c.chat_id === activeChatId);
+      chatNavigationStore.set({
+        hasPrev: idx > 0,
+        hasNext: idx >= 0 && idx < chatList.length - 1,
+      });
+      return;
+    }
+
+    // Provisional list — check if it needs rebuilding.
     const idx = chatList.findIndex((c) => c.chat_id === activeChatId);
-    chatNavigationStore.set({
-      hasPrev: idx > 0,
-      hasNext: idx >= 0 && idx < chatList.length - 1,
-    });
-    return;
+    const communityCountInList = chatList.filter(
+      (c) => c.group_key === "examples",
+    ).length;
+    const communityCountAvailable = getUiVisibleCommunityDemoChats().length;
+
+    if (idx >= 0 && communityCountInList >= communityCountAvailable) {
+      // Active chat found AND we haven't missed any community demos.
+      currentChatId = activeChatId;
+      chatNavigationStore.set({
+        hasPrev: idx > 0,
+        hasNext: idx >= 0 && idx < chatList.length - 1,
+      });
+      return;
+    }
+
+    // Active chat not found OR more community demos are now available.
+    // Fall through to Case 3 to rebuild the list from scratch.
   }
 
   // ── Case 2: Cache already populated by Chats.svelte ──────────────────────
