@@ -669,10 +669,26 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	logChatCheckpoint('Phase 7: Logging in again...');
 	await performLogin(page, logChatCheckpoint, takeStepScreenshot, '08');
 
-	// Navigate directly to the test chat
+	// Navigate directly to the test chat.
+	// After login the app may show the home/welcome screen; the hash fragment
+	// triggers the chat load asynchronously once the startup sequence completes.
 	logChatCheckpoint(`Navigating to chat ${chatId} after re-login...`);
 	await page.goto(`${baseUrl}/#chat-id=${chatId}`);
-	await page.waitForTimeout(5000); // Allow phased sync + re-decryption of key + chat data
+
+	// Wait for the chat to actually load — the user message must be visible.
+	// This can take longer after a fresh login (key derivation + phased sync).
+	const userMsgAfterRelogin = page.locator('.message-wrapper.user').first();
+	try {
+		await expect(userMsgAfterRelogin).toBeVisible({ timeout: 20000 });
+		logChatCheckpoint('Chat loaded after re-login (user message visible).');
+	} catch {
+		// Hash navigation may not trigger on the home screen after login.
+		// Try navigating again with a page reload.
+		logChatCheckpoint('Chat not loaded via hash — retrying with reload...');
+		await page.goto(`${baseUrl}/#chat-id=${chatId}`, { waitUntil: 'networkidle' });
+		await expect(userMsgAfterRelogin).toBeVisible({ timeout: 20000 });
+		logChatCheckpoint('Chat loaded after retry.');
+	}
 
 	await takeStepScreenshot(page, '09-after-relogin');
 
