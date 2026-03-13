@@ -550,3 +550,36 @@ code.dev.openmates.org {
 		header_up Upgrade {http.request.header.Upgrade}
 	}
 }
+
+tasks.dev.openmates.org {
+	# Plane project management (self-hosted, proxied to internal Caddy on port 8088)
+	# Plane's own Caddy proxy handles internal routing to web/api/space/admin/live services.
+	# This block only terminates TLS and forwards everything.
+	log {
+		output file /var/log/caddy/tasks.dev.openmates.org.log {
+			roll_size 100mb
+			roll_keep 10
+			roll_keep_for 720h # 30 days
+		}
+		format json
+		level INFO
+	}
+
+	# Security Headers
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	# Reverse proxy to Plane's internal Caddy proxy on port 8088
+	reverse_proxy localhost:8088 {
+		header_up Host {http.request.host}
+		header_up X-Real-IP {http.request.remote}
+
+		# WebSocket support for Plane's live/real-time service
+		flush_interval -1
+	}
+}
