@@ -14,6 +14,7 @@ type ActivityHistoryUserIntent = "auto" | "closed" | "open";
 const _isActivityHistoryOpen = writable<boolean>(false);
 const _isSettingsOpen = writable<boolean>(false);
 const _activityHistoryUserIntent = writable<ActivityHistoryUserIntent>("auto");
+let _suppressNextAutoOpenFromLoginClose = false;
 
 // --- Actions ---
 
@@ -69,6 +70,17 @@ function toggleChats(): void {
     // Note: Derived store will still run and confirm false on mobile.
     // On desktop, derived store handles closing based on intent.
   } else {
+    // Login-close flows call toggleChats() programmatically right after setting
+    // loginInterfaceOpen=false. Suppress only that immediate call so login does
+    // not auto-open the sidebar; explicit user clicks still work afterward.
+    if (_suppressNextAutoOpenFromLoginClose && !mobileView) {
+      console.debug(
+        "[PanelState] Suppressing auto-open from login-close transition",
+      );
+      _suppressNextAutoOpenFromLoginClose = false;
+      return;
+    }
+
     // User is manually opening it (overrides 'auto' logic temporarily)
     // Keep original logic for opening, as the header button seems to work.
     console.debug("[PanelState] Opening chats panel");
@@ -237,16 +249,23 @@ queueMicrotask(() => {
     // Actual opening happens via openSettings() action.
   });
 
-  // Reset user intent when auth state changes significantly (login/logout)
-  // Subscribe specifically to isAuthenticated and isLoggingOut
+  // Reset intent only on logout transitions.
+  // On login, keep the current intent so the sidebar doesn't auto-open again
+  // after the login interface closes.
+  let previousAuthState = get(authStore).isAuthenticated;
   derived([authStore, isLoggingOut], ([$authStore, $isLoggingOut]) => ({
     isAuthenticated: $authStore.isAuthenticated,
     isLoggingOut: $isLoggingOut,
-  })).subscribe(() => {
-    console.debug(
-      "[PanelState] Auth state changed, resetting Activity History user intent to auto.",
-    );
-    resetActivityHistoryIntent();
+  })).subscribe(({ isAuthenticated, isLoggingOut }) => {
+    const didLogout = previousAuthState && !isAuthenticated;
+    previousAuthState = isAuthenticated;
+
+    if (didLogout || isLoggingOut) {
+      console.debug(
+        "[PanelState] Logout detected, resetting Activity History user intent to auto.",
+      );
+      resetActivityHistoryIntent();
+    }
   });
 
   // CRITICAL: Immediately close panel when signup process starts
@@ -264,7 +283,15 @@ queueMicrotask(() => {
   // CRITICAL: Immediately close panel when login interface opens
   // This ensures the panel is closed even if it was opened before login interface detection
   // This prevents the panel from opening on resize from mobile to desktop when login interface is open
+  let previousLoginOpen = get(loginInterfaceOpen);
   loginInterfaceOpen.subscribe((loginOpen) => {
+    if (previousLoginOpen && !loginOpen) {
+      _suppressNextAutoOpenFromLoginClose = true;
+      queueMicrotask(() => {
+        _suppressNextAutoOpenFromLoginClose = false;
+      });
+    }
+
     if (loginOpen) {
       console.debug(
         "[PanelState] Login interface opened - immediately closing Activity History panel",
@@ -272,6 +299,8 @@ queueMicrotask(() => {
       _isActivityHistoryOpen.set(false);
       _activityHistoryUserIntent.set("closed");
     }
+
+    previousLoginOpen = loginOpen;
   });
 });
 
