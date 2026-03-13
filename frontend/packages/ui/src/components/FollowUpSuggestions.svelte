@@ -56,6 +56,9 @@
   // Groups of 3 suggestions, navigated with prev/next arrows.
 
   let currentPage = $state(0);
+  let isPageFading = $state(false);
+  const PAGE_FADE_DURATION_MS = 120;
+  let pageSwapTimeout: ReturnType<typeof setTimeout> | null = null;
 
   /** Lucide chevron icons for prev/next arrows. */
   const ChevronLeft = getLucideIcon('chevron-left');
@@ -257,22 +260,35 @@
     onSuggestionClick(body, mentionSyntax);
   }
 
+  /** Fade out, swap the suggestion page, then fade back in. */
+  function transitionToPage(targetPage: number) {
+    if (targetPage === currentPage || targetPage < 0 || targetPage >= totalPages) {
+      return;
+    }
+    if (pageSwapTimeout) {
+      clearTimeout(pageSwapTimeout);
+      pageSwapTimeout = null;
+    }
+    isPageFading = true;
+    pageSwapTimeout = setTimeout(() => {
+      currentPage = targetPage;
+      isPageFading = false;
+      pageSwapTimeout = null;
+    }, PAGE_FADE_DURATION_MS);
+  }
+
   /** Navigate to the previous page of suggestions. */
   function handlePrevPage(e: MouseEvent) {
     e.stopPropagation();
     e.preventDefault();
-    if (currentPage > 0) {
-      currentPage--;
-    }
+    transitionToPage(currentPage - 1);
   }
 
   /** Navigate to the next page of suggestions. */
   function handleNextPage(e: MouseEvent) {
     e.stopPropagation();
     e.preventDefault();
-    if (currentPage < totalPages - 1) {
-      currentPage++;
-    }
+    transitionToPage(currentPage + 1);
   }
 
   // ─── Gradient & decorative icon state ──────────────────────────────────────
@@ -327,6 +343,10 @@
     
     return () => {
       window.removeEventListener('language-changed', handleLanguageChange);
+      if (pageSwapTimeout) {
+        clearTimeout(pageSwapTimeout);
+        pageSwapTimeout = null;
+      }
     };
   });
 </script>
@@ -387,7 +407,7 @@
       {/if}
 
       <!-- Suggestion items -->
-      <div class="suggestions-list">
+      <div class="suggestions-list" class:is-page-fading={isPageFading}>
         {#each filteredSuggestions as suggestion (suggestion.raw)}
           {@const highlighted = renderHighlightedText(suggestion)}
           {@const iconInfo = resolveSuggestionIcon(suggestion.appId, suggestion.subId)}
@@ -401,7 +421,6 @@
               event.stopPropagation();
               handleSuggestionClick(suggestion.appId, suggestion.subId, suggestion.body);
             }}
-            transition:fade={{ duration: 150 }}
           >
             <!-- Suggestion icon -->
             <span class="suggestion-icon">
@@ -647,6 +666,12 @@
     max-width: 700px;
     /* Center the block horizontally within the gradient card */
     margin: 0 auto;
+    opacity: 1;
+    transition: opacity 120ms ease;
+  }
+
+  .suggestions-list.is-page-fading {
+    opacity: 0;
   }
 
   .suggestion-item {

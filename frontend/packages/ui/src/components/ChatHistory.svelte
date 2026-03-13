@@ -1821,9 +1821,10 @@
      starts (past the 60px avatar + 10px margin = ~80px), mirroring .message-align-left
      from chat.css. On mobile (≤500px), avatar stacks above so offset is removed. */
   .follow-up-suggestions-wrapper {
-    padding: 8px 0 16px;
-    /* Offset to align with assistant message content (avatar 60px + margins ~20px) */
-    padding-inline-start: 80px;
+    padding: 8px 0 14px;
+    /* Align with assistant message x-position while preserving right breathing room */
+    padding-inline-start: 75px;
+    padding-inline-end: 20px;
     box-sizing: border-box;
     width: 100%;
   }
@@ -1833,6 +1834,7 @@
   @media (max-width: 500px) {
     .follow-up-suggestions-wrapper {
       padding-inline-start: 0;
+      padding-inline-end: 0;
     }
   }
 
