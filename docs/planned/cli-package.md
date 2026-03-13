@@ -556,6 +556,33 @@ When a user explicitly requests access to environment files (`.env`, `.env.*`, `
 
 This approach aligns with the **zero-knowledge principle**: the LLM can assist with environment configuration without ever seeing actual secrets.
 
+### Planned: Secret Broker for CLI + Web UI (No LLM Secret Access)
+
+To make this model stricter and consistent across both the CLI and web UI, OpenMates should introduce a dedicated **Secret Broker** layer with these rules:
+
+1. **No direct secret store access from AI tools:**
+   - The LLM can never directly read or write `.env`, `.env.*`, cloud secret managers, keychains, or similar secret stores.
+   - File reads/writes to known secret paths are blocked at the tooling layer, not just by prompt instructions.
+
+2. **Only shortened/derived secret views for AI context:**
+   - The LLM may only receive safe metadata such as secret name, source, last-4 fingerprint, and optional validity status.
+   - Example: `OPENAI_API_KEY: ***39d9 (set, valid)`
+
+3. **Secret generation via privileged function calls:**
+   - The LLM can request actions like `generate_secret("JWT_SIGNING_KEY")`.
+   - Generation runs in trusted runtime code (outside the LLM context), stores the secret in the configured secret backend, and never returns the raw value to the model.
+   - Raw value is shown only to the authenticated user in a protected UI/CLI surface, with copy-once behavior where possible.
+
+4. **Automatable secret management without secret exposure:**
+   - Support safe operations such as `list`, `create`, `rotate`, `revoke`, `sync`, and `validate` through broker APIs.
+   - These operations are available in both web UI and CLI so teams can automate secret lifecycle management while keeping LLM access zero-knowledge.
+
+5. **Auditability and policy enforcement:**
+   - Every broker action is logged (who, when, which secret, action type).
+   - Policy controls (RBAC, approval gates for production rotation, environment scoping) are enforced before mutation.
+
+This preserves assistant usefulness for setup and automation while ensuring actual secret values never enter model input/output paths.
+
 **When User Explicitly Provides Sensitive File Path:**
 The system implements **differentiated handling** based on file type:
 
