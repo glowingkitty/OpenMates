@@ -202,6 +202,11 @@ export interface Chat {
 
   // Optional group key for manual UI grouping (e.g., 'intro', 'examples', 'legal')
   group_key?: string;
+
+  // Metadata-only chats (positions 101–1000) — synced without messages for search coverage.
+  // Messages load on-demand when the user opens the chat. Search matches against
+  // title, summary, and tags only (no message content search until opened).
+  is_metadata_only?: boolean;
 }
 
 export interface ChatComponentVersions {
@@ -707,6 +712,21 @@ export interface LoadMoreChatsResponsePayload {
   has_more: boolean;
   total_count: number;
   offset: number;
+  error?: string;
+}
+
+/**
+ * Metadata-only chats response payload — returned after Phase 3 for chats 101–1000.
+ * Contains metadata (title, summary, tags, icon, category, chat key) but no messages.
+ * Stored in IndexedDB for offline search by title, summary, and tags.
+ */
+export interface MetadataChatsResponsePayload {
+  chats: Array<{
+    chat_details: Partial<Chat> & { id: string };
+    messages?: null;
+    server_message_count?: null;
+  }>;
+  total_count: number;
   error?: string;
 }
 
