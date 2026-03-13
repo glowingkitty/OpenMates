@@ -724,14 +724,22 @@ result = {
     'suites': suites,
 }
 
+# Helper: remove file first to avoid PermissionError when a previous run
+# created the file as a different user (e.g. root via cron).
+def safe_write_json(path, obj):
+    try:
+        os.remove(path)
+    except FileNotFoundError:
+        pass
+    with open(path, 'w') as f:
+        json.dump(obj, f, indent=2)
+
 # Write run file
-with open(run_file, 'w') as f:
-    json.dump(result, f, indent=2)
+safe_write_json(run_file, result)
 
 # Write last-run.json (always overwrite)
 last_run = os.path.join(results_dir, 'last-run.json')
-with open(last_run, 'w') as f:
-    json.dump(result, f, indent=2)
+safe_write_json(last_run, result)
 
 # Print summary
 print()

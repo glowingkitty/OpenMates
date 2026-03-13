@@ -123,6 +123,7 @@ if [[ ! -f "$LAST_RUN" ]]; then
 fi
 
 # Back up the dev run result before we potentially overwrite it with the prod smoke run
+rm -f "$LAST_RUN.bak"
 cp "$LAST_RUN" "$LAST_RUN.bak"
 
 # --- Production smoke test (optional, runs from dev server against prod URL) ---
@@ -149,6 +150,7 @@ if [[ "${E2E_PROD_TEST_ENABLED:-}" == "true" ]]; then
 
     PROD_SMOKE_RUN="$RESULTS_DIR/last-run.json"
     if [[ -f "$PROD_SMOKE_RUN" ]]; then
+      rm -f "$RESULTS_DIR/last-run-prod-smoke.json"
       cp "$PROD_SMOKE_RUN" "$RESULTS_DIR/last-run-prod-smoke.json"
       echo "[daily-runner] Prod smoke test complete (exit=$PROD_SMOKE_EXIT_CODE)"
     else
@@ -156,6 +158,7 @@ if [[ "${E2E_PROD_TEST_ENABLED:-}" == "true" ]]; then
     fi
 
     # Restore the dev last-run.json (it was overwritten by the prod smoke run)
+    rm -f "$LAST_RUN"
     cp "$LAST_RUN.bak" "$LAST_RUN" 2>/dev/null || true
   fi
 fi
@@ -204,6 +207,7 @@ python3 "$SCRIPT_DIR/_daily_runner_helper.py" split-results
 # --- Archive daily result (one file per calendar day, UTC) ---
 TODAY="$(date -u '+%Y-%m-%d')"
 DAILY_ARCHIVE="$RESULTS_DIR/daily-run-${TODAY}.json"
+rm -f "$DAILY_ARCHIVE"
 cp "$LAST_RUN" "$DAILY_ARCHIVE"
 echo "[daily-runner] Archived result to $DAILY_ARCHIVE"
 

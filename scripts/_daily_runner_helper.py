@@ -61,6 +61,14 @@ def split_results() -> None:
     passed_path = os.path.join(results_dir, "last-passed-tests.json")
     failed_path = os.path.join(results_dir, "last-failed-tests.json")
 
+    # Remove files first to avoid PermissionError when a previous run
+    # created them as a different user (e.g. root via cron, then superdev manually).
+    for path in (passed_path, failed_path):
+        try:
+            os.remove(path)
+        except FileNotFoundError:
+            pass
+
     with open(passed_path, "w") as f:
         json.dump({"run_id": run_id, "tests": passed_tests}, f, indent=2)
 
