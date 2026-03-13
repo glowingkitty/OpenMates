@@ -8,6 +8,8 @@ Essential guidelines for AI assistants. Detailed standards are loaded automatica
 
 **Every session must run these commands — no exceptions:**
 
+**Absolute order requirement:** `sessions.py start` must be the very first action in a task, before any file search, file read, context lookup, debugging command, or other repository operation.
+
 ```bash
 # 1. FIRST thing:
 python3 scripts/sessions.py start --task "brief description"
