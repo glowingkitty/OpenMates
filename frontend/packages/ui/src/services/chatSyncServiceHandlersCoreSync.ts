@@ -46,10 +46,14 @@ async function populateResumeChatDataFromPhase1(
   try {
     const { phasedSyncState } = await import("../stores/phasedSyncStateStore");
 
-    // Decrypt title, category, icon for the resume card display
+    // Decrypt title, category, icon, and summary for the resume card display.
+    // Previously summary was never decrypted here, causing the Phase 1 sync bridge
+    // in ActiveChat.svelte to always set resumeChatSummary=null — which could overwrite
+    // the valid summary loaded from IndexedDB by the concurrent $effect.
     let displayTitle = "Untitled Chat";
     let displayCategory: string | null = null;
     let displayIcon: string | null = null;
+    let displaySummary: string | null = null;
 
     try {
       const { decryptWithChatKey, decryptChatKeyWithMasterKey } =
@@ -89,6 +93,16 @@ async function populateResumeChatDataFromPhase1(
             /* fall through */
           }
         }
+        if (chat.encrypted_chat_summary) {
+          try {
+            displaySummary = await decryptWithChatKey(
+              chat.encrypted_chat_summary,
+              chatKey,
+            );
+          } catch {
+            /* fall through — card will show title only */
+          }
+        }
       }
     } catch (decryptErr) {
       console.warn(
@@ -106,10 +120,11 @@ async function populateResumeChatDataFromPhase1(
       displayCategory,
       displayIcon,
       true, // force — bypass currentActiveChatId guard
+      displaySummary,
     );
 
     console.info(
-      `[ChatSyncService:CoreSync] ✅ Populated resume card from Phase 1 for chat "${chatId}": title="${displayTitle}"`,
+      `[ChatSyncService:CoreSync] ✅ Populated resume card from Phase 1 for chat "${chatId}": title="${displayTitle}", summary=${displaySummary ? `"${displaySummary.slice(0, 40)}..."` : "null"}`,
     );
   } catch (err) {
     console.error(

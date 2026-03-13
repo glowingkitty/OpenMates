@@ -88,6 +88,13 @@ export interface PhasedSyncState {
    * Used by ActiveChat to render the icon inside the category circle on the resume card.
    */
   resumeChatIcon: string | null;
+
+  /**
+   * Decrypted summary for the resume chat.
+   * Used by ActiveChat to render the summary text on the large gradient card.
+   * Previously always null because populateResumeChatDataFromPhase1 never decrypted it.
+   */
+  resumeChatSummary: string | null;
 }
 
 const initialState: PhasedSyncState = {
@@ -101,6 +108,7 @@ const initialState: PhasedSyncState = {
   resumeChatTitle: null,
   resumeChatCategory: null,
   resumeChatIcon: null,
+  resumeChatSummary: null,
 };
 
 const { subscribe, set, update } = writable<PhasedSyncState>(initialState);
@@ -251,6 +259,7 @@ export const phasedSyncState = {
    * @param decryptedTitle - The decrypted title to display
    * @param decryptedCategory - The decrypted category (optional, for gradient circle)
    * @param decryptedIcon - The decrypted icon name (optional, for category icon)
+   * @param decryptedSummary - The decrypted summary (optional, for large card text)
    */
   setResumeChatData: (
     chat: Chat,
@@ -261,6 +270,7 @@ export const phasedSyncState = {
      *  last_opened_updated broadcasts where the caller has already verified
      *  that the user is on the welcome screen via activeChatStore. */
     force?: boolean,
+    decryptedSummary?: string | null,
   ) => {
     update((state) => {
       // DEFENSE-IN-DEPTH: If the user is already in a chat (not on the welcome
@@ -285,6 +295,7 @@ export const phasedSyncState = {
         resumeChatTitle: decryptedTitle,
         resumeChatCategory: decryptedCategory ?? null,
         resumeChatIcon: decryptedIcon ?? null,
+        resumeChatSummary: decryptedSummary ?? null,
       };
     });
   },
@@ -300,6 +311,7 @@ export const phasedSyncState = {
       resumeChatTitle: null,
       resumeChatCategory: null,
       resumeChatIcon: null,
+      resumeChatSummary: null,
     }));
   },
 

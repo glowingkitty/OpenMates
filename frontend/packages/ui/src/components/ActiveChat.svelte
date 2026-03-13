@@ -2238,6 +2238,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     let showWelcome = $state(true);
 
+    // Guard flag: true while loadChat() is actively loading a chat from IndexedDB.
+    // Prevents the resume card $effect from firing during the brief showWelcome=true
+    // window that occurs when loadChat() sets showWelcome based on message count
+    // BEFORE messages have finished loading. Without this, the resume card effect
+    // could populate with a stale last_opened chat while the new chat is loading.
+    let isLoadingChatGuard = $state(false);
+
     // ─── Resume Last Chat ───────────────────────────────────────────────
     // Local state for the "Continue where you left off" card on the new chat screen.
     // Shows the chat matching $userProfile.last_opened (most recently opened/viewed chat).
@@ -2569,6 +2576,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Read activeChatStore to make this effect reactive to it
         const currentActiveChat = $activeChatStore;
         const isOgExample = isOgExampleSharedChatCuttlefish();
+        // Read guard so this effect is reactive to it
+        const isLoading = isLoadingChatGuard;
 
         if (isOgExample && isWelcome && !currentActiveChat) {
             const chat = getOgExampleResumeChat();
@@ -2602,6 +2611,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // but the store was set by another code path moments before the UI re-renders.
         if (currentActiveChat) {
             console.debug(`[ActiveChat] Skipping resume card population — activeChatStore already set to "${currentActiveChat}"`);
+            return;
+        }
+
+        // CRITICAL: If loadChat() is in progress, skip populating the resume card.
+        // During loadChat(), showWelcome briefly becomes true (before messages load from
+        // IndexedDB), which would trigger this effect with a STALE last_opened value.
+        // The guard is cleared in loadChat's finally block, at which point this effect
+        // will re-run with the correct state.
+        if (isLoading) {
+            console.debug(`[ActiveChat] Skipping resume card population — loadChat in progress`);
             return;
         }
 
@@ -2645,19 +2664,27 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // no chat is currently active, and phasedSyncState has resume data.
         // Allows repeated updates (cross-device) by NOT guarding on !resumeChatData.
         if (isWelcome && isAuth && !currentActiveChat && syncState.resumeChatData) {
-            // Skip if the same chat is already displayed (no need to re-assign)
+            // Skip if the same chat is already displayed with richer data.
+            // Two guards: (a) same chat_id and local already has a summary that sync doesn't →
+            // keep the richer local data; (b) same chat_id and sync has no additional info → no-op.
             if (resumeChatData?.chat_id === syncState.resumeChatData.chat_id) {
+                // If phasedSyncState has a summary we don't have yet, adopt it.
+                // Otherwise skip to avoid overwriting richer data from loadResumeChatFromDB.
+                if (syncState.resumeChatSummary && !resumeChatSummary) {
+                    resumeChatSummary = syncState.resumeChatSummary;
+                    console.debug(`[ActiveChat] Phase 1 bridge: adopted summary for already-displayed chat ${resumeChatData.chat_id}`);
+                }
                 return;
             }
             resumeChatData = syncState.resumeChatData;
             resumeChatTitle = syncState.resumeChatTitle;
             resumeChatCategory = syncState.resumeChatCategory;
             resumeChatIcon = syncState.resumeChatIcon;
-            // Reset credits-error state and summary (will be populated by loadResumeChatFromDB if needed)
-            resumeChatSummary = null;
+            // Use summary from phasedSyncState (now decrypted in populateResumeChatDataFromPhase1)
+            resumeChatSummary = syncState.resumeChatSummary;
             resumeChatIsCreditsError = false;
             resumeChatUserMessagePreview = null;
-            console.info(`[ActiveChat] Resume chat synced from phasedSyncState: "${syncState.resumeChatTitle}" (${syncState.resumeChatData.chat_id})`);
+            console.info(`[ActiveChat] Resume chat synced from phasedSyncState: "${syncState.resumeChatTitle}" (${syncState.resumeChatData.chat_id}), summary=${syncState.resumeChatSummary ? '"' + syncState.resumeChatSummary.slice(0, 40) + '..."' : 'null'}`);
         }
     });
 
@@ -6197,6 +6224,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
      // Update the loadChat function
      export async function loadChat(chat: Chat, options?: { scrollToLatestResponse?: boolean; scrollToTop?: boolean }) {
+         // Set guard to prevent resume card $effect from firing during the brief
+         // showWelcome=true window before messages finish loading from IndexedDB.
+         isLoadingChatGuard = true;
+         try {
          // Clear any active processing phase indicator from the previous chat
          clearProcessingPhase();
          // Reset the chat header state when switching to any chat.
@@ -7059,6 +7090,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 
                 chatSyncService.addEventListener('webSocketConnected', sendNotificationOnConnect as EventListenerCallback);
             }
+        }
+        } finally {
+            isLoadingChatGuard = false;
         }
     }
 

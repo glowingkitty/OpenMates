@@ -600,10 +600,11 @@ export class ChatSynchronizationService extends EventTarget {
           {
             const chat = await chatDB.getChat(chat_id);
             if (chat) {
-              // Decrypt title, category, icon for the resume card display
+              // Decrypt title, category, icon, summary for the resume card display
               let displayTitle = chat.title || "Untitled Chat";
               let displayCategory = chat.category || null;
               let displayIcon = chat.icon || null;
+              let displaySummary = chat.chat_summary || null;
 
               try {
                 const { decryptWithChatKey, decryptChatKeyWithMasterKey } =
@@ -647,6 +648,16 @@ export class ChatSynchronizationService extends EventTarget {
                       /* fall through */
                     }
                   }
+                  if (chat.encrypted_chat_summary) {
+                    try {
+                      displaySummary = await decryptWithChatKey(
+                        chat.encrypted_chat_summary,
+                        chatKey,
+                      );
+                    } catch {
+                      /* fall through */
+                    }
+                  }
                 }
               } catch (decryptErr) {
                 console.warn(
@@ -666,6 +677,7 @@ export class ChatSynchronizationService extends EventTarget {
                 displayCategory,
                 displayIcon,
                 true, // force — caller verified user is on welcome screen
+                displaySummary,
               );
               console.warn(
                 `[ChatSyncService] Updated resume card from cross-device last_opened_updated: "${displayTitle}" (${chat_id})`,
