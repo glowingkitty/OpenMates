@@ -1630,6 +1630,12 @@ hidden_chats.no_hidden_chats_unlocked:
   he: "לא שוחררו צ'אטים מוסתרים. ייתכן שהסיסמה שגויה."
   verified_by_human: []
 
+activity_history:
+  context: ARIA label for the scrollable chat history region in the chats sidebar
+  en: Chat history
+  de: Chatverlauf
+  verified_by_human: []
+
 search.placeholder:
   context: Placeholder text for the search input bar in the chat list sidebar
   en: Search chats, settings & apps...

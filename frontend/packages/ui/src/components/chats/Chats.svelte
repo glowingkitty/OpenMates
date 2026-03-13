@@ -3485,7 +3485,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 		<div 
 			class="activity-history"
 			role="region"
-			aria-label={$text('chats.activity_history', { default: 'Chat history' })}
+			aria-label={$text('chats.activity_history')}
 			bind:this={activityHistoryElement}
 			onscroll={handleScroll}
 			onwheel={handleWheel}
