@@ -13,20 +13,32 @@ test('app root loads without console errors', async ({ page }) => {
 	test.slow();
 
 	const errorLogs: string[] = [];
+	const attachErrorListeners = (targetPage: typeof page): void => {
+		targetPage.on('console', (message) => {
+			if (message.type() === 'error') {
+				errorLogs.push(`[console.error] ${message.text()}`);
+			}
+		});
 
-	page.on('console', (message) => {
-		if (message.type() === 'error') {
-			errorLogs.push(`[console.error] ${message.text()}`);
-		}
-	});
+		targetPage.on('pageerror', (error) => {
+			const stack = error.stack ? `\n${error.stack}` : '';
+			errorLogs.push(`[pageerror] ${error.message}${stack}`);
+		});
+	};
 
-	page.on('pageerror', (error) => {
-		const stack = error.stack ? `\n${error.stack}` : '';
-		errorLogs.push(`[pageerror] ${error.message}${stack}`);
-	});
+	attachErrorListeners(page);
 
 	await page.goto('/', { waitUntil: 'domcontentloaded' });
 	await page.waitForLoadState('networkidle');
+	await page.evaluate(async () => {
+		if (!('serviceWorker' in navigator)) return;
+		try {
+			await navigator.serviceWorker.ready;
+		} catch {
+			// Ignore readiness timeouts for environments without active SW control.
+		}
+	});
+
 	await page.waitForTimeout(3000);
 
 	await expect(page).toHaveURL(/https?:\/\/.+/);
