@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable no-console */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Chat flow test: login with existing account + 2FA, then send a message and validate
@@ -140,15 +140,28 @@ async function inspectChatClientSide(
 /**
  * Ensure the sidebar (chats panel) is open.
  * The sidebar defaults to CLOSED — this helper clicks the menu toggle to open it
- * and waits for the chat list container to become visible.
+ * and waits for the Chats component to mount and render.
+ *
+ * The sidebar DOM structure (from +page.svelte):
+ *   <div class="sidebar" class:closed={!isOpen}>
+ *     {#if isOpen}
+ *       <div class="sidebar-content">
+ *         <Chats /> <!-- renders .activity-history-wrapper -->
+ *       </div>
+ *     {/if}
+ *   </div>
+ *
+ * The Chats component is conditionally rendered — it only mounts when the panel
+ * is open. So `.activity-history-wrapper` is the reliable indicator that the
+ * sidebar is fully rendered and ready for interaction.
  */
 async function ensureSidebarOpen(
 	page: any,
 	logCheckpoint: (...args: any[]) => void
 ): Promise<void> {
-	// Check if sidebar is already open by looking for the chat list container
-	const chatListContainer = page.locator('.chats-container');
-	const isSidebarVisible = await chatListContainer.isVisible().catch(() => false);
+	// Check if sidebar is already open by looking for the Chats component's wrapper
+	const activityHistory = page.locator('.activity-history-wrapper');
+	const isSidebarVisible = await activityHistory.isVisible().catch(() => false);
 	if (isSidebarVisible) {
 		logCheckpoint('[Sidebar] Already open.');
 		return;
@@ -160,10 +173,10 @@ async function ensureSidebarOpen(
 	await menuToggle.click();
 	logCheckpoint('[Sidebar] Clicked menu toggle to open sidebar.');
 
-	// Wait for sidebar to become visible
-	await expect(chatListContainer).toBeVisible({ timeout: 5000 });
-	// Give the component time to mount, load from DB, and render chat items
-	await page.waitForTimeout(1500);
+	// Wait for the Chats component to mount and render
+	await expect(activityHistory).toBeVisible({ timeout: 10000 });
+	// Give the component time to load from DB and render chat items
+	await page.waitForTimeout(2000);
 }
 
 /**
@@ -175,8 +188,8 @@ async function ensureSidebarClosed(
 	page: any,
 	logCheckpoint: (...args: any[]) => void
 ): Promise<void> {
-	const chatListContainer = page.locator('.chats-container');
-	const isSidebarVisible = await chatListContainer.isVisible().catch(() => false);
+	const activityHistory = page.locator('.activity-history-wrapper');
+	const isSidebarVisible = await activityHistory.isVisible().catch(() => false);
 	if (!isSidebarVisible) {
 		logCheckpoint('[Sidebar] Already closed.');
 		return;
