@@ -6228,7 +6228,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
          // Chats.svelte (the sidebar) has never been opened. On mobile the sidebar
          // starts closed, so the store would otherwise have hasPrev=false/hasNext=false
          // until the user opens the sidebar at least once.
-         updateNavFromCache(chat.chat_id);
+         // Wrapped in try-catch: navigation arrows are non-critical — a failure here
+         // must never prevent the chat itself from loading.
+         try {
+             updateNavFromCache(chat.chat_id);
+         } catch (navError) {
+             console.error('[ActiveChat] updateNavFromCache failed (non-fatal):', navError);
+         }
         
         // CRITICAL: Close any open fullscreen views when switching chats
         // This ensures fullscreen views don't persist when user switches to a different chat

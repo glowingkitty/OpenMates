@@ -232,11 +232,24 @@ export function updateNavFromCache(activeChatId: string): void {
   // intro/legal only. Subscribe once and rebuild the navigation list when demos
   // arrive, even if the active chat is already found in intro/legal.
   // Without this, header prev/next can keep skipping examples until sidebar mount.
+  //
+  // FIX: Svelte's subscribe() fires the callback synchronously on the first call,
+  // BEFORE the return value (unsubscribe function) is assigned. If `chatList`
+  // is already populated (e.g. by _applyNavigableList above), the callback would
+  // try to call `unsubscribeCommunity` while it's still in the Temporal Dead Zone,
+  // crashing with "Cannot access variable before initialization". We use a mutable
+  // holder so the callback can safely reference `unsub[0]` — on the synchronous
+  // first invocation it's still `undefined` (harmless no-op), and on subsequent
+  // calls the real unsubscribe function is available.
   if (communityChats.length === 0) {
-    const unsubscribeCommunity = communityDemoStore.subscribe(() => {
+    const unsub: [(() => void) | undefined] = [undefined];
+    let done = false;
+    unsub[0] = communityDemoStore.subscribe(() => {
+      if (done) return;
       // Skip if Chats.svelte has since mounted and taken ownership
       if (chatList.length > 0) {
-        unsubscribeCommunity();
+        done = true;
+        unsub[0]?.();
         return;
       }
       const updatedCommunityChats: Chat[] =
@@ -247,8 +260,14 @@ export function updateNavFromCache(activeChatId: string): void {
       if (updatedCommunityChats.length === 0) return; // still loading
       const rebuilt = [...introChats, ...updatedCommunityChats, ...legalChats];
       _applyNavigableList(rebuilt, activeChatId);
-      unsubscribeCommunity(); // one-shot: stop listening after first successful update
+      done = true;
+      unsub[0]?.(); // one-shot: stop listening after first successful update
     });
+    // If the synchronous first call already resolved (chatList was populated),
+    // unsubscribe immediately now that the function is available.
+    if (done) {
+      unsub[0]();
+    }
   }
 
   // ── Case 3c: Async DB fetch to pick up authenticated user chats ───────────
