@@ -2322,6 +2322,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         if (!recentChatsScrollEl) return;
         await tick();
         const container = recentChatsScrollEl;
+        if (!container) return;
         const firstItem = container.querySelector('.resume-chat-large-card, .resume-chat-card') as HTMLElement | null;
         if (!firstItem) return;
         const containerWidth = container.offsetWidth;
