@@ -11,7 +11,11 @@ export default defineConfig({
 		SvelteKitPWA({
 			srcDir: './src',
 			mode: 'production',
-			strategies: 'generateSW',
+			strategies: 'injectManifest',
+			injectManifest: {
+				swSrc: 'src/sw.ts',
+				maximumFileSizeToCacheInBytes: 8 * 1024 * 1024
+			},
 			// Output manifest.json (not default manifest.webmanifest) to match
 			// the <link rel="manifest"> in app.html and maintain compatibility
 			// with existing installed PWAs on user devices
@@ -44,17 +48,9 @@ export default defineConfig({
 					}
 				]
 			},
-			workbox: {
-				globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff,woff2}'],
-				maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
-				cleanupOutdatedCaches: true,
-				skipWaiting: false,
-				clientsClaim: false
-			},
 			devOptions: {
 				enabled: true,
-				type: 'module',
-				navigateFallback: '/'
+				type: 'module'
 			}
 		})
 	],
