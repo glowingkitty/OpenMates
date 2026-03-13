@@ -7,9 +7,15 @@
  *   1. Initial login → send message → confirm AI response
  *   2. Console warn/error capture → save to file if any occurred
  *   3. `window.inspectChat` client-side data check (messages, title, category)
- *   4. Tab reload → verify chat still decrypts correctly (no encryption errors)
- *   5. Logout → login again → verify chat still decrypts correctly
- *   6. Delete chat
+ *   4. Sidebar + message health check (initial state — sidebar opened explicitly)
+ *   4.5. Navigate to "new chat" → open sidebar → verify just-created chat is most recent
+ *   5. Tab reload → verify chat still decrypts correctly (no encryption errors)
+ *   6. Logout → login again → verify chat still decrypts correctly
+ *   7. Delete chat
+ *
+ * IMPORTANT: The sidebar defaults to CLOSED. Every sidebar interaction explicitly
+ * opens it first, then closes it afterwards. This mirrors the real user experience
+ * and catches bugs where stores assume the sidebar component is mounted.
  *
  * Any console warn/error logs captured during phases 2–5 are saved to
  * playwright-artifacts/console-warnings-{chatId}.json for offline diagnosis.
@@ -132,12 +138,70 @@ async function inspectChatClientSide(
 }
 
 /**
+ * Ensure the sidebar (chats panel) is open.
+ * The sidebar defaults to CLOSED — this helper clicks the menu toggle to open it
+ * and waits for the chat list container to become visible.
+ */
+async function ensureSidebarOpen(
+	page: any,
+	logCheckpoint: (...args: any[]) => void
+): Promise<void> {
+	// Check if sidebar is already open by looking for the chat list container
+	const chatListContainer = page.locator('.chats-container');
+	const isSidebarVisible = await chatListContainer.isVisible().catch(() => false);
+	if (isSidebarVisible) {
+		logCheckpoint('[Sidebar] Already open.');
+		return;
+	}
+
+	// Click the menu toggle button in the header to open the sidebar
+	const menuToggle = page.locator('.icon_menu');
+	await expect(menuToggle).toBeVisible({ timeout: 5000 });
+	await menuToggle.click();
+	logCheckpoint('[Sidebar] Clicked menu toggle to open sidebar.');
+
+	// Wait for sidebar to become visible
+	await expect(chatListContainer).toBeVisible({ timeout: 5000 });
+	// Give the component time to mount, load from DB, and render chat items
+	await page.waitForTimeout(1500);
+}
+
+/**
+ * Ensure the sidebar (chats panel) is closed.
+ * The sidebar defaults to CLOSED — this helper clicks the menu toggle to close it
+ * if it's currently open.
+ */
+async function ensureSidebarClosed(
+	page: any,
+	logCheckpoint: (...args: any[]) => void
+): Promise<void> {
+	const chatListContainer = page.locator('.chats-container');
+	const isSidebarVisible = await chatListContainer.isVisible().catch(() => false);
+	if (!isSidebarVisible) {
+		logCheckpoint('[Sidebar] Already closed.');
+		return;
+	}
+
+	// Click the menu toggle button to close the sidebar
+	const menuToggle = page.locator('.icon_menu');
+	if (await menuToggle.isVisible().catch(() => false)) {
+		await menuToggle.click();
+		logCheckpoint('[Sidebar] Clicked menu toggle to close sidebar.');
+		// Wait for sidebar to close
+		await page.waitForTimeout(500);
+	}
+}
+
+/**
  * Assert that the active chat item in the sidebar shows real, decrypted metadata:
  * - Title is not a placeholder (not "untitled chat", not "processing", not empty)
  * - Category circle exists and is NOT the grey "missing-category" fallback
  *
  * Also checks that visible message wrappers do NOT show the error-state inline style
  * (opacity 0.7 + border: 1px solid var(--color-error)) that appears on failed messages.
+ *
+ * IMPORTANT: This function opens the sidebar explicitly (default is closed), performs
+ * assertions, and then closes it again to restore the default state.
  */
 async function assertChatDecryptedCorrectly(
 	page: any,
@@ -146,12 +210,8 @@ async function assertChatDecryptedCorrectly(
 ): Promise<void> {
 	logCheckpoint(`[${phase}] Asserting chat decryption health...`);
 
-	// ── Sidebar assertions ──────────────────────────────────────────────────
-	const sidebarToggle = page.locator('.sidebar-toggle-button');
-	if (await sidebarToggle.isVisible()) {
-		await sidebarToggle.click();
-		await page.waitForTimeout(500);
-	}
+	// ── Open sidebar explicitly ─────────────────────────────────────────────
+	await ensureSidebarOpen(page, logCheckpoint);
 
 	const activeChatItem = page.locator('.chat-item-wrapper.active');
 	await expect(activeChatItem).toBeVisible({ timeout: 10000 });
@@ -175,6 +235,9 @@ async function assertChatDecryptedCorrectly(
 	await expect(missingCategory).not.toBeVisible();
 
 	logCheckpoint(`[${phase}] Sidebar: title and category look healthy.`);
+
+	// ── Close sidebar to restore default state ──────────────────────────────
+	await ensureSidebarClosed(page, logCheckpoint);
 
 	// ── Message area assertions ─────────────────────────────────────────────
 	// Verify the user message and the assistant message are visible.
@@ -324,11 +387,16 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	// =========================================================================
 	await performLogin(page, logChatCheckpoint, takeStepScreenshot, '01');
 
-	// Check if "New Chat" button is visible and click it for a fresh start
-	const newChatButton = page.locator('.icon_create');
-	if (await newChatButton.isVisible()) {
+	// Click "New Chat" button for a fresh start (visible in the main chat area)
+	const newChatButton = page.locator('.new-chat-cta-button, .icon_create');
+	if (
+		await newChatButton
+			.first()
+			.isVisible({ timeout: 3000 })
+			.catch(() => false)
+	) {
 		logChatCheckpoint('New Chat button visible, clicking it to start a fresh chat.');
-		await newChatButton.click();
+		await newChatButton.first().click();
 		await page.waitForTimeout(2000);
 	}
 
@@ -414,13 +482,104 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	// =========================================================================
 	// PHASE 4: Sidebar + message health check (initial state)
 	// =========================================================================
+	// NOTE: assertChatDecryptedCorrectly opens the sidebar, checks it, then closes it.
 	await assertChatDecryptedCorrectly(page, logChatCheckpoint, 'initial');
+
+	// Capture the chat title from the ChatHeader component for later comparison
+	// (the header is always visible regardless of sidebar state).
+	const chatHeaderTitle = page.locator('.chat-header-content .chat-header-title');
+	let headerTitleText = '';
+	try {
+		await expect(chatHeaderTitle).toBeVisible({ timeout: 5000 });
+		headerTitleText = (await chatHeaderTitle.textContent())?.trim() || '';
+		logChatCheckpoint(`ChatHeader title captured: "${headerTitleText}"`);
+	} catch {
+		logChatCheckpoint('ChatHeader title not visible — skipping capture.');
+	}
 
 	// Verify no missing translations on the chat page
 	await assertNoMissingTranslations(page);
 	logChatCheckpoint('No missing translations detected.');
 
 	await takeStepScreenshot(page, '05-initial-state-verified');
+
+	// =========================================================================
+	// PHASE 4.5: Navigate to "new chat" → verify just-created chat is most recent
+	// =========================================================================
+	// This phase verifies a critical user flow:
+	// 1. User created a chat (Phase 1) and got a response
+	// 2. User navigates to "new chat" screen (sidebar closes / stays closed)
+	// 3. User opens the sidebar → the just-created chat should be the first (most recent) chat
+	//
+	// This catches the bug where chatListCache serves stale data after the sidebar
+	// was unmounted during chat creation, because event listeners were removed on destroy.
+	logChatCheckpoint(
+		'Phase 4.5: Verifying recently created chat appears after navigating to new chat...'
+	);
+
+	// Click the "New Chat" button to navigate away from the current chat
+	const newChatCta = page.locator('.new-chat-cta-button, .icon_create');
+	if (
+		await newChatCta
+			.first()
+			.isVisible({ timeout: 5000 })
+			.catch(() => false)
+	) {
+		await newChatCta.first().click();
+		logChatCheckpoint('Clicked "New Chat" to navigate to new chat screen.');
+		await page.waitForTimeout(2000);
+	} else {
+		logChatCheckpoint('New Chat button not visible — skipping Phase 4.5.');
+	}
+
+	// Verify we're on the new chat screen (no active chat in URL)
+	const urlAfterNewChat = page.url();
+	logChatCheckpoint(`URL after new chat: ${urlAfterNewChat}`);
+
+	// Now open the sidebar — this is the critical test. The sidebar was closed (default)
+	// during the entire chat creation flow. On mount, Chats.svelte should read fresh data
+	// from IndexedDB (not stale cache) and show the just-created chat.
+	await ensureSidebarOpen(page, logChatCheckpoint);
+	await takeStepScreenshot(page, '05a-sidebar-after-new-chat');
+
+	// The first user chat in the sidebar should be our just-created chat.
+	// User chats are grouped under time sections (e.g., "Today").
+	// Find the first chat item that is NOT a demo/intro/legal chat.
+	const firstUserChat = page.locator('.chat-item-wrapper').first();
+	await expect(firstUserChat).toBeVisible({ timeout: 10000 });
+
+	// Verify the first chat has a real title (not a placeholder)
+	const firstChatTitle = firstUserChat.locator('.chat-title');
+	await expect(firstChatTitle).toBeVisible({ timeout: 15000 });
+	await expect(firstChatTitle).not.toHaveClass(/processing-title/, { timeout: 5000 });
+	const firstChatTitleText = (await firstChatTitle.textContent())?.trim() || '';
+	logChatCheckpoint(`First chat in sidebar title: "${firstChatTitleText}"`);
+
+	// The title should not be empty or a placeholder
+	expect(firstChatTitleText).toBeTruthy();
+	expect(firstChatTitleText.toLowerCase()).not.toContain('untitled chat');
+	expect(firstChatTitleText.toLowerCase()).not.toContain('processing');
+
+	// If we captured the ChatHeader title, verify it matches the first sidebar chat
+	if (headerTitleText) {
+		expect(firstChatTitleText).toBe(headerTitleText);
+		logChatCheckpoint(`Sidebar title matches ChatHeader title: "${firstChatTitleText}"`);
+	}
+
+	// Verify the first chat has a category circle (not the grey "missing" fallback)
+	const firstChatCategory = firstUserChat.locator('.category-circle');
+	await expect(firstChatCategory).toBeVisible({ timeout: 5000 });
+	const firstChatMissingCategory = firstUserChat.locator('.category-circle.missing-category');
+	await expect(firstChatMissingCategory).not.toBeVisible();
+	logChatCheckpoint('First chat in sidebar has valid title and category — Phase 4.5 passed.');
+
+	// Close sidebar to restore default state
+	await ensureSidebarClosed(page, logChatCheckpoint);
+
+	// Navigate back to the test chat for subsequent phases
+	const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL ?? 'https://app.dev.openmates.org';
+	await page.goto(`${baseUrl}/#chat-id=${chatId}`);
+	await page.waitForTimeout(3000);
 
 	// =========================================================================
 	// PHASE 5: Tab reload — verify chat still loads without encryption errors
@@ -434,7 +593,6 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	await page.waitForTimeout(5000); // Allow phased sync + decryption
 
 	// Navigate directly to the test chat by URL (in case active chat changed after reload)
-	const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL ?? 'https://app.dev.openmates.org';
 	await page.goto(`${baseUrl}/#chat-id=${chatId}`);
 	await page.waitForTimeout(3000);
 
@@ -540,6 +698,9 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	// PHASE 8: Delete the chat via context menu
 	// =========================================================================
 	logChatCheckpoint('Phase 8: Deleting test chat...');
+
+	// Ensure sidebar is open for the delete operation (it's closed by default)
+	await ensureSidebarOpen(page, logChatCheckpoint);
 
 	const activeChatItem = page.locator('.chat-item-wrapper.active');
 	await expect(activeChatItem).toBeVisible({ timeout: 10000 });

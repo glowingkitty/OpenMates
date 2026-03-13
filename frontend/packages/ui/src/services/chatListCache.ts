@@ -17,6 +17,13 @@ class ChatListCache {
   private updateInProgress = false;
   private readonly CACHE_STALE_MS = 5 * 60 * 1000; // 5 minutes
 
+  // Tracks whether the sidebar component (Chats.svelte) was destroyed since the
+  // last full cache set. When the sidebar unmounts, chatUpdated event listeners
+  // are removed, so partial updates (upsertChat) may land in the cache while
+  // subsequent metadata/message events are lost. On remount, the cache looks
+  // "fresh" but contains incomplete data. This flag forces a DB re-read.
+  private sidebarDestroyedSinceLastSet = false;
+
   // Promise that resolves when the current in-progress update completes.
   // Allows callers blocked by isUpdateInProgress to wait for completion
   // instead of silently returning with empty data.
@@ -31,26 +38,43 @@ class ChatListCache {
   private readonly LAST_MESSAGE_CACHE_STALE_MS = 5 * 60 * 1000; // 5 minutes
 
   /**
-   * Set the cached chat list
+   * Set the cached chat list (full DB read result).
+   * Resets all staleness flags including the sidebar-destroyed tracker.
    */
   setCache(chats: Chat[]): void {
     this.cachedChats = [...chats];
     this.cachedChatsTimestamp = Date.now();
     this.cacheReady = true;
     this.cacheDirty = false;
+    this.sidebarDestroyedSinceLastSet = false;
     console.debug(
       `[ChatListCache] Cache updated: ${chats.length} chats, timestamp: ${this.cachedChatsTimestamp}`,
     );
   }
 
   /**
-   * Get cached chats if available and fresh
+   * Get cached chats if available and fresh.
+   *
    * @param force - If true, ignore cache and return null
+   * @param isComponentRemount - If true, this call is from a Chats.svelte mount.
+   *   When the sidebar was destroyed since the last full setCache(), the cache may
+   *   contain incomplete data (partial upserts without corresponding event handler
+   *   updates), so we force a cache miss to trigger a fresh DB read.
    * @returns Cached chats array or null if cache miss
    */
-  getCache(force = false): Chat[] | null {
+  getCache(force = false, isComponentRemount = false): Chat[] | null {
     if (!this.cacheReady) {
       console.debug("[ChatListCache] Cache not ready");
+      return null;
+    }
+    // When the sidebar remounts after being destroyed, force a DB re-read.
+    // While unmounted, chatUpdated events were lost — the cache may have
+    // partial upserts but miss metadata/message updates.
+    if (isComponentRemount && this.sidebarDestroyedSinceLastSet) {
+      console.debug(
+        "[ChatListCache] Cache miss: sidebar was destroyed since last full set — forcing DB re-read",
+      );
+      this.sidebarDestroyedSinceLastSet = false; // Reset so subsequent getCache calls work normally
       return null;
     }
     if (
@@ -111,6 +135,19 @@ class ChatListCache {
   }
 
   /**
+   * Notify the cache that the sidebar component (Chats.svelte) was destroyed.
+   * While unmounted, chatUpdated event listeners are not active, so partial
+   * updates via upsertChat may leave the cache with incomplete data.
+   * The next getCache() call will force a cache miss to trigger a fresh DB read.
+   */
+  notifySidebarDestroyed(): void {
+    this.sidebarDestroyedSinceLastSet = true;
+    console.debug(
+      "[ChatListCache] Sidebar destroyed — next getCache will force DB read",
+    );
+  }
+
+  /**
    * Check if an update is in progress (prevents concurrent DB reads)
    */
   isUpdateInProgress(): boolean {
@@ -159,12 +196,19 @@ class ChatListCache {
   /**
    * Get cache statistics for debugging
    */
-  getStats(): { ready: boolean; count: number; age: number; dirty: boolean } {
+  getStats(): {
+    ready: boolean;
+    count: number;
+    age: number;
+    dirty: boolean;
+    sidebarDestroyed: boolean;
+  } {
     return {
       ready: this.cacheReady,
       count: this.cachedChats.length,
       age: Date.now() - this.cachedChatsTimestamp,
       dirty: this.cacheDirty,
+      sidebarDestroyed: this.sidebarDestroyedSinceLastSet,
     };
   }
 
@@ -233,6 +277,7 @@ class ChatListCache {
     this.cacheDirty = false;
     this.cachedChatsTimestamp = 0;
     this.updateInProgress = false;
+    this.sidebarDestroyedSinceLastSet = false;
     // Resolve any waiting callers so they don't hang indefinitely
     if (this.updateCompletionResolve) {
       this.updateCompletionResolve();
