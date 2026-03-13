@@ -601,13 +601,16 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	// Reset warn/error buffer so we only capture errors from the reload phase
 	warnErrorLogs.length = 0;
 
-	await page.reload();
-	logChatCheckpoint('Page reloaded. Waiting for sync...');
-	await page.waitForTimeout(5000); // Allow phased sync + decryption
-
-	// Navigate directly to the test chat by URL (in case active chat changed after reload)
+	// Navigate to the chat URL and reload to ensure a fresh startup with the hash.
+	// After Phase 4.5 we're on the home page; a plain reload would reload `/`
+	// which doesn't include the chat hash. So we set the URL first, then reload.
 	await page.goto(`${baseUrl}/#chat-id=${chatId}`);
-	await page.waitForTimeout(3000);
+	await page.reload({ waitUntil: 'networkidle' });
+	logChatCheckpoint('Page reloaded with chat hash. Waiting for messages...');
+
+	// Wait for the chat messages to render (key derivation + sync after reload)
+	const userMsgAfterReload = page.locator('.message-wrapper.user').first();
+	await expect(userMsgAfterReload).toBeVisible({ timeout: 30000 });
 
 	logChatCheckpoint('Verifying chat after tab reload...');
 	// Re-assert full decryption health
