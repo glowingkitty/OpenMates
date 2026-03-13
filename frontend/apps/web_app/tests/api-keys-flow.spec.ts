@@ -31,7 +31,7 @@ const {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	generateTotp,
-	getTestAccount,
+	getTestAccount
 } = require('./signup-flow-helpers');
 
 const consoleLogs: string[] = [];
@@ -68,19 +68,19 @@ async function loginToTestAccount(
 	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
 	await headerLoginButton.click();
 
-	const emailInput = page.locator('input[name="username"][type="email"]');
+	const emailInput = page.locator('#login-email-input');
 	await expect(emailInput).toBeVisible();
 	await emailInput.fill(TEST_EMAIL);
-	await page.getByRole('button', { name: /continue/i }).click();
+	await page.locator('#login-continue-button').click();
 
-	const passwordInput = page.locator('input[type="password"]');
+	const passwordInput = page.locator('#login-password-input');
 	await expect(passwordInput).toBeVisible({ timeout: 15000 });
 	await passwordInput.fill(TEST_PASSWORD);
 
-	const otpInput = page.locator('input[autocomplete="one-time-code"]');
+	const otpInput = page.locator('#login-otp-input');
 	await expect(otpInput).toBeVisible({ timeout: 15000 });
 
-	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
+	const submitLoginButton = page.locator('#login-submit-button');
 	const errorMessage = page
 		.locator('.error-message, [class*="error"]')
 		.filter({ hasText: /wrong|invalid|incorrect/i });
@@ -113,7 +113,7 @@ async function loginToTestAccount(
  */
 async function navigateToApiKeys(page: any, logCheckpoint: (msg: string) => void): Promise<void> {
 	// Open settings by clicking the profile container
-	const profileContainer = page.locator('.profile-container');
+	const profileContainer = page.locator('#settings-menu-toggle');
 	await expect(profileContainer).toBeVisible({ timeout: 10000 });
 	await profileContainer.click();
 	logCheckpoint('Opened settings menu.');
@@ -527,7 +527,7 @@ test('creates API key, verifies device approval flow, and saves working key', as
 	// ── Phase 4: Navigate to Devices and approve the pending device ───────────
 	// Go back until we can see the "Devices" menuitem in the Developers submenu.
 	// We may be one or two levels deep (API Keys page → Developers → see Devices).
-	const settingsBackButton = page.locator('.settings-header .nav-button .icon_back.visible');
+	const settingsBackButton = page.locator('#settings-back-button');
 	for (let backClicks = 0; backClicks < 5; backClicks++) {
 		// Check if "Devices" menuitem is already visible
 		const devicesCheck = page
@@ -545,6 +545,9 @@ test('creates API key, verifies device approval flow, and saves working key', as
 		if (alreadyVisible) break;
 		const backVisible = await settingsBackButton.isVisible({ timeout: 800 }).catch(() => false);
 		if (!backVisible) break;
+		const backDisabled =
+			(await settingsBackButton.getAttribute('aria-disabled').catch(() => 'true')) === 'true';
+		if (backDisabled) break;
 		await settingsBackButton.click();
 		await page.waitForTimeout(600);
 	}

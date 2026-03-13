@@ -886,6 +886,7 @@
             <div class="input-wrapper">
                 <span class="clickable-icon icon_password"></span>
                 <input
+                    id="login-password-input"
                     bind:this={passwordInput}
                     type="password"
                     bind:value={password}
@@ -928,6 +929,7 @@
                     {#if isBackupMode}
                         <span class="clickable-icon icon_text"></span>
                         <input
+                            id="login-otp-input"
                             bind:this={tfaInput}
                             type="text"
                             bind:value={tfaCode}
@@ -942,6 +944,7 @@
                     {:else}
                         <span class="clickable-icon icon_2fa"></span>
                         <input
+                            id="login-otp-input"
                             bind:this={tfaInput}
                             type="text"
                             bind:value={tfaCode}
@@ -965,6 +968,7 @@
         {/if}
 
         <button
+            id="login-submit-button"
             type="submit"
             class="login-button"
             disabled={isLoading || !isFormValid}

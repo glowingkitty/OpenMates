@@ -17,7 +17,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { get, writable } from "svelte/store";
+import { get } from "svelte/store";
 import type { Chat } from "../../types/chat";
 
 // ─── Shared state for mocks ────────────────────────────────────────────────
@@ -28,12 +28,6 @@ import type { Chat } from "../../types/chat";
 const sharedState = {
   communityDemoChats: [] as Chat[],
 };
-
-// Svelte store for community demo reactivity
-const fakeCommunityStore = writable<{ loaded: boolean; loading: boolean }>({
-  loaded: false,
-  loading: false,
-});
 
 // ─── Window stubs ───────────────────────────────────────────────────────────
 // test-setup.ts replaces window with a minimal object. We need dispatchEvent
@@ -99,21 +93,6 @@ vi.mock("../../demo_chats/convertToChat", () => ({
     updated_at: Date.now(),
   })),
 }));
-
-// Mock community demo store — reads from sharedState at call time
-vi.mock("../../demo_chats/communityDemoStore", async () => {
-  const svelteStore = await import("svelte/store");
-  const store = svelteStore.writable({ loaded: false, loading: false });
-  return {
-    communityDemoStore: {
-      subscribe: store.subscribe,
-      isLoaded: () => svelteStore.get(store).loaded,
-      isLoading: () => svelteStore.get(store).loading,
-    },
-    getUiVisibleCommunityDemoChats: () => sharedState.communityDemoChats,
-    loadCommunityDemos: vi.fn(async () => {}),
-  };
-});
 
 // Mock the barrel export for demo_chats — inline the INTRO/LEGAL data
 vi.mock("../../demo_chats", async () => {
@@ -208,6 +187,7 @@ vi.mock("../../demo_chats", async () => {
       isLoaded: () => svelteStore.get(store).loaded,
       isLoading: () => svelteStore.get(store).loading,
     },
+    __communityDemoStoreForTests: store,
     loadCommunityDemos: vi.fn(async () => {}),
     translateDemoChat: vi.fn((chat: any) => chat),
   };
@@ -223,6 +203,7 @@ import {
   navigateNext,
   navigatePrev,
 } from "../chatNavigationStore";
+import { __communityDemoStoreForTests } from "../../demo_chats";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -329,7 +310,7 @@ describe("chatNavigationStore — example chat navigation", () => {
   beforeEach(() => {
     resetChatNavigationList();
     sharedState.communityDemoChats = [];
-    fakeCommunityStore.set({ loaded: false, loading: false });
+    __communityDemoStoreForTests.set({ loaded: false, loading: false });
     vi.clearAllMocks();
     // Re-ensure window.dispatchEvent is available
     if (typeof window !== "undefined" && !window.dispatchEvent) {
@@ -433,7 +414,7 @@ describe("chatNavigationStore — example chat navigation", () => {
     it("includes all community demos when already loaded at call time", async () => {
       const demos = makeCommunityDemos();
       sharedState.communityDemoChats = demos;
-      fakeCommunityStore.set({ loaded: true, loading: false });
+      __communityDemoStoreForTests.set({ loaded: true, loading: false });
 
       updateNavFromCache("demo-for-everyone");
 
@@ -461,14 +442,14 @@ describe("chatNavigationStore — example chat navigation", () => {
     it("community demos that stream in after initial call become navigable", async () => {
       // Start with no community demos (cold boot, empty cache)
       sharedState.communityDemoChats = [];
-      fakeCommunityStore.set({ loaded: false, loading: true });
+      __communityDemoStoreForTests.set({ loaded: false, loading: true });
 
       updateNavFromCache("demo-for-everyone");
       await new Promise((r) => setTimeout(r, 150));
 
       // Now community demos "arrive"
       sharedState.communityDemoChats = makeCommunityDemos();
-      fakeCommunityStore.set({ loaded: true, loading: false });
+      __communityDemoStoreForTests.set({ loaded: true, loading: false });
       await new Promise((r) => setTimeout(r, 150));
 
       // Re-trigger (as ActiveChat.loadChat would)
@@ -491,12 +472,12 @@ describe("chatNavigationStore — example chat navigation", () => {
     it("every community demo has navigable neighbors when set as active", async () => {
       const demos = makeCommunityDemos();
       sharedState.communityDemoChats = demos;
-      fakeCommunityStore.set({ loaded: true, loading: false });
+      __communityDemoStoreForTests.set({ loaded: true, loading: false });
 
       for (const demo of demos) {
         resetChatNavigationList();
         sharedState.communityDemoChats = demos;
-        fakeCommunityStore.set({ loaded: true, loading: false });
+        __communityDemoStoreForTests.set({ loaded: true, loading: false });
 
         updateNavFromCache(demo.chat_id);
         await new Promise((r) => setTimeout(r, 150));

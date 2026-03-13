@@ -2297,7 +2297,8 @@ changes to the documentation (to keep the documentation up to date).
     >
     <div bind:this={profileContainerWrapper}> <!-- Bind the wrapper -->
     	<div
-    		class="profile-container"
+			id="settings-menu-toggle"
+     		class="profile-container"
     		class:menu-open={isMenuVisible}
     		data-action={isMenuVisible ? 'close-settings' : 'open-settings'}
     		onclick={toggleMenu}
@@ -2363,6 +2364,7 @@ changes to the documentation (to keep the documentation up to date).
         <div class="header-content">
             {#if !hideNavButton}
                 <button
+					id="settings-back-button"
                     class="nav-button"
                     class:left={navButtonLeft}
                     class:left-aligned={activeSettingsView !== 'main'}

@@ -36,7 +36,7 @@ const {
 	setToggleChecked,
 	generateTotp,
 	assertNoMissingTranslations,
-	getTestAccount,
+	getTestAccount
 } = require('./signup-flow-helpers');
 
 /**
@@ -56,7 +56,11 @@ const {
  * - OPENMATES_TEST_ACCOUNT_OTP_KEY: 2FA secret key for the test account.
  */
 
-const { email: OPENMATES_TEST_ACCOUNT_EMAIL, password: OPENMATES_TEST_ACCOUNT_PASSWORD, otpKey: OPENMATES_TEST_ACCOUNT_OTP_KEY } = getTestAccount();
+const {
+	email: OPENMATES_TEST_ACCOUNT_EMAIL,
+	password: OPENMATES_TEST_ACCOUNT_PASSWORD,
+	otpKey: OPENMATES_TEST_ACCOUNT_OTP_KEY
+} = getTestAccount();
 
 test('sets up backup codes in settings and logs in with a backup code', async ({
 	page,
@@ -122,14 +126,14 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	logCheckpoint('Opened login dialog.');
 
 	// Enter email
-	const emailInput = page.locator('input[type="email"][name="username"]');
+	const emailInput = page.locator('#login-email-input');
 	await expect(emailInput).toBeVisible({ timeout: 10000 });
 	await emailInput.fill(OPENMATES_TEST_ACCOUNT_EMAIL);
-	await page.getByRole('button', { name: /continue/i }).click();
+	await page.locator('#login-continue-button').click();
 	logCheckpoint('Submitted email for lookup.');
 
 	// Enter password
-	const passwordInput = page.locator('input[type="password"]');
+	const passwordInput = page.locator('#login-password-input');
 	await expect(passwordInput).toBeVisible({ timeout: 15000 });
 	await passwordInput.fill(OPENMATES_TEST_ACCOUNT_PASSWORD);
 	await takeStepScreenshot(page, 'password-filled');
@@ -137,14 +141,14 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 
 	// Handle 2FA - enter OTP code (fill BEFORE clicking submit, same as chat-flow)
 	const otpCode = generateTotp(OPENMATES_TEST_ACCOUNT_OTP_KEY);
-	const tfaInput = page.locator('input[autocomplete="one-time-code"]');
+	const tfaInput = page.locator('#login-otp-input');
 	await expect(tfaInput).toBeVisible({ timeout: 15000 });
 	await tfaInput.fill(otpCode);
 	await takeStepScreenshot(page, 'otp-entered');
 	logCheckpoint('Entered OTP code.');
 
 	// Submit login (password + OTP together in one click)
-	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
+	const submitLoginButton = page.locator('#login-submit-button');
 	await expect(submitLoginButton).toBeVisible();
 	await submitLoginButton.click();
 	logCheckpoint('Submitted login with password + OTP.');
@@ -159,7 +163,7 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	// ========================================================================
 
 	// Open settings
-	const settingsMenuButton = page.locator('.profile-container[role="button"]');
+	const settingsMenuButton = page.locator('#settings-menu-toggle');
 	await settingsMenuButton.click();
 	await expect(page.locator('.settings-menu.visible')).toBeVisible();
 	await takeStepScreenshot(page, 'settings-open');
@@ -305,12 +309,15 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	// The actual back button is `.nav-button` inside `.settings-header`, with a
 	// `.icon_back.visible` child indicating it's active (not on the main menu).
 	const logoutItem = page.getByRole('menuitem', { name: /logout|abmelden/i });
-	const settingsBackButton = page.locator('.settings-header .nav-button .icon_back.visible');
+	const settingsBackButton = page.locator('#settings-back-button');
 	for (let i = 0; i < 5; i++) {
 		const logoutNowVisible = await logoutItem.isVisible().catch(() => false);
 		if (logoutNowVisible) break;
 		const backVisible = await settingsBackButton.isVisible().catch(() => false);
 		if (!backVisible) break;
+		const backDisabled =
+			(await settingsBackButton.getAttribute('aria-disabled').catch(() => 'true')) === 'true';
+		if (backDisabled) break;
 		await settingsBackButton.click();
 		await page.waitForTimeout(500);
 	}
@@ -339,23 +346,23 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	logCheckpoint('Opened login dialog after logout.');
 
 	// Enter email
-	const emailInputRelogin = page.locator('input[type="email"][name="username"]');
+	const emailInputRelogin = page.locator('#login-email-input');
 	await expect(emailInputRelogin).toBeVisible({ timeout: 10000 });
 	await emailInputRelogin.fill(OPENMATES_TEST_ACCOUNT_EMAIL);
-	await page.getByRole('button', { name: /continue/i }).click();
+	await page.locator('#login-continue-button').click();
 	logCheckpoint('Submitted email for re-login.');
 
 	// Enter password — the password+TFA form is a single combined step.
 	// Since the account has tfa_enabled=true from /lookup, the TFA input is already
 	// visible alongside the password field. We do NOT need to click login first.
-	const passwordInputRelogin = page.locator('input[type="password"]');
-	await expect(passwordInputRelogin.first()).toBeVisible({ timeout: 15000 });
-	await passwordInputRelogin.first().fill(OPENMATES_TEST_ACCOUNT_PASSWORD);
+	const passwordInputRelogin = page.locator('#login-password-input');
+	await expect(passwordInputRelogin).toBeVisible({ timeout: 15000 });
+	await passwordInputRelogin.fill(OPENMATES_TEST_ACCOUNT_PASSWORD);
 	logCheckpoint('Filled password for re-login.');
 
 	// The TFA input should already be visible (tfa_enabled=true from lookup)
-	const tfaInputRelogin = page.locator('input[autocomplete="one-time-code"]');
-	await expect(tfaInputRelogin.first()).toBeVisible({ timeout: 15000 });
+	const tfaInputRelogin = page.locator('#login-otp-input');
+	await expect(tfaInputRelogin).toBeVisible({ timeout: 15000 });
 	await takeStepScreenshot(page, 'tfa-prompt-relogin');
 	logCheckpoint('TFA input visible alongside password (combined form).');
 
@@ -373,14 +380,14 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	});
 
 	// The TFA input now accepts backup code format (alphanumeric 14-char)
-	const backupCodeInput = page.locator('input[autocomplete="one-time-code"]').first();
+	const backupCodeInput = page.locator('#login-otp-input');
 	await expect(backupCodeInput).toBeVisible();
 	await backupCodeInput.fill(backupCodeToUse);
 	await takeStepScreenshot(page, 'backup-code-entered');
 	logCheckpoint('Entered backup code.');
 
 	// Submit login with password + backup code using the form submit button
-	const loginSubmitButton = page.locator('button[type="submit"].login-button');
+	const loginSubmitButton = page.locator('#login-submit-button');
 	await expect(loginSubmitButton).toBeVisible();
 	await loginSubmitButton.click();
 	logCheckpoint('Submitted login with backup code.');

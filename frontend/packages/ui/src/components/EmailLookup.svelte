@@ -361,6 +361,7 @@
                 <div class="input-wrapper">
                     <span class="clickable-icon icon_mail"></span>
                     <input
+                        id="login-email-input"
                         type="email"
                         name="username"
                         bind:value={emailInputValue}
@@ -388,6 +389,7 @@
 
             <!-- Continue button - fifth element -->
             <button
+                id="login-continue-button"
                 type="submit"
                 class="login-button"
                 disabled={isLoading || !hasValidEmail}

@@ -23,13 +23,19 @@ from typing import Any, Dict
 
 import httpx
 import pytest
-from dotenv import load_dotenv
 from PIL import Image
 
 try:
-    import c2pa
+    from dotenv import load_dotenv
+except ImportError:
+    def load_dotenv(*_args: Any, **_kwargs: Any) -> bool:
+        return False
+
+try:
+    import c2pa  # type: ignore[import-not-found]
     HAS_C2PA = True
 except ImportError:
+    c2pa = None
     HAS_C2PA = False
 
 # Load environment variables from the root .env file
@@ -199,7 +205,7 @@ def verify_image_metadata(
         has_c2pa_jumb = b"jumb" in image_bytes.lower()
         assert has_c2pa_jumb, "Missing C2PA JUMBF box in image bytes"
 
-        if HAS_C2PA:
+        if HAS_C2PA and c2pa is not None:
             try:
                 mime_type = "image/webp"
                 if image_bytes.startswith(b"\x89PNG\r\n\x1a\n"):

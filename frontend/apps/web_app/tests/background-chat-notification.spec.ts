@@ -31,7 +31,7 @@ const {
 	createStepScreenshotter,
 	generateTotp,
 	assertNoMissingTranslations,
-	getTestAccount,
+	getTestAccount
 } = require('./signup-flow-helpers');
 
 /**
@@ -105,23 +105,23 @@ test('background chat notification shows and allows reply', async ({ page }: { p
 	await takeScreenshot(page, 'login-dialog');
 
 	// 3. Enter email
-	const emailInput = page.locator('input[name="username"][type="email"]');
+	const emailInput = page.locator('#login-email-input');
 	await expect(emailInput).toBeVisible();
 	await emailInput.fill(TEST_EMAIL);
-	await page.getByRole('button', { name: /continue/i }).click();
+	await page.locator('#login-continue-button').click();
 	logStep('Entered email and clicked continue.');
 
 	// 4. Enter password
-	const passwordInput = page.locator('input[type="password"]');
+	const passwordInput = page.locator('#login-password-input');
 	await expect(passwordInput).toBeVisible();
 	await passwordInput.fill(TEST_PASSWORD);
 	await takeScreenshot(page, 'password-entered');
 
 	// 5. Handle 2FA OTP — generate fresh code right before submission to avoid TOTP window expiry.
 	// Retry up to 3 times if the code is rejected (window boundary race condition).
-	const otpInput = page.locator('input[autocomplete="one-time-code"]');
+	const otpInput = page.locator('#login-otp-input');
 	await expect(otpInput).toBeVisible();
-	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
+	const submitLoginButton = page.locator('#login-submit-button');
 	await expect(submitLoginButton).toBeVisible();
 
 	let loginSuccess = false;
@@ -171,7 +171,7 @@ test('background chat notification shows and allows reply', async ({ page }: { p
 	await page.keyboard.type('What is the tallest mountain in the world?');
 	await takeScreenshot(page, 'chat-a-message-typed');
 
-	const sendButton = page.locator('.send-button');
+	const sendButton = page.locator('[data-action="send-message"]');
 	await expect(sendButton).toBeEnabled();
 	await sendButton.click();
 	logStep('Sent message in Chat A.');

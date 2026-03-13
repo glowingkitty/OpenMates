@@ -229,7 +229,7 @@ async function performLogin(
 	await headerLoginButton.click();
 	await takeStepScreenshot(page, `${screenshotPrefix}-login-dialog`);
 
-	const emailInput = page.locator('input[name="username"][type="email"]');
+	const emailInput = page.locator('#login-email-input');
 	await expect(emailInput).toBeVisible();
 	await emailInput.fill(TEST_EMAIL);
 
@@ -253,22 +253,22 @@ async function performLogin(
 		logCheckpoint('Could not find "Stay logged in" toggle — proceeding without it.');
 	}
 
-	await page.getByRole('button', { name: /continue/i }).click();
+	await page.locator('#login-continue-button').click();
 	logCheckpoint('Entered email and clicked continue.');
 
-	const passwordInput = page.locator('input[type="password"]');
+	const passwordInput = page.locator('#login-password-input');
 	await expect(passwordInput).toBeVisible();
 	await passwordInput.fill(TEST_PASSWORD);
 	await takeStepScreenshot(page, `${screenshotPrefix}-password-entered`);
 
 	const otpCode = generateTotp(TEST_OTP_KEY);
-	const otpInput = page.locator('input[autocomplete="one-time-code"]');
+	const otpInput = page.locator('#login-otp-input');
 	await expect(otpInput).toBeVisible();
 	await otpInput.fill(otpCode);
 	logCheckpoint('Generated and entered OTP.');
 	await takeStepScreenshot(page, `${screenshotPrefix}-otp-entered`);
 
-	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
+	const submitLoginButton = page.locator('#login-submit-button');
 	await expect(submitLoginButton).toBeVisible();
 	await submitLoginButton.click();
 	logCheckpoint('Submitted login form.');
@@ -473,7 +473,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	warnErrorLogs.length = 0;
 
 	// Open the settings menu (the gear/profile toggle button)
-	const openSettingsBtn = page.getByRole('button', { name: /open settings menu/i });
+	const openSettingsBtn = page.locator('#settings-menu-toggle');
 	await expect(openSettingsBtn).toBeVisible({ timeout: 10000 });
 	await openSettingsBtn.click();
 	await page.waitForTimeout(500);

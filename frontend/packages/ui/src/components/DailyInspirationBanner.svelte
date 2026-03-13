@@ -322,6 +322,7 @@
     -->
     <div
       class="daily-inspiration-banner"
+      data-testid="daily-inspiration-banner"
       style={gradientStyle}
       onclick={handleStartChat}
       onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleStartChat(e as unknown as MouseEvent); } }}
