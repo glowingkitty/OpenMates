@@ -26,6 +26,7 @@ from . import password_security_reminder_email_task  # Import periodic password-
 from . import daily_notification_dispatcher  # Import unified daily notification dispatcher
 from . import test_notification_email_task  # Import E2E test failure notification task
 from . import test_run_summary_email_task  # Import daily test run summary email task
+from . import test_run_started_email_task  # Import test run started notification task
 
 # Note: When celery_config.py imports 'backend.core.api.app.tasks.email_tasks',
 # this __init__.py will execute and import all the task modules, which causes
@@ -53,4 +54,5 @@ __all__ = [
     'daily_notification_dispatcher',
     'test_notification_email_task',
     'test_run_summary_email_task',
+    'test_run_started_email_task',
 ]
