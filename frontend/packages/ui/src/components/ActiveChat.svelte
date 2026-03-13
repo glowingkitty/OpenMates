@@ -9074,6 +9074,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     {#if ($userProfile.total_chat_count ?? 0) > ((resumeChatData ? 1 : 0) + recentChats.length)}
                                         <button
                                             class="recent-chat-overflow"
+                                            class:is-large={isTallViewport}
                                             type="button"
                                             onclick={() => panelState.toggleChats()}
                                         >
@@ -10800,8 +10801,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         justify-content: center;
         width: 56px;
         min-width: 56px;
-        height: 200px;
-        border-radius: 20px;
+        height: 54px;
+        border-radius: 12px;
         background: var(--color-grey-20, rgba(0, 0, 0, 0.07));
         border: 1.5px dashed var(--color-grey-40);
         font-size: 14px;
@@ -10811,6 +10812,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         flex-shrink: 0;
         transition: background 0.15s ease, color 0.15s ease;
         pointer-events: auto;
+    }
+
+    .recent-chat-overflow.is-large {
+        height: 200px;
+        border-radius: 20px;
     }
 
     .recent-chat-overflow:hover {
