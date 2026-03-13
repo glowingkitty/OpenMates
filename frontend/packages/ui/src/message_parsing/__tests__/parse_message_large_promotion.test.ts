@@ -133,4 +133,37 @@ describe("parse_message assistant large promotion", () => {
       "d1acb994-29fd-48d8-9920-c6a8e990d6d3",
     );
   });
+
+  it("keeps legal markdown SVG images as inline image embeds", () => {
+    const markdown = [
+      "![Contact information 1](/images/legal/1.svg)",
+      "",
+      "![Contact information 2](/images/legal/2.svg)",
+      "",
+      "![Contact information 3](/images/legal/3.svg)",
+      "",
+      "![Contact information 4](/images/legal/4.svg)",
+    ].join("\n");
+
+    const doc = parseAssistant(markdown);
+
+    const largeNodes = (doc.content || []).filter(
+      (node: any) => node.type === "embedPreviewLarge",
+    );
+    expect(largeNodes).toHaveLength(0);
+
+    const imageUrls = (doc.content || [])
+      .map((node: any) => node?.content?.[0])
+      .filter(
+        (node: any) => node?.type === "embed" && node?.attrs?.type === "image",
+      )
+      .map((node: any) => node.attrs.url);
+
+    expect(imageUrls).toEqual([
+      "/images/legal/1.svg",
+      "/images/legal/2.svg",
+      "/images/legal/3.svg",
+      "/images/legal/4.svg",
+    ]);
+  });
 });
