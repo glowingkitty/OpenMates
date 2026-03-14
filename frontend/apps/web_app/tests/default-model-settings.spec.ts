@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Default model settings E2E test.
@@ -17,7 +16,7 @@
  * - The auto-select toggle saves immediately when switched on/off
  * - Selecting a specific model in the dropdown persists and is used for the next message
  * - Switching back to auto-select uses a different (auto-selected) model
- * - Success notifications appear when settings are saved
+ * - Notifications appear only for real value changes and include descriptive change text
  *
  * Architecture context: docs/architecture/ai_model_selection.md
  * Component: frontend/packages/ui/src/components/settings/AiAskSkillSettings.svelte
@@ -33,8 +32,6 @@ export {};
 const {
 	test,
 	expect,
-	consoleLogs,
-	networkActivities,
 	attachConsoleListeners,
 	attachNetworkListeners
 } = require('./console-monitor');
@@ -419,13 +416,11 @@ test('change default model to Mistral Small, verify it is used, then switch back
 
 	await takeStepScreenshot(page, '02-auto-select-off');
 
-	// Wait for the success notification to appear
-	const notification = page.locator('.notification');
-	await expect(notification).toBeVisible({ timeout: 5000 });
-	logCheckpoint('Success notification appeared after toggling auto-select.');
-
-	// Wait for notification to disappear
-	await page.waitForTimeout(3000);
+	// Toggling OFF auto-select without changing any values should NOT trigger save/notification
+	const noChangeNotification = page.locator('.notification');
+	await page.waitForTimeout(1200);
+	await expect(noChangeNotification).toHaveCount(0);
+	logCheckpoint('No notification after toggling auto-select OFF with unchanged values (expected).');
 
 	// The model dropdowns should now be visible
 	const simpleDropdown = aiAskSettings.locator('#default-simple-select');
@@ -440,10 +435,16 @@ test('change default model to Mistral Small, verify it is used, then switch back
 
 	await takeStepScreenshot(page, '02-mistral-small-selected');
 
-	// Verify another success notification appears for the model selection save
+	// Verify success notification appears with descriptive change text
 	const notification2 = page.locator('.notification');
 	await expect(notification2).toBeVisible({ timeout: 5000 });
-	logCheckpoint('Success notification appeared after selecting Mistral Small.');
+	await expect(notification2).toContainText(
+		"Changed model for Simple requests from 'Auto' to 'Mistral Small'"
+	);
+	logCheckpoint('Descriptive success notification appeared after selecting Mistral Small.');
+
+	// Wait for notification to disappear
+	await page.waitForTimeout(3000);
 
 	// Close settings
 	await closeSettings(page, logCheckpoint);
@@ -503,10 +504,13 @@ test('change default model to Mistral Small, verify it is used, then switch back
 
 	await takeStepScreenshot(page, '04-auto-select-on');
 
-	// Wait for the success notification
+	// Wait for the success notification with descriptive change text
 	const notification3 = page.locator('.notification');
 	await expect(notification3).toBeVisible({ timeout: 5000 });
-	logCheckpoint('Success notification appeared after toggling auto-select ON.');
+	await expect(notification3).toContainText(
+		"Changed model for Simple requests from 'Mistral Small' to 'Auto'"
+	);
+	logCheckpoint('Descriptive success notification appeared after toggling auto-select ON.');
 
 	// Wait for notification to dismiss
 	await page.waitForTimeout(3000);

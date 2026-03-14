@@ -132,14 +132,73 @@
     }
 
     /**
+     * Resolve a stored default-model value to a user-facing label.
+     * null/undefined maps to the localized "Auto" label.
+     */
+    function getModelDisplayLabel(value: string | null | undefined): string {
+        if (value === null || value === undefined) {
+            return $text('settings.ai_ask.ai_ask_settings.model_auto');
+        }
+
+        const model = modelsMetadata.find((m) => modelToValue(m) === value);
+        return model?.name ?? value;
+    }
+
+    /**
+     * Build a descriptive success notification for changed default model fields.
+     */
+    function buildDefaultModelChangeMessage(
+        previousSimple: string | null,
+        previousComplex: string | null,
+        nextSimple: string | null,
+        nextComplex: string | null,
+    ): string | null {
+        const messages: string[] = [];
+
+        if (previousSimple !== nextSimple) {
+            messages.push(
+                `Changed model for ${$text('settings.ai_ask.ai_ask_settings.simple_requests')} ` +
+                `from '${getModelDisplayLabel(previousSimple)}' to '${getModelDisplayLabel(nextSimple)}'`
+            );
+        }
+
+        if (previousComplex !== nextComplex) {
+            messages.push(
+                `Changed model for ${$text('settings.ai_ask.ai_ask_settings.complex_requests')} ` +
+                `from '${getModelDisplayLabel(previousComplex)}' to '${getModelDisplayLabel(nextComplex)}'`
+            );
+        }
+
+        if (messages.length === 0) {
+            return null;
+        }
+
+        return messages.join('. ') + '.';
+    }
+
+    /**
      * Save default model preferences to IndexedDB (optimistic) + backend (async).
      * On backend failure: show error notification — no rollback (local is already saved).
-     * On success: show success notification to confirm the change.
+     * On success: show a descriptive success notification for changed fields.
      */
     async function saveDefaultModels(
         newSimple: string | null,
         newComplex: string | null
     ): Promise<void> {
+        const previousSimple = defaultSimple;
+        const previousComplex = defaultComplex;
+
+        if (previousSimple === newSimple && previousComplex === newComplex) {
+            return;
+        }
+
+        const successMessage = buildDefaultModelChangeMessage(
+            previousSimple,
+            previousComplex,
+            newSimple,
+            newComplex,
+        );
+
         // Optimistic local update
         updateProfile({
             default_ai_model_simple: newSimple,
@@ -168,9 +227,8 @@
                     `${response.status} – ${errorData?.detail ?? 'unknown error'}`
                 );
                 notificationStore.error($text('settings.ai_ask.ai_ask_settings.default_models_save_error'));
-            } else {
-                console.debug('[AiAskSettings] Default models saved successfully.');
-                notificationStore.success($text('settings.ai_ask.ai_ask_settings.default_models_saved'));
+            } else if (successMessage) {
+                notificationStore.success(successMessage);
             }
         } catch (err) {
             console.error('[AiAskSettings] Network error while saving default models:', err);
@@ -182,11 +240,7 @@
     async function handleAutoSelectToggle(): Promise<void> {
         if (isAutoSelectOn) {
             // Turning OFF auto-select: enter manual mode so dropdowns appear.
-            // Save immediately so the backend knows the user is in manual mode
-            // (even if both dropdowns still show "Auto", the save confirms intent
-            //  and gives the user visual feedback via the success notification).
             manualModeEnabled = true;
-            await saveDefaultModels(defaultSimple, defaultComplex);
         } else {
             // Turning ON auto-select: reset both defaults to null
             manualModeEnabled = false;
