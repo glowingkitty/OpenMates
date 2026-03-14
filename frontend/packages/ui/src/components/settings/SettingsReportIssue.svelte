@@ -25,6 +25,7 @@
     import { aiTypingStore } from '../../stores/aiTypingStore';
     import { hasPendingSends } from '../../stores/pendingUploadStore';
     import { copyToClipboard } from '../../utils/clipboardUtils';
+    import { userProfile } from '../../stores/userProfile';
     import SettingsItem from '../SettingsItem.svelte';
 
     const dispatch = createEventDispatcher();
@@ -38,7 +39,7 @@
             settingsPath: 'report_issue/share-debug-logs',
             direction: 'forward',
             icon: 'report_issue',
-            title: 'Share Debug Logs'
+            title: $text('settings.report_issue.share_debug_logs_title')
         });
     }
     
@@ -73,6 +74,7 @@
      * When false, the share toggle is hidden since there's nothing to share.
      */
     let hasActiveChatOrEmbed = $state(false);
+    let isAdminUser = $derived($userProfile.is_admin === true);
 
     // Device information (collected for debugging purposes)
     let deviceInfo = $state({
@@ -1501,16 +1503,6 @@
 
 <div class="report-issue-settings" data-section="report-issue">
     <p>{$text('settings.report_issue.description')}</p>
-
-    <!-- Share Debug Logs — navigate to sub-page (authenticated users only) -->
-    {#if $authStore.isAuthenticated}
-        <SettingsItem
-            type="submenu"
-            icon="report_issue"
-            title="Share Debug Logs"
-            onClick={navigateToShareDebugLogs}
-        />
-    {/if}
     
     <!-- Issue Report Form -->
     <div class="report-issue-form">
@@ -1884,6 +1876,21 @@
             </div>
         </div>
     </div>
+
+    <!-- Share Debug Logs — intentionally below the form so users discover it after scrolling -->
+    {#if $authStore.isAuthenticated}
+        <div class="share-debug-logs-settings-section">
+            <SettingsItem
+                type="submenu"
+                icon="report_issue"
+                title={$text('settings.report_issue.share_debug_logs_title')}
+                onClick={navigateToShareDebugLogs}
+            />
+            {#if isAdminUser}
+                <p class="share-debug-logs-admin-note">{$text('settings.report_issue.share_debug_logs_admin_notice')}</p>
+            {/if}
+        </div>
+    {/if}
 </div>
 
 <style>
@@ -1895,6 +1902,17 @@
         display: flex;
         flex-direction: column;
         gap: 16px;
+    }
+
+    .share-debug-logs-settings-section {
+        margin-top: 20px;
+    }
+
+    .share-debug-logs-admin-note {
+        margin: 8px 4px 0;
+        font-size: 12px;
+        line-height: 1.4;
+        color: var(--color-font-secondary, #666);
     }
     
     .input-group {
