@@ -161,7 +161,7 @@
     {/if}
   {/snippet}
 
-  {#snippet detailContent()}
+  {#snippet detailContent(_ctx)}
     <!-- Header: Name + Stars + Rating -->
     <div class="stay-header">
       <h1 class="stay-name">{name}</h1>

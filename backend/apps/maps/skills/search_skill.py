@@ -9,7 +9,6 @@
 import logging
 import os
 import yaml
-import asyncio
 from typing import Dict, Any, List, Optional, Tuple
 from pydantic import BaseModel, Field
 from celery import Celery  # For Celery type hinting
@@ -234,12 +233,12 @@ class SearchSkill(BaseSkill):
                         logger.debug(f"Loaded {len(self.suggestions_follow_up_requests)} follow-up suggestions from app.yml")
                         return
                     else:
-                        logger.warning(f"Follow-up suggestions not found or invalid in app.yml for search skill, suggestions_follow_up_requests will be empty")
+                        logger.warning("Follow-up suggestions not found or invalid in app.yml for search skill, suggestions_follow_up_requests will be empty")
                         self.suggestions_follow_up_requests = []
                         return
             
             # If search skill not found
-            logger.error(f"Search skill not found in app.yml, suggestions_follow_up_requests will be empty")
+            logger.error("Search skill not found in app.yml, suggestions_follow_up_requests will be empty")
             self.suggestions_follow_up_requests = []
             
         except Exception as e:
@@ -279,7 +278,7 @@ class SearchSkill(BaseSkill):
         # Extract query and parameters from request
         search_query = req.get("query")
         if not search_query:
-            return (request_id, [], f"Missing 'query' parameter")
+            return (request_id, [], "Missing 'query' parameter")
         
         # Extract request-specific parameters (with defaults from schema)
         req_page_size = req.get("pageSize", 20)
@@ -338,7 +337,7 @@ class SearchSkill(BaseSkill):
                         celery_producer=celery_producer,
                         celery_task_context=celery_task_context
                     )
-                except Exception as e:
+                except Exception:
                     # Re-raise exceptions from wait_for_rate_limit (e.g., RateLimitScheduledException)
                     # These should bubble up to the route handler
                     raise
@@ -384,6 +383,8 @@ class SearchSkill(BaseSkill):
                     "next_close_time": place.get("next_close_time"),
                     "business_status": place.get("business_status"),
                     "description": place.get("description"),
+                    "photo_url": place.get("photo_url"),
+                    "image_url": place.get("image_url") or place.get("photo_url"),
                     "hash": self._generate_result_hash(place.get("place_id", ""))
                 }
                 # Only include generative_summary if it exists
@@ -495,4 +496,3 @@ class SearchSkill(BaseSkill):
         return response
     
     # _generate_result_hash is now provided by BaseSkill (can hash any string, including place_id)
-

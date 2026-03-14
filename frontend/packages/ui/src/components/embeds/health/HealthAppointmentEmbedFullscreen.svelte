@@ -114,7 +114,7 @@
   mapZoom={16}
   {mapMarkers}
 >
-  {#snippet detailContent()}
+  {#snippet detailContent(_ctx)}
     <!-- Doctor info -->
     <div class="doctor-header">
       {#if appointment.name}

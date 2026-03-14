@@ -24,6 +24,7 @@
   import { text } from '@repo/ui';
   import { notificationStore } from '../../../stores/notificationStore';
   import { copyToClipboard } from '../../../utils/clipboardUtils';
+  import { proxyImage, MAX_WIDTH_HEADER_IMAGE } from '../../../utils/imageProxy';
 
   interface Props {
     /** Place display name */
@@ -42,6 +43,8 @@
     userRatingCount?: number;
     /** Place category type */
     placeType?: string;
+    /** Place image URL */
+    imageUrl?: string;
     /** Website URI */
     websiteUri?: string;
     /** Google place ID (for Google Maps deep link) */
@@ -75,6 +78,7 @@
     rating,
     userRatingCount,
     placeType,
+    imageUrl,
     websiteUri,
     placeId,
     embedId,
@@ -123,6 +127,10 @@
     rating != null ? rating.toFixed(1) : null
   );
 
+  let proxiedImageUrl = $derived(
+    imageUrl ? proxyImage(imageUrl, MAX_WIDTH_HEADER_IMAGE) : ''
+  );
+
   function handleOpenInGoogleMaps() {
     if (googleMapsUrl) window.open(googleMapsUrl, '_blank', 'noopener,noreferrer');
   }
@@ -164,7 +172,11 @@
   mapZoom={zoom}
   {mapMarkers}
 >
-  {#snippet detailContent()}
+  {#snippet detailContent(_ctx)}
+    {#if proxiedImageUrl}
+      <img class="place-image" src={proxiedImageUrl} alt={displayName || $text('embeds.maps_location')} loading="lazy" />
+    {/if}
+
     {#if displayName}
       <h2 class="place-title">{displayName}</h2>
     {/if}
@@ -206,6 +218,13 @@
 </EntryWithMapTemplate>
 
 <style>
+  .place-image {
+    width: 100%;
+    height: 160px;
+    object-fit: cover;
+    border-radius: 12px;
+  }
+
   .place-title {
     font-size: 1.5rem; /* 24px */
     font-weight: 700;

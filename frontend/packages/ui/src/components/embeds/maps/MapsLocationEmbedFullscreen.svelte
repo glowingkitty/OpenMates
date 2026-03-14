@@ -123,7 +123,7 @@
   {mapMarkers}
   staticMapImageUrl={mapImageUrl}
 >
-  {#snippet detailContent()}
+  {#snippet detailContent(_ctx)}
     {#if name}
       <h2 class="location-title">{name}</h2>
     {/if}

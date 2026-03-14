@@ -19,6 +19,7 @@
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
+  import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
 
   /**
    * Props for a single place result preview card.
@@ -38,6 +39,8 @@
     userRatingCount?: number;
     /** Place category/type (e.g. "Coffee Shop") */
     placeType?: string;
+    /** Place photo URL (Google Places photo/media URL) */
+    imageUrl?: string;
     /** Whether this is the currently selected/highlighted place */
     isSelected?: boolean;
     /** Processing status */
@@ -55,6 +58,7 @@
     rating,
     userRatingCount,
     placeType,
+    imageUrl,
     isSelected = false,
     status = 'finished',
     isMobile = false,
@@ -66,6 +70,10 @@
   /** Format rating to 1 decimal, capped to avoid floating point noise */
   let ratingText = $derived(
     rating != null ? rating.toFixed(1) : null
+  );
+
+  let proxiedImageUrl = $derived(
+    imageUrl ? proxyImage(imageUrl, MAX_WIDTH_PREVIEW_THUMBNAIL) : ''
   );
 </script>
 
@@ -83,6 +91,10 @@
 >
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="place-card" class:mobile={isMobileLayout} class:selected={isSelected}>
+      {#if proxiedImageUrl}
+        <img class="place-image" src={proxiedImageUrl} alt={displayName || $text('embeds.maps_location')} loading="lazy" />
+      {/if}
+
       <!-- Place name -->
       <div class="place-name">{displayName || $text('embeds.maps_location')}</div>
 
@@ -118,6 +130,14 @@
     padding: 12px 16px 8px;
     height: 100%;
     justify-content: center;
+  }
+
+  .place-image {
+    width: 100%;
+    height: 72px;
+    object-fit: cover;
+    border-radius: 10px;
+    margin-bottom: 4px;
   }
 
   .place-card.mobile {

@@ -554,6 +554,8 @@ class SearchSkill(BaseSkill):
         results: List[Dict[str, Any]] = []
         for event in all_events:
             result = {"type": "event_result", **event}
+            if not result.get("image_url"):
+                result["image_url"] = result.get("cover_url")
             result["hash"] = self._generate_result_hash(
                 event.get("url") or event.get("id") or ""
             )

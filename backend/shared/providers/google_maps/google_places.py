@@ -11,10 +11,10 @@
 # - Does NOT perform actual search requests to avoid billing costs
 # - Checked every 5 minutes via Celery Beat task
 
-import json
 import logging
 import os
 import httpx
+import asyncio
 from typing import Dict, Any, List, Optional
 
 from backend.core.api.app.utils.secrets_manager import SecretsManager
@@ -27,6 +27,8 @@ GOOGLE_MAPS_API_KEY_NAME = "api_key"
 
 # Google Places API (New) base URL
 GOOGLE_PLACES_API_BASE_URL = "https://places.googleapis.com/v1"
+PLACE_PHOTO_MAX_WIDTH_PX = 1200
+PHOTO_FETCH_CONCURRENCY = 6
 
 # Default fields to request (Enterprise + Atmosphere SKU tier)
 # 
@@ -54,6 +56,7 @@ DEFAULT_FIELD_MASK = [
     "places.types",
     "places.id",
     "places.businessStatus",  # OPERATIONAL, CLOSED_TEMPORARILY, etc.
+    "places.photos",
     
     # Ratings (Enterprise tier)
     "places.rating",
@@ -296,6 +299,40 @@ async def search_places(
             
             # Extract and format results
             places = result_data.get("places", [])
+
+            photo_names: List[str] = []
+            for place in places:
+                photos_raw = place.get("photos", [])
+                if isinstance(photos_raw, list) and photos_raw:
+                    first_photo = photos_raw[0]
+                    if isinstance(first_photo, dict):
+                        photo_name = first_photo.get("name")
+                        if isinstance(photo_name, str) and photo_name:
+                            photo_names.append(photo_name)
+
+            photo_url_map: Dict[str, str] = {}
+            if photo_names:
+                semaphore = asyncio.Semaphore(PHOTO_FETCH_CONCURRENCY)
+
+                async def fetch_photo(photo_name: str) -> tuple[str, Optional[str]]:
+                    async with semaphore:
+                        return (
+                            photo_name,
+                            await _resolve_place_photo_url(
+                                client=client,
+                                api_key=api_key,
+                                photo_name=photo_name,
+                            ),
+                        )
+
+                photo_pairs = await asyncio.gather(
+                    *(fetch_photo(photo_name) for photo_name in photo_names),
+                    return_exceptions=False,
+                )
+
+                for photo_name, photo_url in photo_pairs:
+                    if photo_url:
+                        photo_url_map[photo_name] = photo_url
             
             # Format results for consistent structure
             formatted_results = []
@@ -414,6 +451,17 @@ async def search_places(
                         reviews = []
                 
                 # Build result dictionary
+                photos_raw = place.get("photos", [])
+                first_photo_name: Optional[str] = None
+                if isinstance(photos_raw, list) and photos_raw:
+                    first_photo = photos_raw[0]
+                    if isinstance(first_photo, dict):
+                        photo_name = first_photo.get("name")
+                        if isinstance(photo_name, str) and photo_name:
+                            first_photo_name = photo_name
+
+                photo_url = photo_url_map.get(first_photo_name) if first_photo_name else None
+
                 formatted_result = {
                     "place_id": place_id,
                     "name": display_name,
@@ -439,6 +487,8 @@ async def search_places(
                     "business_status": business_status,
                     # Descriptions and summaries
                     "description": editorial_summary,  # Editorial summary (description)
+                    "photo_url": photo_url,
+                    "image_url": photo_url,
                     # Include raw place data for any additional fields
                     "_raw": place
                 }
@@ -489,3 +539,48 @@ async def search_places(
             "error": error_msg
         }
 
+
+async def _resolve_place_photo_url(
+    *,
+    client: httpx.AsyncClient,
+    api_key: str,
+    photo_name: str,
+) -> Optional[str]:
+    """
+    Resolve a Google Places photo resource name to a public image URL.
+
+    Google Places Photos endpoint responds with a redirect to a public CDN URL
+    when skipHttpRedirect is not set. We intentionally disable auto-follow to
+    capture and return the final public Location URL without exposing API keys
+    to the frontend.
+    """
+    if not photo_name:
+        return None
+
+    try:
+        response = await client.get(
+            f"{GOOGLE_PLACES_API_BASE_URL}/{photo_name}/media",
+            params={"maxWidthPx": PLACE_PHOTO_MAX_WIDTH_PX},
+            headers={"X-Goog-Api-Key": api_key},
+            follow_redirects=False,
+        )
+
+        if response.status_code in (301, 302, 303, 307, 308):
+            return response.headers.get("Location")
+
+        # Fallback path: some API variants can return JSON with photoUri.
+        if response.status_code == 200:
+            payload = response.json()
+            photo_uri = payload.get("photoUri") if isinstance(payload, dict) else None
+            if isinstance(photo_uri, str) and photo_uri:
+                return photo_uri
+
+        logger.debug(
+            "Google Places photo lookup returned status=%s for %s",
+            response.status_code,
+            photo_name,
+        )
+        return None
+    except Exception as exc:
+        logger.debug("Google Places photo lookup failed for %s: %s", photo_name, exc)
+        return None
