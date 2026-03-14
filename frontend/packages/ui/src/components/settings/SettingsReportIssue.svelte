@@ -25,8 +25,22 @@
     import { aiTypingStore } from '../../stores/aiTypingStore';
     import { hasPendingSends } from '../../stores/pendingUploadStore';
     import { copyToClipboard } from '../../utils/clipboardUtils';
+    import SettingsItem from '../SettingsItem.svelte';
 
     const dispatch = createEventDispatcher();
+
+    /**
+     * Navigate to the Share Debug Logs sub-page.
+     * Available to authenticated users for temporary log sharing.
+     */
+    function navigateToShareDebugLogs() {
+        dispatch('openSettings', {
+            settingsPath: 'report_issue/share-debug-logs',
+            direction: 'forward',
+            icon: 'report_issue',
+            title: 'Share Debug Logs'
+        });
+    }
     
     // Form state
     let issueTitle = $state('');
@@ -1487,6 +1501,16 @@
 
 <div class="report-issue-settings" data-section="report-issue">
     <p>{$text('settings.report_issue.description')}</p>
+
+    <!-- Share Debug Logs — navigate to sub-page (authenticated users only) -->
+    {#if $authStore.isAuthenticated}
+        <SettingsItem
+            type="submenu"
+            icon="report_issue"
+            title="Share Debug Logs"
+            onClick={navigateToShareDebugLogs}
+        />
+    {/if}
     
     <!-- Issue Report Form -->
     <div class="report-issue-form">

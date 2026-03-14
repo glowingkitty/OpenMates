@@ -100,6 +100,7 @@ import SettingsSupportMonthly from "./support/SettingsSupportMonthly.svelte";
 import SettingsNewsletter from "./SettingsNewsletter.svelte";
 import SettingsReportIssue from "./SettingsReportIssue.svelte";
 import SettingsReportIssueConfirmation from "./SettingsReportIssueConfirmation.svelte";
+import SettingsShareDebugLogs from "./SettingsShareDebugLogs.svelte";
 
 // Developers
 import SettingsDevelopers from "./SettingsDevelopers.svelte";
@@ -236,6 +237,7 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   // Report Issue
   report_issue: SettingsReportIssue,
   "report_issue/confirmation": SettingsReportIssueConfirmation,
+  "report_issue/share-debug-logs": SettingsShareDebugLogs,
 };
 
 /**
