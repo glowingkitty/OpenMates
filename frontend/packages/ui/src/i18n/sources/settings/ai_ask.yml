@@ -214,6 +214,31 @@ ai_ask_settings.model_auto:
   he: אוטומטי
   verified_by_human: []
 
+ai_ask_settings.default_models_saved:
+  context: Success notification shown when default model preferences are saved successfully
+  en: Default model preferences saved.
+  de: Standardmodell-Einstellungen gespeichert.
+  zh: 默认模型偏好已保存。
+  es: Preferencias de modelo predeterminado guardadas.
+  fr: Préférences du modèle par défaut enregistrées.
+  pt: Preferências de modelo padrão salvas.
+  ru: Настройки модели по умолчанию сохранены.
+  ja: デフォルトモデルの設定が保存されました。
+  ko: 기본 모델 설정이 저장되었습니다.
+  it: Preferenze del modello predefinito salvate.
+  tr: Varsayılan model tercihleri kaydedildi.
+  vi: Tùy chọn mô hình mặc định đã được lưu.
+  id: Preferensi model default tersimpan.
+  pl: Preferencje modelu domyślnego zapisane.
+  nl: Voorkeuren voor standaardmodel opgeslagen.
+  ar: تم حفظ تفضيلات النموذج الافتراضي.
+  hi: डिफ़ॉल्ट मॉडल प्राथमिकताएं सहेजी गईं।
+  th: บันทึกการตั้งค่าโมเดลเริ่มต้นแล้ว
+  cs: Předvolby výchozího modelu uloženy.
+  sv: Standardmodellens inställningar sparade.
+  he: העדפות המודל ברירת המחדל נשמרו.
+  verified_by_human: []
+
 ai_ask_settings.default_models_save_error:
   context: Error notification shown when saving default model preferences to the server fails (optimistic save failure)
   en: Failed to save default model preference. Please try again.

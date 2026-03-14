@@ -134,6 +134,7 @@
     /**
      * Save default model preferences to IndexedDB (optimistic) + backend (async).
      * On backend failure: show error notification — no rollback (local is already saved).
+     * On success: show success notification to confirm the change.
      */
     async function saveDefaultModels(
         newSimple: string | null,
@@ -169,6 +170,7 @@
                 notificationStore.error($text('settings.ai_ask.ai_ask_settings.default_models_save_error'));
             } else {
                 console.debug('[AiAskSettings] Default models saved successfully.');
+                notificationStore.success($text('settings.ai_ask.ai_ask_settings.default_models_saved'));
             }
         } catch (err) {
             console.error('[AiAskSettings] Network error while saving default models:', err);
@@ -179,9 +181,12 @@
     /** Toggle the "Auto-select model" switch. */
     async function handleAutoSelectToggle(): Promise<void> {
         if (isAutoSelectOn) {
-            // Turning OFF auto-select: enter local manual mode so dropdowns appear.
-            // Persisted state remains unchanged until user picks at least one explicit model.
+            // Turning OFF auto-select: enter manual mode so dropdowns appear.
+            // Save immediately so the backend knows the user is in manual mode
+            // (even if both dropdowns still show "Auto", the save confirms intent
+            //  and gives the user visual feedback via the success notification).
             manualModeEnabled = true;
+            await saveDefaultModels(defaultSimple, defaultComplex);
         } else {
             // Turning ON auto-select: reset both defaults to null
             manualModeEnabled = false;
