@@ -46,6 +46,13 @@ services:
       # Allow targeting specific tests
       PLAYWRIGHT_TEST_FILE:
       PLAYWRIGHT_TEST_GREP:
+      # Reporter env vars (forwarded by run-tests-worker.sh for OpenObserve integration)
+      E2E_REPORT_API_URL:
+      E2E_REPORT_API_TOKEN:
+      E2E_REPORT_ENVIRONMENT:
+      E2E_REPORT_ENABLED:
+    networks:
+      - openmates
     # NOTE: Use $$ to escape $ so docker-compose passes the variable expansion
     # to the shell inside the container, rather than evaluating it at parse time.
     command: >
@@ -57,5 +64,10 @@ services:
         # Allow targeted runs without overriding the container command.
         # PLAYWRIGHT_TEST_FILE points at a single test file.
         # PLAYWRIGHT_TEST_GREP filters tests by title (regex).
-        npx playwright test --config=playwright.config.ts $${PLAYWRIGHT_TEST_FILE:-} $${PLAYWRIGHT_TEST_GREP:+--grep \"$$PLAYWRIGHT_TEST_GREP\"}
+        npx playwright test --config=playwright.config.ts --reporter=list,./tests/api-reporter.ts $${PLAYWRIGHT_TEST_FILE:-} $${PLAYWRIGHT_TEST_GREP:+--grep \"$$PLAYWRIGHT_TEST_GREP\"}
       "
+
+networks:
+  openmates:
+    external: true
+    name: openmates

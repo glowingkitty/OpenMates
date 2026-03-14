@@ -90,6 +90,9 @@ RUN_ID="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 RUN_FILE="$RESULTS_DIR/run-${RUN_ID//:/}.json"
 GIT_SHA="$(cd "$PROJECT_ROOT" && git rev-parse --short HEAD 2>/dev/null || echo 'unknown')"
 GIT_BRANCH="$(cd "$PROJECT_ROOT" && git rev-parse --abbrev-ref HEAD 2>/dev/null || echo 'unknown')"
+
+# Export for Playwright workers (api-reporter.ts reads these for OpenObserve tagging)
+export RUN_ID GIT_BRANCH
 START_TIME="$(date +%s)"
 
 # Temporary directory for intermediate results from workers

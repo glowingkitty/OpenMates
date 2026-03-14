@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 
 OPENOBSERVE_ORG = "default"
 TEST_RUNS_STREAM = "test-runs"
+TEST_EVENTS_STREAM = "test-events"
 
 # Ordered rules: first match wins. Keep specific patterns before generic ones.
 _DEVICE_PATTERNS: list[tuple[re.Pattern[str], str]] = [
@@ -298,8 +299,9 @@ class OpenObservePushService:
                 ]
             }
 
-            # Dedicated OpenObserve stream path for daily test-run records.
-            url = f"{self.base_url}/api/{self.org}/{TEST_RUNS_STREAM}/loki/api/v1/push"
+            # Push to the standard Loki-compatible endpoint; OpenObserve routes
+            # to the correct stream based on the 'job' label in the payload.
+            url = f"{self.base_url}/api/{self.org}/loki/api/v1/push"
             timeout = aiohttp.ClientTimeout(total=10)
 
             async with aiohttp.ClientSession(timeout=timeout, auth=self._auth()) as session:
@@ -319,6 +321,98 @@ class OpenObservePushService:
 
         except Exception as e:
             logger.error(f"Error pushing test run summary to OpenObserve: {e}", exc_info=True)
+            return False
+
+    async def push_test_event(self, event_payload: Dict[str, Any]) -> bool:
+        """
+        Push a single test lifecycle event (spec started, passed, failed, suite summary)
+        into the dedicated test-events stream.
+
+        Called by the Playwright api-reporter via /internal/openobserve/push-test-event.
+        Events are per-spec granularity, enabling real-time monitoring of E2E runs
+        in OpenObserve as they execute.
+
+        Stream labels (low-cardinality): job, event_type, status, environment,
+        worker_slot, git_branch, server_env, source.
+        Body (high-cardinality): test_file, test_name, error_message, duration, etc.
+        """
+        try:
+            event_type = str(event_payload.get("event_type", "test_end"))
+            status = str(event_payload.get("status", "unknown"))
+            environment = str(event_payload.get("environment", self.server_env))
+            worker_slot = str(event_payload.get("worker_slot", "0"))
+            git_branch = str(event_payload.get("git_branch", ""))
+            test_file = str(event_payload.get("test_file", ""))
+            test_name = str(event_payload.get("test_name", ""))
+            duration_ms = int(event_payload.get("duration_ms", 0))
+            error_message = str(event_payload.get("error_message", ""))[:800]
+            run_id = str(event_payload.get("run_id", ""))
+            total = event_payload.get("total")
+            passed = event_payload.get("passed")
+            failed = event_payload.get("failed")
+            skipped = event_payload.get("skipped")
+
+            timestamp_ns = str(int(time.time() * 1_000_000_000))
+
+            body: Dict[str, Any] = {
+                "event_type": event_type,
+                "test_file": test_file,
+                "test_name": test_name,
+                "status": status,
+                "duration_ms": duration_ms,
+                "worker_slot": worker_slot,
+                "environment": environment,
+                "git_branch": git_branch,
+                "run_id": run_id,
+            }
+            if error_message:
+                body["error_message"] = error_message
+            if total is not None:
+                body["total"] = total
+                body["passed"] = passed
+                body["failed"] = failed
+                body["skipped"] = skipped
+
+            payload = {
+                "streams": [
+                    {
+                        "stream": {
+                            "job": "test-events",
+                            "event_type": event_type,
+                            "status": status,
+                            "environment": environment,
+                            "worker_slot": worker_slot,
+                            "git_branch": git_branch,
+                            "server_env": self.server_env,
+                            "source": "playwright-reporter",
+                        },
+                        "values": [[timestamp_ns, json.dumps(body)]],
+                    }
+                ]
+            }
+
+            # Push to the standard Loki-compatible endpoint; OpenObserve routes
+            # to the correct stream based on the 'job' label in the payload.
+            url = f"{self.base_url}/api/{self.org}/loki/api/v1/push"
+            timeout = aiohttp.ClientTimeout(total=10)
+
+            async with aiohttp.ClientSession(timeout=timeout, auth=self._auth()) as session:
+                async with session.post(
+                    url,
+                    json=payload,
+                    headers={"Content-Type": "application/json"},
+                ) as response:
+                    if response.status == 204:
+                        return True
+
+                    error_text = await response.text()
+                    logger.error(
+                        f"OpenObserve test-event push failed (status={response.status}): {error_text[:300]}"
+                    )
+                    return False
+
+        except Exception as e:
+            logger.error(f"Error pushing test event to OpenObserve: {e}", exc_info=True)
             return False
 
     async def test_push_connection(self) -> bool:

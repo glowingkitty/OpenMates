@@ -103,6 +103,12 @@ print(json.dumps(entry))
       -e SIGNUP_TEST_EMAIL_DOMAINS \
       -e MAILOSAUR_API_KEY \
       -e MAILOSAUR_SERVER_ID \
+      -e "E2E_REPORT_API_URL=${E2E_REPORT_API_URL:-http://api:8000}" \
+      -e "E2E_REPORT_API_TOKEN=${INTERNAL_API_SHARED_TOKEN:-}" \
+      -e "E2E_REPORT_ENVIRONMENT=${DAILY_RUN_ENVIRONMENT:-development}" \
+      -e "E2E_REPORT_ENABLED=${E2E_REPORT_ENABLED:-true}" \
+      -e "GIT_BRANCH=${GIT_BRANCH:-$(cd "$PROJECT_ROOT" && git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)}" \
+      -e "RUN_ID=${RUN_ID:-}" \
       "${DOCKER_EXTRA_ARGS[@]}" \
       playwright 2>&1
   )" || spec_exit=$?

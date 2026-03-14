@@ -1497,6 +1497,47 @@ async def push_test_run_to_openobserve(
     }
 
 
+# --- Per-Spec Test Event Push to OpenObserve ---
+# Called by the Playwright api-reporter.ts during E2E test execution.
+# Each event represents a spec lifecycle milestone (suite_start, test_end, suite_end).
+
+class TestEventOpenObservePayload(BaseModel):
+    """Payload for a single Playwright spec lifecycle event pushed to OpenObserve."""
+    event_type: str  # "suite_start", "test_end", "suite_end"
+    environment: str = "development"
+    worker_slot: str = "0"
+    git_branch: str = ""
+    run_id: str = ""
+    # test_end fields
+    test_file: str = ""
+    test_name: str = ""
+    status: str = ""  # "passed", "failed", "timedOut", "skipped"
+    duration_ms: int = 0
+    error_message: str = ""
+    # suite_end summary fields
+    total: Optional[int] = None
+    passed: Optional[int] = None
+    failed: Optional[int] = None
+    skipped: Optional[int] = None
+
+
+@router.post("/openobserve/push-test-event")
+async def push_test_event_to_openobserve(
+    payload: TestEventOpenObservePayload,
+) -> Dict[str, Any]:
+    """
+    Forward a single Playwright spec lifecycle event to the OpenObserve test-events stream.
+
+    Called by api-reporter.ts inside the Playwright Docker container during E2E runs.
+    Provides real-time per-spec visibility: which specs are starting, passing, or failing.
+    """
+    pushed = await openobserve_push_service.push_test_event(payload.dict())
+    if not pushed:
+        raise HTTPException(status_code=502, detail="Failed to push test event to OpenObserve")
+
+    return {"status": "pushed", "event_type": payload.event_type, "test_file": payload.test_file}
+
+
 # --- Test Run Started Email Dispatch ---
 # Called by scripts/_daily_runner_helper.py (run from crontab on the host).
 # The helper has no Celery dependency, so it POSTs here and we dispatch

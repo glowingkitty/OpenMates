@@ -135,6 +135,7 @@ O2_PRESETS = (
     "api-failed-requests",
     "top-warnings-errors",
     "chat-processing",
+    "test-events",
 )
 HEALTH_NOISE_PATHS = (
     " /health ",
@@ -2131,6 +2132,109 @@ async def _o2_preset_chat_processing(args) -> None:
         print(f"{C_DIM}Try --since 60 or add --chat-id <id> to filter.{C_RESET}")
 
 
+async def _o2_preset_test_events(args) -> None:
+    """Show recent Playwright E2E test lifecycle events from OpenObserve."""
+    since = args.since or 60
+
+    # Fetch test-events and test-runs summaries in parallel
+    events_sql = (
+        "SELECT _timestamp, event_type, status, worker_slot, message "
+        "FROM \"default\" "
+        "WHERE job='test-events' "
+        "ORDER BY _timestamp DESC "
+        "LIMIT 100"
+    )
+    runs_sql = (
+        "SELECT _timestamp, status, message "
+        "FROM \"default\" "
+        "WHERE job='test-runs' "
+        "ORDER BY _timestamp DESC "
+        "LIMIT 10"
+    )
+    events, runs = await asyncio.gather(
+        _query_openobserve_sql_hits(events_sql, since, 100),
+        _query_openobserve_sql_hits(runs_sql, since, 10),
+    )
+
+    print(f"{C_BOLD}OpenObserve preset: test-events{C_RESET}")
+    print(f"{C_DIM}Time window: last {since} minutes  |  "
+          f"events={len(events)} hits  run-summaries={len(runs)} hits{C_RESET}")
+
+    if runs:
+        print(f"\n{C_BOLD}Daily run summaries:{C_RESET}")
+        for r in runs[:5]:
+            ts = _fmt_o2_ts(r.get("_timestamp", 0))
+            status = r.get("status", "?")
+            msg = r.get("message", "")
+            try:
+                body = __import__("json").loads(msg)
+                total = body.get("total", "?")
+                passed = body.get("passed", "?")
+                failed = body.get("failed", "?")
+                sha = body.get("git_sha", "?")[:9]
+                icon = f"{C_GREEN}✓{C_RESET}" if status == "passed" else f"{C_RED}✗{C_RESET}"
+                print(f"  {icon} {ts}  {passed}/{total} passed, {failed} failed  ({sha})")
+            except Exception:
+                print(f"  {ts}  {status}  {msg[:120]}")
+
+    if events:
+        print(f"\n{C_BOLD}Per-spec events (newest first):{C_RESET}")
+        for ev in events[:50]:
+            ts = _fmt_o2_ts(ev.get("_timestamp", 0))
+            event_type = ev.get("event_type", "?")
+            status = ev.get("status", "?")
+            slot = ev.get("worker_slot", "?")
+            msg = ev.get("message", "")
+
+            try:
+                body = __import__("json").loads(msg)
+                test_file = body.get("test_file", "")
+                test_name = body.get("test_name", "")
+                duration = body.get("duration_ms", 0)
+                error = body.get("error_message", "")
+            except Exception:
+                test_file = test_name = error = ""
+                duration = 0
+
+            if event_type == "suite_start":
+                icon = f"{C_CYAN}▶{C_RESET}"
+                detail = f"Suite started ({test_name})"
+            elif event_type == "suite_end":
+                icon = f"{C_BLUE}■{C_RESET}"
+                total = __import__("json").loads(msg).get("total", "?") if msg else "?"
+                passed = __import__("json").loads(msg).get("passed", "?") if msg else "?"
+                failed = __import__("json").loads(msg).get("failed", "?") if msg else "?"
+                detail = f"Suite ended: {passed}/{total} passed, {failed} failed ({duration}ms)"
+            elif status == "passed":
+                icon = f"{C_GREEN}✓{C_RESET}"
+                detail = f"{test_file} ({duration}ms)"
+            elif status in ("failed", "timedOut"):
+                icon = f"{C_RED}✗{C_RESET}"
+                err_snip = error[:120] if error else ""
+                detail = f"{test_file} ({duration}ms) {err_snip}"
+            elif status == "skipped":
+                icon = f"{C_DIM}⊘{C_RESET}"
+                detail = f"{test_file}"
+            else:
+                icon = "?"
+                detail = f"{test_file} {status}"
+
+            print(f"  {icon} {ts}  [slot {slot}] {detail}")
+    elif not runs:
+        print(f"\n{C_DIM}No test events found in the last {since} minutes.{C_RESET}")
+        print(f"{C_DIM}Events appear during E2E test runs (run-tests.sh / run-tests-daily.sh).{C_RESET}")
+
+
+def _fmt_o2_ts(ts_us: int) -> str:
+    """Format an OpenObserve microsecond timestamp to HH:MM:SS."""
+    from datetime import datetime, timezone
+    try:
+        dt = datetime.fromtimestamp(ts_us / 1e6, tz=timezone.utc)
+        return dt.strftime("%H:%M:%S")
+    except Exception:
+        return str(ts_us)
+
+
 async def run_o2_logs_mode(args) -> None:
     """Run compact OpenObserve summaries and ad-hoc SQL queries."""
     if args.sql:
@@ -2159,6 +2263,9 @@ async def run_o2_logs_mode(args) -> None:
         return
     if args.preset == "chat-processing":
         await _o2_preset_chat_processing(args)
+        return
+    if args.preset == "test-events":
+        await _o2_preset_test_events(args)
         return
 
 

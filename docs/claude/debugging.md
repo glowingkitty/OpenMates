@@ -5,26 +5,11 @@ Rules for investigating bugs and reading logs. For detailed CLI references and c
 
 ---
 
-## Rule 0: Run Health Check First — Mandatory
+## Rule 0: Health Preflight Runs at Session Start
 
-**Before reading any log or touching any code**, run:
+`python3 scripts/sessions.py start ...` now runs the debug health preflight automatically and prints it in session context.
 
-```bash
-docker exec api python /app/backend/scripts/debug.py health
-```
-
-This checks:
-
-- Local OpenObserve (dev) — reachable and authenticated
-- Production Admin Debug API — reachable with a valid API key
-
-**If either check fails**: STOP. Do not proceed with debugging. Report the failure to the user and ask what to do next. Attempting to debug without log access wastes time and produces misleading conclusions.
-
-To check only log access (fastest, exits 1 on failure):
-
-```bash
-docker exec api python /app/backend/scripts/debug.py health --log-access
-```
+If the preflight fails, stop and report the failure to the user before continuing investigation.
 
 ---
 
@@ -56,7 +41,8 @@ Establish two facts before debugging:
 ## Rule 4: Production vs Development
 
 - **Production**: Always use Unified Debug CLI (`docker exec api python /app/backend/scripts/debug.py ...`). Never use local `docker compose logs` for production.
-- **Dev**: Use `docker compose` commands directly against local containers.
+- **Dev**: Prefer Unified Debug CLI (`docker exec api python /app/backend/scripts/debug.py logs --o2 ...`) with presets/SQL first.
+- **Dev fallback**: Use `docker compose logs` only when OpenObserve/Promtail is unavailable, when a container crashes during startup before ingestion, or when debugging logging infrastructure itself.
 - The assistant runs on the dev server — `docker compose` commands hit local (dev) containers.
 
 ## Rule 5: Service Unavailable During Concurrent Work
@@ -115,7 +101,7 @@ docker exec api python /app/backend/scripts/debug.py logs --o2 \
 
 The `device_type` label is set by `openobserve_push_service.derive_device_type()` at push time and is stored as an indexed stream label in OpenObserve — no UA string parsing needed at query time.
 
-## Rule 9.1: Start With Token-Efficient OpenObserve Presets
+## Rule 9.1: Start With Token-Efficient OpenObserve Presets (Dev + Prod)
 
 Before dumping long raw logs, run a compact OpenObserve preset first:
 
@@ -125,6 +111,8 @@ Before dumping long raw logs, run a compact OpenObserve preset first:
 
 Use `--raw` only when you need representative sample lines, `--sql` for ad-hoc deep dives, and `--quiet-health` to hide routine `/health` and `/healthz` 200 noise.
 
+Treat these presets as the default first step for both dev and production investigations; use `docker compose logs` only for the Rule 4 fallback cases.
+
 ## Rule 9.2: Chat Processing Issues — Use the chat-processing Preset
 
 When a user reports a message not being processed, a stuck chat, or a missing AI response, run this first:
@@ -133,6 +121,22 @@ When a user reports a message not being processed, a stuck chat, or a missing AI
 - Add `--chat-id <id>` to filter to a specific conversation.
 
 The preset shows pipeline milestones (message_received → ai_dispatched → task_success → ai_response_persisted → message_completed), errors from api/app-ai/task-worker, and a timeline of key events — all in one compact view without raw log dumps.
+
+## Rule 9.3: E2E Test Runs — Use the `test-events` Preset
+
+E2E test runs push per-spec lifecycle events (`suite_start`, `test_end`, `suite_end`) into OpenObserve via `job='test-events'`, and daily run summaries via `job='test-runs'`.
+
+Use the preset for a compact overview:
+
+- `docker exec api python /app/backend/scripts/debug.py logs --o2 --preset test-events --since 60`
+
+For ad-hoc SQL queries:
+
+- Per-spec events: `docker exec api python /app/backend/scripts/debug.py logs --o2 --sql "SELECT _timestamp, event_type, status, worker_slot, message FROM \"default\" WHERE job='test-events' ORDER BY _timestamp DESC LIMIT 50"`
+- Daily run summaries: `docker exec api python /app/backend/scripts/debug.py logs --o2 --sql "SELECT _timestamp, status, message FROM \"default\" WHERE job='test-runs' ORDER BY _timestamp DESC LIMIT 20"`
+- Correlate a failing run with app/container logs by commit SHA/time window using the main `default` stream.
+
+Keep stream labels low-cardinality (environment/status/worker_slot/git_branch). Per-test names/errors are stored in the event body, not as stream labels.
 
 ## Rule 10: Embed Resolution Failures
 
