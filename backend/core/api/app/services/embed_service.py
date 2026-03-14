@@ -20,6 +20,7 @@ from backend.shared.python_schemas.embed_status import (
     EmbedStatus,
     validate_embed_transition,
 )
+from backend.shared.providers.youtube.youtube_metadata import extract_youtube_id_from_url
 
 logger = logging.getLogger(__name__)
 
@@ -2030,7 +2031,7 @@ class EmbedService:
         create_embeds_from_skill_results) and by main_processor.py when it needs to
         inject embed_ref slugs into tool results before sending them to the LLM.
 
-        Returns one of: "connection", "stay", "place", "event", "website"
+        Returns one of: "connection", "stay", "place", "event", "video", "image_result", "website"
         """
         if app_id == "maps" and skill_id == "search":
             return "place"
@@ -2046,8 +2047,53 @@ class EmbedService:
             return "event"
         elif app_id == "images" and skill_id == "search":
             return "image_result"
+        elif app_id == "videos" and skill_id == "search":
+            return "video"
         else:
-            return "website"  # Default: web search, news, videos, etc.
+            return "website"  # Default: web search, news, etc.
+
+    @staticmethod
+    def _get_per_result_child_type(
+        default_child_type: str,
+        result: Dict[str, Any],
+        app_id: str,
+        skill_id: str,
+    ) -> str:
+        """
+        Determine the child embed type for a specific result, potentially overriding
+        the default child type based on the result's URL.
+
+        Currently handles: YouTube URLs in web/news/shopping search results are
+        auto-converted from "website" to "video" so they render with the proper
+        video embed component instead of a generic website card.
+
+        Args:
+            default_child_type: The default child type from get_child_embed_type()
+            result: The individual result dict (must contain "url" field)
+            app_id: Parent embed's app_id
+            skill_id: Parent embed's skill_id
+
+        Returns:
+            The child type to use — either the default or an overridden type.
+        """
+        # Only override for skills whose default child type is "website"
+        if default_child_type != "website":
+            return default_child_type
+
+        url = result.get("url", "")
+        if not url:
+            return default_child_type
+
+        # Detect YouTube URLs and convert to video embeds
+        video_id = extract_youtube_id_from_url(url)
+        if video_id:
+            logger.info(
+                f"[YOUTUBE_DETECT] Converting web search result to video embed: "
+                f"url={url[:80]}, video_id={video_id}, app={app_id}, skill={skill_id}"
+            )
+            return "video"
+
+        return default_child_type
 
     @staticmethod
     def _generate_embed_ref_slug(
@@ -2497,10 +2543,15 @@ class EmbedService:
                 logger.warning(f"{log_prefix} Could not retrieve original embed metadata for {embed_id} and no request_metadata provided")
 
             if is_composite:
-                # Determine child embed type using canonical helper (single source of truth)
-                child_type = EmbedService.get_child_embed_type(app_id, skill_id)
+                # Determine default child embed type using canonical helper (single source of truth)
+                default_child_type = EmbedService.get_child_embed_type(app_id, skill_id)
 
                 for result in results:
+                    # Determine per-result child type (may override default for YouTube URLs in web search)
+                    child_type = EmbedService._get_per_result_child_type(
+                        default_child_type, result, app_id, skill_id
+                    )
+
                     # Generate embed_id for child
                     child_embed_id = str(uuid.uuid4())
 
@@ -3283,14 +3334,19 @@ class EmbedService:
             child_embed_ids = []
             
             if is_composite:
-                # Determine child embed type using canonical helper (single source of truth)
-                child_type = EmbedService.get_child_embed_type(app_id, skill_id)
+                # Determine default child embed type using canonical helper (single source of truth)
+                default_child_type = EmbedService.get_child_embed_type(app_id, skill_id)
                 
                 # CRITICAL: Generate parent_embed_id FIRST so child embeds can reference it
                 # This enables key inheritance: child embeds use parent's encryption key
                 parent_embed_id = str(uuid.uuid4())
                 
                 for result in results:
+                    # Determine per-result child type (may override default for YouTube URLs in web search)
+                    child_type = EmbedService._get_per_result_child_type(
+                        default_child_type, result, app_id, skill_id
+                    )
+
                     # Generate embed_id for child
                     child_embed_id = str(uuid.uuid4())
 
