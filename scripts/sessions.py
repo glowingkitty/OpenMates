@@ -9,7 +9,7 @@ and automated deployment (lint + commit + push).
 Architecture context: See docs/claude/concurrent-sessions.md for the full protocol.
 
 Usage:
-    # Session lifecycle
+    # Session lifecycle (modes: feature, bug, docs, question, testing)
     python3 scripts/sessions.py start   --mode bug --task "fix embed decryption" [--tags frontend,debug]
     python3 scripts/sessions.py end     --session a3f2
     python3 scripts/sessions.py status
@@ -38,10 +38,12 @@ Usage:
 import argparse
 import base64
 import fcntl
+import fnmatch
 import glob as glob_mod
+import html
 import json
 import os
-import html
+import re
 import secrets
 import subprocess
 import sys
@@ -49,7 +51,6 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
-import fnmatch
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
@@ -99,7 +100,7 @@ DEPLOY_PHASE_DOCS = {"git-and-deployment.md"}
 # Session modes — controls what output sections are shown at start
 # ---------------------------------------------------------------------------
 
-VALID_MODES = ("feature", "bug", "docs", "question")
+VALID_MODES = ("feature", "bug", "docs", "question", "testing")
 
 # Keywords in task descriptions that auto-infer tags
 TAG_KEYWORDS: dict[str, list[str]] = {
@@ -1168,6 +1169,208 @@ def _prefetch_debug_session_logs(debug_id: str) -> str:
     return stdout.strip()
 
 
+RESULTS_DIR = PROJECT_ROOT / "test-results"
+E2E_SPEC_DIR = PROJECT_ROOT / "frontend" / "apps" / "web_app" / "tests"
+
+# Filename prefix patterns → category for E2E spec inventory.
+# Order matters: first match wins. Keep specific prefixes before generic ones.
+E2E_SPEC_CATEGORIES: list[tuple[str, list[str]]] = [
+    ("Auth & Signup", [
+        "account-recovery", "backup-code", "backup-codes", "multi-session",
+        "recovery-key", "signup-flow", "signup-skip",
+    ]),
+    ("Chat", [
+        "background-chat", "chat-flow", "chat-management", "chat-scroll",
+        "chat-search", "daily-inspiration", "fork-conversation", "hidden-chats",
+        "import-chats", "message-sync",
+    ]),
+    ("Payment", [
+        "buy-credits", "saved-payment", "settings-buy-credits",
+    ]),
+    ("Search & AI", [
+        "code-generation", "focus-mode", "follow-up", "travel-search",
+        "web-search",
+    ]),
+    ("Media & Embeds", [
+        "audio-recording", "embed-", "file-attachment", "pdf-flow",
+    ]),
+    ("Settings & Security", [
+        "api-keys", "incognito-mode", "language-settings", "location-",
+        "mention-dropdown", "model-override", "pii-detection",
+    ]),
+    ("Infrastructure", [
+        "app-load", "connection-resilience", "dev-preview", "preview-error",
+        "seo-demo", "shared-chat",
+    ]),
+    ("Reminders", [
+        "reminder-",
+    ]),
+]
+
+
+def _prefetch_test_summary() -> str:
+    """Build a compact summary of the last test run + daily trend from result JSON files.
+
+    Reads test-results/last-run.json for the most recent run details, and the
+    last 5 daily-run-*.json archives for the trend view.
+    """
+    lines: list[str] = []
+
+    # ── Last run summary ───────────────────────────────────────────────────
+    last_run_file = RESULTS_DIR / "last-run.json"
+    if last_run_file.exists():
+        try:
+            with open(last_run_file) as f:
+                data = json.load(f)
+            run_id = data.get("run_id", "?")
+            git_sha = data.get("git_sha", "?")
+            git_branch = data.get("git_branch", "?")
+            duration = data.get("duration_seconds", 0)
+            summary = data.get("summary", {})
+            total = summary.get("total", 0)
+            passed = summary.get("passed", 0)
+            failed = summary.get("failed", 0)
+            skipped = summary.get("skipped", 0)
+            not_started = summary.get("not_started", 0)
+
+            lines.append(f"Run: {run_id}  Git: {git_sha} ({git_branch})  Duration: {duration}s")
+
+            # Per-suite breakdown
+            for suite_name in ("vitest", "pytest_unit", "pytest_integration", "playwright"):
+                suite = data.get("suites", {}).get(suite_name, {})
+                if not isinstance(suite, dict):
+                    continue
+                status = suite.get("status", "skipped")
+                if status == "skipped":
+                    reason = suite.get("reason", "")
+                    lines.append(f"  {suite_name}: skipped ({reason})" if reason else f"  {suite_name}: skipped")
+                    continue
+                s_dur = suite.get("duration_seconds", 0)
+                tests = suite.get("tests", [])
+                s_passed = sum(1 for t in tests if t.get("status") == "passed")
+                s_failed = sum(1 for t in tests if t.get("status") == "failed")
+                s_not_started = sum(1 for t in tests if t.get("status") == "not_started")
+                parts = [f"{s_passed} passed", f"{s_failed} failed"]
+                if s_not_started:
+                    parts.append(f"{s_not_started} not started")
+                lines.append(f"  {suite_name}: {', '.join(parts)} ({s_dur}s)")
+
+            lines.append(f"  Total: {total} tests, {passed} passed, {failed} failed, {skipped} skipped, {not_started} not started")
+
+            # Failed tests
+            failed_tests: list[str] = []
+            for suite_name, suite_data in data.get("suites", {}).items():
+                if not isinstance(suite_data, dict):
+                    continue
+                for t in suite_data.get("tests", []):
+                    if t.get("status") == "failed":
+                        name = t.get("file", t.get("name", "?"))
+                        error = (t.get("error", "") or "")[:100]
+                        # Strip ANSI escape codes for readability
+                        error = re.sub(r"\x1b\[[0-9;]*m", "", error).strip()
+                        failed_tests.append(f"    [{suite_name}] {name}: {error}")
+
+            if failed_tests:
+                lines.append(f"  Failed tests ({len(failed_tests)}):")
+                for ft in failed_tests[:10]:
+                    lines.append(ft)
+                if len(failed_tests) > 10:
+                    lines.append(f"    ... and {len(failed_tests) - 10} more")
+        except (json.JSONDecodeError, OSError, KeyError) as e:
+            lines.append(f"  [!] Could not parse last-run.json: {e}")
+    else:
+        lines.append("  No test results found (test-results/last-run.json missing)")
+
+    # ── Daily run trend ────────────────────────────────────────────────────
+    daily_files = sorted(
+        RESULTS_DIR.glob("daily-run-*.json"),
+        key=lambda p: p.name,
+        reverse=True,
+    )[:5]
+
+    if daily_files:
+        lines.append("")
+        lines.append("Daily run trend (last 5):")
+        for df in daily_files:
+            try:
+                with open(df) as f:
+                    d = json.load(f)
+                date = df.stem.replace("daily-run-", "")
+                sha = str(d.get("git_sha", "?"))[:9]
+                s = d.get("summary", {})
+                total = s.get("total", 0)
+                passed = s.get("passed", 0)
+                failed = s.get("failed", 0)
+                ns = s.get("not_started", 0)
+                icon = "+" if failed == 0 else "x"
+                ns_str = f", {ns} not started" if ns else ""
+                lines.append(f"  {icon} {date}  {sha}  {passed}/{total} passed, {failed} failed{ns_str}")
+            except (json.JSONDecodeError, OSError):
+                lines.append(f"  ? {df.name}: could not parse")
+
+    return "\n".join(lines)
+
+
+def _get_e2e_spec_categories() -> str:
+    """Scan tests/*.spec.ts and return a categorized inventory summary.
+
+    Groups spec files by filename prefix into categories defined in
+    E2E_SPEC_CATEGORIES. Specs that don't match any category go into 'Other'.
+    """
+    if not E2E_SPEC_DIR.exists():
+        return "  E2E spec directory not found"
+
+    spec_files = sorted(
+        f.stem.replace(".spec", "")
+        for f in E2E_SPEC_DIR.glob("*.spec.ts")
+    )
+    if not spec_files:
+        return "  No E2E spec files found"
+
+    categorized: dict[str, list[str]] = {}
+    uncategorized: list[str] = []
+
+    for spec in spec_files:
+        matched = False
+        for cat_name, prefixes in E2E_SPEC_CATEGORIES:
+            for prefix in prefixes:
+                if spec.startswith(prefix):
+                    categorized.setdefault(cat_name, []).append(spec)
+                    matched = True
+                    break
+            if matched:
+                break
+        if not matched:
+            uncategorized.append(spec)
+
+    lines: list[str] = []
+    for cat_name, _ in E2E_SPEC_CATEGORIES:
+        specs = categorized.get(cat_name, [])
+        if specs:
+            names = ", ".join(specs)
+            lines.append(f"  {cat_name} ({len(specs)}): {names}")
+
+    if uncategorized:
+        names = ", ".join(uncategorized)
+        lines.append(f"  Other ({len(uncategorized)}): {names}")
+
+    return "\n".join(lines)
+
+
+def _prefetch_test_events_o2() -> str:
+    """Fetch recent test lifecycle events from OpenObserve via the test-events preset."""
+    cmd = [
+        "docker", "exec", "api",
+        "python", "/app/backend/scripts/debug.py",
+        "logs", "--o2", "--preset", "test-events", "--since", "120",
+    ]
+    rc, stdout, stderr = _run_cmd(cmd, timeout=30)
+    if rc != 0 or not stdout.strip():
+        err = (stderr or "no output").strip()[:200]
+        return f"  (could not fetch test events from OpenObserve: {err})"
+    return stdout.strip()
+
+
 def cmd_start(args: argparse.Namespace) -> None:
     """Start a new session with tag-based doc preloading and git context."""
     data = _load_sessions()
@@ -1258,7 +1461,7 @@ def cmd_start(args: argparse.Namespace) -> None:
 
     # --- Output context for Claude (mode-aware) ---
     # Mode determines which sections are shown and at what verbosity.
-    # Modes: feature, bug, docs, question
+    # Modes: feature, bug, docs, question, testing
 
     print("== SESSION STARTED ==")
     print(f"Session ID: {sid}")
@@ -1275,9 +1478,9 @@ def cmd_start(args: argparse.Namespace) -> None:
     print()
 
     # ── Git status ─────────────────────────────────────────────────────────
-    # feature/bug: full | docs: branch only | question: branch only
+    # feature/bug/testing: full | docs: branch only | question: branch only
     git_status = _get_git_status_summary()
-    if mode in ("feature", "bug"):
+    if mode in ("feature", "bug", "testing"):
         print("== GIT STATUS ==")
         branch_info = git_status["branch"]
         if git_status["tracking"]:
@@ -1309,18 +1512,23 @@ def cmd_start(args: argparse.Namespace) -> None:
             print()
 
     # ── Health check ───────────────────────────────────────────────────────
-    # bug: full health check | feature: compact one-liner | docs/question: skip
+    # bug: full health check | feature/testing: compact one-liner | docs/question: skip
     prefetch_items: list[tuple[str, str]] = []
 
     if mode == "bug":
         prefetch_items.append(("debug health (auto)", _prefetch_health_check()))
-    elif mode == "feature":
+    elif mode in ("feature", "testing"):
         prefetch_items.append(("health (compact)", _prefetch_health_check_compact()))
 
     # ── Bug-mode only: recent issues + error overview ──────────────────────
     if mode == "bug":
         prefetch_items.append(("recent user issues", _prefetch_recent_issues(limit=2)))
         prefetch_items.append(("error overview (30m)", _prefetch_error_overview(since_minutes=30)))
+
+    # ── Testing-mode: test summary, spec inventory, OpenObserve events ─────
+    if mode == "testing":
+        prefetch_items.append(("last test run + daily trend", _prefetch_test_summary()))
+        prefetch_items.append(("OpenObserve test events (2h)", _prefetch_test_events_o2()))
 
     # ── Explicit prefetch flags (all modes — user explicitly requested) ────
     issue_id = getattr(args, "issue", None)
@@ -1346,6 +1554,13 @@ def cmd_start(args: argparse.Namespace) -> None:
     debug_id = getattr(args, "debug_id", None)
     if debug_id:
         prefetch_items.append((f"debug session {debug_id}", _prefetch_debug_session_logs(debug_id)))
+
+    # ── E2E spec inventory (testing mode only) ────────────────────────────
+    if mode == "testing":
+        spec_count = len(list(E2E_SPEC_DIR.glob("*.spec.ts"))) if E2E_SPEC_DIR.exists() else 0
+        print(f"== E2E SPEC INVENTORY ({spec_count} specs) ==")
+        print(_get_e2e_spec_categories())
+        print()
 
     if prefetch_items:
         print("== PREFETCHED CONTEXT ==")
@@ -1426,10 +1641,10 @@ def cmd_start(args: argparse.Namespace) -> None:
             print()
 
     # ── Project index ──────────────────────────────────────────────────────
-    # feature/docs: full (tag-filtered) | bug: minimal | question: tag-filtered
+    # feature/docs: full (tag-filtered) | bug/testing: minimal | question: tag-filtered
     if mode != "question":
         index = _load_or_generate_index()
-        if mode == "bug":
+        if mode in ("bug", "testing"):
             # Bug mode: minimal — just list counts
             apps = index.get("backend_apps", [])
             routes = index.get("api_routes", [])

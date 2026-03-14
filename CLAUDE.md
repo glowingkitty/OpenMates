@@ -20,6 +20,7 @@ python3 scripts/sessions.py start --mode <MODE> --task "brief description"
 #     bug      — debugging an issue (auto-shows health, recent issues, error overview)
 #     docs     — writing or updating documentation
 #     question — answering a question about the codebase (minimal output)
+#     testing  — working on tests (auto-shows last run results, daily trend, E2E spec inventory, OpenObserve test events)
 #
 # → Saves session ID (e.g. "a3f2"). Use this ID in ALL subsequent commands.
 # → Auto-infers tags from task (override: --tags "frontend,debug").
