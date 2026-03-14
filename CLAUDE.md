@@ -61,6 +61,18 @@ python3 scripts/sessions.py end --session <ID>
 python3 scripts/sessions.py context --doc <name>   # e.g. debugging-ref, embed-types-ref
 ```
 
+### Test & Documentation Coverage
+
+```bash
+# Check for existing tests (unit + E2E) related to modified files
+python3 scripts/sessions.py check-tests --session <ID>
+python3 scripts/sessions.py check-tests --file path/to/component.svelte
+
+# Check for related architecture/user-guide docs and staleness
+python3 scripts/sessions.py check-docs --session <ID>
+python3 scripts/sessions.py check-docs --file path/to/module.py
+```
+
 ### Infrastructure Locks (Docker/Vercel)
 
 ```bash

@@ -70,6 +70,80 @@ For feature/fix verification, prefer writing or extending Playwright `*.spec.ts`
 - **Sidebar-closed**: Always test chat-related features with sidebar defaulting to closed (<=1440px viewport). Five bugs were caused by stores assuming the sidebar component was mounted.
 - **Cold boot**: After fixing chat/navigation/sync bugs, verify by clearing IndexedDB and localStorage, then reloading. Five bugs only manifested on cold boot.
 
+## Rule 10: Use Shared Console Monitor (CRITICAL)
+
+All E2E spec files MUST use the shared console monitor (`tests/console-monitor.ts`) instead of inline console log boilerplate:
+
+```typescript
+// ✅ CORRECT — use shared console monitor
+const {
+  test,
+  expect,
+  consoleLogs,
+  networkActivities,
+  attachConsoleListeners,
+  attachNetworkListeners,
+} = require("./console-monitor");
+
+// Inside your test:
+attachConsoleListeners(page);
+attachNetworkListeners(page);
+```
+
+```typescript
+// ❌ WRONG — DO NOT copy-paste console boilerplate into individual spec files
+const consoleLogs: string[] = [];
+page.on('console', (msg) => { ... });
+```
+
+**What the console monitor provides:**
+
+- Auto-captures all console messages and page errors
+- **Auto-fails tests** on unexpected console.error messages (with a configurable allowlist for known benign errors like favicon 404s, CSP violations, service worker noise)
+- Aggregates repeating log messages (grouped by text, sorted by frequency)
+- Forwards log summaries to OpenObserve via the api-reporter for observability
+- Populates `console_logs` in failure notification emails (previously always null)
+- Provides `saveWarnErrorLogs(id, phase)` for multi-phase tests like `chat-flow.spec.ts`
+
+**Allowlisted benign error patterns** (see `BENIGN_ERROR_PATTERNS` in console-monitor.ts):
+
+- `favicon.ico`, `net::ERR_*`, `Failed to load resource: the server responded`, `Content Security Policy`, `[ChatDatabase]`, `service worker`, `workbox`, `DevTools`, `chrome-extension://`, `js.stripe.com`, `ResizeObserver loop`
+
+## Rule 11: Use `data-testid` for E2E Selectors
+
+New E2E test selectors MUST use `data-testid` attributes on Svelte components:
+
+```svelte
+<!-- In component -->
+<button data-testid="chat-send-button" on:click={send}>Send</button>
+```
+
+```typescript
+// In spec file
+page.getByTestId("chat-send-button");
+// or: page.locator('[data-testid="chat-send-button"]')
+```
+
+**Naming convention:** `{domain}-{element}[-{variant}]`
+
+- Examples: `chat-send-button`, `settings-menu-toggle`, `sidebar-new-chat`, `message-user`, `message-assistant`
+
+**Why:** CSS class selectors (`.send-button`) break when classes are renamed for styling. `data-testid` attributes are stable, explicit test contracts.
+
+**Keep `getByRole`** for accessibility-semantic locators (buttons, links, menu items) where the role+name is stable.
+
+## Rule 12: Check Test Coverage with sessions.py
+
+Use `check-tests` to discover existing tests and get instructions on what to create/update:
+
+```bash
+# Check tests for all files in current session
+python3 scripts/sessions.py check-tests --session <ID>
+
+# Check tests for a specific file
+python3 scripts/sessions.py check-tests --file path/to/component.svelte
+```
+
 ## What to Run After Changes
 
 | Change Type            | Tests                                                                     |

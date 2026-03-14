@@ -1397,6 +1397,7 @@ class TestRunSummaryEmailPayload(BaseModel):
     not_started: int
     suites: List[Dict[str, Any]]
     failed_tests: List[Dict[str, Any]]
+    all_tests: Optional[List[Dict[str, Any]]] = None  # All tests with name, suite, status, duration
 
 
 class TestRunOpenObservePayload(BaseModel):
@@ -1456,6 +1457,9 @@ async def dispatch_test_summary_email(
                 payload.failed_tests,
                 payload.environment,
             ],
+            kwargs={
+                "all_tests": payload.all_tests,
+            },
             queue="email",
         )
 
@@ -1519,6 +1523,11 @@ class TestEventOpenObservePayload(BaseModel):
     passed: Optional[int] = None
     failed: Optional[int] = None
     skipped: Optional[int] = None
+    # Console log aggregation fields (from console-monitor.ts)
+    total_console_messages: Optional[int] = None
+    console_errors: Optional[List[Dict[str, Any]]] = None
+    console_warnings: Optional[List[Dict[str, Any]]] = None
+    console_logs_top: Optional[List[Dict[str, Any]]] = None
 
 
 @router.post("/openobserve/push-test-event")

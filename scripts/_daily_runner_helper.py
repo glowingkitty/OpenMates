@@ -199,6 +199,28 @@ def _build_test_run_payload(results_dir: str, environment: str) -> dict:
                     "error": error[:MAX_ERROR_SNIPPET_LEN] if error else None,
                 })
 
+    # Build all_tests list — every individual test with suite, name, status, duration
+    all_tests = []
+    for suite_name, suite_data in data.get("suites", {}).items():
+        if not isinstance(suite_data, dict):
+            continue
+        for test_entry in suite_data.get("tests", []):
+            all_tests.append({
+                "suite": suite_name,
+                "name": test_entry.get("name", test_entry.get("file", "")),
+                "status": test_entry.get("status", "unknown"),
+                "duration_seconds": test_entry.get("duration_seconds", 0),
+            })
+
+    if prod_smoke_suite:
+        for test_entry in prod_smoke_suite.get("tests", []):
+            all_tests.append({
+                "suite": "playwright_prod_smoke",
+                "name": test_entry.get("name", test_entry.get("file", "")),
+                "status": test_entry.get("status", "unknown"),
+                "duration_seconds": test_entry.get("duration_seconds", 0),
+            })
+
     return {
         "environment": environment,
         "run_id": data.get("run_id", ""),
@@ -212,6 +234,7 @@ def _build_test_run_payload(results_dir: str, environment: str) -> dict:
         "not_started": not_started,
         "suites": suites,
         "failed_tests": failed_tests,
+        "all_tests": all_tests,
     }
 
 

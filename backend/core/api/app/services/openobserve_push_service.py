@@ -438,6 +438,12 @@ class OpenObservePushService:
 
             timestamp_ns = str(int(time.time() * 1_000_000_000))
 
+            # Console log aggregation fields (from console-monitor.ts via api-reporter)
+            total_console_messages = event_payload.get("total_console_messages")
+            console_errors = event_payload.get("console_errors")
+            console_warnings = event_payload.get("console_warnings")
+            console_logs_top = event_payload.get("console_logs_top")
+
             body: Dict[str, Any] = {
                 "event_type": event_type,
                 "test_file": test_file,
@@ -456,6 +462,15 @@ class OpenObservePushService:
                 body["passed"] = passed
                 body["failed"] = failed
                 body["skipped"] = skipped
+            # Include console log aggregation data when available
+            if total_console_messages is not None:
+                body["total_console_messages"] = total_console_messages
+            if console_errors:
+                body["console_errors"] = json.dumps(console_errors)
+            if console_warnings:
+                body["console_warnings"] = json.dumps(console_warnings)
+            if console_logs_top:
+                body["console_logs_top"] = json.dumps(console_logs_top)
 
             payload = {
                 "streams": [

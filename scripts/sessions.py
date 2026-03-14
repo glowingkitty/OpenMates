@@ -2590,6 +2590,346 @@ def cmd_deploy_docs(args: argparse.Namespace) -> None:
     print()
 
 
+# ---------------------------------------------------------------------------
+# Test and Documentation Coverage Commands
+# ---------------------------------------------------------------------------
+
+# Test location patterns (aligned with docs/claude/testing.md)
+_TEST_LOCATIONS = {
+    # Python unit/integration tests
+    ".py": [
+        "backend/tests/test_{stem}.py",
+        "backend/tests/test_rest_api_{stem}.py",
+        "backend/apps/{app}/tests/test_{stem}.py",
+        "backend/core/api/app/utils/__tests__/test_{stem}.py",
+        "backend/core/api/app/services/test_{stem}.py",
+    ],
+    # TypeScript unit tests
+    ".ts": [
+        "{parent}/__tests__/{stem}.test.ts",
+        "{parent}/__tests__/{stem}.spec.ts",
+    ],
+    # Svelte component tests
+    ".svelte": [
+        "{parent}/__tests__/{stem}.test.ts",
+        "{parent}/__tests__/{stem}.spec.ts",
+    ],
+}
+
+# E2E spec directory
+_E2E_SPEC_DIR = PROJECT_ROOT / "frontend" / "apps" / "web_app" / "tests"
+
+# Documentation search directories
+_DOCS_DIRS = {
+    "architecture": PROJECT_ROOT / "docs" / "architecture",
+    "user-guide": PROJECT_ROOT / "docs" / "user-guide",
+    "apps": PROJECT_ROOT / "docs" / "apps",
+}
+
+
+def _find_tests_for_file(filepath: str) -> dict:
+    """
+    Search for existing unit and E2E tests related to a source file.
+    Returns dict with 'unit_tests', 'e2e_tests', and 'suggestions'.
+    """
+    path = Path(filepath)
+    stem = path.stem  # e.g., "chatStore" from "chatStore.ts"
+    suffix = path.suffix  # e.g., ".ts"
+    parent = str(path.parent)  # e.g., "frontend/packages/ui/src/stores"
+    result = {"unit_tests": [], "e2e_tests": [], "suggestions": []}
+
+    # --- Search for unit tests ---
+    patterns = _TEST_LOCATIONS.get(suffix, [])
+
+    # Infer app name for Python files
+    app = ""
+    parts = Path(filepath).parts
+    if "apps" in parts:
+        idx = list(parts).index("apps")
+        if idx + 1 < len(parts):
+            app = parts[idx + 1]
+
+    for pattern in patterns:
+        try:
+            candidate = pattern.format(stem=stem, parent=parent, app=app)
+        except (KeyError, IndexError):
+            continue
+        full_path = PROJECT_ROOT / candidate
+        if full_path.exists():
+            result["unit_tests"].append(candidate)
+
+    # Also do a glob search for any test file containing the stem name
+    for test_glob_pattern in [
+        f"**/__tests__/*{stem}*",
+        f"**/test_{stem}*",
+        f"**/*{stem}*.test.*",
+        f"**/*{stem}*.spec.*",
+    ]:
+        for match in PROJECT_ROOT.glob(test_glob_pattern):
+            rel = str(match.relative_to(PROJECT_ROOT))
+            if rel not in result["unit_tests"] and "node_modules" not in rel:
+                result["unit_tests"].append(rel)
+
+    # --- Search for E2E tests referencing this file/component ---
+    if _E2E_SPEC_DIR.exists():
+        # Search by component name in spec files
+        search_terms = [stem]
+        # Also search for kebab-case version of camelCase names
+        kebab = ""
+        for i, c in enumerate(stem):
+            if c.isupper() and i > 0:
+                kebab += "-"
+            kebab += c.lower()
+        if kebab != stem.lower():
+            search_terms.append(kebab)
+
+        for spec_file in sorted(_E2E_SPEC_DIR.glob("*.spec.ts")):
+            try:
+                content = spec_file.read_text(errors="replace")
+                for term in search_terms:
+                    if term.lower() in content.lower():
+                        rel = str(spec_file.relative_to(PROJECT_ROOT))
+                        if rel not in result["e2e_tests"]:
+                            result["e2e_tests"].append(rel)
+                        break
+            except OSError:
+                pass
+
+    # --- Build suggestions ---
+    if not result["unit_tests"]:
+        if suffix == ".py":
+            suggested_path = f"backend/tests/test_{stem}.py" if not app else f"backend/apps/{app}/tests/test_{stem}.py"
+            result["suggestions"].append(
+                f"CREATE unit test: {suggested_path}\n"
+                "    Follow testing.md Rule 2 (test behavior, not implementation, AAA pattern)"
+            )
+        elif suffix in (".ts", ".svelte"):
+            suggested_path = f"{parent}/__tests__/{stem}.test.ts"
+            result["suggestions"].append(
+                f"CREATE unit test: {suggested_path}\n"
+                "    Follow testing.md Rule 2 (test behavior, not implementation, AAA pattern)"
+            )
+
+    if not result["e2e_tests"] and suffix in (".svelte", ".ts"):
+        result["suggestions"].append(
+            "No E2E test references found for this component.\n"
+            "    If new user-facing behavior was added, propose E2E test per testing.md Rule 7.\n"
+            "    Check if an existing spec should be extended before creating a new one."
+        )
+
+    if result["unit_tests"]:
+        result["suggestions"].append(
+            "UPDATE existing tests to cover any new/changed behavior.\n"
+            "    Run tests to verify: see testing.md 'What to Run After Changes' table."
+        )
+
+    return result
+
+
+def _find_docs_for_file(filepath: str) -> dict:
+    """
+    Search for architecture, user-guide, and app docs related to a source file.
+    Returns dict with 'found_docs', 'stale_docs', and 'suggestions'.
+    """
+    path = Path(filepath)
+    stem = path.stem
+    result = {"found_docs": [], "stale_docs": [], "suggestions": []}
+
+    # --- Check code-mapping.yml for mapped architecture docs ---
+    code_mapping = _parse_code_mapping()
+    file_mtime = 0
+    full_path = PROJECT_ROOT / filepath
+    if full_path.exists():
+        file_mtime = os.path.getmtime(str(full_path))
+
+    for doc_name, patterns in code_mapping.items():
+        for pat in patterns:
+            if fnmatch.fnmatch(filepath, pat):
+                doc_path = ARCH_DOCS_DIR / doc_name
+                rel = f"docs/architecture/{doc_name}"
+                if doc_path.exists():
+                    doc_mtime = os.path.getmtime(str(doc_path))
+                    is_stale = file_mtime > doc_mtime + (STALE_DOC_HOURS * 3600)
+                    entry = {"path": rel, "stale": is_stale}
+                    result["found_docs"].append(entry)
+                    if is_stale:
+                        result["stale_docs"].append(rel)
+                break
+
+    # --- Search docs/ directories for mentions of the file/module name ---
+    # Use the stem (filename without extension) as the primary search term.
+    # Skip overly generic parent directory names that would match too broadly.
+    _generic_dirs = {
+        "services", "utils", "components", "routes", "tasks", "stores",
+        "models", "schemas", "helpers", "app", "core", "api", "src",
+        "email_tasks", "auth_routes", "tests", "__tests__",
+    }
+    search_terms = [stem]
+    # Add the full filename (with extension) for more specific matching
+    search_terms.append(path.name)
+
+    for doc_category, doc_dir in _DOCS_DIRS.items():
+        if not doc_dir.exists():
+            continue
+        for doc_file in sorted(doc_dir.glob("*.md")):
+            if doc_file.name == "README.md":
+                continue
+            try:
+                content = doc_file.read_text(errors="replace").lower()
+                for term in search_terms:
+                    # Use word-boundary matching for short terms to avoid false matches
+                    term_lower = term.lower()
+                    if len(term_lower) < 5:
+                        continue  # Skip very short terms
+                    if term_lower in content:
+                        rel = f"docs/{doc_category}/{doc_file.name}"
+                        # Avoid duplicates
+                        if not any(d.get("path") == rel for d in result["found_docs"]):
+                            doc_mtime = os.path.getmtime(str(doc_file))
+                            is_stale = file_mtime > doc_mtime + (STALE_DOC_HOURS * 3600)
+                            result["found_docs"].append({"path": rel, "stale": is_stale})
+                            if is_stale:
+                                result["stale_docs"].append(rel)
+                        break
+            except OSError:
+                pass
+
+    # --- Build suggestions ---
+    if result["stale_docs"]:
+        for doc in result["stale_docs"]:
+            result["suggestions"].append(
+                f"UPDATE (stale): {doc}\n"
+                "    Code has changed more recently than this doc. Review and update."
+            )
+
+    if not result["found_docs"]:
+        result["suggestions"].append(
+            "No documentation found for this file/module.\n"
+            "    If this is a new feature or significant module, consider creating:\n"
+            f"    - docs/architecture/{stem}.md (architecture decision doc)\n"
+            "    Follow logging-and-docs.md documentation standards."
+        )
+    elif not result["stale_docs"]:
+        result["suggestions"].append(
+            "All related docs appear up to date.\n"
+            "    Verify content accuracy if behavior changed significantly."
+        )
+
+    return result
+
+
+def cmd_check_tests(args: argparse.Namespace) -> None:
+    """Search for existing unit and E2E tests related to session files or a specific file."""
+    files_to_check = []
+
+    if hasattr(args, "file") and args.file:
+        files_to_check = [args.file]
+    elif hasattr(args, "session") and args.session:
+        data = _load_sessions()
+        session = data.get("sessions", {}).get(args.session)
+        if not session:
+            print(f"Error: Session {args.session} not found.", file=sys.stderr)
+            sys.exit(1)
+        files_to_check = session.get("modified_files", [])
+    else:
+        print("Error: Provide --session or --file.", file=sys.stderr)
+        sys.exit(1)
+
+    if not files_to_check:
+        print("No files to check.")
+        return
+
+    print("== TEST COVERAGE CHECK ==")
+    print()
+
+    for filepath in sorted(files_to_check):
+        # Skip test files themselves and non-source files
+        if "/tests/" in filepath or "/__tests__/" in filepath or filepath.startswith("test_"):
+            continue
+        if not any(filepath.endswith(ext) for ext in (".py", ".ts", ".svelte")):
+            continue
+
+        result = _find_tests_for_file(filepath)
+        print(f"📁 {filepath}")
+
+        if result["unit_tests"]:
+            for t in result["unit_tests"]:
+                print(f"  ✅ Unit test: {t}")
+        else:
+            print("  ❌ No unit tests found")
+
+        if result["e2e_tests"]:
+            for t in result["e2e_tests"]:
+                print(f"  ✅ E2E test: {t}")
+        else:
+            if any(filepath.endswith(ext) for ext in (".svelte", ".ts")):
+                print("  ❌ No E2E test references found")
+
+        if result["suggestions"]:
+            for s in result["suggestions"]:
+                lines = s.split("\n")
+                print(f"  → INSTRUCTION: {lines[0]}")
+                for line in lines[1:]:
+                    print(f"  {line}")
+
+        print()
+
+    print("== END TEST COVERAGE CHECK ==")
+
+
+def cmd_check_docs(args: argparse.Namespace) -> None:
+    """Search for architecture and user guide docs related to session files or a specific file."""
+    files_to_check = []
+
+    if hasattr(args, "file") and args.file:
+        files_to_check = [args.file]
+    elif hasattr(args, "session") and args.session:
+        data = _load_sessions()
+        session = data.get("sessions", {}).get(args.session)
+        if not session:
+            print(f"Error: Session {args.session} not found.", file=sys.stderr)
+            sys.exit(1)
+        files_to_check = session.get("modified_files", [])
+    else:
+        print("Error: Provide --session or --file.", file=sys.stderr)
+        sys.exit(1)
+
+    if not files_to_check:
+        print("No files to check.")
+        return
+
+    print("== DOCUMENTATION CHECK ==")
+    print()
+
+    for filepath in sorted(files_to_check):
+        # Skip docs files themselves, test files, and config files
+        if filepath.startswith("docs/") or "/tests/" in filepath or "/__tests__/" in filepath:
+            continue
+        if not any(filepath.endswith(ext) for ext in (".py", ".ts", ".svelte", ".yml", ".yaml")):
+            continue
+
+        result = _find_docs_for_file(filepath)
+        print(f"📁 {filepath}")
+
+        if result["found_docs"]:
+            for d in result["found_docs"]:
+                status = "⚠️  STALE" if d["stale"] else "✅"
+                print(f"  {status} {d['path']}")
+        else:
+            print("  ❌ No documentation found")
+
+        if result["suggestions"]:
+            for s in result["suggestions"]:
+                lines = s.split("\n")
+                print(f"  → INSTRUCTION: {lines[0]}")
+                for line in lines[1:]:
+                    print(f"  {line}")
+
+        print()
+
+    print("== END DOCUMENTATION CHECK ==")
+
+
 def cmd_debug_vercel(args: argparse.Namespace) -> None:
     """Start a session and print Vercel build logs via the REST API (works for ERROR deployments)."""
     # Auto-start a session
@@ -2840,6 +3180,34 @@ def main() -> None:
         "deferred from session start",
     )
 
+    # check-tests
+    p_check_tests = sub.add_parser(
+        "check-tests",
+        help="Search for existing unit and E2E tests related to modified files",
+    )
+    p_check_tests.add_argument(
+        "--session", "-s",
+        help="Session ID (checks session's modified_files)",
+    )
+    p_check_tests.add_argument(
+        "--file", "-f",
+        help="Specific file path to check test coverage for",
+    )
+
+    # check-docs
+    p_check_docs = sub.add_parser(
+        "check-docs",
+        help="Search for architecture and user guide docs related to modified files",
+    )
+    p_check_docs.add_argument(
+        "--session", "-s",
+        help="Session ID (checks session's modified_files)",
+    )
+    p_check_docs.add_argument(
+        "--file", "-f",
+        help="Specific file path to check documentation for",
+    )
+
     # debug-vercel
     sub.add_parser(
         "debug-vercel",
@@ -2866,6 +3234,8 @@ def main() -> None:
         "context": cmd_context,
         "summary": cmd_summary,
         "deploy-docs": cmd_deploy_docs,
+        "check-tests": cmd_check_tests,
+        "check-docs": cmd_check_docs,
         "debug-vercel": cmd_debug_vercel,
     }
 

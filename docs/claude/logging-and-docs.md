@@ -97,6 +97,20 @@ Every documentation file MUST include:
 Brief overview of what this document describes.
 ```
 
+### Check Documentation Coverage with sessions.py
+
+Use `check-docs` to discover related documentation and get instructions on what to create/update:
+
+```bash
+# Check docs for all files in current session
+python3 scripts/sessions.py check-docs --session <ID>
+
+# Check docs for a specific file
+python3 scripts/sessions.py check-docs --file path/to/module.py
+```
+
+This searches `docs/architecture/`, `docs/user-guide/`, and `docs/apps/` for documents that reference the file, detects staleness (code changed more recently than doc), and provides specific instructions.
+
 ### Code-Documentation Synchronization
 
 #### When Modifying Code

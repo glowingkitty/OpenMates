@@ -44,6 +44,20 @@ const GIT_BRANCH = process.env.GIT_BRANCH || '';
 const RUN_ID = process.env.RUN_ID || '';
 
 // Store for collecting test results
+interface AggregatedLog {
+	text: string;
+	count: number;
+	type: string;
+	first_url?: string;
+}
+
+interface ConsoleLogSummary {
+	console_errors: AggregatedLog[];
+	console_warnings: AggregatedLog[];
+	console_logs_top: AggregatedLog[];
+	total_console_messages: number;
+}
+
 interface TestResult {
 	testFile: string;
 	testName: string;
@@ -52,6 +66,7 @@ interface TestResult {
 	errorMessage?: string;
 	consoleLogs?: string;
 	networkActivities?: string;
+	consoleLogSummary?: ConsoleLogSummary;
 }
 
 const testResults: TestResult[] = [];
@@ -134,6 +149,27 @@ function pushTestEvent(event: Record<string, any>): Promise<boolean> {
  * Send test failure notification to the existing e2e-tests endpoint.
  */
 function sendFailureNotification(result: TestResult): Promise<boolean> {
+	// Build a human-readable console log summary from the aggregated data
+	let consoleLogsText: string | null = null;
+	if (result.consoleLogSummary) {
+		const parts: string[] = [];
+		const { console_errors, console_warnings, total_console_messages } = result.consoleLogSummary;
+		parts.push(`Total console messages: ${total_console_messages}`);
+		if (console_errors.length > 0) {
+			parts.push(`\nConsole Errors (${console_errors.length} unique):`);
+			for (const err of console_errors.slice(0, 5)) {
+				parts.push(`  [${err.count}x] ${err.text.slice(0, 200)}`);
+			}
+		}
+		if (console_warnings.length > 0) {
+			parts.push(`\nConsole Warnings (${console_warnings.length} unique):`);
+			for (const warn of console_warnings.slice(0, 5)) {
+				parts.push(`  [${warn.count}x] ${warn.text.slice(0, 200)}`);
+			}
+		}
+		consoleLogsText = parts.join('\n');
+	}
+
 	return postToAPI('/internal/e2e-tests/notify-failure', {
 		environment: ENVIRONMENT,
 		test_file: result.testFile,
@@ -142,7 +178,7 @@ function sendFailureNotification(result: TestResult): Promise<boolean> {
 		timestamp: new Date().toISOString(),
 		duration_seconds: result.duration / 1000,
 		error_message: result.errorMessage || null,
-		console_logs: result.consoleLogs || null,
+		console_logs: consoleLogsText,
 		network_activities: result.networkActivities || null
 	});
 }
@@ -189,25 +225,50 @@ class APIReporter {
 			}
 		}
 
+		// Extract console log summary from test annotations (set by console-monitor.ts)
+		let consoleLogSummary: ConsoleLogSummary | undefined;
+		const annotations = result.annotations || test.annotations || [];
+		for (const annotation of annotations) {
+			if (annotation.type === 'console_log_summary' && annotation.description) {
+				try {
+					consoleLogSummary = JSON.parse(annotation.description);
+				} catch {
+					// Ignore parse errors
+				}
+				break;
+			}
+		}
+
 		const testResult: TestResult = {
 			testFile,
 			testName,
 			status,
 			duration,
-			errorMessage
+			errorMessage,
+			consoleLogSummary
 		};
 
 		testResults.push(testResult);
 
-		// Push test_end event to OpenObserve
-		pushTestEvent({
+		// Build OpenObserve event payload with console log data
+		const eventPayload: Record<string, any> = {
 			event_type: 'test_end',
 			status,
 			test_file: testFile,
 			test_name: testName,
 			duration_ms: duration,
 			error_message: errorMessage ? errorMessage.slice(0, 800) : ''
-		}).catch(() => {});
+		};
+
+		// Include console log aggregation data in the OpenObserve event
+		if (consoleLogSummary) {
+			eventPayload.total_console_messages = consoleLogSummary.total_console_messages;
+			eventPayload.console_errors = consoleLogSummary.console_errors.slice(0, 10);
+			eventPayload.console_warnings = consoleLogSummary.console_warnings.slice(0, 10);
+			eventPayload.console_logs_top = consoleLogSummary.console_logs_top.slice(0, 10);
+		}
+
+		pushTestEvent(eventPayload).catch(() => {});
 
 		// Track failed tests for summary
 		if (status === 'failed' || status === 'timedOut') {
@@ -255,7 +316,36 @@ class APIReporter {
 
 		console.log('[API-REPORTER] =====================================\n');
 
-		// Push suite_end summary event to OpenObserve
+		// Aggregate console log summaries across all tests for the suite_end event
+		const suiteConsoleErrors: Record<string, { count: number; type: string }> = {};
+		const suiteConsoleWarnings: Record<string, { count: number; type: string }> = {};
+		let totalConsoleMessages = 0;
+
+		for (const tr of testResults) {
+			if (!tr.consoleLogSummary) continue;
+			totalConsoleMessages += tr.consoleLogSummary.total_console_messages;
+			for (const err of tr.consoleLogSummary.console_errors) {
+				const key = err.text.slice(0, 200);
+				if (!suiteConsoleErrors[key]) suiteConsoleErrors[key] = { count: 0, type: 'error' };
+				suiteConsoleErrors[key].count += err.count;
+			}
+			for (const warn of tr.consoleLogSummary.console_warnings) {
+				const key = warn.text.slice(0, 200);
+				if (!suiteConsoleWarnings[key]) suiteConsoleWarnings[key] = { count: 0, type: 'warning' };
+				suiteConsoleWarnings[key].count += warn.count;
+			}
+		}
+
+		const topErrors = Object.entries(suiteConsoleErrors)
+			.map(([text, { count, type }]) => ({ text, count, type }))
+			.sort((a, b) => b.count - a.count)
+			.slice(0, 15);
+		const topWarnings = Object.entries(suiteConsoleWarnings)
+			.map(([text, { count, type }]) => ({ text, count, type }))
+			.sort((a, b) => b.count - a.count)
+			.slice(0, 15);
+
+		// Push suite_end summary event to OpenObserve (with aggregated console log data)
 		await pushTestEvent({
 			event_type: 'suite_end',
 			status: result.status,
@@ -265,7 +355,10 @@ class APIReporter {
 			total: testResults.length,
 			passed,
 			failed,
-			skipped
+			skipped,
+			total_console_messages: totalConsoleMessages,
+			console_errors: topErrors,
+			console_warnings: topWarnings
 		}).catch(() => {});
 	}
 }
