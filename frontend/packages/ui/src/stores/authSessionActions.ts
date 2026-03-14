@@ -620,6 +620,24 @@ export async function checkAuth(
       // Start live console log streaming for admin users on session restore.
       if (data.user.is_admin) {
         clientLogForwarder.start();
+      } else {
+        // Non-admin: resume debug log sharing session if one was active
+        try {
+          const debugSession = localStorage.getItem("debug_session");
+          if (debugSession) {
+            const parsed = JSON.parse(debugSession);
+            const expiresAt = parsed.expires_at
+              ? new Date(parsed.expires_at).getTime()
+              : Infinity;
+            if (expiresAt > Date.now() && parsed.debugging_id) {
+              clientLogForwarder.startDebugSession(parsed.debugging_id);
+            } else {
+              localStorage.removeItem("debug_session");
+            }
+          }
+        } catch {
+          // Non-critical
+        }
       }
 
       // Register encrypted session metadata if the server indicates it hasn't been done yet.
@@ -1052,6 +1070,23 @@ export async function checkAuth(
             "[AuthSessionActions] Admin user detected (offline-first) — starting clientLogForwarder",
           );
           clientLogForwarder.start();
+        } else {
+          try {
+            const debugSession = localStorage.getItem("debug_session");
+            if (debugSession) {
+              const parsed = JSON.parse(debugSession);
+              const expiresAt = parsed.expires_at
+                ? new Date(parsed.expires_at).getTime()
+                : Infinity;
+              if (expiresAt > Date.now() && parsed.debugging_id) {
+                clientLogForwarder.startDebugSession(parsed.debugging_id);
+              } else {
+                localStorage.removeItem("debug_session");
+              }
+            }
+          } catch {
+            // Non-critical
+          }
         }
 
         // Check if user is in signup flow (offline-first mode)
@@ -1188,5 +1223,22 @@ export function setAuthenticatedState(): void {
       "[setAuthenticatedState] Admin user detected — starting clientLogForwarder",
     );
     clientLogForwarder.start();
+  } else {
+    try {
+      const debugSession = localStorage.getItem("debug_session");
+      if (debugSession) {
+        const parsed = JSON.parse(debugSession);
+        const expiresAt = parsed.expires_at
+          ? new Date(parsed.expires_at).getTime()
+          : Infinity;
+        if (expiresAt > Date.now() && parsed.debugging_id) {
+          clientLogForwarder.startDebugSession(parsed.debugging_id);
+        } else {
+          localStorage.removeItem("debug_session");
+        }
+      }
+    } catch {
+      // Non-critical
+    }
   }
 }
