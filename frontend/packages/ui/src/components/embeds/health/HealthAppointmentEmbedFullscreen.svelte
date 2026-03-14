@@ -43,7 +43,18 @@
   }
 
   interface Props {
-    appointment: AppointmentData;
+    appointment?: AppointmentData;
+    name?: string;
+    speciality?: string;
+    address?: string;
+    gps_coordinates?: { latitude: number; longitude: number };
+    slots_count?: number;
+    next_slot?: string;
+    slots?: SlotData[];
+    insurance?: string;
+    telehealth?: boolean;
+    practice_url?: string;
+    provider?: string;
     onClose: () => void;
     embedId?: string;
     hasPreviousEmbed?: boolean;
@@ -54,6 +65,17 @@
 
   let {
     appointment,
+    name,
+    speciality,
+    address,
+    gps_coordinates,
+    slots_count,
+    next_slot,
+    slots: slotsProp,
+    insurance,
+    telehealth,
+    practice_url,
+    provider,
     onClose,
     embedId,
     hasPreviousEmbed = false,
@@ -61,6 +83,48 @@
     onNavigatePrevious,
     onNavigateNext,
   }: Props = $props();
+
+  function isNonEmptyString(value: unknown): value is string {
+    return typeof value === 'string' && value.trim().length > 0;
+  }
+
+  function getAddressLines(value: unknown): string[] {
+    if (!isNonEmptyString(value)) return [];
+    return value
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+  }
+
+  let activeAppointment = $derived.by(() => {
+    if (appointment) return appointment;
+
+    const hasFlatData =
+      isNonEmptyString(name) ||
+      isNonEmptyString(speciality) ||
+      isNonEmptyString(address) ||
+      (Array.isArray(slotsProp) && slotsProp.length > 0) ||
+      typeof slots_count === 'number' ||
+      isNonEmptyString(next_slot) ||
+      isNonEmptyString(practice_url);
+
+    if (!hasFlatData) return undefined;
+
+    return {
+      embed_id: embedId || 'health-appointment-preview',
+      name,
+      speciality,
+      address,
+      gps_coordinates,
+      slots_count,
+      next_slot,
+      slots: slotsProp,
+      insurance,
+      telehealth,
+      practice_url,
+      provider,
+    } as AppointmentData;
+  });
 
   function formatSlot(iso: string): string {
     try {
@@ -72,7 +136,7 @@
   }
 
   // Defensive: appointment may be undefined during async component loading in dev preview
-  let hasSlots = $derived(((appointment as AppointmentData | undefined)?.slots_count ?? 0) > 0);
+  let hasSlots = $derived((activeAppointment?.slots_count ?? 0) > 0);
 
   function getSlotsFromAppointment(appt: AppointmentData | undefined): SlotData[] {
     if (!appt) return [];
@@ -81,30 +145,35 @@
     return [];
   }
 
-  let slots = $derived(getSlotsFromAppointment(appointment as AppointmentData | undefined));
+  let slots = $derived(getSlotsFromAppointment(activeAppointment));
 
   // Map data from gps_coordinates
   let mapCenter = $derived(
-    (appointment as AppointmentData | undefined)?.gps_coordinates?.latitude != null &&
-    (appointment as AppointmentData | undefined)?.gps_coordinates?.longitude != null
-      ? { lat: appointment.gps_coordinates!.latitude, lon: appointment.gps_coordinates!.longitude }
+    activeAppointment?.gps_coordinates?.latitude != null &&
+    activeAppointment?.gps_coordinates?.longitude != null
+      ? {
+          lat: activeAppointment.gps_coordinates.latitude,
+          lon: activeAppointment.gps_coordinates.longitude,
+        }
       : undefined
   );
 
   let mapMarkers = $derived(
     mapCenter
-      ? [{ lat: mapCenter.lat, lon: mapCenter.lon, label: appointment?.name || appointment?.speciality }]
+      ? [{ lat: mapCenter.lat, lon: mapCenter.lon, label: activeAppointment?.name || activeAppointment?.speciality }]
       : []
   );
+
+  let addressLines = $derived(getAddressLines(activeAppointment?.address));
 </script>
 
-{#if appointment}
+{#if activeAppointment}
 <EntryWithMapTemplate
   appId="health"
   skillId="appointment"
   {onClose}
   skillIconName="health"
-  embedHeaderTitle={appointment.name || appointment.speciality || 'Doctor'}
+  embedHeaderTitle={activeAppointment.name || activeAppointment.speciality || 'Doctor'}
   currentEmbedId={embedId}
   {hasPreviousEmbed}
   {hasNextEmbed}
@@ -117,15 +186,15 @@
   {#snippet detailContent(_ctx)}
     <!-- Doctor info -->
     <div class="doctor-header">
-      {#if appointment.name}
-        <div class="doctor-name">{appointment.name}</div>
+      {#if activeAppointment.name}
+        <div class="doctor-name">{activeAppointment.name}</div>
       {/if}
-      {#if appointment.speciality}
-        <div class="doctor-speciality">{appointment.speciality}</div>
+      {#if activeAppointment.speciality}
+        <div class="doctor-speciality">{activeAppointment.speciality}</div>
       {/if}
-      {#if appointment.address}
+      {#if addressLines.length > 0}
         <div class="doctor-address">
-          {#each appointment.address.split('\n') as line}
+          {#each addressLines as line}
             <span>{line}</span><br />
           {/each}
         </div>
@@ -134,11 +203,11 @@
 
     <!-- Badges -->
     <div class="badges-row">
-      {#if appointment.telehealth}
+      {#if activeAppointment.telehealth}
         <span class="badge telehealth-badge">{$text('embeds.health.telehealth')}</span>
       {/if}
-      {#if appointment.insurance}
-        <span class="badge insurance-badge">{appointment.insurance}</span>
+      {#if activeAppointment.insurance}
+        <span class="badge insurance-badge">{activeAppointment.insurance}</span>
       {/if}
     </div>
 
@@ -160,10 +229,10 @@
   {/snippet}
 
   {#snippet ctaContent()}
-    {#if appointment.practice_url}
+    {#if activeAppointment.practice_url}
       <a
         class="doctolib-link"
-        href={appointment.practice_url}
+        href={activeAppointment.practice_url}
         target="_blank"
         rel="noopener noreferrer"
       >

@@ -252,6 +252,15 @@
 				inlineLinkText: 'Coffee shops near Marienplatz',
 				quoteText: 'Man vs. Machine Coffee Roasters — Rated 4.7, 0.3km from Marienplatz, Munich.',
 				isAppSkill: true
+			},
+			{
+				skillLabel: 'Location',
+				appId: 'maps',
+				previewPath: 'embeds/maps/MapsLocationEmbedPreview',
+				fullscreenPath: 'embeds/maps/MapsLocationEmbedFullscreen',
+				inlineLinkText: 'Berlin Hauptbahnhof',
+				quoteText:
+					'Berlin Hauptbahnhof, Europaplatz 1, 10557 Berlin — static map + open-in-maps action.'
 			}
 		],
 		math: [
@@ -392,6 +401,14 @@
 				quoteText:
 					'Found 12 wireless headphones under 100 EUR. Top pick: Sony WH-1000XM4 at 89 EUR.',
 				isAppSkill: true
+			},
+			{
+				skillLabel: 'Result',
+				appId: 'shopping',
+				previewPath: 'embeds/shopping/ShoppingResultEmbedPreview',
+				fullscreenPath: 'embeds/shopping/ShoppingResultEmbedFullscreen',
+				inlineLinkText: 'Bio Vollmilch-Joghurt Naturell',
+				quoteText: 'Bio Vollmilch-Joghurt Naturell, 500g, 1,39 EUR.'
 			}
 		]
 	};

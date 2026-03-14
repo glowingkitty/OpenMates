@@ -37,6 +37,7 @@
     name?: string;
     speciality?: string;
     address?: string;
+    gps_coordinates?: { latitude: number; longitude: number };
     slots_count?: number;
     next_slot?: string;
     next_slot_url?: string;
@@ -66,7 +67,6 @@
   }
 
   let {
-    query: queryProp,
     embedIds,
     status: statusProp,
     errorMessage: errorMessageProp,
@@ -83,14 +83,12 @@
   }: Props = $props();
 
   // Local reactive state for streaming updates
-  let localQuery = $state('');
   let localEmbedIds = $state<string | string[] | undefined>(undefined);
   let localResults = $state<unknown[]>([]);
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('finished');
   let localErrorMessage = $state('');
 
   $effect(() => {
-    localQuery = queryProp || '';
     localEmbedIds = embedIds;
     localResults = resultsProp || [];
     localStatus = statusProp || 'finished';
@@ -100,48 +98,95 @@
   let embedIdsValue = $derived(localEmbedIds);
   let legacyResults = $derived(localResults);
 
-  /**
-   * Transform raw embed content to AppointmentResult format.
-   * Handles TOON-flattened slots and native arrays.
-   */
-  function transformToAppointmentResult(embedId: string, content: Record<string, unknown>): AppointmentResult {
-    let slots: SlotData[] = [];
+  function asString(value: unknown): string | undefined {
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      return trimmed.length > 0 ? trimmed : undefined;
+    }
+    if (Array.isArray(value)) {
+      const joined = value.filter((v) => typeof v === 'string').join(', ').trim();
+      return joined.length > 0 ? joined : undefined;
+    }
+    return undefined;
+  }
 
+  function asNumber(value: unknown): number | undefined {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string') {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+    return undefined;
+  }
+
+  function asBoolean(value: unknown): boolean {
+    return value === true || value === 'true' || value === 1 || value === '1';
+  }
+
+  function parseGpsCoordinates(content: Record<string, unknown>):
+    | { latitude: number; longitude: number }
+    | undefined {
+    const gps = content.gps_coordinates;
+    if (!gps || typeof gps !== 'object') return undefined;
+
+    const latitude = asNumber((gps as Record<string, unknown>).latitude ?? (gps as Record<string, unknown>).lat);
+    const longitude = asNumber((gps as Record<string, unknown>).longitude ?? (gps as Record<string, unknown>).lon);
+    if (latitude === undefined || longitude === undefined) return undefined;
+
+    return { latitude, longitude };
+  }
+
+  function parseSlots(content: Record<string, unknown>): SlotData[] {
     if (Array.isArray(content.slots)) {
-      slots = (content.slots as Record<string, unknown>[]).map(s => ({
-        datetime: (s.datetime as string) || '',
-        booking_url: (s.booking_url as string) || undefined,
-      }));
-    } else {
-      for (let i = 0; i < 20; i++) {
-        const dt = content[`slots_${i}_datetime`];
-        if (typeof dt !== 'string') break;
-        slots.push({
-          datetime: dt,
-          booking_url: (content[`slots_${i}_booking_url`] as string) || undefined,
-        });
-      }
-      // Legacy: pipe-joined ISO string
-      if (slots.length === 0 && typeof content.slots === 'string' && content.slots) {
-        const datetimes = (content.slots as string).split('|');
-        slots = datetimes.filter(dt => dt).map(dt => ({ datetime: dt }));
-      }
+      return (content.slots as Array<Record<string, unknown>>)
+        .map((slot) => ({
+          datetime: asString(slot.datetime) || '',
+          booking_url: asString(slot.booking_url),
+        }))
+        .filter((slot) => slot.datetime.length > 0);
     }
 
+    const flattenedSlots: SlotData[] = [];
+    for (let i = 0; i < 20; i++) {
+      const datetime = asString(content[`slots_${i}_datetime`]);
+      if (!datetime) break;
+      flattenedSlots.push({
+        datetime,
+        booking_url: asString(content[`slots_${i}_booking_url`]),
+      });
+    }
+
+    if (flattenedSlots.length > 0) return flattenedSlots;
+
+    const pipeJoinedSlots = asString(content.slots);
+    if (!pipeJoinedSlots) return [];
+
+    return pipeJoinedSlots
+      .split('|')
+      .map((datetime) => datetime.trim())
+      .filter((datetime) => datetime.length > 0)
+      .map((datetime) => ({ datetime }));
+  }
+
+  function transformToAppointmentResult(embedId: string, content: Record<string, unknown>): AppointmentResult {
+    const slots = parseSlots(content);
+    const slotsCount = asNumber(content.slots_count) ?? slots.length;
+
     return {
-      embed_id: embedId,
-      type: (content.type as string) || 'appointment',
-      name: content.name as string | undefined,
-      speciality: content.speciality as string | undefined,
-      address: content.address as string | undefined,
-      slots_count: (content.slots_count as number) || 0,
-      next_slot: content.next_slot as string | undefined,
-      next_slot_url: (content.next_slot_url as string | undefined) || undefined,
+      embed_id: asString(content.embed_id) || embedId,
+      type: asString(content.type) || 'appointment',
+      name: asString(content.name),
+      speciality: asString(content.speciality),
+      address: asString(content.address),
+      gps_coordinates: parseGpsCoordinates(content),
+      slots_count: slotsCount,
+      next_slot: asString(content.next_slot),
+      next_slot_url: asString(content.next_slot_url),
       slots,
-      insurance: content.insurance as string | undefined,
-      telehealth: (content.telehealth as boolean) || false,
-      practice_url: content.practice_url as string | undefined,
-      provider: content.provider as string | undefined,
+      insurance: asString(content.insurance),
+      telehealth: asBoolean(content.telehealth),
+      practice_url: asString(content.practice_url),
+      provider: asString(content.provider),
     };
   }
 
@@ -149,9 +194,26 @@
    * Transform legacy inline results to AppointmentResult format.
    */
   function transformLegacyResults(results: unknown[]): AppointmentResult[] {
-    return (results as Array<Record<string, unknown>>).map((r, i) =>
-      transformToAppointmentResult(`legacy-${i}`, r)
-    );
+    const transformed: AppointmentResult[] = [];
+
+    for (let i = 0; i < results.length; i++) {
+      const item = results[i] as Record<string, unknown>;
+      if (!item || typeof item !== 'object') continue;
+
+      const groupedResults = item.results;
+      if (Array.isArray(groupedResults)) {
+        for (let j = 0; j < groupedResults.length; j++) {
+          const groupedItem = groupedResults[j] as Record<string, unknown>;
+          if (!groupedItem || typeof groupedItem !== 'object') continue;
+          transformed.push(transformToAppointmentResult(`legacy-${i}-${j}`, groupedItem));
+        }
+        continue;
+      }
+
+      transformed.push(transformToAppointmentResult(`legacy-${i}`, item));
+    }
+
+    return transformed;
   }
 
   /**
@@ -163,7 +225,6 @@
       localStatus = data.status;
     }
     const content = data.decodedContent;
-    if (typeof content.query === 'string') localQuery = content.query;
     if (content.embed_ids) localEmbedIds = content.embed_ids as string | string[];
     if (Array.isArray(content.results)) localResults = content.results as unknown[];
     if (typeof content.error === 'string') localErrorMessage = content.error;
