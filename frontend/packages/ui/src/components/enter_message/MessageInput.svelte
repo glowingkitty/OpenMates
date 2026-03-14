@@ -62,6 +62,7 @@
     // Code embed service - creates proper embeds for pasted code/text
     import { createCodeEmbedFromPastedText, detectLanguageFromVSCode, detectLanguageFromContent } from './services/codeEmbedService';
     import { generateUUID } from '../../message_parsing/utils';
+    import { extractEmbedReferences } from '../../services/embedResolver';
 
     // Handlers
     import { handleSend } from './handlers/sendHandlers';
@@ -1414,12 +1415,50 @@
                             console.debug('[MessageInput] Pasted chat link from YAML (via editorProps):', chatLink);
                             return true; // Prevent default paste handling
                         }
+
+                        // Detect OpenMates message markdown copied from the chat UI.
+                        // When the custom clipboard MIME payload is unavailable (for example,
+                        // browser/OS clipboard fallbacks), copied messages with embeds can
+                        // arrive as plain text containing ```json embed reference blocks.
+                        // In this case we must preserve message semantics (text + embeds)
+                        // instead of converting the entire paste into a code embed.
+                        const normalizedPasteText = text.replace(/\r\n?/g, '\n');
+                        const embedRefsFromPlainText = extractEmbedReferences(normalizedPasteText);
+                        if (embedRefsFromPlainText.length > 0) {
+                            event.preventDefault();
+                            event.stopPropagation();
+
+                            // Keep the exact copied markdown shape so subsequent parsing,
+                            // draft persistence, and send payload generation stay canonical.
+                            originalMarkdown = normalizedPasteText;
+                            const parsedDoc = parse_message(originalMarkdown, 'write', {
+                                unifiedParsingEnabled: true,
+                            });
+
+                            if (parsedDoc && parsedDoc.content) {
+                                isConvertingEmbeds = true;
+                                try {
+                                    editor.chain().setContent(parsedDoc, { emitUpdate: false }).run();
+                                } finally {
+                                    isConvertingEmbeds = false;
+                                }
+                            } else {
+                                editor.commands.insertContent(normalizedPasteText);
+                            }
+
+                            editor.commands.focus('end');
+                            hasContent = !isContentEmptyExceptMention(editor);
+                            console.debug('[MessageInput] Pasted OpenMates message from text/plain fallback:', {
+                                embedCount: embedRefsFromPlainText.length,
+                            });
+                            return true;
+                        }
                         
                         // Check for multi-line text - create a proper code embed for readability
                         // This ensures pasted logs, errors, code snippets, etc. are formatted as code blocks
                         // and stored in EmbedStore (encrypted, synced to server)
-                        const isMultiLine = text.includes('\n');
-                        const isAlreadyCodeBlock = text.trim().startsWith('```');
+                        const isMultiLine = normalizedPasteText.includes('\n');
+                        const isAlreadyCodeBlock = normalizedPasteText.trim().startsWith('```');
                         
                         if (isMultiLine && !isAlreadyCodeBlock) {
                             event.preventDefault();
@@ -1434,9 +1473,9 @@
                                 // Insert a preview embed node with the code stored inline in the node `code`
                                 // attribute — GroupRenderer reads this directly without EmbedStore.
                                 const vsCodeLang = detectLanguageFromVSCode(vsCodeEditorData);
-                                const language = vsCodeLang || detectLanguageFromContent(text) || 'text';
+                                const language = vsCodeLang || detectLanguageFromContent(normalizedPasteText) || 'text';
                                 const embedId = generateUUID();
-                                const lineCount = text.split('\n').length;
+                                const lineCount = normalizedPasteText.split('\n').length;
                                 
                                 console.debug('[MessageInput] Demo mode — inserting inline code embed:', {
                                     language, lineCount, embedId
@@ -1450,7 +1489,7 @@
                                         status: 'finished',
                                         // "preview:code:" prefix tells GroupRenderer to read code from item.code attr
                                         contentRef: `preview:code:${embedId}`,
-                                        code: text,
+                                        code: normalizedPasteText,
                                         language,
                                         lineCount,
                                     }
@@ -1464,11 +1503,11 @@
                             // Authenticated path: create a proper embed in EmbedStore (async).
                             // This follows the same pattern as URL embeds.
                             // Pass VS Code editor data for automatic language detection.
-                            createCodeEmbedFromPastedText({ text, vsCodeEditorData }).then(async (embedResult) => {
+                            createCodeEmbedFromPastedText({ text: normalizedPasteText, vsCodeEditorData }).then(async (embedResult) => {
                                 console.info('[MessageInput] Created code embed for pasted text:', {
                                     embed_id: embedResult.embed_id,
-                                    lineCount: text.split('\n').length,
-                                    charCount: text.length
+                                    lineCount: normalizedPasteText.split('\n').length,
+                                    charCount: normalizedPasteText.length
                                 });
                                 
                                 // Re-read originalMarkdown from the editor's current state to avoid
@@ -1516,7 +1555,7 @@
                             }).catch((error) => {
                                 console.error('[MessageInput] Failed to create code embed:', error);
                                 // Fallback: insert as plain text if embed creation fails
-                                editor.commands.insertContent(text);
+                                editor.commands.insertContent(normalizedPasteText);
                             });
                             
                             return true; // Prevent default paste handling
