@@ -24,6 +24,11 @@ from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.apps.ai.processing.skill_executor import sanitize_external_content, check_rate_limit, wait_for_rate_limit
 # RateLimitScheduledException is no longer caught here - it bubbles up to route handler
 from backend.core.api.app.services.cache import CacheService
+from backend.shared.providers.youtube.youtube_metadata import (
+    extract_youtube_id_from_url,
+    get_video_metadata_batched,
+    get_channel_thumbnails_batched,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -731,6 +736,121 @@ class SearchSkill(BaseSkill):
                         }
                         previews.append(preview)
             
+            # ── YouTube metadata enrichment ──────────────────────────────────
+            # Detect YouTube URLs among web search results and enrich them with
+            # YouTube API metadata (views, duration, channel info, etc.) so they
+            # render properly as video embeds on the frontend.
+            # Uses snake_case field names matching the frontend video embed schema.
+            youtube_previews: Dict[str, Dict[str, Any]] = {}  # video_id → preview ref
+            for preview in previews:
+                vid = extract_youtube_id_from_url(preview.get("url", ""))
+                if vid:
+                    youtube_previews[vid] = preview
+
+            if youtube_previews:
+                logger.info(
+                    f"[{task_id}] Enriching {len(youtube_previews)} YouTube result(s) "
+                    f"with YouTube API metadata"
+                )
+                try:
+                    yt_metadata = await get_video_metadata_batched(
+                        video_ids=list(youtube_previews.keys()),
+                        secrets_manager=secrets_manager,
+                        batch_size=50,
+                    )
+                except Exception as e:
+                    logger.warning(
+                        f"[{task_id}] YouTube metadata fetch failed: {e}. "
+                        f"Video embeds will render with basic data only."
+                    )
+                    yt_metadata = {}
+
+                # Collect channel IDs for thumbnail fetch
+                channel_ids = []
+                for vid, meta in yt_metadata.items():
+                    ch_id = meta.get("snippet", {}).get("channelId")
+                    if ch_id:
+                        channel_ids.append(ch_id)
+
+                channel_thumbs: Dict[str, str] = {}
+                if channel_ids:
+                    try:
+                        ch_data = await get_channel_thumbnails_batched(
+                            channel_ids=channel_ids,
+                            secrets_manager=secrets_manager,
+                            batch_size=50,
+                        )
+                        for ch_id, ch_info in ch_data.items():
+                            thumbs = ch_info.get("snippet", {}).get("thumbnails", {})
+                            channel_thumbs[ch_id] = (
+                                thumbs.get("high", {}).get("url")
+                                or thumbs.get("medium", {}).get("url")
+                                or thumbs.get("default", {}).get("url")
+                                or ""
+                            )
+                    except Exception as e:
+                        logger.warning(f"[{task_id}] Channel thumbnail fetch failed: {e}")
+
+                # Merge YouTube metadata into previews using snake_case field names
+                # (matching frontend video embed schema used by GroupRenderer / VideoEmbedPreview)
+                for vid, preview in youtube_previews.items():
+                    meta = yt_metadata.get(vid, {})
+                    if not meta:
+                        # Even without API metadata, add video_id so the frontend
+                        # can derive a thumbnail from the video ID
+                        preview["video_id"] = vid
+                        continue
+
+                    snippet = meta.get("snippet", {})
+                    stats = meta.get("statistics", {})
+                    content_d = meta.get("contentDetails", {})
+
+                    ch_id = snippet.get("channelId", "")
+                    yt_thumbs = snippet.get("thumbnails", {})
+                    yt_thumb = (
+                        yt_thumbs.get("high", {}).get("url")
+                        or yt_thumbs.get("medium", {}).get("url")
+                        or ""
+                    )
+
+                    # Override thumbnail with higher-quality YouTube thumbnail
+                    if yt_thumb:
+                        preview["thumbnail"] = {"original": yt_thumb}
+
+                    # Add YouTube-specific fields (snake_case for frontend compat)
+                    preview["video_id"] = vid
+                    preview["channel_name"] = snippet.get("channelTitle", "")
+                    preview["channel_id"] = ch_id
+                    preview["channel_thumbnail"] = channel_thumbs.get(ch_id, "")
+                    preview["view_count"] = int(stats.get("viewCount", 0)) if stats.get("viewCount") else 0
+                    preview["like_count"] = int(stats.get("likeCount", 0)) if stats.get("likeCount") else 0
+                    preview["published_at"] = snippet.get("publishedAt", "")
+
+                    # Parse ISO 8601 duration (e.g. "PT17M8S") into seconds + formatted
+                    raw_dur = content_d.get("duration", "")
+                    if raw_dur:
+                        preview["duration"] = raw_dur
+                        dur_secs = self._parse_iso_duration(raw_dur)
+                        preview["duration_seconds"] = dur_secs
+                        preview["duration_formatted"] = self._format_duration(dur_secs)
+                    else:
+                        preview["duration_seconds"] = 0
+                        preview["duration_formatted"] = ""
+
+                    logger.debug(
+                        f"[{task_id}] Enriched YouTube result {vid}: "
+                        f"views={preview.get('view_count')}, "
+                        f"channel={preview.get('channel_name')}, "
+                        f"duration={preview.get('duration_formatted')}"
+                    )
+
+                logger.info(
+                    f"[{task_id}] YouTube enrichment complete: "
+                    f"{sum(1 for v in youtube_previews if yt_metadata.get(v))} enriched, "
+                    f"{sum(1 for v in youtube_previews if not yt_metadata.get(v))} basic-only"
+                )
+            # ── End YouTube enrichment ─────────────────────────────────────
+
             logger.info(f"Search (id: {request_id}) completed: {len(previews)} results for '{search_query}'")
             return (request_id, previews, None)
             
@@ -829,4 +949,41 @@ class SearchSkill(BaseSkill):
         return response
     
     # _generate_result_hash is now provided by BaseSkill
+
+    @staticmethod
+    def _parse_iso_duration(iso_duration: str) -> int:
+        """
+        Parse ISO 8601 duration string (e.g. "PT17M8S", "PT1H3M45S") to total seconds.
+        YouTube API returns duration in this format.
+        """
+        if not iso_duration:
+            return 0
+        d = iso_duration.replace("PT", "")
+        hours = minutes = seconds = 0
+        if "H" in d:
+            parts = d.split("H")
+            hours = int(parts[0])
+            d = parts[1]
+        if "M" in d:
+            parts = d.split("M")
+            minutes = int(parts[0])
+            d = parts[1]
+        if "S" in d:
+            seconds = int(d.replace("S", ""))
+        return hours * 3600 + minutes * 60 + seconds
+
+    @staticmethod
+    def _format_duration(total_seconds: int) -> str:
+        """
+        Format total seconds to video duration string (e.g. "17:08", "1:03:45").
+        Matches the format used by YouTube and the VideoEmbedPreview component.
+        """
+        if total_seconds <= 0:
+            return ""
+        hours = total_seconds // 3600
+        minutes = (total_seconds % 3600) // 60
+        secs = total_seconds % 60
+        if hours > 0:
+            return f"{hours}:{minutes:02d}:{secs:02d}"
+        return f"{minutes}:{secs:02d}"
 

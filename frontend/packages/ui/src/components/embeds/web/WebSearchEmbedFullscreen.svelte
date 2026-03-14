@@ -50,6 +50,16 @@
     page_age?: string;
     /** True when the result URL is a YouTube video — renders with video embed components */
     isVideo: boolean;
+    // YouTube metadata (populated when backend enriches YouTube URLs via YouTube API)
+    video_id?: string;
+    channel_name?: string;
+    channel_id?: string;
+    channel_thumbnail?: string;
+    duration_seconds?: number;
+    duration_formatted?: string;
+    view_count?: number;
+    like_count?: number;
+    published_at?: string;
   }
 
   interface Props {
@@ -177,6 +187,7 @@
       (content.age as string) || (content.page_age as string) || undefined;
     const url = content.url as string;
 
+    const isVideo = isYouTubeUrl(url);
     return {
       embed_id: embedId,
       title: content.title as string | undefined,
@@ -187,7 +198,32 @@
       description: content.description as string | undefined,
       extra_snippets: content.extra_snippets as string | string[] | undefined,
       page_age: pageAge,
-      isVideo: isYouTubeUrl(url),
+      isVideo,
+      // YouTube metadata (from backend enrichment via YouTube API)
+      ...(isVideo
+        ? {
+            video_id: content.video_id as string | undefined,
+            channel_name: content.channel_name as string | undefined,
+            channel_id: content.channel_id as string | undefined,
+            channel_thumbnail: content.channel_thumbnail as string | undefined,
+            duration_seconds:
+              typeof content.duration_seconds === "number"
+                ? content.duration_seconds
+                : undefined,
+            duration_formatted: content.duration_formatted as
+              | string
+              | undefined,
+            view_count:
+              typeof content.view_count === "number"
+                ? content.view_count
+                : undefined,
+            like_count:
+              typeof content.like_count === "number"
+                ? content.like_count
+                : undefined,
+            published_at: content.published_at as string | undefined,
+          }
+        : {}),
     };
   }
 
@@ -285,6 +321,15 @@
         status="finished"
         isMobile={false}
         onFullscreen={(_metadata) => onSelect()}
+        videoId={result.video_id}
+        channelName={result.channel_name}
+        channelId={result.channel_id}
+        channelThumbnail={result.channel_thumbnail}
+        durationSeconds={result.duration_seconds}
+        durationFormatted={result.duration_formatted}
+        viewCount={result.view_count}
+        likeCount={result.like_count}
+        publishedAt={result.published_at}
       />
     {:else}
       <WebsiteEmbedPreview
@@ -308,10 +353,31 @@
         title={nav.result.title}
         onClose={nav.onClose}
         embedId={nav.result.embed_id}
+        videoId={nav.result.video_id}
         hasPreviousEmbed={nav.hasPrevious}
         hasNextEmbed={nav.hasNext}
         onNavigatePrevious={nav.onPrevious}
         onNavigateNext={nav.onNext}
+        metadata={nav.result.video_id
+          ? {
+              videoId: nav.result.video_id,
+              title: nav.result.title,
+              description: nav.result.description || nav.result.snippet,
+              channelName: nav.result.channel_name,
+              channelId: nav.result.channel_id,
+              channelThumbnail: nav.result.channel_thumbnail,
+              thumbnailUrl: nav.result.preview_image_url,
+              duration: nav.result.duration_seconds
+                ? {
+                    totalSeconds: nav.result.duration_seconds,
+                    formatted: nav.result.duration_formatted || "",
+                  }
+                : undefined,
+              viewCount: nav.result.view_count,
+              likeCount: nav.result.like_count,
+              publishedAt: nav.result.published_at,
+            }
+          : undefined}
       />
     {:else}
       <WebsiteEmbedFullscreen
