@@ -187,6 +187,8 @@ export const apiEndpoints = {
     updatePassword: "/v1/settings/update-password", // Add or change user password
     issueLogs: "/v1/settings/issue-logs", // Push console logs to OpenObserve when any auth user submits an issue report
     importChat: "/v1/settings/import-chat", // Import chats from YAML export file (safety-scanned server-side)
+    debugSession: "/v1/settings/debug-session", // Create/get/delete user debug log sharing session
+    debugLogs: "/v1/settings/debug-logs", // Push console logs during active debug session (tagged with debugging_id)
   },
   payments: {
     config: "/v1/payments/config", // Get public config for payment provider

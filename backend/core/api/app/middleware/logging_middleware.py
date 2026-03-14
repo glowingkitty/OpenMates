@@ -17,7 +17,7 @@ from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
-from backend.core.api.app.utils.request_context import generate_request_id
+from backend.core.api.app.utils.request_context import generate_request_id, set_debugging_id
 
 # Maximum number of error fingerprints stored in Redis.
 # Oldest (lowest score) entries are trimmed when this limit is exceeded.
@@ -114,6 +114,13 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         # injection and Celery propagation) and request.state (for handlers).
         request_id = generate_request_id()
         request.state.request_id = request_id
+
+        # Extract debugging_id from X-Debug-Session header if present.
+        # This tags all backend logs for this request with the user's debug
+        # session ID, enabling end-to-end tracing via debug.py logs --debug-id.
+        debugging_id = request.headers.get("x-debug-session", "")
+        if debugging_id:
+            set_debugging_id(debugging_id)
         
         # Skip metrics tracking for excluded paths
         path = request.url.path

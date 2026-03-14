@@ -5,11 +5,31 @@ Rules for investigating bugs and reading logs. For detailed CLI references and c
 
 ---
 
-## Rule 0: Health Preflight Runs at Session Start
+## Rule 0: Session Mode Controls Context
 
-`python3 scripts/sessions.py start ...` now runs the debug health preflight automatically and prints it in session context.
+`sessions.py start --mode <MODE>` now requires a mode. The mode controls what context is shown:
 
-If the preflight fails, stop and report the failure to the user before continuing investigation.
+| Mode       | Health    | Issues   | Error Overview        | Project Index | Arch Docs     |
+| ---------- | --------- | -------- | --------------------- | ------------- | ------------- |
+| `bug`      | Full      | Latest 2 | Fingerprints + counts | Minimal       | Relevant only |
+| `feature`  | One-liner | No       | No                    | Full          | Tag-filtered  |
+| `docs`     | No        | No       | No                    | Full          | All           |
+| `question` | No        | No       | No                    | No            | Relevant only |
+
+In `bug` mode, the health preflight runs automatically. If it shows critical issues, address those first.
+
+### User Debug Sessions
+
+When a user reports an issue and has activated "Share Debug Logs" in Settings,
+they get a `debugging_id` (e.g. `dbg-a3f2c8`). Use it to fetch their logs:
+
+```bash
+python3 scripts/sessions.py start --mode bug --task "debug user issue" --debug-id dbg-a3f2c8
+# Or standalone:
+docker exec api python /app/backend/scripts/debug.py logs --debug-id dbg-a3f2c8
+```
+
+This queries both frontend console logs and backend request logs tagged with that ID.
 
 ---
 

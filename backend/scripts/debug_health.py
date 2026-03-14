@@ -476,6 +476,119 @@ async def run_health_check(verbose: bool = False, skip_log_access: bool = False)
     print()
 
 
+async def run_health_check_compact() -> str:
+    """Return a one-liner health summary for non-debug session modes.
+
+    Checks Prometheus error rate, P95 latency, and queue depths.
+    Returns a short string like:
+      "OK (API 0.2% error rate, P95 42ms, queues clear)"
+    or:
+      "WARN — API error rate 5.1%, queue backlog: 12 tasks"
+    """
+    import math
+    parts = []
+    warnings = []
+
+    # Error rate
+    error_rate = await _prom_query(
+        'sum(rate(api_requests_total{status_code=~"5.."}[5m])) / '
+        'sum(rate(api_requests_total[5m]))'
+    )
+    if error_rate is None:
+        total_reqs = await _prom_query('sum(rate(api_requests_total[5m]))')
+        if total_reqs is None or total_reqs == 0:
+            parts.append("no request data")
+        else:
+            parts.append("0% error rate")
+    elif error_rate > 0.02:
+        warnings.append(f"API error rate {error_rate*100:.1f}%")
+    else:
+        parts.append(f"{error_rate*100:.1f}% error rate")
+
+    # P95 latency
+    p95 = await _prom_query(
+        'histogram_quantile(0.95, sum(rate(api_request_duration_seconds_bucket[5m])) by (le))'
+    )
+    if p95 is not None and not math.isnan(p95):
+        if p95 > 2.0:
+            warnings.append(f"P95 {p95:.1f}s")
+        elif p95 < 1.0:
+            parts.append(f"P95 {p95*1000:.0f}ms")
+        else:
+            parts.append(f"P95 {p95:.2f}s")
+
+    # Queue depths
+    depths = await _get_celery_queue_depths()
+    total_pending = sum(depths.values()) if depths else 0
+    if total_pending > 50:
+        warnings.append(f"queue backlog: {total_pending} tasks")
+    elif total_pending > 0:
+        parts.append(f"queues: {total_pending} pending")
+    else:
+        parts.append("queues clear")
+
+    if warnings:
+        return f"WARN — {', '.join(warnings)}"
+    return f"OK ({', '.join(parts)})"
+
+
+async def get_error_overview_compact(top: int = 5, since_minutes: int = 30) -> str:
+    """Return a compact overview of recent errors for session context.
+
+    Combines error fingerprints (7d rolling from Redis) and recent error count
+    from OpenObserve into a concise multi-line string showing concrete error
+    descriptions, not just counts.
+
+    Output format:
+      Errors: 5 (last 30m) — api(3), worker(1), web(1)
+      Top recurring (7d):
+        1. [3x] KeyError in crypto_service.py:wrap_key:142
+        2. [1x] ConnectionTimeout in redis_client.py:get:89
+      → Details: debug.py logs --o2 --preset web-app-health
+    """
+    lines = []
+
+    # 1. Recent error count by service from OpenObserve
+    recent_errors = await _openobserve_recent_errors(limit=50, since_minutes=since_minutes)
+    if recent_errors:
+        # Count by service
+        svc_counts: dict[str, int] = {}
+        for err in recent_errors:
+            svc = err["service"].split("-")[0] if err["service"] != "?" else "unknown"
+            # Normalize: remove /app/backend prefix from container names
+            svc = svc.replace("/", "").strip()[:12]
+            svc_counts[svc] = svc_counts.get(svc, 0) + 1
+        total = len(recent_errors)
+        breakdown = ", ".join(f"{s}({c})" for s, c in sorted(svc_counts.items(), key=lambda x: -x[1]))
+        lines.append(f"  Errors: {total} (last {since_minutes}m) — {breakdown}")
+    else:
+        lines.append(f"  Errors: 0 (last {since_minutes}m)")
+
+    # 2. Top error fingerprints from Redis (concrete descriptions)
+    try:
+        from backend.core.api.app.services.cache import CacheService
+        cache = CacheService()
+        redis = await cache.client
+        results = await redis.zrevrange(REDIS_ERROR_FINGERPRINTS_KEY, 0, top - 1, withscores=True)
+        await cache.close()
+
+        if results:
+            lines.append("  Top recurring (7d):")
+            for i, (member, score) in enumerate(results, 1):
+                parts = member.split("|", 4)
+                exc_type = (parts[1] if len(parts) > 1 else "?")[:30]
+                file_part = (parts[2] if len(parts) > 2 else "?").rsplit("/", 1)[-1]  # basename
+                func = (parts[3] if len(parts) > 3 else "?")[:25]
+                line_num = parts[4] if len(parts) > 4 else "?"
+                count = int(score)
+                lines.append(f"    {i}. [{count}x] {exc_type} in {file_part}:{func}:{line_num}")
+    except Exception:
+        pass  # Fingerprints unavailable — not critical
+
+    lines.append("  → Details: debug.py logs --o2 --preset web-app-health")
+    return "\n".join(lines)
+
+
 # ─── Entity health checks ─────────────────────────────────────────────────────
 
 async def check_chat_health(
@@ -944,6 +1057,10 @@ async def _async_main():
     health_p = sub.add_parser("health", help="System health check (includes log access verification)")
     health_p.add_argument("-v", "--verbose", action="store_true")
     health_p.add_argument(
+        "--compact", action="store_true",
+        help="Return a one-liner pass/fail summary (for session start in non-debug modes).",
+    )
+    health_p.add_argument(
         "--log-access", action="store_true",
         help="Run ONLY the log access check (OpenObserve + production API). Exit 1 if any source is down.",
     )
@@ -957,19 +1074,34 @@ async def _async_main():
 
     errors_p = sub.add_parser("errors", help="Top error fingerprints")
     errors_p.add_argument("--top", type=int, default=10)
+    errors_p.add_argument(
+        "--compact", action="store_true",
+        help="Return a compact overview of recent errors for session context "
+        "(combines fingerprints + recent error counts).",
+    )
+    errors_p.add_argument(
+        "--since", type=int, default=30,
+        help="Look back N minutes for recent errors (default: 30). Used with --compact.",
+    )
 
     args = parser.parse_args()
 
     if args.command == "health":
         if args.log_access:
-            # Only run the log access check — exit 1 on failure (see run_log_access_check)
             await run_log_access_check()
+        elif args.compact:
+            summary = await run_health_check_compact()
+            print(f"Health: {summary}")
         else:
             await run_health_check(verbose=args.verbose, skip_log_access=args.skip_log_access)
     elif args.command == "replay":
         await replay_request(request_id=args.request_id)
     elif args.command == "errors":
-        await show_error_fingerprints(top=args.top)
+        if args.compact:
+            overview = await get_error_overview_compact(top=args.top, since_minutes=args.since)
+            print(overview)
+        else:
+            await show_error_fingerprints(top=args.top)
     else:
         await run_health_check(verbose=False)
 

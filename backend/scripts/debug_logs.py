@@ -64,6 +64,7 @@ import asyncio
 import argparse
 import json
 import logging
+import os
 import re
 import sys
 import time
@@ -2269,6 +2270,129 @@ async def run_o2_logs_mode(args) -> None:
         return
 
 
+# ─── Debug Session Mode ───────────────────────────────────────────────────────
+
+
+async def run_debug_session_mode(args: argparse.Namespace) -> None:
+    """Query frontend and backend logs tagged with a user debug session ID.
+
+    Searches OpenObserve for:
+    1. Frontend console logs: job='client-console' AND debugging_id=<ID>
+    2. Backend request logs: any log entry containing the debugging_id string
+
+    Merges and sorts chronologically, giving an end-to-end timeline of the
+    user's activity during their debug session.
+    """
+    debugging_id = args.debug_id
+    since_minutes = args.since
+    limit = args.limit
+
+    email = os.environ.get("OPENOBSERVE_ROOT_EMAIL", "")
+    password = os.environ.get("OPENOBSERVE_ROOT_PASSWORD", "")
+
+    if not email or not password:
+        print(f"{C_RED}OPENOBSERVE_ROOT_EMAIL/PASSWORD not set{C_RESET}")
+        return
+
+    print(f"{C_CYAN}{'─'*4} Debug Session Logs: {debugging_id} {'─'*30}{C_RESET}")
+    print(f"{C_DIM}  Looking back {since_minutes} min, limit {limit}{C_RESET}")
+    print()
+
+    start_us = int((time.time() - since_minutes * 60) * 1_000_000)
+    end_us = int(time.time() * 1_000_000)
+
+    all_entries: list[dict[str, Any]] = []
+
+    # 1. Frontend console logs (tagged with debugging_id label)
+    frontend_sql = (
+        f"SELECT _timestamp, message, level, device_type, user_id "
+        f'FROM "default" '
+        f"WHERE job = 'client-console' AND debugging_id = '{debugging_id}' "
+        f"ORDER BY _timestamp ASC LIMIT {limit}"
+    )
+    try:
+        url = f"{OPENOBSERVE_URL}/api/{OPENOBSERVE_ORG}/_search"
+        body = {"query": {"sql": frontend_sql, "start_time": start_us, "end_time": end_us}}
+        timeout = aiohttp.ClientTimeout(total=15)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.post(url, json=body, auth=aiohttp.BasicAuth(email, password)) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    for hit in data.get("hits", []):
+                        ts_us = hit.get("_timestamp", 0)
+                        all_entries.append({
+                            "ts": int(ts_us),
+                            "source": "frontend",
+                            "level": hit.get("level", "info"),
+                            "message": hit.get("message", ""),
+                            "device": hit.get("device_type", ""),
+                        })
+    except Exception as e:
+        print(f"{C_YELLOW}  Frontend log query failed: {e}{C_RESET}")
+
+    # 2. Backend logs (debugging_id in structured log body)
+    backend_sql = (
+        f"SELECT _timestamp, container, service, log, message, level "
+        f'FROM "default" '
+        f"WHERE (log LIKE '%{debugging_id}%' OR message LIKE '%{debugging_id}%') "
+        f"AND job != 'client-console' "
+        f"ORDER BY _timestamp ASC LIMIT {limit}"
+    )
+    try:
+        url = f"{OPENOBSERVE_URL}/api/{OPENOBSERVE_ORG}/_search"
+        body = {"query": {"sql": backend_sql, "start_time": start_us, "end_time": end_us}}
+        timeout = aiohttp.ClientTimeout(total=15)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.post(url, json=body, auth=aiohttp.BasicAuth(email, password)) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    for hit in data.get("hits", []):
+                        ts_us = hit.get("_timestamp", 0)
+                        svc = hit.get("container", hit.get("service", "?"))
+                        msg = hit.get("message", hit.get("log", ""))[:200]
+                        all_entries.append({
+                            "ts": int(ts_us),
+                            "source": f"backend/{svc}",
+                            "level": hit.get("level", "info"),
+                            "message": msg,
+                            "device": "",
+                        })
+    except Exception as e:
+        print(f"{C_YELLOW}  Backend log query failed: {e}{C_RESET}")
+
+    # Sort by timestamp and display
+    all_entries.sort(key=lambda x: x["ts"])
+
+    fe_count = sum(1 for e in all_entries if e["source"] == "frontend")
+    be_count = len(all_entries) - fe_count
+    print(f"  Found {len(all_entries)} entries (frontend: {fe_count}, backend: {be_count})")
+    print()
+
+    if not all_entries:
+        print(f"  {C_DIM}No logs found for debug session {debugging_id}.{C_RESET}")
+        print(f"  {C_DIM}The session may not have started yet, or logs haven't been ingested.{C_RESET}")
+        return
+
+    for entry in all_entries:
+        ts_s = datetime.fromtimestamp(entry["ts"] / 1_000_000).strftime("%H:%M:%S.%f")[:12]
+        level = entry["level"][:5].upper()
+        source = entry["source"][:20]
+        msg = entry["message"][:160]
+
+        # Color by level
+        if level in ("ERROR", "CRITI"):
+            color = C_RED
+        elif level in ("WARN", "WARNI"):
+            color = C_YELLOW
+        else:
+            color = C_RESET
+
+        print(f"  {C_DIM}{ts_s}{C_RESET} {color}{level:<5}{C_RESET} {C_CYAN}{source:<20}{C_RESET} {msg}")
+
+    print()
+    print(f"  {C_DIM}Tip: Use --since N to adjust lookback window (default: 1440 min / 24h).{C_RESET}")
+
+
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 async def main():
@@ -2297,6 +2421,12 @@ async def main():
                         help="Poll last update status on the upload server")
     parser.add_argument("--preview-status", action="store_true", dest="preview_status",
                         help="Poll last update status on the preview server")
+
+    # Debug session mode
+    parser.add_argument("--debug-id", type=str, default=None, dest="debug_id",
+                        help="Query logs for a user debug session ID (e.g. 'dbg-a3f2c8'). "
+                        "Searches both frontend console logs and backend request logs "
+                        "tagged with the debugging_id.")
 
     # Shared options
     parser.add_argument("--since", type=int, default=None,
@@ -2383,6 +2513,15 @@ async def main():
         if args.lines is None:
             args.lines = 200
         await run_preview_logs_mode(args)
+        return
+
+    # Debug session log mode
+    if args.debug_id:
+        if args.since is None:
+            args.since = 1440  # 24h default for debug sessions
+        if args.limit is None:
+            args.limit = 200
+        await run_debug_session_mode(args)
         return
 
     # Browser console log mode

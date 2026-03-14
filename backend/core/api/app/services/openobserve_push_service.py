@@ -232,6 +232,90 @@ class OpenObservePushService:
             logger.error(f"Error pushing issue logs to OpenObserve: {e}", exc_info=True)
             return False
 
+    async def push_debug_session_logs(
+        self,
+        entries: List[Dict[str, Any]],
+        debugging_id: str,
+        user_id: str,
+        metadata: Dict[str, str],
+    ) -> bool:
+        """
+        Push console log entries from a user debug log sharing session.
+
+        Uses the same stream ('client-console') as admin log forwarding, but
+        with a 'debugging_id' label instead of 'user_email'. This allows
+        support to query logs via `debug.py logs --debug-id <ID>` to see
+        both frontend and backend logs correlated by the same debugging_id.
+
+        Args:
+            entries: Log entries with 'timestamp' (ms), 'level', 'message'
+            debugging_id: Short debug session ID (e.g. 'dbg-a3f2c8')
+            user_id: Authenticated user's UUID
+            metadata: Client metadata (userAgent, pageUrl, tabId)
+        """
+        if not entries:
+            return True
+
+        try:
+            streams_by_level: Dict[str, List[List[str]]] = {}
+
+            for entry in entries:
+                level = entry.get("level", "log")
+                if level == "log":
+                    level = "info"
+
+                timestamp_ms = entry.get("timestamp", 0)
+                message = entry.get("message", "")
+                timestamp_ns = str(int(timestamp_ms * 1_000_000))
+
+                page_url = metadata.get("pageUrl", "")
+                tab_id = metadata.get("tabId", "")
+                formatted_message = f"[tab={tab_id}] [{page_url}] {message}"
+
+                streams_by_level.setdefault(level, []).append([timestamp_ns, formatted_message])
+
+            user_agent = metadata.get("userAgent", "")[:200]
+            device_type = derive_device_type(user_agent)
+
+            streams = []
+            for level, values in streams_by_level.items():
+                streams.append({
+                    "stream": {
+                        "job": "client-console",
+                        "level": level,
+                        "debugging_id": debugging_id,
+                        "user_id": user_id,
+                        "server_env": self.server_env,
+                        "source": "browser",
+                        "user_agent": user_agent,
+                        "device_type": device_type,
+                    },
+                    "values": values,
+                })
+
+            payload = {"streams": streams}
+            url = f"{self.base_url}/api/{self.org}/loki/api/v1/push"
+            timeout = aiohttp.ClientTimeout(total=10)
+
+            async with aiohttp.ClientSession(timeout=timeout, auth=self._auth()) as session:
+                async with session.post(
+                    url,
+                    json=payload,
+                    headers={"Content-Type": "application/json"},
+                ) as response:
+                    if response.status == 204:
+                        return True
+                    else:
+                        error_text = await response.text()
+                        logger.error(
+                            f"OpenObserve debug-session push failed (status={response.status}): {error_text[:300]}"
+                        )
+                        return False
+
+        except Exception as e:
+            logger.error(f"Error pushing debug session logs to OpenObserve: {e}", exc_info=True)
+            return False
+
     async def push_test_run_summary(self, summary_payload: Dict[str, Any]) -> bool:
         """
         Push one daily test-run summary event into the dedicated test-runs stream.

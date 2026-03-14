@@ -18,6 +18,14 @@ from contextvars import ContextVar
 REQUEST_ID_CTX_KEY = "request_id"
 _request_id_var: ContextVar[str] = ContextVar(REQUEST_ID_CTX_KEY, default="no-request-id")
 
+# ---------------------------------------------------------------------------
+# Debugging ID — set from the X-Debug-Session header when a user has an
+# active debug log sharing session. Injected into log records so backend
+# logs can be correlated with frontend console logs by the same ID.
+# ---------------------------------------------------------------------------
+DEBUGGING_ID_CTX_KEY = "debugging_id"
+_debugging_id_var: ContextVar[str] = ContextVar(DEBUGGING_ID_CTX_KEY, default="")
+
 
 def get_request_id() -> str:
     """Return the current request_id from contextvars."""
@@ -36,13 +44,26 @@ def generate_request_id() -> str:
     return rid
 
 
+def get_debugging_id() -> str:
+    """Return the current debugging_id from contextvars (empty string if not set)."""
+    return _debugging_id_var.get()
+
+
+def set_debugging_id(debugging_id: str) -> None:
+    """Set the current debugging_id in contextvars."""
+    _debugging_id_var.set(debugging_id)
+
+
 # ---------------------------------------------------------------------------
-# Log filter — automatically injects request_id into every log record
-# so JSON logs always contain the field for Loki/Promtail queries.
+# Log filter — automatically injects request_id and debugging_id into every
+# log record so JSON logs always contain these fields for queries.
 # ---------------------------------------------------------------------------
 class RequestIdLogFilter(logging.Filter):
-    """Injects the current request_id from contextvars into every log record."""
+    """Injects the current request_id and debugging_id from contextvars into every log record."""
 
     def filter(self, record: logging.LogRecord) -> bool:
         record.request_id = _request_id_var.get()  # type: ignore[attr-defined]
+        debugging_id = _debugging_id_var.get()
+        if debugging_id:
+            record.debugging_id = debugging_id  # type: ignore[attr-defined]
         return True

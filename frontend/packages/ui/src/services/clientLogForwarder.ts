@@ -1,19 +1,26 @@
 /**
- * Client Log Forwarder — Admin Live Streaming
+ * Client Log Forwarder — Admin Live Streaming & User Debug Sessions
  *
- * Forwards browser console logs in real-time to OpenObserve (via the backend
- * proxy at /v1/admin/client-logs) for authenticated admin users only.
+ * Forwards browser console logs in real-time to OpenObserve via the backend.
  *
- * Non-admin users: this service is never started.
- * Any user (on issue submit): see /v1/settings/issue-logs for the separate
- *   one-shot push path used at issue-report time.
+ * Two modes:
+ * 1. **Admin mode** (original): POST /v1/admin/client-logs — for admin users only,
+ *    started automatically on admin login/session-restore.
+ * 2. **Debug session mode**: POST /v1/settings/debug-logs — for any authenticated
+ *    user with an active debug log sharing session. Started when the user
+ *    activates "Share Debug Logs" in settings. Logs are tagged with a
+ *    debugging_id for support to query via `debug.py logs --debug-id <ID>`.
  *
  * Architecture context: docs/architecture/admin-console-log-forwarding.md
  *
  * Flow:
  *   login/session-restore (admin) -> start() -> hooks logCollector.onNewLog
  *   -> batches every FLUSH_INTERVAL_MS -> POST /v1/admin/client-logs
- *   logout -> stop() -> unhooks listener, drains any remaining buffer
+ *
+ *   user activates debug session -> startDebugSession(id) -> same hook/batch flow
+ *   -> POST /v1/settings/debug-logs (with debugging_id in body)
+ *
+ *   logout / deactivate -> stop() -> unhooks listener, drains buffer
  */
 
 import { logCollector } from "./logCollector";
@@ -92,6 +99,14 @@ class ClientLogForwarderService {
   private flushTimer: ReturnType<typeof setInterval> | null = null;
   private flushInProgress = false;
 
+  /**
+   * When set, the forwarder runs in debug session mode:
+   * - Uses POST /v1/settings/debug-logs instead of /v1/admin/client-logs
+   * - Includes the debugging_id in the request body
+   * - Available to any authenticated user (not just admins)
+   */
+  private debugSessionId: string | null = null;
+
   // Fallback queue if IndexedDB is unavailable in the runtime.
   private volatileQueue: QueuedLogEntry[] = [];
 
@@ -100,16 +115,41 @@ class ClientLogForwarderService {
   };
 
   /**
-   * Start forwarding. Call only for admin users after successful auth.
+   * Start forwarding in admin mode. Call only for admin users after auth.
    * Safe to call multiple times — idempotent.
    */
   start(): void {
     if (this.running) return;
+    this.debugSessionId = null;
     this.running = true;
     logCollector.onNewLog(this.logListener);
     this.flushTimer = setInterval(() => void this.flush(), FLUSH_INTERVAL_MS);
-    // Drain any durable backlog from previous connectivity/auth failures.
     void this.flush();
+  }
+
+  /**
+   * Start forwarding in debug session mode. Call for any authenticated user
+   * who has activated a debug log sharing session.
+   *
+   * @param debuggingId — The debug session ID (e.g. 'dbg-a3f2c8')
+   */
+  startDebugSession(debuggingId: string): void {
+    if (this.running) return;
+    this.debugSessionId = debuggingId;
+    this.running = true;
+    logCollector.onNewLog(this.logListener);
+    this.flushTimer = setInterval(() => void this.flush(), FLUSH_INTERVAL_MS);
+    void this.flush();
+  }
+
+  /** Whether the forwarder is currently running (admin or debug mode). */
+  get isRunning(): boolean {
+    return this.running;
+  }
+
+  /** The active debug session ID, or null if in admin mode or stopped. */
+  get activeDebugSessionId(): string | null {
+    return this.debugSessionId;
   }
 
   /**
@@ -119,6 +159,7 @@ class ClientLogForwarderService {
   async stop(): Promise<void> {
     if (!this.running) return;
     this.running = false;
+    this.debugSessionId = null;
     logCollector.offNewLog(this.logListener);
     if (this.flushTimer !== null) {
       clearInterval(this.flushTimer);
@@ -249,19 +290,24 @@ class ClientLogForwarderService {
           tabId: TAB_ID,
         };
 
+        // Determine endpoint and body based on mode (admin vs debug session)
+        const isDebugSession = this.debugSessionId !== null;
+        const endpoint = isDebugSession
+          ? getApiEndpoint(apiEndpoints.settings.debugLogs)
+          : getApiEndpoint(apiEndpoints.admin.clientLogs);
+        const body = isDebugSession
+          ? { logs: entries, metadata, debugging_id: this.debugSessionId }
+          : { logs: entries, metadata };
+
         let responseOk = false;
         try {
-          const response = await fetch(
-            getApiEndpoint(apiEndpoints.admin.clientLogs),
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ logs: entries, metadata }),
-              credentials: "include",
-              // keepalive: drain succeeds even if page unloads during logout flush
-              keepalive: true,
-            },
-          );
+          const response = await fetch(endpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+            credentials: "include",
+            keepalive: true,
+          });
           responseOk = response.ok;
         } catch {
           responseOk = false;

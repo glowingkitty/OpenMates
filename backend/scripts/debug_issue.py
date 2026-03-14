@@ -768,6 +768,65 @@ def format_list_output(
     return "\n".join(lines)
 
 
+def _relative_time(timestamp_str: Optional[str]) -> str:
+    """Convert an ISO timestamp to a relative time string like '2h ago' or '3d ago'."""
+    if not timestamp_str:
+        return "?"
+    try:
+        dt = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
+        now = datetime.now(dt.tzinfo) if dt.tzinfo else datetime.now()
+        delta = now - dt
+        minutes = int(delta.total_seconds() / 60)
+        if minutes < 1:
+            return "just now"
+        if minutes < 60:
+            return f"{minutes}m ago"
+        hours = minutes // 60
+        if hours < 24:
+            return f"{hours}h ago"
+        days = hours // 24
+        return f"{days}d ago"
+    except Exception:
+        return "?"
+
+
+def format_compact_output(
+    issues: List[Dict[str, Any]],
+) -> str:
+    """Format issues as a compact one-line-per-issue summary for session context.
+
+    Shows truncated issue_id, relative time, title, truncated user_id (no email),
+    and affected URL. Designed to be concise enough to embed in sessions.py start
+    output without overwhelming Claude with irrelevant detail.
+
+    Args:
+        issues: Raw issue dictionaries from Directus (or mapped from API).
+
+    Returns:
+        Compact multi-line string, or empty message if no issues.
+    """
+    if not issues:
+        return "  No recent issues."
+
+    lines = []
+    for issue in issues:
+        issue_id = issue.get("id", "N/A")[:8]
+        title = truncate_string(issue.get("title", "N/A"), 60)
+        user_id = issue.get("reported_by_user_id")
+        user_str = f"user:{user_id[:8]}" if user_id else "user:anon"
+        timestamp = issue.get("created_at") or issue.get("timestamp")
+        rel_time = _relative_time(timestamp)
+
+        # Try to extract URL from encrypted fields (only available locally, not via compact)
+        url = issue.get("chat_or_embed_url", "")
+        url_str = f", {truncate_string(url, 40)}" if url else ""
+
+        lines.append(f"  #{issue_id} ({rel_time}) \"{title}\" — {user_str}{url_str}")
+
+    lines.append("  → Inspect: docker exec api python /app/backend/scripts/debug.py issue <ID>")
+    return "\n".join(lines)
+
+
 def format_detail_output(
     issue_id: str,
     issue: Optional[Dict[str, Any]],
@@ -1220,6 +1279,13 @@ async def main():
         help='List recent issues instead of inspecting a specific one'
     )
     parser.add_argument(
+        '--compact',
+        action='store_true',
+        help='Output a one-line-per-issue summary for embedding in session context. '
+        'Shows truncated issue_id, relative time, title, truncated user_id, and URL. '
+        'Used with --list. No email addresses are shown.'
+    )
+    parser.add_argument(
         '--list-limit',
         type=int,
         default=20,
@@ -1308,7 +1374,9 @@ async def main():
 
                 issues, decrypted_list = map_production_issues_list(api_response)
 
-                if args.json:
+                if args.compact:
+                    print(format_compact_output(issues))
+                elif args.json:
                     censored_decrypted_list = []
                     for d in decrypted_list:
                         censored = dict(d)
@@ -1429,6 +1497,11 @@ async def main():
                     search=args.search,
                     include_processed=args.include_processed
                 )
+
+                if args.compact:
+                    # Compact mode: skip expensive email decryption — only show user_id
+                    print(format_compact_output(issues))
+                    return
 
                 # Decrypt email for each issue (for display in list)
                 decrypted_list = []

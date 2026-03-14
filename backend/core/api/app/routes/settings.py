@@ -5417,3 +5417,238 @@ async def push_issue_logs(
 
     # Always return 200 — log push failures must not break the issue submission UX.
     return {"success": success}
+
+
+# ---------------------------------------------------------------------------
+# User Debug Log Sharing Sessions
+# ---------------------------------------------------------------------------
+# Allows any authenticated user to activate a temporary debug logging session.
+# While active, the frontend forwards console logs to OpenObserve tagged with
+# a short debugging_id. The user shares this ID with support, who can then
+# query both frontend and backend logs via `debug.py logs --debug-id <ID>`.
+#
+# Architecture context: See docs/architecture/admin-console-log-forwarding.md
+# ---------------------------------------------------------------------------
+
+# Duration options in seconds — keys match the frontend picker values
+DEBUG_SESSION_DURATION_MAP: Dict[str, Optional[int]] = {
+    "5m": 300,
+    "1h": 3600,
+    "3d": 259200,
+    "7d": 604800,
+    "none": None,  # No expiry — must be manually revoked
+}
+
+# Redis key prefix for debug sessions (by debugging_id)
+DEBUG_SESSION_KEY_PREFIX = "debug_session:"
+# Redis key prefix for reverse lookup (user_id → debugging_id)
+DEBUG_SESSION_USER_KEY_PREFIX = "debug_session_user:"
+
+# Maximum TTL for "no expiry" sessions to prevent orphaned keys (30 days)
+DEBUG_SESSION_MAX_TTL = 2592000
+
+
+class DebugSessionCreateRequest(BaseModel):
+    """Request body for creating a user debug log sharing session."""
+    duration: str = Field(
+        ...,
+        description="Session duration: '5m', '1h', '3d', '7d', or 'none' (no expiry, max 30 days).",
+    )
+
+
+class DebugSessionResponse(BaseModel):
+    """Response with debug session details."""
+    active: bool = Field(..., description="Whether a debug session is currently active")
+    debugging_id: Optional[str] = Field(None, description="The short debug session ID (e.g. 'dbg-a3f2c8')")
+    expires_at: Optional[str] = Field(None, description="ISO timestamp when the session expires, null if no expiry")
+    duration: Optional[str] = Field(None, description="Selected duration label (e.g. '1h', '7d', 'none')")
+
+
+class DebugLogsRequest(BaseModel):
+    """Request body for pushing debug-session console logs to OpenObserve."""
+    logs: List[Dict[str, Any]] = Field(..., max_length=50, description="Log entries (same format as admin client-logs)")
+    metadata: Optional[Dict[str, str]] = Field(None, description="Client metadata (userAgent, pageUrl, tabId)")
+    debugging_id: str = Field(..., max_length=20, description="Active debug session ID")
+
+
+def _generate_debugging_id() -> str:
+    """Generate a short, shareable debug session ID like 'dbg-a3f2c8'."""
+    import secrets
+    return f"dbg-{secrets.token_hex(3)}"
+
+
+@router.post("/debug-session")
+@limiter.limit("5/minute")
+async def create_debug_session(
+    request: Request,
+    body: DebugSessionCreateRequest,
+    current_user: User = Depends(get_current_user),
+    cache_service: CacheService = Depends(get_cache_service),
+) -> DebugSessionResponse:
+    """Create a new debug log sharing session for the current user.
+
+    Generates a short debugging_id, stores it in Redis with the selected TTL,
+    and returns it to the user. While active, the frontend will forward console
+    logs tagged with this ID to OpenObserve.
+
+    If the user already has an active session, it is replaced.
+    """
+    if body.duration not in DEBUG_SESSION_DURATION_MAP:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid duration. Must be one of: {', '.join(DEBUG_SESSION_DURATION_MAP.keys())}",
+        )
+
+    ttl_seconds = DEBUG_SESSION_DURATION_MAP[body.duration]
+    effective_ttl = ttl_seconds if ttl_seconds is not None else DEBUG_SESSION_MAX_TTL
+
+    debugging_id = _generate_debugging_id()
+
+    # Calculate expiry timestamp
+    if ttl_seconds is not None:
+        expires_at = datetime.now(timezone.utc) + timedelta(seconds=ttl_seconds)
+        expires_at_iso = expires_at.isoformat()
+    else:
+        expires_at_iso = None
+
+    # Store debug session in Redis (keyed by debugging_id)
+    session_data = json.dumps({
+        "user_id": current_user.id,
+        "debugging_id": debugging_id,
+        "duration": body.duration,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "expires_at": expires_at_iso,
+    })
+
+    redis = await cache_service.client
+    # Delete any existing session for this user first
+    old_debug_id = await redis.get(f"{DEBUG_SESSION_USER_KEY_PREFIX}{current_user.id}")
+    if old_debug_id:
+        old_id = old_debug_id.decode("utf-8") if isinstance(old_debug_id, bytes) else old_debug_id
+        await redis.delete(f"{DEBUG_SESSION_KEY_PREFIX}{old_id}")
+
+    # Set the new session keys with TTL
+    await redis.set(
+        f"{DEBUG_SESSION_KEY_PREFIX}{debugging_id}",
+        session_data,
+        ex=effective_ttl,
+    )
+    await redis.set(
+        f"{DEBUG_SESSION_USER_KEY_PREFIX}{current_user.id}",
+        debugging_id,
+        ex=effective_ttl,
+    )
+
+    logger.info(
+        f"Debug session created: {debugging_id} for user {current_user.id}, "
+        f"duration={body.duration}, ttl={effective_ttl}s"
+    )
+
+    return DebugSessionResponse(
+        active=True,
+        debugging_id=debugging_id,
+        expires_at=expires_at_iso,
+        duration=body.duration,
+    )
+
+
+@router.get("/debug-session")
+@limiter.limit("30/minute")
+async def get_debug_session(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    cache_service: CacheService = Depends(get_cache_service),
+) -> DebugSessionResponse:
+    """Check if the current user has an active debug log sharing session."""
+    redis = await cache_service.client
+    debug_id_raw = await redis.get(f"{DEBUG_SESSION_USER_KEY_PREFIX}{current_user.id}")
+
+    if not debug_id_raw:
+        return DebugSessionResponse(active=False)
+
+    debugging_id = debug_id_raw.decode("utf-8") if isinstance(debug_id_raw, bytes) else debug_id_raw
+    session_raw = await redis.get(f"{DEBUG_SESSION_KEY_PREFIX}{debugging_id}")
+
+    if not session_raw:
+        # User key exists but session expired — clean up the stale user key
+        await redis.delete(f"{DEBUG_SESSION_USER_KEY_PREFIX}{current_user.id}")
+        return DebugSessionResponse(active=False)
+
+    session = json.loads(session_raw)
+    return DebugSessionResponse(
+        active=True,
+        debugging_id=debugging_id,
+        expires_at=session.get("expires_at"),
+        duration=session.get("duration"),
+    )
+
+
+@router.delete("/debug-session")
+@limiter.limit("10/minute")
+async def delete_debug_session(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    cache_service: CacheService = Depends(get_cache_service),
+) -> DebugSessionResponse:
+    """Revoke the current user's active debug log sharing session."""
+    redis = await cache_service.client
+    debug_id_raw = await redis.get(f"{DEBUG_SESSION_USER_KEY_PREFIX}{current_user.id}")
+
+    if debug_id_raw:
+        debugging_id = debug_id_raw.decode("utf-8") if isinstance(debug_id_raw, bytes) else debug_id_raw
+        await redis.delete(f"{DEBUG_SESSION_KEY_PREFIX}{debugging_id}")
+        await redis.delete(f"{DEBUG_SESSION_USER_KEY_PREFIX}{current_user.id}")
+        logger.info(f"Debug session revoked: {debugging_id} for user {current_user.id}")
+
+    return DebugSessionResponse(active=False)
+
+
+@router.post("/debug-logs", include_in_schema=False)
+@limiter.limit("1200/minute")
+async def push_debug_logs(
+    request: Request,
+    body: DebugLogsRequest,
+    current_user: User = Depends(get_current_user),
+    cache_service: CacheService = Depends(get_cache_service),
+) -> dict:
+    """Push console logs from a user with an active debug log sharing session.
+
+    Similar to the admin client-logs endpoint, but available to any authenticated
+    user with a valid debugging_id. Logs are tagged in OpenObserve with the
+    debugging_id for later retrieval via `debug.py logs --debug-id <ID>`.
+
+    Rate-limited to 1200/minute (same as admin client-logs) to avoid log loss.
+    """
+    # Validate that the debugging_id is active and belongs to this user
+    redis = await cache_service.client
+    session_raw = await redis.get(f"{DEBUG_SESSION_KEY_PREFIX}{body.debugging_id}")
+
+    if not session_raw:
+        # Session expired or doesn't exist — silently accept (don't break UX)
+        return {"success": False, "reason": "debug_session_expired"}
+
+    session = json.loads(session_raw)
+    if session.get("user_id") != current_user.id:
+        # Debug session belongs to a different user — reject
+        raise HTTPException(status_code=403, detail="Debug session does not belong to this user")
+
+    # Push logs to OpenObserve with debugging_id label
+    from backend.core.api.app.services.openobserve_push_service import openobserve_push_service
+
+    metadata = body.metadata or {}
+    user_agent = metadata.get("userAgent", "")
+    page_url = metadata.get("pageUrl", "")
+    tab_id = metadata.get("tabId", "")
+
+    success = await openobserve_push_service.push_debug_session_logs(
+        entries=body.logs,
+        debugging_id=body.debugging_id,
+        user_id=current_user.id,
+        metadata={
+            "userAgent": user_agent,
+            "pageUrl": page_url,
+            "tabId": tab_id,
+        },
+    )
+
+    return {"success": success}

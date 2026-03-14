@@ -13,23 +13,30 @@ Essential guidelines for AI assistants. Detailed standards are loaded automatica
 **Completion requirement:** `sessions.py end` must always be called when the task is complete (either explicitly with `sessions.py end` or implicitly via `sessions.py deploy --end`). No session may be left open.
 
 ```bash
-# 1. FIRST thing:
-python3 scripts/sessions.py start --task "brief description"
+# 1. FIRST thing — MUST include --mode:
+python3 scripts/sessions.py start --mode <MODE> --task "brief description"
+# → --mode is REQUIRED. Choose one:
+#     feature  — implementing new functionality or refactoring
+#     bug      — debugging an issue (auto-shows health, recent issues, error overview)
+#     docs     — writing or updating documentation
+#     question — answering a question about the codebase (minimal output)
+#
 # → Saves session ID (e.g. "a3f2"). Use this ID in ALL subsequent commands.
 # → Auto-infers tags from task (override: --tags "frontend,debug").
-# → Prints: git status, recent commits, active sessions, relevant instruction docs.
-# → Automatically runs the debug health preflight; do not run a separate startup health command.
+# → Mode controls which context sections are shown (health, issues, project index, etc.)
 # → READ the instruction docs — they contain project-specific rules.
 #
-# IMPORTANT: When you already have an issue/chat/embed ID, pass it DIRECTLY
+# IMPORTANT: When you already have an issue/chat/embed/user ID, pass it DIRECTLY
 # in the start command — do NOT call start first and fetch the data separately.
 # This saves a full round trip by prefetching everything in one command:
 #
-#   python3 scripts/sessions.py start --task "fix issue" --issue <ISSUE_ID>
-#   python3 scripts/sessions.py start --task "debug chat" --chat <CHAT_ID>
-#   python3 scripts/sessions.py start --task "fix embed" --embed <EMBED_ID>
-#   python3 scripts/sessions.py start --task "check errors" --logs          # last 10 min
-#   python3 scripts/sessions.py start --task "..." --logs "since=30,level=error"
+#   python3 scripts/sessions.py start --mode bug --task "fix issue" --issue <ISSUE_ID>
+#   python3 scripts/sessions.py start --mode bug --task "debug chat" --chat <CHAT_ID>
+#   python3 scripts/sessions.py start --mode bug --task "fix embed" --embed <EMBED_ID>
+#   python3 scripts/sessions.py start --mode bug --task "check errors" --logs          # last 10 min
+#   python3 scripts/sessions.py start --mode bug --task "..." --logs "since=30,level=error"
+#   python3 scripts/sessions.py start --mode bug --task "debug user" --user <EMAIL>
+#   python3 scripts/sessions.py start --mode bug --task "check debug logs" --debug-id <DBG_ID>
 #
 # All flags auto-add relevant tags AND inline the fetched data into the session output.
 

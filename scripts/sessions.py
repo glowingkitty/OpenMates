@@ -10,7 +10,7 @@ Architecture context: See docs/claude/concurrent-sessions.md for the full protoc
 
 Usage:
     # Session lifecycle
-    python3 scripts/sessions.py start   --task "fix embed decryption" [--tags frontend,debug]
+    python3 scripts/sessions.py start   --mode bug --task "fix embed decryption" [--tags frontend,debug]
     python3 scripts/sessions.py end     --session a3f2
     python3 scripts/sessions.py status
     python3 scripts/sessions.py update  --session a3f2 --task "new description"
@@ -36,13 +36,18 @@ Usage:
 """
 
 import argparse
+import base64
 import fcntl
 import glob as glob_mod
 import json
 import os
+import html
 import secrets
 import subprocess
 import sys
+import urllib.error
+import urllib.parse
+import urllib.request
 from datetime import datetime, timezone
 import fnmatch
 from pathlib import Path
@@ -62,6 +67,10 @@ STALE_DOC_HOURS = 24
 RECENT_COMMITS_COUNT = 10  # Number of recent git commits to show at session start
 CLAUDE_DOCS_DIR = PROJECT_ROOT / "docs" / "claude"
 ARCH_DOCS_DIR = PROJECT_ROOT / "docs" / "architecture"
+ENV_FILE = PROJECT_ROOT / ".env"
+PLANE_STATE_CACHE_FILE = PROJECT_ROOT / ".claude" / "plane-states.json"
+PLANE_STATE_CACHE_HOURS = 24
+OPENCODE_WEB_BASE_URL_DEFAULT = "https://code.dev.openmates.org"
 
 # ---------------------------------------------------------------------------
 # Tag system — maps task tags to relevant docs/claude/*.md files
@@ -85,6 +94,12 @@ TAG_TO_DOCS: dict[str, list[str]] = {
 
 # Docs deferred until deploy phase (not loaded at session start)
 DEPLOY_PHASE_DOCS = {"git-and-deployment.md"}
+
+# ---------------------------------------------------------------------------
+# Session modes — controls what output sections are shown at start
+# ---------------------------------------------------------------------------
+
+VALID_MODES = ("feature", "bug", "docs", "question")
 
 # Keywords in task descriptions that auto-infer tags
 TAG_KEYWORDS: dict[str, list[str]] = {
@@ -497,6 +512,378 @@ def _run_cmd(cmd: list[str], cwd: str | None = None, timeout: int = 120) -> tupl
     return result.returncode, result.stdout.strip(), result.stderr.strip()
 
 
+def _load_env_file_values() -> dict[str, str]:
+    """Load simple KEY=VALUE pairs from .env (if present)."""
+    values: dict[str, str] = {}
+    if not ENV_FILE.exists():
+        return values
+    try:
+        with open(ENV_FILE) as env_file:
+            for raw_line in env_file:
+                line = raw_line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, value = line.split("=", 1)
+                key = key.strip()
+                value = value.strip().strip('"').strip("'")
+                if key.startswith("export "):
+                    key = key.replace("export ", "", 1).strip()
+                if key:
+                    values[key] = value
+    except OSError:
+        return {}
+    return values
+
+
+def _get_env_value(name: str, env_file_values: dict[str, str] | None = None) -> str | None:
+    """Resolve config value from process env first, then .env file."""
+    value = os.getenv(name)
+    if value and value.strip():
+        return value.strip()
+    if env_file_values and name in env_file_values:
+        fallback = env_file_values[name].strip()
+        if fallback:
+            return fallback
+    return None
+
+
+def _get_plane_config() -> dict | None:
+    """Return Plane integration config from env/.env, or None when incomplete."""
+    env_file_values = _load_env_file_values()
+    base_url = _get_env_value("PLANE_BASE_URL", env_file_values)
+    api_key = _get_env_value("PLANE_API_KEY", env_file_values)
+    workspace_slug = _get_env_value("PLANE_WORKSPACE_SLUG", env_file_values)
+    project_id = _get_env_value("PLANE_PROJECT_ID", env_file_values)
+
+    if not all([base_url, api_key, workspace_slug, project_id]):
+        return None
+    assert base_url is not None
+    assert api_key is not None
+    assert workspace_slug is not None
+    assert project_id is not None
+
+    opencode_web_base_url = (
+        _get_env_value("OPENCODE_WEB_BASE_URL", env_file_values)
+        or OPENCODE_WEB_BASE_URL_DEFAULT
+    )
+
+    return {
+        "base_url": base_url.rstrip("/"),
+        "api_key": api_key,
+        "workspace_slug": workspace_slug,
+        "project_id": project_id,
+        "opencode_web_base_url": opencode_web_base_url.rstrip("/"),
+    }
+
+
+def _plane_api_request(
+    config: dict,
+    method: str,
+    path: str,
+    body: dict | None = None,
+) -> dict | list | None:
+    """Perform a Plane API request and return parsed JSON."""
+    url = f"{config['base_url']}/api/v1{path}"
+    payload = None
+    if body is not None:
+        payload = json.dumps(body).encode("utf-8")
+
+    req = urllib.request.Request(
+        url=url,
+        data=payload,
+        method=method,
+        headers={
+            "Content-Type": "application/json",
+            "X-API-Key": config["api_key"],
+        },
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=20) as response:
+            raw = response.read().decode("utf-8").strip()
+            if not raw:
+                return {}
+            return json.loads(raw)
+    except urllib.error.HTTPError as err:
+        details = err.read().decode("utf-8", errors="ignore").strip()
+        details = details[:300] if details else str(err)
+        print(f"[Plane] HTTP {err.code} on {method} {path}: {details}")
+        return None
+    except (urllib.error.URLError, json.JSONDecodeError, OSError) as err:
+        print(f"[Plane] Request failed on {method} {path}: {err}")
+        return None
+
+
+def _extract_results(payload: dict | list | None) -> list[dict]:
+    """Normalize paginated/non-paginated API payloads to a list of objects."""
+    if isinstance(payload, list):
+        return [item for item in payload if isinstance(item, dict)]
+    if isinstance(payload, dict):
+        for key in ("results", "data"):
+            value = payload.get(key)
+            if isinstance(value, list):
+                return [item for item in value if isinstance(item, dict)]
+    return []
+
+
+def _load_plane_state_cache() -> dict:
+    """Load cached Plane state mappings."""
+    if not PLANE_STATE_CACHE_FILE.exists():
+        return {}
+    try:
+        with open(PLANE_STATE_CACHE_FILE) as cache_file:
+            data = json.load(cache_file)
+            if isinstance(data, dict):
+                return data
+    except (OSError, json.JSONDecodeError):
+        pass
+    return {}
+
+
+def _save_plane_state_cache(cache: dict) -> None:
+    """Persist Plane state mapping cache."""
+    try:
+        PLANE_STATE_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with open(PLANE_STATE_CACHE_FILE, "w") as cache_file:
+            json.dump(cache, cache_file, indent=2)
+            cache_file.write("\n")
+    except OSError:
+        return
+
+
+def _get_plane_state_id(config: dict, group: str) -> str | None:
+    """Resolve a Plane state ID by state group (started/completed)."""
+    cache = _load_plane_state_cache()
+    cache_key = f"{config['workspace_slug']}:{config['project_id']}"
+    cached_entry = cache.get(cache_key, {})
+    if isinstance(cached_entry, dict):
+        fetched_at = cached_entry.get("fetched_at")
+        cached_states = cached_entry.get("states")
+        if isinstance(fetched_at, str) and isinstance(cached_states, dict):
+            try:
+                is_fresh = _hours_since(fetched_at) < PLANE_STATE_CACHE_HOURS
+            except ValueError:
+                is_fresh = False
+            if is_fresh and isinstance(cached_states.get(group), str):
+                return cached_states[group]
+
+    workspace_slug = urllib.parse.quote(config["workspace_slug"], safe="")
+    path = (
+        f"/workspaces/{workspace_slug}/projects/{config['project_id']}/states/"
+    )
+    payload = _plane_api_request(config, "GET", path)
+    states = _extract_results(payload)
+    if not states:
+        return None
+
+    preferred_by_group: dict[str, dict] = {}
+    for state in states:
+        state_group = state.get("group")
+        if not isinstance(state_group, str):
+            continue
+        existing = preferred_by_group.get(state_group)
+        if not existing:
+            preferred_by_group[state_group] = state
+            continue
+        if state.get("default") and not existing.get("default"):
+            preferred_by_group[state_group] = state
+
+    mapped_states: dict[str, str] = {}
+    for state_group, state in preferred_by_group.items():
+        state_id = state.get("id")
+        if isinstance(state_id, str):
+            mapped_states[state_group] = state_id
+
+    cache[cache_key] = {
+        "fetched_at": _now_iso(),
+        "states": mapped_states,
+    }
+    _save_plane_state_cache(cache)
+
+    return mapped_states.get(group)
+
+
+def _get_opencode_session_id_for_project() -> str | None:
+    """Best-effort lookup of the latest OpenCode session ID."""
+    rc, stdout, _ = _run_cmd(
+        ["opencode", "session", "list", "-n", "1", "--format", "json"],
+        timeout=10,
+    )
+    if rc != 0 or not stdout:
+        return None
+
+    try:
+        sessions = json.loads(stdout)
+    except json.JSONDecodeError:
+        return None
+
+    if not isinstance(sessions, list):
+        return None
+    if not sessions:
+        return None
+    session = sessions[0]
+    if not isinstance(session, dict):
+        return None
+    session_id = session.get("id")
+    if isinstance(session_id, str) and session_id:
+        return session_id
+    return None
+
+
+def _build_opencode_session_url(opencode_web_base_url: str, opencode_session_id: str) -> str:
+    """Build the OpenCode web UI URL for a specific session."""
+    encoded_project_path = base64.b64encode(str(PROJECT_ROOT).encode("utf-8")).decode("ascii")
+    return f"{opencode_web_base_url}/{encoded_project_path}/session/{opencode_session_id}"
+
+
+def _build_plane_description_html(
+    sid: str,
+    session: dict,
+    *,
+    commit_hash: str | None = None,
+    completed_at: str | None = None,
+) -> str:
+    """Build rich Plane card description for start/completion updates."""
+    task = html.escape(session.get("task", "(pending)"))
+    started = html.escape(session.get("started", ""))
+    tags = session.get("tags", [])
+    tags_text = html.escape(", ".join(tags)) if tags else "none"
+    opencode_url = session.get("opencode_session_url")
+
+    lines = [
+        "<h3>Session Summary</h3>",
+        (
+            "<p>This task tracks implementation and verification work for "
+            f"<strong>{task}</strong>. "
+            "Progress is maintained in the session lifecycle workflow so status is visible in Plane.</p>"
+        ),
+        (
+            "<p>Use the OpenCode session link to inspect prompts, outputs, and execution details while the "
+            "card is in Doing.</p>"
+        ),
+        f"<p><strong>Session ID:</strong> {html.escape(sid)}</p>",
+        f"<p><strong>Started:</strong> {started}</p>",
+        f"<p><strong>Tags:</strong> {tags_text}</p>",
+    ]
+
+    if isinstance(opencode_url, str) and opencode_url:
+        escaped_url = html.escape(opencode_url, quote=True)
+        lines.append(f"<p><a href=\"{escaped_url}\">OpenCode Session</a></p>")
+
+    if completed_at:
+        lines.append("<h3>Completion</h3>")
+        lines.append(f"<p><strong>Completed:</strong> {html.escape(completed_at)}</p>")
+        lines.append(
+            f"<p><strong>Tracked Files:</strong> {len(session.get('modified_files', []))}</p>"
+        )
+        if commit_hash:
+            commit_url = _get_commit_url(commit_hash)
+            escaped_hash = html.escape(commit_hash)
+            if commit_url:
+                escaped_commit_url = html.escape(commit_url, quote=True)
+                lines.append(
+                    "<p><strong>Commit:</strong> "
+                    f"<a href=\"{escaped_commit_url}\">{escaped_hash}</a></p>"
+                )
+            else:
+                lines.append(f"<p><strong>Commit:</strong> {escaped_hash}</p>")
+
+    return "\n".join(lines)
+
+
+def _create_plane_work_item_for_session(sid: str, session: dict) -> str | None:
+    """Create a Plane work item in Doing/started state for this session."""
+    config = _get_plane_config()
+    if not config:
+        return None
+
+    started_state_id = _get_plane_state_id(config, "started")
+    if not started_state_id:
+        print("[Plane] Could not resolve a 'started' state for this project.")
+        return None
+
+    title = f"[{sid}] {session.get('task', '(pending)')}"
+    description_html = _build_plane_description_html(sid, session)
+    workspace_slug = urllib.parse.quote(config["workspace_slug"], safe="")
+    path = f"/workspaces/{workspace_slug}/projects/{config['project_id']}/work-items/"
+    payload = {
+        "name": title,
+        "description_html": description_html,
+        "state": started_state_id,
+    }
+
+    response = _plane_api_request(config, "POST", path, payload)
+    if not isinstance(response, dict):
+        return None
+
+    work_item_id = response.get("id")
+    if isinstance(work_item_id, str):
+        return work_item_id
+    return None
+
+
+def _mark_plane_work_item_done(session: dict, sid: str, commit_hash: str | None = None) -> None:
+    """Move a Plane work item to completed and attach final summary metadata."""
+    work_item_id = session.get("plane_work_item_id")
+    if not isinstance(work_item_id, str) or not work_item_id:
+        return
+
+    config = _get_plane_config()
+    if not config:
+        return
+
+    completed_state_id = _get_plane_state_id(config, "completed")
+    if not completed_state_id:
+        print("[Plane] Could not resolve a 'completed' state for this project.")
+        return
+
+    completed_at = _now_iso()
+    description_html = _build_plane_description_html(
+        sid,
+        session,
+        commit_hash=commit_hash,
+        completed_at=completed_at,
+    )
+
+    workspace_slug = urllib.parse.quote(config["workspace_slug"], safe="")
+    path = (
+        f"/workspaces/{workspace_slug}/projects/{config['project_id']}/work-items/"
+        f"{work_item_id}/"
+    )
+    payload = {
+        "state": completed_state_id,
+        "description_html": description_html,
+    }
+    response = _plane_api_request(config, "PATCH", path, payload)
+    if response is not None:
+        print(f"[Plane] Work item {work_item_id} moved to Done.")
+
+
+def _get_commit_url(commit_hash: str) -> str | None:
+    """Build a GitHub commit URL from remote origin URL and commit hash."""
+    rc, remote_url, _ = _run_cmd(["git", "config", "--get", "remote.origin.url"])
+    if rc != 0 or not remote_url:
+        return None
+
+    repository = remote_url.strip()
+    if repository.startswith("git@github.com:"):
+        repository = repository.replace("git@github.com:", "", 1)
+    elif repository.startswith("https://github.com/"):
+        repository = repository.replace("https://github.com/", "", 1)
+    elif repository.startswith("http://github.com/"):
+        repository = repository.replace("http://github.com/", "", 1)
+    else:
+        return None
+
+    if repository.endswith(".git"):
+        repository = repository[:-4]
+
+    repository = repository.strip("/")
+    if not repository:
+        return None
+    return f"https://github.com/{repository}/commit/{commit_hash}"
+
+
 
 def _get_dirty_files() -> set[str]:
     """Parse `git status --porcelain` and return set of dirty file paths.
@@ -700,6 +1087,87 @@ def _prefetch_logs(opts_str: str) -> str:
     return stdout.strip()
 
 
+def _prefetch_health_check() -> str:
+    """Run the debug health check and return output for session start context."""
+    cmd = [
+        "docker", "exec", "api",
+        "python", "/app/backend/scripts/debug.py",
+        "health",
+    ]
+    rc, stdout, stderr = _run_cmd(cmd, timeout=45)
+    if rc != 0 or not stdout.strip():
+        err = (stderr or stdout or "no output").strip()[:300]
+        return f"[!] Could not run automatic debug health check: {err}\n    (Is the api container running?)"
+    return stdout.strip()
+
+
+def _prefetch_health_check_compact() -> str:
+    """Run a compact health check — returns a one-liner pass/fail summary."""
+    cmd = [
+        "docker", "exec", "api",
+        "python", "/app/backend/scripts/debug.py",
+        "health", "--compact",
+    ]
+    rc, stdout, stderr = _run_cmd(cmd, timeout=30)
+    if rc != 0 or not stdout.strip():
+        return "Health: UNKNOWN (could not reach api container)"
+    return stdout.strip()
+
+
+def _prefetch_recent_issues(limit: int = 2) -> str:
+    """Fetch the most recent user-reported issues in compact format."""
+    cmd = [
+        "docker", "exec", "api",
+        "python", "/app/backend/scripts/debug.py",
+        "issue", "--list", "--compact", "--list-limit", str(limit),
+    ]
+    rc, stdout, stderr = _run_cmd(cmd, timeout=30)
+    if rc != 0 or not stdout.strip():
+        return "  (could not fetch recent issues)"
+    return stdout.strip()
+
+
+def _prefetch_error_overview(since_minutes: int = 30) -> str:
+    """Fetch a compact error/warning overview from OpenObserve + Redis fingerprints."""
+    cmd = [
+        "docker", "exec", "api",
+        "python", "/app/backend/scripts/debug.py",
+        "errors", "--compact", "--top", "5", "--since", str(since_minutes),
+    ]
+    rc, stdout, stderr = _run_cmd(cmd, timeout=30)
+    if rc != 0 or not stdout.strip():
+        return "  (could not fetch error overview)"
+    return stdout.strip()
+
+
+def _prefetch_user_context(email: str) -> str:
+    """Fetch user data with session context (10 chats, 20 embeds)."""
+    cmd = [
+        "docker", "exec", "api",
+        "python", "/app/backend/scripts/debug.py",
+        "user", email, "--session-context",
+    ]
+    rc, stdout, stderr = _run_cmd(cmd, timeout=45)
+    if rc != 0 or not stdout.strip():
+        err = (stderr or stdout or "no output").strip()[:300]
+        return f"[!] Could not fetch user data for {email}: {err}"
+    return stdout.strip()
+
+
+def _prefetch_debug_session_logs(debug_id: str) -> str:
+    """Fetch logs tagged with a user debug session ID."""
+    cmd = [
+        "docker", "exec", "api",
+        "python", "/app/backend/scripts/debug.py",
+        "logs", "--debug-id", debug_id,
+    ]
+    rc, stdout, stderr = _run_cmd(cmd, timeout=45)
+    if rc != 0 or not stdout.strip():
+        err = (stderr or stdout or "no output").strip()[:300]
+        return f"[!] Could not fetch logs for debug session {debug_id}: {err}"
+    return stdout.strip()
+
+
 def cmd_start(args: argparse.Namespace) -> None:
     """Start a new session with tag-based doc preloading and git context."""
     data = _load_sessions()
@@ -740,61 +1208,121 @@ def cmd_start(args: argparse.Namespace) -> None:
         extra_tags += ["debug", "embed"]
     if getattr(args, "logs", None) is not None:
         extra_tags += ["debug", "logging"]
+    if getattr(args, "user", None):
+        extra_tags += ["debug"]
+    if getattr(args, "debug_id", None):
+        extra_tags += ["debug"]
     for et in extra_tags:
         if et not in tags:
             tags.append(et)
 
+    mode = args.mode
+
     # Register session
     data["sessions"][sid] = {
         "task": args.task or "(pending)",
+        "mode": mode,
         "tags": tags,
         "started": _now_iso(),
         "last_active": _now_iso(),
         "modified_files": [],
         "writing": None,
+        "opencode_session_id": None,
+        "opencode_session_url": None,
+        "plane_work_item_id": None,
     }
+
+    # Attach OpenCode session metadata (best effort) for Plane card linking
+    plane_config = _get_plane_config()
+    opencode_session_id = _get_opencode_session_id_for_project()
+    opencode_web_base_url = (
+        plane_config["opencode_web_base_url"]
+        if plane_config
+        else OPENCODE_WEB_BASE_URL_DEFAULT
+    )
+    if opencode_session_id:
+        opencode_session_url = _build_opencode_session_url(
+            opencode_web_base_url,
+            opencode_session_id,
+        )
+        data["sessions"][sid]["opencode_session_id"] = opencode_session_id
+        data["sessions"][sid]["opencode_session_url"] = opencode_session_url
+
     _save_sessions(data)
 
-    # --- Output context for Claude ---
+    # Create Plane work item in Doing/started state (best effort, never blocking)
+    work_item_id = _create_plane_work_item_for_session(sid, data["sessions"][sid])
+    if work_item_id:
+        data["sessions"][sid]["plane_work_item_id"] = work_item_id
+        _save_sessions(data)
+
+    # --- Output context for Claude (mode-aware) ---
+    # Mode determines which sections are shown and at what verbosity.
+    # Modes: feature, bug, docs, question
+
     print("== SESSION STARTED ==")
     print(f"Session ID: {sid}")
+    print(f"Mode: {mode}")
     print(f"Started: {_now_iso()}")
     if args.task:
         print(f"Task: {args.task}")
     if tags:
         print(f"Tags: {', '.join(tags)}")
+    if data["sessions"][sid].get("opencode_session_url"):
+        print(f"OpenCode URL: {data['sessions'][sid]['opencode_session_url']}")
+    if work_item_id:
+        print(f"Plane Work Item: {work_item_id}")
     print()
 
-    # Git status
+    # ── Git status ─────────────────────────────────────────────────────────
+    # feature/bug: full | docs: branch only | question: branch only
     git_status = _get_git_status_summary()
-    print("== GIT STATUS ==")
-    branch_info = git_status["branch"]
-    if git_status["tracking"]:
-        branch_info += f" ({git_status['tracking']})"
-    print(f"  Branch: {branch_info}")
-    uncommitted = git_status.get("uncommitted", [])
-    if uncommitted:
-        print(f"  Uncommitted files ({len(uncommitted)}):")
-        for uf in uncommitted[:20]:
-            print(f"    {uf}")
-        if len(uncommitted) > 20:
-            print(f"    ... and {len(uncommitted) - 20} more")
+    if mode in ("feature", "bug"):
+        print("== GIT STATUS ==")
+        branch_info = git_status["branch"]
+        if git_status["tracking"]:
+            branch_info += f" ({git_status['tracking']})"
+        print(f"  Branch: {branch_info}")
+        uncommitted = git_status.get("uncommitted", [])
+        if uncommitted:
+            print(f"  Uncommitted files ({len(uncommitted)}):")
+            for uf in uncommitted[:20]:
+                print(f"    {uf}")
+            if len(uncommitted) > 20:
+                print(f"    ... and {len(uncommitted) - 20} more")
+        else:
+            print("  Working tree: clean")
+        print()
     else:
-        print("  Working tree: clean")
-    print()
-
-    # Recent commits
-    recent_commits = _get_recent_commits()
-    if recent_commits:
-        print(f"== RECENT COMMITS ({len(recent_commits)}) ==")
-        for commit_line in recent_commits:
-            print(f"  {commit_line}")
+        print(f"Branch: {git_status['branch']}")
         print()
 
-    # Prefetched context — issue / chat / embed / logs
-    # Collected now; printed as a single block so Claude sees it immediately.
+    # ── Recent commits ─────────────────────────────────────────────────────
+    # feature: 10 | bug/docs: 5 | question: skip
+    if mode != "question":
+        commit_limit = RECENT_COMMITS_COUNT if mode == "feature" else 5
+        recent_commits = _get_recent_commits(count=commit_limit)
+        if recent_commits:
+            print(f"== RECENT COMMITS ({len(recent_commits)}) ==")
+            for commit_line in recent_commits:
+                print(f"  {commit_line}")
+            print()
+
+    # ── Health check ───────────────────────────────────────────────────────
+    # bug: full health check | feature: compact one-liner | docs/question: skip
     prefetch_items: list[tuple[str, str]] = []
 
+    if mode == "bug":
+        prefetch_items.append(("debug health (auto)", _prefetch_health_check()))
+    elif mode == "feature":
+        prefetch_items.append(("health (compact)", _prefetch_health_check_compact()))
+
+    # ── Bug-mode only: recent issues + error overview ──────────────────────
+    if mode == "bug":
+        prefetch_items.append(("recent user issues", _prefetch_recent_issues(limit=2)))
+        prefetch_items.append(("error overview (30m)", _prefetch_error_overview(since_minutes=30)))
+
+    # ── Explicit prefetch flags (all modes — user explicitly requested) ────
     issue_id = getattr(args, "issue", None)
     if issue_id:
         prefetch_items.append((f"issue {issue_id}", _prefetch_debug_context("issue", issue_id, "issue")))
@@ -811,6 +1339,14 @@ def cmd_start(args: argparse.Namespace) -> None:
     if logs_opts is not None:
         prefetch_items.append((f"logs ({logs_opts or 'since=10'})", _prefetch_logs(logs_opts or "since=10")))
 
+    user_email = getattr(args, "user", None)
+    if user_email:
+        prefetch_items.append((f"user {user_email}", _prefetch_user_context(user_email)))
+
+    debug_id = getattr(args, "debug_id", None)
+    if debug_id:
+        prefetch_items.append((f"debug session {debug_id}", _prefetch_debug_session_logs(debug_id)))
+
     if prefetch_items:
         print("== PREFETCHED CONTEXT ==")
         for label, content in prefetch_items:
@@ -820,7 +1356,7 @@ def cmd_start(args: argparse.Namespace) -> None:
         print("== END PREFETCHED CONTEXT ==")
         print()
 
-    # Active sessions — only show sessions with tracked files or active in last 2h
+    # ── Active sessions / locks (all modes) ────────────────────────────────
     other_sessions = {}
     hidden_count = 0
     for k, v in data.get("sessions", {}).items():
@@ -855,7 +1391,6 @@ def cmd_start(args: argparse.Namespace) -> None:
         print(f"[{hidden_count} idle sessions hidden (no tracked files, inactive >2h)]")
         print()
 
-    # Locks
     locks = data.get("locks", {})
     active_locks = [
         lt for lt, lv in locks.items() if lv.get("status") == "IN_PROGRESS"
@@ -870,86 +1405,101 @@ def cmd_start(args: argparse.Namespace) -> None:
             )
         print()
 
-    # Stale docs — filtered by session tags
-    stale = _check_stale_docs()
-    if stale and tags:
-        relevant_stale = []
-        for s in stale:
-            doc_stem = s["doc"].replace(".md", "")
-            desc = ARCH_DOC_DESCRIPTIONS.get(doc_stem, "").lower()
-            tag_related = any(tag in desc or tag in doc_stem for tag in tags)
-            if tag_related:
-                relevant_stale.append(s)
-        stale = relevant_stale
+    # ── Stale architecture docs ────────────────────────────────────────────
+    # feature/docs: yes (tag-filtered) | bug/question: skip
+    if mode in ("feature", "docs"):
+        stale = _check_stale_docs()
+        if stale and tags:
+            relevant_stale = []
+            for s in stale:
+                doc_stem = s["doc"].replace(".md", "")
+                desc = ARCH_DOC_DESCRIPTIONS.get(doc_stem, "").lower()
+                tag_related = any(tag in desc or tag in doc_stem for tag in tags)
+                if tag_related:
+                    relevant_stale.append(s)
+            stale = relevant_stale
 
-    if stale:
-        print(f"== STALE ARCHITECTURE DOCS ({len(stale)}) ==")
-        for s in stale:
-            print(f"  ! {s['doc']} (doc: {s['doc_modified']}, code: {s['code_modified']})")
-        print()
+        if stale:
+            print(f"== STALE ARCHITECTURE DOCS ({len(stale)}) ==")
+            for s in stale:
+                print(f"  ! {s['doc']} (doc: {s['doc_modified']}, code: {s['code_modified']})")
+            print()
 
-    # Project index — filtered by tags
-    index = _load_or_generate_index()
-    print("== PROJECT INDEX ==")
-    show_backend = not tags or any(t in tags for t in ("backend", "debug", "api", "security", "test"))
-    show_frontend = not tags or any(t in tags for t in ("frontend", "embed", "figma", "i18n", "test"))
+    # ── Project index ──────────────────────────────────────────────────────
+    # feature/docs: full (tag-filtered) | bug: minimal | question: tag-filtered
+    if mode != "question":
+        index = _load_or_generate_index()
+        if mode == "bug":
+            # Bug mode: minimal — just list counts
+            apps = index.get("backend_apps", [])
+            routes = index.get("api_routes", [])
+            comps = index.get("frontend_components", [])
+            print(f"Project: {len(apps)} backend apps, {len(routes)} API routes, {len(comps)} frontend component groups")
+            print()
+        else:
+            print("== PROJECT INDEX ==")
+            show_backend = not tags or any(t in tags for t in ("backend", "debug", "api", "security", "test"))
+            show_frontend = not tags or any(t in tags for t in ("frontend", "embed", "figma", "i18n", "test"))
 
-    if show_backend:
-        apps = index.get("backend_apps", [])
-        if apps:
-            print(f"Backend apps ({len(apps)}): {', '.join(apps)}")
-        routes = index.get("api_routes", [])
-        if routes:
-            print(f"API routes ({len(routes)}): {', '.join(routes)}")
-        providers = index.get("shared_providers", [])
-        if providers:
-            print(f"Shared providers: {', '.join(providers)}")
+            if show_backend:
+                apps = index.get("backend_apps", [])
+                if apps:
+                    print(f"Backend apps ({len(apps)}): {', '.join(apps)}")
+                routes = index.get("api_routes", [])
+                if routes:
+                    print(f"API routes ({len(routes)}): {', '.join(routes)}")
+                providers = index.get("shared_providers", [])
+                if providers:
+                    print(f"Shared providers: {', '.join(providers)}")
 
-    if show_frontend:
-        comps = index.get("frontend_components", [])
-        if comps:
-            print(f"Frontend components: {', '.join(comps)}")
-    print()
+            if show_frontend:
+                comps = index.get("frontend_components", [])
+                if comps:
+                    print(f"Frontend components: {', '.join(comps)}")
+            print()
 
-    # Architecture doc index — filtered by tags
-    arch_index = _get_arch_doc_index()
-    if arch_index:
-        if tags:
-            filter_keywords = set()
-            for tag in tags:
-                filter_keywords.update(TAG_TO_ARCH_KEYWORDS.get(tag, []))
-                filter_keywords.add(tag)
+    # ── Architecture doc index ─────────────────────────────────────────────
+    # feature: tag-filtered | bug: relevant only | docs: all | question: relevant only
+    if mode != "question" or tags:
+        arch_index = _get_arch_doc_index()
+        if arch_index:
+            if tags:
+                filter_keywords = set()
+                for tag in tags:
+                    filter_keywords.update(TAG_TO_ARCH_KEYWORDS.get(tag, []))
+                    filter_keywords.add(tag)
 
-            relevant_docs = []
-            other_docs = []
-            for entry in arch_index:
-                desc = (entry.get("description", "") or "").lower()
-                name = entry["name"].lower()
-                is_relevant = any(kw in name or kw in desc for kw in filter_keywords)
-                if is_relevant:
-                    relevant_docs.append(entry)
-                else:
-                    other_docs.append(entry)
-            if relevant_docs:
-                print("== ARCHITECTURE DOCS (relevant to tags, load with: sessions.py context --doc <name>) ==")
-                for entry in relevant_docs:
-                    desc_str = f" \u2014 {entry['description']}" if entry["description"] else ""
-                    print(f"  {entry['name']}{desc_str}")
-                if other_docs:
-                    print(f"  [{len(other_docs)} more docs available]")
-                print()
-            else:
+                relevant_docs = []
+                other_docs = []
+                for entry in arch_index:
+                    desc = (entry.get("description", "") or "").lower()
+                    name = entry["name"].lower()
+                    is_relevant = any(kw in name or kw in desc for kw in filter_keywords)
+                    if is_relevant:
+                        relevant_docs.append(entry)
+                    else:
+                        other_docs.append(entry)
+                if relevant_docs:
+                    print("== ARCHITECTURE DOCS (relevant to tags, load with: sessions.py context --doc <name>) ==")
+                    for entry in relevant_docs:
+                        desc_str = f" \u2014 {entry['description']}" if entry["description"] else ""
+                        print(f"  {entry['name']}{desc_str}")
+                    if other_docs:
+                        print(f"  [{len(other_docs)} more docs available]")
+                    print()
+                elif mode == "docs":
+                    # docs mode with tags but no matches — show all
+                    print("== ARCHITECTURE DOCS (load with: sessions.py context --doc <name>) ==")
+                    for entry in arch_index:
+                        desc_str = f" \u2014 {entry['description']}" if entry["description"] else ""
+                        print(f"  {entry['name']}{desc_str}")
+                    print()
+            elif mode == "docs":
                 print("== ARCHITECTURE DOCS (load with: sessions.py context --doc <name>) ==")
                 for entry in arch_index:
                     desc_str = f" \u2014 {entry['description']}" if entry["description"] else ""
                     print(f"  {entry['name']}{desc_str}")
                 print()
-        else:
-            print("== ARCHITECTURE DOCS (load with: sessions.py context --doc <name>) ==")
-            for entry in arch_index:
-                desc_str = f" \u2014 {entry['description']}" if entry["description"] else ""
-                print(f"  {entry['name']}{desc_str}")
-            print()
 
     # Cleanup report
     if pruned:
@@ -957,8 +1507,13 @@ def cmd_start(args: argparse.Namespace) -> None:
     if cleared_locks:
         print(f"[Cleared {len(cleared_locks)} stale locks: {', '.join(cleared_locks)}]")
 
-    # Preload instruction docs based on tags
+    # ── Instruction docs ───────────────────────────────────────────────────
+    # feature/bug/docs: full tag-based loading | question: relevant only (minimal)
     docs_to_load = _resolve_docs_for_tags(tags, include_deploy=False)
+    if mode == "question":
+        # Question mode: only load docs directly relevant to tags, no full dumps
+        docs_to_load = docs_to_load[:2]  # At most 2 docs for question mode
+
     if docs_to_load:
         print()
         print(f"== INSTRUCTION DOCS ({len(docs_to_load)} loaded based on tags: {', '.join(tags)}) ==")
@@ -979,20 +1534,20 @@ def cmd_start(args: argparse.Namespace) -> None:
             print(f"\n[Deferred to deploy phase: {', '.join(deferred)}]")
         print()
 
-    # Task completion checklist — always shown so it's in the initial context window.
-    # git-and-deployment.md is deferred, but this compact reminder ensures Claude
-    # never forgets the deploy step even without running deploy-docs.
-    print("== TASK COMPLETION CHECKLIST ==")
-    print("When your task is done, run these IN ORDER before writing the Task Summary:")
-    print("  1. python3 scripts/sessions.py deploy-docs")
-    print(f"  2. python3 scripts/sessions.py prepare-deploy --session {sid}")
-    print(f"  3. python3 scripts/sessions.py deploy --session {sid} --title \"type: description\" --message \"body\" --end")
-    print("     (--end closes the session automatically after a successful push)")
-    print("  4. Write Task Summary to user — 'Commit:' field MUST contain the real SHA from step 3")
-    print("  5. Wait for user confirmation")
-    print("NOTE: Pushing to dev via sessions.py deploy is NOT a destructive action.")
-    print("      Do NOT wait for explicit permission — deploy is the expected default.")
-    print()
+    # ── Task completion checklist ──────────────────────────────────────────
+    # feature/bug/docs: yes | question: skip
+    if mode != "question":
+        print("== TASK COMPLETION CHECKLIST ==")
+        print("When your task is done, run these IN ORDER before writing the Task Summary:")
+        print("  1. python3 scripts/sessions.py deploy-docs")
+        print(f"  2. python3 scripts/sessions.py prepare-deploy --session {sid}")
+        print(f"  3. python3 scripts/sessions.py deploy --session {sid} --title \"type: description\" --message \"body\" --end")
+        print("     (--end closes the session automatically after a successful push)")
+        print("  4. Write Task Summary to user — 'Commit:' field MUST contain the real SHA from step 3")
+        print("  5. Wait for user confirmation")
+        print("NOTE: Pushing to dev via sessions.py deploy is NOT a destructive action.")
+        print("      Do NOT wait for explicit permission — deploy is the expected default.")
+        print()
 
     print("== END SESSION CONTEXT ==")
 
@@ -1048,6 +1603,9 @@ def cmd_end(args: argparse.Namespace) -> None:
             for doc in related:
                 print(f"  - docs/architecture/{doc}")
             print()
+
+    # Mark linked Plane work item as Done when session is intentionally ended.
+    _mark_plane_work_item_done(session, sid)
 
     # Remove session
     del data["sessions"][sid]
@@ -1609,10 +2167,13 @@ def cmd_deploy(args: argparse.Namespace) -> None:
         print(f"git commit failed: {stderr}", file=sys.stderr)
         sys.exit(1)
 
-    # Extract commit hash
+    # Extract commit hash (short for display, full for URLs)
     rc, commit_hash, _ = _run_cmd(
         ["git", "rev-parse", "--short", "HEAD"]
     )
+    rc, commit_hash_full, _ = _run_cmd(["git", "rev-parse", "HEAD"])
+    if rc != 0 or not commit_hash_full:
+        commit_hash_full = commit_hash
 
     # 4. Git push
     print("Pushing to origin dev...")
@@ -1640,6 +2201,7 @@ def cmd_deploy(args: argparse.Namespace) -> None:
 
     # Auto-end session if --end flag is set
     if getattr(args, "end_session", False):
+        _mark_plane_work_item_done(session, sid, commit_hash=commit_hash_full)
         del data["sessions"][sid]
         _save_sessions(data)
         print(f"\nSession {sid} ended.")
@@ -1849,6 +2411,14 @@ def main() -> None:
 
     # start
     p_start = sub.add_parser("start", help="Start a new session")
+    p_start.add_argument(
+        "--mode", "-m",
+        required=True,
+        choices=VALID_MODES,
+        help="Session mode: 'feature' (new functionality), 'bug' (debugging), "
+        "'docs' (documentation), 'question' (codebase questions). "
+        "Controls which context sections are shown.",
+    )
     p_start.add_argument("--task", "-t", help="Task description")
     p_start.add_argument(
         "--tags",
@@ -1883,6 +2453,18 @@ def main() -> None:
         help="Pre-fetch OpenObserve logs at session start. "
         "Optional value: comma-separated options like 'since=10,level=error' "
         "(default: since=10). Auto-adds 'debug,logging' tags.",
+    )
+    p_start.add_argument(
+        "--user",
+        metavar="EMAIL",
+        help="Pre-fetch user data with session context (10 chats, 20 embeds). "
+        "Auto-adds 'debug' tag.",
+    )
+    p_start.add_argument(
+        "--debug-id",
+        metavar="DEBUG_ID",
+        help="Pre-fetch logs for a user debug session ID (e.g., 'dbg-a3f2c8'). "
+        "Auto-adds 'debug' tag.",
     )
 
     # end

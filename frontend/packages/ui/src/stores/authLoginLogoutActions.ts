@@ -319,6 +319,24 @@ export async function login(
         // forwarder from starting — a DB error is non-fatal for log forwarding.
         if (data.user?.is_admin) {
           clientLogForwarder.start();
+        } else {
+          // Non-admin: resume debug log sharing session if one was active
+          try {
+            const debugSession = localStorage.getItem("debug_session");
+            if (debugSession) {
+              const parsed = JSON.parse(debugSession);
+              const expiresAt = parsed.expires_at
+                ? new Date(parsed.expires_at).getTime()
+                : Infinity;
+              if (expiresAt > Date.now() && parsed.debugging_id) {
+                clientLogForwarder.startDebugSession(parsed.debugging_id);
+              } else {
+                localStorage.removeItem("debug_session");
+              }
+            }
+          } catch {
+            // Non-critical — debug session resume is best-effort
+          }
         }
 
         return {
