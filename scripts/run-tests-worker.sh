@@ -95,11 +95,13 @@ print(json.dumps(entry))
     )
   fi
 
+  spec_path="tests/$spec"
+
   spec_output="$(
     cd "$PROJECT_ROOT" && \
     docker compose --env-file .env -f docker-compose.playwright.yml run --rm \
       -e "PLAYWRIGHT_WORKER_SLOT=$SLOT" \
-      -e "PLAYWRIGHT_TEST_FILE=$spec" \
+      -e "PLAYWRIGHT_TEST_FILE=$spec_path" \
       -e SIGNUP_TEST_EMAIL_DOMAINS \
       -e MAILOSAUR_API_KEY \
       -e MAILOSAUR_SERVER_ID \

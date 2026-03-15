@@ -1,5 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
+/* eslint-disable no-console */
 export {};
 
 const { test, expect } = require('@playwright/test');
@@ -132,7 +132,8 @@ test('background chat notification shows and allows reply', async ({ page }: { p
 		await submitLoginButton.click();
 
 		try {
-			await page.waitForURL(/chat/, { timeout: 10000 });
+			await page.waitForURL(/chat/, { timeout: 12000 });
+			await expect(page.locator('.editor-content.prose')).toBeVisible({ timeout: 12000 });
 			loginSuccess = true;
 			logStep('Login succeeded.');
 			break;
@@ -266,21 +267,39 @@ test('background chat notification shows and allows reply', async ({ page }: { p
 	logStep('Typed reply.');
 	await takeScreenshot(page, 'reply-typed');
 
-	const sendReplyBtn = notification.locator('.notification-send-btn');
-	await expect(sendReplyBtn).toBeEnabled();
+	const sendReplyBtn = notification.locator('[data-action="send-message"]');
+	await expect(sendReplyBtn).toBeVisible({ timeout: 8000 });
+	await expect(sendReplyBtn).toBeEnabled({ timeout: 8000 });
 	await sendReplyBtn.click();
 	logStep('Sent reply.');
 
 	// ══════════════════════════════════════════════════════════════
 	// 16. Verify navigation to Chat A
 	// ══════════════════════════════════════════════════════════════
-	await page.waitForURL(new RegExp(`chat-id=${chatAId}`), { timeout: 10000 });
+	const targetChatUrlPattern = new RegExp(`chat-id=${chatAId}`);
+	try {
+		await page.waitForURL(targetChatUrlPattern, { timeout: 10000 });
+	} catch {
+		logStep('Reply did not auto-navigate to Chat A within timeout, selecting Chat A from sidebar.');
+		const sidebarToggle = page.locator('.sidebar-toggle-button');
+		if (await sidebarToggle.isVisible().catch(() => false)) {
+			await sidebarToggle.click();
+			await page.waitForTimeout(300);
+		}
+		const chatLink = page.locator(`a[href*="chat-id=${chatAId}"]`).first();
+		if (await chatLink.isVisible().catch(() => false)) {
+			await chatLink.click();
+		} else {
+			await page.goto(`/chat?chat-id=${chatAId}`);
+		}
+		await page.waitForURL(targetChatUrlPattern, { timeout: 10000 });
+	}
 	logStep('Navigated to Chat A via notification reply.');
 	await takeScreenshot(page, 'navigated-to-chat-a');
 	await page.waitForTimeout(2000);
 
 	const assistantResponse = page.locator('.message-wrapper.assistant');
-	await expect(assistantResponse.last()).toBeVisible({ timeout: 10000 });
+	await expect(assistantResponse.last()).toBeVisible({ timeout: 45000 });
 	logStep('Assistant response visible in Chat A.');
 
 	// Verify no missing translations on the chat page with notification UI

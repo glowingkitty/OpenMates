@@ -344,16 +344,25 @@ class BaseSkill:
         _log = logger or logging.getLogger(__name__)
         log_func = _log.debug
         
-        # Auto-generate 'id' ONLY if not provided
-        # This respects user-provided IDs from REST API callers while still
-        # auto-generating for requests that don't have IDs
-        # Note: For LLM tool calls, main_processor.py sets IDs before calling skills,
-        # so skills will see those as "provided" and use them consistently
+        # Auto-generate 'id' only for single-request payloads.
+        # For multi-request payloads, explicit IDs are required so callers can
+        # deterministically match results to original requests.
         if "id" not in req:
-            # Use request_index + 1 as the auto-generated ID (1-indexed for readability)
+            if total_requests > 1:
+                return (
+                    None,
+                    (
+                        f"Request {request_index + 1} in multi-request payload is missing required 'id' field. "
+                        "Each request must include a unique 'id'."
+                    ),
+                )
+
+            # Single-request payload: use request_index + 1 (1-indexed for readability).
             auto_id = request_index + 1
             req["id"] = auto_id
-            log_func(f"Auto-generated 'id'={auto_id} for request {request_index + 1} of {total_requests}")
+            log_func(
+                f"Auto-generated 'id'={auto_id} for request {request_index + 1} of {total_requests}"
+            )
         
         request_id = req.get("id")
         

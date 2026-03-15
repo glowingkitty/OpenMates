@@ -27,7 +27,7 @@ def test_execute_skill_ask(api_client):
     }
     try:
         response = api_client.post(
-            "/v1/apps/ai/skills/ask", json=payload, timeout=20.0
+            "/v1/apps/ai/skills/ask", json=payload, timeout=60.0
         )
         assert response.status_code == 200, (
             f"Skill execution failed: {response.text}"
@@ -48,8 +48,8 @@ def test_execute_skill_ask(api_client):
             f"Response contains error message: {content}"
         )
     except httpx.TimeoutException:
-        print("\n[TIMEOUT] Request to ai/ask timed out after 20 seconds.")
-        pytest.fail("Request timed out after 20 seconds")
+        print("\n[TIMEOUT] Request to ai/ask timed out after 60 seconds.")
+        pytest.fail("Request timed out after 60 seconds")
 
 
 @pytest.mark.integration

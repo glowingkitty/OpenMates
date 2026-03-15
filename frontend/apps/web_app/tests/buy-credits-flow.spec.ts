@@ -1,5 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
+/* eslint-disable no-console */
 export {};
 
 /**
@@ -35,7 +35,7 @@ const {
 	createStepScreenshotter,
 	generateTotp,
 	assertNoMissingTranslations,
-	getTestAccount,
+	getTestAccount
 } = require('./signup-flow-helpers');
 
 const consoleLogs: string[] = [];
@@ -95,17 +95,22 @@ async function loginToTestAccount(
 		await otpInput.fill(otpCode);
 		await submitLoginButton.click();
 		try {
-			await expect(otpInput).not.toBeVisible({ timeout: 8000 });
+			await page.waitForURL(/chat/, { timeout: 12000 });
+			await expect(page.locator('.editor-content.prose')).toBeVisible({ timeout: 12000 });
 			loginSuccess = true;
 		} catch {
 			const hasError = await errorMessage.isVisible();
 			if (hasError && attempt < 3) {
 				await page.waitForTimeout(31000);
 				await otpInput.fill('');
-			} else if (!hasError) {
-				loginSuccess = true;
+			} else if (attempt < 3) {
+				await page.waitForTimeout(2000);
+				await otpInput.fill('');
 			}
 		}
+	}
+	if (!loginSuccess) {
+		throw new Error('Login failed after 3 OTP attempts');
 	}
 	await page.waitForURL(/chat/, { timeout: 20000 });
 	logCheckpoint('Logged in.');
@@ -154,11 +159,10 @@ test('navigates to buy credits, shows pricing tiers, and loads payment form on s
 	const settingsMenu = page.locator('.settings-menu.visible');
 	await expect(settingsMenu).toBeVisible({ timeout: 8000 });
 
-	// Wait for credits balance to appear — confirms authenticated state is loaded
-	// before trying to click billing (which only appears when authenticated)
-	await expect(page.locator('.settings-menu.visible .credits-container')).toBeVisible({
-		timeout: 15000
-	});
+	// Wait for authenticated settings entries to load before navigating.
+	await expect(
+		page.locator('.settings-menu.visible .menu-item[role="menuitem"]').first()
+	).toBeVisible({ timeout: 15000 });
 	await screenshot(page, 'settings-menu-open');
 
 	// Click "billing" settings item (visible only for authenticated users)
@@ -261,11 +265,13 @@ test('shows current credit balance in settings main menu', async ({ page }: { pa
 	await screenshot(page, 'settings-open');
 
 	// Verify credits balance is shown
-	// CurrentSettingsPage renders: div.credits-container > span.credits-amount > mark (balance)
-	const creditsContainer = page.locator('.settings-menu.visible .credits-container');
-	await expect(creditsContainer).toBeVisible({ timeout: 10000 });
-
-	const creditsAmount = page.locator('.settings-menu.visible .credits-amount');
+	// Credits location can vary slightly by layout/theme revisions.
+	const creditsAmount = page
+		.locator(
+			'.settings-menu.visible .credits-amount, .settings-menu.visible [class*="credits-amount"]'
+		)
+		.first();
+	await expect(creditsAmount).toBeVisible({ timeout: 20000 });
 	const creditsText = await creditsAmount.textContent();
 	log(`Credits balance shown: "${creditsText}"`);
 

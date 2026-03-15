@@ -1,5 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
+/* eslint-disable no-console */
 export {};
 
 /**
@@ -91,17 +91,22 @@ async function loginToTestAccount(
 		await otpInput.fill(otpCode);
 		await submitLoginButton.click();
 		try {
-			await expect(otpInput).not.toBeVisible({ timeout: 8000 });
+			await page.waitForURL(/chat/, { timeout: 12000 });
+			await expect(page.locator('.editor-content.prose')).toBeVisible({ timeout: 12000 });
 			loginSuccess = true;
 		} catch {
 			const hasError = await errorMessage.isVisible();
 			if (hasError && attempt < 3) {
 				await page.waitForTimeout(31000);
 				await otpInput.fill('');
-			} else if (!hasError) {
-				loginSuccess = true;
+			} else if (attempt < 3) {
+				await page.waitForTimeout(2000);
+				await otpInput.fill('');
 			}
 		}
+	}
+	if (!loginSuccess) {
+		throw new Error('Login failed after 3 OTP attempts');
 	}
 	await page.waitForURL(/chat/, { timeout: 20000 });
 	logCheckpoint('Logged in.');
@@ -525,47 +530,30 @@ test('creates API key, verifies device approval flow, and saves working key', as
 	log('Confirmed: REST API call correctly blocked before device approval.');
 
 	// ── Phase 4: Navigate to Devices and approve the pending device ───────────
-	// Go back until we can see the "Devices" menuitem in the Developers submenu.
-	// We may be one or two levels deep (API Keys page → Developers → see Devices).
-	const settingsBackButton = page.locator('#settings-back-button');
-	for (let backClicks = 0; backClicks < 5; backClicks++) {
-		// Check if "Devices" menuitem is already visible
-		const devicesCheck = page
-			.locator('.settings-menu.visible .menu-item[role="menuitem"]')
-			.filter({ hasText: 'Manage devices that' })
-			.first();
-		const devicesCheckByTitle = page
-			.locator('.settings-menu.visible')
-			.getByRole('menuitem')
-			.filter({ hasText: /^devices$/i })
-			.first();
-		const alreadyVisible =
-			(await devicesCheck.isVisible({ timeout: 800 }).catch(() => false)) ||
-			(await devicesCheckByTitle.isVisible({ timeout: 800 }).catch(() => false));
-		if (alreadyVisible) break;
-		const backVisible = await settingsBackButton.isVisible({ timeout: 800 }).catch(() => false);
-		if (!backVisible) break;
-		const backDisabled =
-			(await settingsBackButton.getAttribute('aria-disabled').catch(() => 'true')) === 'true';
-		if (backDisabled) break;
-		await settingsBackButton.click();
-		await page.waitForTimeout(600);
+	// Re-open settings from a stable top-level state, then navigate directly.
+	const settingsToggle = page.locator('#settings-menu-toggle');
+	await expect(settingsToggle).toBeVisible({ timeout: 10000 });
+	const closeIcon = page.locator('#settings-menu-toggle .close-icon-container.visible').first();
+	if (await closeIcon.isVisible().catch(() => false)) {
+		await closeIcon.click();
+		await page.waitForTimeout(500);
 	}
-	log('Back at Developers submenu.');
+	await settingsToggle.dispatchEvent('click');
 
-	// Click "Devices" menu item (title is "Devices", description is "Manage devices that...")
-	await page.waitForTimeout(500); // Allow submenu to settle
 	const settingsMenu2 = page.locator('.settings-menu.visible');
-	const devicesItemByTitle = settingsMenu2
-		.getByRole('menuitem')
+	await expect(settingsMenu2).toBeVisible({ timeout: 8000 });
+
+	const developersItem2 = settingsMenu2
+		.locator('.menu-item[role="menuitem"]')
+		.filter({ hasText: /^developers$/i })
+		.first();
+	await expect(developersItem2).toBeVisible({ timeout: 8000 });
+	await developersItem2.click();
+
+	const devicesItem = page
+		.locator('.settings-menu.visible .menu-item[role="menuitem"]')
 		.filter({ hasText: /^devices$/i })
 		.first();
-	const devicesItemByDesc = settingsMenu2
-		.locator('.menu-item[role="menuitem"]')
-		.filter({ hasText: 'Manage devices that' })
-		.first();
-	const devicesVisible = await devicesItemByTitle.isVisible({ timeout: 5000 }).catch(() => false);
-	const devicesItem = devicesVisible ? devicesItemByTitle : devicesItemByDesc;
 	await expect(devicesItem).toBeVisible({ timeout: 8000 });
 	await devicesItem.click();
 	log('Navigated to Devices page.');
