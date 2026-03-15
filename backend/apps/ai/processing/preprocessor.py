@@ -37,6 +37,7 @@ from backend.apps.ai.utils.model_selector import ModelSelector
 # Import comprehensive ASCII smuggling sanitization
 # This module protects against invisible Unicode characters used to embed hidden instructions
 from backend.core.api.app.utils.text_sanitization import sanitize_text_simple
+from backend.shared.python_utils.url_normalizer import sanitize_text_urls_remove_query_and_fragment
 
 # Import AIHistoryMessage for type-safe onboarding trigger detection
 from backend.core.api.app.schemas.chat import AIHistoryMessage
@@ -962,6 +963,7 @@ async def handle_preprocessing(
             if isinstance(original_content, str):
                 # Use comprehensive ASCII smuggling sanitization
                 sanitized_content = _sanitize_text_content(original_content, log_prefix=log_prefix)
+                sanitized_content = sanitize_text_urls_remove_query_and_fragment(sanitized_content)
                 # Update the 'content' in the dictionary representation
                 msg_dict["content"] = sanitized_content
                 if original_content != sanitized_content: # Log only if changed

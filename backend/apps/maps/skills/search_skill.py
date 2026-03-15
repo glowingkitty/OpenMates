@@ -17,6 +17,7 @@ from backend.apps.base_skill import BaseSkill
 from backend.shared.providers.google_maps.google_places import search_places
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.apps.ai.processing.skill_executor import check_rate_limit, wait_for_rate_limit
+from backend.apps.ai.processing.external_result_sanitizer import sanitize_long_text_fields_in_payload
 # RateLimitScheduledException is no longer caught here - it bubbles up to route handler
 from backend.core.api.app.services.cache import CacheService
 
@@ -396,6 +397,20 @@ class SearchSkill(BaseSkill):
                 if reviews:
                     preview["reviews"] = reviews
                 previews.append(preview)
+
+            try:
+                previews = await sanitize_long_text_fields_in_payload(
+                    payload=previews,
+                    task_id=f"maps_search_{request_id}",
+                    secrets_manager=secrets_manager,
+                    cache_service=cache_service,
+                )
+            except Exception as sanitize_error:
+                logger.error(
+                    f"Content sanitization failed for maps request {request_id}: {sanitize_error}",
+                    exc_info=True,
+                )
+                return (request_id, [], f"Query '{search_query}': Content sanitization failed")
             
             logger.info(f"Place search (id: {request_id}) completed: {len(previews)} results for '{search_query}'")
             return (request_id, previews, None)

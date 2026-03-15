@@ -37,6 +37,7 @@ from celery import Celery  # For type hinting only
 from pydantic import BaseModel, Field
 
 from backend.apps.base_skill import BaseSkill
+from backend.apps.ai.processing.external_result_sanitizer import sanitize_long_text_fields_in_payload
 from backend.apps.events.providers import luma as luma_provider
 from backend.apps.events.providers import meetup as meetup_provider
 from backend.core.api.app.utils.secrets_manager import SecretsManager
@@ -560,6 +561,22 @@ class SearchSkill(BaseSkill):
                 event.get("url") or event.get("id") or ""
             )
             results.append(result)
+
+        try:
+            results = await sanitize_long_text_fields_in_payload(
+                payload=results,
+                task_id=f"events_search_{request_id}",
+                secrets_manager=secrets_manager,
+                cache_service=None,
+            )
+        except Exception as sanitize_error:
+            logger.error(
+                "Events content sanitization failed for request %s: %s",
+                request_id,
+                sanitize_error,
+                exc_info=True,
+            )
+            return (request_id, [], "Content sanitization failed", 0)
 
         logger.info(
             "Events search (id=%s) done: %d results (total=%d) provider=%r query=%r",

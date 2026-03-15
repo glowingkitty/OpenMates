@@ -51,6 +51,7 @@ if TYPE_CHECKING:
 from pydantic import BaseModel, Field
 
 from backend.apps.base_skill import BaseSkill
+from backend.apps.ai.processing.external_result_sanitizer import sanitize_long_text_fields_in_payload
 
 logger = logging.getLogger(__name__)
 
@@ -775,7 +776,11 @@ class SearchAppointmentsSkill(BaseSkill):
         # can get different proxy IPs from Webshare's rotating pool.
         all_results = await self._process_requests_in_parallel(
             requests=validated,
-            process_single_request_func=self._make_request_processor(proxy_url),
+            process_single_request_func=self._make_request_processor(
+                proxy_url,
+                secrets_manager,
+                kwargs.get("cache_service"),
+            ),
             logger=logger,
         )
 
@@ -794,7 +799,10 @@ class SearchAppointmentsSkill(BaseSkill):
         )
 
     def _make_request_processor(
-        self, proxy_url: Optional[str]
+        self,
+        proxy_url: Optional[str],
+        secrets_manager: Optional["SecretsManager"],
+        cache_service: Optional[Any],
     ):
         """
         Return an async function that processes a single request with its own
@@ -816,6 +824,25 @@ class SearchAppointmentsSkill(BaseSkill):
                 client_kwargs["proxy"] = proxy_url
 
             async with httpx.AsyncClient(**client_kwargs) as client:
-                return await _process_single_doctolib_request(client, req)
+                request_id, results, error = await _process_single_doctolib_request(client, req)
+                if error or not results:
+                    return request_id, results, error
+
+                try:
+                    sanitized_results = await sanitize_long_text_fields_in_payload(
+                        payload=results,
+                        task_id=f"health_appointments_{request_id}",
+                        secrets_manager=secrets_manager,
+                        cache_service=cache_service,
+                    )
+                    return request_id, sanitized_results, None
+                except Exception as sanitize_error:
+                    logger.error(
+                        "Appointment content sanitization failed for request %s: %s",
+                        request_id,
+                        sanitize_error,
+                        exc_info=True,
+                    )
+                    return request_id, [], "Content sanitization failed"
 
         return _process

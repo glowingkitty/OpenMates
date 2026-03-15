@@ -6,6 +6,7 @@
 import logging
 from urllib.parse import urlparse, urlunparse
 from typing import Optional
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -107,6 +108,73 @@ def sanitize_url_remove_fragment(url: str) -> Optional[str]:
     except Exception as e:
         logger.error(f"Error sanitizing URL '{url}': {e}", exc_info=True)
         return None
+
+
+def sanitize_url_remove_query_and_fragment(url: str) -> Optional[str]:
+    """
+    Sanitize URL by removing both query parameters and fragment.
+
+    This is used for user/assistant message content to prevent data leakage via
+    URL parameters and fragment payloads. Path and domain are preserved.
+    """
+    try:
+        parsed = urlparse(url)
+
+        if not parsed.netloc:
+            logger.warning(f"URL has no netloc (domain): {url}")
+            return None
+
+        sanitized = urlunparse(
+            (
+                parsed.scheme,
+                parsed.netloc,
+                parsed.path,
+                parsed.params,
+                "",
+                "",
+            )
+        )
+        return sanitized
+
+    except Exception as e:
+        logger.error(f"Error sanitizing URL '{url}': {e}", exc_info=True)
+        return None
+
+
+def sanitize_text_urls_remove_query_and_fragment(text: str) -> str:
+    """
+    Remove query parameters and fragments from all HTTP(S) URLs in text.
+
+    Works for markdown links and plain URLs. Leaves non-URL text unchanged.
+    """
+    if not isinstance(text, str) or not text:
+        return text if isinstance(text, str) else str(text)
+
+    markdown_pattern = re.compile(r"\[([^\]]+)\]\((https?://[^\s)]+)\)")
+    plain_url_pattern = re.compile(r"https?://[^\s<>()]+")
+
+    def _sanitize_url_token(token: str) -> str:
+        trailing = ""
+        while token and token[-1] in ",.;:!?)]}":
+            trailing = token[-1] + trailing
+            token = token[:-1]
+        cleaned = sanitize_url_remove_query_and_fragment(token)
+        if not cleaned:
+            return token + trailing
+        return cleaned + trailing
+
+    def _replace_markdown(match: re.Match[str]) -> str:
+        label = match.group(1)
+        url = match.group(2)
+        return f"[{label}]({_sanitize_url_token(url)})"
+
+    sanitized = markdown_pattern.sub(_replace_markdown, text)
+
+    def _replace_plain(match: re.Match[str]) -> str:
+        return _sanitize_url_token(match.group(0))
+
+    sanitized = plain_url_pattern.sub(_replace_plain, sanitized)
+    return sanitized
 
 
 def normalize_url_for_content_id(url: str) -> Optional[str]:

@@ -35,6 +35,7 @@ from backend.apps.ai.processing.url_validator import (
     extract_urls_from_markdown,
     replace_broken_urls_with_search
 )
+from backend.shared.python_utils.url_normalizer import sanitize_text_urls_remove_query_and_fragment
 
 logger = logging.getLogger(__name__)
 
@@ -3763,6 +3764,31 @@ async def _consume_main_processing_stream(
                 f"{log_prefix} [EMBED_DISPLAY_FIX] Error during display text fix: {e}",
                 exc_info=True
             )
+
+    # Remove URL query and fragment parameters from assistant response text.
+    # This applies to markdown links and plain URLs to avoid leaking sensitive
+    # data via query strings or hash fragments.
+    if aggregated_response and not was_revoked_during_stream and not was_soft_limited_during_stream:
+        cleaned_response = sanitize_text_urls_remove_query_and_fragment(aggregated_response)
+        if cleaned_response != aggregated_response:
+            aggregated_response = cleaned_response
+            final_response_chunks = [aggregated_response]
+            if cache_service:
+                cleaned_payload = _create_redis_payload(
+                    task_id,
+                    request_data,
+                    aggregated_response,
+                    stream_chunk_count + 4,
+                    is_final=False,
+                    model_name=stream_model_name,
+                )
+                await _publish_to_redis(
+                    cache_service,
+                    redis_channel_name,
+                    cleaned_payload,
+                    log_prefix,
+                    "Published response with URL query/fragment parameters stripped",
+                )
 
     # --- Hardcoded Advice Disclaimer Injection ---
     # This is a HARDCODED safety mechanism that GUARANTEES disclaimers appear for sensitive topics.

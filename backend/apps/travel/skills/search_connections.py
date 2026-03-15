@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 from pydantic import BaseModel, Field
 
 from backend.apps.base_skill import BaseSkill
+from backend.apps.ai.processing.external_result_sanitizer import sanitize_long_text_fields_in_payload
 from backend.apps.travel.providers.base_provider import BaseTransportProvider
 from backend.apps.travel.providers.serpapi_provider import SerpApiProvider
 from backend.apps.travel.providers.transitous_provider import TransitousProvider
@@ -175,6 +176,8 @@ class SearchConnectionsSkill(BaseSkill):
             skill_name="SearchConnectionsSkill",
             logger=logger,
             all_providers=all_providers,
+            secrets_manager=secrets_manager,
+            cache_service=kwargs.get("cache_service"),
         )
 
         # 5. Group results by request ID
@@ -212,6 +215,8 @@ class SearchConnectionsSkill(BaseSkill):
             Tuple of (request_id, results_list, error_string_or_none)
         """
         all_providers: List[BaseTransportProvider] = kwargs.get("all_providers", [])
+        secrets_manager = kwargs.get("secrets_manager")
+        cache_service = kwargs.get("cache_service")
 
         # Extract parameters with defaults
         legs = req.get("legs", [])
@@ -358,6 +363,22 @@ class SearchConnectionsSkill(BaseSkill):
 
         # Sort results according to the requested sort_by parameter
         self._sort_results(results, sort_by)
+
+        try:
+            results = await sanitize_long_text_fields_in_payload(
+                payload=results,
+                task_id=f"travel_connections_{request_id}",
+                secrets_manager=secrets_manager,
+                cache_service=cache_service,
+            )
+        except Exception as sanitize_error:
+            logger.error(
+                "Connection search content sanitization failed for request %s: %s",
+                request_id,
+                sanitize_error,
+                exc_info=True,
+            )
+            return (request_id, [], "Content sanitization failed")
 
         error_str = "; ".join(errors) if errors else None
         return (request_id, results, error_str)

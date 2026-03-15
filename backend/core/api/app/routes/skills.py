@@ -10,7 +10,7 @@
 import logging
 import httpx
 from typing import Dict, Any, Optional, List
-from fastapi import APIRouter, HTTPException, Request, Depends, Body
+from fastapi import APIRouter, HTTPException, Request, Depends
 from pydantic import BaseModel
 
 from backend.core.api.app.utils.api_key_auth import ApiKeyAuth
@@ -20,6 +20,7 @@ from backend.core.api.app.services.cache import CacheService
 # Import comprehensive ASCII smuggling sanitization
 # This module protects against invisible Unicode characters used to embed hidden instructions
 from backend.core.api.app.utils.text_sanitization import sanitize_text_simple
+from backend.shared.python_utils.url_normalizer import sanitize_text_urls_remove_query_and_fragment
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +93,8 @@ def _sanitize_dict_recursively(data: Any, log_prefix: str = "") -> Any:
     elif isinstance(data, list):
         return [_sanitize_dict_recursively(item, log_prefix) for item in data]
     elif isinstance(data, str):
-        return sanitize_text_simple(data, log_prefix=log_prefix)
+        sanitized = sanitize_text_simple(data, log_prefix=log_prefix)
+        return sanitize_text_urls_remove_query_and_fragment(sanitized)
     else:
         # Primitives (int, float, bool, None) pass through unchanged
         return data

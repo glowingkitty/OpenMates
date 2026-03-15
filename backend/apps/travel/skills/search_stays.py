@@ -12,14 +12,12 @@ The skill follows the standard BaseSkill request/response pattern with the
 import hashlib
 import json
 import logging
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from backend.core.api.app.utils.secrets_manager import SecretsManager
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
 from backend.apps.base_skill import BaseSkill
+from backend.apps.ai.processing.external_result_sanitizer import sanitize_long_text_fields_in_payload
 from backend.apps.travel.providers.serpapi_hotels_provider import (
     search_hotels,
     StayResult,
@@ -231,6 +229,22 @@ class SearchStaysSkill(BaseSkill):
             # Add a hash for deduplication
             result_dict["hash"] = self._generate_stay_hash(stay)
             results.append(result_dict)
+
+        try:
+            results = await sanitize_long_text_fields_in_payload(
+                payload=results,
+                task_id=f"travel_stays_{request_id}",
+                secrets_manager=secrets_manager,
+                cache_service=kwargs.get("cache_service"),
+            )
+        except Exception as sanitize_error:
+            logger.error(
+                "Stay search content sanitization failed for request %s: %s",
+                request_id,
+                sanitize_error,
+                exc_info=True,
+            )
+            return (request_id, [], "Content sanitization failed")
 
         return (request_id, results, None)
 

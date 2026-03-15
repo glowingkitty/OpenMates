@@ -9,7 +9,7 @@
 # 2. If not ID or direct fetch fails: Context7 search (library → results)
 # 3. LLM selection (results + question → library_id) - only if >1 result
 # 4. Context7 docs (library_id + question → documentation)
-# 5. ASCII smuggling protection (no LLM sanitization - Context7 is trusted)
+# 5. Full prompt-injection sanitization before returning docs content
 #
 # PERFORMANCE NOTES (measured via test_context7_api.py):
 # - Context7 search returns max 5 libraries (~50ms)
@@ -32,9 +32,9 @@ from pydantic import BaseModel, Field
 from celery import Celery
 
 from backend.apps.base_skill import BaseSkill
+from backend.apps.ai.processing.skill_executor import sanitize_external_content
 from backend.core.api.app.utils.secrets_manager import SecretsManager
-# Note: LLM-based sanitize_external_content is NOT used for Context7 docs (trusted source)
-# We only use ASCII smuggling protection which is imported inline where needed
+# Context7 docs are treated as external content and sanitized before returning.
 
 logger = logging.getLogger(__name__)
 
@@ -784,54 +784,17 @@ class GetDocsSkill(BaseSkill):
                     source="context7"
                 )
             
-            # ARCHITECTURE DECISION: Skip LLM-based sanitization for Context7 documentation
-            # ================================================================================
-            # Context7 is a TRUSTED SOURCE - it provides curated, official library documentation
-            # from GitHub repos and official docs sites. This is NOT user-generated content.
-            # 
-            # Reasons to skip LLM sanitization:
-            # 1. Context7 documentation is curated from official sources (GitHub, official docs)
-            # 2. LLM-based sanitization adds latency (~1-2 seconds) and cost
-            # 3. The Groq safeguard model has reliability issues with function calling
-            # 4. Documentation from official sources is extremely unlikely to contain prompt injection
-            # 5. ASCII smuggling protection (Layer 1) still runs to remove invisible characters
-            #
-            # We still apply ASCII smuggling protection (character-level sanitization) as a
-            # lightweight security measure that doesn't require LLM calls.
-            # ================================================================================
-            
-            logger.info(f"[{task_id}] Applying ASCII smuggling protection to documentation ({len(documentation)} chars)...")
-            
-            # Import ASCII smuggling sanitization for character-level protection
-            from backend.core.api.app.utils.text_sanitization import sanitize_text_for_ascii_smuggling
-            
-            # Apply ASCII smuggling protection (removes invisible Unicode characters)
-            # This is a fast, deterministic operation that doesn't require LLM calls
-            ascii_smuggling_log_prefix = f"[{task_id}][CONTEXT7] "
-            sanitized_docs, ascii_stats = sanitize_text_for_ascii_smuggling(
-                documentation,
-                log_prefix=ascii_smuggling_log_prefix,
-                include_stats=True
+            logger.info(f"[{task_id}] Applying full prompt-injection sanitization to documentation ({len(documentation)} chars)...")
+            sanitized_docs = await sanitize_external_content(
+                content=documentation,
+                content_type="text",
+                task_id=f"{task_id}_docs",
+                secrets_manager=secrets_manager,
             )
-            
-            # Log security alert if hidden content was detected
-            if ascii_stats.get("hidden_ascii_detected"):
+
+            if not sanitized_docs or not sanitized_docs.strip():
                 logger.warning(
-                    f"[{task_id}][SECURITY ALERT] ASCII smuggling detected in Context7 documentation! "
-                    f"Hidden Unicode Tags content found and removed. "
-                    f"Removed {ascii_stats['removed_count']} invisible characters."
-                )
-            elif ascii_stats.get("removed_count", 0) > 0:
-                logger.info(
-                    f"[{task_id}][ASCII SANITIZATION] Removed {ascii_stats['removed_count']} "
-                    f"invisible characters from Context7 documentation"
-                )
-            
-            # If content became empty after ASCII sanitization, it was likely all hidden chars
-            if not sanitized_docs.strip():
-                logger.warning(
-                    f"[{task_id}] Context7 documentation became empty after ASCII smuggling removal. "
-                    f"Original may have been entirely hidden characters (attack attempt)."
+                    f"[{task_id}] Context7 documentation blocked or empty after sanitization."
                 )
                 return GetDocsResponse(
                     library={
@@ -839,7 +802,7 @@ class GetDocsSkill(BaseSkill):
                         "title": selected_lib.get("title", ""),
                         "description": selected_lib.get("description", "")
                     },
-                    error="Documentation content was invalid (contained only invisible characters)",
+                    error="Documentation content blocked by prompt-injection protection",
                     source="context7"
                 )
             
