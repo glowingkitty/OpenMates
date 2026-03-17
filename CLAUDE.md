@@ -58,7 +58,24 @@ python3 scripts/sessions.py end --session <ID>
 ### On-Demand Doc Loading
 
 ```bash
-python3 scripts/sessions.py context --doc <name>   # e.g. debugging-ref, embed-types-ref
+python3 scripts/sessions.py context --doc <name>   # e.g. debugging, embed-types-ref
+# Compact docs are loaded by default at session start (e.g. debugging-compact.md).
+# Use context --doc <name> to load the FULL version (e.g. debugging.md, frontend-standards.md).
+```
+
+### Code Quality & Redundancy Analysis
+
+```bash
+# Find largest files relevant to current context (for refactoring review)
+python3 scripts/sessions.py code-quality --session <ID>
+python3 scripts/sessions.py code-quality --tags frontend --min-lines 300
+
+# Find duplicated CSS classes, function names across files
+python3 scripts/sessions.py find-redundancy --tags frontend
+python3 scripts/sessions.py find-redundancy --path backend/
+
+# Show stale architecture docs filtered by tags
+python3 scripts/sessions.py stale-docs --tags frontend
 ```
 
 ### Test & Documentation Coverage
