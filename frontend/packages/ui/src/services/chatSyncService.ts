@@ -738,6 +738,9 @@ export class ChatSynchronizationService extends EventTarget {
       webSocketService.on("app_settings_memories_entry_stored", (payload) =>
         module.handleAppSettingsMemoriesEntryStoredImpl(this, payload),
       );
+      webSocketService.on("app_settings_memories_entry_deleted", (payload) =>
+        module.handleAppSettingsMemoriesEntryDeletedImpl(this, payload),
+      );
       webSocketService.on("system_message_confirmed", (payload) =>
         module.handleSystemMessageConfirmedImpl(this, payload),
       );
@@ -1007,11 +1010,22 @@ export class ChatSynchronizationService extends EventTarget {
     // When a session is revoked remotely (via Active Sessions settings), the server
     // broadcasts a force_logout event via Redis → WebSocket. This handler triggers
     // the full logout flow on this device, clearing all local state.
+    //
+    // The backend is responsible for NOT sending this event to the device that
+    // initiated the revocation (via exclude_connection_hash in the Redis payload,
+    // handled in websockets.py listen_for_user_updates). If this handler fires,
+    // this device IS the intended target and should log out.
+    //
+    // reason values:
+    //   "session_revoked"            — a specific other session was revoked
+    //   "all_other_sessions_revoked" — logout-all-others was used
+    //   "all_devices_logout"         — nuclear option (current device also targeted)
     webSocketService.on("force_logout", (payload) => {
-      const reason =
-        (payload as { reason?: string })?.reason || "session_revoked";
+      const p = payload as { reason?: string; revoked_session_id?: string };
+      const reason = p?.reason || "session_revoked";
+      const revokedId = p?.revoked_session_id;
       console.warn(
-        `[ChatSyncService] Received force_logout event (reason: ${reason}). Triggering logout.`,
+        `[ChatSyncService] Received force_logout event (reason: ${reason}${revokedId ? `, revoked_session_id: ${revokedId}` : ""}). Triggering logout.`,
       );
       // Set the forced-logout flag so reconnect logic doesn't fight the logout.
       // Use the canonical setter (includes 30s safety-timeout auto-reset) instead

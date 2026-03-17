@@ -260,7 +260,8 @@ async def login(
                     cache_service=cache_service,
                     compliance_service=compliance_service,
                     directus_service=directus_service,
-                    current_device_hash=device_hash, # Pass the new device hash
+                    current_device_hash=device_hash,
+                    connection_hash=connection_hash,
                     client_ip=client_ip, # Pass IP for logging inside finalize
                     encryption_service=encryption_service,
                     device_location_str=device_location_str, # Pass location string
@@ -654,7 +655,8 @@ async def login(
                     cache_service=cache_service,
                     compliance_service=compliance_service,
                     directus_service=directus_service,
-                    current_device_hash=device_hash, # Pass the new device hash
+                    current_device_hash=device_hash,
+                    connection_hash=connection_hash,
                     client_ip=client_ip, # Pass IP for logging inside finalize
                     encryption_service=encryption_service,
                     device_location_str=device_location_str, # Pass location string
@@ -972,7 +974,8 @@ async def login(
                     cache_service=cache_service,
                     compliance_service=compliance_service,
                     directus_service=directus_service,
-                    current_device_hash=device_hash, # Pass the new device hash
+                    current_device_hash=device_hash,
+                    connection_hash=connection_hash,
                     client_ip=client_ip, # Pass IP for logging inside finalize
                     encryption_service=encryption_service,
                     device_location_str=device_location_str, # Pass location string
@@ -1119,6 +1122,7 @@ async def finalize_login_session(
     compliance_service: ComplianceService,
     directus_service: DirectusService,
     current_device_hash: str, # Changed: Pass the new device hash
+    connection_hash: Optional[str], # Per-browser-tab hash (device_hash + sessionId) for WS routing
     client_ip: str, # Pass IP for logging/notification context
     encryption_service: EncryptionService, # Added missing dependency
     device_location_str: str, # Added location string
@@ -1381,6 +1385,10 @@ async def finalize_login_session(
             current_tokens[token_hash] = {
                 "created_at": int(time.time()),
                 "device_hash": current_device_hash,
+                # connection_hash includes the per-browser-tab sessionId so WebSocket
+                # force_logout broadcasts can be targeted at exactly the right connection
+                # rather than all connections for this user.  See auth_sessions.py.
+                "connection_hash": connection_hash,
                 "stay_logged_in": login_data.stay_logged_in,
                 "device_name": derive_device_name(user_agent),
                 "ip_truncated": truncate_ip(client_ip),

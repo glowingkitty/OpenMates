@@ -35,6 +35,7 @@ from .handlers.websocket_handlers.post_processing_metadata_handler import handle
 from .handlers.websocket_handlers.phased_sync_handler import handle_phased_sync_request, handle_sync_status_request # Handlers for phased sync
 from .handlers.websocket_handlers.app_settings_memories_confirmed_handler import handle_app_settings_memories_confirmed # Handler for app settings/memories confirmations
 from .handlers.websocket_handlers.store_app_settings_memories_handler import handle_store_app_settings_memories_entry # Handler for storing app settings/memories entries to Directus
+from .handlers.websocket_handlers.delete_app_settings_memories_handler import handle_delete_app_settings_memories_entry # Handler for deleting app settings/memories entries with cross-device sync
 from .handlers.websocket_handlers.store_embed_handler import handle_store_embed # Handler for storing encrypted embeds
 from .handlers.websocket_handlers.store_embed_keys_handler import handle_store_embed_keys # Handler for storing embed key wrappers
 from .handlers.websocket_handlers.delete_new_chat_suggestion_handler import handle_delete_new_chat_suggestion # Handler for deleting new chat suggestions
@@ -1459,13 +1460,29 @@ async def listen_for_user_updates(app: FastAPI):
                         f"'{redis_channel_name}' (summary: {_safe_payload_summary(redis_payload)})"
                     )
                     continue
-                
+
+                # For force_logout events, exclude the revoking device's WebSocket
+                # connection so the device that initiated the revocation does not
+                # receive the event and does not log itself out.
+                # exclude_connection_hash is a server-internal routing hint stored
+                # in the Redis payload by auth_sessions.py — it must never be
+                # forwarded to clients (it is only used here for routing).
+                exclude_connection_hash: Optional[str] = None
+                if event_for_client == "force_logout":
+                    exclude_connection_hash = redis_payload.get("exclude_connection_hash")
+                    if exclude_connection_hash:
+                        logger.debug(
+                            f"User Updates Listener: force_logout for user {user_id_uuid} — "
+                            f"excluding revoking connection {exclude_connection_hash[:8]}..."
+                        )
+
                 logger.debug(f"User Updates Listener: Received event for user {user_id_uuid}. Forwarding as '{event_for_client}'.")
 
                 await manager.broadcast_to_user_specific_event(
                     user_id=user_id_uuid,
                     event_name=event_for_client,
-                    payload=client_payload
+                    payload=client_payload,
+                    exclude_device_hash=exclude_connection_hash,
                 )
                 logger.debug(
                     f"User Updates Listener: Broadcasted '{event_for_client}' to user {user_id_uuid} "
@@ -2324,6 +2341,19 @@ async def websocket_endpoint(
                 # Client sends encrypted entry for permanent storage in Directus
                 # Server stores encrypted data (zero-knowledge) and broadcasts to other devices
                 await handle_store_app_settings_memories_entry(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload
+                )
+
+            elif message_type == "delete_app_settings_memories_entry":
+                # Handle deletion of an app settings/memories entry
+                # Deletes from Directus and broadcasts to other devices for cross-device sync
+                await handle_delete_app_settings_memories_entry(
                     websocket=websocket,
                     manager=manager,
                     cache_service=cache_service,

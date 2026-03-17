@@ -91,16 +91,25 @@ async def _broadcast_force_logout(
     user_id: str,
     reason: str = "session_revoked",
     revoked_session_id: Optional[str] = None,
+    exclude_connection_hash: Optional[str] = None,
 ):
     """
     Publish a force_logout event via Redis so the WebSocket listener
     in websockets.py can forward it to the affected user's connections.
+
+    exclude_connection_hash: the connection_hash of the revoking device.
+    The websockets.py listener reads this and passes it as exclude_device_hash
+    to broadcast_to_user_specific_event so the revoking device never receives
+    the force_logout event and does not log itself out.
     """
     await cache_service.publish_event(
         channel=f"user_updates::{user_id}",
         event_data={
             "event_for_client": "force_logout",
             "user_id_uuid": user_id,
+            # exclude_connection_hash is a server-internal routing hint; it is NOT
+            # forwarded to the client (stripped in the websockets.py listener).
+            "exclude_connection_hash": exclude_connection_hash,
             "payload": {
                 "reason": reason,
                 "revoked_session_id": revoked_session_id,
@@ -265,8 +274,21 @@ async def revoke_session(
     else:
         await cache_service.delete(user_tokens_key)
 
-    # 3. Broadcast force_logout so WebSocket pushes it to the target device
-    await _broadcast_force_logout(cache_service, user_id, "session_revoked", session_id)
+    # 3. Broadcast force_logout so WebSocket pushes it to the target device.
+    #    Pass the revoking session's connection_hash so the listener in
+    #    websockets.py skips that WebSocket — the revoking device must NOT
+    #    receive force_logout and must NOT log itself out.
+    current_meta = tokens_map.get(current_hash, {}) if current_hash else {}
+    current_connection_hash: Optional[str] = (
+        current_meta.get("connection_hash") if isinstance(current_meta, dict) else None
+    )
+    await _broadcast_force_logout(
+        cache_service,
+        user_id,
+        "session_revoked",
+        session_id,
+        exclude_connection_hash=current_connection_hash,
+    )
 
     # 4. Compliance log
     compliance_service.log_auth_event_safe(
@@ -319,9 +341,20 @@ async def logout_all_others(
     else:
         await cache_service.delete(user_tokens_key)
 
-    # Broadcast force_logout to all connections — current device ignores it
+    # Broadcast force_logout to all connections, excluding the revoking device.
+    # Without the exclusion the revoking device would receive the event and log
+    # itself out — the same bug as single-session revocation.
     if revoked_count > 0:
-        await _broadcast_force_logout(cache_service, user_id, "all_other_sessions_revoked")
+        current_meta = tokens_map.get(current_hash, {}) if current_hash else {}
+        current_connection_hash: Optional[str] = (
+            current_meta.get("connection_hash") if isinstance(current_meta, dict) else None
+        )
+        await _broadcast_force_logout(
+            cache_service,
+            user_id,
+            "all_other_sessions_revoked",
+            exclude_connection_hash=current_connection_hash,
+        )
 
     compliance_service.log_auth_event_safe(
         event_type="logout_all_others",

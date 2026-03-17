@@ -231,8 +231,19 @@ class ConnectionManager:
                     f"(message_summary={_safe_message_summary(message)})"
                 )
 
-    async def broadcast_to_user_specific_event(self, user_id: str, event_name: str, payload: dict):
-        """Sends a specific event message to all connected devices for a specific user."""
+    async def broadcast_to_user_specific_event(
+        self,
+        user_id: str,
+        event_name: str,
+        payload: dict,
+        exclude_device_hash: Optional[str] = None,
+    ):
+        """
+        Sends a specific event message to all connected devices for a specific user.
+
+        exclude_device_hash: if provided, skip the connection with this hash.
+        Used by force_logout broadcasts so the revoking device does not log itself out.
+        """
         if user_id in self.active_connections:
             message = {"type": event_name, "payload": payload}
             tasks = []
@@ -240,6 +251,8 @@ class ConnectionManager:
             connection_count = len(self.active_connections[user_id])
 
             for device_hash, websocket in list(self.active_connections[user_id].items()):
+                if device_hash == exclude_device_hash:
+                    continue
                 tasks.append(websocket.send_json(message))
                 websockets_to_send.append(websocket)
             

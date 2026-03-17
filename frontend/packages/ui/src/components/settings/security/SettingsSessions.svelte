@@ -365,9 +365,15 @@ Architecture: docs/architecture/device-sessions.md
             <p>{$text('settings.sessions.no_sessions')}</p>
         </div>
     {:else}
-        <div class="sessions-list">
+        <div class="sessions-list" data-testid="sessions-list">
             {#each sessions as session (session.session_id)}
-                <div class="session-card" class:current={session.is_current}>
+                <div
+                    class="session-card"
+                    class:current={session.is_current}
+                    data-testid="session-card"
+                    data-session-id={session.session_id}
+                    data-is-current={session.is_current}
+                >
                     <div class="session-header">
                         <div class="session-info">
                             <h3 class="session-device-name">
@@ -421,6 +427,7 @@ Architecture: docs/architecture/device-sessions.md
                         <div class="session-actions">
                             <button
                                 class="btn btn-remove"
+                                data-testid="session-revoke-btn"
                                 onclick={() => revokeSession(session.session_id)}
                                 disabled={processingSessionId === session.session_id || processingAll}
                             >
