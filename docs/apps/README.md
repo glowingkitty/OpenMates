@@ -26,7 +26,7 @@ Apps are one of the core components of OpenMates. They allow your digital team m
 - [PDF](pdf.md) - PDF viewing, search, and analysis
 - [Sheets](sheets.md) - Spreadsheet viewing and editing
 - [Slides](slides.md) - Presentation creation with RevealJS
-- [Mail](mail.md) - Compose, send, and manage emails
+- [Mail](mail.md) - Compose emails and search your Proton mailbox
 - [Reminder](reminder.md) - Schedule reminders for chats
 
 ### Research & Learning

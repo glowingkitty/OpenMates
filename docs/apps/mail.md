@@ -1,5 +1,7 @@
 # Mail app architecture
 
+> This file documents the Mail app architecture. For operator setup of Proton Mail Bridge, see [self-hosting/proton-bridge.md](../self-hosting/proton-bridge.md).
+
 > This file documents the Mail app, which can be used by asking the digital team mates in a chat and later also via the OpenMates API. This file is NOT about email functionality for the OpenMates platform itself (like verification emails).
 
 The Mail app allows users to compose, send, and manage emails through their digital team mates.
@@ -37,9 +39,7 @@ The skill accepts a `code` parameter that must contain **valid MJML code**. MJML
   <mj-body>
     <mj-section>
       <mj-column>
-        <mj-text>
-          Hello World!
-        </mj-text>
+        <mj-text> Hello World! </mj-text>
       </mj-column>
     </mj-section>
   </mj-body>
@@ -49,6 +49,7 @@ The skill accepts a `code` parameter that must contain **valid MJML code**. MJML
 **Validation Process:**
 
 The validation happens in the email rendering pipeline:
+
 - The MJML code is parsed using the `mjml2html` function
 - If the MJML is invalid, a `ValueError` is raised with detailed error information
 - Error messages include the position of the problematic code
@@ -57,10 +58,44 @@ The validation happens in the email rendering pipeline:
 **Error Handling:**
 
 If invalid MJML is provided:
+
 - The skill will return an error response
 - Error messages include the position of the syntax error
 - The system logs detailed information about the problematic MJML region
 - No draft is created when validation fails
+
+## Skills
+
+### Mail Search (Proton Bridge)
+
+The `mail.search` skill reads a single configured Proton mailbox via Proton Mail Bridge IMAP and returns matching emails, or the most recent emails if no query is given.
+
+**Access control:** Only the one OpenMates user whose email matches `SECRET__PROTONMAIL__ALLOWED_OPENMATES_EMAIL` can see or execute this skill. The check is enforced at both the metadata endpoint and the skill execution path — fail-closed.
+
+**Prompt injection protection:** Every field returned from the mailbox (subject, from, to, body, snippet) is processed through `sanitize_long_text_fields_in_payload` (GPT OSS safeguard + ASCII smuggling detection) before the LLM or any embed sees it.
+
+**Embed rendering:**
+
+- `MailSearchEmbedPreview.svelte` — compact card showing top 3 results.
+- `MailSearchEmbedFullscreen.svelte` — result list + reader pane. HTML bodies are sanitized with DOMPurify (strict allowlist, blocks scripts/iframes/forms/events). All `<img>` `src` attributes are rewritten to route through `proxyImage()` — no direct third-party fetches from the browser.
+
+**Key code locations:**
+
+| Component        | Path                                                                                   |
+| ---------------- | -------------------------------------------------------------------------------------- |
+| Provider module  | `backend/shared/providers/protonmail/protonmail_bridge.py`                             |
+| Skill            | `backend/apps/mail/skills/search_skill.py`                                             |
+| App metadata     | `backend/apps/mail/app.yml`                                                            |
+| Provider config  | `backend/providers/protonmail.yml`                                                     |
+| Preview embed    | `frontend/.../embeds/mail/MailSearchEmbedPreview.svelte`                               |
+| Fullscreen embed | `frontend/.../embeds/mail/MailSearchEmbedFullscreen.svelte`                            |
+| HTML sanitizer   | `frontend/.../embeds/mail/mailSearchContent.ts`                                        |
+| Metadata gating  | `backend/core/api/app/routes/apps.py` (`_is_protonmail_user_allowed`)                  |
+| Health check     | `backend/core/api/app/tasks/health_check_tasks.py` (`_check_protonmail_bridge_health`) |
+
+**Setup:** See [self-hosting/proton-bridge.md](../self-hosting/proton-bridge.md).
+
+---
 
 ## Settings & memories
 

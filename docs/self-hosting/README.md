@@ -5,6 +5,7 @@ Run your own OpenMates instance with full control over your data and infrastruct
 ## Guide
 
 - [Setup & Installation](setup.md) - Complete step-by-step guide to set up OpenMates on your own server
+- [Proton Mail Bridge](proton-bridge.md) - Connect a Proton Mail account for the mail search skill
 
 The setup guide covers:
 
