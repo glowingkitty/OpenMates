@@ -759,7 +759,7 @@ if failed > 0:
             if t.get('status') == 'failed':
                 err = t.get('error', '')[:120]
                 print(f'  [{sname}] {t.get(\"file\", t.get(\"name\", \"?\"))}: {err}')
-     sys.exit(1)
+    sys.exit(1)
 " "$WORK_DIR" "$RUN_ID" "$GIT_SHA" "$GIT_BRANCH" "$UNIT_ONLY" "$ONLY_FAILED" "$SUITE" "$TOTAL_DURATION" "$RUN_FILE" "$RESULTS_DIR"
 
 # ─── Post-run: fetch E2E client-side logs from OpenObserve ───────────────────
