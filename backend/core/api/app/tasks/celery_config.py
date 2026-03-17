@@ -937,6 +937,7 @@ _EXPLICIT_TASK_ROUTES = {
     # Auto-delete tasks
     "app.tasks.auto_delete_tasks.auto_delete_old_chats": "persistence",
     "app.tasks.auto_delete_tasks.auto_delete_old_issues": "persistence",
+    "app.tasks.auto_delete_tasks.auto_delete_old_usage": "persistence",
 
     # PDF processing tasks
     "apps.pdf.tasks.process_pdf": "app_pdf",
@@ -1160,6 +1161,14 @@ app.conf.beat_schedule = {
     'auto-delete-old-issues-daily': {
         'task': 'app.tasks.auto_delete_tasks.auto_delete_old_issues',
         'schedule': crontab(hour=3, minute=0),  # Daily 03:00 UTC
+        'options': {'queue': 'persistence'},
+    },
+    # Daily usage auto-delete — permanently purges usage records (Directus + S3 archives)
+    # older than the user-configured retention period (default: 3 years).
+    # Runs at 03:30 UTC, staggered from other auto-delete tasks.
+    'auto-delete-old-usage-daily': {
+        'task': 'app.tasks.auto_delete_tasks.auto_delete_old_usage',
+        'schedule': crontab(hour=3, minute=30),  # Daily 03:30 UTC
         'options': {'queue': 'persistence'},
     },
     # Daily Inspiration generation - generates personalized inspirations for active users.

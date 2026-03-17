@@ -236,6 +236,13 @@ auto_deletion.period.2_years:
   ar: سنتان فأكثر
   he: שנתיים ומעלה
   verified_by_human: []
+auto_deletion.period.3_years:
+  context: Auto-deletion period option - 3 years (platform default for usage data)
+  en: 3 years & older
+  de: 3 Jahre & älter
+  ar: 3 سنوات فأكثر
+  he: 3 שנים ומעלה
+  verified_by_human: []
 auto_deletion.period.5_years:
   context: Auto-deletion period option - 5 years
   en: 5 years & older
@@ -346,7 +353,7 @@ tax_id_vat:
   en: Tax ID / VAT
   de: Steuer-ID / USt-IdNr.
   ar: الرقم الضريبي / VAT
-  he: "מזהה מס / מע\"מ"
+  he: 'מזהה מס / מע"מ'
   verified_by_human: []
 crypto_wallets:
   context: Toggle label for cryptocurrency wallet detection
@@ -604,7 +611,7 @@ form.city.placeholder:
   context: Placeholder for city input
   en: "example: 'Berlin'"
   de: "Beispiel: 'Berlin'"
-  ar: "مثال: \"برلين\""
+  ar: 'مثال: "برلين"'
   he: "לדוגמה: 'תל אביב'"
   verified_by_human: []
 form.state:
@@ -618,7 +625,7 @@ form.state.placeholder:
   context: Placeholder for state input
   en: "example: 'California'"
   de: "Beispiel: 'Bayern'"
-  ar: "مثال: \"كاليفورنيا\""
+  ar: 'مثال: "كاليفورنيا"'
   he: "לדוגמה: 'קליפורניה'"
   verified_by_human: []
 form.zip:
@@ -632,7 +639,7 @@ form.zip.placeholder:
   context: Placeholder for zip code input
   en: "example: '10115'"
   de: "Beispiel: '10115'"
-  ar: "مثال: \"10115\""
+  ar: 'مثال: "10115"'
   he: "לדוגמה: '10115'"
   verified_by_human: []
 form.country:
@@ -646,7 +653,7 @@ form.country.placeholder:
   context: Placeholder for country input
   en: "example: 'Germany'"
   de: "Beispiel: 'Deutschland'"
-  ar: "مثال: \"ألمانيا\""
+  ar: 'مثال: "ألمانيا"'
   he: "לדוגמה: 'גרמניה'"
   verified_by_human: []
 form.save:

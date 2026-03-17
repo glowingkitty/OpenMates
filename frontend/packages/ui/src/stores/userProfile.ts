@@ -56,6 +56,9 @@ export interface UserProfile {
   // Chat auto-deletion period (null = never delete, positive int = delete after N days)
   // Managed via Privacy → Auto Deletion → Chats. Persisted to server via POST /v1/settings/auto-delete-chats.
   auto_delete_chats_after_days?: number | null;
+  // Usage data auto-deletion period (null = platform default of 3 years / 1095 days)
+  // Managed via Privacy → Auto Deletion → Usage Data. Persisted via POST /v1/settings/auto-delete-usage.
+  auto_delete_usage_after_days?: number | null;
   // Email notification settings (synced with server)
   // Only sends email when user is offline (no active WebSocket connections after 3 retry attempts)
   email_notifications_enabled?: boolean;
