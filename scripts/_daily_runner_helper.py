@@ -278,6 +278,10 @@ def dispatch_email() -> None:
 
     normalized_payload = _build_test_run_payload(results_dir, environment)
 
+    # Include opencode analysis chat URL if one was produced during this run
+    # (set by run-tests-daily.sh after calling start-opencode-analysis).
+    opencode_chat_url = os.environ.get("OPENCODE_CHAT_URL", "").strip() or None
+
     # Dispatch via internal API endpoint.
     # When running on the host (via crontab), use localhost:8000 since
     # port 8000 is forwarded from the API container.
@@ -288,6 +292,7 @@ def dispatch_email() -> None:
     payload = {
         "recipient_email": admin_email,
         **normalized_payload,
+        "opencode_chat_url": opencode_chat_url,
     }
 
     try:
@@ -479,10 +484,163 @@ def dispatch_start_email() -> None:
         print(f"[daily-runner] WARNING: could not dispatch start email: {e}", file=sys.stderr)
 
 
+def start_opencode_analysis() -> None:
+    """
+    Start an opencode analysis session for test failures.
+
+    Reads the failed tests from last-failed-tests.json (written by split-results),
+    loads the prompt template from scripts/prompts/test-failure-analysis.md,
+    substitutes placeholders, then runs:
+
+        opencode run --share --model anthropic/claude-sonnet-4-6 \
+                     --title "test-failures YYYY-MM-DD" "<prompt>"
+
+    The --share flag produces a shareable session URL. We capture it from stdout
+    by looking for the "OPENCODE_URL:" prefix that this function emits.
+
+    Output convention (for run-tests-daily.sh to capture):
+        Prints "OPENCODE_URL:<url>" to stdout when a share URL is found.
+
+    Only called when failed_count > 0. Non-fatal — does not abort the test run.
+    """
+    import subprocess
+    from datetime import datetime, timezone
+
+    results_dir = os.environ.get("RESULTS_DIR", "test-results")
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(script_dir)
+
+    # Load failed tests
+    failed_path = os.path.join(results_dir, "last-failed-tests.json")
+    if not os.path.isfile(failed_path):
+        print("[daily-runner] WARNING: last-failed-tests.json not found — skipping opencode analysis.", file=sys.stderr)
+        return
+
+    with open(failed_path) as f:
+        failed_data = json.load(f)
+
+    failed_tests = failed_data.get("tests", [])
+    run_id = failed_data.get("run_id", "unknown")
+
+    if not failed_tests:
+        print("[daily-runner] No failed tests in last-failed-tests.json — skipping opencode analysis.", file=sys.stderr)
+        return
+
+    # Load last-run.json for git info
+    last_run_path = os.path.join(results_dir, "last-run.json")
+    git_sha = "unknown"
+    git_branch = "unknown"
+    total_count = 0
+    if os.path.isfile(last_run_path):
+        with open(last_run_path) as f:
+            last_run = json.load(f)
+        git_sha = last_run.get("git_sha", "unknown")
+        git_branch = last_run.get("git_branch", "unknown")
+        total_count = last_run.get("summary", {}).get("total", 0)
+
+    failed_count = len(failed_tests)
+    date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    # Load prompt template
+    prompt_template_path = os.path.join(script_dir, "prompts", "test-failure-analysis.md")
+    if not os.path.isfile(prompt_template_path):
+        print(
+            f"[daily-runner] WARNING: prompt template not found at {prompt_template_path} — skipping opencode analysis.",
+            file=sys.stderr,
+        )
+        return
+
+    with open(prompt_template_path) as f:
+        prompt_template = f.read()
+
+    # Build a compact JSON representation of failures (cap at 20 to keep prompt size reasonable)
+    MAX_FAILURES_IN_PROMPT = 20
+    truncated = failed_tests[:MAX_FAILURES_IN_PROMPT]
+    failed_tests_json = json.dumps(truncated, indent=2)
+
+    # Substitute placeholders
+    prompt = (
+        prompt_template
+        .replace("{{DATE}}", date_str)
+        .replace("{{RUN_ID}}", run_id)
+        .replace("{{GIT_SHA}}", git_sha)
+        .replace("{{GIT_BRANCH}}", git_branch)
+        .replace("{{FAILED_COUNT}}", str(failed_count))
+        .replace("{{TOTAL_COUNT}}", str(total_count))
+        .replace("{{FAILED_TESTS_JSON}}", failed_tests_json)
+    )
+
+    # Build opencode command
+    session_title = f"test-failures {date_str}"
+    cmd = [
+        "opencode", "run",
+        "--share",
+        "--model", "anthropic/claude-sonnet-4-6",
+        "--title", session_title,
+        "--dir", project_root,
+        prompt,
+    ]
+
+    print(f"[daily-runner] Running opencode analysis for {failed_count} failed test(s)...")
+
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=600,  # 10 minute max for the analysis session
+        )
+
+        combined_output = result.stdout + result.stderr
+
+        # Extract share URL — opencode prints something like:
+        #   Shared: https://opencode.ai/s/<session-id>
+        # We look for that pattern and emit a parseable line.
+        share_url = None
+        for line in combined_output.splitlines():
+            line_stripped = line.strip()
+            # Match "Shared: https://..." or just a bare opencode.ai/s/ URL
+            if "opencode.ai/s/" in line_stripped:
+                # Extract the URL token
+                for token in line_stripped.split():
+                    if "opencode.ai/s/" in token:
+                        share_url = token.lstrip("Shared:").strip()
+                        break
+            if share_url:
+                break
+
+        if share_url:
+            # Emit parseable line for run-tests-daily.sh to capture
+            print(f"OPENCODE_URL:{share_url}")
+            print(f"[daily-runner] opencode analysis session shared: {share_url}")
+        else:
+            print(
+                "[daily-runner] WARNING: opencode ran but no share URL found in output. "
+                "Check that --share flag is supported and OPENCODE_* env vars are set.",
+                file=sys.stderr,
+            )
+            # Still print the session output for the log
+            if combined_output.strip():
+                print(f"[daily-runner] opencode output (truncated):\n{combined_output[:2000]}", file=sys.stderr)
+
+        if result.returncode != 0:
+            print(
+                f"[daily-runner] WARNING: opencode exited with code {result.returncode} (non-fatal)",
+                file=sys.stderr,
+            )
+
+    except subprocess.TimeoutExpired:
+        print("[daily-runner] WARNING: opencode analysis timed out after 10 minutes (non-fatal)", file=sys.stderr)
+    except FileNotFoundError:
+        print("[daily-runner] WARNING: opencode binary not found — skipping analysis.", file=sys.stderr)
+    except Exception as e:
+        print(f"[daily-runner] WARNING: opencode analysis failed: {e} (non-fatal)", file=sys.stderr)
+
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print(
-            f"Usage: {sys.argv[0]} <split-results|dispatch-start-email|dispatch-email|dispatch-openobserve-test-run>",
+            f"Usage: {sys.argv[0]} <split-results|dispatch-start-email|dispatch-email|dispatch-openobserve-test-run|start-opencode-analysis>",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -496,6 +654,8 @@ if __name__ == "__main__":
         dispatch_email()
     elif command == "dispatch-openobserve-test-run":
         dispatch_openobserve_test_run()
+    elif command == "start-opencode-analysis":
+        start_opencode_analysis()
     else:
         print(f"Unknown command: {command}", file=sys.stderr)
         sys.exit(1)

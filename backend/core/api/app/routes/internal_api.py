@@ -1438,6 +1438,7 @@ class TestRunSummaryEmailPayload(BaseModel):
     suites: List[Dict[str, Any]]
     failed_tests: List[Dict[str, Any]]
     all_tests: Optional[List[Dict[str, Any]]] = None  # All tests with name, suite, status, duration
+    opencode_chat_url: Optional[str] = None  # Shareable opencode session URL for failure analysis
 
 
 class TestRunOpenObservePayload(BaseModel):
@@ -1499,6 +1500,7 @@ async def dispatch_test_summary_email(
             ],
             kwargs={
                 "all_tests": payload.all_tests,
+                "opencode_chat_url": payload.opencode_chat_url,
             },
             queue="email",
         )
