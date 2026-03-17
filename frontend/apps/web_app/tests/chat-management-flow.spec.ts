@@ -35,6 +35,7 @@ const {
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
+	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
 const consoleLogs: string[] = [];
@@ -64,7 +65,7 @@ async function loginToTestAccount(
 	logCheckpoint: (msg: string, meta?: Record<string, unknown>) => void,
 	takeStepScreenshot: (page: any, label: string) => Promise<void>
 ): Promise<void> {
-	await page.goto('/');
+	await page.goto(getE2EDebugUrl('/'));
 	await takeStepScreenshot(page, 'home');
 
 	const headerLoginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });

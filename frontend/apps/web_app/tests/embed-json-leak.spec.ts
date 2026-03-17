@@ -32,6 +32,7 @@ const {
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
+	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
 /**
@@ -104,7 +105,7 @@ test('code embeds render without raw JSON embed references leaking', async ({
 	// ======================================================================
 	// STEP 1: Login
 	// ======================================================================
-	await page.goto('/');
+	await page.goto(getE2EDebugUrl('/'));
 	await takeStepScreenshot(page, 'home');
 
 	const headerLoginButton = page.getByRole('button', {

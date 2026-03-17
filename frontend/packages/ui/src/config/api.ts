@@ -224,6 +224,9 @@ export const apiEndpoints = {
     listGiftCards: "/v1/admin/gift-cards", // Admin-only: list all active (unredeemed) gift cards
     clientLogs: "/v1/admin/client-logs", // Admin-only: live-stream browser console logs to OpenObserve (active for admin users)
   },
+  e2e: {
+    clientLogs: "/e2e/client-logs", // E2E test-only: forward browser console logs during Playwright runs (scoped HMAC auth, no session required)
+  },
   server: {
     info: "/v1/server", // Get server information (domain and self_hosted flag based on request validation)
   },

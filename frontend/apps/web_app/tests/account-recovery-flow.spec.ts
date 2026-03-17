@@ -40,6 +40,7 @@ const {
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
+	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
 /**
@@ -136,7 +137,7 @@ test('completes full account recovery flow with same password', async ({
 	// ========================================================================
 	// Step 1: Navigate to the app and open the login dialog
 	// ========================================================================
-	await page.goto('/');
+	await page.goto(getE2EDebugUrl('/'));
 	await takeStepScreenshot(page, 'home');
 
 	const headerLoginSignupButton = page.getByRole('button', {

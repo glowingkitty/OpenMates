@@ -49,6 +49,7 @@ const {
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
+	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
 const consoleLogs: string[] = [];
@@ -106,7 +107,7 @@ test('shows 2FA re-auth UI with location-change notice when session detects loca
 	// Step 1: First, login normally to get a valid session cookie
 	// This ensures we have an authenticated session before triggering re-auth
 	log('Performing initial login to establish session...');
-	await page.goto('/');
+	await page.goto(getE2EDebugUrl('/'));
 
 	const headerLoginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
 	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
@@ -276,7 +277,7 @@ test('shows passkey re-auth UI with location-change notice when session detects 
 
 	// Login first
 	log('Performing initial login...');
-	await page.goto('/');
+	await page.goto(getE2EDebugUrl('/'));
 	const headerLoginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
 	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
 	await headerLoginButton.click();

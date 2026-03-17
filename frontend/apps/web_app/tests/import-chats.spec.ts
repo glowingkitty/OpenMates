@@ -17,7 +17,8 @@ const {
 	createStepScreenshotter,
 	generateTotp,
 	assertNoMissingTranslations,
-	getTestAccount
+	getTestAccount,
+	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
@@ -47,7 +48,7 @@ test.afterEach(async ({}, testInfo: any) => {
 });
 
 async function loginToTestAccount(page: any): Promise<void> {
-	await page.goto('/');
+	await page.goto(getE2EDebugUrl('/'));
 
 	const headerLoginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
 	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });

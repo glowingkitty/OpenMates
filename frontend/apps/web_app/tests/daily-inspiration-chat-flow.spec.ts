@@ -74,7 +74,8 @@ const {
 	createStepScreenshotter,
 	generateTotp,
 	assertNoMissingTranslations,
-	getTestAccount
+	getTestAccount,
+	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
@@ -124,7 +125,7 @@ test('daily inspiration chat: creates chat and allows follow-up message without 
 	log('Starting daily inspiration chat flow test.', { email: TEST_EMAIL });
 
 	// ── 1. Navigate to home ──────────────────────────────────────────────────
-	await page.goto('/');
+	await page.goto(getE2EDebugUrl('/'));
 	await screenshot(page, 'home');
 
 	// ── 2. Open login dialog ─────────────────────────────────────────────────

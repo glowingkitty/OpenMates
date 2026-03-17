@@ -57,6 +57,11 @@ services:
       E2E_REPORT_API_TOKEN:
       E2E_REPORT_ENVIRONMENT:
       E2E_REPORT_ENABLED:
+      # E2E debug log forwarding (forwarded by run-tests-worker.sh)
+      # E2E_RUN_ID: the run correlation ID used as debugging_id in OpenObserve
+      # E2E_DEBUG_TOKEN: scoped HMAC token for /e2e/client-logs (NOT INTERNAL_API_SHARED_TOKEN)
+      E2E_RUN_ID:
+      E2E_DEBUG_TOKEN:
     networks:
       - openmates
     # NOTE: Use $$ to escape $ so docker-compose passes the variable expansion

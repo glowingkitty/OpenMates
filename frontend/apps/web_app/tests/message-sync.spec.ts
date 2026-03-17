@@ -45,6 +45,7 @@ const {
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
+	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
@@ -200,7 +201,7 @@ test('message sync: verifies all messages are synced after sending multiple mess
 	// =========================================================================
 	// STEP 1: Login
 	// =========================================================================
-	await page.goto('/');
+	await page.goto(getE2EDebugUrl('/'));
 	await takeStepScreenshot(page, '01-home');
 
 	const headerLoginButton = page.getByRole('button', {
@@ -433,7 +434,7 @@ test('message sync: verifies messages_v is properly updated', async ({ page }: {
 	await archiveExistingScreenshots(logCheckpoint);
 
 	// Login flow (abbreviated)
-	await page.goto('/');
+	await page.goto(getE2EDebugUrl('/'));
 	const headerLoginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
 	await expect(headerLoginButton).toBeVisible();
 	await headerLoginButton.click();

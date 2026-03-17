@@ -36,6 +36,7 @@ const {
 	createStepScreenshotter,
 	generateTotp,
 	getTestAccount,
+	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
@@ -45,7 +46,7 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 // ---------------------------------------------------------------------------
 
 async function loginTestAccount(page: any, log: any): Promise<void> {
-	await page.goto('/');
+	await page.goto(getE2EDebugUrl('/'));
 
 	// Clear any rate-limit localStorage flag from a previous test run
 	await page.evaluate(() => {

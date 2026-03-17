@@ -1,15 +1,19 @@
 /**
- * Client Log Forwarder — Admin Live Streaming & User Debug Sessions
+ * Client Log Forwarder — Admin Live Streaming, User Debug Sessions & E2E Test Mode
  *
  * Forwards browser console logs in real-time to OpenObserve via the backend.
  *
- * Two modes:
- * 1. **Admin mode** (original): POST /v1/admin/client-logs — for admin users only,
+ * Three modes:
+ * 1. **Admin mode**: POST /v1/admin/client-logs — for admin users only,
  *    started automatically on admin login/session-restore.
  * 2. **Debug session mode**: POST /v1/settings/debug-logs — for any authenticated
  *    user with an active debug log sharing session. Started when the user
  *    activates "Share Debug Logs" in settings. Logs are tagged with a
  *    debugging_id for support to query via `debug.py logs --debug-id <ID>`.
+ * 3. **E2E test mode**: POST /e2e/client-logs — started when the app is loaded
+ *    with the `#e2e-debug={runId}&e2e-token={scopedToken}` hash param injected
+ *    by the Playwright test runner. Uses a scoped HMAC token (NOT the internal
+ *    service token). Works pre-login so login flow itself is captured.
  *
  * Architecture context: docs/architecture/admin-console-log-forwarding.md
  *
@@ -20,7 +24,13 @@
  *   user activates debug session -> startDebugSession(id) -> same hook/batch flow
  *   -> POST /v1/settings/debug-logs (with debugging_id in body)
  *
+ *   E2E test load -> startE2E(runId, token) -> same hook/batch flow
+ *   -> POST /e2e/client-logs (X-E2E-Debug-Token header, no session cookie)
+ *
  *   logout / deactivate -> stop() -> unhooks listener, drains buffer
+ *   NOTE: stop() does NOT stop E2E mode — E2E forwarding persists across
+ *   login/logout cycles within the same page load so the full test flow
+ *   (including the login step itself) is captured.
  */
 
 import { logCollector } from "./logCollector";
@@ -107,6 +117,15 @@ class ClientLogForwarderService {
    */
   private debugSessionId: string | null = null;
 
+  /**
+   * When set, the forwarder runs in E2E test mode:
+   * - Uses POST /e2e/client-logs with X-E2E-Debug-Token header
+   * - No session cookie required (credentials: "omit")
+   * - Started pre-login from the #e2e-debug= hash param
+   * - Survives login/logout cycles within the same page load
+   */
+  private e2eMode: { runId: string; token: string } | null = null;
+
   // Fallback queue if IndexedDB is unavailable in the runtime.
   private volatileQueue: QueuedLogEntry[] = [];
 
@@ -142,9 +161,36 @@ class ClientLogForwarderService {
     void this.flush();
   }
 
-  /** Whether the forwarder is currently running (admin or debug mode). */
+  /**
+   * Start forwarding in E2E test mode. Called when the page detects the
+   * `#e2e-debug={runId}&e2e-token={token}` hash param injected by the
+   * Playwright test runner.
+   *
+   * - Works pre-login: uses X-E2E-Debug-Token header, no session cookie.
+   * - Survives login/logout: stop() does NOT stop E2E mode.
+   * - Runs in parallel with admin/debug-session mode if those start later.
+   * - Idempotent: safe to call multiple times with the same runId.
+   *
+   * @param runId  — The E2E run correlation ID (e.g. '2026-03-17T03:00:00Z-background-chat-notification')
+   * @param token  — The scoped HMAC token (derived from INTERNAL_API_SHARED_TOKEN, NOT the token itself)
+   */
+  startE2E(runId: string, token: string): void {
+    if (this.e2eMode?.runId === runId) return; // idempotent
+    this.e2eMode = { runId, token };
+    // Start the flush loop if not already running for another mode.
+    // If already running for admin/debug mode, the E2E mode piggybacks on the
+    // existing flush loop — flush() checks e2eMode independently.
+    if (!this.running) {
+      logCollector.onNewLog(this.logListener);
+      this.flushTimer = setInterval(() => void this.flush(), FLUSH_INTERVAL_MS);
+    }
+    void this.flush();
+    console.debug(`[ClientLogForwarder] E2E mode started, run_id=${runId}`);
+  }
+
+  /** Whether the forwarder is currently running (any mode). */
   get isRunning(): boolean {
-    return this.running;
+    return this.running || this.e2eMode !== null;
   }
 
   /** The active debug session ID, or null if in admin mode or stopped. */
@@ -152,18 +198,30 @@ class ClientLogForwarderService {
     return this.debugSessionId;
   }
 
+  /** The active E2E run ID, or null if not in E2E mode. */
+  get activeE2ERunId(): string | null {
+    return this.e2eMode?.runId ?? null;
+  }
+
   /**
-   * Stop forwarding and drain any buffered entries.
+   * Stop admin/debug-session forwarding and drain any buffered entries.
    * Call on logout or when admin status is lost.
+   *
+   * NOTE: This does NOT stop E2E mode. E2E mode runs for the entire page
+   * lifetime so login/logout transitions are fully captured.
    */
   async stop(): Promise<void> {
     if (!this.running) return;
     this.running = false;
     this.debugSessionId = null;
-    logCollector.offNewLog(this.logListener);
-    if (this.flushTimer !== null) {
-      clearInterval(this.flushTimer);
-      this.flushTimer = null;
+    // Only remove the log listener if E2E mode is also inactive.
+    // If E2E mode is active, keep the listener so E2E logs keep flowing.
+    if (!this.e2eMode) {
+      logCollector.offNewLog(this.logListener);
+      if (this.flushTimer !== null) {
+        clearInterval(this.flushTimer);
+        this.flushTimer = null;
+      }
     }
     // Best-effort final drain before teardown.
     await this.flush(true);
@@ -193,7 +251,7 @@ class ClientLogForwarderService {
       this.volatileQueue.push(queued);
     }
 
-    if (this.running) {
+    if (this.running || this.e2eMode) {
       void this.flush();
     }
   }
@@ -253,15 +311,21 @@ class ClientLogForwarderService {
   /**
    * Flush the current buffer to the backend.
    * Never throws — log forwarding must never break the app.
+   *
+   * When E2E mode is active, logs are sent to BOTH the admin/debug endpoint
+   * (if running) AND the E2E endpoint in parallel. This ensures no logs are
+   * lost regardless of which mode is primary.
    */
   private async flush(force: boolean = false): Promise<void> {
     if (this.flushInProgress) return;
-    if (!this.running && !force) return;
+    const shouldFlushNormal = this.running || force;
+    const shouldFlushE2E = this.e2eMode !== null;
+    if (!shouldFlushNormal && !shouldFlushE2E) return;
 
     this.flushInProgress = true;
     try {
       let processedBatches = 0;
-      while (this.running || force) {
+      while (this.running || force || this.e2eMode) {
         if (processedBatches >= MAX_BATCHES_PER_FLUSH) {
           break;
         }
@@ -290,30 +354,60 @@ class ClientLogForwarderService {
           tabId: TAB_ID,
         };
 
-        // Determine endpoint and body based on mode (admin vs debug session)
-        const isDebugSession = this.debugSessionId !== null;
-        const endpoint = isDebugSession
-          ? getApiEndpoint(apiEndpoints.settings.debugLogs)
-          : getApiEndpoint(apiEndpoints.admin.clientLogs);
-        const body = isDebugSession
-          ? { logs: entries, metadata, debugging_id: this.debugSessionId }
-          : { logs: entries, metadata };
-
-        let responseOk = false;
-        try {
-          const response = await fetch(endpoint, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(body),
-            credentials: "include",
-            keepalive: true,
-          });
-          responseOk = response.ok;
-        } catch {
-          responseOk = false;
+        // --- Send to admin/debug-session endpoint (if in normal running mode) ---
+        let normalOk = !shouldFlushNormal; // skip if not in normal mode
+        if (shouldFlushNormal) {
+          const isDebugSession = this.debugSessionId !== null;
+          const endpoint = isDebugSession
+            ? getApiEndpoint(apiEndpoints.settings.debugLogs)
+            : getApiEndpoint(apiEndpoints.admin.clientLogs);
+          const body = isDebugSession
+            ? { logs: entries, metadata, debugging_id: this.debugSessionId }
+            : { logs: entries, metadata };
+          try {
+            const response = await fetch(endpoint, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(body),
+              credentials: "include",
+              keepalive: true,
+            });
+            normalOk = response.ok;
+          } catch {
+            normalOk = false;
+          }
         }
 
-        if (!responseOk) {
+        // --- Send to E2E endpoint (if in E2E mode) ---
+        let e2eOk = !shouldFlushE2E; // skip if not in E2E mode
+        if (shouldFlushE2E && this.e2eMode) {
+          const endpoint = getApiEndpoint(apiEndpoints.e2e.clientLogs);
+          const body = {
+            run_id: this.e2eMode.runId,
+            logs: entries,
+            metadata,
+          };
+          try {
+            const response = await fetch(endpoint, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "X-E2E-Debug-Token": this.e2eMode.token,
+              },
+              body: JSON.stringify(body),
+              credentials: "omit", // no session cookie needed
+              keepalive: true,
+            });
+            e2eOk = response.ok;
+          } catch {
+            e2eOk = false;
+          }
+        }
+
+        // Only advance the queue if at least one send succeeded.
+        // If both failed, stop flushing (network down, retry next interval).
+        const anyOk = normalOk || e2eOk;
+        if (!anyOk) {
           break;
         }
 
@@ -329,6 +423,12 @@ class ClientLogForwarderService {
         }
 
         if (batch.length < MAX_BATCH_SIZE) {
+          break;
+        }
+
+        // After first batch, only continue if in a running mode (not just E2E)
+        // to avoid looping purely for E2E draining on stop().
+        if (!this.running && !force) {
           break;
         }
       }

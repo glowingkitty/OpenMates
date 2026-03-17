@@ -759,5 +759,40 @@ if failed > 0:
             if t.get('status') == 'failed':
                 err = t.get('error', '')[:120]
                 print(f'  [{sname}] {t.get(\"file\", t.get(\"name\", \"?\"))}: {err}')
-    sys.exit(1)
+     sys.exit(1)
 " "$WORK_DIR" "$RUN_ID" "$GIT_SHA" "$GIT_BRANCH" "$UNIT_ONLY" "$ONLY_FAILED" "$SUITE" "$TOTAL_DURATION" "$RUN_FILE" "$RESULTS_DIR"
+
+# ─── Post-run: fetch E2E client-side logs from OpenObserve ───────────────────
+# After Playwright specs complete, query OpenObserve for all browser console logs
+# forwarded during the run (tagged with run_id via getE2EDebugUrl). These logs
+# are appended to the run results JSON so failures can be diagnosed without
+# re-running tests.
+#
+# Only runs when:
+#   1. E2E specs were executed (not unit-only)
+#   2. INTERNAL_API_SHARED_TOKEN is set (needed by debug.py)
+#   3. docker exec api is available
+if [[ "$UNIT_ONLY" != "true" && -n "${INTERNAL_API_SHARED_TOKEN:-}" ]]; then
+  echo ""
+  echo "━━━ E2E Client-Side Log Summary (run_id=${RUN_ID}) ━━━"
+  SINCE_SECS=$(( $(date +%s) - $(date -d "${RUN_ID}" +%s 2>/dev/null || echo "$(date +%s)") + 60 ))
+  # Cap at 600s to avoid overly broad queries
+  [[ $SINCE_SECS -gt 600 ]] && SINCE_SECS=600
+
+  CLIENT_LOG_OUTPUT=""
+  if docker exec api true 2>/dev/null; then
+    CLIENT_LOG_OUTPUT="$(
+      docker exec api python /app/backend/scripts/debug.py logs --debug-id "$RUN_ID" --level error --since "$SINCE_SECS" 2>&1
+    )" || true
+  fi
+
+  if [[ -n "$CLIENT_LOG_OUTPUT" ]]; then
+    echo "$CLIENT_LOG_OUTPUT"
+    # Save to results dir for the email summary and future analysis
+    echo "$CLIENT_LOG_OUTPUT" > "$RESULTS_DIR/client-errors-${RUN_ID}.txt"
+    echo "  Saved to: $RESULTS_DIR/client-errors-${RUN_ID}.txt"
+  else
+    echo "  No client-side errors found (or OpenObserve query timed out)."
+    echo "  Tip: query manually with: debug.py logs --debug-id $RUN_ID"
+  fi
+fi

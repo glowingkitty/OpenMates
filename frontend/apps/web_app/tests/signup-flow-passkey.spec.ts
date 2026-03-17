@@ -38,7 +38,8 @@ const {
 	getMailosaurServerId,
 	buildSignupEmail,
 	createMailosaurClient,
-	assertNoMissingTranslations
+	assertNoMissingTranslations,
+	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
 /**
@@ -171,7 +172,7 @@ test('completes passkey signup flow with email + purchase', async ({
 	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 
 	// Base URL comes from PLAYWRIGHT_TEST_BASE_URL or the default in config.
-	await page.goto('/');
+	await page.goto(getE2EDebugUrl('/'));
 	await takeStepScreenshot(page, 'home');
 
 	const { client, authenticatorId } = await setupVirtualPasskeyAuthenticator(context, page);

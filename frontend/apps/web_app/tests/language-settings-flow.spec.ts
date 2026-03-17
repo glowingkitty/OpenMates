@@ -35,6 +35,7 @@ const {
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
+	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
 // ---------------------------------------------------------------------------
@@ -192,7 +193,7 @@ test('language settings — change to Deutsch, verify client + server, reset to 
 	// Step 1 — Login
 	// -------------------------------------------------------------------------
 
-	await page.goto('/');
+	await page.goto(getE2EDebugUrl('/'));
 	await page
 		.waitForLoadState('networkidle', { timeout: 15000 })
 		.catch(() => log('WARNING: networkidle timeout — continuing anyway.'));

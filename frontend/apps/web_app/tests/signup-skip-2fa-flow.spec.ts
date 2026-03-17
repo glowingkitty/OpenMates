@@ -40,7 +40,8 @@ const {
 	getMailosaurServerId,
 	buildSignupEmail,
 	createMailosaurClient,
-	assertNoMissingTranslations
+	assertNoMissingTranslations,
+	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
 const MAILOSAUR_API_KEY = process.env.MAILOSAUR_API_KEY;
@@ -105,7 +106,7 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	const signupUsername = signupEmail.split('@')[0];
 	const signupPassword = 'SignupTest!234Secure';
 
-	await page.goto('/');
+	await page.goto(getE2EDebugUrl('/'));
 	await takeStepScreenshot(page, 'home');
 
 	const headerLoginSignupButton = page.getByRole('button', {

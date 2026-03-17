@@ -33,6 +33,7 @@ const {
 	createStepScreenshotter,
 	generateTotp,
 	getTestAccount,
+	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
@@ -82,7 +83,7 @@ function attachListeners(page: any, label: string, logs: SessionLogs) {
  * Perform the full login flow (email → password+OTP → redirect to /chat).
  */
 async function loginToApp(page: any, logFn: (msg: string) => void): Promise<void> {
-	await page.goto('/');
+	await page.goto(getE2EDebugUrl('/'));
 
 	const headerLoginButton = page.getByRole('button', {
 		name: /login.*sign up|sign up/i

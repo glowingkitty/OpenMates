@@ -37,6 +37,7 @@ const {
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
+	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
 /**
@@ -109,7 +110,7 @@ test('sets up recovery key in settings and logs in with recovery key', async ({
 	// PHASE 1: Login with password + OTP to access settings
 	// ========================================================================
 
-	await page.goto('/');
+	await page.goto(getE2EDebugUrl('/'));
 	await takeStepScreenshot(page, 'home');
 
 	// Open login dialog

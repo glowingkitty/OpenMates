@@ -40,7 +40,8 @@ const {
 	createStepScreenshotter,
 	generateTotp,
 	assertNoMissingTranslations,
-	getTestAccount
+	getTestAccount,
+	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
@@ -66,7 +67,7 @@ test('background chat notification shows and allows reply', async ({ page }: { p
 	// ══════════════════════════════════════════════════════════════
 	// 1. Navigate to home
 	// ══════════════════════════════════════════════════════════════
-	await page.goto('/');
+	await page.goto(getE2EDebugUrl('/'));
 	await takeScreenshot(page, 'home');
 
 	// 2. Open login dialog

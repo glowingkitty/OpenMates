@@ -40,7 +40,8 @@ const {
 	buildSignupEmail,
 	createMailosaurClient,
 	generateTotp,
-	assertNoMissingTranslations
+	assertNoMissingTranslations,
+	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
 /**
@@ -135,7 +136,7 @@ test('completes full signup flow with email + 2FA + purchase', async ({
 	logSignupCheckpoint('Initialized signup identity.', { signupEmail });
 
 	// Base URL comes from PLAYWRIGHT_TEST_BASE_URL or the default in config.
-	await page.goto('/');
+	await page.goto(getE2EDebugUrl('/'));
 	await takeStepScreenshot(page, 'home');
 
 	// Open the login/signup dialog from the header.

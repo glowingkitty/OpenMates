@@ -69,7 +69,8 @@ const {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	generateTotp,
-	getTestAccount
+	getTestAccount,
+	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
 // ─── Log buckets ─────────────────────────────────────────────────────────────
@@ -169,7 +170,7 @@ async function loginToTestAccount(
 	logCheckpoint: (msg: string, meta?: Record<string, unknown>) => void,
 	takeStepScreenshot: (page: any, label: string) => Promise<void>
 ): Promise<void> {
-	await page.goto('/');
+	await page.goto(getE2EDebugUrl('/'));
 	await takeStepScreenshot(page, 'home');
 
 	const headerLoginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
@@ -619,7 +620,7 @@ test('attaches multiple files at once and shows image embed and code reference i
 	saveWarnErrorLogs('multi', 'editor_verified');
 
 	// Do NOT send — just verify the editor state, then navigate away to discard
-	await page.goto('/');
+	await page.goto(getE2EDebugUrl('/'));
 	log('Navigated away without sending (test only verified editor state).');
 
 	log('Test complete.');

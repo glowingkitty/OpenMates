@@ -703,6 +703,46 @@ function getTestAccount(slot?: number): {
 	};
 }
 
+/**
+ * Build the hash fragment params for E2E debug log forwarding.
+ *
+ * When E2E_DEBUG_TOKEN and E2E_RUN_ID are set (injected by run-tests-worker.sh),
+ * returns a hash fragment that activates client-side log forwarding to OpenObserve.
+ * This works pre-login so the full test flow — including the login page itself — is
+ * captured and queryable via `debug.py logs --debug-id {runId}`.
+ *
+ * Usage in specs:
+ *   await page.goto(getE2EDebugUrl('/'));
+ *   await page.goto(getE2EDebugUrl('/#gift-card=CODE'));   // composable with other hashes
+ *
+ * When env vars are missing (local manual runs), returns the base URL unchanged.
+ */
+function getE2EDebugUrl(path: string = '/'): string {
+	const token = process.env.E2E_DEBUG_TOKEN;
+	const runId = process.env.E2E_RUN_ID;
+
+	// Graceful degradation: if token or run ID is missing, just return the path unchanged.
+	if (!token || !runId) return path;
+
+	// Build the spec-scoped run ID so logs from individual specs are distinguishable.
+	// Format: {runId}-{specName} where specName is derived from the test file or caller.
+	const specName = process.env.PLAYWRIGHT_TEST_FILE
+		? process.env.PLAYWRIGHT_TEST_FILE.replace(/^tests\//, '').replace(/\.spec\.ts$/, '')
+		: 'unknown';
+	const scopedRunId = `${runId}-${specName}`;
+
+	// Parse the existing hash (if any) so we can compose the params
+	const hashIndex = path.indexOf('#');
+	const basePath = hashIndex >= 0 ? path.slice(0, hashIndex) : path;
+	const existingHash = hashIndex >= 0 ? path.slice(hashIndex + 1) : '';
+
+	// Merge e2e-debug params with any existing hash params using &
+	const existingParams = existingHash ? `${existingHash}&` : '';
+	const e2eParams = `e2e-debug=${encodeURIComponent(scopedRunId)}&e2e-token=${encodeURIComponent(token)}`;
+
+	return `${basePath}#${existingParams}${e2eParams}`;
+}
+
 module.exports = {
 	ARTIFACTS_DIRNAME,
 	PREVIOUS_RUN_DIRNAME,
@@ -717,5 +757,6 @@ module.exports = {
 	createMailosaurClient,
 	generateTotp,
 	assertNoMissingTranslations,
-	getTestAccount
+	getTestAccount,
+	getE2EDebugUrl
 };

@@ -14,6 +14,7 @@ const {
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
+	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
 /**
@@ -102,7 +103,7 @@ test('incognito mode — full flow', async ({ page }: { page: any }) => {
 	// Login (once)
 	// -------------------------------------------------------------------------
 
-	await page.goto('/');
+	await page.goto(getE2EDebugUrl('/'));
 	await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {
 		logCheckpoint('WARNING: networkidle timeout — continuing anyway.');
 	});

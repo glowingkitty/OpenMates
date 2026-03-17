@@ -12,7 +12,8 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	assertNoMissingTranslations
+	assertNoMissingTranslations,
+	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
 const consoleLogs: string[] = [];

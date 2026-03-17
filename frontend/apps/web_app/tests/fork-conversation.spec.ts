@@ -31,7 +31,8 @@ const {
 	createStepScreenshotter,
 	generateTotp,
 	assertNoMissingTranslations,
-	getTestAccount
+	getTestAccount,
+	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
 /**
@@ -81,7 +82,7 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 	log('Starting fork conversation test.', { email: TEST_EMAIL });
 
 	// ── 1. Navigate to home ──────────────────────────────────────────────────
-	await page.goto('/');
+	await page.goto(getE2EDebugUrl('/'));
 	await screenshot(page, 'home');
 
 	// ── 2. Open login dialog ─────────────────────────────────────────────────

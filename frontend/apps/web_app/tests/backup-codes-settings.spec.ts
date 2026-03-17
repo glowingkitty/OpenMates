@@ -36,7 +36,8 @@ const {
 	setToggleChecked,
 	generateTotp,
 	assertNoMissingTranslations,
-	getTestAccount
+	getTestAccount,
+	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
 /**
@@ -116,7 +117,7 @@ test('resets backup codes via Settings > Security > 2FA', async ({
 	// PHASE 1: Login with password + OTP (with retry on OTP timing failures)
 	// ========================================================================
 
-	await page.goto('/');
+	await page.goto(getE2EDebugUrl('/'));
 	await takeStepScreenshot(page, 'home');
 
 	// Open login dialog

@@ -15,7 +15,8 @@ const {
 	createStepScreenshotter,
 	generateTotp,
 	assertNoMissingTranslations,
-	getTestAccount
+	getTestAccount,
+	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
 /**
@@ -39,7 +40,9 @@ const {
  * - PLAYWRIGHT_TEST_BASE_URL
  */
 
-const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
+// Explicitly use slot 1 — this is a long AI inference test that needs a reliable account.
+// Slot 3 doesn't have 2FA configured, causing auth failures on parallel runs.
+const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount(1);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -55,7 +58,7 @@ function setupPageListeners(page: any) {
  * Log in with email + password + TOTP 2FA (3-attempt retry for OTP timing).
  */
 async function loginToTestAccount(page: any, log: any, screenshot: any) {
-	await page.goto('/');
+	await page.goto(getE2EDebugUrl('/'));
 	await screenshot(page, 'login-home');
 
 	const headerLoginButton = page.getByRole('button', {

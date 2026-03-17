@@ -19,6 +19,9 @@
 
 import { test, expect } from '@playwright/test';
 
+/* eslint-disable @typescript-eslint/no-require-imports */
+const { getE2EDebugUrl } = require('./signup-flow-helpers');
+
 // Configure the browser to use a fake audio device and grant mic permission
 test.use({
 	launchOptions: {
@@ -54,7 +57,7 @@ test.afterEach(async ({}, testInfo) => {
  * message field editor so action buttons appear. Returns the message field locator.
  */
 async function setupAndFocusMessageField(page: any) {
-	await page.goto('/');
+	await page.goto(getE2EDebugUrl('/'));
 
 	// Wait for the page to fully load — demo chats need time to initialize
 	await page.waitForTimeout(3000);

@@ -908,6 +908,39 @@
 			console.debug('[+page.svelte] Developer console activated via #console-on');
 		}
 
+		// --- E2E test debug log forwarding via #e2e-debug= hash param ---
+		// Activated by the Playwright test runner injecting:
+		//   /#e2e-debug={runId}&e2e-token={scopedHmacToken}
+		//
+		// The e2e-debug and e2e-token params are extracted from the hash and the
+		// remaining hash is preserved for normal deep-link processing.
+		// Works pre-login so the login flow itself is captured in OpenObserve.
+		// Query via: debug.py logs --debug-id {runId}
+		//
+		// Privacy: Only activates when the specific hash params are present.
+		// Regular users never see these params — they are injected by Docker test runner.
+		if (browser) {
+			const rawHash = window.location.hash.replace(/^#/, '');
+			const hashParams = new URLSearchParams(rawHash);
+			const e2eRunId = hashParams.get('e2e-debug');
+			const e2eToken = hashParams.get('e2e-token');
+			if (e2eRunId && e2eToken) {
+				// Strip e2e params, preserve the rest for downstream hash parsing
+				hashParams.delete('e2e-debug');
+				hashParams.delete('e2e-token');
+				const remaining = hashParams.toString();
+				history.replaceState(
+					null,
+					'',
+					window.location.pathname + window.location.search + (remaining ? '#' + remaining : '')
+				);
+				// Start E2E log forwarding immediately (pre-login, no session cookie needed)
+				const { clientLogForwarder } = await import('@repo/ui/services/clientLogForwarder');
+				clientLogForwarder.startE2E(e2eRunId, e2eToken);
+				console.debug(`[+page.svelte] E2E debug log forwarding started, run_id=${e2eRunId}`);
+			}
+		}
+
 		// Load community demo chats (example chats) on page load so they appear in for-everyone
 		// and for-developers intro chats without requiring the sidebar (Chats) to be opened first.
 		loadCommunityDemos().catch((error) => {
