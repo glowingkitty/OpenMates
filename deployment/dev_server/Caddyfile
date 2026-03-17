@@ -76,7 +76,7 @@ api.dev.openmates.org {
 	# for the DailyInspirationBanner shown to unauthenticated users on the home page.
 	# /v1/users/* — profile image endpoint supports both session cookie and API key auth;
 	#   API key clients (no Origin header) fall through here after @webapp_actual doesn't match.
-	@public_api_paths path /v1/apps /v1/apps/* /v1/settings/* /v1/tasks/* /v1/embeds/* /v1/geocode/* /v1/analytics/* /v1/default-inspirations /v1/users/* # Public API endpoints (authentication enforced by FastAPI where applicable)
+	@public_api_paths path /v1/apps /v1/apps/* /v1/settings/* /v1/tasks/* /v1/embeds/* /v1/geocode/* /v1/analytics/* /v1/default-inspirations /v1/users/* /e2e/* # Public API endpoints (authentication enforced by FastAPI where applicable). /e2e/* uses scoped HMAC token auth (X-E2E-Debug-Token) for E2E test client log forwarding.
 
 	# --- PUBLIC SHARE MATCHERS ---
 	# Share endpoints are publicly accessible (no Origin check) for social media and cross-platform sharing
@@ -150,7 +150,7 @@ api.dev.openmates.org {
 	}
 
 	@public_api_options {
-		path /v1/apps /v1/apps/* /v1/settings/* /v1/tasks/* /v1/embeds/* /v1/geocode/* /v1/analytics/* /v1/default-inspirations /v1/users/*
+		path /v1/apps /v1/apps/* /v1/settings/* /v1/tasks/* /v1/embeds/* /v1/geocode/* /v1/analytics/* /v1/default-inspirations /v1/users/* /e2e/*
 		method OPTIONS
 	}
 
