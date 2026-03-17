@@ -2,6 +2,7 @@
 # Periodic health check tasks for LLM providers and app services.
 # These tasks run via Celery Beat to monitor provider and app availability.
 
+import base64
 import logging
 import asyncio
 import json
@@ -121,6 +122,31 @@ HEALTH_CHECK_CACHE_TTL = 600
 # Health check intervals (in seconds)
 HEALTH_CHECK_INTERVAL_WITH_ENDPOINT = 60  # 1 minute for providers with /health endpoint
 HEALTH_CHECK_INTERVAL_WITHOUT_ENDPOINT = 300  # 5 minutes for providers without /health endpoint
+
+# Minimal 1×1 white JPEG (631 bytes) used as the health check probe image for Sightengine.
+#
+# We send raw bytes via multipart POST (matching the real upload pipeline) instead of a
+# URL-based GET probe. This avoids any external URL dependency — a URL-based probe was
+# previously using a Wikimedia GIF that returned 404, causing Sightengine to log 404
+# errors against our account (~288 errors/day per server). Raw bytes are always available,
+# never go stale, and mirror the actual check_all() call path in sightengine_service.py.
+#
+# Generated with: PIL.Image.new("RGB", (1,1), (255,255,255)).save(buf, "JPEG", quality=50)
+SIGHTENGINE_HEALTH_CHECK_IMAGE_BYTES: bytes = base64.b64decode(
+    "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABALDA4MChAODQ4SERATGCgaGBYWGDEjJR0o"
+    "OjM9PDkzODdASFxOQERXRTc4UG1RV19iZ2hnPk1xeXBkeFxlZ2P/2wBDARESEhgVGC8a"
+    "Gi9jQjhCY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2Nj"
+    "Y2NjY2P/wAARCAABAAEDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcI"
+    "CQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0Kxw"
+    "RVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaG"
+    "lqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8j"
+    "JytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAA"
+    "ECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEI"
+    "FEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWV"
+    "pjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6"
+    "wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD0Cii"
+    "igD//2Q=="
+)
 
 
 def _is_credential_error(error_message: Optional[str]) -> bool:
@@ -1171,7 +1197,14 @@ async def _check_stripe_health(secrets_manager: SecretsManager) -> Dict[str, Any
 
 
 async def _check_sightengine_health(secrets_manager: SecretsManager) -> Dict[str, Any]:
-    """Check Sightengine API health via test request."""
+    """Check Sightengine API health by sending a tiny image via multipart POST.
+
+    Uses raw bytes (SIGHTENGINE_HEALTH_CHECK_IMAGE_BYTES) instead of a URL-based probe.
+    A URL probe previously used a Wikimedia GIF that returned 404, generating ~288
+    spurious "image not available" errors per day in the Sightengine account logs.
+    Raw bytes mirror the real upload pipeline (sightengine_service.py check_all) and
+    have no external URL dependency that can silently go stale.
+    """
     logger.info("Health check: Checking Sightengine API...")
     cache_service = CacheService()
 
@@ -1195,20 +1228,21 @@ async def _check_sightengine_health(secrets_manager: SecretsManager) -> Dict[str
 
             try:
                 async with httpx.AsyncClient(timeout=10.0) as client:
-                    # Test with a simple check endpoint (minimal image check)
-                    # We use the check-url endpoint with a tiny placeholder image
-                    response = await client.get(
+                    # Send a 1×1 white JPEG as multipart bytes — no external URL dependency.
+                    # This mirrors the exact call shape used in sightengine_service.check_all().
+                    response = await client.post(
                         "https://api.sightengine.com/1.0/check.json",
-                        params={
+                        data={
                             "api_user": api_user,
                             "api_secret": api_secret,
                             "models": "nudity-2.0",
-                            "url": "https://upload.wikimedia.org/wikipedia/commons/c/ce/Transparent.gif"
-                        }
+                        },
+                        files={
+                            "media": ("health.jpg", SIGHTENGINE_HEALTH_CHECK_IMAGE_BYTES, "image/jpeg"),
+                        },
                     )
                     response_time_ms = (time.time() - start_time) * 1000
 
-                    # 200 = success, or we check for valid response structure
                     if response.status_code == 200:
                         status = "healthy"
                         last_error = None

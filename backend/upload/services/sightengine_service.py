@@ -10,7 +10,7 @@
 # 1. Content safety scan ('nudity-2.0,offensive,gore') — BLOCKING
 #    - Checks for nudity, sexual content, violence, gore, offensive imagery
 #    - Rejects the upload if any threshold is exceeded (HTTP 422)
-#    - Mirrors the thresholds used by ImageSafetyService in the core API
+#    - This is the canonical content safety implementation (ImageSafetyService in the core API was dead code and has been removed)
 #    - Applied to ALL image uploads (chat images AND profile images)
 #    - API docs: https://sightengine.com/docs/nudity-detection
 #
@@ -349,8 +349,7 @@ class SightEngineService:
         Check an image for nudity, sexual content, violence, and gore.
 
         Uses SightEngine models: nudity-2.0, offensive, gore.
-        Mirrors the thresholds in ImageSafetyService.check_profile_image()
-        from the core API.
+        This is the canonical content safety threshold implementation.
 
         BLOCKING: if is_safe=False on the result, the upload MUST be rejected.
 
@@ -418,7 +417,7 @@ class SightEngineService:
             offensive = data.get("offensive", {})
             gore = data.get("gore", {})
 
-            # Mirror thresholds from ImageSafetyService.check_profile_image():
+            # Content safety thresholds (canonical — previously also defined in the now-removed ImageSafetyService):
             sexual_activity = float(nudity.get("sexual_activity", 0.0))
             sexual_display = float(nudity.get("sexual_display", 0.0))
             erotica = float(nudity.get("erotica", 0.0))

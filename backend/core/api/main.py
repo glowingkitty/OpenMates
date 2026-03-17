@@ -34,6 +34,7 @@ from backend.core.api.app.routes.push import router as push_router  # noqa: E402
 from backend.core.api.app.services.push_notification_service import push_notification_service  # noqa: E402
 from backend.core.api.app.routes import admin_debug  # noqa: E402 # Import admin debug router for remote debugging
 from backend.core.api.app.routes import admin_client_logs  # noqa: E402 # Import admin client log forwarding router
+from backend.core.api.app.routes import e2e_api  # noqa: E402 # Import E2E test client log forwarding router (scoped HMAC auth)
 from backend.core.api.app.routes import apps_api  # noqa: E402 # Import apps API router for external API access
 from backend.core.api.app.routes import creators  # noqa: E402 # Import creators router
 from backend.core.api.app.routes import newsletter  # noqa: E402 # Import newsletter router
@@ -50,7 +51,6 @@ from backend.core.api.app.services.metrics import MetricsService  # noqa: E402
 from backend.core.api.app.services.compliance import ComplianceService  # noqa: E402
 from backend.core.api.app.utils.setup_compliance_logging import setup_compliance_logging  # noqa: E402
 from backend.core.api.app.services.email_template import EmailTemplateService  # noqa: E402
-from backend.core.api.app.services.image_safety import ImageSafetyService  # noqa: E402 # Import ImageSafetyService
 from backend.core.api.app.services.s3.service import S3UploadService  # noqa: E402 # Import S3UploadService
 from backend.core.api.app.services.payment.payment_service import PaymentService  # noqa: E402 # Import PaymentService
 from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService  # noqa: E402 # Import InvoiceNinjaService
@@ -624,10 +624,6 @@ async def lifespan(app: FastAPI):
     app.state.s3_service = S3UploadService(secrets_manager=app.state.secrets_manager)
     logger.info("S3 service instance created.")
     
-    # Initialize ImageSafetyService (depends on SecretsManager)
-    app.state.image_safety_service = ImageSafetyService(secrets_manager=app.state.secrets_manager)
-    logger.info("Image safety service instance created.")
-
     # Initialize PaymentService conditionally (only if payment is enabled)
     # Note: We check payment_enabled later after domain validation, but create service instance here
     # The service will only be initialized/used if payment_enabled is True
@@ -1646,6 +1642,7 @@ def create_app() -> FastAPI:
     app.include_router(admin.router, include_in_schema=False)  # Admin router - authenticated admin only
     app.include_router(admin_debug.router, include_in_schema=False)  # Admin debug router - requires admin API key, not in public docs
     app.include_router(admin_client_logs.router, include_in_schema=False)  # Admin client log forwarding - pushes browser console logs to Loki for admin users
+    app.include_router(e2e_api.router, include_in_schema=False)  # E2E test client log forwarding - scoped HMAC auth, no session required
     app.include_router(newsletter.router, include_in_schema=False)  # Newsletter endpoints - web app only (uses verify_allowed_origin)
     app.include_router(email_block.router, include_in_schema=False)  # Email blocking endpoints - web app only (uses verify_allowed_origin)
     
