@@ -170,13 +170,17 @@ test('background chat notification shows and allows reply', async ({ page }: { p
 	logStep('Sent message in Chat A.');
 	await takeScreenshot(page, 'chat-a-message-sent');
 
-	// Wait for Chat A URL to contain a chat-id
+	// Wait for Chat A URL to contain a chat-id (hash-based: /#chat-id=xxx)
 	logStep('Waiting for Chat A ID in URL...');
-	await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 15000 });
+	await expect(page).toHaveURL(/chat-id=/, { timeout: 15000 });
 	const chatAUrl = page.url();
-	const chatAIdMatch = chatAUrl.match(/chat-id=([a-zA-Z0-9-]+)/);
-	const chatAId = chatAIdMatch ? chatAIdMatch[1] : 'unknown';
-	logStep(`Chat A created with ID: ${chatAId}`);
+	// Chat IDs can contain alphanumeric, hyphens, underscores — capture everything up to & or end
+	const chatAIdMatch = chatAUrl.match(/chat-id=([^&# ]+)/);
+	const chatAId = chatAIdMatch ? chatAIdMatch[1] : null;
+	logStep(`Chat A created with ID: ${chatAId}, full URL: ${chatAUrl}`);
+	if (!chatAId) {
+		throw new Error(`Could not extract chat ID from URL: ${chatAUrl}`);
+	}
 
 	// ══════════════════════════════════════════════════════════════
 	// 10. Switch to a new Chat B (making Chat A a background chat)
@@ -278,27 +282,30 @@ test('background chat notification shows and allows reply', async ({ page }: { p
 			await sidebarToggle.click();
 			await page.waitForTimeout(300);
 		}
+		// App uses hash-based navigation: /#chat-id={id}
 		const chatLink = page.locator(`a[href*="chat-id=${chatAId}"]`).first();
 		if (await chatLink.isVisible().catch(() => false)) {
 			await chatLink.click();
 		} else {
-			await page.goto(`/chat?chat-id=${chatAId}`);
+			await page.goto(`/#chat-id=${chatAId}`);
 		}
 		await page.waitForURL(targetChatUrlPattern, { timeout: 10000 });
 	}
-	logStep('Navigated to Chat A via notification reply.');
+	logStep(`Navigated to Chat A via notification reply. Current URL: ${page.url()}`);
 	await takeScreenshot(page, 'navigated-to-chat-a');
 	// Allow extra time for WebSocket sync to recover and messages to render
-	await page.waitForTimeout(5000);
+	await page.waitForTimeout(8000);
+	await takeScreenshot(page, 'chat-a-after-wait');
 
 	// Wait for at least one assistant message to be visible (the original AI response)
+	// Use toContainText or count approach — messages may still be loading
 	const assistantResponse = page.getByTestId('message-assistant');
 	await expect(async () => {
 		const count = await assistantResponse.count();
-		logStep(`Assistant message count: ${count}`);
+		logStep(`Assistant message count: ${count}, URL: ${page.url()}`);
 		expect(count).toBeGreaterThan(0);
-	}).toPass({ timeout: 60000 });
-	await expect(assistantResponse.first()).toBeVisible({ timeout: 10000 });
+	}).toPass({ timeout: 90000 });
+	await expect(assistantResponse.first()).toBeVisible({ timeout: 15000 });
 	logStep('Assistant response visible in Chat A.');
 
 	// Verify no missing translations on the chat page with notification UI

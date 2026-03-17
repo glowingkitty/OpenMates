@@ -107,13 +107,14 @@ async function loginToTestAccount(page: any, log: any, screenshot: any) {
 		await submitButton.click();
 
 		try {
-			await expect(otpInput).not.toBeVisible({ timeout: 15000 });
+			await page.waitForURL(/chat/, { timeout: 15000 });
 			loginSuccess = true;
 			log('Login successful.');
 		} catch {
 			if (attempt < 3) {
 				log(`OTP attempt ${attempt} failed, retrying...`);
 				await page.waitForTimeout(3000);
+				await otpInput.fill('');
 			} else {
 				throw new Error('Login failed after 3 OTP attempts');
 			}
