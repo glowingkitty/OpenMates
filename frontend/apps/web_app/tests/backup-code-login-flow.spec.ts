@@ -6,28 +6,14 @@ export {};
 // provides the @playwright/test module at runtime. To keep repo-wide TypeScript
 // checks happy without requiring local Playwright installation, we use CommonJS
 // require() and broad lint disables limited to this spec file.
-const { test, expect } = require('@playwright/test');
 
-const consoleLogs: string[] = [];
-const networkActivities: string[] = [];
-
-test.beforeEach(async () => {
-	consoleLogs.length = 0;
-	networkActivities.length = 0;
-});
-
-// eslint-disable-next-line no-empty-pattern
-test.afterEach(async ({}, testInfo: any) => {
-	if (testInfo.status !== 'passed') {
-		console.log('\n--- DEBUG INFO ON FAILURE ---');
-		console.log('\n[RECENT CONSOLE LOGS]');
-		consoleLogs.slice(-30).forEach((log) => console.log(log));
-
-		console.log('\n[RECENT NETWORK ACTIVITIES]');
-		networkActivities.slice(-30).forEach((activity) => console.log(activity));
-		console.log('\n--- END DEBUG INFO ---\n');
-	}
-});
+// Use shared console monitor (Rule 10) — replaces inline console boilerplate
+const {
+	test,
+	expect,
+	attachConsoleListeners,
+	attachNetworkListeners
+} = require('./console-monitor');
 
 const {
 	createSignupLogger,
@@ -69,26 +55,11 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	page: any;
 	context: any;
 }) => {
-	// Listen for console logs
-	page.on('console', (msg: any) => {
-		const timestamp = new Date().toISOString();
-		consoleLogs.push(`[${timestamp}] [${msg.type()}] ${msg.text()}`);
-	});
-
-	// Listen for network requests
-	page.on('request', (request: any) => {
-		const timestamp = new Date().toISOString();
-		networkActivities.push(`[${timestamp}] >> ${request.method()} ${request.url()}`);
-	});
-
-	// Listen for network responses
-	page.on('response', (response: any) => {
-		const timestamp = new Date().toISOString();
-		networkActivities.push(`[${timestamp}] << ${response.status()} ${response.url()}`);
-	});
+	attachConsoleListeners(page);
+	attachNetworkListeners(page);
 
 	test.slow();
-	test.setTimeout(180000);
+	test.setTimeout(240000); // Extra time for TOTP window wait + backup code flow
 
 	const logCheckpoint = createSignupLogger('BACKUP_CODE_FLOW');
 	const takeStepScreenshot = createStepScreenshotter(logCheckpoint, {
@@ -139,24 +110,41 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	await takeStepScreenshot(page, 'password-filled');
 	logCheckpoint('Filled password.');
 
-	// Handle 2FA - enter OTP code (fill BEFORE clicking submit, same as chat-flow)
-	const otpCode = generateTotp(OPENMATES_TEST_ACCOUNT_OTP_KEY);
+	// Handle 2FA — TOTP with race-condition fix.
+	// Wait until we're well into the current 30s window before generating the code.
 	const tfaInput = page.locator('#login-otp-input');
 	await expect(tfaInput).toBeVisible({ timeout: 15000 });
-	await tfaInput.fill(otpCode);
-	await takeStepScreenshot(page, 'otp-entered');
-	logCheckpoint('Entered OTP code.');
-
-	// Submit login (password + OTP together in one click)
 	const submitLoginButton = page.locator('#login-submit-button');
 	await expect(submitLoginButton).toBeVisible();
-	await submitLoginButton.click();
-	logCheckpoint('Submitted login with password + OTP.');
 
-	// Wait for successful login - redirect to chat
-	await page.waitForURL(/chat/, { timeout: 60000 });
-	await takeStepScreenshot(page, 'logged-in');
-	logCheckpoint('Login successful with password + OTP.');
+	let loginSuccess = false;
+	for (let attempt = 0; attempt < 3; attempt++) {
+		const secondsIntoWindow = Math.floor(Date.now() / 1000) % 30;
+		if (secondsIntoWindow > 27) {
+			const msToWait = (30 - secondsIntoWindow) * 1000 + 3000;
+			logCheckpoint(`Waiting ${msToWait}ms for fresh TOTP window (attempt ${attempt + 1})...`);
+			await page.waitForTimeout(msToWait);
+		}
+		const otpCode = generateTotp(OPENMATES_TEST_ACCOUNT_OTP_KEY);
+		await tfaInput.fill(otpCode);
+		logCheckpoint(`OTP attempt ${attempt + 1}: entered code ${otpCode}`);
+		await takeStepScreenshot(page, 'otp-entered');
+		await submitLoginButton.click();
+		logCheckpoint('Submitted login with password + OTP.');
+		try {
+			await page.waitForURL(/chat/, { timeout: 15000 });
+			loginSuccess = true;
+			logCheckpoint('Login successful with password + OTP.');
+			break;
+		} catch {
+			logCheckpoint(`OTP attempt ${attempt + 1} failed, retrying...`);
+			await page.waitForTimeout(3000);
+		}
+	}
+	if (!loginSuccess) {
+		await takeStepScreenshot(page, 'login-failed');
+		throw new Error('Login failed after 3 OTP attempts');
+	}
 
 	// ========================================================================
 	// PHASE 2: Navigate to Settings > Security > 2FA to regenerate backup codes

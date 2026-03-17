@@ -367,6 +367,7 @@
 <div
     class="notification notification-chat-message"
     class:expanded={isExpanded}
+    data-testid="chat-notification"
     transition:slide={{ axis: 'y', duration: 300 }}
     role="alert"
     aria-live="polite"
@@ -408,7 +409,7 @@
             {/if}
         </div>
         <div class="notification-message-wrapper">
-            <span class="notification-message-primary">{notification.message}</span>
+            <span class="notification-message-primary" data-testid="notification-message">{notification.message}</span>
         </div>
     </div>
     
@@ -475,6 +476,7 @@
         <!-- Collapsed reply button -->
         <button
             class="notification-reply-button"
+            data-testid="notification-reply-button"
             onclick={handleReplyClick}
         >
             {$text('notifications.click_to_respond')}

@@ -440,6 +440,7 @@
                 {#if !hideDelete}
                     <button
                         class="menu-item delete"
+                        data-testid="chat-context-delete"
                         onclick={(event) => handleButtonClick('delete', event)}
                     >
                         <div class="clickable-icon icon_delete"></div>
@@ -585,6 +586,7 @@
             {#if !hideDelete && !(chat && (isDemoChat(chat.chat_id) || isLegalChat(chat.chat_id)) && !$authStore.isAuthenticated)}
                 <button
                     class="menu-item delete"
+                    data-testid="chat-context-delete"
                     onclick={(event) => handleButtonClick('delete', event)}
                 >
                     <div class="clickable-icon icon_delete"></div>

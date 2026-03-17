@@ -245,6 +245,7 @@
                     >
                         <button
                             class="clickable-icon icon_menu"
+                            data-testid="sidebar-toggle"
                             onclick={panelState.toggleChats}
                             aria-label={$text('header.toggle_menu')}
                         ></button>

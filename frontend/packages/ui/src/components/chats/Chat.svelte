@@ -1898,6 +1898,7 @@
 <div
   class="chat-item-wrapper"
   class:active={isActive}
+  data-testid="chat-item"
   role="button"
   tabindex="0"
   oncontextmenu={handleContextMenu}
@@ -2081,7 +2082,7 @@
                    "INCOGNITO" sidebar section header, making per-chat badges redundant. -->
             </div>
             {#if typingIndicatorInTitleView}
-              <span class="status-message typing-shimmer">
+              <span class="status-message typing-shimmer" data-testid="chat-typing-shimmer">
                 {#if activeSkillInfo}
                   <span class="skill-icon icon_rounded {activeSkillInfo.appId}"></span>
                 {/if}

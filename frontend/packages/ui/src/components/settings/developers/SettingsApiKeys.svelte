@@ -43,6 +43,8 @@
         try {
             loading = true;
             error = '';
+            // Keep this endpoint aligned with CLI safety gates:
+            // frontend/packages/openmates-cli/src/client.ts (BLOCKED_SETTINGS_POST_PATHS)
             const response = await fetch(getApiEndpoint('/v1/settings/api-keys'), {
                 method: 'GET',
                 headers: {
@@ -242,13 +244,14 @@
     }
 </script>
 
-<div class="api-keys-container">
+<div class="api-keys-container" data-testid="api-keys-container">
     <div class="header">
         <h2 class="title">{$text('settings.developers_api_keys')}</h2>
         <p class="description">{$text('settings.developers_api_keys_description')}</p>
 
         <button
             class="btn-create"
+            data-testid="api-key-create-button"
             onclick={() => showCreateForm = true}
             disabled={apiKeys.length >= 5}
         >
@@ -271,9 +274,9 @@
     {:else}
         <div class="api-keys-list">
             {#each apiKeys as key (key.id)}
-                <div class="api-key-item">
+                <div class="api-key-item" data-testid="api-key-item">
                     <div class="key-info">
-                        <h4 class="key-name">{key.name}</h4>
+                        <h4 class="key-name" data-testid="api-key-name">{key.name}</h4>
                         <p class="key-prefix">{key.key_prefix}</p>
                         <div class="key-meta">
                             <span>Created: {formatDate(key.created_at)}</span>
@@ -287,6 +290,7 @@
                     <div class="key-actions">
                         <button
                             class="btn-delete"
+                            data-testid="api-key-delete-button"
                             onclick={() => deleteApiKey(key.id, key.name)}
                         >
                             Delete
@@ -298,7 +302,7 @@
     {/if}
 
     {#if apiKeys.length >= 5}
-        <div class="limit-warning">
+        <div class="limit-warning" data-testid="api-key-limit-warning">
             You've reached the maximum number of API keys (5). Delete an existing key to create a new one.
         </div>
     {/if}
@@ -333,6 +337,7 @@
                 bind:value={newKeyName}
                 maxlength={100}
                 class="name-input"
+                data-testid="api-key-name-input"
             />
 
             <div class="modal-actions">
@@ -379,7 +384,7 @@
             <p><strong>Important:</strong> Copy this API key now. You won't be able to see it again!</p>
 
             <div class="created-key-container">
-                <code class="created-key">{createdKey}</code>
+                <code class="created-key" data-testid="api-key-created-value">{createdKey}</code>
                 <button
                     class="btn-copy"
                     onclick={() => copyToClipboard(createdKey)}

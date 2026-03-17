@@ -31,6 +31,7 @@
     import CodeEmbedFullscreen from './embeds/code/CodeEmbedFullscreen.svelte';
     import DocsEmbedFullscreen from './embeds/docs/DocsEmbedFullscreen.svelte';
     import MailEmbedFullscreen from './embeds/mail/MailEmbedFullscreen.svelte';
+    import MailSearchEmbedFullscreen from './embeds/mail/MailSearchEmbedFullscreen.svelte';
     import SheetEmbedFullscreen from './embeds/sheets/SheetEmbedFullscreen.svelte';
     import VideoTranscriptEmbedPreview from './embeds/videos/VideoTranscriptEmbedPreview.svelte';
     import VideoTranscriptEmbedFullscreen from './embeds/videos/VideoTranscriptEmbedFullscreen.svelte';
@@ -8818,6 +8819,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     <button
                                         class="new-chat-cta-button"
                                         data-action="new-chat"
+                                        data-testid="new-chat-button"
                                         aria-label={$text('chat.new_chat')}
                                         onclick={handleNewChatClick}
                                         in:fade={{ duration: 300 }}
@@ -9495,6 +9497,21 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             errorMessage={typeof embedFullscreenData.decodedContent?.error === 'string' ? embedFullscreenData.decodedContent.error : ''}
                             embedId={embedFullscreenData.embedId}
                             initialChildEmbedId={embedFullscreenData.focusChildEmbedId ?? undefined}
+                            onClose={handleCloseEmbedFullscreen}
+                            {hasPreviousEmbed}
+                            {hasNextEmbed}
+                            onNavigatePrevious={handleNavigatePreviousEmbed}
+                            onNavigateNext={handleNavigateNextEmbed}
+                            navigateDirection={embedNavigateDirection}
+                            showChatButton={showChatButtonInFullscreen}
+                            onShowChat={handleShowChat}
+                        />
+                    {:else if appId === 'mail' && skillId === 'search'}
+                        <MailSearchEmbedFullscreen
+                            query={embedFullscreenData.decodedContent?.query || 'Recent emails'}
+                            provider={embedFullscreenData.decodedContent?.provider || 'Proton Mail Bridge'}
+                            results={Array.isArray(embedFullscreenData.decodedContent?.results) ? embedFullscreenData.decodedContent.results : []}
+                            embedId={embedFullscreenData.embedId}
                             onClose={handleCloseEmbedFullscreen}
                             {hasPreviousEmbed}
                             {hasNextEmbed}

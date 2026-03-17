@@ -1564,6 +1564,7 @@
                      to prevent visual glitches when content height changes rapidly.
                      Duration 0 effectively disables the animation without removing the directive. -->
                 <div class="message-wrapper {msg.role === 'system' ? 'system' : (msg.role === 'user' ? 'user' : 'assistant')}"
+                     data-testid="message-{msg.role === 'system' ? 'system' : (msg.role === 'user' ? 'user' : 'assistant')}"
                      data-message-id={msg.id}
                      style={`
                          opacity: ${msg.status === 'sending' ? 0.5 : (msg.status === 'failed' ? 0.7 : 1)};

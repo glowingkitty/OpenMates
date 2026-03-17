@@ -4244,7 +4244,7 @@
 
         <div class="scrollable-content" bind:this={scrollableContent} style={scrollableStyle}>
             <div class="content-wrapper">
-                <div bind:this={editorElement} class="editor-content prose"></div>
+                <div bind:this={editorElement} class="editor-content prose" data-testid="message-editor"></div>
             </div>
         </div>
 
