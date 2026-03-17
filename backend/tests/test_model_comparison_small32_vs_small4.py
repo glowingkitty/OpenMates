@@ -16,11 +16,11 @@ Test categories:
 2. Postprocessing — Follow-up + new chat suggestion generation
 
 Usage:
-    # Full comparison with report (recommended):
-    python backend/tests/test_model_comparison_small32_vs_small4.py --iterations 2
+    # Full comparison with report (default 5 iterations):
+    python backend/tests/test_model_comparison_small32_vs_small4.py
 
     # Quick single run:
-    python backend/tests/test_model_comparison_small32_vs_small4.py
+    python backend/tests/test_model_comparison_small32_vs_small4.py --iterations 1
 
     # Via pytest (individual categories):
     python -m pytest backend/tests/test_model_comparison_small32_vs_small4.py -v -s -k "preprocessing"
@@ -594,15 +594,34 @@ class TestResult:
     model_id: str
     model_name: str
     success: bool
-    latency_ms: float
+    latency_ms: float          # total wall-clock time including network round-trip
     input_tokens: int
     output_tokens: int
     total_tokens: int
-    cost_usd: float
+    cost_usd: float            # actual cost computed from real token counts
     raw_response: Optional[Dict[str, Any]] = None
     error_message: Optional[str] = None
     validation_results: Dict[str, Any] = field(default_factory=dict)
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
+
+    @property
+    def output_tokens_per_second(self) -> float:
+        """Output tokens generated per second (proxy for generation speed)."""
+        if not self.success or self.output_tokens == 0 or self.latency_ms == 0:
+            return 0.0
+        return self.output_tokens / (self.latency_ms / 1000.0)
+
+    @property
+    def total_tokens_per_second(self) -> float:
+        """Total tokens processed per second (input + output throughput)."""
+        if not self.success or self.total_tokens == 0 or self.latency_ms == 0:
+            return 0.0
+        return self.total_tokens / (self.latency_ms / 1000.0)
+
+    @property
+    def cost_per_1k_requests_usd(self) -> float:
+        """Projected cost for 1,000 identical requests."""
+        return self.cost_usd * 1000
 
 
 @dataclass
@@ -1042,18 +1061,18 @@ class ModelComparisonTest:
     # Report
     # -------------------------------------------------------------------------
 
-    def generate_report(self, results: Dict[str, ComparisonResult]) -> str:
+    def generate_report(self, results: Dict[str, ComparisonResult]) -> str:  # noqa: C901
         lines = []
-        lines.append("=" * 100)
+        W = 100
+        lines.append("=" * W)
         lines.append("MODEL COMPARISON REPORT: Mistral Small 3.2 (mistral-small-2506) vs Small 4 (mistral-small-latest)")
-        lines.append(f"Generated: {datetime.now().isoformat()}")
-        lines.append(f"Iterations per test: {self.iterations}")
-        lines.append(f"Preprocessing tests: {len(PREPROCESSING_TEST_CASES)}")
-        lines.append(f"Postprocessing tests: {len(POSTPROCESSING_TEST_CASES)}")
-        lines.append("")
-        lines.append("Cost delta: Small 4 costs 2x more ($0.20/$0.60 vs $0.10/$0.30 per M tokens).")
-        lines.append("Decision criteria: upgrade only if Small 4 shows meaningful quality improvement.")
-        lines.append("=" * 100)
+        lines.append(f"Generated:  {datetime.now().isoformat()}")
+        lines.append(f"Iterations: {self.iterations} per test case")
+        lines.append(f"Tests:      {len(PREPROCESSING_TEST_CASES)} preprocessing + {len(POSTPROCESSING_TEST_CASES)} postprocessing")
+        lines.append("Note:       Thinking mode N/A for Mistral Small (no extended-thinking API support).")
+        lines.append("            Latency = full wall-clock round-trip (network + inference + function-call parse).")
+        lines.append("            Tokens/sec = output_tokens / latency_s  (generation throughput proxy).")
+        lines.append("=" * W)
         lines.append("")
 
         all_32 = []
@@ -1062,84 +1081,231 @@ class ModelComparisonTest:
             all_32.extend(comp.small_32_results)
             all_4.extend(comp.small_4_results)
 
-        def stats(rs: List[TestResult]) -> Dict[str, Any]:
+        def full_stats(rs: List[TestResult]) -> Dict[str, Any]:
             if not rs:
                 return {}
             ok = [r for r in rs if r.success]
+            if not ok:
+                return {"total": len(rs), "successful": 0, "success_rate": 0}
+
             lats = [r.latency_ms for r in ok]
+            costs = [r.cost_usd for r in ok]
+            out_toks = [r.output_tokens for r in ok]
+            in_toks = [r.input_tokens for r in ok]
+            total_toks = [r.total_tokens for r in ok]
+            otps = [r.output_tokens_per_second for r in ok if r.output_tokens_per_second > 0]
+
+            lats_sorted = sorted(lats)
+            p95_idx = max(0, int(len(lats_sorted) * 0.95) - 1)
+
             return {
                 "total": len(rs),
                 "successful": len(ok),
                 "success_rate": len(ok) / len(rs) * 100,
-                "avg_latency_ms": statistics.mean(lats) if lats else 0,
-                "median_latency_ms": statistics.median(lats) if lats else 0,
-                "total_cost_usd": sum(r.cost_usd for r in ok),
-                "avg_cost_usd": statistics.mean([r.cost_usd for r in ok]) if ok else 0,
-                "total_tokens": sum(r.total_tokens for r in ok),
+                # latency
+                "avg_latency_ms": statistics.mean(lats),
+                "median_latency_ms": statistics.median(lats),
+                "p95_latency_ms": lats_sorted[p95_idx],
+                "min_latency_ms": min(lats),
+                "max_latency_ms": max(lats),
+                "stdev_latency_ms": statistics.stdev(lats) if len(lats) > 1 else 0,
+                # tokens
+                "avg_input_tokens": statistics.mean(in_toks),
+                "avg_output_tokens": statistics.mean(out_toks),
+                "avg_total_tokens": statistics.mean(total_toks),
+                "total_input_tokens": sum(in_toks),
+                "total_output_tokens": sum(out_toks),
+                "total_tokens": sum(total_toks),
+                # speed
+                "avg_output_toks_per_sec": statistics.mean(otps) if otps else 0,
+                "median_output_toks_per_sec": statistics.median(otps) if otps else 0,
+                # cost (computed from real token counts, not list price estimate)
+                "avg_cost_usd": statistics.mean(costs),
+                "median_cost_usd": statistics.median(costs),
+                "min_cost_usd": min(costs),
+                "max_cost_usd": max(costs),
+                "total_cost_usd": sum(costs),
             }
 
-        s32 = stats(all_32)
-        s4 = stats(all_4)
+        s32 = full_stats(all_32)
+        s4 = full_stats(all_4)
 
-        lines.append("OVERALL SUMMARY")
-        lines.append("-" * 50)
-        col_w = 28
+        col_w = 34
 
-        def winner(a, b, higher_is_better=False):
+        def w(a, b, higher_is_better=False):
             if higher_is_better:
-                return "Small 3.2" if a > b else ("Small 4" if b > a else "Tie")
-            return "Small 3.2" if a < b else ("Small 4" if b < a else "Tie")
+                return "Small 3.2 ✓" if a > b else ("Small 4 ✓" if b > a else "Tie")
+            return "Small 3.2 ✓" if a < b else ("Small 4 ✓" if b < a else "Tie")
 
-        lines.append(f"\n{'Metric':<{col_w}} {'Small 3.2 (2506)':<26} {'Small 4 (latest)':<26} {'Winner'}")
-        lines.append("-" * 95)
+        # ── SECTION 1: OVERALL SUMMARY ────────────────────────────────────────
+        lines.append("┌─────────────────────────────────────────────────────────────────────────────────────────────────┐")
+        lines.append("│  SECTION 1: OVERALL SUMMARY                                                                     │")
+        lines.append("└─────────────────────────────────────────────────────────────────────────────────────────────────┘")
+        lines.append(f"\n{'Metric':<{col_w}} {'Small 3.2 (2506)':<28} {'Small 4 (latest)':<28} {'Winner'}")
+        lines.append("-" * W)
 
         sr32 = s32.get("success_rate", 0)
         sr4 = s4.get("success_rate", 0)
-        lines.append(f"{'Success Rate':<{col_w}} {sr32:.1f}%{'':<23} {sr4:.1f}%{'':<23} {winner(sr32, sr4, higher_is_better=True)}")
+        lines.append(f"{'Success Rate':<{col_w}} {sr32:.1f}%{'':<25} {sr4:.1f}%{'':<25} {w(sr32, sr4, higher_is_better=True)}")
+
+        # ── SECTION 2: SPEED & PROCESSING TIME ────────────────────────────────
+        lines.append("")
+        lines.append("┌─────────────────────────────────────────────────────────────────────────────────────────────────┐")
+        lines.append("│  SECTION 2: SPEED & TOTAL PROCESSING TIME                                                       │")
+        lines.append("│  (wall-clock latency = full round-trip: DNS + TLS + queuing + inference + tool-call parse)      │")
+        lines.append("└─────────────────────────────────────────────────────────────────────────────────────────────────┘")
+        lines.append(f"\n{'Metric':<{col_w}} {'Small 3.2 (2506)':<28} {'Small 4 (latest)':<28} {'Winner'}")
+        lines.append("-" * W)
 
         lat32 = s32.get("avg_latency_ms", 0)
         lat4 = s4.get("avg_latency_ms", 0)
-        lines.append(f"{'Avg Latency (ms)':<{col_w}} {lat32:.0f}ms{'':<22} {lat4:.0f}ms{'':<22} {winner(lat32, lat4)}")
+        lines.append(f"{'Avg latency (ms)':<{col_w}} {lat32:.0f} ms{'':<24} {lat4:.0f} ms{'':<24} {w(lat32, lat4)}")
 
         med32 = s32.get("median_latency_ms", 0)
         med4 = s4.get("median_latency_ms", 0)
-        lines.append(f"{'Median Latency (ms)':<{col_w}} {med32:.0f}ms{'':<22} {med4:.0f}ms{'':<22} {winner(med32, med4)}")
+        lines.append(f"{'Median latency (ms)':<{col_w}} {med32:.0f} ms{'':<24} {med4:.0f} ms{'':<24} {w(med32, med4)}")
+
+        p9532 = s32.get("p95_latency_ms", 0)
+        p954 = s4.get("p95_latency_ms", 0)
+        lines.append(f"{'P95 latency (ms)':<{col_w}} {p9532:.0f} ms{'':<24} {p954:.0f} ms{'':<24} {w(p9532, p954)}")
+
+        min32 = s32.get("min_latency_ms", 0)
+        min4 = s4.get("min_latency_ms", 0)
+        lines.append(f"{'Min latency (ms)':<{col_w}} {min32:.0f} ms{'':<24} {min4:.0f} ms{'':<24} {w(min32, min4)}")
+
+        max32 = s32.get("max_latency_ms", 0)
+        max4 = s4.get("max_latency_ms", 0)
+        lines.append(f"{'Max latency (ms)':<{col_w}} {max32:.0f} ms{'':<24} {max4:.0f} ms{'':<24} {w(max32, max4)}")
+
+        std32 = s32.get("stdev_latency_ms", 0)
+        std4 = s4.get("stdev_latency_ms", 0)
+        lines.append(f"{'Latency std-dev (ms)':<{col_w}} {std32:.0f} ms{'':<24} {std4:.0f} ms{'':<24} {w(std32, std4)}")
+
+        lines.append("")
+        otps32 = s32.get("avg_output_toks_per_sec", 0)
+        otps4 = s4.get("avg_output_toks_per_sec", 0)
+        lines.append(f"{'Avg output tok/s':<{col_w}} {otps32:.1f} tok/s{'':<21} {otps4:.1f} tok/s{'':<21} {w(otps32, otps4, higher_is_better=True)}")
+
+        motps32 = s32.get("median_output_toks_per_sec", 0)
+        motps4 = s4.get("median_output_toks_per_sec", 0)
+        lines.append(f"{'Median output tok/s':<{col_w}} {motps32:.1f} tok/s{'':<21} {motps4:.1f} tok/s{'':<21} {w(motps32, motps4, higher_is_better=True)}")
+
+        # ── SECTION 3: TOKEN USAGE ─────────────────────────────────────────────
+        lines.append("")
+        lines.append("┌─────────────────────────────────────────────────────────────────────────────────────────────────┐")
+        lines.append("│  SECTION 3: TOKEN USAGE (avg per request)                                                       │")
+        lines.append("└─────────────────────────────────────────────────────────────────────────────────────────────────┘")
+        lines.append(f"\n{'Metric':<{col_w}} {'Small 3.2 (2506)':<28} {'Small 4 (latest)':<28} {'Winner'}")
+        lines.append("-" * W)
+
+        ai32 = s32.get("avg_input_tokens", 0)
+        ai4 = s4.get("avg_input_tokens", 0)
+        lines.append(f"{'Avg input tokens':<{col_w}} {ai32:.0f}{'':<27} {ai4:.0f}{'':<27} {w(ai32, ai4)}")
+
+        ao32 = s32.get("avg_output_tokens", 0)
+        ao4 = s4.get("avg_output_tokens", 0)
+        lines.append(f"{'Avg output tokens':<{col_w}} {ao32:.0f}{'':<27} {ao4:.0f}{'':<27} {w(ao32, ao4)}")
+
+        at32 = s32.get("avg_total_tokens", 0)
+        at4 = s4.get("avg_total_tokens", 0)
+        lines.append(f"{'Avg total tokens':<{col_w}} {at32:.0f}{'':<27} {at4:.0f}{'':<27} {w(at32, at4)}")
+
+        lines.append(f"{'Total input tokens (run)':<{col_w}} {s32.get('total_input_tokens',0):<28} {s4.get('total_input_tokens',0)}")
+        lines.append(f"{'Total output tokens (run)':<{col_w}} {s32.get('total_output_tokens',0):<28} {s4.get('total_output_tokens',0)}")
+        lines.append(f"{'Total tokens (run)':<{col_w}} {s32.get('total_tokens',0):<28} {s4.get('total_tokens',0)}")
+
+        # ── SECTION 4: COST ────────────────────────────────────────────────────
+        lines.append("")
+        lines.append("┌─────────────────────────────────────────────────────────────────────────────────────────────────┐")
+        lines.append("│  SECTION 4: ACTUAL COST (computed from real token counts, not estimated from list price)        │")
+        lines.append("│  Small 3.2: $0.10/M input + $0.30/M output    Small 4: $0.20/M input + $0.60/M output          │")
+        lines.append("└─────────────────────────────────────────────────────────────────────────────────────────────────┘")
+        lines.append(f"\n{'Metric':<{col_w}} {'Small 3.2 (2506)':<28} {'Small 4 (latest)':<28} {'Winner'}")
+        lines.append("-" * W)
 
         c32 = s32.get("avg_cost_usd", 0)
         c4 = s4.get("avg_cost_usd", 0)
-        lines.append(f"{'Avg Cost/Request (USD)':<{col_w}} ${c32:.6f}{'':<19} ${c4:.6f}{'':<19} {winner(c32, c4)}")
+        lines.append(f"{'Avg cost per request ($)':<{col_w}} ${c32:.6f}{'':<21} ${c4:.6f}{'':<21} {w(c32, c4)}")
+
+        mc32 = s32.get("median_cost_usd", 0)
+        mc4 = s4.get("median_cost_usd", 0)
+        lines.append(f"{'Median cost per request ($)':<{col_w}} ${mc32:.6f}{'':<21} ${mc4:.6f}{'':<21} {w(mc32, mc4)}")
+
+        minc32 = s32.get("min_cost_usd", 0)
+        minc4 = s4.get("min_cost_usd", 0)
+        lines.append(f"{'Min cost per request ($)':<{col_w}} ${minc32:.6f}{'':<21} ${minc4:.6f}{'':<21} {w(minc32, minc4)}")
+
+        maxc32 = s32.get("max_cost_usd", 0)
+        maxc4 = s4.get("max_cost_usd", 0)
+        lines.append(f"{'Max cost per request ($)':<{col_w}} ${maxc32:.6f}{'':<21} ${maxc4:.6f}{'':<21} {w(maxc32, maxc4)}")
 
         tc32 = s32.get("total_cost_usd", 0)
         tc4 = s4.get("total_cost_usd", 0)
-        lines.append(f"{'Total Cost (USD)':<{col_w}} ${tc32:.6f}{'':<19} ${tc4:.6f}{'':<19} {winner(tc32, tc4)}")
+        lines.append(f"{'Total cost this run ($)':<{col_w}} ${tc32:.6f}{'':<21} ${tc4:.6f}{'':<21} {w(tc32, tc4)}")
 
-        lines.append(f"{'Total Tokens':<{col_w}} {s32.get('total_tokens', 0):<26} {s4.get('total_tokens', 0)}")
-
-        # Per-category breakdown
-        for category, comp in results.items():
-            lines.append("")
-            lines.append("=" * 80)
-            lines.append(f"CATEGORY: {category.upper()}")
-            lines.append("=" * 80)
-            summary = comp.get_summary()
-            d32 = summary.get("small_32", {})
-            d4 = summary.get("small_4", {})
-
-            lines.append(f"\n{'Metric':<{col_w}} {'Small 3.2':<22} {'Small 4':<22} {'Winner'}")
-            lines.append("-" * 75)
-            lines.append(f"{'Success Rate':<{col_w}} {d32.get('success_rate', 0)*100:.1f}%{'':<19} {d4.get('success_rate', 0)*100:.1f}%{'':<19} {winner(d32.get('success_rate',0), d4.get('success_rate',0), higher_is_better=True)}")
-            lines.append(f"{'Avg Latency (ms)':<{col_w}} {d32.get('avg_latency_ms', 0):.0f}ms{'':<18} {d4.get('avg_latency_ms', 0):.0f}ms{'':<18} {winner(d32.get('avg_latency_ms', 0), d4.get('avg_latency_ms', 0))}")
-            lines.append(f"{'Median Latency (ms)':<{col_w}} {d32.get('median_latency_ms', 0):.0f}ms{'':<18} {d4.get('median_latency_ms', 0):.0f}ms{'':<18} {winner(d32.get('median_latency_ms', 0), d4.get('median_latency_ms', 0))}")
-            lines.append(f"{'Total Cost (USD)':<{col_w}} ${d32.get('total_cost_usd', 0):.6f}{'':<15} ${d4.get('total_cost_usd', 0):.6f}{'':<15} {winner(d32.get('total_cost_usd', 0), d4.get('total_cost_usd', 0))}")
-
-        # Validation accuracy breakdown
         lines.append("")
-        lines.append("=" * 80)
-        lines.append("VALIDATION ACCURACY BY TEST CASE")
-        lines.append("=" * 80)
+        # Projected costs at scale
+        proj_1k_32 = c32 * 1_000
+        proj_1k_4 = c4 * 1_000
+        proj_1m_32 = c32 * 1_000_000
+        proj_1m_4 = c4 * 1_000_000
+        delta_1m = proj_1m_4 - proj_1m_32
+        pct_more = (delta_1m / proj_1m_32 * 100) if proj_1m_32 > 0 else 0
+
+        lines.append(f"{'Projected / 1k requests ($)':<{col_w}} ${proj_1k_32:>10,.4f}{'':<17} ${proj_1k_4:>10,.4f}{'':<17} {w(proj_1k_32, proj_1k_4)}")
+        lines.append(f"{'Projected / 1M requests ($)':<{col_w}} ${proj_1m_32:>10,.2f}{'':<17} ${proj_1m_4:>10,.2f}{'':<17} {w(proj_1m_32, proj_1m_4)}")
+        lines.append(f"{'Cost premium for Small 4':<{col_w}} {'—':<28} ${delta_1m:,.2f} extra/1M req ({pct_more:.0f}% more)")
+
+        # ── SECTION 5: PER-CATEGORY BREAKDOWN ─────────────────────────────────
+        lines.append("")
+        lines.append("┌─────────────────────────────────────────────────────────────────────────────────────────────────┐")
+        lines.append("│  SECTION 5: PER-CATEGORY BREAKDOWN                                                              │")
+        lines.append("└─────────────────────────────────────────────────────────────────────────────────────────────────┘")
 
         for category, comp in results.items():
-            lines.append(f"\n--- {category.upper()} ---\n")
+            lines.append(f"\n── {category.upper()} ──")
+            rs32_cat = [r for r in comp.small_32_results if r.success]
+            rs4_cat = [r for r in comp.small_4_results if r.success]
+
+            def cat_stats(rs_ok: List[TestResult]) -> Dict[str, Any]:
+                if not rs_ok:
+                    return {}
+                lats = [r.latency_ms for r in rs_ok]
+                otps_list = [r.output_tokens_per_second for r in rs_ok if r.output_tokens_per_second > 0]
+                return {
+                    "n": len(rs_ok),
+                    "avg_lat": statistics.mean(lats),
+                    "med_lat": statistics.median(lats),
+                    "avg_otps": statistics.mean(otps_list) if otps_list else 0,
+                    "avg_in_tok": statistics.mean([r.input_tokens for r in rs_ok]),
+                    "avg_out_tok": statistics.mean([r.output_tokens for r in rs_ok]),
+                    "avg_cost": statistics.mean([r.cost_usd for r in rs_ok]),
+                    "success_rate": len(rs_ok) / max(len(comp.small_32_results), 1) * 100,
+                }
+
+            d32c = cat_stats(rs32_cat)
+            d4c = cat_stats(rs4_cat)
+            if not d32c or not d4c:
+                continue
+
+            lines.append(f"  {'Metric':<32} {'Small 3.2':<22} {'Small 4':<22} {'Winner'}")
+            lines.append(f"  {'-'*90}")
+            lines.append(f"  {'Success Rate':<32} {d32c['success_rate']:.0f}%{'':<19} {d4c['success_rate']:.0f}%{'':<19} {w(d32c['success_rate'], d4c['success_rate'], higher_is_better=True)}")
+            lines.append(f"  {'Avg latency (ms)':<32} {d32c['avg_lat']:.0f} ms{'':<18} {d4c['avg_lat']:.0f} ms{'':<18} {w(d32c['avg_lat'], d4c['avg_lat'])}")
+            lines.append(f"  {'Median latency (ms)':<32} {d32c['med_lat']:.0f} ms{'':<18} {d4c['med_lat']:.0f} ms{'':<18} {w(d32c['med_lat'], d4c['med_lat'])}")
+            lines.append(f"  {'Avg output tok/s':<32} {d32c['avg_otps']:.1f} tok/s{'':<15} {d4c['avg_otps']:.1f} tok/s{'':<15} {w(d32c['avg_otps'], d4c['avg_otps'], higher_is_better=True)}")
+            lines.append(f"  {'Avg input tokens':<32} {d32c['avg_in_tok']:.0f}{'':<21} {d4c['avg_in_tok']:.0f}{'':<21} {w(d32c['avg_in_tok'], d4c['avg_in_tok'])}")
+            lines.append(f"  {'Avg output tokens':<32} {d32c['avg_out_tok']:.0f}{'':<21} {d4c['avg_out_tok']:.0f}{'':<21} {w(d32c['avg_out_tok'], d4c['avg_out_tok'])}")
+            lines.append(f"  {'Avg cost per request ($)':<32} ${d32c['avg_cost']:.6f}{'':<15} ${d4c['avg_cost']:.6f}{'':<15} {w(d32c['avg_cost'], d4c['avg_cost'])}")
+
+        # ── SECTION 6: VALIDATION ACCURACY ────────────────────────────────────
+        lines.append("")
+        lines.append("┌─────────────────────────────────────────────────────────────────────────────────────────────────┐")
+        lines.append("│  SECTION 6: VALIDATION ACCURACY BY TEST CASE                                                    │")
+        lines.append("└─────────────────────────────────────────────────────────────────────────────────────────────────┘")
+
+        for category, comp in results.items():
+            lines.append(f"\n── {category.upper()} ──\n")
 
             by32: Dict[str, List[TestResult]] = {}
             for r in comp.small_32_results:
@@ -1149,54 +1315,65 @@ class ModelComparisonTest:
             for r in comp.small_4_results:
                 by4.setdefault(r.test_id, []).append(r)
 
+            def agg_validations(rs: List[TestResult]) -> Dict[str, Dict]:
+                agg: Dict[str, Dict] = {}
+                for r in rs:
+                    for k, val in r.validation_results.items():
+                        agg.setdefault(k, {"passed": 0, "total": 0})
+                        agg[k]["total"] += 1
+                        if val.get("passed"):
+                            agg[k]["passed"] += 1
+                return agg
+
             for test_id in by32:
-                lines.append(f"\nTest: {test_id}")
-
-                def agg_validations(rs: List[TestResult]) -> Dict[str, Dict]:
-                    agg: Dict[str, Dict] = {}
-                    for r in rs:
-                        for k, val in r.validation_results.items():
-                            agg.setdefault(k, {"passed": 0, "total": 0})
-                            agg[k]["total"] += 1
-                            if val.get("passed"):
-                                agg[k]["passed"] += 1
-                    return agg
-
                 v32 = agg_validations(by32.get(test_id, []))
-                v4 = agg_validations(by4.get(test_id, []))
+                v4_v = agg_validations(by4.get(test_id, []))
 
-                all_keys = sorted(set(v32) | set(v4))
+                # Compute per-test avg latency and tok/s
+                ok32 = [r for r in by32.get(test_id, []) if r.success]
+                ok4 = [r for r in by4.get(test_id, []) if r.success]
+                lat32t = statistics.mean([r.latency_ms for r in ok32]) if ok32 else 0
+                lat4t = statistics.mean([r.latency_ms for r in ok4]) if ok4 else 0
+                otps32t = statistics.mean([r.output_tokens_per_second for r in ok32 if r.output_tokens_per_second]) if ok32 else 0
+                otps4t = statistics.mean([r.output_tokens_per_second for r in ok4 if r.output_tokens_per_second]) if ok4 else 0
+                cost32t = statistics.mean([r.cost_usd for r in ok32]) if ok32 else 0
+                cost4t = statistics.mean([r.cost_usd for r in ok4]) if ok4 else 0
+
+                lines.append(f"\n  Test: {test_id}")
+                lines.append(f"    Latency:   3.2={lat32t:.0f}ms  |  4={lat4t:.0f}ms  ({w(lat32t, lat4t)})")
+                lines.append(f"    Out tok/s: 3.2={otps32t:.1f}  |  4={otps4t:.1f}  ({w(otps32t, otps4t, higher_is_better=True)})")
+                lines.append(f"    Cost:      3.2=${cost32t:.6f}  |  4=${cost4t:.6f}  ({w(cost32t, cost4t)})")
+
+                all_keys = sorted(set(v32) | set(v4_v))
                 for key in all_keys:
                     d32k = v32.get(key, {"passed": 0, "total": 0})
-                    d4k = v4.get(key, {"passed": 0, "total": 0})
+                    d4k = v4_v.get(key, {"passed": 0, "total": 0})
                     r32pct = d32k["passed"] / d32k["total"] * 100 if d32k["total"] > 0 else 0
                     r4pct = d4k["passed"] / d4k["total"] * 100 if d4k["total"] > 0 else 0
                     i32 = "✓" if r32pct == 100 else ("~" if r32pct > 0 else "✗")
                     i4 = "✓" if r4pct == 100 else ("~" if r4pct > 0 else "✗")
-                    lines.append(f"  {key:<28} Small 3.2: {i32} {r32pct:.0f}%  |  Small 4: {i4} {r4pct:.0f}%")
+                    diff = " <<<" if abs(r32pct - r4pct) >= 50 else ""
+                    lines.append(f"    {key:<30} 3.2: {i32} {r32pct:.0f}%   4: {i4} {r4pct:.0f}%{diff}")
 
-                # Show raw response diff for first iteration
+                # Show first-iteration response diff for key fields
                 if by32.get(test_id) and by4.get(test_id):
-                    r32_first = by32[test_id][0]
-                    r4_first = by4[test_id][0]
-                    # Print latency and key fields side-by-side for quick scan
-                    lines.append(f"  Latency:  Small 3.2 = {r32_first.latency_ms:.0f}ms  |  Small 4 = {r4_first.latency_ms:.0f}ms")
-                    if r32_first.raw_response and r4_first.raw_response:
-                        for field in ["complexity", "task_area", "category", "title", "relevant_app_skills"]:
-                            v32f = r32_first.raw_response.get(field)
-                            v4f = r4_first.raw_response.get(field)
+                    r32_f = by32[test_id][0]
+                    r4_f = by4[test_id][0]
+                    if r32_f.raw_response and r4_f.raw_response:
+                        for fld in ["complexity", "task_area", "category", "relevant_app_skills"]:
+                            v32f = r32_f.raw_response.get(fld)
+                            v4f = r4_f.raw_response.get(fld)
                             if v32f is not None or v4f is not None:
-                                diff_marker = " <<<" if v32f != v4f else ""
-                                lines.append(f"  {field:<28} 3.2={v32f}  |  4={v4f}{diff_marker}")
+                                diff_marker = " <-- DIFFERS" if v32f != v4f else ""
+                                lines.append(f"    {fld:<30} 3.2={v32f!r:<30}  4={v4f!r}{diff_marker}")
 
-        # Recommendation
+        # ── SECTION 7: RECOMMENDATION ─────────────────────────────────────────
         lines.append("")
-        lines.append("=" * 80)
-        lines.append("RECOMMENDATION")
-        lines.append("=" * 80)
+        lines.append("┌─────────────────────────────────────────────────────────────────────────────────────────────────┐")
+        lines.append("│  SECTION 7: RECOMMENDATION                                                                      │")
+        lines.append("└─────────────────────────────────────────────────────────────────────────────────────────────────┘")
         lines.append("")
 
-        # Score: quality wins (success rate, validation pass rate) vs cost penalty
         score_32 = 0
         score_4 = 0
 
@@ -1210,10 +1387,8 @@ class ModelComparisonTest:
         elif lat4 < lat32:
             score_4 += 1
 
-        # Cost: Small 3.2 always wins on cost
-        score_32 += 1
+        score_32 += 1  # cost always favours 3.2
 
-        # Tally per-validation pass rates across all results
         def total_pass_rate(rs: List[TestResult]) -> float:
             total = passed = 0
             for r in rs:
@@ -1225,55 +1400,40 @@ class ModelComparisonTest:
 
         pr32 = total_pass_rate(all_32)
         pr4 = total_pass_rate(all_4)
-        if pr4 > pr32 + 5:  # Small 4 needs to be meaningfully better to justify 2x cost
+        if pr4 > pr32 + 5:
             score_4 += 3
-            lines.append(f"Quality delta: Small 4 pass rate {pr4:.1f}% vs Small 3.2 {pr32:.1f}% (+{pr4-pr32:.1f}pp) — MEANINGFUL improvement")
+            lines.append(f"  Quality: Small 4 pass rate {pr4:.1f}% vs Small 3.2 {pr32:.1f}% (+{pr4-pr32:.1f}pp) — MEANINGFUL quality gain")
         elif pr32 > pr4:
             score_32 += 2
-            lines.append(f"Quality delta: Small 3.2 pass rate {pr32:.1f}% vs Small 4 {pr4:.1f}% — 3.2 wins on quality too")
+            lines.append(f"  Quality: Small 3.2 pass rate {pr32:.1f}% vs Small 4 {pr4:.1f}% — 3.2 wins on quality")
         else:
             score_32 += 1
-            lines.append(f"Quality delta: negligible ({pr32:.1f}% vs {pr4:.1f}%) — does NOT justify 2x price increase")
+            lines.append(f"  Quality: negligible delta ({pr32:.1f}% vs {pr4:.1f}%) — does NOT justify 2x cost")
 
-        lines.append(f"\nOverall score: Small 3.2 = {score_32}, Small 4 = {score_4}")
+        lines.append(f"  Speed:   Small 3.2 avg {lat32:.0f}ms vs Small 4 avg {lat4:.0f}ms  "
+                     f"(3.2 is {abs(lat4-lat32):.0f}ms {'faster' if lat32 < lat4 else 'slower'})")
+        lines.append(f"  Cost:    Small 3.2 ${c32:.6f}/req vs Small 4 ${c4:.6f}/req  "
+                     f"(Small 4 costs {(c4/c32 - 1)*100:.0f}% more per request)" if c32 > 0 else "")
+        lines.append(f"\n  Score: Small 3.2 = {score_32}pts  |  Small 4 = {score_4}pts")
         lines.append("")
 
         if score_4 > score_32:
-            lines.append("VERDICT: Consider upgrading to Mistral Small 4 (mistral-small-latest)")
-            lines.append("Small 4 shows meaningful quality improvements that justify the 2x cost increase.")
-            lines.append("Action: Update preprocessing_model in app.yml to mistral/mistral-small-latest")
-            lines.append("        and revert all hardcoded mistral-small-2506 back to mistral-small-latest.")
+            lines.append("  VERDICT: Consider upgrading to Mistral Small 4 (mistral-small-latest)")
+            lines.append("  Small 4 shows meaningful quality improvements that justify the 2x cost increase.")
+            lines.append("  Action: app.yml → preprocessing_model: mistral/mistral-small-latest")
+            lines.append("          Revert all hardcoded mistral-small-2506 → mistral-small-latest")
         elif score_32 > score_4:
-            lines.append("VERDICT: Keep Mistral Small 3.2 (mistral-small-2506) — no upgrade warranted")
-            lines.append("Small 4 does NOT show sufficient quality improvement to justify the 2x cost increase.")
-            lines.append("Action: No change needed. Continue using mistral-small-2506 for pre/post-processing.")
+            lines.append("  VERDICT: Keep Mistral Small 3.2 (mistral-small-2506) — no upgrade warranted")
+            lines.append("  Small 4 does NOT show sufficient quality improvement to justify 2x cost.")
+            lines.append("  Action: No change needed.")
         else:
-            lines.append("VERDICT: Models perform similarly — keep Small 3.2 on cost grounds")
-            lines.append("When quality is equivalent, the 2x cheaper model wins.")
-            lines.append("Action: No change needed. Continue using mistral-small-2506.")
-
-        # Cost projection
-        lines.append("")
-        lines.append("-" * 50)
-        lines.append("COST PROJECTION (per 1 million preprocessing requests)")
-        lines.append("-" * 50)
-
-        proj32 = c32 * 1_000_000
-        proj4 = c4 * 1_000_000
-        extra_cost = proj4 - proj32
-
-        lines.append(f"Small 3.2 (2506):   ${proj32:,.2f}")
-        lines.append(f"Small 4  (latest):  ${proj4:,.2f}")
-        lines.append(
-            f"Extra cost w/ Small 4: ${extra_cost:,.2f} per million requests "
-            f"({extra_cost/proj32*100:.0f}% more)" if proj32 > 0 else ""
-        )
+            lines.append("  VERDICT: Models perform similarly — keep Small 3.2 on cost grounds")
+            lines.append("  Action: No change needed.")
 
         lines.append("")
-        lines.append("=" * 100)
+        lines.append("=" * W)
         lines.append("END OF REPORT")
-        lines.append("=" * 100)
-
+        lines.append("=" * W)
         return "\n".join(lines)
 
     def save_results(self, results: Dict[str, ComparisonResult], output_dir: Path):
@@ -1287,34 +1447,28 @@ class ModelComparisonTest:
             "results": {},
         }
 
+        def _serialise(r: "TestResult") -> Dict[str, Any]:
+            return {
+                "test_id": r.test_id,
+                "success": r.success,
+                "latency_ms": round(r.latency_ms, 2),
+                "input_tokens": r.input_tokens,
+                "output_tokens": r.output_tokens,
+                "total_tokens": r.total_tokens,
+                "output_tokens_per_second": round(r.output_tokens_per_second, 2),
+                "total_tokens_per_second": round(r.total_tokens_per_second, 2),
+                "cost_usd": r.cost_usd,
+                "cost_per_1k_requests_usd": round(r.cost_per_1k_requests_usd, 6),
+                "validation": r.validation_results,
+                "raw_response": r.raw_response,
+                "error": r.error_message,
+                "timestamp": r.timestamp,
+            }
+
         for category, comp in results.items():
             raw["results"][category] = {
-                "small_32": [
-                    {
-                        "test_id": r.test_id,
-                        "success": r.success,
-                        "latency_ms": r.latency_ms,
-                        "tokens": r.total_tokens,
-                        "cost_usd": r.cost_usd,
-                        "validation": r.validation_results,
-                        "raw_response": r.raw_response,
-                        "error": r.error_message,
-                    }
-                    for r in comp.small_32_results
-                ],
-                "small_4": [
-                    {
-                        "test_id": r.test_id,
-                        "success": r.success,
-                        "latency_ms": r.latency_ms,
-                        "tokens": r.total_tokens,
-                        "cost_usd": r.cost_usd,
-                        "validation": r.validation_results,
-                        "raw_response": r.raw_response,
-                        "error": r.error_message,
-                    }
-                    for r in comp.small_4_results
-                ],
+                "small_32": [_serialise(r) for r in comp.small_32_results],
+                "small_4":  [_serialise(r) for r in comp.small_4_results],
             }
 
         results_file = output_dir / f"small32_vs_small4_results_{timestamp}.json"
@@ -1475,8 +1629,8 @@ async def main():
         description="Compare Mistral Small 3.2 (mistral-small-2506) vs Small 4 (mistral-small-latest) "
                     "for preprocessing and postprocessing tasks."
     )
-    parser.add_argument("--iterations", type=int, default=1,
-                        help="Number of iterations per test (default 1; use 2-3 for statistical significance)")
+    parser.add_argument("--iterations", type=int, default=5,
+                        help="Number of iterations per test (default 5 for statistical significance)")
     parser.add_argument("--output-dir", type=str, default=None,
                         help="Output directory for JSON results and text report")
     parser.add_argument("--preprocessing-only", action="store_true",
