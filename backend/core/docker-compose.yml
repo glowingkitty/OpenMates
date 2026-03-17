@@ -24,6 +24,7 @@ services:
       TRANSLATIONS_DIR: "/translations"
       DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
       INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
+      SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
     command: sh /app/backend/core/api/wait-for-vault.sh # Changed: Path to script
     ports:
       - "8000:8000"
@@ -167,6 +168,7 @@ services:
       TRANSLATIONS_DIR: "/translations"
       DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
       VAULT_URL: "http://vault:8200"
+      SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
       CELERY_QUEUES: "email,user_init,persistence,health_check,server_stats,demo,reminder,push" # Used by celery_config to determine which services to initialize
       CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}" # Maximum concurrent processes (default: 10)
       CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}" # Minimum concurrent processes (default: 3)
@@ -226,6 +228,7 @@ services:
       DRAGONFLY_URL: "cache:6379"
       TRANSLATIONS_DIR: "/translations"
       DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+      SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
     command: >
       sh -c "python -m celery -A backend.core.api.app.tasks.celery_config beat --loglevel=info --schedule=/celerybeat-data/celerybeat-schedule"
     volumes:
@@ -272,6 +275,7 @@ services:
       PROVIDER_CONFIG_DIR: "/app_config/providers"
       BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
     volumes:
       - ../../backend:/app/backend # Mounts host:backend to /app/backend
       # Mount apps directory for hot-reloading during development
@@ -332,6 +336,7 @@ services:
       PROVIDER_CONFIG_DIR: "/app_config/providers"
       BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
     volumes:
       - ../../backend:/app/backend # Mounts host:backend to /app/backend
       # Mount apps directory for hot-reloading during development
@@ -392,6 +397,7 @@ services:
       PROVIDER_CONFIG_DIR: "/app_config/providers"
       BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
     volumes:
       - ../../backend:/app/backend # Mounts host:backend to /app/backend
       # Mount apps directory for hot-reloading during development
@@ -451,6 +457,7 @@ services:
       PROVIDER_CONFIG_DIR: "/app_config/providers"
       BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
     volumes:
       - ../../backend:/app/backend # Mounts host:backend to /app/backend
       - ../../backend/apps:/app/apps
@@ -504,6 +511,7 @@ services:
       PROVIDER_CONFIG_DIR: "/app_config/providers"
       BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
     volumes:
       - ../../backend:/app/backend # Mounts host:backend to /app/backend
       # Mount apps directory for hot-reloading during development
@@ -563,6 +571,7 @@ services:
       PROVIDER_CONFIG_DIR: "/app_config/providers"
       BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
     volumes:
       - ../../backend:/app/backend # Mounts host:backend to /app/backend
       # Mount apps directory for hot-reloading during development
@@ -623,6 +632,7 @@ services:
       PROVIDER_CONFIG_DIR: "/app_config/providers"
       BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
     volumes:
       - ../../backend:/app/backend # Mounts host:backend to /app/backend
       # Mount apps directory for hot-reloading during development
@@ -681,6 +691,7 @@ services:
       PROVIDER_CONFIG_DIR: "/app_config/providers"
       BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
     volumes:
       - ../../backend:/app/backend
       - ../../backend/apps:/app/apps
@@ -732,6 +743,7 @@ services:
       PROVIDER_CONFIG_DIR: "/app_config/providers"
       BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
     volumes:
       - ../../backend:/app/backend
       - ../../backend/apps:/app/apps
@@ -783,6 +795,7 @@ services:
       PROVIDER_CONFIG_DIR: "/app_config/providers"
       BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
     volumes:
       - ../../backend:/app/backend
       - ../../backend/apps:/app/apps
@@ -836,6 +849,7 @@ services:
       PROVIDER_CONFIG_DIR: "/app_config/providers"
       BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
     volumes:
       - ../../backend:/app/backend # Mounts host:backend to /app/backend
       # Mount apps directory for hot-reloading during development
@@ -893,6 +907,7 @@ services:
       PROVIDER_CONFIG_DIR: "/app_config/providers"
       BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
     volumes:
       - ../../backend:/app/backend
       - ../../backend/apps:/app/apps
@@ -943,6 +958,7 @@ services:
       PROVIDER_CONFIG_DIR: "/app_config/providers"
       BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
     volumes:
       - ../../backend:/app/backend
       - ../../backend/apps:/app/apps
@@ -993,6 +1009,7 @@ services:
       PROVIDER_CONFIG_DIR: "/app_config/providers"
       BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
     volumes:
       - ../../backend:/app/backend
       - ../../backend/apps:/app/apps
@@ -1044,6 +1061,7 @@ services:
       PROVIDER_CONFIG_DIR: "/app_config/providers"
       BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
     volumes:
       - ../../backend:/app/backend
       - ../../backend/apps:/app/apps
@@ -1095,6 +1113,7 @@ services:
       PROVIDER_CONFIG_DIR: "/app_config/providers"
       BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
     volumes:
       - ../../backend:/app/backend
       - ../../backend/apps:/app/apps
@@ -1145,6 +1164,7 @@ services:
       PROVIDER_CONFIG_DIR: "/app_config/providers"
       BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
       CELERY_QUEUES: "app_ai" # Used by celery_config to determine which services to initialize
       CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}" # Maximum concurrent processes (default: 10)
       CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}" # Minimum concurrent processes (default: 3)
@@ -1204,6 +1224,7 @@ services:
       PROVIDER_CONFIG_DIR: "/app_config/providers"
       BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
       CELERY_QUEUES: "app_images" # Used by celery_config to determine which services to initialize
       CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}" # Maximum concurrent processes (default: 10)
       CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}" # Minimum concurrent processes (default: 3)
@@ -1263,6 +1284,7 @@ services:
       PROVIDER_CONFIG_DIR: "/app_config/providers"
       BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
     volumes:
       - ../../backend:/app/backend
       - ../../backend/apps:/app/apps
@@ -1314,6 +1336,7 @@ services:
       PROVIDER_CONFIG_DIR: "/app_config/providers"
       BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
       CELERY_QUEUES: "app_pdf"
       CELERY_AUTOSCALE_MAX: "4" # PDF processing is CPU/memory intensive — cap concurrency
       CELERY_AUTOSCALE_MIN: "1"
@@ -1766,6 +1789,7 @@ services:
       PROVIDER_CONFIG_DIR: "/app_config/providers"
       BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
     volumes:
       - ../../backend:/app/backend # Mounts host:backend to /app/backend
       # Mount apps directory for hot-reloading during development
