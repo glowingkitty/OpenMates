@@ -979,6 +979,21 @@
 			}
 		}
 
+		// PAIR LOGIN DEEP LINK: Detect /#pair=TOKEN early so the forced-logout path
+		// can skip destructive cleanup. Pair login opens the login screen — the user will
+		// authenticate fresh and derive a new master key. Firing forced-logout would:
+		// 1. Send POST /auth/logout invalidating the existing session cookie
+		// 2. Delete IndexedDB databases
+		// 3. Delete all cookies
+		// If the user then logs in via passkey, the background logout IIFE could race
+		// and invalidate the brand-new session. Pattern matches deepLinkHandler.ts pair regex.
+		const isPairDeepLink = browser && /^#pair=[A-Za-z0-9]{6}$/i.test(originalHash);
+		if (isPairDeepLink) {
+			console.debug(
+				'[+page.svelte] [INIT] Pair login deep link detected — will skip forced logout'
+			);
+		}
+
 		// SECURITY: Check if master key should be cleared (if stayLoggedIn was false)
 		// This must happen BEFORE loading user data to ensure key is cleared if needed
 		// This handles cases where user closed tab/browser with stayLoggedIn=false
@@ -1061,9 +1076,19 @@
 				// Shared chats use URL-embedded keys (not master key) — they're fully functional.
 				// Setting the flag would interfere with chatDB.init() and trigger destructive cleanup
 				// that wipes the shared chat data.
+				//
+				// EXCEPTION: For pair login deep links (/#pair=TOKEN), skip forcedLogoutInProgress.
+				// The user is about to authenticate fresh via the login screen. Firing forced-logout
+				// would trigger a background server logout that races with the new login and can
+				// invalidate the freshly-established session (the background IIFE sends POST /auth/logout
+				// with credentials: 'include', which sends the new session's cookies).
 				if (sharedChatRedirectId) {
 					console.debug(
 						'[+page.svelte] Skipping forcedLogoutInProgress — shared chat redirect in progress, stale profile is harmless'
+					);
+				} else if (isPairDeepLink) {
+					console.debug(
+						'[+page.svelte] Skipping forcedLogoutInProgress — pair login deep link detected, user will authenticate fresh'
 					);
 				} else {
 					console.debug(
@@ -1075,12 +1100,17 @@
 				// Show auto-logout notification with context-appropriate message.
 				// This must be triggered here because checkAuth() will skip its notification
 				// when forcedLogoutInProgress is already true (to prevent duplicate triggers).
-				// EXCEPTION: Skip for shared chat sessions — users opening a share link
-				// shouldn't see logout alerts. The shared chat is valid without master key.
+				// EXCEPTION: Skip for shared chat sessions and pair login deep links —
+				// shared chat users shouldn't see logout alerts, and pair login users are
+				// about to log in anyway.
 				// Use setTimeout to ensure the notification container is rendered first.
 				if (sharedChatRedirectId) {
 					console.debug(
 						'[+page.svelte] Suppressing auto-logout notification — shared chat redirect in progress'
+					);
+				} else if (isPairDeepLink) {
+					console.debug(
+						'[+page.svelte] Suppressing auto-logout notification — pair login in progress'
 					);
 				} else
 					setTimeout(async () => {

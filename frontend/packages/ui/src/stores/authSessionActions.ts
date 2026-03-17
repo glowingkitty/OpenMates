@@ -235,6 +235,18 @@ export async function checkAuth(
             "true" ||
             sessionStorage.getItem("openmates_shared_chat_redirect") !== null);
 
+        // PAIR LOGIN DETECTION: If user arrived via /#pair=TOKEN, they are about to
+        // authenticate fresh. Firing destructive logout (server logout + cookie deletion)
+        // would race with the new login and could invalidate the session established by
+        // the passkey flow. Detect via URL hash or sessionStorage pendingDeepLink.
+        const isPairLoginPending =
+          typeof window !== "undefined" &&
+          (/^#pair=[A-Za-z0-9]{6}$/i.test(window.location.hash) ||
+            (typeof sessionStorage !== "undefined" &&
+              /^#pair=[A-Za-z0-9]{6}$/i.test(
+                sessionStorage.getItem("pendingDeepLink") ?? "",
+              )));
+
         // OG image mode (?og=1): skip demo-for-everyone redirect so the welcome screen
         // (daily inspiration + for-everyone card) stays visible in /dev/og-image iframes.
         const isOgImageMode =
@@ -245,6 +257,10 @@ export async function checkAuth(
           if (isSharedChatSession) {
             console.debug(
               "[AuthSessionActions] Skipping demo-for-everyone override — shared chat session detected (key in URL fragment, not master key)",
+            );
+          } else if (isPairLoginPending) {
+            console.debug(
+              "[AuthSessionActions] Skipping demo-for-everyone override — pair login deep link pending, user will authenticate fresh",
             );
           } else if (isOgImageMode) {
             console.debug(
@@ -268,8 +284,13 @@ export async function checkAuth(
 
         // Show notification with context-appropriate message — but only if we haven't already
         // shown one (when +page.svelte sets the flag, it shows its own notification via setTimeout).
-        // Also skip for shared chat sessions — users opening a share link shouldn't see logout alerts.
-        if (!alreadyForcedLogout && !isSharedChatSession) {
+        // Also skip for shared chat sessions and pair login — users opening a share link or pair
+        // link shouldn't see logout alerts.
+        if (
+          !alreadyForcedLogout &&
+          !isSharedChatSession &&
+          !isPairLoginPending
+        ) {
           const $text = get(text);
           const { wasStayLoggedIn } =
             await import("../services/cryptoKeyStorage");
@@ -298,12 +319,15 @@ export async function checkAuth(
           }
         }
 
-        // CRITICAL: For shared chat sessions, skip destructive logout.
+        // CRITICAL: For shared chat sessions and pair login deep links, skip destructive logout.
         // Shared chats are stored in IndexedDB with their own encryption keys (from the URL
         // fragment). The logout() call below deletes the entire database, which would wipe
-        // the shared chat data. The user is effectively unauthenticated — they just have stale
-        // profile data from a previous session. Simply clearing auth state is sufficient.
-        if (!isSharedChatSession) {
+        // the shared chat data.
+        // Pair login deep links will open the login screen — the user authenticates fresh and
+        // derives a new master key. The background logout IIFE would race with the new session
+        // (POST /auth/logout with credentials: 'include' sends the new session's cookies).
+        // Simply clearing auth state is sufficient for both cases.
+        if (!isSharedChatSession && !isPairLoginPending) {
           isLoggingOut.set(true);
           console.debug(
             "[AuthSessionActions] Set isLoggingOut to true for missing master key logout",
@@ -354,13 +378,17 @@ export async function checkAuth(
           deleteSessionId(); // Remove session_id on forced logout
         } else {
           console.debug(
-            "[AuthSessionActions] Skipping destructive logout for shared chat session — only clearing auth state",
+            `[AuthSessionActions] Skipping destructive logout — ${isPairLoginPending ? "pair login pending" : "shared chat session"} — only clearing auth state`,
           );
           // Still reset forcedLogoutInProgress since we're not doing a full logout
           resetForcedLogoutInProgress();
         }
         cryptoService.clearAllEmailData(); // Clear email encryption key, encrypted email, and salt
-        deleteAllCookies(); // Clear all cookies on forced logout
+        // Only delete cookies if not a pair login — the user needs the existing session
+        // cookies intact so checkAuth() can validate after passkey login succeeds.
+        if (!isPairLoginPending) {
+          deleteAllCookies();
+        }
         return false;
       }
 

@@ -98,6 +98,13 @@
     
     // Conditional UI (passkey autofill) state
     let conditionalUIAbortController: AbortController | null = null; // For cancelling conditional UI passkey request
+    // Synchronous guard for startConditionalUIPasskey(). The existing check on
+    // conditionalUIAbortController is insufficient because it's set AFTER the first
+    // await inside the function. When Svelte's $effect fires twice in rapid succession
+    // (e.g. isCheckingAuth→false then isAuthenticated→false), both invocations pass
+    // the guard before the first one has resolved its await. This boolean is set
+    // synchronously at function entry, before any await.
+    let conditionalUIStartPending = false;
     // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
     let isConditionalUISupported = $state(false); // Track if browser supports conditional UI
     
@@ -1099,15 +1106,22 @@
      * Reference: https://web.dev/articles/passkey-form-autofill
      */
     async function startConditionalUIPasskey() {
-        // Don't start if already active
-        if (conditionalUIAbortController) {
-            console.log('[Login] Conditional UI passkey request already active');
+        // Don't start if already active or another call is in-flight (before its first await)
+        if (conditionalUIAbortController || conditionalUIStartPending) {
+            console.log('[Login] Conditional UI passkey request already active or pending');
             return;
         }
+        
+        // CRITICAL: Set synchronous guard BEFORE any await to prevent the Svelte $effect
+        // from firing a second invocation while the first is still resolving its initial
+        // await (isConditionalMediationAvailable). Without this, two concurrent WebAuthn
+        // requests are started, causing "OperationError: A request is already pending".
+        conditionalUIStartPending = true;
         
         // Check if WebAuthn and Conditional UI are supported
         if (!window.PublicKeyCredential) {
             console.log('[Login] WebAuthn not supported');
+            conditionalUIStartPending = false;
             return;
         }
         
@@ -1117,6 +1131,7 @@
             if (!conditionalMediationAvailable) {
                 console.log('[Login] Conditional UI (passkey autofill) not supported by browser');
                 isConditionalUISupported = false;
+                conditionalUIStartPending = false;
                 return;
             }
             isConditionalUISupported = true;
@@ -1124,11 +1139,13 @@
         } catch (error) {
             console.log('[Login] Error checking conditional UI support:', error);
             isConditionalUISupported = false;
+            conditionalUIStartPending = false;
             return;
         }
         
         // Create abort controller for cancelling the request
         conditionalUIAbortController = new AbortController();
+        conditionalUIStartPending = false; // AbortController is now set — it takes over as the guard
         
         try {
             const { getApiEndpoint, apiEndpoints } = await import('../config/api');
@@ -2038,7 +2055,8 @@
             showForm &&
             currentLoginStep === 'email' &&
             !$isInSignupProcess &&
-            !conditionalUIAbortController
+            !conditionalUIAbortController &&
+            !conditionalUIStartPending
         ) {
             // Start conditional UI passkey flow (autofill passkeys)
             // This enables the OS/browser to show passkey suggestions automatically
