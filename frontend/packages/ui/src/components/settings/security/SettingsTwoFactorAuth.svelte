@@ -294,6 +294,8 @@ Props:
         try {
             // Get email encryption key for 2FA setup (base64 encoded for API)
             const emailEncryptionKey = cryptoService.getEmailEncryptionKeyForApi();
+            // Keep 2FA setup endpoints aligned with CLI blocked operations:
+            // frontend/packages/openmates-cli/src/client.ts (BLOCKED_SETTINGS_POST_PATHS)
             
             const response = await fetch(getApiEndpoint(apiEndpoints.auth.setup_2fa), {
                 method: 'POST',
@@ -1236,4 +1238,3 @@ Props:
         }
     }
 </style>
-

@@ -1,6 +1,22 @@
 # 🧠 OpenMates — CLI + SDK Architecture
 
-> **Status:** Feature not yet fully implemented
+> **Status:** npm MVP in progress (pair-auth + chat/apps/settings)
+
+## Implemented npm Scope (Current)
+
+The Node package at `frontend/packages/openmates-cli` currently focuses on:
+
+- Pair-auth login only (`openmates login`) using `/v1/auth/pair/*`
+- Chat operations via WebSocket (`list`, `search`, `new`, `send`, `incognito`)
+- App listing + skill execution (`openmates apps ...`) with sugar alias support
+- Settings read/write and memories list/create
+
+Safety restrictions in CLI are intentionally enforced in
+`frontend/packages/openmates-cli/src/client.ts` (`BLOCKED_SETTINGS_POST_PATHS`):
+
+- No API key creation endpoint access
+- No password setup/update endpoint access
+- No 2FA setup/provider endpoint access
 
 ## Overview
 

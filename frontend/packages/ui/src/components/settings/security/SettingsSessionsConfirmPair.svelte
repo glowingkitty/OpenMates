@@ -339,6 +339,19 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
     let displayPin = $derived(
         generatedPin ? `${generatedPin.slice(0, 3)} ${generatedPin.slice(3)}` : ''
     );
+
+    let pinCopied = $state(false);
+
+    async function copyPin() {
+        if (!generatedPin) return;
+        try {
+            await navigator.clipboard.writeText(generatedPin);
+            pinCopied = true;
+            setTimeout(() => { pinCopied = false; }, 2000);
+        } catch {
+            // Clipboard API unavailable — user can still select + copy manually
+        }
+    }
 </script>
 
 <div class="confirm-pair-container">
@@ -406,8 +419,25 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
         <h2 class="page-title">{$text('settings.sessions.pair_confirm_show_pin')}</h2>
         <p class="page-description">{$text('settings.sessions.pair_confirm_pin_hint')}</p>
 
-        <div class="pin-display">
-            {displayPin}
+        <div class="pin-display-row">
+            <span class="pin-display">{displayPin}</span>
+            <button
+                class="btn-copy"
+                onclick={copyPin}
+                title="Copy PIN"
+                aria-label="Copy PIN"
+            >
+                {#if pinCopied}
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                {:else}
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                    </svg>
+                {/if}
+            </button>
         </div>
 
         <button class="btn btn-secondary" onclick={() => dispatch('done')}>
@@ -513,7 +543,18 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
         gap: 0.75rem;
     }
 
+    .pin-display-row {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        background: var(--color-grey-10);
+        border: 1px solid var(--color-grey-25);
+        border-radius: 12px;
+        padding: 1rem 1.25rem;
+    }
+
     .pin-display {
+        flex: 1;
         font-size: 2.5rem;
         font-weight: 700;
         letter-spacing: 0.25em;
@@ -521,10 +562,34 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
         font-variant-numeric: tabular-nums;
         font-family: monospace;
         text-align: center;
-        background: var(--color-grey-10);
-        border: 1px solid var(--color-grey-25);
-        border-radius: 12px;
-        padding: 1.25rem;
+        user-select: text;
+        -webkit-user-select: text;
+        cursor: text;
+    }
+
+    .btn-copy {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        width: 2.25rem;
+        height: 2.25rem;
+        border-radius: 8px;
+        border: 1px solid var(--color-grey-30);
+        background: var(--color-grey-0);
+        color: var(--color-font-secondary);
+        cursor: pointer;
+        transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+
+    .btn-copy:hover {
+        background: var(--color-grey-20);
+        color: var(--color-font-primary);
+        border-color: var(--color-grey-35, var(--color-grey-30));
+    }
+
+    .btn-copy:active {
+        background: var(--color-grey-25);
     }
 
     .error-box {

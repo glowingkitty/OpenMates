@@ -313,6 +313,8 @@ This ensures users can never have a password without 2FA enabled.
      */
     async function savePasswordToServer(passwordData: PendingPasswordData) {
         try {
+            // Keep password endpoint aligned with CLI blocked operations:
+            // frontend/packages/openmates-cli/src/client.ts (BLOCKED_SETTINGS_POST_PATHS)
             const response = await fetch(getApiEndpoint(apiEndpoints.settings.updatePassword), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -890,4 +892,3 @@ This ensures users can never have a password without 2FA enabled.
         display: none;
     }
 </style>
-
