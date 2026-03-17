@@ -7,10 +7,9 @@ import asyncio
 import json
 import time
 import os
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 import httpx
 
-from celery import shared_task
 from backend.core.api.app.tasks.celery_config import app
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
@@ -290,7 +289,7 @@ def _get_cheapest_model_for_server(server_id: str) -> Optional[str]:
             # Since Groq is used by OpenAI provider, we'll use "openai/llama-3.1-8b-instant"
             # But actually, for Groq API, we can use the model ID directly without provider prefix
             # The health check will resolve it correctly via the server
-            logger.debug(f"Using 'llama-3.1-8b-instant' for Groq health check (testing model)")
+            logger.debug("Using 'llama-3.1-8b-instant' for Groq health check (testing model)")
             # Find a provider that uses groq server to construct the model ID
             groq_provider = None
             for provider_id, _, _, _ in candidate_models:
@@ -302,7 +301,7 @@ def _get_cheapest_model_for_server(server_id: str) -> Optional[str]:
                 return f"{groq_provider}/llama-3.1-8b-instant"
             else:
                 # Fallback: use openai provider since Groq is typically used with OpenAI models
-                logger.debug(f"Using 'openai/llama-3.1-8b-instant' for Groq health check (fallback)")
+                logger.debug("Using 'openai/llama-3.1-8b-instant' for Groq health check (fallback)")
                 return "openai/llama-3.1-8b-instant"
         
         # For other servers, find the cheapest model by comparing input costs
@@ -435,7 +434,7 @@ async def _check_provider_via_test_request(provider_id: str, model_id: str, secr
         # Special case: For Groq health checks, use llama-3.1-8b-instant directly
         # This model is not in provider configs, so we bypass the normal resolution
         if provider_id == "groq" and "llama-3.1-8b-instant" in model_id:
-            logger.debug(f"Using direct Groq API call for health check with model 'llama-3.1-8b-instant'")
+            logger.debug("Using direct Groq API call for health check with model 'llama-3.1-8b-instant'")
             # Get Groq client directly
             provider_client = _get_provider_client("groq")
             if not provider_client:
@@ -794,6 +793,69 @@ async def _check_brave_search_health(secrets_manager: SecretsManager) -> Dict[st
     except Exception as e:
         logger.error(f"Health check: Failed to store health status for 'brave' in cache: {e}", exc_info=True)
     
+    return health_data
+
+
+async def _check_protonmail_bridge_health(secrets_manager: SecretsManager) -> Dict[str, Any]:
+    """Check Proton Mail Bridge provider health using configured bridge credentials."""
+    logger.info("Health check: Checking provider 'protonmail' (Proton Mail Bridge)...")
+
+    cache_service = CacheService()
+
+    from backend.shared.providers.protonmail.protonmail_bridge import check_protonmail_bridge_health
+
+    start_time = time.time()
+    success, error = await check_protonmail_bridge_health(secrets_manager)
+    response_time_ms = (time.time() - start_time) * 1000
+
+    if success:
+        status = "healthy"
+        last_error = None
+    else:
+        status = "unhealthy"
+        last_error = _sanitize_error_message(error)
+
+    cache_key = f"{HEALTH_CHECK_CACHE_KEY_PREFIX}protonmail"
+    existing_health_data = {}
+    try:
+        client = await cache_service.client
+        if client:
+            existing_data_json = await client.get(cache_key)
+            if existing_data_json:
+                if isinstance(existing_data_json, bytes):
+                    existing_data_json = existing_data_json.decode("utf-8")
+                existing_health_data = json.loads(existing_data_json)
+    except Exception:
+        pass
+
+    response_times_ms_dict = existing_health_data.get("response_times_ms", {})
+    current_timestamp = int(time.time())
+    response_times_ms_dict[str(current_timestamp)] = round(response_time_ms, 2)
+    sorted_times = sorted(response_times_ms_dict.items(), key=lambda x: int(x[0]), reverse=True)
+    response_times_ms_dict = dict(sorted_times[:5])
+
+    await _record_health_event_if_changed(
+        service_type="provider",
+        service_id="protonmail",
+        new_status=status,
+        error_message=last_error,
+        response_time_ms=response_time_ms,
+    )
+
+    health_data = {
+        "status": status,
+        "last_check": current_timestamp,
+        "last_error": last_error,
+        "response_times_ms": response_times_ms_dict,
+    }
+
+    try:
+        client = await cache_service.client
+        if client:
+            await client.set(cache_key, json.dumps(health_data), ex=HEALTH_CHECK_CACHE_TTL)
+    except Exception as exc:
+        logger.error("Health check: Failed to store health status for 'protonmail': %s", exc, exc_info=True)
+
     return health_data
 
 
@@ -1771,10 +1833,12 @@ def check_all_providers_health(self):
                         task = _check_provider_health(provider_id, health_endpoint=None)
                         tasks.append(task)
                     
-                    # Also check Brave Search (not an LLM provider, so not in registry)
+                    # Also check Brave Search + Proton Mail Bridge (not LLM providers)
                     await secrets_manager.initialize()
                     brave_task = _check_brave_search_health(secrets_manager)
                     tasks.append(brave_task)
+                    protonmail_task = _check_protonmail_bridge_health(secrets_manager)
+                    tasks.append(protonmail_task)
                     
                     # Run all checks concurrently
                     logger.info(f"Health check: Executing {len(tasks)} health check(s) concurrently...")
@@ -1794,7 +1858,7 @@ def check_all_providers_health(self):
                     
                     # Log details for unhealthy providers
                     if unhealthy_count > 0:
-                        all_provider_ids = list(providers) + ["brave"]
+                        all_provider_ids = list(providers) + ["brave", "protonmail"]
                         for i, result in enumerate(results):
                             if isinstance(result, dict) and result.get("status") == "unhealthy":
                                 provider_id = all_provider_ids[i] if i < len(all_provider_ids) else f"unknown_{i}"

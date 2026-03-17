@@ -18,6 +18,12 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.routes.internal_api import get_directus_service, get_cache_service
 from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.core.api.app.utils.encryption import EncryptionService
+from backend.core.api.app.models.user import User
+from backend.core.api.app.routes.auth_routes.auth_dependencies import (
+    get_current_user_optional,
+    get_encryption_service,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +72,7 @@ def get_provider_api_key_env_vars(provider_id: str) -> List[str]:
         "firecrawl": ["SECRET__FIRECRAWL__API_KEY", "FIRECRAWL_API_KEY"],
         "youtube": ["SECRET__YOUTUBE__API_KEY", "SECRET__YOUTUBE__API_KEY"],
         "google_maps": ["SECRET__GOOGLE_MAPS__API_KEY"],
+        "protonmail": ["SECRET__PROTONMAIL__BRIDGE_PASSWORD"],
     }
     
     # Return mapped env vars or default pattern
@@ -153,6 +160,92 @@ async def is_skill_available(skill: AppSkillDefinition, app_id: str, secrets_man
     # No providers have API keys configured
     logger.debug(f"Skill '{skill.id}' is not available - no providers have API keys configured")
     return False
+
+
+async def _get_secret_or_env(
+    *,
+    secrets_manager: SecretsManager,
+    secret_key: str,
+    env_var: str,
+    default: str = "",
+) -> str:
+    try:
+        value = await secrets_manager.get_secret(
+            secret_path="kv/data/providers/protonmail",
+            secret_key=secret_key,
+        )
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    except Exception:
+        pass
+    return (os.getenv(env_var, default) or "").strip()
+
+
+def _normalize_email(value: str) -> str:
+    return value.strip().lower()
+
+
+def _is_enabled_flag(value: str) -> bool:
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+async def _is_protonmail_user_allowed(
+    *,
+    current_user: Optional[User],
+    encryption_service: EncryptionService,
+    secrets_manager: SecretsManager,
+) -> bool:
+    if not current_user:
+        return False
+
+    enabled_raw = await _get_secret_or_env(
+        secrets_manager=secrets_manager,
+        secret_key="enabled",
+        env_var="SECRET__PROTONMAIL__ENABLED",
+        default="false",
+    )
+    if not _is_enabled_flag(enabled_raw):
+        return False
+
+    required_fields = [
+        ("bridge_host", "SECRET__PROTONMAIL__BRIDGE_HOST"),
+        ("bridge_imap_port", "SECRET__PROTONMAIL__BRIDGE_IMAP_PORT"),
+        ("bridge_username", "SECRET__PROTONMAIL__BRIDGE_USERNAME"),
+        ("bridge_password", "SECRET__PROTONMAIL__BRIDGE_PASSWORD"),
+    ]
+    for key_name, env_name in required_fields:
+        value = await _get_secret_or_env(
+            secrets_manager=secrets_manager,
+            secret_key=key_name,
+            env_var=env_name,
+        )
+        if not value:
+            return False
+
+    allowed_email_raw = await _get_secret_or_env(
+        secrets_manager=secrets_manager,
+        secret_key="allowed_openmates_email",
+        env_var="SECRET__PROTONMAIL__ALLOWED_OPENMATES_EMAIL",
+    )
+    allowed_email = _normalize_email(allowed_email_raw)
+    if not allowed_email:
+        return False
+
+    if not current_user.encrypted_email_address or not current_user.vault_key_id:
+        return False
+
+    try:
+        decrypted_email = await encryption_service.decrypt_with_user_key(
+            current_user.encrypted_email_address,
+            current_user.vault_key_id,
+        )
+    except Exception:
+        return False
+
+    if not decrypted_email:
+        return False
+
+    return _normalize_email(decrypted_email) == allowed_email
 
 
 def resolve_translation(
@@ -265,7 +358,11 @@ class MostUsedAppsResponse(BaseModel):
 
 
 @router.get("/metadata", response_model=AppMetadataResponse)
-async def get_apps_metadata(request: Request):
+async def get_apps_metadata(
+    request: Request,
+    current_user: Optional[User] = Depends(get_current_user_optional),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+):
     """
     Get metadata for all discovered apps.
     
@@ -330,6 +427,12 @@ async def get_apps_metadata(request: Request):
     # Initialize secrets manager for API key availability checks
     secrets_manager = SecretsManager(cache_service=cache_service)
     await secrets_manager.initialize()
+
+    protonmail_user_allowed = await _is_protonmail_user_allowed(
+        current_user=current_user,
+        encryption_service=encryption_service,
+        secrets_manager=secrets_manager,
+    )
     
     # Convert AppYAML to API response format
     # Transform the discovered AppYAML objects to the API response format with resolved translations
@@ -373,6 +476,12 @@ async def get_apps_metadata(request: Request):
             skill_available = await is_skill_available(skill, app_id, secrets_manager)
             if not skill_available:
                 logger.debug(f"Skipping skill '{skill.id}' from app '{app_id}' - no API keys configured for providers")
+                continue
+
+            # Proton Mail Bridge is intentionally single-account: only the explicitly
+            # configured OpenMates user should see and execute the mail.search skill.
+            if app_id == "mail" and skill.id == "search" and not protonmail_user_allowed:
+                logger.debug("Skipping mail/search skill for current user (not ProtonMail-allowed)")
                 continue
             
             skill_name = resolve_translation(
@@ -432,6 +541,9 @@ async def get_apps_metadata(request: Request):
                 # If stage is not in allowed_stages (including 'planning'), skip this memory field
                 if field_stage and field_stage not in allowed_stages:
                     logger.debug(f"Skipping memory field '{field.id}' from app '{app_id}' - stage '{field_stage}' not compatible with '{server_environment}' environment")
+                    continue
+
+                if app_id == "mail" and field.id == "proton_bridge_connection" and not protonmail_user_allowed:
                     continue
                 
                 field_name = resolve_translation(
@@ -714,4 +826,3 @@ async def get_most_used_apps(
             last_updated=int(time.time()),
             period_days=30
         )
-

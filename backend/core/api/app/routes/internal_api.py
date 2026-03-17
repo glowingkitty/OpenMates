@@ -122,6 +122,13 @@ class ValidateTokenResponse(BaseModel):
     username: str
 
 
+class UserNormalizedEmailResponse(BaseModel):
+    """Response model for internal normalized-email lookup."""
+
+    user_id: str
+    email: str
+
+
 @router.get("/validate-token", response_model=ValidateTokenResponse)
 async def validate_token_route(
     request: Request,
@@ -244,6 +251,39 @@ async def get_provider_model_pricing_route(
     except Exception as e:
         logger.error(f"Error fetching pricing for {provider_id}/{model_id_suffix}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error fetching pricing: {str(e)}")
+
+
+@router.get("/users/{user_id}/normalized-email", response_model=UserNormalizedEmailResponse)
+async def get_user_normalized_email_route(
+    user_id: str,
+    directus_service: DirectusService = Depends(get_directus_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+) -> UserNormalizedEmailResponse:
+    """Return a user's decrypted email in normalized lowercase form for internal service checks."""
+    profile_success, user_data, profile_message = await directus_service.get_user_profile(user_id)
+    if not profile_success or not user_data:
+        raise HTTPException(status_code=404, detail=f"User profile not found: {profile_message}")
+
+    encrypted_email = user_data.get("encrypted_email_address")
+    vault_key_id = user_data.get("vault_key_id")
+    if not encrypted_email or not vault_key_id:
+        raise HTTPException(status_code=404, detail="User email is not available")
+
+    try:
+        decrypted_email = await encryption_service.decrypt_with_user_key(encrypted_email, vault_key_id)
+    except Exception as exc:
+        logger.error(
+            "Internal API: failed decrypting email for user '%s': %s",
+            user_id,
+            exc,
+            exc_info=True,
+        )
+        raise HTTPException(status_code=500, detail="Failed to decrypt user email") from exc
+
+    if not decrypted_email:
+        raise HTTPException(status_code=404, detail="User email is empty")
+
+    return UserNormalizedEmailResponse(user_id=user_id, email=decrypted_email.strip().lower())
 
 @router.get("/config/provider_pricing/{provider_id}")
 async def get_provider_pricing_route(

@@ -1,0 +1,17 @@
+# backend/providers/protonmail.yml
+#
+# Configuration for Proton Mail Bridge provider.
+# Used by the Mail app search skill to read a single admin mailbox via Bridge.
+
+provider_id: "protonmail"
+name: "Proton Mail Bridge"
+description: "Local Proton Mail Bridge IMAP connector for a single configured mailbox."
+logo_svg: "logos/mail.svg"
+region: "Local"
+
+# Bridge is configured via host/port/user/password secrets, not a single API key.
+# We keep provider availability controlled in app routes + skill auth checks.
+no_api_key: true
+
+pricing:
+  per_request_credits: 10

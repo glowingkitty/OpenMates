@@ -1,0 +1,49 @@
+search:
+  context: Skill name for mail search (Proton Mail Bridge)
+  en: Search Mail
+  de: E-Mails suchen
+  zh: 搜索邮件
+  es: Buscar correo
+  fr: Rechercher des e-mails
+  pt: Pesquisar e-mails
+  ru: Поиск почты
+  ja: メール検索
+  ko: 메일 검색
+  it: Cerca e-mail
+  tr: E-posta ara
+  vi: Tim kiem email
+  id: Cari email
+  pl: Szukaj e-maili
+  nl: E-mail zoeken
+  ar: البحث في البريد
+  hi: मेल खोजें
+  th: ค้นหาอีเมล
+  cs: Hledat e-maily
+  sv: Sok e-post
+  he: חיפוש מייל
+  verified_by_human: [en, de]
+
+search.description:
+  context: Description for mail search skill (Proton Mail Bridge inbox search)
+  en: Search your Proton Mail inbox.
+  de: Dein Proton-Mail-Postfach durchsuchen.
+  zh: 搜索您的 Proton Mail 收件箱。
+  es: Buscar en tu bandeja de entrada de Proton Mail.
+  fr: Rechercher dans votre boite de reception Proton Mail.
+  pt: Pesquisar na sua caixa de entrada do Proton Mail.
+  ru: Поиск в вашем почтовом ящике Proton Mail.
+  ja: Proton Mail の受信トレイを検索します。
+  ko: Proton Mail 받은 편지함을 검색합니다.
+  it: Cerca nella tua casella di posta Proton Mail.
+  tr: Proton Mail gelen kutunuzu arayin.
+  vi: Tim kiem hop thu den Proton Mail cua ban.
+  id: Cari kotak masuk Proton Mail Anda.
+  pl: Przeszukaj skrzynke odbiorczą Proton Mail.
+  nl: Doorzoek je Proton Mail-inbox.
+  ar: ابحث في صندوق وارد Proton Mail الخاص بك.
+  hi: अपने Proton Mail इनबॉक्स में खोजें।
+  th: ค้นหากล่องจดหมาย Proton Mail ของคุณ
+  cs: Prohledejte svou doručenou poštu Proton Mail.
+  sv: Sok i din Proton Mail-inkorg.
+  he: חפש בתיבת הדואר הנכנס של Proton Mail שלך.
+  verified_by_human: [en, de]

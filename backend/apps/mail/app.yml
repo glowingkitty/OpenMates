@@ -48,6 +48,25 @@ settings_and_memories:
       required:
         - title
         - description
+  - id: proton_bridge_connection
+    name_translation_key: mail.proton_bridge_connection
+    description_translation_key: mail.proton_bridge_connection.description
+    icon_image: mail.svg
+    type: list
+    stage: production
+    schema:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Connected Proton Mail Bridge account label
+          is_title: true
+        description:
+          type: string
+          description: Connection details and scope information
+          is_subtitle: true
+      required:
+        - title
 embed_types:
   - id: email
     category: direct
@@ -71,6 +90,28 @@ embed_types:
         required: true
       - name: footer
         type: string
+  - id: search
+    category: app-skill-use
+    skill_id: search
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    groupable: true
+    preview_component: mail/MailSearchEmbedPreview.svelte
+    fullscreen_component: mail/MailSearchEmbedFullscreen.svelte
+    icon: mail
+    gradient_var: "--color-app-mail"
+    i18n_namespace: embeds.mail.email
+    content_fields:
+      - name: query
+        type: string
+      - name: provider
+        type: string
+      - name: results
+        type: array
+        required: true
+      - name: result_count
+        type: number
 instructions:
   - instruction: |
       **Email Drafting (Mail App)**
@@ -85,4 +126,53 @@ instructions:
       ```
       Keep the body as plain text (no HTML). Include footer only when helpful.
       If the user has writing style preferences loaded in context (from mail app settings), apply the matching style's tone, verbosity, and footer accordingly.
-skills: []
+skills:
+  - id: search
+    name_translation_key: app_skills.mail.search
+    description_translation_key: app_skills.mail.search.description
+    icon_image: search.svg
+    stage: production
+    class_path: |
+      backend.apps.mail.skills.search_skill.SearchSkill
+    providers:
+      - ProtonMail
+    preview_component: mail/MailSearchEmbedPreview.svelte
+    fullscreen_component: mail/MailSearchEmbedFullscreen.svelte
+    child_preview_component: mail/MailEmbedPreview.svelte
+    child_fullscreen_component: mail/MailEmbedFullscreen.svelte
+    suggestions_follow_up_requests:
+      - "Show more recent emails"
+      - "Search emails from a specific sender"
+      - "Find emails by subject"
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          description: |
+            REQUIRED: Array of mail search request objects.
+            The query field is optional. If omitted or empty, newest emails are returned first.
+            Example: {"requests": [{"query": "invoice", "limit": 10}]}
+            Example recent-first: {"requests": [{"limit": 10}]}
+          items:
+            type: object
+            properties:
+              id:
+                type: [string, integer]
+                description: Optional request id echoed in results
+              query:
+                type: string
+                description: Optional search text (subject/from/body). Empty means recent-first listing.
+              mailbox:
+                type: string
+                description: Optional mailbox name (defaults to INBOX)
+              limit:
+                type: integer
+                minimum: 1
+                maximum: 50
+                default: 10
+                description: Maximum number of email results to return
+          minItems: 1
+      required:
+        - requests
+      additionalProperties: false

@@ -317,6 +317,7 @@ def get_provider_api_key_env_vars(provider_id: str) -> List[str]:
         "firecrawl": ["SECRET__FIRECRAWL__API_KEY", "FIRECRAWL_API_KEY"],
         "youtube": ["SECRET__YOUTUBE__API_KEY", "SECRET__YOUTUBE__API_KEY"],
         "google_maps": ["SECRET__GOOGLE_MAPS__API_KEY"],
+        "protonmail": ["SECRET__PROTONMAIL__BRIDGE_PASSWORD"],
     }
     
     # Return mapped env vars or default pattern
@@ -415,6 +416,78 @@ async def is_skill_available(skill: AppSkillDefinition, app_id: str, secrets_man
     # No providers have API keys configured
     logger.debug(f"Skill '{skill.id}' is not available - no providers have API keys configured")
     return False
+
+
+async def _get_secret_or_env(
+    *,
+    secrets_manager: SecretsManager,
+    secret_key: str,
+    env_var: str,
+    default: str = "",
+) -> str:
+    try:
+        value = await secrets_manager.get_secret(
+            secret_path="kv/data/providers/protonmail",
+            secret_key=secret_key,
+        )
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    except Exception:
+        pass
+    return (os.getenv(env_var, default) or "").strip()
+
+
+def _normalize_email(value: str) -> str:
+    return value.strip().lower()
+
+
+def _is_enabled_flag(value: str) -> bool:
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+async def _is_protonmail_allowed_for_external_user(
+    *,
+    user_info: Dict[str, Any],
+    secrets_manager: SecretsManager,
+) -> bool:
+    enabled_raw = await _get_secret_or_env(
+        secrets_manager=secrets_manager,
+        secret_key="enabled",
+        env_var="SECRET__PROTONMAIL__ENABLED",
+        default="false",
+    )
+    if not _is_enabled_flag(enabled_raw):
+        return False
+
+    required_fields = [
+        ("bridge_host", "SECRET__PROTONMAIL__BRIDGE_HOST"),
+        ("bridge_imap_port", "SECRET__PROTONMAIL__BRIDGE_IMAP_PORT"),
+        ("bridge_username", "SECRET__PROTONMAIL__BRIDGE_USERNAME"),
+        ("bridge_password", "SECRET__PROTONMAIL__BRIDGE_PASSWORD"),
+    ]
+    for key_name, env_name in required_fields:
+        value = await _get_secret_or_env(
+            secrets_manager=secrets_manager,
+            secret_key=key_name,
+            env_var=env_name,
+        )
+        if not value:
+            return False
+
+    allowed_email_raw = await _get_secret_or_env(
+        secrets_manager=secrets_manager,
+        secret_key="allowed_openmates_email",
+        env_var="SECRET__PROTONMAIL__ALLOWED_OPENMATES_EMAIL",
+    )
+    allowed_email = _normalize_email(allowed_email_raw)
+    if not allowed_email:
+        return False
+
+    caller_email = _normalize_email(str(user_info.get("email") or ""))
+    if not caller_email:
+        return False
+
+    return caller_email == allowed_email
 
 
 async def fetch_provider_pricing(provider_id: str) -> Optional[Dict[str, Any]]:
@@ -1014,6 +1087,10 @@ async def list_apps(
         # Initialize secrets manager for API key availability checks
         secrets_manager = SecretsManager(cache_service=cache_service)
         await secrets_manager.initialize()
+        protonmail_allowed_for_user = await _is_protonmail_allowed_for_external_user(
+            user_info=user_info,
+            secrets_manager=secrets_manager,
+        )
         
         if not discovered_apps:
             logger.info("No apps discovered, returning empty list")
@@ -1057,6 +1134,10 @@ async def list_apps(
                 skill_available = await is_skill_available(skill, app_id, secrets_manager, config_manager)
                 if not skill_available:
                     logger.debug(f"Skipping skill '{skill.id}' from app '{app_id}' - no API keys configured for providers")
+                    continue
+
+                if app_id == "mail" and skill.id == "search" and not protonmail_allowed_for_user:
+                    logger.debug("Skipping mail/search for external user without ProtonMail permission")
                     continue
                 
                 skill_name = resolve_translation(

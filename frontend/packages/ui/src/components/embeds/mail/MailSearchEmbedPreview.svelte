@@ -43,7 +43,8 @@
     status: statusProp,
     results: resultsProp,
     taskId,
-    skillTaskId,
+    // skillTaskId reserved for future skill-cancellation support (not yet used in mail search)
+    skillTaskId: _skillTaskId,
     isMobile = false,
     onFullscreen,
   }: Props = $props();
