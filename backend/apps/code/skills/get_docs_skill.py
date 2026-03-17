@@ -357,7 +357,7 @@ async def select_library_with_llm(
     Fallback chain:
     1. Primary: openai/gpt-oss-20b via Groq (with function calling)
     2. Fallback 1: gpt-oss-120b via Cerebras (with function calling)
-    3. Fallback 2: mistral-small-latest via Mistral (with function calling)
+    3. Fallback 2: mistral-small-2506 via Mistral (with function calling)
     4. Fallback 3: First search result (no LLM)
     
     Returns the selected library_id or None if selection fails.
@@ -450,12 +450,12 @@ async def select_library_with_llm(
     except Exception as e:
         logger.warning(f"[{task_id}] Cerebras selection failed: {e}", exc_info=True)
     
-    # Try Mistral mistral-small-latest with function calling (fallback 2)
+    # Try Mistral mistral-small-2506 with function calling (fallback 2)
     try:
-        logger.info(f"[{task_id}] Trying Mistral mistral-small-latest with function calling (required)")
+        logger.info(f"[{task_id}] Trying Mistral mistral-small-2506 with function calling (required)")
         result = await invoke_mistral_chat_completions(
             task_id=task_id,
-            model_id="mistral-small-latest",
+            model_id="mistral-small-2506",
             messages=messages,
             secrets_manager=secrets_manager,
             temperature=0,

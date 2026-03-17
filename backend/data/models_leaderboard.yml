@@ -109,8 +109,12 @@ unranked:
     name: Gemini 3 Pro Image Preview
     provider_id: google
     country_origin: US
+  - model_id: mistral-small-2506
+    name: Mistral Small 3.2
+    provider_id: mistral
+    country_origin: FR
   - model_id: mistral-small-latest
-    name: Mistral Small
+    name: Mistral Small 4
     provider_id: mistral
     country_origin: FR
   - model_id: mistral-medium-latest

@@ -380,7 +380,7 @@ async def translate_chat_title(
         {"role": "user", "content": user_message},
     ]
 
-    model_id = "mistral/mistral-small-latest"
+    model_id = "mistral/mistral-small-2506"
 
     try:
         from backend.apps.ai.utils.llm_utils import resolve_fallback_servers_from_provider_config

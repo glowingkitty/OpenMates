@@ -366,7 +366,7 @@ async def handle_postprocessing(
     messages.append({"role": "user", "content": combined_context})
 
     # Use same model as preprocessing (Mistral Small) for consistency
-    model_id = "mistral/mistral-small-latest"
+    model_id = "mistral/mistral-small-2506"
 
     # Resolve fallback providers from the model's provider config (e.g. openrouter)
     # so that post-processing is resilient to Mistral API timeouts/outages,
@@ -643,7 +643,7 @@ async def translate_chat_summary(
         {"role": "user", "content": user_message},
     ]
 
-    model_id = "mistral/mistral-small-latest"
+    model_id = "mistral/mistral-small-2506"
     translation_fallbacks = resolve_fallback_servers_from_provider_config(model_id)
 
     try:
@@ -714,7 +714,7 @@ async def translate_new_chat_suggestions(
     - No conversation history (avoids language bleed)
     - Tight system prompt focused purely on translation
     - Function calling with a simple schema: { translated_suggestions: string[] }
-    - Same cheap model as the rest of post-processing (mistral-small-latest)
+    - Same cheap model as the rest of post-processing (mistral-small-2506)
     - Token cost: ~130 input + ~50 output tokens per message — negligible
 
     Args:
@@ -798,7 +798,7 @@ async def translate_new_chat_suggestions(
         {"role": "user", "content": user_message},
     ]
 
-    model_id = "mistral/mistral-small-latest"
+    model_id = "mistral/mistral-small-2506"
     translation_fallbacks = resolve_fallback_servers_from_provider_config(model_id)
 
     try:

@@ -43,7 +43,7 @@ YOUTUBE_SECRET_PATH = "kv/data/providers/youtube"
 YOUTUBE_API_KEY_NAME = "api_key"
 
 # LLM model for lightweight channel classification (cheap, fast)
-CHANNEL_CLASSIFIER_MODEL_ID = "mistral/mistral-small-latest"
+CHANNEL_CLASSIFIER_MODEL_ID = "mistral/mistral-small-2506"
 
 # Path to the corporate channel seed blocklist YAML
 _CORPORATE_PATTERNS_PATH = (

@@ -10,7 +10,7 @@
 # 3. Return a list of DailyInspiration objects
 #
 # The LLM call uses call_preprocessing_llm() (same as post-processing) with
-# mistral/mistral-small-latest for cost efficiency.
+# mistral/mistral-small-2506 for cost efficiency.
 #
 # Architecture note:
 # - Each inspiration gets its own video search to avoid re-using the same video.
@@ -31,7 +31,7 @@ from backend.core.api.app.utils.secrets_manager import SecretsManager
 logger = logging.getLogger(__name__)
 
 # Model for inspiration generation — same as post-processing for cost efficiency
-INSPIRATION_MODEL_ID = "mistral/mistral-small-latest"
+INSPIRATION_MODEL_ID = "mistral/mistral-small-2506"
 
 # Lowercase substrings that identify OpenMates-related topic suggestions.
 # Any topic suggestion containing one of these (case-insensitive) is excluded from
