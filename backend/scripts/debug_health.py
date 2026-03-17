@@ -105,33 +105,44 @@ async def _openobserve_recent_errors(limit: int = 10, since_minutes: int = 30) -
         start_us = int((time.time() - since_minutes * 60) * 1_000_000)
         end_us = int(time.time() * 1_000_000)
 
+        # Valid fields: _timestamp, container, level, message, service
+        # The 'log' field does not exist in this stream — do NOT reference it.
         sql = (
-            f"SELECT _timestamp, container, service, log, message, level "
+            f"SELECT _timestamp, container, service, message, level "
             f"FROM \"default\" "
-            f"WHERE (LOWER(level) IN ('error', 'critical') "
-            f"OR LOWER(log) LIKE '%error%' OR LOWER(log) LIKE '%critical%') "
+            f"WHERE LOWER(level) IN ('error', 'critical') "
             f"ORDER BY _timestamp DESC LIMIT {limit}"
         )
 
-        url = f"{OPENOBSERVE_URL}/api/{OPENOBSERVE_ORG}/default/_search"
+        # Use /{org}/_search — stream name is specified in the SQL FROM clause.
+        # Do NOT use /{org}/default/_search: when ORG="default" that produces
+        # /api/default/default/_search which returns 404.
         body = {"query": {"sql": sql, "start_time": start_us, "end_time": end_us}}
+        urls_to_try = (
+            f"{OPENOBSERVE_URL}/api/{OPENOBSERVE_ORG}/_search",
+            f"{OPENOBSERVE_URL}/api/{OPENOBSERVE_ORG}/default/_search",
+        )
 
+        resp = None
         async with httpx.AsyncClient(timeout=10.0, auth=(email, password)) as client:
-            resp = await client.post(url, json=body)
-            if resp.status_code != 200:
-                return []
-            data = resp.json()
-            results = []
-            for hit in data.get("hits", []):
-                ts_us = hit.get("_timestamp", 0)
-                svc = hit.get("container", hit.get("service", "?"))
-                msg = hit.get("message", hit.get("log", ""))[:120]
-                results.append({
-                    "ts": int(ts_us) * 1000,  # convert µs → ns for display consistency
-                    "service": svc,
-                    "message": msg,
-                })
-            return results
+            for url in urls_to_try:
+                resp = await client.post(url, json=body)
+                if resp.status_code == 200:
+                    break
+        if resp is None or resp.status_code != 200:
+            return []
+        data = resp.json()
+        results = []
+        for hit in data.get("hits", []):
+            ts_us = hit.get("_timestamp", 0)
+            svc = hit.get("container", hit.get("service", "?"))
+            msg = hit.get("message", hit.get("log", ""))[:120]
+            results.append({
+                "ts": int(ts_us) * 1000,  # convert µs → ns for display consistency
+                "service": svc,
+                "message": msg,
+            })
+        return results
     except Exception:
         return []
 
@@ -969,14 +980,22 @@ async def replay_request(request_id: str) -> None:
             f"ORDER BY _timestamp ASC LIMIT 500"
         )
 
-        url = f"{OPENOBSERVE_URL}/api/{OPENOBSERVE_ORG}/default/_search"
+        # Use /{org}/_search — stream is in the SQL FROM clause.
+        urls_to_try = (
+            f"{OPENOBSERVE_URL}/api/{OPENOBSERVE_ORG}/_search",
+            f"{OPENOBSERVE_URL}/api/{OPENOBSERVE_ORG}/default/_search",
+        )
         body = {"query": {"sql": sql, "start_time": start_us, "end_time": end_us}}
 
+        resp = None
         async with httpx.AsyncClient(timeout=30.0, auth=(email, password)) as client:
-            resp = await client.post(url, json=body)
+            for url in urls_to_try:
+                resp = await client.post(url, json=body)
+                if resp.status_code == 200:
+                    break
 
-        if resp.status_code != 200:
-            print(_err(f"  OpenObserve returned {resp.status_code}: {resp.text[:200]}"))
+        if resp is None or resp.status_code != 200:
+            print(_err(f"  OpenObserve returned {resp.status_code if resp else 'no response'}: {resp.text[:200] if resp else ''}"))
             return
 
         data = resp.json()
