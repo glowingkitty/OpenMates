@@ -18,6 +18,7 @@ import WebsiteEmbedPreview from "../../../embeds/web/WebsiteEmbedPreview.svelte"
 import VideoEmbedPreview from "../../../embeds/videos/VideoEmbedPreview.svelte";
 import CodeEmbedPreview from "../../../embeds/code/CodeEmbedPreview.svelte";
 import WebSearchEmbedPreview from "../../../embeds/web/WebSearchEmbedPreview.svelte";
+import MailSearchEmbedPreview from "../../../embeds/mail/MailSearchEmbedPreview.svelte";
 import NewsSearchEmbedPreview from "../../../embeds/news/NewsSearchEmbedPreview.svelte";
 import VideosSearchEmbedPreview from "../../../embeds/videos/VideosSearchEmbedPreview.svelte";
 import MapsSearchEmbedPreview from "../../../embeds/maps/MapsSearchEmbedPreview.svelte";
@@ -1070,6 +1071,24 @@ export class GroupRenderer implements EmbedRenderer {
             id: embedId,
             query: query || "",
             provider: provider || "Brave Search",
+            status,
+            results,
+            taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === "mail" && skillId === "search") {
+        const component = mount(MailSearchEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            query: query || "Recent emails",
+            provider: provider || "Proton Mail Bridge",
             status,
             results,
             taskId,
