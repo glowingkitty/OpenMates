@@ -1,29 +1,13 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 
-const { test, expect } = require('@playwright/test');
-
-const consoleLogs: string[] = [];
-const networkActivities: string[] = [];
-
-test.beforeEach(async () => {
-	consoleLogs.length = 0;
-	networkActivities.length = 0;
-});
-
-// eslint-disable-next-line no-empty-pattern
-test.afterEach(async ({}, testInfo: any) => {
-	if (testInfo.status !== 'passed') {
-		console.log('\n--- DEBUG INFO ON FAILURE ---');
-		console.log('\n[RECENT CONSOLE LOGS]');
-		consoleLogs.slice(-40).forEach((log) => console.log(log));
-
-		console.log('\n[RECENT NETWORK ACTIVITIES]');
-		networkActivities.slice(-40).forEach((activity) => console.log(activity));
-		console.log('\n--- END DEBUG INFO ---\n');
-	}
-});
+// Use shared console monitor (Rule 10) — replaces inline console boilerplate
+const {
+	test,
+	expect,
+	attachConsoleListeners,
+	attachNetworkListeners
+} = require('./console-monitor');
 
 const {
 	createSignupLogger,
@@ -31,7 +15,7 @@ const {
 	createStepScreenshotter,
 	generateTotp,
 	assertNoMissingTranslations,
-	getTestAccount,
+	getTestAccount
 } = require('./signup-flow-helpers');
 
 /**
@@ -60,21 +44,11 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /**
- * Set up console and network listeners on the page for debugging.
+ * Set up console and network listeners — delegates to console-monitor helpers.
  */
 function setupPageListeners(page: any) {
-	page.on('console', (msg: any) => {
-		const ts = new Date().toISOString();
-		consoleLogs.push(`[${ts}] [${msg.type()}] ${msg.text()}`);
-	});
-	page.on('request', (req: any) => {
-		const ts = new Date().toISOString();
-		networkActivities.push(`[${ts}] >> ${req.method()} ${req.url()}`);
-	});
-	page.on('response', (res: any) => {
-		const ts = new Date().toISOString();
-		networkActivities.push(`[${ts}] << ${res.status()} ${res.url()}`);
-	});
+	attachConsoleListeners(page);
+	attachNetworkListeners(page);
 }
 
 /**
@@ -115,12 +89,16 @@ async function loginToTestAccount(page: any, log: any, screenshot: any) {
 	await expect(otpInput).toBeVisible({ timeout: 15000 });
 
 	const submitButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
-	const errorMessage = page
-		.locator('.error-message, [class*="error"]')
-		.filter({ hasText: /wrong|invalid|incorrect/i });
 
 	let loginSuccess = false;
 	for (let attempt = 1; attempt <= 3 && !loginSuccess; attempt++) {
+		// Wait until we're well into the current TOTP window to avoid boundary expiry
+		const secondsIntoWindow = Math.floor(Date.now() / 1000) % 30;
+		if (secondsIntoWindow > 27) {
+			const msToWait = (30 - secondsIntoWindow) * 1000 + 3000;
+			log(`Waiting ${msToWait}ms for fresh TOTP window (attempt ${attempt})...`);
+			await page.waitForTimeout(msToWait);
+		}
 		const otpCode = generateTotp(TEST_OTP_KEY);
 		await otpInput.fill(otpCode);
 		log(`Entered OTP (attempt ${attempt}).`);
@@ -133,18 +111,17 @@ async function loginToTestAccount(page: any, log: any, screenshot: any) {
 			loginSuccess = true;
 			log('Login successful.');
 		} catch {
-			const hasError = await errorMessage.isVisible().catch(() => false);
-			if (hasError && attempt < 3) {
+			if (attempt < 3) {
 				log(`OTP attempt ${attempt} failed, retrying...`);
-				await page.waitForTimeout(2000);
-			} else if (attempt === 3) {
+				await page.waitForTimeout(3000);
+			} else {
 				throw new Error('Login failed after 3 OTP attempts');
 			}
 		}
 	}
 
 	await page.waitForTimeout(3000);
-	const messageEditor = page.locator('.editor-content.prose');
+	const messageEditor = page.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible({ timeout: 20000 });
 	log('Chat interface loaded.');
 }
@@ -154,16 +131,13 @@ async function loginToTestAccount(page: any, log: any, screenshot: any) {
  */
 async function startNewChat(page: any, log: any) {
 	await page.waitForTimeout(1000);
-
-	const newChatSelectors = ['.new-chat-cta-button', '.icon_create'];
-	for (const selector of newChatSelectors) {
-		const button = page.locator(selector).first();
-		if (await button.isVisible({ timeout: 3000 }).catch(() => false)) {
-			log(`Found New Chat button: ${selector}`);
-			await button.click();
-			await page.waitForTimeout(2000);
-			return;
-		}
+	// data-testid="new-chat-button" on the ActiveChat new-chat CTA button
+	const button = page.getByTestId('new-chat-button').first();
+	if (await button.isVisible({ timeout: 3000 }).catch(() => false)) {
+		log('Found New Chat button (data-testid).');
+		await button.click();
+		await page.waitForTimeout(2000);
+		return;
 	}
 	log('WARNING: Could not find New Chat button — may already be in a new chat.');
 }
@@ -172,13 +146,13 @@ async function startNewChat(page: any, log: any) {
  * Send a message via the TipTap editor and wait for chat ID to appear in URL.
  */
 async function sendMessage(page: any, message: string, log: any) {
-	const editor = page.locator('.editor-content.prose');
-	await expect(editor).toBeVisible();
+	const editor = page.getByTestId('message-editor');
+	await expect(editor).toBeVisible({ timeout: 10000 });
 	await editor.click();
 	await page.keyboard.type(message);
 	log(`Typed: "${message.substring(0, 80)}..."`);
 
-	const sendButton = page.locator('.send-button');
+	const sendButton = page.locator('[data-action="send-message"]');
 	await expect(sendButton).toBeEnabled({ timeout: 5000 });
 	await sendButton.click();
 	log('Clicked send.');
@@ -193,7 +167,7 @@ async function waitForNewAssistantMessage(
 	previousCount: number,
 	log: any
 ): Promise<number> {
-	const assistantMessages = page.locator('.message-wrapper.assistant');
+	const assistantMessages = page.getByTestId('message-assistant');
 	let newCount = previousCount;
 	await expect(async () => {
 		newCount = await assistantMessages.count();
@@ -215,7 +189,7 @@ async function waitForCodeEmbedsInMessage(
 	messageIndex: number,
 	log: any
 ): Promise<number> {
-	const targetMessage = page.locator('.message-wrapper.assistant').nth(messageIndex);
+	const targetMessage = page.getByTestId('message-assistant').nth(messageIndex);
 
 	// Wait for at least one code embed to appear
 	const codeEmbeds = targetMessage.locator('.unified-embed-preview[data-app-id="code"]');
@@ -254,7 +228,7 @@ async function waitForStreamingComplete(page: any, log: any) {
  * Note: the preview only shows the first 8 lines of the code.
  */
 async function getCodePreviewText(page: any, messageIndex: number): Promise<string> {
-	const targetMessage = page.locator('.message-wrapper.assistant').nth(messageIndex);
+	const targetMessage = page.getByTestId('message-assistant').nth(messageIndex);
 	const codeElement = targetMessage
 		.locator('.unified-embed-preview[data-app-id="code"][data-status="finished"]')
 		.first()
@@ -270,7 +244,7 @@ async function getCodePreviewText(page: any, messageIndex: number): Promise<stri
  * This is more robust than targeting a specific sub-element.
  */
 async function getEmbedFullText(page: any, messageIndex: number): Promise<string> {
-	const targetMessage = page.locator('.message-wrapper.assistant').nth(messageIndex);
+	const targetMessage = page.getByTestId('message-assistant').nth(messageIndex);
 	const embed = targetMessage
 		.locator('.unified-embed-preview[data-app-id="code"][data-status="finished"]')
 		.first();
@@ -283,7 +257,7 @@ async function getEmbedFullText(page: any, messageIndex: number): Promise<string
  * Get the full prose text of an assistant message (excluding embed internals).
  */
 async function getProseText(page: any, messageIndex: number): Promise<string> {
-	const targetMessage = page.locator('.message-wrapper.assistant').nth(messageIndex);
+	const targetMessage = page.getByTestId('message-assistant').nth(messageIndex);
 	const proseMirror = targetMessage.locator('.read-only-message .ProseMirror').first();
 
 	// Wait for ProseMirror content to be visible
@@ -400,7 +374,7 @@ test('multi-turn code generation: iterative improvements with code embed verific
 	log(`Chat ID: ${chatId}`);
 
 	// Wait for the first assistant message with code embed
-	const assistantMessages = page.locator('.message-wrapper.assistant');
+	const assistantMessages = page.getByTestId('message-assistant');
 	await expect(assistantMessages.last()).toBeVisible({ timeout: 60000 });
 
 	// Get the index of this first assistant response (may be > 0 if demo messages exist)
@@ -554,24 +528,25 @@ test('multi-turn code generation: iterative improvements with code embed verific
 	log('=== FINAL VERIFICATION ===');
 
 	// All three turns should still have their code embeds visible (nothing dropped)
-	const allFinishedEmbeds = page.locator(
-		'.message-wrapper.assistant .unified-embed-preview[data-app-id="code"][data-status="finished"]'
-	);
+	// Use data-testid for message scoping + data-app-id/status for embed targeting
+	const allFinishedEmbeds = page
+		.getByTestId('message-assistant')
+		.locator('.unified-embed-preview[data-app-id="code"][data-status="finished"]');
 	const totalFinished = await allFinishedEmbeds.count();
 	log(`Total finished code embeds across all messages: ${totalFinished}`);
 	expect(totalFinished).toBeGreaterThanOrEqual(3);
 
 	// Verify no embeds are stuck in "processing" or "error" state
-	const processingEmbeds = page.locator(
-		'.message-wrapper.assistant .unified-embed-preview[data-app-id="code"][data-status="processing"]'
-	);
+	const processingEmbeds = page
+		.getByTestId('message-assistant')
+		.locator('.unified-embed-preview[data-app-id="code"][data-status="processing"]');
 	const processingCount = await processingEmbeds.count();
 	log(`Code embeds still processing: ${processingCount}`);
 	expect(processingCount).toBe(0);
 
-	const errorEmbeds = page.locator(
-		'.message-wrapper.assistant .unified-embed-preview[data-app-id="code"][data-status="error"]'
-	);
+	const errorEmbeds = page
+		.getByTestId('message-assistant')
+		.locator('.unified-embed-preview[data-app-id="code"][data-status="error"]');
 	const errorCount = await errorEmbeds.count();
 	log(`Code embeds in error state: ${errorCount}`);
 	expect(errorCount).toBe(0);
