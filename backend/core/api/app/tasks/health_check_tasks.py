@@ -123,29 +123,38 @@ HEALTH_CHECK_CACHE_TTL = 600
 HEALTH_CHECK_INTERVAL_WITH_ENDPOINT = 60  # 1 minute for providers with /health endpoint
 HEALTH_CHECK_INTERVAL_WITHOUT_ENDPOINT = 300  # 5 minutes for providers without /health endpoint
 
-# Minimal 1×1 white JPEG (631 bytes) used as the health check probe image for Sightengine.
+# Sightengine is throttled independently: one live API call per 2 hours max.
+# The external-services Celery task fires every 5 min; without this guard we
+# would send ~576 image-POST requests/day (2 servers × 288 checks).
+SIGHTENGINE_HEALTH_CHECK_INTERVAL_SECONDS = 7200  # 2 hours
+
+# Minimal 8×8 white JPEG (631 bytes) used as the health check probe image for Sightengine.
 #
 # We send raw bytes via multipart POST (matching the real upload pipeline) instead of a
 # URL-based GET probe. This avoids any external URL dependency — a URL-based probe was
 # previously using a Wikimedia GIF that returned 404, causing Sightengine to log 404
-# errors against our account (~288 errors/day per server). Raw bytes are always available,
-# never go stale, and mirror the actual check_all() call path in sightengine_service.py.
+# errors against our account (~576 errors/day across both servers). Raw bytes are always
+# available, never go stale, and mirror the actual check_all() call path in
+# sightengine_service.py.
 #
-# Generated with: PIL.Image.new("RGB", (1,1), (255,255,255)).save(buf, "JPEG", quality=50)
+# 8×8 is the minimum dimension accepted by the Sightengine API (tested live — 1×1
+# returns HTTP 400 "Media too small, should be at least 8 pixels in height or width").
+#
+# Generated with: PIL.Image.new("RGB", (8,8), (255,255,255)).save(buf, "JPEG", quality=50)
 SIGHTENGINE_HEALTH_CHECK_IMAGE_BYTES: bytes = base64.b64decode(
     "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABALDA4MChAODQ4SERATGCgaGBYWGDEjJR0o"
     "OjM9PDkzODdASFxOQERXRTc4UG1RV19iZ2hnPk1xeXBkeFxlZ2P/2wBDARESEhgVGC8a"
     "Gi9jQjhCY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2Nj"
-    "Y2NjY2P/wAARCAABAAEDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcI"
-    "CQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0Kxw"
-    "RVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaG"
-    "lqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8j"
-    "JytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAA"
-    "ECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEI"
-    "FEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWV"
-    "pjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6"
-    "wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD0Cii"
-    "igD//2Q=="
+    "Y2NjY2P/wAARCAAIAAgDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQF"
+    "BgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEI"
+    "I0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNk"
+    "ZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLD"
+    "xMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEB"
+    "AQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJB"
+    "UQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZH"
+    "SElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaan"
+    "qKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oA"
+    "DAMBAAIRAxEAPwD0CiiigD//2Q=="
 )
 
 
@@ -1200,13 +1209,21 @@ async def _check_sightengine_health(secrets_manager: SecretsManager) -> Dict[str
     """Check Sightengine API health by sending a tiny image via multipart POST.
 
     Uses raw bytes (SIGHTENGINE_HEALTH_CHECK_IMAGE_BYTES) instead of a URL-based probe.
-    A URL probe previously used a Wikimedia GIF that returned 404, generating ~288
+    A URL probe previously used a Wikimedia GIF that returned 404, generating ~576
     spurious "image not available" errors per day in the Sightengine account logs.
     Raw bytes mirror the real upload pipeline (sightengine_service.py check_all) and
     have no external URL dependency that can silently go stale.
+
+    Throttled to one live API call every SIGHTENGINE_HEALTH_CHECK_INTERVAL_SECONDS
+    (2 hours). The external-services Celery task fires every 5 minutes; on the other
+    23 invocations per 2-hour window we return the cached result without any HTTP call.
     """
     logger.info("Health check: Checking Sightengine API...")
     cache_service = CacheService()
+    cache_key = f"{HEALTH_CHECK_EXTERNAL_CACHE_KEY_PREFIX}sightengine"
+    status: str = "unhealthy"
+    last_error: Optional[str] = None
+    response_time_ms: Optional[float] = None
 
     try:
         # Get Sightengine credentials from Vault
@@ -1223,45 +1240,67 @@ async def _check_sightengine_health(secrets_manager: SecretsManager) -> Dict[str
             # No credentials = skip this check (not configured)
             logger.info("Health check: Skipping Sightengine health check (not configured)")
             return {"status": "skipped", "last_check": int(time.time()), "last_error": None}
-        else:
-            start_time = time.time()
 
-            try:
-                async with httpx.AsyncClient(timeout=10.0) as client:
-                    # Send a 1×1 white JPEG as multipart bytes — no external URL dependency.
-                    # This mirrors the exact call shape used in sightengine_service.check_all().
-                    response = await client.post(
-                        "https://api.sightengine.com/1.0/check.json",
-                        data={
-                            "api_user": api_user,
-                            "api_secret": api_secret,
-                            "models": "nudity-2.0",
-                        },
-                        files={
-                            "media": ("health.jpg", SIGHTENGINE_HEALTH_CHECK_IMAGE_BYTES, "image/jpeg"),
-                        },
-                    )
-                    response_time_ms = (time.time() - start_time) * 1000
+        # Throttle: return cached result if last live check was less than 2 hours ago.
+        # The external-services task runs every 5 min; without this guard we would send
+        # ~576 API calls/day (2 servers × 288 checks) for a service that barely changes.
+        try:
+            cache_client = await cache_service.client
+            if cache_client:
+                cached_raw = await cache_client.get(cache_key)
+                if cached_raw:
+                    cached_data = json.loads(cached_raw)
+                    last_check = cached_data.get("last_check", 0)
+                    elapsed = int(time.time()) - last_check
+                    if elapsed < SIGHTENGINE_HEALTH_CHECK_INTERVAL_SECONDS:
+                        logger.debug(
+                            f"Health check: Sightengine throttled — "
+                            f"last check {elapsed}s ago, "
+                            f"next in {SIGHTENGINE_HEALTH_CHECK_INTERVAL_SECONDS - elapsed}s"
+                        )
+                        return cached_data
+        except Exception as throttle_err:
+            # Cache read failure is non-fatal — fall through to live check
+            logger.warning(f"Health check: Failed to read Sightengine cache for throttle: {throttle_err}")
 
-                    if response.status_code == 200:
-                        status = "healthy"
-                        last_error = None
-                        logger.info(f"Health check: Sightengine API is healthy ({response_time_ms:.1f}ms)")
-                    else:
-                        status = "unhealthy"
-                        last_error = _sanitize_error_message(f"HTTP {response.status_code}")
-                        logger.error(f"Health check: Sightengine API returned {response.status_code}")
+        start_time = time.time()
 
-            except httpx.TimeoutException:
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                # Send a 1×1 white JPEG as multipart bytes — no external URL dependency.
+                # This mirrors the exact call shape used in sightengine_service.check_all().
+                response = await client.post(
+                    "https://api.sightengine.com/1.0/check.json",
+                    data={
+                        "api_user": api_user,
+                        "api_secret": api_secret,
+                        "models": "nudity-2.0",
+                    },
+                    files={
+                        "media": ("health.jpg", SIGHTENGINE_HEALTH_CHECK_IMAGE_BYTES, "image/jpeg"),
+                    },
+                )
                 response_time_ms = (time.time() - start_time) * 1000
-                status = "unhealthy"
-                last_error = "timeout"
-                logger.error("Health check: Sightengine API timeout")
-            except Exception as e:
-                response_time_ms = (time.time() - start_time) * 1000
-                status = "unhealthy"
-                last_error = _sanitize_error_message(str(e))
-                logger.error(f"Health check: Sightengine API error: {e}")
+
+                if response.status_code == 200:
+                    status = "healthy"
+                    last_error = None
+                    logger.info(f"Health check: Sightengine API is healthy ({response_time_ms:.1f}ms)")
+                else:
+                    status = "unhealthy"
+                    last_error = _sanitize_error_message(f"HTTP {response.status_code}")
+                    logger.error(f"Health check: Sightengine API returned {response.status_code}")
+
+        except httpx.TimeoutException:
+            response_time_ms = (time.time() - start_time) * 1000
+            status = "unhealthy"
+            last_error = "timeout"
+            logger.error("Health check: Sightengine API timeout")
+        except Exception as e:
+            response_time_ms = (time.time() - start_time) * 1000
+            status = "unhealthy"
+            last_error = _sanitize_error_message(str(e))
+            logger.error(f"Health check: Sightengine API error: {e}")
 
     except Exception as e:
         status = "unhealthy"
@@ -1269,7 +1308,6 @@ async def _check_sightengine_health(secrets_manager: SecretsManager) -> Dict[str
         response_time_ms = None
         logger.error(f"Health check: Error checking Sightengine: {e}", exc_info=True)
 
-    cache_key = f"{HEALTH_CHECK_EXTERNAL_CACHE_KEY_PREFIX}sightengine"
     current_timestamp = int(time.time())
 
     # Record health event if status changed (for historical tracking)
@@ -1281,7 +1319,8 @@ async def _check_sightengine_health(secrets_manager: SecretsManager) -> Dict[str
         response_time_ms=response_time_ms
     )
 
-    # Store result in cache
+    # Store result in cache (TTL matches the throttle interval so the entry is
+    # always present for the next 5-minute check to read back)
     health_data = {
         "status": status,
         "last_check": current_timestamp,
@@ -1290,9 +1329,9 @@ async def _check_sightengine_health(secrets_manager: SecretsManager) -> Dict[str
     }
 
     try:
-        client = await cache_service.client
-        if client:
-            await client.set(cache_key, json.dumps(health_data), ex=HEALTH_CHECK_CACHE_TTL)
+        cache_client = await cache_service.client
+        if cache_client:
+            await cache_client.set(cache_key, json.dumps(health_data), ex=SIGHTENGINE_HEALTH_CHECK_INTERVAL_SECONDS)
     except Exception as e:
         logger.error(f"Health check: Failed to store Sightengine health status in cache: {e}")
 

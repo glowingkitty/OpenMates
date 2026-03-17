@@ -400,17 +400,26 @@ class TestHealthCheckProbe:
     """
 
     def test_health_check_image_constant_is_valid_jpeg(self):
-        """SIGHTENGINE_HEALTH_CHECK_IMAGE_BYTES must decode to a valid JPEG."""
+        """SIGHTENGINE_HEALTH_CHECK_IMAGE_BYTES must be a valid 8×8 JPEG.
+
+        Sightengine rejects images smaller than 8px in either dimension with
+        HTTP 400 "Media too small" — verified live against the API.
+        """
         data = _hct.SIGHTENGINE_HEALTH_CHECK_IMAGE_BYTES
 
         assert len(data) > 0, "Constant must not be empty"
         assert data[:2] == bytes([0xFF, 0xD8]), "Must start with JPEG SOI marker (FFD8)"
         assert data[-2:] == bytes([0xFF, 0xD9]), "Must end with JPEG EOI marker (FFD9)"
 
-        # Verify Pillow can decode it (catches truncated/corrupt bytes)
+        # Verify Pillow can decode it (catches truncated/corrupt bytes) and
+        # confirm dimensions meet the 8×8 minimum required by Sightengine.
         from PIL import Image
         img = Image.open(io.BytesIO(data))
-        img.verify()  # raises on corrupt JPEG
+        width, height = img.size
+        assert width >= 8 and height >= 8, (
+            f"Image must be at least 8×8 pixels (got {width}×{height}) — "
+            "Sightengine rejects images smaller than 8px"
+        )
 
     def test_health_check_image_constant_is_bytes(self):
         """The constant must be a bytes object (not str or None)."""
