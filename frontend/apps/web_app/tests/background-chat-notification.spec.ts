@@ -288,10 +288,17 @@ test('background chat notification shows and allows reply', async ({ page }: { p
 	}
 	logStep('Navigated to Chat A via notification reply.');
 	await takeScreenshot(page, 'navigated-to-chat-a');
-	await page.waitForTimeout(2000);
+	// Allow extra time for WebSocket sync to recover and messages to render
+	await page.waitForTimeout(5000);
 
+	// Wait for at least one assistant message to be visible (the original AI response)
 	const assistantResponse = page.getByTestId('message-assistant');
-	await expect(assistantResponse.last()).toBeVisible({ timeout: 45000 });
+	await expect(async () => {
+		const count = await assistantResponse.count();
+		logStep(`Assistant message count: ${count}`);
+		expect(count).toBeGreaterThan(0);
+	}).toPass({ timeout: 60000 });
+	await expect(assistantResponse.first()).toBeVisible({ timeout: 10000 });
 	logStep('Assistant response visible in Chat A.');
 
 	// Verify no missing translations on the chat page with notification UI

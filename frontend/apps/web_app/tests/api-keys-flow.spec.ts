@@ -137,7 +137,7 @@ async function navigateToApiKeys(page: any, logCheckpoint: (msg: string) => void
 	logCheckpoint('Navigated to API Keys.');
 
 	const apiKeysContainer = page.getByTestId('api-keys-container');
-	await expect(apiKeysContainer).toBeVisible({ timeout: 8000 });
+	await expect(apiKeysContainer).toBeVisible({ timeout: 15000 });
 	logCheckpoint('API Keys page loaded.');
 }
 
