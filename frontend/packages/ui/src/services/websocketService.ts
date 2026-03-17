@@ -81,6 +81,7 @@ type KnownMessageTypes =
   | "app_settings_memories_sync_ready" // Post-Phase 3: Server sends encrypted app settings/memories entries for sync
   | "app_settings_memories_entry_synced" // Multi-device sync: Another device created/updated an entry
   | "app_settings_memories_entry_stored" // Acknowledgment that server stored entry successfully
+  | "app_settings_memories_entry_deleted" // Multi-device sync: An entry was deleted (by this or another device)
   | "error" // General error message from server (e.g., validation failure, unexpected issue)
   | "pong" // Response to client's ping
 

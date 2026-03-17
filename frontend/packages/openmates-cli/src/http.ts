@@ -49,8 +49,23 @@ export class OpenMatesHttpClient {
     return this.request<T>("POST", path, body, headers);
   }
 
+  async delete<T>(
+    path: string,
+    headers: Record<string, string> = {},
+  ): Promise<HttpResponse<T>> {
+    return this.request<T>("DELETE", path, undefined, headers);
+  }
+
+  async patch<T>(
+    path: string,
+    body?: unknown,
+    headers: Record<string, string> = {},
+  ): Promise<HttpResponse<T>> {
+    return this.request<T>("PATCH", path, body, headers);
+  }
+
   private async request<T>(
-    method: "GET" | "POST",
+    method: "GET" | "POST" | "DELETE" | "PATCH",
     path: string,
     body?: unknown,
     headers: Record<string, string> = {},

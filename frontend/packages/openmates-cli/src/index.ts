@@ -8,5 +8,15 @@
  * Tests: exercised via CLI and targeted crypto/storage tests.
  */
 
-export { OpenMatesClient } from "./client.js";
+export {
+  OpenMatesClient,
+  deriveAppUrl,
+  MEMORY_TYPE_REGISTRY,
+} from "./client.js";
+export type {
+  DecryptedMemoryEntry,
+  MemoryTypeDef,
+  MemoryFieldDef,
+  OpenMatesClientOptions,
+} from "./client.js";
 export type { OpenMatesSession } from "./storage.js";

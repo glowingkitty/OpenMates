@@ -1,11 +1,11 @@
 /*
  * OpenMates CLI SDK client.
  *
- * Purpose: expose pair-auth, chat, app-skill, and settings operations.
- * Architecture: REST for auth/settings/apps + WebSocket for chat operations.
+ * Purpose: expose pair-auth, chat, app-skill, settings, and memories operations.
+ * Architecture: REST for auth/settings/apps + WebSocket for chat and memory ops.
  * Architecture doc: docs/architecture/openmates-cli.md
  * Security: pair-auth only for account login; no terminal credential prompts.
- * Tests: frontend/packages/openmates-cli/tests/crypto.test.ts
+ * Tests: frontend/packages/openmates-cli/tests/
  */
 
 import { randomUUID } from "node:crypto";
@@ -19,6 +19,7 @@ import {
   decryptWithAesGcmCombined,
   encryptWithAesGcmCombined,
   base64ToBytes,
+  hashItemKey,
 } from "./crypto.js";
 import { OpenMatesHttpClient } from "./http.js";
 import {
@@ -32,6 +33,363 @@ import {
   clearIncognitoHistory,
 } from "./storage.js";
 import { OpenMatesWsClient } from "./ws.js";
+
+// ---------------------------------------------------------------------------
+// Memory type registry — mirrors all production-stage entries from app.yml files.
+// Used for schema validation when creating/updating memories.
+// ---------------------------------------------------------------------------
+
+/** A single field definition within a memory type schema. */
+export interface MemoryFieldDef {
+  type: string;
+  description?: string;
+  enum?: string[];
+  auto_generated?: boolean;
+}
+
+/** Schema definition for one memory type. */
+export interface MemoryTypeDef {
+  appId: string;
+  itemType: string;
+  entryType: "single" | "list";
+  required: string[];
+  properties: Record<string, MemoryFieldDef>;
+}
+
+/**
+ * Registry of all production-stage memory types across all apps.
+ * Keys are `${appId}/${itemType}`.
+ *
+ * Keep in sync with backend/apps/{app}/app.yml memory sections.
+ * Auto-generated fields (added_date etc.) are excluded from user-visible fields.
+ */
+export const MEMORY_TYPE_REGISTRY: Record<string, MemoryTypeDef> = {
+  "ai/communication_style": {
+    appId: "ai",
+    itemType: "communication_style",
+    entryType: "single",
+    required: ["title", "tone", "verbosity"],
+    properties: {
+      title: { type: "string" },
+      tone: {
+        type: "string",
+        enum: ["formal", "casual", "friendly", "professional"],
+      },
+      verbosity: { type: "string", enum: ["concise", "balanced", "detailed"] },
+      notes: { type: "string" },
+    },
+  },
+  "ai/learning_preferences": {
+    appId: "ai",
+    itemType: "learning_preferences",
+    entryType: "list",
+    required: ["title", "learning_type", "preference_strength"],
+    properties: {
+      title: { type: "string" },
+      learning_type: {
+        type: "string",
+        enum: ["visual", "reading", "hands_on", "audio", "mixed"],
+      },
+      preference_strength: {
+        type: "string",
+        enum: ["strong", "moderate", "slight"],
+      },
+      notes: { type: "string" },
+    },
+  },
+  "books/favorite_books": {
+    appId: "books",
+    itemType: "favorite_books",
+    entryType: "list",
+    required: ["title"],
+    properties: {
+      title: { type: "string" },
+      author: { type: "string" },
+      genre: { type: "string" },
+      rating: { type: "number" },
+      notes: { type: "string" },
+    },
+  },
+  "books/currently_reading": {
+    appId: "books",
+    itemType: "currently_reading",
+    entryType: "list",
+    required: ["title"],
+    properties: {
+      title: { type: "string" },
+      author: { type: "string" },
+      started_date: { type: "string" },
+      notes: { type: "string" },
+    },
+  },
+  "books/to_read_list": {
+    appId: "books",
+    itemType: "to_read_list",
+    entryType: "list",
+    required: ["title"],
+    properties: {
+      title: { type: "string" },
+      author: { type: "string" },
+      genre: { type: "string" },
+      notes: { type: "string" },
+    },
+  },
+  "code/preferred_tech": {
+    appId: "code",
+    itemType: "preferred_tech",
+    entryType: "list",
+    required: ["name"],
+    properties: {
+      name: { type: "string" },
+      proficiency: {
+        type: "string",
+        enum: ["beginner", "intermediate", "advanced", "expert"],
+      },
+    },
+  },
+  "code/projects": {
+    appId: "code",
+    itemType: "projects",
+    entryType: "list",
+    required: ["name"],
+    properties: {
+      name: { type: "string" },
+      status: {
+        type: "string",
+        enum: ["active", "paused", "completed", "archived"],
+      },
+      description: { type: "string" },
+      git_repo_url: { type: "string" },
+    },
+  },
+  "code/want_to_learn": {
+    appId: "code",
+    itemType: "want_to_learn",
+    entryType: "list",
+    required: ["name"],
+    properties: { name: { type: "string" } },
+  },
+  "code/coding_setup": {
+    appId: "code",
+    itemType: "coding_setup",
+    entryType: "list",
+    required: ["workspace", "ai_level", "input_style"],
+    properties: {
+      workspace: {
+        type: "string",
+        enum: ["local", "remote", "cloud", "mixed"],
+      },
+      ai_level: { type: "string", enum: ["minimal", "moderate", "extensive"] },
+      input_style: {
+        type: "string",
+        enum: ["keyboard_only", "mixed", "voice_primary"],
+      },
+      notes: { type: "string" },
+    },
+  },
+  "docs/writing_style": {
+    appId: "docs",
+    itemType: "writing_style",
+    entryType: "list",
+    required: ["name"],
+    properties: { name: { type: "string" }, description: { type: "string" } },
+  },
+  "health/appointments": {
+    appId: "health",
+    itemType: "appointments",
+    entryType: "list",
+    required: ["appointment_type", "date"],
+    properties: {
+      appointment_type: { type: "string" },
+      where: { type: "string" },
+      date: { type: "string" },
+      notes: { type: "string" },
+    },
+  },
+  "health/medical_history": {
+    appId: "health",
+    itemType: "medical_history",
+    entryType: "list",
+    required: ["condition_type", "name", "date"],
+    properties: {
+      condition_type: {
+        type: "string",
+        enum: [
+          "surgery",
+          "condition",
+          "allergy",
+          "medication",
+          "vaccination",
+          "other",
+        ],
+      },
+      name: { type: "string" },
+      date: { type: "string" },
+      details: { type: "string" },
+    },
+  },
+  "images/preferred_styles": {
+    appId: "images",
+    itemType: "preferred_styles",
+    entryType: "list",
+    required: ["name"],
+    properties: { name: { type: "string" }, description: { type: "string" } },
+  },
+  "mail/writing_styles": {
+    appId: "mail",
+    itemType: "writing_styles",
+    entryType: "list",
+    required: ["title", "description"],
+    properties: {
+      title: { type: "string" },
+      description: { type: "string" },
+      when_to_use: { type: "string" },
+      footer: { type: "string" },
+    },
+  },
+  "mail/proton_bridge_connection": {
+    appId: "mail",
+    itemType: "proton_bridge_connection",
+    entryType: "list",
+    required: ["title"],
+    properties: { title: { type: "string" }, description: { type: "string" } },
+  },
+  "maps/favorite_places": {
+    appId: "maps",
+    itemType: "favorite_places",
+    entryType: "list",
+    required: ["name"],
+    properties: { name: { type: "string" }, address: { type: "string" } },
+  },
+  "study/learning_goals": {
+    appId: "study",
+    itemType: "learning_goals",
+    entryType: "list",
+    required: ["topic", "difficulty_level"],
+    properties: {
+      topic: { type: "string" },
+      difficulty_level: {
+        type: "string",
+        enum: ["beginner", "intermediate", "advanced"],
+      },
+      deadline: { type: "string" },
+      notes: { type: "string" },
+    },
+  },
+  "travel/trips": {
+    appId: "travel",
+    itemType: "trips",
+    entryType: "list",
+    required: ["destination"],
+    properties: {
+      destination: { type: "string" },
+      start_date: { type: "string" },
+      end_date: { type: "string" },
+      notes: { type: "string" },
+    },
+  },
+  "travel/preferred_airlines": {
+    appId: "travel",
+    itemType: "preferred_airlines",
+    entryType: "list",
+    required: ["name"],
+    properties: { name: { type: "string" } },
+  },
+  "travel/preferred_transport_methods": {
+    appId: "travel",
+    itemType: "preferred_transport_methods",
+    entryType: "list",
+    required: ["method"],
+    properties: { method: { type: "string" } },
+  },
+  "travel/preferred_activities": {
+    appId: "travel",
+    itemType: "preferred_activities",
+    entryType: "list",
+    required: ["name"],
+    properties: { name: { type: "string" } },
+  },
+  "tv/watched_movies": {
+    appId: "tv",
+    itemType: "watched_movies",
+    entryType: "list",
+    required: ["title"],
+    properties: {
+      title: { type: "string" },
+      year: { type: "number" },
+      director: { type: "string" },
+      rating: { type: "number" },
+      tmdb_id: { type: "number" },
+      notes: { type: "string" },
+      genre: { type: "string" },
+    },
+  },
+  "tv/watched_tv_shows": {
+    appId: "tv",
+    itemType: "watched_tv_shows",
+    entryType: "list",
+    required: ["title"],
+    properties: {
+      title: { type: "string" },
+      year: { type: "number" },
+      tmdb_id: { type: "number" },
+      status: {
+        type: "string",
+        enum: ["watching", "completed", "dropped", "on_hold"],
+      },
+      seasons_watched: { type: "number" },
+      latest_episode: { type: "string" },
+      rating: { type: "number" },
+      notes: { type: "string" },
+      genre: { type: "string" },
+    },
+  },
+  "tv/to_watch_list": {
+    appId: "tv",
+    itemType: "to_watch_list",
+    entryType: "list",
+    required: ["title", "type"],
+    properties: {
+      title: { type: "string" },
+      year: { type: "number" },
+      type: { type: "string", enum: ["movie", "tv_show"] },
+      tmdb_id: { type: "number" },
+      director: { type: "string" },
+      priority: { type: "string", enum: ["high", "medium", "low"] },
+      genre: { type: "string" },
+      reason: { type: "string" },
+    },
+  },
+  "videos/to_watch_list": {
+    appId: "videos",
+    itemType: "to_watch_list",
+    entryType: "list",
+    required: ["name", "url"],
+    properties: {
+      name: { type: "string" },
+      url: { type: "string" },
+      channel: { type: "string" },
+    },
+  },
+  "web/bookmarks": {
+    appId: "web",
+    itemType: "bookmarks",
+    entryType: "list",
+    required: ["url"],
+    properties: { url: { type: "string" } },
+  },
+  "web/read_later": {
+    appId: "web",
+    itemType: "read_later",
+    entryType: "list",
+    required: ["url"],
+    properties: { url: { type: "string" }, notes: { type: "string" } },
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Interfaces
+// ---------------------------------------------------------------------------
 
 interface PairBundle {
   lookup_hash: string;
@@ -56,10 +414,27 @@ interface ParsedChat {
   lastEditedOverallTimestamp: number | null;
 }
 
-interface OpenMatesClientOptions {
+/** A decrypted memory entry as returned to CLI callers. */
+export interface DecryptedMemoryEntry {
+  id: string;
+  app_id: string;
+  item_type: string;
+  item_key_hash: string;
+  item_version: number;
+  created_at: number;
+  updated_at: number;
+  /** Decrypted item_value fields including _original_item_key. */
+  data: Record<string, unknown>;
+}
+
+export interface OpenMatesClientOptions {
   apiUrl?: string;
   session?: OpenMatesSession;
 }
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
 
 const DEFAULT_API_URL =
   process.env.OPENMATES_API_URL ?? "https://api.openmates.org";
@@ -67,10 +442,9 @@ const DEFAULT_API_URL =
 /**
  * Derive the web app URL from the API URL so the pair token is always looked
  * up on the same backend the CLI created it on.
- *
  * Override with OPENMATES_APP_URL when using a custom setup.
  */
-function deriveAppUrl(apiUrl: string): string {
+export function deriveAppUrl(apiUrl: string): string {
   if (process.env.OPENMATES_APP_URL) {
     return process.env.OPENMATES_APP_URL.replace(/\/$/, "");
   }
@@ -83,12 +457,13 @@ function deriveAppUrl(apiUrl: string): string {
   if (apiUrl.includes("localhost")) {
     return "http://localhost:5173";
   }
-  // Unknown / self-hosted — fall back to production web app
   return "https://openmates.org";
 }
 
 const CLI_DEVICE_NAME_PREFIX = "OpenMates CLI";
-const BLOCKED_SETTINGS_POST_PATHS = new Set<string>([
+
+/** Settings POST/DELETE paths that must never be executed from the CLI. */
+const BLOCKED_SETTINGS_MUTATE_PATHS = new Set<string>([
   "/v1/settings/api-keys",
   "/v1/settings/update-password",
   "/v1/auth/setup_password",
@@ -97,8 +472,12 @@ const BLOCKED_SETTINGS_POST_PATHS = new Set<string>([
   "/v1/auth/2fa/setup/verify-signup",
 ]);
 
+// ---------------------------------------------------------------------------
+// Client
+// ---------------------------------------------------------------------------
+
 export class OpenMatesClient {
-  private readonly apiUrl: string;
+  readonly apiUrl: string;
   private readonly session: OpenMatesSession | null;
   private readonly http: OpenMatesHttpClient;
 
@@ -119,6 +498,10 @@ export class OpenMatesClient {
   hasSession(): boolean {
     return this.session !== null;
   }
+
+  // -------------------------------------------------------------------------
+  // Auth
+  // -------------------------------------------------------------------------
 
   async loginWithPairAuth(): Promise<void> {
     const localDeviceName = this.getLocalDeviceName();
@@ -242,6 +625,10 @@ export class OpenMatesClient {
     clearIncognitoHistory();
   }
 
+  // -------------------------------------------------------------------------
+  // Chats
+  // -------------------------------------------------------------------------
+
   async listChats(): Promise<ChatListItem[]> {
     const parsed = await this.fetchAllChatMetadata();
     const masterKey = this.getMasterKeyBytes();
@@ -291,12 +678,7 @@ export class OpenMatesClient {
   }): Promise<{ chatId: string; assistant: string }> {
     const session = this.requireSession();
     const chatId = params.chatId ?? randomUUID();
-    const ws = new OpenMatesWsClient({
-      apiUrl: session.apiUrl,
-      sessionId: randomUUID(),
-      wsToken: session.wsToken,
-      refreshToken: session.cookies.auth_refresh_token ?? null,
-    });
+    const ws = this.makeWsClient(session);
     await ws.open();
 
     const messageId = randomUUID();
@@ -353,6 +735,10 @@ export class OpenMatesClient {
     clearIncognitoHistory();
   }
 
+  // -------------------------------------------------------------------------
+  // Apps
+  // -------------------------------------------------------------------------
+
   async listApps(apiKey: string): Promise<unknown> {
     const response = await this.http.get("/v1/apps", {
       ...this.getCliRequestHeaders(),
@@ -360,6 +746,38 @@ export class OpenMatesClient {
     });
     if (!response.ok) {
       throw new Error("Failed to list apps. Ensure API key has app scope.");
+    }
+    return response.data;
+  }
+
+  async getApp(appId: string): Promise<unknown> {
+    // Public metadata endpoint — no auth required
+    const response = await this.http.get(
+      `/v1/apps/${encodeURIComponent(appId)}/metadata`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`App '${appId}' not found (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
+  async getSkillInfo(
+    appId: string,
+    skillId: string,
+    apiKey: string,
+  ): Promise<unknown> {
+    const response = await this.http.get(
+      `/v1/apps/${encodeURIComponent(appId)}/skills/${encodeURIComponent(skillId)}`,
+      {
+        ...this.getCliRequestHeaders(),
+        Authorization: `Bearer ${apiKey}`,
+      },
+    );
+    if (!response.ok) {
+      throw new Error(
+        `Skill '${appId}/${skillId}' not found (HTTP ${response.status})`,
+      );
     }
     return response.data;
   }
@@ -387,6 +805,10 @@ export class OpenMatesClient {
     return response.data;
   }
 
+  // -------------------------------------------------------------------------
+  // Settings (generic passthrough)
+  // -------------------------------------------------------------------------
+
   async settingsGet(path: string): Promise<unknown> {
     this.requireSession();
     const normalizedPath = this.normalizePath(path);
@@ -406,7 +828,7 @@ export class OpenMatesClient {
   ): Promise<unknown> {
     this.requireSession();
     const normalizedPath = this.normalizePath(path);
-    if (BLOCKED_SETTINGS_POST_PATHS.has(normalizedPath)) {
+    if (BLOCKED_SETTINGS_MUTATE_PATHS.has(normalizedPath)) {
       throw new Error(`Blocked operation: ${normalizedPath}`);
     }
     const response = await this.http.post(
@@ -420,56 +842,262 @@ export class OpenMatesClient {
     return response.data;
   }
 
-  async listMemories(): Promise<unknown[]> {
-    const data = (await this.settingsGet(
-      "/v1/settings/export-account-data?include_usage=false&include_invoices=false",
-    )) as { data?: { app_settings_memories?: unknown[] } };
-    return data.data?.app_settings_memories ?? [];
+  async settingsDelete(path: string): Promise<unknown> {
+    this.requireSession();
+    const normalizedPath = this.normalizePath(path);
+    if (BLOCKED_SETTINGS_MUTATE_PATHS.has(normalizedPath)) {
+      throw new Error(`Blocked operation: ${normalizedPath}`);
+    }
+    const response = await this.http.delete(
+      normalizedPath,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Settings DELETE failed with HTTP ${response.status}`);
+    }
+    return response.data;
   }
 
+  async settingsPatch(
+    path: string,
+    body: Record<string, unknown>,
+  ): Promise<unknown> {
+    this.requireSession();
+    const normalizedPath = this.normalizePath(path);
+    if (BLOCKED_SETTINGS_MUTATE_PATHS.has(normalizedPath)) {
+      throw new Error(`Blocked operation: ${normalizedPath}`);
+    }
+    const response = await this.http.patch(
+      normalizedPath,
+      body,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Settings PATCH failed with HTTP ${response.status}`);
+    }
+    return response.data;
+  }
+
+  // -------------------------------------------------------------------------
+  // Memories (zero-knowledge encrypted, WS create/update/delete + REST list)
+  // -------------------------------------------------------------------------
+
+  /**
+   * List all memories for the current user, decrypted.
+   * Fetches from the GDPR export endpoint and decrypts each entry with the master key.
+   */
+  async listMemories(): Promise<DecryptedMemoryEntry[]> {
+    const masterKey = this.getMasterKeyBytes();
+    const data = (await this.settingsGet(
+      "/v1/settings/export-account-data?include_usage=false&include_invoices=false",
+    )) as { data?: { app_settings_memories?: Array<Record<string, unknown>> } };
+    const rawEntries = data.data?.app_settings_memories ?? [];
+    const results: DecryptedMemoryEntry[] = [];
+
+    for (const raw of rawEntries) {
+      const encryptedJson =
+        typeof raw.encrypted_item_json === "string"
+          ? raw.encrypted_item_json
+          : null;
+      if (!encryptedJson) {
+        continue;
+      }
+      const decrypted = await decryptWithAesGcmCombined(
+        encryptedJson,
+        masterKey,
+      );
+      if (!decrypted) {
+        continue; // skip entries we can't decrypt (wrong key, corrupted)
+      }
+      let parsed: Record<string, unknown>;
+      try {
+        parsed = JSON.parse(decrypted) as Record<string, unknown>;
+      } catch {
+        continue;
+      }
+      results.push({
+        id: String(raw.id ?? ""),
+        app_id: String(raw.app_id ?? ""),
+        item_type: String(raw.item_type ?? ""),
+        item_key_hash: String(raw.item_key ?? ""),
+        item_version:
+          typeof raw.item_version === "number" ? raw.item_version : 1,
+        created_at: typeof raw.created_at === "number" ? raw.created_at : 0,
+        updated_at: typeof raw.updated_at === "number" ? raw.updated_at : 0,
+        data: parsed,
+      });
+    }
+    return results;
+  }
+
+  /**
+   * Create a new memory entry with schema validation.
+   *
+   * Encrypts the full item_value (including _original_item_key and settings_group)
+   * before sending over WebSocket, matching the browser's exact payload format.
+   *
+   * @param appId     - App identifier (e.g. "code")
+   * @param itemType  - Memory type ID (e.g. "preferred_tech")
+   * @param itemValue - Field values (must satisfy the schema's required fields)
+   */
   async createMemory(params: {
     appId: string;
-    itemKey: string;
     itemType: string;
-    content: string;
+    itemValue: Record<string, unknown>;
+  }): Promise<{ success: boolean; id: string }> {
+    return this.upsertMemory({ ...params, entryId: undefined, itemVersion: 1 });
+  }
+
+  /**
+   * Update an existing memory entry.
+   * Uses the same `store_app_settings_memories_entry` WS event with an
+   * incremented version so the server's conflict-resolution logic accepts it.
+   *
+   * @param entryId   - UUID of the entry to update (from listMemories())
+   * @param appId     - App identifier
+   * @param itemType  - Memory type ID
+   * @param itemValue - Updated field values (partial — merged with required fields check)
+   * @param currentVersion - The entry's current item_version from listMemories()
+   */
+  async updateMemory(params: {
+    entryId: string;
+    appId: string;
+    itemType: string;
+    itemValue: Record<string, unknown>;
+    currentVersion: number;
+  }): Promise<{ success: boolean; id: string }> {
+    return this.upsertMemory({
+      appId: params.appId,
+      itemType: params.itemType,
+      itemValue: params.itemValue,
+      entryId: params.entryId,
+      itemVersion: params.currentVersion + 1,
+    });
+  }
+
+  /**
+   * Delete a memory entry. Sends `delete_app_settings_memories_entry` over
+   * WebSocket. The server deletes from Directus and broadcasts to all devices.
+   */
+  async deleteMemory(entryId: string): Promise<{ success: boolean }> {
+    const session = this.requireSession();
+    const ws = this.makeWsClient(session);
+    await ws.open();
+
+    try {
+      ws.send("delete_app_settings_memories_entry", { entry_id: entryId });
+      await ws.waitForMessage(
+        "app_settings_memories_entry_deleted",
+        (payload) => {
+          const p = payload as Record<string, unknown>;
+          return p.entry_id === entryId && p.success === true;
+        },
+        15_000,
+      );
+    } finally {
+      ws.close();
+    }
+    return { success: true };
+  }
+
+  // -------------------------------------------------------------------------
+  // Private helpers
+  // -------------------------------------------------------------------------
+
+  /**
+   * Validate memory item_value against the registered schema and
+   * encrypt + send over WebSocket.
+   */
+  private async upsertMemory(params: {
+    appId: string;
+    itemType: string;
+    itemValue: Record<string, unknown>;
+    entryId?: string;
+    itemVersion: number;
   }): Promise<{ success: boolean; id: string }> {
     const session = this.requireSession();
     const masterKey = this.getMasterKeyBytes();
-    const entryId = randomUUID();
+    const registryKey = `${params.appId}/${params.itemType}`;
+    const schema = MEMORY_TYPE_REGISTRY[registryKey];
+
+    if (!schema) {
+      const known = Object.keys(MEMORY_TYPE_REGISTRY)
+        .map((k) => `  ${k}`)
+        .join("\n");
+      throw new Error(
+        `Unknown memory type '${registryKey}'.\n\nAvailable types:\n${known}`,
+      );
+    }
+
+    // Validate required fields
+    const missing = schema.required.filter(
+      (f) =>
+        params.itemValue[f] === undefined ||
+        params.itemValue[f] === null ||
+        params.itemValue[f] === "",
+    );
+    if (missing.length > 0) {
+      throw new Error(
+        `Missing required fields for '${registryKey}': ${missing.join(", ")}\n` +
+          `Required: ${schema.required.join(", ")}`,
+      );
+    }
+
+    // Validate enum fields
+    for (const [field, def] of Object.entries(schema.properties)) {
+      const val = params.itemValue[field];
+      if (val !== undefined && def.enum && !def.enum.includes(String(val))) {
+        throw new Error(
+          `Invalid value '${String(val)}' for field '${field}'. ` +
+            `Allowed values: ${def.enum.join(", ")}`,
+        );
+      }
+    }
+
+    const entryId = params.entryId ?? randomUUID();
     const now = Math.floor(Date.now() / 1000);
+
+    // Build the hashed item_key (privacy: server never sees the plaintext key)
+    const hashedKey = hashItemKey(params.appId, params.itemType);
+
+    // Build the plaintext payload — mirrors browser's appSettingsMemoriesStore exactly:
+    // { ...item_value, settings_group, _original_item_key, added_date }
+    const plaintextPayload: Record<string, unknown> = {
+      ...params.itemValue,
+      settings_group: params.appId,
+      _original_item_key: params.itemType,
+      added_date: now,
+    };
+
     const encryptedItemJson = await encryptWithAesGcmCombined(
-      JSON.stringify({ content: params.content }),
+      JSON.stringify(plaintextPayload),
       masterKey,
     );
 
-    const ws = new OpenMatesWsClient({
-      apiUrl: session.apiUrl,
-      sessionId: randomUUID(),
-      wsToken: session.wsToken,
-      refreshToken: session.cookies.auth_refresh_token ?? null,
-    });
+    const ws = this.makeWsClient(session);
     await ws.open();
-    ws.send("store_app_settings_memories_entry", {
-      entry: {
-        id: entryId,
-        app_id: params.appId,
-        item_key: params.itemKey,
-        item_type: params.itemType,
-        encrypted_item_json: encryptedItemJson,
-        encrypted_app_key: "",
-        created_at: now,
-        updated_at: now,
-        item_version: 1,
-      },
-    });
-
     try {
+      ws.send("store_app_settings_memories_entry", {
+        entry: {
+          id: entryId,
+          app_id: params.appId,
+          item_key: hashedKey,
+          item_type: params.itemType,
+          encrypted_item_json: encryptedItemJson,
+          encrypted_app_key: "",
+          created_at: now,
+          updated_at: now,
+          item_version: params.itemVersion,
+        },
+      });
+
       await ws.waitForMessage(
         "app_settings_memories_entry_stored",
         (payload) => {
-          const parsed = payload as Record<string, unknown>;
-          return parsed.entry_id === entryId;
+          const p = payload as Record<string, unknown>;
+          return p.entry_id === entryId;
         },
+        15_000,
       );
     } finally {
       ws.close();
@@ -500,9 +1128,7 @@ export class OpenMatesClient {
 
   private getValidSessionFromDisk(): OpenMatesSession | null {
     const session = loadSession();
-    if (!session) {
-      return null;
-    }
+    if (!session) return null;
     const required = [
       session.apiUrl,
       session.sessionId,
@@ -510,22 +1136,26 @@ export class OpenMatesClient {
       session.hashedEmail,
       session.userEmailSalt,
     ];
-    if (
-      required.some((value) => typeof value !== "string" || value.length === 0)
-    ) {
+    if (required.some((v) => typeof v !== "string" || v.length === 0)) {
       return null;
     }
     return session;
   }
 
-  private async fetchAllChatMetadata(): Promise<ParsedChat[]> {
-    const session = this.requireSession();
-    const ws = new OpenMatesWsClient({
+  private makeWsClient(session: OpenMatesSession): OpenMatesWsClient {
+    return new OpenMatesWsClient({
       apiUrl: session.apiUrl,
       sessionId: randomUUID(),
       wsToken: session.wsToken,
       refreshToken: session.cookies.auth_refresh_token ?? null,
+      // Same User-Agent as login so OS-based device fingerprint hash matches.
+      userAgent: this.getCliUserAgent(),
     });
+  }
+
+  private async fetchAllChatMetadata(): Promise<ParsedChat[]> {
+    const session = this.requireSession();
+    const ws = this.makeWsClient(session);
     await ws.open();
     const chats: ParsedChat[] = [];
 
@@ -565,9 +1195,7 @@ export class OpenMatesClient {
             .filter((item): item is ParsedChat => item !== null),
         );
         offset += batch.length;
-        if (!payload.has_more || batch.length === 0) {
-          break;
-        }
+        if (!payload.has_more || batch.length === 0) break;
       }
     } finally {
       ws.close();
@@ -598,28 +1226,21 @@ export class OpenMatesClient {
     let authorizerDeviceName: string | null = null;
     try {
       while (status === "waiting") {
-        if (exitState.canceled) {
-          throw new Error("Pairing canceled by user");
-        }
+        if (exitState.canceled) throw new Error("Pairing canceled by user");
         await sleep(2_000);
-        if (exitState.canceled) {
-          throw new Error("Pairing canceled by user");
-        }
+        if (exitState.canceled) throw new Error("Pairing canceled by user");
         const poll = await this.http.get<{
           status?: string;
           authorizer_device_name?: string;
         }>(`/v1/auth/pair/poll/${token}`, this.getCliRequestHeaders());
-        if (!poll.ok) {
-          continue;
-        }
+        if (!poll.ok) continue;
         status = poll.data.status ?? "waiting";
         authorizerDeviceName =
           typeof poll.data.authorizer_device_name === "string"
             ? poll.data.authorizer_device_name
             : null;
-        if (status === "expired") {
+        if (status === "expired")
           throw new Error("Pair token expired before authorization");
-        }
       }
     } finally {
       exitState.cleanup();
@@ -633,10 +1254,7 @@ export class OpenMatesClient {
   } {
     const state = { canceled: false };
     if (!stdin.isTTY || typeof stdin.setRawMode !== "function") {
-      return {
-        canceled: false,
-        cleanup: () => undefined,
-      };
+      return { canceled: false, cleanup: () => undefined };
     }
     const wasRaw = stdin.isRaw === true;
     stdin.setRawMode(true);
@@ -645,16 +1263,11 @@ export class OpenMatesClient {
     const onData = (raw: Buffer | string) => {
       const value = typeof raw === "string" ? raw : raw.toString("utf8");
       const normalized = value.toLowerCase();
-      if (normalized.includes("e") || value === "\u001b") {
-        state.canceled = true;
-      }
-      if (value === "\u0003") {
-        state.canceled = true;
-      }
+      if (normalized.includes("e") || value === "\u001b") state.canceled = true;
+      if (value === "\u0003") state.canceled = true;
     };
 
     stdin.on("data", onData);
-
     return {
       get canceled() {
         return state.canceled;
@@ -672,8 +1285,6 @@ export class OpenMatesClient {
   }
 
   private getCliRequestHeaders(): Record<string, string> {
-    // Origin is required by verify_allowed_origin on auth endpoints (login, lookup).
-    // The CLI acts on behalf of the web app, so we send the derived app URL as Origin.
     return {
       "User-Agent": this.getCliUserAgent(),
       Origin: deriveAppUrl(this.apiUrl),
@@ -689,13 +1300,15 @@ export class OpenMatesClient {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
 function extractChatFromPayload(wrapper: {
   chat_details?: Record<string, unknown>;
 }): ParsedChat | null {
   const details = wrapper.chat_details;
-  if (!details || typeof details.id !== "string") {
-    return null;
-  }
+  if (!details || typeof details.id !== "string") return null;
   return {
     id: details.id,
     encryptedTitle:

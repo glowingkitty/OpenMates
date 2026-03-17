@@ -8,7 +8,7 @@
  * Tests: frontend/packages/openmates-cli/tests/crypto.test.ts
  */
 
-import { webcrypto } from "node:crypto";
+import { webcrypto, createHash } from "node:crypto";
 
 const cryptoApi = globalThis.crypto ?? webcrypto;
 const PAIR_KDF_ITERATIONS = 100_000;
@@ -122,4 +122,22 @@ export async function encryptWithAesGcmCombined(
   combined.set(iv);
   combined.set(cipherBytes, iv.length);
   return bytesToBase64(combined);
+}
+
+/**
+ * Hash an item key for zero-knowledge storage in Directus.
+ *
+ * Mirrors the browser's appSettingsMemoriesStore behaviour:
+ *   SHA-256(`${appId}-${itemKey}-${timestamp}`).slice(0, 32) hex chars.
+ *
+ * The cleartext key is stored INSIDE the encrypted payload (_original_item_key)
+ * so the CLI/browser can recover it on decrypt without the server ever seeing it.
+ *
+ * @param appId   - App identifier (e.g. "code")
+ * @param itemKey - Human-readable key (e.g. "preferred_technologies")
+ * @returns First 32 hex characters of SHA-256 hash
+ */
+export function hashItemKey(appId: string, itemKey: string): string {
+  const raw = `${appId}-${itemKey}-${Date.now()}`;
+  return createHash("sha256").update(raw).digest("hex").slice(0, 32);
 }

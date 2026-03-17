@@ -23,6 +23,7 @@ export class OpenMatesWsClient {
     sessionId: string;
     wsToken: string | null;
     refreshToken: string | null;
+    userAgent?: string;
   }) {
     const wsBase = options.apiUrl.replace(/^http/, "ws").replace(/\/$/, "");
     const token = options.wsToken ?? options.refreshToken ?? "";
@@ -30,7 +31,15 @@ export class OpenMatesWsClient {
       sessionId: options.sessionId,
       token,
     });
-    this.socket = new WebSocket(`${wsBase}/v1/ws?${query.toString()}`);
+    // Pass the same User-Agent as the HTTP login call so the device fingerprint
+    // hash (SHA256(OS:Country:UserID)) matches the one registered at login time.
+    const wsHeaders: Record<string, string> = {};
+    if (options.userAgent) {
+      wsHeaders["User-Agent"] = options.userAgent;
+    }
+    this.socket = new WebSocket(`${wsBase}/v1/ws?${query.toString()}`, {
+      headers: wsHeaders,
+    });
   }
 
   async open(timeoutMs = 10_000): Promise<void> {
