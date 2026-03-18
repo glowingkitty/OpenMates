@@ -2324,6 +2324,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 })
             );
             recentChats = metas;
+            console.debug(`[ActiveChat] loadRecentChats: loaded ${metas.length} recent chats (from ${chats.length} total, ${filteredChats.length} non-public, excluded ${excludeIds.size})`);
         } catch (err) {
             console.warn('[ActiveChat] Failed to load recent chats:', err);
         }
@@ -2459,7 +2460,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
             // Look up the specific chat by ID from last_opened
             const chat = await chatDB.getChat(lastOpenedId);
-            if (!chat) return false;
+            if (!chat) {
+                console.debug(`[ActiveChat] loadResumeChatFromDB: chat not found in IndexedDB: ${lastOpenedId}`);
+                return false;
+            }
 
             // Decrypt title, category, icon, and summary using the chat key
             let decryptedTitle: string | null = null;
@@ -2611,7 +2615,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // (not empty, not '/chat/new' which means the user was already on the new chat screen,
         //  not a demo/legal chat which are client-side static content)
         if (!isWelcome || !isAuth || !lastOpened || lastOpened === '/chat/new' || isPublicChat(lastOpened)) {
-            console.debug(`[ActiveChat] Resume card $effect: skipping — isWelcome=${isWelcome}, isAuth=${isAuth}, lastOpened=${lastOpened ? lastOpened.slice(0, 12) + '...' : lastOpened}, isPublic=${lastOpened ? isPublicChat(lastOpened) : 'n/a'}`);
             resumeChatData = null;
             resumeChatTitle = null;
             resumeChatCategory = null;
@@ -2640,8 +2643,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             console.debug(`[ActiveChat] Skipping resume card population — loadChat in progress`);
             return;
         }
-
-        console.debug(`[ActiveChat] Resume card $effect: proceeding to load — lastOpened=${lastOpened.slice(0, 12)}..., isWelcome=${isWelcome}, activeChat=${currentActiveChat}, isLoading=${isLoading}`);
 
         let cancelled = false;
         // Retry up to 20 times (10 seconds total) to handle cross-device sync
