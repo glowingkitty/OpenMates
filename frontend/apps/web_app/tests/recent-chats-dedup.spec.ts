@@ -130,7 +130,8 @@ async function sendMessageAndGetChatId(
 ): Promise<string> {
 	// Click the editor area to focus it, then type via keyboard (not fill —
 	// fill() doesn't trigger ProseMirror/TipTap content detection properly).
-	const editor = page.locator('.ProseMirror, [contenteditable="true"]').first();
+	// Selector matches chat-flow.spec.ts which uses '.editor-content.prose'.
+	const editor = page.locator('.editor-content.prose');
 	await expect(editor).toBeVisible({ timeout: 10000 });
 	await editor.click();
 	await page.keyboard.type(message);
