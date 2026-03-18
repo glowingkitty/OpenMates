@@ -2611,6 +2611,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // (not empty, not '/chat/new' which means the user was already on the new chat screen,
         //  not a demo/legal chat which are client-side static content)
         if (!isWelcome || !isAuth || !lastOpened || lastOpened === '/chat/new' || isPublicChat(lastOpened)) {
+            console.debug(`[ActiveChat] Resume card $effect: skipping — isWelcome=${isWelcome}, isAuth=${isAuth}, lastOpened=${lastOpened ? lastOpened.slice(0, 12) + '...' : lastOpened}, isPublic=${lastOpened ? isPublicChat(lastOpened) : 'n/a'}`);
             resumeChatData = null;
             resumeChatTitle = null;
             resumeChatCategory = null;
@@ -2639,6 +2640,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             console.debug(`[ActiveChat] Skipping resume card population — loadChat in progress`);
             return;
         }
+
+        console.debug(`[ActiveChat] Resume card $effect: proceeding to load — lastOpened=${lastOpened.slice(0, 12)}..., isWelcome=${isWelcome}, activeChat=${currentActiveChat}, isLoading=${isLoading}`);
 
         let cancelled = false;
         // Retry up to 20 times (10 seconds total) to handle cross-device sync
