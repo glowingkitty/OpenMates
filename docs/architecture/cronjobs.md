@@ -26,7 +26,7 @@ All cronjobs run on the dev server via `crontab -l` (user: `superdev`). Logs are
 **Script:** `scripts/weekly-codebase-audit.sh` → `scripts/_audit_helper.py`  
 **State:** `scripts/.audit-state.json`
 
-Uses the last 2 weeks of git commits as context, then runs an opencode session in `plan` mode to find the **top 5 highest-impact improvements** across security, performance, reliability, and code quality. Each finding includes a file + line number, why it matters, the current code, and a suggested fix. Implements finding #1 automatically if it is S/M effort and clearly correct; adds `TODO(audit-<date>):` comments for the rest.
+Uses the last 2 weeks of git commits as context, then runs an opencode session in `plan` mode to find the **top 5 highest-impact improvements** across security, performance, reliability, and code quality. Each finding includes a file + line number, why it matters, the current code, and a suggested fix. Does not implement anything — findings are for review only.
 
 Skips if HEAD SHA is unchanged since last audit (no new commits).
 
