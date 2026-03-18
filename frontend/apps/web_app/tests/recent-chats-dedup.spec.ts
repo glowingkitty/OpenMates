@@ -191,14 +191,20 @@ async function clickNewChat(page: any, logStep: (...args: any[]) => void): Promi
 async function closeSidebar(page: any, logStep: (...args: any[]) => void): Promise<void> {
 	const activityHistory = page.locator('.activity-history-wrapper');
 	const isOpen = await activityHistory.isVisible().catch(() => false);
-	if (isOpen) {
-		const closeBtn = page.locator('.sidebar .close-button, .icon_menu').first();
-		if (await closeBtn.isVisible().catch(() => false)) {
-			await closeBtn.click();
-			await page.waitForTimeout(500);
-			logStep('Closed sidebar.');
+	if (!isOpen) return;
+	// Try the dedicated Close button first, then the menu toggle (hamburger icon)
+	const closeButton = page.getByRole('button', { name: 'Close' });
+	if (await closeButton.isVisible({ timeout: 1000 }).catch(() => false)) {
+		await closeButton.click();
+		logStep('Closed sidebar via Close button.');
+	} else {
+		const menuToggle = page.locator('.icon_menu');
+		if (await menuToggle.isVisible({ timeout: 1000 }).catch(() => false)) {
+			await menuToggle.click();
+			logStep('Closed sidebar via menu toggle.');
 		}
 	}
+	await page.waitForTimeout(500);
 }
 
 /**
