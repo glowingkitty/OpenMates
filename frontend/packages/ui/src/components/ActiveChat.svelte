@@ -4822,6 +4822,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      */
     async function handleNewChatClick() {
         console.debug("[ActiveChat] New chat creation initiated");
+
+        // CRITICAL: Synchronously update last_opened to the current chat BEFORE setting
+        // showWelcome=true. The resume card $effect reads $userProfile.last_opened when
+        // showWelcome transitions to true. If sendSetActiveChat (async) hasn't finished
+        // updating the store yet, the resume card would show a stale chat.
+        // Only update for real user chats (not demo/public/null).
+        // Capture the ID before currentChat is nulled below.
+        const leavingChatId = currentChat?.chat_id;
+        if (leavingChatId && !isPublicChat(leavingChatId)) {
+            const currentLastOpened = get(userProfile).last_opened;
+            if (currentLastOpened !== leavingChatId) {
+                userProfile.update(p => ({ ...p, last_opened: leavingChatId }));
+                // Also persist to IndexedDB so tab-reload picks it up immediately
+                userDB.updateUserData({ last_opened: leavingChatId });
+                console.debug(`[ActiveChat] Sync-updated last_opened to ${leavingChatId} before new-chat transition`);
+            }
+        }
+
         // Reset current chat metadata and messages
         currentChat = null;
         currentMessages = [];
