@@ -1553,6 +1553,102 @@ def format_detail_output(
     return "\n".join(lines)
 
 
+
+def format_summary_output(
+    issue_id: str,
+    issue: Optional[Dict[str, Any]],
+    decrypted: Dict[str, Optional[str]],
+    s3_report: Optional[Dict[str, Any]],
+) -> str:
+    """Format a condensed issue summary for sessions.py inline context.
+
+    Shows metadata, key findings, runtime state, and last 5 user actions.
+    Skips raw HTML (messages, sidebar) to keep output under ~40 lines.
+    """
+    lines = []
+
+    # ── Compact header
+    title = (issue or {}).get('title', 'Unknown')
+    created = (issue or {}).get('date_created', '') or (issue or {}).get('timestamp', '')
+    from_admin = (issue or {}).get('is_from_admin', False) or False
+    user_id = (issue or {}).get('user_created', '') or '?'
+
+    lines.append(f"Issue: {title}")
+    lines.append(f"  ID: {issue_id}")
+    lines.append(f"  Time: {created}  |  Admin: {'yes' if from_admin else 'no'}  |  User: {user_id[:12]}...")
+
+    # ── Decrypted key info (1-2 lines)
+    url = decrypted.get('chat_or_embed_url', '')
+    device = decrypted.get('device_info', '')
+    location = decrypted.get('estimated_location', '')
+    if url:
+        lines.append(f"  URL: {url[:120]}{'...' if len(url) > 120 else ''}")
+    if location:
+        lines.append(f"  Location: {location}  |  Device: {device[:80] if device else 'N/A'}")
+
+    # ── Description (truncated)
+    desc = (issue or {}).get('description', '')
+    if desc:
+        # Strip HTML entities, take first 200 chars
+        import html as _html
+        clean_desc = _html.unescape(desc).replace('\n', ' ').strip()
+        if len(clean_desc) > 200:
+            clean_desc = clean_desc[:197] + '...'
+        lines.append(f"  Description: {clean_desc}")
+
+    # ── S3 YAML key findings
+    report = s3_report or {}
+    indexeddb = report.get('indexeddb_inspection')
+    if indexeddb and isinstance(indexeddb, dict):
+        # Extract the chat inspection text
+        indexeddb_str = str(indexeddb) if not isinstance(indexeddb, str) else indexeddb
+        lines.append(f"  IndexedDB: {indexeddb_str[:200]}{'...' if len(indexeddb_str) > 200 else ''}")
+    elif indexeddb:
+        indexeddb_str = str(indexeddb)
+        # Look for ISSUES DETECTED
+        if 'ISSUES DETECTED' in indexeddb_str:
+            start = indexeddb_str.find('ISSUES DETECTED')
+            end = indexeddb_str.find('\n\n', start)
+            if end == -1:
+                end = min(start + 200, len(indexeddb_str))
+            lines.append(f"  IndexedDB: {indexeddb_str[start:end].strip()}")
+        else:
+            lines.append(f"  IndexedDB: {indexeddb_str[:150]}{'...' if len(indexeddb_str) > 150 else ''}")
+
+    # ── Log quick scan (from S3 YAML legacy or pre-computed)
+    log_section = report.get('logs_quick_scan') or report.get('console_logs_summary')
+    if log_section:
+        lines.append(f"  Log scan: {str(log_section)[:200]}")
+
+    # ── Runtime debug state (compact)
+    runtime = report.get('runtime_debug_state')
+    if runtime:
+        if isinstance(runtime, dict):
+            ws_status = runtime.get('websocket_status', {})
+            sync_state = runtime.get('phased_sync_state', {})
+            ws_line = f"WS: {ws_status.get('status', '?')}"
+            if ws_status.get('lastMessage'):
+                ws_line += f" ({ws_status['lastMessage'][:60]})"
+            sync_line = f"Sync: initial={sync_state.get('initialSyncCompleted', '?')}, chat={str(sync_state.get('currentActiveChatId', '?'))[:12]}"
+            lines.append(f"  Runtime: {ws_line} | {sync_line}")
+        else:
+            lines.append(f"  Runtime: {str(runtime)[:150]}")
+
+    # ── User action history (last 5 only)
+    actions = report.get('action_history')
+    if actions:
+        action_lines = str(actions).strip().split('\n')
+        if action_lines:
+            lines.append(f"  Actions ({len(action_lines)} total, last 5):")
+            for al in action_lines[-5:]:
+                lines.append(f"    {al.strip()}")
+
+    # ── Footer hint
+    lines.append(f"  Full: debug.py issue {issue_id} | Timeline: debug.py issue {issue_id} --timeline")
+
+    return "\n".join(lines)
+
+
 def format_detail_json(
     issue_id: str,
     issue: Optional[Dict[str, Any]],
@@ -1702,6 +1798,13 @@ async def main():
         '--dev',
         action='store_true',
         help='When used with --production, hit the dev API instead of prod'
+    )
+    parser.add_argument(
+        '--summary',
+        action='store_true',
+        help='Output a condensed summary: metadata, key findings, runtime state, '
+        'last 5 user actions. Skips raw HTML (messages, sidebar). '
+        'Used by sessions.py for inline issue context.'
     )
 
     args = parser.parse_args()
@@ -1860,6 +1963,10 @@ async def main():
                         print(format_detail_json(
                             args.issue_id, issue, decrypted, s3_report,
                             screenshot_presigned_url=screenshot_presigned_url,
+                        ))
+                    elif args.summary:
+                        print(format_summary_output(
+                            args.issue_id, issue, decrypted, s3_report,
                         ))
                     else:
                         print(format_detail_output(
@@ -2048,6 +2155,10 @@ async def main():
                         print(format_detail_json(
                             args.issue_id, issue, decrypted, s3_report,
                             screenshot_presigned_url=screenshot_presigned_url
+                        ))
+                    elif args.summary:
+                        print(format_summary_output(
+                            args.issue_id, issue, decrypted, s3_report,
                         ))
                     else:
                         print(format_detail_output(

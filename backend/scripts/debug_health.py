@@ -136,7 +136,7 @@ async def _openobserve_recent_errors(limit: int = 10, since_minutes: int = 30) -
         for hit in data.get("hits", []):
             ts_us = hit.get("_timestamp", 0)
             svc = hit.get("container", hit.get("service", "?"))
-            msg = hit.get("message", hit.get("log", ""))[:120]
+            msg = hit.get("message", hit.get("log", ""))[:500]
             results.append({
                 "ts": int(ts_us) * 1000,  # convert µs → ns for display consistency
                 "service": svc,
@@ -490,17 +490,19 @@ async def run_health_check(verbose: bool = False, skip_log_access: bool = False)
 async def run_health_check_compact() -> str:
     """Return a one-liner health summary for non-debug session modes.
 
-    Checks Prometheus error rate, P95 latency, and queue depths.
+    Checks Prometheus API error rate, P95 latency, queue depths,
+    AND OpenObserve application error count (last 30 min).
+
     Returns a short string like:
-      "OK (API 0.2% error rate, P95 42ms, queues clear)"
+      "OK (0% API errors, P95 42ms, queues clear)"
     or:
-      "WARN — API error rate 5.1%, queue backlog: 12 tasks"
+      "WARN — 12 app errors (30m), API error rate 5.1%"
     """
     import math
     parts = []
     warnings = []
 
-    # Error rate
+    # 1. Prometheus: HTTP 5xx error rate (last 5 min)
     error_rate = await _prom_query(
         'sum(rate(api_requests_total{status_code=~"5.."}[5m])) / '
         'sum(rate(api_requests_total[5m]))'
@@ -510,13 +512,13 @@ async def run_health_check_compact() -> str:
         if total_reqs is None or total_reqs == 0:
             parts.append("no request data")
         else:
-            parts.append("0% error rate")
+            parts.append("0% API errors")
     elif error_rate > 0.02:
-        warnings.append(f"API error rate {error_rate*100:.1f}%")
+        warnings.append(f"API 5xx rate {error_rate*100:.1f}%")
     else:
-        parts.append(f"{error_rate*100:.1f}% error rate")
+        parts.append(f"{error_rate*100:.1f}% API errors")
 
-    # P95 latency
+    # 2. P95 latency
     p95 = await _prom_query(
         'histogram_quantile(0.95, sum(rate(api_request_duration_seconds_bucket[5m])) by (le))'
     )
@@ -528,7 +530,7 @@ async def run_health_check_compact() -> str:
         else:
             parts.append(f"P95 {p95:.2f}s")
 
-    # Queue depths
+    # 3. Queue depths
     depths = await _get_celery_queue_depths()
     total_pending = sum(depths.values()) if depths else 0
     if total_pending > 50:
@@ -538,8 +540,26 @@ async def run_health_check_compact() -> str:
     else:
         parts.append("queues clear")
 
+    # 4. OpenObserve: application-level errors (last 30 min)
+    # This catches errors that don't produce 5xx (task failures, embed errors, etc.)
+    app_errors = await _openobserve_recent_errors(limit=50, since_minutes=30)
+    if app_errors:
+        count = len(app_errors)
+        if count >= 50:
+            warnings.append("50+ app errors (30m)")
+        elif count >= 10:
+            warnings.append(f"{count} app errors (30m)")
+        elif count >= 3:
+            parts.append(f"{count} app errors (30m)")
+        else:
+            parts.append(f"{count} app error{'s' if count != 1 else ''} (30m)")
+    else:
+        parts.append("0 app errors (30m)")
+
     if warnings:
-        return f"WARN — {', '.join(warnings)}"
+        # Include parts as additional context after warnings
+        extra = f" | {', '.join(parts)}" if parts else ""
+        return f"WARN — {', '.join(warnings)}{extra}"
     return f"OK ({', '.join(parts)})"
 
 

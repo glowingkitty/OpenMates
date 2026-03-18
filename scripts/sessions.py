@@ -761,6 +761,23 @@ def _prefetch_debug_context(subcommand: str, entity_id: str, label: str) -> str:
     return stdout.strip()
 
 
+def _prefetch_debug_context_summary(subcommand: str, entity_id: str, label: str) -> str:
+    """Run a debug.py subcommand with --summary flag for condensed inline output.
+
+    Falls back to full output if --summary is not supported.
+    """
+    cmd = [
+        "docker", "exec", "api",
+        "python", "/app/backend/scripts/debug.py",
+        subcommand, entity_id, "--summary",
+    ]
+    rc, stdout, stderr = _run_cmd(cmd, timeout=30)
+    if rc != 0 or not stdout.strip():
+        # Fall back to full output if --summary not supported or failed
+        return _prefetch_debug_context(subcommand, entity_id, label)
+    return stdout.strip()
+
+
 def _prefetch_logs(opts_str: str) -> str:
     """Run the OpenObserve web-app-health preset log fetch and return output.
 
@@ -1104,6 +1121,7 @@ def _format_relative_time(time_str: str) -> str:
     replacements = [
         (" hours", "h"), (" hour", "h"),
         (" minutes", "m"), (" minute", "m"),
+        (" seconds", "s"), (" second", "s"),
         (" days", "d"), (" day", "d"),
         (" weeks", "w"), (" week", "w"),
         (" months", "mo"), (" month", "mo"),
@@ -1111,6 +1129,112 @@ def _format_relative_time(time_str: str) -> str:
     for old, new in replacements:
         time_str = time_str.replace(old, new)
     return time_str
+
+
+
+# ---------------------------------------------------------------------------
+# Box-drawing section formatting
+# ---------------------------------------------------------------------------
+
+BOX_WIDTH = 72  # Total width of box-drawing sections
+
+
+def _box_section(title: str, lines: list[str]) -> str:
+    """Format a section with Unicode box-drawing characters for visual clarity.
+
+    Example:
+        ┌─ HEALTH ─────────────────────────────────────────────────────────┐
+          OK (0% API errors, P95 42ms, queues clear, 0 app errors)
+        └───────────────────────────────────────────────────────────────────┘
+    """
+    # Build top border: ┌─ TITLE ─...─┐
+    inner_width = BOX_WIDTH - 2  # minus ┌ and ┐
+    title_part = f"─ {title} "
+    remaining = inner_width - len(title_part)
+    top = "┌" + title_part + "─" * max(0, remaining) + "┐"
+    bottom = "└" + "─" * inner_width + "┘"
+
+    section_lines = [top]
+    for line in lines:
+        section_lines.append(f"  {line}")
+    section_lines.append(bottom)
+    return "\n".join(section_lines)
+
+
+def _prefetch_recent_errors_timeline() -> str:
+    """Fetch the last 10 actual error/warning log lines from OpenObserve.
+
+    Returns formatted timeline of recent errors for bug mode auto-include.
+    Queries both backend service errors and browser console errors.
+    Extracts the human-readable message from JSON-structured log lines.
+    """
+    # Write a temp script file for docker exec to avoid quoting issues
+    import tempfile
+    script_content = """
+import asyncio, json, sys
+sys.path.insert(0, '/app/backend/scripts')
+from debug_health import _openobserve_recent_errors
+
+def extract_msg(raw):
+    if not raw:
+        return '?'
+    raw = str(raw).strip()
+    if raw.startswith('{'):
+        try:
+            d = json.loads(raw)
+            msg = d.get('message') or d.get('msg') or d.get('error') or raw
+            name = d.get('name', '')
+            if name:
+                parts = name.split('.')
+                name = '.'.join(parts[-2:]) if len(parts) > 3 else name
+                return f'[{name}] {msg}'
+            return str(msg)
+        except (json.JSONDecodeError, ValueError):
+            pass
+    return raw
+
+async def main():
+    errors = await _openobserve_recent_errors(limit=10, since_minutes=15)
+    if not errors:
+        print('No errors in the last 15 minutes')
+        return
+    from datetime import datetime
+    for e in errors:
+        ts_us = e.get('ts', 0) // 1000
+        if ts_us > 0:
+            dt = datetime.fromtimestamp(ts_us / 1_000_000)
+            time_str = dt.strftime('%H:%M:%S')
+        else:
+            time_str = '??:??:??'
+        svc = (e.get('service') or '?')[:14].ljust(14)
+        msg = extract_msg(e.get('message', '?'))[:100]
+        print(f'{time_str}  [{svc}] {msg}')
+    print(f'-> {len(errors)} error(s) in last 15 min | Full: debug.py logs --o2 --preset top-warnings-errors')
+
+asyncio.run(main())
+"""
+    tmp = tempfile.NamedTemporaryFile(
+        mode='w', suffix='.py', prefix='o2_errors_',
+        dir=str(PROJECT_ROOT / "backend" / "scripts"),
+        delete=False,
+    )
+    tmp.write(script_content)
+    tmp_path = tmp.name
+    tmp.close()
+
+    try:
+        # Map the host path to the container path
+        container_path = tmp_path.replace(str(PROJECT_ROOT), '/app')
+        cmd = ["docker", "exec", "api", "python", container_path]
+        rc, stdout, stderr = _run_cmd(cmd, timeout=30)
+    finally:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+    if rc != 0 or not stdout.strip():
+        return "(could not fetch recent errors from OpenObserve)"
+    return stdout.strip()
 
 
 def cmd_start(args: argparse.Namespace) -> None:
@@ -1176,132 +1300,138 @@ def cmd_start(args: argparse.Namespace) -> None:
 
     _save_sessions(data)
 
-    # --- Output context for Claude (mode-aware, compact) ---
-    out: list[str] = []
+    # ===================================================================
+    # Output context for Claude (mode-aware, structured with box sections)
+    # ===================================================================
 
-    # ── Header (always) ────────────────────────────────────────────────────
-    out.append(f"== SESSION {sid} | {mode} | {', '.join(tags) if tags else 'no tags'} ==")
-    if args.task:
-        out.append(f"Task: {args.task}")
-
-    # ── Git status (compact) ───────────────────────────────────────────────
+    # ── Header block ──────────────────────────────────────────────────────
     git_status = _get_git_status_summary()
     branch_info = git_status["branch"]
     if git_status["tracking"]:
         branch_info += f" ({git_status['tracking']})"
     uncommitted = git_status.get("uncommitted", [])
 
+    header_lines = [
+        f"  Mode:  {mode}",
+        f"  Tags:  {', '.join(tags) if tags else 'none'}",
+        f"  Task:  {args.task or '(pending)'}",
+    ]
+
+    # Git status line
     if mode in ("feature", "bug", "testing"):
         if uncommitted:
             areas = _classify_uncommitted_files(uncommitted)
             area_summary = ", ".join(f"{len(v)} {k}" for k, v in areas.items())
-            out.append(f"Git: {branch_info} | {len(uncommitted)} uncommitted [{area_summary}]")
-            # Show at most 5 tag-relevant files
-            relevant_files = []
-            for entry in uncommitted:
-                path = entry.split(" ", 1)[-1] if " " in entry else entry
-                if any(tag in ("frontend",) and path.startswith("frontend/") for tag in tags):
-                    relevant_files.append(entry)
-                elif any(tag in ("backend",) and path.startswith("backend/") for tag in tags):
-                    relevant_files.append(entry)
-                elif not relevant_files:
-                    relevant_files.append(entry)  # At least show something
-            for uf in relevant_files[:5]:
-                out.append(f"    {uf}")
-            remaining = len(uncommitted) - min(5, len(relevant_files))
-            if remaining > 0:
-                out.append(f"    ... {remaining} more (git status for full list)")
+            header_lines.append(f"  Git:   {branch_info} | {len(uncommitted)} uncommitted [{area_summary}]")
         else:
-            out.append(f"Git: {branch_info} | clean")
+            header_lines.append(f"  Git:   {branch_info} | clean")
     else:
-        out.append(f"Git: {branch_info}")
+        header_lines.append(f"  Git:   {branch_info}")
 
-    # ── Recent commits (compact) ───────────────────────────────────────────
+    # Recent commits (inline in header)
     if mode != "question":
         commit_limit = RECENT_COMMITS_COUNT if mode == "feature" else 3
         recent_commits = _get_recent_commits(count=commit_limit)
         if recent_commits:
-            out.append("Recent commits:")
-            for commit_line in recent_commits:
-                # Compact: shorten relative time, truncate message at 60 chars
+            for i, commit_line in enumerate(recent_commits):
                 parts = commit_line.split(" ", 1)
                 sha = parts[0]
                 rest = parts[1] if len(parts) > 1 else ""
-                # rest is like "3 hours ago fix: description"
-                # Find where the message starts (after the relative time)
                 time_and_msg = rest
                 for marker in (" ago ", ):
                     idx = time_and_msg.find(marker)
                     if idx >= 0:
                         time_part = _format_relative_time(time_and_msg[:idx + len(marker)].strip())
                         msg_part = time_and_msg[idx + len(marker):]
-                        if len(msg_part) > 60:
-                            msg_part = msg_part[:57] + "..."
+                        if len(msg_part) > 55:
+                            msg_part = msg_part[:52] + "..."
                         time_and_msg = f"{time_part} {msg_part}"
                         break
-                out.append(f"  {sha} {time_and_msg}")
+                prefix = "  Last:" if i == 0 else "       "
+                header_lines.append(f"{prefix}  {sha} {time_and_msg}")
 
-    # ── Health check (single line when healthy) ────────────────────────────
-    prefetch_items: list[tuple[str, str]] = []
+    # Print header
+    hdr_bar = "═" * (BOX_WIDTH - len(f"== SESSION {sid} ") - 1)
+    print(f"== SESSION {sid} {hdr_bar}")
+    print("\n".join(header_lines))
+    print("═" * BOX_WIDTH)
 
+    # ── Collect boxed sections ────────────────────────────────────────────
+    sections: list[str] = []
+
+    # ── HEALTH (bug, feature, testing) ────────────────────────────────────
+    if mode in ("bug", "feature", "testing"):
+        health_line = _prefetch_health_check_compact()
+        sections.append(_box_section("HEALTH", [health_line]))
+
+    # ── RECENT ERRORS — auto-included in bug mode ────────────────────────
     if mode == "bug":
-        prefetch_items.append(("health", _prefetch_health_check_compact()))
-    elif mode in ("feature", "testing"):
-        prefetch_items.append(("health", _prefetch_health_check_compact()))
+        errors_content = _prefetch_recent_errors_timeline()
+        sections.append(_box_section("RECENT ERRORS (last 15min)", errors_content.split("\n")))
 
-    # ── Bug-mode: recent issues + 7d error trends (dev + prod) ───────────────
+    # ── ISSUES (bug mode) ─────────────────────────────────────────────────
+    if mode == "bug":
+        issues_content = _prefetch_recent_issues(limit=2)
+        sections.append(_box_section("ISSUES (last 24h)", issues_content.split("\n")))
+
+    # ── ERROR TRENDS (bug mode) ───────────────────────────────────────────
     if mode == "bug":
         error_since = getattr(args, "error_since", 7)
-        prefetch_items.append(("recent issues", _prefetch_recent_issues(limit=2)))
-        prefetch_items.append(("error trends [dev + prod]", _prefetch_error_overview(since_minutes=error_since * 24 * 60)))
+        trends_content = _prefetch_error_overview(since_minutes=error_since * 24 * 60)
+        sections.append(_box_section("ERROR TRENDS (7d, dev + prod)", trends_content.split("\n")))
 
-    # ── Testing-mode: test summary, spec inventory, OpenObserve events ─────
+    # ── TEST RESULTS (testing mode) ───────────────────────────────────────
     if mode == "testing":
-        prefetch_items.append(("test results", _prefetch_test_summary()))
-        prefetch_items.append(("test events (2h)", _prefetch_test_events_o2()))
+        test_content = _prefetch_test_summary()
+        sections.append(_box_section("TEST RESULTS", test_content.split("\n")))
+        events_content = _prefetch_test_events_o2()
+        sections.append(_box_section("TEST EVENTS (2h)", events_content.split("\n")))
+
+    # ── E2E spec inventory (testing mode) ─────────────────────────────────
+    if mode == "testing":
+        spec_count = len(list(E2E_SPEC_DIR.glob("*.spec.ts"))) if E2E_SPEC_DIR.exists() else 0
+        spec_lines = [f"Total: {spec_count} specs"]
+        spec_lines.extend(_get_e2e_spec_categories().split("\n"))
+        sections.append(_box_section("E2E SPECS", spec_lines))
 
     # ── Explicit prefetch flags (all modes — user explicitly requested) ────
     issue_id = getattr(args, "issue", None)
     if issue_id:
-        prefetch_items.append((f"issue {issue_id}", _prefetch_debug_context("issue", issue_id, "issue")))
+        # Use --summary for inline context (condensed), not full report
+        issue_content = _prefetch_debug_context_summary("issue", issue_id, "issue")
+        sections.append(_box_section(f"ISSUE {issue_id[:12]}", issue_content.split("\n")))
 
     chat_id = getattr(args, "chat", None)
     if chat_id:
-        prefetch_items.append((f"chat {chat_id}", _prefetch_debug_context("chat", chat_id, "chat")))
+        chat_content = _prefetch_debug_context("chat", chat_id, "chat")
+        sections.append(_box_section(f"CHAT {chat_id[:12]}", chat_content.split("\n")))
 
     embed_id = getattr(args, "embed", None)
     if embed_id:
-        prefetch_items.append((f"embed {embed_id}", _prefetch_debug_context("embed", embed_id, "embed")))
+        embed_content = _prefetch_debug_context("embed", embed_id, "embed")
+        sections.append(_box_section(f"EMBED {embed_id[:12]}", embed_content.split("\n")))
 
     logs_opts = getattr(args, "logs", None)
     if logs_opts is not None:
-        prefetch_items.append((f"logs ({logs_opts or 'since=10'})", _prefetch_logs(logs_opts or "since=10")))
+        logs_content = _prefetch_logs(logs_opts or "since=10")
+        sections.append(_box_section(f"LOGS ({logs_opts or 'since=10'})", logs_content.split("\n")))
 
     user_email = getattr(args, "user", None)
     if user_email:
-        prefetch_items.append((f"user {user_email}", _prefetch_user_context(user_email)))
+        user_content = _prefetch_user_context(user_email)
+        sections.append(_box_section(f"USER {user_email}", user_content.split("\n")))
 
     debug_id = getattr(args, "debug_id", None)
     if debug_id:
-        prefetch_items.append((f"debug session {debug_id}", _prefetch_debug_session_logs(debug_id)))
+        debug_content = _prefetch_debug_session_logs(debug_id)
+        sections.append(_box_section(f"DEBUG SESSION {debug_id}", debug_content.split("\n")))
 
-    # ── E2E spec inventory (testing mode only) ────────────────────────────
-    if mode == "testing":
-        spec_count = len(list(E2E_SPEC_DIR.glob("*.spec.ts"))) if E2E_SPEC_DIR.exists() else 0
-        out.append(f"E2E specs ({spec_count}):")
-        out.append(_get_e2e_spec_categories())
-
-    # Print accumulated header lines
-    print("\n".join(out))
-
-    # Print prefetch items
-    if prefetch_items:
+    # Print all boxed sections
+    if sections:
         print()
-        for label, content in prefetch_items:
-            print(f"--- {label} ---")
-            print(content)
+        print("\n\n".join(sections))
 
-    # ── Active sessions / locks (all modes) ────────────────────────────────
+    # ── Active sessions / locks ───────────────────────────────────────────
     other_sessions = {}
     hidden_count = 0
     for k, v in data.get("sessions", {}).items():
@@ -1316,29 +1446,30 @@ def cmd_start(args: argparse.Namespace) -> None:
         else:
             hidden_count += 1
 
-    if other_sessions:
-        print()
-        for osid, info in other_sessions.items():
-            files_str = ""
-            if info.get("writing"):
-                files_str = f" [WRITING: {info['writing']}]"
-            elif info.get("modified_files"):
-                files_str = f" [{len(info['modified_files'])} files]"
-            tags_str = f" ({','.join(info['tags'])})" if info.get("tags") else ""
-            print(f"  Other session {osid}: {info.get('task', '?')[:60]}{tags_str}{files_str}")
+    session_lines = []
+    for osid, info in other_sessions.items():
+        files_str = ""
+        if info.get("writing"):
+            files_str = f" [WRITING: {info['writing']}]"
+        elif info.get("modified_files"):
+            files_str = f" [{len(info['modified_files'])} files]"
+        tags_str = f" ({','.join(info['tags'])})" if info.get("tags") else ""
+        session_lines.append(f"{osid}: {info.get('task', '?')[:55]}{tags_str}{files_str}")
 
     locks = data.get("locks", {})
     active_locks = [
         lt for lt, lv in locks.items() if lv.get("status") == "IN_PROGRESS"
     ]
-    if active_locks:
-        for lt in active_locks:
-            lv = locks[lt]
-            print(f"  LOCK: {lt} held by {lv.get('claimed_by', '?')}")
+    for lt in active_locks:
+        lv = locks[lt]
+        session_lines.append(f"LOCK: {lt} held by {lv.get('claimed_by', '?')}")
 
-    # ── Architecture docs (compact, mode-filtered) ─────────────────────────
-    # bug: skip entirely | feature: top 5 relevant, no descriptions | docs: all | question: skip
-    if mode in ("feature", "docs"):
+    if session_lines:
+        print()
+        print(_box_section("OTHER SESSIONS", session_lines))
+
+    # ── Architecture docs (bug mode now included, with tag filtering) ─────
+    if mode in ("feature", "docs", "bug"):
         arch_index = _get_arch_doc_index()
         if arch_index and tags:
             filter_keywords = set()
@@ -1353,12 +1484,13 @@ def cmd_start(args: argparse.Namespace) -> None:
             ]
             other_count = len(arch_index) - len(relevant_docs)
             if relevant_docs:
-                shown = relevant_docs[:5] if mode == "feature" else relevant_docs
-                print()
+                limit = 5 if mode in ("feature", "bug") else len(relevant_docs)
+                shown = relevant_docs[:limit]
                 names = ", ".join(e["name"] for e in shown)
                 extra = ""
                 if len(relevant_docs) > len(shown):
-                    extra = f", +{len(relevant_docs) - len(shown)} more relevant"
+                    extra = f", +{len(relevant_docs) - len(shown)} more"
+                print()
                 print(f"Arch docs ({len(relevant_docs)} relevant, {other_count} others): {names}{extra}")
                 print("  Load: sessions.py context --doc <name>")
         elif mode == "docs" and arch_index:
@@ -1369,8 +1501,8 @@ def cmd_start(args: argparse.Namespace) -> None:
             print(f"Arch docs ({len(arch_index)}): {names}")
             print("  Load: sessions.py context --doc <name>")
 
-    # ── Stale docs hint (feature/docs only, max 3) ─────────────────────────
-    if mode in ("feature", "docs"):
+    # ── Stale docs hint (feature/docs/bug, max 3) ─────────────────────────
+    if mode in ("feature", "docs", "bug"):
         stale = _check_stale_docs()
         if stale and tags:
             relevant_stale = [
@@ -1389,7 +1521,7 @@ def cmd_start(args: argparse.Namespace) -> None:
             if len(stale) > 3:
                 print(f"  ... {len(stale) - 3} more (run: sessions.py stale-docs)")
 
-    # ── Project index (minimal for all modes) ──────────────────────────────
+    # ── Project index (minimal for all modes except question) ─────────────
     if mode not in ("question", "bug"):
         index = _load_or_generate_index()
         apps = index.get("backend_apps", [])
@@ -1426,16 +1558,32 @@ def cmd_start(args: argparse.Namespace) -> None:
         if deferred:
             print(f"\n[Deferred to deploy: {', '.join(deferred)}]")
 
-    # ── Backlog (always shown — user consent prompt) ───────────────────────
-    backlog_data = _load_backlog()
-    backlog_items = backlog_data.get("backlog", [])
-    if backlog_items:
-        print()
-        print(f"== BACKLOG ({len(backlog_items)} items) ==")
-        print("Also consider processing (after asking user for consent) these backlog tasks, if they seem related or urgent!")
-        print(_format_backlog_for_display(backlog_items))
-        print("  Manage: sessions.py backlog-add --title \"...\" --description \"...\" [--files f1 f2]")
-        print("          sessions.py backlog-done --id <N>  |  sessions.py backlog-list")
+    # ── Backlog (conditional: skip in question, limit in others) ──────────
+    if mode != "question":
+        backlog_data = _load_backlog()
+        backlog_items = backlog_data.get("backlog", [])
+        if backlog_items:
+            max_show = 5
+            shown_items = backlog_items[:max_show]
+            remaining = len(backlog_items) - max_show
+            print()
+            print(f"== BACKLOG ({len(backlog_items)} items) ==")
+            print("Consider these backlog tasks if related or urgent (ask user first):")
+            # Build a limited display
+            display_lines = []
+            for i, item in enumerate(shown_items, 1):
+                title = item.get("title", "?")
+                desc = item.get("description", "")
+                files = item.get("files", [])
+                line = f"  [{i}] {title}"
+                if desc:
+                    line += f" — {desc[:60]}{'...' if len(desc) > 60 else ''}"
+                if files:
+                    line += f" ({len(files)} files)"
+                display_lines.append(line)
+            print("\n".join(display_lines))
+            if remaining > 0:
+                print(f"  ... +{remaining} more (sessions.py backlog-list)")
 
     # ── Deploy reminder (compact, 1 line) ──────────────────────────────────
     if mode != "question":
@@ -2825,14 +2973,17 @@ def cmd_stale_docs(args: argparse.Namespace) -> None:
 def cmd_backlog_add(args: argparse.Namespace) -> None:
     """Add a new entry to the backlog."""
     data = _load_backlog()
+    # Use a stable auto-incrementing counter (not position-based)
+    next_id = data.get("next_id", max((e.get("id", 0) for e in data["backlog"]), default=0) + 1)
     entry: dict = {
-        "id": len(data["backlog"]) + 1,
+        "id": next_id,
         "title": args.title,
         "description": args.description or "",
         "files": args.files or [],
         "added": _now_iso()[:10],  # date only
     }
     data["backlog"].append(entry)
+    data["next_id"] = next_id + 1
     _save_backlog(data)
     print(f"Backlog entry [{entry['id']}] added: {entry['title']}")
     if entry["description"]:
@@ -2863,9 +3014,7 @@ def cmd_backlog_done(args: argparse.Namespace) -> None:
         sys.exit(1)
 
     removed = backlog.pop(match_idx)
-    # Re-number remaining entries to keep ids sequential
-    for i, entry in enumerate(backlog, 1):
-        entry["id"] = i
+    # IDs are stable — no re-numbering after removal
     data["backlog"] = backlog
     _save_backlog(data)
     print(f"Backlog entry removed: [{removed.get('id', '?')}] {removed.get('title', '?')}")
