@@ -785,9 +785,9 @@ def _hit_to_event(hit: Dict[str, Any], source_override: Optional[str] = None) ->
     level  = (hit.get("level") or "info").lower()
     source = source_override or hit.get("container") or hit.get("service") or "unknown"
     job    = hit.get("job", "")
-    if job == "client-console" or job == "client-issue-report":
+    if job == "client-console":
         source = "browser"
-    msg = (hit.get("message") or hit.get("log") or "").strip()
+    msg = (hit.get("message") or "").strip()
     return {"ts_us": ts_us, "level": level, "source": source, "message": msg}
 
 
@@ -801,9 +801,9 @@ async def fetch_issue_timeline_local(
     Query OpenObserve for the unified issue timeline (local mode).
 
     Runs three parallel queries anchored to the issue's created_at timestamp:
-      1. Browser console logs: job=client-issue-report AND issue_id=<id>
-      2. Backend container logs: any container log mentioning user_id or issue_id
-      3. API application logs: same search in api-logs stream
+      1. Browser console logs: job=client-console, matching user_id in message
+      2. Raw container stdout logs: job empty/NULL, matching user_id/issue_id
+      3. Structured API logs: job=api-logs, matching user_id/issue_id
 
     Returns (events, start_us, end_us) where events are sorted by timestamp.
     """
@@ -832,40 +832,62 @@ async def fetch_issue_timeline_local(
     # Build queries
     queries: List[Tuple[str, Optional[str]]] = []
 
-    # 1. Browser console snapshot pushed at report-time (job=client-issue-report).
-    # Note: issue_id is not a structured field — filter by message body instead.
+    # ── OpenObserve "default" stream field reference ──
+    # Available fields: _timestamp, compose_project, container, debugging_id,
+    #   device_type, environment, event_type, filename, git_branch, job, level,
+    #   logstream, message, name, server_env, service, source, status, stream,
+    #   suite, tab_id, transaction_type, user_agent, user_email, user_id,
+    #   worker_slot.
+    # NOT valid: 'log', 'issue_id'.
+    # Job values: 'client-console' (browser), 'api-logs' (structured API),
+    #   'audit-compliance-logs', or empty/NULL (raw container stdout).
+
+    # 1. Browser console logs (job=client-console).
+    # The user_id / issue_id are NOT structured fields on client-console entries,
+    # so we match on the user_id in the message body when available.
+    if user_id:
+        user_id_esc = _sql_esc(user_id)
+        browser_where = (
+            f"job = 'client-console' AND "
+            f"(message LIKE '%{user_id_esc}%' OR message LIKE '%{issue_id_esc}%')"
+        )
+    else:
+        browser_where = (
+            f"job = 'client-console' AND message LIKE '%{issue_id_esc}%'"
+        )
     queries.append((
         f"SELECT _timestamp, message, level "
         f'FROM "default" '
-        f"WHERE job = 'client-issue-report' AND message LIKE '%{issue_id_esc}%' "
+        f"WHERE {browser_where} "
         f"ORDER BY _timestamp ASC",
         "browser",
     ))
 
-    # 2+3. Backend + API logs mentioning issue_id or user_id.
-    # Note: 'log' is not a valid field — only 'message' exists for log content.
+    # 2+3. Backend logs mentioning issue_id or user_id in message body.
     search_terms: List[str] = [_sql_esc(issue_id)]
     if user_id:
         search_terms.append(_sql_esc(user_id))
 
-    # LIKE patterns for the combined log search
     like_clauses = " OR ".join(
         f"message LIKE '%{t}%'" for t in search_terms
     )
 
+    # 2. Raw container stdout logs (no job label, but container/service populated).
     queries.append((
         f"SELECT _timestamp, container, service, message, level "
         f'FROM "default" '
-        f"WHERE job = 'container-logs' AND ({like_clauses}) "
+        f"WHERE (job = '' OR job IS NULL) AND ({like_clauses}) "
         f"ORDER BY _timestamp ASC",
         None,
     ))
+
+    # 3. Structured API logs (job=api-logs; container/service often empty).
     queries.append((
-        f"SELECT _timestamp, container, service, message, level "
+        f"SELECT _timestamp, message, level "
         f'FROM "default" '
         f"WHERE job = 'api-logs' AND ({like_clauses}) "
         f"ORDER BY _timestamp ASC",
-        None,
+        "api",
     ))
 
     # Execute all queries in parallel

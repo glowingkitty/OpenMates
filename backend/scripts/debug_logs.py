@@ -388,11 +388,11 @@ async def query_openobserve(
             "%Y-%m-%d %H:%M:%S"
         )
 
-        message = hit.get("log", hit.get("message", "")).strip()
+        message = (hit.get("message") or "").strip()
         level = hit.get("level", extract_level_from_message(message))
 
         # Determine source from stream metadata
-        stream_source = hit.get("container", hit.get("service", "unknown"))
+        stream_source = hit.get("container") or hit.get("service") or "unknown"
         job = hit.get("job", "")
         if job == "client-console":
             stream_source = "browser"
@@ -2349,8 +2349,8 @@ async def run_debug_session_mode(args: argparse.Namespace) -> None:
                     data = await resp.json()
                     for hit in data.get("hits", []):
                         ts_us = hit.get("_timestamp", 0)
-                        svc = hit.get("container", hit.get("service", "?"))
-                        msg = hit.get("message", hit.get("log", ""))[:200]
+                        svc = hit.get("container") or hit.get("service") or "api"
+                        msg = (hit.get("message") or "")[:200]
                         all_entries.append({
                             "ts": int(ts_us),
                             "source": f"backend/{svc}",
