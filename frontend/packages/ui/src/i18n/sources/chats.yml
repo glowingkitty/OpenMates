@@ -2385,3 +2385,8 @@ fork.messages_label:
   sv: Meddelanden att förgrena
   he: הודעות לפיצול
   verified_by_human: []
+
+search_placeholder:
+  en: Search
+  de: Suchen
+  verified_by_human: []
