@@ -572,32 +572,230 @@ When a user explicitly requests access to environment files (`.env`, `.env.*`, `
 
 This approach aligns with the **zero-knowledge principle**: the LLM can assist with environment configuration without ever seeing actual secrets.
 
-### Planned: Secret Broker for CLI + Web UI (No LLM Secret Access)
+### Planned: Reversible Secret Tokenization (CLI + Web UI)
 
-To make this model stricter and consistent across both the CLI and web UI, OpenMates should introduce a dedicated **Secret Broker** layer with these rules:
+To make the zero-knowledge model reliable and consistent across both the CLI and web UI, OpenMates uses **reversible secret tokenization** — the same architectural pattern used for PII redaction in chat messages. Secrets are replaced with structured tokens before LLM processing and restored to real values afterward for the user and code execution.
 
-1. **No direct secret store access from AI tools:**
-   - The LLM can never directly read or write `.env`, `.env.*`, cloud secret managers, keychains, or similar secret stores.
-   - File reads/writes to known secret paths are blocked at the tooling layer, not just by prompt instructions.
+#### Core Flow: Redact → Process → Restore
 
-2. **Only shortened/derived secret views for AI context:**
-   - The LLM may only receive safe metadata such as secret name, source, last-4 fingerprint, and optional validity status.
-   - Example: `OPENAI_API_KEY: ***39d9 (set, valid)`
+```
+Real value:     OPENAI_API_KEY=sk-proj-abc123def456ghi789
+                         ↓ REDACT (before LLM sees it)
+Tokenized:      OPENAI_API_KEY=<SECRET:env:OPENAI_API_KEY:sk-...789>
+                         ↓ LLM processes (sees token, not value)
+LLM output:     "Set <SECRET:env:OPENAI_API_KEY:sk-...789> in production"
+                         ↓ RESTORE (before user/code sees it)
+Restored:       "Set sk-proj-abc123def456ghi789 in production"
+```
 
-3. **Secret generation via privileged function calls:**
-   - The LLM can request actions like `generate_secret("JWT_SIGNING_KEY")`.
-   - Generation runs in trusted runtime code (outside the LLM context), stores the secret in the configured secret backend, and never returns the raw value to the model.
-   - Raw value is shown only to the authenticated user in a protected UI/CLI surface, with copy-once behavior where possible.
+The LLM can reason about the secret (knows its name, source, type from the prefix, and can distinguish between multiple secrets via the suffix) but **cannot reconstruct the full value**.
 
-4. **Automatable secret management without secret exposure:**
-   - Support safe operations such as `list`, `create`, `rotate`, `revoke`, `sync`, and `validate` through broker APIs.
-   - These operations are available in both web UI and CLI so teams can automate secret lifecycle management while keeping LLM access zero-knowledge.
+#### Token Format
 
-5. **Auditability and policy enforcement:**
-   - Every broker action is logged (who, when, which secret, action type).
-   - Policy controls (RBAC, approval gates for production rotation, environment scoping) are enforced before mutation.
+```
+<SECRET:source:name:hint>
+```
 
-This preserves assistant usefulness for setup and automation while ensuring actual secret values never enter model input/output paths.
+- **source**: where the secret came from (`env`, `aws`, `ssh`, `settings`, etc.)
+- **name**: the variable/key name (`OPENAI_API_KEY`, `DATABASE_URL`, etc.)
+- **hint**: prefix + `...` + suffix — enough to identify which key it is, not enough to reconstruct it
+
+Examples:
+
+```
+<SECRET:env:OPENAI_API_KEY:sk-...789>
+<SECRET:env:DATABASE_URL:pos...ydb>
+<SECRET:aws:AWS_SECRET_ACCESS_KEY:wJa...x2Q>
+<SECRET:settings:STRIPE_API_KEY:sk_...abc>
+```
+
+The `<SECRET:...>` wrapper is distinctive enough to never appear in real data, making restoration unambiguous.
+
+#### Secret Registry
+
+At session start (and on file changes via watchdog), the system builds an in-memory registry:
+
+```python
+# Secret Registry (in-memory, session-scoped)
+{
+    "sk-proj-abc123def456ghi789": {
+        "token": "<SECRET:env:OPENAI_API_KEY:sk-...789>",
+        "source": ".env",
+        "name": "OPENAI_API_KEY",
+        "prefix": "sk-",
+        "suffix": "789",
+        "length": 35,
+    },
+    "postgres://admin:s3cretP@ss@db:5432/mydb": {
+        "token": "<SECRET:env:DATABASE_URL:pos...ydb>",
+        "source": ".env",
+        "name": "DATABASE_URL",
+        "prefix": "pos",
+        "suffix": "ydb",
+        "length": 42,
+    },
+}
+```
+
+**Secret sources scanned:**
+
+| Source                                                                                         | Scope                | When                        |
+| ---------------------------------------------------------------------------------------------- | -------------------- | --------------------------- |
+| `.env`, `.env.*`, `.envrc` in CWD + parent dirs                                                | Always               | Session start               |
+| `~/.aws/credentials`                                                                           | `--full-access` mode | Session start               |
+| `~/.ssh/id_rsa`, `id_ed25519`, etc.                                                            | `--full-access` mode | Session start               |
+| `~/.config/gcloud/application_default_credentials.json`                                        | `--full-access` mode | Session start               |
+| Process environment variables matching patterns (`*_KEY`, `*_SECRET`, `*_TOKEN`, `*_PASSWORD`) | Always               | Session start               |
+| Settings & Memories secrets (synced from web UI)                                               | Always               | Session start + sync events |
+| User-configured additional paths                                                               | If configured        | Session start               |
+
+For each secret value, the scanner also pre-computes **encoded variants** (base64, URL-encoded, JSON-escaped, shell-escaped) so the same secret is caught regardless of how it appears in output.
+
+#### Aho-Corasick Multi-Pattern Matching
+
+All secret values and their encoded variants are compiled into an **Aho-Corasick automaton** — a data structure that finds all pattern matches in a single pass through the text, regardless of how many patterns exist.
+
+**Performance characteristics:**
+
+| Operation                         | Complexity              | Typical Time               |
+| --------------------------------- | ----------------------- | -------------------------- |
+| Automaton build                   | O(total_pattern_length) | ~50-200ms at session start |
+| Output scan                       | O(output_length)        | Microseconds per KB        |
+| Automaton rebuild (secret change) | O(total_pattern_length) | ~50-200ms                  |
+
+This is fast enough to scan every tool output inline without noticeable latency.
+
+**Streaming support:** For long-running commands, the scanner processes output in chunks with a lookback buffer of `max_secret_length` bytes to catch secrets that span chunk boundaries.
+
+**Cross-platform implementations:**
+
+- Python: `ahocorasick` library (C extension)
+- Node.js: `aho-corasick` npm package
+
+#### Where Redaction and Restoration Apply
+
+| Context                            | Redact?    | Restore? | Reason                                      |
+| ---------------------------------- | ---------- | -------- | ------------------------------------------- |
+| Tool results → LLM                 | **Yes**    | —        | Core protection: LLM never sees real values |
+| User message input (web UI + CLI)  | **Yes**    | —        | Auto-detect secrets user pastes into chat   |
+| LLM response → user display        | —          | **Yes**  | User sees real values in their terminal/UI  |
+| LLM-generated commands → execution | —          | **Yes**  | Commands need real secret values to work    |
+| LLM-generated file writes → disk   | —          | **Yes**  | Written files need real secrets             |
+| Chat history storage               | **Tokens** | —        | Stored chats keep redacted form             |
+| Audit logs                         | **Tokens** | —        | Never log real secrets                      |
+
+#### Heuristic Secret Detection (Catch Unknowns)
+
+Beyond the known-secret registry, the scanner also applies regex patterns for common secret formats to catch secrets that aren't in any scanned file:
+
+- OpenAI keys: `sk-proj-...`, `sk-...`
+- GitHub tokens: `ghp_...`, `gho_...`, `ghu_...`
+- AWS keys: `AKIA...`
+- JWT tokens: `eyJ...` (3-segment base64)
+- Private key blocks: `-----BEGIN RSA PRIVATE KEY-----`
+- Generic high-entropy strings in assignment context
+
+These are lower-confidence matches, so they use a distinct marker: `<POSSIBLE_SECRET:...>` to signal uncertainty.
+
+#### Environment Variable Stripping
+
+Before spawning any child process for LLM-triggered commands, sensitive environment variables are stripped from the child's env:
+
+```python
+safe_env = {k: v for k, v in os.environ.items()
+            if not is_secret_env_var(k)}
+subprocess.run(cmd, env=safe_env, ...)
+```
+
+This prevents `env`, `printenv`, or `echo $OPENAI_API_KEY` from leaking secrets even before output scrubbing runs.
+
+#### Secret Generation Tool
+
+The LLM can request secret generation via a privileged tool call. Generation runs in trusted runtime code — the raw value never enters the LLM context.
+
+```python
+generate_secret(
+    name="JWT_SIGNING_KEY",
+    type="random",           # random | uuid | pin | password | hex | base64
+    length=64,               # character length
+    complexity={             # for type="password"
+        "uppercase": True,
+        "lowercase": True,
+        "digits": True,
+        "symbols": True,
+        "exclude_ambiguous": True,  # no 0/O, 1/l/I
+    },
+)
+# Returns to LLM: "<SECRET:env:JWT_SIGNING_KEY:a7f...3d> (set, 64 chars)"
+# User sees in terminal: "JWT_SIGNING_KEY=a7f2...9c3d (saved to .env)"
+```
+
+**Supported types:**
+
+| Type       | Example                                | Use Case                                   |
+| ---------- | -------------------------------------- | ------------------------------------------ |
+| `pin`      | `8472`                                 | Simple numeric codes                       |
+| `uuid`     | `550e8400-e29b-41d4-a716-446655440000` | Unique identifiers                         |
+| `hex`      | `a7f29c3d...`                          | Token strings                              |
+| `base64`   | `p7Yk2mN...`                           | Encoded secrets                            |
+| `password` | `K#8mP!2x...`                          | Human-type passwords with complexity rules |
+| `random`   | (raw bytes)                            | General purpose                            |
+
+**User-provided secrets:** When a user provides a secret (e.g., a third-party API key), the CLI prompts them directly on stdin (outside the LLM context). The value goes straight to the secret store and the LLM receives only the token.
+
+#### Secrets as Settings & Memories (Cross-Device)
+
+Secrets are a **first-class data type** in the Settings & Memories system, accessible from both web UI and CLI:
+
+```
+Settings & Memories:
+├── Code App
+│   ├── Settings
+│   │   ├── Secrets
+│   │   │   ├── OPENAI_API_KEY: <encrypted>
+│   │   │   ├── STRIPE_KEY: <encrypted>
+│   │   │   └── JWT_SECRET: <encrypted>
+│   │   └── ... other settings
+│   └── Memories
+└── ... other apps
+```
+
+**Cross-device sync:** Secrets stored in Settings & Memories are encrypted and synced through the existing infrastructure — available on all devices where the user is logged in.
+
+**Auto-detection in user input:** The same Aho-Corasick scanner that processes tool outputs also runs on user message input (both web UI and CLI). If a user pastes a known secret value into a chat message, it's automatically tokenized before the LLM sees it — but the user still sees the original value in their own message bubble.
+
+**Secret lifecycle operations** available through both web UI and CLI:
+
+| Operation  | Description                                           |
+| ---------- | ----------------------------------------------------- |
+| `list`     | Show all secrets (names + hints, never full values)   |
+| `create`   | Store a new secret (user-provided or generated)       |
+| `rotate`   | Generate new value for existing secret                |
+| `revoke`   | Delete a secret from the store                        |
+| `sync`     | Force sync with Settings & Memories backend           |
+| `validate` | Check if a secret is still valid (API key test, etc.) |
+
+#### Edge Cases
+
+| Edge Case                                                   | Handling                                                                                                                                                             |
+| ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Secret value < 8 characters                                 | Still tokenized, but with longer hint (may show full prefix/suffix). Excluded from heuristic detection to avoid false positives on short values like `true`, `3306`. |
+| Secret appears in a filename                                | Tokenized — filenames in `find`/`ls` output go through the same scanner                                                                                              |
+| Binary command output                                       | Skip scanning (detect via null bytes). Binary output doesn't go to LLM.                                                                                              |
+| Secret changes mid-session                                  | File watcher (fsevents/inotify/ReadDirectoryChangesW) triggers registry + automaton rebuild                                                                          |
+| LLM hallucinates a token format                             | Restore layer won't find it in registry, leaves it as-is                                                                                                             |
+| Multiple secrets with same suffix                           | Extend hint length or add numeric disambiguator: `<SECRET:env:KEY_1:sk-...789:1>`                                                                                    |
+| Compound values (e.g., DATABASE_URL with embedded password) | Tokenize the entire value as one token — the LLM gets the variable name and hint, which is sufficient context                                                        |
+| Encoded secrets (base64, URL-encoded)                       | Pre-computed variants in the registry ensure all encodings are caught by the same Aho-Corasick scan                                                                  |
+
+#### Auditability
+
+Every secret operation is logged:
+
+- **Who**: authenticated user or session ID
+- **When**: timestamp
+- **What**: which secret (by name, never by value)
+- **Action**: list, create, rotate, revoke, read-attempt, auto-detected-in-input
 
 **When User Explicitly Provides Sensitive File Path:**
 The system implements **differentiated handling** based on file type:
