@@ -240,6 +240,68 @@ async function handleChats(
     return;
   }
 
+  if (subcommand === "delete") {
+    // Collect IDs from positional args
+    const chatIds = rest.filter((arg) => arg.length > 0);
+    if (chatIds.length === 0) {
+      throw new Error(
+        "Missing chat IDs. Usage: openmates chats delete <id1> [id2] [id3] ...",
+      );
+    }
+
+    // Resolve short IDs so we can show titles for confirmation
+    const resolved: Array<{ input: string; title: string | null }> = [];
+    for (const id of chatIds) {
+      try {
+        const { chat } = await client.getChatMessages(id);
+        resolved.push({ input: id, title: chat.title ?? null });
+      } catch {
+        resolved.push({ input: id, title: null });
+      }
+    }
+
+    if (flags.yes !== true) {
+      // Show what will be deleted and ask for confirmation
+      process.stdout.write("\nChats to delete:\n");
+      for (const r of resolved) {
+        const label = r.title ? `"${r.title}"` : "(unable to resolve title)";
+        process.stdout.write(`  \x1b[31m\u2717\x1b[0m ${r.input}  ${label}\n`);
+      }
+      process.stdout.write("\n");
+
+      const rl = await import("node:readline");
+      const iface = rl.createInterface({ input: process.stdin, output: process.stdout });
+      const answer = await new Promise<string>((resolve) => {
+        iface.question(
+          `Delete ${resolved.length} chat(s)? This cannot be undone. [y/N] `,
+          resolve,
+        );
+      });
+      iface.close();
+
+      if (answer.trim().toLowerCase() !== "y") {
+        console.log("Aborted.");
+        return;
+      }
+    }
+
+    // Delete each chat
+    let deleted = 0;
+    for (const r of resolved) {
+      try {
+        await client.deleteChat(r.input);
+        const label = r.title ? `"${r.title}"` : r.input;
+        process.stdout.write(`  \x1b[32m\u2713\x1b[0m Deleted ${label}\n`);
+        deleted++;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        process.stdout.write(`  \x1b[31m\u2717\x1b[0m Failed to delete ${r.input}: ${msg}\n`);
+      }
+    }
+    console.log(`\n${deleted}/${resolved.length} chat(s) deleted.`);
+    return;
+  }
+
   console.error(`Unknown chats subcommand '${subcommand}'.\n`);
   printChatsHelp();
   process.exit(1);
@@ -1048,10 +1110,14 @@ async function sendMessageStreaming(
 
       // Parse the FULL content each time (embed blocks may span multiple
       // chunks), then output only the new segments we haven't printed yet.
+      // Each segment carries rawLength — the number of characters it
+      // consumed in the original string (including ```json\n...\n```
+      // delimiters for embed blocks). We track offset in raw-string
+      // coordinates so that processedRawLength subtraction works correctly.
       const segments = parseMessageSegments(raw);
       let offset = 0;
       for (const seg of segments) {
-        const segEnd = offset + (seg.type === "embed" ? 0 : seg.value.length);
+        const segEnd = offset + seg.rawLength;
         if (seg.type === "embed") {
           if (!renderedEmbedIds.has(seg.value)) {
             renderedEmbedIds.add(seg.value);
@@ -1193,10 +1259,13 @@ const SEP = `\x1b[2m${"─".repeat(60)}\x1b[0m`;
  * Returns the content split into segments: either plain text segments or embed
  * UUID strings prefixed with "EMBED:" so the renderer can fetch them in-place.
  */
-/** Parsed segment from AI message content. */
+/** Parsed segment from AI message content.
+ * rawLength = number of characters this segment consumed in the original string.
+ * For text segments, rawLength === value.length.
+ * For embed segments, rawLength includes the full \`\`\`json\n...\n\`\`\` delimiters. */
 type MessageSegment =
-  | { type: "text"; value: string }
-  | { type: "embed"; value: string; meta?: Record<string, unknown> };
+  | { type: "text"; value: string; rawLength: number }
+  | { type: "embed"; value: string; meta?: Record<string, unknown>; rawLength: number };
 
 function parseMessageSegments(content: string): MessageSegment[] {
   const segments: MessageSegment[] = [];
@@ -1208,18 +1277,21 @@ function parseMessageSegments(content: string): MessageSegment[] {
   while ((m = pattern.exec(content)) !== null) {
     // Text before this block
     if (m.index > last) {
-      segments.push({ type: "text", value: content.slice(last, m.index) });
+      const text = content.slice(last, m.index);
+      segments.push({ type: "text", value: text, rawLength: text.length });
     }
 
     // Try to extract an embed_id from the JSON block.
     // Keep the full parsed JSON as `meta` so we can render a preview
     // even when the embed isn't in the local sync cache (failed/processing).
+    // rawLength = length of the entire ```json\n...\n``` block in the original string.
+    const blockRawLength = m[0].length;
     try {
       const parsed = JSON.parse(m[1].trim()) as Record<string, unknown>;
       const embedId =
         typeof parsed.embed_id === "string" ? parsed.embed_id : null;
       if (embedId) {
-        segments.push({ type: "embed", value: embedId, meta: parsed });
+        segments.push({ type: "embed", value: embedId, meta: parsed, rawLength: blockRawLength });
       }
     } catch {
       // Malformed JSON — discard
@@ -1230,7 +1302,8 @@ function parseMessageSegments(content: string): MessageSegment[] {
 
   // Remaining text after last block
   if (last < content.length) {
-    segments.push({ type: "text", value: content.slice(last) });
+    const text = content.slice(last);
+    segments.push({ type: "text", value: text, rawLength: text.length });
   }
 
   return segments;
@@ -2131,6 +2204,7 @@ function printChatsHelp(): void {
   openmates chats search <query> [--json]
   openmates chats new <message> [--json]
   openmates chats send [--chat <id>] [--incognito] <message> [--json]
+  openmates chats delete <id1> [id2] [id3] ... [--yes]
   openmates chats incognito <message> [--json]
   openmates chats incognito-history [--json]
   openmates chats incognito-clear
@@ -2138,6 +2212,9 @@ function printChatsHelp(): void {
 Options for 'list':
   --limit <n>   Number of chats per page (default: 10)
   --page <n>    Page number (default: 1)
+
+Options for 'delete':
+  --yes         Skip confirmation prompt
 
 'show' accepts: full UUID, 8-char short ID, exact/partial title, or "last".
 
@@ -2148,7 +2225,8 @@ Examples:
   openmates chats show "Flight Connections Berlin to Bangkok"
   openmates chats search "Madrid"
   openmates chats new "Hello, what can you help me with?"
-  openmates chats send --chat d262cb68 "follow-up question"`);
+  openmates chats send --chat d262cb68 "follow-up question"
+  openmates chats delete d262cb68 a1b2c3d4`);
 }
 
 function printAppsHelp(): void {

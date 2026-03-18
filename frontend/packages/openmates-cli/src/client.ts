@@ -1256,6 +1256,49 @@ export class OpenMatesClient {
     clearIncognitoHistory();
   }
 
+  /**
+   * Delete a chat by ID.
+   *
+   * Mirrors the web app's sendDeleteChatImpl in chatSyncServiceSenders.ts.
+   * Sends a delete_chat WebSocket message and waits for the server ack.
+   */
+  async deleteChat(chatIdInput: string): Promise<void> {
+    const session = this.requireSession();
+
+    // Resolve short IDs (8-char prefix) to full UUIDs via sync cache.
+    let chatId: string;
+    if (chatIdInput.length < 36) {
+      const resolved = await this.resolveFullChatId(chatIdInput);
+      if (!resolved) {
+        throw new Error(
+          `Chat not found for '${chatIdInput}'. Use a full UUID or the first 8 characters of an existing chat ID.`,
+        );
+      }
+      chatId = resolved;
+    } else {
+      chatId = chatIdInput;
+    }
+
+    const ws = this.makeWsClient(session);
+    await ws.open();
+
+    try {
+      ws.send("delete_chat", { chatId: chatId });
+      // Wait for the server to acknowledge the deletion.
+      // The server broadcasts a chat_deleted event to all connected devices.
+      await ws.waitForMessage(
+        "chat_deleted",
+        (payload) => {
+          const p = payload as Record<string, unknown>;
+          return p.chat_id === chatId || p.chatId === chatId;
+        },
+        15_000,
+      );
+    } finally {
+      ws.close();
+    }
+  }
+
   // -------------------------------------------------------------------------
   // Apps
   // -------------------------------------------------------------------------
