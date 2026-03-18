@@ -620,7 +620,7 @@ async def get_error_overview_compact(top: int = 5, since_minutes: int = 30) -> s
         await cache.close()
 
         if results:
-            lines.append("    Top recurring (7d):")
+            lines.append("  [dev]  Top recurring (7d):")
             for i, (member, score) in enumerate(results, 1):
                 parts = member.split("|", 4)
                 exc_type = (parts[1] if len(parts) > 1 else "?")[:30]
@@ -628,7 +628,7 @@ async def get_error_overview_compact(top: int = 5, since_minutes: int = 30) -> s
                 func = (parts[3] if len(parts) > 3 else "?")[:25]
                 line_num = parts[4] if len(parts) > 4 else "?"
                 count = int(score)
-                lines.append(f"      {i}. [{count}x] {exc_type} in {file_part}:{func}:{line_num}")
+                lines.append(f"           {i}. [{count}x] {exc_type} in {file_part}:{func}:{line_num}")
     except Exception:
         pass  # Fingerprints unavailable — not critical
 
@@ -638,7 +638,7 @@ async def get_error_overview_compact(top: int = 5, since_minutes: int = 30) -> s
         lines.append("  [prod] Top recurring (7d):")
         for i, entry in enumerate(prod_fingerprints, 1):
             lines.append(
-                f"      {i}. [{entry['count']}x] {entry['exc_type']} "
+                f"           {i}. [{entry['count']}x] {entry['exc_type']} "
                 f"in {entry['file_part']}:{entry['func']}:{entry['line_num']}"
             )
     else:
