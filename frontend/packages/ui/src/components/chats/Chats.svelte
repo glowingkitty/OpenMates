@@ -319,7 +319,18 @@ let _chatUpdatedFlushPending = false;
 		void visiblePublicChats;
 
 		// 1. Process real chats from IndexedDB (exclude public chats - they come from visiblePublicChats)
-		const processedRealChats = allChatsFromDB
+		// DEDUP GUARD: allChatsFromDB itself can contain duplicates due to a race between
+		// chatListCache.upsertChat() and setCache() (microtask flush vs DB read completion).
+		// Deduplicate by chat_id before processing — first occurrence wins.
+		const dbSeenIds = new Set<string>();
+		const dedupedFromDB: ChatType[] = [];
+		for (const chat of allChatsFromDB) {
+			if (!dbSeenIds.has(chat.chat_id)) {
+				dbSeenIds.add(chat.chat_id);
+				dedupedFromDB.push(chat);
+			}
+		}
+		const processedRealChats = dedupedFromDB
 			.filter(chat => !isLegalChat(chat.chat_id) && !isPublicChat(chat.chat_id));
 
 		// 2. Identify which visiblePublicChats should be excluded (already in IndexedDB for some reason)

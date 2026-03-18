@@ -2291,9 +2291,23 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const filteredChats = chats.filter((c) => !isPublicChat(c.chat_id));
             const sorted = sortChats(filteredChats, []);
 
-            // Exclude the primary resume chat (it's rendered separately)
+            // Build exclusion set: the primary resume card chat must never appear
+            // in the scrollable list. Use BOTH last_opened AND resumeChatData to
+            // guard against timing races where one is set before the other.
+            const excludeIds = new Set<string>();
             const lastOpenedId = $userProfile.last_opened;
-            const remaining = sorted.filter((c) => c.chat_id !== lastOpenedId);
+            if (lastOpenedId) excludeIds.add(lastOpenedId);
+            if (resumeChatData?.chat_id) excludeIds.add(resumeChatData.chat_id);
+
+            // Filter out excluded chats AND deduplicate by chat_id in one pass
+            const seenIds = new Set<string>();
+            const remaining: Chat[] = [];
+            for (const chat of sorted) {
+                if (excludeIds.has(chat.chat_id)) continue;
+                if (seenIds.has(chat.chat_id)) continue;
+                seenIds.add(chat.chat_id);
+                remaining.push(chat);
+            }
             const topChats = remaining.slice(0, RECENT_CHATS_LIMIT);
 
             const metas: RecentChatMeta[] = await Promise.all(

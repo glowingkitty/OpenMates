@@ -82,10 +82,27 @@ class ChatListCache {
       !this.cacheDirty &&
       Date.now() - this.cachedChatsTimestamp < this.CACHE_STALE_MS
     ) {
+      // Deduplicate by chat_id before returning. A race between upsertChat()
+      // and setCache() can briefly produce two entries for the same chat_id
+      // in this.cachedChats. First-occurrence wins (preserves sort order).
+      const seen = new Set<string>();
+      const deduped: Chat[] = [];
+      for (const chat of this.cachedChats) {
+        if (!seen.has(chat.chat_id)) {
+          seen.add(chat.chat_id);
+          deduped.push(chat);
+        }
+      }
+      if (deduped.length < this.cachedChats.length) {
+        console.warn(
+          `[ChatListCache] Removed ${this.cachedChats.length - deduped.length} duplicate(s) from cache on read`,
+        );
+        this.cachedChats = deduped;
+      }
       console.debug(
-        `[ChatListCache] Cache hit: ${this.cachedChats.length} chats (age: ${Date.now() - this.cachedChatsTimestamp}ms)`,
+        `[ChatListCache] Cache hit: ${deduped.length} chats (age: ${Date.now() - this.cachedChatsTimestamp}ms)`,
       );
-      return [...this.cachedChats];
+      return [...deduped];
     }
     console.debug(
       `[ChatListCache] Cache miss: force=${force}, dirty=${this.cacheDirty}, age=${Date.now() - this.cachedChatsTimestamp}ms`,
