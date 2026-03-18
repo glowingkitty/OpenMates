@@ -1089,6 +1089,29 @@ export async function checkAuth(
           isInitialized: true,
         }));
 
+        // Restore daily inspirations from IndexedDB when recovering via offline-first mode.
+        //
+        // Context: this code path is reached when the session check times out or the server
+        // is momentarily unreachable (e.g. after a transient WS disconnect triggers checkAuth).
+        // The inspiration store may have been wiped (dailyInspirationStore.reset()) if a
+        // logout was partially triggered, or the Chats component may have remounted with an
+        // empty store. Either way, the master key is confirmed present above (hasLocalData),
+        // so IndexedDB decryption will succeed immediately — giving near-instant restoration
+        // without waiting for Phase 1 to complete.
+        //
+        // loadDefaultInspirations is idempotent: if the store is already populated (because
+        // the disruption was brief and the store survived intact) it exits immediately.
+        void import("../demo_chats/loadDefaultInspirations")
+          .then(({ loadDefaultInspirations }) =>
+            loadDefaultInspirations({ allowIndexedDB: true }),
+          )
+          .catch((error) => {
+            console.error(
+              "[AuthSessionActions] Failed to restore inspirations after offline-first re-auth:",
+              error,
+            );
+          });
+
         // Start clientLogForwarder for admin users in offline-first mode.
         // The normal (online) path starts the forwarder in checkAuth()'s happy path.
         // But if the server is unreachable, we restore auth from local IndexedDB here

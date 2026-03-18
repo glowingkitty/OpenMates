@@ -128,7 +128,14 @@ class WebSocketService extends EventTarget {
   private readonly PONG_TIMEOUT = 5000; // 5 seconds to wait for pong
   private lastActivityTimestamp = 0; // Track last incoming data activity (any message received)
   private consecutiveAbnormalClosures = 0; // Track consecutive 1006 (abnormal closure) failures for auth detection
-  private readonly AUTH_FAILURE_THRESHOLD = 2; // After 2 consecutive 1006 failures, treat as auth error
+  private readonly AUTH_FAILURE_THRESHOLD = 4; // After 4 consecutive 1006 failures, treat as auth error
+  // Rationale: 2 was too aggressive — transient network events (WiFi handoff, brief server
+  // restart, mobile network change) can produce 2 rapid 1006 closures without the session
+  // actually being invalid. Raising to 4 gives the reconnect loop enough room to recover
+  // from short-lived network disruptions without triggering a spurious logout flow that
+  // blanks the daily inspiration store and forces a full Phase 1 re-sync.
+  // A genuine 403 auth rejection will still be caught by the isAuthRelated reason check
+  // on the first occurrence, so legitimate expired sessions still log out immediately.
 
   // Add a set of message types that are allowed to have no handler (e.g., ack/info types)
   // These are acknowledgment messages from the server that confirm operations completed successfully.
