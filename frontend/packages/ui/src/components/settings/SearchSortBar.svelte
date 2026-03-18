@@ -1,46 +1,24 @@
 <!-- frontend/packages/ui/src/components/settings/SearchSortBar.svelte
-     
-     Shared search-and-sort bar used across settings list views.
-     
-     Provides:
-     - A search text input with a search icon
-     - A sort dropdown with configurable options
-     
-     Usage:
-       <SearchSortBar
-           bind:searchQuery
-           bind:sortBy
-           searchPlaceholder="Search apps..."
-           sortOptions={[
-               { value: 'name_asc', label: 'Name (A–Z)' },
-               { value: 'newest', label: 'Newest' },
-           ]}
-       />
-     
-     The parent component owns the filter/sort logic — this component only manages
-     the input values and emits changes via bind:. All sort options are passed in
-     as an array so the component is decoupled from any specific domain.
+
+     Shared search & sort bar for settings list views.
+     Matches Figma "Search & sort" element (node 5040-64488).
+
+     Design:
+     - Search input: white pill (24px radius, shadow), search icon left, placeholder grey
+     - Sort button: white pill (24px radius, shadow), sort.svg icon only.
+       On click opens a NATIVE OS <select> dropdown (not a custom dropdown).
+
+     The <select> is visually hidden behind the sort icon button so clicking the
+     icon triggers the native OS dropdown.
+
+     Preview: /dev/preview/settings
 -->
 
 <script lang="ts">
-    import { text } from '@repo/ui';
-    import Icon from '../Icon.svelte';
-
-    // --- Props ---
+    /** Sort option definition */
     interface SortOption {
         value: string;
         label: string;
-    }
-
-    interface Props {
-        /** Current search query — use bind:searchQuery in parent */
-        searchQuery?: string;
-        /** Currently selected sort value — use bind:sortBy in parent */
-        sortBy?: string;
-        /** Placeholder text for the search input */
-        searchPlaceholder?: string;
-        /** Available sort options rendered in the dropdown */
-        sortOptions?: SortOption[];
     }
 
     let {
@@ -48,40 +26,22 @@
         sortBy = $bindable(''),
         searchPlaceholder = '',
         sortOptions = [],
-    }: Props = $props();
-
-    // --- Local dropdown state ---
-    let showSortDropdown = $state(false);
-
-    // --- Derived label for the current sort selection ---
-    // Falls back to the first option's label if nothing matches (edge case: sortBy not in options yet)
-    let currentSortLabel = $derived(
-        sortOptions.find(opt => opt.value === sortBy)?.label ??
-        sortOptions[0]?.label ??
-        ''
-    );
-
-    // --- Handlers ---
-    function toggleSortDropdown() {
-        showSortDropdown = !showSortDropdown;
-    }
-
-    function closeSortDropdown() {
-        showSortDropdown = false;
-    }
-
-    function handleSortChange(value: string) {
-        sortBy = value;
-        showSortDropdown = false;
-    }
+    }: {
+        /** Current search query — use bind:searchQuery in parent */
+        searchQuery?: string;
+        /** Currently selected sort value — use bind:sortBy in parent */
+        sortBy?: string;
+        /** Placeholder text for the search input */
+        searchPlaceholder?: string;
+        /** Available sort options rendered in the native <select> dropdown */
+        sortOptions?: SortOption[];
+    } = $props();
 </script>
 
 <div class="search-sort-bar">
-    <!-- Search input -->
+    <!-- Search input with search icon -->
     <div class="search-container">
-        <span class="search-icon-wrapper">
-            <Icon name="search" type="subsetting" size="18px" noAnimation={true} noMargin={true} />
-        </span>
+        <div class="search-icon" aria-hidden="true"></div>
         <input
             type="text"
             class="search-input"
@@ -91,41 +51,19 @@
         />
     </div>
 
-    <!-- Sort dropdown (only render when options are provided) -->
+    <!-- Sort: visible icon button over a hidden native <select> -->
     {#if sortOptions.length > 0}
         <div class="sort-container">
-            <button
-                class="sort-button"
-                onclick={toggleSortDropdown}
-                aria-expanded={showSortDropdown}
-                aria-haspopup="menu"
+            <div class="sort-icon" aria-hidden="true"></div>
+            <select
+                class="sort-select"
+                bind:value={sortBy}
+                aria-label="Sort"
             >
-                <span class="sort-icon-wrapper">
-                    <Icon name="sort" type="subsetting" size="16px" noAnimation={true} noMargin={true} />
-                </span>
-                <span class="sort-label">{currentSortLabel}</span>
-            </button>
-
-            {#if showSortDropdown}
-                <div class="sort-dropdown" role="menu">
-                    {#each sortOptions as option (option.value)}
-                        <button
-                            class="sort-option"
-                            class:active={sortBy === option.value}
-                            onclick={() => handleSortChange(option.value)}
-                            role="menuitem"
-                        >
-                            {option.label}
-                        </button>
-                    {/each}
-                </div>
-                <!-- Invisible backdrop to close dropdown when clicking outside -->
-                <button
-                    class="sort-backdrop"
-                    onclick={closeSortDropdown}
-                    aria-label={$text('common.close')}
-                ></button>
-            {/if}
+                {#each sortOptions as option}
+                    <option value={option.value}>{option.label}</option>
+                {/each}
+            </select>
         </div>
     {/if}
 </div>
@@ -133,11 +71,11 @@
 <style>
     .search-sort-bar {
         display: flex;
-        gap: 0.75rem;
+        gap: 0.5rem;
         align-items: center;
     }
 
-    /* ── Search ─────────────────────────────────────────────────── */
+    /* ── Search pill ─────────────────────────────────────────────── */
     .search-container {
         flex: 1;
         position: relative;
@@ -145,115 +83,94 @@
         align-items: center;
     }
 
-    .search-icon-wrapper {
+    .search-icon {
         position: absolute;
-        left: 12px;
-        width: 18px;
-        height: 18px;
+        left: 1.1875rem;
+        width: 1.4375rem;
+        height: 1.4375rem;
         pointer-events: none;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        -webkit-mask-image: url('@openmates/ui/static/icons/search.svg');
+        -webkit-mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-image: url('@openmates/ui/static/icons/search.svg');
+        mask-size: contain;
+        mask-repeat: no-repeat;
+        mask-position: center;
+        background-color: var(--color-grey-50);
     }
 
     .search-input {
         width: 100%;
-        padding: 0.625rem 0.75rem 0.625rem 40px;
-        font-size: 0.875rem;
-        border: 1px solid var(--color-grey-20);
-        border-radius: 8px;
-        background: var(--color-grey-10);
+        padding: 1.0625rem 1.4375rem 1.0625rem 3rem;
+        background: var(--color-grey-0);
+        border: none;
+        border-radius: 1.5rem;
+        box-shadow: 0 0.25rem 0.25rem rgba(0, 0, 0, 0.1);
+        font-family: 'Lexend Deca Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-weight: 500;
+        font-size: var(--input-font-size, 1rem);
+        line-height: 1.25;
         color: var(--color-grey-100);
-        transition: border-color 0.2s, background 0.2s;
-    }
-
-    .search-input:focus {
         outline: none;
-        border-color: var(--color-primary);
-        background: var(--color-background);
+        transition: box-shadow 0.2s ease;
+        box-sizing: border-box;
     }
 
     .search-input::placeholder {
         color: var(--color-grey-50);
     }
 
-    /* ── Sort ───────────────────────────────────────────────────── */
+    .search-input:focus {
+        box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.15),
+                    0 0 0 0.125rem var(--color-primary-start);
+    }
+
+    /* ── Sort pill ───────────────────────────────────────────────── */
     .sort-container {
         position: relative;
         flex-shrink: 0;
-    }
-
-    .sort-button {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.625rem 1rem;
-        font-size: 0.875rem;
-        border: 1px solid var(--color-grey-20);
-        border-radius: 8px;
-        background: var(--color-grey-10);
-        color: var(--color-grey-80);
-        cursor: pointer;
-        transition: border-color 0.2s, background 0.2s;
-        white-space: nowrap;
-    }
-
-    .sort-button:hover {
-        border-color: var(--color-grey-40);
-        background: var(--color-grey-15);
-    }
-
-    .sort-icon-wrapper {
-        width: 16px;
-        height: 16px;
-        flex-shrink: 0;
+        width: 3.5625rem;
+        height: 3.375rem;
         display: flex;
         align-items: center;
         justify-content: center;
-    }
-
-    .sort-dropdown {
-        position: absolute;
-        top: calc(100% + 4px);
-        right: 0;
-        min-width: 160px;
-        background: var(--color-grey-blue);
-        border: 1px solid var(--color-grey-20);
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        z-index: 100;
-        overflow: hidden;
-    }
-
-    .sort-option {
-        display: block;
-        width: 100%;
-        padding: 0.75rem 1rem;
-        font-size: 0.875rem;
-        text-align: left;
-        background: transparent;
-        border: none;
-        color: var(--color-grey-80);
+        background: var(--color-grey-0);
+        border-radius: 1.5rem;
+        box-shadow: 0 0.25rem 0.25rem rgba(0, 0, 0, 0.1);
         cursor: pointer;
-        transition: background 0.15s;
     }
 
-    .sort-option:hover {
-        background: var(--color-grey-15);
+    .sort-icon {
+        width: 1.9375rem;
+        height: 1.9375rem;
+        pointer-events: none;
+        -webkit-mask-image: url('@openmates/ui/static/icons/sort.svg');
+        -webkit-mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-image: url('@openmates/ui/static/icons/sort.svg');
+        mask-size: contain;
+        mask-repeat: no-repeat;
+        mask-position: center;
+        background-color: var(--color-grey-50);
+        transition: background-color 0.2s ease;
     }
 
-    .sort-option.active {
-        color: var(--color-primary);
-        font-weight: 600;
+    .sort-container:hover .sort-icon {
+        background-color: var(--color-grey-70);
     }
 
-    /* Full-screen invisible backdrop that closes dropdown on outside click */
-    .sort-backdrop {
-        position: fixed;
+    /* Native <select> stretched over the entire pill — invisible but clickable */
+    .sort-select {
+        position: absolute;
         inset: 0;
-        z-index: 99;
-        background: transparent;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        cursor: pointer;
         border: none;
-        cursor: default;
+        /* Larger font prevents iOS auto-zoom on focus */
+        font-size: 1rem;
     }
 </style>

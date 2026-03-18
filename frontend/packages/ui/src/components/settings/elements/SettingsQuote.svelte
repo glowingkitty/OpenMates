@@ -67,6 +67,9 @@
         box-shadow: 0 0.25rem 0.25rem rgba(0, 0, 0, 0.1);
         min-width: 12rem;
         transition: box-shadow 0.2s ease, transform 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .settings-quote.clickable {
@@ -106,5 +109,6 @@
         line-height: 1.25;
         color: var(--color-grey-70);
         margin: 0;
+        text-align: center;
     }
 </style>

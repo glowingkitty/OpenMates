@@ -1,16 +1,18 @@
 <!--
-    Settings UI Elements Preview — Storybook-like page showing all 12 canonical
+    Settings UI Elements Preview — Storybook-like page showing all 13 canonical
     settings UI elements from the Figma design system.
 
     Accessible at /dev/preview/settings (dev-only, blocked in production).
     Design reference: Figma "settings_menu_elements" frame (node 4944-31418)
 
     Sections:
-    A. SettingsItem variants (5 types already handled by SettingsItem.svelte)
-    B. New shared form components (7 types from settings/elements/)
+    A. SettingsItem variants (5 types from SettingsItem.svelte)
+    B. Settings form elements (7 types from settings/elements/)
+    C. Search & sort bar (from SearchSortBar.svelte)
 -->
 <script lang="ts">
 	import SettingsItem from '@repo/ui/components/SettingsItem.svelte';
+	import SearchSortBar from '@repo/ui/components/settings/SearchSortBar.svelte';
 	import {
 		SettingsInput,
 		SettingsTextarea,
@@ -28,6 +30,8 @@
 	let consentChecked = $state(false);
 	let toggleChecked = $state(false);
 	let activeTab = $state('tasks');
+	let searchQuery = $state('');
+	let sortBy = $state('newest');
 
 	const dropdownOptions = [
 		{ value: 'option1', label: 'Google Authenticator' },
@@ -36,9 +40,9 @@
 	];
 
 	const demoTabs = [
-		{ id: 'tasks', icon: 'projectmanagement', label: 'Tasks', count: 4 },
-		{ id: 'files', icon: 'files', label: 'Files', count: 3 },
-		{ id: 'usage', icon: 'usage', label: 'Usage' }
+		{ id: 'tasks', icon: 'projectmanagement', count: 4 },
+		{ id: 'files', icon: 'files', count: 3 },
+		{ id: 'usage', icon: 'usage' }
 	];
 
 	const demoTabsMany = [
@@ -46,11 +50,32 @@
 		{ id: 'files', icon: 'files', count: 3 },
 		{ id: 'usage', icon: 'usage' },
 		{ id: 'time', icon: 'time', count: 12 },
-		{ id: 'chat', icon: 'chat' },
-		{ id: 'download', icon: 'download' }
+		{ id: 'chat', icon: 'chat' }
 	];
 
 	let activeTabMany = $state('tasks');
+
+	const sortOptions = [
+		{ value: 'newest', label: 'Newest' },
+		{ value: 'name_asc', label: 'Name (A-Z)' },
+		{ value: 'name_desc', label: 'Name (Z-A)' }
+	];
+
+	/** Tab content mapping for the 3-tab demo */
+	const tabContent: Record<string, string> = {
+		tasks: 'You have 4 open tasks. Complete "Update profile picture" to earn bonus credits.',
+		files: 'You have 3 recently uploaded files: report.pdf, photo.jpg, notes.md.',
+		usage: 'This month you used 12,450 credits across 23 chats and 4 API calls.'
+	};
+
+	/** Tab content for the 5-tab scrollable demo */
+	const tabContentMany: Record<string, string> = {
+		tasks: 'Active tasks: 4 pending review items.',
+		files: 'Recent files: 3 documents uploaded this week.',
+		usage: 'Monthly usage: 12,450 / 50,000 credits.',
+		time: 'Time tracking: 12 hours logged across 3 projects.',
+		chat: 'Chat activity: 23 conversations this month.'
+	};
 
 	// Theme toggle
 	let isDark = $state(false);
@@ -162,16 +187,9 @@
 				</p>
 				<div class="element-demo">
 					<SettingsItem
-						icon="subsetting_icon time"
+						icon="subsetting_icon calendar"
 						title="2FA App"
 						subtitleBottom="Google Authenticator"
-						hasModifyButton={true}
-						onClick={() => {}}
-					/>
-					<SettingsItem
-						icon="subsetting_icon travel"
-						title="London"
-						subtitleBottom="Mar 29 - Apr 6"
 						hasModifyButton={true}
 						onClick={() => {}}
 					/>
@@ -188,7 +206,8 @@
 					Non-clickable section separator. Icon has gradient background, text is plain black/grey.
 				</p>
 				<div class="element-demo">
-					<SettingsItem type="heading" icon="users" title="User" />
+					<SettingsItem type="heading" icon="chat" title="Chat" />
+					<SettingsItem type="heading" icon="privacy" title="Privacy" />
 				</div>
 			</div>
 		</section>
@@ -232,7 +251,7 @@
 					Always used for titles and other short text inputs. Follows after a Settings subheading.
 				</p>
 				<div class="element-demo">
-					<SettingsItem type="heading" icon="users" title="Device" />
+					<SettingsItem type="heading" icon="app" title="Device" />
 					<SettingsInput bind:value={inputValue} placeholder="Enter a device name" />
 					<div class="state-display">value: "{inputValue}"</div>
 				</div>
@@ -287,7 +306,8 @@
 					<span class="element-tag new">SettingsFileUpload</span>
 				</div>
 				<p class="element-purpose">
-					Always used for uploading a file. Shows supported file types in label text.
+					Always used for uploading a file. Shows supported file types in label text. Uses files.svg
+					icon with OpenMates gradient.
 				</p>
 				<div class="element-demo">
 					<SettingsFileUpload
@@ -306,7 +326,7 @@
 				</div>
 				<p class="element-purpose">
 					Always used for quoted text, examples, or prompts. Can be grouped in a horizontal
-					scrollable container. Optionally clickable.
+					scrollable container. Optionally clickable. Text is centered.
 				</p>
 				<div class="element-demo">
 					<div class="quote-scroll-group">
@@ -330,23 +350,55 @@
 					<span class="element-tag new">SettingsTabs</span>
 				</div>
 				<p class="element-purpose">
-					Always used for settings with multiple tabs. 4 or fewer tabs share width equally. More
-					than 4 tabs become horizontally scrollable. Optional counter badges.
+					Icon-only tabs with animated sliding gradient pill. 4 or fewer tabs share width equally.
+					Inactive icons are grey, active icon is white. Hover shows gradient at 50% opacity.
 				</p>
 				<div class="element-demo">
-					<h4 class="variant-label">3 tabs (equal width)</h4>
+					<h4 class="variant-label">3 tabs (equal width, icon-only)</h4>
 					<SettingsTabs tabs={demoTabs} bind:activeTab />
+					<div class="tab-content-panel">
+						{tabContent[activeTab] || ''}
+					</div>
 					<div class="state-display">active: "{activeTab}"</div>
 				</div>
 				<div class="element-demo">
-					<h4 class="variant-label">6 tabs (scrollable, custom gradient)</h4>
+					<h4 class="variant-label">5 tabs (scrollable, custom gradient)</h4>
 					<SettingsTabs
 						tabs={demoTabsMany}
 						bind:activeTab={activeTabMany}
 						gradientStart="#a84647"
 						gradientEnd="#f16e6f"
 					/>
+					<div class="tab-content-panel">
+						{tabContentMany[activeTabMany] || ''}
+					</div>
 					<div class="state-display">active: "{activeTabMany}"</div>
+				</div>
+			</div>
+		</section>
+
+		<!-- ============================================= -->
+		<!-- SECTION C: Search & Sort Bar                  -->
+		<!-- ============================================= -->
+		<section class="element-section">
+			<h2 class="section-title">C. Search & Sort Bar</h2>
+			<p class="section-description">
+				Search input + sort icon using native OS <code>&lt;select&gt;</code> dropdown. Figma node
+				<code>5040-64488</code>.
+			</p>
+
+			<div class="element-block">
+				<div class="element-header">
+					<h3>13. Search & sort</h3>
+					<span class="element-tag new">SearchSortBar</span>
+				</div>
+				<p class="element-purpose">
+					Search input (based on short text input with search icon). Sort button: sort.svg icon
+					only, on click opens native OS dropdown via hidden &lt;select&gt;.
+				</p>
+				<div class="element-demo">
+					<SearchSortBar bind:searchQuery bind:sortBy searchPlaceholder="Search" {sortOptions} />
+					<div class="state-display">search: "{searchQuery}" | sort: "{sortBy}"</div>
 				</div>
 			</div>
 		</section>
@@ -535,5 +587,13 @@
 	.quote-scroll-group :global(.settings-quote) {
 		flex-shrink: 0;
 		width: 14rem;
+	}
+
+	/* Tab content panel — shows below tabs */
+	.tab-content-panel {
+		padding: 1rem 0.625rem 0.5rem;
+		font-size: 0.875rem;
+		color: var(--color-grey-70, #666);
+		line-height: 1.4;
 	}
 </style>

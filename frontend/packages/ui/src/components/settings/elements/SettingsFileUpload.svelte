@@ -73,12 +73,7 @@
         tabindex={disabled ? -1 : 0}
         aria-label={ariaLabel || label || 'Select file'}
     >
-        <div class="file-icon" aria-hidden="true">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                <polyline points="14 2 14 8 20 8"></polyline>
-            </svg>
-        </div>
+        <div class="file-icon" aria-hidden="true"></div>
         <span class="file-label">{selectedFileName || label}</span>
     </div>
 </div>
@@ -130,10 +125,17 @@
 
     .file-icon {
         flex-shrink: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: var(--color-grey-60);
+        width: 1.5625rem;
+        height: 1.5625rem;
+        -webkit-mask-image: url('@openmates/ui/static/icons/files.svg');
+        -webkit-mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-image: url('@openmates/ui/static/icons/files.svg');
+        mask-size: contain;
+        mask-repeat: no-repeat;
+        mask-position: center;
+        background: var(--color-primary);
     }
 
     .file-label {
@@ -159,6 +161,6 @@
     }
 
     .has-file .file-icon {
-        color: var(--color-primary-start);
+        background: var(--color-primary-start);
     }
 </style>

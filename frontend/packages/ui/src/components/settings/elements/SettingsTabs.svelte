@@ -1,15 +1,18 @@
 <!--
-    SettingsTabs — Tab bar with icons and optional counters.
+    SettingsTabs — Tab bar with icons, animated sliding pill, and optional counters.
 
     Matches Figma "Tabs" element:
-    Pill-shaped tabs inside a rounded container. Active tab shows
-    gradient background, inactive tabs show grey icons. Optional
-    counter badges (red circle with white number).
+    - Icon-only tabs (no text labels)
+    - Active tab: gradient pill slides left/right with transition
+    - Inactive icons: var(--color-grey-30)
+    - Active icon: white (#fff)
+    - Hover on inactive: gradient at 0.5 opacity visible behind icon
+    - Optional counter badges (red circle with white number)
 
-    Rules from Figma:
+    Rules:
     - 4 or fewer tabs: share full width equally
     - More than 4 tabs: horizontal scroll, last tab visually cut off
-    - Background gradient: app color gradient or OpenMates default
+    - All global button styles from buttons.css are reset
 
     Design reference: Figma "settings_menu_elements" frame (node 4944-31418)
     Preview: /dev/preview/settings
@@ -19,10 +22,8 @@
     interface TabItem {
         /** Unique identifier for the tab */
         id: string;
-        /** CSS icon class name (used as mask-image via @openmates/ui/static/icons/{icon}.svg) */
+        /** Icon name (maps to @openmates/ui/static/icons/{icon}.svg) */
         icon: string;
-        /** Optional text label */
-        label?: string;
         /** Optional counter badge number */
         count?: number;
     }
@@ -47,6 +48,9 @@
 
     let isScrollable = $derived(tabs.length > 4);
 
+    /** Index of the active tab (used for pill offset calculation) */
+    let activeIndex = $derived(Math.max(0, tabs.findIndex(t => t.id === activeTab)));
+
     function selectTab(tabId: string) {
         activeTab = tabId;
         onChange?.(tabId);
@@ -65,13 +69,15 @@
         <div
             class="settings-tabs-track"
             role="tablist"
-            style="--tab-count: {tabs.length};"
+            style="--tab-count: {tabs.length}; --active-index: {activeIndex}; --gradient-start: {effectiveGradientStart}; --gradient-end: {effectiveGradientEnd};"
         >
-            {#each tabs as tab}
+            <!-- Animated gradient pill (positioned behind tabs via CSS) -->
+            <div class="settings-tabs-pill" aria-hidden="true"></div>
+
+            {#each tabs as tab, i}
                 <button
                     class="settings-tab"
                     class:active={activeTab === tab.id}
-                    style={activeTab === tab.id ? `background: linear-gradient(135deg, ${effectiveGradientStart}, ${effectiveGradientEnd});` : ''}
                     role="tab"
                     aria-selected={activeTab === tab.id}
                     aria-controls={`tabpanel-${tab.id}`}
@@ -83,10 +89,6 @@
                         class:active={activeTab === tab.id}
                         style="-webkit-mask-image: url('@openmates/ui/static/icons/{tab.icon}.svg'); mask-image: url('@openmates/ui/static/icons/{tab.icon}.svg');"
                     ></div>
-
-                    {#if tab.label}
-                        <span class="tab-label" class:active={activeTab === tab.id}>{tab.label}</span>
-                    {/if}
 
                     {#if tab.count !== undefined && tab.count > 0}
                         <span class="tab-count">{tab.count}</span>
@@ -104,8 +106,8 @@
 
     .settings-tabs-container {
         background: var(--color-grey-0);
-        border-radius: 0.75rem;
-        padding-top: 1.25rem;
+        border-radius: 3.25rem;
+        box-shadow: 0 0.25rem 0.25rem rgba(0, 0, 0, 0.1);
         overflow: hidden;
     }
 
@@ -121,37 +123,63 @@
 
     .settings-tabs-track {
         display: flex;
-        gap: 0;
-        padding: 0 0.75rem;
+        position: relative;
         min-width: 100%;
     }
 
+    /* ── Animated gradient pill ──────────────────────────────────── */
+    .settings-tabs-pill {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: calc(100% / var(--tab-count, 1));
+        left: calc(100% / var(--tab-count, 1) * var(--active-index, 0));
+        background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+        border-radius: 3.25rem;
+        transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        z-index: 0;
+    }
+
+    /* For scrollable (>4 tabs), pill uses fixed width */
+    .scrollable .settings-tabs-pill {
+        width: calc(100% / 4.3);
+        left: calc(100% / 4.3 * var(--active-index, 0));
+    }
+
+    /* ── Tab buttons — full reset of buttons.css globals ─────────── */
     .settings-tab {
+        /* Reset ALL buttons.css globals */
+        all: unset;
+        box-sizing: border-box;
+
         flex: 1 0 0;
         min-width: 0;
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 0.375rem;
         padding: 0.5rem 0.75rem;
-        border: none;
-        border-radius: 3.25rem;
-        background: var(--color-grey-0);
-        box-shadow: 0 0.25rem 0.25rem rgba(0, 0, 0, 0.1);
-        cursor: pointer;
-        transition: all 0.2s ease;
-        position: relative;
         height: 2.3125rem;
+        border-radius: 3.25rem;
+        background: transparent;
+        cursor: pointer;
+        position: relative;
+        z-index: 1;
+        transition: background 0.2s ease;
     }
 
-    /* For scrollable tabs (>4), give them a fixed minimum width so last tab gets cut off */
+    /* For scrollable tabs (>4), fixed minimum width so last tab gets cut off */
     .scrollable .settings-tab {
         flex: 0 0 auto;
         min-width: calc(100% / 4.3);
     }
 
-    .settings-tab:hover:not(.active) {
-        background: var(--color-grey-10);
+    /* Hover on inactive: show gradient at 50% opacity */
+    .settings-tab:not(.active):hover {
+        background: linear-gradient(
+            135deg,
+            color-mix(in srgb, var(--gradient-start) 50%, transparent),
+            color-mix(in srgb, var(--gradient-end) 50%, transparent)
+        );
     }
 
     .settings-tab:focus-visible {
@@ -159,6 +187,7 @@
         outline-offset: 0.125rem;
     }
 
+    /* ── Tab icon ────────────────────────────────────────────────── */
     .tab-icon {
         width: 1.15rem;
         height: 1.15rem;
@@ -169,28 +198,21 @@
         mask-size: contain;
         mask-repeat: no-repeat;
         mask-position: center;
-        background-color: var(--color-grey-50);
+        background-color: var(--color-grey-30);
         transition: background-color 0.2s ease;
     }
 
+    /* Hover on inactive tab: lighten icon */
+    .settings-tab:not(.active):hover .tab-icon {
+        background-color: var(--color-grey-0);
+    }
+
+    /* Active tab icon: white */
     .tab-icon.active {
         background-color: var(--color-grey-0);
     }
 
-    .tab-label {
-        font-family: 'Lexend Deca Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        font-weight: 600;
-        font-size: 0.75rem;
-        line-height: 1.25;
-        color: var(--color-grey-50);
-        white-space: nowrap;
-        transition: color 0.2s ease;
-    }
-
-    .tab-label.active {
-        color: var(--color-grey-0);
-    }
-
+    /* ── Counter badge ───────────────────────────────────────────── */
     .tab-count {
         position: absolute;
         top: -0.25rem;
