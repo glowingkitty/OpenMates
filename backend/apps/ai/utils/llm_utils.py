@@ -187,10 +187,14 @@ def _build_provider_registry() -> Dict[str, Any]:
         if server_id in all_available_clients:
             registry[server_id] = all_available_clients[server_id]
         else:
-            logger.warning(
-                f"Server '{server_id}' is configured in YAML but no client function found. "
-                f"Expected function: invoke_{server_id}_chat_completions. "
-                f"Available clients: {sorted(all_available_clients.keys())}"
+            # Non-LLM server IDs (e.g. 'recraft', 'fal', 'aws_bedrock') appear in provider
+            # YAML files for image/video apps but have no chat-completions client function —
+            # this is expected. Log at DEBUG to avoid misleading startup noise.
+            logger.debug(
+                f"Server '{server_id}' is configured in a provider YAML but has no LLM chat-completions "
+                f"client function (invoke_{server_id}_chat_completions). "
+                f"This is expected for non-LLM servers (image generation, video, etc.). "
+                f"Available LLM clients: {sorted(all_available_clients.keys())}"
             )
     
     logger.info(f"Provider registry built with {len(registry)} server providers from YAML configs: {sorted(registry.keys())}")

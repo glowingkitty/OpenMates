@@ -126,14 +126,31 @@ class BasePDFTemplateService:
     async def _async_init(self):
         """Performs asynchronous initialization steps."""
         logger.info("Performing async initialization for BasePDFTemplateService...")
-        invoice_sender_path = f"kv/data/providers/invoice_sender"
+        invoice_sender_path = "kv/data/providers/invoice_sender"
         self.sender_addressline1 = await self.secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="addressline1")
         self.sender_addressline2 = await self.secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="addressline2")
         self.sender_addressline3 = await self.secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="addressline3")
         self.sender_country = await self.secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="country")
-        self.sender_email = await self.secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="email")
+        # log_missing=False: missing email is expected in self-hosted setups;
+        # we handle it with a fallback below and emit a single clear warning there.
+        _sender_email_raw = await self.secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="email", log_missing=False)
         self.sender_vat = await self.secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="vat")
-        self.email_address = self.sender_email if self.sender_email else "support@openmates.org"
+
+        # Apply fallback email and emit a clear warning (not an error) so it's obvious
+        # which address will appear on invoices when the Vault key is not configured.
+        FALLBACK_SENDER_EMAIL = "support@openmates.org"
+        if _sender_email_raw:
+            self.sender_email = _sender_email_raw
+            self.email_address = _sender_email_raw
+        else:
+            self.sender_email = FALLBACK_SENDER_EMAIL
+            self.email_address = FALLBACK_SENDER_EMAIL
+            logger.warning(
+                f"invoice_sender.email not set in Vault at '{invoice_sender_path}'. "
+                f"Using fallback address: {FALLBACK_SENDER_EMAIL}. "
+                "Set SECRET__INVOICE_SENDER__EMAIL in .env (or the Vault key directly) to configure the sender."
+            )
+
         logger.info("BasePDFTemplateService initialized successfully.")
 
     @classmethod

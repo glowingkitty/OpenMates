@@ -209,6 +209,75 @@ async def _async_process_pdf(task: BaseServiceTask, arguments: Dict[str, Any]) -
         )
 
         # -----------------------------------------------------------------------
+        # Step 5.5: SightEngine content safety scan on rendered page screenshots
+        #
+        # We scan every page screenshot for harmful/illegal/AI-generated content
+        # before storing them in S3. This mirrors the scan done for user-uploaded
+        # images in the upload service.
+        #
+        # Behaviour:
+        #   - If SightEngine is not configured (no credentials in Vault) → scan skipped,
+        #     screenshots proceed as normal (same as upload service behaviour).
+        #   - If SightEngine API returns an error (service down) → upload is REJECTED
+        #     (fail-closed policy, same as upload service post-fix).
+        #   - If any page fails the content safety threshold → the entire PDF
+        #     processing is aborted and the embed is marked as failed.
+        # -----------------------------------------------------------------------
+        logger.info(f"{log_prefix} Step 5.5: SightEngine safety scan of page screenshots")
+        try:
+            from backend.upload.services.sightengine_service import SightEngineService
+            _se = SightEngineService()
+            await _se.initialize_from_vault(
+                vault_url=os.getenv("VAULT_ADDR", "http://vault:8200"),
+                vault_token_path=os.getenv("VAULT_TOKEN_PATH", "/vault-data/api.token"),
+            )
+
+            if not _se.is_enabled:
+                logger.info(
+                    f"{log_prefix} Step 5.5: SightEngine SKIPPED "
+                    "(credentials not configured — set SECRET__SIGHTENGINE__* to enable)"
+                )
+            else:
+                rejected_page: int | None = None
+                for page_num, png_bytes in sorted(screenshots.items()):
+                    filename_hint = f"pdf_{embed_id[:8]}_p{page_num}.png"
+                    safety_result, _ = await _se.check_all(png_bytes, filename=filename_hint)
+                    if not safety_result.is_safe:
+                        if safety_result.reason == "safety_service_unavailable":
+                            logger.error(
+                                f"{log_prefix} Step 5.5: SightEngine service unavailable "
+                                f"while scanning page {page_num}. Aborting PDF processing."
+                            )
+                            raise RuntimeError(
+                                "Safety processing failed. Try again later. "
+                                "(SightEngine service unavailable during PDF scan)"
+                            )
+                        logger.warning(
+                            f"{log_prefix} Step 5.5: Page {page_num} REJECTED — "
+                            f"reason: {safety_result.reason}"
+                        )
+                        rejected_page = page_num
+                        break
+
+                if rejected_page is not None:
+                    raise RuntimeError(
+                        f"PDF contains content that violates community guidelines "
+                        f"(detected on page {rejected_page})"
+                    )
+
+                logger.info(
+                    f"{log_prefix} Step 5.5: All {len(screenshots)} page screenshots "
+                    "passed SightEngine safety scan ✓"
+                )
+        except RuntimeError:
+            raise  # Re-raise safety/service errors so the task retries/fails cleanly
+        except Exception as _se_err:
+            # Non-fatal import or init error: log and continue (do not block PDF processing)
+            logger.warning(
+                f"{log_prefix} Step 5.5: SightEngine scan skipped due to unexpected error: {_se_err}"
+            )
+
+        # -----------------------------------------------------------------------
         # Step 6: Encrypt and upload page screenshots to S3
         # -----------------------------------------------------------------------
         logger.info(f"{log_prefix} Step 6: Uploading {len(screenshots)} page screenshots")

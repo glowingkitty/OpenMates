@@ -747,6 +747,19 @@ async def upload_file(
                 f"{log_prefix} [7/13] Content safety REJECTED — "
                 f"reason: {safety_result.reason} ({sightengine_elapsed:.0f} ms)"
             )
+
+            # safety_service_unavailable means the SightEngine API itself is down/erroring.
+            # Do NOT report this as a user violation — the user did nothing wrong.
+            # Return a clear "try again later" message instead.
+            if safety_result.reason == "safety_service_unavailable":
+                raise HTTPException(
+                    status_code=503,
+                    detail={
+                        "code": "safety_service_unavailable",
+                        "message": "Safety processing failed. Try again later.",
+                    },
+                )
+
             # Report rejection to core API (tracks reject count, handles account deletion)
             rejection_report = await _report_content_safety_rejection_via_api(
                 core_api_url=core_api_url,

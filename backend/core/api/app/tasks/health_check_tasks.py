@@ -612,6 +612,28 @@ async def _check_provider_health(provider_id: str, health_endpoint: Optional[str
     Returns:
         Dict with status, last_check, last_error
     """
+    # --- Pre-check: skip providers that require external credentials not configured on this host ---
+    # google_maas requires Google Application Default Credentials (GOOGLE_APPLICATION_CREDENTIALS
+    # env var or a service account key file). If neither is present, the health check will always
+    # fail with "default credentials not found". Rather than spamming error logs every 5 minutes,
+    # we detect the missing credential upfront and mark the provider as "not_configured" instead.
+    # The provider is silently skipped — no error/warning logged — until credentials are added.
+    if provider_id == "google_maas":
+        google_adc_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS", "")
+        if not google_adc_path or not os.path.isfile(google_adc_path):
+            logger.debug(
+                "Health check: Skipping provider 'google_maas' — "
+                "GOOGLE_APPLICATION_CREDENTIALS not set or file not found. "
+                "Set this env var in the task-worker container to enable google_maas health checks."
+            )
+            # Return a stable "not_configured" status so the UI doesn't flash red
+            return {
+                "status": "not_configured",
+                "last_check": int(time.time()),
+                "last_error": "Google Application Default Credentials not configured on this host",
+                "response_times_ms": {},
+            }
+
     logger.info(f"Health check: Checking provider '{provider_id}'...")
     
     # Initialize services outside try block so they're available in finally
