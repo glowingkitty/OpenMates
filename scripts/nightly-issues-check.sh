@@ -14,8 +14,8 @@
 #   ./scripts/nightly-issues-check.sh --all   # check all issues, not just last 24h
 #
 # Env vars (sourced from .env by the crontab entry):
-#   ADMIN_API_KEY           — Bearer token for the admin debug API (required)
-#   INTERNAL_API_URL        — base URL for the API (default: http://localhost:8000)
+#   SECRET__ADMIN__DEBUG_CLI__API_KEY — admin user API key (required, same as triage_issues.py)
+#   INTERNAL_API_URL                  — base URL for the API (default: http://localhost:8000)
 # =============================================================================
 set -euo pipefail
 
@@ -32,9 +32,9 @@ fi
 
 echo "[nightly-issues] Starting nightly issues check at $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 
-# Require ADMIN_API_KEY
-if [[ -z "${ADMIN_API_KEY:-}" ]]; then
-  echo "[nightly-issues] ERROR: ADMIN_API_KEY not set — cannot fetch issues. Exiting."
+# Require SECRET__ADMIN__DEBUG_CLI__API_KEY (same key used by triage_issues.py / debug scripts)
+if [[ -z "${SECRET__ADMIN__DEBUG_CLI__API_KEY:-}" ]]; then
+  echo "[nightly-issues] ERROR: SECRET__ADMIN__DEBUG_CLI__API_KEY not set — cannot fetch issues. Exiting."
   exit 1
 fi
 

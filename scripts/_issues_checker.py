@@ -12,16 +12,17 @@ Commands:
     check-issues    Fetch open issues, check git history, dispatch opencode if needed
 
 Architecture:
-    - Issues are stored in Directus and exposed via GET /admin/debug/issues
-    - The admin debug API requires ADMIN_API_KEY (Bearer token)
+    - Issues are stored in Directus and exposed via GET /v1/admin/debug/issues
+    - The admin debug API requires a user API key with admin privileges (Bearer token)
+    - Key is read from SECRET__ADMIN__DEBUG_CLI__API_KEY — same var used by
+      triage_issues.py and imported into Vault by vault-setup
     - Git commit messages are expected to reference issue IDs (e.g. "fix: ... (issue abc123)")
     - opencode is invoked with --share to produce a shareable analysis session URL
     - The session URL is logged to stdout for the calling shell script
 
-Env vars (read from .env if not in environment):
-    ADMIN_API_KEY           — Bearer token for the admin debug API
-    INTERNAL_API_URL        — base URL for the internal API (default: http://localhost:8000)
-    INTERNAL_API_SHARED_TOKEN — auth token for internal email dispatch
+Env vars (read from .env automatically — sourced by nightly-issues-check.sh):
+    SECRET__ADMIN__DEBUG_CLI__API_KEY — admin user API key (required)
+    INTERNAL_API_URL                  — base URL for the API (default: http://localhost:8000)
 
 Not intended to be called directly by users; use nightly-issues-check.sh instead.
 """
@@ -30,7 +31,6 @@ import json
 import os
 import subprocess
 import sys
-import ssl
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone, timedelta
@@ -43,12 +43,13 @@ MAX_ISSUES_IN_PROMPT = 15
 # How far back to look for open issues (hours)
 ISSUES_LOOKBACK_HOURS = 24
 
-# API endpoint path for listing issues
-# Route is mounted at /v1/admin/debug (see backend/core/api/app/routes/admin_debug.py:76)
-ISSUES_API_PATH = "/v1/admin/debug/issues"
+# Full URL for the issues endpoint — matches debug_utils.PROD_API_URL convention.
+# The admin debug API key is only registered on the production Directus instance.
+ISSUES_API_URL = "https://api.openmates.org/v1/admin/debug/issues"
 
-# Default production API URL (used when running against prod)
-DEFAULT_API_URL = "http://localhost:8000"
+# Env var name — same key used by triage_issues.py and vault-setup
+# (.env → vault-setup imports it as kv/data/providers/admin debug_cli__api_key)
+ADMIN_KEY_ENV_VAR = "SECRET__ADMIN__DEBUG_CLI__API_KEY"
 
 
 def _read_env_file(project_root: str) -> dict:
@@ -64,11 +65,12 @@ def _read_env_file(project_root: str) -> dict:
                 continue
             if "=" in line:
                 key, _, value = line.partition("=")
-                env_vars[key.strip()] = value.strip()
+                # Strip surrounding quotes that .env files sometimes include
+                env_vars[key.strip()] = value.strip().strip('"').strip("'")
     return env_vars
 
 
-def _fetch_open_issues(api_url: str, admin_api_key: str) -> list[dict]:
+def _fetch_open_issues(admin_api_key: str) -> list[dict]:
     """
     Fetch open (unprocessed) issues from the admin debug API.
 
@@ -76,18 +78,15 @@ def _fetch_open_issues(api_url: str, admin_api_key: str) -> list[dict]:
     Filters to issues created in the last ISSUES_LOOKBACK_HOURS hours.
     """
     since_dt = datetime.now(timezone.utc) - timedelta(hours=ISSUES_LOOKBACK_HOURS)
-    since_iso = since_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 
-    url = api_url.rstrip("/") + ISSUES_API_PATH + f"?include_processed=false&limit=100"
+    url = ISSUES_API_URL + "?include_processed=false&limit=100"
 
     req = urllib.request.Request(url)
     req.add_header("Authorization", f"Bearer {admin_api_key}")
     req.add_header("Accept", "application/json")
 
-    ctx = ssl.create_default_context()
-
     try:
-        with urllib.request.urlopen(req, timeout=30, context=ctx) as resp:
+        with urllib.request.urlopen(req, timeout=30) as resp:
             body = resp.read().decode("utf-8")
             data = json.loads(body)
     except urllib.error.HTTPError as e:
@@ -160,20 +159,18 @@ def check_issues() -> None:
 
     dot_env = _read_env_file(str(project_root))
 
-    admin_api_key = os.environ.get("ADMIN_API_KEY") or dot_env.get("ADMIN_API_KEY", "")
+    admin_api_key = os.environ.get(ADMIN_KEY_ENV_VAR) or dot_env.get(ADMIN_KEY_ENV_VAR, "")
     if not admin_api_key:
         print(
-            "[issues-checker] ERROR: ADMIN_API_KEY not set — cannot fetch issues.\n"
-            "  → Generate an API key for your admin account at: Settings → API Keys\n"
-            "  → Add it to .env as: ADMIN_API_KEY=<your-key>",
+            f"[issues-checker] ERROR: {ADMIN_KEY_ENV_VAR} not set — cannot fetch issues.\n"
+            f"  → Add it to .env as: {ADMIN_KEY_ENV_VAR}=sk-api-xxxxx\n"
+            "  → Generate the API key: admin user → Settings → API Keys",
             file=sys.stderr,
         )
         sys.exit(1)
 
-    api_url = os.environ.get("INTERNAL_API_URL") or dot_env.get("INTERNAL_API_URL", DEFAULT_API_URL)
-
     # Fetch open issues from the past 24h
-    issues = _fetch_open_issues(api_url, admin_api_key)
+    issues = _fetch_open_issues(admin_api_key)
 
     if not issues:
         print("[issues-checker] No open issues in the past 24h — nothing to do.")
