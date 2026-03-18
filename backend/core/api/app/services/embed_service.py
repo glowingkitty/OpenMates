@@ -2478,8 +2478,29 @@ class EmbedService:
             None if update fails
         """
         if not results or len(results) == 0:
-            logger.warning(f"{log_prefix} No results to update embed {embed_id}")
-            return None
+            # CRITICAL FIX: Finalize the placeholder with 0 results instead of abandoning it.
+            # Without this, placeholders stay stuck at status=processing forever, causing the
+            # frontend to show an infinite "Processing..." shimmer. The skill completed
+            # successfully but simply found no results — that's a valid finished state.
+            # See: GitHub issue — embed processing failures across CLI and web app chats.
+            logger.info(f"{log_prefix} Skill returned 0 results for embed {embed_id} — finalizing with empty results")
+            try:
+                return await self._finalize_embed_no_results(
+                    embed_id=embed_id,
+                    app_id=app_id,
+                    skill_id=skill_id,
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    user_vault_key_id=user_vault_key_id,
+                    task_id=task_id,
+                    log_prefix=log_prefix,
+                    request_metadata=request_metadata,
+                )
+            except Exception as e:
+                logger.error(f"{log_prefix} Error finalizing 0-result embed {embed_id}: {e}", exc_info=True)
+                return None
 
         try:
             # Hash sensitive IDs for privacy protection
@@ -3669,6 +3690,124 @@ class EmbedService:
             logger.error(f"{log_prefix} Error creating embeds from skill results: {e}", exc_info=True)
             return None
     
+    async def _finalize_embed_no_results(
+        self,
+        embed_id: str,
+        app_id: str,
+        skill_id: str,
+        chat_id: str,
+        message_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        task_id: Optional[str] = None,
+        log_prefix: str = "",
+        request_metadata: Optional[Dict[str, Any]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Finalize a processing placeholder embed that received 0 results.
+
+        The skill completed successfully but found nothing (e.g. no events matching
+        the query, no web search hits).  Instead of leaving the placeholder stuck
+        at status=processing forever, we transition it to status=finished with
+        result_count=0 so the frontend shows "0 results found" immediately.
+
+        Architecture context: docs/architecture/embeds.md — "Embed State Machine"
+        """
+        hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+        hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
+        hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
+
+        # Retrieve original placeholder metadata (query, provider, etc.)
+        original_content = await self._get_cached_embed(embed_id, user_vault_key_id, log_prefix)
+        original_metadata: Dict[str, Any] = {}
+        if request_metadata:
+            for key, value in request_metadata.items():
+                if key not in ("request_id",):
+                    original_metadata[key] = value
+        elif original_content:
+            for key in ("query", "provider", "url", "languages", "count", "country", "search_lang"):
+                if key in original_content:
+                    original_metadata[key] = original_content[key]
+
+        # Build finished content with 0 results
+        finished_content = {
+            "app_id": app_id,
+            "skill_id": skill_id,
+            "result_count": 0,
+            "embed_ids": [],
+            "status": "finished",
+            **original_metadata,
+        }
+
+        # Convert to TOON and encrypt
+        flattened = _flatten_for_toon_tabular(finished_content)
+        content_toon = encode(flattened)
+        text_length_chars = len(content_toon)
+
+        encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+            content_toon, user_vault_key_id
+        )
+
+        now_ts = int(datetime.now().timestamp())
+        updated_embed_data = {
+            "embed_id": embed_id,
+            "type": "app_skill_use",
+            "chat_id": chat_id,
+            "message_id": message_id,
+            "hashed_chat_id": hashed_chat_id,
+            "hashed_message_id": hashed_message_id,
+            "hashed_task_id": hashed_task_id,
+            "status": "finished",
+            "hashed_user_id": user_id_hash,
+            "is_private": False,
+            "is_shared": False,
+            "encryption_mode": "client",
+            "embed_ids": [],
+            "encrypted_content": encrypted_content,
+            "text_length_chars": text_length_chars,
+            "created_at": now_ts,
+            "updated_at": now_ts,
+        }
+
+        # Send finished event to client BEFORE updating cache (same pattern as composite path)
+        await self.send_embed_data_to_client(
+            embed_id=embed_id,
+            embed_type="app_skill_use",
+            content_toon=content_toon,
+            chat_id=chat_id,
+            message_id=message_id,
+            user_id=user_id,
+            user_id_hash=user_id_hash,
+            status="finished",
+            task_id=task_id,
+            embed_ids=[],
+            text_length_chars=text_length_chars,
+            created_at=now_ts,
+            updated_at=now_ts,
+            log_prefix=log_prefix,
+            check_cache_status=True,
+            app_id=app_id,
+            skill_id=skill_id,
+        )
+
+        # Update cache (overwrites processing placeholder with finished status)
+        await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+
+        # Schedule fallback persistence
+        self._schedule_embed_persistence_fallback(embed_id)
+
+        logger.info(
+            f"{log_prefix} Finalized embed {embed_id} with 0 results "
+            f"(app={app_id}, skill={skill_id}, query={original_metadata.get('query', 'N/A')})"
+        )
+
+        return {
+            "embed_id": embed_id,
+            "child_embed_ids": [],
+            "status": "finished",
+        }
+
     async def _cache_embed(
         self,
         embed_id: str,
