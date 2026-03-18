@@ -2324,7 +2324,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 })
             );
             recentChats = metas;
-            console.debug(`[ActiveChat] loadRecentChats: loaded ${metas.length} recent chats (from ${chats.length} total, ${filteredChats.length} non-public, excluded ${excludeIds.size})`);
+            console.warn(`[ActiveChat] loadRecentChats: loaded ${metas.length} recent chats (from ${chats.length} total, ${filteredChats.length} non-public, excluded ${excludeIds.size})`);
         } catch (err) {
             console.warn('[ActiveChat] Failed to load recent chats:', err);
         }
@@ -2461,7 +2461,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // Look up the specific chat by ID from last_opened
             const chat = await chatDB.getChat(lastOpenedId);
             if (!chat) {
-                console.debug(`[ActiveChat] loadResumeChatFromDB: chat not found in IndexedDB: ${lastOpenedId}`);
+                console.warn(`[ActiveChat] loadResumeChatFromDB: chat not found in IndexedDB: ${lastOpenedId}`);
                 return false;
             }
 
