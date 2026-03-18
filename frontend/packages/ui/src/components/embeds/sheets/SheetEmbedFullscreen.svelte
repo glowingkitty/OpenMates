@@ -630,6 +630,7 @@
     border: 1px solid var(--color-grey-25);
     padding: 6px 12px;
     text-align: left;
+    vertical-align: top;
     color: var(--color-font-primary);
   }
   
