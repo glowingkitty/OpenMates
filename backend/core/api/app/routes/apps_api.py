@@ -1147,7 +1147,11 @@ async def list_apps(
         translation_service = get_translation_service(request)
         config_manager = get_config_manager(request)
         
-        # Initialize secrets manager for API key availability checks
+        # Initialize secrets manager for API key availability checks.
+        # TODO(audit-2026-03-18): SecretsManager.initialize() performs a Vault HTTP round-trip
+        # on every list_apps request.  SecretsManager is a singleton — initialize() should be
+        # a no-op once the singleton is already initialised; move to app startup instead.
+        # See audit finding #5: N×M serial Vault + internal HTTP calls in list_apps.
         secrets_manager = SecretsManager(cache_service=cache_service)
         await secrets_manager.initialize()
         protonmail_allowed_for_user = await _is_protonmail_allowed_for_external_user(
@@ -1187,6 +1191,12 @@ async def list_apps(
             )
             
             # Convert skills - filter by stage and API key availability
+            # TODO(audit-2026-03-18): is_skill_available() may call secrets_manager.get_secret()
+            # (a Vault HTTP call) per provider per skill, and get_skill_providers_with_pricing()
+            # issues an internal HTTP call per provider.  For N apps × M skills × K providers
+            # this is O(N×M×K) sequential round-trips per list_apps request.
+            # Fix: parallelise with asyncio.gather and cache results at the handler level.
+            # See audit finding #5.
             skills = []
             for skill in app_metadata.skills or []:
                 skill_stage = getattr(skill, 'stage', 'development').lower()

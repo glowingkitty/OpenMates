@@ -127,27 +127,34 @@ async def login(
                     }
                 )
             
-            # SECURITY: For password login, always return tfa_required=True to prevent email enumeration
-            # This makes the frontend show the 2FA input, regardless of whether account exists
-            # If no 2FA code is provided, return the 2FA required response
-            # Check for both None and empty string to handle edge cases
-            # CRITICAL: Return tfa_enabled=False in anti-enumeration response so frontend knows
-            # 2FA is not actually configured and can redirect to signup if needed
+            # SECURITY: For password login, always return tfa_required=True to prevent email
+            # enumeration. This makes the frontend show the 2FA input regardless of whether
+            # the account exists. If no 2FA code is provided, return the generic decoy response.
+            #
+            # IMPORTANT: tfa_enabled must be True in the decoy response. If we returned
+            # tfa_enabled=False for non-existent accounts and tfa_enabled=True for real 2FA
+            # accounts, that difference would be a user-existence oracle (any unauthenticated
+            # caller could enumerate whether an email has a real account).
+            # The frontend must NOT use tfa_enabled to decide whether to redirect to signup —
+            # it should rely on a subsequent authenticated endpoint instead.
             if not login_data.tfa_code or login_data.tfa_code.strip() == "":
                 logger.info("Authentication failed - returning tfa_required=True to prevent email enumeration")
                 minimal_user_info = UserResponse(
                     id=None,
-                    username="",  # Default empty string
-                    is_admin=False, # Default False
-                    credits=0,      # Default 0
-                    profile_image_url=None, # Optional field
-                    tfa_app_name=None, # No specific app name (generic 2FA setup)
-                    last_opened=None, # Don't reveal last_opened for non-existent accounts
-                    tfa_enabled=False # Return False so frontend knows 2FA is not actually configured
+                    username="",
+                    is_admin=False,
+                    credits=0,
+                    profile_image_url=None,
+                    tfa_app_name=None,
+                    last_opened=None,
+                    # Always True in the anti-enumeration response to prevent account-existence
+                    # oracle via the tfa_enabled field difference.  The frontend must not use
+                    # this field to infer whether the account exists.
+                    tfa_enabled=True,
                 )
                 response = LoginResponse(
                     success=True,
-                    message="2FA required", 
+                    message="2FA required",
                     tfa_required=True,
                     user=minimal_user_info
                 )

@@ -156,9 +156,11 @@
       screenshotS3Key = key;
     }
     const k = content.aes_key as string | undefined;
+    // aes_nonce is "" for new PDFs (nonce is embedded per-artefact); keep for
+    // legacy compatibility but treat undefined vs "" distinctly.
     const n = content.aes_nonce as string | undefined;
     if (k) aesKey = k;
-    if (n) aesNonce = n;
+    if (n !== undefined) aesNonce = n;
   }
 
   // Fetch page-1 screenshot once key + credentials become available and embed is in view
@@ -168,7 +170,7 @@
       status === 'finished' &&
       screenshotS3Key &&
       aesKey &&
-      aesNonce &&
+      aesNonce !== undefined &&
       !imageUrl &&
       !isLoadingImage &&
       !imageError
@@ -178,7 +180,7 @@
   });
 
   async function loadScreenshot(): Promise<void> {
-    if (!screenshotS3Key || !aesKey || !aesNonce) return;
+    if (!screenshotS3Key || !aesKey || aesNonce === undefined) return;
     if (imageUrl) return;
     if (loadRetryCount >= MAX_LOAD_RETRIES) {
       console.warn('[PDFEmbedPreview] Giving up after max retries:', screenshotS3Key);

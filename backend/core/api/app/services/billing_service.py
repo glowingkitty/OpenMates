@@ -25,6 +25,11 @@ class BillingService:
         self.encryption_service = encryption_service
         self.server_stats_service = server_stats_service
         self.websocket_manager = websocket_manager
+        # Strong references to in-flight auto top-up tasks.
+        # asyncio discards unreferenced tasks before completion — keeping a set
+        # prevents GC mid-payment and ensures exception callbacks fire.
+        # Tasks remove themselves via add_done_callback.
+        self._pending_topup_tasks: set[asyncio.Task] = set()
 
     async def charge_user_credits(
         self,
@@ -563,9 +568,22 @@ class BillingService:
 
             logger.info(f"Low balance detected for user {user_id}: {new_credits} <= {threshold}. Triggering auto top-up.")
 
-            # Trigger async top-up (fire and forget - don't block current request)
-            asyncio.create_task(
-                self._trigger_low_balance_topup(user_id, user)
+            # Trigger async top-up without blocking the current request.
+            # We store a strong reference to prevent GC before completion and
+            # attach a done callback so unhandled exceptions are logged rather
+            # than silently dropped.  Tasks remove themselves when they finish.
+            task = asyncio.create_task(
+                self._trigger_low_balance_topup(user_id, user),
+                name=f"auto_topup_{user_id[:8]}",
+            )
+            self._pending_topup_tasks.add(task)
+            task.add_done_callback(self._pending_topup_tasks.discard)
+            task.add_done_callback(
+                lambda t: logger.error(
+                    f"[BillingService] Auto top-up task for user {user_id[:8]} "
+                    f"raised an unhandled exception: {t.exception()!r}",
+                    exc_info=t.exception(),
+                ) if not t.cancelled() and t.exception() else None
             )
 
         except Exception as e:

@@ -327,9 +327,14 @@ class ConnectionManager:
         return None
 
     def get_connections_for_user(self, user_id: str) -> Dict[str, WebSocket]:
-        """Gets all currently live WebSocket connections for a given user_id."""
-        # This will return only connections that have a live WebSocket object in active_connections.
-        # Connections that are only in a grace period (i.e., their WebSocket object might have been
-        # removed from active_connections or is otherwise stale) are not returned here,
-        # as they cannot be reliably used for sending messages directly.
-        return self.active_connections.get(user_id, {})
+        """Gets all currently live WebSocket connections for a given user_id.
+
+        Returns a shallow *copy* of the inner device→WebSocket mapping so that
+        callers can safely iterate the result while concurrent disconnects
+        modify the live ``active_connections`` dict without raising
+        ``RuntimeError: dictionary changed size during iteration``.
+        """
+        # Shallow copy — safe for iteration; callers must not store this beyond
+        # a single event-handler invocation since the WebSocket objects may
+        # become stale at any point after the copy is taken.
+        return dict(self.active_connections.get(user_id, {}))

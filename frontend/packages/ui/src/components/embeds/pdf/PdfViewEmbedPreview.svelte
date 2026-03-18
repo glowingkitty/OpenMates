@@ -151,14 +151,15 @@
       const key = keys?.['1'];
       if (key) screenshotS3Key = key;
       const k = uploadContent.aes_key as string | undefined;
+      // aes_nonce is "" for new PDFs (nonce embedded per-artefact); treat undefined vs "" distinctly
       const n = uploadContent.aes_nonce as string | undefined;
       if (k) aesKey = k;
-      if (n) aesNonce = n;
+      if (n !== undefined) aesNonce = n;
 
       console.debug('[PdfViewEmbedPreview] Resolved screenshot credentials for:', embedId, {
         hasS3Key: !!key,
         hasAesKey: !!k,
-        hasAesNonce: !!n,
+        hasAesNonce: n !== undefined,
       });
     } catch (err) {
       console.error('[PdfViewEmbedPreview] Error resolving original PDF embed:', err);
@@ -172,14 +173,15 @@
     }
   });
 
-  // Trigger screenshot load once all credentials + in-view
+  // Trigger screenshot load once all credentials + in-view.
+  // aesNonce may be "" for new PDFs (nonce embedded per-artefact); check !== undefined.
   $effect(() => {
     if (
       isInView &&
       localStatus === 'finished' &&
       screenshotS3Key &&
       aesKey &&
-      aesNonce &&
+      aesNonce !== undefined &&
       !imageUrl &&
       !isLoadingImage &&
       !imageError
@@ -189,7 +191,7 @@
   });
 
   async function loadScreenshot(): Promise<void> {
-    if (!screenshotS3Key || !aesKey || !aesNonce) return;
+    if (!screenshotS3Key || !aesKey || aesNonce === undefined) return;
     if (imageUrl) return;
     if (loadRetryCount >= MAX_LOAD_RETRIES) {
       console.warn('[PdfViewEmbedPreview] Giving up after max retries:', screenshotS3Key);
