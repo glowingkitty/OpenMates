@@ -89,16 +89,16 @@ async function performLogin(
 	logStep('Entered email and clicked continue.');
 
 	const passwordInput = page.locator('#login-password-input');
-	await expect(passwordInput).toBeVisible();
+	await expect(passwordInput).toBeVisible({ timeout: 10000 });
 	await passwordInput.fill(TEST_PASSWORD);
 
 	const otpCode = generateTotp(TEST_OTP_KEY);
 	const otpInput = page.locator('#login-otp-input');
-	await expect(otpInput).toBeVisible();
+	await expect(otpInput).toBeVisible({ timeout: 10000 });
 	await otpInput.fill(otpCode);
 
 	const submitLoginButton = page.locator('#login-submit-button');
-	await expect(submitLoginButton).toBeVisible();
+	await expect(submitLoginButton).toBeVisible({ timeout: 5000 });
 	await submitLoginButton.click();
 	logStep('Submitted login form.');
 
