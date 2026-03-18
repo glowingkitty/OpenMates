@@ -12,6 +12,7 @@ export {
   OpenMatesClient,
   deriveAppUrl,
   MEMORY_TYPE_REGISTRY,
+  MATE_NAMES,
 } from "./client.js";
 export type {
   DecryptedMemoryEntry,

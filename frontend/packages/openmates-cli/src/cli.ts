@@ -12,6 +12,7 @@
 import {
   OpenMatesClient,
   MEMORY_TYPE_REGISTRY,
+  MATE_NAMES,
   type ChatListPage,
   type DecryptedMessage,
   type DecryptedEmbed,
@@ -235,7 +236,7 @@ async function handleChats(
     if (flags.json === true) {
       printJson({ chat, messages });
     } else {
-      printChatConversation(chat, messages);
+      await printChatConversation(client, chat, messages);
     }
     return;
   }
@@ -771,15 +772,38 @@ const CATEGORY_LABELS: Record<string, string> = {
   onboarding_support: "Support",
 };
 
-function ansiCategoryPill(category: string | null): string {
-  const label = category
-    ? (CATEGORY_LABELS[category] ?? category.replace(/_/g, " "))
-    : "—";
+/**
+ * Solid 2-character colored square block — no text, pure color signal.
+ * Used as a category indicator in list and conversation views.
+ */
+function ansiColorBlock(category: string | null): string {
+  if (!category || !CATEGORY_ANSI_COLORS[category]) {
+    return "\x1b[2m░░\x1b[0m"; // dim placeholder for uncategorized
+  }
+  const [r, g, b] = CATEGORY_ANSI_COLORS[category];
+  return `\x1b[48;2;${r};${g};${b}m  \x1b[0m`;
+}
+
+/**
+ * Colored block with mate name as text — used in conversation per-message headers.
+ */
+function ansiMateBlock(
+  category: string | null,
+  mateName: string | null,
+): string {
+  const label =
+    mateName ??
+    (category ? (CATEGORY_LABELS[category] ?? category) : "Assistant");
   if (!category || !CATEGORY_ANSI_COLORS[category]) {
     return `\x1b[2m${label}\x1b[0m`;
   }
   const [r, g, b] = CATEGORY_ANSI_COLORS[category];
   return `\x1b[48;2;${r};${g};${b}m\x1b[97m ${label} \x1b[0m`;
+}
+
+/** Keep for backwards compat in non-list contexts */
+function ansiCategoryPill(category: string | null): string {
+  return ansiColorBlock(category);
 }
 
 function formatTimestamp(ts: number | null): string {
@@ -800,37 +824,34 @@ function printChatsTable(result: ChatListPage): void {
   }
 
   const totalPages = Math.ceil(total / limit);
-  console.log(
-    `\x1b[1mChats\x1b[0m  (${start}–${end} of ${total}, page ${page}/${totalPages})\n`,
+  process.stdout.write(
+    `\x1b[2mChats ${start}–${end} of ${total}  (page ${page}/${totalPages})\x1b[0m\n\n`,
   );
 
   for (const chat of chats) {
-    const pill = ansiCategoryPill(chat.category);
+    const block = ansiColorBlock(chat.category);
     const time = formatTimestamp(chat.updatedAt);
-    const title = chat.title ?? "\x1b[2m(no title)\x1b[0m";
-    const idStr = `\x1b[2m${chat.shortId}\x1b[0m`;
+    const title = chat.title ?? "(no title)";
+    const idStr = chat.shortId;
 
-    const mate = chat.mateName ? `  \x1b[36m${chat.mateName}\x1b[0m` : "";
-    process.stdout.write(
-      `${pill}${mate}  ${title}  ${idStr}  \x1b[2m${time}\x1b[0m\n`,
-    );
-
+    // Line 1: colored block + timestamp
+    process.stdout.write(`${block}  \x1b[2m${time}\x1b[0m\n`);
+    // Line 2: bold title as headline
+    process.stdout.write(`\x1b[1m${title}\x1b[0m\n`);
+    // Line 3: full summary (no truncation)
     if (chat.summary) {
-      const maxWidth = 80;
-      const summary =
-        chat.summary.length > maxWidth
-          ? chat.summary.slice(0, maxWidth - 1) + "…"
-          : chat.summary;
-      process.stdout.write(`    \x1b[2m${summary}\x1b[0m\n`);
+      process.stdout.write(`\x1b[2m${chat.summary}\x1b[0m\n`);
     }
-
-    process.stdout.write("\n");
+    // Line 4: show command hint
+    process.stdout.write(`\x1b[2m→ openmates chats show ${idStr}\x1b[0m\n`);
+    // Separator
+    process.stdout.write(`\x1b[2m${"─".repeat(60)}\x1b[0m\n`);
   }
 
   if (hasMore) {
     const nextPage = page + 1;
     const nextCmd = `chats list --page ${nextPage}${limit !== 10 ? ` --limit ${limit}` : ""}`;
-    console.log(`\x1b[2mNext page: openmates ${nextCmd}\x1b[0m`);
+    process.stdout.write(`\n\x1b[2mNext page: openmates ${nextCmd}\x1b[0m\n`);
   }
 }
 
@@ -859,9 +880,10 @@ function printIncognitoHistory(
 }
 
 /**
- * Render a full chat conversation with messages, mate names, and embed refs.
+ * Render a full chat conversation with messages, colored mate blocks, and inline embed content.
  */
-function printChatConversation(
+async function printChatConversation(
+  client: OpenMatesClient,
   chat: {
     id: string;
     shortId: string;
@@ -871,53 +893,176 @@ function printChatConversation(
     updatedAt: number | null;
   },
   messages: DecryptedMessage[],
-): void {
-  const pill = ansiCategoryPill(chat.category);
+): Promise<void> {
+  const block = ansiColorBlock(chat.category);
   const title = chat.title ?? "(no title)";
   const ts = formatTimestamp(chat.updatedAt);
-  header(`${title}  ${pill}  \x1b[2m${chat.shortId}  ${ts}\x1b[0m`);
-  console.log();
+
+  // Header: colored block + title + date
+  process.stdout.write(`${block}  \x1b[2m${chat.shortId}  ${ts}\x1b[0m\n`);
+  process.stdout.write(`\x1b[1m${title}\x1b[0m\n\n`);
 
   if (messages.length === 0) {
-    console.log("\x1b[2m(no messages)\x1b[0m");
+    process.stdout.write("\x1b[2m(no messages)\x1b[0m\n");
     return;
   }
 
   for (const msg of messages) {
     const msgTs = formatTimestamp(msg.createdAt);
-    let roleLabel: string;
+
+    // Sender header: colored block with name for assistant, plain bold "You" for user
     if (msg.role === "user") {
-      roleLabel = "\x1b[1mYou\x1b[0m";
+      process.stdout.write(`\x1b[1mYou\x1b[0m  \x1b[2m${msgTs}\x1b[0m\n`);
     } else if (msg.role === "assistant" || msg.role === "ai") {
-      const mate = chat.mateName ?? "Assistant";
-      roleLabel = `\x1b[36m${mate}\x1b[0m`;
-      if (msg.modelName) {
-        roleLabel += `  \x1b[2m(${msg.modelName})\x1b[0m`;
-      }
+      // Use message-level category if available (may differ from chat category
+      // when a different mate responds), otherwise fall back to chat category
+      const msgCategory = msg.category ?? chat.category;
+      const msgMateName = msgCategory
+        ? (MATE_NAMES[msgCategory] ?? chat.mateName)
+        : chat.mateName;
+      const mateBlock = ansiMateBlock(msgCategory, msgMateName);
+      const modelSuffix = msg.modelName
+        ? `  \x1b[2m${msg.modelName}\x1b[0m`
+        : "";
+      process.stdout.write(
+        `${mateBlock}${modelSuffix}  \x1b[2m${msgTs}\x1b[0m\n`,
+      );
     } else {
-      roleLabel = `\x1b[2m${msg.role}\x1b[0m`;
+      process.stdout.write(`\x1b[2m${msg.role}  ${msgTs}\x1b[0m\n`);
     }
 
-    process.stdout.write(`${roleLabel}  \x1b[2m${msgTs}\x1b[0m\n`);
-
+    // Message content — strip raw embed JSON blocks; we'll show actual content below
     if (msg.content) {
-      // Strip markdown embed blocks for cleaner CLI display
-      const content = msg.content
-        .replace(/```json_embed\n[\s\S]*?\n```/g, "[embed]")
-        .replace(/```json\n[\s\S]*?\n```/g, "[embed]");
-      console.log(content);
+      const cleaned = msg.content
+        .replace(/```json_embed\n[\s\S]*?\n```/g, "")
+        .replace(/```json\n[\s\S]*?\n```/g, "")
+        .trim();
+      if (cleaned) {
+        process.stdout.write(`${cleaned}\n`);
+      }
     }
 
-    // Show embed references
+    // Inline embed content for each embed referenced in this message
     if (msg.embedIds.length > 0) {
       for (const eid of msg.embedIds) {
+        process.stdout.write("\n");
+        try {
+          const embed = await client.getEmbed(eid);
+          renderInlineEmbed(embed);
+        } catch {
+          // Embed not found in cache — just show the reference hint
+          process.stdout.write(
+            `  \x1b[2m📎 embed: ${eid.slice(0, 8)}  →  openmates embeds show ${eid.slice(0, 8)}\x1b[0m\n`,
+          );
+        }
+      }
+    }
+
+    process.stdout.write("\n");
+  }
+}
+
+/**
+ * Render an embed inline within a chat message.
+ * Shows a compact summary matching the text details of the embed preview.
+ */
+function renderInlineEmbed(embed: DecryptedEmbed): void {
+  const shortId = embed.embedId.slice(0, 8);
+  const appLabel = embed.appId ?? "embed";
+  const skillLabel = embed.skillId ?? "";
+  const label = skillLabel ? `${appLabel}/${skillLabel}` : appLabel;
+
+  // Header bar for the embed
+  process.stdout.write(
+    `  \x1b[2m┌─ 📎 ${label}  \x1b[0m\x1b[2m${shortId}\x1b[0m\n`,
+  );
+
+  const c = embed.content ?? {};
+
+  // Type-specific rendering mirroring embed preview text content
+  const type = embed.type ?? embed.appId ?? "";
+
+  // ── Search-style: has results array ────────────────────────────────────
+  const results = c.results as Array<Record<string, unknown>> | undefined;
+  if (Array.isArray(results) && results.length > 0) {
+    const query = str(c.query) ?? str(c.search_query);
+    if (query) process.stdout.write(`  \x1b[2m│  Query: ${query}\x1b[0m\n`);
+    process.stdout.write(`  \x1b[2m│  ${results.length} result(s)\x1b[0m\n`);
+    for (const r of results.slice(0, 3)) {
+      const title = str(r.title) ?? str(r.name) ?? str(r.headline);
+      const url = str(r.url) ?? str(r.link);
+      const desc = str(r.description) ?? str(r.snippet);
+      if (title) process.stdout.write(`  \x1b[2m│    • ${title}\x1b[0m\n`);
+      if (url && !title)
+        process.stdout.write(`  \x1b[2m│    • ${url}\x1b[0m\n`);
+      if (desc)
         process.stdout.write(
-          `  \x1b[2m📎 embed: ${eid.slice(0, 8)}  (openmates embeds show ${eid.slice(0, 8)})\x1b[0m\n`,
+          `  \x1b[2m│      ${desc.slice(0, 100)}${desc.length > 100 ? "…" : ""}\x1b[0m\n`,
+        );
+    }
+    if (results.length > 3) {
+      process.stdout.write(
+        `  \x1b[2m│    … and ${results.length - 3} more\x1b[0m\n`,
+      );
+    }
+  }
+  // ── Reminder ─────────────────────────────────────────────────────────
+  else if (type.includes("reminder")) {
+    const message = str(c.message) ?? str(c.text);
+    const time =
+      str(c.trigger_at_formatted) ?? str(c.trigger_at) ?? str(c.scheduled_at);
+    if (message)
+      process.stdout.write(`  \x1b[2m│  Message: ${message}\x1b[0m\n`);
+    if (time) process.stdout.write(`  \x1b[2m│  Time: ${time}\x1b[0m\n`);
+  }
+  // ── Code ─────────────────────────────────────────────────────────────
+  else if (type.includes("code") || str(c.language)) {
+    const lang = str(c.language);
+    const filename = str(c.filename) ?? str(c.file_path);
+    const lines = c.line_count ?? c.lineCount;
+    const preview = str(c.code_content) ?? str(c.code);
+    if (lang) process.stdout.write(`  \x1b[2m│  Language: ${lang}\x1b[0m\n`);
+    if (filename)
+      process.stdout.write(`  \x1b[2m│  File: ${filename}\x1b[0m\n`);
+    if (lines)
+      process.stdout.write(`  \x1b[2m│  Lines: ${String(lines)}\x1b[0m\n`);
+    if (preview) {
+      const firstLine = preview.split("\n")[0].slice(0, 80);
+      process.stdout.write(
+        `  \x1b[2m│  ${firstLine}${firstLine.length >= 80 ? "…" : ""}\x1b[0m\n`,
+      );
+    }
+  }
+  // ── Image / file ──────────────────────────────────────────────────────
+  else if (type.includes("image")) {
+    const prompt = str(c.prompt) ?? str(c.description);
+    const model = str(c.model);
+    if (prompt)
+      process.stdout.write(
+        `  \x1b[2m│  Prompt: ${prompt.slice(0, 100)}\x1b[0m\n`,
+      );
+    if (model) process.stdout.write(`  \x1b[2m│  Model: ${model}\x1b[0m\n`);
+  }
+  // ── Text preview fallback ─────────────────────────────────────────────
+  else if (embed.textPreview) {
+    const lines = embed.textPreview.split("\n").slice(0, 4);
+    for (const l of lines) {
+      if (l.trim())
+        process.stdout.write(`  \x1b[2m│  ${l.slice(0, 100)}\x1b[0m\n`);
+    }
+  }
+  // ── Generic key-value for unknown types ───────────────────────────────
+  else {
+    for (const [k, v] of Object.entries(c).slice(0, 4)) {
+      if (v !== null && v !== undefined && typeof v !== "object") {
+        process.stdout.write(
+          `  \x1b[2m│  ${k}: ${String(v).slice(0, 80)}\x1b[0m\n`,
         );
       }
     }
-    console.log();
   }
+
+  process.stdout.write(`  \x1b[2m└─ openmates embeds show ${shortId}\x1b[0m\n`);
 }
 
 /**

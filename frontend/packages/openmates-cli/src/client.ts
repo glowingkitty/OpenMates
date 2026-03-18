@@ -452,7 +452,7 @@ export interface DecryptedEmbed {
  * English mate names by category — matches the web app's i18n mates.* keys.
  * The CLI ships without the full i18n system, so we hardcode English names.
  */
-const MATE_NAMES: Record<string, string> = {
+export const MATE_NAMES: Record<string, string> = {
   software_development: "Sophia",
   business_development: "Burton",
   life_coach_psychology: "Lisa",
@@ -789,21 +789,59 @@ export class OpenMatesClient {
 
   /**
    * Get the decrypted messages for a specific chat.
-   * @param chatIdOrShort Full UUID or short 8-char prefix.
+   *
+   * Lookup order (most-recent-first for all title matches):
+   * 1. Exact full UUID match
+   * 2. Short 8-char prefix match
+   * 3. Exact title match (case-insensitive, most recent first)
+   * 4. Partial title match (case-insensitive, most recent first)
+   *
+   * @param query Full UUID, 8-char short ID, or chat title.
    */
-  async getChatMessages(chatIdOrShort: string): Promise<{
+  async getChatMessages(query: string): Promise<{
     chat: ChatListItem;
     messages: DecryptedMessage[];
   }> {
     const cache = await this.ensureSynced();
     const masterKey = this.getMasterKeyBytes();
-    const found = cache.chats.find(
+    const normalized = query.trim().toLowerCase();
+
+    // Pass 1: fast ID match (no decryption needed)
+    let found = cache.chats.find(
       (c) =>
-        String(c.details.id) === chatIdOrShort ||
-        String(c.details.id).startsWith(chatIdOrShort),
+        String(c.details.id) === query ||
+        String(c.details.id).startsWith(query),
     );
+
+    // Pass 2: title match — decrypt all chats and match by title.
+    // The cache is already sorted most-recent-first, so the first match wins.
     if (!found) {
-      throw new Error(`Chat '${chatIdOrShort}' not found.`);
+      for (const cached of cache.chats) {
+        const item = await this.decryptChatListItem(cached, masterKey);
+        const title = (item.title ?? "").toLowerCase();
+        if (title === normalized) {
+          found = cached;
+          break;
+        }
+      }
+    }
+
+    // Pass 3: partial title match (most recent first)
+    if (!found) {
+      for (const cached of cache.chats) {
+        const item = await this.decryptChatListItem(cached, masterKey);
+        const title = (item.title ?? "").toLowerCase();
+        if (title.includes(normalized)) {
+          found = cached;
+          break;
+        }
+      }
+    }
+
+    if (!found) {
+      throw new Error(
+        `Chat '${query}' not found. Try 'openmates chats search "${query}"' to browse matches.`,
+      );
     }
 
     const chatItem = await this.decryptChatListItem(found, masterKey);
@@ -844,6 +882,23 @@ export class OpenMatesClient {
             )
           : null;
 
+      // Resolve embed IDs for this message.
+      // The WS payload doesn't include embed_ids in messages; instead each embed
+      // record carries hashed_message_id = SHA-256(client_message_id).
+      // We match on that to find embeds belonging to this message.
+      const clientMsgId = String(
+        m.client_message_id ?? m.id ?? m.message_id ?? "",
+      );
+      let msgEmbedIds: string[] = [];
+      if (clientMsgId && cache.embeds.length > 0) {
+        const { createHash } = await import("node:crypto");
+        const hashed = createHash("sha256").update(clientMsgId).digest("hex");
+        msgEmbedIds = cache.embeds
+          .filter((e) => e.hashed_message_id === hashed)
+          .map((e) => String(e.embed_id ?? e.id ?? ""))
+          .filter(Boolean);
+      }
+
       messages.push({
         id: String(m.id ?? m.message_id ?? ""),
         chatId: String(m.chat_id ?? chatItem.id),
@@ -853,7 +908,7 @@ export class OpenMatesClient {
         category: msgCategory,
         modelName,
         createdAt: typeof m.created_at === "number" ? m.created_at : 0,
-        embedIds: Array.isArray(m.embed_ids) ? (m.embed_ids as string[]) : [],
+        embedIds: msgEmbedIds,
       });
     }
     messages.sort((a, b) => a.createdAt - b.createdAt);
@@ -861,7 +916,15 @@ export class OpenMatesClient {
   }
 
   /**
-   * Get a decrypted embed by ID (full or short prefix).
+   * Get a decrypted embed by embed_id (full UUID or short 8-char prefix).
+   *
+   * Key unwrapping strategy (in priority order):
+   * 1. Find embed key with key_type="master" for this embed →
+   *    unwrap with master key directly (simplest, no chat needed).
+   * 2. Find embed key with key_type="chat" for this embed →
+   *    find the chat, decrypt chat key with master key, unwrap embed key.
+   *
+   * hashed_embed_id in the key table = SHA-256(embed.embed_id).
    */
   async getEmbed(embedIdOrShort: string): Promise<DecryptedEmbed> {
     const cache = await this.ensureSynced();
@@ -869,56 +932,81 @@ export class OpenMatesClient {
 
     const embed = cache.embeds.find(
       (e) =>
-        String(e.embed_id ?? e.id ?? "") === embedIdOrShort ||
-        String(e.embed_id ?? e.id ?? "").startsWith(embedIdOrShort),
+        String(e.embed_id ?? "").startsWith(embedIdOrShort) ||
+        String(e.id ?? "").startsWith(embedIdOrShort),
     );
     if (!embed) {
-      throw new Error(`Embed '${embedIdOrShort}' not found.`);
+      throw new Error(
+        `Embed '${embedIdOrShort}' not found in local cache. Run 'openmates chats list' to sync first.`,
+      );
     }
 
     const embedId = String(embed.embed_id ?? embed.id ?? "");
-    const hashedChatId = String(embed.hashed_chat_id ?? "");
 
-    // Find the embed key for this embed — look by hashed_embed_id or hashed_chat_id
-    // Embeds can be keyed by chat key or by a dedicated embed key.
+    // Compute hashed_embed_id = SHA-256(embed.embed_id) — must match server computation
+    const { createHash } = await import("node:crypto");
+    const hashedEmbedId = createHash("sha256")
+      .update(String(embed.embed_id ?? ""))
+      .digest("hex");
+
     let embedKeyBytes: Uint8Array | null = null;
 
-    // Try to find a dedicated embed key entry
-    const embedKeyEntry = cache.embedKeys.find((ek) => {
-      const hEmbedId = String(ek.hashed_embed_id ?? "");
-      return hEmbedId && hEmbedId === String(embed.hashed_embed_id ?? embedId);
-    });
-
+    // Strategy 1: master key type — decrypt embed key with master key directly
+    const masterKeyEntry = cache.embedKeys.find(
+      (ek) =>
+        ek.hashed_embed_id === hashedEmbedId &&
+        String(ek.key_type) === "master",
+    );
     if (
-      embedKeyEntry &&
-      typeof embedKeyEntry.encrypted_embed_key === "string"
+      masterKeyEntry &&
+      typeof masterKeyEntry.encrypted_embed_key === "string"
     ) {
-      // Unwrap embed key with master key
       embedKeyBytes = await decryptBytesWithAesGcm(
-        embedKeyEntry.encrypted_embed_key as string,
+        masterKeyEntry.encrypted_embed_key as string,
         masterKey,
       );
     }
 
-    // Fallback: try finding a chat-key-based embed key
-    if (!embedKeyBytes && hashedChatId) {
+    // Strategy 2: chat key type — unwrap via chat key
+    if (!embedKeyBytes) {
       const chatKeyEntry = cache.embedKeys.find(
         (ek) =>
-          String(ek.hashed_chat_id ?? "") === hashedChatId &&
-          String(ek.key_type ?? "") === "chat",
+          ek.hashed_embed_id === hashedEmbedId &&
+          String(ek.key_type) === "chat",
       );
       if (
         chatKeyEntry &&
         typeof chatKeyEntry.encrypted_embed_key === "string"
       ) {
-        embedKeyBytes = await decryptBytesWithAesGcm(
-          chatKeyEntry.encrypted_embed_key as string,
-          masterKey,
-        );
+        // Find the owning chat by hashed_chat_id = SHA-256(chat_id)
+        const hashedChatId = String(chatKeyEntry.hashed_chat_id ?? "");
+        const owningChat = cache.chats.find((c) => {
+          const chatHash = createHash("sha256")
+            .update(String(c.details.id ?? ""))
+            .digest("hex");
+          return chatHash === hashedChatId;
+        });
+        if (owningChat) {
+          const encChatKey =
+            typeof owningChat.details.encrypted_chat_key === "string"
+              ? owningChat.details.encrypted_chat_key
+              : null;
+          if (encChatKey) {
+            const chatKeyBytes = await decryptBytesWithAesGcm(
+              encChatKey,
+              masterKey,
+            );
+            if (chatKeyBytes) {
+              embedKeyBytes = await decryptBytesWithAesGcm(
+                chatKeyEntry.encrypted_embed_key as string,
+                chatKeyBytes,
+              );
+            }
+          }
+        }
       }
     }
 
-    // Decrypt fields
     const decryptField = async (field: string): Promise<string | null> => {
       const val = embed[field];
       if (typeof val !== "string" || !embedKeyBytes) return null;
