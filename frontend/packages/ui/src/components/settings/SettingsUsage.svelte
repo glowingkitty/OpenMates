@@ -1243,6 +1243,15 @@ Usage Settings - View usage statistics and export usage data
      * Falls back to apiKey object if encrypted data not available (backward compatibility).
      */
     async function getApiKeyLabel(summary: ApiKeyUsageSummary): Promise<{ title: string; subtitle: string }> {
+        // CLI device entries: api_key_hash starts with "cli:" prefix.
+        // These are CLI session-auth skill executions, not actual API keys.
+        if (summary.api_key_hash?.startsWith('cli:')) {
+            return {
+                title: $text('settings.usage.cli_device') || 'CLI',
+                subtitle: summary.api_key_hash.slice(4, 12) + '…'
+            };
+        }
+
         let name = '';
         let prefix = '';
         let _prefixFromBackend = false; // Track if prefix came from backend encrypted field
@@ -2356,7 +2365,7 @@ Usage Settings - View usage statistics and export usage data
                         >
                             <div class="api-key-usage-icon-wrapper">
                                 <Icon 
-                                    name="code"
+                                    name={summary.api_key_hash?.startsWith('cli:') ? 'terminal' : 'code'}
                                     type="default"
                                     size="28px"
                                 />

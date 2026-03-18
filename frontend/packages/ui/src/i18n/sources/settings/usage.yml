@@ -478,6 +478,30 @@ api_key_details:
   sv: API-nyckel
   he: מפתח API
   verified_by_human: []
+cli_device:
+  context: Label for CLI device usage entries in the API usage tab
+  en: CLI
+  de: CLI
+  zh: CLI
+  es: CLI
+  fr: CLI
+  pt: CLI
+  ru: CLI
+  ja: CLI
+  ko: CLI
+  it: CLI
+  tr: CLI
+  vi: CLI
+  id: CLI
+  pl: CLI
+  nl: CLI
+  ar: CLI
+  hi: CLI
+  th: CLI
+  cs: CLI
+  sv: CLI
+  he: CLI
+  verified_by_human: []
 chat_details:
   context: Chat details header
   en: Chat Details
@@ -1052,7 +1076,7 @@ total_credits_label:
   th: เครดิตทั้งหมด
   cs: Celkové kredity
   sv: Totala krediter
-  he: "סה\"כ קרדיטים"
+  he: 'סה"כ קרדיטים'
   verified_by_human: []
 entry_detail_title:
   context: Title shown in the usage entry detail view header

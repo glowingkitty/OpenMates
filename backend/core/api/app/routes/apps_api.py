@@ -171,11 +171,20 @@ async def get_session_or_api_key_info(
                 cache_service=cache_service,
                 refresh_token=refresh_token,
             )
+            # Detect CLI callers by User-Agent and generate a device_hash so
+            # usage entries are trackable in the API/device usage tab.
+            user_agent = request.headers.get("User-Agent", "")
+            device_hash = None
+            is_cli = user_agent.startswith("openmates-cli")
+            if is_cli:
+                import hashlib
+                device_hash = hashlib.sha256(user_agent.encode()).hexdigest()
             return {
                 "user_id": user.id,
                 "api_key_encrypted_name": "",
                 "api_key_hash": None,
-                "device_hash": None,
+                "device_hash": device_hash,
+                "is_cli": is_cli,
                 "email": getattr(user, "encrypted_email_address", None),
             }
         except HTTPException:
