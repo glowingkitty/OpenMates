@@ -176,7 +176,9 @@ def _build_alert_summary(alerts_to_dispatch: list[dict]) -> str:
     for sev in ("critical", "high", "medium"):
         if not by_severity[sev]:
             continue
-        lines.append(f"\n{sev.upper()}:")
+        # Empty first entry starts without leading newline; subsequent sections get one blank line separator
+        prefix = "" if not lines else "\n"
+        lines.append(f"{prefix}{sev.upper()}:")
         for a in by_severity[sev]:
             ghsa = a["ghsa_id"]
             pkg = a["package"]
