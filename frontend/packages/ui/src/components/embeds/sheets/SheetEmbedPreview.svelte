@@ -131,6 +131,24 @@
   let previewRows = $derived(parsedTable.rows.slice(0, maxPreviewRows));
   let hasMoreRows = $derived(parsedTable.rowCount > maxPreviewRows);
   
+  /**
+   * Compute per-column pixel widths from content length.
+   * Scans header + preview rows to find the longest value per column,
+   * then maps char count → pixels (8px/char) clamped to [60, 240].
+   * Replaces the old table-layout:fixed equal-split approach.
+   */
+  let colWidths = $derived.by(() => {
+    return parsedTable.headers.map((header, i) => {
+      const headerLen = header.content.length;
+      const maxDataLen = previewRows.reduce((max, row) => {
+        const len = row[i]?.content?.length ?? 0;
+        return len > max ? len : max;
+      }, 0);
+      const chars = Math.max(headerLen, maxDataLen);
+      return Math.min(Math.max(chars * 8, 60), 240);
+    });
+  });
+
   // Build skill name for BasicInfosBar
   let skillName = $derived.by(() => renderTitle || $text('embeds.table'));
   
@@ -197,6 +215,11 @@
         <!-- Table preview — scrolls horizontally for wide tables -->
         <div class="table-scroll">
           <table class="preview-table" class:large-desktop={isLargeSnippet && !isMobileSnippet}>
+            <colgroup>
+              {#each colWidths as w}
+                <col style="width: {w}px; max-width: {w}px;" />
+              {/each}
+            </colgroup>
             <thead>
               <tr>
                 {#each parsedTable.headers as header}
@@ -298,8 +321,12 @@
     font-size: 11px;
     line-height: 1.3;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    width: 100%;
-    table-layout: fixed;
+    /* Auto-layout: colgroup widths drive column sizing, not equal-split fixed.
+       min-width:100% fills the container; max-content lets wide tables overflow
+       (the table-scroll wrapper clips them without a visible scrollbar). */
+    width: max-content;
+    min-width: 100%;
+    table-layout: auto;
     margin-top: 15px;
   }
 
