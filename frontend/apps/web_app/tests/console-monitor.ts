@@ -69,8 +69,6 @@ const BENIGN_ERROR_PATTERNS: RegExp[] = [
 	/\[ChatDatabase\]/,
 	// Service worker lifecycle noise
 	/service worker/i,
-	// Workbox precaching warnings that don't affect functionality
-	/workbox/i,
 	// Chrome DevTools noise
 	/DevTools/i,
 	// Browser extension interference
