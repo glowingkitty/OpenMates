@@ -1,9 +1,35 @@
+<!--
+    SettingsItem — Universal settings menu row component.
+
+    Handles 5 of the 12 canonical Figma settings UI element types:
+    1. Subsettings menu link  → type="submenu"
+    2. Settings item with toggle → hasToggle=true
+    3. Clickable action → type="quickaction"
+    4. Settings item with value → subtitle + hasModifyButton
+    5. Settings subheading → type="heading"
+
+    Design reference: Figma "settings_menu_elements" frame (node 4944-31418)
+    See also: docs/architecture/settings-ui.md
+    Preview: /dev/preview/settings (shows all variants side-by-side)
+-->
 <script lang="ts">
     import Toggle from './Toggle.svelte';
     import ModifyButton from './buttons/ModifyButton.svelte';
     import Icon from './Icon.svelte';
     import { getCategoryGradientColors, getLucideIcon, getFallbackIconForCategory } from '../utils/categoryUtils';
     import type { Snippet } from 'svelte';
+
+    /** Supported SettingsItem display types */
+    type SettingsItemType = 'heading' | 'submenu' | 'quickaction' | 'subsubmenu' | 'nested';
+
+    /** Icon rendering mode — determines how the left icon area is styled */
+    type SettingsItemIconType = 'default' | 'app' | 'memory' | 'skill' | 'focus' | 'category';
+
+    /** App/provider icon displayed on the right side of the row */
+    interface AppIconEntry {
+        name: string;
+        type?: 'app' | 'provider';
+    }
 
     // Props using Svelte 5 runes
     let { 
@@ -31,7 +57,7 @@
         children
     }: {
         icon: string;
-        type?: 'heading' | 'submenu' | 'quickaction' | 'subsubmenu' | 'nested';
+        type?: SettingsItemType;
         title?: string | undefined;
         subtitleTop?: string;
         subtitle?: string;
@@ -39,7 +65,7 @@
         showCredits?: boolean;
         creditAmount?: number | undefined;
         creditCurrency?: string;
-        appIcons?: Array<{ name: string, type?: 'app' | 'provider' }>;
+        appIcons?: AppIconEntry[];
         maxVisibleIcons?: number;
         hasToggle?: boolean;
         hasModifyButton?: boolean;
@@ -48,7 +74,7 @@
         onClick?: (() => void) | undefined;
         onModifyClick?: (() => void) | undefined;
         hasNestedItems?: boolean;
-        iconType?: 'default' | 'app' | 'memory' | 'skill' | 'focus' | 'category';
+        iconType?: SettingsItemIconType;
         category?: string | undefined;
         categoryIcon?: string | undefined;
         children?: Snippet | undefined;
@@ -63,36 +89,24 @@
     let iconClass = $derived(type === 'quickaction' || type === 'subsubmenu' ? 
         `icon settings_size subsetting_icon ${icon}` : `icon settings_size ${icon}`);
 
-    // Handle events
-    function handleItemClick(event) {
-        // Prevent event bubbling to avoid closing parent menus
+    // Handle events — use Event base type since handlers are shared by mouse and keyboard
+    function handleItemClick(event: Event) {
         event.stopPropagation();
-        
         if (!disabled && isClickable && onClick) {
             onClick();
         }
     }
 
-    function handleToggleClick(event) {
-        // Prevent event bubbling so the parent menu-item onClick does not also fire
+    function handleToggleClick(event: Event) {
         event.stopPropagation();
-        // Prevent mousedown default to avoid focus stealing on mobile
         event.preventDefault();
-        
-        if (!disabled) {
-            // Let the parent's onClick update state (e.g. currentLanguage),
-            // which flows back down as the checked prop.
-            if (isClickable && onClick) {
-                onClick();
-            }
+        if (!disabled && isClickable && onClick) {
+            onClick();
         }
     }
 
-    function handleModifyClick(event) {
-        // Prevent event bubbling to avoid closing parent menus
+    function handleModifyClick(event: Event) {
         event.stopPropagation();
-        
-        // Call the onModifyClick handler if provided
         if (onModifyClick) {
             onModifyClick();
         }
@@ -107,24 +121,6 @@
     }
 </script>
 
-
-<!--
-    SettingsItem Component
-    
-    This component renders a menu item with various configurations:
-    - Can be clickable or non-clickable
-    - Can have toggle switches
-    - Can have modify buttons
-    - Can display app icons
-    - Can show credits
-    - Supports nested content
-    
-    Accessibility considerations:
-    - if settingsitem has a toggle, do not forward the click on the toggle to the settingsitem click handler but to the toggle click handler
-    - if settingsitem has a toggle and no settingsitem click handler, forward the click to the toggle and toggle click handler
-
--->
-
 <!-- Single unified template — clickable vs non-clickable is handled via conditional attributes -->
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div 
@@ -138,7 +134,7 @@
     class:nested={type === 'nested'}
     class:has-nested-items={hasNestedItems}
     onclick={isClickable ? handleItemClick : undefined}
-    onkeydown={isClickable ? (e) => !disabled && handleKeydown(e, () => handleItemClick(e)) : undefined}
+    onkeydown={isClickable ? (e) => !disabled && handleKeydown(e, () => onClick?.()) : undefined}
     role={isClickable ? 'menuitem' : 'presentation'}
     tabindex={isClickable ? (disabled ? -1 : 0) : undefined}
 >
@@ -246,7 +242,7 @@
                 <div 
                     onmousedown={(e) => { e.preventDefault(); e.stopPropagation(); }}
                     onclick={handleToggleClick}
-                    onkeydown={(e) => handleKeydown(e, () => handleToggleClick(e))}
+                    onkeydown={(e) => handleKeydown(e, () => onClick?.())}
                     role="button" 
                     tabindex="0"
                     class="toggle-container"
@@ -264,7 +260,7 @@
             {#if hasModifyButton}
                 <div
                     onclick={handleModifyClick}
-                    onkeydown={(e) => handleKeydown(e, () => handleModifyClick(e))}
+                    onkeydown={(e) => handleKeydown(e, () => onModifyClick?.())}
                     role="button"
                     tabindex="0"
                     class="modify-button-container"
@@ -315,29 +311,9 @@
         min-width: 0;
     }
 
-    .icon-container {
-        width: 44px;
-        height: 44px;
-        /* Logical property: gap between icon and text label (after icon in reading direction) */
-        margin-inline-end: 12px;
-        flex-shrink: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    /* App icon wrapper for displaying app icons using the Icon component */
-    .app-icon-wrapper {
-        width: 44px;
-        height: 44px;
-        margin-inline-end: 12px;
-        flex-shrink: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    /* Category circle styles */
+    /* Shared icon area sizing — all icon types use the same 44px slot */
+    .icon-container,
+    .app-icon-wrapper,
     .category-circle-wrapper {
         width: 44px;
         height: 44px;
