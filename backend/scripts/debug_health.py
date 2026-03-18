@@ -543,11 +543,12 @@ async def run_health_check_compact() -> str:
     return f"OK ({', '.join(parts)})"
 
 
-async def _fetch_prod_error_fingerprints(top: int = 5) -> list[dict]:
+async def _fetch_prod_error_fingerprints(top: int = 5) -> list[dict] | None:
     """Fetch error fingerprints from the production Admin Debug API /errors endpoint.
 
-    Returns list of dicts with keys: exc_type, file_part, func, line_num, count.
-    Returns empty list on any failure (non-critical — prod key may be absent).
+    Returns:
+        list of dicts (may be empty if prod has no errors) on success,
+        None on any failure (API unreachable, key missing, HTTP error).
     """
     try:
         from debug_utils import get_api_key_from_vault, PROD_API_URL
@@ -555,7 +556,7 @@ async def _fetch_prod_error_fingerprints(top: int = 5) -> list[dict]:
         try:
             api_key = await get_api_key_from_vault()
         except SystemExit:
-            return []
+            return None
         url = f"{PROD_API_URL}/errors"
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.get(
@@ -564,7 +565,7 @@ async def _fetch_prod_error_fingerprints(top: int = 5) -> list[dict]:
                 params={"top": top},
             )
         if resp.status_code != 200:
-            return []
+            return None
         data = resp.json()
         results = []
         for entry in data.get("top_errors", []):
@@ -580,7 +581,7 @@ async def _fetch_prod_error_fingerprints(top: int = 5) -> list[dict]:
             })
         return results
     except Exception:
-        return []
+        return None
 
 
 async def get_error_overview_compact(top: int = 5, since_minutes: int = 30) -> str:
@@ -634,7 +635,9 @@ async def get_error_overview_compact(top: int = 5, since_minutes: int = 30) -> s
 
     # ── Prod: error fingerprints from production Admin Debug API ─────────────
     prod_fingerprints = await _fetch_prod_error_fingerprints(top=top)
-    if prod_fingerprints:
+    if prod_fingerprints is None:
+        lines.append("  [prod] Top recurring (7d): (unavailable — check prod API key)")
+    elif prod_fingerprints:
         lines.append("  [prod] Top recurring (7d):")
         for i, entry in enumerate(prod_fingerprints, 1):
             lines.append(
@@ -642,7 +645,7 @@ async def get_error_overview_compact(top: int = 5, since_minutes: int = 30) -> s
                 f"in {entry['file_part']}:{entry['func']}:{entry['line_num']}"
             )
     else:
-        lines.append("  [prod] Top recurring (7d): (unavailable — check prod API key)")
+        lines.append("  [prod] Top recurring (7d): none")
 
     lines.append("  → Details: debug.py logs --o2 --preset web-app-health")
     return "\n".join(lines)
