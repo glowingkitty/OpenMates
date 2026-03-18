@@ -263,7 +263,8 @@ async function handleApps(
     return;
   }
 
-  // `apps <app> --help` → show app info (same as `apps info <app>`)
+  // `apps <app> --help` → show app info
+  // `apps <app> <skill> --help` → show skill info
   if (
     flags.help === true &&
     subcommand !== "list" &&
@@ -271,8 +272,20 @@ async function handleApps(
     subcommand !== "skill-info" &&
     subcommand !== "run"
   ) {
-    const data = await client.getApp(subcommand);
-    await printAppInfo(client, data as AppMetadata);
+    const potentialApp = subcommand;
+    const potentialSkill = rest[0];
+    if (potentialSkill) {
+      // `apps <app> <skill> --help` → skill-level help
+      const data = await client.getSkillInfo(
+        potentialApp,
+        potentialSkill,
+        apiKey,
+      );
+      await printSkillInfo(client, potentialApp, data as SkillMetadata);
+    } else {
+      const data = await client.getApp(potentialApp);
+      await printAppInfo(client, data as AppMetadata);
+    }
     return;
   }
 
@@ -346,30 +359,56 @@ async function handleApps(
   const skill = rest[0];
   if (app && skill) {
     const inlineTokens = rest.slice(1);
-    const inputData = buildSkillInput(flags, inlineTokens);
+    const hasExplicitInput = typeof flags.input === "string";
 
-    // If the user didn't pass --input and the skill requires fields beyond
-    // just "query", show a helpful error with the --input flag syntax.
-    if (typeof flags.input !== "string" && inlineTokens.length > 0) {
-      try {
-        const params = await client.getSkillSchema(app, skill);
-        const required = params.filter((p) => p.required);
-        if (required.length > 1) {
-          // Skill needs more than just "query" — enforce --input
-          const example: Record<string, string> = {};
-          for (const p of required) example[p.name] = `<${p.name}>`;
-          console.error(
-            `This skill requires ${required.length} fields: ${required.map((p) => p.name).join(", ")}\n\n` +
-              `Use --input to provide all fields:\n` +
-              `  openmates apps ${app} ${skill} --input '{"requests": [${JSON.stringify(example)}]}'\n`,
-          );
-          process.exit(1);
-        }
-      } catch {
-        // Schema lookup failed — proceed with default behavior
+    // Fetch schema once — used for both empty-args detection and multi-param validation.
+    let schemaParams: Array<{
+      name: string;
+      type: string;
+      description: string;
+      required: boolean;
+      default?: unknown;
+    }> = [];
+    try {
+      schemaParams = await client.getSkillSchema(app, skill);
+    } catch {
+      // Schema unavailable — proceed with best-effort execution
+    }
+
+    // No args, no --input, and the skill has required params →
+    // show skill help instead of sending an empty/partial request that 422s.
+    if (!hasExplicitInput && inlineTokens.length === 0) {
+      const required = schemaParams.filter((p) => p.required);
+      if (required.length > 0) {
+        const data = await client.getSkillInfo(app, skill, apiKey);
+        await printSkillInfo(client, app, data as SkillMetadata);
+        return;
       }
     }
 
+    // Multiple required params but user provided only inline text →
+    // enforce --input with a helpful example.
+    if (
+      !hasExplicitInput &&
+      inlineTokens.length > 0 &&
+      schemaParams.length > 0
+    ) {
+      const required = schemaParams.filter((p) => p.required);
+      if (required.length > 1) {
+        const example: Record<string, unknown> = {};
+        for (const p of required) example[p.name] = `<${p.name}>`;
+        console.error(
+          `This skill requires ${required.length} fields: ${required.map((p) => p.name).join(", ")}\n\n` +
+            `Use --input to provide all fields:\n` +
+            `  openmates apps ${app} ${skill} --input '{"requests": [${JSON.stringify(example)}]}'\n\n` +
+            `Run with --help for full parameter details:\n` +
+            `  openmates apps ${app} ${skill} --help\n`,
+        );
+        process.exit(1);
+      }
+    }
+
+    const inputData = buildSkillInput(flags, inlineTokens);
     const data = await client.runSkill({ app, skill, inputData, apiKey });
     if (flags.json === true) {
       printJson(data);
@@ -1438,14 +1477,23 @@ async function printAppInfo(
         const names = providers.map((p) => p.name ?? p.provider).join(", ");
         process.stdout.write(`    \x1b[2mProviders: ${names}\x1b[0m\n`);
       }
-      // Show required input parameters inline (compact)
+      // Show required input parameters inline (compact) — use --help for full detail
       const params = await client
         .getSkillSchema(data.id, skill.id)
         .catch(() => []);
       const required = params.filter((p) => p.required);
       if (required.length > 0) {
-        const reqStr = required.map((p) => `${p.name} (${p.type})`).join(", ");
-        process.stdout.write(`    \x1b[2mRequired: ${reqStr}\x1b[0m\n`);
+        // Show name + a short type hint (strip "array of {...}" to just "array")
+        const reqStr = required
+          .map((p) => {
+            const shortType = p.type.startsWith("array of") ? "array" : p.type;
+            return `${p.name} \x1b[2m(${shortType})\x1b[0m`;
+          })
+          .join("  ");
+        process.stdout.write(`    \x1b[2mRequired:\x1b[0m ${reqStr}\n`);
+        process.stdout.write(
+          `    \x1b[2mopenmates apps ${data.id} ${skill.id} --help  for details\x1b[0m\n`,
+        );
       }
     }
     console.log();
@@ -1483,6 +1531,7 @@ async function printSkillInfo(
     console.log();
   }
 
+  // Providers
   const providers = data.providers ?? [];
   if (providers.length > 0) {
     process.stdout.write(`\x1b[1mProviders\x1b[0m\n`);
@@ -1494,9 +1543,12 @@ async function printSkillInfo(
         process.stdout.write(`    \x1b[2m${p.description}\x1b[0m\n`);
       }
       if (p.pricing) {
-        process.stdout.write(
-          `    \x1b[2mPricing: ${JSON.stringify(p.pricing)}\x1b[0m\n`,
-        );
+        const pr = p.pricing as Record<string, unknown>;
+        const perReq = pr.per_request_credits ?? pr.credits;
+        if (perReq !== undefined)
+          process.stdout.write(
+            `    \x1b[2m${perReq} credits per request\x1b[0m\n`,
+          );
       }
     }
     console.log();
@@ -1504,35 +1556,129 @@ async function printSkillInfo(
 
   // Fetch input parameter schema from OpenAPI spec
   const params = await client.getSkillSchema(appId, data.id).catch(() => []);
-  if (params.length > 0) {
-    process.stdout.write(`\x1b[1mInput parameters\x1b[0m\n`);
-    for (const p of params) {
-      const req = p.required ? `\x1b[33m*\x1b[0m` : ` `;
-      const typeStr = `\x1b[2m(${p.type})\x1b[0m`;
-      const defStr =
-        p.default !== undefined && p.default !== null
-          ? `  \x1b[2mdefault: ${JSON.stringify(p.default)}\x1b[0m`
-          : "";
-      process.stdout.write(`  ${req} \x1b[36m${p.name}\x1b[0m  ${typeStr}\n`);
-      if (p.description) {
-        process.stdout.write(`      \x1b[2m${p.description}${defStr}\x1b[0m\n`);
-      } else if (defStr) {
-        process.stdout.write(`      ${defStr}\n`);
-      }
-    }
-    const requiredNames = params
-      .filter((p) => p.required)
-      .map((p) => p.name)
-      .join(", ");
-    if (requiredNames) {
-      process.stdout.write(`\n  \x1b[2m* required: ${requiredNames}\x1b[0m\n`);
-    }
-    console.log();
-  }
+  const requiredParams = params.filter((p) => p.required);
+  const optionalParams = params.filter((p) => !p.required);
 
-  console.log(
-    `\x1b[2mRun: openmates apps ${appId} ${data.id} "<query>"\x1b[0m`,
-  );
+  if (params.length > 0) {
+    // ── Required parameters ──────────────────────────────────────────────
+    if (requiredParams.length > 0) {
+      process.stdout.write(`\x1b[1mRequired parameters\x1b[0m\n`);
+      for (const p of requiredParams) {
+        process.stdout.write(
+          `  \x1b[33m*\x1b[0m \x1b[1m${p.name}\x1b[0m  \x1b[2m(${p.type})\x1b[0m\n`,
+        );
+        if (p.description) {
+          // Wrap long descriptions at ~72 chars
+          const lines = wrapText(p.description, 68);
+          for (const l of lines)
+            process.stdout.write(`      \x1b[2m${l}\x1b[0m\n`);
+        }
+      }
+      console.log();
+    }
+
+    // ── Optional parameters ──────────────────────────────────────────────
+    if (optionalParams.length > 0) {
+      process.stdout.write(`\x1b[1mOptional parameters\x1b[0m\n`);
+      for (const p of optionalParams) {
+        const defStr =
+          p.default !== undefined && p.default !== null
+            ? `  \x1b[2m[default: ${JSON.stringify(p.default)}]\x1b[0m`
+            : "";
+        process.stdout.write(
+          `    \x1b[36m${p.name}\x1b[0m  \x1b[2m(${p.type})\x1b[0m${defStr}\n`,
+        );
+        if (p.description) {
+          const lines = wrapText(p.description, 68);
+          for (const l of lines)
+            process.stdout.write(`      \x1b[2m${l}\x1b[0m\n`);
+        }
+      }
+      console.log();
+    }
+
+    // ── Example --input JSON ─────────────────────────────────────────────
+    // Build a minimal example showing required fields + first 2 optional
+    const exampleItem: Record<string, unknown> = {};
+    for (const p of requiredParams) {
+      exampleItem[p.name] = buildExampleValue(p.name, p.type, p.description);
+    }
+    // Show up to 2 optional params to give context
+    for (const p of optionalParams.slice(0, 2)) {
+      exampleItem[p.name] =
+        p.default ?? buildExampleValue(p.name, p.type, p.description);
+    }
+    process.stdout.write(`\x1b[1mExample\x1b[0m\n`);
+    const exampleJson = JSON.stringify({ requests: [exampleItem] }, null, 2)
+      .split("\n")
+      .map((l) => `  ${l}`)
+      .join("\n");
+    process.stdout.write(
+      `  \x1b[2mopenmates apps ${appId} ${data.id} --input '\x1b[0m\n`,
+    );
+    process.stdout.write(`${exampleJson}\n`);
+    process.stdout.write(`  \x1b[2m'\x1b[0m\n`);
+    console.log();
+  } else {
+    // Skill takes no input — simple invocation
+    console.log(`\x1b[2mRun: openmates apps ${appId} ${data.id}\x1b[0m`);
+  }
+}
+
+/** Wrap text at `width` chars, preserving existing sentence structure. */
+function wrapText(text: string, width: number): string[] {
+  const words = text.split(" ");
+  const lines: string[] = [];
+  let current = "";
+  for (const w of words) {
+    if (current.length + w.length + 1 > width && current.length > 0) {
+      lines.push(current);
+      current = w;
+    } else {
+      current = current.length > 0 ? `${current} ${w}` : w;
+    }
+  }
+  if (current.length > 0) lines.push(current);
+  return lines;
+}
+
+/** Build a placeholder example value for a param based on name/type/description. */
+function buildExampleValue(
+  name: string,
+  type: string,
+  description: string,
+): unknown {
+  // Common patterns
+  if (name === "query" || name.endsWith("_query")) return "Berlin AI meetups";
+  if (name === "location") return "Berlin, Germany";
+  if (name === "url") return "https://example.com";
+  if (name === "date" || name.includes("_date")) return "2026-04-15";
+  if (name === "check_in_date") return "2026-04-15";
+  if (name === "check_out_date") return "2026-04-18";
+  if (name === "legs") {
+    return [
+      { origin: "BER", destination: "LHR", departure_date: "2026-04-15" },
+    ];
+  }
+  if (type.startsWith("array")) {
+    // Try to infer item structure from description
+    if (
+      description.toLowerCase().includes("origin") &&
+      description.toLowerCase().includes("destination")
+    ) {
+      return [
+        {
+          origin: "<IATA>",
+          destination: "<IATA>",
+          departure_date: "YYYY-MM-DD",
+        },
+      ];
+    }
+    return ["<value>"];
+  }
+  if (type === "integer" || type === "number") return 1;
+  if (type === "boolean") return false;
+  return `<${name}>`;
 }
 
 /**

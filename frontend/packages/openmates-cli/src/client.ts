@@ -415,6 +415,15 @@ interface ChatListItem {
   mateName: string | null;
 }
 
+/** A single parameter extracted from the OpenAPI skill schema. */
+export interface SkillParam {
+  name: string;
+  type: string;
+  description: string;
+  required: boolean;
+  default?: unknown;
+}
+
 export interface ChatListPage {
   chats: ChatListItem[];
   total: number;
@@ -1306,22 +1315,9 @@ export class OpenMatesClient {
     return response.data;
   }
 
-  /**
-   * Fetch input parameter schema for a specific skill from the OpenAPI spec.
-   * Returns an object mapping parameter names to their descriptions.
-   */
-  async getSkillSchema(
-    appId: string,
-    skillId: string,
-  ): Promise<
-    Array<{
-      name: string;
-      type: string;
-      description: string;
-      required: boolean;
-      default?: unknown;
-    }>
-  > {
+  /** A single parameter entry from the skill schema. */
+  // Exported via index.ts for external consumers.
+  async getSkillSchema(appId: string, skillId: string): Promise<SkillParam[]> {
     const response = await this.http.get(
       "/openapi.json",
       this.getCliRequestHeaders(),
@@ -1355,28 +1351,36 @@ export class OpenMatesClient {
       postPath.requestBody?.content?.["application/json"]?.schema;
     if (!bodySchema) return [];
 
-    // Follow $ref to get the actual schema
+    // Recursively resolve $ref to a schema object
     const resolveRef = (ref: string): Record<string, unknown> | null => {
       const name = ref.replace("#/components/schemas/", "");
       return (schemas[name] as Record<string, unknown>) ?? null;
     };
 
+    const resolveSchema = (
+      s: Record<string, unknown>,
+    ): Record<string, unknown> => {
+      if (typeof s.$ref === "string") {
+        return resolveRef(s.$ref) ?? s;
+      }
+      return s;
+    };
+
     const topSchema =
       typeof bodySchema.$ref === "string"
         ? resolveRef(bodySchema.$ref)
-        : bodySchema;
+        : (bodySchema as Record<string, unknown>);
     if (!topSchema) return [];
 
-    // The top-level schema has a "requests" array with items $ref
+    // The top-level schema has a "requests" array with items $ref →
+    // navigate to the RequestItem_* schema which has the actual params.
     const requestsProp = (
       topSchema.properties as
         | Record<string, Record<string, unknown>>
         | undefined
     )?.requests;
     const itemsRef = requestsProp?.items as Record<string, unknown> | undefined;
-    const itemSchema = itemsRef?.$ref
-      ? resolveRef(itemsRef.$ref as string)
-      : itemsRef;
+    const itemSchema = itemsRef ? resolveSchema(itemsRef) : null;
 
     if (!itemSchema?.properties) return [];
 
@@ -1387,16 +1391,50 @@ export class OpenMatesClient {
     );
     const props = itemSchema.properties as Record<
       string,
-      { type?: string; description?: string; default?: unknown }
+      Record<string, unknown>
     >;
 
-    return Object.entries(props).map(([name, p]) => ({
-      name,
-      type: p.type ?? "string",
-      description: p.description ?? "",
-      required: required.has(name),
-      default: p.default,
-    }));
+    return Object.entries(props).map(([name, p]) => {
+      const resolved = resolveSchema(p);
+      let typeStr = (resolved.type as string | undefined) ?? "string";
+
+      // For array types, try to describe the item structure from the description
+      // since the OpenAPI spec often uses items:{} (freeform) for nested objects.
+      let itemTypeStr: string | undefined;
+      if (typeStr === "array") {
+        const items = resolved.items as Record<string, unknown> | undefined;
+        if (items && typeof items.$ref === "string") {
+          const itemResolved = resolveRef(items.$ref as string);
+          if (itemResolved?.properties) {
+            const itemProps = Object.keys(
+              itemResolved.properties as Record<string, unknown>,
+            );
+            itemTypeStr = `{${itemProps.join(", ")}}`;
+          }
+        }
+        typeStr = itemTypeStr ? `array of ${itemTypeStr}` : "array";
+      }
+
+      // For anyOf/oneOf, build a union type string
+      if (resolved.anyOf || resolved.oneOf) {
+        const variants = (resolved.anyOf ?? resolved.oneOf) as Array<
+          Record<string, unknown>
+        >;
+        const types = variants
+          .map((v) => (v.type as string | undefined) ?? "")
+          .filter(Boolean)
+          .filter((t) => t !== "null");
+        if (types.length > 0) typeStr = types.join(" | ");
+      }
+
+      return {
+        name,
+        type: typeStr,
+        description: (resolved.description as string | undefined) ?? "",
+        required: required.has(name),
+        default: resolved.default,
+      };
+    });
   }
 
   async runSkill(params: {
