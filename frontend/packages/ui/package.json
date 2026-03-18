@@ -19,6 +19,12 @@
       "svelte": "./src/legal/index.ts",
       "default": "./src/legal/index.ts"
     },
+    "./components/*": "./src/components/*",
+    "./components/settings/elements": {
+      "types": "./src/components/settings/elements/index.ts",
+      "svelte": "./src/components/settings/elements/index.ts",
+      "default": "./src/components/settings/elements/index.ts"
+    },
     "./src/styles/*": "./src/styles/*",
     "./services/clientLogForwarder": {
       "types": "./src/services/clientLogForwarder.ts",
