@@ -1,21 +1,20 @@
 /* eslint-disable no-console */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
- * Recent chats deduplication and ordering test.
+ * Recent chats resume card update test.
  *
- * Validates the "Continue where you left off" horizontal scroll area on the
- * new-chat welcome screen:
+ * Validates that the "Continue where you left off" resume card on the
+ * new-chat welcome screen updates correctly when switching between chats:
  *
- *   1. Login → send two messages in two separate chats → verify both exist
- *   2. Navigate to new-chat screen → verify the resume card and recent-chats
- *      scroll area show NO duplicate cards
- *   3. The primary resume card should be the last-opened chat
- *   4. The scrollable recent-chats list should NOT contain the resume card's chat
- *   5. Open chat B → navigate to new-chat → resume card should now be chat B
- *   6. Clean up: delete both test chats
+ *   1. Login → verify at least 2 chats exist in sidebar
+ *   2. Open chat A from sidebar → click "New Chat" → verify resume card shows chat A's title
+ *   3. Open chat B from sidebar → click "New Chat" → verify resume card shows chat B's title
+ *   4. Verify no duplicate cards in the recent-chats horizontal scroll area
  *
- * This test targets issue 3054f5ba: duplicate cards in the recent-chats
- * scroll container after opening a chat and returning to the new-chat screen.
+ * This test catches the bug where the resume card shows a stale chat from
+ * initial login instead of the most recently viewed chat.
+ *
+ * Issue: 3054f5ba — resume card shows stale chat on new-chat transition
  *
  * REQUIRED ENV VARS:
  * - OPENMATES_TEST_ACCOUNT_EMAIL
@@ -37,11 +36,12 @@ const {
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
-// ─── Log buckets ────────────────────────────────────────────────────────────
 const consoleLogs: string[] = [];
+const warnErrorLogs: Array<{ timestamp: string; type: string; text: string }> = [];
 
 test.beforeEach(async () => {
 	consoleLogs.length = 0;
+	warnErrorLogs.length = 0;
 });
 
 // eslint-disable-next-line no-empty-pattern
@@ -49,8 +49,15 @@ test.afterEach(async ({}, testInfo: any) => {
 	if (testInfo.status !== 'passed') {
 		console.log('\n--- DEBUG INFO ON FAILURE ---');
 		console.log('\n[RECENT CONSOLE LOGS]');
-		consoleLogs.slice(-40).forEach((log: string) => console.log(log));
+		consoleLogs.slice(-50).forEach((log: string) => console.log(log));
 		console.log('\n--- END DEBUG INFO ---\n');
+	}
+	// Report any warn/error logs even on success
+	if (warnErrorLogs.length > 0) {
+		console.log(`\n[WARN/ERROR SUMMARY] ${warnErrorLogs.length} warning(s)/error(s) captured`);
+		for (const entry of warnErrorLogs.slice(-10)) {
+			console.log(`  [${entry.type}] ${entry.text.slice(0, 200)}`);
+		}
 	}
 });
 
@@ -65,14 +72,14 @@ async function performLogin(
 	await takeStepScreenshot(page, '00-home');
 
 	const headerLoginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
-	await expect(headerLoginButton).toBeVisible();
+	await expect(headerLoginButton).toBeVisible({ timeout: 10000 });
 	await headerLoginButton.click();
 
 	const emailInput = page.locator('#login-email-input');
-	await expect(emailInput).toBeVisible();
+	await expect(emailInput).toBeVisible({ timeout: 10000 });
 	await emailInput.fill(TEST_EMAIL);
 
-	// Enable "Stay logged in" so keys persist
+	// Enable "Stay logged in"
 	const stayLoggedInLabel = page.locator(
 		'label.toggle[for="stayLoggedIn"], label.toggle:has(#stayLoggedIn)'
 	);
@@ -102,269 +109,281 @@ async function performLogin(
 	await submitLoginButton.click();
 	logStep('Submitted login form.');
 
-	await page.waitForURL(/chat/);
+	await page.waitForURL(/chat/, { timeout: 15000 });
 	logStep('Redirected to chat page.');
 	// Wait for phased sync to complete
-	await page.waitForTimeout(5000);
+	await page.waitForTimeout(6000);
 }
 
 /**
- * Click the "New Chat" button to navigate to the welcome / new-chat screen.
+ * Open the sidebar and return the titles of the first N user chats.
+ * Closes the sidebar afterwards.
  */
-async function navigateToNewChat(page: any, logStep: (...args: any[]) => void): Promise<void> {
-	const newChatCta = page.locator('.new-chat-cta-button, .icon_create');
-	await expect(newChatCta.first()).toBeVisible({ timeout: 5000 });
-	await newChatCta.first().click();
-	logStep('Clicked "New Chat" button.');
-	// Wait for the welcome screen to render
-	await page.waitForTimeout(2000);
-}
-
-/**
- * Send a message and wait for an AI response. Returns the chat ID.
- */
-async function sendMessageAndGetChatId(
+async function getSidebarChatTitles(
 	page: any,
-	message: string,
-	logStep: (...args: any[]) => void
-): Promise<string> {
-	// Click the editor area to focus it, then type via keyboard (not fill —
-	// fill() doesn't trigger ProseMirror/TipTap content detection properly).
-	// Selector matches chat-flow.spec.ts which uses '.editor-content.prose'.
-	const editor = page.locator('.editor-content.prose');
-	await expect(editor).toBeVisible({ timeout: 10000 });
-	await editor.click();
-	await page.keyboard.type(message);
-	logStep(`Typed message: "${message}"`);
+	logStep: (...args: any[]) => void,
+	count: number = 5
+): Promise<string[]> {
+	// Open sidebar
+	const menuToggle = page.locator('.icon_menu');
+	const activityHistory = page.locator('.activity-history-wrapper');
+	const isSidebarOpen = await activityHistory.isVisible().catch(() => false);
+	if (!isSidebarOpen) {
+		await expect(menuToggle).toBeVisible({ timeout: 5000 });
+		await menuToggle.click();
+		await expect(activityHistory).toBeVisible({ timeout: 10000 });
+		await page.waitForTimeout(2000);
+	}
 
-	// The send button uses data-action="send-message" and only appears when
-	// the editor has content (hasContent reactive state).
-	const sendButton = page.locator('[data-action="send-message"]');
-	await expect(sendButton).toBeVisible({ timeout: 15000 });
-	await expect(sendButton).toBeEnabled({ timeout: 5000 });
-	await sendButton.click();
-	logStep('Clicked send button.');
-
-	// Wait for chat ID to appear in URL
-	await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 15000 });
-	const urlAfterSend = page.url();
-	const chatIdMatch = urlAfterSend.match(/chat-id=([a-zA-Z0-9-]+)/);
-	const chatId = chatIdMatch ? chatIdMatch[1] : '';
-	logStep(`Chat ID: ${chatId}`);
-	expect(chatId).toBeTruthy();
-
-	// Wait for the assistant response
-	const assistantMsg = page.locator('.message-wrapper.assistant').last();
-	await expect(assistantMsg).toBeVisible({ timeout: 60000 });
-	logStep('Received assistant response.');
-
-	return chatId;
+	// Get chat titles (skip encrypted/unnamed chats)
+	const chatItems = page.locator('[data-testid="chat-item"] .chat-title');
+	const chatCount = await chatItems.count();
+	const titles: string[] = [];
+	for (let i = 0; i < Math.min(chatCount, count); i++) {
+		const text = (await chatItems.nth(i).textContent())?.trim() || '';
+		// Skip encrypted blobs and processing placeholders
+		if (
+			text &&
+			!text.includes('+') &&
+			!text.includes('=') &&
+			text !== 'Unnamed chat' &&
+			text.toLowerCase() !== 'processing'
+		) {
+			titles.push(text);
+		}
+	}
+	logStep(`Sidebar has ${titles.length} readable chats (of ${chatCount} total)`);
+	return titles;
 }
 
 /**
- * Delete a chat by its ID via the sidebar context menu.
+ * Click a chat in the sidebar by its title.
+ * Sidebar must already be open.
  */
-async function deleteChat(
+async function clickChatByTitle(
 	page: any,
-	chatId: string,
+	title: string,
 	logStep: (...args: any[]) => void
 ): Promise<void> {
-	// First navigate to the chat
-	const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL ?? 'https://app.dev.openmates.org';
-	await page.goto(`${baseUrl}/#chat-id=${chatId}`);
+	const chatItem = page.locator('[data-testid="chat-item"]').filter({ hasText: title }).first();
+	await expect(chatItem).toBeVisible({ timeout: 10000 });
+	await chatItem.click();
+	logStep(`Clicked chat: "${title}"`);
+	// Wait for chat to load (messages appear)
 	await page.waitForTimeout(3000);
+}
 
-	// Open sidebar
+/**
+ * Click the "New Chat" button via data-testid.
+ */
+async function clickNewChat(page: any, logStep: (...args: any[]) => void): Promise<void> {
+	const newChatBtn = page.locator('[data-testid="new-chat-button"]');
+	await expect(newChatBtn).toBeVisible({ timeout: 5000 });
+	await newChatBtn.click();
+	logStep('Clicked New Chat button.');
+	// Wait for welcome screen to render and resume card to populate
+	await page.waitForTimeout(3000);
+}
+
+/**
+ * Close the sidebar if it's open.
+ */
+async function closeSidebar(page: any, logStep: (...args: any[]) => void): Promise<void> {
 	const activityHistory = page.locator('.activity-history-wrapper');
-	const isSidebarVisible = await activityHistory.isVisible().catch(() => false);
-	if (!isSidebarVisible) {
-		const menuToggle = page.locator('.icon_menu');
-		if (await menuToggle.isVisible().catch(() => false)) {
-			await menuToggle.click();
-			await page.waitForTimeout(2000);
+	const isOpen = await activityHistory.isVisible().catch(() => false);
+	if (isOpen) {
+		const closeBtn = page.locator('.sidebar .close-button, .icon_menu').first();
+		if (await closeBtn.isVisible().catch(() => false)) {
+			await closeBtn.click();
+			await page.waitForTimeout(500);
+			logStep('Closed sidebar.');
 		}
-	}
-
-	// Right-click the active chat item to open context menu
-	const activeChat = page.locator('.chat-item-wrapper.active');
-	if (await activeChat.isVisible().catch(() => false)) {
-		await activeChat.click({ button: 'right' });
-		await page.waitForTimeout(500);
-
-		const deleteButton = page.locator('.menu-item.delete');
-		if (await deleteButton.isVisible().catch(() => false)) {
-			await deleteButton.click();
-			await page.waitForTimeout(2000);
-			logStep(`Deleted chat: ${chatId}`);
-		} else {
-			logStep(`Delete button not visible for chat: ${chatId}`);
-		}
-	} else {
-		logStep(`Active chat not visible in sidebar for: ${chatId}`);
 	}
 }
 
 /**
- * Collect all card titles from the recent-chats-scroll-container.
- * Returns an array of { title, index } objects for all cards
- * (both the primary resume card and the scrollable recent-chat cards).
+ * Get the resume card title from the welcome screen.
+ * Returns null if no resume card is visible.
  */
-async function getRecentChatCardTitles(
-	page: any
-): Promise<Array<{ title: string; index: number }>> {
+async function getResumeCardTitle(page: any): Promise<string | null> {
+	// Try large card first, then compact card
+	const largeTitle = page.locator('.resume-large-title').first();
+	const compactTitle = page.locator('.resume-chat-title').first();
+
+	if (await largeTitle.isVisible({ timeout: 500 }).catch(() => false)) {
+		return (await largeTitle.textContent())?.trim() || null;
+	}
+	if (await compactTitle.isVisible({ timeout: 500 }).catch(() => false)) {
+		return (await compactTitle.textContent())?.trim() || null;
+	}
+	return null;
+}
+
+/**
+ * Get ALL card titles from the recent-chats-scroll-container (including resume card).
+ */
+async function getAllRecentCardTitles(page: any): Promise<string[]> {
 	const container = page.locator('.recent-chats-scroll-container');
-	if (!(await container.isVisible().catch(() => false))) {
+	if (!(await container.isVisible({ timeout: 500 }).catch(() => false))) {
 		return [];
 	}
-
-	// Get all card titles in the container (large + compact variants)
-	const cards = container.locator(
-		'.resume-chat-large-card .resume-large-title, .resume-chat-card .resume-chat-title'
-	);
-	const count = await cards.count();
-	const results: Array<{ title: string; index: number }> = [];
+	const titles = container.locator('.resume-large-title, .resume-chat-title');
+	const count = await titles.count();
+	const result: string[] = [];
 	for (let i = 0; i < count; i++) {
-		const text = (await cards.nth(i).textContent())?.trim() || '';
-		results.push({ title: text, index: i });
+		const text = (await titles.nth(i).textContent())?.trim() || '';
+		if (text) result.push(text);
 	}
-	return results;
+	return result;
 }
 
 // ─── Test ────────────────────────────────────────────────────────────────────
 
-test('recent chats show no duplicates and resume card reflects last opened chat', async ({
+test('resume card updates to last opened chat on each new-chat transition', async ({
 	page
 }: {
 	page: any;
 }) => {
-	test.setTimeout(300000); // 5 minutes — two AI chats + navigation + assertions
+	test.setTimeout(300000); // 5 minutes
 
-	const logStep = createSignupLogger('RECENT_CHATS_DEDUP');
+	const logStep = createSignupLogger('RESUME_CARD');
 	const takeStepScreenshot = createStepScreenshotter(logStep, {
 		filenamePrefix: 'recent-chats-dedup'
 	});
 	await archiveExistingScreenshots(logStep);
 
-	// Capture console logs for diagnostics
+	// Capture console logs
 	page.on('console', (msg: any) => {
-		consoleLogs.push(`[${new Date().toISOString()}] [${msg.type()}] ${msg.text()}`);
+		const timestamp = new Date().toISOString();
+		const type = msg.type();
+		const text = msg.text();
+		consoleLogs.push(`[${timestamp}] [${type}] ${text}`);
+		if (type === 'warning' || type === 'error') {
+			warnErrorLogs.push({ timestamp, type, text });
+		}
 	});
 
 	// =========================================================================
-	// PHASE 1: Login
+	// PHASE 1: Login and discover chats
 	// =========================================================================
 	logStep('Phase 1: Login...');
 	await performLogin(page, logStep, takeStepScreenshot);
 	await takeStepScreenshot(page, '01-logged-in');
 
-	// =========================================================================
-	// PHASE 2: Send message in chat A
-	// =========================================================================
-	logStep('Phase 2: Sending message in chat A...');
-	// Navigate to a clean new-chat screen first — after login the page may land
-	// on a demo/intro chat. We need a fresh editor.
-	await navigateToNewChat(page, logStep);
-	const chatIdA = await sendMessageAndGetChatId(
-		page,
-		'Test message alpha for recent chats dedup test',
-		logStep
-	);
-	await takeStepScreenshot(page, '02-chat-a-created');
+	// Get sidebar chat titles — need at least 2 real chats
+	const chatTitles = await getSidebarChatTitles(page, logStep, 10);
+	logStep(`Available chats: ${JSON.stringify(chatTitles.slice(0, 5))}`);
+	expect(chatTitles.length).toBeGreaterThanOrEqual(2);
+
+	const chatA_title = chatTitles[0];
+	const chatB_title = chatTitles[1];
+	logStep(`Chat A: "${chatA_title}", Chat B: "${chatB_title}"`);
 
 	// =========================================================================
-	// PHASE 3: Navigate to new-chat, send message in chat B
+	// PHASE 2: Open chat A → New Chat → verify resume card shows chat A
 	// =========================================================================
-	logStep('Phase 3: Creating chat B...');
-	await navigateToNewChat(page, logStep);
-	const chatIdB = await sendMessageAndGetChatId(
-		page,
-		'Test message beta for recent chats dedup test',
-		logStep
-	);
-	await takeStepScreenshot(page, '03-chat-b-created');
+	logStep('Phase 2: Opening chat A...');
+	await clickChatByTitle(page, chatA_title, logStep);
+	await takeStepScreenshot(page, '02-chat-a-opened');
 
-	// =========================================================================
-	// PHASE 4: Navigate to new-chat → verify no duplicates in recent chats area
-	// =========================================================================
-	logStep('Phase 4: Navigating to new-chat and checking for duplicates...');
-	await navigateToNewChat(page, logStep);
-	await takeStepScreenshot(page, '04-new-chat-screen');
+	// Close sidebar before clicking New Chat (to see the welcome screen)
+	await closeSidebar(page, logStep);
 
-	// Wait for the recent-chats container to render.
-	// The "Continue where you left off" section only appears once resumeChatData
-	// or recentChats are populated (async decryption from IndexedDB). Give it
-	// extra time — loadResumeChatFromDB retries for up to 10s.
-	const container = page.locator('.recent-chats-scroll-container');
-	await expect(container).toBeVisible({ timeout: 30000 });
-	logStep('Recent chats scroll container visible.');
+	logStep('Phase 2: Clicking New Chat...');
+	await clickNewChat(page, logStep);
+	await takeStepScreenshot(page, '02-new-chat-after-a');
 
-	// Get all card titles
-	const cardTitles = await getRecentChatCardTitles(page);
-	logStep(`Found ${cardTitles.length} cards in recent-chats-scroll-container.`);
-	for (const card of cardTitles) {
-		logStep(`  Card ${card.index}: "${card.title}"`);
+	// Wait for resume card to appear (loadResumeChatFromDB retries for up to 10s)
+	const resumeContainer = page.locator('.recent-chats-scroll-container');
+	await expect(resumeContainer).toBeVisible({ timeout: 20000 });
+
+	const resumeTitle1 = await getResumeCardTitle(page);
+	logStep(`Resume card after chat A: "${resumeTitle1}"`);
+
+	// ASSERTION 1: Resume card should show chat A's title
+	expect(resumeTitle1).toBe(chatA_title);
+	logStep('PASS: Resume card correctly shows chat A.');
+
+	// Check for duplicates
+	const allTitles1 = await getAllRecentCardTitles(page);
+	logStep(`All card titles: ${JSON.stringify(allTitles1)}`);
+	const titleSet1 = new Set<string>();
+	const dupes1: string[] = [];
+	for (const t of allTitles1) {
+		if (titleSet1.has(t)) dupes1.push(t);
+		titleSet1.add(t);
 	}
+	expect(dupes1).toEqual([]);
+	logStep('PASS: No duplicate cards found.');
 
-	// ASSERTION: No duplicate titles in the card list
-	const titleSet = new Set<string>();
-	const duplicates: string[] = [];
-	for (const card of cardTitles) {
-		if (card.title && titleSet.has(card.title)) {
-			duplicates.push(card.title);
-		}
-		if (card.title) titleSet.add(card.title);
-	}
-	if (duplicates.length > 0) {
-		logStep(`DUPLICATE CARDS DETECTED: ${duplicates.join(', ')}`);
-	}
-	expect(duplicates).toEqual([]);
-	logStep('No duplicate cards found.');
-
-	await takeStepScreenshot(page, '04a-no-duplicates-verified');
+	await takeStepScreenshot(page, '02-verified');
 
 	// =========================================================================
-	// PHASE 5: Open chat A → return to new-chat → verify resume card updated
+	// PHASE 3: Open chat B → New Chat → verify resume card shows chat B
 	// =========================================================================
-	logStep('Phase 5: Opening chat A, then returning to new-chat...');
-	const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL ?? 'https://app.dev.openmates.org';
-	await page.goto(`${baseUrl}/#chat-id=${chatIdA}`);
-	await page.waitForTimeout(3000);
-	logStep('Opened chat A.');
+	logStep('Phase 3: Opening chat B...');
 
-	await navigateToNewChat(page, logStep);
-	await takeStepScreenshot(page, '05-new-chat-after-opening-a');
+	// Open sidebar, click chat B
+	const menuToggle = page.locator('.icon_menu');
+	await expect(menuToggle).toBeVisible({ timeout: 5000 });
+	await menuToggle.click();
+	await page.waitForTimeout(2000);
 
-	// Wait for the recent-chats container to render
-	await expect(container).toBeVisible({ timeout: 30000 });
+	await clickChatByTitle(page, chatB_title, logStep);
+	await takeStepScreenshot(page, '03-chat-b-opened');
 
-	// Get cards again after switching
-	const cardsAfterSwitch = await getRecentChatCardTitles(page);
-	logStep(`Cards after switching to A and back: ${cardsAfterSwitch.length}`);
-	for (const card of cardsAfterSwitch) {
-		logStep(`  Card ${card.index}: "${card.title}"`);
-	}
+	// Close sidebar
+	await closeSidebar(page, logStep);
 
-	// ASSERTION: Still no duplicates after switching
+	logStep('Phase 3: Clicking New Chat...');
+	await clickNewChat(page, logStep);
+	await takeStepScreenshot(page, '03-new-chat-after-b');
+
+	// Wait for resume card
+	await expect(resumeContainer).toBeVisible({ timeout: 20000 });
+
+	const resumeTitle2 = await getResumeCardTitle(page);
+	logStep(`Resume card after chat B: "${resumeTitle2}"`);
+
+	// ASSERTION 2: Resume card should now show chat B's title
+	expect(resumeTitle2).toBe(chatB_title);
+	logStep('PASS: Resume card correctly updated to chat B.');
+
+	// Check for duplicates again
+	const allTitles2 = await getAllRecentCardTitles(page);
+	logStep(`All card titles: ${JSON.stringify(allTitles2)}`);
 	const titleSet2 = new Set<string>();
-	const duplicates2: string[] = [];
-	for (const card of cardsAfterSwitch) {
-		if (card.title && titleSet2.has(card.title)) {
-			duplicates2.push(card.title);
-		}
-		if (card.title) titleSet2.add(card.title);
+	const dupes2: string[] = [];
+	for (const t of allTitles2) {
+		if (titleSet2.has(t)) dupes2.push(t);
+		titleSet2.add(t);
 	}
-	expect(duplicates2).toEqual([]);
-	logStep('No duplicates after switching — verified.');
+	expect(dupes2).toEqual([]);
+	logStep('PASS: No duplicate cards after second switch.');
 
-	await takeStepScreenshot(page, '05a-no-duplicates-after-switch');
+	await takeStepScreenshot(page, '03-verified');
 
 	// =========================================================================
-	// PHASE 6: Cleanup — delete both test chats
+	// PHASE 4: Verify no error logs
 	// =========================================================================
-	logStep('Phase 6: Cleaning up test chats...');
-	await deleteChat(page, chatIdB, logStep);
-	await deleteChat(page, chatIdA, logStep);
-	logStep('Cleanup complete.');
+	const errors = warnErrorLogs.filter(
+		(e) =>
+			e.type === 'error' &&
+			// Ignore known benign errors
+			!e.text.includes('net::ERR_') &&
+			!e.text.includes('favicon') &&
+			!e.text.includes('ResizeObserver') &&
+			!e.text.includes('Decryption failed (likely stale data')
+	);
 
-	await takeStepScreenshot(page, '06-cleanup-done');
+	if (errors.length > 0) {
+		logStep(`WARNING: ${errors.length} unexpected error(s) in console:`);
+		for (const e of errors) {
+			logStep(`  [ERROR] ${e.text.slice(0, 200)}`);
+		}
+	}
+	// Don't fail on console errors — they may be unrelated. Just log them.
+
+	logStep('Test completed successfully.');
+	await takeStepScreenshot(page, '04-done');
 });
