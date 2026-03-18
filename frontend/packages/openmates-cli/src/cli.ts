@@ -13,6 +13,7 @@ import {
   OpenMatesClient,
   MEMORY_TYPE_REGISTRY,
   MATE_NAMES,
+  deriveAppUrl,
   type ChatListPage,
   type DecryptedMessage,
   type DecryptedEmbed,
@@ -50,7 +51,7 @@ async function main(): Promise<void> {
       return;
     }
     if (command === "settings") {
-      printSettingsHelp();
+      printSettingsHelp(client);
       return;
     }
     if (command === "embeds") {
@@ -275,7 +276,7 @@ async function handleApps(
     subcommand !== "run"
   ) {
     const data = await client.getApp(subcommand);
-    printAppInfo(data as AppMetadata);
+    await printAppInfo(client, data as AppMetadata);
     return;
   }
 
@@ -300,7 +301,7 @@ async function handleApps(
     if (flags.json === true) {
       printJson(data);
     } else {
-      printAppInfo(data as AppMetadata);
+      await printAppInfo(client, data as AppMetadata);
     }
     return;
   }
@@ -316,7 +317,7 @@ async function handleApps(
     if (flags.json === true) {
       printJson(data);
     } else {
-      printSkillInfo(appId, data as SkillMetadata);
+      await printSkillInfo(client, appId, data as SkillMetadata);
     }
     return;
   }
@@ -364,7 +365,7 @@ async function handleApps(
     if (flags.json === true) {
       printJson(data);
     } else {
-      printAppInfo(data as AppMetadata);
+      await printAppInfo(client, data as AppMetadata);
     }
     return;
   }
@@ -439,7 +440,7 @@ async function handleSettings(
   flags: Record<string, string | boolean>,
 ): Promise<void> {
   if (!subcommand || subcommand === "help" || flags.help === true) {
-    printSettingsHelp();
+    printSettingsHelp(client);
     return;
   }
 
@@ -1054,7 +1055,7 @@ async function printChatConversation(
         if (seg.type === "embed") {
           try {
             const embed = await client.getEmbed(seg.value);
-            renderInlineEmbed(embed);
+            await renderInlineEmbed(embed, client);
           } catch {
             process.stdout.write(
               `\x1b[2m📎 openmates embeds show ${seg.value.slice(0, 8)}\x1b[0m\n`,
@@ -1073,7 +1074,7 @@ async function printChatConversation(
       for (const eid of msg.embedIds) {
         try {
           const embed = await client.getEmbed(eid);
-          renderInlineEmbed(embed);
+          await renderInlineEmbed(embed, client);
         } catch {
           process.stdout.write(
             `\x1b[2m📎 openmates embeds show ${eid.slice(0, 8)}\x1b[0m\n`,
@@ -1103,7 +1104,10 @@ async function printChatConversation(
  *   │  … and 3 more
  *   └─ openmates embeds show a3f2b1c4
  */
-function renderInlineEmbed(embed: DecryptedEmbed): void {
+async function renderInlineEmbed(
+  embed: DecryptedEmbed,
+  client: OpenMatesClient,
+): Promise<void> {
   const shortId = embed.embedId.slice(0, 8);
   const app = embed.appId ?? str(embed.content?.app_id) ?? "";
   const skill = embed.skillId ?? str(embed.content?.skill_id) ?? "";
@@ -1126,8 +1130,44 @@ function renderInlineEmbed(embed: DecryptedEmbed): void {
   // ── web/search  ────────────────────────────────────────────────────────
   // ── news/search ────────────────────────────────────────────────────────
   // Both show: query, "via Provider", favicons row → N results, top-3 titles+URLs+snippets
+  // Architecture note: finished embeds store results as child embeds (embed_ids
+  // pipe-separated string) rather than inline results array — load them here.
   if ((app === "web" || app === "news") && skill === "search") {
-    renderSearchResults(c, ln, indent);
+    const inlineResults = c.results as
+      | Array<Record<string, unknown>>
+      | undefined;
+    if (Array.isArray(inlineResults) && inlineResults.length > 0) {
+      renderSearchResults(inlineResults, ln, indent);
+    } else {
+      // Load child embeds from embed_ids
+      const rawIds = c.embed_ids;
+      const childIds: string[] =
+        typeof rawIds === "string"
+          ? rawIds.split("|").filter(Boolean)
+          : Array.isArray(rawIds)
+            ? (rawIds as string[])
+            : [];
+      if (childIds.length > 0) {
+        const childResults: Array<Record<string, unknown>> = [];
+        for (const cid of childIds) {
+          try {
+            const child = await client.getEmbed(cid);
+            const cc = (child.content ?? {}) as Record<string, unknown>;
+            childResults.push({
+              title: str(cc.title) ?? str(cc.name),
+              url: str(cc.url) ?? str(cc.link),
+              description:
+                str(cc.description) ?? str(cc.snippet) ?? str(cc.summary),
+            });
+          } catch {
+            // skip unresolvable child embeds silently
+          }
+        }
+        renderSearchResults(childResults, ln, indent);
+      } else {
+        ln("No results");
+      }
+    }
   }
 
   // ── maps/search ────────────────────────────────────────────────────────
@@ -1360,14 +1400,14 @@ function renderInlineEmbed(embed: DecryptedEmbed): void {
   process.stdout.write(`\x1b[2m└─ openmates embeds show ${shortId}\x1b[0m\n`);
 }
 
-/** Shared search renderer for web/search and news/search */
+/** Shared search renderer for web/search and news/search.
+ * Accepts a pre-resolved array of result objects (with title/url/description). */
 function renderSearchResults(
-  c: Record<string, unknown>,
+  results: Array<Record<string, unknown>>,
   ln: (s: string) => void,
   indent: (s: string) => void,
 ): void {
-  const results = c.results as Array<Record<string, unknown>> | undefined;
-  if (!Array.isArray(results) || results.length === 0) {
+  if (results.length === 0) {
     ln("No results");
     return;
   }
@@ -1510,7 +1550,10 @@ function printAppsList(data: AppsListResponse): void {
   );
 }
 
-function printAppInfo(data: AppMetadata): void {
+async function printAppInfo(
+  client: OpenMatesClient,
+  data: AppMetadata,
+): Promise<void> {
   header(`${data.name ?? data.id}  \x1b[2m(${data.id})\x1b[0m`);
   if (data.description) {
     console.log(`\n${data.description}\n`);
@@ -1533,6 +1576,15 @@ function printAppInfo(data: AppMetadata): void {
         const names = providers.map((p) => p.name ?? p.provider).join(", ");
         process.stdout.write(`    \x1b[2mProviders: ${names}\x1b[0m\n`);
       }
+      // Show required input parameters inline (compact)
+      const params = await client
+        .getSkillSchema(data.id, skill.id)
+        .catch(() => []);
+      const required = params.filter((p) => p.required);
+      if (required.length > 0) {
+        const reqStr = required.map((p) => `${p.name} (${p.type})`).join(", ");
+        process.stdout.write(`    \x1b[2mRequired: ${reqStr}\x1b[0m\n`);
+      }
     }
     console.log();
   }
@@ -1552,9 +1604,16 @@ function printAppInfo(data: AppMetadata): void {
   console.log(
     `\x1b[2mRun: openmates apps ${data.id} <skill-id> "<query>"\x1b[0m`,
   );
+  console.log(
+    `\x1b[2mDetails: openmates apps skill-info ${data.id} <skill-id>\x1b[0m`,
+  );
 }
 
-function printSkillInfo(appId: string, data: SkillMetadata): void {
+async function printSkillInfo(
+  client: OpenMatesClient,
+  appId: string,
+  data: SkillMetadata,
+): Promise<void> {
   header(`${data.name ?? data.id}  \x1b[2m(${appId}/${data.id})\x1b[0m`);
   if (data.description) {
     console.log(`\n${data.description}\n`);
@@ -1577,6 +1636,34 @@ function printSkillInfo(appId: string, data: SkillMetadata): void {
           `    \x1b[2mPricing: ${JSON.stringify(p.pricing)}\x1b[0m\n`,
         );
       }
+    }
+    console.log();
+  }
+
+  // Fetch input parameter schema from OpenAPI spec
+  const params = await client.getSkillSchema(appId, data.id).catch(() => []);
+  if (params.length > 0) {
+    process.stdout.write(`\x1b[1mInput parameters\x1b[0m\n`);
+    for (const p of params) {
+      const req = p.required ? `\x1b[33m*\x1b[0m` : ` `;
+      const typeStr = `\x1b[2m(${p.type})\x1b[0m`;
+      const defStr =
+        p.default !== undefined && p.default !== null
+          ? `  \x1b[2mdefault: ${JSON.stringify(p.default)}\x1b[0m`
+          : "";
+      process.stdout.write(`  ${req} \x1b[36m${p.name}\x1b[0m  ${typeStr}\n`);
+      if (p.description) {
+        process.stdout.write(`      \x1b[2m${p.description}${defStr}\x1b[0m\n`);
+      } else if (defStr) {
+        process.stdout.write(`      ${defStr}\n`);
+      }
+    }
+    const requiredNames = params
+      .filter((p) => p.required)
+      .map((p) => p.name)
+      .join(", ");
+    if (requiredNames) {
+      process.stdout.write(`\n  \x1b[2m* required: ${requiredNames}\x1b[0m\n`);
     }
     console.log();
   }
@@ -1908,20 +1995,71 @@ Examples:
   openmates embeds show a3f2b1c4`);
 }
 
-function printSettingsHelp(): void {
-  console.log(`Settings commands:
-  openmates settings get <path> [--json]
-  openmates settings post <path> --data '<json>' [--json]
-  openmates settings delete <path> [--json]
-  openmates settings patch <path> --data '<json>' [--json]
-  openmates settings memories <list|types|create|update|delete>
+function printSettingsHelp(client?: OpenMatesClient): void {
+  const appUrl = client ? deriveAppUrl(client.apiUrl) : "https://openmates.org";
+  const s = (path: string) => `${appUrl}/#settings/${path}`;
 
-These settings are only available in the web app (for security):
-  API keys:       https://openmates.org/#settings/api-keys
-  Password:       https://openmates.org/#settings/security
-  2FA setup:      https://openmates.org/#settings/security
-  Billing:        https://openmates.org/#settings/billing
-  Sessions:       https://openmates.org/#settings/sessions`);
+  console.log(`\x1b[1mSettings\x1b[0m
+
+\x1b[1mAvailable via CLI:\x1b[0m
+
+  \x1b[1mProfile\x1b[0m
+    openmates settings get user/language               Language preference
+    openmates settings post user/language --data '{"language":"en"}'
+    openmates settings post user/darkmode --data '{"dark_mode":true}'
+    openmates settings post user/timezone --data '{"timezone":"Europe/Berlin"}'
+    openmates settings post user/username --data '{"encrypted_username":"..."}'
+    openmates settings post ai-model-defaults --data '{"simple":"...","complex":"..."}'
+
+  \x1b[1mPrivacy & data\x1b[0m
+    openmates settings post auto-delete-chats --data '{"period":"90d"}'
+    openmates settings post auto-delete-usage --data '{"period":"1y"}'
+    openmates settings get delete-account-preview       Preview account deletion
+    openmates settings get export-account-manifest      GDPR data export manifest
+    openmates settings get export-account-data          GDPR data export
+
+  \x1b[1mUsage & billing\x1b[0m
+    openmates settings get usage [--json]               Paginated usage data
+    openmates settings get usage/summaries [--json]     Usage summaries by type
+    openmates settings get usage/daily-overview [--json]
+    openmates settings get usage/export [--json]        Export as CSV
+    openmates settings get billing [--json]             Billing overview
+    openmates settings get storage [--json]             Storage overview
+
+  \x1b[1mReminders\x1b[0m
+    openmates settings get reminders [--json]           List active reminders
+
+  \x1b[1mMemories\x1b[0m
+    openmates settings memories list [--app-id <id>] [--item-type <type>] [--json]
+    openmates settings memories types [--app-id <id>] [--json]
+    openmates settings memories create --app-id <id> --item-type <type> --data '<json>'
+    openmates settings memories update --id <id> --app-id <id> --item-type <type> --data '<json>'
+    openmates settings memories delete --id <entry-id>
+
+  \x1b[1mChats\x1b[0m
+    openmates settings get chats [--json]               Chat statistics
+    openmates settings post import-chat --data '<json>' Import a chat
+
+  \x1b[1mSupport\x1b[0m
+    openmates settings post issues --data '<json>'      Report an issue
+
+\x1b[1mWeb app only\x1b[0m (for security — manage in browser):
+  Security:         ${s("account/security")}
+  Passkeys:         ${s("account/security/passkeys")}
+  Password:         ${s("account/security/password")}
+  2FA:              ${s("account/security/2fa")}
+  Sessions:         ${s("account/security/sessions")}
+  API keys:         ${s("developers/api-keys")}
+  Devices:          ${s("developers/devices")}
+  Buy credits:      ${s("billing/buy-credits")}
+  Invoices:         ${s("billing/invoices")}
+  Auto top-up:      ${s("billing/auto-topup")}
+  Notifications:    ${s("notifications")}
+  Privacy:          ${s("privacy")}
+  App Store:        ${s("app_store")}
+  Mates:            ${s("mates")}
+  Interface:        ${s("interface")}
+  Delete account:   ${s("account")}`);
 }
 
 function printMemoriesHelp(): void {

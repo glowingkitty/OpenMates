@@ -956,11 +956,11 @@ export class OpenMatesClient {
 
     const embedId = String(embed.embed_id ?? embed.id ?? "");
 
-    // Compute hashed_embed_id = SHA-256(embed.embed_id) — must match server computation
+    // Compute hashed_embed_id = SHA-256(embed.embed_id) — must match server computation.
+    // Server always hashes embed_id (UUID), never the short id. Use the same value
+    // used for embedId above so they stay consistent.
     const { createHash } = await import("node:crypto");
-    const hashedEmbedId = createHash("sha256")
-      .update(String(embed.embed_id ?? ""))
-      .digest("hex");
+    const hashedEmbedId = createHash("sha256").update(embedId).digest("hex");
 
     let embedKeyBytes: Uint8Array | null = null;
 
@@ -1201,6 +1201,99 @@ export class OpenMatesClient {
       );
     }
     return response.data;
+  }
+
+  /**
+   * Fetch input parameter schema for a specific skill from the OpenAPI spec.
+   * Returns an object mapping parameter names to their descriptions.
+   */
+  async getSkillSchema(
+    appId: string,
+    skillId: string,
+  ): Promise<
+    Array<{
+      name: string;
+      type: string;
+      description: string;
+      required: boolean;
+      default?: unknown;
+    }>
+  > {
+    const response = await this.http.get(
+      "/openapi.json",
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) return [];
+
+    const spec = response.data as {
+      paths?: Record<
+        string,
+        Record<
+          string,
+          {
+            requestBody?: {
+              content?: {
+                "application/json"?: { schema?: Record<string, unknown> };
+              };
+            };
+          }
+        >
+      >;
+      components?: { schemas?: Record<string, Record<string, unknown>> };
+    };
+
+    const paths = spec.paths ?? {};
+    const schemas = spec.components?.schemas ?? {};
+    const postPath = paths[`/v1/apps/${appId}/skills/${skillId}`]?.post;
+    if (!postPath) return [];
+
+    // Resolve the request body schema
+    const bodySchema =
+      postPath.requestBody?.content?.["application/json"]?.schema;
+    if (!bodySchema) return [];
+
+    // Follow $ref to get the actual schema
+    const resolveRef = (ref: string): Record<string, unknown> | null => {
+      const name = ref.replace("#/components/schemas/", "");
+      return (schemas[name] as Record<string, unknown>) ?? null;
+    };
+
+    const topSchema =
+      typeof bodySchema.$ref === "string"
+        ? resolveRef(bodySchema.$ref)
+        : bodySchema;
+    if (!topSchema) return [];
+
+    // The top-level schema has a "requests" array with items $ref
+    const requestsProp = (
+      topSchema.properties as
+        | Record<string, Record<string, unknown>>
+        | undefined
+    )?.requests;
+    const itemsRef = requestsProp?.items as Record<string, unknown> | undefined;
+    const itemSchema = itemsRef?.$ref
+      ? resolveRef(itemsRef.$ref as string)
+      : itemsRef;
+
+    if (!itemSchema?.properties) return [];
+
+    const required = new Set(
+      Array.isArray(itemSchema.required)
+        ? (itemSchema.required as string[])
+        : [],
+    );
+    const props = itemSchema.properties as Record<
+      string,
+      { type?: string; description?: string; default?: unknown }
+    >;
+
+    return Object.entries(props).map(([name, p]) => ({
+      name,
+      type: p.type ?? "string",
+      description: p.description ?? "",
+      required: required.has(name),
+      default: p.default,
+    }));
   }
 
   async runSkill(params: {
