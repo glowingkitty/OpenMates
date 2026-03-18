@@ -16,6 +16,7 @@ Full reference: `sessions.py context --doc debugging`
 - **R10** Embed resolution failures: check `resolve_embed_references_in_content()` in embed_service.py
 - **R11** App missing from store: check `/v1/health`, restart api if absent
 - **R12** Vercel failures: `debug.py vercel` (never `vercel logs`)
+- **R13** If `debug.py issue <id>` returns "NOT FOUND" but session start's ISSUES section showed that issue as recent, the failure is a Directus 500 — not a missing record. Run `debug.py logs --o2 --since 5 --search 'directus'` to verify. A Directus query error is a blocking infrastructure problem — report it before continuing
 
 ## Where to Look First
 

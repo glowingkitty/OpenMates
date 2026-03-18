@@ -14,6 +14,7 @@ USAGE (via debug.py):
   debug.py vercel --all            # latest deployment — full build log
   debug.py vercel --url <url|id>   # specific deployment
   debug.py vercel --n 3            # check last N deployments
+  debug.py vercel --max-events 8000  # increase pagination limit (default: 5000)
 
 USAGE (standalone, outside Docker):
   python3 backend/scripts/debug_vercel.py [options]
@@ -143,26 +144,61 @@ def _list_deployments(token: str, team_id: str, project_id: str, limit: int = 10
     return data.get("deployments", [])
 
 
-def _fetch_build_logs(token: str, id_or_url: str, team_id: str) -> list[dict]:
+def _fetch_build_logs(
+    token: str,
+    id_or_url: str,
+    team_id: str,
+    max_events: int = 5000,
+) -> list[dict]:
     """
     Fetch all build log events for a deployment via the v3 events API.
+
+    The Vercel events API caps responses at ~500 events per request.
+    This function automatically paginates using the ``since`` parameter
+    (timestamp of the last event) until no new events are returned or
+    ``max_events`` is reached.
 
     Returns a list of event objects — each has at minimum:
       text (str), type (stdout|stderr|delimiter), created (int ms epoch)
     """
-    data = _api_get(
-        f"/v3/deployments/{id_or_url}/events",
-        token,
-        params={
+    all_events: list[dict] = []
+    since_ts: Optional[int] = None
+    page_cap = 450  # Conservative threshold — Vercel typically caps at ~467
+
+    for _ in range(20):  # Safety cap: max 20 pagination rounds
+        params: dict = {
             "builds": 1,
             "limit": -1,
             "teamId": team_id,
-        },
-    )
-    # API returns a JSON array directly
-    if isinstance(data, list):
-        return data
-    return []
+        }
+        if since_ts is not None:
+            params["since"] = since_ts
+
+        data = _api_get(
+            f"/v3/deployments/{id_or_url}/events",
+            token,
+            params=params,
+        )
+
+        if not isinstance(data, list) or not data:
+            break
+
+        all_events.extend(data)
+
+        # If we got fewer events than the per-page cap, we have everything
+        if len(data) < page_cap:
+            break
+
+        # Paginate: use the last event's timestamp as the ``since`` cursor
+        last_created = data[-1].get("created")
+        if last_created is None or last_created == since_ts:
+            break  # No progress — avoid infinite loop
+        since_ts = last_created
+
+        if len(all_events) >= max_events:
+            break
+
+    return all_events[:max_events]
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -279,16 +315,18 @@ def inspect_deployment(
     id_or_url: Optional[str],
     show_all: bool,
     num_deployments: int,
+    max_events: int = 5000,
 ) -> None:
     """
     Fetch and print build logs for one or more deployments.
 
     If id_or_url is given, inspect that specific deployment.
     Otherwise list recent deployments and inspect the latest `num_deployments`.
+    Automatically paginates past the Vercel events API per-page cap (~467).
     """
     if id_or_url:
         # Specific deployment requested
-        events = _fetch_build_logs(token, id_or_url, team_id)
+        events = _fetch_build_logs(token, id_or_url, team_id, max_events=max_events)
         print(_hdr("BUILD LOG"))
         _print_logs(events, show_all)
         return
@@ -308,7 +346,7 @@ def inspect_deployment(
             print(_warn("  Could not determine deployment ID, skipping logs."))
             continue
 
-        events = _fetch_build_logs(token, uid, team_id)
+        events = _fetch_build_logs(token, uid, team_id, max_events=max_events)
         if not events:
             print(_warn("  No build log events returned by API."))
         else:
@@ -346,6 +384,15 @@ def main() -> None:
         metavar="N",
         help="Check the last N deployments (default: 1).",
     )
+    parser.add_argument(
+        "--max-events",
+        dest="max_events",
+        type=int,
+        default=5000,
+        metavar="N",
+        help="Maximum build log events to fetch across pagination (default: 5000). "
+        "Increase if build logs appear truncated.",
+    )
     args = parser.parse_args()
 
     token = _get_token()
@@ -376,6 +423,7 @@ def main() -> None:
             id_or_url=args.url,
             show_all=args.show_all,
             num_deployments=args.num_deployments,
+            max_events=args.max_events,
         )
     except httpx.HTTPStatusError as exc:
         print(_err(f"Vercel API error {exc.response.status_code}: {exc.response.text}"))

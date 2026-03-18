@@ -868,6 +868,24 @@ def _prefetch_error_overview(since_minutes: int = 30) -> str:
     return stdout.strip()
 
 
+def _prefetch_vercel_status() -> str:
+    """Fetch the latest Vercel deployment status and errors/warnings.
+
+    Runs debug_vercel.py directly (not via Docker) since it only needs
+    VERCEL_TOKEN and the .vercel/project.json file from the local repo.
+    """
+    script = str(PROJECT_ROOT / "backend" / "scripts" / "debug_vercel.py")
+    cmd = ["python3", script]
+    rc, stdout, stderr = _run_cmd(cmd, timeout=30)
+    if rc != 0 or not stdout.strip():
+        err_hint = (stderr or "no output").strip()[:200]
+        return f"  (could not fetch Vercel status: {err_hint})"
+    # Strip ANSI escape codes for clean box output
+    ansi_re = re.compile(r'\x1b\[[0-9;]*m')
+    clean = ansi_re.sub('', stdout.strip())
+    return clean
+
+
 def _prefetch_user_context(email: str) -> str:
     """Fetch user data with session context (10 chats, 20 embeds)."""
     cmd = [
@@ -894,6 +912,96 @@ def _prefetch_debug_session_logs(debug_id: str) -> str:
         err = (stderr or stdout or "no output").strip()[:300]
         return f"[!] Could not fetch logs for debug session {debug_id}: {err}"
     return stdout.strip()
+
+
+def _prefetch_test_run(run_id: str) -> str:
+    """Load context for a specific daily test run by its run ID prefix.
+
+    Scans daily-run-*.json files for a matching run_id, then summarizes
+    the run and fetches OpenObserve logs for failing specs via debug-id.
+    """
+    results_dir = PROJECT_ROOT / "test-results"
+    if not results_dir.exists():
+        return "  (test-results/ directory not found)"
+
+    # Find matching daily run file
+    matched_data = None
+    for f in sorted(results_dir.glob("daily-run-*.json"), reverse=True):
+        try:
+            with open(f) as fh:
+                data = json.load(fh)
+            if data.get("run_id", "").startswith(run_id):
+                matched_data = data
+                break
+        except (json.JSONDecodeError, OSError):
+            continue
+
+    if not matched_data:
+        return f"  No daily run found matching run ID prefix: {run_id}"
+
+    # Build summary
+    lines: list[str] = []
+    run_id_full = matched_data.get("run_id", "?")
+    sha = str(matched_data.get("git_sha", "?"))[:9]
+    duration = matched_data.get("duration_seconds", 0)
+    summary = matched_data.get("summary", {})
+    total = summary.get("total", 0)
+    passed = summary.get("passed", 0)
+    failed = summary.get("failed", 0)
+    not_started = summary.get("not_started", 0)
+
+    lines.append(f"Run: {run_id_full}  Commit: {sha}  Duration: {duration}s")
+    lines.append(f"Results: {passed}/{total} passed, {failed} failed, {not_started} not started")
+
+    # List failing tests per suite
+    failed_specs: list[str] = []
+    suites = matched_data.get("suites", {})
+    for suite_name, suite_data in suites.items():
+        # Tests can be a list (playwright, pytest) or dict (legacy)
+        tests = suite_data.get("tests", suite_data.get("results", []))
+        if isinstance(tests, list):
+            for test_info in tests:
+                status = test_info.get("status", "")
+                name = test_info.get("file", test_info.get("name", "?"))
+                if status in ("failed", "error"):
+                    error_msg = test_info.get("error", "")
+                    # First line of error for compact display
+                    first_error = error_msg.split("\n")[0][:100] if error_msg else ""
+                    lines.append(f"  FAIL [{suite_name}] {name}")
+                    if first_error:
+                        lines.append(f"       {first_error}")
+                    failed_specs.append(name.replace(".spec.ts", ""))
+        elif isinstance(tests, dict):
+            for test_name, test_info in tests.items():
+                status = test_info.get("status", "")
+                if status in ("failed", "error"):
+                    lines.append(f"  FAIL [{suite_name}] {test_name}")
+                    failed_specs.append(test_name)
+
+    if not failed_specs:
+        lines.append("  All tests passed.")
+    else:
+        # Fetch OpenObserve logs for the first 3 failing specs
+        lines.append("")
+        lines.append("Failure logs (first 3):")
+        for spec_name in failed_specs[:3]:
+            debug_key = f"{run_id_full}-{spec_name}"
+            cmd = [
+                "docker", "exec", "api",
+                "python", "/app/backend/scripts/debug.py",
+                "logs", "--debug-id", debug_key, "--since", "120",
+            ]
+            rc, stdout, stderr = _run_cmd(cmd, timeout=20)
+            if rc == 0 and stdout.strip():
+                # Show first 5 lines of logs per spec
+                log_lines = stdout.strip().split("\n")[:5]
+                lines.append(f"  [{spec_name}]")
+                for ll in log_lines:
+                    lines.append(f"    {ll}")
+            else:
+                lines.append(f"  [{spec_name}] (no debug logs found)")
+
+    return "\n".join(lines)
 
 
 RESULTS_DIR = PROJECT_ROOT / "test-results"
@@ -1281,6 +1389,10 @@ def cmd_start(args: argparse.Namespace) -> None:
         extra_tags += ["debug"]
     if getattr(args, "debug_id", None):
         extra_tags += ["debug"]
+    if getattr(args, "vercel", False):
+        extra_tags += ["debug"]
+    if getattr(args, "run_id", None):
+        extra_tags += ["test", "debug"]
     for et in extra_tags:
         if et not in tags:
             tags.append(et)
@@ -1430,6 +1542,16 @@ def cmd_start(args: argparse.Namespace) -> None:
     if debug_id:
         debug_content = _prefetch_debug_session_logs(debug_id)
         sections.append(_box_section(f"DEBUG SESSION {debug_id}", debug_content.split("\n")))
+
+    vercel_flag = getattr(args, "vercel", False)
+    if vercel_flag:
+        vercel_content = _prefetch_vercel_status()
+        sections.append(_box_section("VERCEL (latest deployment)", vercel_content.split("\n")))
+
+    run_id = getattr(args, "run_id", None)
+    if run_id:
+        run_content = _prefetch_test_run(run_id)
+        sections.append(_box_section(f"TEST RUN {run_id[:20]}", run_content.split("\n")))
 
     # Print all boxed sections
     if sections:
@@ -2184,6 +2306,29 @@ def cmd_prepare_deploy(args: argparse.Namespace) -> None:
         for doc in related:
             print(f"  - docs/architecture/{doc}")
         print()
+
+    # Test coverage check — warn about source files with no tests
+    source_files = [
+        f for f in modified
+        if any(f.endswith(ext) for ext in (".py", ".ts", ".svelte"))
+        and "/tests/" not in f
+        and "/__tests__/" not in f
+        and not Path(f).name.startswith("test_")
+        and not f.endswith(".test.ts")
+        and not f.endswith(".spec.ts")
+    ]
+    if source_files:
+        untested = []
+        for filepath in source_files:
+            result = _find_tests_for_file(filepath)
+            if not result["unit_tests"] and not result["e2e_tests"]:
+                untested.append(filepath)
+        if untested:
+            print(f"WARNING — no tests found for {len(untested)} file(s):")
+            for f in untested:
+                print(f"  ? {f}")
+            print("  Run: sessions.py check-tests --session <id>")
+            print()
 
     # Suggest commands
     if to_commit:
@@ -3203,6 +3348,19 @@ def main() -> None:
         metavar="DAYS",
         help="Error trend lookback period in days (default: 7). "
         "Used in bug mode for error overview.",
+    )
+    p_start.add_argument(
+        "--vercel",
+        action="store_true",
+        help="Pre-fetch latest Vercel deployment status and build errors. "
+        "Auto-adds 'debug' tag.",
+    )
+    p_start.add_argument(
+        "--run-id",
+        metavar="RUN_ID",
+        help="Pre-fetch context for a specific daily test run by its run ID prefix "
+        "(e.g., '2026-03-18T03:00:01Z'). Shows summary, failing specs, and "
+        "OpenObserve debug logs. Auto-adds 'test,debug' tags.",
     )
 
     # end

@@ -206,3 +206,16 @@ python3 backend/scripts/debug.py vercel --url <deployment-id>  # specific deploy
 ```
 
 Reads `VERCEL_TOKEN` from `.env`. Works for both READY and ERROR deployments. Also available as `python3 scripts/sessions.py debug-vercel` (auto-starts a session).
+
+## Rule 13: Directus 500 on Issue Lookups
+
+If `debug.py issue <id>` returns "Issue NOT FOUND in Directus" immediately after the session start ISSUES section listed that issue as recent, the lookup failure is almost certainly a **Directus 500 query error** — not a genuinely missing record.
+
+**What to do:**
+
+1. Run `debug.py logs --o2 --since 5 --search 'directus'` to confirm the 500
+2. Check `docker compose ps cms` to verify Directus is running
+3. **Stop the original investigation** — a Directus query failure is a blocking infrastructure problem
+4. Report the Directus error to the user before proceeding with any other work
+
+**Why this matters:** Directus 500s silently return empty results, causing `debug.py issue` to report "NOT FOUND" even though the issue exists in the database. If you proceed as if the issue doesn't exist, you'll waste an entire debugging session.
