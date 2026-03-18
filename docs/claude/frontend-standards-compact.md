@@ -11,6 +11,26 @@ Full reference: `sessions.py context --doc frontend-standards`
 - **Required props**: Callback props (`onFullscreen`, `onClose`) MUST be required, not optional
 - **Component previews**: Every new `.svelte` component needs a `.preview.ts` file
 
+## Translations — `$text()` Rules (CRITICAL)
+
+**NEVER use `{ default: '...' }` fallbacks in `$text()` calls.** The build validator scans every `$text('some.key')` call and fails the Vercel build if the key is absent from `en.json` — the fallback option does not bypass this check.
+
+**Workflow for any new UI string:**
+
+1. **First** add the key to the correct YAML source file under `frontend/packages/ui/src/i18n/sources/`
+2. **Then** use `$text('your.new.key')` — no `{ default }`, no fallbacks ever
+3. Run `cd frontend/packages/ui && npm run validate:locales` locally to confirm before committing
+
+```svelte
+<!-- ✅ Correct -->
+{$text('chats.search.placeholder')}
+
+<!-- ❌ Wrong — fallbacks hide missing keys and break the Vercel build -->
+{$text('chats.search_placeholder', { default: 'Search' })}
+```
+
+The `validate:locales` check runs automatically in `sessions.py prepare-deploy` and `sessions.py deploy` (and via the git pre-commit hook if installed with `./scripts/install-hooks.sh`).
+
 ## Colors — Dark Mode
 
 NEVER use raw color literals. Always use CSS variables:

@@ -2062,6 +2062,30 @@ def _run_lint(files: list[str]) -> tuple[int, str, str]:
     return _run_cmd(cmd, timeout=LINT_TIMEOUT)
 
 
+
+def _has_frontend_files(files: list) -> bool:
+    """Return True if any of the given file paths touch the frontend package."""
+    return any(f.startswith("frontend/") for f in files)
+
+
+def _run_translation_validation() -> tuple[int, str, str]:
+    """
+    Run `npm run validate:locales` inside frontend/packages/ui.
+    Returns (returncode, stdout, stderr).
+    Only checks that every $text() key used in source files exists in en.json —
+    the fast Step 4 check that guards against the Vercel build failing.
+    """
+    import subprocess
+    result = subprocess.run(
+        ["npm", "run", "validate:locales"],
+        cwd=os.path.join(os.path.dirname(__file__), "..", "frontend", "packages", "ui"),
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    return result.returncode, result.stdout, result.stderr
+
+
 def cmd_prepare_deploy(args: argparse.Namespace) -> None:
     """Show deployment plan: files to commit, lint status, suggested commands."""
     data = _load_sessions()
@@ -2133,6 +2157,26 @@ def cmd_prepare_deploy(args: argparse.Namespace) -> None:
                 print("Lint: PASSED")
         print()
 
+    # Run translation validation if any frontend files are staged
+    if to_commit and _has_frontend_files(to_commit):
+        print("Running translation validation (validate:locales)...")
+        rc, stdout, stderr = _run_translation_validation()
+        # Only show output if there are $text() key errors (Step 4) — suppress
+        # the cross-locale completeness warnings (Step 6) which are pre-existing.
+        step4_error = "❌ Found" in stdout and "not found in en.json" in stdout
+        if rc != 0 and step4_error:
+            print("TRANSLATION ERRORS — fix before deploying:")
+            # Filter to only show the relevant lines, not the cross-locale noise
+            for line in stdout.splitlines():
+                if "not found in en.json" in line or "$text(" in line or "❌" in line:
+                    print(f"  {line}")
+        elif rc != 0 and not step4_error:
+            # Other error (e.g. npm not found) — show full output
+            print(f"  Warning: validate:locales exited {rc} (non-key error — check manually)")
+        else:
+            print("Translations: PASSED")
+        print()
+
     # Related architecture docs
     related = _find_related_docs(modified)
     if related:
@@ -2190,6 +2234,27 @@ def cmd_deploy(args: argparse.Namespace) -> None:
                 print(stderr, file=sys.stderr)
             sys.exit(1)
         print("Lint: PASSED")
+
+    # 1b. Translation validation — hard-fail if any $text() key is missing from en.json
+    if _has_frontend_files(to_commit):
+        print("Running translation validation (validate:locales)...")
+        rc, stdout, stderr = _run_translation_validation()
+        step4_error = "❌ Found" in stdout and "not found in en.json" in stdout
+        if rc != 0 and step4_error:
+            print("TRANSLATION VALIDATION FAILED — aborting deploy:", file=sys.stderr)
+            for line in stdout.splitlines():
+                if "not found in en.json" in line or "$text(" in line or "❌" in line:
+                    print(f"  {line}", file=sys.stderr)
+            print("", file=sys.stderr)
+            print("Fix: add the missing key to the correct YAML source under", file=sys.stderr)
+            print("  frontend/packages/ui/src/i18n/sources/", file=sys.stderr)
+            print("Then run: cd frontend/packages/ui && npm run build:translations", file=sys.stderr)
+            sys.exit(1)
+        elif rc != 0 and not step4_error:
+            # Non-key error (e.g. npm missing) — warn but don't block
+            print(f"  Warning: validate:locales exited {rc} (check manually)", file=sys.stderr)
+        else:
+            print("Translations: PASSED")
 
     # 2. Git add
     print(f"Adding {len(to_commit)} files...")
