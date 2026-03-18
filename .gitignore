@@ -170,6 +170,9 @@ secrets.json
 .DS_Store
 log/
 logs/
+
+# Agent trigger files (written by Docker sidecar, consumed by host watcher)
+scripts/.agent-triggers/
 processed_websites/
 temp_data
 
@@ -217,6 +220,7 @@ backend/preview/Caddyfile
 .claude/sessions.lock
 .claude/sessions.md
 .claude/project-index.json
+.claude/plane-states.json
 .claude/settings.local.json
 .cursor
 .svelte-kit

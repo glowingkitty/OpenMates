@@ -941,105 +941,44 @@ def _build_investigate_prompt(data: _InvestigateRequest) -> str:
     )
 
 
-def _run_opencode_investigation(data: _InvestigateRequest) -> None:
+def _write_agent_trigger(data: _InvestigateRequest) -> str:
     """
-    Launch an opencode plan-mode session for the given issue (blocking, run in a thread).
+    Write a JSON trigger file to the shared bind-mount so the host-side
+    agent-trigger-watcher.sh can pick it up and run opencode on the host.
 
-    Uses the same pattern as scripts/_issues_checker.py:
-    - opencode run --attach http://localhost:4096 --agent plan --share
-    - Captures the share URL and logs it for the admin
-    - 15 minute timeout
+    The sidecar runs inside Docker and cannot execute host binaries (opencode).
+    Instead it writes a trigger file to ``<GIT_WORK_DIR>/scripts/.agent-triggers/``
+    which is on the bind-mounted project root, visible to the host.
+
+    Returns:
+        The path to the written trigger file.
     """
+    import json as _json
+
     prompt = _build_investigate_prompt(data)
-
     date_str = datetime.datetime.utcnow().strftime("%Y-%m-%d")
     session_title = f"issue-investigation {data.issue_id[:8]} {date_str}"
 
-    cmd = [
-        "opencode", "run",
-        "--attach", "http://localhost:4096",
-        "--agent", "plan",
-        "--share",
-        "--model", "anthropic/claude-sonnet-4-6",
-        "--title", session_title,
-        "--dir", _GIT_WORK_DIR,
-        prompt,
-    ]
+    trigger_dir = Path(_GIT_WORK_DIR) / "scripts" / ".agent-triggers"
+    trigger_dir.mkdir(parents=True, exist_ok=True)
 
-    # Cron / sidecar may run with a minimal PATH — ensure opencode binary is reachable
-    run_env = os.environ.copy()
-    run_env["PATH"] = "/home/superdev/.npm-global/bin:" + run_env.get(
-        "PATH", "/usr/local/bin:/usr/bin:/bin"
-    )
+    trigger_file = trigger_dir / f"{data.issue_id}.json"
+    payload = {
+        "issue_id": data.issue_id,
+        "prompt": prompt,
+        "session_title": session_title,
+        "environment": data.environment,
+        "domain": data.domain,
+        "created_at": datetime.datetime.utcnow().isoformat() + "Z",
+    }
 
+    trigger_file.write_text(_json.dumps(payload, indent=2))
     logger.info(
-        "[AdminSidecar/investigate] Starting opencode plan-mode session "
-        "(issue_id=%s title=%r)",
+        "[AdminSidecar/investigate] Wrote trigger file: %s (issue_id=%s)",
+        trigger_file,
         data.issue_id,
-        session_title,
     )
-
-    try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=900,  # 15 minute max
-            env=run_env,
-        )
-
-        combined_output = result.stdout + result.stderr
-
-        # Extract share URL (same pattern as _issues_checker.py)
-        share_url = None
-        for line in combined_output.splitlines():
-            for token in line.split():
-                if "opncd.ai/share/" in token:
-                    share_url = token.strip()
-                    break
-            if share_url:
-                break
-
-        if share_url:
-            logger.info(
-                "[AdminSidecar/investigate] opencode session completed: %s "
-                "(issue_id=%s)",
-                share_url,
-                data.issue_id,
-            )
-        else:
-            logger.warning(
-                "[AdminSidecar/investigate] opencode ran but no share URL found in output "
-                "(issue_id=%s, exit_code=%d)",
-                data.issue_id,
-                result.returncode,
-            )
-
-        if result.returncode != 0:
-            logger.warning(
-                "[AdminSidecar/investigate] opencode exited with code %d (issue_id=%s)",
-                result.returncode,
-                data.issue_id,
-            )
-
-    except subprocess.TimeoutExpired:
-        logger.warning(
-            "[AdminSidecar/investigate] opencode timed out after 15 minutes (issue_id=%s)",
-            data.issue_id,
-        )
-    except FileNotFoundError:
-        logger.error(
-            "[AdminSidecar/investigate] opencode binary not found — "
-            "is /home/superdev/.npm-global/bin in PATH? (issue_id=%s)",
-            data.issue_id,
-        )
-    except Exception as exc:
-        logger.error(
-            "[AdminSidecar/investigate] Unexpected error (issue_id=%s): %s",
-            data.issue_id,
-            exc,
-            exc_info=True,
-        )
+    return str(trigger_file)
 
 
 @app.post(
@@ -1047,8 +986,9 @@ def _run_opencode_investigation(data: _InvestigateRequest) -> None:
     summary="Trigger an opencode plan-mode investigation for a reported issue",
     description=(
         "Called by the API container when an admin submits an issue report with "
-        "'Submit to agent' enabled. Launches an opencode plan-mode session in the "
-        "background and logs the share URL. "
+        "'Submit to agent' enabled. Writes a JSON trigger file to the shared "
+        "bind-mount at scripts/.agent-triggers/ for the host-side watcher to "
+        "pick up and run opencode. "
         "Requires X-Admin-Log-Key header matching ADMIN_LOG_API_KEY env var."
     ),
     include_in_schema=False,
@@ -1058,10 +998,11 @@ async def post_opencode_investigate(
     x_admin_log_key: Optional[str] = Header(None),
 ) -> JSONResponse:
     """
-    Fire-and-forget: start an opencode investigation for a reported issue.
+    Write a trigger file for host-side opencode investigation.
 
-    Returns 202 immediately; the opencode session runs in a background thread.
-    The share URL is logged to the admin-sidecar container log once available.
+    Returns 202 immediately. The host-side agent-trigger-watcher.sh service
+    polls for new trigger files and runs opencode on the host where the
+    binary is installed.
     """
     _require_admin_key(x_admin_log_key)
 
@@ -1073,17 +1014,34 @@ async def post_opencode_investigate(
         body.domain,
     )
 
-    # Run in a background thread so we return 202 immediately
-    asyncio.create_task(asyncio.to_thread(_run_opencode_investigation, body))
+    try:
+        trigger_path = _write_agent_trigger(body)
+    except Exception as exc:
+        logger.error(
+            "[AdminSidecar/investigate] Failed to write trigger file "
+            "(issue_id=%s): %s",
+            body.issue_id,
+            exc,
+            exc_info=True,
+        )
+        return JSONResponse(
+            status_code=500,
+            content={
+                "status": "error",
+                "issue_id": body.issue_id,
+                "message": f"Failed to write trigger file: {exc}",
+            },
+        )
 
     return JSONResponse(
         status_code=202,
         content={
             "status": "accepted",
             "issue_id": body.issue_id,
+            "trigger_file": trigger_path,
             "message": (
-                "opencode investigation started in the background. "
-                "Check admin-sidecar logs for the share URL once complete."
+                "Trigger file written. The host-side agent-trigger-watcher "
+                "will pick it up and start an opencode investigation."
             ),
         },
     )
