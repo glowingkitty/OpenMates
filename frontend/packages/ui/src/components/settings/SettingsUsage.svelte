@@ -13,6 +13,7 @@ Usage Settings - View usage statistics and export usage data
     import type { Chat } from '../../types/chat';
     import * as LucideIcons from '@lucide/svelte';
     import Icon from '../Icon.svelte';
+    import SettingsTabs from './elements/SettingsTabs.svelte';
     import { decryptWithMasterKey, getKeyFromStorage, decryptChatKeyWithMasterKey, decryptWithChatKey } from '../../services/cryptoService';
     import { appsMetadata } from '../../data/appsMetadata';
     import { getAllDraftAudioChatIds } from '../../stores/draftAudioChatStore';
@@ -1497,45 +1498,16 @@ Usage Settings - View usage statistics and export usage data
     </div>
 </div>
 
-<!-- Category tabs - simple clickable icons -->
-<div class="usage-tabs">
-    <button
-        class="tab-icon-button"
-        class:active={activeTab === 'overview'}
-        onclick={() => activeTab = 'overview'}
-        title={$text('settings.usage.tab_overview')}
-        aria-label={$text('settings.usage.tab_overview')}
-    >
-        <Icon name="usage" type="default" size="24px" />
-    </button>
-    <button
-        class="tab-icon-button"
-        class:active={activeTab === 'chats'}
-        onclick={() => activeTab = 'chats'}
-        title={$text('settings.usage.tab_chats')}
-        aria-label={$text('settings.usage.tab_chats')}
-    >
-        <Icon name="chat" type="default" size="24px" />
-    </button>
-    <button
-        class="tab-icon-button"
-        class:active={activeTab === 'apps'}
-        onclick={() => activeTab = 'apps'}
-        title={$text('settings.usage.tab_apps')}
-        aria-label={$text('settings.usage.tab_apps')}
-    >
-        <Icon name="app" type="default" size="24px" />
-    </button>
-    <button
-        class="tab-icon-button"
-        class:active={activeTab === 'api'}
-        onclick={() => activeTab = 'api'}
-        title={$text('settings.usage.tab_api')}
-        aria-label={$text('settings.usage.tab_api')}
-    >
-        <Icon name="coding" type="default" size="24px" />
-    </button>
-</div>
+<SettingsTabs
+    tabs={[
+        { id: 'overview', icon: 'usage' },
+        { id: 'chats',    icon: 'chat' },
+        { id: 'apps',     icon: 'app' },
+        { id: 'api',      icon: 'coding' },
+    ]}
+    bind:activeTab
+    onChange={(tab) => { activeTab = tab as UsageTab; }}
+/>
 
 {#if isLoading}
     <div class="loading-state">
@@ -2501,45 +2473,6 @@ Usage Settings - View usage statistics and export usage data
         color: var(--color-grey-60);
         font-size: 14px;
         line-height: 1.4;
-    }
-
-    .usage-tabs {
-        display: flex;
-        gap: 16px;
-        padding: 10px;
-        margin-bottom: 16px;
-        border-bottom: 1px solid var(--color-grey-20);
-        justify-content: flex-start;
-        align-items: center;
-    }
-
-    .tab-icon-button {
-        /* Reset all global button styles that make tabs too wide */
-        background: none;
-        border: none;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 6px;
-        border-radius: 8px;
-        transition: all 0.2s ease;
-        flex-shrink: 0;
-        opacity: 0.5;
-        /* Override global button.css values */
-        min-width: unset;
-        height: unset;
-        filter: none;
-        margin-right: 0;
-    }
-
-    .tab-icon-button:hover {
-        opacity: 0.8;
-        background: var(--color-grey-10);
-    }
-
-    .tab-icon-button.active {
-        opacity: 1;
     }
 
     .loading-state {

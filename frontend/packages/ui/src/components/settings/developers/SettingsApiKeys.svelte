@@ -2,6 +2,7 @@
     import { onMount, createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
     import { getApiEndpoint } from '../../../config/api';
+    import SettingsInput from '../elements/SettingsInput.svelte';
     import {
         encryptWithMasterKeyDirect,
         decryptWithMasterKey,
@@ -331,13 +332,12 @@
             <h3>Create New API Key</h3>
             <p>Choose a name for your API key to help you remember what it's for.</p>
 
-            <input
+            <SettingsInput
                 type="text"
                 placeholder="e.g., My App Integration"
                 bind:value={newKeyName}
                 maxlength={100}
-                class="name-input"
-                data-testid="api-key-name-input"
+                dataTestid="api-key-name-input"
             />
 
             <div class="modal-actions">
@@ -579,22 +579,6 @@
         color: var(--text-secondary);
         font-size: 14px;
         line-height: 1.5;
-    }
-
-    .name-input {
-        width: 100%;
-        padding: 12px;
-        border: 1px solid var(--border-color);
-        border-radius: 6px;
-        font-size: 14px;
-        margin-bottom: 20px;
-        background: var(--bg-secondary);
-        color: var(--text-primary);
-    }
-
-    .name-input:focus {
-        outline: none;
-        border-color: var(--accent-color);
     }
 
     .modal-actions {

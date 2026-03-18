@@ -8,6 +8,7 @@ Allows creating new subscriptions if user has a saved payment method
     import { text } from '@repo/ui';
     import { apiEndpoints, getApiEndpoint } from '../../../../config/api';
     import { pricingTiers } from '../../../../config/pricing';
+    import SettingsDropdown from '../../elements/SettingsDropdown.svelte';
 
     let isLoading = $state(false);
     let hasSubscription = $state(false);
@@ -262,6 +263,36 @@ Allows creating new subscriptions if user has a saved payment method
     });
 
     let nextChargeDate = $derived(parseNextChargeDate(subscriptionDetails));
+
+    // Dropdown option arrays for SettingsDropdown
+    let tierOptions = $derived(
+        getAvailableSubscriptionTiers().map(tier => ({
+            value: String(tier.credits),
+            label: (() => {
+                const bonus = tier.monthly_auto_top_up_extra_credits > 0
+                    ? ` (+ ${formatCredits(tier.monthly_auto_top_up_extra_credits)} bonus)`
+                    : '';
+                return `${formatCredits(tier.credits)} credits${bonus} - ${formatCurrency(getTierPrice(tier), selectedCurrency, false)}/month`;
+            })()
+        }))
+    );
+
+    const currencyOptions = [
+        { value: 'EUR', label: 'EUR (€)' },
+        { value: 'USD', label: 'USD ($)' },
+    ];
+
+    const billingDayOptions = [
+        { value: 'anniversary', label: 'Monthly (30 days from activation)' },
+        { value: 'first_of_month', label: '1st of each month' },
+    ];
+
+    const billingDayCreateOptions = [
+        { value: 'anniversary', label: 'Monthly (30 days from now)' },
+        { value: 'first_of_month', label: '1st of each month' },
+    ];
+
+    let selectedTierCreditsStr = $derived(selectedTierCredits !== null ? String(selectedTierCredits) : '');
 </script>
 
 <div class="monthly-container">
@@ -313,16 +344,12 @@ Allows creating new subscriptions if user has a saved payment method
         <!-- Billing day preference selector -->
         <div class="billing-day-section">
             <label for="billingDay" class="section-label">Change Billing Day</label>
-            <select
-                id="billingDay"
+            <SettingsDropdown
                 bind:value={billingDayPreference}
-                onchange={() => updateBillingDayPreference(billingDayPreference)}
+                options={billingDayOptions}
                 disabled={isUpdatingBillingDay}
-                class="billing-day-select"
-            >
-                <option value="anniversary">Monthly (30 days from activation)</option>
-                <option value="first_of_month">1st of each month</option>
-            </select>
+                onChange={() => updateBillingDayPreference(billingDayPreference)}
+            />
             <p class="help-text-small">
                 {billingDayPreference === 'first_of_month'
                     ? 'You will be charged on the 1st of each month'
@@ -349,17 +376,12 @@ Allows creating new subscriptions if user has a saved payment method
                 <!-- Tier Selection -->
                 <div class="form-group">
                     <label for="tier">Select Subscription Tier</label>
-                    <select id="tier" bind:value={selectedTierCredits} disabled={isCreating}>
-                        {#each getAvailableSubscriptionTiers() as tier}
-                            <option value={tier.credits}>
-                                {formatCredits(tier.credits)} credits
-                                {#if tier.monthly_auto_top_up_extra_credits > 0}
-                                    (+ {formatCredits(tier.monthly_auto_top_up_extra_credits)} bonus)
-                                {/if}
-                                - {formatCurrency(getTierPrice(tier), selectedCurrency, false)}/month
-                            </option>
-                        {/each}
-                    </select>
+                    <SettingsDropdown
+                        value={selectedTierCreditsStr}
+                        options={tierOptions}
+                        disabled={isCreating}
+                        onChange={(v) => { selectedTierCredits = parseInt(v, 10); }}
+                    />
                     {#if selectedTier && selectedTier.monthly_auto_top_up_extra_credits > 0}
                         <p class="help-text">
                             You'll receive {formatCredits(selectedTier.credits)} base credits 
@@ -372,19 +394,21 @@ Allows creating new subscriptions if user has a saved payment method
                 <!-- Currency Selection -->
                 <div class="form-group">
                     <label for="currency">Currency</label>
-                    <select id="currency" bind:value={selectedCurrency} disabled={isCreating}>
-                        <option value="EUR">EUR (€)</option>
-                        <option value="USD">USD ($)</option>
-                    </select>
+                    <SettingsDropdown
+                        bind:value={selectedCurrency}
+                        options={currencyOptions}
+                        disabled={isCreating}
+                    />
                 </div>
 
                 <!-- Billing Day Preference -->
                 <div class="form-group">
                     <label for="billingDayCreate">Billing Day</label>
-                    <select id="billingDayCreate" bind:value={billingDayPreference} disabled={isCreating}>
-                        <option value="anniversary">Monthly (30 days from now)</option>
-                        <option value="first_of_month">1st of each month</option>
-                    </select>
+                    <SettingsDropdown
+                        bind:value={billingDayPreference}
+                        options={billingDayCreateOptions}
+                        disabled={isCreating}
+                    />
                     <p class="help-text">
                         {billingDayPreference === 'first_of_month'
                             ? 'You will be charged on the 1st of each month'

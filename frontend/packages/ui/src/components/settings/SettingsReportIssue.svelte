@@ -14,6 +14,7 @@
     import { externalLinks } from '../../config/links';
     import InputWarning from '../common/InputWarning.svelte';
     import Toggle from '../Toggle.svelte';
+    import SettingsTextarea from './elements/SettingsTextarea.svelte';
     import { onMount, createEventDispatcher } from 'svelte';
     import { isPublicChat } from '../../demo_chats/convertToChat';
     import { logCollector } from '../../services/logCollector';
@@ -1560,49 +1561,39 @@
         <!-- User Flow — "What did you do?" (optional) -->
         <div class="input-group">
             <label for="user-flow">{$text('settings.report_issue.user_flow_label')}</label>
-            <div class="input-wrapper">
-                <textarea
-                    id="user-flow"
-                    bind:this={userFlowInput}
-                    placeholder={$text('settings.report_issue.user_flow_placeholder')}
-                    bind:value={userFlow}
-                    disabled={isSubmitting}
-                    aria-label={$text('settings.report_issue.user_flow_label')}
-                    rows="3"
-                ></textarea>
-            </div>
+            <SettingsTextarea
+                bind:value={userFlow}
+                placeholder={$text('settings.report_issue.user_flow_placeholder')}
+                disabled={isSubmitting}
+                ariaLabel={$text('settings.report_issue.user_flow_label')}
+                rows={3}
+            />
             <p class="input-hint">{$text('settings.report_issue.user_flow_hint')}</p>
         </div>
 
         <!-- Expected Behaviour (optional) -->
         <div class="input-group">
             <label for="expected-behaviour">{$text('settings.report_issue.expected_behaviour_label')}</label>
-            <div class="input-wrapper">
-                <textarea
-                    id="expected-behaviour"
-                    placeholder={$text('settings.report_issue.expected_behaviour_placeholder')}
-                    bind:value={expectedBehaviour}
-                    disabled={isSubmitting}
-                    aria-label={$text('settings.report_issue.expected_behaviour_label')}
-                    rows="2"
-                ></textarea>
-            </div>
+            <SettingsTextarea
+                bind:value={expectedBehaviour}
+                placeholder={$text('settings.report_issue.expected_behaviour_placeholder')}
+                disabled={isSubmitting}
+                ariaLabel={$text('settings.report_issue.expected_behaviour_label')}
+                rows={2}
+            />
             <p class="input-hint">{$text('settings.report_issue.expected_behaviour_hint')}</p>
         </div>
 
         <!-- Actual Behaviour (optional) -->
         <div class="input-group">
             <label for="actual-behaviour">{$text('settings.report_issue.actual_behaviour_label')}</label>
-            <div class="input-wrapper">
-                <textarea
-                    id="actual-behaviour"
-                    placeholder={$text('settings.report_issue.actual_behaviour_placeholder')}
-                    bind:value={actualBehaviour}
-                    disabled={isSubmitting}
-                    aria-label={$text('settings.report_issue.actual_behaviour_label')}
-                    rows="2"
-                ></textarea>
-            </div>
+            <SettingsTextarea
+                bind:value={actualBehaviour}
+                placeholder={$text('settings.report_issue.actual_behaviour_placeholder')}
+                disabled={isSubmitting}
+                ariaLabel={$text('settings.report_issue.actual_behaviour_label')}
+                rows={2}
+            />
             <p class="input-hint">{$text('settings.report_issue.actual_behaviour_hint')}</p>
         </div>
         

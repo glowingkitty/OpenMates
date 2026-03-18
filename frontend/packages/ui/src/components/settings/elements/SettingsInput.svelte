@@ -2,7 +2,7 @@
     SettingsInput — Shared short text input for settings pages.
 
     Matches Figma "Input field - Short text" element:
-    White background, 24px border-radius, box-shadow, placeholder #8A8A8A.
+    White background, 24px border-radius, box-shadow, placeholder grey.
     Always follows after a Settings subheading (SettingsItem type="heading").
 
     Design reference: Figma "settings_menu_elements" frame (node 4944-31418)
@@ -12,28 +12,45 @@
     /** Input type — standard HTML input types */
     type InputType = 'text' | 'email' | 'password' | 'number' | 'search' | 'url' | 'tel';
 
+    /** inputmode — virtual keyboard hint for mobile */
+    type InputMode = 'none' | 'text' | 'decimal' | 'numeric' | 'tel' | 'search' | 'email' | 'url';
+
     let {
         value = $bindable(''),
         placeholder = '',
         type = 'text' as InputType,
         disabled = false,
         name = '',
+        id = '',
         ariaLabel = '',
-        autocomplete = 'off',
+        autocomplete = 'off' as AutoFill,
+        spellcheck = undefined as boolean | undefined,
         maxlength = undefined,
+        pattern = undefined as string | undefined,
+        inputmode = undefined as InputMode | undefined,
+        hasError = false,
+        dataTestid = '',
         onInput = undefined,
         onKeydown = undefined,
+        onBlur = undefined,
     }: {
         value?: string;
         placeholder?: string;
         type?: InputType;
         disabled?: boolean;
         name?: string;
+        id?: string;
         ariaLabel?: string;
-        autocomplete?: string;
+        autocomplete?: AutoFill;
+        spellcheck?: boolean | undefined;
         maxlength?: number | undefined;
+        pattern?: string | undefined;
+        inputmode?: InputMode | undefined;
+        hasError?: boolean;
+        dataTestid?: string;
         onInput?: ((value: string) => void) | undefined;
         onKeydown?: ((event: KeyboardEvent) => void) | undefined;
+        onBlur?: (() => void) | undefined;
     } = $props();
 
     function handleInput(event: Event) {
@@ -44,18 +61,27 @@
 </script>
 
 <div class="settings-input-wrapper">
+    <!-- svelte-ignore a11y_no_interactive_element_to_noninteractive_role -->
     <input
         class="settings-input"
+        class:error={hasError}
         {type}
         {name}
+        {id}
         {placeholder}
         {disabled}
         {autocomplete}
+        spellcheck={spellcheck}
         maxlength={maxlength}
+        pattern={pattern}
+        inputmode={inputmode}
         aria-label={ariaLabel || placeholder}
+        aria-invalid={hasError || undefined}
+        data-testid={dataTestid || undefined}
         bind:value
         oninput={handleInput}
         onkeydown={onKeydown}
+        onblur={onBlur}
     />
 </div>
 
@@ -88,6 +114,11 @@
     .settings-input:focus {
         box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.15),
                     0 0 0 0.125rem var(--color-primary-start);
+    }
+
+    .settings-input.error {
+        box-shadow: 0 0.25rem 0.25rem rgba(0, 0, 0, 0.1),
+                    0 0 0 0.125rem var(--color-error, #e74c3c);
     }
 
     .settings-input:disabled {

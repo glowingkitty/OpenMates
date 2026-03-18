@@ -17,6 +17,7 @@ This ensures users can never have a password without 2FA enabled.
     import { onMount } from 'svelte';
     import { text } from '@repo/ui';
     import { getApiEndpoint, apiEndpoints } from '../../../config/api';
+    import SettingsInput from '../elements/SettingsInput.svelte';
     import * as cryptoService from '../../../services/cryptoService';
     import { getMasterKey } from '../../../services/cryptoKeyStorage';
     import SecurityAuth from './SecurityAuth.svelte';
@@ -459,13 +460,13 @@ This ensures users can never have a password without 2FA enabled.
                 <!-- New Password Input -->
                 <div class="form-group">
                     <label for="new-password">{$text('settings.security.new_password')}</label>
-                    <input
+                    <SettingsInput
                         id="new-password"
                         type="password"
                         bind:value={newPassword}
                         placeholder={$text('settings.security.new_password_placeholder')}
                         disabled={isSubmitting}
-                        class:error={passwordStrengthError}
+                        hasError={!!passwordStrengthError}
                     />
                     {#if passwordStrengthError}
                         <span class="field-error">{passwordStrengthError}</span>
@@ -477,13 +478,13 @@ This ensures users can never have a password without 2FA enabled.
                 <!-- Confirm Password Input -->
                 <div class="form-group">
                     <label for="confirm-password">{$text('settings.security.confirm_password')}</label>
-                    <input
+                    <SettingsInput
                         id="confirm-password"
                         type="password"
                         bind:value={confirmPassword}
                         placeholder={$text('settings.security.confirm_password_placeholder')}
                         disabled={isSubmitting}
-                        class:error={confirmPassword && !passwordsMatch}
+                        hasError={!!(confirmPassword && !passwordsMatch)}
                     />
                     {#if confirmPassword && !passwordsMatch}
                         <span class="field-error">{$text('signup.passwords_do_not_match')}</span>
@@ -660,30 +661,6 @@ This ensures users can never have a password without 2FA enabled.
         font-size: 14px;
         font-weight: 500;
         color: var(--color-grey-80);
-    }
-
-    .form-group input {
-        padding: 12px 16px;
-        font-size: 16px;
-        border: 2px solid var(--color-grey-30);
-        border-radius: 8px;
-        background: var(--color-grey-5);
-        color: var(--color-grey-100);
-        transition: border-color 0.2s;
-    }
-
-    .form-group input:focus {
-        outline: none;
-        border-color: var(--color-primary);
-    }
-
-    .form-group input.error {
-        border-color: var(--color-danger);
-    }
-
-    .form-group input:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
     }
 
     .field-error {

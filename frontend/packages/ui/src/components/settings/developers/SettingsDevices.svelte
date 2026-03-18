@@ -6,6 +6,7 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
     import { onMount, createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
     import { getApiEndpoint } from '../../../config/api';
+    import SettingsInput from '../elements/SettingsInput.svelte';
     import { encryptWithMasterKey, decryptWithMasterKey } from '../../../services/cryptoService';
 
     const _dispatch = createEventDispatcher();
@@ -245,9 +246,8 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
                             {#if editingDeviceId === device.id}
                                 <!-- Edit mode: show input field -->
                                 <div class="device-name-edit">
-                                    <input
+                                    <SettingsInput
                                         type="text"
-                                        class="device-name-input"
                                         bind:value={editingDeviceName}
                                         placeholder={$text('settings.developers_devices_name_placeholder')}
                                         disabled={processingDeviceId === device.id}
@@ -540,28 +540,6 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
     .device-name-edit {
         width: 100%;
         margin-bottom: 8px;
-    }
-
-    .device-name-input {
-        width: 100%;
-        padding: 8px 12px;
-        border-radius: 8px;
-        border: 1px solid var(--color-grey-30);
-        background: var(--color-grey-10);
-        color: var(--color-grey-100);
-        font-size: 18px;
-        font-weight: 600;
-        margin-bottom: 8px;
-    }
-
-    .device-name-input:focus {
-        outline: none;
-        border-color: #3b82f6;
-    }
-
-    .device-name-input:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
     }
 
     .device-name-actions {

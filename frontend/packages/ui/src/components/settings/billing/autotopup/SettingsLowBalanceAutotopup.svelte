@@ -10,6 +10,7 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
     import { pricingTiers } from '../../../../config/pricing';
     import Toggle from '../../../Toggle.svelte';
     import { getEmailDecryptedWithMasterKey } from '../../../../services/cryptoService';
+    import SettingsDropdown from '../../elements/SettingsDropdown.svelte';
 
     let isLoading = $state(false);
     let errorMessage: string | null = $state(null);
@@ -135,6 +136,22 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
     onMount(() => {
         checkPaymentMethod();
     });
+
+    // Dropdown options derived from pricingTiers — recomputed when currency changes
+    let tierAmountOptions = $derived(
+        pricingTiers.map(tier => ({
+            value: String(tier.credits),
+            label: `${formatCredits(tier.credits)} credits - ${formatCurrency(getTierPrice(tier), lowBalanceCurrency)}`
+        }))
+    );
+
+    const currencyOptions = [
+        { value: 'EUR', label: 'EUR (€)' },
+        { value: 'USD', label: 'USD ($)' },
+    ];
+
+    // Bridge between string dropdown value and numeric lowBalanceAmount
+    let lowBalanceAmountStr = $derived(String(lowBalanceAmount));
 </script>
 
 <div class="low-balance-container">
@@ -172,23 +189,23 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
         <!-- Amount Selection -->
         <div class="form-group">
             <label for="amount">{$text('settings.billing.topup_amount')}</label>
-            <select id="amount" bind:value={lowBalanceAmount} disabled={isLoading}>
-                {#each pricingTiers as tier}
-                    <option value={tier.credits}>
-                        {formatCredits(tier.credits)} credits - {formatCurrency(getTierPrice(tier), lowBalanceCurrency)}
-                    </option>
-                {/each}
-            </select>
+            <SettingsDropdown
+                value={lowBalanceAmountStr}
+                options={tierAmountOptions}
+                disabled={isLoading}
+                onChange={(v) => { lowBalanceAmount = parseInt(v, 10); }}
+            />
             <p class="help-text">Credits to purchase when threshold is reached</p>
         </div>
 
         <!-- Currency Selection -->
         <div class="form-group">
             <label for="currency">{$text('settings.billing.currency')}</label>
-            <select id="currency" bind:value={lowBalanceCurrency} disabled={isLoading}>
-                <option value="EUR">EUR (€)</option>
-                <option value="USD">USD ($)</option>
-            </select>
+            <SettingsDropdown
+                bind:value={lowBalanceCurrency}
+                options={currencyOptions}
+                disabled={isLoading}
+            />
         </div>
 
         <!-- Payment Method Status -->

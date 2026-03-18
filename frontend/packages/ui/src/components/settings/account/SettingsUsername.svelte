@@ -17,6 +17,7 @@
     import { text } from '@repo/ui';
     import { getApiUrl, getApiEndpoint, apiEndpoints } from '../../../config/api';
     import { userProfile, updateUsername } from '../../../stores/userProfile';
+    import SettingsInput from '../../settings/elements/SettingsInput.svelte';
 
     // ─── State ────────────────────────────────────────────────────────────────
 
@@ -226,18 +227,17 @@
         <label class="input-label" for="username-input">
             {$text('settings.account.username.new')}
         </label>
-        <input
+        <SettingsInput
             id="username-input"
-            class="username-input"
-            class:error={!!validationError}
+            bind:value={inputValue}
             type="text"
             autocomplete="username"
             spellcheck={false}
             maxlength={20}
             placeholder={$text('settings.account.username.placeholder')}
-            bind:value={inputValue}
-            onblur={() => { hasBlurred = true; }}
+            hasError={!!validationError}
             disabled={isSaving}
+            onBlur={() => { hasBlurred = true; }}
         />
         {#if validationError}
             <p class="field-error">{validationError}</p>
@@ -312,33 +312,6 @@
         margin-bottom: 0.5rem;
         font-size: 0.9rem;
         color: var(--color-text-secondary);
-    }
-
-    .username-input {
-        width: 100%;
-        padding: 0.75rem 1rem;
-        background: var(--color-background-secondary);
-        border: 1px solid var(--color-border);
-        border-radius: 8px;
-        color: var(--color-text-primary);
-        font-size: 1rem;
-        font-family: inherit;
-        box-sizing: border-box;
-        transition: border-color 0.15s ease;
-        outline: none;
-    }
-
-    .username-input:focus {
-        border-color: var(--color-primary);
-    }
-
-    .username-input.error {
-        border-color: var(--color-error);
-    }
-
-    .username-input:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
     }
 
     .field-error {

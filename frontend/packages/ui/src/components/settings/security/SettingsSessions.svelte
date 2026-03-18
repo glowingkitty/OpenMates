@@ -11,6 +11,7 @@ Architecture: docs/architecture/device-sessions.md
     import { getApiEndpoint } from '../../../config/api';
     import { decryptWithMasterKey } from '../../../services/cryptoService';
     import { pendingPairToken } from '../../../stores/pairSessionStore';
+    import SettingsInput from '../elements/SettingsInput.svelte';
 
     const dispatch = createEventDispatcher();
 
@@ -333,19 +334,13 @@ Architecture: docs/architecture/device-sessions.md
         <h3 class="add-device-title">Add device</h3>
         <p class="add-device-description">Enter the pair URL or 6-character code from the new device.</p>
         <div class="add-device-row">
-            <input
+            <SettingsInput
                 type="text"
-                class="add-device-input"
                 placeholder="https://.../#pair=ABC123 or ABC123"
-                value={addDeviceInput}
-                oninput={(event) => {
-                    addDeviceInput = (event.currentTarget as HTMLInputElement).value;
-                    addDeviceError = '';
-                }}
-                onkeydown={(event) => {
-                    if (event.key === 'Enter') connectDevice();
-                }}
+                bind:value={addDeviceInput}
                 autocomplete="off"
+                onInput={() => { addDeviceError = ''; }}
+                onKeydown={(event) => { if (event.key === 'Enter') connectDevice(); }}
             />
             <button class="btn btn-connect" onclick={connectDevice}>Connect</button>
         </div>
@@ -528,22 +523,6 @@ Architecture: docs/architecture/device-sessions.md
         display: flex;
         gap: 10px;
         align-items: center;
-    }
-
-    .add-device-input {
-        flex: 1;
-        min-width: 0;
-        border: 1px solid var(--color-grey-30);
-        border-radius: 8px;
-        padding: 10px 12px;
-        font-size: 13px;
-        color: var(--color-grey-100);
-        background: var(--color-grey-0);
-    }
-
-    .add-device-input:focus {
-        outline: none;
-        border-color: var(--color-primary-start);
     }
 
     .btn-connect {
