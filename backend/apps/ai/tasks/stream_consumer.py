@@ -80,6 +80,17 @@ _INLINE_EMBED_LINK_PATTERN = re.compile(
 # where XYZ is a 2-4 character alphanumeric random suffix.
 _EMBED_REF_SUFFIX_PATTERN = re.compile(r'-[a-zA-Z0-9]{2,4}$')
 
+# Regex to detect mixed URL+embed patterns where the LLM wrote both a markdown
+# https:// link and an (embed:ref) parenthetical for the same anchor.
+# Matches: [display text](https://some-url) (embed:some-ref)
+#      or: [display text](https://some-url)(embed:some-ref)   (no space)
+# Group 1 = display text, Group 2 = https URL, Group 3 = embed_ref slug.
+# The correct form is [display text](embed:some-ref) — the URL is redundant
+# when an embed ref exists and must be removed so the embed card renders.
+_MIXED_URL_EMBED_PATTERN = re.compile(
+    r'\[([^\]]+)\]\((https?://[^\s)]+)\)\s*\(embed:([^)]+)\)'
+)
+
 _EMAIL_TO_PATTERN = re.compile(r'^(?:to|receiver|recipient)\s*:\s*(.+)$', re.IGNORECASE)
 _EMAIL_SUBJECT_PATTERN = re.compile(r'^subject\s*:\s*(.+)$', re.IGNORECASE)
 _EMAIL_CONTENT_MARKER_PATTERN = re.compile(r'^content\s*:\s*$', re.IGNORECASE)
@@ -603,6 +614,59 @@ async def _fix_bad_embed_display_text(
     if replacements_made > 0:
         logger.info(
             f"{log_prefix} [EMBED_DISPLAY_FIX] Fixed {replacements_made} bad embed display text(s)"
+        )
+
+    return modified
+
+
+def _fix_mixed_url_embed_references(aggregated_response: str, log_prefix: str = "") -> str:
+    """
+    Post-streaming safety fix: detect and rewrite mixed URL+embed patterns where
+    the LLM wrote both a markdown https:// link and a trailing (embed:ref) for the
+    same anchor text.
+
+    The LLM is instructed to use embed refs exclusively when an embed_ref is available,
+    but occasionally produces the redundant form:
+
+        [Mistral Small 4 Release Post](https://mistral.ai/news/mistral-small-4) (embed:mistral.ai-nvh)
+
+    This is rewritten to the correct form:
+
+        [Mistral Small 4 Release Post](embed:mistral.ai-nvh)
+
+    Both space-separated and immediately-adjacent variants are handled:
+        [text](https://url) (embed:ref)   → [text](embed:ref)
+        [text](https://url)(embed:ref)    → [text](embed:ref)
+
+    Runs before source-quote verification so all embed refs in the response are in
+    their canonical form before any further processing.
+    """
+    if not aggregated_response or '(embed:' not in aggregated_response:
+        return aggregated_response
+
+    matches = list(_MIXED_URL_EMBED_PATTERN.finditer(aggregated_response))
+    if not matches:
+        return aggregated_response
+
+    modified = aggregated_response
+    replacements_made = 0
+
+    # Process in reverse order to preserve match positions after replacements
+    for match in reversed(matches):
+        display_text = match.group(1)
+        url = match.group(2)
+        embed_ref = match.group(3)
+        corrected = f"[{display_text}](embed:{embed_ref})"
+        modified = modified[:match.start()] + corrected + modified[match.end():]
+        replacements_made += 1
+        logger.info(
+            f"{log_prefix} [MIXED_EMBED_FIX] Rewrote mixed URL+embed: "
+            f"[{display_text}]({url}) → [{display_text}](embed:{embed_ref})"
+        )
+
+    if replacements_made > 0:
+        logger.info(
+            f"{log_prefix} [MIXED_EMBED_FIX] Fixed {replacements_made} mixed URL+embed reference(s)"
         )
 
     return modified
@@ -3686,6 +3750,30 @@ async def _consume_main_processing_stream(
                 f"{log_prefix} Stripped {stripped_count} failed embed reference(s) from message content. "
                 f"Failed embed IDs: {failed_embed_ids}"
             )
+
+    # --- Mixed URL+Embed Reference Fix ---
+    # Detect and rewrite patterns where the LLM wrote both an https:// markdown link
+    # and a trailing (embed:ref) for the same anchor, e.g.:
+    #   [Mistral Small 4 Release Post](https://mistral.ai/news/mistral-small-4) (embed:mistral.ai-nvh)
+    # This must be rewritten to the canonical form before quote verification runs,
+    # so all embed refs are in their correct format for subsequent pipeline steps.
+    if aggregated_response and not was_revoked_during_stream and not was_soft_limited_during_stream:
+        mixed_fixed_response = _fix_mixed_url_embed_references(aggregated_response, log_prefix)
+        if mixed_fixed_response != aggregated_response:
+            aggregated_response = mixed_fixed_response
+            final_response_chunks = [aggregated_response]
+
+            # Publish the corrected response to the client immediately
+            if cache_service:
+                mixed_fix_payload = _create_redis_payload(
+                    task_id, request_data, aggregated_response, stream_chunk_count + 2,
+                    is_final=False, model_name=stream_model_name
+                )
+                await _publish_to_redis(
+                    cache_service, redis_channel_name, mixed_fix_payload, log_prefix,
+                    f"Published response with mixed URL+embed references fixed "
+                    f"(length: {len(aggregated_response)})"
+                )
 
     # --- Source Quote Verification ---
     # Verify that quoted text in > [text](embed:ref) blockquotes actually appears
