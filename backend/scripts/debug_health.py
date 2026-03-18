@@ -543,39 +543,75 @@ async def run_health_check_compact() -> str:
     return f"OK ({', '.join(parts)})"
 
 
+async def _fetch_prod_error_fingerprints(top: int = 5) -> list[dict]:
+    """Fetch error fingerprints from the production Admin Debug API /errors endpoint.
+
+    Returns list of dicts with keys: exc_type, file_part, func, line_num, count.
+    Returns empty list on any failure (non-critical — prod key may be absent).
+    """
+    try:
+        from debug_utils import get_api_key_from_vault, PROD_API_URL
+        # get_api_key_from_vault calls sys.exit(1) on missing key — catch SystemExit
+        try:
+            api_key = await get_api_key_from_vault()
+        except SystemExit:
+            return []
+        url = f"{PROD_API_URL}/errors"
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(
+                url,
+                headers={"Authorization": f"Bearer {api_key}"},
+                params={"top": top},
+            )
+        if resp.status_code != 200:
+            return []
+        data = resp.json()
+        results = []
+        for entry in data.get("top_errors", []):
+            # canonical_key format: "exc_type:filename:function:lineno"
+            canonical = entry.get("canonical_key", "")
+            parts = canonical.split(":", 3)
+            results.append({
+                "exc_type": (parts[0] if parts else "?")[:30],
+                "file_part": (parts[1] if len(parts) > 1 else "?").rsplit("/", 1)[-1],
+                "func": (parts[2] if len(parts) > 2 else "?")[:25],
+                "line_num": parts[3] if len(parts) > 3 else "?",
+                "count": entry.get("count", 0),
+            })
+        return results
+    except Exception:
+        return []
+
+
 async def get_error_overview_compact(top: int = 5, since_minutes: int = 30) -> str:
     """Return a compact overview of recent errors for session context.
 
-    Combines error fingerprints (7d rolling from Redis) and recent error count
-    from OpenObserve into a concise multi-line string showing concrete error
-    descriptions, not just counts.
+    Shows errors for both dev (local OpenObserve + Redis) and production
+    (Admin Debug API /errors endpoint) servers side-by-side.
 
     Output format:
-      Errors: 5 (last 30m) — api(3), worker(1), web(1)
-      Top recurring (7d):
-        1. [3x] KeyError in crypto_service.py:wrap_key:142
-        2. [1x] ConnectionTimeout in redis_client.py:get:89
+      [dev]  Errors: 5 (last 30m) — api(3), worker(1), web(1)
+        Top recurring (7d):  1. [3x] KeyError in crypto_service.py:wrap_key:142
+      [prod] Top recurring (7d):  1. [5x] ValueError in payment.py:charge:88
       → Details: debug.py logs --o2 --preset web-app-health
     """
     lines = []
 
-    # 1. Recent error count by service from OpenObserve
+    # ── Dev: recent error count by service from local OpenObserve ────────────
     recent_errors = await _openobserve_recent_errors(limit=50, since_minutes=since_minutes)
     if recent_errors:
-        # Count by service
         svc_counts: dict[str, int] = {}
         for err in recent_errors:
             svc = err["service"].split("-")[0] if err["service"] != "?" else "unknown"
-            # Normalize: remove /app/backend prefix from container names
             svc = svc.replace("/", "").strip()[:12]
             svc_counts[svc] = svc_counts.get(svc, 0) + 1
         total = len(recent_errors)
         breakdown = ", ".join(f"{s}({c})" for s, c in sorted(svc_counts.items(), key=lambda x: -x[1]))
-        lines.append(f"  Errors: {total} (last {since_minutes}m) — {breakdown}")
+        lines.append(f"  [dev]  Errors: {total} (last {since_minutes}m) — {breakdown}")
     else:
-        lines.append(f"  Errors: 0 (last {since_minutes}m)")
+        lines.append(f"  [dev]  Errors: 0 (last {since_minutes}m)")
 
-    # 2. Top error fingerprints from Redis (concrete descriptions)
+    # Dev: top error fingerprints from local Redis
     try:
         from backend.core.api.app.services.cache import CacheService
         cache = CacheService()
@@ -584,17 +620,29 @@ async def get_error_overview_compact(top: int = 5, since_minutes: int = 30) -> s
         await cache.close()
 
         if results:
-            lines.append("  Top recurring (7d):")
+            lines.append("    Top recurring (7d):")
             for i, (member, score) in enumerate(results, 1):
                 parts = member.split("|", 4)
                 exc_type = (parts[1] if len(parts) > 1 else "?")[:30]
-                file_part = (parts[2] if len(parts) > 2 else "?").rsplit("/", 1)[-1]  # basename
+                file_part = (parts[2] if len(parts) > 2 else "?").rsplit("/", 1)[-1]
                 func = (parts[3] if len(parts) > 3 else "?")[:25]
                 line_num = parts[4] if len(parts) > 4 else "?"
                 count = int(score)
-                lines.append(f"    {i}. [{count}x] {exc_type} in {file_part}:{func}:{line_num}")
+                lines.append(f"      {i}. [{count}x] {exc_type} in {file_part}:{func}:{line_num}")
     except Exception:
         pass  # Fingerprints unavailable — not critical
+
+    # ── Prod: error fingerprints from production Admin Debug API ─────────────
+    prod_fingerprints = await _fetch_prod_error_fingerprints(top=top)
+    if prod_fingerprints:
+        lines.append("  [prod] Top recurring (7d):")
+        for i, entry in enumerate(prod_fingerprints, 1):
+            lines.append(
+                f"      {i}. [{entry['count']}x] {entry['exc_type']} "
+                f"in {entry['file_part']}:{entry['func']}:{entry['line_num']}"
+            )
+    else:
+        lines.append("  [prod] Top recurring (7d): (unavailable — check prod API key)")
 
     lines.append("  → Details: debug.py logs --o2 --preset web-app-health")
     return "\n".join(lines)

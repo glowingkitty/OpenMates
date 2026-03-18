@@ -774,13 +774,17 @@ def _prefetch_recent_issues(limit: int = 2) -> str:
 
 
 def _prefetch_error_overview(since_minutes: int = 30) -> str:
-    """Fetch a compact error/warning overview from OpenObserve + Redis fingerprints."""
+    """Fetch a compact error/warning overview for both dev and production servers.
+
+    Combines dev (local OpenObserve + Redis fingerprints) and prod
+    (Admin Debug API /errors) into a single block.
+    """
     cmd = [
         "docker", "exec", "api",
         "python", "/app/backend/scripts/debug.py",
         "errors", "--compact", "--top", "5", "--since", str(since_minutes),
     ]
-    rc, stdout, stderr = _run_cmd(cmd, timeout=30)
+    rc, stdout, stderr = _run_cmd(cmd, timeout=45)
     if rc != 0 or not stdout.strip():
         return "  (could not fetch error overview)"
     return stdout.strip()
@@ -1184,11 +1188,11 @@ def cmd_start(args: argparse.Namespace) -> None:
     elif mode in ("feature", "testing"):
         prefetch_items.append(("health", _prefetch_health_check_compact()))
 
-    # ── Bug-mode: recent issues + 7d error trends ─────────────────────────
+    # ── Bug-mode: recent issues + 7d error trends (dev + prod) ───────────────
     if mode == "bug":
         error_since = getattr(args, "error_since", 7)
         prefetch_items.append(("recent issues", _prefetch_recent_issues(limit=2)))
-        prefetch_items.append(("error trends", _prefetch_error_overview(since_minutes=error_since * 24 * 60)))
+        prefetch_items.append(("error trends [dev + prod]", _prefetch_error_overview(since_minutes=error_since * 24 * 60)))
 
     # ── Testing-mode: test summary, spec inventory, OpenObserve events ─────
     if mode == "testing":
