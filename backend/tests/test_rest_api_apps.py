@@ -3,9 +3,19 @@
 # Integration tests for miscellaneous app skills:
 #   - travel/search_connections (Amadeus flights)
 #   - travel/search_stays (hotels)
-#   - code/get_docs
+#   - travel/get_flight (Flightradar24 — known past flight)
+##   - code/get_docs
+#   - math/calculate (sympy/mpmath symbolic + numeric)
+#   - shopping/search_products (REWE supermarket)
+#   - health/search_appointments (Doctolib Germany)
 #   - reminder/set-reminder, list-reminders, cancel-reminder (full lifecycle)
 #   - openmates/share-usecase
+#
+# Skills NOT tested here (require session/encryption → CLI E2E tests):
+#   - audio/transcribe       → planned: cli-skills-audio.spec.ts
+#   - pdf/read, search, view → cli-skills-pdf.spec.ts
+#   - mail/search            → planned CLI test (needs Proton Bridge)
+#   - images/*               → cli-images.spec.ts (REST returns 404 by design)
 #
 # Execution:
 #   /OpenMates/.venv/bin/python3 -m pytest -s backend/tests/test_rest_api_apps.py
@@ -352,3 +362,236 @@ def test_execute_skill_openmates_share_usecase(api_client):
 
     print(f"[SHARE USECASE] Response: {skill_data.get('message', 'OK')}")
     print("[SHARE USECASE] PASSED")
+
+
+@pytest.mark.integration
+def test_execute_skill_math_calculate_numeric(api_client):
+    """
+    Test executing the 'math/calculate' skill with a simple numeric expression.
+    Uses sympy/mpmath for accurate symbolic and numeric computation.
+    """
+    payload = {
+        "expression": "sqrt(2)",
+        "mode": "numeric",
+        "precision": 10,
+    }
+
+    print("\n[MATH] Evaluating sqrt(2) numerically...")
+    response = api_client.post(
+        "/v1/apps/math/skills/calculate",
+        json=payload,
+        timeout=20.0,
+    )
+    assert response.status_code == 200, f"math/calculate failed: {response.text}"
+
+    data = response.json()
+    assert data["success"] is True, f"Skill returned success=False: {data}"
+    assert "data" in data
+    skill_data = data["data"]
+
+    # math/calculate returns a flat CalculateResponse (not requests array pattern)
+    assert skill_data.get("result"), f"Expected 'result' field: {skill_data}"
+    assert skill_data.get("mode"), f"Expected 'mode' field: {skill_data}"
+
+    # sqrt(2) ≈ 1.41421356...
+    result_str = str(skill_data.get("result", ""))
+    assert "1.4142" in result_str, (
+        f"Expected sqrt(2) ≈ 1.4142..., got: {result_str}"
+    )
+
+    print(f"[MATH] sqrt(2) = {skill_data.get('result')} (mode={skill_data.get('mode')})")
+    print("[MATH] PASSED")
+
+
+@pytest.mark.integration
+def test_execute_skill_math_calculate_symbolic(api_client):
+    """
+    Test the 'math/calculate' skill with symbolic differentiation.
+    Verifies sympy symbolic mode returns LaTeX output.
+    """
+    payload = {
+        "expression": "diff(sin(x)*x, x)",
+        "mode": "diff",
+        "variable": "x",
+    }
+
+    print("\n[MATH] Differentiating sin(x)*x symbolically...")
+    response = api_client.post(
+        "/v1/apps/math/skills/calculate",
+        json=payload,
+        timeout=20.0,
+    )
+    assert response.status_code == 200, f"math/calculate symbolic failed: {response.text}"
+
+    data = response.json()
+    assert data["success"] is True, f"success=False: {data}"
+    skill_data = data["data"]
+
+    # math/calculate returns a flat CalculateResponse (not requests array pattern)
+    assert skill_data.get("result"), f"Expected 'result' field: {skill_data}"
+
+    # d/dx[sin(x)*x] = sin(x) + x*cos(x)
+    result_str = str(skill_data.get("result", "")).lower()
+    assert "sin" in result_str or "cos" in result_str, (
+        f"Expected symbolic result with trig functions, got: {result_str}"
+    )
+
+    print(f"[MATH] diff(sin(x)*x, x) = {skill_data.get('result')}")
+    print("[MATH SYMBOLIC] PASSED")
+
+
+@pytest.mark.integration
+def test_execute_skill_shopping_search_products(api_client):
+    """
+    Test executing the 'shopping/search_products' skill with a REWE supermarket search.
+    Searches for a common grocery item and verifies product list structure.
+    """
+    payload = {
+        "requests": [
+            {
+                "query": "bio joghurt",
+                "provider": "REWE",
+                "max_results": 5,
+            }
+        ]
+    }
+
+    print("\n[SHOPPING] Searching REWE for 'bio joghurt'...")
+    response = api_client.post(
+        "/v1/apps/shopping/skills/search_products",
+        json=payload,
+        timeout=30.0,
+    )
+    assert response.status_code == 200, (
+        f"shopping/search_products failed: {response.text}"
+    )
+
+    data = response.json()
+    assert data["success"] is True, f"success=False: {data}"
+    assert "data" in data
+    skill_data = data["data"]
+    assert "results" in skill_data, f"Missing 'results': {skill_data}"
+
+    result_groups = skill_data["results"]
+    assert len(result_groups) > 0, "Expected at least one result group"
+
+    products = result_groups[0].get("results", [])
+    assert len(products) > 0, "Expected at least one product"
+
+    product = products[0]
+    # Shopping products use 'title' (REWE) not 'name'
+    assert product.get("title") or product.get("name"), (
+        f"Product missing 'title' or 'name': {list(product.keys())}"
+    )
+
+    print(f"[SHOPPING] Found {len(products)} product(s)")
+    print(f"[SHOPPING] First: {product.get('title') or product.get('name')} — {product.get('price_eur')}")
+    print("[SHOPPING] PASSED")
+
+
+@pytest.mark.integration
+def test_execute_skill_health_search_appointments(api_client):
+    """
+    Test executing the 'health/search_appointments' skill via Doctolib Germany.
+    Searches for general practitioners in Berlin and verifies the response structure.
+    """
+    payload = {
+        "requests": [
+            {
+                "speciality": "allgemeinmedizin",
+                "city": "Berlin",
+                "provider_platform": "doctolib_de",
+                "insurance_sector": "public",
+            }
+        ]
+    }
+
+    print("\n[HEALTH] Searching Doctolib Germany for GPs in Berlin...")
+    response = api_client.post(
+        "/v1/apps/health/skills/search_appointments",
+        json=payload,
+        timeout=45.0,
+    )
+    assert response.status_code == 200, (
+        f"health/search_appointments failed: {response.text}"
+    )
+
+    data = response.json()
+    assert data["success"] is True, f"success=False: {data}"
+    assert "data" in data
+    skill_data = data["data"]
+    assert "results" in skill_data, f"Missing 'results': {skill_data}"
+
+    result_groups = skill_data["results"]
+    assert len(result_groups) > 0, "Expected at least one result group"
+
+    doctors = result_groups[0].get("results", [])
+    assert len(doctors) > 0, "Expected at least one doctor"
+
+    doctor = doctors[0]
+    assert doctor.get("name"), f"Doctor missing 'name': {doctor}"
+    # practice_url is the canonical field per the skill docs (see skill header comment)
+    assert doctor.get("practice_url") or doctor.get("url"), (
+        f"Doctor missing 'practice_url' or 'url': {doctor}"
+    )
+
+    print(f"[HEALTH] Found {len(doctors)} doctor(s)")
+    print(f"[HEALTH] First: {doctor.get('name')} — {doctor.get('practice_url')}")
+    print("[HEALTH] PASSED")
+
+
+@pytest.mark.integration
+def test_execute_skill_travel_get_flight(api_client):
+    """
+    Test executing the 'travel/get_flight' skill via Flightradar24.
+    Uses a known Lufthansa flight from the past to verify track data is returned.
+    Flight LH400 (FRA→JFK) is a daily long-haul route with reliable historical data.
+    """
+    # Use a recent past date (7 days ago) to ensure the flight has completed
+    flight_date = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+
+    payload = {
+        "flight_number": "LH400",
+        "departure_date": flight_date,
+    }
+
+    print(f"\n[FLIGHT] Fetching LH400 on {flight_date}...")
+    response = api_client.post(
+        "/v1/apps/travel/skills/get_flight",
+        json=payload,
+        timeout=30.0,
+    )
+    assert response.status_code == 200, (
+        f"travel/get_flight failed: {response.text}"
+    )
+
+    data = response.json()
+    assert data["success"] is True, f"success=False: {data}"
+    assert "data" in data
+    skill_data = data["data"]
+
+    # The skill returns success=True/False inside the data payload
+    assert skill_data.get("success") is True, (
+        f"Flight data fetch failed: {skill_data.get('error', 'no error detail')}"
+    )
+    assert skill_data.get("flight_number"), "Missing 'flight_number'"
+    assert skill_data.get("data_source") == "flightradar24", (
+        f"Expected data_source=flightradar24, got: {skill_data.get('data_source')}"
+    )
+
+    tracks = skill_data.get("tracks", [])
+    assert len(tracks) > 10, (
+        f"Expected GPS track points (>10), got {len(tracks)}"
+    )
+
+    # Verify track point structure
+    point = tracks[0]
+    assert "lat" in point, "Track point missing 'lat'"
+    assert "lon" in point, "Track point missing 'lon'"
+    assert "timestamp" in point, "Track point missing 'timestamp'"
+
+    print(f"[FLIGHT] {skill_data.get('flight_number')}: "
+          f"{len(tracks)} track points, "
+          f"takeoff={skill_data.get('actual_takeoff')}, "
+          f"landing={skill_data.get('actual_landing')}")
+    print("[FLIGHT] PASSED")

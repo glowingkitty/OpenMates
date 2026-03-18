@@ -1146,6 +1146,166 @@ def _prefetch_test_summary() -> str:
     return "\n".join(lines)
 
 
+def _get_skill_test_coverage() -> str:
+    """Scan app skills and REST/CLI tests to show which skills lack test coverage.
+
+    Returns a formatted string listing:
+      - App skills with REST API tests
+      - App skills with CLI E2E tests
+      - App skills with NO tests (gap overview)
+
+    Reads:
+      - backend/apps/*/skills/ for implemented (non-stub) skills
+      - backend/tests/test_rest_api_*.py for REST API test function names
+      - frontend/apps/web_app/tests/cli-*.spec.ts for CLI test coverage
+
+    Usage:
+      python3 scripts/sessions.py context --doc skill-coverage
+    """
+    import re as _re
+
+    apps_dir = PROJECT_ROOT / "backend" / "apps"
+    backend_tests_dir = PROJECT_ROOT / "backend" / "tests"
+    e2e_tests_dir = PROJECT_ROOT / "frontend" / "apps" / "web_app" / "tests"
+
+    # --- Collect implemented skills (have a non-stub .py file with execute()) ---
+    implemented: dict[str, list[str]] = {}  # app_id -> [skill_id, ...]
+
+    def _skill_id_from_file(stem: str) -> str:
+        """Convert file stem to skill ID: remove '_skill' suffix, underscores to hyphens."""
+        return stem.replace("_skill", "").replace("_", "-")
+
+    for app_dir in sorted(apps_dir.iterdir()):
+        if not app_dir.is_dir() or app_dir.name.startswith("_"):
+            continue
+        skills_dir = app_dir / "skills"
+        if not skills_dir.exists():
+            continue
+        skill_files = [
+            f for f in skills_dir.glob("*.py")
+            if f.name != "__init__.py" and not f.name.startswith("_")
+        ]
+        app_id = app_dir.name
+        skills = []
+        for sf in sorted(skill_files):
+            try:
+                text = sf.read_text(errors="replace")
+                if "def execute(" in text or "async def execute(" in text:
+                    skills.append(_skill_id_from_file(sf.stem))
+            except OSError:
+                pass
+        if skills:
+            implemented[app_id] = skills
+
+    # --- REST API test coverage ---
+    # Strategy: extract all test function names, then match app+skill substrings.
+    # Also handle special cases: "lifecycle" tests cover multiple skills of an app.
+    rest_tested: set[str] = set()
+
+    # Explicit REST API skill endpoint URLs (most reliable)
+    rest_endpoint_pattern = _re.compile(
+        r'/v1/apps/([a-z_-]+)/skills/([a-z_-]+)'
+    )
+
+    if backend_tests_dir.exists():
+        for tf in backend_tests_dir.glob("test_rest_api_*.py"):
+            try:
+                text = tf.read_text(errors="replace")
+
+                # Primary: parse actual endpoint URLs called in test bodies
+                for m in rest_endpoint_pattern.finditer(text):
+                    app_id = m.group(1).replace("-", "_")
+                    skill_id = m.group(2)
+                    if app_id in implemented:
+                        # Normalize skill_id to match our skill naming
+                        for sk in implemented[app_id]:
+                            sk_norm = sk.replace("-", "_")
+                            skill_norm = skill_id.replace("-", "_")
+                            if sk_norm == skill_norm or sk_norm in skill_norm or skill_norm in sk_norm:
+                                rest_tested.add(f"{app_id}/{sk}")
+            except OSError:
+                pass
+
+    # --- CLI E2E test coverage ---
+    cli_tested_apps: set[str] = set()  # apps fully covered by CLI spec
+    cli_tested: set[str] = set()       # individual "app/skill" pairs
+
+    if e2e_tests_dir.exists():
+        for sf in e2e_tests_dir.glob("cli-*.spec.ts"):
+            try:
+                text = sf.read_text(errors="replace")
+
+                # Look for CLI skill invocations: apps <app> <skill>
+                for app_id in implemented:
+                    for sk in implemented[app_id]:
+                        # Check if spec explicitly invokes this skill via CLI
+                        if (f"'apps', '{app_id}'" in text or
+                                ("\"apps\", \"" + app_id + "\""  in text) or
+                                f"apps {app_id}" in text):
+                            if (f"'{sk}'" in text or f'"{sk}"' in text or
+                                    sk.replace("-", "_") in text):
+                                cli_tested.add(f"{app_id}/{sk}")
+
+                # --app-id <app> → memories/settings tests cover the whole app
+                for m in _re.finditer(r'--app-id[\s,]+([a-z][a-z_-]+)', text):
+                    app_id = m.group(1).replace("-", "_")
+                    if app_id in implemented:
+                        cli_tested_apps.add(app_id)
+
+                # Detect app coverage from spec filename and content
+                # cli-images.spec.ts → images app coverage
+                spec_stem = sf.stem.replace(".spec", "")
+                for app_id in implemented:
+                    if app_id in spec_stem:
+                        cli_tested_apps.add(app_id)
+
+                # cli-skills-pdf.spec.ts → pdf app coverage
+                if "pdf" in spec_stem:
+                    cli_tested_apps.add("pdf")
+
+            except OSError:
+                pass
+
+    # --- Build coverage table ---
+    covered_lines: list[str] = []
+    no_coverage: list[str] = []
+
+    for app_id in sorted(implemented):
+        for skill in implemented[app_id]:
+            key = f"{app_id}/{skill}"
+            has_rest = key in rest_tested
+            has_cli = key in cli_tested or app_id in cli_tested_apps
+            if has_rest and has_cli:
+                status = "REST+CLI"
+            elif has_rest:
+                status = "REST"
+            elif has_cli:
+                status = "CLI"
+            else:
+                no_coverage.append(key)
+                continue
+            covered_lines.append(f"  {key:<42} [{status}]")
+
+    total_skills = sum(len(v) for v in implemented.values())
+    result_lines = [
+        f"Implemented skills: {total_skills} across {len(implemented)} apps",
+        f"With tests: {len(covered_lines)}  |  No tests: {len(no_coverage)}",
+        "",
+    ]
+
+    if no_coverage:
+        result_lines.append("GAPS — skills with no test coverage:")
+        for key in sorted(no_coverage):
+            result_lines.append(f"  {key}")
+        result_lines.append("")
+
+    if covered_lines:
+        result_lines.append("Covered skills:")
+        result_lines.extend(covered_lines)
+
+    return "\n".join(result_lines)
+
+
 def _get_e2e_spec_categories() -> str:
     """Scan tests/*.spec.ts and return a categorized inventory summary.
 
@@ -1510,6 +1670,11 @@ def cmd_start(args: argparse.Namespace) -> None:
         spec_lines = [f"Total: {spec_count} specs"]
         spec_lines.extend(_get_e2e_spec_categories().split("\n"))
         sections.append(_box_section("E2E SPECS", spec_lines))
+
+    # ── Skill test coverage gaps (testing + debug mode) ───────────────────
+    if mode in ("testing", "bug"):
+        coverage_lines = _get_skill_test_coverage().split("\n")
+        sections.append(_box_section("SKILL TEST COVERAGE", coverage_lines))
 
     # ── Explicit prefetch flags (all modes — user explicitly requested) ────
     issue_id = getattr(args, "issue", None)
@@ -2464,6 +2629,14 @@ def cmd_deploy(args: argparse.Namespace) -> None:
 def cmd_context(args: argparse.Namespace) -> None:
     """Load and print a specific doc on demand (instruction doc or architecture doc)."""
     doc_name = args.doc
+
+    # Built-in virtual doc: skill-coverage
+    if doc_name in ("skill-coverage", "skill-test-coverage"):
+        coverage = _get_skill_test_coverage()
+        print("== SKILL TEST COVERAGE ==")
+        print(coverage)
+        print("== END SKILL TEST COVERAGE ==")
+        return
 
     # Try instruction doc first (docs/claude/)
     # Allow with or without .md extension

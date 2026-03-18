@@ -496,3 +496,366 @@ test.describe('CLI Memories', () => {
 		await runCli(apiUrl, ['logout']);
 	});
 });
+
+
+// ---------------------------------------------------------------------------
+// Additional memory app coverage
+// ---------------------------------------------------------------------------
+
+test.describe('CLI Memories — Additional Apps', () => {
+	test.setTimeout(300_000);
+
+	test('travel/trips memory lifecycle: create → list (decrypted) → update → delete', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL required.');
+		test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD required.');
+		test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY required.');
+
+		const logCheckpoint = createSignupLogger('CLI_MEMORIES_TRAVEL');
+		const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL || '';
+		const apiUrl = deriveApiUrl(baseUrl);
+
+		page.on('console', (msg: any) => consoleLogs.push(`[browser] ${msg.type()}: ${msg.text()}`));
+
+		// Login
+		logCheckpoint('Logging in...');
+		await loginViaPair(page, apiUrl, logCheckpoint);
+
+		// -----------------------------------------------------------------------
+		// Create a travel/trips memory entry
+		// -----------------------------------------------------------------------
+		logCheckpoint('Creating travel/trips memory...');
+		const createResult = await runCli(
+			apiUrl,
+			[
+				'settings',
+				'memories',
+				'create',
+				'--app-id',
+				'travel',
+				'--item-type',
+				'trips',
+				'--data',
+				JSON.stringify({
+					destination: 'Tokyo',
+					start_date: '2026-04-01',
+					end_date: '2026-04-14',
+					notes: 'E2E test trip — please ignore'
+				}),
+				'--json'
+			],
+			30_000
+		);
+		consoleLogs.push(`[travel create] ${createResult.stdout}`);
+		expect(createResult.code).toBe(0);
+		const createData = JSON.parse(createResult.stdout);
+		expect(createData.success).toBe(true);
+		expect(typeof createData.id).toBe('string');
+		const entryId = createData.id;
+		logCheckpoint(`Created travel entry: ${entryId}`);
+
+		// -----------------------------------------------------------------------
+		// List + verify decryption
+		// -----------------------------------------------------------------------
+		logCheckpoint('Listing travel/trips memories...');
+		const listResult = await runCli(
+			apiUrl,
+			['settings', 'memories', 'list', '--app-id', 'travel', '--item-type', 'trips', '--json'],
+			30_000
+		);
+		expect(listResult.code).toBe(0);
+		const memories = JSON.parse(listResult.stdout);
+		expect(Array.isArray(memories)).toBe(true);
+
+		const ourEntry = memories.find((m: any) => m.id === entryId);
+		expect(ourEntry).toBeTruthy();
+		// Verify decryption worked
+		expect(ourEntry.data.destination).toBe('Tokyo');
+		expect(ourEntry.data.start_date).toBe('2026-04-01');
+		expect(ourEntry.data.end_date).toBe('2026-04-14');
+		// Zero-knowledge: item_key_hash is a 32-char hex hash, NOT 'trips'
+		expect(ourEntry.item_key_hash).toMatch(/^[0-9a-f]{32}$/);
+		expect(ourEntry.item_key_hash).not.toBe('trips');
+		logCheckpoint(`Decrypted OK. item_key_hash: ${ourEntry.item_key_hash}`);
+
+		// -----------------------------------------------------------------------
+		// Update the entry
+		// -----------------------------------------------------------------------
+		logCheckpoint('Updating travel entry...');
+		const updateResult = await runCli(
+			apiUrl,
+			[
+				'settings',
+				'memories',
+				'update',
+				'--id',
+				entryId,
+				'--app-id',
+				'travel',
+				'--item-type',
+				'trips',
+				'--data',
+				JSON.stringify({
+					destination: 'Tokyo',
+					start_date: '2026-05-01',
+					end_date: '2026-05-14',
+					notes: 'E2E test trip — updated'
+				}),
+				'--version',
+				String(ourEntry.item_version),
+				'--json'
+			],
+			30_000
+		);
+		expect(updateResult.code).toBe(0);
+		const updateData = JSON.parse(updateResult.stdout);
+		expect(updateData.success).toBe(true);
+
+		// Verify update
+		const listAfterUpdate = await runCli(
+			apiUrl,
+			['settings', 'memories', 'list', '--app-id', 'travel', '--item-type', 'trips', '--json'],
+			30_000
+		);
+		const updatedMemories = JSON.parse(listAfterUpdate.stdout);
+		const updatedEntry = updatedMemories.find((m: any) => m.id === entryId);
+		expect(updatedEntry).toBeTruthy();
+		expect(updatedEntry.data.start_date).toBe('2026-05-01');
+		logCheckpoint('Update verified.');
+
+		// -----------------------------------------------------------------------
+		// Delete and verify gone
+		// -----------------------------------------------------------------------
+		logCheckpoint('Deleting travel entry...');
+		const deleteResult = await runCli(
+			apiUrl,
+			['settings', 'memories', 'delete', '--id', entryId, '--json'],
+			30_000
+		);
+		expect(deleteResult.code).toBe(0);
+		const deleteData = JSON.parse(deleteResult.stdout);
+		expect(deleteData.success).toBe(true);
+
+		const listAfterDelete = await runCli(
+			apiUrl,
+			['settings', 'memories', 'list', '--app-id', 'travel', '--item-type', 'trips', '--json'],
+			30_000
+		);
+		const memoriesAfterDelete = JSON.parse(listAfterDelete.stdout);
+		const deletedEntry = memoriesAfterDelete.find((m: any) => m.id === entryId);
+		expect(deletedEntry).toBeUndefined();
+		logCheckpoint('Deletion verified — entry no longer in list.');
+
+		await runCli(apiUrl, ['logout']);
+	});
+
+	test('ai/communication_style memory lifecycle: create → list (decrypted) → update → delete', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL required.');
+		test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD required.');
+		test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY required.');
+
+		const logCheckpoint = createSignupLogger('CLI_MEMORIES_AI');
+		const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL || '';
+		const apiUrl = deriveApiUrl(baseUrl);
+
+		page.on('console', (msg: any) => consoleLogs.push(`[browser] ${msg.type()}: ${msg.text()}`));
+
+		// Login
+		logCheckpoint('Logging in...');
+		await loginViaPair(page, apiUrl, logCheckpoint);
+
+		// -----------------------------------------------------------------------
+		// List memory types for ai app (JSON output test)
+		// -----------------------------------------------------------------------
+		logCheckpoint('Listing ai memory types with --json...');
+		const typesResult = await runCli(apiUrl, [
+			'settings',
+			'memories',
+			'types',
+			'--app-id',
+			'ai',
+			'--json'
+		]);
+		expect(typesResult.code).toBe(0);
+
+		// --json must produce valid parseable JSON
+		let types: any[];
+		try {
+			types = JSON.parse(typesResult.stdout);
+		} catch (e) {
+			throw new Error(
+				`Expected JSON from memories types --json, got:\n${typesResult.stdout}\nstderr:\n${typesResult.stderr}`
+			);
+		}
+		expect(Array.isArray(types)).toBe(true);
+		const commStyleType = types.find((t: any) => t.item_type === 'communication_style');
+		expect(commStyleType).toBeTruthy();
+		expect(commStyleType.required).toContain('title');
+		expect(commStyleType.required).toContain('tone');
+		expect(commStyleType.required).toContain('verbosity');
+		logCheckpoint(`Found ${types.length} ai memory types. communication_style validated.`);
+
+		// -----------------------------------------------------------------------
+		// Create an ai/communication_style memory entry
+		// -----------------------------------------------------------------------
+		logCheckpoint('Creating ai/communication_style memory...');
+		const createResult = await runCli(
+			apiUrl,
+			[
+				'settings',
+				'memories',
+				'create',
+				'--app-id',
+				'ai',
+				'--item-type',
+				'communication_style',
+				'--data',
+				JSON.stringify({
+					title: 'E2E Test Style',
+					tone: 'professional',
+					verbosity: 'concise'
+				}),
+				'--json'
+			],
+			30_000
+		);
+		consoleLogs.push(`[ai create] ${createResult.stdout}`);
+		consoleLogs.push(`[ai create stderr] ${createResult.stderr}`);
+		expect(createResult.code).toBe(0);
+		const createData = JSON.parse(createResult.stdout);
+		expect(createData.success).toBe(true);
+		expect(typeof createData.id).toBe('string');
+		const entryId = createData.id;
+		logCheckpoint(`Created ai entry: ${entryId}`);
+
+		// -----------------------------------------------------------------------
+		// List + verify decryption
+		// -----------------------------------------------------------------------
+		logCheckpoint('Listing ai/communication_style memories...');
+		const listResult = await runCli(
+			apiUrl,
+			[
+				'settings',
+				'memories',
+				'list',
+				'--app-id',
+				'ai',
+				'--item-type',
+				'communication_style',
+				'--json'
+			],
+			30_000
+		);
+		expect(listResult.code).toBe(0);
+		const memories = JSON.parse(listResult.stdout);
+		expect(Array.isArray(memories)).toBe(true);
+
+		const ourEntry = memories.find((m: any) => m.id === entryId);
+		expect(ourEntry).toBeTruthy();
+		// Verify decryption
+		expect(ourEntry.data.title).toBe('E2E Test Style');
+		expect(ourEntry.data.tone).toBe('professional');
+		expect(ourEntry.data.verbosity).toBe('concise');
+		// Zero-knowledge: item_key_hash is a 32-char hex hash
+		expect(ourEntry.item_key_hash).toMatch(/^[0-9a-f]{32}$/);
+		expect(ourEntry.item_key_hash).not.toBe('communication_style');
+		logCheckpoint(`Decrypted OK. tone=${ourEntry.data.tone}, verbosity=${ourEntry.data.verbosity}`);
+
+		// -----------------------------------------------------------------------
+		// Update the entry
+		// -----------------------------------------------------------------------
+		logCheckpoint('Updating ai entry...');
+		const updateResult = await runCli(
+			apiUrl,
+			[
+				'settings',
+				'memories',
+				'update',
+				'--id',
+				entryId,
+				'--app-id',
+				'ai',
+				'--item-type',
+				'communication_style',
+				'--data',
+				JSON.stringify({
+					title: 'E2E Test Style Updated',
+					tone: 'casual',
+					verbosity: 'detailed'
+				}),
+				'--version',
+				String(ourEntry.item_version),
+				'--json'
+			],
+			30_000
+		);
+		expect(updateResult.code).toBe(0);
+		const updateData = JSON.parse(updateResult.stdout);
+		expect(updateData.success).toBe(true);
+
+		// Verify update
+		const listAfterUpdate = await runCli(
+			apiUrl,
+			[
+				'settings',
+				'memories',
+				'list',
+				'--app-id',
+				'ai',
+				'--item-type',
+				'communication_style',
+				'--json'
+			],
+			30_000
+		);
+		const updatedMemories = JSON.parse(listAfterUpdate.stdout);
+		const updatedEntry = updatedMemories.find((m: any) => m.id === entryId);
+		expect(updatedEntry).toBeTruthy();
+		expect(updatedEntry.data.tone).toBe('casual');
+		expect(updatedEntry.data.verbosity).toBe('detailed');
+		logCheckpoint('Update verified.');
+
+		// -----------------------------------------------------------------------
+		// Delete and verify gone
+		// -----------------------------------------------------------------------
+		logCheckpoint('Deleting ai entry...');
+		const deleteResult = await runCli(
+			apiUrl,
+			['settings', 'memories', 'delete', '--id', entryId, '--json'],
+			30_000
+		);
+		expect(deleteResult.code).toBe(0);
+		const deleteData = JSON.parse(deleteResult.stdout);
+		expect(deleteData.success).toBe(true);
+		logCheckpoint('Entry deleted.');
+
+		// Verify gone
+		const listAfterDelete = await runCli(
+			apiUrl,
+			[
+				'settings',
+				'memories',
+				'list',
+				'--app-id',
+				'ai',
+				'--item-type',
+				'communication_style',
+				'--json'
+			],
+			30_000
+		);
+		const memoriesAfterDelete = JSON.parse(listAfterDelete.stdout);
+		const deletedEntry = memoriesAfterDelete.find((m: any) => m.id === entryId);
+		expect(deletedEntry).toBeUndefined();
+		logCheckpoint('Deletion verified — entry gone from list.');
+
+		await runCli(apiUrl, ['logout']);
+	});
+});
