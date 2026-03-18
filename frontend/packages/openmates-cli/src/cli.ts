@@ -1999,67 +1999,69 @@ function printSettingsHelp(client?: OpenMatesClient): void {
   const appUrl = client ? deriveAppUrl(client.apiUrl) : "https://openmates.org";
   const s = (path: string) => `${appUrl}/#settings/${path}`;
 
+  // Section heading helper
+  const h = (title: string) => `\n  \x1b[1m${title}\x1b[0m`;
+
   console.log(`\x1b[1mSettings\x1b[0m
-
-\x1b[1mAvailable via CLI:\x1b[0m
-
-  \x1b[1mProfile\x1b[0m
-    openmates settings get user/language               Language preference
-    openmates settings post user/language --data '{"language":"en"}'
-    openmates settings post user/darkmode --data '{"dark_mode":true}'
-    openmates settings post user/timezone --data '{"timezone":"Europe/Berlin"}'
+${h("Account")}
     openmates settings post user/username --data '{"encrypted_username":"..."}'
-    openmates settings post ai-model-defaults --data '{"simple":"...","complex":"..."}'
-
-  \x1b[1mPrivacy & data\x1b[0m
-    openmates settings post auto-delete-chats --data '{"period":"90d"}'
-    openmates settings post auto-delete-usage --data '{"period":"1y"}'
-    openmates settings get delete-account-preview       Preview account deletion
+    openmates settings post user/timezone --data '{"timezone":"Europe/Berlin"}'
     openmates settings get export-account-manifest      GDPR data export manifest
     openmates settings get export-account-data          GDPR data export
-
-  \x1b[1mUsage & billing\x1b[0m
-    openmates settings get usage [--json]               Paginated usage data
+    openmates settings post import-chat --data '<json>' Import a chat
+    openmates settings get storage [--json]             Storage overview
+    openmates settings get chats [--json]               Chat statistics
+    openmates settings get delete-account-preview       Preview account deletion
+    \x1b[2mSecurity (passkeys, password, 2FA, sessions): ${s("account/security")}\x1b[0m
+    \x1b[2mDelete account: ${s("account/delete")}\x1b[0m
+${h("Billing")}
+    openmates settings get billing [--json]             Balance & billing overview
+    openmates settings post auto-topup/low-balance --data '{"enabled":true,"amount":1000,"currency":"eur"}'
+    openmates settings get usage [--json]               Full usage history
     openmates settings get usage/summaries [--json]     Usage summaries by type
     openmates settings get usage/daily-overview [--json]
-    openmates settings get usage/export [--json]        Export as CSV
-    openmates settings get billing [--json]             Billing overview
-    openmates settings get storage [--json]             Storage overview
-
-  \x1b[1mReminders\x1b[0m
-    openmates settings get reminders [--json]           List active reminders
-
-  \x1b[1mMemories\x1b[0m
+    openmates settings get usage/export [--json]        Export usage as CSV
+    \x1b[2mBuy credits: ${s("billing/buy-credits")}\x1b[0m
+    \x1b[2mMonthly auto top-up: ${s("billing/auto-topup/monthly")}\x1b[0m
+    \x1b[2mInvoices: ${s("billing/invoices")}\x1b[0m
+    \x1b[2mGift cards: ${s("billing/gift-cards")}\x1b[0m
+${h("Privacy")}
+    openmates settings post auto-delete-chats --data '{"period":"90d"}'
+    openmates settings post auto-delete-usage --data '{"period":"1y"}'
+    \x1b[2mHide personal data / anonymization: ${s("privacy/hide-personal-data")}\x1b[0m
+${h("Notifications")}
+    openmates settings get reminders [--json]           Active reminders
+    \x1b[2mChat notifications: ${s("notifications/chat")}\x1b[0m
+    \x1b[2mBackup reminders: ${s("notifications/backup")}\x1b[0m
+${h("Interface")}
+    openmates settings post user/language --data '{"language":"en"}'
+    openmates settings post user/darkmode --data '{"dark_mode":true}'
+    openmates settings post ai-model-defaults --data '{"simple":"...","complex":"..."}'
+${h("App Store")}
+    openmates apps list                                 Same as App Store
+    openmates apps <app-id>                             App details
+    \x1b[2mWeb: ${s("app_store")}\x1b[0m
+${h("Mates")}
+    \x1b[2m${s("mates")}\x1b[0m
+${h("Memories & app settings")}
     openmates settings memories list [--app-id <id>] [--item-type <type>] [--json]
     openmates settings memories types [--app-id <id>] [--json]
     openmates settings memories create --app-id <id> --item-type <type> --data '<json>'
     openmates settings memories update --id <id> --app-id <id> --item-type <type> --data '<json>'
     openmates settings memories delete --id <entry-id>
-
-  \x1b[1mChats\x1b[0m
-    openmates settings get chats [--json]               Chat statistics
-    openmates settings post import-chat --data '<json>' Import a chat
-
-  \x1b[1mSupport\x1b[0m
+${h("Developers")}
+    openmates settings get api-keys [--json]            List API keys
+    openmates settings delete api-keys/<key-id>         Revoke API key
+    \x1b[2mCreate API key (shows secret once): ${s("developers/api-keys")}\x1b[0m
+    \x1b[2mManage devices: ${s("developers/devices")}\x1b[0m
+${h("Support")}
     openmates settings post issues --data '<json>'      Report an issue
 
-\x1b[1mWeb app only\x1b[0m (for security — manage in browser):
-  Security:         ${s("account/security")}
-  Passkeys:         ${s("account/security/passkeys")}
-  Password:         ${s("account/security/password")}
-  2FA:              ${s("account/security/2fa")}
-  Sessions:         ${s("account/security/sessions")}
-  API keys:         ${s("developers/api-keys")}
-  Devices:          ${s("developers/devices")}
-  Buy credits:      ${s("billing/buy-credits")}
-  Invoices:         ${s("billing/invoices")}
-  Auto top-up:      ${s("billing/auto-topup")}
-  Notifications:    ${s("notifications")}
-  Privacy:          ${s("privacy")}
-  App Store:        ${s("app_store")}
-  Mates:            ${s("mates")}
-  Interface:        ${s("interface")}
-  Delete account:   ${s("account")}`);
+\x1b[2mWeb app only (security — manage in browser):\x1b[0m
+  \x1b[2mPasskeys:   ${s("account/security/passkeys")}\x1b[0m
+  \x1b[2mPassword:   ${s("account/security/password")}\x1b[0m
+  \x1b[2m2FA:        ${s("account/security/2fa")}\x1b[0m
+  \x1b[2mSessions:   ${s("account/security/sessions")}\x1b[0m`);
 }
 
 function printMemoriesHelp(): void {

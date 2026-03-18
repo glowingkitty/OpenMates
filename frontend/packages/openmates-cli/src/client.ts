@@ -1625,7 +1625,10 @@ export class OpenMatesClient {
       const url = new URL(path);
       return `${url.pathname}${url.search}`;
     }
-    return path.startsWith("/") ? path : `/${path}`;
+    // Already an absolute path — use as-is
+    if (path.startsWith("/")) return path;
+    // Short relative path (e.g. "billing", "usage/summaries") — prefix with settings base
+    return `/v1/settings/${path}`;
   }
 
   private requireSession(): OpenMatesSession {
