@@ -38,6 +38,9 @@ python3 scripts/sessions.py start --mode <MODE> --task "brief description"
 #   python3 scripts/sessions.py start --mode bug --task "..." --logs "since=30,level=error"
 #   python3 scripts/sessions.py start --mode bug --task "debug user" --user <EMAIL>
 #   python3 scripts/sessions.py start --mode bug --task "check debug logs" --debug-id <DBG_ID>
+#   python3 scripts/sessions.py start --mode bug --task "fix vercel" --vercel          # latest deployment status + errors
+#   python3 scripts/sessions.py start --mode bug --task "..." --error-since 14         # error trend lookback (default: 7 days)
+#   python3 scripts/sessions.py start --mode testing --task "debug test run" --run-id <RUN_ID>  # daily test run context
 #
 # All flags auto-add relevant tags AND inline the fetched data into the session output.
 
@@ -95,6 +98,23 @@ python3 scripts/sessions.py check-docs --file path/to/module.py
 ```bash
 python3 scripts/sessions.py lock --session <ID> --type docker   # before rebuild
 python3 scripts/sessions.py unlock --session <ID> --type docker # after rebuild
+```
+
+### Backlog
+
+Tasks recorded in `.claude/backlog.json`. Shown automatically at every session start with a consent prompt — address them if related or urgent.
+
+```bash
+# Add a new backlog task (title required; description and files optional)
+python3 scripts/sessions.py backlog-add --title "brief task title" \
+    --description "longer explanation" \
+    --files path/to/file.py path/to/other.ts
+
+# List all backlog tasks
+python3 scripts/sessions.py backlog-list
+
+# Mark a task done (removes it; use the id shown in backlog-list or session start)
+python3 scripts/sessions.py backlog-done --id <N>
 ```
 
 ---
@@ -347,3 +367,11 @@ python3 scripts/sessions.py deploy --session <ID> --title "type: description" --
 2. Do NOT run Firecrawl verification until the deployment status is **Ready** (not building, not error).
 3. If the deployment fails, fix the build error first — do not test against a stale deployment.
 4. Only after confirming deployment is live should you use Firecrawl to verify the fix/feature works in production.
+
+### Vercel Build Log Truncation
+
+`debug.py vercel` now auto-paginates past the Vercel API's ~467 event per-page cap (up to 5000 events by default). If the build log still appears truncated (cuts off mid-task with no error message):
+
+1. Increase the limit: `debug.py vercel --all --max-events 10000`
+2. If that still truncates, the build likely crashed without a final error event — paste the raw build log from the Vercel dashboard directly into the chat
+3. Do NOT loop on the same `debug.py vercel` command expecting different results
