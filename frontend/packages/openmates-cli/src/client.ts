@@ -806,12 +806,25 @@ export class OpenMatesClient {
     const masterKey = this.getMasterKeyBytes();
     const normalized = query.trim().toLowerCase();
 
+    // "last" / "__last__" → most recently modified chat (cache is sorted desc by timestamp)
+    let found: (typeof cache.chats)[0] | undefined;
+    if (query === "__last__" || query.toLowerCase() === "last") {
+      if (cache.chats.length === 0) {
+        throw new Error(
+          "No chats found in local cache. Run 'openmates chats list' to sync.",
+        );
+      }
+      found = cache.chats[0];
+    }
+
     // Pass 1: fast ID match (no decryption needed)
-    let found = cache.chats.find(
-      (c) =>
-        String(c.details.id) === query ||
-        String(c.details.id).startsWith(query),
-    );
+    if (!found) {
+      found = cache.chats.find(
+        (c) =>
+          String(c.details.id) === query ||
+          String(c.details.id).startsWith(query),
+      );
+    }
 
     // Pass 2: title match — decrypt all chats and match by title.
     // The cache is already sorted most-recent-first, so the first match wins.
@@ -1021,24 +1034,33 @@ export class OpenMatesClient {
       try {
         content = JSON.parse(rawContent) as Record<string, unknown>;
       } catch {
-        content = { raw: rawContent };
+        // Content stored as YAML-like key:value lines (common for skill embeds).
+        // Parse into an object so per-type renderers can use standard field names.
+        content = parseYamlLikeContent(rawContent);
       }
     }
+
+    // Derive type/appId/skillId from content if not on the embed record itself
+    const strVal = (v: unknown) =>
+      typeof v === "string" && v.trim() ? v.trim() : null;
+    const resolvedType = type ?? strVal(content?.type) ?? null;
+    const resolvedAppId =
+      typeof embed.app_id === "string"
+        ? embed.app_id
+        : (strVal(content?.app_id) ?? null);
+    const resolvedSkillId =
+      typeof embed.skill_id === "string"
+        ? embed.skill_id
+        : (strVal(content?.skill_id) ?? null);
 
     return {
       id: embedId,
       embedId,
-      type,
+      type: resolvedType,
       textPreview,
       content,
-      appId:
-        typeof embed.app_id === "string"
-          ? embed.app_id
-          : ((content?.app_id as string) ?? null),
-      skillId:
-        typeof embed.skill_id === "string"
-          ? embed.skill_id
-          : ((content?.skill_id as string) ?? null),
+      appId: resolvedAppId,
+      skillId: resolvedSkillId,
       createdAt: typeof embed.created_at === "number" ? embed.created_at : null,
     };
   }
@@ -1047,13 +1069,23 @@ export class OpenMatesClient {
     message: string;
     chatId?: string;
     incognito?: boolean;
-  }): Promise<{ chatId: string; assistant: string }> {
+  }): Promise<{
+    chatId: string;
+    assistant: string;
+    category: string | null;
+    modelName: string | null;
+    mateName: string | null;
+  }> {
     const session = this.requireSession();
     const chatId = params.chatId ?? randomUUID();
     const ws = this.makeWsClient(session);
     await ws.open();
 
     const messageId = randomUUID();
+    // Mark this chat as active so the server streams incremental chunks
+    // rather than sending a single background-completion event.
+    ws.send("set_active_chat", { chat_id: chatId });
+
     ws.send("chat_message_added", {
       chat_id: chatId,
       is_incognito: Boolean(params.incognito),
@@ -1070,6 +1102,9 @@ export class OpenMatesClient {
     });
 
     let assistant = "";
+    let category: string | null = null;
+    let modelName: string | null = null;
+
     if (params.incognito) {
       const history = loadIncognitoHistory();
       history.push({
@@ -1078,7 +1113,10 @@ export class OpenMatesClient {
         createdAt: Date.now(),
       });
       try {
-        assistant = await ws.collectAiResponse(messageId);
+        const resp = await ws.collectAiResponse(messageId, chatId);
+        assistant = resp.content;
+        category = resp.category;
+        modelName = resp.modelName;
       } finally {
         ws.close();
       }
@@ -1090,13 +1128,17 @@ export class OpenMatesClient {
       saveIncognitoHistory(history);
     } else {
       try {
-        assistant = await ws.collectAiResponse(messageId);
+        const resp = await ws.collectAiResponse(messageId, chatId);
+        assistant = resp.content;
+        category = resp.category;
+        modelName = resp.modelName;
       } finally {
         ws.close();
       }
     }
 
-    return { chatId, assistant };
+    const mateName = category ? (MATE_NAMES[category] ?? null) : null;
+    return { chatId, assistant, category, modelName, mateName };
   }
 
   getIncognitoHistory(): IncognitoHistoryItem[] {
@@ -1734,6 +1776,62 @@ export class OpenMatesClient {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/**
+ * Parse the YAML-like key:value format used by some embed content fields.
+ *
+ * Format (from backend embed_service.py text serialisation):
+ *   type: sheet
+ *   app_id: sheets
+ *   table: "| Col | Col |\n| --- | --- |"
+ *   row_count: 5
+ *
+ * Quoted string values (single or double) are unquoted.
+ * Numeric values are coerced to numbers.
+ * Multi-line values joined with real newlines.
+ */
+function parseYamlLikeContent(raw: string): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  // Split on lines that start a new key: "^key: " pattern
+  // Keys are word chars / underscores / hyphens, followed by ": "
+  const keyPattern = /^([\w-]+):\s*/;
+  const lines = raw.split("\n");
+  let currentKey: string | null = null;
+  let currentValue = "";
+
+  const flush = () => {
+    if (currentKey === null) return;
+    let v: unknown = currentValue.trim();
+    // Unquote strings
+    if (
+      (typeof v === "string" && v.startsWith('"') && v.endsWith('"')) ||
+      (typeof v === "string" && v.startsWith("'") && v.endsWith("'"))
+    ) {
+      v = (v as string).slice(1, -1).replace(/\\n/g, "\n").replace(/\\"/g, '"');
+    }
+    // Coerce numbers
+    if (typeof v === "string" && v !== "" && !isNaN(Number(v))) {
+      v = Number(v);
+    }
+    result[currentKey] = v;
+    currentKey = null;
+    currentValue = "";
+  };
+
+  for (const line of lines) {
+    const m = keyPattern.exec(line);
+    if (m) {
+      flush();
+      currentKey = m[1];
+      currentValue = line.slice(m[0].length);
+    } else if (currentKey !== null) {
+      // Continuation line for a multi-line value
+      currentValue += "\n" + line;
+    }
+  }
+  flush();
+  return result;
+}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));

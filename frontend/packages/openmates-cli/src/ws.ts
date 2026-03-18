@@ -117,51 +117,100 @@ export class OpenMatesWsClient {
     });
   }
 
+  /**
+   * Collect the AI response for a sent message.
+   *
+   * The server has two delivery paths:
+   *
+   * 1. Active-chat path (chat is set as active on this device via set_active_chat):
+   *    Sends incremental `ai_message_update` frames with `full_content_so_far`.
+   *    The final frame has `is_final_chunk: true`.
+   *
+   * 2. Background path (chat is not marked active — the CLI default unless we
+   *    explicitly call set_active_chat first):
+   *    Sends a single `ai_background_response_completed` frame with `full_content`
+   *    and the user_message_id. No incremental chunks.
+   *
+   * We listen for both simultaneously and resolve on whichever arrives first.
+   */
+  /** Result from collectAiResponse including metadata from the stream. */
   collectAiResponse(
     userMessageId: string,
+    chatId: string,
     timeoutMs = 90_000,
-  ): Promise<string> {
-    return new Promise<string>((resolve, reject) => {
-      let lastChunk = "";
+  ): Promise<{
+    content: string;
+    category: string | null;
+    modelName: string | null;
+  }> {
+    return new Promise((resolve, reject) => {
+      let latestContent = "";
+      let category: string | null = null;
+      let modelName: string | null = null;
       const timeout = setTimeout(() => {
         cleanup();
         reject(new Error("Timed out waiting for AI response"));
       }, timeoutMs);
+
+      const capture = (p: Record<string, unknown>) => {
+        if (typeof p.category === "string" && p.category) category = p.category;
+        if (typeof p.model_name === "string" && p.model_name)
+          modelName = p.model_name;
+      };
 
       const onMessage = (rawData: RawData) => {
         try {
           const parsed = JSON.parse(rawData.toString()) as WsEnvelope<
             Record<string, unknown>
           >;
-          const payload = parsed.payload ?? {};
+          const p = (parsed.payload ?? {}) as Record<string, unknown>;
+          const type = parsed.type;
 
-          if (parsed.type === "error") {
+          if (type === "error") {
             cleanup();
-            const message =
-              typeof payload.message === "string"
-                ? payload.message
-                : "Unknown chat error";
-            reject(new Error(message));
+            reject(
+              new Error(
+                typeof p.message === "string"
+                  ? p.message
+                  : "Unknown chat error",
+              ),
+            );
             return;
           }
 
-          if (
-            parsed.type === "ai_message_chunk" &&
-            payload &&
-            payload.user_message_id === userMessageId &&
-            typeof payload.full_content_so_far === "string"
-          ) {
-            lastChunk = payload.full_content_so_far;
+          // Active-chat streaming: incremental chunks
+          if (type === "ai_message_update") {
+            const msgId = p.user_message_id ?? p.userMessageId;
+            if (msgId !== userMessageId) return;
+            capture(p);
+            if (typeof p.full_content_so_far === "string") {
+              latestContent = p.full_content_so_far;
+            }
+            if (p.is_final_chunk === true) {
+              cleanup();
+              resolve({ content: latestContent, category, modelName });
+            }
             return;
           }
 
-          if (
-            parsed.type === "ai_response_completed" &&
-            payload &&
-            payload.user_message_id === userMessageId
-          ) {
+          // Background path: single completion event
+          if (type === "ai_background_response_completed") {
+            const msgId = p.user_message_id ?? p.userMessageId;
+            if (msgId && msgId !== userMessageId) return;
+            if (!msgId && p.chat_id !== chatId) return;
+            capture(p);
+            const content =
+              typeof p.full_content === "string"
+                ? p.full_content
+                : latestContent;
             cleanup();
-            resolve(lastChunk);
+            resolve({ content, category, modelName });
+            return;
+          }
+
+          // Also capture from ai_typing_started which fires before chunks
+          if (type === "ai_typing_started") {
+            capture(p);
           }
         } catch {
           // Ignore malformed frames.
@@ -172,7 +221,6 @@ export class OpenMatesWsClient {
         cleanup();
         reject(error);
       };
-
       const onClose = () => {
         cleanup();
         reject(new Error("WebSocket closed while waiting for AI response"));

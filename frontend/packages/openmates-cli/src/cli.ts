@@ -167,9 +167,9 @@ async function handleChats(
       incognito: false,
     });
     if (flags.json === true) {
-      printJson({ chat_id: result.chatId, assistant: result.assistant });
+      printJson(result);
     } else {
-      printChatResponse(result.chatId, result.assistant);
+      printChatResponse(result);
     }
     return;
   }
@@ -187,9 +187,9 @@ async function handleChats(
       incognito: flags.incognito === true,
     });
     if (flags.json === true) {
-      printJson({ chat_id: result.chatId, assistant: result.assistant });
+      printJson(result);
     } else {
-      printChatResponse(result.chatId, result.assistant);
+      printChatResponse(result);
     }
     return;
   }
@@ -202,9 +202,9 @@ async function handleChats(
       );
     const result = await client.sendMessage({ message, incognito: true });
     if (flags.json === true) {
-      printJson({ chat_id: result.chatId, assistant: result.assistant });
+      printJson(result);
     } else {
-      printChatResponse(result.chatId, result.assistant);
+      printChatResponse(result);
     }
     return;
   }
@@ -232,7 +232,9 @@ async function handleChats(
       printChatsHelp();
       process.exit(1);
     }
-    const { chat, messages } = await client.getChatMessages(chatId);
+    // "last" opens the most recently modified chat
+    const resolvedId = chatId.toLowerCase() === "last" ? "__last__" : chatId;
+    const { chat, messages } = await client.getChatMessages(resolvedId);
     if (flags.json === true) {
       printJson({ chat, messages });
     } else {
@@ -259,8 +261,21 @@ async function handleApps(
   // API key is optional — session cookies are used when absent
   const apiKey = resolveApiKey(flags) ?? undefined;
 
-  if (!subcommand || subcommand === "help" || flags.help === true) {
+  if (!subcommand || subcommand === "help") {
     printAppsHelp();
+    return;
+  }
+
+  // `apps <app> --help` → show app info (same as `apps info <app>`)
+  if (
+    flags.help === true &&
+    subcommand !== "list" &&
+    subcommand !== "info" &&
+    subcommand !== "skill-info" &&
+    subcommand !== "run"
+  ) {
+    const data = await client.getApp(subcommand);
+    printAppInfo(data as AppMetadata);
     return;
   }
 
@@ -855,9 +870,27 @@ function printChatsTable(result: ChatListPage): void {
   }
 }
 
-function printChatResponse(chatId: string, assistant: string): void {
-  console.log(`\x1b[2mchat: ${chatId.slice(0, 8)}\x1b[0m\n`);
-  console.log(assistant);
+function printChatResponse(result: {
+  chatId: string;
+  assistant: string;
+  category: string | null;
+  modelName: string | null;
+  mateName: string | null;
+}): void {
+  const shortId = result.chatId.slice(0, 8);
+  const mateBlock = ansiMateBlock(result.category, result.mateName);
+  const modelSuffix = result.modelName
+    ? `  \x1b[2m${result.modelName}\x1b[0m`
+    : "";
+  process.stdout.write(`${SEP}\n`);
+  process.stdout.write(`${mateBlock}${modelSuffix}\n`);
+  process.stdout.write(`${SEP}\n`);
+  console.log(result.assistant);
+  process.stdout.write(`${SEP}\n`);
+  process.stdout.write(
+    `\x1b[2mContinue: openmates chats send --chat ${shortId} "your message"\x1b[0m\n` +
+      `\x1b[2mHistory:  openmates chats show ${shortId}\x1b[0m\n`,
+  );
 }
 
 function printIncognitoHistory(
@@ -879,8 +912,88 @@ function printIncognitoHistory(
   }
 }
 
+const SEP = `\x1b[2m${"─".repeat(60)}\x1b[0m`;
+
+/**
+ * Parse the inline embed UUID blocks from AI message content.
+ *
+ * The AI writes embed references as:
+ *   ```json
+ *   {"type":"app_skill_use","embed_id":"<uuid>","app_id":"...","skill_id":"...","query":"..."}
+ *   ```
+ * or the legacy:
+ *   ```json_embed
+ *   {"embed_id":"<uuid>"}
+ *   ```
+ *
+ * Returns the content split into segments: either plain text segments or embed
+ * UUID strings prefixed with "EMBED:" so the renderer can fetch them in-place.
+ */
+function parseMessageSegments(
+  content: string,
+): Array<{ type: "text" | "embed"; value: string }> {
+  const segments: Array<{ type: "text" | "embed"; value: string }> = [];
+  // Match both ```json and ```json_embed blocks
+  const pattern = /```(?:json_embed|json)\n([\s\S]*?)\n```/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+
+  while ((m = pattern.exec(content)) !== null) {
+    // Text before this block
+    if (m.index > last) {
+      segments.push({ type: "text", value: content.slice(last, m.index) });
+    }
+
+    // Try to extract an embed_id from the JSON block
+    try {
+      const parsed = JSON.parse(m[1].trim()) as Record<string, unknown>;
+      const embedId =
+        typeof parsed.embed_id === "string" ? parsed.embed_id : null;
+      if (embedId) {
+        segments.push({ type: "embed", value: embedId });
+      }
+      // If no embed_id, silently discard the block (don't show raw JSON)
+    } catch {
+      // Malformed JSON — discard
+    }
+
+    last = m.index + m[0].length;
+  }
+
+  // Remaining text after last block
+  if (last < content.length) {
+    segments.push({ type: "text", value: content.slice(last) });
+  }
+
+  return segments;
+}
+
+/**
+ * Clean display text: strip unresolvable embed badge refs.
+ *
+ * - `[!](embed:slug)`  → "" (large preview badge — already shown as embed block above)
+ * - `[text](embed:slug)` → "text" (inline text badge — keep the display text only)
+ */
+function cleanMessageText(text: string): string {
+  return text
+    .replace(/\[!\]\(embed:[^)]+\)/g, "") // [!](embed:...) → remove
+    .replace(/\[([^\]]+)\]\(embed:[^)]+\)/g, "$1") // [text](embed:...) → text
+    .replace(/\n{3,}/g, "\n\n") // collapse 3+ blank lines
+    .trim();
+}
+
 /**
  * Render a full chat conversation with messages, colored mate blocks, and inline embed content.
+ *
+ * Layout per message:
+ *   ────────────────────────
+ *    You   2026-03-16 18:17   (or mate block for assistant)
+ *   ────────────────────────
+ *   message text
+ *   [embed blocks inline at their json block positions]
+ *
+ * After last message:
+ *   ────────────────────────
  */
 async function printChatConversation(
   client: OpenMatesClient,
@@ -898,9 +1011,9 @@ async function printChatConversation(
   const title = chat.title ?? "(no title)";
   const ts = formatTimestamp(chat.updatedAt);
 
-  // Header: colored block + title + date
+  // Header: colored block + date + # Title
   process.stdout.write(`${block}  \x1b[2m${chat.shortId}  ${ts}\x1b[0m\n`);
-  process.stdout.write(`\x1b[1m${title}\x1b[0m\n\n`);
+  process.stdout.write(`\x1b[1;4m# ${title}\x1b[0m\n\n`);
 
   if (messages.length === 0) {
     process.stdout.write("\x1b[2m(no messages)\x1b[0m\n");
@@ -910,12 +1023,12 @@ async function printChatConversation(
   for (const msg of messages) {
     const msgTs = formatTimestamp(msg.createdAt);
 
-    // Sender header: colored block with name for assistant, plain bold "You" for user
+    // ── Separator + sender header ──────────────────────────────────────────
+    process.stdout.write(`${SEP}\n`);
+
     if (msg.role === "user") {
       process.stdout.write(`\x1b[1mYou\x1b[0m  \x1b[2m${msgTs}\x1b[0m\n`);
     } else if (msg.role === "assistant" || msg.role === "ai") {
-      // Use message-level category if available (may differ from chat category
-      // when a different mate responds), otherwise fall back to chat category
       const msgCategory = msg.category ?? chat.category;
       const msgMateName = msgCategory
         ? (MATE_NAMES[msgCategory] ?? chat.mateName)
@@ -931,138 +1044,345 @@ async function printChatConversation(
       process.stdout.write(`\x1b[2m${msg.role}  ${msgTs}\x1b[0m\n`);
     }
 
-    // Message content — strip raw embed JSON blocks; we'll show actual content below
-    if (msg.content) {
-      const cleaned = msg.content
-        .replace(/```json_embed\n[\s\S]*?\n```/g, "")
-        .replace(/```json\n[\s\S]*?\n```/g, "")
-        .trim();
-      if (cleaned) {
-        process.stdout.write(`${cleaned}\n`);
-      }
-    }
+    process.stdout.write(`${SEP}\n`);
 
-    // Inline embed content for each embed referenced in this message
-    if (msg.embedIds.length > 0) {
-      for (const eid of msg.embedIds) {
-        process.stdout.write("\n");
-        try {
-          const embed = await client.getEmbed(eid);
-          renderInlineEmbed(embed);
-        } catch {
-          // Embed not found in cache — just show the reference hint
-          process.stdout.write(
-            `  \x1b[2m📎 embed: ${eid.slice(0, 8)}  →  openmates embeds show ${eid.slice(0, 8)}\x1b[0m\n`,
-          );
+    // ── Message body: text + inline embeds at their actual positions ───────
+    if (msg.content) {
+      const segments = parseMessageSegments(msg.content);
+
+      for (const seg of segments) {
+        if (seg.type === "embed") {
+          try {
+            const embed = await client.getEmbed(seg.value);
+            renderInlineEmbed(embed);
+          } catch {
+            process.stdout.write(
+              `\x1b[2m📎 openmates embeds show ${seg.value.slice(0, 8)}\x1b[0m\n`,
+            );
+          }
+        } else {
+          const cleaned = cleanMessageText(seg.value);
+          if (cleaned) process.stdout.write(`${cleaned}\n`);
         }
       }
     }
 
-    process.stdout.write("\n");
-  }
-}
-
-/**
- * Render an embed inline within a chat message.
- * Shows a compact summary matching the text details of the embed preview.
- */
-function renderInlineEmbed(embed: DecryptedEmbed): void {
-  const shortId = embed.embedId.slice(0, 8);
-  const appLabel = embed.appId ?? "embed";
-  const skillLabel = embed.skillId ?? "";
-  const label = skillLabel ? `${appLabel}/${skillLabel}` : appLabel;
-
-  // Header bar for the embed
-  process.stdout.write(
-    `  \x1b[2m┌─ 📎 ${label}  \x1b[0m\x1b[2m${shortId}\x1b[0m\n`,
-  );
-
-  const c = embed.content ?? {};
-
-  // Type-specific rendering mirroring embed preview text content
-  const type = embed.type ?? embed.appId ?? "";
-
-  // ── Search-style: has results array ────────────────────────────────────
-  const results = c.results as Array<Record<string, unknown>> | undefined;
-  if (Array.isArray(results) && results.length > 0) {
-    const query = str(c.query) ?? str(c.search_query);
-    if (query) process.stdout.write(`  \x1b[2m│  Query: ${query}\x1b[0m\n`);
-    process.stdout.write(`  \x1b[2m│  ${results.length} result(s)\x1b[0m\n`);
-    for (const r of results.slice(0, 3)) {
-      const title = str(r.title) ?? str(r.name) ?? str(r.headline);
-      const url = str(r.url) ?? str(r.link);
-      const desc = str(r.description) ?? str(r.snippet);
-      if (title) process.stdout.write(`  \x1b[2m│    • ${title}\x1b[0m\n`);
-      if (url && !title)
-        process.stdout.write(`  \x1b[2m│    • ${url}\x1b[0m\n`);
-      if (desc)
-        process.stdout.write(
-          `  \x1b[2m│      ${desc.slice(0, 100)}${desc.length > 100 ? "…" : ""}\x1b[0m\n`,
-        );
-    }
-    if (results.length > 3) {
-      process.stdout.write(
-        `  \x1b[2m│    … and ${results.length - 3} more\x1b[0m\n`,
-      );
-    }
-  }
-  // ── Reminder ─────────────────────────────────────────────────────────
-  else if (type.includes("reminder")) {
-    const message = str(c.message) ?? str(c.text);
-    const time =
-      str(c.trigger_at_formatted) ?? str(c.trigger_at) ?? str(c.scheduled_at);
-    if (message)
-      process.stdout.write(`  \x1b[2m│  Message: ${message}\x1b[0m\n`);
-    if (time) process.stdout.write(`  \x1b[2m│  Time: ${time}\x1b[0m\n`);
-  }
-  // ── Code ─────────────────────────────────────────────────────────────
-  else if (type.includes("code") || str(c.language)) {
-    const lang = str(c.language);
-    const filename = str(c.filename) ?? str(c.file_path);
-    const lines = c.line_count ?? c.lineCount;
-    const preview = str(c.code_content) ?? str(c.code);
-    if (lang) process.stdout.write(`  \x1b[2m│  Language: ${lang}\x1b[0m\n`);
-    if (filename)
-      process.stdout.write(`  \x1b[2m│  File: ${filename}\x1b[0m\n`);
-    if (lines)
-      process.stdout.write(`  \x1b[2m│  Lines: ${String(lines)}\x1b[0m\n`);
-    if (preview) {
-      const firstLine = preview.split("\n")[0].slice(0, 80);
-      process.stdout.write(
-        `  \x1b[2m│  ${firstLine}${firstLine.length >= 80 ? "…" : ""}\x1b[0m\n`,
-      );
-    }
-  }
-  // ── Image / file ──────────────────────────────────────────────────────
-  else if (type.includes("image")) {
-    const prompt = str(c.prompt) ?? str(c.description);
-    const model = str(c.model);
-    if (prompt)
-      process.stdout.write(
-        `  \x1b[2m│  Prompt: ${prompt.slice(0, 100)}\x1b[0m\n`,
-      );
-    if (model) process.stdout.write(`  \x1b[2m│  Model: ${model}\x1b[0m\n`);
-  }
-  // ── Text preview fallback ─────────────────────────────────────────────
-  else if (embed.textPreview) {
-    const lines = embed.textPreview.split("\n").slice(0, 4);
-    for (const l of lines) {
-      if (l.trim())
-        process.stdout.write(`  \x1b[2m│  ${l.slice(0, 100)}\x1b[0m\n`);
-    }
-  }
-  // ── Generic key-value for unknown types ───────────────────────────────
-  else {
-    for (const [k, v] of Object.entries(c).slice(0, 4)) {
-      if (v !== null && v !== undefined && typeof v !== "object") {
-        process.stdout.write(
-          `  \x1b[2m│  ${k}: ${String(v).slice(0, 80)}\x1b[0m\n`,
-        );
+    // User messages may have embeds from hashed_message_id lookup
+    // (files/images/etc the user attached) — show those after the text
+    if (msg.role === "user" && msg.embedIds.length > 0) {
+      for (const eid of msg.embedIds) {
+        try {
+          const embed = await client.getEmbed(eid);
+          renderInlineEmbed(embed);
+        } catch {
+          process.stdout.write(
+            `\x1b[2m📎 openmates embeds show ${eid.slice(0, 8)}\x1b[0m\n`,
+          );
+        }
       }
     }
   }
 
-  process.stdout.write(`  \x1b[2m└─ openmates embeds show ${shortId}\x1b[0m\n`);
+  // Final closing separator
+  process.stdout.write(`${SEP}\n`);
+  process.stdout.write(
+    `\x1b[2mContinue: openmates chats send --chat ${chat.shortId} "your message"\x1b[0m\n`,
+  );
+}
+
+/**
+ * Render an embed inline within a chat message.
+ * Mirrors the text content shown by each embed's preview component.
+ *
+ * Format:
+ *   ┌─ 📎 web/search  · "best miro alternatives"  via Brave
+ *   │  5 results
+ *   │  • AFFiNE — https://github.com/toeverything/AFFiNE
+ *   │    Open-source all-in-one workspace...
+ *   │  • Excalidraw — https://excalidraw.com
+ *   │  … and 3 more
+ *   └─ openmates embeds show a3f2b1c4
+ */
+function renderInlineEmbed(embed: DecryptedEmbed): void {
+  const shortId = embed.embedId.slice(0, 8);
+  const app = embed.appId ?? str(embed.content?.app_id) ?? "";
+  const skill = embed.skillId ?? str(embed.content?.skill_id) ?? "";
+  const label = skill ? `${app}/${skill}` : app || "embed";
+  const c = (embed.content ?? {}) as Record<string, unknown>;
+
+  // Build header suffix: query or title if available
+  const query = str(c.query) ?? str(c.search_query) ?? str(c.question);
+  const headerSuffix = query ? `  · "${query}"` : "";
+  const providerSuffix = str(c.provider) ? `  via ${str(c.provider)}` : "";
+
+  const ln = (s: string) => process.stdout.write(`\x1b[2m│  ${s}\x1b[0m\n`);
+  const indent = (s: string) =>
+    process.stdout.write(`\x1b[2m│    ${s}\x1b[0m\n`);
+
+  process.stdout.write(
+    `\x1b[2m┌─ 📎 ${label}${headerSuffix}${providerSuffix}  ${shortId}\x1b[0m\n`,
+  );
+
+  // ── web/search  ────────────────────────────────────────────────────────
+  // ── news/search ────────────────────────────────────────────────────────
+  // Both show: query, "via Provider", favicons row → N results, top-3 titles+URLs+snippets
+  if ((app === "web" || app === "news") && skill === "search") {
+    renderSearchResults(c, ln, indent);
+  }
+
+  // ── maps/search ────────────────────────────────────────────────────────
+  // Shows: query, "via Google", N places, top-3 with name+address+rating
+  else if (app === "maps" && skill === "search") {
+    const results = c.results as Array<Record<string, unknown>> | undefined;
+    if (Array.isArray(results) && results.length > 0) {
+      ln(`${results.length} place${results.length !== 1 ? "s" : ""}`);
+      for (const r of results.slice(0, 3)) {
+        const name = str(r.displayName) ?? str(r.name) ?? "";
+        const address = str(r.formattedAddress) ?? str(r.address) ?? "";
+        const rating = typeof r.rating === "number" ? ` ★ ${r.rating}` : "";
+        if (name) indent(`${name}${rating}`);
+        if (address) indent(`  ${address}`);
+      }
+      if (results.length > 3) indent(`… and ${results.length - 3} more`);
+    } else {
+      ln("No places found");
+    }
+  }
+
+  // ── travel/search_connections ──────────────────────────────────────────
+  // Shows: route summary, trip date, N connections, from-price
+  else if (app === "travel" && skill === "search_connections") {
+    const results = c.results as Array<Record<string, unknown>> | undefined;
+    const embedIds = c.embed_ids as string[] | string | undefined;
+    const count =
+      c.result_count ??
+      (Array.isArray(results) ? results.length : null) ??
+      (typeof embedIds === "string"
+        ? embedIds.split("|").filter(Boolean).length
+        : null) ??
+      (Array.isArray(embedIds) ? embedIds.length : 0);
+    if (count) ln(`${count} connection${count !== 1 ? "s" : ""}`);
+    // Show top results if available in content
+    if (Array.isArray(results) && results.length > 0) {
+      for (const r of results.slice(0, 3)) {
+        const price = str(r.price);
+        const currency = str(r.currency) ?? "";
+        const origin = str(r.origin);
+        const dest = str(r.destination);
+        const duration = str(r.duration);
+        const stops =
+          typeof r.stops === "number"
+            ? r.stops === 0
+              ? "Direct"
+              : `${r.stops} stop${r.stops !== 1 ? "s" : ""}`
+            : null;
+        const carrier =
+          Array.isArray(r.carriers) && r.carriers.length > 0
+            ? String(r.carriers[0])
+            : null;
+        if (origin && dest)
+          indent(`${origin} → ${dest}${duration ? `  ${duration}` : ""}`);
+        if (price)
+          indent(
+            `  ${currency} ${price}${stops ? `  ${stops}` : ""}${carrier ? `  ${carrier}` : ""}`,
+          );
+      }
+    }
+  }
+
+  // ── travel/connection (individual flight) ──────────────────────────────
+  else if (app === "travel" && skill === "connection") {
+    const price = str(c.price);
+    const currency = str(c.currency) ?? "";
+    const origin = str(c.origin);
+    const dest = str(c.destination);
+    const dep = str(c.departure)?.slice(11, 16); // HH:MM
+    const arr = str(c.arrival)?.slice(11, 16);
+    const duration = str(c.duration);
+    const stops =
+      typeof c.stops === "number"
+        ? c.stops === 0
+          ? "Direct"
+          : `${c.stops} stop${c.stops !== 1 ? "s" : ""}`
+        : null;
+    const carrier =
+      Array.isArray(c.carriers) && c.carriers.length > 0
+        ? String(c.carriers[0])
+        : null;
+    if (origin && dest) ln(`${origin} → ${dest}`);
+    if (dep && arr) ln(`${dep} – ${arr}${duration ? `  (${duration})` : ""}`);
+    if (price)
+      ln(
+        `${currency} ${price}${stops ? `  · ${stops}` : ""}${carrier ? `  · ${carrier}` : ""}`,
+      );
+  }
+
+  // ── sheets/sheet ───────────────────────────────────────────────────────
+  // Shows: title, NxM dimensions, first few rows of markdown table
+  else if (app === "sheets" || embed.type === "sheet") {
+    const title = str(c.title);
+    const rowCount = c.row_count ?? c.rows;
+    const colCount = c.col_count ?? c.cols;
+    if (title) ln(title);
+    if (rowCount && colCount)
+      ln(`${String(rowCount)} rows × ${String(colCount)} columns`);
+    // Render first 4 rows of the markdown table
+    const table = str(c.table) ?? str(c.code) ?? str(c.content);
+    if (table) {
+      const rows = table
+        .split("\n")
+        .filter((l) => l.trim().startsWith("|"))
+        .slice(0, 5);
+      for (const row of rows) {
+        indent(row.slice(0, 100));
+      }
+    }
+  }
+
+  // ── code/get_docs ─────────────────────────────────────────────────────
+  // Shows: library ID (monospace), question, "via Context7", word count
+  else if (app === "code" && skill === "get_docs") {
+    const results = c.results as Array<Record<string, unknown>> | undefined;
+    const first = Array.isArray(results) ? results[0] : null;
+    const libId =
+      (first?.library as Record<string, unknown>)?.id ??
+      first?.library_id ??
+      str(c.library);
+    const wordCount = first?.word_count;
+    const docs = str((first?.documentation as string) ?? "");
+    if (libId) ln(`Library: ${String(libId)}`);
+    if (wordCount) ln(`${String(wordCount)} words  via Context7`);
+    if (docs) {
+      // First ~200 chars of documentation, stripped of markdown headings
+      const preview = docs.replace(/^#+\s+/gm, "").slice(0, 200);
+      indent(preview + (docs.length > 200 ? "…" : ""));
+    }
+  }
+
+  // ── reminder/set-reminder ─────────────────────────────────────────────
+  // Shows: prompt (3 lines), trigger_at_formatted, target_type, repeating
+  else if (app === "reminder") {
+    const prompt = str(c.prompt) ?? str(c.message);
+    const time = str(c.trigger_at_formatted) ?? str(c.trigger_at);
+    const target = str(c.target_type);
+    const repeat = c.is_repeating === true;
+    if (prompt) {
+      const lines = prompt.split("\n").slice(0, 3);
+      for (const l of lines) if (l.trim()) ln(`"${l.trim().slice(0, 80)}"`);
+    }
+    if (time) ln(`🕑 ${time}`);
+    if (target)
+      ln(target === "new_chat" ? "Opens new chat" : "Continues this chat");
+    if (repeat) ln("Repeating");
+  }
+
+  // ── images/generate ───────────────────────────────────────────────────
+  // Shows: model, prompt — image is binary so we can't display it
+  else if (app === "images") {
+    const prompt = str(c.prompt);
+    const model = str(c.model);
+    if (model) ln(`Model: ${model}`);
+    if (prompt)
+      ln(`Prompt: ${prompt.slice(0, 120)}${prompt.length > 120 ? "…" : ""}`);
+    ln(`[image — use 'openmates embeds show ${shortId}' for details]`);
+  }
+
+  // ── pdf/read ─────────────────────────────────────────────────────────
+  // Shows: filename, pages info, first ~160 chars of extracted text
+  else if (app === "pdf") {
+    const filename = str(c.filename);
+    const results = c.results as Array<Record<string, unknown>> | undefined;
+    const pages =
+      c.pages_returned ??
+      (Array.isArray(results) && results[0] ? results[0].pages_returned : null);
+    const pageCount = c.page_count;
+    const text = str(
+      Array.isArray(results) && results[0]?.content
+        ? String(results[0].content)
+        : "",
+    );
+    if (filename) ln(filename);
+    if (pages)
+      ln(
+        `Pages: ${Array.isArray(pages) ? pages.join(", ") : String(pages)}${pageCount ? ` of ${String(pageCount)}` : ""}`,
+      );
+    if (text) {
+      // Strip markdown, first ~160 chars
+      const preview = text
+        .replace(/#{1,6}\s+/g, "")
+        .replace(/[*_`]/g, "")
+        .slice(0, 160);
+      indent(preview + (text.length > 160 ? "…" : ""));
+    }
+  }
+
+  // ── docs/doc ──────────────────────────────────────────────────────────
+  else if (app === "docs") {
+    const title = str(c.title) ?? str(c.filename);
+    const wordCount = c.word_count;
+    const html = str(c.html);
+    if (title) ln(title);
+    if (wordCount) ln(`${String(wordCount)} words`);
+    if (html) {
+      // Strip HTML tags for text preview
+      const preview = html
+        .replace(/<[^>]+>/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 200);
+      indent(preview + (html.length > 200 ? "…" : ""));
+    }
+  }
+
+  // ── text_preview fallback for group/unknown embeds ────────────────────
+  else if (embed.textPreview) {
+    const lines = embed.textPreview.split("\n").slice(0, 5);
+    for (const l of lines) if (l.trim()) ln(l.slice(0, 100));
+  }
+
+  // ── generic key-value for truly unknown types ─────────────────────────
+  else {
+    let count = 0;
+    for (const [k, v] of Object.entries(c)) {
+      if (count >= 4) break;
+      if (
+        v !== null &&
+        v !== undefined &&
+        typeof v !== "object" &&
+        !k.startsWith("_")
+      ) {
+        ln(`${k}: ${String(v).slice(0, 80)}`);
+        count++;
+      }
+    }
+  }
+
+  process.stdout.write(`\x1b[2m└─ openmates embeds show ${shortId}\x1b[0m\n`);
+}
+
+/** Shared search renderer for web/search and news/search */
+function renderSearchResults(
+  c: Record<string, unknown>,
+  ln: (s: string) => void,
+  indent: (s: string) => void,
+): void {
+  const results = c.results as Array<Record<string, unknown>> | undefined;
+  if (!Array.isArray(results) || results.length === 0) {
+    ln("No results");
+    return;
+  }
+  ln(`${results.length} result${results.length !== 1 ? "s" : ""}`);
+  for (const r of results.slice(0, 3)) {
+    const title = str(r.title) ?? str(r.name) ?? str(r.headline);
+    const url = str(r.url) ?? str(r.link);
+    const snippet = str(r.description) ?? str(r.snippet) ?? str(r.summary);
+    if (title)
+      indent(`\x1b[0m\x1b[2m${title}\x1b[0m\x1b[2m${url ? `  ${url}` : ""}`);
+    else if (url) indent(url);
+    if (snippet)
+      indent(`  ${snippet.slice(0, 100)}${snippet.length > 100 ? "…" : ""}`);
+  }
+  if (results.length > 3) indent(`… and ${results.length - 3} more`);
 }
 
 /**
@@ -1542,14 +1862,16 @@ Options for 'list':
   --limit <n>   Number of chats per page (default: 10)
   --page <n>    Page number (default: 1)
 
-'show' displays the full decrypted conversation for a chat.
-The chat ID can be the full UUID or just the first 8 characters.
+'show' accepts: full UUID, 8-char short ID, exact/partial title, or "last".
 
 Examples:
   openmates chats list
   openmates chats show d262cb68
+  openmates chats show last
+  openmates chats show "Flight Connections Berlin to Bangkok"
   openmates chats search "Madrid"
-  openmates chats new "Hello, what can you help me with?"`);
+  openmates chats new "Hello, what can you help me with?"
+  openmates chats send --chat d262cb68 "follow-up question"`);
 }
 
 function printAppsHelp(): void {
@@ -1594,10 +1916,12 @@ function printSettingsHelp(): void {
   openmates settings patch <path> --data '<json>' [--json]
   openmates settings memories <list|types|create|update|delete>
 
-Blocked for safety (never executed from CLI):
-  - API key creation
-  - Password setup/update
-  - 2FA setup/provider changes`);
+These settings are only available in the web app (for security):
+  API keys:       https://openmates.org/#settings/api-keys
+  Password:       https://openmates.org/#settings/security
+  2FA setup:      https://openmates.org/#settings/security
+  Billing:        https://openmates.org/#settings/billing
+  Sessions:       https://openmates.org/#settings/sessions`);
 }
 
 function printMemoriesHelp(): void {
