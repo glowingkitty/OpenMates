@@ -1504,6 +1504,56 @@ export class OpenMatesClient {
   }
 
   // -------------------------------------------------------------------------
+  // Travel: booking link resolution
+  // -------------------------------------------------------------------------
+
+  /**
+   * Look up a booking URL for a flight using its booking_token.
+   *
+   * Calls POST /v1/apps/travel/booking-link which resolves the SerpAPI
+   * booking_token to a direct airline/OTA booking URL. Costs 25 credits.
+   *
+   * @see TravelConnectionEmbedFullscreen.svelte — handleLoadBookingLink()
+   */
+  async getBookingLink(params: {
+    bookingToken: string;
+    bookingContext?: Record<string, string>;
+    apiKey?: string;
+  }): Promise<{
+    success: boolean;
+    booking_url?: string;
+    booking_provider?: string;
+    credits_charged?: number;
+    error?: string;
+  }> {
+    const headers: Record<string, string> = {
+      ...this.getCliRequestHeaders(),
+    };
+    if (params.apiKey) headers.Authorization = `Bearer ${params.apiKey}`;
+    const response = await this.http.post(
+      "/v1/apps/travel/booking-link",
+      {
+        booking_token: params.bookingToken,
+        booking_context: params.bookingContext ?? null,
+        hashed_chat_id: null,
+      },
+      headers,
+    );
+    if (!response.ok) {
+      throw new Error(
+        `Booking link request failed with HTTP ${response.status}`,
+      );
+    }
+    return response.data as {
+      success: boolean;
+      booking_url?: string;
+      booking_provider?: string;
+      credits_charged?: number;
+      error?: string;
+    };
+  }
+
+  // -------------------------------------------------------------------------
   // Settings (generic passthrough)
   // -------------------------------------------------------------------------
 

@@ -416,7 +416,62 @@ async function handleApps(
     return;
   }
 
-  // Sugar alias: openmates apps <app> <skill> [inline text]
+  // ── travel booking-link: resolve a booking URL from a booking_token ────
+  // openmates apps travel booking-link --token "..." [--context '{...}']
+  if (subcommand === "travel" && rest[0] === "booking-link") {
+    const token =
+      typeof flags.token === "string" ? flags.token : undefined;
+    if (!token) {
+      console.error(
+        "Missing --token flag.\n\n" +
+          "Usage:\n" +
+          '  openmates apps travel booking-link --token "<booking_token>" [--context \'<json>\']\n\n' +
+          "The booking_token is shown in the output of:\n" +
+          "  openmates apps travel search_connections --input '...'\n",
+      );
+      process.exit(1);
+    }
+    let bookingContext: Record<string, string> | undefined;
+    if (typeof flags.context === "string") {
+      try {
+        bookingContext = JSON.parse(flags.context) as Record<string, string>;
+      } catch {
+        console.error("Invalid --context JSON.");
+        process.exit(1);
+      }
+    }
+    try {
+      const result = await client.getBookingLink({
+        bookingToken: token,
+        bookingContext,
+        apiKey,
+      });
+      if (flags.json === true) {
+        printJson(result);
+      } else if (result.success && result.booking_url) {
+        header(
+          `Travel › Booking Link${result.credits_charged ? `  \x1b[2m(${result.credits_charged} credits)\x1b[0m` : ""}\n`,
+        );
+        kv("URL", result.booking_url);
+        if (result.booking_provider) kv("Provider", result.booking_provider);
+        console.log(
+          `\n\x1b[2mOpen this URL in your browser to complete the booking.\x1b[0m`,
+        );
+      } else {
+        console.error(
+          `\x1b[31m✗ Booking link not found:\x1b[0m ${result.error ?? "no booking URL available for this flight"}`,
+        );
+        process.exit(1);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`\x1b[31m✗ Booking link request failed:\x1b[0m ${msg}`);
+      process.exit(1);
+    }
+    return;
+  }
+
+    // Sugar alias: openmates apps <app> <skill> [inline text]
   const app = subcommand;
   const skill = rest[0];
   if (app && skill) {
@@ -1773,152 +1828,60 @@ function printSkillResult(app: string, skill: string, raw: unknown): void {
   const credits =
     typeof res.credits_charged === "number" ? res.credits_charged : null;
 
-  // ── Web / news search-style: { results: [{ results: [...] }] } ──────────
-  type SearchItem = Record<string, unknown>;
-  const topResults = data?.results as SearchItem[] | undefined;
+  // ── Grouped results: { results: [{ id, results: [...] }] } ──────────────
+  // This is the standard shape for all skill responses with request arrays.
+  type ResultItem = Record<string, unknown>;
+  const topResults = data?.results as ResultItem[] | undefined;
   if (Array.isArray(topResults)) {
     let totalItems = 0;
-    const lines: string[] = [];
-
     for (const group of topResults) {
-      const items = group.results as SearchItem[] | undefined;
-      if (!Array.isArray(items)) continue;
-      for (const item of items) {
-        totalItems += 1;
-
-        // ── Type-specific renderers ──────────────────────────────────────
-        const itemType = str(item.type);
-
-        if (itemType === "connection") {
-          // Travel flight/train connection result
-          const origin = str(item.origin);
-          const dest = str(item.destination);
-          const dep = str(item.departure);
-          const arr = str(item.arrival);
-          const dur = str(item.duration);
-          const price = str(item.total_price);
-          const currency = str(item.currency) ?? "EUR";
-          const stops = item.stops as number | undefined;
-          const carriers = Array.isArray(item.carriers)
-            ? (item.carriers as string[]).join(", ")
-            : null;
-          const stopsLabel =
-            stops === 0 ? "direct" : stops === 1 ? "1 stop" : `${stops} stops`;
-
-          if (origin && dest) lines.push(`\x1b[1m${origin} → ${dest}\x1b[0m`);
-          const meta: string[] = [];
-          if (dep) meta.push(dep);
-          if (arr) meta.push(`→ ${arr}`);
-          if (dur) meta.push(`(${dur})`);
-          if (meta.length) lines.push(meta.join("  "));
-          const detail: string[] = [];
-          if (price) detail.push(`${price} ${currency}`);
-          if (stops !== undefined) detail.push(stopsLabel);
-          if (carriers) detail.push(carriers);
-          if (detail.length) lines.push(`\x1b[2m${detail.join(" · ")}\x1b[0m`);
-          lines.push("");
-          continue;
-        }
-
-        if (itemType === "stay") {
-          // Travel hotel/accommodation result
-          const name = str(item.name) ?? str(item.property_name);
-          const addr = str(item.address) ?? str(item.location);
-          const price =
-            str(item.price_per_night) ??
-            str(item.price) ??
-            str(item.rate_per_night);
-          const currency = str(item.currency) ?? "EUR";
-          const rating = item.rating ?? item.overall_rating;
-          const stars = item.hotel_class ?? item.stars;
-          const link = str(item.link) ?? str(item.url);
-
-          if (name) lines.push(`\x1b[1m${name}\x1b[0m`);
-          const meta: string[] = [];
-          if (rating) meta.push(`★ ${rating}`);
-          if (stars) meta.push(`${stars}★ hotel`);
-          if (price) meta.push(`${price} ${currency}/night`);
-          if (meta.length) lines.push(meta.join("  "));
-          if (addr) lines.push(`\x1b[2m${addr}\x1b[0m`);
-          if (link) lines.push(`\x1b[2m${link}\x1b[0m`);
-          lines.push("");
-          continue;
-        }
-
-        if (itemType === "place") {
-          // Maps place result
-          const name = str(item.name);
-          const addr =
-            str(item.formatted_address) ??
-            str(item.address) ??
-            str(item.vicinity);
-          const rating = item.rating;
-          const phone = str(item.phone) ?? str(item.formatted_phone_number);
-          const website = str(item.website) ?? str(item.url);
-
-          if (name) lines.push(`\x1b[1m${name}\x1b[0m`);
-          const meta: string[] = [];
-          if (rating) meta.push(`★ ${rating}`);
-          if (meta.length) lines.push(meta.join("  "));
-          if (addr) lines.push(`\x1b[2m${addr}\x1b[0m`);
-          if (phone) lines.push(`\x1b[2m${phone}\x1b[0m`);
-          if (website) lines.push(`\x1b[2m${website}\x1b[0m`);
-          lines.push("");
-          continue;
-        }
-
-        // ── Generic fallback (web/news search, events, images, etc.) ────
-        const title = str(item.title) ?? str(item.name) ?? str(item.headline);
-        const url = str(item.url) ?? str(item.link);
-        const desc =
-          str(item.description) ?? str(item.snippet) ?? str(item.summary);
-
-        if (title) lines.push(`\x1b[1m${title}\x1b[0m`);
-        if (url) lines.push(`\x1b[2m${url}\x1b[0m`);
-        if (desc) lines.push(desc);
-        lines.push("");
-      }
+      const items = group.results as ResultItem[] | undefined;
+      if (Array.isArray(items)) totalItems += items.length;
     }
-
     if (totalItems > 0) {
       header(
-        `${capitalise(app)} › ${capitalise(skill)}  \x1b[2m(${totalItems} results${credits !== null ? `, ${credits} credits` : ""})\x1b[0m\n`,
+        `${capitalise(app)} › ${capitalise(skill)}  \x1b[2m(${totalItems} result${totalItems !== 1 ? "s" : ""}${credits !== null ? `, ${credits} credits` : ""})\x1b[0m\n`,
       );
-      for (const l of lines) console.log(l);
+      let resultNum = 0;
+      for (const group of topResults) {
+        const items = group.results as ResultItem[] | undefined;
+        if (!Array.isArray(items)) continue;
+        for (const item of items) {
+          resultNum += 1;
+          printSkillResultItem(item, resultNum, totalItems);
+        }
+      }
+
+      // ── Provider info ──────────────────────────────────────────────────
+      const provider = str(data.provider);
+      if (provider) {
+        console.log(`\x1b[2mProvider: ${provider}\x1b[0m`);
+      }
+
+      // ── Follow-up suggestions ──────────────────────────────────────────
+      const suggestions = data.suggestions_follow_up_requests;
+      if (Array.isArray(suggestions) && suggestions.length > 0) {
+        console.log(
+          `\x1b[2mSuggestions: ${(suggestions as string[]).join(" · ")}\x1b[0m`,
+        );
+      }
       return;
     }
   }
 
-  // ── Flat array of items (e.g. shopping results) ──────────────────────────
-  if (Array.isArray(data)) {
-    header(
-      `${capitalise(app)} › ${capitalise(skill)}  \x1b[2m(${(data as unknown[]).length} items${credits !== null ? `, ${credits} credits` : ""})\x1b[0m\n`,
-    );
-    for (const item of data as SearchItem[]) {
-      const title = str(item.title) ?? str(item.name);
-      const url = str(item.url) ?? str(item.link);
-      const desc = str(item.description) ?? str(item.snippet);
-      if (title) process.stdout.write(`\x1b[1m${title}\x1b[0m\n`);
-      if (url) process.stdout.write(`\x1b[2m${url}\x1b[0m\n`);
-      if (desc) process.stdout.write(`${desc}\n`);
-      console.log();
-    }
-    return;
-  }
-
   // ── AI / text response ───────────────────────────────────────────────────
-  const content =
+  const textContent =
     str(data?.content) ??
     str(data?.text) ??
     str(data?.answer) ??
     str(data?.message) ??
     str(data?.response) ??
     str(data?.output);
-  if (content) {
+  if (textContent) {
     header(
       `${capitalise(app)} › ${capitalise(skill)}${credits !== null ? `  \x1b[2m(${credits} credits)\x1b[0m` : ""}\n`,
     );
-    console.log(content);
+    console.log(textContent);
     return;
   }
 
@@ -1929,8 +1892,127 @@ function printSkillResult(app: string, skill: string, raw: unknown): void {
   printGenericObject(data);
 }
 
-// ---------------------------------------------------------------------------
-// Settings / generic renderers
+/**
+ * Print a single skill result item with a numbered header line and full details.
+ *
+ * For known types (connection, stay, place_result) a compact human-readable
+ * header line is printed first, followed by all remaining fields.
+ * For unknown types, printGenericObject renders every field.
+ *
+ * This ensures the CLI always shows the full REST API output — nothing is
+ * hidden or summarised away.
+ */
+function printSkillResultItem(
+  item: Record<string, unknown>,
+  num: number,
+  total: number,
+): void {
+  const itemType = str(item.type);
+  const numLabel = total > 1 ? `\x1b[36m[${num}]\x1b[0m ` : "";
+
+  // ── Connection (travel flights/trains) ─────────────────────────────────
+  if (itemType === "connection") {
+    const origin = str(item.origin) ?? "?";
+    const dest = str(item.destination) ?? "?";
+    const dep = str(item.departure) ?? "";
+    const arr = str(item.arrival) ?? "";
+    const dur = str(item.duration) ?? "";
+    const price = str(item.total_price);
+    const currency = str(item.currency) ?? "EUR";
+    const stops = typeof item.stops === "number" ? item.stops : undefined;
+    const carriers = Array.isArray(item.carriers)
+      ? (item.carriers as string[]).join(", ")
+      : null;
+    const stopsLabel =
+      stops === 0 ? "direct" : stops === 1 ? "1 stop" : `${stops} stops`;
+
+    // Header: [N] BER → LHR  54 EUR · direct · Eurowings
+    const summary: string[] = [];
+    if (price) summary.push(`${price} ${currency}`);
+    if (stops !== undefined) summary.push(stopsLabel);
+    if (carriers) summary.push(carriers);
+    console.log(
+      `${numLabel}\x1b[1m${origin} → ${dest}\x1b[0m  ${summary.join(" · ")}`,
+    );
+    // Sub-line: departure → arrival (duration)
+    if (dep || arr || dur) {
+      const parts: string[] = [];
+      if (dep) parts.push(dep);
+      if (arr) parts.push(`→ ${arr}`);
+      if (dur) parts.push(`(${dur})`);
+      console.log(`  ${parts.join("  ")}`);
+    }
+    // Full details — all remaining fields
+    printGenericObject(item, 1);
+    // Booking link hint
+    if (typeof item.booking_token === "string") {
+      const token = item.booking_token as string;
+      const ctxFlag =
+        item.booking_context && typeof item.booking_context === "object"
+          ? ` --context '${JSON.stringify(item.booking_context)}'`
+          : "";
+      console.log(
+        `\x1b[2m  → Get booking URL (25 credits):\x1b[0m`,
+      );
+      console.log(
+        `\x1b[2m    openmates apps travel booking-link --token "${token}"${ctxFlag}\x1b[0m`,
+      );
+    }
+    console.log("");
+    return;
+  }
+
+  // ── Stay (travel hotels/accommodation) ─────────────────────────────────
+  if (itemType === "stay") {
+    const name = str(item.name) ?? str(item.property_name) ?? "Unknown";
+    const rating = item.overall_rating ?? item.rating;
+    const price =
+      str(item.rate_per_night) ??
+      str(item.price_per_night) ??
+      str(item.price);
+    const summary: string[] = [];
+    if (rating) summary.push(`★ ${rating}`);
+    if (price) summary.push(price);
+    console.log(
+      `${numLabel}\x1b[1m${name}\x1b[0m  ${summary.join(" · ")}`,
+    );
+    printGenericObject(item, 1);
+    console.log("");
+    return;
+  }
+
+  // ── Place result (maps) ────────────────────────────────────────────────
+  if (itemType === "place_result") {
+    const name = str(item.name) ?? str(item.displayName) ?? "Unknown";
+    const rating = item.rating;
+    const addr =
+      str(item.formatted_address) ??
+      str(item.address) ??
+      str(item.vicinity);
+    const summary: string[] = [];
+    if (rating) summary.push(`★ ${rating}`);
+    if (addr) summary.push(addr);
+    console.log(
+      `${numLabel}\x1b[1m${name}\x1b[0m  ${summary.join(" · ")}`,
+    );
+    printGenericObject(item, 1);
+    console.log("");
+    return;
+  }
+
+  // ── Generic item — just number + printGenericObject for all fields ─────
+  // Works for web/news search results, events, shopping, health, etc.
+  const title = str(item.title) ?? str(item.name) ?? str(item.headline);
+  if (title) {
+    console.log(`${numLabel}\x1b[1m${title}\x1b[0m`);
+    printGenericObject(item, 1);
+  } else {
+    console.log(`${numLabel}Result ${num}`);
+    printGenericObject(item, 1);
+  }
+  console.log("");
+}
+
 // ---------------------------------------------------------------------------
 
 function printWhoAmI(user: Record<string, unknown>): void {
@@ -2237,6 +2319,7 @@ function printAppsHelp(): void {
   openmates apps skill-info <app-id> <skill-id> [--json]
   openmates apps <app-id> <skill-id> "<query>" [--json]
   openmates apps <app-id> <skill-id> --input '<json>' [--json]
+  openmates apps travel booking-link --token "<token>" [--context '<json>']
 
 Authentication:
   Uses your logged-in session (run 'openmates login' first).
@@ -2248,6 +2331,8 @@ Examples:
   openmates apps web search "latest AI news"
   openmates apps news search "climate change"
   openmates apps ai ask "Summarise this: ..."
+  openmates apps travel search_connections --input '{"requests":[{"legs":[{"origin":"BER","destination":"LHR","date":"2026-04-15"}]}]}'
+  openmates apps travel booking-link --token "<booking_token from search result>"
   openmates apps skill-info web search`);
 }
 
