@@ -907,7 +907,15 @@ export class OpenMatesClient {
         const { createHash } = await import("node:crypto");
         const hashed = createHash("sha256").update(clientMsgId).digest("hex");
         msgEmbedIds = cache.embeds
-          .filter((e) => e.hashed_message_id === hashed)
+          .filter(
+            (e) =>
+              e.hashed_message_id === hashed &&
+              // Only include parent embeds (no parent_embed_id).
+              // Child embeds inherit the parent's key and are loaded
+              // via the parent's embed_ids — showing them separately
+              // causes confusing duplicates under the user message.
+              !e.parent_embed_id,
+          )
           .map((e) => String(e.embed_id ?? e.id ?? ""))
           .filter(Boolean);
       }
@@ -962,63 +970,13 @@ export class OpenMatesClient {
     const { createHash } = await import("node:crypto");
     const hashedEmbedId = createHash("sha256").update(embedId).digest("hex");
 
-    let embedKeyBytes: Uint8Array | null = null;
-
-    // Strategy 1: master key type — decrypt embed key with master key directly
-    const masterKeyEntry = cache.embedKeys.find(
-      (ek) =>
-        ek.hashed_embed_id === hashedEmbedId &&
-        String(ek.key_type) === "master",
+    const embedKeyBytes = await this.resolveEmbedKey(
+      cache,
+      masterKey,
+      embed,
+      embedId,
+      hashedEmbedId,
     );
-    if (
-      masterKeyEntry &&
-      typeof masterKeyEntry.encrypted_embed_key === "string"
-    ) {
-      embedKeyBytes = await decryptBytesWithAesGcm(
-        masterKeyEntry.encrypted_embed_key as string,
-        masterKey,
-      );
-    }
-
-    // Strategy 2: chat key type — unwrap via chat key
-    if (!embedKeyBytes) {
-      const chatKeyEntry = cache.embedKeys.find(
-        (ek) =>
-          ek.hashed_embed_id === hashedEmbedId &&
-          String(ek.key_type) === "chat",
-      );
-      if (
-        chatKeyEntry &&
-        typeof chatKeyEntry.encrypted_embed_key === "string"
-      ) {
-        // Find the owning chat by hashed_chat_id = SHA-256(chat_id)
-        const hashedChatId = String(chatKeyEntry.hashed_chat_id ?? "");
-        const owningChat = cache.chats.find((c) => {
-          const chatHash = createHash("sha256")
-            .update(String(c.details.id ?? ""))
-            .digest("hex");
-          return chatHash === hashedChatId;
-        });
-        if (owningChat) {
-          const encChatKey =
-            typeof owningChat.details.encrypted_chat_key === "string"
-              ? owningChat.details.encrypted_chat_key
-              : null;
-          if (encChatKey) {
-            const chatKeyBytes = await decryptBytesWithAesGcm(
-              encChatKey,
-              masterKey,
-            );
-            if (chatKeyBytes) {
-              embedKeyBytes = await decryptBytesWithAesGcm(
-                chatKeyEntry.encrypted_embed_key as string,
-                chatKeyBytes,
-              );
-            }
-          }
-        }
-      }
-    }
 
     const decryptField = async (field: string): Promise<string | null> => {
       const val = embed[field];
@@ -1063,6 +1021,110 @@ export class OpenMatesClient {
       skillId: resolvedSkillId,
       createdAt: typeof embed.created_at === "number" ? embed.created_at : null,
     };
+  }
+
+  /**
+   * Resolve the embed decryption key for a given embed.
+   *
+   * Strategy:
+   * 1. Master key type — decrypt embed key with master key directly
+   * 2. Chat key type — unwrap via chat key → then decrypt embed key
+   * 3. Parent key fallback — child embeds inherit the parent's embed key.
+   *    If the embed has a parent_embed_id, resolve the parent's key and
+   *    reuse it (matching the web app's embedStore.getEmbedKey pattern).
+   */
+  private async resolveEmbedKey(
+    cache: SyncCache,
+    masterKey: Uint8Array,
+    embed: Record<string, unknown>,
+    embedId: string,
+    hashedEmbedId: string,
+    visited: Set<string> = new Set(),
+  ): Promise<Uint8Array | null> {
+    if (visited.has(embedId)) return null; // prevent cycles
+    visited.add(embedId);
+
+    const { createHash } = await import("node:crypto");
+
+    // Strategy 1: master key type
+    const masterKeyEntry = cache.embedKeys.find(
+      (ek) =>
+        ek.hashed_embed_id === hashedEmbedId &&
+        String(ek.key_type) === "master",
+    );
+    if (
+      masterKeyEntry &&
+      typeof masterKeyEntry.encrypted_embed_key === "string"
+    ) {
+      const key = await decryptBytesWithAesGcm(
+        masterKeyEntry.encrypted_embed_key as string,
+        masterKey,
+      );
+      if (key) return key;
+    }
+
+    // Strategy 2: chat key type
+    const chatKeyEntry = cache.embedKeys.find(
+      (ek) =>
+        ek.hashed_embed_id === hashedEmbedId && String(ek.key_type) === "chat",
+    );
+    if (chatKeyEntry && typeof chatKeyEntry.encrypted_embed_key === "string") {
+      const hashedChatId = String(chatKeyEntry.hashed_chat_id ?? "");
+      const owningChat = cache.chats.find((c) => {
+        const chatHash = createHash("sha256")
+          .update(String(c.details.id ?? ""))
+          .digest("hex");
+        return chatHash === hashedChatId;
+      });
+      if (owningChat) {
+        const encChatKey =
+          typeof owningChat.details.encrypted_chat_key === "string"
+            ? owningChat.details.encrypted_chat_key
+            : null;
+        if (encChatKey) {
+          const chatKeyBytes = await decryptBytesWithAesGcm(
+            encChatKey,
+            masterKey,
+          );
+          if (chatKeyBytes) {
+            const key = await decryptBytesWithAesGcm(
+              chatKeyEntry.encrypted_embed_key as string,
+              chatKeyBytes,
+            );
+            if (key) return key;
+          }
+        }
+      }
+    }
+
+    // Strategy 3: parent key fallback — child embeds inherit parent's key.
+    // The embed record has parent_embed_id; resolve the parent's key and reuse it.
+    const parentEmbedId =
+      typeof embed.parent_embed_id === "string" ? embed.parent_embed_id : null;
+    if (parentEmbedId && parentEmbedId !== embedId) {
+      const parentEmbed = cache.embeds.find(
+        (e) => String(e.embed_id ?? e.id ?? "") === parentEmbedId,
+      );
+      if (parentEmbed) {
+        const parentFullId = String(
+          parentEmbed.embed_id ?? parentEmbed.id ?? "",
+        );
+        const parentHashedId = createHash("sha256")
+          .update(parentFullId)
+          .digest("hex");
+        const parentKey = await this.resolveEmbedKey(
+          cache,
+          masterKey,
+          parentEmbed as Record<string, unknown>,
+          parentFullId,
+          parentHashedId,
+          visited,
+        );
+        if (parentKey) return parentKey;
+      }
+    }
+
+    return null;
   }
 
   /**

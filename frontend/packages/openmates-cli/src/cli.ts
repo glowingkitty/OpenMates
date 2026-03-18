@@ -954,20 +954,28 @@ async function sendMessageStreaming(
   modelName: string | null;
   mateName: string | null;
 }> {
-  let printedLength = 0;
   let headerPrinted = false;
   let typingShown = false;
+  // Track which embed IDs we've already rendered during streaming
+  const renderedEmbedIds = new Set<string>();
+  // Track how much raw content we've processed (for diff-printing)
+  let processedRawLength = 0;
+  // Queue of embed IDs to render after streaming, with optional meta
+  // from the JSON block for fallback rendering of unsynced embeds
+  const pendingEmbedRenders: Array<{
+    id: string;
+    meta?: Record<string, unknown>;
+  }> = [];
 
   const clearTyping = () => {
     if (typingShown) {
-      // Clear the typing indicator line
       process.stdout.write("\r\x1b[K");
       typingShown = false;
     }
   };
 
   const onStream = (event: StreamEvent) => {
-    if (params.json) return; // suppress streaming output in JSON mode
+    if (params.json) return;
 
     if (event.kind === "typing") {
       const mateName =
@@ -982,7 +990,6 @@ async function sendMessageStreaming(
     if (event.kind === "chunk" || event.kind === "done") {
       clearTyping();
 
-      // Print header on first content
       if (!headerPrinted) {
         const mateBlock = ansiMateBlock(event.category, null);
         const modelSuffix = event.modelName
@@ -994,14 +1001,34 @@ async function sendMessageStreaming(
         headerPrinted = true;
       }
 
-      // Diff-print: only write new characters since last chunk.
-      // Strip embed JSON blocks from streaming output — they'll be
-      // rendered properly after the response completes.
-      const clean = stripEmbedJsonBlocks(event.content);
-      if (clean.length > printedLength) {
-        process.stdout.write(clean.slice(printedLength));
-        printedLength = clean.length;
+      // Process new content since last chunk using segment parsing.
+      // This lets us detect embed JSON blocks as they arrive and queue
+      // them for rendering at their natural position in the output.
+      const raw = event.content;
+      if (raw.length <= processedRawLength) return;
+
+      // Parse the FULL content each time (embed blocks may span multiple
+      // chunks), then output only the new segments we haven't printed yet.
+      const segments = parseMessageSegments(raw);
+      let offset = 0;
+      for (const seg of segments) {
+        const segEnd = offset + (seg.type === "embed" ? 0 : seg.value.length);
+        if (seg.type === "embed") {
+          if (!renderedEmbedIds.has(seg.value)) {
+            renderedEmbedIds.add(seg.value);
+            pendingEmbedRenders.push({ id: seg.value, meta: seg.meta });
+          }
+        } else {
+          // Only print text we haven't printed yet
+          const clean = seg.value.replace(/\n{3,}/g, "\n\n");
+          const alreadyPrinted = Math.max(0, processedRawLength - offset);
+          if (alreadyPrinted < clean.length) {
+            process.stdout.write(clean.slice(alreadyPrinted));
+          }
+        }
+        offset = segEnd;
       }
+      processedRawLength = raw.length;
     }
   };
 
@@ -1015,7 +1042,6 @@ async function sendMessageStreaming(
   clearTyping();
 
   if (!params.json) {
-    // If header wasn't printed (e.g. background path, no streaming), print it now
     if (!headerPrinted) {
       const mateBlock = ansiMateBlock(result.category, result.mateName);
       const modelSuffix = result.modelName
@@ -1026,34 +1052,48 @@ async function sendMessageStreaming(
       process.stdout.write(`${SEP}\n`);
     }
 
-    // Now render the full response with proper embed handling
-    const segments = parseMessageSegments(result.assistant);
-    // Check if we already printed via streaming — if so, we need to print
-    // any remaining content and embeds that weren't streamed
-    const alreadyStreamed = printedLength > 0;
-    if (alreadyStreamed) {
-      process.stdout.write("\n"); // newline after streamed content
-    }
+    // Render all embeds that were queued during streaming.
+    // They appear after the text for now — the AI writes embed JSON before
+    // the prose, so they should have been queued first. We also render
+    // any embeds from the final content that weren't seen during streaming.
+    const finalSegments = parseMessageSegments(result.assistant);
+    const streamed = processedRawLength > 0;
 
-    // Print embed blocks that were stripped during streaming
-    for (const seg of segments) {
-      if (seg.type === "embed") {
-        try {
-          const embed = await client.getEmbed(seg.value);
-          await renderEmbedPreview(embed, client);
-        } catch {
-          process.stdout.write(
-            `\x1b[2m📎 openmates embeds show ${seg.value.slice(0, 8)}\x1b[0m\n`,
-          );
+    if (!streamed) {
+      // No streaming happened — render everything from final content
+      for (const seg of finalSegments) {
+        if (seg.type === "embed") {
+          try {
+            const embed = await client.getEmbed(seg.value);
+            await renderEmbedPreview(embed, client);
+          } catch {
+            renderEmbedFromMeta(seg.value, seg.meta);
+          }
+        } else {
+          const cleaned = seg.value.replace(/\n{3,}/g, "\n\n");
+          if (cleaned.trim()) process.stdout.write(cleaned);
         }
-      } else if (!alreadyStreamed) {
-        // If we didn't stream, print text segments too
-        process.stdout.write(seg.value);
+      }
+      process.stdout.write("\n");
+    } else {
+      // Streaming happened — render queued embeds + any new ones
+      process.stdout.write("\n");
+      for (const seg of finalSegments) {
+        if (seg.type === "embed" && !renderedEmbedIds.has(seg.value)) {
+          pendingEmbedRenders.push({ id: seg.value, meta: seg.meta });
+          renderedEmbedIds.add(seg.value);
+        }
       }
     }
 
-    if (!alreadyStreamed && segments.length > 0) {
-      process.stdout.write("\n");
+    // Now render all queued embed previews
+    for (const entry of pendingEmbedRenders) {
+      try {
+        const embed = await client.getEmbed(entry.id);
+        await renderEmbedPreview(embed, client);
+      } catch {
+        renderEmbedFromMeta(entry.id, entry.meta);
+      }
     }
 
     const shortId = result.chatId.slice(0, 8);
@@ -1114,10 +1154,13 @@ const SEP = `\x1b[2m${"─".repeat(60)}\x1b[0m`;
  * Returns the content split into segments: either plain text segments or embed
  * UUID strings prefixed with "EMBED:" so the renderer can fetch them in-place.
  */
-function parseMessageSegments(
-  content: string,
-): Array<{ type: "text" | "embed"; value: string }> {
-  const segments: Array<{ type: "text" | "embed"; value: string }> = [];
+/** Parsed segment from AI message content. */
+type MessageSegment =
+  | { type: "text"; value: string }
+  | { type: "embed"; value: string; meta?: Record<string, unknown> };
+
+function parseMessageSegments(content: string): MessageSegment[] {
+  const segments: MessageSegment[] = [];
   // Match both ```json and ```json_embed blocks
   const pattern = /```(?:json_embed|json)\n([\s\S]*?)\n```/g;
   let last = 0;
@@ -1129,15 +1172,16 @@ function parseMessageSegments(
       segments.push({ type: "text", value: content.slice(last, m.index) });
     }
 
-    // Try to extract an embed_id from the JSON block
+    // Try to extract an embed_id from the JSON block.
+    // Keep the full parsed JSON as `meta` so we can render a preview
+    // even when the embed isn't in the local sync cache (failed/processing).
     try {
       const parsed = JSON.parse(m[1].trim()) as Record<string, unknown>;
       const embedId =
         typeof parsed.embed_id === "string" ? parsed.embed_id : null;
       if (embedId) {
-        segments.push({ type: "embed", value: embedId });
+        segments.push({ type: "embed", value: embedId, meta: parsed });
       }
-      // If no embed_id, silently discard the block (don't show raw JSON)
     } catch {
       // Malformed JSON — discard
     }
@@ -1151,6 +1195,37 @@ function parseMessageSegments(
   }
 
   return segments;
+}
+
+/**
+ * Render an embed preview from the inline JSON metadata when the embed
+ * is not found in the sync cache (failed, processing, or not yet synced).
+ */
+function renderEmbedFromMeta(
+  embedId: string,
+  meta?: Record<string, unknown>,
+): void {
+  const shortId = embedId.slice(0, 8);
+  if (!meta) {
+    process.stdout.write(
+      `\x1b[2m┌─\x1b[0m \x1b[33m⟳\x1b[0m \x1b[1membed\x1b[0m  \x1b[33mProcessing...\x1b[0m\n`,
+    );
+    process.stdout.write(`\x1b[2m└─ openmates embeds show ${shortId}\x1b[0m\n`);
+    return;
+  }
+
+  const app = typeof meta.app_id === "string" ? meta.app_id : "";
+  const skill = typeof meta.skill_id === "string" ? meta.skill_id : "";
+  const label = skill ? `${app}/${skill}` : app || "embed";
+  const query = typeof meta.query === "string" ? `  · "${meta.query}"` : "";
+  const provider =
+    typeof meta.provider === "string" ? `  via ${meta.provider}` : "";
+
+  // Mark as Processing (not in cache = not finished)
+  process.stdout.write(
+    `\x1b[2m┌─\x1b[0m \x1b[33m⟳\x1b[0m \x1b[1m${label}\x1b[0m${query}\x1b[2m${provider}\x1b[0m  \x1b[33mProcessing...\x1b[0m\n`,
+  );
+  process.stdout.write(`\x1b[2m└─ openmates embeds show ${shortId}\x1b[0m\n`);
 }
 
 /**
@@ -1242,9 +1317,9 @@ async function printChatConversation(
             const embed = await client.getEmbed(seg.value);
             await renderEmbedPreview(embed, client);
           } catch {
-            process.stdout.write(
-              `\x1b[2m📎 openmates embeds show ${seg.value.slice(0, 8)}\x1b[0m\n`,
-            );
+            // Embed not in cache — render from inline JSON metadata if available.
+            // This handles embeds that failed/are processing and weren't synced.
+            renderEmbedFromMeta(seg.value, seg.meta);
           }
         } else {
           const cleaned = cleanMessageText(seg.value);
@@ -1253,25 +1328,12 @@ async function printChatConversation(
       }
     }
 
-    // ── Skill embeds: render between user and assistant messages ───────
-    // The backend associates embeds with the user's message_id
-    // (hashed_message_id = SHA-256(user.client_message_id)), but visually
-    // they belong above the assistant's response — matching the web app.
-    // Render them after the user's text, before the next assistant message.
-    if (msg.role === "user" && msg.embedIds.length > 0) {
-      // Separate user-attached embeds (files, images) from skill embeds.
-      // Skill embeds have app_id+skill_id; user attachments typically don't.
-      for (const eid of msg.embedIds) {
-        try {
-          const embed = await client.getEmbed(eid);
-          await renderEmbedPreview(embed, client);
-        } catch {
-          process.stdout.write(
-            `\x1b[2m📎 openmates embeds show ${eid.slice(0, 8)}\x1b[0m\n`,
-          );
-        }
-      }
-    }
+    // NOTE: Skill embeds (web/search, events/search, etc.) are associated
+    // with the user's message via hashed_message_id, but they are rendered
+    // inline in the assistant's message where the AI placed the ```json
+    // embed reference. We do NOT render msg.embedIds here — that caused
+    // the duplicate embed display bug. User-attached files (images, PDFs)
+    // are embedded in the user message content itself as json blocks.
   }
 
   // Final closing separator

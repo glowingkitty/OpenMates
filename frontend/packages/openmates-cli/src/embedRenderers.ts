@@ -343,10 +343,12 @@ async function renderSearchFullscreen(
     const title = str(r.title) ?? str(r.name) ?? "";
     const url = str(r.url) ?? str(r.link) ?? "";
     const desc = str(r.description) ?? str(r.snippet) ?? str(r.summary) ?? "";
+    const age = str(r.page_age);
     if (title) process.stdout.write(`  \x1b[1m${title}\x1b[0m\n`);
     if (url) process.stdout.write(`  \x1b[2m${url}\x1b[0m\n`);
-    if (desc) process.stdout.write(`  ${trunc(desc, 200)}\n`);
-    console.log();
+    if (age) process.stdout.write(`  \x1b[2m${age}\x1b[0m\n`);
+    if (desc) process.stdout.write(`  ${trunc(desc, 300)}\n`);
+    process.stdout.write(`  \x1b[2m${"─".repeat(40)}\x1b[0m\n`);
   }
 }
 
@@ -377,12 +379,17 @@ async function renderEventsSearchFullscreen(
     const date = str(r.date) ?? str(r.start_date) ?? str(r.dateTime) ?? "";
     const venue = str(r.venue) ?? str(r.location) ?? "";
     const url = str(r.url) ?? str(r.link) ?? "";
+    const desc = str(r.description) ?? str(r.summary) ?? "";
+    const going = typeof r.going_count === "number" ? r.going_count : null;
     if (name) process.stdout.write(`  \x1b[1m${name}\x1b[0m\n`);
     if (date) process.stdout.write(`  \x1b[2m${date}\x1b[0m`);
     if (venue) process.stdout.write(`  \x1b[2m@ ${venue}\x1b[0m`);
     if (date || venue) process.stdout.write("\n");
+    if (going !== null)
+      process.stdout.write(`  \x1b[2m${going} going\x1b[0m\n`);
+    if (desc) process.stdout.write(`  ${trunc(desc, 200)}\n`);
     if (url) process.stdout.write(`  \x1b[2m${url}\x1b[0m\n`);
-    console.log();
+    process.stdout.write(`  \x1b[2m${"─".repeat(40)}\x1b[0m\n`);
   }
 }
 
@@ -1185,7 +1192,14 @@ async function resolveChildResults(
   for (const id of ids) {
     try {
       const child = await client.getEmbed(id);
-      results.push((child.content ?? {}) as Record<string, unknown>);
+      const content = (child.content ?? {}) as Record<string, unknown>;
+      // Only include children that actually have content (not empty from
+      // failed decryption). Check for at least one non-internal field.
+      const hasContent = Object.keys(content).some(
+        (k) =>
+          !k.startsWith("_") && content[k] !== null && content[k] !== undefined,
+      );
+      if (hasContent) results.push(content);
     } catch {
       // skip unresolvable
     }
