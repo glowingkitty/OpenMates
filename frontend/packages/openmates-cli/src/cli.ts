@@ -1712,6 +1712,89 @@ function printSkillResult(app: string, skill: string, raw: unknown): void {
       if (!Array.isArray(items)) continue;
       for (const item of items) {
         totalItems += 1;
+
+        // ── Type-specific renderers ──────────────────────────────────────
+        const itemType = str(item.type);
+
+        if (itemType === "connection") {
+          // Travel flight/train connection result
+          const origin = str(item.origin);
+          const dest = str(item.destination);
+          const dep = str(item.departure);
+          const arr = str(item.arrival);
+          const dur = str(item.duration);
+          const price = str(item.total_price);
+          const currency = str(item.currency) ?? "EUR";
+          const stops = item.stops as number | undefined;
+          const carriers = Array.isArray(item.carriers)
+            ? (item.carriers as string[]).join(", ")
+            : null;
+          const stopsLabel =
+            stops === 0 ? "direct" : stops === 1 ? "1 stop" : `${stops} stops`;
+
+          if (origin && dest) lines.push(`\x1b[1m${origin} → ${dest}\x1b[0m`);
+          const meta: string[] = [];
+          if (dep) meta.push(dep);
+          if (arr) meta.push(`→ ${arr}`);
+          if (dur) meta.push(`(${dur})`);
+          if (meta.length) lines.push(meta.join("  "));
+          const detail: string[] = [];
+          if (price) detail.push(`${price} ${currency}`);
+          if (stops !== undefined) detail.push(stopsLabel);
+          if (carriers) detail.push(carriers);
+          if (detail.length) lines.push(`\x1b[2m${detail.join(" · ")}\x1b[0m`);
+          lines.push("");
+          continue;
+        }
+
+        if (itemType === "stay") {
+          // Travel hotel/accommodation result
+          const name = str(item.name) ?? str(item.property_name);
+          const addr = str(item.address) ?? str(item.location);
+          const price =
+            str(item.price_per_night) ??
+            str(item.price) ??
+            str(item.rate_per_night);
+          const currency = str(item.currency) ?? "EUR";
+          const rating = item.rating ?? item.overall_rating;
+          const stars = item.hotel_class ?? item.stars;
+          const link = str(item.link) ?? str(item.url);
+
+          if (name) lines.push(`\x1b[1m${name}\x1b[0m`);
+          const meta: string[] = [];
+          if (rating) meta.push(`★ ${rating}`);
+          if (stars) meta.push(`${stars}★ hotel`);
+          if (price) meta.push(`${price} ${currency}/night`);
+          if (meta.length) lines.push(meta.join("  "));
+          if (addr) lines.push(`\x1b[2m${addr}\x1b[0m`);
+          if (link) lines.push(`\x1b[2m${link}\x1b[0m`);
+          lines.push("");
+          continue;
+        }
+
+        if (itemType === "place") {
+          // Maps place result
+          const name = str(item.name);
+          const addr =
+            str(item.formatted_address) ??
+            str(item.address) ??
+            str(item.vicinity);
+          const rating = item.rating;
+          const phone = str(item.phone) ?? str(item.formatted_phone_number);
+          const website = str(item.website) ?? str(item.url);
+
+          if (name) lines.push(`\x1b[1m${name}\x1b[0m`);
+          const meta: string[] = [];
+          if (rating) meta.push(`★ ${rating}`);
+          if (meta.length) lines.push(meta.join("  "));
+          if (addr) lines.push(`\x1b[2m${addr}\x1b[0m`);
+          if (phone) lines.push(`\x1b[2m${phone}\x1b[0m`);
+          if (website) lines.push(`\x1b[2m${website}\x1b[0m`);
+          lines.push("");
+          continue;
+        }
+
+        // ── Generic fallback (web/news search, events, images, etc.) ────
         const title = str(item.title) ?? str(item.name) ?? str(item.headline);
         const url = str(item.url) ?? str(item.link);
         const desc =
