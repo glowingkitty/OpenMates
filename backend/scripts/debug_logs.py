@@ -2330,11 +2330,12 @@ async def run_debug_session_mode(args: argparse.Namespace) -> None:
     except Exception as e:
         print(f"{C_YELLOW}  Frontend log query failed: {e}{C_RESET}")
 
-    # 2. Backend logs (debugging_id in structured log body)
+    # 2. Backend logs (debugging_id in structured log body).
+    # Note: 'log' is not a valid OpenObserve field — only 'message' exists for log content.
     backend_sql = (
-        f"SELECT _timestamp, container, service, log, message, level "
+        f"SELECT _timestamp, container, service, message, level "
         f'FROM "default" '
-        f"WHERE (log LIKE '%{debugging_id}%' OR message LIKE '%{debugging_id}%') "
+        f"WHERE message LIKE '%{debugging_id}%' "
         f"AND job != 'client-console' "
         f"ORDER BY _timestamp ASC LIMIT {limit}"
     )

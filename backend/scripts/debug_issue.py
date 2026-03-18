@@ -832,34 +832,36 @@ async def fetch_issue_timeline_local(
     # Build queries
     queries: List[Tuple[str, Optional[str]]] = []
 
-    # 1. Browser console snapshot pushed at report-time (job=client-issue-report)
+    # 1. Browser console snapshot pushed at report-time (job=client-issue-report).
+    # Note: issue_id is not a structured field — filter by message body instead.
     queries.append((
         f"SELECT _timestamp, message, level "
         f'FROM "default" '
-        f"WHERE job = 'client-issue-report' AND issue_id = '{issue_id_esc}' "
+        f"WHERE job = 'client-issue-report' AND message LIKE '%{issue_id_esc}%' "
         f"ORDER BY _timestamp ASC",
         "browser",
     ))
 
-    # 2+3. Backend + API logs mentioning issue_id or user_id
+    # 2+3. Backend + API logs mentioning issue_id or user_id.
+    # Note: 'log' is not a valid field — only 'message' exists for log content.
     search_terms: List[str] = [_sql_esc(issue_id)]
     if user_id:
         search_terms.append(_sql_esc(user_id))
 
     # LIKE patterns for the combined log search
     like_clauses = " OR ".join(
-        f"log LIKE '%{t}%' OR message LIKE '%{t}%'" for t in search_terms
+        f"message LIKE '%{t}%'" for t in search_terms
     )
 
     queries.append((
-        f"SELECT _timestamp, container, service, log, message, level "
+        f"SELECT _timestamp, container, service, message, level "
         f'FROM "default" '
         f"WHERE job = 'container-logs' AND ({like_clauses}) "
         f"ORDER BY _timestamp ASC",
         None,
     ))
     queries.append((
-        f"SELECT _timestamp, container, service, log, message, level "
+        f"SELECT _timestamp, container, service, message, level "
         f'FROM "default" '
         f"WHERE job = 'api-logs' AND ({like_clauses}) "
         f"ORDER BY _timestamp ASC",
