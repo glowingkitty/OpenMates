@@ -290,9 +290,12 @@ test('recent chats show no duplicates and resume card reflects last opened chat'
 	await navigateToNewChat(page, logStep);
 	await takeStepScreenshot(page, '04-new-chat-screen');
 
-	// Wait for the recent-chats container to render
+	// Wait for the recent-chats container to render.
+	// The "Continue where you left off" section only appears once resumeChatData
+	// or recentChats are populated (async decryption from IndexedDB). Give it
+	// extra time — loadResumeChatFromDB retries for up to 10s.
 	const container = page.locator('.recent-chats-scroll-container');
-	await expect(container).toBeVisible({ timeout: 15000 });
+	await expect(container).toBeVisible({ timeout: 30000 });
 	logStep('Recent chats scroll container visible.');
 
 	// Get all card titles
@@ -332,7 +335,7 @@ test('recent chats show no duplicates and resume card reflects last opened chat'
 	await takeStepScreenshot(page, '05-new-chat-after-opening-a');
 
 	// Wait for the recent-chats container to render
-	await expect(container).toBeVisible({ timeout: 15000 });
+	await expect(container).toBeVisible({ timeout: 30000 });
 
 	// Get cards again after switching
 	const cardsAfterSwitch = await getRecentChatCardTitles(page);
