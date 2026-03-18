@@ -17,6 +17,7 @@ import {
   type ChatListPage,
   type DecryptedMessage,
   type DecryptedEmbed,
+  type DailyInspiration,
 } from "./client.js";
 import type { StreamEvent } from "./ws.js";
 import { renderEmbedPreview, renderEmbedFullscreen } from "./embedRenderers.js";
@@ -58,6 +59,10 @@ async function main(): Promise<void> {
     }
     if (command === "embeds") {
       printEmbedsHelp();
+      return;
+    }
+    if (command === "inspirations") {
+      printInspirationsHelp();
       return;
     }
     printHelp();
@@ -103,6 +108,11 @@ async function main(): Promise<void> {
 
   if (command === "settings") {
     await handleSettings(client, subcommand, rest, parsed.flags);
+    return;
+  }
+
+  if (command === "inspirations") {
+    await handleInspirations(client, parsed.flags);
     return;
   }
 
@@ -2257,6 +2267,92 @@ function capitalise(s: string): string {
 }
 
 // ---------------------------------------------------------------------------
+// Inspirations
+// ---------------------------------------------------------------------------
+
+/**
+ * Handle `openmates inspirations [--lang <code>] [--json]`.
+ *
+ * Fetches today's daily inspirations.
+ * - Logged-in users: personalized encrypted inspirations decrypted locally.
+ * - Not logged in: public defaults for the day (cleartext).
+ */
+async function handleInspirations(
+  client: OpenMatesClient,
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  const lang = typeof flags.lang === "string" ? flags.lang : "en";
+  const inspirations = await client.getDailyInspirations(lang);
+
+  if (flags.json === true) {
+    printJson(inspirations);
+    return;
+  }
+
+  if (inspirations.length === 0) {
+    console.log("No inspirations available for today.");
+    return;
+  }
+
+  const isLoggedIn = client.hasSession();
+  const source = isLoggedIn ? "personalized" : "public";
+  console.log(
+    `[1mDaily Inspirations[0m  [2m(${source}${lang !== "en" ? `, ${lang}` : ""})[0m
+`,
+  );
+
+  for (let i = 0; i < inspirations.length; i++) {
+    printInspiration(inspirations[i], i + 1);
+  }
+}
+
+/** Render a single inspiration to the terminal in human-readable form. */
+function printInspiration(ins: DailyInspiration, index: number): void {
+  const categoryLabel = ins.category ? ` [2m[${ins.category}][0m` : "";
+  const openedBadge = ins.is_opened ? " [2m(opened)[0m" : "";
+  console.log(`[1m${index}. ${ins.title || ins.phrase}[0m${categoryLabel}${openedBadge}`);
+  if (ins.title && ins.phrase) {
+    console.log(`   [3m${ins.phrase}[0m`);
+  }
+  if (ins.assistant_response) {
+    // Wrap long responses at ~80 chars for terminal readability
+    const lines = wrapText(ins.assistant_response, 78);
+    for (const line of lines) console.log(`   ${line}`);
+  }
+  if (ins.video) {
+    const v = ins.video;
+    const duration = v.duration_seconds != null
+      ? ` · ${formatDuration(v.duration_seconds)}`
+      : "";
+    const views = v.view_count != null
+      ? ` · ${v.view_count.toLocaleString()} views`
+      : "";
+    const channel = v.channel_name ? ` · ${v.channel_name}` : "";
+    console.log(
+      `   [2mVideo: ${v.title || v.youtube_id}${channel}${duration}${views}[0m`,
+    );
+    if (v.youtube_id) {
+      console.log(`   [2mhttps://www.youtube.com/watch?v=${v.youtube_id}[0m`);
+    }
+  }
+  if (ins.follow_up_suggestions.length > 0) {
+    console.log(
+      `   [2mSuggestions: ${ins.follow_up_suggestions.join(" · ")}[0m`,
+    );
+  }
+  console.log();
+}
+
+/** Format seconds into m:ss or h:mm:ss. */
+function formatDuration(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+// ---------------------------------------------------------------------------
 // Help text
 // ---------------------------------------------------------------------------
 
@@ -2271,6 +2367,7 @@ Commands:
   openmates apps [--help]                    App skill commands (list, run, ...)
   openmates embeds [--help]                  Embed commands (show)
   openmates settings [--help]                Settings & memories
+  openmates inspirations [--lang <code>] [--json]   Daily inspirations
 
 Flags:
   --json          Output raw JSON instead of formatted output
@@ -2346,6 +2443,26 @@ Embed IDs are shown when viewing chat conversations (openmates chats show).
 
 Examples:
   openmates embeds show a3f2b1c4`);
+}
+
+function printInspirationsHelp(): void {
+  console.log(`Inspirations command:
+  openmates inspirations [--lang <code>] [--json]
+
+Fetches today's daily inspirations.
+  - Logged in:  personalized inspirations (decrypted from your account).
+  - Not logged in: public inspirations for the day (no login required).
+
+Options:
+  --lang <code>  ISO 639-1 language code for public inspirations (default: en).
+                 Supported: en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi,
+                            id, pl, nl, ar, hi, th, cs, sv
+  --json         Output raw JSON instead of formatted output.
+
+Examples:
+  openmates inspirations
+  openmates inspirations --lang de
+  openmates inspirations --json`);
 }
 
 function printSettingsHelp(client?: OpenMatesClient): void {

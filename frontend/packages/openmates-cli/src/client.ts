@@ -457,6 +457,40 @@ export interface DecryptedEmbed {
   createdAt: number | null;
 }
 
+/** Video metadata attached to a daily inspiration. */
+export interface DailyInspirationVideo {
+  youtube_id: string;
+  title: string;
+  thumbnail_url: string;
+  channel_name: string | null;
+  view_count: number | null;
+  duration_seconds: number | null;
+  published_at: string | null;
+}
+
+/**
+ * A daily inspiration as returned by the CLI.
+ *
+ * Public inspirations (unauthenticated) come cleartext from
+ * GET /v1/default-inspirations.
+ *
+ * Authenticated inspirations come encrypted from
+ * GET /v1/daily-inspirations and are decrypted with the master key.
+ */
+export interface DailyInspiration {
+  id: string;
+  phrase: string;
+  title: string;
+  assistant_response: string;
+  category: string;
+  content_type: string;
+  video: DailyInspirationVideo | null;
+  generated_at: number;
+  follow_up_suggestions: string[];
+  /** Whether the user has already opened this inspiration into a chat. */
+  is_opened?: boolean;
+}
+
 /**
  * English mate names by category — matches the web app's i18n mates.* keys.
  * The CLI ships without the full i18n system, so we hardcode English names.
@@ -1665,6 +1699,155 @@ export class OpenMatesClient {
       );
     }
     return response.data;
+  }
+
+  // -------------------------------------------------------------------------
+  // Daily Inspirations
+  // -------------------------------------------------------------------------
+
+  /**
+   * Fetch today's daily inspirations.
+   *
+   * When the user is logged in, fetches their personalized (encrypted)
+   * inspirations from GET /v1/daily-inspirations and decrypts each field
+   * with their master key.  Falls back to the public defaults endpoint if
+   * no personalized inspirations exist for the user yet.
+   *
+   * When not logged in, fetches the public defaults from
+   * GET /v1/default-inspirations?lang=<lang> — no decryption needed.
+   *
+   * Mirrors: frontend/packages/ui/src/services/dailyInspirationDB.ts
+   *          frontend/packages/ui/src/demo_chats/loadDefaultInspirations.ts
+   */
+  async getDailyInspirations(lang = "en"): Promise<DailyInspiration[]> {
+    if (this.hasSession()) {
+      return this._getPersonalizedInspirations(lang);
+    }
+    return this._getPublicInspirations(lang);
+  }
+
+  /**
+   * Fetch and decrypt the authenticated user's persisted inspirations.
+   * Falls back to public defaults when none are stored yet.
+   */
+  private async _getPersonalizedInspirations(lang: string): Promise<DailyInspiration[]> {
+    const masterKey = this.getMasterKeyBytes();
+
+    const response = await this.http.get<{ inspirations?: unknown[] }>(
+      "/v1/daily-inspirations",
+      this.getCliRequestHeaders(),
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch daily inspirations (HTTP ${response.status})`,
+      );
+    }
+
+    const raw = response.data.inspirations ?? [];
+
+    // No personalized inspirations stored yet — fall back to public defaults.
+    if (raw.length === 0) {
+      return this._getPublicInspirations(lang);
+    }
+
+    const results: DailyInspiration[] = [];
+    for (const item of raw) {
+      const r = item as Record<string, unknown>;
+
+      // Each content field is AES-256-GCM encrypted with the master key.
+      // Mirrors dailyInspirationDB.ts restoreFromServerPayload()
+      const phrase = typeof r.encrypted_phrase === "string"
+        ? (await decryptWithAesGcmCombined(r.encrypted_phrase, masterKey)) ?? "[encrypted]"
+        : "";
+      const title = typeof r.encrypted_title === "string"
+        ? (await decryptWithAesGcmCombined(r.encrypted_title, masterKey)) ?? "[encrypted]"
+        : "";
+      const assistantResponse = typeof r.encrypted_assistant_response === "string"
+        ? (await decryptWithAesGcmCombined(r.encrypted_assistant_response, masterKey)) ?? "[encrypted]"
+        : "";
+      const category = typeof r.encrypted_category === "string"
+        ? (await decryptWithAesGcmCombined(r.encrypted_category, masterKey)) ?? ""
+        : "";
+
+      // Video metadata is stored as an encrypted JSON blob.
+      let video: DailyInspirationVideo | null = null;
+      if (typeof r.encrypted_video_metadata === "string") {
+        const rawJson = await decryptWithAesGcmCombined(
+          r.encrypted_video_metadata,
+          masterKey,
+        );
+        if (rawJson) {
+          try {
+            video = JSON.parse(rawJson) as DailyInspirationVideo;
+          } catch {
+            // Corrupted metadata — skip video but keep inspiration
+          }
+        }
+      }
+
+      results.push({
+        id: typeof r.daily_inspiration_id === "string" ? r.daily_inspiration_id : "",
+        phrase,
+        title,
+        assistant_response: assistantResponse,
+        category,
+        content_type: typeof r.content_type === "string" ? r.content_type : "video",
+        video,
+        generated_at: typeof r.generated_at === "number" ? r.generated_at : 0,
+        follow_up_suggestions: [],
+        is_opened: r.is_opened === true,
+      });
+    }
+
+    return results;
+  }
+
+  /**
+   * Fetch the public (unauthenticated) default inspirations for the day.
+   * These come cleartext — no decryption needed.
+   * Mirrors loadDefaultInspirations.ts fetchServerDefaultInspirations()
+   */
+  private async _getPublicInspirations(lang: string): Promise<DailyInspiration[]> {
+    const response = await this.http.get<{ inspirations?: unknown[] }>(
+      `/v1/default-inspirations?lang=${encodeURIComponent(lang)}`,
+      this.getCliRequestHeaders(),
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch public inspirations (HTTP ${response.status})`,
+      );
+    }
+
+    const raw = response.data.inspirations ?? [];
+    return raw.map((item) => {
+      const r = item as Record<string, unknown>;
+      const video = r.video as Record<string, unknown> | null | undefined;
+      return {
+        id: typeof r.inspiration_id === "string" ? r.inspiration_id : "",
+        phrase: typeof r.phrase === "string" ? r.phrase : "",
+        title: typeof r.title === "string" ? r.title : "",
+        assistant_response: typeof r.assistant_response === "string" ? r.assistant_response : "",
+        category: typeof r.category === "string" ? r.category : "",
+        content_type: typeof r.content_type === "string" ? r.content_type : "video",
+        video: video
+          ? {
+              youtube_id: typeof video.youtube_id === "string" ? video.youtube_id : "",
+              title: typeof video.title === "string" ? video.title : "",
+              thumbnail_url: typeof video.thumbnail_url === "string" ? video.thumbnail_url : "",
+              channel_name: typeof video.channel_name === "string" ? video.channel_name : null,
+              view_count: typeof video.view_count === "number" ? video.view_count : null,
+              duration_seconds: typeof video.duration_seconds === "number" ? video.duration_seconds : null,
+              published_at: typeof video.published_at === "string" ? video.published_at : null,
+            }
+          : null,
+        generated_at: typeof r.generated_at === "number" ? r.generated_at : 0,
+        follow_up_suggestions: Array.isArray(r.follow_up_suggestions)
+          ? (r.follow_up_suggestions as string[])
+          : [],
+      };
+    });
   }
 
   // -------------------------------------------------------------------------
