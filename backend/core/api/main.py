@@ -706,27 +706,20 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.error(f"Error restoring payment orders from disk: {e}", exc_info=True)
     
-    # --- Restore pending reminders from disk backup ---
-    # This recovers reminders that were persisted during the last graceful shutdown
-    # to prevent reminder data loss across server restarts
-    if hasattr(app.state, 'cache_service'):
+    # --- Warm up reminder hot cache from PostgreSQL ---
+    # Load pending reminders within the 48h window from the DB (source of truth)
+    # into the Dragonfly ZSET. This replaces the old disk backup/restore mechanism.
+    if hasattr(app.state, 'cache_service') and hasattr(app.state, 'directus_service'):
         try:
-            restored_reminders = await app.state.cache_service.restore_reminders_from_disk()
-            if restored_reminders > 0:
-                logger.info(f"Restored {restored_reminders} pending reminders from disk backup")
+            reminders_in_window = await app.state.directus_service.reminder.get_pending_reminders_in_window()
+            if reminders_in_window:
+                loaded = await app.state.cache_service.load_reminders_batch_into_cache(reminders_in_window)
+                if loaded > 0:
+                    logger.info(f"Warmed up reminder hot cache with {loaded} pending reminders from DB")
+            else:
+                logger.info("No pending reminders in 48h window to warm up")
         except Exception as e:
-            logger.error(f"Error restoring reminders from disk: {e}", exc_info=True)
-    
-    # --- Restore pending deliveries from disk backup ---
-    # This recovers queued reminder/AI response deliveries that were persisted during shutdown.
-    # These are messages waiting to be delivered to users on their next WebSocket reconnect.
-    if hasattr(app.state, 'cache_service'):
-        try:
-            restored_deliveries = await app.state.cache_service.restore_pending_deliveries_from_disk()
-            if restored_deliveries > 0:
-                logger.info(f"Restored {restored_deliveries} pending delivery entries from disk backup")
-        except Exception as e:
-            logger.error(f"Error restoring pending deliveries from disk: {e}", exc_info=True)
+            logger.error(f"Error warming up reminder hot cache from DB: {e}", exc_info=True)
 
     # --- Restore daily inspiration cache from disk backup ---
     # Recovers topic suggestions and paid-request tracking entries that were persisted
@@ -1317,26 +1310,10 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.error(f"Error persisting payment orders to disk during shutdown: {e}", exc_info=True)
     
-    # --- Persist pending reminders to disk before shutdown ---
-    # This ensures reminders survive restarts and can be restored on next startup
-    if hasattr(app.state, 'cache_service'):
-        try:
-            dumped_reminders = await app.state.cache_service.dump_reminders_to_disk()
-            if dumped_reminders > 0:
-                logger.info(f"Persisted {dumped_reminders} pending reminders to disk for recovery after restart")
-        except Exception as e:
-            logger.error(f"Error persisting reminders to disk during shutdown: {e}", exc_info=True)
-    
-    # --- Persist pending deliveries to disk before shutdown ---
-    # This ensures queued reminder/AI response deliveries survive restarts.
-    # Users who reconnect after restart will still receive their pending messages.
-    if hasattr(app.state, 'cache_service'):
-        try:
-            dumped_deliveries = await app.state.cache_service.dump_pending_deliveries_to_disk()
-            if dumped_deliveries > 0:
-                logger.info(f"Persisted {dumped_deliveries} pending delivery entries to disk for recovery after restart")
-        except Exception as e:
-            logger.error(f"Error persisting pending deliveries to disk during shutdown: {e}", exc_info=True)
+    # NOTE: Reminder disk backup/restore removed — PostgreSQL is the source of truth.
+    # The hot cache is rebuilt from DB on startup. No disk persistence needed.
+    # Pending deliveries remain in Redis (60-day TTL); they survive graceful restarts
+    # and email notifications serve as a backup for extended offline periods.
 
     # --- Persist daily inspiration cache to disk before shutdown ---
     # Saves topic suggestions and paid-request tracking so personalisation data and

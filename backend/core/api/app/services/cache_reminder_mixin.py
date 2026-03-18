@@ -1,49 +1,44 @@
 # backend/core/api/app/services/cache_reminder_mixin.py
-# 
-# This mixin provides cache operations for the Reminder app.
-# Reminders are stored vault-encrypted in Dragonfly cache with a sorted set index
-# for efficient polling of due reminders. On graceful shutdown, pending reminders
-# are dumped to disk and restored on startup.
 #
-# Architecture:
-# - ZSET `reminders:schedule` - sorted by trigger_at timestamp for efficient polling
-# - HASH `reminder:{reminder_id}` - individual reminder data (vault-encrypted fields)
-# - SET `user:{user_id}:reminders` - user's reminder IDs for listing
+# Hot-cache operations for the Reminder app.
 #
-# Reference: docs/architecture/apps/reminder.md
+# ARCHITECTURE (Hybrid PostgreSQL + Hot Cache):
+# - PostgreSQL/Directus is the durable source of truth for ALL reminders.
+# - This cache layer holds a "hot window" of reminders due within 48 hours.
+# - The ZSET `reminders:schedule` is a disposable index that can be rebuilt
+#   from the database at any time (startup, cache restart, promotion task).
+# - The Celery Beat fire task only reads from cache (fast path).
+# - A promotion task periodically loads near-term reminders from DB -> cache.
+#
+# Cache key patterns:
+# - ZSET `reminders:schedule` -- score=trigger_at, member=reminder_id
+# - STRING `reminder:{reminder_id}` -- JSON with vault-encrypted fields
+# - LIST `reminder_pending_delivery:{user_id}` -- fired payloads awaiting WebSocket delivery
+#
+# Reference: docs/apps/reminder.md
 
 import logging
 import time
 import json
-import os
 from typing import Optional, Dict, Any, List
 
 logger = logging.getLogger(__name__)
 
-# Path for persisting reminders during shutdown (shared volume mounted across containers)
-REMINDER_BACKUP_PATH = "/shared/cache/pending_reminders_backup.json"
-
 # Cache key patterns
 REMINDER_SCHEDULE_KEY = "reminders:schedule"  # ZSET: score=trigger_at, member=reminder_id
 REMINDER_KEY_PREFIX = "reminder:"  # Individual reminder data
-USER_REMINDERS_KEY_PREFIX = "user_reminders:"  # User's reminder IDs set
-# Pending delivery: stores fired reminders waiting for client WebSocket delivery
-# LIST per user: each entry is a JSON-encoded reminder delivery payload
 PENDING_DELIVERY_KEY_PREFIX = "reminder_pending_delivery:"  # Per-user pending delivery list
 
-# TTL for individual reminder entries (7 days - reminders older than this without firing are stale)
-REMINDER_TTL = 604800  # 7 days in seconds
+# TTL for individual reminder entries in the hot cache.
+# Set generously (3 days) since the hot window is 48h -- provides overlap for
+# reminders that get rescheduled (repeating) or are slightly past the window edge.
+REMINDER_CACHE_TTL = 259200  # 3 days in seconds
 
-# TTL for pending delivery entries (60 days). If a user doesn't come online within 60 days,
-# entries are cleaned up by the periodic cleanup task (with logging).
-# Email notifications serve as reminders that undelivered messages exist.
+# TTL for pending delivery entries (60 days). If a user doesn't come online within
+# 60 days, entries expire via Redis TTL. Email notifications serve as a backup.
 PENDING_DELIVERY_TTL = 5184000  # 60 days in seconds
 
-# Path for persisting pending deliveries during shutdown
-PENDING_DELIVERY_BACKUP_PATH = "/shared/cache/pending_deliveries_backup.json"
-
 # Pending embed encryption tracking constants
-# Tracks embeds finalized on server but not yet confirmed as client-encrypted via store_embed
 PENDING_EMBED_KEY_PREFIX = "pending_embed_encryption:"
 PENDING_EMBED_TTL = 2592000  # 30 days (seconds)
 EMBED_CACHE_EXTENDED_TTL = 2592000  # 30 days for embeds in the pending set
@@ -51,79 +46,132 @@ EMBED_CACHE_EXTENDED_TTL = 2592000  # 30 days for embeds in the pending set
 
 class ReminderCacheMixin:
     """
-    Mixin for reminder-specific caching methods.
-    
-    Provides storage, retrieval, and management of scheduled reminders in cache.
-    Reminders use vault encryption for sensitive data (prompt, chat history).
+    Mixin for reminder hot-cache operations.
+
+    The cache is a disposable acceleration layer -- all durable state lives in
+    PostgreSQL (via Directus). Methods here manage the ZSET index and per-reminder
+    JSON cache entries used by the 60-second fire task.
     """
 
-    async def create_reminder(self, reminder_data: Dict[str, Any]) -> bool:
+    # =========================================================================
+    # HOT CACHE WRITE METHODS
+    # =========================================================================
+
+    async def load_reminder_into_cache(self, reminder_data: Dict[str, Any]) -> bool:
         """
-        Store a new reminder in cache and add to schedule index.
-        
+        Load a single reminder into the hot cache (ZSET + JSON entry).
+
+        Called by:
+        - SetReminderSkill when trigger_at is within the hot window
+        - The promotion task when moving reminders from DB -> cache
+        - Startup cache warm-up
+
         Args:
-            reminder_data: Complete reminder data dict including:
-                - reminder_id: UUID string (required)
-                - user_id: User ID string (required)
-                - trigger_at: Unix timestamp when reminder should fire (required)
-                - encrypted_prompt: Vault-encrypted prompt text (required)
-                - Other fields as defined in reminder schema
-        
+            reminder_data: Dict with reminder fields. Must include:
+                - reminder_id (or id): UUID string
+                - trigger_at: Unix timestamp
+                At minimum these two fields; full data is preferred.
+
         Returns:
-            True if reminder was successfully created, False otherwise
+            True if successfully loaded, False otherwise.
         """
         try:
-            reminder_id = reminder_data.get("reminder_id")
-            user_id = reminder_data.get("user_id")
+            reminder_id = reminder_data.get("reminder_id") or reminder_data.get("id")
             trigger_at = reminder_data.get("trigger_at")
 
-            if not reminder_id or not user_id or not trigger_at:
-                logger.error("Cannot create reminder: missing reminder_id, user_id, or trigger_at")
+            if not reminder_id or not trigger_at:
+                logger.error("Cannot load reminder into cache: missing reminder_id or trigger_at")
                 return False
 
             client = await self.client
             if not client:
-                logger.error("Cannot create reminder: cache client not available")
+                logger.error("Cannot load reminder into cache: cache client not available")
                 return False
 
-            # Ensure status is set
-            if "status" not in reminder_data:
-                reminder_data["status"] = "pending"
+            # Normalize the data -- ensure reminder_id is set (DB rows use 'id')
+            cache_data = dict(reminder_data)
+            if "reminder_id" not in cache_data and "id" in cache_data:
+                cache_data["reminder_id"] = cache_data["id"]
 
-            # Store the reminder data as JSON
             reminder_key = f"{REMINDER_KEY_PREFIX}{reminder_id}"
-            reminder_json = json.dumps(reminder_data)
+            reminder_json = json.dumps(cache_data)
 
-            # Use pipeline for atomic operations
             async with client.pipeline(transaction=True) as pipe:
-                # Store reminder data with TTL
-                pipe.setex(reminder_key, REMINDER_TTL, reminder_json)
-                
-                # Add to schedule sorted set (score = trigger_at for efficient range queries)
+                pipe.setex(reminder_key, REMINDER_CACHE_TTL, reminder_json)
                 pipe.zadd(REMINDER_SCHEDULE_KEY, {reminder_id: trigger_at})
-                
-                # Add to user's reminders set
-                user_reminders_key = f"{USER_REMINDERS_KEY_PREFIX}{user_id}"
-                pipe.sadd(user_reminders_key, reminder_id)
-                
                 await pipe.execute()
 
-            logger.info(f"Created reminder {reminder_id} for user {user_id}, trigger_at={trigger_at}")
+            logger.debug(f"Loaded reminder {reminder_id} into hot cache, trigger_at={trigger_at}")
             return True
 
         except Exception as e:
-            logger.error(f"Error creating reminder: {str(e)}", exc_info=True)
+            logger.error(f"Error loading reminder into cache: {e}", exc_info=True)
             return False
+
+    async def load_reminders_batch_into_cache(self, reminders: List[Dict[str, Any]]) -> int:
+        """
+        Load multiple reminders into the hot cache efficiently using pipelines.
+
+        Args:
+            reminders: List of reminder data dicts (from Directus query).
+
+        Returns:
+            Number of reminders successfully loaded.
+        """
+        if not reminders:
+            return 0
+
+        try:
+            client = await self.client
+            if not client:
+                logger.error("Cannot load reminders batch: cache client not available")
+                return 0
+
+            loaded = 0
+            batch_size = 100
+            for i in range(0, len(reminders), batch_size):
+                batch = reminders[i:i + batch_size]
+                async with client.pipeline(transaction=True) as pipe:
+                    for reminder_data in batch:
+                        reminder_id = reminder_data.get("reminder_id") or reminder_data.get("id")
+                        trigger_at = reminder_data.get("trigger_at")
+
+                        if not reminder_id or not trigger_at:
+                            continue
+
+                        cache_data = dict(reminder_data)
+                        if "reminder_id" not in cache_data and "id" in cache_data:
+                            cache_data["reminder_id"] = cache_data["id"]
+
+                        reminder_key = f"{REMINDER_KEY_PREFIX}{reminder_id}"
+                        reminder_json = json.dumps(cache_data)
+
+                        pipe.setex(reminder_key, REMINDER_CACHE_TTL, reminder_json)
+                        pipe.zadd(REMINDER_SCHEDULE_KEY, {reminder_id: trigger_at})
+                        loaded += 1
+
+                    await pipe.execute()
+
+            logger.info(f"Loaded {loaded} reminders into hot cache (batch)")
+            return loaded
+
+        except Exception as e:
+            logger.error(f"Error loading reminders batch into cache: {e}", exc_info=True)
+            return 0
+
+    # =========================================================================
+    # HOT CACHE READ METHODS
+    # =========================================================================
 
     async def get_reminder(self, reminder_id: str) -> Optional[Dict[str, Any]]:
         """
-        Get a single reminder by ID.
-        
+        Get a single reminder from the hot cache.
+
         Args:
-            reminder_id: The reminder UUID
-            
+            reminder_id: The reminder UUID.
+
         Returns:
-            Reminder data dict or None if not found
+            Reminder data dict or None if not in cache.
         """
         try:
             if not reminder_id:
@@ -139,79 +187,27 @@ class ReminderCacheMixin:
             if not reminder_json:
                 return None
 
-            # Handle bytes from Redis
             if isinstance(reminder_json, bytes):
                 reminder_json = reminder_json.decode("utf-8")
 
             return json.loads(reminder_json)
 
         except Exception as e:
-            logger.error(f"Error getting reminder {reminder_id}: {str(e)}", exc_info=True)
+            logger.error(f"Error getting reminder {reminder_id} from cache: {e}", exc_info=True)
             return None
-
-    async def get_user_reminders(
-        self, 
-        user_id: str, 
-        status_filter: Optional[str] = "pending"
-    ) -> List[Dict[str, Any]]:
-        """
-        Get all reminders for a user, optionally filtered by status.
-        
-        Args:
-            user_id: The user ID
-            status_filter: Filter by status ("pending", "fired", "cancelled", or None for all)
-            
-        Returns:
-            List of reminder data dicts
-        """
-        try:
-            if not user_id:
-                return []
-
-            client = await self.client
-            if not client:
-                return []
-
-            # Get user's reminder IDs
-            user_reminders_key = f"{USER_REMINDERS_KEY_PREFIX}{user_id}"
-            reminder_ids = await client.smembers(user_reminders_key)
-
-            if not reminder_ids:
-                return []
-
-            # Fetch each reminder
-            reminders = []
-            for reminder_id in reminder_ids:
-                # Handle bytes
-                if isinstance(reminder_id, bytes):
-                    reminder_id = reminder_id.decode("utf-8")
-
-                reminder = await self.get_reminder(reminder_id)
-                if reminder:
-                    # Apply status filter if specified
-                    if status_filter is None or reminder.get("status") == status_filter:
-                        reminders.append(reminder)
-
-            # Sort by trigger_at ascending
-            reminders.sort(key=lambda r: r.get("trigger_at", 0))
-
-            return reminders
-
-        except Exception as e:
-            logger.error(f"Error getting reminders for user {user_id}: {str(e)}", exc_info=True)
-            return []
 
     async def get_due_reminders(self, current_time: Optional[int] = None) -> List[Dict[str, Any]]:
         """
-        Get all reminders that are due (trigger_at <= current_time).
-        
-        This method is called by the scheduled task to find reminders to process.
-        
+        Get all reminders that are due (trigger_at <= current_time) from the hot cache.
+
+        Uses ZRANGEBYSCORE on the ZSET for O(log N + M) efficiency, then MGET
+        for batch fetching (replaces the previous N+1 GET loop).
+
         Args:
-            current_time: Unix timestamp to check against (defaults to now)
-            
+            current_time: Unix timestamp to check against (defaults to now).
+
         Returns:
-            List of due reminder data dicts
+            List of due reminder data dicts.
         """
         try:
             client = await self.client
@@ -221,144 +217,70 @@ class ReminderCacheMixin:
             if current_time is None:
                 current_time = int(time.time())
 
-            # Get all reminder IDs with trigger_at <= current_time
-            # ZRANGEBYSCORE returns members with scores in the given range
             due_reminder_ids = await client.zrangebyscore(
-                REMINDER_SCHEDULE_KEY,
-                min=0,
-                max=current_time
+                REMINDER_SCHEDULE_KEY, min=0, max=current_time
             )
 
             if not due_reminder_ids:
                 return []
 
-            # Fetch each reminder
-            due_reminders = []
-            for reminder_id in due_reminder_ids:
-                # Handle bytes
-                if isinstance(reminder_id, bytes):
-                    reminder_id = reminder_id.decode("utf-8")
+            # Batch fetch with MGET for efficiency
+            keys = []
+            id_list = []
+            for rid in due_reminder_ids:
+                if isinstance(rid, bytes):
+                    rid = rid.decode("utf-8")
+                id_list.append(rid)
+                keys.append(f"{REMINDER_KEY_PREFIX}{rid}")
 
-                reminder = await self.get_reminder(reminder_id)
-                if reminder and reminder.get("status") == "pending":
-                    due_reminders.append(reminder)
+            if not keys:
+                return []
+
+            values = await client.mget(*keys)
+
+            due_reminders = []
+            orphaned_ids = []
+            for rid, val in zip(id_list, values):
+                if val is None:
+                    orphaned_ids.append(rid)
+                    continue
+                if isinstance(val, bytes):
+                    val = val.decode("utf-8")
+                try:
+                    reminder = json.loads(val)
+                    if reminder.get("status") == "pending":
+                        due_reminders.append(reminder)
+                except json.JSONDecodeError:
+                    logger.warning(f"Malformed JSON for reminder {rid} in cache")
+                    orphaned_ids.append(rid)
+
+            # Clean up orphaned ZSET entries
+            if orphaned_ids:
+                logger.warning(
+                    f"Cleaning up {len(orphaned_ids)} orphaned ZSET entries: {orphaned_ids}"
+                )
+                await client.zrem(REMINDER_SCHEDULE_KEY, *orphaned_ids)
 
             logger.debug(f"Found {len(due_reminders)} due reminders at time {current_time}")
             return due_reminders
 
         except Exception as e:
-            logger.error(f"Error getting due reminders: {str(e)}", exc_info=True)
+            logger.error(f"Error getting due reminders: {e}", exc_info=True)
             return []
 
-    async def update_reminder_status(self, reminder_id: str, status: str) -> bool:
+    # =========================================================================
+    # HOT CACHE REMOVE / UPDATE METHODS
+    # =========================================================================
+
+    async def remove_reminder_from_cache(self, reminder_id: str) -> bool:
         """
-        Update the status of a reminder.
-        
+        Remove a reminder from the hot cache (ZSET + JSON key).
+
         Args:
-            reminder_id: The reminder UUID
-            status: New status ("pending", "fired", "cancelled")
-            
+            reminder_id: The reminder UUID.
+
         Returns:
-            True if update succeeded, False otherwise
-        """
-        try:
-            if not reminder_id or not status:
-                return False
-
-            reminder = await self.get_reminder(reminder_id)
-            if not reminder:
-                logger.warning(f"Cannot update status: reminder {reminder_id} not found")
-                return False
-
-            reminder["status"] = status
-            
-            client = await self.client
-            if not client:
-                return False
-
-            reminder_key = f"{REMINDER_KEY_PREFIX}{reminder_id}"
-            reminder_json = json.dumps(reminder)
-            
-            # Get remaining TTL and preserve it
-            ttl = await client.ttl(reminder_key)
-            if ttl <= 0:
-                ttl = REMINDER_TTL
-
-            await client.setex(reminder_key, ttl, reminder_json)
-            logger.debug(f"Updated reminder {reminder_id} status to {status}")
-            return True
-
-        except Exception as e:
-            logger.error(f"Error updating reminder {reminder_id} status: {str(e)}", exc_info=True)
-            return False
-
-    async def reschedule_reminder(
-        self, 
-        reminder_id: str, 
-        new_trigger_at: int,
-        increment_occurrence: bool = True
-    ) -> bool:
-        """
-        Reschedule a reminder to a new trigger time (for repeating reminders).
-        
-        Args:
-            reminder_id: The reminder UUID
-            new_trigger_at: New Unix timestamp for next trigger
-            increment_occurrence: Whether to increment occurrence_count
-            
-        Returns:
-            True if reschedule succeeded, False otherwise
-        """
-        try:
-            if not reminder_id or not new_trigger_at:
-                return False
-
-            reminder = await self.get_reminder(reminder_id)
-            if not reminder:
-                logger.warning(f"Cannot reschedule: reminder {reminder_id} not found")
-                return False
-
-            client = await self.client
-            if not client:
-                return False
-
-            # Update reminder data
-            reminder["trigger_at"] = new_trigger_at
-            reminder["status"] = "pending"
-            
-            if increment_occurrence:
-                reminder["occurrence_count"] = reminder.get("occurrence_count", 0) + 1
-
-            reminder_key = f"{REMINDER_KEY_PREFIX}{reminder_id}"
-            reminder_json = json.dumps(reminder)
-
-            # Use pipeline for atomic update
-            async with client.pipeline(transaction=True) as pipe:
-                # Update reminder data with fresh TTL
-                pipe.setex(reminder_key, REMINDER_TTL, reminder_json)
-                
-                # Update score in schedule sorted set
-                pipe.zadd(REMINDER_SCHEDULE_KEY, {reminder_id: new_trigger_at})
-                
-                await pipe.execute()
-
-            logger.info(f"Rescheduled reminder {reminder_id} to trigger_at={new_trigger_at}")
-            return True
-
-        except Exception as e:
-            logger.error(f"Error rescheduling reminder {reminder_id}: {str(e)}", exc_info=True)
-            return False
-
-    async def delete_reminder(self, reminder_id: str, user_id: Optional[str] = None) -> bool:
-        """
-        Delete a reminder from all indexes.
-        
-        Args:
-            reminder_id: The reminder UUID
-            user_id: Optional user_id (will be fetched from reminder if not provided)
-            
-        Returns:
-            True if deletion succeeded, False otherwise
+            True if removed, False otherwise.
         """
         try:
             if not reminder_id:
@@ -368,194 +290,155 @@ class ReminderCacheMixin:
             if not client:
                 return False
 
-            # Get user_id from reminder if not provided
-            if not user_id:
-                reminder = await self.get_reminder(reminder_id)
-                if reminder:
-                    user_id = reminder.get("user_id")
-
             reminder_key = f"{REMINDER_KEY_PREFIX}{reminder_id}"
 
-            # Use pipeline for atomic deletion
             async with client.pipeline(transaction=True) as pipe:
-                # Delete reminder data
                 pipe.delete(reminder_key)
-                
-                # Remove from schedule sorted set
                 pipe.zrem(REMINDER_SCHEDULE_KEY, reminder_id)
-                
-                # Remove from user's reminders set if we have user_id
-                if user_id:
-                    user_reminders_key = f"{USER_REMINDERS_KEY_PREFIX}{user_id}"
-                    pipe.srem(user_reminders_key, reminder_id)
-                
                 await pipe.execute()
 
-            logger.info(f"Deleted reminder {reminder_id}")
+            logger.debug(f"Removed reminder {reminder_id} from hot cache")
             return True
 
         except Exception as e:
-            logger.error(f"Error deleting reminder {reminder_id}: {str(e)}", exc_info=True)
+            logger.error(f"Error removing reminder {reminder_id} from cache: {e}", exc_info=True)
             return False
 
-    async def dump_reminders_to_disk(self) -> int:
+    async def claim_due_reminder(self, reminder_id: str) -> bool:
         """
-        Dump all pending reminders to disk for persistence across restarts.
-        Called during graceful shutdown to prevent reminder data loss.
-        
+        Atomically remove a reminder from the ZSET to claim it for processing.
+
+        Provides idempotency: if two workers both try to process the same
+        reminder, only one ZREM returns 1.
+
+        Args:
+            reminder_id: The reminder UUID.
+
         Returns:
-            Number of reminders saved to disk
+            True if this call claimed the reminder, False if already claimed.
+        """
+        try:
+            if not reminder_id:
+                return False
+
+            client = await self.client
+            if not client:
+                return False
+
+            removed = await client.zrem(REMINDER_SCHEDULE_KEY, reminder_id)
+            claimed = removed > 0
+
+            if claimed:
+                logger.debug(f"Claimed reminder {reminder_id} for processing")
+            else:
+                logger.debug(f"Reminder {reminder_id} already claimed by another worker")
+
+            return claimed
+
+        except Exception as e:
+            logger.error(f"Error claiming reminder {reminder_id}: {e}", exc_info=True)
+            return False
+
+    async def reschedule_reminder_in_cache(
+        self,
+        reminder_id: str,
+        reminder_data: Dict[str, Any],
+        new_trigger_at: int,
+    ) -> bool:
+        """
+        Reschedule a repeating reminder in the hot cache.
+
+        Only adds to cache if new_trigger_at is within the hot window (48h).
+
+        Args:
+            reminder_id: The reminder UUID.
+            reminder_data: Updated reminder data dict.
+            new_trigger_at: New Unix timestamp for next trigger.
+
+        Returns:
+            True if rescheduled (or skipped because beyond window), False on error.
+        """
+        try:
+            if not reminder_id or not new_trigger_at:
+                return False
+
+            current_time = int(time.time())
+            hot_window_end = current_time + (48 * 3600)
+
+            if new_trigger_at > hot_window_end:
+                logger.debug(
+                    f"Reminder {reminder_id} rescheduled to {new_trigger_at} "
+                    f"(beyond hot window, skipping cache)"
+                )
+                return True
+
+            client = await self.client
+            if not client:
+                return False
+
+            cache_data = dict(reminder_data)
+            cache_data["trigger_at"] = new_trigger_at
+            cache_data["status"] = "pending"
+
+            reminder_key = f"{REMINDER_KEY_PREFIX}{reminder_id}"
+            reminder_json = json.dumps(cache_data)
+
+            async with client.pipeline(transaction=True) as pipe:
+                pipe.setex(reminder_key, REMINDER_CACHE_TTL, reminder_json)
+                pipe.zadd(REMINDER_SCHEDULE_KEY, {reminder_id: new_trigger_at})
+                await pipe.execute()
+
+            logger.debug(f"Rescheduled reminder {reminder_id} in cache to trigger_at={new_trigger_at}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Error rescheduling reminder {reminder_id} in cache: {e}", exc_info=True)
+            return False
+
+    async def get_cache_schedule_count(self) -> int:
+        """
+        Get the number of reminders in the hot cache ZSET.
+
+        Returns:
+            Number of entries in the ZSET.
         """
         try:
             client = await self.client
             if not client:
-                logger.warning("Cannot dump reminders to disk: cache client not connected")
                 return 0
-
-            # Get all reminder IDs from schedule
-            all_reminder_ids = await client.zrange(REMINDER_SCHEDULE_KEY, 0, -1)
-
-            if not all_reminder_ids:
-                logger.info("No reminders in cache to dump to disk")
-                # Clean up any existing backup file
-                if os.path.exists(REMINDER_BACKUP_PATH):
-                    os.remove(REMINDER_BACKUP_PATH)
-                return 0
-
-            # Collect pending reminders
-            pending_reminders: List[Dict[str, Any]] = []
-
-            for reminder_id in all_reminder_ids:
-                # Handle bytes
-                if isinstance(reminder_id, bytes):
-                    reminder_id = reminder_id.decode("utf-8")
-
-                reminder = await self.get_reminder(reminder_id)
-                if reminder and reminder.get("status") == "pending":
-                    pending_reminders.append(reminder)
-                    logger.debug(f"Including reminder {reminder_id} for backup")
-
-            if not pending_reminders:
-                logger.info("No pending reminders to dump to disk")
-                if os.path.exists(REMINDER_BACKUP_PATH):
-                    os.remove(REMINDER_BACKUP_PATH)
-                return 0
-
-            # Ensure directory exists
-            backup_dir = os.path.dirname(REMINDER_BACKUP_PATH)
-            os.makedirs(backup_dir, exist_ok=True)
-
-            # Write to disk with timestamp and version
-            backup_data = {
-                "timestamp": int(time.time()),
-                "version": 1,
-                "reminders": pending_reminders
-            }
-
-            with open(REMINDER_BACKUP_PATH, 'w') as f:
-                json.dump(backup_data, f, indent=2)
-
-            logger.info(f"Successfully dumped {len(pending_reminders)} pending reminders to disk at {REMINDER_BACKUP_PATH}")
-            return len(pending_reminders)
-
+            return await client.zcard(REMINDER_SCHEDULE_KEY)
         except Exception as e:
-            logger.error(f"Error dumping reminders to disk: {str(e)}", exc_info=True)
+            logger.error(f"Error getting cache schedule count: {e}", exc_info=True)
             return 0
 
-    async def restore_reminders_from_disk(self) -> int:
+    async def get_reminder_stats(self) -> Dict[str, int]:
         """
-        Restore reminders from disk backup into cache.
-        Called during startup to recover reminders after restart.
-        
+        Get statistics about reminders in the hot cache (for monitoring/admin).
+
         Returns:
-            Number of reminders restored to cache
+            Dict with counts: total_in_cache, due_now.
         """
         try:
-            if not os.path.exists(REMINDER_BACKUP_PATH):
-                logger.info("No reminder backup file found at startup - nothing to restore")
-                return 0
+            client = await self.client
+            if not client:
+                return {"total_in_cache": 0, "due_now": 0}
 
-            with open(REMINDER_BACKUP_PATH, 'r') as f:
-                backup_data = json.load(f)
-
-            timestamp = backup_data.get("timestamp", 0)
-            version = backup_data.get("version", 1)
-            reminders = backup_data.get("reminders", [])
-
-            if not reminders:
-                logger.info("Reminder backup file is empty - nothing to restore")
-                os.remove(REMINDER_BACKUP_PATH)
-                return 0
-
-            # Check backup age - reminders older than 7 days are stale
             current_time = int(time.time())
-            backup_age_seconds = current_time - timestamp
-            backup_age_hours = backup_age_seconds / 3600
+            total = await client.zcard(REMINDER_SCHEDULE_KEY)
+            due_now = await client.zcount(REMINDER_SCHEDULE_KEY, 0, current_time)
 
-            if backup_age_seconds > REMINDER_TTL:
-                logger.warning(f"Reminder backup is {backup_age_hours:.1f} hours old (>{REMINDER_TTL/3600}h) - skipping stale restore")
-                os.remove(REMINDER_BACKUP_PATH)
-                return 0
+            return {"total_in_cache": total, "due_now": due_now}
 
-            logger.info(f"Restoring {len(reminders)} reminders from backup (backup age: {backup_age_hours:.1f} hours, version: {version})")
-
-            restored_count = 0
-
-            for reminder_data in reminders:
-                reminder_id = reminder_data.get("reminder_id")
-                trigger_at = reminder_data.get("trigger_at", 0)
-
-                if not reminder_id:
-                    logger.warning("Skipping malformed reminder in backup: missing reminder_id")
-                    continue
-
-                # Check if reminder already exists in cache
-                existing = await self.get_reminder(reminder_id)
-                if existing:
-                    logger.debug(f"Reminder {reminder_id} already exists in cache - skipping restore")
-                    continue
-
-                # For reminders that were due during downtime, we still restore them
-                # so they can be processed immediately
-                if trigger_at < current_time:
-                    logger.info(f"Reminder {reminder_id} was due during downtime (trigger_at={trigger_at}) - will process immediately")
-
-                # Restore to cache
-                success = await self.create_reminder(reminder_data)
-                if success:
-                    restored_count += 1
-                    logger.debug(f"Restored reminder {reminder_id} to cache")
-                else:
-                    logger.error(f"Failed to restore reminder {reminder_id} to cache")
-
-            # Clean up backup file after successful restore
-            os.remove(REMINDER_BACKUP_PATH)
-            logger.info(f"Successfully restored {restored_count}/{len(reminders)} reminders from disk backup")
-
-            return restored_count
-
-        except json.JSONDecodeError as e:
-            logger.error(f"Invalid JSON in reminder backup file: {str(e)}")
-            if os.path.exists(REMINDER_BACKUP_PATH):
-                os.remove(REMINDER_BACKUP_PATH)
-            return 0
         except Exception as e:
-            logger.error(f"Error restoring reminders from disk: {str(e)}", exc_info=True)
-            return 0
+            logger.error(f"Error getting reminder stats: {e}", exc_info=True)
+            return {"total_in_cache": 0, "due_now": 0}
 
     # =========================================================================
     # PENDING DELIVERY METHODS
-    # 
-    # When a reminder fires but the user has no active WebSocket connections,
-    # the reminder delivery payload is queued here. When the user reconnects,
-    # the WebSocket endpoint delivers these pending reminders to the client.
-    # The client then encrypts with the chat key and persists normally.
     #
-    # Architecture:
-    # - LIST `reminder_pending_delivery:{user_id}` - FIFO queue of delivery payloads
-    # - Each entry is a JSON-encoded dict with the same fields as the
-    #   reminder_fired WebSocket event payload (content in plaintext)
-    # - TTL of 48h per key - after that, email notification is the fallback
+    # When a reminder fires but the user has no active WebSocket connections,
+    # the delivery payload is queued here. On reconnect the client retrieves
+    # and clears these entries.  Email notifications serve as a backup.
     # =========================================================================
 
     async def add_pending_reminder_delivery(
@@ -563,13 +446,13 @@ class ReminderCacheMixin:
     ) -> bool:
         """
         Queue a fired reminder for delivery when the user comes back online.
-        
+
         Args:
-            user_id: The user ID (UUID, not hashed)
-            delivery_payload: The reminder_fired payload dict (plaintext content)
-            
+            user_id: The user ID (UUID, not hashed).
+            delivery_payload: The reminder_fired payload dict (plaintext content).
+
         Returns:
-            True if queued successfully
+            True if queued successfully.
         """
         try:
             if not user_id or not delivery_payload:
@@ -583,7 +466,6 @@ class ReminderCacheMixin:
             key = f"{PENDING_DELIVERY_KEY_PREFIX}{user_id}"
             payload_json = json.dumps(delivery_payload)
 
-            # Push to list and set/refresh TTL
             async with client.pipeline(transaction=True) as pipe:
                 pipe.rpush(key, payload_json)
                 pipe.expire(key, PENDING_DELIVERY_TTL)
@@ -604,13 +486,12 @@ class ReminderCacheMixin:
     ) -> List[Dict[str, Any]]:
         """
         Atomically retrieve and remove all pending reminder deliveries for a user.
-        Called when the user reconnects via WebSocket.
-        
+
         Args:
-            user_id: The user ID (UUID, not hashed)
-            
+            user_id: The user ID (UUID, not hashed).
+
         Returns:
-            List of delivery payload dicts (may be empty)
+            List of delivery payload dicts (may be empty).
         """
         try:
             if not user_id:
@@ -622,7 +503,6 @@ class ReminderCacheMixin:
 
             key = f"{PENDING_DELIVERY_KEY_PREFIX}{user_id}"
 
-            # Atomically get all entries and delete the key
             async with client.pipeline(transaction=True) as pipe:
                 pipe.lrange(key, 0, -1)
                 pipe.delete(key)
@@ -654,12 +534,12 @@ class ReminderCacheMixin:
     async def has_pending_reminder_deliveries(self, user_id: str) -> bool:
         """
         Check if a user has any pending reminder deliveries without consuming them.
-        
+
         Args:
-            user_id: The user ID (UUID, not hashed)
-            
+            user_id: The user ID (UUID, not hashed).
+
         Returns:
-            True if there are pending deliveries
+            True if there are pending deliveries.
         """
         try:
             if not user_id:
@@ -677,200 +557,13 @@ class ReminderCacheMixin:
             logger.error(f"Error checking pending reminder deliveries: {e}", exc_info=True)
             return False
 
-    async def get_reminder_stats(self) -> Dict[str, int]:
-        """
-        Get statistics about reminders in cache (for monitoring/admin).
-        
-        Returns:
-            Dict with counts: total, pending, due_now
-        """
-        try:
-            client = await self.client
-            if not client:
-                return {"total": 0, "pending": 0, "due_now": 0}
-
-            current_time = int(time.time())
-
-            # Total reminders in schedule
-            total = await client.zcard(REMINDER_SCHEDULE_KEY)
-
-            # Due now (trigger_at <= current_time)
-            due_now = await client.zcount(REMINDER_SCHEDULE_KEY, 0, current_time)
-
-            # For pending count, we'd need to scan all - approximate with total for now
-            # In production, we might want a separate counter or accept this approximation
-            pending = total  # Approximation: assumes most are pending
-
-            return {
-                "total": total,
-                "pending": pending,
-                "due_now": due_now
-            }
-
-        except Exception as e:
-            logger.error(f"Error getting reminder stats: {str(e)}", exc_info=True)
-            return {"total": 0, "pending": 0, "due_now": 0}
-
-    # =========================================================================
-    # PENDING DELIVERY DISK BACKUP / RESTORE
-    # 
-    # On graceful shutdown, pending deliveries are written to disk so they
-    # survive cache restarts. On startup, they are restored and the disk
-    # file is deleted. Same pattern as reminder backup.
-    # =========================================================================
-
-    async def dump_pending_deliveries_to_disk(self) -> int:
-        """
-        Dump all pending delivery lists to disk for persistence across restarts.
-        Called during graceful shutdown alongside dump_reminders_to_disk.
-        
-        Returns:
-            Number of delivery entries saved to disk
-        """
-        try:
-            client = await self.client
-            if not client:
-                logger.warning("Cannot dump pending deliveries: cache client not connected")
-                return 0
-
-            # Scan for all pending delivery keys
-            all_keys = []
-            async for key in client.scan_iter(match=f"{PENDING_DELIVERY_KEY_PREFIX}*"):
-                if isinstance(key, bytes):
-                    key = key.decode("utf-8")
-                all_keys.append(key)
-
-            if not all_keys:
-                logger.debug("No pending deliveries to dump to disk")
-                if os.path.exists(PENDING_DELIVERY_BACKUP_PATH):
-                    os.remove(PENDING_DELIVERY_BACKUP_PATH)
-                return 0
-
-            all_deliveries = {}
-            total_count = 0
-            for key in all_keys:
-                user_id = key.replace(PENDING_DELIVERY_KEY_PREFIX, "")
-                entries = await client.lrange(key, 0, -1)
-                parsed = []
-                for entry in entries:
-                    if isinstance(entry, bytes):
-                        entry = entry.decode("utf-8")
-                    try:
-                        parsed.append(json.loads(entry))
-                    except json.JSONDecodeError:
-                        continue
-                if parsed:
-                    all_deliveries[user_id] = parsed
-                    total_count += len(parsed)
-
-            if not all_deliveries:
-                logger.debug("No valid pending deliveries to dump")
-                if os.path.exists(PENDING_DELIVERY_BACKUP_PATH):
-                    os.remove(PENDING_DELIVERY_BACKUP_PATH)
-                return 0
-
-            backup_dir = os.path.dirname(PENDING_DELIVERY_BACKUP_PATH)
-            os.makedirs(backup_dir, exist_ok=True)
-
-            backup_data = {
-                "timestamp": int(time.time()),
-                "version": 1,
-                "deliveries_by_user": all_deliveries
-            }
-
-            with open(PENDING_DELIVERY_BACKUP_PATH, 'w') as f:
-                json.dump(backup_data, f, indent=2)
-
-            logger.info(
-                f"Dumped {total_count} pending delivery entries for "
-                f"{len(all_deliveries)} users to disk"
-            )
-            return total_count
-
-        except Exception as e:
-            logger.error(f"Error dumping pending deliveries to disk: {e}", exc_info=True)
-            return 0
-
-    async def restore_pending_deliveries_from_disk(self) -> int:
-        """
-        Restore pending deliveries from disk backup into cache.
-        Called during startup alongside restore_reminders_from_disk.
-        
-        Returns:
-            Number of delivery entries restored
-        """
-        try:
-            if not os.path.exists(PENDING_DELIVERY_BACKUP_PATH):
-                logger.info("No pending deliveries backup found at startup")
-                return 0
-
-            with open(PENDING_DELIVERY_BACKUP_PATH, 'r') as f:
-                backup_data = json.load(f)
-
-            timestamp = backup_data.get("timestamp", 0)
-            deliveries_by_user = backup_data.get("deliveries_by_user", {})
-
-            if not deliveries_by_user:
-                logger.info("Pending deliveries backup is empty")
-                os.remove(PENDING_DELIVERY_BACKUP_PATH)
-                return 0
-
-            # Check backup age - don't restore entries older than 60 days
-            current_time = int(time.time())
-            backup_age_seconds = current_time - timestamp
-            if backup_age_seconds > PENDING_DELIVERY_TTL:
-                logger.warning(
-                    f"Pending deliveries backup is {backup_age_seconds / 86400:.1f} days old "
-                    f"(>60 days) - discarding stale backup"
-                )
-                os.remove(PENDING_DELIVERY_BACKUP_PATH)
-                return 0
-
-            restored_count = 0
-            client = await self.client
-            if not client:
-                logger.error("Cannot restore pending deliveries: cache client not connected")
-                return 0
-
-            for user_id, entries in deliveries_by_user.items():
-                key = f"{PENDING_DELIVERY_KEY_PREFIX}{user_id}"
-                for entry in entries:
-                    try:
-                        await client.rpush(key, json.dumps(entry))
-                        restored_count += 1
-                    except Exception as e:
-                        logger.warning(f"Failed to restore delivery entry for user {user_id[:8]}...: {e}")
-                # Set TTL on the list
-                await client.expire(key, PENDING_DELIVERY_TTL)
-
-            # Clean up backup file
-            os.remove(PENDING_DELIVERY_BACKUP_PATH)
-            logger.info(
-                f"Restored {restored_count} pending delivery entries for "
-                f"{len(deliveries_by_user)} users from disk"
-            )
-            return restored_count
-
-        except json.JSONDecodeError as e:
-            logger.error(f"Invalid JSON in pending deliveries backup: {e}")
-            if os.path.exists(PENDING_DELIVERY_BACKUP_PATH):
-                os.remove(PENDING_DELIVERY_BACKUP_PATH)
-            return 0
-        except Exception as e:
-            logger.error(f"Error restoring pending deliveries: {e}", exc_info=True)
-            return 0
-
     async def cleanup_expired_pending_deliveries(self) -> int:
         """
-        Clean up expired pending delivery entries and log the event.
-        Called periodically by a Celery beat task.
-        
-        Since Redis handles TTL-based expiry automatically, this method
-        primarily serves to log the cleanup events for audit purposes
-        and send reminder emails to users who still have pending deliveries.
-        
+        Audit pending delivery entries and log for monitoring.
+        Redis handles TTL-based expiry; this provides visibility.
+
         Returns:
-            Number of users with pending deliveries
+            Number of users with pending deliveries.
         """
         try:
             client = await self.client
@@ -902,35 +595,9 @@ class ReminderCacheMixin:
     # ===================================================================
     # PENDING EMBED ENCRYPTION TRACKING
     # ===================================================================
-    # Tracks embeds that have been finalized on the server but not yet
-    # confirmed as client-encrypted via store_embed. Uses a sorted set
-    # (score = creation timestamp) for efficient age-based cleanup.
-    #
-    # Key: pending_embed_encryption:{user_id}
-    # Members: embed_id strings
-    # Score: Unix timestamp when the embed was finalized
-    #
-    # Lifecycle:
-    # 1. Embed finalized → add_pending_embed()
-    # 2. Client sends store_embed → remove_pending_embed()
-    # 3. On reconnect → get_pending_embeds() → re-send to client
-    # 4. Safety net task → get_all_users_with_pending_embeds() → re-send
-    # ===================================================================
 
     async def add_pending_embed(self, user_id: str, embed_id: str) -> bool:
-        """
-        Track a finalized embed as pending client encryption.
-
-        Adds the embed_id to a per-user sorted set with the current unix
-        timestamp as score. Sets/refreshes the key TTL to 30 days.
-
-        Args:
-            user_id: User ID (UUID string)
-            embed_id: Embed ID to track
-
-        Returns:
-            True if successfully added, False otherwise
-        """
+        """Track a finalized embed as pending client encryption."""
         try:
             client = await self.client
             if not client:
@@ -958,19 +625,7 @@ class ReminderCacheMixin:
             return False
 
     async def remove_pending_embed(self, user_id: str, embed_id: str) -> bool:
-        """
-        Remove an embed from the pending encryption tracking set.
-
-        Called when the client confirms encryption via store_embed.
-        Deletes the key entirely if the set becomes empty.
-
-        Args:
-            user_id: User ID (UUID string)
-            embed_id: Embed ID to remove
-
-        Returns:
-            True if the embed was removed (was in the set), False otherwise
-        """
+        """Remove an embed from the pending encryption tracking set."""
         try:
             client = await self.client
             if not client:
@@ -981,11 +636,9 @@ class ReminderCacheMixin:
             removed = await client.zrem(key, embed_id)
 
             if removed:
-                # Check if the set is now empty and clean up the key
                 remaining = await client.zcard(key)
                 if remaining == 0:
                     await client.delete(key)
-
                 logger.info(
                     f"[PENDING_EMBED] Removed embed {embed_id} from pending set for "
                     f"user {user_id[:8]}... (confirmed client encryption)"
@@ -1007,17 +660,7 @@ class ReminderCacheMixin:
             return False
 
     async def get_pending_embed_ids(self, user_id: str) -> List[str]:
-        """
-        Get all pending embed IDs for a user.
-
-        Returns all members of the sorted set (embed_ids waiting for client encryption).
-
-        Args:
-            user_id: User ID (UUID string)
-
-        Returns:
-            List of embed_id strings, empty list if none or on error
-        """
+        """Get all pending embed IDs for a user."""
         try:
             client = await self.client
             if not client:
@@ -1040,15 +683,7 @@ class ReminderCacheMixin:
             return []
 
     async def get_all_users_with_pending_embeds(self) -> List[str]:
-        """
-        Find all users who have pending embed encryptions.
-
-        Uses SCAN to find all keys matching the pending embed prefix
-        and extracts the user_id from each key.
-
-        Returns:
-            List of user_id strings
-        """
+        """Find all users who have pending embed encryptions."""
         try:
             client = await self.client
             if not client:
@@ -1071,19 +706,7 @@ class ReminderCacheMixin:
             return []
 
     async def refresh_pending_embed_cache_ttls(self, user_id: str) -> int:
-        """
-        Refresh cache TTLs for all pending embeds of a user.
-
-        Extends the TTL of each embed:{embed_id} cache key to 30 days
-        to prevent cache entries from expiring while still pending
-        client encryption.
-
-        Args:
-            user_id: User ID (UUID string)
-
-        Returns:
-            Number of cache entries whose TTL was refreshed
-        """
+        """Refresh cache TTLs for all pending embeds of a user."""
         try:
             client = await self.client
             if not client:
@@ -1127,19 +750,7 @@ class ReminderCacheMixin:
             return 0
 
     async def cleanup_expired_pending_embeds(self, max_age_seconds: int = 2592000) -> int:
-        """
-        Remove stale entries from pending embed sets across all users.
-
-        Finds entries older than max_age_seconds (default 30 days) and removes them.
-        Deletes the sorted set key entirely if it becomes empty after cleanup.
-
-        Args:
-            max_age_seconds: Maximum age in seconds before an entry is considered expired.
-                           Default: 2592000 (30 days).
-
-        Returns:
-            Total number of expired entries removed across all users
-        """
+        """Remove stale entries from pending embed sets across all users."""
         try:
             client = await self.client
             if not client:
@@ -1153,7 +764,6 @@ class ReminderCacheMixin:
                 try:
                     key = f"{PENDING_EMBED_KEY_PREFIX}{user_id}"
 
-                    # Find entries older than cutoff
                     expired = await client.zrangebyscore(key, "-inf", cutoff)
                     if expired:
                         removed = await client.zremrangebyscore(key, "-inf", cutoff)
@@ -1163,7 +773,6 @@ class ReminderCacheMixin:
                             f"for user {user_id[:8]}... (older than {max_age_seconds / 86400:.0f} days)"
                         )
 
-                    # Delete the key if the set is now empty
                     remaining = await client.zcard(key)
                     if remaining == 0:
                         await client.delete(key)

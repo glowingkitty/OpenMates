@@ -4,6 +4,7 @@
 # Cancels a scheduled reminder by ID.
 
 import logging
+import hashlib
 from typing import Dict, Any, Optional
 from pydantic import BaseModel, Field
 from celery import Celery
@@ -109,9 +110,32 @@ class CancelReminderSkill(BaseSkill):
                     error="Reminder ID is required"
                 )
 
-            # Get the reminder to verify ownership
-            reminder = await cache_service.get_reminder(reminder_id)
-            
+            # Initialize directus_service if not provided
+            directus_service = kwargs.get('directus_service')
+            encryption_service = kwargs.get('encryption_service')
+            if not directus_service:
+                try:
+                    if not encryption_service:
+                        from backend.core.api.app.utils.encryption import EncryptionService
+                        encryption_service = EncryptionService(cache_service=cache_service)
+                    from backend.core.api.app.services.directus.directus import DirectusService
+                    directus_service = DirectusService(cache_service=cache_service, encryption_service=encryption_service)
+                except Exception as e:
+                    logger.warning(f"Could not initialize DirectusService: {e}")
+                    directus_service = None
+
+            # Look up the reminder in the DB (source of truth)
+            reminder = None
+            if directus_service:
+                try:
+                    reminder = await directus_service.reminder.get_reminder(reminder_id)
+                except Exception as db_err:
+                    logger.error(f"Failed to query reminder {reminder_id} from DB: {db_err}")
+
+            # Fallback: check cache if DB lookup failed
+            if not reminder:
+                reminder = await cache_service.get_reminder(reminder_id)
+
             if not reminder:
                 return CancelReminderResponse(
                     success=False,
@@ -119,8 +143,12 @@ class CancelReminderSkill(BaseSkill):
                     error="Reminder not found"
                 )
 
-            # Verify the reminder belongs to this user
-            if reminder.get("user_id") != user_id:
+            # Verify ownership: check hashed_user_id or user_id
+            hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+            reminder_owner = reminder.get("hashed_user_id") or ""
+            reminder_raw_owner = reminder.get("user_id") or ""
+
+            if reminder_owner != hashed_user_id and reminder_raw_owner != user_id:
                 return CancelReminderResponse(
                     success=False,
                     reminder_id=reminder_id,
@@ -143,22 +171,29 @@ class CancelReminderSkill(BaseSkill):
                     error="This reminder has already been triggered and cannot be cancelled."
                 )
 
-            # Delete the reminder (removes from all indexes)
-            success = await cache_service.delete_reminder(reminder_id, user_id)
-
-            if success:
-                logger.info(f"Cancelled reminder {reminder_id} for user {user_id}")
-                return CancelReminderResponse(
-                    success=True,
-                    reminder_id=reminder_id,
-                    message="Reminder has been cancelled successfully."
+            # Update DB status to cancelled (source of truth)
+            db_success = True
+            if directus_service:
+                db_success = await directus_service.reminder.update_reminder(
+                    reminder_id, {"status": "cancelled"}
                 )
-            else:
+
+            if not db_success:
                 return CancelReminderResponse(
                     success=False,
                     reminder_id=reminder_id,
                     error="Failed to cancel reminder"
                 )
+
+            # Remove from hot cache (if present)
+            await cache_service.remove_reminder_from_cache(reminder_id)
+
+            logger.info(f"Cancelled reminder {reminder_id} for user {user_id}")
+            return CancelReminderResponse(
+                success=True,
+                reminder_id=reminder_id,
+                message="Reminder has been cancelled successfully."
+            )
 
         except Exception as e:
             logger.error(f"Error cancelling reminder {reminder_id}: {e}", exc_info=True)

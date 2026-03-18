@@ -77,11 +77,20 @@ async def get_active_reminders(
     try:
         user_id = current_user.id
         
-        # Get pending reminders from cache
-        reminders = await cache_service.get_user_reminders(
-            user_id=user_id,
-            status_filter="pending"
-        )
+        # Get pending reminders from PostgreSQL (source of truth)
+        import hashlib as _hashlib
+        hashed_uid = _hashlib.sha256(user_id.encode()).hexdigest()
+        directus_service = request.app.state.directus_service if hasattr(request.app.state, 'directus_service') else None
+        reminders = []
+        if directus_service:
+            try:
+                reminders = await directus_service.reminder.get_user_reminders(
+                    hashed_user_id=hashed_uid,
+                    status_filter="pending",
+                )
+            except Exception as db_err:
+                logger.error(f"Failed to query reminders from DB: {db_err}", exc_info=True)
+                reminders = []
         
         if not reminders:
             return ActiveRemindersResponse(

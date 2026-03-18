@@ -1134,6 +1134,19 @@ app.conf.beat_schedule = {
         'schedule': crontab(hour='*/6', minute=15),  # Every 6 hours at :15
         'options': {'queue': 'reminder'},  # Route to reminder queue
     },
+    # Reminder promotion: load near-term reminders from PostgreSQL into hot cache.
+    # Runs twice daily to ensure reminders entering the 48h window are cached.
+    # The 12h gap between runs is safe because the window is 48h (full overlap).
+    'promote-reminders-to-hot-cache-morning': {
+        'task': 'reminder.promote_to_hot_cache',
+        'schedule': crontab(hour=3, minute=0),  # Daily at 03:00 UTC
+        'options': {'queue': 'reminder'},
+    },
+    'promote-reminders-to-hot-cache-afternoon': {
+        'task': 'reminder.promote_to_hot_cache',
+        'schedule': crontab(hour=15, minute=0),  # Daily at 15:00 UTC
+        'options': {'queue': 'reminder'},
+    },
     # Pending embed encryption safety net - re-delivers pending embeds to connected clients
     # and refreshes cache TTLs to prevent data loss
     'process-pending-embeds': {
