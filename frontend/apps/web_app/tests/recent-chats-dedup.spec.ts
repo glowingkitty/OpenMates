@@ -236,7 +236,7 @@ test('recent chats show no duplicates and resume card reflects last opened chat'
 }: {
 	page: any;
 }) => {
-	test.setTimeout(180000); // 3 minutes — two chats + navigation
+	test.setTimeout(300000); // 5 minutes — two AI chats + navigation + assertions
 
 	const logStep = createSignupLogger('RECENT_CHATS_DEDUP');
 	const takeStepScreenshot = createStepScreenshotter(logStep, {
@@ -260,6 +260,9 @@ test('recent chats show no duplicates and resume card reflects last opened chat'
 	// PHASE 2: Send message in chat A
 	// =========================================================================
 	logStep('Phase 2: Sending message in chat A...');
+	// Navigate to a clean new-chat screen first — after login the page may land
+	// on a demo/intro chat. We need a fresh editor.
+	await navigateToNewChat(page, logStep);
 	const chatIdA = await sendMessageAndGetChatId(
 		page,
 		'Test message alpha for recent chats dedup test',
