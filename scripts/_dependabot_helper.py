@@ -366,6 +366,7 @@ def process_alerts() -> None:
     session_title = f"security: dependabot {today_date}"
     cmd = [
         "opencode", "run",
+        "--attach", "http://localhost:4096",
         "--model", "anthropic/claude-sonnet-4-6",
         "--title", session_title,
         "--dir", project_root,

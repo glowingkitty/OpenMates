@@ -570,10 +570,15 @@ def start_opencode_analysis() -> None:
         .replace("{{FAILED_TESTS_JSON}}", failed_tests_json)
     )
 
-    # Build opencode command
+    # Build opencode command.
+    # --attach connects to the always-running opencode web server (port 4096).
+    # Without --attach, `opencode run` errors with "Session not found" because it
+    # expects a local server but doesn't start one in headless mode.
     session_title = f"test-failures {date_str}"
     cmd = [
         "opencode", "run",
+        "--attach", "http://localhost:4096",
+        "--agent", "plan",
         "--share",
         "--model", "anthropic/claude-sonnet-4-6",
         "--title", session_title,
@@ -599,19 +604,14 @@ def start_opencode_analysis() -> None:
 
         combined_output = result.stdout + result.stderr
 
-        # Extract share URL — opencode prints something like:
-        #   Shared: https://opencode.ai/s/<session-id>
-        # We look for that pattern and emit a parseable line.
+        # Extract share URL — opencode prints e.g.:
+        #   ~  https://opncd.ai/share/YQGOiKwS
         share_url = None
         for line in combined_output.splitlines():
-            line_stripped = line.strip()
-            # Match "Shared: https://..." or just a bare opencode.ai/s/ URL
-            if "opencode.ai/s/" in line_stripped:
-                # Extract the URL token
-                for token in line_stripped.split():
-                    if "opencode.ai/s/" in token:
-                        share_url = token.lstrip("Shared:").strip()
-                        break
+            for token in line.split():
+                if "opncd.ai/share/" in token:
+                    share_url = token.strip()
+                    break
             if share_url:
                 break
 

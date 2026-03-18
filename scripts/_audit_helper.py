@@ -248,6 +248,8 @@ def run_audit() -> None:
     session_title = f"audit: codebase health {today_date}"
     cmd = [
         "opencode", "run",
+        "--attach", "http://localhost:4096",
+        "--agent", "plan",
         "--share",
         "--model", "anthropic/claude-sonnet-4-6",
         "--title", session_title,
@@ -275,12 +277,10 @@ def run_audit() -> None:
         # Extract share URL
         share_url = None
         for line in combined_output.splitlines():
-            line_stripped = line.strip()
-            if "opencode.ai/s/" in line_stripped:
-                for token in line_stripped.split():
-                    if "opencode.ai/s/" in token:
-                        share_url = token.lstrip("Shared:").strip()
-                        break
+            for token in line.split():
+                if "opncd.ai/share/" in token:
+                    share_url = token.strip()
+                    break
             if share_url:
                 break
 
