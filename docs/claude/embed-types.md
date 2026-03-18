@@ -8,10 +8,12 @@ Rules for creating or modifying embed types. For full component skeletons and st
 ## Architecture
 
 Embeds appear in two places:
+
 1. **Preview card** — fixed-size card inline in messages (desktop: 300x200px, mobile: 150x290px)
 2. **Fullscreen panel** — slides in from preview, fills right panel
 
 Every embed uses two Svelte components wrapping two shared base components:
+
 - `XxxEmbedPreview.svelte` → wraps `UnifiedEmbedPreview.svelte`
 - `XxxEmbedFullscreen.svelte` → wraps `UnifiedEmbedFullscreen.svelte`
 
@@ -20,6 +22,7 @@ Every embed uses two Svelte components wrapping two shared base components:
 ### Use Unified Components — No Exceptions
 
 You MUST use `UnifiedEmbedPreview.svelte` and `UnifiedEmbedFullscreen.svelte` as the base. Your components only provide:
+
 - Preview: the `{#snippet details}` with skill-specific content
 - Fullscreen: the `{#snippet content}` with skill-specific results
 
@@ -45,6 +48,7 @@ Before adding custom logic, check if existing Unified component props handle it:
 ### Registration Checklist (App-Skill-Use)
 
 Files you MUST touch for every new app-skill-use embed:
+
 1. `theme.css` — add `--color-app-{appId}-start/end` (if new app)
 2. `static/icons/{skillIconName}.svg` — skill icon (if new icon)
 3. `embeds/{appId}/{SkillName}EmbedPreview.svelte` — preview component
@@ -55,6 +59,7 @@ Files you MUST touch for every new app-skill-use embed:
 8. `AppSkillUseRenderer.ts` — import + routing + render method
 9. `ActiveChat.svelte` — fullscreen dispatch case
 10. If groupable child embeds: also update `GroupRenderer.ts`
+11. **CLI text renderer** — add preview + fullscreen cases in `frontend/packages/openmates-cli/src/embedRenderers.ts` (preview in `renderEmbedPreview()` switch, fullscreen in `renderEmbedFullscreen()` switch). For app-skill-use embeds add a `case "{appId}/{skillId}":` entry; for direct-type embeds add a `case "{type}":` entry in `renderByDirectType()` / `renderDirectTypeFullscreen()`
 
 ### Design Rules
 

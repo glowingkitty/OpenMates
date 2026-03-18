@@ -19,6 +19,7 @@ import {
   type DecryptedEmbed,
 } from "./client.js";
 import type { StreamEvent } from "./ws.js";
+import { renderEmbedPreview, renderEmbedFullscreen } from "./embedRenderers.js";
 
 type CliArgs = {
   positionals: string[];
@@ -344,7 +345,31 @@ async function handleApps(
   const app = subcommand;
   const skill = rest[0];
   if (app && skill) {
-    const inputData = buildSkillInput(flags, rest.slice(1));
+    const inlineTokens = rest.slice(1);
+    const inputData = buildSkillInput(flags, inlineTokens);
+
+    // If the user didn't pass --input and the skill requires fields beyond
+    // just "query", show a helpful error with the --input flag syntax.
+    if (typeof flags.input !== "string" && inlineTokens.length > 0) {
+      try {
+        const params = await client.getSkillSchema(app, skill);
+        const required = params.filter((p) => p.required);
+        if (required.length > 1) {
+          // Skill needs more than just "query" — enforce --input
+          const example: Record<string, string> = {};
+          for (const p of required) example[p.name] = `<${p.name}>`;
+          console.error(
+            `This skill requires ${required.length} fields: ${required.map((p) => p.name).join(", ")}\n\n` +
+              `Use --input to provide all fields:\n` +
+              `  openmates apps ${app} ${skill} --input '{"requests": [${JSON.stringify(example)}]}'\n`,
+          );
+          process.exit(1);
+        }
+      } catch {
+        // Schema lookup failed — proceed with default behavior
+      }
+    }
+
     const data = await client.runSkill({ app, skill, inputData, apiKey });
     if (flags.json === true) {
       printJson(data);
@@ -414,7 +439,7 @@ async function handleEmbeds(
     if (flags.json === true) {
       printJson(embed);
     } else {
-      printEmbedDetail(embed);
+      await renderEmbedFullscreen(embed, client);
     }
     return;
   }
@@ -1015,7 +1040,7 @@ async function sendMessageStreaming(
       if (seg.type === "embed") {
         try {
           const embed = await client.getEmbed(seg.value);
-          await renderInlineEmbed(embed, client);
+          await renderEmbedPreview(embed, client);
         } catch {
           process.stdout.write(
             `\x1b[2m📎 openmates embeds show ${seg.value.slice(0, 8)}\x1b[0m\n`,
@@ -1045,9 +1070,12 @@ async function sendMessageStreaming(
 /**
  * Strip ```json embed blocks from content for clean streaming output.
  * These are rendered separately after the response completes.
+ * Also collapses multiple blank lines left after stripping.
  */
 function stripEmbedJsonBlocks(content: string): string {
-  return content.replace(/```(?:json_embed|json)\n[\s\S]*?\n```/g, "");
+  return content
+    .replace(/```(?:json_embed|json)\n[\s\S]*?\n```/g, "")
+    .replace(/\n{3,}/g, "\n\n");
 }
 
 function printIncognitoHistory(
@@ -1177,7 +1205,8 @@ async function printChatConversation(
     return;
   }
 
-  for (const msg of messages) {
+  for (let i = 0; i < messages.length; i++) {
+    const msg = messages[i];
     const msgTs = formatTimestamp(msg.createdAt);
 
     // ── Separator + sender header ──────────────────────────────────────────
@@ -1211,7 +1240,7 @@ async function printChatConversation(
         if (seg.type === "embed") {
           try {
             const embed = await client.getEmbed(seg.value);
-            await renderInlineEmbed(embed, client);
+            await renderEmbedPreview(embed, client);
           } catch {
             process.stdout.write(
               `\x1b[2m📎 openmates embeds show ${seg.value.slice(0, 8)}\x1b[0m\n`,
@@ -1224,13 +1253,18 @@ async function printChatConversation(
       }
     }
 
-    // User messages may have embeds from hashed_message_id lookup
-    // (files/images/etc the user attached) — show those after the text
+    // ── Skill embeds: render between user and assistant messages ───────
+    // The backend associates embeds with the user's message_id
+    // (hashed_message_id = SHA-256(user.client_message_id)), but visually
+    // they belong above the assistant's response — matching the web app.
+    // Render them after the user's text, before the next assistant message.
     if (msg.role === "user" && msg.embedIds.length > 0) {
+      // Separate user-attached embeds (files, images) from skill embeds.
+      // Skill embeds have app_id+skill_id; user attachments typically don't.
       for (const eid of msg.embedIds) {
         try {
           const embed = await client.getEmbed(eid);
-          await renderInlineEmbed(embed, client);
+          await renderEmbedPreview(embed, client);
         } catch {
           process.stdout.write(
             `\x1b[2m📎 openmates embeds show ${eid.slice(0, 8)}\x1b[0m\n`,
@@ -1247,398 +1281,8 @@ async function printChatConversation(
   );
 }
 
-/**
- * Render an embed inline within a chat message.
- * Mirrors the text content shown by each embed's preview component.
- *
- * Format:
- *   ┌─ 📎 web/search  · "best miro alternatives"  via Brave
- *   │  5 results
- *   │  • AFFiNE — https://github.com/toeverything/AFFiNE
- *   │    Open-source all-in-one workspace...
- *   │  • Excalidraw — https://excalidraw.com
- *   │  … and 3 more
- *   └─ openmates embeds show a3f2b1c4
- */
-async function renderInlineEmbed(
-  embed: DecryptedEmbed,
-  client: OpenMatesClient,
-): Promise<void> {
-  const shortId = embed.embedId.slice(0, 8);
-  const app = embed.appId ?? str(embed.content?.app_id) ?? "";
-  const skill = embed.skillId ?? str(embed.content?.skill_id) ?? "";
-  const label = skill ? `${app}/${skill}` : app || "embed";
-  const c = (embed.content ?? {}) as Record<string, unknown>;
-
-  // Build header suffix: query or title if available
-  const query = str(c.query) ?? str(c.search_query) ?? str(c.question);
-  const headerSuffix = query ? `  · "${query}"` : "";
-  const providerSuffix = str(c.provider) ? `  via ${str(c.provider)}` : "";
-
-  const ln = (s: string) => process.stdout.write(`\x1b[2m│  ${s}\x1b[0m\n`);
-  const indent = (s: string) =>
-    process.stdout.write(`\x1b[2m│    ${s}\x1b[0m\n`);
-
-  process.stdout.write(
-    `\x1b[2m┌─ 📎 ${label}${headerSuffix}${providerSuffix}  ${shortId}\x1b[0m\n`,
-  );
-
-  // ── web/search  ────────────────────────────────────────────────────────
-  // ── news/search ────────────────────────────────────────────────────────
-  // Both show: query, "via Provider", favicons row → N results, top-3 titles+URLs+snippets
-  // Architecture note: finished embeds store results as child embeds (embed_ids
-  // pipe-separated string) rather than inline results array — load them here.
-  if ((app === "web" || app === "news") && skill === "search") {
-    const inlineResults = c.results as
-      | Array<Record<string, unknown>>
-      | undefined;
-    if (Array.isArray(inlineResults) && inlineResults.length > 0) {
-      renderSearchResults(inlineResults, ln, indent);
-    } else {
-      // Load child embeds from embed_ids
-      const rawIds = c.embed_ids;
-      const childIds: string[] =
-        typeof rawIds === "string"
-          ? rawIds.split("|").filter(Boolean)
-          : Array.isArray(rawIds)
-            ? (rawIds as string[])
-            : [];
-      if (childIds.length > 0) {
-        const childResults: Array<Record<string, unknown>> = [];
-        for (const cid of childIds) {
-          try {
-            const child = await client.getEmbed(cid);
-            const cc = (child.content ?? {}) as Record<string, unknown>;
-            childResults.push({
-              title: str(cc.title) ?? str(cc.name),
-              url: str(cc.url) ?? str(cc.link),
-              description:
-                str(cc.description) ?? str(cc.snippet) ?? str(cc.summary),
-            });
-          } catch {
-            // skip unresolvable child embeds silently
-          }
-        }
-        renderSearchResults(childResults, ln, indent);
-      } else {
-        ln("No results");
-      }
-    }
-  }
-
-  // ── maps/search ────────────────────────────────────────────────────────
-  // Shows: query, "via Google", N places, top-3 with name+address+rating
-  else if (app === "maps" && skill === "search") {
-    const results = c.results as Array<Record<string, unknown>> | undefined;
-    if (Array.isArray(results) && results.length > 0) {
-      ln(`${results.length} place${results.length !== 1 ? "s" : ""}`);
-      for (const r of results.slice(0, 3)) {
-        const name = str(r.displayName) ?? str(r.name) ?? "";
-        const address = str(r.formattedAddress) ?? str(r.address) ?? "";
-        const rating = typeof r.rating === "number" ? ` ★ ${r.rating}` : "";
-        if (name) indent(`${name}${rating}`);
-        if (address) indent(`  ${address}`);
-      }
-      if (results.length > 3) indent(`… and ${results.length - 3} more`);
-    } else {
-      ln("No places found");
-    }
-  }
-
-  // ── travel/search_connections ──────────────────────────────────────────
-  // Shows: route summary, trip date, N connections, from-price
-  else if (app === "travel" && skill === "search_connections") {
-    const results = c.results as Array<Record<string, unknown>> | undefined;
-    const embedIds = c.embed_ids as string[] | string | undefined;
-    const count =
-      c.result_count ??
-      (Array.isArray(results) ? results.length : null) ??
-      (typeof embedIds === "string"
-        ? embedIds.split("|").filter(Boolean).length
-        : null) ??
-      (Array.isArray(embedIds) ? embedIds.length : 0);
-    if (count) ln(`${count} connection${count !== 1 ? "s" : ""}`);
-    // Show top results if available in content
-    if (Array.isArray(results) && results.length > 0) {
-      for (const r of results.slice(0, 3)) {
-        const price = str(r.price);
-        const currency = str(r.currency) ?? "";
-        const origin = str(r.origin);
-        const dest = str(r.destination);
-        const duration = str(r.duration);
-        const stops =
-          typeof r.stops === "number"
-            ? r.stops === 0
-              ? "Direct"
-              : `${r.stops} stop${r.stops !== 1 ? "s" : ""}`
-            : null;
-        const carrier =
-          Array.isArray(r.carriers) && r.carriers.length > 0
-            ? String(r.carriers[0])
-            : null;
-        if (origin && dest)
-          indent(`${origin} → ${dest}${duration ? `  ${duration}` : ""}`);
-        if (price)
-          indent(
-            `  ${currency} ${price}${stops ? `  ${stops}` : ""}${carrier ? `  ${carrier}` : ""}`,
-          );
-      }
-    }
-  }
-
-  // ── travel/connection (individual flight) ──────────────────────────────
-  else if (app === "travel" && skill === "connection") {
-    const price = str(c.price);
-    const currency = str(c.currency) ?? "";
-    const origin = str(c.origin);
-    const dest = str(c.destination);
-    const dep = str(c.departure)?.slice(11, 16); // HH:MM
-    const arr = str(c.arrival)?.slice(11, 16);
-    const duration = str(c.duration);
-    const stops =
-      typeof c.stops === "number"
-        ? c.stops === 0
-          ? "Direct"
-          : `${c.stops} stop${c.stops !== 1 ? "s" : ""}`
-        : null;
-    const carrier =
-      Array.isArray(c.carriers) && c.carriers.length > 0
-        ? String(c.carriers[0])
-        : null;
-    if (origin && dest) ln(`${origin} → ${dest}`);
-    if (dep && arr) ln(`${dep} – ${arr}${duration ? `  (${duration})` : ""}`);
-    if (price)
-      ln(
-        `${currency} ${price}${stops ? `  · ${stops}` : ""}${carrier ? `  · ${carrier}` : ""}`,
-      );
-  }
-
-  // ── sheets/sheet ───────────────────────────────────────────────────────
-  // Shows: title, NxM dimensions, first few rows of markdown table
-  else if (app === "sheets" || embed.type === "sheet") {
-    const title = str(c.title);
-    const rowCount = c.row_count ?? c.rows;
-    const colCount = c.col_count ?? c.cols;
-    if (title) ln(title);
-    if (rowCount && colCount)
-      ln(`${String(rowCount)} rows × ${String(colCount)} columns`);
-    // Render first 4 rows of the markdown table
-    const table = str(c.table) ?? str(c.code) ?? str(c.content);
-    if (table) {
-      const rows = table
-        .split("\n")
-        .filter((l) => l.trim().startsWith("|"))
-        .slice(0, 5);
-      for (const row of rows) {
-        indent(row.slice(0, 100));
-      }
-    }
-  }
-
-  // ── code/get_docs ─────────────────────────────────────────────────────
-  // Shows: library ID (monospace), question, "via Context7", word count
-  else if (app === "code" && skill === "get_docs") {
-    const results = c.results as Array<Record<string, unknown>> | undefined;
-    const first = Array.isArray(results) ? results[0] : null;
-    const libId =
-      (first?.library as Record<string, unknown>)?.id ??
-      first?.library_id ??
-      str(c.library);
-    const wordCount = first?.word_count;
-    const docs = str((first?.documentation as string) ?? "");
-    if (libId) ln(`Library: ${String(libId)}`);
-    if (wordCount) ln(`${String(wordCount)} words  via Context7`);
-    if (docs) {
-      // First ~200 chars of documentation, stripped of markdown headings
-      const preview = docs.replace(/^#+\s+/gm, "").slice(0, 200);
-      indent(preview + (docs.length > 200 ? "…" : ""));
-    }
-  }
-
-  // ── reminder/set-reminder ─────────────────────────────────────────────
-  // Shows: prompt (3 lines), trigger_at_formatted, target_type, repeating
-  else if (app === "reminder") {
-    const prompt = str(c.prompt) ?? str(c.message);
-    const time = str(c.trigger_at_formatted) ?? str(c.trigger_at);
-    const target = str(c.target_type);
-    const repeat = c.is_repeating === true;
-    if (prompt) {
-      const lines = prompt.split("\n").slice(0, 3);
-      for (const l of lines) if (l.trim()) ln(`"${l.trim().slice(0, 80)}"`);
-    }
-    if (time) ln(`🕑 ${time}`);
-    if (target)
-      ln(target === "new_chat" ? "Opens new chat" : "Continues this chat");
-    if (repeat) ln("Repeating");
-  }
-
-  // ── images/generate ───────────────────────────────────────────────────
-  // Shows: model, prompt — image is binary so we can't display it
-  else if (app === "images") {
-    const prompt = str(c.prompt);
-    const model = str(c.model);
-    if (model) ln(`Model: ${model}`);
-    if (prompt)
-      ln(`Prompt: ${prompt.slice(0, 120)}${prompt.length > 120 ? "…" : ""}`);
-    ln(`[image — use 'openmates embeds show ${shortId}' for details]`);
-  }
-
-  // ── pdf/read ─────────────────────────────────────────────────────────
-  // Shows: filename, pages info, first ~160 chars of extracted text
-  else if (app === "pdf") {
-    const filename = str(c.filename);
-    const results = c.results as Array<Record<string, unknown>> | undefined;
-    const pages =
-      c.pages_returned ??
-      (Array.isArray(results) && results[0] ? results[0].pages_returned : null);
-    const pageCount = c.page_count;
-    const text = str(
-      Array.isArray(results) && results[0]?.content
-        ? String(results[0].content)
-        : "",
-    );
-    if (filename) ln(filename);
-    if (pages)
-      ln(
-        `Pages: ${Array.isArray(pages) ? pages.join(", ") : String(pages)}${pageCount ? ` of ${String(pageCount)}` : ""}`,
-      );
-    if (text) {
-      // Strip markdown, first ~160 chars
-      const preview = text
-        .replace(/#{1,6}\s+/g, "")
-        .replace(/[*_`]/g, "")
-        .slice(0, 160);
-      indent(preview + (text.length > 160 ? "…" : ""));
-    }
-  }
-
-  // ── docs/doc ──────────────────────────────────────────────────────────
-  else if (app === "docs") {
-    const title = str(c.title) ?? str(c.filename);
-    const wordCount = c.word_count;
-    const html = str(c.html);
-    if (title) ln(title);
-    if (wordCount) ln(`${String(wordCount)} words`);
-    if (html) {
-      // Strip HTML tags for text preview
-      const preview = html
-        .replace(/<[^>]+>/g, " ")
-        .replace(/\s+/g, " ")
-        .trim()
-        .slice(0, 200);
-      indent(preview + (html.length > 200 ? "…" : ""));
-    }
-  }
-
-  // ── text_preview fallback for group/unknown embeds ────────────────────
-  else if (embed.textPreview) {
-    const lines = embed.textPreview.split("\n").slice(0, 5);
-    for (const l of lines) if (l.trim()) ln(l.slice(0, 100));
-  }
-
-  // ── generic key-value for truly unknown types ─────────────────────────
-  else {
-    let count = 0;
-    for (const [k, v] of Object.entries(c)) {
-      if (count >= 4) break;
-      if (
-        v !== null &&
-        v !== undefined &&
-        typeof v !== "object" &&
-        !k.startsWith("_")
-      ) {
-        ln(`${k}: ${String(v).slice(0, 80)}`);
-        count++;
-      }
-    }
-  }
-
-  process.stdout.write(`\x1b[2m└─ openmates embeds show ${shortId}\x1b[0m\n`);
-}
-
-/** Shared search renderer for web/search and news/search.
- * Accepts a pre-resolved array of result objects (with title/url/description). */
-function renderSearchResults(
-  results: Array<Record<string, unknown>>,
-  ln: (s: string) => void,
-  indent: (s: string) => void,
-): void {
-  if (results.length === 0) {
-    ln("No results");
-    return;
-  }
-  ln(`${results.length} result${results.length !== 1 ? "s" : ""}`);
-  for (const r of results.slice(0, 3)) {
-    const title = str(r.title) ?? str(r.name) ?? str(r.headline);
-    const url = str(r.url) ?? str(r.link);
-    const snippet = str(r.description) ?? str(r.snippet) ?? str(r.summary);
-    if (title)
-      indent(`\x1b[0m\x1b[2m${title}\x1b[0m\x1b[2m${url ? `  ${url}` : ""}`);
-    else if (url) indent(url);
-    if (snippet)
-      indent(`  ${snippet.slice(0, 100)}${snippet.length > 100 ? "…" : ""}`);
-  }
-  if (results.length > 3) indent(`… and ${results.length - 3} more`);
-}
-
-/**
- * Render embed detail view.
- */
-function printEmbedDetail(embed: DecryptedEmbed): void {
-  header(`Embed  \x1b[2m${embed.embedId.slice(0, 8)}\x1b[0m`);
-  console.log();
-
-  if (embed.type) kv("Type", embed.type);
-  if (embed.appId) kv("App", embed.appId);
-  if (embed.skillId) kv("Skill", embed.skillId);
-  if (embed.createdAt) kv("Created", formatTimestamp(embed.createdAt));
-  console.log();
-
-  if (embed.textPreview) {
-    header("Preview");
-    console.log(embed.textPreview);
-    console.log();
-  }
-
-  if (embed.content) {
-    header("Content");
-    // Render content fields in a readable way
-    for (const [k, v] of Object.entries(embed.content)) {
-      if (v === null || v === undefined) continue;
-      if (typeof v === "string") {
-        if (v.length > 200) {
-          kv(k, v.slice(0, 200) + "…", 20);
-        } else {
-          kv(k, v, 20);
-        }
-      } else if (Array.isArray(v)) {
-        kv(k, `[${v.length} items]`, 20);
-        // Show first 3 items briefly
-        for (const item of v.slice(0, 3)) {
-          if (item && typeof item === "object") {
-            const label =
-              (item as Record<string, unknown>).title ??
-              (item as Record<string, unknown>).name ??
-              (item as Record<string, unknown>).url ??
-              JSON.stringify(item).slice(0, 80);
-            process.stdout.write(`    \x1b[2m• ${String(label)}\x1b[0m\n`);
-          } else {
-            process.stdout.write(`    \x1b[2m• ${String(item)}\x1b[0m\n`);
-          }
-        }
-        if (v.length > 3) {
-          process.stdout.write(
-            `    \x1b[2m  ... and ${v.length - 3} more\x1b[0m\n`,
-          );
-        }
-      } else if (typeof v === "object") {
-        kv(k, JSON.stringify(v).slice(0, 120), 20);
-      } else {
-        kv(k, String(v), 20);
-      }
-    }
-  }
-}
+// Legacy renderInlineEmbed and printEmbedDetail removed — replaced by
+// renderEmbedPreview() and renderEmbedFullscreen() in embedRenderers.ts.
 
 // ---------------------------------------------------------------------------
 // Apps renderers
