@@ -73,16 +73,34 @@ def strip_html_tags(text: str) -> str:
     return cleaned
 
 
+class WebSearchRequestItem(BaseModel):
+    """A single web search request."""
+
+    query: str = Field(description="Search query string (e.g. 'Python async', 'FastAPI best practices').")
+    count: int = Field(default=10, description="Number of results for this request (max 20).")
+    country: Optional[str] = Field(
+        default=None,
+        description="Country code for localized results (e.g. 'US', 'DE', 'GB'). Defaults to 'us'.",
+    )
+    search_lang: Optional[str] = Field(
+        default=None,
+        description="Language code for search (e.g. 'en', 'de', 'fr'). Defaults to 'en'.",
+    )
+    safesearch: Optional[str] = Field(
+        default=None,
+        description="Safe search setting: 'off', 'moderate', or 'strict'.",
+    )
+
+
 class SearchRequest(BaseModel):
     """
     Request model for web search skill.
     Always uses 'requests' array format for consistency and parallel processing support.
     Each request specifies its own parameters with defaults defined in the tool_schema.
     """
-    # Multiple queries (standard format per REST API architecture)
-    requests: List[Dict[str, Any]] = Field(
+    requests: List[WebSearchRequestItem] = Field(
         ...,
-        description="Array of search request objects. Each object must contain 'query' and can include optional parameters (count, country, search_lang, safesearch) with defaults from schema."
+        description="Array of web search request objects. Each object must contain 'query' and can include optional parameters (count, country, search_lang, safesearch)."
     )
 
 

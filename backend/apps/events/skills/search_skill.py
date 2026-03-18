@@ -92,6 +92,48 @@ _AUTO_PROVIDER_MULTIPLIER = 2
 # ---------------------------------------------------------------------------
 
 
+class SearchRequestItem(BaseModel):
+    """A single event search request."""
+
+    query: str = Field(
+        description="Topic or theme of events to search for (e.g. 'AI', 'Python', 'hackathon', "
+        "'startup', 'networking'). Do NOT include platform names like 'meetup' or 'luma'."
+    )
+    location: Optional[str] = Field(
+        default=None,
+        description="City name or 'city, country' string (e.g. 'Berlin, Germany', 'New York'). "
+        "Used if lat/lon are not provided.",
+    )
+    lat: Optional[float] = Field(
+        default=None,
+        description="Latitude of search center (decimal degrees). Overrides location string if provided.",
+    )
+    lon: Optional[float] = Field(
+        default=None,
+        description="Longitude of search center (decimal degrees). Overrides location string if provided.",
+    )
+    start_date: Optional[str] = Field(
+        default=None,
+        description="Start of date range in ISO 8601 format. Defaults to now if omitted.",
+    )
+    end_date: Optional[str] = Field(
+        default=None,
+        description="End of date range in ISO 8601 format. No upper bound if omitted.",
+    )
+    event_type: Optional[str] = Field(
+        default=None,
+        description="Filter by event type: 'PHYSICAL' (default for city searches) or 'ONLINE' (virtual events).",
+    )
+    radius_miles: float = Field(
+        default=25,
+        description="Search radius in miles from the center coordinates (default: 25, ~40 km). Only for PHYSICAL events.",
+    )
+    count: int = Field(
+        default=10,
+        description="Maximum number of events to return (default: 10, max: 50).",
+    )
+
+
 class SearchRequest(BaseModel):
     """
     Request model for event search skill.
@@ -100,12 +142,11 @@ class SearchRequest(BaseModel):
     Each request specifies its own parameters; defaults are defined in tool_schema.
     """
 
-    requests: List[Dict[str, Any]] = Field(
+    requests: List[SearchRequestItem] = Field(
         ...,
         description=(
-            "Array of search request objects. Each object must contain 'query' "
-            "and 'location' (or 'lat'/'lon'). Optional parameters: provider "
-            "(auto|meetup|luma, default auto), start_date, end_date, event_type, "
+            "Array of event search request objects. Each object must contain 'query' "
+            "and 'location' (or 'lat'/'lon'). Optional: start_date, end_date, event_type, "
             "radius_miles, count."
         ),
     )

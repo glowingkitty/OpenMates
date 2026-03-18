@@ -33,12 +33,59 @@ logger = logging.getLogger(__name__)
 # Pydantic request/response models
 # ---------------------------------------------------------------------------
 
+class LegItem(BaseModel):
+    """A single leg of a trip (origin → destination on a specific date)."""
+
+    origin: str = Field(
+        description="Origin city or location name (e.g. 'Munich', 'London Heathrow', 'Berlin'). "
+        "The system resolves this to airport codes or coordinates internally."
+    )
+    destination: str = Field(description="Destination city or location name.")
+    date: str = Field(description="Departure date in YYYY-MM-DD format.")
+
+
+class SearchConnectionsRequestItem(BaseModel):
+    """A single connection search request (one-way, round trip, or multi-stop)."""
+
+    legs: List[LegItem] = Field(
+        description="Ordered list of trip legs. One-way trip = 1 leg. "
+        "Round trip = 2 legs (outbound + return). Multi-stop = N legs."
+    )
+    transport_methods: List[str] = Field(
+        default=["airplane"],
+        description="Transport types to search. Currently supported: ['airplane']. "
+        "Future: 'train', 'bus', 'boat'.",
+    )
+    passengers: int = Field(default=1, description="Number of adult passengers.")
+    travel_class: str = Field(
+        default="economy",
+        description="Cabin class for flights. One of: economy, premium_economy, business, first.",
+    )
+    max_results: int = Field(
+        default=6,
+        description="Maximum number of connection options to return per transport method.",
+    )
+    non_stop_only: bool = Field(
+        default=False,
+        description="If true, only return direct/non-stop connections.",
+    )
+    currency: str = Field(
+        default="EUR",
+        description="Preferred currency for prices (ISO 4217 code).",
+    )
+    sort_by: str = Field(
+        default="price_asc",
+        description="How to sort the results. Options: price_asc, price_desc, duration_asc, "
+        "duration_desc, departure_asc, departure_desc, stops_asc, stops_desc.",
+    )
+
+
 class SearchConnectionsRequest(BaseModel):
     """Incoming request payload for the search_connections skill."""
 
-    requests: List[Dict[str, Any]] = Field(
-        description="Array of connection search request objects, each with 'legs', "
-        "'transport_methods', 'passengers', 'travel_class', etc."
+    requests: List[SearchConnectionsRequestItem] = Field(
+        description="Array of connection search requests. Each request searches for "
+        "transport connections for a complete trip (one-way, round trip, or multi-stop)."
     )
 
 

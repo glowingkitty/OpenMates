@@ -8,9 +8,7 @@
 
 import logging
 import os
-import json
 import yaml
-import asyncio
 from typing import Dict, Any, List, Optional, Tuple
 from pydantic import BaseModel, Field
 from celery import Celery  # For Celery type hinting
@@ -33,16 +31,38 @@ TABLOID_FILTER_OVER_REQUEST_COUNT = 15
 DEFAULT_RESULT_COUNT = 10
 
 
+class NewsSearchRequestItem(BaseModel):
+    """A single news search request."""
+
+    query: str = Field(description="Search query string (e.g. 'AI news', 'Tesla earnings').")
+    count: int = Field(default=10, description="Number of results for this request (max 20).")
+    country: Optional[str] = Field(
+        default=None,
+        description="Country code for localized results (e.g. 'US', 'DE', 'GB'). Defaults to 'us' if invalid.",
+    )
+    search_lang: Optional[str] = Field(
+        default=None,
+        description="Language code for search (e.g. 'en', 'de', 'fr'). Defaults to 'en'.",
+    )
+    safesearch: Optional[str] = Field(
+        default=None,
+        description="Safe search setting: 'off', 'moderate', or 'strict'.",
+    )
+    freshness: Optional[str] = Field(
+        default=None,
+        description="Filter by recency: 'pd' (past day), 'pw' (past week), 'pm' (past month).",
+    )
+
+
 class SearchRequest(BaseModel):
     """
     Request model for news search skill.
     Always uses 'requests' array format for consistency and parallel processing support.
     Each request specifies its own parameters with defaults defined in the tool_schema.
     """
-    # Multiple queries (standard format per REST API architecture)
-    requests: List[Dict[str, Any]] = Field(
+    requests: List[NewsSearchRequestItem] = Field(
         ...,
-        description="Array of search request objects. Each object must contain 'query' and can include optional parameters (count, country, search_lang, safesearch) with defaults from schema."
+        description="Array of news search request objects. Each object must contain 'query' and can include optional parameters (count, country, search_lang, safesearch, freshness)."
     )
 
 
@@ -248,12 +268,12 @@ class SearchSkill(BaseSkill):
                         logger.debug(f"Loaded {len(self.suggestions_follow_up_requests)} follow-up suggestions from app.yml")
                         return
                     else:
-                        logger.warning(f"Follow-up suggestions not found or invalid in app.yml for search skill, suggestions_follow_up_requests will be empty")
+                        logger.warning("Follow-up suggestions not found or invalid in app.yml for search skill, suggestions_follow_up_requests will be empty")
                         self.suggestions_follow_up_requests = []
                         return
             
             # If search skill not found
-            logger.error(f"Search skill not found in app.yml, suggestions_follow_up_requests will be empty")
+            logger.error("Search skill not found in app.yml, suggestions_follow_up_requests will be empty")
             self.suggestions_follow_up_requests = []
             
         except Exception as e:
@@ -292,7 +312,7 @@ class SearchSkill(BaseSkill):
         # Extract query and parameters from request
         search_query = req.get("query") or req.get("q")
         if not search_query:
-            return (request_id, [], f"Missing 'query' parameter")
+            return (request_id, [], "Missing 'query' parameter")
         
         # Extract request-specific parameters (with defaults from schema)
         req_count = req.get("count", DEFAULT_RESULT_COUNT)  # Default from schema
@@ -371,7 +391,7 @@ class SearchSkill(BaseSkill):
                         celery_producer=celery_producer,
                         celery_task_context=celery_task_context
                     )
-                except Exception as e:
+                except Exception:
                     # Re-raise exceptions from wait_for_rate_limit (e.g., RateLimitScheduledException)
                     # These should bubble up to the route handler
                     raise

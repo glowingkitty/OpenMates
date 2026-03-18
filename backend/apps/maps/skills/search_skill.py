@@ -24,16 +24,45 @@ from backend.core.api.app.services.cache import CacheService
 logger = logging.getLogger(__name__)
 
 
+class MapSearchRequestItem(BaseModel):
+    """A single maps/places search request."""
+
+    query: str = Field(
+        description="Text query string to search for places (e.g. 'restaurants in Berlin', 'museums near Times Square')."
+    )
+    pageSize: int = Field(default=10, description="Number of results to return per request (max 20).")
+    languageCode: str = Field(default="en", description="Language code for results (ISO 639-1, e.g. 'en', 'es', 'fr', 'de').")
+    locationBias: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Optional location bias (circle with center+radius, or rectangle viewport).",
+    )
+    includedType: Optional[str] = Field(
+        default=None,
+        description="Filter results by place type (e.g. 'restaurant', 'museum', 'hotel').",
+    )
+    minRating: Optional[float] = Field(
+        default=None,
+        description="Minimum rating filter (0.0 to 5.0).",
+    )
+    openNow: Optional[bool] = Field(
+        default=None,
+        description="If true, only return places that are currently open.",
+    )
+    includeReviews: Optional[bool] = Field(
+        default=None,
+        description="If true, include reviews in the results.",
+    )
+
+
 class SearchRequest(BaseModel):
     """
     Request model for maps search skill.
     Always uses 'requests' array format for consistency and parallel processing support.
     Each request specifies its own parameters with defaults defined in the tool_schema.
     """
-    # Multiple queries (standard format per REST API architecture)
-    requests: List[Dict[str, Any]] = Field(
+    requests: List[MapSearchRequestItem] = Field(
         ...,
-        description="Array of search request objects. Each object must contain 'query' and can include optional parameters (pageSize, languageCode, locationBias, includedType, minRating, openNow, includeReviews) with defaults from schema."
+        description="Array of map search request objects. Each object must contain 'query' and can include optional parameters (pageSize, languageCode, locationBias, includedType, minRating, openNow, includeReviews)."
     )
 
 

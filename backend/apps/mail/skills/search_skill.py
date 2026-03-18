@@ -37,14 +37,31 @@ from backend.shared.providers.protonmail.protonmail_bridge import (
 logger = logging.getLogger(__name__)
 
 
+class MailSearchRequestItem(BaseModel):
+    """A single mail search request."""
+
+    query: Optional[str] = Field(
+        default=None,
+        description="Optional search text (subject/from/body). Empty means recent-first listing.",
+    )
+    mailbox: Optional[str] = Field(
+        default=None,
+        description="Optional mailbox name (defaults to INBOX).",
+    )
+    limit: int = Field(
+        default=10,
+        description="Maximum number of email results to return (1-50, default 10).",
+    )
+
+
 class SearchRequest(BaseModel):
     """Request model for mail search skill."""
 
-    requests: List[Dict[str, Any]] = Field(
+    requests: List[MailSearchRequestItem] = Field(
         ...,
         description=(
-            "Array of request objects. Each request can include optional query, mailbox, and limit. "
-            "If query is missing or empty, the newest emails are returned first."
+            "Array of mail search request objects. Each request can include optional query, "
+            "mailbox, and limit. If query is missing or empty, the newest emails are returned first."
         ),
     )
 

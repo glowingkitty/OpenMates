@@ -1656,9 +1656,7 @@ function buildExampleValue(
   if (name === "check_in_date") return "2026-04-15";
   if (name === "check_out_date") return "2026-04-18";
   if (name === "legs") {
-    return [
-      { origin: "BER", destination: "LHR", departure_date: "2026-04-15" },
-    ];
+    return [{ origin: "BER", destination: "LHR", date: "2026-04-15" }];
   }
   if (type.startsWith("array")) {
     // Try to infer item structure from description
@@ -1670,7 +1668,7 @@ function buildExampleValue(
         {
           origin: "<IATA>",
           destination: "<IATA>",
-          departure_date: "YYYY-MM-DD",
+          date: "YYYY-MM-DD",
         },
       ];
     }

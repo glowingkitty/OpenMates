@@ -30,12 +30,37 @@ logger = logging.getLogger(__name__)
 # Pydantic request/response models
 # ---------------------------------------------------------------------------
 
+class SearchStaysRequestItem(BaseModel):
+    """A single accommodation search request."""
+
+    query: str = Field(
+        description="Search query describing the destination or property "
+        "(e.g. 'Hotels in Paris', 'Hostels near Eiffel Tower', 'Barcelona beachfront hotel')."
+    )
+    check_in_date: str = Field(description="Check-in date in YYYY-MM-DD format (e.g. '2026-03-15').")
+    check_out_date: str = Field(description="Check-out date in YYYY-MM-DD format (e.g. '2026-03-18').")
+    adults: int = Field(default=2, description="Number of adult guests.")
+    children: int = Field(default=0, description="Number of children.")
+    currency: str = Field(default="EUR", description="Price currency (ISO 4217 code, e.g. 'EUR', 'USD').")
+    sort_by: str = Field(
+        default="relevance",
+        description="Sort order for results. Options: 'relevance' (default), 'price_asc', 'rating_desc', 'reviews_desc'.",
+    )
+    min_price: Optional[float] = Field(default=None, description="Minimum nightly price filter.")
+    max_price: Optional[float] = Field(default=None, description="Maximum nightly price filter.")
+    hotel_class: Optional[str] = Field(
+        default=None,
+        description="Comma-separated star rating filter (e.g. '3,4,5' for 3-star and above).",
+    )
+    max_results: int = Field(default=10, description="Maximum number of results to return.")
+
+
 class SearchStaysRequest(BaseModel):
     """Incoming request payload for the search_stays skill."""
 
-    requests: List[Dict[str, Any]] = Field(
-        description="Array of stay search request objects, each with 'query', "
-        "'check_in_date', 'check_out_date', 'adults', etc."
+    requests: List[SearchStaysRequestItem] = Field(
+        description="Array of stay search requests. Each request searches for "
+        "accommodation at a specific destination for given dates."
     )
 
 

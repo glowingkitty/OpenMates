@@ -441,7 +441,15 @@ class BaseApp:
                         if first_param and 'List' in str(first_param.annotation):
                             # Execute method expects a list - extract requests from Pydantic model
                             if hasattr(request_obj, 'requests'):
-                                response = await skill_instance.execute(request_obj.requests, secrets_manager=None, **supported_skill_kwargs)
+                                # Serialize typed Pydantic items to plain dicts so execute()
+                                # can use .get() on each item regardless of whether the
+                                # requests field uses List[Dict] or List[SomeModel].
+                                raw_requests = request_obj.requests
+                                serialized_requests = [
+                                    r.model_dump() if hasattr(r, 'model_dump') else r
+                                    for r in raw_requests
+                                ]
+                                response = await skill_instance.execute(serialized_requests, secrets_manager=None, **supported_skill_kwargs)
                             else:
                                 # Fallback: try to pass the model and let the skill handle it
                                 response = await skill_instance.execute(request_obj, **supported_skill_kwargs)

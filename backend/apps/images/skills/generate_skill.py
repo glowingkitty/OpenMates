@@ -30,26 +30,35 @@ from backend.apps.ai.processing.celery_helpers import execute_skill_via_celery
 logger = logging.getLogger(__name__)
 
 
+class ImageGenerationRequestItem(BaseModel):
+    """A single image generation request."""
+
+    prompt: str = Field(description="Text description of the image to generate.")
+    aspect_ratio: str = Field(
+        default="1:1",
+        description="Aspect ratio of the generated image (e.g. '1:1', '16:9', '9:16'). Defaults to '1:1'.",
+    )
+    output_filetype: str = Field(
+        default="png",
+        description="Output file type: 'png', 'jpg', or 'svg'. Use 'svg' for scalable vector graphics via Recraft V4.",
+    )
+    quality: str = Field(
+        default="default",
+        description="Quality/model tier: 'default' or 'max'. Only relevant for svg and recraft raster models.",
+    )
+    reference_images: Optional[List[str]] = Field(
+        default=None,
+        description="List of embed_ref filenames to use as visual references (enables image-to-image editing).",
+    )
+
+
 class ImageGenerationRequest(BaseModel):
     """
     Request model for image generation skill.
     Supports multiple generation requests in a single call.
-
-    Each item in 'requests' may include:
-      - prompt           (required): Text description of the image.
-      - aspect_ratio     (optional): "1:1", "16:9", etc. Defaults to "1:1".
-      - output_filetype  (optional): "png", "jpg", or "svg". Defaults to "png".
-                           Use "svg" to generate scalable vector graphics via Recraft V4.
-      - quality          (optional): "default" or "max". Controls model tier:
-                           For svg:   "default" → recraftv4_vector (100 cr), "max" → recraftv4_pro_vector (300 cr)
-                           For raster with recraft model: "default" → recraftv4 (50 cr), "max" → recraftv4_pro (250 cr)
-                           For other raster models (google, flux): quality is ignored.
-      - reference_images (optional): List of embed_ref filenames (e.g. ["photo.jpg"]) to use as
-                           visual references. Resolved server-side via file_path_index.
-                           Enables image-to-image editing when provided.
     """
 
-    requests: List[Dict[str, Any]] = Field(
+    requests: List[ImageGenerationRequestItem] = Field(
         ...,
         description=(
             "Array of image generation request objects. Each object must contain 'prompt' "

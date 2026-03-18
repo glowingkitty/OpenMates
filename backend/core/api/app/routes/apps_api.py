@@ -2244,7 +2244,47 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                 elif schema_type == "boolean":
                                     prop_type = bool
                                 elif schema_type == "array":
-                                    prop_type = List[Any]
+                                    # If the array items are objects with known properties,
+                                    # create a nested Pydantic model for the items so that
+                                    # the CLI's getSkillSchema() can resolve $ref and show
+                                    # the full nested field structure (e.g. legs → origin/destination/date).
+                                    array_items_schema = prop_schema.get("items", {})
+                                    if (
+                                        array_items_schema.get("type") == "object"
+                                        and "properties" in array_items_schema
+                                    ):
+                                        nested_field_defs = {}
+                                        nested_required = set(array_items_schema.get("required", []))
+                                        for nested_name, nested_prop in array_items_schema["properties"].items():
+                                            n_type = nested_prop.get("type")
+                                            if n_type == "string":
+                                                n_py_type = str
+                                            elif n_type == "integer":
+                                                n_py_type = int
+                                            elif n_type == "boolean":
+                                                n_py_type = bool
+                                            elif n_type == "number":
+                                                n_py_type = float
+                                            else:
+                                                n_py_type = Any
+                                            n_desc = nested_prop.get("description", "")
+                                            n_default = nested_prop.get("default")
+                                            if nested_name in nested_required:
+                                                nested_field_defs[nested_name] = (n_py_type, Field(..., description=n_desc))
+                                            elif n_default is not None:
+                                                nested_field_defs[nested_name] = (n_py_type, Field(default=n_default, description=n_desc))
+                                            else:
+                                                nested_field_defs[nested_name] = (Optional[n_py_type], Field(default=None, description=n_desc))
+                                        if nested_field_defs:
+                                            NestedItemModel = create_model(
+                                                f"NestedItem_{captured_app_id}_{captured_skill.id}_{prop_name}",
+                                                **nested_field_defs
+                                            )
+                                            prop_type = List[NestedItemModel]
+                                        else:
+                                            prop_type = List[Any]
+                                    else:
+                                        prop_type = List[Any]
                                 
                                 # Check if field is required
                                 is_required = prop_name in requests_items_schema.get("required", [])

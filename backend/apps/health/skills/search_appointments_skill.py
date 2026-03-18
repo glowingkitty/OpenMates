@@ -187,12 +187,44 @@ DEFAULT_MAX_DOCTORS = 10
 # ---------------------------------------------------------------------------
 
 
+class SearchAppointmentsRequestItem(BaseModel):
+    """A single appointment search request."""
+
+    speciality: str = Field(
+        description="Doctor speciality or type (e.g. 'augenarzt', 'hautarzt', 'zahnarzt', "
+        "'ophthalmologist', 'dermatologist', 'general_practitioner', 'dentist', 'cardiologist')."
+    )
+    city: str = Field(
+        description="City where to search for appointments (e.g. 'Berlin', 'München', 'Munich', 'Hamburg')."
+    )
+    provider_platform: str = Field(
+        default="doctolib_de",
+        description="Booking platform to search. Currently supported: 'doctolib_de' (Doctolib Germany).",
+    )
+    insurance_sector: Optional[str] = Field(
+        default=None,
+        description="Insurance type filter: 'public' (GKV) or 'private' (PKV). Omit for all types.",
+    )
+    telehealth: bool = Field(
+        default=False,
+        description="If true, only return doctors offering telehealth (video consultation) appointments.",
+    )
+    language: Optional[str] = Field(
+        default=None,
+        description="Filter for doctors who speak a specific language (e.g. 'de', 'gb', 'ru', 'tr').",
+    )
+    days_ahead: Optional[int] = Field(
+        default=None,
+        description="Number of days ahead to look for availability.",
+    )
+
+
 class SearchAppointmentsRequest(BaseModel):
     """Incoming request payload for the search_appointments skill."""
 
-    requests: List[Dict[str, Any]] = Field(
+    requests: List[SearchAppointmentsRequestItem] = Field(
         description=(
-            "Array of appointment search request objects, each specifying the "
+            "Array of appointment search requests, each specifying the "
             "speciality, city, provider platform, and optional filters."
         )
     )

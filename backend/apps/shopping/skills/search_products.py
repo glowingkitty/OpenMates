@@ -41,6 +41,31 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
+class SearchProductsRequestItem(BaseModel):
+    """A single product search request."""
+
+    query: str = Field(
+        description="Search query (e.g. 'bio joghurt', 'coffee grinder', 'wireless mouse')."
+    )
+    provider: str = Field(
+        default="REWE",
+        description="Product provider: 'REWE' (German supermarket) or 'Amazon' (marketplace).",
+    )
+    max_results: int = Field(
+        default=10,
+        description="Maximum number of products to return (1-20, default 10).",
+    )
+    sort: str = Field(
+        default="relevance",
+        description="Sort order: 'relevance', 'price_asc', 'price_desc', 'new' (REWE), "
+        "'review_rank', 'newest', 'best_sellers' (Amazon).",
+    )
+    service_type: Optional[str] = Field(
+        default=None,
+        description="REWE-only fulfilment type: 'DELIVERY' (home delivery, default) or 'CLICK_AND_COLLECT'.",
+    )
+
+
 class SearchProductsRequest(BaseModel):
     """
     Incoming request payload for the search_products skill.
@@ -50,7 +75,7 @@ class SearchProductsRequest(BaseModel):
     in parallel.
     """
 
-    requests: List[Dict[str, Any]] = Field(
+    requests: List[SearchProductsRequestItem] = Field(
         description=(
             "Array of product search request objects. Each object requires "
             "a 'query' field (e.g. 'bio joghurt') and optionally "
