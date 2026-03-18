@@ -36,32 +36,6 @@ import sys
 from datetime import datetime, timezone
 
 
-
-# Max number of changed files to include in the prompt (keep prompt size reasonable)
-MAX_FILES_IN_PROMPT = 150
-
-# Extensions to include in changed-files analysis (source code only)
-INCLUDE_EXTENSIONS = {
-    ".py", ".ts", ".svelte", ".js", ".json", ".yml", ".yaml", ".toml",
-    ".sh", ".sql", ".html", ".css",
-}
-
-# Paths to exclude (generated, lock files, migrations that are rarely worth auditing)
-EXCLUDE_PATH_PREFIXES = (
-    "node_modules/",
-    ".pnpm-store/",
-    "frontend/apps/web_app/.svelte-kit/",
-    "pnpm-lock.yaml",
-    "package-lock.json",
-    "bun.lock",
-    "__pycache__/",
-    ".git/",
-    "test-results/",
-    "logs/",
-    "coverage/",
-)
-
-
 def _now_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -110,63 +84,21 @@ def _get_current_sha(project_root: str) -> str:
         return "unknown"
 
 
-def _get_changed_files(project_root: str, since_sha: str | None) -> list[str]:
-    """
-    Return a list of source files changed since `since_sha`.
-    If since_sha is None (first run), returns files changed in the last 14 days.
-    Filters to relevant extensions and excludes generated paths.
-    """
+def _get_recent_git_log(project_root: str) -> str:
+    """Return the last 2 weeks of commits as a compact oneline log."""
     try:
-        if since_sha and since_sha != "unknown":
-            # Changed files between last audit SHA and HEAD
-            result = subprocess.run(
-                ["git", "-C", project_root, "diff", "--name-only", f"{since_sha}..HEAD"],
-                capture_output=True, text=True, timeout=30,
-            )
-        else:
-            # First run: files changed in the last 14 days
-            result = subprocess.run(
-                ["git", "-C", project_root, "log", "--name-only", "--pretty=format:",
-                 "--since=14 days ago"],
-                capture_output=True, text=True, timeout=30,
-            )
-
-        lines = [line.strip() for line in result.stdout.splitlines() if line.strip()]
-
+        result = subprocess.run(
+            ["git", "-C", project_root, "log", "--oneline", "--since=14 days ago"],
+            capture_output=True, text=True, timeout=15,
+        )
+        return result.stdout.strip() or "(no commits in the last 14 days)"
     except Exception as e:
-        print(f"[audit] WARNING: git diff failed: {e}", file=sys.stderr)
-        return []
-
-    # Deduplicate
-    seen: set[str] = set()
-    filtered: list[str] = []
-    for filepath in lines:
-        if filepath in seen:
-            continue
-        seen.add(filepath)
-
-        # Check extension
-        ext = os.path.splitext(filepath)[1].lower()
-        if ext not in INCLUDE_EXTENSIONS:
-            continue
-
-        # Check excluded prefixes
-        if any(filepath.startswith(p) for p in EXCLUDE_PATH_PREFIXES):
-            continue
-
-        # Check the file still exists (it might have been deleted)
-        full_path = os.path.join(project_root, filepath)
-        if not os.path.isfile(full_path):
-            continue
-
-        filtered.append(filepath)
-
-    return filtered[:MAX_FILES_IN_PROMPT]
+        print(f"[audit] WARNING: git log failed: {e}", file=sys.stderr)
+        return "(could not retrieve git log)"
 
 
 def run_audit() -> None:
-    """Main entry point: build prompt from changed files and run opencode audit."""
-    force = os.environ.get("FORCE", "false").lower() == "true"
+    """Main entry point: build prompt from recent git log and run opencode audit."""
     dry_run = os.environ.get("DRY_RUN", "false").lower() == "true"
     project_root = os.environ.get("PROJECT_ROOT", "")
     today_date = os.environ.get("TODAY_DATE", datetime.now(timezone.utc).strftime("%Y-%m-%d"))
@@ -183,36 +115,13 @@ def run_audit() -> None:
 
     # Load state
     state = _load_state(state_file)
-    last_sha = state.get("last_audit_sha")
     last_date = state.get("last_audit_date") or "first run"
     last_summary = state.get("last_audit_summary") or "N/A (first audit)"
 
     current_sha = _get_current_sha(project_root)
+    git_log = _get_recent_git_log(project_root)
 
-    if force:
-        print("[audit] --force: ignoring last audit SHA, checking last 14 days of changes.")
-        since_sha = None
-    else:
-        since_sha = last_sha
-
-    # Get changed files
-    changed_files = _get_changed_files(project_root, since_sha)
-    changed_count = len(changed_files)
-
-    print(
-        f"[audit] Changed files since last audit ({last_date}, SHA {last_sha or 'none'}): "
-        f"{changed_count} file(s)"
-    )
-
-    if changed_count == 0 and not force:
-        print("[audit] No source files changed since last audit — skipping.")
-        # Update state with new run date but no new findings
-        state["last_audit_date"] = today_date
-        state["last_audit_sha"] = current_sha
-        _save_state(state_file, state)
-        return
-
-    changed_files_str = "\n".join(changed_files) if changed_files else "(checking full codebase — first run)"
+    print(f"[audit] Running codebase health audit (HEAD {current_sha}, last audit: {last_date})")
 
     # Load prompt template
     if not prompt_template_path or not os.path.isfile(prompt_template_path):
@@ -229,8 +138,7 @@ def run_audit() -> None:
         .replace("{{GIT_SHA}}", current_sha)
         .replace("{{LAST_AUDIT_DATE}}", last_date)
         .replace("{{LAST_AUDIT_SUMMARY}}", last_summary)
-        .replace("{{CHANGED_FILE_COUNT}}", str(changed_count))
-        .replace("{{CHANGED_FILES}}", changed_files_str)
+        .replace("{{GIT_LOG}}", git_log)
     )
 
     if dry_run:
@@ -257,7 +165,7 @@ def run_audit() -> None:
         prompt,
     ]
 
-    print(f"[audit] Starting opencode audit session ({changed_count} changed files, SHA {current_sha})...")
+    print(f"[audit] Starting opencode audit session (HEAD {current_sha})...")
 
     # Cron runs with a minimal PATH that excludes ~/.npm-global/bin where opencode lives.
     run_env = os.environ.copy()

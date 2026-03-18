@@ -1,19 +1,3 @@
-# Dependabot Security Alert Fix Prompt
-
-#
-
-# Placeholders replaced by scripts/check-dependabot-daily.sh before passing to opencode:
-
-# {{DATE}} — UTC date of the check (YYYY-MM-DD)
-
-# {{ALERT_SUMMARY}} — human-readable grouped alert list (replaced inline by the shell script)
-
-#
-
-# NOTE: This file provides the static preamble and instructions.
-
-# The actual per-alert details are appended by the shell script at runtime.
-
 Fix the following Dependabot security alerts in the OpenMates GitHub repository.
 
 **Date:** {{DATE}}
@@ -31,11 +15,11 @@ For each alert below:
    `fix: upgrade jspdf to 4.2.1 (GHSA-wfv2-pwc8-crg5)`
 5. **Commit to the `dev` branch** — do NOT open a PR to main.
 
-## Important Constraints
+## Constraints
 
-- Make one commit per GHSA ID (or one commit for a batch of related upgrades in the same package).
-- If upgrading a package introduces breaking API changes, note them explicitly but still make the upgrade — security takes priority.
-- If a patch version is not yet available (no fix exists), note this and skip the upgrade. Do not downgrade.
+- One commit per GHSA ID (or one commit for a batch of related upgrades in the same package).
+- If upgrading introduces breaking API changes, note them but still upgrade — security takes priority.
+- If no patch version exists yet, skip the upgrade and note it. Do not downgrade.
 - Do not change unrelated code.
 
 ## Alerts to Fix

@@ -367,6 +367,7 @@ def process_alerts() -> None:
     cmd = [
         "opencode", "run",
         "--attach", "http://localhost:4096",
+        "--share",
         "--model", "anthropic/claude-sonnet-4-6",
         "--title", session_title,
         "--dir", project_root,
@@ -388,6 +389,23 @@ def process_alerts() -> None:
             env=run_env,
         )
 
+        combined = (result.stdout + result.stderr).strip()
+
+        # Extract and log the share URL
+        share_url = None
+        for line in (result.stdout + result.stderr).splitlines():
+            for token in line.split():
+                if "opncd.ai/share/" in token:
+                    share_url = token.strip()
+                    break
+            if share_url:
+                break
+
+        if share_url:
+            print(f"[dependabot] opencode session: {share_url}")
+        else:
+            print("[dependabot] WARNING: no share URL found in opencode output.", file=sys.stderr)
+
         if result.returncode != 0:
             print(
                 f"[dependabot] WARNING: opencode exited with code {result.returncode}",
@@ -398,8 +416,6 @@ def process_alerts() -> None:
         else:
             print("[dependabot] opencode session completed successfully.")
 
-        # Log session output summary
-        combined = (result.stdout + result.stderr).strip()
         if combined:
             print(f"[dependabot] opencode output (first 500 chars): {combined[:500]}")
 

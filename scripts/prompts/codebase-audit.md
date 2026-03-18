@@ -1,73 +1,31 @@
-# Codebase Health Audit Prompt
+You are doing a bi-weekly codebase health audit for the OpenMates project.
 
-#
+**Date:** {{DATE}} | **HEAD:** {{GIT_SHA}} | **Last audit:** {{LAST_AUDIT_DATE}}
 
-# Placeholders replaced by scripts/\_audit_helper.py before passing to opencode:
-
-# {{DATE}} — UTC date of the audit (YYYY-MM-DD)
-
-# {{CHANGED_FILES}} — newline-separated list of files changed since last audit
-
-# {{CHANGED_FILE_COUNT}} — number of changed files
-
-# {{LAST_AUDIT_DATE}} — date of the previous audit (or "first run" if none)
-
-# {{LAST_AUDIT_SUMMARY}} — top findings from the previous audit (or "N/A")
-
-# {{GIT_SHA}} — current git HEAD SHA
-
-You are performing a bi-weekly codebase health audit for the OpenMates project.
-
-## Audit Context
-
-- **Date:** {{DATE}}
-- **Current HEAD:** {{GIT_SHA}}
-- **Files changed since last audit ({{LAST_AUDIT_DATE}}):** {{CHANGED_FILE_COUNT}} files
-- **Previous audit top findings:**
-  > {{LAST_AUDIT_SUMMARY}}
-
-## Changed Files Since Last Audit
+## Recent commits (last 2 weeks)
 
 ```
-{{CHANGED_FILES}}
+{{GIT_LOG}}
 ```
 
-## Your Task
+## Previous audit findings (for context — don't repeat already-fixed items)
 
-Analyse the changed files and the broader codebase context to identify the **top 5 highest-impact improvements** the team should make right now.
+{{LAST_AUDIT_SUMMARY}}
 
-Consider all dimensions:
+## Your task
 
-- **Security** — exposed secrets, injection vulnerabilities, missing auth checks, unsafe dependencies
-- **Performance** — N+1 queries, missing indexes, unnecessary re-renders, large bundle sizes, slow API paths
-- **Reliability** — silent error swallowing, missing retry logic, race conditions, uncovered edge cases
-- **Code quality** — duplicated logic, overly complex functions, missing type annotations, dead code
-- **Architecture** — module boundary violations, growing files that should be split, missing abstractions
+Explore the codebase and find the **top 5 highest-impact improvements** to make right now. Use your file reading tools to look at the actual code before making findings — don't guess from filenames alone.
 
-## Output Format
+Cover any mix of: security vulnerabilities, performance bottlenecks, reliability gaps (silent failures, missing error handling, race conditions), code quality, architecture problems.
 
-For each finding:
+For each finding, provide:
 
-### #N — [Category]: [Short title]
+- **File + line number**
+- **Why it matters** (what breaks or degrades without fixing it)
+- **Current code snippet** (max 10 lines)
+- **Suggested fix**
+- **Effort: S / M / L**
 
-**File(s):** `path/to/file.ts:line`
-**Impact:** [Why this matters — what breaks or degrades without fixing it]
-**Current code:**
+After listing all 5: implement the **#1 finding** if it is S or M effort and you are confident the fix is correct. For all others, add a `# TODO(audit-{{DATE}}):` comment at the relevant location.
 
-```
-[relevant snippet, max 10 lines]
-```
-
-**Suggested fix:**
-
-```
-[corrected version]
-```
-
-**Effort:** [S / M / L]
-
----
-
-After listing the top 5, implement the **#1 finding** if it is S or M effort and you are confident the fix is correct. For others, leave a `// TODO(audit-{{DATE}}): <description>` comment at the relevant location so it shows up in future searches.
-
-Be specific, not generic. "Add error handling" is not a finding. "The `processWebhook()` function in `backend/apps/payments/webhook.py:87` swallows all exceptions with a bare `except: pass`, meaning failed payments are silently ignored" is a finding.
+Be specific. "Add error handling" is not a finding. "The `process_webhook()` function at `backend/apps/payments/webhook.py:87` swallows all exceptions with a bare `except: pass`, meaning failed payments are silently ignored" is a finding.

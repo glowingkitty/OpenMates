@@ -1,4 +1,231 @@
 {
-  "last_run": null,
-  "processed": []
+  "last_run": "2026-03-18T10:35:55Z",
+  "processed": [
+    {
+      "ghsa_id": "GHSA-wfv2-pwc8-crg5",
+      "severity": "critical",
+      "package": "jspdf",
+      "summary": "jsPDF has HTML Injection in New Window paths",
+      "alert_numbers": [
+        112,
+        111
+      ],
+      "first_seen_at": "2026-03-18T10:35:55Z",
+      "last_dispatched_at": "2026-03-18T10:35:55Z",
+      "re_dispatch_count": 0,
+      "resolved_via_commit": null
+    },
+    {
+      "ghsa_id": "GHSA-7x6v-j9x4-qf24",
+      "severity": "high",
+      "package": "jspdf",
+      "summary": "jsPDF has a PDF Object Injection via FreeText color",
+      "alert_numbers": [
+        110,
+        109
+      ],
+      "first_seen_at": "2026-03-18T10:35:55Z",
+      "last_dispatched_at": "2026-03-18T10:35:55Z",
+      "re_dispatch_count": 0,
+      "resolved_via_commit": null
+    },
+    {
+      "ghsa_id": "GHSA-25h7-pfq9-p65f",
+      "severity": "high",
+      "package": "flatted",
+      "summary": "flatted vulnerable to unbounded recursion DoS in parse() revive phase",
+      "alert_numbers": [
+        108
+      ],
+      "first_seen_at": "2026-03-18T10:35:55Z",
+      "last_dispatched_at": "2026-03-18T10:35:55Z",
+      "re_dispatch_count": 0,
+      "resolved_via_commit": null
+    },
+    {
+      "ghsa_id": "GHSA-f38f-5xpm-9r7c",
+      "severity": "high",
+      "package": "CairoSVG",
+      "summary": "CairoSVG vulnerable to Exponential DoS via recursive <use> element amplification",
+      "alert_numbers": [
+        107,
+        106
+      ],
+      "first_seen_at": "2026-03-18T10:35:55Z",
+      "last_dispatched_at": "2026-03-18T10:35:55Z",
+      "re_dispatch_count": 0,
+      "resolved_via_commit": null
+    },
+    {
+      "ghsa_id": "GHSA-cfw5-2vxh-hr84",
+      "severity": "medium",
+      "package": "devalue",
+      "summary": "devalue has prototype pollution in devalue.parse and devalue.unflatten",
+      "alert_numbers": [
+        103,
+        102
+      ],
+      "first_seen_at": "2026-03-18T10:35:55Z",
+      "last_dispatched_at": "2026-03-18T10:35:55Z",
+      "re_dispatch_count": 0,
+      "resolved_via_commit": null
+    },
+    {
+      "ghsa_id": "GHSA-9ppj-qmqm-q256",
+      "severity": "high",
+      "package": "tar",
+      "summary": "node-tar Symlink Path Traversal via Drive-Relative Linkpath",
+      "alert_numbers": [
+        101
+      ],
+      "first_seen_at": "2026-03-18T10:35:55Z",
+      "last_dispatched_at": "2026-03-18T10:35:55Z",
+      "re_dispatch_count": 0,
+      "resolved_via_commit": null
+    },
+    {
+      "ghsa_id": "GHSA-qffp-2rhf-9h96",
+      "severity": "high",
+      "package": "tar",
+      "summary": "tar has Hardlink Path Traversal via Drive-Relative Linkpath",
+      "alert_numbers": [
+        100
+      ],
+      "first_seen_at": "2026-03-18T10:35:55Z",
+      "last_dispatched_at": "2026-03-18T10:35:55Z",
+      "re_dispatch_count": 0,
+      "resolved_via_commit": null
+    },
+    {
+      "ghsa_id": "GHSA-v2wj-7wpq-c8vv",
+      "severity": "medium",
+      "package": "dompurify",
+      "summary": "DOMPurify contains a Cross-site Scripting vulnerability",
+      "alert_numbers": [
+        99
+      ],
+      "first_seen_at": "2026-03-18T10:35:55Z",
+      "last_dispatched_at": "2026-03-18T10:35:55Z",
+      "re_dispatch_count": 0,
+      "resolved_via_commit": null
+    },
+    {
+      "ghsa_id": "GHSA-5c6j-r48x-rmvq",
+      "severity": "high",
+      "package": "serialize-javascript",
+      "summary": "Serialize JavaScript is Vulnerable to RCE via RegExp.flags and Date.prototype.toISOString()",
+      "alert_numbers": [
+        98
+      ],
+      "first_seen_at": "2026-03-18T10:35:55Z",
+      "last_dispatched_at": "2026-03-18T10:35:55Z",
+      "re_dispatch_count": 0,
+      "resolved_via_commit": null
+    },
+    {
+      "ghsa_id": "GHSA-qgvg-pr8v-6rr3",
+      "severity": "medium",
+      "package": "svelte",
+      "summary": "Svelte: XSS via HTML Comment Injection in SSR Error Boundary Hydration Markers",
+      "alert_numbers": [
+        97
+      ],
+      "first_seen_at": "2026-03-18T10:35:55Z",
+      "last_dispatched_at": "2026-03-18T10:35:55Z",
+      "re_dispatch_count": 0,
+      "resolved_via_commit": null
+    },
+    {
+      "ghsa_id": "GHSA-phwv-c562-gvmh",
+      "severity": "medium",
+      "package": "svelte",
+      "summary": "Svelte vulnerable to XSS during SSR with contenteditable `bind:innerText` and `bind:textContent`",
+      "alert_numbers": [
+        89
+      ],
+      "first_seen_at": "2026-03-18T10:35:55Z",
+      "last_dispatched_at": "2026-03-18T10:35:55Z",
+      "re_dispatch_count": 0,
+      "resolved_via_commit": null
+    },
+    {
+      "ghsa_id": "GHSA-23c5-xmqv-rm74",
+      "severity": "high",
+      "package": "minimatch",
+      "summary": "minimatch ReDoS: nested *() extglobs generate catastrophically backtracking regular expressions",
+      "alert_numbers": [
+        87
+      ],
+      "first_seen_at": "2026-03-18T10:35:55Z",
+      "last_dispatched_at": "2026-03-18T10:35:55Z",
+      "re_dispatch_count": 0,
+      "resolved_via_commit": null
+    },
+    {
+      "ghsa_id": "GHSA-7r86-cg39-jmmj",
+      "severity": "high",
+      "package": "minimatch",
+      "summary": "minimatch has ReDoS: matchOne() combinatorial backtracking via multiple non-adjacent GLOBSTAR segments",
+      "alert_numbers": [
+        86
+      ],
+      "first_seen_at": "2026-03-18T10:35:55Z",
+      "last_dispatched_at": "2026-03-18T10:35:55Z",
+      "re_dispatch_count": 0,
+      "resolved_via_commit": null
+    },
+    {
+      "ghsa_id": "GHSA-2g4f-4pwh-qvx6",
+      "severity": "medium",
+      "package": "ajv",
+      "summary": "ajv has ReDoS when using `$data` option",
+      "alert_numbers": [
+        80,
+        79
+      ],
+      "first_seen_at": "2026-03-18T10:35:55Z",
+      "last_dispatched_at": "2026-03-18T10:35:55Z",
+      "re_dispatch_count": 0,
+      "resolved_via_commit": null
+    },
+    {
+      "ghsa_id": "GHSA-88qp-p4qg-rqm6",
+      "severity": "medium",
+      "package": "@sveltejs/kit",
+      "summary": "CPU exhaustion in SvelteKit remote form deserialization (experimental only)",
+      "alert_numbers": [
+        75
+      ],
+      "first_seen_at": "2026-03-18T10:35:55Z",
+      "last_dispatched_at": "2026-03-18T10:35:55Z",
+      "re_dispatch_count": 0,
+      "resolved_via_commit": null
+    },
+    {
+      "ghsa_id": "GHSA-vrhm-gvg7-fpcf",
+      "severity": "medium",
+      "package": "@sveltejs/kit",
+      "summary": " Memory exhaustion in SvelteKit remote form deserialization (experimental only)",
+      "alert_numbers": [
+        74
+      ],
+      "first_seen_at": "2026-03-18T10:35:55Z",
+      "last_dispatched_at": "2026-03-18T10:35:55Z",
+      "re_dispatch_count": 0,
+      "resolved_via_commit": null
+    },
+    {
+      "ghsa_id": "GHSA-w8v5-vhqr-4h9v",
+      "severity": "medium",
+      "package": "diskcache",
+      "summary": "DiskCache has unsafe pickle deserialization",
+      "alert_numbers": [
+        63
+      ],
+      "first_seen_at": "2026-03-18T10:35:55Z",
+      "last_dispatched_at": "2026-03-18T10:35:55Z",
+      "re_dispatch_count": 0,
+      "resolved_via_commit": null
+    }
+  ]
 }
