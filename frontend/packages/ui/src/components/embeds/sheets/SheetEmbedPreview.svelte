@@ -134,7 +134,7 @@
   /**
    * Compute per-column pixel widths from content length.
    * Scans header + preview rows to find the longest value per column,
-   * then maps char count → pixels (8px/char) clamped to [60, 240].
+   * then maps char count → pixels (8px/char) clamped to [60, 200].
    * Replaces the old table-layout:fixed equal-split approach.
    */
   let colWidths = $derived.by(() => {
@@ -145,9 +145,30 @@
         return len > max ? len : max;
       }, 0);
       const chars = Math.max(headerLen, maxDataLen);
-      return Math.min(Math.max(chars * 8, 60), 240);
+      return Math.min(Math.max(chars * 8, 60), 200);
     });
   });
+
+  /**
+   * Limit visible columns in the preview so no column is squeezed unreadable.
+   * The preview card is ~260px wide (300px card - padding/border).
+   * We greedily include columns whose cumulative width fits, then show "+N cols".
+   * This way a wide table shows 2–3 readable columns instead of 8 truncated ones.
+   */
+  const PREVIEW_CARD_WIDTH = 260;
+  let visibleColCount = $derived.by(() => {
+    let budget = PREVIEW_CARD_WIDTH;
+    let count = 0;
+    for (const w of colWidths) {
+      if (budget - w < 0 && count > 0) break;
+      budget -= w;
+      count++;
+    }
+    return Math.max(count, 1);
+  });
+  let hiddenColCount = $derived(parsedTable.headers.length - visibleColCount);
+  let visibleColWidths = $derived(colWidths.slice(0, visibleColCount));
+  let visibleHeaders = $derived(parsedTable.headers.slice(0, visibleColCount));
 
   // Build skill name for BasicInfosBar
   let skillName = $derived.by(() => renderTitle || $text('embeds.table'));
@@ -216,28 +237,34 @@
         <div class="table-scroll">
           <table class="preview-table" class:large-desktop={isLargeSnippet && !isMobileSnippet}>
             <colgroup>
-              {#each colWidths as w}
+              {#each visibleColWidths as w}
                 <col style="width: {w}px; max-width: {w}px;" />
               {/each}
             </colgroup>
             <thead>
               <tr>
-                {#each parsedTable.headers as header}
+                {#each visibleHeaders as header}
                   <th>{header.content}</th>
                 {/each}
+                {#if hiddenColCount > 0}
+                  <th class="more-cols-header">+{hiddenColCount}</th>
+                {/if}
               </tr>
             </thead>
             <tbody>
               {#each previewRows as row}
                 <tr>
-                  {#each row as cell}
+                  {#each row.slice(0, visibleColCount) as cell}
                     <td>{stripEmbedLinks(cell.content)}</td>
                   {/each}
+                  {#if hiddenColCount > 0}
+                    <td class="more-cols-cell"></td>
+                  {/if}
                 </tr>
               {/each}
               {#if hasMoreRows}
                 <tr class="more-rows">
-                  <td colspan={actualColCount}>
+                  <td colspan={visibleColCount + (hiddenColCount > 0 ? 1 : 0)}>
                     <span class="more-indicator">+{parsedTable.rowCount - maxPreviewRows} more rows</span>
                   </td>
                 </tr>
@@ -367,6 +394,32 @@
     border-bottom: none;
   }
   
+  /* ── More columns indicator ─────────────────────────── */
+
+  .more-cols-header,
+  .more-cols-cell {
+    width: 28px;
+    min-width: 28px;
+    max-width: 28px;
+    padding: 4px 4px;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .more-cols-header {
+    background: var(--color-grey-10);
+    color: var(--color-font-tertiary);
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    border-left: 2px solid var(--color-grey-30);
+  }
+
+  .more-cols-cell {
+    background: var(--color-grey-10);
+    border-left: 2px solid var(--color-grey-30);
+  }
+
   /* ── More rows indicator ────────────────────────────── */
   
   .more-rows td {
