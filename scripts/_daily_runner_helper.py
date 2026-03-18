@@ -583,12 +583,18 @@ def start_opencode_analysis() -> None:
 
     print(f"[daily-runner] Running opencode analysis for {failed_count} failed test(s)...")
 
+    # Cron runs with a minimal PATH that excludes ~/.npm-global/bin where opencode lives.
+    # Inject the known npm-global bin dir so subprocess.run can find the binary.
+    run_env = os.environ.copy()
+    run_env["PATH"] = "/home/superdev/.npm-global/bin:" + run_env.get("PATH", "/usr/local/bin:/usr/bin:/bin")
+
     try:
         result = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
             timeout=600,  # 10 minute max for the analysis session
+            env=run_env,
         )
 
         combined_output = result.stdout + result.stderr

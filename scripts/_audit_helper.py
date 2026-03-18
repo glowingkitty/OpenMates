@@ -34,7 +34,7 @@ import os
 import subprocess
 import sys
 from datetime import datetime, timezone
-from pathlib import Path
+
 
 
 # Max number of changed files to include in the prompt (keep prompt size reasonable)
@@ -131,7 +131,7 @@ def _get_changed_files(project_root: str, since_sha: str | None) -> list[str]:
                 capture_output=True, text=True, timeout=30,
             )
 
-        lines = [l.strip() for l in result.stdout.splitlines() if l.strip()]
+        lines = [line.strip() for line in result.stdout.splitlines() if line.strip()]
 
     except Exception as e:
         print(f"[audit] WARNING: git diff failed: {e}", file=sys.stderr)
@@ -257,12 +257,17 @@ def run_audit() -> None:
 
     print(f"[audit] Starting opencode audit session ({changed_count} changed files, SHA {current_sha})...")
 
+    # Cron runs with a minimal PATH that excludes ~/.npm-global/bin where opencode lives.
+    run_env = os.environ.copy()
+    run_env["PATH"] = "/home/superdev/.npm-global/bin:" + run_env.get("PATH", "/usr/local/bin:/usr/bin:/bin")
+
     try:
         result = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
             timeout=1800,  # 30 minutes max
+            env=run_env,
         )
 
         combined_output = result.stdout + result.stderr

@@ -44,7 +44,8 @@ MAX_ISSUES_IN_PROMPT = 15
 ISSUES_LOOKBACK_HOURS = 24
 
 # API endpoint path for listing issues
-ISSUES_API_PATH = "/admin/debug/issues"
+# Route is mounted at /v1/admin/debug (see backend/core/api/app/routes/admin_debug.py:76)
+ISSUES_API_PATH = "/v1/admin/debug/issues"
 
 # Default production API URL (used when running against prod)
 DEFAULT_API_URL = "http://localhost:8000"
@@ -161,7 +162,12 @@ def check_issues() -> None:
 
     admin_api_key = os.environ.get("ADMIN_API_KEY") or dot_env.get("ADMIN_API_KEY", "")
     if not admin_api_key:
-        print("[issues-checker] ERROR: ADMIN_API_KEY not set — cannot fetch issues.", file=sys.stderr)
+        print(
+            "[issues-checker] ERROR: ADMIN_API_KEY not set — cannot fetch issues.\n"
+            "  → Generate an API key for your admin account at: Settings → API Keys\n"
+            "  → Add it to .env as: ADMIN_API_KEY=<your-key>",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     api_url = os.environ.get("INTERNAL_API_URL") or dot_env.get("INTERNAL_API_URL", DEFAULT_API_URL)
@@ -260,12 +266,17 @@ def check_issues() -> None:
 
     print(f"[issues-checker] Starting opencode investigation for {len(unresolved)} unresolved issue(s)...")
 
+    # Cron runs with a minimal PATH that excludes ~/.npm-global/bin where opencode lives.
+    run_env = os.environ.copy()
+    run_env["PATH"] = "/home/superdev/.npm-global/bin:" + run_env.get("PATH", "/usr/local/bin:/usr/bin:/bin")
+
     try:
         result = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
             timeout=900,  # 15 minute max
+            env=run_env,
         )
 
         combined_output = result.stdout + result.stderr

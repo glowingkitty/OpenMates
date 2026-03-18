@@ -374,12 +374,17 @@ def process_alerts() -> None:
 
     print(f"[dependabot] Starting opencode session for {len(to_dispatch)} alert(s)...")
 
+    # Cron runs with a minimal PATH that excludes ~/.npm-global/bin where opencode lives.
+    run_env = os.environ.copy()
+    run_env["PATH"] = "/home/superdev/.npm-global/bin:" + run_env.get("PATH", "/usr/local/bin:/usr/bin:/bin")
+
     try:
         result = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
             timeout=1800,  # 30 minutes max for security fixes
+            env=run_env,
         )
 
         if result.returncode != 0:
