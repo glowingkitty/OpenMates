@@ -68,7 +68,14 @@
      * Defaults to true (opt-in by default) so users get follow-up contact.
      */
     let includeEmailToggle = $state(true);
-    
+
+    /**
+     * Admin-only: whether to submit this report to the opencode agent for an
+     * automatic plan-mode investigation session. Only shown when isAdminUser is true.
+     * Defaults to true so the admin gets an investigation started immediately.
+     */
+    let submitToAgent = $state(true);
+
     /**
      * Whether the current context has an active chat or embed that can be shared.
      * When false, the share toggle is hidden since there's nothing to share.
@@ -543,7 +550,7 @@
                     'Accept': 'application/json',
                     'Origin': window.location.origin
                 },
-                body: JSON.stringify({
+                    body: JSON.stringify({
                     title: sanitizedTitle,
                     description: sanitizedDescription,
                     chat_or_embed_url: sanitizedUrl,
@@ -564,7 +571,10 @@
                         : null,
                     // outerHTML of the DOM element the user picked via the element picker overlay.
                     // Null if the user did not pick an element.
-                    picked_element_html: pickedElementHtml ?? null
+                    picked_element_html: pickedElementHtml ?? null,
+                    // Admin-only: trigger opencode plan-mode investigation.
+                    // Only honoured server-side when reporter is a verified admin.
+                    submit_to_agent: isAdminUser && submitToAgent
                 }),
                 credentials: 'include'
             });
@@ -999,6 +1009,7 @@
             chatOrEmbedUrl,
             contactEmail,
             includeEmailToggle,
+            submitToAgent,
             pickedElementHtml,
             screenshotDataUrl
         });
@@ -1470,6 +1481,7 @@
             chatOrEmbedUrl = draft.chatOrEmbedUrl;
             contactEmail = draft.contactEmail;
             includeEmailToggle = draft.includeEmailToggle;
+            if (draft.submitToAgent !== undefined) submitToAgent = draft.submitToAgent;
             pickedElementHtml = draft.pickedElementHtml;
             screenshotDataUrl = draft.screenshotDataUrl;
             // Clear the draft now that it has been consumed
@@ -1657,6 +1669,29 @@
                     {/if}
                 </div>
                 <p class="input-hint">{$text('settings.report_issue.email_hint')}</p>
+            </div>
+        {/if}
+
+        <!-- Submit to Agent toggle — admin only -->
+        <!-- Triggers an opencode plan-mode investigation session for this issue. -->
+        {#if isAdminUser}
+            <div class="toggle-group">
+                <div class="toggle-row">
+                    <label for="submit-to-agent-toggle">{$text('settings.report_issue.submit_to_agent_label')}</label>
+                    <Toggle
+                        id="submit-to-agent-toggle"
+                        bind:checked={submitToAgent}
+                        disabled={isSubmitting}
+                        ariaLabel={$text('settings.report_issue.submit_to_agent_label')}
+                    />
+                </div>
+                <p class="input-hint">
+                    {#if submitToAgent}
+                        {$text('settings.report_issue.submit_to_agent_hint_on')}
+                    {:else}
+                        {$text('settings.report_issue.submit_to_agent_hint_off')}
+                    {/if}
+                </p>
             </div>
         {/if}
 

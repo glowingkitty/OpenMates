@@ -2196,6 +2196,14 @@ class IssueReportRequest(BaseModel):
             "rendering, or content issues. Collected client-side via the element picker overlay."
         )
     )
+    submit_to_agent: bool = Field(
+        False,
+        description=(
+            "Admin-only flag. When True, triggers an opencode plan-mode investigation session "
+            "for this issue via the admin sidecar. Only honoured when the reporter is an "
+            "authenticated admin user — non-admin requests are silently ignored."
+        )
+    )
 
 
 class IssueReportResponse(BaseModel):
@@ -2203,6 +2211,99 @@ class IssueReportResponse(BaseModel):
     success: bool
     message: str
     issue_id: Optional[str] = None  # The database ID of the created issue report (for admin lookup via /v1/admin/debug/issues/{issue_id})
+
+
+async def _trigger_agent_issue_investigation(
+    *,
+    request: Request,
+    issue_id: Optional[str],
+    issue_title: str,
+    issue_description: Optional[str],
+    chat_or_embed_url: Optional[str],
+    console_logs: Optional[str],
+    action_history: Optional[str],
+    screenshot_presigned_url: Optional[str],
+) -> None:
+    """
+    Fire-and-forget: ask the admin sidecar to start an opencode plan-mode session
+    investigating this issue.
+
+    Called only when:
+    - The reporter is a verified admin user (``is_from_admin`` is True)
+    - ``issue_data.submit_to_agent`` is True
+
+    The sidecar runs on the host where opencode is installed; the API runs inside
+    Docker, so we delegate via an authenticated HTTP call to
+    ``CORE_SIDECAR_URL/admin/opencode-investigate``.
+
+    Architecture reference: docs/architecture/admin-console-log-forwarding.md
+    """
+    import aiohttp
+
+    core_sidecar_url = os.getenv("CORE_SIDECAR_URL", "").rstrip("/")
+    core_sidecar_key = os.getenv("ADMIN_LOG_API_KEY", "")
+
+    if not core_sidecar_url:
+        logger.warning(
+            "[report_issue/agent] CORE_SIDECAR_URL not set — "
+            "cannot trigger opencode investigation"
+        )
+        return
+
+    if not core_sidecar_key:
+        logger.warning(
+            "[report_issue/agent] ADMIN_LOG_API_KEY not set — "
+            "cannot authenticate with admin sidecar"
+        )
+        return
+
+    # Build a compact context block for the prompt
+    environment = os.getenv("SERVER_ENVIRONMENT", "development")
+    production_url = os.getenv("PRODUCTION_URL", "")
+    domain = production_url or "unknown domain"
+
+    payload = {
+        "issue_id": issue_id or "unknown",
+        "issue_title": issue_title,
+        "issue_description": issue_description or "",
+        "chat_or_embed_url": chat_or_embed_url or "",
+        "console_logs": (console_logs or "")[:10000],  # Trim to avoid huge prompts
+        "action_history": action_history or "",
+        "screenshot_presigned_url": screenshot_presigned_url or "",
+        "environment": environment,
+        "domain": domain,
+    }
+
+    endpoint = f"{core_sidecar_url}/admin/opencode-investigate"
+    logger.info(
+        f"[report_issue/agent] Triggering opencode investigation via sidecar: {endpoint} "
+        f"(issue_id={issue_id})"
+    )
+
+    try:
+        timeout = aiohttp.ClientTimeout(total=15)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.post(
+                endpoint,
+                json=payload,
+                headers={"X-Admin-Log-Key": core_sidecar_key},
+            ) as resp:
+                if resp.status == 202:
+                    logger.info(
+                        f"[report_issue/agent] Sidecar accepted investigation request "
+                        f"(issue_id={issue_id})"
+                    )
+                else:
+                    body = await resp.text()
+                    logger.warning(
+                        f"[report_issue/agent] Sidecar returned HTTP {resp.status} "
+                        f"for investigation request (issue_id={issue_id}): {body[:300]}"
+                    )
+    except Exception as exc:
+        logger.error(
+            f"[report_issue/agent] HTTP call to sidecar failed (issue_id={issue_id}): {exc}",
+            exc_info=True
+        )
 
 
 @router.post(
@@ -2638,7 +2739,28 @@ async def report_issue(
             f"email task dispatched to queue 'email' with task_id={task_result.id}, "
             f"recipient={admin_email}"
         )
-        
+
+        # Admin-only: trigger opencode plan-mode investigation if requested.
+        # Only honoured when the reporter is a verified admin user.
+        if is_from_admin and issue_data.submit_to_agent:
+            try:
+                await _trigger_agent_issue_investigation(
+                    request=request,
+                    issue_id=issue_id,
+                    issue_title=sanitized_title,
+                    issue_description=sanitized_description,
+                    chat_or_embed_url=sanitized_url,
+                    console_logs=console_logs_str,
+                    action_history=action_history_str,
+                    screenshot_presigned_url=screenshot_presigned_url,
+                )
+            except Exception as _agent_err:
+                # Never block the issue report response if agent trigger fails
+                logger.error(
+                    f"Failed to trigger agent investigation for issue {issue_id}: {_agent_err}",
+                    exc_info=True
+                )
+
         return IssueReportResponse(
             success=True,
             message="Issue report submitted successfully. Thank you for your feedback!",

@@ -8441,6 +8441,18 @@ report_issue.screenshot_upload_failed:
   sv: Det gick inte att läsa den uppladdade bilden.
   he: קריאת התמונה שהועלתה נכשלה.
   verified_by_human: []
+report_issue.submit_to_agent_label:
+  context: Admin-only toggle label to submit a reported issue to the opencode agent for investigation
+  en: Submit to agent
+  verified_by_human: []
+report_issue.submit_to_agent_hint_on:
+  context: Admin-only toggle hint shown when the submit-to-agent toggle is ON
+  en: An opencode agent will automatically investigate this issue and suggest fixes.
+  verified_by_human: []
+report_issue.submit_to_agent_hint_off:
+  context: Admin-only toggle hint shown when the submit-to-agent toggle is OFF
+  en: No agent investigation will be triggered for this report.
+  verified_by_human: []
 logout_all:
   context: Menu item to log out of all devices and sessions
   en: Log out everywhere

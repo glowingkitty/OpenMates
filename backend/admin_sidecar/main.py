@@ -49,10 +49,12 @@ import re
 import subprocess
 import sys
 import time
+from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.responses import JSONResponse, PlainTextResponse
+from pydantic import BaseModel
 
 # =============================================================================
 # Configuration
@@ -876,6 +878,215 @@ async def get_version() -> JSONResponse:
 
 
 
+
+
+# =============================================================================
+# Admin-triggered opencode issue investigation
+# =============================================================================
+
+class _InvestigateRequest(BaseModel):
+    """Payload sent by the API container to trigger an opencode investigation."""
+    issue_id: str
+    issue_title: str
+    issue_description: str = ""
+    chat_or_embed_url: str = ""
+    console_logs: str = ""
+    action_history: str = ""
+    screenshot_presigned_url: str = ""
+    environment: str = "development"
+    domain: str = ""
+
+
+def _build_investigate_prompt(data: _InvestigateRequest) -> str:
+    """
+    Load the prompt template and substitute all placeholders.
+
+    Template path: scripts/prompts/admin-issue-investigation.md (relative to GIT_WORK_DIR).
+    Falls back to an inline minimal prompt if the file is missing.
+    """
+    template_path = Path(_GIT_WORK_DIR) / "scripts" / "prompts" / "admin-issue-investigation.md"
+
+    if template_path.is_file():
+        template = template_path.read_text()
+    else:
+        logger.warning(
+            "[AdminSidecar/investigate] Prompt template not found at %s — using inline fallback",
+            template_path,
+        )
+        template = (
+            "You are investigating a user-reported issue for the OpenMates project.\n\n"
+            "Environment: {{ENVIRONMENT}}\nDomain: {{DOMAIN}}\n"
+            "Issue ID: {{ISSUE_ID}}\nTitle: {{ISSUE_TITLE}}\n"
+            "Description:\n{{ISSUE_DESCRIPTION}}\n\n"
+            "Console logs:\n{{CONSOLE_LOGS}}\n\n"
+            "Action history:\n{{ACTION_HISTORY}}\n\n"
+            "Screenshot: {{SCREENSHOT_URL}}\n\n"
+            "Diagnose the root cause and propose a concrete fix."
+        )
+
+    date_str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+
+    return (
+        template
+        .replace("{{ISSUE_ID}}", data.issue_id)
+        .replace("{{ISSUE_TITLE}}", data.issue_title)
+        .replace("{{ISSUE_DESCRIPTION}}", data.issue_description or "(not provided)")
+        .replace("{{CHAT_OR_EMBED_URL}}", data.chat_or_embed_url or "(none)")
+        .replace("{{CONSOLE_LOGS}}", data.console_logs or "(not provided)")
+        .replace("{{ACTION_HISTORY}}", data.action_history or "(not provided)")
+        .replace("{{SCREENSHOT_URL}}", data.screenshot_presigned_url or "(no screenshot)")
+        .replace("{{ENVIRONMENT}}", data.environment)
+        .replace("{{DOMAIN}}", data.domain or "(unknown)")
+        .replace("{{DATE}}", date_str)
+    )
+
+
+def _run_opencode_investigation(data: _InvestigateRequest) -> None:
+    """
+    Launch an opencode plan-mode session for the given issue (blocking, run in a thread).
+
+    Uses the same pattern as scripts/_issues_checker.py:
+    - opencode run --attach http://localhost:4096 --agent plan --share
+    - Captures the share URL and logs it for the admin
+    - 15 minute timeout
+    """
+    prompt = _build_investigate_prompt(data)
+
+    date_str = datetime.datetime.utcnow().strftime("%Y-%m-%d")
+    session_title = f"issue-investigation {data.issue_id[:8]} {date_str}"
+
+    cmd = [
+        "opencode", "run",
+        "--attach", "http://localhost:4096",
+        "--agent", "plan",
+        "--share",
+        "--model", "anthropic/claude-sonnet-4-6",
+        "--title", session_title,
+        "--dir", _GIT_WORK_DIR,
+        prompt,
+    ]
+
+    # Cron / sidecar may run with a minimal PATH — ensure opencode binary is reachable
+    run_env = os.environ.copy()
+    run_env["PATH"] = "/home/superdev/.npm-global/bin:" + run_env.get(
+        "PATH", "/usr/local/bin:/usr/bin:/bin"
+    )
+
+    logger.info(
+        "[AdminSidecar/investigate] Starting opencode plan-mode session "
+        "(issue_id=%s title=%r)",
+        data.issue_id,
+        session_title,
+    )
+
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=900,  # 15 minute max
+            env=run_env,
+        )
+
+        combined_output = result.stdout + result.stderr
+
+        # Extract share URL (same pattern as _issues_checker.py)
+        share_url = None
+        for line in combined_output.splitlines():
+            for token in line.split():
+                if "opncd.ai/share/" in token:
+                    share_url = token.strip()
+                    break
+            if share_url:
+                break
+
+        if share_url:
+            logger.info(
+                "[AdminSidecar/investigate] opencode session completed: %s "
+                "(issue_id=%s)",
+                share_url,
+                data.issue_id,
+            )
+        else:
+            logger.warning(
+                "[AdminSidecar/investigate] opencode ran but no share URL found in output "
+                "(issue_id=%s, exit_code=%d)",
+                data.issue_id,
+                result.returncode,
+            )
+
+        if result.returncode != 0:
+            logger.warning(
+                "[AdminSidecar/investigate] opencode exited with code %d (issue_id=%s)",
+                result.returncode,
+                data.issue_id,
+            )
+
+    except subprocess.TimeoutExpired:
+        logger.warning(
+            "[AdminSidecar/investigate] opencode timed out after 15 minutes (issue_id=%s)",
+            data.issue_id,
+        )
+    except FileNotFoundError:
+        logger.error(
+            "[AdminSidecar/investigate] opencode binary not found — "
+            "is /home/superdev/.npm-global/bin in PATH? (issue_id=%s)",
+            data.issue_id,
+        )
+    except Exception as exc:
+        logger.error(
+            "[AdminSidecar/investigate] Unexpected error (issue_id=%s): %s",
+            data.issue_id,
+            exc,
+            exc_info=True,
+        )
+
+
+@app.post(
+    "/admin/opencode-investigate",
+    summary="Trigger an opencode plan-mode investigation for a reported issue",
+    description=(
+        "Called by the API container when an admin submits an issue report with "
+        "'Submit to agent' enabled. Launches an opencode plan-mode session in the "
+        "background and logs the share URL. "
+        "Requires X-Admin-Log-Key header matching ADMIN_LOG_API_KEY env var."
+    ),
+    include_in_schema=False,
+)
+async def post_opencode_investigate(
+    body: _InvestigateRequest,
+    x_admin_log_key: Optional[str] = Header(None),
+) -> JSONResponse:
+    """
+    Fire-and-forget: start an opencode investigation for a reported issue.
+
+    Returns 202 immediately; the opencode session runs in a background thread.
+    The share URL is logged to the admin-sidecar container log once available.
+    """
+    _require_admin_key(x_admin_log_key)
+
+    logger.info(
+        "[AdminSidecar/investigate] Received investigation request "
+        "(issue_id=%s, env=%s, domain=%s)",
+        body.issue_id,
+        body.environment,
+        body.domain,
+    )
+
+    # Run in a background thread so we return 202 immediately
+    asyncio.create_task(asyncio.to_thread(_run_opencode_investigation, body))
+
+    return JSONResponse(
+        status_code=202,
+        content={
+            "status": "accepted",
+            "issue_id": body.issue_id,
+            "message": (
+                "opencode investigation started in the background. "
+                "Check admin-sidecar logs for the share URL once complete."
+            ),
+        },
+    )
 
 
 # =============================================================================
