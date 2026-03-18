@@ -3428,7 +3428,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 						<!-- Search & sort bar (new Figma design) + close button -->
 						<div class="search-sort-bar-area">
 							<SearchSortBar
-								searchPlaceholder={$text('chats.search_placeholder', { default: 'Search' })}
+								searchPlaceholder={$text('chats.search.placeholder')}
 								sortOptions={[]}
 								onFocusIn={() => openSearch()}
 								onInput={(v) => { if (v.trim()) { openSearch(); setSearchQuery(v); } }}
