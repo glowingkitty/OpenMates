@@ -827,12 +827,11 @@ export class OpenMatesClient {
       ...this.getCliRequestHeaders(),
     };
     if (params.apiKey) headers.Authorization = `Bearer ${params.apiKey}`;
+    // The dynamic skill endpoints expect the tool_schema structure directly
+    // as the request body (e.g. {"requests": [...]}), not wrapped in input_data.
     const response = await this.http.post(
       `/v1/apps/${params.app}/skills/${params.skill}`,
-      {
-        input_data: params.inputData,
-        parameters: {},
-      },
+      params.inputData,
       headers,
     );
     if (!response.ok) {
