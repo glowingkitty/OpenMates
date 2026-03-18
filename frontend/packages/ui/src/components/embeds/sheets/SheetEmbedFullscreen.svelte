@@ -616,6 +616,11 @@
     line-height: 1.4;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     /* Do NOT set width: 100% — let columns size naturally so wide tables scroll */
+    /* white-space is NOT set here — data cells wrap, header cells use nowrap below */
+  }
+  
+  /* Headers never wrap — ellipsis is handled on .col-header-text */
+  .spreadsheet thead th {
     white-space: nowrap;
   }
   
@@ -769,10 +774,9 @@
     -webkit-user-select: text;
     -moz-user-select: text;
     -ms-user-select: text;
-    /* Truncate gracefully when cell content exceeds column width.
-       The title attribute (not set here) would show full value on hover. */
-    overflow: hidden;
-    text-overflow: ellipsis;
+    /* Wrap long text — fullscreen has vertical space; don't truncate */
+    white-space: normal;
+    word-break: break-word;
     max-width: 320px;
   }
   
