@@ -54,6 +54,7 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 SESSIONS_FILE = PROJECT_ROOT / ".claude" / "sessions.json"
+BACKLOG_FILE = PROJECT_ROOT / ".claude" / "backlog.json"
 PROJECT_INDEX_FILE = PROJECT_ROOT / ".claude" / "project-index.json"
 CODE_MAPPING_FILE = PROJECT_ROOT / "docs" / "architecture" / "code-mapping.yml"
 STALE_SESSION_HOURS = 24
@@ -73,6 +74,7 @@ ENV_FILE = PROJECT_ROOT / ".env"
 TAG_TO_DOCS: dict[str, list[str]] = {
     "frontend": ["frontend-standards-compact.md"],
     "backend": ["backend-standards.md"],  # Already compact at 68 lines
+    "cli": ["cli-standards.md"],
     "debug": ["debugging-compact.md"],
     "test": ["testing-compact.md"],
     "i18n": ["i18n.md", "manage-translations.md"],
@@ -138,6 +140,12 @@ TAG_KEYWORDS: dict[str, list[str]] = {
         "security", "encryption", "auth", "passkey", "csrf", "xss",
         "injection", "vulnerability",
     ],
+    "cli": [
+        "cli", "openmates-cli", "openmates cli", "terminal", "command line",
+        "command-line", "npm package", "crypto.ts", "client.ts", "ws.ts",
+        "storage.ts", "embedRenderers", "pair auth", "pair-auth", "whoami",
+        "memory_type_registry", "MEMORY_TYPE_REGISTRY",
+    ],
 }
 
 # Architecture doc descriptions (for the compact index)
@@ -197,6 +205,7 @@ TAG_TO_ARCH_KEYWORDS: dict[str, list[str]] = {
     "security": ["security", "zero-knowledge", "encryption", "passkey", "pii",
                  "prompt-injection", "email-privacy", "sensitive-data"],
     "api": ["rest-api", "api", "developer"],
+    "cli": ["sync", "zero-knowledge", "security", "passkey", "signup", "web-app"],
 }
 
 # ---------------------------------------------------------------------------
@@ -669,6 +678,58 @@ def _get_arch_doc_index() -> list[dict]:
         desc = ARCH_DOC_DESCRIPTIONS.get(f.stem, "")
         index.append({"name": f.stem, "file": f.name, "description": desc})
     return index
+
+# ---------------------------------------------------------------------------
+# Backlog helpers
+# ---------------------------------------------------------------------------
+
+
+def _load_backlog() -> dict:
+    """Load backlog.json, creating it with defaults if missing."""
+    if not BACKLOG_FILE.exists():
+        BACKLOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        data: dict = {"backlog": []}
+        _save_backlog(data)
+        return data
+    try:
+        with open(BACKLOG_FILE) as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError):
+        data = {"backlog": []}
+        _save_backlog(data)
+        return data
+
+
+def _save_backlog(data: dict) -> None:
+    """Atomically write backlog.json."""
+    BACKLOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    tmp = BACKLOG_FILE.with_suffix(".tmp")
+    with open(tmp, "w") as f:
+        json.dump(data, f, indent=2)
+        f.write("\n")
+    tmp.replace(BACKLOG_FILE)
+
+
+def _format_backlog_for_display(backlog: list[dict]) -> str:
+    """Format backlog entries as a compact numbered list for session start output."""
+    if not backlog:
+        return ""
+    lines: list[str] = []
+    for i, entry in enumerate(backlog, 1):
+        title = entry.get("title", "(untitled)")
+        desc = entry.get("description", "")
+        files = entry.get("files", [])
+        added = entry.get("added", "")[:10]  # date only
+        line = f"  [{i}] {title}"
+        if added:
+            line += f"  ({added})"
+        lines.append(line)
+        if desc:
+            lines.append(f"      {desc}")
+        if files:
+            lines.append(f"      Files: {', '.join(files)}")
+    return "\n".join(lines)
+
 
 # ---------------------------------------------------------------------------
 # Commands
@@ -1364,6 +1425,17 @@ def cmd_start(args: argparse.Namespace) -> None:
         deferred = sorted(all_possible & DEPLOY_PHASE_DOCS)
         if deferred:
             print(f"\n[Deferred to deploy: {', '.join(deferred)}]")
+
+    # ── Backlog (always shown — user consent prompt) ───────────────────────
+    backlog_data = _load_backlog()
+    backlog_items = backlog_data.get("backlog", [])
+    if backlog_items:
+        print()
+        print(f"== BACKLOG ({len(backlog_items)} items) ==")
+        print("Also consider processing (after asking user for consent) these backlog tasks, if they seem related or urgent!")
+        print(_format_backlog_for_display(backlog_items))
+        print("  Manage: sessions.py backlog-add --title \"...\" --description \"...\" [--files f1 f2]")
+        print("          sessions.py backlog-done --id <N>  |  sessions.py backlog-list")
 
     # ── Deploy reminder (compact, 1 line) ──────────────────────────────────
     if mode != "question":
@@ -2750,6 +2822,70 @@ def cmd_stale_docs(args: argparse.Namespace) -> None:
     print("== END STALE DOCS ==")
 
 
+def cmd_backlog_add(args: argparse.Namespace) -> None:
+    """Add a new entry to the backlog."""
+    data = _load_backlog()
+    entry: dict = {
+        "id": len(data["backlog"]) + 1,
+        "title": args.title,
+        "description": args.description or "",
+        "files": args.files or [],
+        "added": _now_iso()[:10],  # date only
+    }
+    data["backlog"].append(entry)
+    _save_backlog(data)
+    print(f"Backlog entry [{entry['id']}] added: {entry['title']}")
+    if entry["description"]:
+        print(f"  Description: {entry['description']}")
+    if entry["files"]:
+        print(f"  Files: {', '.join(entry['files'])}")
+
+
+def cmd_backlog_done(args: argparse.Namespace) -> None:
+    """Mark a backlog entry as done (removes it by 1-based index or id)."""
+    data = _load_backlog()
+    backlog = data.get("backlog", [])
+
+    target_id = args.id
+    # Find by the stored id field first, then fall back to positional index
+    match_idx = None
+    for i, entry in enumerate(backlog):
+        if entry.get("id") == target_id:
+            match_idx = i
+            break
+    # Fallback: treat as 1-based position
+    if match_idx is None and 1 <= target_id <= len(backlog):
+        match_idx = target_id - 1
+
+    if match_idx is None:
+        print(f"Error: No backlog entry with id {target_id}.", file=sys.stderr)
+        print("  Run 'sessions.py backlog-list' to see current entries.", file=sys.stderr)
+        sys.exit(1)
+
+    removed = backlog.pop(match_idx)
+    # Re-number remaining entries to keep ids sequential
+    for i, entry in enumerate(backlog, 1):
+        entry["id"] = i
+    data["backlog"] = backlog
+    _save_backlog(data)
+    print(f"Backlog entry removed: [{removed.get('id', '?')}] {removed.get('title', '?')}")
+    print(f"  {len(backlog)} item(s) remaining.")
+
+
+def cmd_backlog_list(args: argparse.Namespace) -> None:
+    """List all backlog entries."""
+    data = _load_backlog()
+    backlog = data.get("backlog", [])
+    if not backlog:
+        print("Backlog is empty.")
+        return
+    print(f"== BACKLOG ({len(backlog)} items) ==")
+    print(_format_backlog_for_display(backlog))
+    print()
+    print("Mark done: sessions.py backlog-done --id <N>")
+    print("Add new:   sessions.py backlog-add --title \"...\" --description \"...\" [--files f1 f2]")
+
+
 def cmd_debug_vercel(args: argparse.Namespace) -> None:
     """Start a session and print Vercel build logs via the REST API (works for ERROR deployments)."""
     # Auto-start a session
@@ -3086,6 +3222,45 @@ def main() -> None:
         help="Comma-separated tags to filter results",
     )
 
+    # backlog-add
+    p_backlog_add = sub.add_parser(
+        "backlog-add",
+        help="Add a new task to the backlog (.claude/backlog.json)",
+    )
+    p_backlog_add.add_argument(
+        "--title", "-t", required=True,
+        help="Short title for the backlog task",
+    )
+    p_backlog_add.add_argument(
+        "--description", "-d",
+        help="Optional longer description of the task",
+    )
+    p_backlog_add.add_argument(
+        "--files", "-f",
+        nargs="*",
+        metavar="FILE",
+        help="Optional relevant file paths (space-separated)",
+    )
+
+    # backlog-done
+    p_backlog_done = sub.add_parser(
+        "backlog-done",
+        help="Mark a backlog task as done (removes it from backlog)",
+    )
+    p_backlog_done.add_argument(
+        "--id", "-i",
+        required=True,
+        type=int,
+        metavar="N",
+        help="Backlog entry id (shown in backlog-list and session start output)",
+    )
+
+    # backlog-list
+    sub.add_parser(
+        "backlog-list",
+        help="List all current backlog tasks",
+    )
+
     args = parser.parse_args()
 
     commands = {
@@ -3112,6 +3287,9 @@ def main() -> None:
         "code-quality": cmd_code_quality,
         "find-redundancy": cmd_find_redundancy,
         "stale-docs": cmd_stale_docs,
+        "backlog-add": cmd_backlog_add,
+        "backlog-done": cmd_backlog_done,
+        "backlog-list": cmd_backlog_list,
     }
 
     cmd_func = commands.get(args.command)
