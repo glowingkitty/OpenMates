@@ -15,6 +15,18 @@ export interface WsEnvelope<T = unknown> {
   payload: T;
 }
 
+/** Streaming event dispatched for each chunk or lifecycle event. */
+export interface StreamEvent {
+  /** Event type. */
+  kind: "typing" | "chunk" | "done";
+  /** Cumulative content so far (only on chunk/done). */
+  content: string;
+  /** AI category (e.g. "general_knowledge"). */
+  category: string | null;
+  /** Human-readable model name. */
+  modelName: string | null;
+}
+
 export class OpenMatesWsClient {
   private readonly socket: WebSocket;
 
@@ -137,12 +149,18 @@ export class OpenMatesWsClient {
   collectAiResponse(
     userMessageId: string,
     chatId: string,
-    timeoutMs = 90_000,
+    options?: {
+      timeoutMs?: number;
+      onStream?: (event: StreamEvent) => void;
+    },
   ): Promise<{
     content: string;
     category: string | null;
     modelName: string | null;
   }> {
+    const timeoutMs = options?.timeoutMs ?? 90_000;
+    const onStream = options?.onStream;
+
     return new Promise((resolve, reject) => {
       let latestContent = "";
       let category: string | null = null;
@@ -187,8 +205,21 @@ export class OpenMatesWsClient {
               latestContent = p.full_content_so_far;
             }
             if (p.is_final_chunk === true) {
+              onStream?.({
+                kind: "done",
+                content: latestContent,
+                category,
+                modelName,
+              });
               cleanup();
               resolve({ content: latestContent, category, modelName });
+            } else {
+              onStream?.({
+                kind: "chunk",
+                content: latestContent,
+                category,
+                modelName,
+              });
             }
             return;
           }
@@ -203,14 +234,21 @@ export class OpenMatesWsClient {
               typeof p.full_content === "string"
                 ? p.full_content
                 : latestContent;
+            onStream?.({ kind: "done", content, category, modelName });
             cleanup();
             resolve({ content, category, modelName });
             return;
           }
 
-          // Also capture from ai_typing_started which fires before chunks
+          // Typing started — fires before content chunks arrive
           if (type === "ai_typing_started") {
             capture(p);
+            onStream?.({
+              kind: "typing",
+              content: "",
+              category,
+              modelName,
+            });
           }
         } catch {
           // Ignore malformed frames.

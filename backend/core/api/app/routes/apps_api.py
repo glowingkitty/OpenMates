@@ -1134,7 +1134,8 @@ async def charge_credits_via_internal_api(
 async def list_apps(
     request: Request,
     user_info: Dict[str, Any] = SessionOrApiKeyAuth,
-    cache_service: CacheService = Depends(get_cache_service)
+    cache_service: CacheService = Depends(get_cache_service),
+    include_unavailable: bool = False,
 ):
     """
     List all available apps and their skills.
@@ -1203,15 +1204,18 @@ async def list_apps(
                 if skill_stage not in allowed_stages:
                     continue
                 
-                # Check if skill is available based on API key configuration
-                skill_available = await is_skill_available(skill, app_id, secrets_manager, config_manager)
-                if not skill_available:
-                    logger.debug(f"Skipping skill '{skill.id}' from app '{app_id}' - no API keys configured for providers")
-                    continue
+                # Check if skill is available based on API key configuration.
+                # When include_unavailable=True (used by CLI to match the web app's
+                # build-time static metadata), skip provider availability checks.
+                if not include_unavailable:
+                    skill_available = await is_skill_available(skill, app_id, secrets_manager, config_manager)
+                    if not skill_available:
+                        logger.debug(f"Skipping skill '{skill.id}' from app '{app_id}' - no API keys configured for providers")
+                        continue
 
-                if app_id == "mail" and skill.id == "search" and not protonmail_allowed_for_user:
-                    logger.debug("Skipping mail/search for external user without ProtonMail permission")
-                    continue
+                    if app_id == "mail" and skill.id == "search" and not protonmail_allowed_for_user:
+                        logger.debug("Skipping mail/search for external user without ProtonMail permission")
+                        continue
                 
                 skill_name = resolve_translation(
                     translation_service,

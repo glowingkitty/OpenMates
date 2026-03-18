@@ -18,6 +18,7 @@ import {
   type DecryptedMessage,
   type DecryptedEmbed,
 } from "./client.js";
+import type { StreamEvent } from "./ws.js";
 
 type CliArgs = {
   positionals: string[];
@@ -162,16 +163,13 @@ async function handleChats(
       throw new Error(
         "Missing message text. Usage: openmates chats new <message>",
       );
-    const result = await client.sendMessage({
+    const result = await sendMessageStreaming(client, {
       message,
       chatId: undefined,
       incognito: false,
+      json: flags.json === true,
     });
-    if (flags.json === true) {
-      printJson(result);
-    } else {
-      printChatResponse(result);
-    }
+    if (flags.json === true) printJson(result);
     return;
   }
 
@@ -182,16 +180,13 @@ async function handleChats(
         "Missing message text. Usage: openmates chats send [--chat <id>] <message>",
       );
     const chatId = typeof flags.chat === "string" ? flags.chat : undefined;
-    const result = await client.sendMessage({
+    const result = await sendMessageStreaming(client, {
       message,
       chatId,
       incognito: flags.incognito === true,
+      json: flags.json === true,
     });
-    if (flags.json === true) {
-      printJson(result);
-    } else {
-      printChatResponse(result);
-    }
+    if (flags.json === true) printJson(result);
     return;
   }
 
@@ -201,12 +196,12 @@ async function handleChats(
       throw new Error(
         "Missing message text. Usage: openmates chats incognito <message>",
       );
-    const result = await client.sendMessage({ message, incognito: true });
-    if (flags.json === true) {
-      printJson(result);
-    } else {
-      printChatResponse(result);
-    }
+    const result = await sendMessageStreaming(client, {
+      message,
+      incognito: true,
+      json: flags.json === true,
+    });
+    if (flags.json === true) printJson(result);
     return;
   }
 
@@ -514,6 +509,48 @@ async function handleSettings(
 
   if (subcommand === "memories") {
     await handleMemories(client, rest, flags);
+    return;
+  }
+
+  // Gift card subcommands
+  if (subcommand === "gift-card") {
+    const action = rest[0];
+    if (action === "redeem") {
+      const code = rest[1];
+      if (!code) {
+        console.error("Missing gift card code.\n");
+        console.log("Usage: openmates settings gift-card redeem <CODE>");
+        process.exit(1);
+      }
+      const result = await client.redeemGiftCard(code);
+      if (flags.json === true) {
+        printJson(result);
+      } else {
+        if (result.success) {
+          process.stdout.write(
+            `\x1b[32m✓\x1b[0m Gift card redeemed! +${result.credits_added} credits\n`,
+          );
+          process.stdout.write(
+            `  Balance: ${result.current_credits} credits\n`,
+          );
+        } else {
+          process.stdout.write(`\x1b[31m✗\x1b[0m ${result.message}\n`);
+        }
+      }
+      return;
+    }
+    if (action === "list") {
+      const result = await client.listRedeemedGiftCards();
+      if (flags.json === true) {
+        printJson(result);
+      } else {
+        printGenericObject(result);
+      }
+      return;
+    }
+    console.log(`Gift card commands:
+  openmates settings gift-card redeem <CODE>    Redeem a gift card
+  openmates settings gift-card list             List redeemed gift cards`);
     return;
   }
 
@@ -871,27 +908,146 @@ function printChatsTable(result: ChatListPage): void {
   }
 }
 
-function printChatResponse(result: {
+/**
+ * Send a message with live streaming output.
+ *
+ * Prints a typing indicator while waiting, streams content as it arrives
+ * (diff-printing new characters), and renders inline embeds after completion.
+ */
+async function sendMessageStreaming(
+  client: OpenMatesClient,
+  params: {
+    message: string;
+    chatId?: string;
+    incognito?: boolean;
+    json?: boolean;
+  },
+): Promise<{
   chatId: string;
   assistant: string;
   category: string | null;
   modelName: string | null;
   mateName: string | null;
-}): void {
-  const shortId = result.chatId.slice(0, 8);
-  const mateBlock = ansiMateBlock(result.category, result.mateName);
-  const modelSuffix = result.modelName
-    ? `  \x1b[2m${result.modelName}\x1b[0m`
-    : "";
-  process.stdout.write(`${SEP}\n`);
-  process.stdout.write(`${mateBlock}${modelSuffix}\n`);
-  process.stdout.write(`${SEP}\n`);
-  console.log(result.assistant);
-  process.stdout.write(`${SEP}\n`);
-  process.stdout.write(
-    `\x1b[2mContinue: openmates chats send --chat ${shortId} "your message"\x1b[0m\n` +
-      `\x1b[2mHistory:  openmates chats show ${shortId}\x1b[0m\n`,
-  );
+}> {
+  let printedLength = 0;
+  let headerPrinted = false;
+  let typingShown = false;
+
+  const clearTyping = () => {
+    if (typingShown) {
+      // Clear the typing indicator line
+      process.stdout.write("\r\x1b[K");
+      typingShown = false;
+    }
+  };
+
+  const onStream = (event: StreamEvent) => {
+    if (params.json) return; // suppress streaming output in JSON mode
+
+    if (event.kind === "typing") {
+      const mateName =
+        event.category && MATE_NAMES[event.category]
+          ? MATE_NAMES[event.category]
+          : "Mate";
+      process.stdout.write(`\x1b[2m${mateName} is typing...\x1b[0m`);
+      typingShown = true;
+      return;
+    }
+
+    if (event.kind === "chunk" || event.kind === "done") {
+      clearTyping();
+
+      // Print header on first content
+      if (!headerPrinted) {
+        const mateBlock = ansiMateBlock(event.category, null);
+        const modelSuffix = event.modelName
+          ? `  \x1b[2m${event.modelName}\x1b[0m`
+          : "";
+        process.stdout.write(`${SEP}\n`);
+        process.stdout.write(`${mateBlock}${modelSuffix}\n`);
+        process.stdout.write(`${SEP}\n`);
+        headerPrinted = true;
+      }
+
+      // Diff-print: only write new characters since last chunk.
+      // Strip embed JSON blocks from streaming output — they'll be
+      // rendered properly after the response completes.
+      const clean = stripEmbedJsonBlocks(event.content);
+      if (clean.length > printedLength) {
+        process.stdout.write(clean.slice(printedLength));
+        printedLength = clean.length;
+      }
+    }
+  };
+
+  const result = await client.sendMessage({
+    message: params.message,
+    chatId: params.chatId,
+    incognito: params.incognito,
+    onStream,
+  });
+
+  clearTyping();
+
+  if (!params.json) {
+    // If header wasn't printed (e.g. background path, no streaming), print it now
+    if (!headerPrinted) {
+      const mateBlock = ansiMateBlock(result.category, result.mateName);
+      const modelSuffix = result.modelName
+        ? `  \x1b[2m${result.modelName}\x1b[0m`
+        : "";
+      process.stdout.write(`${SEP}\n`);
+      process.stdout.write(`${mateBlock}${modelSuffix}\n`);
+      process.stdout.write(`${SEP}\n`);
+    }
+
+    // Now render the full response with proper embed handling
+    const segments = parseMessageSegments(result.assistant);
+    // Check if we already printed via streaming — if so, we need to print
+    // any remaining content and embeds that weren't streamed
+    const alreadyStreamed = printedLength > 0;
+    if (alreadyStreamed) {
+      process.stdout.write("\n"); // newline after streamed content
+    }
+
+    // Print embed blocks that were stripped during streaming
+    for (const seg of segments) {
+      if (seg.type === "embed") {
+        try {
+          const embed = await client.getEmbed(seg.value);
+          await renderInlineEmbed(embed, client);
+        } catch {
+          process.stdout.write(
+            `\x1b[2m📎 openmates embeds show ${seg.value.slice(0, 8)}\x1b[0m\n`,
+          );
+        }
+      } else if (!alreadyStreamed) {
+        // If we didn't stream, print text segments too
+        process.stdout.write(seg.value);
+      }
+    }
+
+    if (!alreadyStreamed && segments.length > 0) {
+      process.stdout.write("\n");
+    }
+
+    const shortId = result.chatId.slice(0, 8);
+    process.stdout.write(`${SEP}\n`);
+    process.stdout.write(
+      `\x1b[2mContinue: openmates chats send --chat ${shortId} "your message"\x1b[0m\n` +
+        `\x1b[2mHistory:  openmates chats show ${shortId}\x1b[0m\n`,
+    );
+  }
+
+  return result;
+}
+
+/**
+ * Strip ```json embed blocks from content for clean streaming output.
+ * These are rendered separately after the response completes.
+ */
+function stripEmbedJsonBlocks(content: string): string {
+  return content.replace(/```(?:json_embed|json)\n[\s\S]*?\n```/g, "");
 }
 
 function printIncognitoHistory(
@@ -1799,39 +1955,140 @@ function printWhoAmI(user: Record<string, unknown>): void {
   }
 }
 
-function printGenericObject(value: unknown): void {
+/**
+ * Human-readable structured output for any API response.
+ * Arrays of objects are printed as separated blocks.
+ * Nested objects are recursively formatted with indentation.
+ * Known response types (billing, invoices) get specialized formatting.
+ */
+function printGenericObject(value: unknown, indent = 0): void {
+  const pad = "  ".repeat(indent);
   if (value === null || value === undefined) {
-    console.log("(empty)");
+    console.log(`${pad}(empty)`);
     return;
   }
-  if (typeof value === "string") {
-    console.log(value);
+  if (
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  ) {
+    console.log(`${pad}${value}`);
     return;
   }
   if (Array.isArray(value)) {
     if (value.length === 0) {
-      console.log("(empty list)");
+      console.log(`${pad}(empty list)`);
       return;
     }
-    for (const item of value) {
+    for (let i = 0; i < value.length; i++) {
+      const item = value[i];
       if (item && typeof item === "object") {
-        printGenericObject(item);
-        hr();
+        printGenericObject(item, indent);
+        if (i < value.length - 1) {
+          process.stdout.write(`${pad}\x1b[2m${"─".repeat(40)}\x1b[0m\n`);
+        }
       } else {
-        console.log(String(item));
+        console.log(`${pad}${String(item)}`);
       }
     }
     return;
   }
   if (typeof value === "object") {
-    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-      if (v !== null && v !== undefined) {
-        kv(k, typeof v === "object" ? JSON.stringify(v) : String(v));
+    const obj = value as Record<string, unknown>;
+
+    // ── Billing response: specialized formatting ──
+    if ("payment_tier" in obj && "invoices" in obj) {
+      printBillingResponse(obj);
+      return;
+    }
+
+    for (const [k, v] of Object.entries(obj)) {
+      if (v === null || v === undefined) continue;
+      if (Array.isArray(v)) {
+        if (v.length === 0) {
+          process.stdout.write(
+            `${pad}  \x1b[2m${k.padEnd(20)}\x1b[0m (none)\n`,
+          );
+        } else if (v.length > 0 && typeof v[0] === "object") {
+          process.stdout.write(
+            `\n${pad}  \x1b[1m${k}\x1b[0m  \x1b[2m(${v.length})\x1b[0m\n`,
+          );
+          printGenericObject(v, indent + 1);
+        } else {
+          process.stdout.write(
+            `${pad}  \x1b[2m${k.padEnd(20)}\x1b[0m ${v.join(", ")}\n`,
+          );
+        }
+      } else if (typeof v === "object") {
+        process.stdout.write(`${pad}  \x1b[1m${k}\x1b[0m\n`);
+        printGenericObject(v, indent + 1);
+      } else {
+        process.stdout.write(`${pad}  \x1b[2m${k.padEnd(20)}\x1b[0m ${v}\n`);
       }
     }
     return;
   }
-  console.log(String(value));
+  console.log(`${pad}${String(value)}`);
+}
+
+/** Specialized billing overview renderer */
+function printBillingResponse(obj: Record<string, unknown>): void {
+  header("Billing\n");
+  const credits = obj.credits ?? obj.current_credits;
+  if (credits !== undefined) kv("Credits", String(credits));
+  if (obj.payment_tier !== undefined)
+    kv("Payment tier", String(obj.payment_tier));
+
+  // Auto top-up
+  const atEnabled = obj.auto_topup_enabled;
+  if (atEnabled !== undefined) {
+    kv("Auto top-up", atEnabled ? "enabled" : "disabled");
+    if (atEnabled) {
+      if (obj.auto_topup_threshold !== undefined)
+        kv("  Threshold", `${obj.auto_topup_threshold} credits`);
+      if (obj.auto_topup_amount !== undefined)
+        kv("  Amount", `${obj.auto_topup_amount} credits`);
+      if (obj.auto_topup_currency !== undefined)
+        kv("  Currency", String(obj.auto_topup_currency).toUpperCase());
+    }
+  }
+
+  // Invoices
+  const invoices = obj.invoices as Array<Record<string, unknown>> | undefined;
+  if (Array.isArray(invoices) && invoices.length > 0) {
+    process.stdout.write(
+      `\n  \x1b[1mInvoices\x1b[0m  \x1b[2m(${invoices.length})\x1b[0m\n\n`,
+    );
+    for (const inv of invoices) {
+      const date = str(inv.date) ?? "—";
+      const amt = str(inv.amount) ?? "—";
+      const creditsP = inv.credits_purchased ?? "—";
+      const refund = str(inv.refund_status);
+      const refundTag =
+        refund && refund !== "none" ? `  \x1b[33m[${refund}]\x1b[0m` : "";
+      const giftTag = inv.is_gift_card ? "  \x1b[35m[gift card]\x1b[0m" : "";
+      process.stdout.write(
+        `    ${date}  \x1b[2m€${amt}\x1b[0m  ${creditsP} credits${refundTag}${giftTag}\n`,
+      );
+    }
+  }
+
+  // Print remaining unknown keys
+  const shown = new Set([
+    "credits",
+    "current_credits",
+    "payment_tier",
+    "auto_topup_enabled",
+    "auto_topup_threshold",
+    "auto_topup_amount",
+    "auto_topup_currency",
+    "invoices",
+  ]);
+  for (const [k, v] of Object.entries(obj)) {
+    if (!shown.has(k) && v !== null && v !== undefined) {
+      kv(k, typeof v === "object" ? JSON.stringify(v) : String(v));
+    }
+  }
 }
 
 function printMemoriesList(
@@ -2021,10 +2278,12 @@ ${h("Billing")}
     openmates settings get usage/summaries [--json]     Usage summaries by type
     openmates settings get usage/daily-overview [--json]
     openmates settings get usage/export [--json]        Export usage as CSV
+    openmates settings gift-card redeem <CODE>          Redeem a gift card
+    openmates settings gift-card list                   List redeemed gift cards
     \x1b[2mBuy credits: ${s("billing/buy-credits")}\x1b[0m
     \x1b[2mMonthly auto top-up: ${s("billing/auto-topup/monthly")}\x1b[0m
     \x1b[2mInvoices: ${s("billing/invoices")}\x1b[0m
-    \x1b[2mGift cards: ${s("billing/gift-cards")}\x1b[0m
+    \x1b[2mGift cards (buy/manage): ${s("billing/gift-cards")}\x1b[0m
 ${h("Privacy")}
     openmates settings post auto-delete-chats --data '{"period":"90d"}'
     openmates settings post auto-delete-usage --data '{"period":"1y"}'

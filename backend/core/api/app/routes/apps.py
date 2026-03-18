@@ -362,6 +362,7 @@ async def get_apps_metadata(
     request: Request,
     current_user: Optional[User] = Depends(get_current_user_optional),
     encryption_service: EncryptionService = Depends(get_encryption_service),
+    include_unavailable: bool = False,
 ):
     """
     Get metadata for all discovered apps.
@@ -472,17 +473,21 @@ async def get_apps_metadata(
                 logger.debug(f"Skipping skill '{skill.id}' from app '{app_id}' - stage '{skill_stage}' not compatible with '{server_environment}' environment")
                 continue
             
-            # Check if skill is available based on API key configuration
-            skill_available = await is_skill_available(skill, app_id, secrets_manager)
-            if not skill_available:
-                logger.debug(f"Skipping skill '{skill.id}' from app '{app_id}' - no API keys configured for providers")
-                continue
+            # Check if skill is available based on API key configuration.
+            # When include_unavailable=True (used by CLI to match the web app's
+            # build-time static metadata), skip provider availability checks so
+            # all production-stage skills are returned regardless of API keys.
+            if not include_unavailable:
+                skill_available = await is_skill_available(skill, app_id, secrets_manager)
+                if not skill_available:
+                    logger.debug(f"Skipping skill '{skill.id}' from app '{app_id}' - no API keys configured for providers")
+                    continue
 
-            # Proton Mail Bridge is intentionally single-account: only the explicitly
-            # configured OpenMates user should see and execute the mail.search skill.
-            if app_id == "mail" and skill.id == "search" and not protonmail_user_allowed:
-                logger.debug("Skipping mail/search skill for current user (not ProtonMail-allowed)")
-                continue
+                # Proton Mail Bridge is intentionally single-account: only the explicitly
+                # configured OpenMates user should see and execute the mail.search skill.
+                if app_id == "mail" and skill.id == "search" and not protonmail_user_allowed:
+                    logger.debug("Skipping mail/search skill for current user (not ProtonMail-allowed)")
+                    continue
             
             skill_name = resolve_translation(
                 translation_service,
@@ -582,7 +587,7 @@ async def get_apps_metadata(
 
 
 @router.get("/{app_id}/metadata")
-async def get_app_metadata(app_id: str, request: Request):
+async def get_app_metadata(app_id: str, request: Request, include_unavailable: bool = False):
     """
     Get metadata for a specific app.
     
@@ -649,11 +654,12 @@ async def get_app_metadata(app_id: str, request: Request):
             logger.debug(f"Skipping skill '{skill.id}' from app '{app_id}' - stage '{skill_stage}' not compatible with '{server_environment}' environment")
             continue
         
-        # Check if skill is available based on API key configuration
-        skill_available = await is_skill_available(skill, app_id, secrets_manager)
-        if not skill_available:
-            logger.debug(f"Skipping skill '{skill.id}' from app '{app_id}' - no API keys configured for providers")
-            continue
+        # When include_unavailable=True (CLI), skip provider availability checks
+        if not include_unavailable:
+            skill_available = await is_skill_available(skill, app_id, secrets_manager)
+            if not skill_available:
+                logger.debug(f"Skipping skill '{skill.id}' from app '{app_id}' - no API keys configured for providers")
+                continue
         
         skill_name = resolve_translation(
             translation_service,

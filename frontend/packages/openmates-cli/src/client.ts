@@ -1065,10 +1065,27 @@ export class OpenMatesClient {
     };
   }
 
+  /**
+   * Resolve a short chat ID (first 8 chars) or partial title to a full UUID.
+   * Accepts full UUIDs unchanged. Returns undefined if no match found.
+   */
+  async resolveFullChatId(idOrShort: string): Promise<string | undefined> {
+    const cache = await this.ensureSynced();
+    const lower = idOrShort.toLowerCase();
+    for (const chat of cache.chats) {
+      const fullId = String(chat.details.id ?? "");
+      if (fullId === idOrShort) return fullId;
+      if (fullId.toLowerCase().startsWith(lower)) return fullId;
+    }
+    return undefined;
+  }
+
   async sendMessage(params: {
     message: string;
     chatId?: string;
     incognito?: boolean;
+    /** Streaming callback — fires for typing, chunk, and done events. */
+    onStream?: (event: import("./ws.js").StreamEvent) => void;
   }): Promise<{
     chatId: string;
     assistant: string;
@@ -1077,7 +1094,25 @@ export class OpenMatesClient {
     mateName: string | null;
   }> {
     const session = this.requireSession();
-    const chatId = params.chatId ?? randomUUID();
+
+    // Resolve short IDs (8-char prefix) to full UUIDs via sync cache.
+    // Full UUIDs and undefined (new chat) pass through unchanged.
+    let chatId: string;
+    if (!params.chatId) {
+      chatId = randomUUID();
+    } else if (params.chatId.length < 36) {
+      // Short ID — resolve from sync cache
+      const resolved = await this.resolveFullChatId(params.chatId);
+      if (!resolved) {
+        throw new Error(
+          `Chat not found for '${params.chatId}'. Use a full UUID or the first 8 characters of an existing chat ID.`,
+        );
+      }
+      chatId = resolved;
+    } else {
+      chatId = params.chatId;
+    }
+
     const ws = this.makeWsClient(session);
     await ws.open();
 
@@ -1104,6 +1139,7 @@ export class OpenMatesClient {
     let assistant = "";
     let category: string | null = null;
     let modelName: string | null = null;
+    const streamOpts = { onStream: params.onStream };
 
     if (params.incognito) {
       const history = loadIncognitoHistory();
@@ -1113,7 +1149,7 @@ export class OpenMatesClient {
         createdAt: Date.now(),
       });
       try {
-        const resp = await ws.collectAiResponse(messageId, chatId);
+        const resp = await ws.collectAiResponse(messageId, chatId, streamOpts);
         assistant = resp.content;
         category = resp.category;
         modelName = resp.modelName;
@@ -1128,7 +1164,7 @@ export class OpenMatesClient {
       saveIncognitoHistory(history);
     } else {
       try {
-        const resp = await ws.collectAiResponse(messageId, chatId);
+        const resp = await ws.collectAiResponse(messageId, chatId, streamOpts);
         assistant = resp.content;
         category = resp.category;
         modelName = resp.modelName;
@@ -1158,7 +1194,12 @@ export class OpenMatesClient {
       ...this.getCliRequestHeaders(),
     };
     if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
-    const response = await this.http.get("/v1/apps", headers);
+    // include_unavailable=true: show all production-stage skills regardless
+    // of provider API key availability — matches web app's static metadata.
+    const response = await this.http.get(
+      "/v1/apps?include_unavailable=true",
+      headers,
+    );
     if (!response.ok) {
       throw new Error(
         `Failed to list apps (HTTP ${response.status}). ` +
@@ -1171,9 +1212,9 @@ export class OpenMatesClient {
   }
 
   async getApp(appId: string): Promise<unknown> {
-    // Public metadata endpoint — no auth required
+    // Public metadata endpoint with include_unavailable to show all skills
     const response = await this.http.get(
-      `/v1/apps/${encodeURIComponent(appId)}/metadata`,
+      `/v1/apps/${encodeURIComponent(appId)}/metadata?include_unavailable=true`,
       this.getCliRequestHeaders(),
     );
     if (!response.ok) {
@@ -1388,6 +1429,47 @@ export class OpenMatesClient {
     );
     if (!response.ok) {
       throw new Error(`Settings PATCH failed with HTTP ${response.status}`);
+    }
+    return response.data;
+  }
+
+  // -------------------------------------------------------------------------
+  // Gift cards (under /v1/payments, not /v1/settings)
+  // -------------------------------------------------------------------------
+
+  async redeemGiftCard(code: string): Promise<{
+    success: boolean;
+    credits_added: number;
+    current_credits: number;
+    message: string;
+  }> {
+    this.requireSession();
+    const response = await this.http.post(
+      "/v1/payments/redeem-gift-card",
+      { code },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Gift card redemption failed (HTTP ${response.status})`);
+    }
+    return response.data as {
+      success: boolean;
+      credits_added: number;
+      current_credits: number;
+      message: string;
+    };
+  }
+
+  async listRedeemedGiftCards(): Promise<unknown> {
+    this.requireSession();
+    const response = await this.http.get(
+      "/v1/payments/redeemed-gift-cards",
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch redeemed gift cards (HTTP ${response.status})`,
+      );
     }
     return response.data;
   }
