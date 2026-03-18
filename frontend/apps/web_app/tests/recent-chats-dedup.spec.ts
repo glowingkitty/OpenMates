@@ -233,7 +233,9 @@ test('recent chats show no duplicates and resume card reflects last opened chat'
 	test.setTimeout(180000); // 3 minutes — two chats + navigation
 
 	const logStep = createSignupLogger('RECENT_CHATS_DEDUP');
-	const takeStepScreenshot = createStepScreenshotter('recent-chats-dedup');
+	const takeStepScreenshot = createStepScreenshotter(logStep, {
+		filenamePrefix: 'recent-chats-dedup'
+	});
 	await archiveExistingScreenshots(logStep);
 
 	// Capture console logs for diagnostics
