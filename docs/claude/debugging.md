@@ -88,16 +88,17 @@ Check the Caddyfile first (`deployment/dev_server/Caddyfile` or `deployment/prod
 
 ## Rule 9: Where to Look First
 
-| Problem Type            | Check First                               | Then Check                 |
-| ----------------------- | ----------------------------------------- | -------------------------- |
-| AI response issues      | `task-worker`, `app-ai-worker`            | `api` (WebSocket logs)     |
-| Login/auth failures     | `api`                                     | `cms` (Directus logs)      |
-| Payment issues          | `api`                                     | `task-worker` (async jobs) |
-| Sync/cache issues       | `api` (PHASE1, SYNC_CACHE)                | `cache` (Dragonfly)        |
-| Frontend/client issues  | OpenObserve `job='client-console'` (SQL)  | Browser console            |
-| Scheduled task failures | `task-scheduler`                          | `task-worker`              |
-| User-specific issues    | `debug.py logs`                           | Specific service logs      |
-| Mobile/iPhone issues    | `debug.py logs --browser --device iphone` | `--level error` to narrow  |
+| Problem Type            | Check First                               | Then Check                            |
+| ----------------------- | ----------------------------------------- | ------------------------------------- |
+| AI response issues      | `task-worker`, `app-ai-worker`            | `api` (WebSocket logs)                |
+| Login/auth failures     | `api`                                     | `cms` (Directus logs)                 |
+| Payment issues          | `api`                                     | `task-worker` (async jobs)            |
+| Sync/cache issues       | `api` (PHASE1, SYNC_CACHE)                | `cache` (Dragonfly)                   |
+| Frontend/client issues  | OpenObserve `job='client-console'` (SQL)  | Browser console                       |
+| Scheduled task failures | `task-scheduler`                          | `task-worker`                         |
+| User-specific issues    | `debug.py logs`                           | Specific service logs                 |
+| Mobile/iPhone issues    | `debug.py logs --browser --device iphone` | `--level error` to narrow             |
+| User-submitted issues   | `debug.py issue <id> --timeline`          | `debug.py issue <id>` (metadata/YAML) |
 
 ### Filtering Browser Logs by Device
 
@@ -121,7 +122,34 @@ docker exec api python /app/backend/scripts/debug.py logs --o2 \
 
 The `device_type` label is set by `openobserve_push_service.derive_device_type()` at push time and is stored as an indexed stream label in OpenObserve — no UA string parsing needed at query time.
 
-## Rule 9.1: Start With Token-Efficient OpenObserve Presets (Dev + Prod)
+## Rule 9.1: User-Submitted Issue Reports — Use `--timeline` for Logs
+
+When a user submits a bug report via the in-app reporter, use `--timeline` to investigate logs — **not `--full-logs`** (which only showed a static S3 snapshot):
+
+```bash
+# Local dev — unified browser + backend timeline anchored to issue timestamp
+docker exec api python /app/backend/scripts/debug.py issue <id> --timeline
+
+# Custom window (default: 10 min before, 5 min after report)
+docker exec api python /app/backend/scripts/debug.py issue <id> --timeline --before 15 --after 5
+
+# Production
+docker exec api python /app/backend/scripts/debug.py issue <id> --timeline --production
+docker exec api python /app/backend/scripts/debug.py issue <id> --timeline --dev
+```
+
+The timeline:
+
+- Anchors to `issue.created_at` (server-side UTC timestamp)
+- Runs 3 parallel OpenObserve queries: browser console snapshot (`job=client-issue-report`), container logs, API logs — all filtered by `issue_id` and/or `user_id`
+- Merges and deduplicates events chronologically with a `── ISSUE REPORTED ──` marker at the incident moment
+- Color-codes by level (red=error, yellow=warn) and source (magenta=browser, cyan=api, green=containers)
+
+**S3 YAML still exists** and is shown by `debug.py issue <id>` without extra flags. It contains: IndexedDB inspection, last messages HTML, sidebar HTML, runtime debug state, action history, picked element HTML, screenshot URL. It no longer stores `console_logs` or `docker_compose_logs` — those are queried live via `--timeline`.
+
+Old YAMLs (pre-`a4ccddcff`) still containing log snapshots show a legacy quick-scan (errors only, capped at 40 lines) with a pointer to use `--timeline` instead.
+
+## Rule 9.2: Start With Token-Efficient OpenObserve Presets (Dev + Prod)
 
 Before dumping long raw logs, run a compact OpenObserve preset first:
 
@@ -133,7 +161,7 @@ Use `--raw` only when you need representative sample lines, `--sql` for ad-hoc d
 
 Treat these presets as the default first step for both dev and production investigations; use `docker compose logs` only for the Rule 4 fallback cases.
 
-## Rule 9.2: Chat Processing Issues — Use the chat-processing Preset
+## Rule 9.3: Chat Processing Issues — Use the chat-processing Preset
 
 When a user reports a message not being processed, a stuck chat, or a missing AI response, run this first:
 
@@ -142,7 +170,7 @@ When a user reports a message not being processed, a stuck chat, or a missing AI
 
 The preset shows pipeline milestones (message_received → ai_dispatched → task_success → ai_response_persisted → message_completed), errors from api/app-ai/task-worker, and a timeline of key events — all in one compact view without raw log dumps.
 
-## Rule 9.3: E2E Test Runs — Use the `test-events` Preset
+## Rule 9.4: E2E Test Runs — Use the `test-events` Preset
 
 E2E test runs push per-spec lifecycle events (`suite_start`, `test_end`, `suite_end`) into OpenObserve via `job='test-events'`, and daily run summaries via `job='test-runs'`.
 

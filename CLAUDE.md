@@ -215,6 +215,17 @@ Only remove debug logs after user confirms the issue is fixed.
 
 ### Issue Resolution
 
+Investigate a user-submitted issue report:
+
+```bash
+# Start here — unified browser + backend timeline from OpenObserve
+docker exec api python /app/backend/scripts/debug.py issue <id> --timeline
+# Metadata, decrypted fields, S3 YAML (IndexedDB, HTML snapshots, runtime state, screenshot)
+docker exec api python /app/backend/scripts/debug.py issue <id>
+# Production issues
+docker exec api python /app/backend/scripts/debug.py issue <id> --timeline --production
+```
+
 After user confirms fix: `docker exec api python /app/backend/scripts/debug.py issue <id> --delete --yes`
 
 ### New Features Require E2E Test Proposal (CRITICAL)

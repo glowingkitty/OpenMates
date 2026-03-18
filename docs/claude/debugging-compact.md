@@ -37,4 +37,13 @@ debug.py logs --o2 --preset chat-processing --since 30   # Chat issues
 debug.py logs --o2 --preset test-events --since 60       # Test runs
 debug.py logs --browser --device iphone --level error     # Mobile
 debug.py vercel                                           # Vercel failures
+debug.py issue <id> --timeline                            # Issue: unified browser+backend log timeline
+debug.py issue <id> --timeline --before 15 --after 5     # Custom time window (default: −10/+5 min)
+debug.py issue <id> --timeline --production               # Same, against prod OpenObserve
 ```
+
+## Issue Inspection
+
+- `debug.py issue <id>` — metadata + decrypted fields + S3 YAML (IndexedDB, HTML snapshots, runtime state, action history, screenshot)
+- `debug.py issue <id> --timeline` — **use this for log investigation** instead of `--full-logs`; queries OpenObserve live and merges browser console (`job=client-issue-report`) + backend container logs into one chronological view with a `── ISSUE REPORTED ──` marker
+- S3 YAML no longer stores `console_logs` or `docker_compose_logs` — those are queried live via `--timeline`
