@@ -1328,27 +1328,32 @@ def cmd_start(args: argparse.Namespace) -> None:
     else:
         header_lines.append(f"  Git:   {branch_info}")
 
-    # Recent commits (inline in header)
+    # Recent commits — table layout: SHA  AGE   FULL TITLE (no truncation)
     if mode != "question":
         commit_limit = RECENT_COMMITS_COUNT if mode == "feature" else 3
         recent_commits = _get_recent_commits(count=commit_limit)
         if recent_commits:
-            for i, commit_line in enumerate(recent_commits):
+            # Parse all rows first so we can align columns
+            rows = []
+            for commit_line in recent_commits:
                 parts = commit_line.split(" ", 1)
                 sha = parts[0]
                 rest = parts[1] if len(parts) > 1 else ""
-                time_and_msg = rest
-                for marker in (" ago ", ):
-                    idx = time_and_msg.find(marker)
+                time_str = ""
+                msg = rest
+                for marker in (" ago ",):
+                    idx = rest.find(marker)
                     if idx >= 0:
-                        time_part = _format_relative_time(time_and_msg[:idx + len(marker)].strip())
-                        msg_part = time_and_msg[idx + len(marker):]
-                        if len(msg_part) > 55:
-                            msg_part = msg_part[:52] + "..."
-                        time_and_msg = f"{time_part} {msg_part}"
+                        time_str = _format_relative_time(rest[:idx + len(marker)].strip())
+                        msg = rest[idx + len(marker):]
                         break
+                rows.append((sha, time_str, msg))
+            # Width of the widest age column for alignment
+            max_age = max(len(r[1]) for r in rows) if rows else 0
+            for i, (sha, age, msg) in enumerate(rows):
                 prefix = "  Last:" if i == 0 else "       "
-                header_lines.append(f"{prefix}  {sha} {time_and_msg}")
+                age_padded = age.ljust(max_age)
+                header_lines.append(f"{prefix}  {sha}  {age_padded}  {msg}")
 
     # Print header
     hdr_bar = "═" * (BOX_WIDTH - len(f"== SESSION {sid} ") - 1)
