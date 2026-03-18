@@ -649,11 +649,15 @@ async def get_error_overview_compact(top: int = 5, since_minutes: int = 30) -> s
         if results:
             lines.append("  [dev]  Top recurring (7d):")
             for i, (member, score) in enumerate(results, 1):
-                parts = member.split("|", 4)
-                exc_type = (parts[1] if len(parts) > 1 else "?")[:30]
-                file_part = (parts[2] if len(parts) > 2 else "?").rsplit("/", 1)[-1]
-                func = (parts[3] if len(parts) > 3 else "?")[:25]
-                line_num = parts[4] if len(parts) > 4 else "?"
+                # Member format: "<fingerprint>|<exc_type>:<filename>:<funcname>:<lineno>"
+                # Split on the single pipe first, then parse the colon-delimited canonical key.
+                raw = member if isinstance(member, str) else member.decode()
+                _fp, _, canonical = raw.partition("|")
+                c_parts = canonical.split(":", 3)
+                exc_type = (c_parts[0] if c_parts else "?")[:30]
+                file_part = (c_parts[1] if len(c_parts) > 1 else "?").rsplit("/", 1)[-1]
+                func = (c_parts[2] if len(c_parts) > 2 else "?")[:25]
+                line_num = c_parts[3] if len(c_parts) > 3 else "?"
                 count = int(score)
                 lines.append(f"           {i}. [{count}x] {exc_type} in {file_part}:{func}:{line_num}")
     except Exception:
@@ -985,11 +989,14 @@ async def _print_error_fingerprints(top: int = 10, indent: str = "") -> None:
             return
 
         for member, score in results:
-            parts = member.split("|", 4)
-            exc_type = parts[1] if len(parts) > 1 else "?"
-            file_part = parts[2] if len(parts) > 2 else "?"
-            func = parts[3] if len(parts) > 3 else "?"
-            line = parts[4] if len(parts) > 4 else "?"
+            # Member format: "<fingerprint>|<exc_type>:<filename>:<funcname>:<lineno>"
+            raw = member if isinstance(member, str) else member.decode()
+            _fp, _, canonical = raw.partition("|")
+            c_parts = canonical.split(":", 3)
+            exc_type = c_parts[0] if c_parts else "?"
+            file_part = c_parts[1] if len(c_parts) > 1 else "?"
+            func = c_parts[2] if len(c_parts) > 2 else "?"
+            line = c_parts[3] if len(c_parts) > 3 else "?"
             count = int(score)
             color = RED if count > 100 else (YELLOW if count > 10 else RESET)
             print(f"{indent}{_c(color, str(count).rjust(5))}x  {exc_type}  {file_part}:{func}:{line}")
@@ -1021,11 +1028,14 @@ async def show_error_fingerprints(top: int = 10) -> None:
         print(f"  {'─'*6}  {'─'*30}  {'─'*40}")
 
         for member, score in results:
-            parts = member.split("|", 4)
-            exc_type = (parts[1] if len(parts) > 1 else "?")[:28]
-            file_part = (parts[2] if len(parts) > 2 else "?")[-25:]
-            func = (parts[3] if len(parts) > 3 else "?")[:20]
-            line = parts[4] if len(parts) > 4 else "?"
+            # Member format: "<fingerprint>|<exc_type>:<filename>:<funcname>:<lineno>"
+            raw = member if isinstance(member, str) else member.decode()
+            _fp, _, canonical = raw.partition("|")
+            c_parts = canonical.split(":", 3)
+            exc_type = (c_parts[0] if c_parts else "?")[:28]
+            file_part = (c_parts[1] if len(c_parts) > 1 else "?")[-25:]
+            func = (c_parts[2] if len(c_parts) > 2 else "?")[:20]
+            line = c_parts[3] if len(c_parts) > 3 else "?"
             count = int(score)
             color = RED if count > 100 else (YELLOW if count > 10 else RESET)
             location = f"{file_part}:{func}:{line}"[:45]
