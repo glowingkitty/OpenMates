@@ -543,58 +543,84 @@ async def run_health_check_compact() -> str:
     return f"OK ({', '.join(parts)})"
 
 
-async def _fetch_prod_error_fingerprints(top: int = 5) -> list[dict] | None:
-    """Fetch error fingerprints from the production Admin Debug API /errors endpoint.
+async def _fetch_prod_error_data(top: int = 5) -> dict:
+    """Fetch prod error data via the Admin Debug API.
 
-    Returns:
-        list of dicts (may be empty if prod has no errors) on success,
-        None on any failure (API unreachable, key missing, HTTP error).
+    Returns a dict with:
+        api_reachable: bool   — Admin API key worked and HTTP 200 received
+        logs_working:  bool   — prod OpenObserve returned at least one log line
+        fingerprints:  list   — top error fingerprints (may be empty list)
+        error:         str    — human-readable failure reason, or ""
     """
+    result = {"api_reachable": False, "logs_working": False, "fingerprints": [], "error": ""}
     try:
         from debug_utils import get_api_key_from_vault, PROD_API_URL
-        # get_api_key_from_vault calls sys.exit(1) on missing key — catch SystemExit
         try:
             api_key = await get_api_key_from_vault()
         except SystemExit:
-            return None
-        url = f"{PROD_API_URL}/errors"
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(
-                url,
-                headers={"Authorization": f"Bearer {api_key}"},
+            result["error"] = "Admin API key not found in Vault"
+            return result
+
+        headers = {"Authorization": f"Bearer {api_key}"}
+
+        async with httpx.AsyncClient(timeout=12.0) as client:
+            # 1. Probe log access: fetch 5 lines from 'api' service, last 60 min
+            logs_resp = await client.get(
+                f"{PROD_API_URL}/logs",
+                headers=headers,
+                params={"services": "api", "since_minutes": 60, "lines": 5},
+            )
+            if logs_resp.status_code != 200:
+                result["error"] = f"Admin API /logs returned HTTP {logs_resp.status_code}"
+                return result
+
+            result["api_reachable"] = True
+            raw_logs = logs_resp.json().get("logs", "")
+            # Any non-header, non-empty line means OpenObserve is returning data
+            data_lines = [
+                line for line in raw_logs.splitlines()
+                if line.strip()
+                and not line.startswith("===")
+                and not line.startswith("---")
+                and "no log entries found" not in line
+            ]
+            result["logs_working"] = bool(data_lines)
+
+            # 2. Fetch error fingerprints
+            errors_resp = await client.get(
+                f"{PROD_API_URL}/errors",
+                headers=headers,
                 params={"top": top},
             )
-        if resp.status_code != 200:
-            return None
-        data = resp.json()
-        results = []
-        for entry in data.get("top_errors", []):
-            # canonical_key format: "exc_type:filename:function:lineno"
-            canonical = entry.get("canonical_key", "")
-            parts = canonical.split(":", 3)
-            results.append({
-                "exc_type": (parts[0] if parts else "?")[:30],
-                "file_part": (parts[1] if len(parts) > 1 else "?").rsplit("/", 1)[-1],
-                "func": (parts[2] if len(parts) > 2 else "?")[:25],
-                "line_num": parts[3] if len(parts) > 3 else "?",
-                "count": entry.get("count", 0),
-            })
-        return results
-    except Exception:
-        return None
+            if errors_resp.status_code == 200:
+                for entry in errors_resp.json().get("top_errors", []):
+                    canonical = entry.get("canonical_key", "")
+                    parts = canonical.split(":", 3)
+                    result["fingerprints"].append({
+                        "exc_type": (parts[0] if parts else "?")[:30],
+                        "file_part": (parts[1] if len(parts) > 1 else "?").rsplit("/", 1)[-1],
+                        "func": (parts[2] if len(parts) > 2 else "?")[:25],
+                        "line_num": parts[3] if len(parts) > 3 else "?",
+                        "count": entry.get("count", 0),
+                    })
+
+        return result
+    except Exception as exc:
+        result["error"] = str(exc)[:120]
+        return result
 
 
 async def get_error_overview_compact(top: int = 5, since_minutes: int = 30) -> str:
     """Return a compact overview of recent errors for session context.
 
     Shows errors for both dev (local OpenObserve + Redis) and production
-    (Admin Debug API /errors endpoint) servers side-by-side.
+    (Admin Debug API). Explicitly flags if prod log access is broken.
 
-    Output format:
+    Output format (healthy):
       [dev]  Errors: 5 (last 30m) — api(3), worker(1), web(1)
-        Top recurring (7d):  1. [3x] KeyError in crypto_service.py:wrap_key:142
-      [prod] Top recurring (7d):  1. [5x] ValueError in payment.py:charge:88
-      → Details: debug.py logs --o2 --preset web-app-health
+      [prod] Logs: OK | Top recurring (7d): none
+    Output format (prod OpenObserve disconnected):
+      [prod] Logs: DISCONNECTED — prod OpenObserve not returning data
     """
     lines = []
 
@@ -633,19 +659,29 @@ async def get_error_overview_compact(top: int = 5, since_minutes: int = 30) -> s
     except Exception:
         pass  # Fingerprints unavailable — not critical
 
-    # ── Prod: error fingerprints from production Admin Debug API ─────────────
-    prod_fingerprints = await _fetch_prod_error_fingerprints(top=top)
-    if prod_fingerprints is None:
-        lines.append("  [prod] Top recurring (7d): (unavailable — check prod API key)")
-    elif prod_fingerprints:
-        lines.append("  [prod] Top recurring (7d):")
-        for i, entry in enumerate(prod_fingerprints, 1):
-            lines.append(
-                f"           {i}. [{entry['count']}x] {entry['exc_type']} "
-                f"in {entry['file_part']}:{entry['func']}:{entry['line_num']}"
-            )
+    # ── Prod: log access probe + error fingerprints ───────────────────────────
+    prod = await _fetch_prod_error_data(top=top)
+
+    if not prod["api_reachable"]:
+        reason = prod["error"] or "could not reach Admin Debug API"
+        lines.append(f"  [prod] UNREACHABLE — {reason}")
+    elif not prod["logs_working"]:
+        lines.append("  [prod] Logs: DISCONNECTED — prod OpenObserve not returning data")
+        lines.append("           (fingerprints below may be stale/empty)")
+        if prod["fingerprints"]:
+            lines.append("  [prod] Top recurring (7d):")
+            for i, e in enumerate(prod["fingerprints"], 1):
+                lines.append(f"           {i}. [{e['count']}x] {e['exc_type']} in {e['file_part']}:{e['func']}:{e['line_num']}")
+        else:
+            lines.append("  [prod] Top recurring (7d): none recorded")
     else:
-        lines.append("  [prod] Top recurring (7d): none")
+        lines.append("  [prod] Logs: OK")
+        if prod["fingerprints"]:
+            lines.append("  [prod] Top recurring (7d):")
+            for i, e in enumerate(prod["fingerprints"], 1):
+                lines.append(f"           {i}. [{e['count']}x] {e['exc_type']} in {e['file_part']}:{e['func']}:{e['line_num']}")
+        else:
+            lines.append("  [prod] Top recurring (7d): none")
 
     lines.append("  → Details: debug.py logs --o2 --preset web-app-health")
     return "\n".join(lines)
