@@ -14,10 +14,9 @@ import hashlib
 import os
 
 from typing import Dict, Any, Optional, List
-from fastapi import APIRouter, HTTPException, Request, Depends, Body, FastAPI
+from fastapi import APIRouter, HTTPException, Request, Depends, Body, FastAPI, Cookie
 from pydantic import BaseModel, Field
 
-from backend.core.api.app.utils.api_key_auth import ApiKeyAuth
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
@@ -26,6 +25,7 @@ from backend.core.api.app.utils.config_manager import ConfigManager
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML, AppSkillDefinition
 from backend.shared.python_utils.billing_utils import calculate_total_credits
+from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
 
 # Import comprehensive ASCII smuggling sanitization
 # This module protects against invisible Unicode characters used to embed hidden instructions
@@ -134,6 +134,69 @@ async def get_cache_service(request: Request) -> CacheService:
 async def get_directus_service(request: Request) -> DirectusService:
     """Get directus service from app state"""
     return request.app.state.directus_service
+
+
+# ---------------------------------------------------------------------------
+# Dual auth: session cookie OR API key
+# ---------------------------------------------------------------------------
+# This dependency replaces ApiKeyAuth for routes that should accept both
+# session-authenticated users (e.g. CLI pair-auth) and API-key-authenticated
+# external callers. It returns the same Dict[str, Any] shape that all
+# existing handlers and call_app_skill() expect.
+#
+# Priority: session cookie first, API key second.
+# When authenticated via session cookie, the api_key_* tracking fields are
+# empty/None — this is fine because call_app_skill and billing helpers treat
+# them as optional (.get with defaults).
+
+
+async def get_session_or_api_key_info(
+    request: Request,
+    cache_service: CacheService = Depends(get_cache_service),
+    directus_service: DirectusService = Depends(get_directus_service),
+    refresh_token: Optional[str] = Cookie(None, alias="auth_refresh_token", include_in_schema=False),
+) -> Dict[str, Any]:
+    """
+    Authenticate via session cookie or API key, returning a Dict[str, Any]
+    compatible with call_app_skill() and billing helpers.
+
+    Tries session cookie first (for CLI / web-app callers), then falls back
+    to Bearer API key (for external REST API consumers).
+    """
+    # --- 1. Try session cookie ---
+    if refresh_token:
+        try:
+            user = await get_current_user(
+                directus_service=directus_service,
+                cache_service=cache_service,
+                refresh_token=refresh_token,
+            )
+            return {
+                "user_id": user.id,
+                "api_key_encrypted_name": "",
+                "api_key_hash": None,
+                "device_hash": None,
+                "email": getattr(user, "encrypted_email_address", None),
+            }
+        except HTTPException:
+            pass  # session invalid — fall through to API key
+
+    # --- 2. Try API key ---
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        try:
+            from backend.core.api.app.utils.api_key_auth import get_api_key_auth_service
+            api_key_auth_service = get_api_key_auth_service(request)
+            api_key = auth_header[7:]
+            user_info = await api_key_auth_service.authenticate_api_key(api_key, request=request)
+            return user_info  # already the correct Dict shape
+        except Exception:
+            pass  # API key invalid — fall through to 401
+
+    raise HTTPException(status_code=401, detail="Not authenticated: provide a session cookie or API key")
+
+
+SessionOrApiKeyAuth = Depends(get_session_or_api_key_info)
 
 
 async def get_encryption_service(request: Request) -> EncryptionService:
@@ -1062,21 +1125,21 @@ async def charge_credits_via_internal_api(
 @router.get(
     "",
     response_model=AppsListResponse,
-    dependencies=[ApiKeyAuth],  # Mark endpoint as requiring API key
+    dependencies=[SessionOrApiKeyAuth],
     tags=["Apps"],  # Use "Apps" tag (not "Apps API")
     summary="List all available apps",
-    description="List all available apps and their skills. Requires API key authentication."
+    description="List all available apps and their skills. Accepts session cookie or API key authentication."
 )
 @limiter.limit("60/minute")
 async def list_apps(
     request: Request,
-    user_info: Dict[str, Any] = ApiKeyAuth,
+    user_info: Dict[str, Any] = SessionOrApiKeyAuth,
     cache_service: CacheService = Depends(get_cache_service)
 ):
     """
     List all available apps and their skills.
     
-    Requires API key authentication.
+    Accepts session cookie or API key authentication.
     Returns apps that are discovered and available on the server.
     """
     try:
@@ -1424,7 +1487,7 @@ def _register_travel_custom_routes(app: FastAPI, app_name: str) -> None:
                 error=f"Booking lookup failed: {str(e)}",
             )
 
-    # Register the endpoint — no ApiKeyAuth dependency since we use
+    # Register the endpoint — no SessionOrApiKeyAuth dependency since we use
     # get_current_user_or_api_key which handles both auth methods
     app.add_api_route(
         path="/v1/apps/travel/booking-link",
@@ -1652,7 +1715,7 @@ def _register_audio_custom_routes(app: FastAPI, app_name: str) -> None:
     Overrides the generic skill POST registration for the 'transcribe' skill so that the
     webapp (which authenticates via session cookies, not API keys) can call it directly.
 
-    The generic ``create_post_skill_handler`` only accepts API key auth (``ApiKeyAuth``).
+    The generic ``create_post_skill_handler`` accepts session or API key auth (``SessionOrApiKeyAuth``).
     Transcription is initiated by the webapp, which has no API key — it uses the session
     cookie for authentication.  This custom handler uses ``get_current_user_or_api_key``
     instead, mirroring the pattern used by ``_register_travel_custom_routes``.
@@ -1746,7 +1809,7 @@ def _register_audio_custom_routes(app: FastAPI, app_name: str) -> None:
             )
             return SkillResponse(success=False, error=f"Transcription failed: {str(e)}")
 
-    # Register the endpoint without ApiKeyAuth dependency — auth is handled inside the handler
+    # Register the endpoint without SessionOrApiKeyAuth dependency — auth is handled inside the handler
     # via get_current_user_or_api_key, which accepts both session cookies and API keys.
     app.add_api_route(
         path="/v1/apps/audio/skills/transcribe",
@@ -1807,9 +1870,9 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
         def create_get_app_handler(captured_app_id: str, captured_app_metadata: AppYAML):
             async def get_app_handler(
                 request: Request,
-                user_info: Dict[str, Any] = ApiKeyAuth  # This will be injected by Security()
+                user_info: Dict[str, Any] = SessionOrApiKeyAuth,
             ) -> AppMetadata:
-                """Get metadata for a specific app. Requires API key authentication."""
+                """Get metadata for a specific app. Accepts session cookie or API key authentication."""
                 try:
                     # Get server environment for stage filtering
                     server_env = os.getenv("SERVER_ENVIRONMENT", "development").lower()
@@ -1949,7 +2012,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
             name=f"get_app_{app_id}",
             summary=f"Get metadata for {app_name}",
             description=f"Get metadata for the {app_name} app. {app_description}".strip(),
-            dependencies=[ApiKeyAuth],  # Mark endpoint as requiring API key
+            dependencies=[SessionOrApiKeyAuth],
             include_in_schema=include_in_schema,  # Hide from /docs when expose_in_api=False
         )
         
@@ -1971,7 +2034,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
             def create_get_skill_handler(captured_app_id: str, captured_skill: AppSkillDefinition, captured_app_metadata: AppYAML):
                 async def get_skill_handler(
                     request: Request,
-                    user_info: Dict[str, Any] = ApiKeyAuth  # This will be injected by Security()
+                    user_info: Dict[str, Any] = SessionOrApiKeyAuth,
                 ) -> SkillMetadata:
                     """Get metadata for a specific skill including pricing information. Requires API key authentication."""
                     try:
@@ -2212,7 +2275,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                     async def post_skill_handler(
                         request_body: SkillRequestModel,
                         request: Request = None,
-                        user_info: Dict[str, Any] = ApiKeyAuth,  # This will be injected by Security()
+                        user_info: Dict[str, Any] = SessionOrApiKeyAuth,
                         cache_service: CacheService = Depends(get_cache_service),
                         directus_service: DirectusService = Depends(get_directus_service)
                     ) -> WrappedSkillResponse:
@@ -2343,7 +2406,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                         async def ai_ask_skill_handler(
                             request_body: SkillRequestModel,
                             request: Request = None,
-                            user_info: Dict[str, Any] = ApiKeyAuth,
+                            user_info: Dict[str, Any] = SessionOrApiKeyAuth,
                             cache_service: CacheService = Depends(get_cache_service),
                             directus_service: DirectusService = Depends(get_directus_service)
                         ) -> Any:
@@ -2489,7 +2552,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                     async def post_skill_handler(
                         request_body: SkillRequestModel,
                         request: Request = None,
-                        user_info: Dict[str, Any] = ApiKeyAuth,
+                        user_info: Dict[str, Any] = SessionOrApiKeyAuth,
                         cache_service: CacheService = Depends(get_cache_service),
                         directus_service: DirectusService = Depends(get_directus_service)
                     ) -> WrappedSkillResponse:
@@ -2592,7 +2655,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                             example=tool_schema.get('example', {})
                         ),
                         request: Request = None,
-                        user_info: Dict[str, Any] = ApiKeyAuth,
+                        user_info: Dict[str, Any] = SessionOrApiKeyAuth,
                         cache_service: CacheService = Depends(get_cache_service),
                         directus_service: DirectusService = Depends(get_directus_service)
                     ) -> SkillResponse:
@@ -2671,7 +2734,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                     async def post_skill_handler(
                         request_data: SkillRequest,
                         request: Request = None,
-                        user_info: Dict[str, Any] = ApiKeyAuth,  # This will be injected by Security()
+                        user_info: Dict[str, Any] = SessionOrApiKeyAuth,
                         cache_service: CacheService = Depends(get_cache_service),
                         directus_service: DirectusService = Depends(get_directus_service)
                     ) -> SkillResponse:
@@ -2794,7 +2857,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                     name=f"get_skill_{app_id}_{skill.id}",
                     summary=f"Get metadata for {skill_name}",
                     description=f"Get metadata for the {skill_name} skill including pricing information. Requires API key authentication.",
-                    dependencies=[ApiKeyAuth],  # Mark endpoint as requiring API key
+                    dependencies=[SessionOrApiKeyAuth],
                     include_in_schema=include_in_schema,  # Hide from /docs when app has expose_in_api=False
                 )
             
@@ -2852,7 +2915,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                 name=f"execute_skill_{app_id}_{skill.id}",
                 summary=f"Execute {skill_name}",
                 description=f"Execute the {skill_name} skill. The skill will be executed, billed, and a usage entry will be created automatically. Requires API key authentication.",
-                dependencies=[ApiKeyAuth],  # Mark endpoint as requiring API key
+                dependencies=[SessionOrApiKeyAuth],
                 include_in_schema=include_in_schema,  # Hide from /docs when app has expose_in_api=False
             )
             

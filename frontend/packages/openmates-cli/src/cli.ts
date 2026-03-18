@@ -9,7 +9,11 @@
  * Tests: frontend/packages/openmates-cli/tests/
  */
 
-import { OpenMatesClient, MEMORY_TYPE_REGISTRY } from "./client.js";
+import {
+  OpenMatesClient,
+  MEMORY_TYPE_REGISTRY,
+  type ChatListPage,
+} from "./client.js";
 
 type CliArgs = {
   positionals: string[];
@@ -83,8 +87,15 @@ async function handleChats(
   }
 
   if (subcommand === "list") {
-    const chats = await client.listChats();
-    printOutput(chats, flags.json === true);
+    const limit =
+      typeof flags.limit === "string" ? parseInt(flags.limit, 10) : 10;
+    const page = typeof flags.page === "string" ? parseInt(flags.page, 10) : 1;
+    const result = await client.listChats(limit, page);
+    if (flags.json === true) {
+      printOutput(result, true);
+    } else {
+      printChatsTable(result);
+    }
     return;
   }
 
@@ -165,6 +176,119 @@ async function handleChats(
 }
 
 // ---------------------------------------------------------------------------
+// Chats table display
+// ---------------------------------------------------------------------------
+
+/**
+ * ANSI 24-bit color escape sequences — rendered in most modern terminals.
+ * We use the start color of each category's gradient (from categoryUtils.ts)
+ * as the background for the colored category pill.
+ */
+const CATEGORY_ANSI_COLORS: Record<string, [number, number, number]> = {
+  software_development: [21, 93, 145],
+  business_development: [0, 64, 64],
+  medical_health: [253, 80, 160],
+  legal_law: [35, 156, 255],
+  openmates_official: [99, 102, 241],
+  maker_prototyping: [234, 118, 0],
+  marketing_sales: [255, 140, 0],
+  finance: [17, 145, 6],
+  design: [16, 16, 16],
+  electrical_engineering: [35, 56, 136],
+  movies_tv: [0, 194, 197],
+  history: [73, 137, 242],
+  science: [206, 91, 6],
+  life_coach_psychology: [253, 178, 80],
+  cooking_food: [253, 132, 80],
+  activism: [245, 61, 0],
+  general_knowledge: [222, 30, 102],
+  onboarding_support: [99, 100, 255],
+};
+
+const CATEGORY_LABELS: Record<string, string> = {
+  software_development: "Software Dev",
+  business_development: "Business",
+  medical_health: "Health",
+  legal_law: "Legal",
+  openmates_official: "OpenMates",
+  maker_prototyping: "Maker",
+  marketing_sales: "Marketing",
+  finance: "Finance",
+  design: "Design",
+  electrical_engineering: "Electrical",
+  movies_tv: "Movies & TV",
+  history: "History",
+  science: "Science",
+  life_coach_psychology: "Psychology",
+  cooking_food: "Cooking",
+  activism: "Activism",
+  general_knowledge: "General",
+  onboarding_support: "Support",
+};
+
+function ansiCategoryPill(category: string | null): string {
+  const label = category
+    ? (CATEGORY_LABELS[category] ?? category.replace(/_/g, " "))
+    : "—";
+  if (!category || !CATEGORY_ANSI_COLORS[category]) {
+    return `\x1b[2m${label}\x1b[0m`;
+  }
+  const [r, g, b] = CATEGORY_ANSI_COLORS[category];
+  return `\x1b[48;2;${r};${g};${b}m\x1b[97m ${label} \x1b[0m`;
+}
+
+function formatTimestamp(ts: number | null): string {
+  if (!ts) return "—";
+  const d = new Date(ts * 1000);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function printChatsTable(result: ChatListPage): void {
+  const { chats, total, page, limit, hasMore } = result;
+  const start = (page - 1) * limit + 1;
+  const end = start + chats.length - 1;
+
+  if (chats.length === 0) {
+    console.log("No chats found.");
+    return;
+  }
+
+  const totalPages = Math.ceil(total / limit);
+  console.log(
+    `\x1b[1mChats\x1b[0m  (${start}–${end} of ${total}, page ${page}/${totalPages})\n`,
+  );
+
+  for (const chat of chats) {
+    const pill = ansiCategoryPill(chat.category);
+    const time = formatTimestamp(chat.updatedAt);
+    const title = chat.title ?? "\x1b[2m(no title)\x1b[0m";
+    const idStr = `\x1b[2m${chat.shortId}\x1b[0m`;
+
+    process.stdout.write(
+      `${pill}  ${title}  ${idStr}  \x1b[2m${time}\x1b[0m\n`,
+    );
+
+    if (chat.summary) {
+      const maxWidth = 80;
+      const summary =
+        chat.summary.length > maxWidth
+          ? chat.summary.slice(0, maxWidth - 1) + "…"
+          : chat.summary;
+      process.stdout.write(`    \x1b[2m${summary}\x1b[0m\n`);
+    }
+
+    process.stdout.write("\n");
+  }
+
+  if (hasMore) {
+    const nextPage = page + 1;
+    const nextCmd = `chats list --page ${nextPage}${limit !== 10 ? ` --limit ${limit}` : ""}`;
+    console.log(`\x1b[2mNext page: openmates ${nextCmd}\x1b[0m`);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Apps
 // ---------------------------------------------------------------------------
 
@@ -174,7 +298,8 @@ async function handleApps(
   rest: string[],
   flags: Record<string, string | boolean>,
 ): Promise<void> {
-  const apiKey = resolveApiKey(flags);
+  // API key is optional — session cookies are used when absent
+  const apiKey = resolveApiKey(flags) ?? undefined;
 
   if (!subcommand || subcommand === "help") {
     printAppsHelp();
@@ -182,10 +307,6 @@ async function handleApps(
   }
 
   if (subcommand === "list") {
-    if (!apiKey)
-      throw new Error(
-        "Missing API key. Set OPENMATES_API_KEY or pass --api-key.",
-      );
     const apps = await client.listApps(apiKey);
     printOutput(apps, flags.json === true);
     return;
@@ -202,23 +323,13 @@ async function handleApps(
   if (subcommand === "skill-info") {
     const [appId, skillId] = rest;
     if (!appId || !skillId)
-      throw new Error(
-        "Usage: openmates apps skill-info <app-id> <skill-id> --api-key <key>",
-      );
-    if (!apiKey)
-      throw new Error(
-        "Missing API key. Set OPENMATES_API_KEY or pass --api-key.",
-      );
+      throw new Error("Usage: openmates apps skill-info <app-id> <skill-id>");
     const skill = await client.getSkillInfo(appId, skillId, apiKey);
     printOutput(skill, flags.json === true);
     return;
   }
 
   if (subcommand === "run") {
-    if (!apiKey)
-      throw new Error(
-        "Missing API key. Set OPENMATES_API_KEY or pass --api-key.",
-      );
     const [app, skill] = rest;
     if (!app || !skill)
       throw new Error(
@@ -235,10 +346,6 @@ async function handleApps(
   const app = subcommand;
   const skill = rest[0];
   if (app && skill) {
-    if (!apiKey)
-      throw new Error(
-        "Missing API key. Set OPENMATES_API_KEY or pass --api-key.",
-      );
     let inputData: Record<string, unknown> = {};
     const explicitInput = typeof flags.input === "string" ? flags.input : null;
     if (explicitInput) {
@@ -513,28 +620,37 @@ Commands:
 Flags:
   --json          Output as JSON
   --api-url <url> Override API base URL (default: https://api.openmates.org)
-  --api-key <key> API key for apps commands (or set OPENMATES_API_KEY env var)
+  --api-key <key> Optional API key override for apps commands (or set OPENMATES_API_KEY)
   --help          Show this help`);
 }
 
 function printChatsHelp(): void {
   console.log(`Chats commands:
-  openmates chats list [--json]
+  openmates chats list [--limit <n>] [--page <n>] [--json]
   openmates chats search <query> [--json]
   openmates chats new <message> [--json]
   openmates chats send [--chat <id>] [--incognito] <message> [--json]
   openmates chats incognito <message> [--json]
   openmates chats incognito-history [--json]
-  openmates chats incognito-clear`);
+  openmates chats incognito-clear
+
+Options for 'list':
+  --limit <n>   Number of chats to show (default: 10)
+  --page <n>    Page number for pagination (default: 1)
+  --json        Output raw JSON instead of the formatted table`);
 }
 
 function printAppsHelp(): void {
   console.log(`Apps commands:
-  openmates apps list --api-key <key> [--json]
+  openmates apps list [--json]
   openmates apps info <app-id> [--json]
-  openmates apps skill-info <app-id> <skill-id> --api-key <key> [--json]
-  openmates apps run <app> <skill> --input '<json>' --api-key <key> [--json]
-  openmates apps <app> <skill> [text] --api-key <key> [--input '<json>'] [--json]
+  openmates apps skill-info <app-id> <skill-id> [--json]
+  openmates apps run <app> <skill> --input '<json>' [--json]
+  openmates apps <app> <skill> [text] [--input '<json>'] [--json]
+
+Authentication:
+  Uses your logged-in session by default (run 'openmates login' first).
+  Alternatively, pass --api-key <key> or set OPENMATES_API_KEY.
 
 Examples:
   openmates apps list

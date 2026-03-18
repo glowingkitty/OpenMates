@@ -404,6 +404,15 @@ interface ChatListItem {
   title: string | null;
   summary: string | null;
   updatedAt: number | null;
+  category: string | null;
+}
+
+export interface ChatListPage {
+  chats: ChatListItem[];
+  total: number;
+  page: number;
+  limit: number;
+  hasMore: boolean;
 }
 
 interface ParsedChat {
@@ -411,6 +420,7 @@ interface ParsedChat {
   encryptedTitle: string | null;
   encryptedSummary: string | null;
   encryptedChatKey: string | null;
+  encryptedCategory: string | null;
   lastEditedOverallTimestamp: number | null;
 }
 
@@ -629,11 +639,14 @@ export class OpenMatesClient {
   // Chats
   // -------------------------------------------------------------------------
 
-  async listChats(): Promise<ChatListItem[]> {
+  async listChats(limit = 10, page = 1): Promise<ChatListPage> {
     const parsed = await this.fetchAllChatMetadata();
     const masterKey = this.getMasterKeyBytes();
+    const total = parsed.length;
+    const offset = (page - 1) * limit;
+    const slice = parsed.slice(offset, offset + limit);
     const output: ChatListItem[] = [];
-    for (const chat of parsed) {
+    for (const chat of slice) {
       const chatKey = chat.encryptedChatKey
         ? await decryptWithAesGcmCombined(chat.encryptedChatKey, masterKey)
         : null;
@@ -646,27 +659,42 @@ export class OpenMatesClient {
         chat.encryptedSummary && chatKeyBytes
           ? await decryptWithAesGcmCombined(chat.encryptedSummary, chatKeyBytes)
           : null;
+      const category =
+        chat.encryptedCategory && chatKeyBytes
+          ? await decryptWithAesGcmCombined(
+              chat.encryptedCategory,
+              chatKeyBytes,
+            )
+          : null;
       output.push({
         id: chat.id,
         shortId: chat.id.slice(0, 8),
         title,
         summary,
         updatedAt: chat.lastEditedOverallTimestamp,
+        category,
       });
     }
-    return output;
+    return {
+      chats: output,
+      total,
+      page,
+      limit,
+      hasMore: offset + limit < total,
+    };
   }
 
   async searchChats(query: string): Promise<ChatListItem[]> {
     const normalized = query.trim().toLowerCase();
-    const chats = await this.listChats();
+    const { chats } = await this.listChats(1000, 1);
     return chats.filter((chat) => {
       const title = (chat.title ?? "").toLowerCase();
       const summary = (chat.summary ?? "").toLowerCase();
       return (
         title.includes(normalized) ||
         summary.includes(normalized) ||
-        chat.id.includes(normalized)
+        chat.id.includes(normalized) ||
+        (chat.category ?? "").toLowerCase().includes(normalized)
       );
     });
   }
@@ -739,13 +767,19 @@ export class OpenMatesClient {
   // Apps
   // -------------------------------------------------------------------------
 
-  async listApps(apiKey: string): Promise<unknown> {
-    const response = await this.http.get("/v1/apps", {
+  async listApps(apiKey?: string): Promise<unknown> {
+    const headers: Record<string, string> = {
       ...this.getCliRequestHeaders(),
-      Authorization: `Bearer ${apiKey}`,
-    });
+    };
+    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+    const response = await this.http.get("/v1/apps", headers);
     if (!response.ok) {
-      throw new Error("Failed to list apps. Ensure API key has app scope.");
+      throw new Error(
+        `Failed to list apps (HTTP ${response.status}). ` +
+          (apiKey
+            ? "Ensure API key has app scope."
+            : "Ensure you are logged in (run `openmates login`)."),
+      );
     }
     return response.data;
   }
@@ -765,14 +799,15 @@ export class OpenMatesClient {
   async getSkillInfo(
     appId: string,
     skillId: string,
-    apiKey: string,
+    apiKey?: string,
   ): Promise<unknown> {
+    const headers: Record<string, string> = {
+      ...this.getCliRequestHeaders(),
+    };
+    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
     const response = await this.http.get(
       `/v1/apps/${encodeURIComponent(appId)}/skills/${encodeURIComponent(skillId)}`,
-      {
-        ...this.getCliRequestHeaders(),
-        Authorization: `Bearer ${apiKey}`,
-      },
+      headers,
     );
     if (!response.ok) {
       throw new Error(
@@ -786,18 +821,19 @@ export class OpenMatesClient {
     app: string;
     skill: string;
     inputData: Record<string, unknown>;
-    apiKey: string;
+    apiKey?: string;
   }): Promise<unknown> {
+    const headers: Record<string, string> = {
+      ...this.getCliRequestHeaders(),
+    };
+    if (params.apiKey) headers.Authorization = `Bearer ${params.apiKey}`;
     const response = await this.http.post(
       `/v1/apps/${params.app}/skills/${params.skill}`,
       {
         input_data: params.inputData,
         parameters: {},
       },
-      {
-        ...this.getCliRequestHeaders(),
-        Authorization: `Bearer ${params.apiKey}`,
-      },
+      headers,
     );
     if (!response.ok) {
       throw new Error(`Skill execution failed with HTTP ${response.status}`);
@@ -1322,6 +1358,10 @@ function extractChatFromPayload(wrapper: {
     encryptedChatKey:
       typeof details.encrypted_chat_key === "string"
         ? details.encrypted_chat_key
+        : null,
+    encryptedCategory:
+      typeof details.encrypted_category === "string"
+        ? details.encrypted_category
         : null,
     lastEditedOverallTimestamp:
       typeof details.last_edited_overall_timestamp === "number"
