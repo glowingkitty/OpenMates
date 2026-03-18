@@ -128,29 +128,35 @@ async function sendMessageAndGetChatId(
 	message: string,
 	logStep: (...args: any[]) => void
 ): Promise<string> {
-	// Type and send
-	const textarea = page.locator('.input-area textarea, .input-area [contenteditable]').first();
-	await expect(textarea).toBeVisible({ timeout: 10000 });
-	await textarea.fill(message);
-	await page.waitForTimeout(300);
+	// Click the editor area to focus it, then type via keyboard (not fill —
+	// fill() doesn't trigger ProseMirror/TipTap content detection properly).
+	const editor = page.locator('.ProseMirror, [contenteditable="true"]').first();
+	await expect(editor).toBeVisible({ timeout: 10000 });
+	await editor.click();
+	await page.keyboard.type(message);
+	logStep(`Typed message: "${message}"`);
 
-	const sendButton = page.locator('[data-testid="send-button"], .send-button, button.send').first();
-	await expect(sendButton).toBeVisible({ timeout: 5000 });
+	// The send button uses data-action="send-message" and only appears when
+	// the editor has content (hasContent reactive state).
+	const sendButton = page.locator('[data-action="send-message"]');
+	await expect(sendButton).toBeVisible({ timeout: 15000 });
+	await expect(sendButton).toBeEnabled({ timeout: 5000 });
 	await sendButton.click();
-	logStep(`Sent message: "${message}"`);
+	logStep('Clicked send button.');
+
+	// Wait for chat ID to appear in URL
+	await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 15000 });
+	const urlAfterSend = page.url();
+	const chatIdMatch = urlAfterSend.match(/chat-id=([a-zA-Z0-9-]+)/);
+	const chatId = chatIdMatch ? chatIdMatch[1] : '';
+	logStep(`Chat ID: ${chatId}`);
+	expect(chatId).toBeTruthy();
 
 	// Wait for the assistant response
 	const assistantMsg = page.locator('.message-wrapper.assistant').last();
 	await expect(assistantMsg).toBeVisible({ timeout: 60000 });
 	logStep('Received assistant response.');
 
-	// Extract chat ID from URL hash
-	await page.waitForTimeout(1000);
-	const url = page.url();
-	const hashMatch = url.match(/chat-id=([a-f0-9-]+)/);
-	const chatId = hashMatch ? hashMatch[1] : '';
-	logStep(`Chat ID: ${chatId}`);
-	expect(chatId).toBeTruthy();
 	return chatId;
 }
 
