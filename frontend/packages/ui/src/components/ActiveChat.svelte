@@ -4859,6 +4859,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // result (based on $userProfile.last_opened) is authoritative.
         phasedSyncState.clearResumeChatData();
 
+        // CRITICAL: Clear activeChatStore BEFORE setting showWelcome=true.
+        // The resume card $effect guards on `if (currentActiveChat)` — if activeChatStore
+        // is still set when showWelcome transitions to true, the effect returns early and
+        // the resume card never populates. Clearing it first ensures the $effect reads
+        // currentActiveChat as null on its first run.
+        try {
+            activeChatStore.clearActiveChat();
+            console.debug('[ActiveChat] Cleared persistent activeChatStore before new-chat transition');
+        } catch (err) {
+            console.error('[ActiveChat] Failed to clear activeChatStore on new chat:', err);
+        }
+
         // Reset current chat metadata and messages
         currentChat = null;
         currentMessages = [];
@@ -4942,15 +4954,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         window.dispatchEvent(globalDeselectEvent);
         console.debug("[ActiveChat] Dispatched chatDeselected / globalChatDeselected");
 
-        // Also clear the persistent active chat store so side panel highlight resets
-        // even if the Chats panel is not currently mounted to receive the event.
-        // This prevents the previously selected chat from remaining highlighted.
-        try {
-            activeChatStore.clearActiveChat();
-            console.debug('[ActiveChat] Cleared persistent activeChatStore after starting a new chat');
-        } catch (err) {
-            console.error('[ActiveChat] Failed to clear activeChatStore on new chat:', err);
-        }
+        // NOTE: activeChatStore.clearActiveChat() was moved to the top of this function
+        // (before showWelcome=true) to prevent the resume card $effect from being blocked
+        // by the `if (currentActiveChat)` guard.
     }
 
     // Expose a helper so parents can reset the UI to the new chat state (e.g., after deletions)
