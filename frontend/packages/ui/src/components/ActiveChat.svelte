@@ -2675,11 +2675,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const isWelcome = showWelcome;
         const isAuth = $authStore.isAuthenticated;
         const currentActiveChat = $activeChatStore;
+        const lastOpened = $userProfile.last_opened;
 
         // Sync from phasedSyncState when on the welcome screen, authenticated,
         // no chat is currently active, and phasedSyncState has resume data.
         // Allows repeated updates (cross-device) by NOT guarding on !resumeChatData.
         if (isWelcome && isAuth && !currentActiveChat && syncState.resumeChatData) {
+            // STALE DATA GUARD: If $userProfile.last_opened points to a different chat
+            // than what phasedSyncState has, the sync data is stale (set during login but
+            // the user has since opened other chats). Don't override the main $effect's
+            // result which uses the authoritative last_opened value.
+            if (lastOpened && syncState.resumeChatData.chat_id !== lastOpened) {
+                console.debug(
+                    `[ActiveChat] Phase 1 bridge: skipping stale sync data (sync=${syncState.resumeChatData.chat_id}, last_opened=${lastOpened})`
+                );
+                return;
+            }
             // Skip if the same chat is already displayed with richer data.
             // Two guards: (a) same chat_id and local already has a summary that sync doesn't →
             // keep the richer local data; (b) same chat_id and sync has no additional info → no-op.
@@ -4839,6 +4850,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 console.debug(`[ActiveChat] Sync-updated last_opened to ${leavingChatId} before new-chat transition`);
             }
         }
+
+        // CRITICAL: Clear stale Phase 1 sync resume data. phasedSyncState.resumeChatData
+        // is set during login (Phase 1 sync) and never cleared when the user opens other
+        // chats during the session. The Phase 1 Sync Bridge $effect would override the
+        // resume card with this stale data after the main resume card $effect correctly
+        // loads the current last_opened chat. Clearing it here ensures the main $effect's
+        // result (based on $userProfile.last_opened) is authoritative.
+        phasedSyncState.clearResumeChatData();
 
         // Reset current chat metadata and messages
         currentChat = null;
