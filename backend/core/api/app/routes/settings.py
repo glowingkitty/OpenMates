@@ -2241,7 +2241,8 @@ async def _trigger_agent_issue_investigation(
     import aiohttp
 
     core_sidecar_url = os.getenv("CORE_SIDECAR_URL", "").rstrip("/")
-    core_sidecar_key = os.getenv("ADMIN_LOG_API_KEY", "")
+    # The key is injected by Vault under the vault-prefixed name (same as settings_software_update.py)
+    core_sidecar_key = os.getenv("SECRET__CORE_SERVER__ADMIN_LOG_API_KEY", "")
 
     if not core_sidecar_url:
         logger.warning(
@@ -2252,7 +2253,7 @@ async def _trigger_agent_issue_investigation(
 
     if not core_sidecar_key:
         logger.warning(
-            "[report_issue/agent] ADMIN_LOG_API_KEY not set — "
+            "[report_issue/agent] SECRET__CORE_SERVER__ADMIN_LOG_API_KEY not set — "
             "cannot authenticate with admin sidecar"
         )
         return
