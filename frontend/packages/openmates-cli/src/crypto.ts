@@ -100,6 +100,43 @@ export async function decryptWithAesGcmCombined(
   }
 }
 
+/**
+ * Decrypt AES-GCM-combined data and return the raw decrypted bytes.
+ *
+ * Mirrors the browser's `decryptChatKeyWithMasterKey()` from cryptoService.ts.
+ * This MUST be used for decrypting binary payloads (e.g. chat keys) where the
+ * result is raw bytes, NOT a UTF-8 string. Using TextDecoder on binary data
+ * corrupts it.
+ */
+export async function decryptBytesWithAesGcm(
+  encryptedWithIvB64: string,
+  rawKeyBytes: Uint8Array,
+): Promise<Uint8Array | null> {
+  try {
+    const combined = base64ToBytes(encryptedWithIvB64);
+    if (combined.length <= AES_GCM_IV_LENGTH) {
+      return null;
+    }
+    const iv = combined.slice(0, AES_GCM_IV_LENGTH);
+    const ciphertext = combined.slice(AES_GCM_IV_LENGTH);
+    const key = await cryptoApi.subtle.importKey(
+      "raw",
+      toArrayBuffer(rawKeyBytes),
+      { name: "AES-GCM" },
+      false,
+      ["decrypt"],
+    );
+    const decrypted = await cryptoApi.subtle.decrypt(
+      { name: "AES-GCM", iv: toArrayBuffer(iv) },
+      key,
+      toArrayBuffer(ciphertext),
+    );
+    return new Uint8Array(decrypted);
+  } catch {
+    return null;
+  }
+}
+
 export async function encryptWithAesGcmCombined(
   plaintext: string,
   rawKeyBytes: Uint8Array,

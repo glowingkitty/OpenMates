@@ -100,3 +100,73 @@ export function clearIncognitoHistory(): void {
   const filePath = join(ensureStateDir(), "incognito.json");
   writeJsonFile(filePath, []);
 }
+
+// ---------------------------------------------------------------------------
+// Encrypted sync cache — stores raw WS data on disk (encrypted fields
+// remain encrypted). Decryption happens on-demand in memory only.
+// SECURITY: decrypted user data content is NEVER stored on disk.
+// ---------------------------------------------------------------------------
+
+/**
+ * Raw chat record from the WS phase3 payload.
+ * All encrypted_* fields are stored as-is (base64 ciphertext).
+ * Plaintext metadata (id, timestamps, versions) is stored for indexing.
+ */
+export interface CachedChat {
+  /** chat_details object as received from the WS — all encrypted fields preserved */
+  details: Record<string, unknown>;
+  /** Stringified message JSON objects — stored encrypted */
+  messages: string[];
+}
+
+export interface CachedEmbed {
+  [key: string]: unknown;
+}
+
+export interface CachedEmbedKey {
+  [key: string]: unknown;
+}
+
+export interface SyncCache {
+  /** Timestamp of last successful sync */
+  syncedAt: number;
+  /** Total chat count as reported by the server */
+  totalChatCount: number;
+  /** Number of chats loaded (may be less than total if paginated) */
+  loadedChatCount: number;
+  /** Chats with encrypted fields preserved */
+  chats: CachedChat[];
+  /** Embeds with encrypted fields preserved */
+  embeds: CachedEmbed[];
+  /** Embed keys for embed decryption */
+  embedKeys: CachedEmbedKey[];
+}
+
+const SYNC_CACHE_FILE = "sync_cache.json";
+
+export function saveSyncCache(cache: SyncCache): void {
+  const filePath = join(ensureStateDir(), SYNC_CACHE_FILE);
+  writeJsonFile(filePath, cache);
+}
+
+export function loadSyncCache(): SyncCache | null {
+  const filePath = join(ensureStateDir(), SYNC_CACHE_FILE);
+  return readJsonFile<SyncCache>(filePath);
+}
+
+export function clearSyncCache(): void {
+  const filePath = join(ensureStateDir(), SYNC_CACHE_FILE);
+  if (existsSync(filePath)) {
+    rmSync(filePath);
+  }
+}
+
+/**
+ * Check if the sync cache is fresh enough to use without re-syncing.
+ * @param maxAgeMs Maximum age in milliseconds (default: 30 seconds)
+ */
+export function isSyncCacheFresh(maxAgeMs = 30_000): boolean {
+  const cache = loadSyncCache();
+  if (!cache) return false;
+  return Date.now() - cache.syncedAt < maxAgeMs;
+}

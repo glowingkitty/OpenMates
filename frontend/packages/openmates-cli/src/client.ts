@@ -17,6 +17,7 @@ import qrcode from "qrcode-terminal";
 import {
   decryptBundle,
   decryptWithAesGcmCombined,
+  decryptBytesWithAesGcm,
   encryptWithAesGcmCombined,
   base64ToBytes,
   hashItemKey,
@@ -25,12 +26,18 @@ import { OpenMatesHttpClient } from "./http.js";
 import {
   type OpenMatesSession,
   type IncognitoHistoryItem,
+  type SyncCache,
+  type CachedChat,
   loadSession,
   saveSession,
   clearSession,
   loadIncognitoHistory,
   saveIncognitoHistory,
   clearIncognitoHistory,
+  loadSyncCache,
+  saveSyncCache,
+  clearSyncCache,
+  isSyncCacheFresh,
 } from "./storage.js";
 import { OpenMatesWsClient } from "./ws.js";
 
@@ -405,6 +412,7 @@ interface ChatListItem {
   summary: string | null;
   updatedAt: number | null;
   category: string | null;
+  mateName: string | null;
 }
 
 export interface ChatListPage {
@@ -415,14 +423,54 @@ export interface ChatListPage {
   hasMore: boolean;
 }
 
-interface ParsedChat {
+/** Decrypted message for display */
+export interface DecryptedMessage {
   id: string;
-  encryptedTitle: string | null;
-  encryptedSummary: string | null;
-  encryptedChatKey: string | null;
-  encryptedCategory: string | null;
-  lastEditedOverallTimestamp: number | null;
+  chatId: string;
+  role: string;
+  content: string;
+  senderName: string | null;
+  category: string | null;
+  modelName: string | null;
+  createdAt: number;
+  embedIds: string[];
 }
+
+/** Decrypted embed summary for display */
+export interface DecryptedEmbed {
+  id: string;
+  embedId: string;
+  type: string | null;
+  textPreview: string | null;
+  content: Record<string, unknown> | null;
+  appId: string | null;
+  skillId: string | null;
+  createdAt: number | null;
+}
+
+/**
+ * English mate names by category — matches the web app's i18n mates.* keys.
+ * The CLI ships without the full i18n system, so we hardcode English names.
+ */
+const MATE_NAMES: Record<string, string> = {
+  software_development: "Sophia",
+  business_development: "Burton",
+  life_coach_psychology: "Lisa",
+  medical_health: "Melvin",
+  legal_law: "Leon",
+  finance: "Finn",
+  design: "Denise",
+  marketing_sales: "Mark",
+  science: "Scarlett",
+  history: "Hiro",
+  cooking_food: "Colin",
+  electrical_engineering: "Elton",
+  maker_prototyping: "Makani",
+  movies_tv: "Monika",
+  activism: "Ace",
+  general_knowledge: "George",
+  onboarding_support: "Suki",
+};
 
 /** A decrypted memory entry as returned to CLI callers. */
 export interface DecryptedMemoryEntry {
@@ -639,41 +687,72 @@ export class OpenMatesClient {
   // Chats
   // -------------------------------------------------------------------------
 
+  /**
+   * Decrypt a single chat's key using the master key.
+   * Returns raw Uint8Array (32 bytes) — the AES-256 key used to
+   * encrypt/decrypt the chat's title, category, messages, etc.
+   */
+  private async decryptChatKey(
+    encryptedChatKey: string,
+    masterKey: Uint8Array,
+  ): Promise<Uint8Array | null> {
+    return decryptBytesWithAesGcm(encryptedChatKey, masterKey);
+  }
+
+  /**
+   * Decrypt a single chat record from the sync cache into a ChatListItem.
+   */
+  private async decryptChatListItem(
+    cached: CachedChat,
+    masterKey: Uint8Array,
+  ): Promise<ChatListItem> {
+    const d = cached.details;
+    const id = String(d.id ?? "");
+    const encKey =
+      typeof d.encrypted_chat_key === "string" ? d.encrypted_chat_key : null;
+    const chatKeyBytes = encKey
+      ? await this.decryptChatKey(encKey, masterKey)
+      : null;
+
+    const title =
+      typeof d.encrypted_title === "string" && chatKeyBytes
+        ? await decryptWithAesGcmCombined(d.encrypted_title, chatKeyBytes)
+        : null;
+    const summary =
+      typeof d.encrypted_chat_summary === "string" && chatKeyBytes
+        ? await decryptWithAesGcmCombined(
+            d.encrypted_chat_summary,
+            chatKeyBytes,
+          )
+        : null;
+    const category =
+      typeof d.encrypted_category === "string" && chatKeyBytes
+        ? await decryptWithAesGcmCombined(d.encrypted_category, chatKeyBytes)
+        : null;
+
+    return {
+      id,
+      shortId: id.slice(0, 8),
+      title,
+      summary,
+      updatedAt:
+        typeof d.last_edited_overall_timestamp === "number"
+          ? d.last_edited_overall_timestamp
+          : null,
+      category,
+      mateName: category ? (MATE_NAMES[category] ?? null) : null,
+    };
+  }
+
   async listChats(limit = 10, page = 1): Promise<ChatListPage> {
-    const parsed = await this.fetchAllChatMetadata();
+    const cache = await this.ensureSynced();
     const masterKey = this.getMasterKeyBytes();
-    const total = parsed.length;
+    const total = cache.chats.length;
     const offset = (page - 1) * limit;
-    const slice = parsed.slice(offset, offset + limit);
+    const slice = cache.chats.slice(offset, offset + limit);
     const output: ChatListItem[] = [];
     for (const chat of slice) {
-      const chatKey = chat.encryptedChatKey
-        ? await decryptWithAesGcmCombined(chat.encryptedChatKey, masterKey)
-        : null;
-      const chatKeyBytes = chatKey ? base64ToBytes(chatKey) : null;
-      const title =
-        chat.encryptedTitle && chatKeyBytes
-          ? await decryptWithAesGcmCombined(chat.encryptedTitle, chatKeyBytes)
-          : null;
-      const summary =
-        chat.encryptedSummary && chatKeyBytes
-          ? await decryptWithAesGcmCombined(chat.encryptedSummary, chatKeyBytes)
-          : null;
-      const category =
-        chat.encryptedCategory && chatKeyBytes
-          ? await decryptWithAesGcmCombined(
-              chat.encryptedCategory,
-              chatKeyBytes,
-            )
-          : null;
-      output.push({
-        id: chat.id,
-        shortId: chat.id.slice(0, 8),
-        title,
-        summary,
-        updatedAt: chat.lastEditedOverallTimestamp,
-        category,
-      });
+      output.push(await this.decryptChatListItem(chat, masterKey));
     }
     return {
       chats: output,
@@ -685,18 +764,195 @@ export class OpenMatesClient {
   }
 
   async searchChats(query: string): Promise<ChatListItem[]> {
+    const cache = await this.ensureSynced();
+    const masterKey = this.getMasterKeyBytes();
     const normalized = query.trim().toLowerCase();
-    const { chats } = await this.listChats(1000, 1);
-    return chats.filter((chat) => {
-      const title = (chat.title ?? "").toLowerCase();
-      const summary = (chat.summary ?? "").toLowerCase();
-      return (
+    const results: ChatListItem[] = [];
+    for (const cached of cache.chats) {
+      const item = await this.decryptChatListItem(cached, masterKey);
+      const title = (item.title ?? "").toLowerCase();
+      const summary = (item.summary ?? "").toLowerCase();
+      const cat = (item.category ?? "").toLowerCase();
+      const mate = (item.mateName ?? "").toLowerCase();
+      if (
         title.includes(normalized) ||
         summary.includes(normalized) ||
-        chat.id.includes(normalized) ||
-        (chat.category ?? "").toLowerCase().includes(normalized)
-      );
+        item.id.includes(normalized) ||
+        cat.includes(normalized) ||
+        mate.includes(normalized)
+      ) {
+        results.push(item);
+      }
+    }
+    return results;
+  }
+
+  /**
+   * Get the decrypted messages for a specific chat.
+   * @param chatIdOrShort Full UUID or short 8-char prefix.
+   */
+  async getChatMessages(chatIdOrShort: string): Promise<{
+    chat: ChatListItem;
+    messages: DecryptedMessage[];
+  }> {
+    const cache = await this.ensureSynced();
+    const masterKey = this.getMasterKeyBytes();
+    const found = cache.chats.find(
+      (c) =>
+        String(c.details.id) === chatIdOrShort ||
+        String(c.details.id).startsWith(chatIdOrShort),
+    );
+    if (!found) {
+      throw new Error(`Chat '${chatIdOrShort}' not found.`);
+    }
+
+    const chatItem = await this.decryptChatListItem(found, masterKey);
+    const encKey =
+      typeof found.details.encrypted_chat_key === "string"
+        ? found.details.encrypted_chat_key
+        : null;
+    const chatKeyBytes = encKey
+      ? await this.decryptChatKey(encKey, masterKey)
+      : null;
+
+    const messages: DecryptedMessage[] = [];
+    for (const raw of found.messages) {
+      const m =
+        typeof raw === "string"
+          ? (JSON.parse(raw) as Record<string, unknown>)
+          : (raw as Record<string, unknown>);
+      const content =
+        typeof m.encrypted_content === "string" && chatKeyBytes
+          ? await decryptWithAesGcmCombined(m.encrypted_content, chatKeyBytes)
+          : null;
+      const senderName =
+        typeof m.encrypted_sender_name === "string" && chatKeyBytes
+          ? await decryptWithAesGcmCombined(
+              m.encrypted_sender_name,
+              chatKeyBytes,
+            )
+          : null;
+      const msgCategory =
+        typeof m.encrypted_category === "string" && chatKeyBytes
+          ? await decryptWithAesGcmCombined(m.encrypted_category, chatKeyBytes)
+          : null;
+      const modelName =
+        typeof m.encrypted_model_name === "string" && chatKeyBytes
+          ? await decryptWithAesGcmCombined(
+              m.encrypted_model_name,
+              chatKeyBytes,
+            )
+          : null;
+
+      messages.push({
+        id: String(m.id ?? m.message_id ?? ""),
+        chatId: String(m.chat_id ?? chatItem.id),
+        role: String(m.role ?? "unknown"),
+        content: content ?? "",
+        senderName,
+        category: msgCategory,
+        modelName,
+        createdAt: typeof m.created_at === "number" ? m.created_at : 0,
+        embedIds: Array.isArray(m.embed_ids) ? (m.embed_ids as string[]) : [],
+      });
+    }
+    messages.sort((a, b) => a.createdAt - b.createdAt);
+    return { chat: chatItem, messages };
+  }
+
+  /**
+   * Get a decrypted embed by ID (full or short prefix).
+   */
+  async getEmbed(embedIdOrShort: string): Promise<DecryptedEmbed> {
+    const cache = await this.ensureSynced();
+    const masterKey = this.getMasterKeyBytes();
+
+    const embed = cache.embeds.find(
+      (e) =>
+        String(e.embed_id ?? e.id ?? "") === embedIdOrShort ||
+        String(e.embed_id ?? e.id ?? "").startsWith(embedIdOrShort),
+    );
+    if (!embed) {
+      throw new Error(`Embed '${embedIdOrShort}' not found.`);
+    }
+
+    const embedId = String(embed.embed_id ?? embed.id ?? "");
+    const hashedChatId = String(embed.hashed_chat_id ?? "");
+
+    // Find the embed key for this embed — look by hashed_embed_id or hashed_chat_id
+    // Embeds can be keyed by chat key or by a dedicated embed key.
+    let embedKeyBytes: Uint8Array | null = null;
+
+    // Try to find a dedicated embed key entry
+    const embedKeyEntry = cache.embedKeys.find((ek) => {
+      const hEmbedId = String(ek.hashed_embed_id ?? "");
+      return hEmbedId && hEmbedId === String(embed.hashed_embed_id ?? embedId);
     });
+
+    if (
+      embedKeyEntry &&
+      typeof embedKeyEntry.encrypted_embed_key === "string"
+    ) {
+      // Unwrap embed key with master key
+      embedKeyBytes = await decryptBytesWithAesGcm(
+        embedKeyEntry.encrypted_embed_key as string,
+        masterKey,
+      );
+    }
+
+    // Fallback: try finding a chat-key-based embed key
+    if (!embedKeyBytes && hashedChatId) {
+      const chatKeyEntry = cache.embedKeys.find(
+        (ek) =>
+          String(ek.hashed_chat_id ?? "") === hashedChatId &&
+          String(ek.key_type ?? "") === "chat",
+      );
+      if (
+        chatKeyEntry &&
+        typeof chatKeyEntry.encrypted_embed_key === "string"
+      ) {
+        embedKeyBytes = await decryptBytesWithAesGcm(
+          chatKeyEntry.encrypted_embed_key as string,
+          masterKey,
+        );
+      }
+    }
+
+    // Decrypt fields
+    const decryptField = async (field: string): Promise<string | null> => {
+      const val = embed[field];
+      if (typeof val !== "string" || !embedKeyBytes) return null;
+      return decryptWithAesGcmCombined(val, embedKeyBytes);
+    };
+
+    const type = await decryptField("encrypted_type");
+    const textPreview = await decryptField("encrypted_text_preview");
+    let content: Record<string, unknown> | null = null;
+    const rawContent = await decryptField("encrypted_content");
+    if (rawContent) {
+      try {
+        content = JSON.parse(rawContent) as Record<string, unknown>;
+      } catch {
+        content = { raw: rawContent };
+      }
+    }
+
+    return {
+      id: embedId,
+      embedId,
+      type,
+      textPreview,
+      content,
+      appId:
+        typeof embed.app_id === "string"
+          ? embed.app_id
+          : ((content?.app_id as string) ?? null),
+      skillId:
+        typeof embed.skill_id === "string"
+          ? embed.skill_id
+          : ((content?.skill_id as string) ?? null),
+      createdAt: typeof embed.created_at === "number" ? embed.created_at : null,
+    };
   }
 
   async sendMessage(params: {
@@ -1188,11 +1444,26 @@ export class OpenMatesClient {
     });
   }
 
-  private async fetchAllChatMetadata(): Promise<ParsedChat[]> {
+  /**
+   * Ensure the local sync cache is up to date. If the cache is fresh,
+   * return it directly. Otherwise, do a full WS sync and save to disk.
+   *
+   * The sync cache stores encrypted data — decryption is always on-demand.
+   * SECURITY: decrypted user content is NEVER written to disk.
+   */
+  async ensureSynced(forceRefresh = false): Promise<SyncCache> {
+    if (!forceRefresh && isSyncCacheFresh()) {
+      const cache = loadSyncCache();
+      if (cache) return cache;
+    }
+
     const session = this.requireSession();
     const ws = this.makeWsClient(session);
     await ws.open();
-    const chats: ParsedChat[] = [];
+    const chats: CachedChat[] = [];
+    let embeds: Record<string, unknown>[] = [];
+    let embedKeys: Record<string, unknown>[] = [];
+    let totalChatCount = 0;
 
     try {
       ws.send("phased_sync_request", {
@@ -1203,32 +1474,53 @@ export class OpenMatesClient {
       });
       const initial = await ws.waitForMessage("phase_3_last_100_chats_ready");
       const initialPayload = initial.payload as {
-        chats?: Array<{ chat_details?: Record<string, unknown> }>;
+        chats?: Array<Record<string, unknown>>;
         total_chat_count?: number;
+        embeds?: Record<string, unknown>[];
+        embed_keys?: Record<string, unknown>[];
       };
 
       const firstChats = initialPayload.chats ?? [];
-      chats.push(
-        ...firstChats
-          .map(extractChatFromPayload)
-          .filter((item): item is ParsedChat => item !== null),
-      );
+      for (const wrapper of firstChats) {
+        const details = wrapper.chat_details as
+          | Record<string, unknown>
+          | undefined;
+        if (!details || typeof details.id !== "string") continue;
+        const messages = Array.isArray(wrapper.messages)
+          ? (wrapper.messages as string[])
+          : [];
+        chats.push({ details, messages });
+      }
 
-      const total = initialPayload.total_chat_count ?? firstChats.length;
-      let offset = 100;
-      while (offset < total) {
+      totalChatCount = initialPayload.total_chat_count ?? firstChats.length;
+      embeds = initialPayload.embeds ?? [];
+      embedKeys = initialPayload.embed_keys ?? [];
+
+      // Load remaining chats if there are more
+      let offset = firstChats.length;
+      while (offset < totalChatCount) {
         ws.send("load_more_chats", { offset, limit: 50 });
         const more = await ws.waitForMessage("load_more_chats_response");
         const payload = more.payload as {
-          chats?: Array<{ chat_details?: Record<string, unknown> }>;
+          chats?: Array<Record<string, unknown>>;
           has_more?: boolean;
+          embeds?: Record<string, unknown>[];
+          embed_keys?: Record<string, unknown>[];
         };
         const batch = payload.chats ?? [];
-        chats.push(
-          ...batch
-            .map(extractChatFromPayload)
-            .filter((item): item is ParsedChat => item !== null),
-        );
+        for (const wrapper of batch) {
+          const details = wrapper.chat_details as
+            | Record<string, unknown>
+            | undefined;
+          if (!details || typeof details.id !== "string") continue;
+          const messages = Array.isArray(wrapper.messages)
+            ? (wrapper.messages as string[])
+            : [];
+          chats.push({ details, messages });
+        }
+        // Merge additional embeds/embed_keys from paginated responses
+        if (payload.embeds) embeds.push(...payload.embeds);
+        if (payload.embed_keys) embedKeys.push(...payload.embed_keys);
         offset += batch.length;
         if (!payload.has_more || batch.length === 0) break;
       }
@@ -1236,12 +1528,28 @@ export class OpenMatesClient {
       ws.close();
     }
 
+    // Sort by last_edited_overall_timestamp descending
     chats.sort(
       (a, b) =>
-        (b.lastEditedOverallTimestamp ?? 0) -
-        (a.lastEditedOverallTimestamp ?? 0),
+        (typeof b.details.last_edited_overall_timestamp === "number"
+          ? b.details.last_edited_overall_timestamp
+          : 0) -
+        (typeof a.details.last_edited_overall_timestamp === "number"
+          ? a.details.last_edited_overall_timestamp
+          : 0),
     );
-    return chats;
+
+    const cache: SyncCache = {
+      syncedAt: Date.now(),
+      totalChatCount,
+      loadedChatCount: chats.length,
+      chats,
+      embeds,
+      embedKeys,
+    };
+
+    saveSyncCache(cache);
+    return cache;
   }
 
   private async prompt(question: string): Promise<string> {
@@ -1338,36 +1646,6 @@ export class OpenMatesClient {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function extractChatFromPayload(wrapper: {
-  chat_details?: Record<string, unknown>;
-}): ParsedChat | null {
-  const details = wrapper.chat_details;
-  if (!details || typeof details.id !== "string") return null;
-  return {
-    id: details.id,
-    encryptedTitle:
-      typeof details.encrypted_title === "string"
-        ? details.encrypted_title
-        : null,
-    encryptedSummary:
-      typeof details.encrypted_chat_summary === "string"
-        ? details.encrypted_chat_summary
-        : null,
-    encryptedChatKey:
-      typeof details.encrypted_chat_key === "string"
-        ? details.encrypted_chat_key
-        : null,
-    encryptedCategory:
-      typeof details.encrypted_category === "string"
-        ? details.encrypted_category
-        : null,
-    lastEditedOverallTimestamp:
-      typeof details.last_edited_overall_timestamp === "number"
-        ? details.last_edited_overall_timestamp
-        : null,
-  };
-}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));

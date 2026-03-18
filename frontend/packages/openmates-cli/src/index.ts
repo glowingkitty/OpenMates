@@ -15,8 +15,11 @@ export {
 } from "./client.js";
 export type {
   DecryptedMemoryEntry,
+  DecryptedMessage,
+  DecryptedEmbed,
+  ChatListPage,
   MemoryTypeDef,
   MemoryFieldDef,
   OpenMatesClientOptions,
 } from "./client.js";
-export type { OpenMatesSession } from "./storage.js";
+export type { OpenMatesSession, SyncCache, CachedChat } from "./storage.js";
