@@ -175,15 +175,16 @@
 				</div>
 			</div>
 
-			<!-- 4. Settings item with value -->
+			<!-- 4. Settings item/entry with value -->
 			<div class="element-block">
 				<div class="element-header">
 					<h3>4. Settings item/entry with value</h3>
 					<span class="element-tag existing">SettingsItem + subtitle + hasModifyButton</span>
 				</div>
 				<p class="element-purpose">
-					Used when clicking opens a sub settings menu for selecting one of multiple options. Shows
-					current value as grey subtitle below the title. Edit button on right.
+					Used when clicking opens a sub settings menu for selecting one of multiple options.
+					Shows current value as grey subtitle below the title.
+					Right side: edit button, download button, or credits counter with coin icon.
 				</p>
 				<div class="element-demo">
 					<SettingsItem
@@ -191,6 +192,34 @@
 						title="2FA App"
 						subtitleBottom="Google Authenticator"
 						hasModifyButton={true}
+						onClick={() => {}}
+					/>
+					<SettingsItem
+						icon="travel"
+						title="London"
+						subtitleBottom="Mar 29 – Apr 6"
+						iconType="category"
+						category="travel"
+						hasModifyButton={true}
+						onClick={() => {}}
+					/>
+					<SettingsItem
+						icon="document"
+						type="quickaction"
+						title="2025-03-13"
+						subtitleBottom="10 EUR"
+						iconType="category"
+						category="legal"
+						rightActionIcon="download"
+						onClick={() => {}}
+					/>
+					<SettingsItem
+						icon="chat"
+						type="submenu"
+						title="Legality of Ad-skipping Plugins"
+						iconType="category"
+						category="general_knowledge"
+						creditsDisplay="120"
 						onClick={() => {}}
 					/>
 				</div>

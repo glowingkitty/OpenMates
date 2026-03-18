@@ -33,6 +33,7 @@
 
 	// --- Search imports ---
 	import SearchBar from './search/SearchBar.svelte';
+	import SearchSortBar from '../settings/SearchSortBar.svelte';
 	import SearchResults from './search/SearchResults.svelte';
 	import { search as performSearch, warmUpSearchIndex, warmUpMetadataSearchIndex, type SearchResults as SearchResultsType } from '../../services/searchService';
 	import { searchStore, openSearch, closeSearch, setSearchQuery, setSearching } from '../../stores/searchStore';
@@ -3424,19 +3425,21 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 							{$text('chats.cancel')}
 						</button>
 					{:else}
-						<!-- Search button + close button -->
-						<button
-							class="clickable-icon icon_search top-button"
-							aria-label="Search"
-							onclick={() => openSearch()}
-							use:tooltip
-						></button>
-						<button
-							class="clickable-icon icon_close top-button right"
-							aria-label={$text('activity.close')}
-							onclick={handleClose}
-							use:tooltip
-						></button>
+						<!-- Search & sort bar (new Figma design) + close button -->
+						<div class="search-sort-bar-area">
+							<SearchSortBar
+								searchPlaceholder={$text('chats.search_placeholder', { default: 'Search' })}
+								sortOptions={[]}
+								onFocusIn={() => openSearch()}
+								onInput={(v) => { if (v.trim()) { openSearch(); setSearchQuery(v); } }}
+							/>
+							<button
+								class="clickable-icon icon_close top-button right"
+								aria-label={$text('activity.close')}
+								onclick={handleClose}
+								use:tooltip
+							></button>
+						</div>
 					{/if}
 				</div>
 			{/if}
@@ -3937,6 +3940,19 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
         height: 32px; /* Ensure container fits buttons */
         display: flex; /* Use flexbox for easier alignment if needed */
         justify-content: flex-end; /* Align close button to the right */
+    }
+
+    /* SearchSortBar + close button layout for the normal (non-search, non-select) state */
+    .search-sort-bar-area {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        width: 100%;
+    }
+
+    .search-sort-bar-area :global(.search-sort-bar) {
+        flex: 1;
+        min-width: 0;
     }
 
     .top-button {

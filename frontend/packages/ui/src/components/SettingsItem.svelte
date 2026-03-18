@@ -54,6 +54,8 @@
         iconType = 'default',
         category = undefined,
         categoryIcon = undefined,
+        rightActionIcon = undefined,
+        creditsDisplay = undefined,
         children
     }: {
         icon: string;
@@ -77,6 +79,17 @@
         iconType?: SettingsItemIconType;
         category?: string | undefined;
         categoryIcon?: string | undefined;
+        /**
+         * Optional right-side action button icon name (e.g. 'download' shows a download button).
+         * Renders a gradient circle button identical to ModifyButton but with a different icon.
+         * When provided alongside hasModifyButton, both are shown.
+         */
+        rightActionIcon?: string | undefined;
+        /**
+         * Credits display on the right side (usage entries).
+         * Shows "{creditsDisplay} [coins icon]" in var(--color-grey-50).
+         */
+        creditsDisplay?: string | undefined;
         children?: Snippet | undefined;
     } = $props();
 
@@ -88,6 +101,13 @@
     let hasAnySubtitle = $derived(displaySubtitleTop || subtitleBottom);
     let iconClass = $derived(type === 'quickaction' || type === 'subsubmenu' ? 
         `icon settings_size subsetting_icon ${icon}` : `icon settings_size ${icon}`);
+
+    /**
+     * Whether the title should use the OpenMates gradient text colour.
+     * Applied to all clickable settings items (submenu, quickaction, value entries)
+     * but NOT to non-clickable headings.
+     */
+    let hasTitleGradient = $derived(isClickable && type !== 'heading');
 
     // Handle events — use Event base type since handlers are shared by mouse and keyboard
     function handleItemClick(event: Event) {
@@ -191,7 +211,7 @@
                     
                     <!-- Main title -->
                     {#if title}
-                        <div class="menu-title">
+                        <div class="menu-title" class:gradient-text={hasTitleGradient}>
                             {#if type === 'heading'}
                                 <strong>{title}</strong>
                             {:else}
@@ -266,6 +286,21 @@
                     class="modify-button-container"
                 >
                     <ModifyButton />
+                </div>
+            {/if}
+
+            <!-- Right-side action icon button (e.g. download) -->
+            {#if rightActionIcon}
+                <div class="right-action-button" aria-label={rightActionIcon}>
+                    <div class="right-action-icon" style="--right-action-icon-url: var(--icon-url-{rightActionIcon});"></div>
+                </div>
+            {/if}
+
+            <!-- Credits display with coins icon -->
+            {#if creditsDisplay}
+                <div class="credits-display">
+                    <span class="credits-display-text">{creditsDisplay}</span>
+                    <div class="credits-display-coins" aria-hidden="true"></div>
                 </div>
             {/if}
         </div>
@@ -379,6 +414,20 @@
         font-weight: 500;
     }
 
+    /* Gradient text for all clickable settings items (submenu, action, toggle, value) */
+    .menu-title.gradient-text {
+        background: var(--color-primary);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        /* Must override the -webkit-box display for gradient to render */
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-weight: 500;
+    }
+
     .heading .menu-title strong {
         font-weight: 600;
     }
@@ -462,6 +511,65 @@
         display: flex;
         align-items: center;
         cursor: pointer;
+    }
+
+    /* Right-side action button (e.g. download) — same circle style as ModifyButton */
+    .right-action-button {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: var(--color-primary);
+        cursor: pointer;
+        position: relative;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        flex-shrink: 0;
+        transition: transform 0.2s ease;
+    }
+
+    .right-action-button:hover {
+        transform: scale(1.1);
+    }
+
+    .right-action-icon {
+        position: absolute;
+        inset: 0;
+        background-color: var(--color-grey-0);
+        -webkit-mask-image: var(--right-action-icon-url);
+        -webkit-mask-size: 50%;
+        -webkit-mask-position: center;
+        -webkit-mask-repeat: no-repeat;
+        mask-image: var(--right-action-icon-url);
+        mask-size: 50%;
+        mask-position: center;
+        mask-repeat: no-repeat;
+    }
+
+    /* Credits display (coin icon + amount) for usage entries */
+    .credits-display {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        flex-shrink: 0;
+    }
+
+    .credits-display-text {
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--color-grey-50);
+    }
+
+    .credits-display-coins {
+        width: 18px;
+        height: 18px;
+        background-color: var(--color-grey-50);
+        -webkit-mask-image: var(--icon-url-coins);
+        -webkit-mask-size: contain;
+        -webkit-mask-position: center;
+        -webkit-mask-repeat: no-repeat;
+        mask-image: var(--icon-url-coins);
+        mask-size: contain;
+        mask-position: center;
+        mask-repeat: no-repeat;
     }
 
     /* Responsive adjustments */

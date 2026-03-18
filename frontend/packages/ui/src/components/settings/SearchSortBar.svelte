@@ -26,6 +26,8 @@
         sortBy = $bindable(''),
         searchPlaceholder = '',
         sortOptions = [],
+        onFocusIn = undefined,
+        onInput = undefined,
     }: {
         /** Current search query — use bind:searchQuery in parent */
         searchQuery?: string;
@@ -35,6 +37,10 @@
         searchPlaceholder?: string;
         /** Available sort options rendered in the native <select> dropdown */
         sortOptions?: SortOption[];
+        /** Called when the search input gains focus (e.g. to open full-screen search) */
+        onFocusIn?: (() => void) | undefined;
+        /** Called with each keystroke value (e.g. to pipe into search store) */
+        onInput?: ((value: string) => void) | undefined;
     } = $props();
 </script>
 
@@ -48,6 +54,8 @@
             placeholder={searchPlaceholder}
             bind:value={searchQuery}
             aria-label={searchPlaceholder}
+            onfocusin={onFocusIn}
+            oninput={(e) => onInput?.((e.target as HTMLInputElement).value)}
         />
     </div>
 

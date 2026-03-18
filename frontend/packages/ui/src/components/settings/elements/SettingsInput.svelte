@@ -33,6 +33,7 @@
         onInput = undefined,
         onKeydown = undefined,
         onBlur = undefined,
+        inputRef = $bindable(undefined),
     }: {
         value?: string;
         placeholder?: string;
@@ -51,6 +52,12 @@
         onInput?: ((value: string) => void) | undefined;
         onKeydown?: ((event: KeyboardEvent) => void) | undefined;
         onBlur?: (() => void) | undefined;
+        /**
+         * Optional ref binding — exposes the underlying <input> DOM element.
+         * Use when you need programmatic focus: bind:inputRef={myInputEl}
+         * then call myInputEl?.focus().
+         */
+        inputRef?: HTMLInputElement | undefined;
     } = $props();
 
     function handleInput(event: Event) {
@@ -78,6 +85,7 @@
         aria-label={ariaLabel || placeholder}
         aria-invalid={hasError || undefined}
         data-testid={dataTestid || undefined}
+        bind:this={inputRef}
         bind:value
         oninput={handleInput}
         onkeydown={onKeydown}

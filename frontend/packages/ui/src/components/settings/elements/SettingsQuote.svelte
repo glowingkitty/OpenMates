@@ -61,12 +61,15 @@
 <style>
     .settings-quote {
         position: relative;
-        padding: 2.9375rem 1.5rem 1.5rem;
+        /* Top padding makes room for the quote icon at top-right */
+        padding: 2rem 1.5rem;
         background: var(--color-grey-0);
         border-radius: 1.1875rem;
         box-shadow: 0 0.25rem 0.25rem rgba(0, 0, 0, 0.1);
         min-width: 12rem;
+        min-height: 7rem;
         transition: box-shadow 0.2s ease, transform 0.2s ease;
+        /* Center text vertically in the available space */
         display: flex;
         align-items: center;
         justify-content: center;
