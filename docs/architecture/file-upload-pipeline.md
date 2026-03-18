@@ -1,7 +1,7 @@
 # File Upload Architecture
 
 > **Status**: ✅ Implemented (Phase 1: images only)  
-> **Last Updated**: 2026-02-19
+> **Last Updated**: 2026-03-17
 
 This document describes the implemented file upload system and its security-isolated architecture.
 
@@ -17,7 +17,7 @@ Processing steps per upload:
 2. **Validation** — file size (100 MB max) + MIME type whitelist
 3. **Deduplication** — per-user SHA-256 hash check via core API proxy (instant response for repeat uploads)
 4. **Malware scanning** — ClamAV via TCP socket (blocks upload; 422 if threat detected)
-5. **AI detection** — SightEngine `genai` model via local Vault credentials (non-blocking; tag only, never rejects)
+5. **Content safety + AI detection** — SightEngine combined scan (nudity/violence/gore/AI-gen) via local Vault credentials; **fail-closed** on service errors (see [Content Safety Scanning](#content-safety-scanning))
 6. **Preview generation** — Pillow WEBP preview at max 600×600px
 7. **Encryption** — AES-256-GCM with a random per-file key (pure local operation)
 8. **Key wrapping** — AES key wrapped by core API via Vault Transit proxy (`/internal/uploads/wrap-key`)
@@ -203,8 +203,8 @@ All three are implemented in [`backend/core/api/app/routes/internal_api.py`](../
 
 ### Upload VM (app-uploads)
 
-| Path                                                                                                                 | Description                                                           |
-| -------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| Path                                                                                                     | Description                                                           |
+| -------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
 | [`backend/upload/main.py`](../../backend/upload/main.py)                                                 | FastAPI app, lifespan startup (ClamAV, encryption, SightEngine, S3)   |
 | [`backend/upload/routes/upload_route.py`](../../backend/upload/routes/upload_route.py)                   | `POST /v1/upload/file` — full upload pipeline                         |
 | [`backend/upload/services/malware_scanner.py`](../../backend/upload/services/malware_scanner.py)         | ClamAV TCP socket client                                              |
@@ -282,6 +282,136 @@ The `images.view` skill ([`backend/apps/images/skills/view_skill.py`](../../back
 4. Decrypts with AES-256-GCM
 5. Passes base64-encoded image to the multimodal AI model for analysis
 6. Returns the AI's analysis text
+
+---
+
+## Content Safety Scanning
+
+All image uploads (chat images, profile images) and PDF page screenshots are scanned for harmful content before being stored in S3. Scanning uses [SightEngine](https://sightengine.com) as the primary provider.
+
+### What is scanned
+
+A **single combined API call** (`models=nudity-2.0,offensive,gore,genai`) covers:
+
+| Check                     | Type                        | Thresholds                                      |
+| ------------------------- | --------------------------- | ----------------------------------------------- |
+| Sexual activity / display | **BLOCKING**                | `sexual_activity > 0.3`, `sexual_display > 0.3` |
+| Erotica                   | **BLOCKING**                | `erotica > 0.4`                                 |
+| Sex toys                  | **BLOCKING**                | `sextoy > 0.3`                                  |
+| Suggestive                | **BLOCKING**                | `suggestive > 0.6`                              |
+| Weapons                   | **BLOCKING**                | `weapon > 0.5`                                  |
+| Gore                      | **BLOCKING**                | `gore > 0.3`                                    |
+| Blood                     | **BLOCKING**                | `blood > 0.4`                                   |
+| AI-generated image        | Non-blocking (metadata tag) | Score stored in embed TOON content              |
+
+A **blocking** result rejects the upload entirely. The AI-generated score is stored as metadata only and never causes rejection.
+
+### Fail-closed policy (2026-03-17)
+
+Before 2026-03-17 the scanner was **fail-open**: if SightEngine returned an error (5xx, timeout, etc.) the upload was silently allowed through. This meant a SightEngine outage created an unguarded window for harmful content.
+
+The policy was changed to **fail-closed**:
+
+- HTTP error, non-`success` status, or timeout from SightEngine → `ContentSafetyResult(is_safe=False, reason="safety_service_unavailable")`
+- Upload route detects `reason == "safety_service_unavailable"` and returns **HTTP 503** with `"Safety processing failed. Try again later."` to the user — **not** reported as a policy violation
+- If SightEngine credentials are **not configured** at all (dev/self-hosted without `SECRET__SIGHTENGINE__*`), scanning is fully skipped and uploads are allowed — the fail-closed policy only applies when credentials are present but the API itself is unavailable
+
+Implementation: [`backend/upload/services/sightengine_service.py`](../../backend/upload/services/sightengine_service.py), [`backend/upload/routes/upload_route.py`](../../backend/upload/routes/upload_route.py)
+
+### PDF page screenshot scanning
+
+When a PDF is processed by the `app-pdf-worker` Celery task ([`backend/apps/pdf/tasks/process_task.py`](../../backend/apps/pdf/tasks/process_task.py)), each page is rendered to a PNG screenshot via pymupdf. **Step 5.5** in the pipeline scans every screenshot with SightEngine before uploading to S3:
+
+- Service unavailable → task fails (Celery retry with backoff)
+- Content violation on any page → entire PDF rejected with embed status `error`
+- Credentials not configured → scan skipped, screenshots proceed normally
+
+This closes the gap where a user could embed a PDF containing harmful images that bypassed the per-upload scan (since the PDF itself is uploaded as an opaque binary).
+
+### Fallback providers (planned — not yet implemented)
+
+The following providers have been researched as fallbacks for when SightEngine is temporarily unavailable. The architecture change needed: detect `safety_service_unavailable` in `check_all()` and call a configured fallback before returning fail-closed to the caller.
+
+#### Tier 1 — Azure AI Content Safety (recommended primary fallback)
+
+| Property                  | Detail                                                                                                   |
+| ------------------------- | -------------------------------------------------------------------------------------------------------- |
+| EU data residency         | Yes — France Central, Sweden Central, West Europe, UK South, and more                                    |
+| SLA                       | 99.9% (Azure standard)                                                                                   |
+| Categories detected       | Sexual (multi-severity), violence, hate, self-harm                                                       |
+| Weapons as separate label | No (mapped to violence category)                                                                         |
+| Gore sub-categories       | No (severity score only)                                                                                 |
+| AI-generated detection    | No                                                                                                       |
+| CSAM                      | Explicitly **not supported**                                                                             |
+| Image upload              | Base64 JSON body (`{"image": {"content": "<base64>"}}`)                                                  |
+| Pricing                   | Free: 5,000/month; Standard: **$0.75 / 1,000 images**                                                    |
+| API endpoint              | `POST https://<endpoint>.cognitiveservices.azure.com/contentsafety/image:analyze?api-version=2024-09-01` |
+| Max image size            | 4 MB                                                                                                     |
+| Config key needed         | `SECRET__AZURE_CONTENT_SAFETY__ENDPOINT`, `SECRET__AZURE_CONTENT_SAFETY__API_KEY`                        |
+
+**Gap vs SightEngine:** No weapons label (violence catches it), no fine-grained gore, no AI-gen detection, no CSAM.
+
+#### Tier 2 — AWS Rekognition (best pricing at volume)
+
+| Property                  | Detail                                                                                                                       |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| EU data residency         | Yes — `eu-west-1` (Ireland), `eu-central-1` (Frankfurt), `eu-west-3` (Paris), `eu-north-1` (Stockholm), `eu-south-1` (Milan) |
+| SLA                       | 99.99% (AWS standard)                                                                                                        |
+| Categories detected       | Explicit nudity, suggestive, violence, weapons, disturbing imagery, drugs, alcohol, hate symbols                             |
+| Weapons as separate label | Yes                                                                                                                          |
+| AI-generated detection    | No                                                                                                                           |
+| CSAM                      | No                                                                                                                           |
+| Image upload              | Raw bytes via Boto3 (`Image={'Bytes': file_bytes}`) or S3 reference                                                          |
+| Pricing                   | **$0.001 / image** (first 1M/month), tiered down to $0.00025 above 35M                                                       |
+| Config key needed         | `SECRET__AWS__ACCESS_KEY_ID`, `SECRET__AWS__SECRET_ACCESS_KEY`, `SECRET__AWS__REKOGNITION_REGION` (e.g. `eu-west-1`)         |
+
+**Gap vs SightEngine:** No AI-gen detection, no CSAM.
+
+#### Tier 3 — Hive Moderation (closest taxonomy match, enterprise-only EU)
+
+| Property                  | Detail                                                                                |
+| ------------------------- | ------------------------------------------------------------------------------------- |
+| EU data residency         | Enterprise contract required (not available on standard self-serve plan)              |
+| Categories detected       | Nudity (granular), violence/gore sub-types, hate symbols, drugs/tobacco, weapons      |
+| Weapons as separate label | Yes (`gun_in_hand`, `knife_in_hand`)                                                  |
+| AI-generated detection    | Yes (separate billable model — contact sales)                                         |
+| CSAM                      | Yes (via Thorn integration — contact sales only)                                      |
+| Image upload              | `POST https://api.thehive.ai/api/v2/task/sync` multipart form                         |
+| Pricing                   | **$3.00 / 1,000 images** (self-serve, 100 req/day limit); enterprise: annual contract |
+| Config key needed         | `SECRET__HIVE__API_KEY`                                                               |
+
+**Notes:** Best feature parity with SightEngine, including AI-gen detection. EU hosting and CSAM detection require enterprise agreements. Self-serve plan is rate-limited to 100 requests/day, making it unsuitable for production volume without an enterprise contract.
+
+#### Last resort — Google Cloud Vision SafeSearch
+
+| Property               | Detail                                                                                             |
+| ---------------------- | -------------------------------------------------------------------------------------------------- |
+| EU data residency      | Yes — `europe-west1` (Belgium), `europe-west4` (Netherlands), `eu` multi-region                    |
+| SLA                    | 99.9%                                                                                              |
+| Categories detected    | Adult, racy, violence, medical, spoof                                                              |
+| Weapons                | No (not a SafeSearch category)                                                                     |
+| AI-generated detection | No (`spoof` is image tampering, not AI generation)                                                 |
+| CSAM                   | No                                                                                                 |
+| Image upload           | Base64 in REST body or via regional endpoint `https://eu-vision.googleapis.com/v1/images:annotate` |
+| Pricing                | Free with Label Detection; otherwise **$1.50 / 1,000** (up to 5M/month)                            |
+
+**Notes:** Weakest taxonomy. No weapons, no drugs, no CSAM, very coarse violence/nudity classification. Acceptable as a last-resort cheap fallback to maintain basic coverage during an extended SightEngine outage.
+
+#### Recommended fallback cascade
+
+```
+SightEngine (primary)
+  ↓ 5xx / timeout / API error
+Azure AI Content Safety — EU, 99.9% SLA, $0.75/1k (covers nudity + violence)
+  ↓ also unavailable
+AWS Rekognition eu-west-1 — $0.001/img, weapons label, strong SLA
+  ↓ also unavailable
+Fail-closed (503 "Safety processing failed. Try again later.")
+```
+
+AI-generated image detection specifically requires Hive (enterprise) or accepting a gap when SightEngine is down. CSAM requires Hive (enterprise, Thorn integration).
+
+**Implementation note:** The fallback cascade should be implemented as a strategy pattern in `SightEngineService` or a new `ContentSafetyService` wrapper, with each provider implemented as an independent class following the same `check_all() → (ContentSafetyResult, Optional[AIDetectionResult])` interface. Provider selection is driven by configured API keys — if a provider's key is absent, it is skipped in the cascade.
 
 ---
 
