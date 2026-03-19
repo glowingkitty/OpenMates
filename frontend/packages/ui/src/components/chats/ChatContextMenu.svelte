@@ -626,6 +626,8 @@
         transition: opacity 0.2s ease-in-out;
         min-width: 120px;
         max-width: min(280px, calc(100vw - 32px)); /* Constrain width for readability and mobile */
+        max-height: calc(100vh - 40px); /* Prevent menu from overflowing viewport */
+        overflow-y: auto;
     }
     
     /* Active focus mode indicator at the top of the context menu */
