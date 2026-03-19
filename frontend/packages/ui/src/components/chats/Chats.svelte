@@ -125,6 +125,30 @@ let _chatUpdatedFlushPending = false;
 	let searchResults: SearchResultsType | null = $state(null);
 	// Reference to the SearchResults component for keyboard navigation
 	let searchResultsComponent: { focusNext: () => void; focusPrevious: () => void; activateFocused: () => void } | null = $state(null);
+	// Local search query for the SearchSortBar (non-active-search mode)
+	let sidebarSearchQuery = $state('');
+	// Sort order when sidebar search is active: 'newest' (default) or 'oldest'
+	let sidebarSearchSortOrder = $state('newest');
+	// Sorted search results — re-sorted whenever raw results or sort order changes
+	let sortedSearchResults = $derived((() => {
+		if (!searchResults) return null;
+		if (sidebarSearchSortOrder === 'oldest') {
+			return {
+				...searchResults,
+				chats: [...searchResults.chats].sort(
+					(a, b) => (a.chat.created_at ?? 0) - (b.chat.created_at ?? 0)
+				),
+			};
+		}
+		// Default: newest first (already sorted by search service, but re-sort explicitly)
+		return {
+			...searchResults,
+			chats: [...searchResults.chats].sort(
+				(a, b) => (b.chat.last_edited_overall_timestamp ?? b.chat.created_at ?? 0) -
+				          (a.chat.last_edited_overall_timestamp ?? a.chat.created_at ?? 0)
+			),
+		};
+	})());
 	
 	// Self-hosted mode state is now managed by serverStatusStore
 	// isSelfHosted is imported from the store (initialized once at app load to prevent UI flashing)
@@ -3425,21 +3449,37 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 							{$text('chats.cancel')}
 						</button>
 					{:else}
-						<!-- Search & sort bar (new Figma design) + close button -->
-						<div class="search-sort-bar-area">
-							<SearchSortBar
-								searchPlaceholder={$text('chats.search.placeholder')}
-								sortOptions={[]}
-								onFocusIn={() => openSearch()}
-								onInput={(v) => { if (v.trim()) { openSearch(); setSearchQuery(v); } }}
-							/>
-							<button
-								class="clickable-icon icon_close top-button right"
-								aria-label={$text('activity.close')}
-								onclick={handleClose}
-								use:tooltip
-							></button>
-						</div>
+					<!-- Search & sort bar (new Figma design) + close button -->
+					<div class="search-sort-bar-area">
+						<SearchSortBar
+							bind:searchQuery={sidebarSearchQuery}
+							bind:sortBy={sidebarSearchSortOrder}
+							searchPlaceholder={$text('chats.search.placeholder')}
+							sortOptions={sidebarSearchQuery.trim().length > 0 ? [
+								{ value: 'newest', label: $text('chats.search.sort.newest_first') },
+								{ value: 'oldest', label: $text('chats.search.sort.oldest_first') },
+							] : []}
+							onInput={(v) => {
+								sidebarSearchQuery = v;
+								if (v.trim()) {
+									openSearch();
+									setSearchQuery(v);
+								} else {
+									handleSearchClose('button');
+								}
+							}}
+							onClear={() => {
+								sidebarSearchQuery = '';
+								handleSearchClose('button');
+							}}
+						/>
+						<button
+							class="clickable-icon icon_close top-button right"
+							aria-label={$text('activity.close')}
+							onclick={handleClose}
+							use:tooltip
+						></button>
+					</div>
 					{/if}
 				</div>
 			{/if}
@@ -3507,10 +3547,10 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 			ontouchmove={handleTouchMove}
 		>
 			<!-- Search results overlay — replaces normal chat list when search is active -->
-		{#if searchState.isActive && searchState.query.trim().length > 0 && searchResults}
+		{#if searchState.isActive && searchState.query.trim().length > 0 && sortedSearchResults}
 			<SearchResults
 				bind:this={searchResultsComponent}
-				results={searchResults}
+				results={sortedSearchResults}
 				query={searchState.query}
 				activeChatId={selectedChatId}
 				onChatClick={handleSearchChatClick}

@@ -2036,6 +2036,56 @@ search.tag_match:
   he: תגית
   verified_by_human: []
 
+search.sort.newest_first:
+  context: Sort option label in the chat sidebar search bar — sort results by newest first
+  en: Newest first
+  de: Neueste zuerst
+  zh: 最新优先
+  es: Más recientes primero
+  fr: Plus récents en premier
+  pt: Mais recentes primeiro
+  ru: Сначала новые
+  ja: 新しい順
+  ko: 최신순
+  it: Più recenti prima
+  tr: En yeni önce
+  vi: Mới nhất trước
+  id: Terbaru dahulu
+  pl: Najnowsze najpierw
+  nl: Nieuwste eerst
+  ar: الأحدث أولاً
+  hi: नवीनतम पहले
+  th: ใหม่ที่สุดก่อน
+  cs: Nejnovější první
+  sv: Nyaste först
+  he: החדש ביותר קודם
+  verified_by_human: []
+
+search.sort.oldest_first:
+  context: Sort option label in the chat sidebar search bar — sort results by oldest first
+  en: Oldest first
+  de: Älteste zuerst
+  zh: 最旧优先
+  es: Más antiguos primero
+  fr: Plus anciens en premier
+  pt: Mais antigos primeiro
+  ru: Сначала старые
+  ja: 古い順
+  ko: 오래된순
+  it: Più vecchi prima
+  tr: En eski önce
+  vi: Cũ nhất trước
+  id: Terlama dahulu
+  pl: Najstarsze najpierw
+  nl: Oudste eerst
+  ar: الأقدم أولاً
+  hi: सबसे पुराना पहले
+  th: เก่าที่สุดก่อน
+  cs: Nejstarší první
+  sv: Äldsta först
+  he: הישן ביותר קודם
+  verified_by_human: []
+
 scroll_to_active_chat:
   context: Accessible aria-label for the sticky pin button that scrolls the active chat back into view when it is out of the visible chat list
   en: Scroll to active chat
