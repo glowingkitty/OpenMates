@@ -27,7 +27,7 @@
 	import { browser } from '$app/environment';
 
 	// i18n auto-initialises when @repo/ui is imported
-	import { ChatMessage, waitForTranslations } from '@repo/ui';
+	import { ChatMessage, waitForTranslations, theme } from '@repo/ui';
 	import { MOCK_CHAT_MESSAGES } from './mockData';
 
 	// ── Phone mockup dimensions ───────────────────────────────────────────────
@@ -69,7 +69,9 @@
 		// Force dark theme so ChatMessage CSS variables resolve correctly.
 		// The device mockup backgrounds are hardcoded dark (#1a1a1a), so
 		// ChatMessage text must use dark-theme colors (light text).
-		document.documentElement.setAttribute('data-theme', 'dark');
+		// Must set the store (not just the attribute) because the root layout
+		// has a reactive $effect that continuously syncs the store to the DOM.
+		theme.set('dark');
 
 		try {
 			await waitForTranslations();
