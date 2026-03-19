@@ -66,6 +66,7 @@ export interface UserProfile {
   email_notification_preferences?: {
     aiResponses: boolean; // Notify when AI completes a response
     backupReminder: boolean; // Periodic backup reminder emails (Settings → Notifications → Backup Reminders)
+    webhookChats?: boolean; // Notify when an incoming webhook creates a new chat (default: true)
   };
   // Backup reminder fields — synced with server via the email notification settings WebSocket flow.
   // last_export_at: set server-side when the user fetches the export manifest.

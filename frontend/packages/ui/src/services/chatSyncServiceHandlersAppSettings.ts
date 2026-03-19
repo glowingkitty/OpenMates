@@ -2558,3 +2558,219 @@ export async function handleUserNotificationImpl(
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// webhook_chat — incoming webhook creates a new chat with a system message
+// ---------------------------------------------------------------------------
+
+/**
+ * Payload for the "webhook_chat" WebSocket event.
+ *
+ * The server vault-encrypts the incoming webhook message before sending it
+ * over the WebSocket. The client must:
+ * 1. Decrypt the content using the vault key (vault → plaintext)
+ * 2. Generate a new chat + chat key
+ * 3. Re-encrypt with the chat key (plaintext → chat-key ciphertext)
+ * 4. Persist as a system message via chat_system_message_added
+ */
+interface WebhookChatPayload {
+  chat_id: string;
+  message_id: string;
+  encrypted_content: string; // Vault-encrypted content (server-side)
+  vault_key_version: string; // Vault key version for decryption
+  status: "processing" | "pending_confirmation";
+  source: "webhook";
+  created_at: number; // Unix timestamp
+}
+
+/**
+ * Handles the "webhook_chat" WebSocket event.
+ *
+ * Architecture (Vault → Chat-key re-encryption):
+ * The backend vault-encrypts the webhook message server-side (since the sender
+ * doesn't have the user's client-side master key). This handler:
+ * 1. Decrypts with the vault key via the server decryption endpoint
+ * 2. Creates a new chat locally with a fresh chat key
+ * 3. Encrypts the plaintext with the chat key (zero-knowledge from here on)
+ * 4. Persists as a role="system" message so it appears in chat history
+ * 5. Dispatches chatUpdated so the UI shows the new chat immediately
+ * 6. Shows a toast notification pointing to the new chat
+ */
+export async function handleWebhookChatImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: WebhookChatPayload,
+): Promise<void> {
+  console.info("[ChatSyncService:Webhook] Received 'webhook_chat':", {
+    chat_id: payload.chat_id,
+    message_id: payload.message_id,
+    status: payload.status,
+  });
+
+  const {
+    chat_id,
+    message_id,
+    encrypted_content,
+    vault_key_version,
+    status,
+    created_at,
+  } = payload;
+
+  if (!chat_id || !message_id || !encrypted_content) {
+    console.warn(
+      "[ChatSyncService:Webhook] Invalid webhook_chat payload:",
+      payload,
+    );
+    return;
+  }
+
+  try {
+    // Deduplicate
+    const existingMessage = await chatDB.getMessage(message_id);
+    if (existingMessage) {
+      console.debug(
+        `[ChatSyncService:Webhook] Message ${message_id} already exists, skipping`,
+      );
+      return;
+    }
+
+    const { encryptWithChatKey, generateChatKey } =
+      await import("./cryptoService");
+    const { webSocketService } = await import("./websocketService");
+
+    // ── 1. Decrypt from vault via server endpoint ────────────────────────
+    // The server encrypted with its vault key; we request decryption from
+    // our own user endpoint (authenticated via session cookie).
+    let plaintext: string | null = null;
+    try {
+      const { getApiEndpoint } = await import("../config/api");
+      const response = await fetch(
+        getApiEndpoint("/v1/webhooks/decrypt-pending"),
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id,
+            message_id,
+            encrypted_content,
+            vault_key_version,
+          }),
+        },
+      );
+      if (response.ok) {
+        const data = await response.json();
+        plaintext = data.plaintext || null;
+      }
+    } catch (decryptErr) {
+      console.warn(
+        "[ChatSyncService:Webhook] Vault decryption request failed:",
+        decryptErr,
+      );
+    }
+
+    // Fallback: use a placeholder so the chat still appears
+    if (!plaintext) {
+      plaintext = "[Webhook message — could not decrypt]";
+      console.warn(
+        "[ChatSyncService:Webhook] Using fallback plaintext for chat",
+        chat_id,
+      );
+    }
+
+    // ── 2. Generate new chat key and create chat locally ──────────────────
+    const chatKey = generateChatKey();
+    if (!chatKey) {
+      console.error("[ChatSyncService:Webhook] Failed to generate chat key");
+      return;
+    }
+    chatDB.setChatKey(chat_id, chatKey);
+
+    const now = created_at || Math.floor(Date.now() / 1000);
+
+    // Derive a short title from the message content (first ~60 chars)
+    const rawTitle = plaintext.substring(0, 60).replace(/\n/g, " ");
+    const titleText =
+      rawTitle.length < plaintext.length ? rawTitle + "…" : rawTitle;
+    const encryptedTitle = await encryptWithChatKey(titleText, chatKey);
+
+    const newChat = {
+      chat_id,
+      title: titleText,
+      encrypted_title: encryptedTitle,
+      created_at: now,
+      updated_at: now,
+      messages_v: 0,
+      title_v: 0,
+      last_edited_overall_timestamp: now,
+      unread_count: 1,
+    };
+    await chatDB.updateChat(newChat as import("../types/chat").Chat);
+
+    // ── 3. Encrypt with chat key ──────────────────────────────────────────
+    const encryptedChatContent = await encryptWithChatKey(plaintext, chatKey);
+    if (!encryptedChatContent) {
+      console.error(
+        "[ChatSyncService:Webhook] Failed to encrypt webhook content with chat key",
+      );
+      return;
+    }
+
+    // ── 4. Save system message locally ───────────────────────────────────
+    const systemMessage = {
+      message_id,
+      chat_id,
+      role: "system" as const,
+      content: plaintext,
+      created_at: now,
+      status: "sending" as const,
+      encrypted_content: encryptedChatContent,
+    };
+    await chatDB.saveMessage(systemMessage);
+
+    // ── 5. Persist to server via chat_system_message_added ────────────────
+    try {
+      await webSocketService.sendMessage("chat_system_message_added", {
+        chat_id,
+        message: {
+          message_id,
+          role: "system",
+          encrypted_content: encryptedChatContent,
+          created_at: now,
+        },
+      });
+      const syncedMessage = { ...systemMessage, status: "synced" as const };
+      await chatDB.saveMessage(syncedMessage);
+    } catch (sendErr) {
+      console.warn(
+        "[ChatSyncService:Webhook] Failed to send to server:",
+        sendErr,
+      );
+    }
+
+    // ── 6. Dispatch UI update ─────────────────────────────────────────────
+    serviceInstance.dispatchEvent(
+      new CustomEvent("chatUpdated", {
+        detail: {
+          chat_id,
+          type: "webhook_chat_created",
+          newMessage: systemMessage,
+          messagesUpdated: true,
+          chat: newChat,
+        },
+      }),
+    );
+
+    // Toast notification
+    const previewText = plaintext.substring(0, 100);
+    notificationStore.chatMessage(chat_id, "Webhook", previewText, undefined);
+
+    console.info(
+      `[ChatSyncService:Webhook] Processed webhook chat ${chat_id} (status=${status})`,
+    );
+  } catch (error) {
+    console.error(
+      "[ChatSyncService:Webhook] Error handling webhook_chat:",
+      error,
+    );
+  }
+}

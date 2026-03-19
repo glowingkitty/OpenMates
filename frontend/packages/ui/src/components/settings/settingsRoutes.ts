@@ -106,6 +106,7 @@ import SettingsShareDebugLogs from "./SettingsShareDebugLogs.svelte";
 import SettingsDevelopers from "./SettingsDevelopers.svelte";
 import SettingsApiKeys from "./developers/SettingsApiKeys.svelte";
 import SettingsDevices from "./developers/SettingsDevices.svelte";
+import SettingsWebhooks from "./developers/SettingsWebhooks.svelte";
 
 // Server (admin only)
 import SettingsServer from "./SettingsServer.svelte";
@@ -180,6 +181,7 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   developers: SettingsDevelopers,
   "developers/api-keys": SettingsApiKeys,
   "developers/devices": SettingsDevices,
+  "developers/webhooks": SettingsWebhooks,
   // Interface
   interface: SettingsInterface,
   "interface/language": SettingsLanguage,

@@ -754,6 +754,13 @@ export class ChatSynchronizationService extends EventTarget {
         module.handleReminderFiredImpl(this, payload),
       );
 
+      // Handle incoming webhook chat events from server.
+      // The server vault-encrypts the message; this handler decrypts with vault key,
+      // re-encrypts with the chat key, and persists as a system message (new chat).
+      webSocketService.on("webhook_chat", (payload) =>
+        module.handleWebhookChatImpl(this, payload),
+      );
+
       // Handle user_notification events — server-initiated toasts with optional deep-link buttons.
       // Currently emitted by set_reminder_skill when the user has no email notifications active.
       webSocketService.on("user_notification", (payload) =>

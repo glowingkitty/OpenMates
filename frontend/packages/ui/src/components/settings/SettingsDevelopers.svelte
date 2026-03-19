@@ -46,6 +46,18 @@ Developers Settings - API keys management and developer tools
     }
 
     /**
+     * Navigate to Webhooks submenu for incoming webhook key management.
+     */
+    function navigateToWebhooks() {
+        dispatch('openSettings', {
+            settingsPath: 'developers/webhooks',
+            direction: 'forward',
+            icon: 'link',
+            title: $text('settings.developers_webhooks')
+        });
+    }
+
+    /**
      * Open API documentation in a new tab.
      */
     function openApiDocs() {
@@ -68,6 +80,14 @@ Developers Settings - API keys management and developer tools
         title={$text('settings.developers_devices_text')}
         subtitleTop={$text('settings.developers_devices_description')}
         onClick={navigateToDevices}
+    />
+
+    <SettingsItem
+        type="submenu"
+        icon="subsetting_icon link"
+        title={$text('settings.developers_webhooks')}
+        subtitleTop={$text('settings.developers_webhooks_description')}
+        onClick={navigateToWebhooks}
     />
 
     <SettingsItem

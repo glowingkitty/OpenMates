@@ -261,3 +261,23 @@ notifications.email_saving:
   de: Wird gespeichert...
   ar: جاري الحفظ...
   he: שומר...
+
+notifications.email_webhooks:
+  context: Toggle label for webhook chat email notifications
+  en: Webhook Chats
+  de: Webhook-Chats
+  zh: Webhook 聊天
+  es: Chats de Webhook
+  fr: Chats Webhook
+  ar: محادثات Webhook
+  he: שיחות Webhook
+
+notifications.email_webhooks_desc:
+  context: Description for webhook chat email notifications
+  en: When an incoming webhook creates a new chat while you're away
+  de: Wenn ein eingehender Webhook einen neuen Chat erstellt, während Sie abwesend sind
+  zh: 当传入 Webhook 在您离开时创建新聊天
+  es: Cuando un webhook entrante crea un nuevo chat mientras estás ausente
+  fr: Lorsqu'un webhook entrant crée un nouveau chat pendant votre absence
+  ar: عندما يُنشئ webhook وارد محادثة جديدة أثناء غيابك
+  he: כאשר webhook נכנס יוצר שיחה חדשה בזמן שאינך נמצא

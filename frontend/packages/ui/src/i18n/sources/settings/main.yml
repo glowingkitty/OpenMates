@@ -1499,26 +1499,173 @@ developers_devices_name_placeholder:
 developers_devices_rename_empty_error:
   context: Error message when device name is empty
   en: Device name cannot be empty
-  de: Gerätename darf nicht leer sein
-  zh: 设备名称不能为空
-  es: El nombre del dispositivo no puede estar vacío
-  fr: Le nom de l'appareil ne peut pas être vide
-  pt: O nome do dispositivo não pode estar vazio
-  ru: Имя устройства не может быть пустым
-  ja: デバイス名は空にできません
-  ko: 장치 이름은 비워둘 수 없습니다
-  it: Il nome del dispositivo non può essere vuoto
-  tr: Cihaz adı boş olamaz
-  vi: Tên thiết bị không được để trống
-  id: Nama perangkat tidak boleh kosong
-  pl: Nazwa urządzenia nie może być pusta
-  nl: Apparaatnaam mag niet leeg zijn
-  ar: لا يمكن أن يكون اسم الجهاز فارغًا
-  hi: डिवाइस नाम खाली नहीं हो सकता
-  th: ชื่ออุปกรณ์ไม่สามารถว่างได้
-  cs: Název zařízení nemůže být prázdný
-  sv: Enhetsnamnet kan inte vara tomt
-  he: שם המכשיר לא יכול להיות ריק
+
+developers_webhooks:
+  context: Webhooks menu item in developer settings
+  en: Webhooks
+  de: Webhooks
+  zh: Webhooks
+  es: Webhooks
+  fr: Webhooks
+  pt: Webhooks
+  ru: Webhooks
+  ja: Webhooks
+  ko: Webhooks
+  it: Webhook
+  tr: Webhooks
+  vi: Webhooks
+  id: Webhooks
+  pl: Webhooks
+  nl: Webhooks
+  ar: Webhooks
+  hi: Webhooks
+  th: Webhooks
+  cs: Webhooks
+  sv: Webhooks
+  he: Webhooks
+  verified_by_human: []
+
+developers_webhooks_description:
+  context: Description for webhooks in developer settings
+  en: Allow external services to create chats by sending HTTP requests
+  de: Externen Diensten ermöglichen, Chats per HTTP-Anfragen zu erstellen
+  zh: 允许外部服务通过 HTTP 请求创建聊天
+  es: Permite que servicios externos creen chats mediante solicitudes HTTP
+  fr: Permettre aux services externes de créer des chats via des requêtes HTTP
+  ar: السماح للخدمات الخارجية بإنشاء محادثات عبر طلبات HTTP
+  he: אפשר לשירותים חיצוניים ליצור שיחות באמצעות בקשות HTTP
+  verified_by_human: []
+
+developers_webhooks_create:
+  context: Button to create a new webhook key
+  en: Create Webhook
+  de: Webhook erstellen
+  zh: 创建 Webhook
+  es: Crear Webhook
+  fr: Créer un Webhook
+  ar: إنشاء Webhook
+  he: צור Webhook
+  verified_by_human: []
+
+developers_webhooks_empty:
+  context: Empty state message when no webhooks exist
+  en: No webhooks yet. Create one to let external services trigger new chats.
+  de: Noch keine Webhooks. Erstellen Sie einen, damit externe Dienste neue Chats auslösen können.
+  zh: 还没有 Webhook。创建一个让外部服务触发新聊天。
+  es: Aún no hay webhooks. Cree uno para que servicios externos puedan activar nuevos chats.
+  fr: Aucun webhook pour l'instant. Créez-en un pour permettre à des services externes de déclencher de nouveaux chats.
+  ar: لا توجد webhooks بعد. أنشئ واحدًا للسماح للخدمات الخارجية بإنشاء محادثات جديدة.
+  he: אין עדיין webhooks. צור אחד כדי לאפשר לשירותים חיצוניים להפעיל שיחות חדשות.
+  verified_by_human: []
+
+developers_webhooks_created_title:
+  context: Title of the modal shown after a webhook is created
+  en: Webhook Created
+  de: Webhook erstellt
+  zh: Webhook 已创建
+  es: Webhook creado
+  fr: Webhook créé
+  ar: تم إنشاء Webhook
+  he: Webhook נוצר
+  verified_by_human: []
+
+developers_webhooks_created_warning:
+  context: Warning text in the webhook created modal telling users to copy the key now
+  en: Copy this webhook key now — you won't be able to see it again.
+  de: Kopieren Sie diesen Webhook-Schlüssel jetzt — Sie können ihn nicht mehr sehen.
+  zh: 现在复制此 Webhook 密钥 — 您将无法再次查看它。
+  es: Copie esta clave de webhook ahora — no podrá verla de nuevo.
+  fr: Copiez cette clé webhook maintenant — vous ne pourrez plus la voir.
+  ar: انسخ مفتاح webhook هذا الآن — لن تتمكن من رؤيته مرة أخرى.
+  he: העתק את מפתח ה-webhook הזה עכשיו — לא תוכל לראותו שוב.
+  verified_by_human: []
+
+developers_webhooks_name_placeholder:
+  context: Placeholder text for the webhook name input
+  en: "e.g., CI Test Results, Monitoring Alerts"
+  de: "z. B. CI-Testergebnisse, Überwachungswarnungen"
+  zh: 例如CI测试结果、监控警报
+  es: "por ej., Resultados CI, Alertas de monitoreo"
+  fr: "ex. - Résultats CI, Alertes de surveillance"
+  ar: "مثال - نتائج CI، تنبيهات المراقبة"
+  he: "לדוגמה - תוצאות CI, התראות ניטור"
+  verified_by_human: []
+
+developers_webhooks_require_confirmation:
+  context: Toggle label for requiring user confirmation before processing incoming webhooks
+  en: Require my approval for each message
+  de: Meine Genehmigung für jede Nachricht erforderlich
+  zh: 每条消息都需要我的批准
+  es: Requerir mi aprobación para cada mensaje
+  fr: Nécessiter mon approbation pour chaque message
+  ar: طلب موافقتي على كل رسالة
+  he: דרוש אישורי לכל הודעה
+  verified_by_human: []
+
+developers_webhooks_require_confirmation_desc:
+  context: Description for the require confirmation toggle
+  en: When enabled, incoming webhook messages appear as drafts until you approve them
+  de: Wenn aktiviert, erscheinen eingehende Webhook-Nachrichten als Entwürfe bis Sie sie genehmigen
+  zh: 启用后，传入的 Webhook 消息将显示为草稿，直到您批准
+  es: Cuando está activado, los mensajes webhook entrantes aparecen como borradores hasta que los apruebe
+  fr: Lorsqu'activé, les messages webhook entrants apparaissent comme des brouillons jusqu'à votre approbation
+  ar: عند التفعيل، تظهر رسائل webhook الواردة كمسودات حتى تقوم بالموافقة عليها
+  he: כאשר מופעל, הודעות ה-webhook הנכנסות מופיעות כטיוטות עד שתאשר אותן
+  verified_by_human: []
+
+developers_webhooks_delete_confirm:
+  context: Confirmation message when deleting a webhook
+  en: Delete this webhook key? External services using it will stop working.
+  de: Diesen Webhook-Schlüssel löschen? Externe Dienste, die ihn verwenden, werden nicht mehr funktionieren.
+  zh: 删除此 Webhook 密钥？使用它的外部服务将停止工作。
+  es: ¿Eliminar esta clave webhook? Los servicios externos que la usen dejarán de funcionar.
+  fr: Supprimer cette clé webhook ? Les services externes qui l'utilisent cesseront de fonctionner.
+  ar: حذف مفتاح webhook هذا؟ ستتوقف الخدمات الخارجية التي تستخدمه عن العمل.
+  he: למחוק את מפתח ה-webhook הזה? שירותים חיצוניים המשתמשים בו יפסיקו לפעול.
+  verified_by_human: []
+
+developers_webhooks_endpoint:
+  context: Label for the webhook API endpoint URL
+  en: Endpoint
+  de: Endpunkt
+  zh: 端点
+  es: Endpoint
+  fr: Point de terminaison
+  ar: نقطة النهاية
+  he: נקודת קצה
+  verified_by_human: []
+
+developers_webhooks_how_to_use:
+  context: Section header for how to use a webhook
+  en: How to use
+  de: Verwendung
+  zh: 使用方法
+  es: Cómo usar
+  fr: Comment utiliser
+  ar: كيفية الاستخدام
+  he: כיצד להשתמש
+  verified_by_human: []
+
+developers_webhooks_inactive_badge:
+  context: Badge shown on an inactive/disabled webhook key
+  en: Inactive
+  de: Inaktiv
+  zh: 未激活
+  es: Inactivo
+  fr: Inactif
+  ar: غير نشط
+  he: לא פעיל
+  verified_by_human: []
+
+developers_webhooks_limit:
+  context: Warning shown when user has reached the max number of webhooks
+  en: Maximum number of webhooks reached (10). Delete one to create a new one.
+  de: Maximale Anzahl von Webhooks erreicht (10). Löschen Sie einen, um einen neuen zu erstellen.
+  zh: 已达到最大 Webhook 数量 (10)。删除一个以创建新的。
+  es: Se alcanzó el máximo de webhooks (10). Elimine uno para crear uno nuevo.
+  fr: Nombre maximum de webhooks atteint (10). Supprimez-en un pour en créer un nouveau.
+  ar: تم الوصول إلى الحد الأقصى من webhooks (10). احذف أحدها لإنشاء webhook جديد.
+  he: הגעת לכמות המקסימלית של webhooks (10). מחק אחד ליצירת חדש.
   verified_by_human: []
 
 dark_mode:

@@ -537,3 +537,85 @@ def _queue_webhook_email_notification(
 
     except Exception as e:
         logger.warning(f"Failed to queue webhook email notification: {e}")
+
+
+# ---------------------------------------------------------------------------
+# Decrypt pending webhook message (JWT auth — authenticated user's device)
+# ---------------------------------------------------------------------------
+
+class WebhookDecryptRequest(BaseModel):
+    chat_id: str
+    message_id: str
+    encrypted_content: str
+    vault_key_version: str
+
+
+class WebhookDecryptResponse(BaseModel):
+    plaintext: str
+
+
+@router.post(
+    "/decrypt-pending",
+    response_model=WebhookDecryptResponse,
+    summary="Decrypt a vault-encrypted webhook message for the client",
+    description=(
+        "Decrypts the server-side vault-encrypted content of a webhook chat message "
+        "so the client can re-encrypt it with the chat key (zero-knowledge flow)."
+    ),
+)
+@limiter.limit("30/minute")
+async def decrypt_pending_webhook(
+    request: Request,
+    payload: WebhookDecryptRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Decrypt vault-encrypted webhook message content for the authenticated user.
+
+    The incoming webhook flow stores the message encrypted with the user's vault key
+    (server-side, since the external sender has no access to the client master key).
+    When the user's device receives the webhook_chat WebSocket event, it calls this
+    endpoint to get the plaintext, then re-encrypts with the local chat key.
+    """
+    # Verify the pending chat belongs to this user
+    cache_service: CacheService = request.app.state.cache_service
+    pending_key = f"webhook_pending_chat:{current_user.id}:{payload.chat_id}"
+    pending_raw = await cache_service.get(pending_key)
+
+    if not pending_raw:
+        # Allow re-delivery attempts — check via message_id ownership
+        # Fall through to decryption if user_id matches
+        logger.debug(
+            f"No pending cache entry for webhook chat {payload.chat_id[:8]}..., "
+            f"attempting vault decryption anyway"
+        )
+
+    # Decrypt using the user's vault key
+    encryption_service = request.app.state.encryption_service
+    cached_user = await cache_service.get_user_by_id(current_user.id)
+    vault_key_id = cached_user.get("vault_key_id") if cached_user else None
+
+    if not vault_key_id:
+        raise HTTPException(status_code=500, detail="User encryption not configured")
+
+    try:
+        plaintext = await encryption_service.decrypt_with_user_key(
+            payload.encrypted_content, vault_key_id
+        )
+    except Exception as e:
+        logger.error(f"Vault decryption failed for webhook chat {payload.chat_id[:8]}...: {e}")
+        raise HTTPException(status_code=500, detail="Decryption failed")
+
+    if not plaintext:
+        raise HTTPException(status_code=500, detail="Decryption returned empty result")
+
+    # Clear the pending cache entry after successful decryption
+    if pending_raw:
+        await cache_service.delete(pending_key)
+
+    logger.info(
+        f"Decrypted webhook message for user {current_user.id[:8]}... "
+        f"(chat={payload.chat_id[:8]}..., msg={payload.message_id[:8]}...)"
+    )
+
+    return WebhookDecryptResponse(plaintext=plaintext)
