@@ -61,7 +61,7 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsMainHeader from './settings/SettingsMainHeader.svelte';
     
     // Import all settings route definitions and the dynamic wrapper components
-    import { baseSettingsViews, AppDetailsWrapper, MateDetailsWrapper } from './settings/settingsRoutes';
+    import { baseSettingsViews, AppDetailsWrapper, MateDetailsWrapper, EditPersonalDataEntryWrapper } from './settings/settingsRoutes';
     import { matesMetadata } from '../data/matesMetadata';
     import { appSkillsStore } from '../stores/appSkillsStore';
     import { appSettingsMemoriesStore } from '../stores/appSettingsMemoriesStore';
@@ -208,6 +208,12 @@ changes to the documentation (to keep the documentation up to date).
      * so they need to be added dynamically when navigated to.
      */
     let dynamicEntryRoutes = $state<Set<string>>(new Set());
+
+    /**
+     * Track dynamically added personal data edit routes.
+     * Pattern: privacy/hide-personal-data/edit-{type}/{entryId}
+     */
+    let dynamicPersonalDataEditRoutes = $state<Set<string>>(new Set());
     
     // Reactive settingsViews that includes dynamic app routes and entry detail routes
     // Entry detail routes are added dynamically when navigated to (tracked in dynamicEntryRoutes)
@@ -218,6 +224,12 @@ changes to the documentation (to keep the documentation up to date).
         // These are routes like: app_store/{app_id}/settings_memories/{category_id}/entry/{entry_id}
         for (const route of dynamicEntryRoutes) {
             views[route] = AppDetailsWrapper;
+        }
+
+        // Add any dynamically registered personal data edit routes
+        // These are routes like: privacy/hide-personal-data/edit-name/{entryId}
+        for (const route of dynamicPersonalDataEditRoutes) {
+            views[route] = EditPersonalDataEntryWrapper;
         }
         
         return views;
@@ -1142,6 +1154,14 @@ changes to the documentation (to keep the documentation up to date).
             // Trigger reactivity by reassigning the Set
             dynamicEntryRoutes = new Set(dynamicEntryRoutes);
             // Dynamically registered model detail route: settingsPath
+        }
+
+        // Check if this is a dynamic personal data edit route that needs to be registered
+        // Pattern: privacy/hide-personal-data/edit-{name|address|birthday|custom}/{entryId}
+        const personalDataEditPattern = /^privacy\/hide-personal-data\/edit-(name|address|birthday|custom)\/[^/]+$/;
+        if (personalDataEditPattern.test(settingsPath) && !dynamicPersonalDataEditRoutes.has(settingsPath)) {
+            dynamicPersonalDataEditRoutes.add(settingsPath);
+            dynamicPersonalDataEditRoutes = new Set(dynamicPersonalDataEditRoutes);
         }
 
         // Set active view for both authenticated and non-authenticated users

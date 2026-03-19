@@ -677,3 +677,17 @@ encryption_note:
   ar: جميع إدخالات بياناتك الشخصية مشفرة على جهازك. حتى خادم OpenMates لا يمكنه قراءتها.
   he: כל נתוניך האישיים מוצפנים במכשיר שלך. אפילו השרת של OpenMates לא יכול לקרוא אותם.
   verified_by_human: []
+auth.title:
+  context: Title shown in the identity verification modal when opening a personal data entry for editing
+  en: Verify your identity
+  de: Identität bestätigen
+  ar: التحقق من هويتك
+  he: אמת את זהותך
+  verified_by_human: []
+auth.description:
+  context: Description shown in the identity verification modal before editing a personal data entry
+  en: To protect your private data, please confirm your identity before editing.
+  de: Um deine privaten Daten zu schützen, bestätige bitte deine Identität vor dem Bearbeiten.
+  ar: لحماية بياناتك الخاصة، يرجى تأكيد هويتك قبل التعديل.
+  he: כדי להגן על המידע הפרטי שלך, אנא אמת את זהותך לפני העריכה.
+  verified_by_human: []

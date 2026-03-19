@@ -34,6 +34,7 @@ import SettingsAddName from "./privacy/SettingsAddName.svelte";
 import SettingsAddAddress from "./privacy/SettingsAddAddress.svelte";
 import SettingsAddBirthday from "./privacy/SettingsAddBirthday.svelte";
 import SettingsAddCustomEntry from "./privacy/SettingsAddCustomEntry.svelte";
+import EditPersonalDataEntryWrapper from "./privacy/EditPersonalDataEntryWrapper.svelte";
 import SettingsAutoDeletion from "./privacy/SettingsAutoDeletion.svelte";
 
 // Account & Security
@@ -254,3 +255,9 @@ export { AppDetailsWrapper };
  */
 import MateDetailsWrapper from "./MateDetailsWrapper.svelte";
 export { MateDetailsWrapper };
+
+/**
+ * Re-export EditPersonalDataEntryWrapper for use in the dynamic route builder
+ * (privacy/hide-personal-data/edit-{type}/{entryId} routes).
+ */
+export { EditPersonalDataEntryWrapper };
