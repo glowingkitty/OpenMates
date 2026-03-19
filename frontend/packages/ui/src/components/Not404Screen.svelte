@@ -62,7 +62,7 @@
     }
 
     function handleAskAI() {
-        const message = $text('common.not_found.ask_ai_message', { topic });
+        const message = $text('common.not_found.ask_ai_message', { values: { topic } });
         onAskAI(message);
     }
 </script>
@@ -81,7 +81,7 @@
         <button class="not-found-option" onclick={handleSearch}>
             <span class="not-found-option-icon icon_search" aria-hidden="true"></span>
             <span class="not-found-option-label">
-                {$text('common.not_found.search_label', { query })}
+                {$text('common.not_found.search_label', { values: { query } })}
             </span>
         </button>
 
@@ -89,7 +89,7 @@
         <button class="not-found-option not-found-option-primary" onclick={handleAskAI}>
             <span class="not-found-option-icon icon_chat" aria-hidden="true"></span>
             <span class="not-found-option-label">
-                {$text('common.not_found.ask_ai_label', { topic })}
+                {$text('common.not_found.ask_ai_label', { values: { topic } })}
             </span>
         </button>
     </div>

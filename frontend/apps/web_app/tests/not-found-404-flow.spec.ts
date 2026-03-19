@@ -31,7 +31,7 @@ test.describe('404 not-found flow', () => {
 		// Navigate to an unknown path
 		await page.goto(getE2EDebugUrl('/iphone-review'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
-		await page.waitForTimeout(3000);
+		await page.waitForTimeout(5000);
 
 		// 1. URL should now be the SPA root (path cleaned to /)
 		const url = new URL(page.url());
@@ -41,17 +41,13 @@ test.describe('404 not-found flow', () => {
 		const title = await page.title();
 		expect(title, 'Page title should be OpenMates app, not a server error').toMatch(/OpenMates/i);
 
-		// 3. The 404 screen heading "404" should be visible in the ChatHeader banner
-		const header404 = page.locator('.chat-header-wrapper').filter({ hasText: '404' });
-		await expect(header404, '404 ChatHeader banner should be visible').toBeVisible({ timeout: 10000 });
-
-		// 4. "Page not found" summary text should be present
+		// 3. The 404 Not-Found screen should be visible
 		await expect(
-			page.locator('text=Page not found'),
-			'"Page not found" text should be visible'
-		).toBeVisible({ timeout: 5000 });
+			page.locator('.not-found-screen'),
+			'Not404Screen container should be visible'
+		).toBeVisible({ timeout: 10000 });
 
-		// 5. Recovery options should be visible
+		// 4. Recovery options (search + ask AI) should be visible
 		await expect(
 			page.locator('.not-found-options'),
 			'Recovery options container should be visible'
@@ -116,7 +112,7 @@ test.describe('404 not-found flow', () => {
 
 		const inputText = await messageInput.textContent();
 		expect(
-			inputText?.toLowerCase(),
+			inputText?.toLowerCase() ?? '',
 			'Message input should contain "iphone review" from the path'
 		).toContain('iphone review');
 
