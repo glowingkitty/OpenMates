@@ -203,15 +203,6 @@
 }
 
 /* For multiple profiles in a row */
-.mate-profiles-row {
-  display: flex;
-  align-items: center;
-
-  .mate-profile-small:not(:first-child) {
-    /* Logical property: overlap on the inline-start side (left in LTR, right in RTL) */
-    margin-inline-start: -8px;
-  }
-}
 
 /* Add this with your other icon classes */
 .icon_menu {

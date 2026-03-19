@@ -903,9 +903,6 @@ div.clickable-icon {
 }
 
 
-.icon_calendar {
-  background-image: url("@openmates/ui/static/icons/calendar.svg");
-}
 
 .icon_eu {
   background-image: url("@openmates/ui/static/icons/eu.svg");
@@ -1435,26 +1432,8 @@ div.clickable-icon {
 
 
 
-.icon.app-business {
-  background: var(--color-app-business);
-  &::before {
-    background-image: url("@openmates/ui/static/icons/business.svg");
-  }
-}
 
-.icon.app-calculator {
-  background: var(--color-app-calculator);
-  &::before {
-    background-image: url("@openmates/ui/static/icons/calculator.svg");
-  }
-}
 
-.icon.app-calendar {
-  background: var(--color-app-calendar);
-  &::before {
-    background-image: url("@openmates/ui/static/icons/calendar.svg");
-  }
-}
 
 .icon.app-code {
   background: var(--color-app-code);
@@ -1463,26 +1442,8 @@ div.clickable-icon {
   }
 }
 
-.icon.app-contacts {
-  background: var(--color-app-contacts);
-  &::before {
-    background-image: url("@openmates/ui/static/icons/contact.svg");
-  }
-}
 
-.icon.app-design {
-  background: var(--color-app-design);
-  &::before {
-    background-image: url("@openmates/ui/static/icons/design.svg");
-  }
-}
 
-.icon.app-diagrams {
-  background: var(--color-app-diagrams);
-  &::before {
-    background-image: url("@openmates/ui/static/icons/diagram.svg");
-  }
-}
 
 .icon.app-docs {
   background: var(--color-app-docs);
@@ -1498,40 +1459,10 @@ div.clickable-icon {
   }
 }
 
-.icon.app-fashion {
-  background: var(--color-app-fashion);
-  &::before {
-    background-image: url("@openmates/ui/static/icons/fashion.svg");
-  }
-}
 
-.icon.app-files {
-  background: var(--color-app-files);
-  &::before {
-    background-image: url("@openmates/ui/static/icons/files.svg");
-  }
-}
 
-.icon.app-finance {
-  background: var(--color-app-finance);
-  &::before {
-    background-image: url("@openmates/ui/static/icons/money.svg");
-  }
-}
 
-.icon.app-fitness {
-  background: var(--color-app-fitness);
-  &::before {
-    background-image: url("@openmates/ui/static/icons/fitness.svg");
-  }
-}
 
-.icon.app-games {
-  background: var(--color-app-games);
-  &::before {
-    background-image: url("@openmates/ui/static/icons/games.svg");
-  }
-}
 
 .icon.app-health {
   background: var(--color-app-health);
@@ -1540,41 +1471,10 @@ div.clickable-icon {
   }
 }
 
-.icon.app-home {
-  background: var(--color-app-home);
-  &::before {
-    background-image: url("@openmates/ui/static/icons/home.svg");
-  }
-}
 
-.icon.app-hosting {
-  background: var(--color-app-hosting);
-  &::before {
-    background-image: url("@openmates/ui/static/icons/server.svg");
-  }
-}
 
-.icon.app-jobs {
-  background: var(--color-app-jobs);
-  &::before {
-    background-image: url("@openmates/ui/static/icons/jobs.svg");
-  }
-}
 
-.icon.app-legal {
-  background: var(--color-app-legal);
-  &::before {
-    background-image: url("@openmates/ui/static/icons/legal.svg");
-    background-size: 60%;
-  }
-}
 
-.icon.app-lifecoaching {
-  background: var(--color-app-life_coaching);
-  &::before {
-    background-image: url("@openmates/ui/static/icons/lifecoaching.svg");
-  }
-}
 
 .icon.app-mail {
   background: var(--color-app-mail);
@@ -1597,19 +1497,7 @@ div.clickable-icon {
   }
 }
 
-.icon.app-messages {
-  background: var(--color-app-messages);
-  &::before {
-    background-image: url("@openmates/ui/static/icons/chat.svg");
-  }
-}
 
-.icon.app-movies {
-  background: var(--color-app-movies);
-  &::before {
-    background-image: url("@openmates/ui/static/icons/movies.svg");
-  }
-}
 
 .icon.app-news {
   background: var(--color-app-news);
@@ -1618,62 +1506,13 @@ div.clickable-icon {
   }
 }
 
-.icon.app-notes {
-  background: var(--color-app-notes);
-  &::before {
-    background-image: url("@openmates/ui/static/icons/notes.svg");
-  }
-}
 
-.icon.app-nutrition {
-  background: var(--color-app-nutrition);
-  &::before {
-    background-image: url("@openmates/ui/static/icons/nutrition.svg");
-    background-size: 80%;
-  }
-}
 
-.icon.app-pcbdesign {
-  background: var(--color-app-pcbdesign);
-  &::before {
-    background-image: url("@openmates/ui/static/icons/pcbdesign.svg");
-  }
-}
 
-.icon.app-pdfeditor {
-  background: var(--color-app-pdfeditor);
-  &::before {
-    background-image: url("@openmates/ui/static/icons/pdf.svg");
-  }
-}
 
-.icon.app-photos {
-  background: var(--color-app-photos);
-  &::before {
-    background-image: url("@openmates/ui/static/icons/image.svg");
-  }
-}
 
-.icon.app-plants {
-  background: var(--color-app-plants);
-  &::before {
-    background-image: url("@openmates/ui/static/icons/plant.svg");
-  }
-}
 
-.icon.app-projectmanagement {
-  background: var(--color-app-projectmanagement);
-  &::before {
-    background-image: url("@openmates/ui/static/icons/projectmanagement.svg");
-  }
-}
 
-.icon.app-publishing {
-  background: var(--color-app-publishing);
-  &::before {
-    background-image: url("@openmates/ui/static/icons/publishing.svg");
-  }
-}
 
 .icon.app-reminder {
   background: var(--color-app-reminder);
@@ -1682,12 +1521,6 @@ div.clickable-icon {
   }
 }
 
-.icon.app-secrets {
-  background: var(--color-app-secrets);
-  &::before {
-    background-image: url("@openmates/ui/static/icons/secret.svg");
-  }
-}
 
 .icon.app-sheets {
   background: var(--color-app-sheets);
@@ -1696,12 +1529,6 @@ div.clickable-icon {
   }
 }
 
-.icon.app-shipping {
-  background: var(--color-app-shipping);
-  &::before {
-    background-image: url("@openmates/ui/static/icons/shipping.svg");
-  }
-}
 
 .icon.app-shopping {
   background: var(--color-app-shopping);
@@ -1710,33 +1537,9 @@ div.clickable-icon {
   }
 }
 
-.icon.app-slides {
-  background: var(--color-app-slides);
-  &::before {
-    background-image: url("@openmates/ui/static/icons/slides.svg");
-  }
-}
 
-.icon.app-socialmedia {
-  background: var(--color-app-socialmedia);
-  &::before {
-    background-image: url("@openmates/ui/static/icons/socialmedia.svg");
-  }
-}
 
-.icon.app-study {
-  background: var(--color-app-study);
-  &::before {
-    background-image: url("@openmates/ui/static/icons/study.svg");
-  }
-}
 
-.icon.app-time {
-  background: var(--color-app-time);
-  &::before {
-    background-image: url("@openmates/ui/static/icons/time.svg");
-  }
-}
 
 .icon.app-travel {
   background: var(--color-app-travel);
@@ -1745,12 +1548,6 @@ div.clickable-icon {
   }
 }
 
-.icon.app-tv {
-  background: var(--color-app-tv);
-  &::before {
-    background-image: url("@openmates/ui/static/icons/tv.svg");
-  }
-}
 
 .icon.app-videos {
   background: var(--color-app-videos);
@@ -1759,13 +1556,6 @@ div.clickable-icon {
   }
 }
 
-.icon.app-weather {
-  background: var(--color-app-weather);
-  &::before {
-    background-image: url("@openmates/ui/static/icons/weather.svg");
-    background-size: 60%;
-  }
-}
 
 .icon.app-web {
   background: var(--color-app-web);
@@ -1774,54 +1564,14 @@ div.clickable-icon {
   }
 }
 
-.icon.app-whiteboards {
-  background: var(--color-app-whiteboards);
-  &::before {
-    background-image: url("@openmates/ui/static/icons/whiteboard.svg");
-  }
-}
 
-.icon.app-language {
-  background: var(--color-app-language);
-  &::before {
-    background-image: url("@openmates/ui/static/icons/language.svg");
-  }
-}
 
 /* Focus Icons */
-.icon.focus-insights {
-  &::before {
-    background-image: url("@openmates/ui/static/icons/insight.svg");
-  }
-}
 
 /* Skill Icons */
-.icon.skill-create {
-  &::before {
-    background-image: url("@openmates/ui/static/icons/create.svg");
-    background-size: 41%;
-  }
-}
 
-.icon.skill-message {
-  &::before {
-    background-image: url("@openmates/ui/static/icons/chat.svg");
-    background-size: 48%;
-  }
-}
 
-.icon.skill-search {
-  &::before {
-    background-image: url("@openmates/ui/static/icons/search.svg");
-  }
-}
 
-.icon.provider-openai {
-  &::before {
-    background-image: url("@openmates/ui/static/icons/openai.svg");
-    background-size: 55%;
-  }
-}
 
 /* Add this new dark mode style */
 @media (prefers-color-scheme: dark) {
@@ -1830,121 +1580,20 @@ div.clickable-icon {
   }
 }
 
-.icon.provider-anthropic {
-  &::before {
-    background-image: url("@openmates/ui/static/icons/claude.svg");
-    background-size: 55%;
-    filter: unset;
-  }
-}
 
-.icon.provider-google {
-  &::before {
-    background-image: url("@openmates/ui/static/icons/google.svg");
-    background-size: 55%;
-    filter: unset;
-  }
-}
 
-.icon.provider-mistral {
-  &::before {
-    background-image: url("@openmates/ui/static/icons/mistral.svg");
-    background-size: 50%;
-    filter: unset;
-  }
-}
 
-.icon.provider-meta {
-  &::before {
-    background-image: url("@openmates/ui/static/icons/meta.svg");
-    background-size: 55%;
-  }
-}
 
-.icon.provider-mattermost {
-  &::before {
-    background-image: url("@openmates/ui/static/icons/mattermost.svg");
-    background-size: 55%;
-  }
-}
 
-.icon.provider-discord {
-  &::before {
-    background-image: url("@openmates/ui/static/icons/discord.svg");
-    background-size: 55%;
-  }
-}
 
-.icon.provider-doctolib {
-  &::before {
-    background-image: url("@openmates/ui/static/icons/doctolib.svg");
-    background-size: 70%;
-    filter: unset;
-  }
-}
 
-.icon.provider-slack {
-  &::before {
-    background-image: url("@openmates/ui/static/icons/slack.svg");
-    background-size: 55%;
-  }
-}
 
-.icon.provider-google-authenticator {
-  &::before {
-    background-image: url("@openmates/ui/static/icons/google-authenticator.svg");
-    background-size: 55%;
-    filter: unset;
-  }
-}
 
-.icon.provider-authy {
-  &::before {
-    background-image: url("@openmates/ui/static/icons/authy.svg");
-    background-size: 55%;
-    filter: unset;
-  }
-}
 
-.icon.provider-microsoft-authenticator {
-  &::before {
-    background-image: url("@openmates/ui/static/icons/microsoft-authenticator.svg");
-    background-size: 55%;
-    filter: unset;
-  }
-}
 
-.icon.provider-proton-authenticator {
-  &::before {
-    background-image: url("@openmates/ui/static/icons/proton-authenticator.svg");
-    background-size: 55%;
-    filter: unset;
-  }
-}
 
-.icon.provider-tfas {
-  &::before {
-    background-image: url("@openmates/ui/static/icons/tfas.svg");
-    background-size: 55%;
-    filter: unset;
-  }
-}
 
-.icon.provider-otp-auth {
-  &::before {
-    background-image: url("@openmates/ui/static/icons/otp-auth.svg");
-    background-size: 55%;
-    filter: unset;
-  }
-}
 
-.icon.provider-openrouter {
-  &::before {
-    background-image: url("@openmates/ui/static/icons/openrouter.svg");
-    background-size: 55%;
-    filter: unset;
-  }
-}
 
 .icon-wrapper {
   display: flex;
@@ -1989,9 +1638,6 @@ div.clickable-icon {
   filter: grayscale(100%) brightness(1.6);
 }
 
-.small-icon.icon_slack {
-  filter: grayscale(100%) brightness(0.8);
-}
 
 .small-icon.icon_web {
   filter: grayscale(100%) opacity(0.4);
@@ -2006,9 +1652,6 @@ div.clickable-icon {
 }
 
 /* Add style for the recording state */
-.record-button.recording .clickable-icon.icon_recordaudio {
-  background: white; /* Change to white when recording */
-}
 
 .icon.header_size {
   width: 50px;
@@ -2056,60 +1699,10 @@ div.clickable-icon {
   mask-position: center;
 }
 
-.icon_gift_cards {
-  -webkit-mask-image: url("@openmates/ui/static/icons/gift.svg");
-  mask-image: url("@openmates/ui/static/icons/gift.svg");
-  -webkit-mask-size: contain;
-  mask-size: contain;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  mask-position: center;
-}
 
-.icon_account {
-  -webkit-mask-image: url("@openmates/ui/static/icons/user.svg");
-  mask-image: url("@openmates/ui/static/icons/user.svg");
-  -webkit-mask-size: contain;
-  mask-size: contain;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  mask-position: center;
-}
 
-.icon_security {
-  -webkit-mask-image: url("@openmates/ui/static/icons/lock.svg");
-  mask-image: url("@openmates/ui/static/icons/lock.svg");
-  -webkit-mask-size: contain;
-  mask-size: contain;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  mask-position: center;
-}
 
-.icon_usage {
-  -webkit-mask-image: url("@openmates/ui/static/icons/usage.svg");
-  mask-image: url("@openmates/ui/static/icons/usage.svg");
-  -webkit-mask-size: contain;
-  mask-size: contain;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  mask-position: center;
-}
 
-.icon_interface {
-  -webkit-mask-image: url("@openmates/ui/static/icons/language.svg");
-  mask-image: url("@openmates/ui/static/icons/language.svg");
-  -webkit-mask-size: contain;
-  mask-size: contain;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  mask-position: center;
-}
 
 .icon_language {
   -webkit-mask-image: url("@openmates/ui/static/icons/language.svg");
@@ -2122,38 +1715,8 @@ div.clickable-icon {
   mask-position: center;
 }
 
-.icon_developers {
-  -webkit-mask-image: url("@openmates/ui/static/icons/coding.svg");
-  mask-image: url("@openmates/ui/static/icons/coding.svg");
-  -webkit-mask-size: contain;
-  mask-size: contain;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  mask-position: center;
-}
 
-.icon_support {
-  -webkit-mask-image: url("@openmates/ui/static/icons/support.svg");
-  mask-image: url("@openmates/ui/static/icons/support.svg");
-  -webkit-mask-size: contain;
-  mask-size: contain;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  mask-position: center;
-}
 
-.icon_mates {
-  -webkit-mask-image: url("@openmates/ui/static/icons/mate.svg");
-  mask-image: url("@openmates/ui/static/icons/mate.svg");
-  -webkit-mask-size: contain;
-  mask-size: contain;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  mask-position: center;
-}
 
 .icon_chat {
   -webkit-mask-image: url("@openmates/ui/static/icons/chat.svg");
@@ -2177,68 +1740,8 @@ div.clickable-icon {
   mask-position: center;
 }
 
-.icon_newsletter {
-  -webkit-mask-image: url("@openmates/ui/static/icons/mail.svg");
-  mask-image: url("@openmates/ui/static/icons/mail.svg");
-  -webkit-mask-size: contain;
-  mask-size: contain;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  mask-position: center;
-}
 
-.icon_shared {
-  -webkit-mask-image: url("@openmates/ui/static/icons/share.svg");
-  mask-image: url("@openmates/ui/static/icons/share.svg");
-  -webkit-mask-size: contain;
-  mask-size: contain;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  mask-position: center;
-}
 
-.icon_report_issue {
-  -webkit-mask-image: url("@openmates/ui/static/icons/bug.svg");
-  mask-image: url("@openmates/ui/static/icons/bug.svg");
-  -webkit-mask-size: contain;
-  mask-size: contain;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  mask-position: center;
-}
 
-.icon_openmates {
-  -webkit-mask-image: url("@openmates/ui/static/icons/openmates.svg");
-  mask-image: url("@openmates/ui/static/icons/openmates.svg");
-  -webkit-mask-size: contain;
-  mask-size: contain;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  mask-position: center;
-}
 
-.icon_pricing {
-  -webkit-mask-image: url("@openmates/ui/static/icons/coins.svg");
-  mask-image: url("@openmates/ui/static/icons/coins.svg");
-  -webkit-mask-size: contain;
-  mask-size: contain;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  mask-position: center;
-}
 
-.icon_app_store {
-  -webkit-mask-image: url("@openmates/ui/static/icons/app.svg");
-  mask-image: url("@openmates/ui/static/icons/app.svg");
-  -webkit-mask-size: contain;
-  mask-size: contain;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  mask-position: center;
-}
