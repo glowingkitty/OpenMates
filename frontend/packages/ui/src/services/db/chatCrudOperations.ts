@@ -30,7 +30,11 @@ interface ChatDatabaseInstance {
 
   // Chat key management methods (from chatKeyManagement)
   getChatKey(chatId: string): Uint8Array | null;
-  setChatKey(chatId: string, chatKey: Uint8Array): void;
+  setChatKey(
+    chatId: string,
+    chatKey: Uint8Array,
+    source?: import("../encryption/ChatKeyManager").KeySource,
+  ): void;
   clearChatKey(chatId: string): void;
 }
 
@@ -126,7 +130,7 @@ export async function encryptChatForStorage(
     // CRITICAL FIX: await decryptChatKeyWithMasterKey since it's async
     chatKey = await decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
     if (chatKey) {
-      dbInstance.setChatKey(chat.chat_id, chatKey);
+      dbInstance.setChatKey(chat.chat_id, chatKey, "master_key");
       encryptedChat.encrypted_chat_key = chat.encrypted_chat_key; // Keep the server's encrypted key
     } else {
       console.error(
@@ -139,7 +143,7 @@ export async function encryptChatForStorage(
       `[ChatDatabase] Generating NEW chat key for chat ${chat.chat_id} (new chat creation)`,
     );
     chatKey = generateChatKey();
-    dbInstance.setChatKey(chat.chat_id, chatKey);
+    dbInstance.setChatKey(chat.chat_id, chatKey, "created");
     // CRITICAL FIX: await the async encryption function to prevent storing a Promise in IndexedDB
     const encryptedChatKey = await encryptChatKeyWithMasterKey(chatKey);
     if (encryptedChatKey) {
@@ -234,7 +238,7 @@ export async function decryptChatFromStorage(
 
     if (result.chatKey) {
       // Cache the key (update cache even if it was already cached)
-      dbInstance.setChatKey(chat.chat_id, result.chatKey);
+      dbInstance.setChatKey(chat.chat_id, result.chatKey, "master_key");
       // Mark chat as hidden ONLY if it was decrypted via the hidden path (i.e., unlocked with current password)
       // This ensures only chats that can be decrypted with the current password show up in hidden section
       if (result.isHidden) {

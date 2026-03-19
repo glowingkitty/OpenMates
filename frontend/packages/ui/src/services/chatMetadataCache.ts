@@ -107,7 +107,7 @@ class ChatMetadataCache {
         );
         if (chatKey) {
           // Store the chat key in the database service's cache
-          chatDB.setChatKey(chat.chat_id, chatKey);
+          chatDB.setChatKey(chat.chat_id, chatKey, "master_key");
           console.debug(
             `[ChatMetadataCache] Loaded chat key for chat ${chat.chat_id}`,
           );

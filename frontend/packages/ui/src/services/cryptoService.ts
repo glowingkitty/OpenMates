@@ -1026,15 +1026,29 @@ export async function decryptWithChatKey(
     const decoder = new TextDecoder();
     return decoder.decode(decrypted);
   } catch (error) {
-    // Enhanced logging to help diagnose decryption failures
+    // Enhanced logging with key provenance to help diagnose decryption failures.
+    // Import ChatKeyManager lazily to get provenance info without circular deps.
     const chatId = context?.chatId ?? "unknown";
     const fieldName = context?.fieldName ?? "unknown";
+    let provenanceInfo = "";
+    try {
+      const { chatKeyManager } = await import("./encryption/ChatKeyManager");
+      const prov =
+        chatId !== "unknown" ? chatKeyManager.getProvenance(chatId) : null;
+      if (prov) {
+        provenanceInfo =
+          ` Key provenance: source=${prov.source}, fingerprint=${prov.keyFingerprint}, ` +
+          `loaded_at=${new Date(prov.timestamp).toISOString()}.`;
+      }
+    } catch {
+      // Provenance lookup is best-effort
+    }
     console.error(
       `[CryptoService] Chat decryption failed: ${error instanceof Error ? error.message : String(error)}. ` +
         `chat_id=${chatId} field=${fieldName}. ` +
         `Error type: ${error instanceof Error ? error.constructor.name : typeof error}. ` +
         `Encrypted data length: ${encryptedDataWithIV.length} chars. ` +
-        `Chat key length: ${chatKey.length} bytes. ` +
+        `Chat key length: ${chatKey.length} bytes.${provenanceInfo} ` +
         `This usually indicates: wrong chat key, malformed encrypted content, or content encrypted with different key.`,
     );
     return null;

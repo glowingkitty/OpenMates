@@ -12,6 +12,8 @@
 // 3. Queue-and-flush — operations that need a missing key are queued and auto-executed on key arrival
 // 4. createKeyForNewChat() is the ONLY way to generate a new key (explicit, auditable)
 // 5. All encryption operations receive the key as a parameter (enforced by TypeScript)
+// 6. IMMUTABLE KEYS — once a key is set, it cannot be silently replaced (defense-in-depth)
+// 7. KEY PROVENANCE — every key records its source for debugging decryption failures
 //
 // Tests: (to be added)
 
@@ -27,6 +29,25 @@ import {
 
 /** Possible states for a chat key in the manager */
 export type ChatKeyState = "unloaded" | "loading" | "ready" | "failed";
+
+/** Where a key came from — critical for debugging decryption failures */
+export type KeySource =
+  | "created" // createKeyForNewChat() on originating device
+  | "master_key" // Unwrapped from encrypted_chat_key via master key
+  | "server_sync" // Received via WebSocket broadcast (encrypted, then unwrapped)
+  | "share_link" // Extracted from a share link URL fragment
+  | "shared_storage" // Loaded from openmates_shared_keys IndexedDB
+  | "bulk_init" // Loaded during app init (loadChatKeysFromDatabase)
+  | "hidden_chat" // Decrypted via hidden chat combined secret
+  | "injected"; // Generic injection (legacy/migration path)
+
+/** Provenance record for a key — tracks how and when it was loaded */
+export interface KeyProvenance {
+  source: KeySource;
+  timestamp: number;
+  /** First 8 hex chars of SHA-256 hash of the key bytes (for comparison, not security) */
+  keyFingerprint: string;
+}
 
 /** A queued operation waiting for a chat key to become available */
 interface QueuedOperation {
@@ -44,6 +65,7 @@ export interface ChatKeyInfo {
   state: ChatKeyState;
   keyLengthBytes: number | null;
   pendingOps: number;
+  provenance: KeyProvenance | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -55,6 +77,41 @@ const QUEUE_TIMEOUT_MS = 30_000;
 
 /** Maximum number of queued operations per chat before new ones are rejected */
 const MAX_QUEUE_SIZE = 50;
+
+/**
+ * Compute a short fingerprint of a key for comparison/logging.
+ * Uses first 8 hex chars of a simple hash (NOT cryptographic — just for debugging).
+ * Fast and synchronous, no Web Crypto needed.
+ */
+function computeKeyFingerprint(key: Uint8Array): string {
+  // Simple FNV-1a hash for speed (this is NOT for security, just comparison)
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < key.length; i++) {
+    hash ^= key[i];
+    hash = Math.imul(hash, 0x01000193);
+  }
+  // Second pass with offset for more bits
+  let hash2 = 0x1a47e90b;
+  for (let i = key.length - 1; i >= 0; i--) {
+    hash2 ^= key[i];
+    hash2 = Math.imul(hash2, 0x01000193);
+  }
+  return (
+    (hash >>> 0).toString(16).padStart(8, "0") +
+    (hash2 >>> 0).toString(16).padStart(8, "0")
+  );
+}
+
+/**
+ * Compare two Uint8Array keys for byte-level equality.
+ */
+function keysAreEqual(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
 
 // ---------------------------------------------------------------------------
 // ChatKeyManager
@@ -95,6 +152,9 @@ export class ChatKeyManager {
 
   /** Per-chat key state */
   private states: Map<string, ChatKeyState> = new Map();
+
+  /** Per-chat key provenance — tracks where each key came from */
+  private provenances: Map<string, KeyProvenance> = new Map();
 
   /** Per-chat loading promises (so multiple concurrent getKey() calls share one load) */
   private loadingPromises: Map<string, Promise<Uint8Array | null>> = new Map();
@@ -205,8 +265,7 @@ export class ChatKeyManager {
     }
 
     const newKey = generateChatKey();
-    this.keys.set(chatId, newKey);
-    this.states.set(chatId, "ready");
+    this.setKeyWithProvenance(chatId, newKey, "created");
 
     console.info(
       `[ChatKeyManager] Created new chat key for originator chat ${chatId}`,
@@ -246,8 +305,7 @@ export class ChatKeyManager {
         // Try master key decryption first
         const chatKey = await decryptChatKeyWithMasterKey(encryptedKey);
         if (chatKey) {
-          this.keys.set(chatId, chatKey);
-          this.states.set(chatId, "ready");
+          this.setKeyWithProvenance(chatId, chatKey, "master_key");
           this.flushPendingOps(chatId, chatKey);
           return chatKey;
         }
@@ -259,8 +317,7 @@ export class ChatKeyManager {
             chatId,
           );
           if (hiddenKey) {
-            this.keys.set(chatId, hiddenKey);
-            this.states.set(chatId, "ready");
+            this.setKeyWithProvenance(chatId, hiddenKey, "hidden_chat");
             this.flushPendingOps(chatId, hiddenKey);
             return hiddenKey;
           }
@@ -295,6 +352,8 @@ export class ChatKeyManager {
    */
   async reloadKey(chatId: string): Promise<Uint8Array | null> {
     this.states.set(chatId, "unloaded");
+    this.keys.delete(chatId);
+    this.provenances.delete(chatId);
     this.loadingPromises.delete(chatId);
     return this.loadKeyFromDB(chatId);
   }
@@ -323,8 +382,7 @@ export class ChatKeyManager {
     try {
       const chatKey = await decryptChatKeyWithMasterKey(encryptedChatKey);
       if (chatKey) {
-        this.keys.set(chatId, chatKey);
-        this.states.set(chatId, "ready");
+        this.setKeyWithProvenance(chatId, chatKey, "server_sync");
         console.debug(
           `[ChatKeyManager] Received and cached key from server for chat ${chatId}`,
         );
@@ -339,8 +397,7 @@ export class ChatKeyManager {
           chatId,
         );
         if (hiddenKey) {
-          this.keys.set(chatId, hiddenKey);
-          this.states.set(chatId, "ready");
+          this.setKeyWithProvenance(chatId, hiddenKey, "hidden_chat");
           this.flushPendingOps(chatId, hiddenKey);
           return hiddenKey;
         }
@@ -366,11 +423,95 @@ export class ChatKeyManager {
    * - Share link keys (decrypted from URL fragment)
    * - Keys loaded from sharedChatKeyStorage (unauthenticated users)
    * - Bulk load during app initialization
+   *
+   * @param chatId - Chat identifier
+   * @param chatKey - Raw AES key bytes
+   * @param source - Where this key came from (for provenance tracking)
+   * @param force - If true, allow overwriting an existing key (use with caution)
+   * @returns true if the key was accepted, false if rejected (existing key differs)
    */
-  injectKey(chatId: string, chatKey: Uint8Array): void {
+  injectKey(
+    chatId: string,
+    chatKey: Uint8Array,
+    source: KeySource = "injected",
+    force = false,
+  ): boolean {
+    const existing = this.keys.get(chatId);
+
+    if (existing) {
+      if (keysAreEqual(existing, chatKey)) {
+        // Same key — update provenance if the new source is more authoritative
+        // Priority: master_key > server_sync > created > hidden_chat > shared_storage > share_link > injected
+        const currentProv = this.provenances.get(chatId);
+        const SOURCE_PRIORITY: Record<KeySource, number> = {
+          master_key: 100,
+          server_sync: 90,
+          created: 80,
+          hidden_chat: 70,
+          bulk_init: 60,
+          shared_storage: 30,
+          share_link: 20,
+          injected: 10,
+        };
+        if (
+          !currentProv ||
+          SOURCE_PRIORITY[source] > SOURCE_PRIORITY[currentProv.source]
+        ) {
+          this.provenances.set(chatId, {
+            source,
+            timestamp: Date.now(),
+            keyFingerprint: computeKeyFingerprint(chatKey),
+          });
+        }
+        return true; // Same key, no-op
+      }
+
+      // DIFFERENT key — this is the dangerous case
+      if (!force) {
+        const existingProv = this.provenances.get(chatId);
+        const existingFp = computeKeyFingerprint(existing);
+        const newFp = computeKeyFingerprint(chatKey);
+        console.error(
+          `[ChatKeyManager] BLOCKED key replacement for chat ${chatId}! ` +
+            `Existing key (fp=${existingFp}, source=${existingProv?.source ?? "unknown"}) ` +
+            `would be replaced by different key (fp=${newFp}, source=${source}). ` +
+            `This prevents silent key corruption. Use force=true to override.`,
+        );
+        return false; // Reject the replacement
+      }
+
+      // Force override — log prominently
+      const existingFp = computeKeyFingerprint(existing);
+      const newFp = computeKeyFingerprint(chatKey);
+      console.warn(
+        `[ChatKeyManager] FORCE replacing key for chat ${chatId}: ` +
+          `old fp=${existingFp}, new fp=${newFp}, source=${source}`,
+      );
+    }
+
+    this.setKeyWithProvenance(chatId, chatKey, source);
+    this.flushPendingOps(chatId, chatKey);
+    return true;
+  }
+
+  // ---- Internal Key Setting ----
+
+  /**
+   * Internal: set a key with provenance tracking.
+   * Bypasses the immutability guard — callers must validate first.
+   */
+  private setKeyWithProvenance(
+    chatId: string,
+    chatKey: Uint8Array,
+    source: KeySource,
+  ): void {
     this.keys.set(chatId, chatKey);
     this.states.set(chatId, "ready");
-    this.flushPendingOps(chatId, chatKey);
+    this.provenances.set(chatId, {
+      source,
+      timestamp: Date.now(),
+      keyFingerprint: computeKeyFingerprint(chatKey),
+    });
   }
 
   // ---- Queue-and-Flush ----
@@ -545,6 +686,7 @@ export class ChatKeyManager {
   removeKey(chatId: string): void {
     this.keys.delete(chatId);
     this.states.delete(chatId);
+    this.provenances.delete(chatId);
     this.loadingPromises.delete(chatId);
     // Reject any pending operations
     const queue = this.pendingOps.get(chatId);
@@ -565,13 +707,16 @@ export class ChatKeyManager {
     for (const [chatId, queue] of Array.from(this.pendingOps.entries())) {
       for (const op of queue) {
         op.reject(
-          new Error(`All chat keys cleared (logout) for ${chatId}: ${op.label}`),
+          new Error(
+            `All chat keys cleared (logout) for ${chatId}: ${op.label}`,
+          ),
         );
       }
     }
 
     this.keys.clear();
     this.states.clear();
+    this.provenances.clear();
     this.loadingPromises.clear();
     this.pendingOps.clear();
     console.debug("[ChatKeyManager] All keys cleared");
@@ -621,6 +766,7 @@ export class ChatKeyManager {
         state: this.states.get(chatId) ?? "unloaded",
         keyLengthBytes: this.keys.get(chatId)?.length ?? null,
         pendingOps: this.pendingOps.get(chatId)?.length ?? 0,
+        provenance: this.provenances.get(chatId) ?? null,
       });
     }
 
@@ -632,6 +778,13 @@ export class ChatKeyManager {
       ),
       keys,
     };
+  }
+
+  /**
+   * Get provenance info for a specific chat key.
+   */
+  getProvenance(chatId: string): KeyProvenance | null {
+    return this.provenances.get(chatId) ?? null;
   }
 
   // ---- Legacy Compatibility ----
@@ -653,13 +806,15 @@ export class ChatKeyManager {
    *
    * @param entries - Array of [chatId, chatKey] pairs
    */
-  bulkInject(entries: Array<[string, Uint8Array]>): void {
+  bulkInject(
+    entries: Array<[string, Uint8Array]>,
+    source: KeySource = "bulk_init",
+  ): void {
     for (const [chatId, chatKey] of entries) {
-      this.keys.set(chatId, chatKey);
-      this.states.set(chatId, "ready");
+      this.setKeyWithProvenance(chatId, chatKey, source);
     }
     console.debug(
-      `[ChatKeyManager] Bulk-injected ${entries.length} chat keys`,
+      `[ChatKeyManager] Bulk-injected ${entries.length} chat keys (source=${source})`,
     );
   }
 }

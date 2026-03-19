@@ -61,7 +61,7 @@ async function populateResumeChatDataFromPhase1(
       let chatKey = chatDB.getChatKey(chatId);
       if (!chatKey && chat.encrypted_chat_key) {
         chatKey = await decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
-        if (chatKey) chatDB.setChatKey(chatId, chatKey);
+        if (chatKey) chatDB.setChatKey(chatId, chatKey, "server_sync");
       }
       if (chatKey) {
         if (chat.encrypted_title) {
@@ -184,7 +184,7 @@ export async function handleInitialSyncResponseImpl(
 
           if (chatKey) {
             // Cache the decrypted chat key for future use
-            chatDB.setChatKey(serverChat.chat_id, chatKey);
+            chatDB.setChatKey(serverChat.chat_id, chatKey, "server_sync");
             console.log(
               `[CLIENT_DECRYPT] ✅ Decrypted and cached chat key for ${serverChat.chat_id} ` +
                 `(key length: ${chatKey.length} bytes)`,

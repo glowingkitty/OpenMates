@@ -1449,8 +1449,12 @@ class ChatDatabase {
     return chatKeyManagementOps.getChatKey(this, chatId);
   }
 
-  public setChatKey(chatId: string, chatKey: Uint8Array): void {
-    chatKeyManagementOps.setChatKey(this, chatId, chatKey);
+  public setChatKey(
+    chatId: string,
+    chatKey: Uint8Array,
+    source?: import("./encryption/ChatKeyManager").KeySource,
+  ): void {
+    chatKeyManagementOps.setChatKey(this, chatId, chatKey, source);
   }
 
   public async loadChatKeysFromDatabase(): Promise<void> {
@@ -1479,22 +1483,37 @@ class ChatDatabase {
   public async loadSharedChatKeysFromStorage(): Promise<void> {
     try {
       const { getAllSharedChatKeys } = await import("./sharedChatKeyStorage");
+      const { chatKeyManager } = await import("./encryption/ChatKeyManager");
       const sharedKeys = await getAllSharedChatKeys();
 
       if (sharedKeys.size > 0) {
         // Merge shared keys into the chat keys cache
         // Don't overwrite existing keys (from master key decryption)
         let loadedCount = 0;
+        let skippedCount = 0;
         // Use Array.from() for compatibility with older TypeScript targets
         const entries = Array.from(sharedKeys.entries());
         for (const [chatId, keyBytes] of entries) {
-          if (!this.chatKeys.has(chatId)) {
+          // Guard: never overwrite a key that was already loaded from the
+          // master-key path (loadChatKeysFromDatabase runs before this).
+          // Check BOTH caches to prevent two-cache divergence.
+          if (!this.chatKeys.has(chatId) && !chatKeyManager.hasKey(chatId)) {
             this.chatKeys.set(chatId, keyBytes);
+            // CRITICAL FIX: Keep ChatKeyManager in sync to prevent two-cache
+            // divergence where chatDB.chatKeys has a key but chatKeyManager
+            // does not (or vice versa), causing different decrypt paths to use
+            // different keys.
+            chatKeyManager.injectKey(chatId, keyBytes, "shared_storage");
             loadedCount++;
+          } else {
+            skippedCount++;
           }
         }
         console.warn(
-          `[ChatDatabase] Loaded ${loadedCount} shared chat keys from storage`,
+          `[ChatDatabase] Loaded ${loadedCount} shared chat keys from storage` +
+            (skippedCount > 0
+              ? ` (skipped ${skippedCount} — already loaded from master key)`
+              : ""),
         );
       }
     } catch (error) {

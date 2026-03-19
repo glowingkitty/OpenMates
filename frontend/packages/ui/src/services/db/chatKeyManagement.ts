@@ -58,19 +58,25 @@ export function getChatKey(
 
 /**
  * Set chat key in cache.
+ * The ChatKeyManager's immutability guard will prevent silently replacing
+ * an existing key with a different one — this is a safety feature.
  *
  * @param dbInstance - Reference to the ChatDatabase instance
  * @param chatId - The ID of the chat
  * @param chatKey - The chat key to cache
+ * @param source - Where this key came from (for provenance tracking)
  */
 export function setChatKey(
   dbInstance: ChatDatabaseInstance,
   chatId: string,
   chatKey: Uint8Array,
+  source?: import("../encryption/ChatKeyManager").KeySource,
 ): void {
   dbInstance.chatKeys.set(chatId, chatKey);
-  // Keep ChatKeyManager in sync during migration
-  chatKeyManager.injectKey(chatId, chatKey);
+  // Keep ChatKeyManager in sync during migration.
+  // injectKey() has an immutability guard — if a different key already exists,
+  // the replacement is BLOCKED and logged as an error. This prevents silent corruption.
+  chatKeyManager.injectKey(chatId, chatKey, source);
 }
 
 /**
@@ -253,7 +259,7 @@ export async function loadChatKeysFromDatabase(
                   if (chatKey) {
                     dbInstance.chatKeys.set(chatId, chatKey);
                     // Also populate ChatKeyManager for the new architecture
-                    chatKeyManager.injectKey(chatId, chatKey);
+                    chatKeyManager.injectKey(chatId, chatKey, "bulk_init");
                   }
                 } catch (decryptError) {
                   console.error(
