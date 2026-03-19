@@ -168,20 +168,8 @@ mark {
 }
 
 /* Brand name styling */
-.brand-name {
-  /* Inherit heading properties if used within headings */
-  font: inherit;
-  display: inline;
-  font-weight: var(--font-weight-bold);
-}
 
-.brand-name-my {
-  color: var(--color-primary-start);
-}
 
-.brand-name-mates {
-  color: var(--color-font-primary);
-}
 
 /* App Card Typography */
 .app-card-h1 {

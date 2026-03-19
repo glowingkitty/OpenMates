@@ -143,16 +143,7 @@
     margin-bottom: 1rem;
 }
 
-.password-match-error {
-    margin-top: -0.5rem;
-    margin-bottom: 1rem;
-    font-size: 0.875rem;
-}
 
-.password-strength-error {
-    margin-top: 0.5rem;
-    font-size: 0.875rem;
-}
 
 /* Button styles */
 .login-button, .signup-button {
@@ -194,13 +185,6 @@
 }
 
 /* Signup specific styles */
-.signup-container {
-    position: relative;
-    width: 100%;
-    min-height: 100%;
-    display: flex;
-    flex-direction: column;
-}
 
 .nav-area {
     top: 0;
@@ -332,37 +316,14 @@ form.hidden {
     pointer-events: none;
 }
 
-.bottom-positioned {
-    position: absolute;
-    bottom: 0px;
-    left: 0px;
-    right: 0px;
-}
 
-@media (max-height: 680px) {
-    .bottom-positioned {
-        position: unset;
-    }
-}
 
 /* Mobile-specific adjustments for login/signup flow */
 @media (max-width: 600px) {
-    .bottom-positioned {
-        position: relative; /* Change from absolute to relative on mobile */
-        margin-top: 20px;
-        padding-bottom: 10px;
-    }
+    
 }
 
-.bottom-positioned.visible {
-    opacity: 1;
-    pointer-events: auto;
-}
 
-.bottom-positioned.hidden {
-    opacity: 0;
-    pointer-events: none;
-}
 
 .loading-message-container {
     margin-top: 20px;
