@@ -14,10 +14,12 @@ import {
   MEMORY_TYPE_REGISTRY,
   MATE_NAMES,
   deriveAppUrl,
+  parseNewChatSuggestionText,
   type ChatListPage,
   type DecryptedMessage,
   type DecryptedEmbed,
   type DailyInspiration,
+  type DecryptedNewChatSuggestion,
 } from "./client.js";
 import type { StreamEvent } from "./ws.js";
 
@@ -95,6 +97,10 @@ async function main(): Promise<void> {
       printInspirationsHelp();
       return;
     }
+    if (command === "newchatsuggestions") {
+      printNewChatSuggestionsHelp();
+      return;
+    }
     printHelp();
     return;
   }
@@ -148,6 +154,11 @@ async function main(): Promise<void> {
 
   if (command === "inspirations") {
     await handleInspirations(client, parsed.flags);
+    return;
+  }
+
+  if (command === "newchatsuggestions") {
+    await handleNewChatSuggestions(client, parsed.flags);
     return;
   }
 
@@ -210,12 +221,16 @@ async function handleChats(
       throw new Error(
         "Missing message text. Usage: openmates chats new <message>",
       );
-    const result = await sendMessageStreaming(client, {
-      message,
-      chatId: undefined,
-      incognito: false,
-      json: flags.json === true,
-    }, redactor);
+    const result = await sendMessageStreaming(
+      client,
+      {
+        message,
+        chatId: undefined,
+        incognito: false,
+        json: flags.json === true,
+      },
+      redactor,
+    );
     if (flags.json === true) printJson(result);
     return;
   }
@@ -227,12 +242,16 @@ async function handleChats(
         "Missing message text. Usage: openmates chats send [--chat <id>] <message>",
       );
     const chatId = typeof flags.chat === "string" ? flags.chat : undefined;
-    const result = await sendMessageStreaming(client, {
-      message,
-      chatId,
-      incognito: flags.incognito === true,
-      json: flags.json === true,
-    }, redactor);
+    const result = await sendMessageStreaming(
+      client,
+      {
+        message,
+        chatId,
+        incognito: flags.incognito === true,
+        json: flags.json === true,
+      },
+      redactor,
+    );
     if (flags.json === true) printJson(result);
     return;
   }
@@ -243,11 +262,15 @@ async function handleChats(
       throw new Error(
         "Missing message text. Usage: openmates chats incognito <message>",
       );
-    const result = await sendMessageStreaming(client, {
-      message,
-      incognito: true,
-      json: flags.json === true,
-    }, redactor);
+    const result = await sendMessageStreaming(
+      client,
+      {
+        message,
+        incognito: true,
+        json: flags.json === true,
+      },
+      redactor,
+    );
     if (flags.json === true) printJson(result);
     return;
   }
@@ -279,9 +302,17 @@ async function handleChats(
     const resolvedId = chatId.toLowerCase() === "last" ? "__last__" : chatId;
     const { chat, messages } = await client.getChatMessages(resolvedId);
     if (flags.json === true) {
-      printJson({ chat, messages });
+      // Fetch follow-up suggestions for JSON output too
+      const followUpSuggestions = await client
+        .getChatFollowUpSuggestions(chat.id)
+        .catch(() => [] as string[]);
+      printJson({ chat, messages, follow_up_suggestions: followUpSuggestions });
     } else {
-      await printChatConversation(client, chat, messages);
+      // Fetch follow-up suggestions to display at the end of the conversation
+      const followUpSuggestions = await client
+        .getChatFollowUpSuggestions(chat.id)
+        .catch(() => [] as string[]);
+      await printChatConversation(client, chat, messages, followUpSuggestions);
     }
     return;
   }
@@ -316,7 +347,10 @@ async function handleChats(
       process.stdout.write("\n");
 
       const rl = await import("node:readline");
-      const iface = rl.createInterface({ input: process.stdin, output: process.stdout });
+      const iface = rl.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+      });
       const answer = await new Promise<string>((resolve) => {
         iface.question(
           `Delete ${resolved.length} chat(s)? This cannot be undone. [y/N] `,
@@ -341,7 +375,9 @@ async function handleChats(
         deleted++;
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        process.stdout.write(`  \x1b[31m\u2717\x1b[0m Failed to delete ${r.input}: ${msg}\n`);
+        process.stdout.write(
+          `  \x1b[31m\u2717\x1b[0m Failed to delete ${r.input}: ${msg}\n`,
+        );
       }
     }
     console.log(`\n${deleted}/${resolved.length} chat(s) deleted.`);
@@ -351,9 +387,7 @@ async function handleChats(
   if (subcommand === "share") {
     const id = rest[0] || "last";
     const durationSeconds = (
-      typeof flags.expires === "string"
-        ? parseInt(flags.expires, 10)
-        : 0
+      typeof flags.expires === "string" ? parseInt(flags.expires, 10) : 0
     ) as ShareDuration;
     const password =
       typeof flags.password === "string" ? flags.password : undefined;
@@ -364,14 +398,25 @@ async function handleChats(
     }
 
     try {
-      const url = await client.createChatShareLink(id, durationSeconds, password);
+      const url = await client.createChatShareLink(
+        id,
+        durationSeconds,
+        password,
+      );
       if (flags.json === true) {
-        printJson({ url, chat_id: id, expires: durationSeconds, password_protected: !!password });
+        printJson({
+          url,
+          chat_id: id,
+          expires: durationSeconds,
+          password_protected: !!password,
+        });
       } else {
         process.stdout.write(`\n[1mChat share link[0m\n`);
         process.stdout.write(`${url}\n\n`);
         if (durationSeconds > 0) {
-          process.stdout.write(`[2mExpires in ${humanizeDuration(durationSeconds)}[0m\n`);
+          process.stdout.write(
+            `[2mExpires in ${humanizeDuration(durationSeconds)}[0m\n`,
+          );
         }
         if (password) {
           process.stdout.write(`[2mPassword protected[0m\n`);
@@ -502,13 +547,12 @@ async function handleApps(
   // ── travel booking-link: resolve a booking URL from a booking_token ────
   // openmates apps travel booking-link --token "..." [--context '{...}']
   if (subcommand === "travel" && rest[0] === "booking-link") {
-    const token =
-      typeof flags.token === "string" ? flags.token : undefined;
+    const token = typeof flags.token === "string" ? flags.token : undefined;
     if (!token) {
       console.error(
         "Missing --token flag.\n\n" +
           "Usage:\n" +
-          '  openmates apps travel booking-link --token "<booking_token>" [--context \'<json>\']\n\n' +
+          "  openmates apps travel booking-link --token \"<booking_token>\" [--context '<json>']\n\n" +
           "The booking_token is shown in the output of:\n" +
           "  openmates apps travel search_connections --input '...'\n",
       );
@@ -554,7 +598,7 @@ async function handleApps(
     return;
   }
 
-    // Sugar alias: openmates apps <app> <skill> [inline text]
+  // Sugar alias: openmates apps <app> <skill> [inline text]
   const app = subcommand;
   const skill = rest[0];
   if (app && skill) {
@@ -686,13 +730,13 @@ async function handleEmbeds(
   if (subcommand === "share") {
     const id = rest[0];
     if (!id) {
-      console.error("Missing embed ID. Usage: openmates embeds share <embed-id>");
+      console.error(
+        "Missing embed ID. Usage: openmates embeds share <embed-id>",
+      );
       process.exit(1);
     }
     const durationSeconds = (
-      typeof flags.expires === "string"
-        ? parseInt(flags.expires, 10)
-        : 0
+      typeof flags.expires === "string" ? parseInt(flags.expires, 10) : 0
     ) as ShareDuration;
     const password =
       typeof flags.password === "string" ? flags.password : undefined;
@@ -703,14 +747,25 @@ async function handleEmbeds(
     }
 
     try {
-      const url = await client.createEmbedShareLink(id, durationSeconds, password);
+      const url = await client.createEmbedShareLink(
+        id,
+        durationSeconds,
+        password,
+      );
       if (flags.json === true) {
-        printJson({ url, embed_id: id, expires: durationSeconds, password_protected: !!password });
+        printJson({
+          url,
+          embed_id: id,
+          expires: durationSeconds,
+          password_protected: !!password,
+        });
       } else {
         process.stdout.write(`\n[1mEmbed share link[0m\n`);
         process.stdout.write(`${url}\n\n`);
         if (durationSeconds > 0) {
-          process.stdout.write(`[2mExpires in ${humanizeDuration(durationSeconds)}[0m\n`);
+          process.stdout.write(
+            `[2mExpires in ${humanizeDuration(durationSeconds)}[0m\n`,
+          );
         }
         if (password) {
           process.stdout.write(`[2mPassword protected[0m\n`);
@@ -1234,6 +1289,7 @@ async function sendMessageStreaming(
   category: string | null;
   modelName: string | null;
   mateName: string | null;
+  followUpSuggestions: string[];
 }> {
   let headerPrinted = false;
   let typingShown = false;
@@ -1310,7 +1366,9 @@ async function sendMessageStreaming(
           if (alreadyPrinted < clean.length) {
             const chunk = clean.slice(alreadyPrinted);
             // Redact personal data and secrets from streamed output
-            const safeChunk = redactor?.isInitialized ? redactor.redact(chunk) : chunk;
+            const safeChunk = redactor?.isInitialized
+              ? redactor.redact(chunk)
+              : chunk;
             process.stdout.write(safeChunk);
           }
         }
@@ -1336,7 +1394,9 @@ async function sendMessageStreaming(
       if (parsed.unresolved.length > 0) {
         clearTyping();
         for (const u of parsed.unresolved) {
-          process.stderr.write(`\x1b[31mError:\x1b[0m Unknown mention ${u.original}\n`);
+          process.stderr.write(
+            `\x1b[31mError:\x1b[0m Unknown mention ${u.original}\n`,
+          );
           if (u.suggestions.length > 0) {
             process.stderr.write(
               `  Did you mean: ${u.suggestions.join(", ")}?\n`,
@@ -1413,7 +1473,8 @@ async function sendMessageStreaming(
                 vault_wrapped_aes_key: uploadResult.vault_wrapped_aes_key,
                 ai_detection: uploadResult.ai_detection,
               });
-              fe.embed.status = fe.embed.type === "pdf" ? "processing" : "finished";
+              fe.embed.status =
+                fe.embed.type === "pdf" ? "processing" : "finished";
               fe.embed.contentHash = uploadResult.content_hash;
 
               // Use the server-assigned embed_id
@@ -1437,7 +1498,10 @@ async function sendMessageStreaming(
         // Remove @path tokens from the message text
         for (const fp of parsed.filePaths) {
           finalMessage = finalMessage.replace(
-            new RegExp(`@${fp.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}`, "g"),
+            new RegExp(
+              `@${fp.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}`,
+              "g",
+            ),
             "",
           );
         }
@@ -1561,6 +1625,21 @@ async function sendMessageStreaming(
 
     const shortId = result.chatId.slice(0, 8);
     process.stdout.write(`${SEP}\n`);
+
+    // Show follow-up suggestions if the post-processor returned any.
+    // These are persisted per-chat and appear in `chats show` as well.
+    if (result.followUpSuggestions.length > 0) {
+      process.stdout.write(`\x1b[2mSuggested follow-ups:\x1b[0m\n`);
+      for (const suggestion of result.followUpSuggestions) {
+        const escapedSuggestion = suggestion.replace(/"/g, '\\"');
+        process.stdout.write(
+          `  \x1b[2m• ${suggestion}\x1b[0m\n` +
+            `    \x1b[2mopenmates chats send --chat ${shortId} "${escapedSuggestion}"\x1b[0m\n`,
+        );
+      }
+      process.stdout.write(`${SEP}\n`);
+    }
+
     process.stdout.write(
       `\x1b[2mContinue: openmates chats send --chat ${shortId} "your message"\x1b[0m\n` +
         `\x1b[2mHistory:  openmates chats show ${shortId}\x1b[0m\n`,
@@ -1623,7 +1702,12 @@ const SEP = `\x1b[2m${"─".repeat(60)}\x1b[0m`;
  * For embed segments, rawLength includes the full \`\`\`json\n...\n\`\`\` delimiters. */
 type MessageSegment =
   | { type: "text"; value: string; rawLength: number }
-  | { type: "embed"; value: string; meta?: Record<string, unknown>; rawLength: number };
+  | {
+      type: "embed";
+      value: string;
+      meta?: Record<string, unknown>;
+      rawLength: number;
+    };
 
 function parseMessageSegments(content: string): MessageSegment[] {
   const segments: MessageSegment[] = [];
@@ -1649,7 +1733,12 @@ function parseMessageSegments(content: string): MessageSegment[] {
       const embedId =
         typeof parsed.embed_id === "string" ? parsed.embed_id : null;
       if (embedId) {
-        segments.push({ type: "embed", value: embedId, meta: parsed, rawLength: blockRawLength });
+        segments.push({
+          type: "embed",
+          value: embedId,
+          meta: parsed,
+          rawLength: blockRawLength,
+        });
       }
     } catch {
       // Malformed JSON — discard
@@ -1736,6 +1825,7 @@ async function printChatConversation(
     updatedAt: number | null;
   },
   messages: DecryptedMessage[],
+  followUpSuggestions?: string[],
 ): Promise<void> {
   const block = ansiColorBlock(chat.category);
   const title = chat.title ?? "(no title)";
@@ -1808,6 +1898,21 @@ async function printChatConversation(
 
   // Final closing separator
   process.stdout.write(`${SEP}\n`);
+
+  // Show follow-up suggestions if available for this chat.
+  // These are generated by the post-processor and persisted per-chat.
+  if (followUpSuggestions && followUpSuggestions.length > 0) {
+    process.stdout.write(`\x1b[2mSuggested follow-ups:\x1b[0m\n`);
+    for (const suggestion of followUpSuggestions) {
+      const escapedSuggestion = suggestion.replace(/"/g, '\\"');
+      process.stdout.write(
+        `  \x1b[2m• ${suggestion}\x1b[0m\n` +
+          `    \x1b[2mopenmates chats send --chat ${chat.shortId} "${escapedSuggestion}"\x1b[0m\n`,
+      );
+    }
+    process.stdout.write(`${SEP}\n`);
+  }
+
   process.stdout.write(
     `\x1b[2mContinue: openmates chats send --chat ${chat.shortId} "your message"\x1b[0m\n`,
   );
@@ -2254,9 +2359,7 @@ function printSkillResultItem(
         item.booking_context && typeof item.booking_context === "object"
           ? ` --context '${JSON.stringify(item.booking_context)}'`
           : "";
-      console.log(
-        `\x1b[2m  → Get booking URL (25 credits):\x1b[0m`,
-      );
+      console.log(`\x1b[2m  → Get booking URL (25 credits):\x1b[0m`);
       console.log(
         `\x1b[2m    openmates apps travel booking-link --token "${token}"${ctxFlag}\x1b[0m`,
       );
@@ -2270,15 +2373,11 @@ function printSkillResultItem(
     const name = str(item.name) ?? str(item.property_name) ?? "Unknown";
     const rating = item.overall_rating ?? item.rating;
     const price =
-      str(item.rate_per_night) ??
-      str(item.price_per_night) ??
-      str(item.price);
+      str(item.rate_per_night) ?? str(item.price_per_night) ?? str(item.price);
     const summary: string[] = [];
     if (rating) summary.push(`★ ${rating}`);
     if (price) summary.push(price);
-    console.log(
-      `${numLabel}\x1b[1m${name}\x1b[0m  ${summary.join(" · ")}`,
-    );
+    console.log(`${numLabel}\x1b[1m${name}\x1b[0m  ${summary.join(" · ")}`);
     printGenericObject(item, 1);
     console.log("");
     return;
@@ -2289,15 +2388,11 @@ function printSkillResultItem(
     const name = str(item.name) ?? str(item.displayName) ?? "Unknown";
     const rating = item.rating;
     const addr =
-      str(item.formatted_address) ??
-      str(item.address) ??
-      str(item.vicinity);
+      str(item.formatted_address) ?? str(item.address) ?? str(item.vicinity);
     const summary: string[] = [];
     if (rating) summary.push(`★ ${rating}`);
     if (addr) summary.push(addr);
-    console.log(
-      `${numLabel}\x1b[1m${name}\x1b[0m  ${summary.join(" · ")}`,
-    );
+    console.log(`${numLabel}\x1b[1m${name}\x1b[0m  ${summary.join(" · ")}`);
     printGenericObject(item, 1);
     console.log("");
     return;
@@ -2603,7 +2698,9 @@ async function handleInspirations(
 function printInspiration(ins: DailyInspiration, index: number): void {
   const categoryLabel = ins.category ? ` [2m[${ins.category}][0m` : "";
   const openedBadge = ins.is_opened ? " [2m(opened)[0m" : "";
-  console.log(`[1m${index}. ${ins.title || ins.phrase}[0m${categoryLabel}${openedBadge}`);
+  console.log(
+    `[1m${index}. ${ins.title || ins.phrase}[0m${categoryLabel}${openedBadge}`,
+  );
   if (ins.title && ins.phrase) {
     console.log(`   [3m${ins.phrase}[0m`);
   }
@@ -2614,12 +2711,12 @@ function printInspiration(ins: DailyInspiration, index: number): void {
   }
   if (ins.video) {
     const v = ins.video;
-    const duration = v.duration_seconds != null
-      ? ` · ${formatDuration(v.duration_seconds)}`
-      : "";
-    const views = v.view_count != null
-      ? ` · ${v.view_count.toLocaleString()} views`
-      : "";
+    const duration =
+      v.duration_seconds != null
+        ? ` · ${formatDuration(v.duration_seconds)}`
+        : "";
+    const views =
+      v.view_count != null ? ` · ${v.view_count.toLocaleString()} views` : "";
     const channel = v.channel_name ? ` · ${v.channel_name}` : "";
     console.log(
       `   [2mVideo: ${v.title || v.youtube_id}${channel}${duration}${views}[0m`,
@@ -2641,8 +2738,83 @@ function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   const s = seconds % 60;
-  if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  if (h > 0)
+    return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+// ---------------------------------------------------------------------------
+// New Chat Suggestions
+// ---------------------------------------------------------------------------
+
+/**
+ * Handle `openmates newchatsuggestions [--limit <n>] [--json]`.
+ *
+ * Lists the personalized new-chat suggestions generated by the AI post-processor.
+ * These are the same suggestions shown in the web app's home screen row
+ * ("What would you like to do today?"). Requires login.
+ *
+ * Suggestions are encrypted per-user in Directus and decrypted locally.
+ */
+async function handleNewChatSuggestions(
+  client: OpenMatesClient,
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  if (flags.help === true) {
+    printNewChatSuggestionsHelp();
+    return;
+  }
+
+  const limit =
+    typeof flags.limit === "string" ? parseInt(flags.limit, 10) : 10;
+  const suggestions = await client.listNewChatSuggestions(limit);
+
+  if (flags.json === true) {
+    printJson(suggestions);
+    return;
+  }
+
+  if (suggestions.length === 0) {
+    console.log("No new chat suggestions available.");
+    console.log(
+      `\x1b[2mSuggestions are generated after your first few conversations.\x1b[0m`,
+    );
+    return;
+  }
+
+  header(`New Chat Suggestions  \x1b[2m(${suggestions.length})\x1b[0m\n`);
+  printNewChatSuggestionsList(suggestions);
+}
+
+/** Render new-chat suggestions in human-readable terminal format. */
+function printNewChatSuggestionsList(
+  suggestions: DecryptedNewChatSuggestion[],
+): void {
+  for (let i = 0; i < suggestions.length; i++) {
+    const s = suggestions[i];
+    printNewChatSuggestion(s, i + 1);
+  }
+  console.log(
+    `\x1b[2mStart a chat: openmates chats new "<suggestion text>"\x1b[0m`,
+  );
+}
+
+/** Render a single new-chat suggestion. */
+function printNewChatSuggestion(
+  s: DecryptedNewChatSuggestion,
+  index: number,
+): void {
+  const appLabel = s.skillId
+    ? `\x1b[36m[${s.appId}-${s.skillId}]\x1b[0m `
+    : s.appId
+      ? `\x1b[36m[${s.appId}]\x1b[0m `
+      : "";
+  const escapedBody = s.body.replace(/"/g, '\\"');
+  process.stdout.write(`\x1b[1m${index}.\x1b[0m ${appLabel}${s.body}\n`);
+  process.stdout.write(
+    `   \x1b[2mopenmates chats new "${escapedBody}"\x1b[0m\n`,
+  );
+  console.log();
 }
 
 // ---------------------------------------------------------------------------
@@ -2664,11 +2836,17 @@ async function handleMentions(
 ): Promise<void> {
   if (!subcommand || subcommand === "help" || subcommand === "list") {
     // Parse optional --type filter
-    const typeFilter = typeof flags.type === "string"
-      ? flags.type as MentionType
-      : undefined;
+    const typeFilter =
+      typeof flags.type === "string" ? (flags.type as MentionType) : undefined;
 
-    const validTypes = ["model", "model_alias", "mate", "skill", "focus_mode", "settings_memory"];
+    const validTypes = [
+      "model",
+      "model_alias",
+      "mate",
+      "skill",
+      "focus_mode",
+      "settings_memory",
+    ];
     if (typeFilter && !validTypes.includes(typeFilter)) {
       console.error(
         `Invalid type '${typeFilter}'. Valid types: ${validTypes.join(", ")}`,
@@ -2685,7 +2863,11 @@ async function handleMentions(
     }
 
     if (options.length === 0) {
-      console.log("No mentions available" + (typeFilter ? ` for type '${typeFilter}'` : "") + ".");
+      console.log(
+        "No mentions available" +
+          (typeFilter ? ` for type '${typeFilter}'` : "") +
+          ".",
+      );
       return;
     }
 
@@ -2722,7 +2904,9 @@ async function handleMentions(
   if (subcommand === "search") {
     const query = _rest.join(" ").trim();
     if (!query) {
-      console.error("Missing search query. Usage: openmates mentions search <query>");
+      console.error(
+        "Missing search query. Usage: openmates mentions search <query>",
+      );
       process.exit(1);
     }
 
@@ -2733,8 +2917,12 @@ async function handleMentions(
     const normalizedQuery = query.toLowerCase().replace(/[\s_-]+/g, "");
     const matches = allOptions
       .filter((opt) => {
-        const normalizedName = opt.displayName.toLowerCase().replace(/[@\s_-]+/g, "");
-        const normalizedDesc = opt.description.toLowerCase().replace(/[\s_-]+/g, "");
+        const normalizedName = opt.displayName
+          .toLowerCase()
+          .replace(/[@\s_-]+/g, "");
+        const normalizedDesc = opt.description
+          .toLowerCase()
+          .replace(/[\s_-]+/g, "");
         return (
           normalizedName.includes(normalizedQuery) ||
           normalizedDesc.includes(normalizedQuery)
@@ -2812,6 +3000,7 @@ Commands:
   openmates embeds [--help]                  Embed commands (show)
   openmates settings [--help]                Settings & memories
   openmates inspirations [--lang <code>] [--json]   Daily inspirations
+  openmates newchatsuggestions [--limit <n>] [--json]   Personalized new chat suggestions
 
 Flags:
   --json          Output raw JSON instead of formatted output
@@ -2999,6 +3188,27 @@ ${h("Support")}
   \x1b[2mPassword:   ${s("account/security/password")}\x1b[0m
   \x1b[2m2FA:        ${s("account/security/2fa")}\x1b[0m
   \x1b[2mSessions:   ${s("account/security/sessions")}\x1b[0m`);
+}
+
+function printNewChatSuggestionsHelp(): void {
+  console.log(`New chat suggestions command:
+  openmates newchatsuggestions [--limit <n>] [--json]
+
+Shows personalized new chat suggestions generated for your account.
+These are the same suggestions shown in the web app's home screen row.
+Suggestions are generated by the AI after each conversation and are
+encrypted per-user — only you can read them.
+
+Requires login (run 'openmates login' first).
+
+Options:
+  --limit <n>    Maximum number of suggestions to show (default: 10)
+  --json         Output raw JSON instead of formatted output
+
+Examples:
+  openmates newchatsuggestions
+  openmates newchatsuggestions --limit 5
+  openmates newchatsuggestions --json`);
 }
 
 function printMemoriesHelp(): void {

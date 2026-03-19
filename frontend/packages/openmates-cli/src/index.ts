@@ -13,14 +13,21 @@ export {
   deriveAppUrl,
   MEMORY_TYPE_REGISTRY,
   MATE_NAMES,
+  parseNewChatSuggestionText,
 } from "./client.js";
 export type {
   DecryptedMemoryEntry,
   DecryptedMessage,
   DecryptedEmbed,
+  DecryptedNewChatSuggestion,
   ChatListPage,
   MemoryTypeDef,
   MemoryFieldDef,
   OpenMatesClientOptions,
 } from "./client.js";
-export type { OpenMatesSession, SyncCache, CachedChat } from "./storage.js";
+export type {
+  OpenMatesSession,
+  SyncCache,
+  CachedChat,
+  CachedNewChatSuggestion,
+} from "./storage.js";

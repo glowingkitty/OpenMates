@@ -157,6 +157,7 @@ export class OpenMatesWsClient {
     content: string;
     category: string | null;
     modelName: string | null;
+    followUpSuggestions: string[];
   }> {
     const timeoutMs = options?.timeoutMs ?? 90_000;
     const onStream = options?.onStream;
@@ -165,6 +166,14 @@ export class OpenMatesWsClient {
       let latestContent = "";
       let category: string | null = null;
       let modelName: string | null = null;
+      let followUpSuggestions: string[] = [];
+      // Track whether the AI response is done so we can wait for post-processing.
+      let aiResponseDone = false;
+      // Post-processing metadata arrives up to ~10 s after the AI response.
+      // We wait a short window for it so follow-up suggestions are available.
+      const POST_PROCESSING_WINDOW_MS = 12_000;
+      let postProcessingTimer: ReturnType<typeof setTimeout> | null = null;
+
       const timeout = setTimeout(() => {
         cleanup();
         reject(new Error("Timed out waiting for AI response"));
@@ -174,6 +183,23 @@ export class OpenMatesWsClient {
         if (typeof p.category === "string" && p.category) category = p.category;
         if (typeof p.model_name === "string" && p.model_name)
           modelName = p.model_name;
+      };
+
+      // Called once AI response is done. Start a short window to wait for
+      // post_processing_metadata which may carry follow-up suggestions.
+      const scheduleResolve = (content: string) => {
+        aiResponseDone = true;
+        latestContent = content;
+        // Start the post-processing window — resolve early if we get suggestions.
+        postProcessingTimer = setTimeout(() => {
+          cleanup();
+          resolve({
+            content: latestContent,
+            category,
+            modelName,
+            followUpSuggestions,
+          });
+        }, POST_PROCESSING_WINDOW_MS);
       };
 
       const onMessage = (rawData: RawData) => {
@@ -211,8 +237,7 @@ export class OpenMatesWsClient {
                 category,
                 modelName,
               });
-              cleanup();
-              resolve({ content: latestContent, category, modelName });
+              scheduleResolve(latestContent);
             } else {
               onStream?.({
                 kind: "chunk",
@@ -235,8 +260,7 @@ export class OpenMatesWsClient {
                 ? p.full_content
                 : latestContent;
             onStream?.({ kind: "done", content, category, modelName });
-            cleanup();
-            resolve({ content, category, modelName });
+            scheduleResolve(content);
             return;
           }
 
@@ -249,6 +273,35 @@ export class OpenMatesWsClient {
               category,
               modelName,
             });
+            return;
+          }
+
+          // Post-processing metadata — carries follow-up suggestions for this chat.
+          // Arrives asynchronously after the AI response completes.
+          // Mirrors: chatSyncServiceHandlersAI.ts handlePostProcessingMetadata()
+          if (type === "post_processing_metadata") {
+            if (p.chat_id !== chatId) return;
+            const rawSuggestions = p.follow_up_request_suggestions;
+            if (Array.isArray(rawSuggestions) && rawSuggestions.length > 0) {
+              followUpSuggestions = (rawSuggestions as unknown[]).filter(
+                (s): s is string => typeof s === "string" && s.length > 0,
+              );
+            }
+            // If AI response already done, resolve immediately with suggestions.
+            if (aiResponseDone) {
+              if (postProcessingTimer) {
+                clearTimeout(postProcessingTimer);
+                postProcessingTimer = null;
+              }
+              cleanup();
+              resolve({
+                content: latestContent,
+                category,
+                modelName,
+                followUpSuggestions,
+              });
+            }
+            return;
           }
         } catch {
           // Ignore malformed frames.
@@ -260,12 +313,27 @@ export class OpenMatesWsClient {
         reject(error);
       };
       const onClose = () => {
+        // If AI response already completed, close is not an error — resolve with what we have.
+        if (aiResponseDone) {
+          cleanup();
+          resolve({
+            content: latestContent,
+            category,
+            modelName,
+            followUpSuggestions,
+          });
+          return;
+        }
         cleanup();
         reject(new Error("WebSocket closed while waiting for AI response"));
       };
 
       const cleanup = () => {
         clearTimeout(timeout);
+        if (postProcessingTimer) {
+          clearTimeout(postProcessingTimer);
+          postProcessingTimer = null;
+        }
         this.socket.off("message", onMessage);
         this.socket.off("error", onError);
         this.socket.off("close", onClose);

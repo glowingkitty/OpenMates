@@ -127,6 +127,10 @@ export interface CachedEmbedKey {
   [key: string]: unknown;
 }
 
+export interface CachedNewChatSuggestion {
+  [key: string]: unknown;
+}
+
 export interface SyncCache {
   /** Timestamp of last successful sync */
   syncedAt: number;
@@ -140,6 +144,12 @@ export interface SyncCache {
   embeds: CachedEmbed[];
   /** Embed keys for embed decryption */
   embedKeys: CachedEmbedKey[];
+  /**
+   * New chat suggestions from the last sync.
+   * Each entry has id, chat_id, encrypted_suggestion, created_at.
+   * Decrypted on-demand with the master key.
+   */
+  newChatSuggestions?: CachedNewChatSuggestion[];
 }
 
 const SYNC_CACHE_FILE = "sync_cache.json";
