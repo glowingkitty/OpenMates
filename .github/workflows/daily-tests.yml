@@ -278,12 +278,12 @@ jobs:
         env:
           ARTIFACTS_DIR: artifacts
           OPENMATES_API_URL: ${{ secrets.OPENMATES_API_URL }}
-          INTERNAL_API_SHARED_TOKEN: ${{ secrets.INTERNAL_API_SHARED_TOKEN }}
-          ADMIN_NOTIFY_EMAIL: ${{ secrets.ADMIN_NOTIFY_EMAIL }}
           OPENMATES_WEBHOOK_KEY: ${{ secrets.OPENMATES_WEBHOOK_KEY }}
           GIT_SHA: ${{ github.sha }}
           GIT_BRANCH: dev
           GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
       - name: Close tunnel
         if: always() && needs.open-tunnel.outputs.session_id != ''
         run: |
