@@ -119,6 +119,7 @@
     import DailyInspirationBanner from './DailyInspirationBanner.svelte'; // Daily inspiration carousel above welcome screen
     import Not404Screen from './Not404Screen.svelte'; // 404 not-found screen shown when user lands on an unknown URL
     import ForkProgressBanner from './chats/ForkProgressBanner.svelte'; // Slim banner shown while a fork is in progress
+    import ChatContextMenu from './chats/ChatContextMenu.svelte'; // Context menu for recent chat cards on the welcome screen
     import { forkProgressStore } from '../stores/forkProgressStore'; // Global fork progress — used to show banner on source chat
     import { pendingMentionStore } from '../stores/pendingMentionStore'; // For inserting @skill mentions from suggestion clicks
     import { notFoundPathStore } from '../stores/notFoundPathStore'; // 404 not-found path — set when user lands on unknown URL
@@ -1974,6 +1975,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     onDestroy(() => {
         // Clear video state when component is destroyed (e.g., on logout)
         videoIframeStore.clear();
+        // Clean up recent chat card touch timer
+        clearRecentCardTouchTimer();
     });
     
     // Handler for clicking PiP overlay to restore fullscreen view
@@ -2280,6 +2283,104 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // that reactive effects don't snap it back to the initial position.
     let recentChatsScrolledByUser = false;
     const RECENT_CHATS_LIMIT = 10;
+
+    // Context menu state for recent chat cards on the welcome screen
+    let recentChatContextMenu = $state<{ show: boolean; x: number; y: number; chat: import('../types/chat').Chat | null }>({
+        show: false, x: 0, y: 0, chat: null
+    });
+
+    // Touch/long-press state for recent chat cards (mirrors Chat.svelte pattern)
+    let recentCardTouchTimer: ReturnType<typeof setTimeout> | null = null;
+    let recentCardTouchStartX = 0;
+    let recentCardTouchStartY = 0;
+    const RECENT_CARD_LONG_PRESS_MS = 500;
+    const RECENT_CARD_TOUCH_MOVE_THRESHOLD = 10;
+
+    function openRecentCardContextMenu(x: number, y: number, chat: import('../types/chat').Chat) {
+        recentChatContextMenu = { show: true, x, y, chat };
+    }
+
+    function closeRecentCardContextMenu() {
+        recentChatContextMenu = { show: false, x: 0, y: 0, chat: null };
+    }
+
+    function handleRecentCardContextMenu(event: MouseEvent, chat: import('../types/chat').Chat) {
+        event.preventDefault();
+        event.stopPropagation();
+        openRecentCardContextMenu(event.clientX, event.clientY, chat);
+    }
+
+    function handleRecentCardTouchStart(event: TouchEvent, chat: import('../types/chat').Chat) {
+        if (event.touches.length !== 1) {
+            clearRecentCardTouchTimer();
+            return;
+        }
+        const touch = event.touches[0];
+        recentCardTouchStartX = touch.clientX;
+        recentCardTouchStartY = touch.clientY;
+        recentCardTouchTimer = setTimeout(() => {
+            openRecentCardContextMenu(recentCardTouchStartX, recentCardTouchStartY, chat);
+        }, RECENT_CARD_LONG_PRESS_MS);
+    }
+
+    function handleRecentCardTouchMove(event: TouchEvent) {
+        if (!recentCardTouchTimer) return;
+        const touch = event.touches[0];
+        const dx = Math.abs(touch.clientX - recentCardTouchStartX);
+        const dy = Math.abs(touch.clientY - recentCardTouchStartY);
+        if (dx > RECENT_CARD_TOUCH_MOVE_THRESHOLD || dy > RECENT_CARD_TOUCH_MOVE_THRESHOLD) {
+            clearRecentCardTouchTimer();
+        }
+    }
+
+    function handleRecentCardTouchEnd() {
+        clearRecentCardTouchTimer();
+    }
+
+    function clearRecentCardTouchTimer() {
+        if (recentCardTouchTimer !== null) {
+            clearTimeout(recentCardTouchTimer);
+            recentCardTouchTimer = null;
+        }
+    }
+
+    /**
+     * Handle context menu actions for recent chat cards on the welcome screen.
+     * Only delete is fully wired for now; hide/pin etc. can be added later.
+     */
+    async function handleRecentCardContextMenuAction(event: CustomEvent<string>) {
+        const action = event.detail;
+        const chat = recentChatContextMenu.chat;
+        closeRecentCardContextMenu();
+
+        if (!chat) return;
+
+        switch (action) {
+            case 'delete': {
+                // Remove from local recentChats list immediately (optimistic)
+                recentChats = recentChats.filter(m => m.chat.chat_id !== chat.chat_id);
+                // Delegate to Chat.svelte delete logic by dispatching the standard event
+                // Import the same functions used in Chat.svelte
+                const { chatDB: db } = await import('../services/db');
+                const { chatSyncService: syncSvc } = await import('../services/chatSyncService');
+                const { notificationStore: notifStore } = await import('../stores/notificationStore');
+                try {
+                    await db.deleteChat(chat.chat_id);
+                    syncSvc.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id: chat.chat_id } }));
+                    // Server-side deletion
+                    await syncSvc.sendDeleteChat(chat.chat_id);
+                } catch (err) {
+                    console.error('[ActiveChat] Error deleting recent chat:', err);
+                    notifStore.error('Failed to delete chat');
+                }
+                break;
+            }
+            case 'close':
+                break;
+            default:
+                console.debug('[ActiveChat] Unhandled recent card context menu action:', action);
+        }
+    }
 
     /**
      * Load up to RECENT_CHATS_LIMIT recent real chats from IndexedDB.
@@ -8358,11 +8459,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
         }) as EventListenerCallback;
 
-        // Handle chat deletion - if the currently active chat is deleted, reset to new chat
+        // Handle chat deletion - if the currently active chat is deleted, reset to new chat;
+        // also remove from the welcome-screen recent-chats list (cross-device aware)
         const chatDeletedHandler = ((event: CustomEvent) => {
             const { chat_id } = event.detail;
             console.debug('[ActiveChat] Received chatDeleted event for chat:', chat_id, 'Current chat:', currentChat?.chat_id);
-            
+
+            // Always remove from recent chats list (handles same-device + cross-device deletions)
+            if (recentChats.some(m => m.chat.chat_id === chat_id)) {
+                console.info('[ActiveChat] Removing deleted chat from recent-chats list:', chat_id);
+                recentChats = recentChats.filter(m => m.chat.chat_id !== chat_id);
+            }
+
             if (currentChat && chat_id === currentChat.chat_id) {
                 console.info('[ActiveChat] Currently active chat was deleted. Resetting to new chat state.');
                 // Reset to new chat state using the existing handler
@@ -9159,6 +9267,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                 type="button"
                                                 style={cardStyle}
                                                 onclick={() => handleOpenRecentChat(meta.chat)}
+                                                oncontextmenu={(e) => handleRecentCardContextMenu(e, meta.chat)}
+                                                ontouchstart={(e) => handleRecentCardTouchStart(e, meta.chat)}
+                                                ontouchmove={handleRecentCardTouchMove}
+                                                ontouchend={handleRecentCardTouchEnd}
                                                 onmouseenter={(e) => tilt?.onMouseEnter(e)}
                                                 onmousemove={(e) => tilt?.onMouseMove(e)}
                                                 onmouseleave={() => tilt?.onMouseLeave()}
@@ -9194,6 +9306,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                             <button
                                                 class="resume-chat-card"
                                                 onclick={() => handleOpenRecentChat(meta.chat)}
+                                                oncontextmenu={(e) => handleRecentCardContextMenu(e, meta.chat)}
+                                                ontouchstart={(e) => handleRecentCardTouchStart(e, meta.chat)}
+                                                ontouchmove={handleRecentCardTouchMove}
+                                                ontouchend={handleRecentCardTouchEnd}
                                                 type="button"
                                             >
                                                 <div
@@ -9309,6 +9425,26 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 </div>
                             {/if}
                         </div>
+                    {/if}
+
+                    <!-- Context menu for recent chat cards (right-click / long-press on welcome screen) -->
+                    {#if recentChatContextMenu.show && recentChatContextMenu.chat}
+                        <ChatContextMenu
+                            x={recentChatContextMenu.x}
+                            y={recentChatContextMenu.y}
+                            show={recentChatContextMenu.show}
+                            chat={recentChatContextMenu.chat}
+                            hideDownload={true}
+                            hideCopy={true}
+                            on:close={handleRecentCardContextMenuAction}
+                            on:delete={handleRecentCardContextMenuAction}
+                            on:hide={handleRecentCardContextMenuAction}
+                            on:unhide={handleRecentCardContextMenuAction}
+                            on:pin={handleRecentCardContextMenuAction}
+                            on:unpin={handleRecentCardContextMenuAction}
+                            on:markUnread={handleRecentCardContextMenuAction}
+                            on:markRead={handleRecentCardContextMenuAction}
+                        />
                     {/if}
 
                      <ChatHistory
