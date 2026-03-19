@@ -104,7 +104,7 @@ FINDINGS_JSON=$(python3 "$SCRIPT_DIR/find_dead_code.py" \
   --json \
   --limit "$MAX_FINDINGS_PER_CAT" \
   $( [[ "$CATEGORY" != "all" ]] && echo "--category $CATEGORY" || true ) \
-  2>/dev/null)
+  )
 
 export FINDINGS_JSON_B64
 FINDINGS_JSON_B64=$(echo "$FINDINGS_JSON" | base64 -w 0)

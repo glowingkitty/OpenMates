@@ -30,6 +30,8 @@ Not intended to be called directly by users; use nightly-issues-check.sh instead
 import json
 import os
 import subprocess
+
+from _opencode_utils import run_opencode_session
 import sys
 import urllib.error
 import urllib.request
@@ -252,66 +254,19 @@ def check_issues() -> None:
     )
 
     session_title = f"issues-investigation {date_str}"
-    cmd = [
-        "opencode", "run",
-        "--attach", "http://localhost:4096",
-        "--agent", "plan",
-        "--share",
-        "--model", "anthropic/claude-sonnet-4-6",
-        "--title", session_title,
-        "--dir", str(project_root),
-        prompt,
-    ]
-
     print(f"[issues-checker] Starting opencode investigation for {len(unresolved)} unresolved issue(s)...")
 
-    # Cron runs with a minimal PATH that excludes ~/.npm-global/bin where opencode lives.
-    run_env = os.environ.copy()
-    run_env["PATH"] = "/home/superdev/.npm-global/bin:" + run_env.get("PATH", "/usr/local/bin:/usr/bin:/bin")
+    returncode, share_url = run_opencode_session(
+        prompt=prompt,
+        session_title=session_title,
+        project_root=str(project_root),
+        log_prefix="[issues-checker]",
+        agent="plan",
+        timeout=900,
+    )
 
-    try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=900,  # 15 minute max
-            env=run_env,
-        )
-
-        combined_output = result.stdout + result.stderr
-
-        share_url = None
-        for line in combined_output.splitlines():
-            for token in line.split():
-                if "opncd.ai/share/" in token:
-                    share_url = token.strip()
-                    break
-            if share_url:
-                break
-
-        if share_url:
-            print(f"[issues-checker] opencode session: {share_url}")
-            print(f"OPENCODE_URL:{share_url}")
-        else:
-            print(
-                "[issues-checker] WARNING: opencode ran but no share URL found in output.",
-                file=sys.stderr,
-            )
-
-        if result.returncode != 0:
-            print(
-                f"[issues-checker] WARNING: opencode exited with code {result.returncode}",
-                file=sys.stderr,
-            )
-
-    except subprocess.TimeoutExpired:
-        print("[issues-checker] WARNING: opencode investigation timed out after 15 minutes", file=sys.stderr)
-    except FileNotFoundError:
-        print("[issues-checker] ERROR: opencode binary not found.", file=sys.stderr)
-        sys.exit(1)
-    except Exception as e:
-        print(f"[issues-checker] ERROR: opencode failed: {e}", file=sys.stderr)
-        sys.exit(1)
+    if share_url:
+        print(f"OPENCODE_URL:{share_url}")
 
 
 if __name__ == "__main__":

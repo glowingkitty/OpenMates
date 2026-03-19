@@ -30,9 +30,9 @@ Can be run manually for testing:
 
 import json
 import os
-import re
+
+from _opencode_utils import run_opencode_session
 import sqlite3
-import subprocess
 import sys
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
@@ -322,77 +322,29 @@ def cmd_run_review(yesterday: str) -> None:
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     session_title = f"workflow-review {yesterday}"
 
-    cmd = [
-        "opencode", "run",
-        "--attach", "http://localhost:4096",
-        "--agent", "plan",
-        "--share",
-        "--model", "anthropic/claude-sonnet-4-6",
-        "--title", session_title,
-        "--dir", str(PROJECT_ROOT),
-        prompt,
-    ]
-
-    run_env = os.environ.copy()
-    run_env["PATH"] = "/home/superdev/.npm-global/bin:" + run_env.get("PATH", "/usr/local/bin:/usr/bin:/bin")
-
     print(f"[workflow-review] Starting opencode session '{session_title}'...")
 
-    try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=900,  # 15 min max
-            env=run_env,
-        )
+    returncode, share_url = run_opencode_session(
+        prompt=prompt,
+        session_title=session_title,
+        project_root=str(PROJECT_ROOT),
+        log_prefix="[workflow-review]",
+        agent="plan",
+        timeout=900,
+    )
 
-        combined = result.stdout + result.stderr
+    if share_url:
+        # Emit parseable line for any caller capturing OPENCODE_URL:
+        print(f"OPENCODE_URL:{share_url}")
 
-        share_url = None
-        for line in combined.splitlines():
-            for token in line.split():
-                if "opncd.ai/share/" in token or "opencode" in token and "/share/" in token:
-                    share_url = token.strip()
-                    break
-            if share_url:
-                break
+    # Save state
+    state["last_review_date"] = today
+    state["last_summary"] = share_url or "(see log)"
+    state["last_session_url"] = share_url
+    _save_state(state)
 
-        if share_url:
-            print(f"[workflow-review] Session URL: {share_url}")
-            print(f"OPENCODE_URL:{share_url}")
-        else:
-            print("[workflow-review] WARNING: no share URL found in opencode output", file=sys.stderr)
-
-        # Extract suggestion summary from output (look for numbered list)
-        summary_lines = []
-        in_list = False
-        for line in combined.splitlines():
-            if re.match(r"^\d+\.", line.strip()):
-                in_list = True
-            if in_list:
-                summary_lines.append(line)
-                if len(summary_lines) > 50:
-                    break
-
-        summary = "\n".join(summary_lines[:30]) if summary_lines else "(see session URL)"
-
-        # Save state
-        state["last_review_date"] = today
-        state["last_summary"] = summary or "(see session URL)"
-        state["last_session_url"] = share_url
-        _save_state(state)
-
-        if result.returncode != 0:
-            print(f"[workflow-review] opencode exited with code {result.returncode}", file=sys.stderr)
-            sys.exit(1)
-
-    except subprocess.TimeoutExpired:
-        print("[workflow-review] ERROR: opencode timed out after 15 minutes", file=sys.stderr)
-        sys.exit(1)
-    except Exception as e:
-        print(f"[workflow-review] ERROR: {e}", file=sys.stderr)
-        sys.exit(1)
+    if returncode != 0:
+        sys.exit(returncode)
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────

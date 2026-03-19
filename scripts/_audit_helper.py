@@ -32,6 +32,7 @@ Not intended to be called directly by users; use weekly-codebase-audit.sh instea
 import json
 import os
 import subprocess
+from _opencode_utils import run_opencode_session
 import sys
 from datetime import datetime, timezone
 
@@ -154,75 +155,29 @@ def run_audit() -> None:
         return
 
     session_title = f"audit: codebase health {today_date}"
-    cmd = [
-        "opencode", "run",
-        "--attach", "http://localhost:4096",
-        "--agent", "plan",
-        "--share",
-        "--model", "anthropic/claude-sonnet-4-6",
-        "--title", session_title,
-        "--dir", project_root,
-        prompt,
-    ]
-
     print(f"[audit] Starting opencode audit session (HEAD {current_sha})...")
 
-    # Cron runs with a minimal PATH that excludes ~/.npm-global/bin where opencode lives.
-    run_env = os.environ.copy()
-    run_env["PATH"] = "/home/superdev/.npm-global/bin:" + run_env.get("PATH", "/usr/local/bin:/usr/bin:/bin")
+    returncode, share_url = run_opencode_session(
+        prompt=prompt,
+        session_title=session_title,
+        project_root=project_root,
+        log_prefix="[audit]",
+        agent="plan",
+        timeout=1800,
+    )
 
-    try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=1800,  # 30 minutes max
-            env=run_env,
-        )
+    # Extract a brief summary from the share URL (state stores URL as proxy for summary)
+    session_summary = share_url or "No summary available."
 
-        combined_output = result.stdout + result.stderr
+    # Update state regardless of exit code — so next run doesn't re-audit same files
+    state["last_audit_date"] = today_date
+    state["last_audit_sha"] = current_sha
+    state["last_audit_summary"] = session_summary
+    state["last_session_url"] = share_url
+    _save_state(state_file, state)
 
-        # Extract share URL
-        share_url = None
-        for line in combined_output.splitlines():
-            for token in line.split():
-                if "opncd.ai/share/" in token:
-                    share_url = token.strip()
-                    break
-            if share_url:
-                break
-
-        if share_url:
-            print(f"[audit] opencode session: {share_url}")
-        else:
-            print("[audit] WARNING: opencode ran but no share URL found in output.", file=sys.stderr)
-
-        if result.returncode != 0:
-            print(f"[audit] WARNING: opencode exited with code {result.returncode}", file=sys.stderr)
-
-        # Extract a brief summary from the opencode output to store in state
-        # (first 500 chars of stdout as a rough proxy for the findings summary)
-        session_summary = result.stdout.strip()[:500] if result.stdout.strip() else "No summary available."
-
-        # Update state
-        state["last_audit_date"] = today_date
-        state["last_audit_sha"] = current_sha
-        state["last_audit_summary"] = session_summary
-        state["last_session_url"] = share_url
-        _save_state(state_file, state)
-
-    except subprocess.TimeoutExpired:
-        print("[audit] WARNING: opencode timed out after 30 minutes.", file=sys.stderr)
-        # Still update state so we don't re-audit all the same files next time
-        state["last_audit_date"] = today_date
-        state["last_audit_sha"] = current_sha
-        _save_state(state_file, state)
-    except FileNotFoundError:
-        print("[audit] ERROR: opencode binary not found.", file=sys.stderr)
-        sys.exit(1)
-    except Exception as e:
-        print(f"[audit] ERROR: opencode failed: {e}", file=sys.stderr)
-        sys.exit(1)
+    if returncode != 0:
+        sys.exit(returncode)
 
 
 if __name__ == "__main__":

@@ -18,6 +18,8 @@ import sys
 import urllib.error
 import urllib.request
 
+from _opencode_utils import run_opencode_session
+
 # Maximum error snippet length per failed test entry (characters)
 MAX_ERROR_SNIPPET_LEN = 600
 
@@ -503,7 +505,6 @@ def start_opencode_analysis() -> None:
 
     Only called when failed_count > 0. Non-fatal — does not abort the test run.
     """
-    import subprocess
     from datetime import datetime, timezone
 
     results_dir = os.environ.get("RESULTS_DIR", "test-results")
@@ -570,75 +571,22 @@ def start_opencode_analysis() -> None:
         .replace("{{FAILED_TESTS_JSON}}", failed_tests_json)
     )
 
-    # Build opencode command.
-    # --attach connects to the always-running opencode web server (port 4096).
-    # Without --attach, `opencode run` errors with "Session not found" because it
-    # expects a local server but doesn't start one in headless mode.
     session_title = f"test-failures {date_str}"
-    cmd = [
-        "opencode", "run",
-        "--attach", "http://localhost:4096",
-        "--agent", "plan",
-        "--share",
-        "--model", "anthropic/claude-sonnet-4-6",
-        "--title", session_title,
-        "--dir", project_root,
-        prompt,
-    ]
-
     print(f"[daily-runner] Running opencode analysis for {failed_count} failed test(s)...")
 
-    # Cron runs with a minimal PATH that excludes ~/.npm-global/bin where opencode lives.
-    # Inject the known npm-global bin dir so subprocess.run can find the binary.
-    run_env = os.environ.copy()
-    run_env["PATH"] = "/home/superdev/.npm-global/bin:" + run_env.get("PATH", "/usr/local/bin:/usr/bin:/bin")
-
+    # Non-fatal: test run email is already sent; this is a best-effort analysis session.
     try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=600,  # 10 minute max for the analysis session
-            env=run_env,
+        _, share_url = run_opencode_session(
+            prompt=prompt,
+            session_title=session_title,
+            project_root=project_root,
+            log_prefix="[daily-runner]",
+            agent="plan",
+            timeout=600,
         )
-
-        combined_output = result.stdout + result.stderr
-
-        # Extract share URL — opencode prints e.g.:
-        #   ~  https://opncd.ai/share/YQGOiKwS
-        share_url = None
-        for line in combined_output.splitlines():
-            for token in line.split():
-                if "opncd.ai/share/" in token:
-                    share_url = token.strip()
-                    break
-            if share_url:
-                break
-
         if share_url:
-            # Emit parseable line for run-tests-daily.sh to capture
+            # Emit parseable line for run-tests-daily.sh to capture via grep
             print(f"OPENCODE_URL:{share_url}")
-            print(f"[daily-runner] opencode analysis session shared: {share_url}")
-        else:
-            print(
-                "[daily-runner] WARNING: opencode ran but no share URL found in output. "
-                "Check that --share flag is supported and OPENCODE_* env vars are set.",
-                file=sys.stderr,
-            )
-            # Still print the session output for the log
-            if combined_output.strip():
-                print(f"[daily-runner] opencode output (truncated):\n{combined_output[:2000]}", file=sys.stderr)
-
-        if result.returncode != 0:
-            print(
-                f"[daily-runner] WARNING: opencode exited with code {result.returncode} (non-fatal)",
-                file=sys.stderr,
-            )
-
-    except subprocess.TimeoutExpired:
-        print("[daily-runner] WARNING: opencode analysis timed out after 10 minutes (non-fatal)", file=sys.stderr)
-    except FileNotFoundError:
-        print("[daily-runner] WARNING: opencode binary not found — skipping analysis.", file=sys.stderr)
     except Exception as e:
         print(f"[daily-runner] WARNING: opencode analysis failed: {e} (non-fatal)", file=sys.stderr)
 

@@ -39,7 +39,8 @@ State file format (.dead-code-removal-state.json):
 import base64
 import json
 import os
-import subprocess
+
+from _opencode_utils import run_opencode_session
 import sys
 from datetime import datetime, timezone
 
@@ -239,94 +240,39 @@ def run() -> None:
         _save_state(state_file, state)
         return
 
-    # Dispatch opencode in build mode
+    # Dispatch opencode in build mode (agent=None)
     session_title = f"chore: dead code removal {today_date}"
-    cmd = [
-        "opencode", "run",
-        "--attach", "http://localhost:4096",
-        "--share",
-        "--model", "anthropic/claude-sonnet-4-6",
-        "--title", session_title,
-        "--dir", project_root,
-        prompt,
-    ]
-
     print(f"[dead-code] Starting opencode session '{session_title}'...")
 
-    run_env = os.environ.copy()
-    run_env["PATH"] = "/home/superdev/.npm-global/bin:" + run_env.get("PATH", "/usr/local/bin:/usr/bin:/bin")
-    # Ensure opencode runs in build mode (default), not plan mode
-    run_env.pop("OPENCODE_MODE", None)
+    returncode, share_url = run_opencode_session(
+        prompt=prompt,
+        session_title=session_title,
+        project_root=project_root,
+        log_prefix="[dead-code]",
+        agent=None,    # build mode — no agent flag
+        timeout=2400,  # 40 minutes — dead code removal involves many file edits
+    )
 
-    try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=2400,  # 40 minutes — dead code removal involves many file edits
-            env=run_env,
-        )
+    # Record items as removed in state regardless of opencode exit code —
+    # if opencode ran at all it likely cleaned some items; next run re-detects remainder.
+    now_iso = _now_iso()
+    new_removed = [
+        {
+            "key": _item_key(item),
+            "removed_at": now_iso,
+            "code": item.get("message", item.get("code", "")),
+        }
+        for item in items_to_send
+    ]
+    state["removed_items"] = state.get("removed_items", []) + new_removed
+    state["total_items_removed"] = state.get("total_items_removed", 0) + len(items_to_send)
+    state["total_runs"] = state.get("total_runs", 0) + 1
+    state["last_run_at"] = now_iso
+    state["last_run_sha"] = current_sha
+    _save_state(state_file, state)
 
-        combined_output = (result.stdout + result.stderr).strip()
-
-        # Extract share URL
-        share_url = None
-        for line in combined_output.splitlines():
-            for token in line.split():
-                if "opncd.ai/share/" in token:
-                    share_url = token.strip()
-                    break
-            if share_url:
-                break
-
-        if share_url:
-            print(f"[dead-code] opencode session: {share_url}")
-        else:
-            print("[dead-code] WARNING: no share URL found in opencode output.", file=sys.stderr)
-
-        if result.returncode != 0:
-            print(
-                f"[dead-code] WARNING: opencode exited with code {result.returncode}",
-                file=sys.stderr,
-            )
-            if result.stderr.strip():
-                print(f"[dead-code] opencode stderr: {result.stderr[:1000]}", file=sys.stderr)
-        else:
-            print("[dead-code] opencode session completed successfully.")
-
-        if combined_output:
-            print(f"[dead-code] opencode output (first 500 chars): {combined_output[:500]}")
-
-        # Record items as removed in state (regardless of opencode exit code — if opencode
-        # ran at all, it likely cleaned some items; the next run will re-detect anything still present)
-        now_iso = _now_iso()
-        new_removed = [
-            {
-                "key": _item_key(item),
-                "removed_at": now_iso,
-                "code": item.get("message", item.get("code", "")),
-            }
-            for item in items_to_send
-        ]
-        state["removed_items"] = state.get("removed_items", []) + new_removed
-        state["total_items_removed"] = state.get("total_items_removed", 0) + len(items_to_send)
-        state["total_runs"] = state.get("total_runs", 0) + 1
-        state["last_run_at"] = now_iso
-        state["last_run_sha"] = current_sha
-        _save_state(state_file, state)
-
-    except subprocess.TimeoutExpired:
-        print("[dead-code] WARNING: opencode timed out after 40 minutes.", file=sys.stderr)
-        # Save state anyway so we don't re-dispatch the same items forever
-        state["last_run_at"] = _now_iso()
-        state["last_run_sha"] = current_sha
-        _save_state(state_file, state)
-    except FileNotFoundError:
-        print("[dead-code] ERROR: opencode binary not found in PATH.", file=sys.stderr)
-        sys.exit(1)
-    except Exception as e:
-        print(f"[dead-code] ERROR: opencode failed: {e}", file=sys.stderr)
-        sys.exit(1)
+    if returncode != 0:
+        sys.exit(returncode)
 
 
 if __name__ == "__main__":

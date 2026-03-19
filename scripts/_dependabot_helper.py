@@ -41,9 +41,10 @@ import base64
 import json
 import os
 import subprocess
+
+from _opencode_utils import run_opencode_session
 import sys
-from datetime import datetime, timezone, timedelta
-from pathlib import Path
+from datetime import datetime, timezone
 
 
 # Severity levels to process (skip "low")
@@ -366,69 +367,16 @@ def process_alerts() -> None:
         return
 
     session_title = f"security: dependabot {today_date}"
-    cmd = [
-        "opencode", "run",
-        "--attach", "http://localhost:4096",
-        "--share",
-        "--model", "anthropic/claude-sonnet-4-6",
-        "--title", session_title,
-        "--dir", project_root,
-        prompt,
-    ]
-
     print(f"[dependabot] Starting opencode session for {len(to_dispatch)} alert(s)...")
 
-    # Cron runs with a minimal PATH that excludes ~/.npm-global/bin where opencode lives.
-    run_env = os.environ.copy()
-    run_env["PATH"] = "/home/superdev/.npm-global/bin:" + run_env.get("PATH", "/usr/local/bin:/usr/bin:/bin")
-
-    try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=1800,  # 30 minutes max for security fixes
-            env=run_env,
-        )
-
-        combined = (result.stdout + result.stderr).strip()
-
-        # Extract and log the share URL
-        share_url = None
-        for line in (result.stdout + result.stderr).splitlines():
-            for token in line.split():
-                if "opncd.ai/share/" in token:
-                    share_url = token.strip()
-                    break
-            if share_url:
-                break
-
-        if share_url:
-            print(f"[dependabot] opencode session: {share_url}")
-        else:
-            print("[dependabot] WARNING: no share URL found in opencode output.", file=sys.stderr)
-
-        if result.returncode != 0:
-            print(
-                f"[dependabot] WARNING: opencode exited with code {result.returncode}",
-                file=sys.stderr,
-            )
-            if result.stderr.strip():
-                print(f"[dependabot] opencode stderr: {result.stderr[:1000]}", file=sys.stderr)
-        else:
-            print("[dependabot] opencode session completed successfully.")
-
-        if combined:
-            print(f"[dependabot] opencode output (first 500 chars): {combined[:500]}")
-
-    except subprocess.TimeoutExpired:
-        print("[dependabot] WARNING: opencode timed out after 30 minutes.", file=sys.stderr)
-    except FileNotFoundError:
-        print("[dependabot] ERROR: opencode binary not found.", file=sys.stderr)
-        sys.exit(1)
-    except Exception as e:
-        print(f"[dependabot] ERROR: opencode failed: {e}", file=sys.stderr)
-        sys.exit(1)
+    run_opencode_session(
+        prompt=prompt,
+        session_title=session_title,
+        project_root=project_root,
+        log_prefix="[dependabot]",
+        agent=None,    # build mode — fix the alerts
+        timeout=1800,
+    )
 
 
 if __name__ == "__main__":
