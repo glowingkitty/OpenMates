@@ -94,9 +94,9 @@
                             type="button"
                         >
                             <span
+                                class:copy-icon-check={urlCopied}
+                                class:copy-icon-copy={!urlCopied}
                                 class="copy-icon"
-                                class:icon_check={urlCopied}
-                                class:icon_copy={!urlCopied}
                                 aria-hidden="true"
                             ></span>
                             {#if urlCopied}
@@ -114,14 +114,14 @@
         <!-- Stacked buttons with "or" separator line between them -->
         <div class="not-found-actions">
             <button onclick={handleSearch} type="button">
-                <span class="btn-icon icon_search" aria-hidden="true"></span>
+                <span class="btn-icon btn-icon-search" aria-hidden="true"></span>
                 {$text('common.not_found.search_label', { values: { query } })}
             </button>
 
             <span class="or-separator">{$text('common.not_found.or_separator')}</span>
 
             <button onclick={handleAskAI} type="button">
-                <span class="btn-icon icon_chat" aria-hidden="true"></span>
+                <span class="btn-icon btn-icon-chat" aria-hidden="true"></span>
                 {$text('common.not_found.ask_ai_label', { values: { topic } })}
             </button>
         </div>
@@ -380,7 +380,26 @@
         width: 14px !important;
         height: 14px !important;
         display: block;
-        opacity: 0.7;
+        flex-shrink: 0;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+        background-color: var(--color-grey-70) !important;
+        background-image: none !important;
+    }
+
+    .copy-icon-copy {
+        -webkit-mask-image: url('@openmates/ui/static/icons/copy.svg');
+        mask-image: url('@openmates/ui/static/icons/copy.svg');
+    }
+
+    .copy-icon-check {
+        -webkit-mask-image: url('@openmates/ui/static/icons/check.svg');
+        mask-image: url('@openmates/ui/static/icons/check.svg');
+        background-color: var(--color-success, #4caf50) !important;
     }
 
     .copy-feedback {
@@ -421,9 +440,26 @@
         width: 20px;
         height: 20px;
         flex-shrink: 0;
-        /* Global button background is orange; icon mask needs white */
+        display: block;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+        /* Buttons are orange; icons need to be white */
         background-color: #ffffff !important;
         background-image: none !important;
+    }
+
+    .btn-icon-search {
+        -webkit-mask-image: url('@openmates/ui/static/icons/search.svg');
+        mask-image: url('@openmates/ui/static/icons/search.svg');
+    }
+
+    .btn-icon-chat {
+        -webkit-mask-image: url('@openmates/ui/static/icons/chat.svg');
+        mask-image: url('@openmates/ui/static/icons/chat.svg');
     }
 
     .or-separator {
