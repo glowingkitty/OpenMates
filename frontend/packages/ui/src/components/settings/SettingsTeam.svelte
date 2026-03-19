@@ -1,1 +1,0 @@
-Coming soon - the team settings will be available here.
