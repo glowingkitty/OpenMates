@@ -310,8 +310,8 @@ class BaseSkill:
         Validates and normalizes the 'id' field for a request in a multi-request skill call.
         
         This helper method implements the standard pattern for handling request IDs:
-        - For single requests: 'id' is optional - auto-generates id=1 if missing
-        - For multiple requests: 'id' is required to match responses to requests
+        - 'id' is always optional — auto-generates sequential index (1, 2, 3…) if missing
+        - Works for both single- and multi-request payloads
         - Validates that 'id' values are unique within the batch
         
         Args:
@@ -344,20 +344,12 @@ class BaseSkill:
         _log = logger or logging.getLogger(__name__)
         log_func = _log.debug
         
-        # Auto-generate 'id' only for single-request payloads.
-        # For multi-request payloads, explicit IDs are required so callers can
-        # deterministically match results to original requests.
+        # Auto-generate 'id' for any request that doesn't include one.
+        # The tool_schema tells callers that 'id' is auto-generated if not provided,
+        # so we must honour that contract for both single- and multi-request payloads.
+        # Sequential index-based IDs (1, 2, 3 …) are deterministic and let callers
+        # match responses to requests by position when explicit IDs aren't supplied.
         if "id" not in req:
-            if total_requests > 1:
-                return (
-                    None,
-                    (
-                        f"Request {request_index + 1} in multi-request payload is missing required 'id' field. "
-                        "Each request must include a unique 'id'."
-                    ),
-                )
-
-            # Single-request payload: use request_index + 1 (1-indexed for readability).
             auto_id = request_index + 1
             req["id"] = auto_id
             log_func(
