@@ -162,7 +162,7 @@ async def logout(
         # Clear all auth cookies regardless of server response
         for cookie in request.cookies:
             if cookie.startswith("auth_"):
-                response.delete_cookie(key=cookie, httponly=True, secure=True)
+                response.delete_cookie(key=cookie, httponly=True, secure=True, samesite="lax", path="/")
         
         return LogoutResponse(
             success=True,
@@ -174,7 +174,7 @@ async def logout(
         # Still clear cookies on error
         for cookie in request.cookies:
             if cookie.startswith("auth_"):
-                response.delete_cookie(key=cookie, httponly=True, secure=True)
+                response.delete_cookie(key=cookie, httponly=True, secure=True, samesite="lax", path="/")
         
         return LogoutResponse(
             success=False,
@@ -254,7 +254,7 @@ async def logout_all(
         # Clear all auth cookies for this session regardless of server response
         for cookie in request.cookies:
             if cookie.startswith("auth_"):
-                response.delete_cookie(key=cookie, httponly=True, secure=True)
+                response.delete_cookie(key=cookie, httponly=True, secure=True, samesite="lax", path="/")
         
         return LogoutResponse(
             success=True,
@@ -266,7 +266,7 @@ async def logout_all(
         # Still clear cookies on error
         for cookie in request.cookies:
             if cookie.startswith("auth_"):
-                response.delete_cookie(key=cookie, httponly=True, secure=True)
+                response.delete_cookie(key=cookie, httponly=True, secure=True, samesite="lax", path="/")
         
         return LogoutResponse(
             success=False,

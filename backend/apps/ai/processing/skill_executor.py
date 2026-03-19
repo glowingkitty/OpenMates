@@ -56,6 +56,8 @@ from backend.apps.ai.processing.celery_helpers import execute_skill_via_celery, 
 from backend.apps.ai.processing.content_sanitization import sanitize_external_content
 
 # Re-export helper functions and exceptions for backward compatibility
+# TODO(audit-2026-03-19): Move check_rate_limit, wait_for_rate_limit, sanitize_external_content, execute_skill_via_celery
+# to backend/shared/python_utils/skill_utils.py — 9+ non-AI skill apps import from here, violating module boundaries.
 __all__ = [
     "execute_skill",
     "execute_skill_with_multiple_requests",

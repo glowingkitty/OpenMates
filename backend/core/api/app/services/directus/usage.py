@@ -425,6 +425,9 @@ class UsageMethods:
         """
         try:
             # Try to find existing summary
+            # TODO(audit-2026-03-19): No composite index on (user_id_hash, year_month) for usage_monthly_*_summaries tables.
+            # This query runs on every AI message (credit charge). Create migrate_usage_indexes.py with:
+            # CREATE INDEX CONCURRENTLY IF NOT EXISTS <table>_user_month_idx ON public.<table> (user_id_hash, year_month);
             params = {
                 "filter": {
                     "user_id_hash": {"_eq": user_id_hash},

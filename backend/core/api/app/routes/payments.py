@@ -901,6 +901,7 @@ async def payment_webhook(
             if not cached_order_data:
                 logger.error(f"Order {webhook_order_id} not found in cache. Cannot process.")
                 await cache_service.update_order_status(webhook_order_id, "failed_missing_cache_data")
+                # TODO(audit-2026-03-19): Returns HTTP 200 on cache miss — Stripe stops retrying, user paid but credits never granted. Should return HTTP 500 so provider retries delivery.
                 return {"status": "order_cache_miss"}
 
             user_id = cached_order_data.get("user_id")
@@ -1735,6 +1736,7 @@ async def payment_webhook(
                             f"Cannot process chargeback for user tier."
                         )
                     
+            # TODO(audit-2026-03-19): Chargeback exception falls through to HTTP 200 — provider stops retrying, fraudulent credits not revoked. Should raise HTTPException(500).
             except Exception as dispute_exc:
                 logger.error(
                     f"Error processing chargeback/dispute {dispute_id}: {str(dispute_exc)}",
@@ -2309,6 +2311,7 @@ async def payment_webhook(
         raise e
     except Exception as e:
         logger.error(f"Unexpected error processing webhook: {str(e)}", exc_info=True)
+        # TODO(audit-2026-03-19): Returns HTTP 200 with "internal_server_error" status — provider interprets 2xx as success and stops retrying. Should raise HTTPException(500) for processing failures.
         return {"status": "internal_server_error"}
 
     return {"status": "received"}
