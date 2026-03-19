@@ -12,7 +12,36 @@
 			 preventing iOS Safari from auto-zooming on input focus (all inputs use font-size >= 1rem = 16px).
 			 WCAG 2.1 SC 1.4.4 requires content to be resizable up to 200% without loss of functionality. -->
 		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
-		<meta name="theme-color" content="#171717" />
+		<!-- theme-color: two variants so iOS Safari colors the status bar + bottom indicator
+		     to match the app background (--color-grey-0) in both light and dark mode.
+		     Without media queries, a single hardcoded value causes a mismatch when the OS
+		     theme differs from the value — e.g. dark #171717 tag in light mode shows dark
+		     chrome around a white app, and vice-versa. -->
+		<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+		<meta name="theme-color" content="#171717" media="(prefers-color-scheme: dark)" />
+
+		<!-- Anti-flicker: apply data-theme before first paint so --color-grey-0 resolves
+		     to the correct value immediately. Without this, dark-mode users see a white
+		     flash on cold load while JS initialises the theme store and sets data-theme. -->
+		<script>
+			(function () {
+				try {
+					var mode = localStorage.getItem('theme_mode');
+					var theme = 'light';
+					if (mode === 'dark') {
+						theme = 'dark';
+					} else if (mode !== 'light') {
+						// 'auto' or unset — follow OS preference
+						if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+							theme = 'dark';
+						}
+					}
+					document.documentElement.setAttribute('data-theme', theme);
+				} catch (e) {
+					// localStorage may be blocked (private browsing / security policy); safe to ignore
+				}
+			})();
+		</script>
 
 		<!-- Safari-specific cache control meta tags to prevent aggressive HTML caching -->
 		<!-- These ensure Safari always checks for new versions of the app -->
