@@ -49,7 +49,7 @@ export const generateCreditsLabel = (credits: number): string => {
  * Get pricing tiers with generated labels for frontend display
  * @returns Array of pricing tiers with generated labels
  */
-export const getPricingTiersWithLabels = (): PricingTier[] => {
+const getPricingTiersWithLabels = (): PricingTier[] => {
   return pricingTiers.map((tier) => ({
     ...tier,
     label: generateCreditsLabel(tier.credits), // Always generate labels dynamically
@@ -71,7 +71,7 @@ export const getPricingTiersForSignup = (currency: "eur" | "usd" = "eur") => {
   }));
 };
 
-export const getCreditsByPrice = (
+const getCreditsByPrice = (
   price: number,
   currency: "eur" | "usd",
 ): number | undefined => {
@@ -79,7 +79,7 @@ export const getCreditsByPrice = (
   return tier?.credits;
 };
 
-export const getPriceByCredits = (
+const getPriceByCredits = (
   credits: number,
   currency: "eur" | "usd",
 ): number | undefined => {

@@ -69,7 +69,7 @@ export interface MockDailyInspiration {
 	follow_up_suggestions?: string[];
 }
 
-export const MOCK_INSPIRATIONS: MockDailyInspiration[] = [
+const MOCK_INSPIRATIONS: MockDailyInspiration[] = [
 	{
 		inspiration_id: 'og-banner-1',
 		phrase: 'How cuttlefish camouflage works',

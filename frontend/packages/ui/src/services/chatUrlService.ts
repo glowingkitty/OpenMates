@@ -91,7 +91,7 @@ export function getChatIdFromUrl(): string | null {
  * Clear the chat ID from the URL
  * Convenience function that calls updateChatUrl(null)
  */
-export function clearChatUrl(): void {
+function clearChatUrl(): void {
 	updateChatUrl(null);
 }
 

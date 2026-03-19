@@ -334,7 +334,7 @@ export function getMetaTags(page: string = "home"): MetaTagConfig {
 }
 
 // Helper function to generate dynamic meta tags (e.g., for blog posts or docs)
-export function generateMetaTags(
+function generateMetaTags(
   title: string,
   description: string,
   slug: string,

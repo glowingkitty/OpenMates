@@ -88,7 +88,7 @@ export const pages: Record<string, PageConfig> = {
 /**
  * Helper function to get visible pages based on current environment
  */
-export function getVisiblePages(): PageConfig[] {
+function getVisiblePages(): PageConfig[] {
     const isDev = import.meta.env.DEV;
     return Object.values(pages).filter(page => 
         isDev ? page.inDev : page.inProd
