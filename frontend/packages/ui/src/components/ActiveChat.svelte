@@ -11551,6 +11551,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         width: 100%;
     }
 
+    /* NewChatSuggestions needs full container width so its scroll row uses
+       all available space rather than the 629px message-input max-width. */
+    .message-input-container :global(.suggestions-wrapper) {
+        max-width: 100%;
+    }
+
     /* Adjust input padding and typing indicator for narrow containers */
     .active-chat-container.narrow .message-input-container {
         padding: 10px;

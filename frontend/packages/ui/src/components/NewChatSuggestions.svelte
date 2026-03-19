@@ -567,7 +567,7 @@
     animation-delay: 200ms;
     transition: opacity 200ms ease;
     opacity: 1;
-    position: relative;
+    /* overflow-x must NOT be set here — it would clip the scroll container's cards */
   }
 
   .suggestions-wrapper.fade-out {
@@ -595,39 +595,26 @@
     to { opacity: 1; }
   }
 
-  /* Gradient fade background that extends above the suggestions to overlay
-     background content (e.g., report issue button, chat content).
-     Matches the same pattern used in FollowUpSuggestions for consistency. */
-  .suggestions-wrapper::before {
-    content: '';
-    position: absolute;
-    top: -100px;
-    bottom: -10px;
-    left: -9999px;
-    right: -9999px;
-    background: linear-gradient(to top, var(--color-grey-20) 0%, var(--color-grey-20) 60%, transparent 100%);
-    z-index: -1;
-    pointer-events: none;
-  }
-
   /* Horizontally scrollable row of suggestion cards.
-     Cards start from the left edge with consistent padding matching the header text.
-     The last card gets extra right padding so it doesn't sit flush at the edge.
-     overflow-x: auto allows swiping through all cards; scrollbar is hidden. */
+     Cards start from the left with padding matching the header text (18px).
+     overflow-x: auto enables horizontal scrolling; overflow-y must also be
+     set (not left as 'visible') since mixing overflow-x:auto with overflow-y:visible
+     forces both to auto per CSS spec, which can clip shadows. */
   .suggestions-scroll {
     display: flex;
     flex-direction: row;
-    align-items: stretch;
+    align-items: center;
     gap: 12px;
     overflow-x: auto;
-    overflow-y: visible;
+    overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
     scroll-behavior: smooth;
     scrollbar-width: none; /* Firefox */
     -ms-overflow-style: none; /* IE/Edge */
-    padding: 4px 18px 10px 18px;
-    position: relative;
-    z-index: 50;
+    /* Extra bottom padding so card drop-shadows aren't clipped */
+    padding: 4px 18px 14px 18px;
+    /* Negative bottom margin to reclaim the extra padding without affecting layout */
+    margin-bottom: -4px;
   }
 
   .suggestions-scroll::-webkit-scrollbar {
@@ -637,7 +624,8 @@
   /* Each suggestion card: rounded rectangle with app gradient background,
      icon on the left, white text on the right.
      Fixed width of 240px — wide enough for ~3 words per line, narrow enough
-     that a second card is always partially visible as a scroll affordance. */
+     that a second card is always partially visible as a scroll affordance.
+     Cards are always full-height (align-items: stretch on parent). */
   .suggestion-card {
     display: flex;
     flex-direction: row;
@@ -652,7 +640,7 @@
     border-radius: 15px;
     cursor: pointer;
     flex-shrink: 0;
-    box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.3);
     transition: transform 0.15s ease, box-shadow 0.15s ease;
   }
 
