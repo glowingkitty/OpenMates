@@ -199,13 +199,11 @@ if [[ ! -x "$PYTEST_BIN" ]]; then
 fi
 if [[ -x "$PYTEST_BIN" ]]; then
   echo "[daily-runner] Running pytest with coverage..."
-  ($PYTEST_BIN -m pytest backend/tests/test_auth_endpoints.py \
-    backend/tests/test_encryption_service.py \
-    backend/tests/test_url_validator.py \
-    backend/tests/test_model_selection.py \
-    backend/tests/test_toon_fake_tool_call_filter.py \
+  # Auto-detect: run all test_*.py in backend/tests/ excluding integration and benchmark
+  ($PYTEST_BIN -m pytest backend/tests/ \
+    -m "not integration and not benchmark" \
     --cov=backend/core/api/app --cov-report=json:"$COVERAGE_DIR/pytest-coverage.json" \
-    -q --tb=no -m "not integration" 2>/dev/null) || true
+    -q --tb=no 2>/dev/null) || true
   if [[ -f "$COVERAGE_DIR/pytest-coverage.json" ]]; then
     echo "[daily-runner] Pytest coverage saved."
   fi

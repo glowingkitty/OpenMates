@@ -153,4 +153,4 @@ python3 scripts/sessions.py check-tests --file path/to/component.svelte
 | Backend business logic | `pytest backend/apps/<app>/tests/`                                        |
 | Frontend component     | `npm run test:unit -- <component>.test.ts`                                |
 | Full user flow         | Playwright E2E via Docker                                                 |
-| Any push to dev        | GitHub Actions CI runs automatically (vitest, pytest, svelte-check, i18n) |
+| Any push to dev        | Daily test runner (`scripts/run-tests-daily.sh`) covers all suites        |

@@ -305,16 +305,6 @@ Callback props that are required for functionality (`onFullscreen`, `onClose`, `
 
 For feature/fix verification, prefer writing or extending Playwright `*.spec.ts` tests over one-off Firecrawl browser sessions. Specs are repeatable, automated, and don't consume Firecrawl API quota. Reserve Firecrawl for **debugging** when a spec fails and you need to manually investigate.
 
-### GitHub Actions CI
-
-Pushes to `dev` trigger GitHub Actions CI (`.github/workflows/ci.yml`) which runs:
-
-- Frontend: vitest unit tests, svelte-check, i18n validation
-- Backend: pytest unit tests (non-integration)
-- Failure notifications via internal API email
-
-This is lightweight and external — it does NOT replace the daily E2E cron or Vercel builds.
-
 ---
 
 ## Task Completion Summary

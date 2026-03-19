@@ -35,4 +35,4 @@ Full reference: `sessions.py context --doc testing`
 | Backend logic      | `pytest backend/apps/<app>/tests/`                  |
 | Frontend component | `npm run test:unit -- <component>.test.ts`          |
 | Full user flow     | Playwright E2E via Docker                           |
-| Any push to dev    | GitHub Actions CI runs automatically                |
+| Any push to dev    | Daily test runner covers all suites automatically   |
