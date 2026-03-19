@@ -526,7 +526,8 @@ async def _process_single_doctolib_request(
     insurance_sector = request.get("insurance_sector")  # "public" | "private" | None
     telehealth = bool(request.get("telehealth", False))
     language = request.get("language")
-    days_ahead = int(request.get("days_ahead", 7))
+    # Use "or" to handle None from Pydantic model_dump() — prevents int(None) TypeError
+    days_ahead = int(request.get("days_ahead") or 7)
     max_doctors = int(request.get("max_doctors", DEFAULT_MAX_DOCTORS))
 
     # Validate required fields

@@ -474,7 +474,8 @@ class SearchSkill(BaseSkill):
         lon: Optional[float] = req.get("lon")
         city: str = ""
         country: str = ""
-        location_str: str = req.get("location", "").strip()
+        # Use "or" to handle None from Pydantic model_dump() — prevents AttributeError on .strip()
+        location_str: str = (req.get("location") or "").strip()
 
         if lat is not None and lon is not None:
             try:

@@ -256,7 +256,8 @@ class SearchProductsSkill(BaseSkill):
         provider: str = str(req.get("provider", self.DEFAULT_PROVIDER)).strip().upper()
         max_results: int = int(req.get("max_results", 10))
         sort: str = req.get("sort", "relevance")
-        service_type: str = req.get("service_type", "DELIVERY")
+        # Use "or" to handle None from Pydantic model_dump() — prevents None reaching rewe_search()
+        service_type: str = req.get("service_type") or "DELIVERY"
         country: Optional[str] = req.get("country")
         department: Optional[str] = req.get("department")
         min_price_raw = req.get("min_price")

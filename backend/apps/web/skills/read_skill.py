@@ -339,9 +339,14 @@ class ReadSkill(BaseSkill):
         # Use sanitized URL for processing
         read_url = sanitized_url
         
-        # Extract request-specific parameters (with defaults from schema)
-        req_formats = req.get("formats", ["markdown"])
-        req_only_main_content = req.get("only_main_content", True)
+        # Extract request-specific parameters (with defaults from schema).
+        # NOTE: Pydantic model_dump() serialises Optional fields as None (not absent), so
+        # req.get(key, default) returns None when the key is present with value None.
+        # Use "or default" to treat both None and missing as "not provided".
+        req_formats = req.get("formats") or ["markdown"]
+        req_only_main_content = req.get("only_main_content")
+        if req_only_main_content is None:
+            req_only_main_content = True
         req_max_age = req.get("max_age")
         req_timeout = req.get("timeout")
         

@@ -322,8 +322,13 @@ class SearchSkill(BaseSkill):
         req_location_bias = req.get("locationBias")
         req_included_type = req.get("includedType")
         req_min_rating = req.get("minRating")
-        req_open_now = req.get("openNow", False)
-        req_include_reviews = req.get("includeReviews", False)
+        # Use "is not None" checks to handle None from Pydantic model_dump() for Optional[bool].
+        # "or False" would incorrectly convert an explicit False to False (safe), but we prefer
+        # explicit None-awareness for booleans since False is a meaningful value.
+        _raw_open_now = req.get("openNow")
+        req_open_now = _raw_open_now if _raw_open_now is not None else False
+        _raw_include_reviews = req.get("includeReviews")
+        req_include_reviews = _raw_include_reviews if _raw_include_reviews is not None else False
         
         logger.debug(f"Executing place search (id: {request_id}): query='{search_query}', page_size={req_page_size}")
         
