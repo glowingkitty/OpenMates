@@ -27,8 +27,8 @@
   import Icon from './Icon.svelte';
   import { appSkillsStore } from '../stores/appSkillsStore';
 
-  /** Maximum number of suggestion cards to display at once */
-  const VISIBLE_COUNT = 5;
+  /** Number of suggestion cards to show in the scrollable row */
+  const VISIBLE_COUNT = 10;
 
   let {
     onSuggestionClick
@@ -586,18 +586,26 @@
     pointer-events: none;
   }
 
-  /* Horizontally scrollable row of suggestion cards.
-     Scrollbar is hidden for a clean look — user scrolls via touch/trackpad. */
+  /* Horizontally scrollable row of suggestion cards — mirrors the recent-chats
+     scroll pattern: first card starts centred in the viewport, then the user
+     scrolls right to reveal the rest. Padding-left = 50% - half-card-width so
+     the first card (310px wide) lands exactly in the centre. */
   .suggestions-scroll {
     display: flex;
     flex-direction: row;
-    gap: 10px;
+    align-items: center;
+    gap: 12px;
     overflow-x: auto;
     overflow-y: hidden;
-    padding: 4px 10px 8px;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
     scrollbar-width: none; /* Firefox */
     -ms-overflow-style: none; /* IE/Edge */
-    scroll-snap-type: x mandatory;
+    /* Left padding centres the first 310px card; right padding gives breathing room at the end */
+    padding: 6px 48px 10px calc(50% - 155px);
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
     position: relative;
     z-index: 50;
   }
@@ -608,21 +616,21 @@
 
   /* Each suggestion card: rounded rectangle with app gradient background,
      icon on the left, white text on the right.
-     Dimensions from Figma: 310×56px, border-radius 15px. */
+     Fixed width of 310px (from Figma) — text wraps naturally, no truncation. */
   .suggestion-card {
     display: flex;
     flex-direction: row;
     align-items: center;
     gap: 10px;
-    min-width: 250px;
-    max-width: 310px;
-    height: 56px;
-    padding: 0 14px;
+    width: 310px;
+    min-width: 310px;
+    min-height: 56px;
+    height: auto;
+    padding: 10px 14px;
     border: none;
     border-radius: 15px;
     cursor: pointer;
     flex-shrink: 0;
-    scroll-snap-align: start;
     box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
     transition: transform 0.15s ease, box-shadow 0.15s ease;
   }
@@ -661,19 +669,16 @@
     filter: brightness(0) invert(1) !important;
   }
 
-  /* White bold text — matches Figma: Lexend Deca Bold 14px, line-height ~18px */
+  /* White bold text — matches Figma: Lexend Deca Bold 14px, line-height ~18px.
+     Text wraps naturally within the fixed 310px card — no truncation. */
   .card-text {
     color: #FFFFFF;
     font-size: 14px;
     font-weight: 700;
-    line-height: 1.28;
+    line-height: 1.3;
     text-align: left;
-    overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
-    text-overflow: ellipsis;
+    white-space: normal;
+    word-break: break-word;
   }
 
   @media (max-width: 730px) {
@@ -683,15 +688,15 @@
     }
 
     .suggestions-scroll {
-      gap: 8px;
-      padding: 4px 8px 6px;
+      gap: 10px;
+      /* Centre the first 260px card on smaller screens */
+      padding: 4px 32px 8px calc(50% - 130px);
     }
 
     .suggestion-card {
-      min-width: 220px;
-      max-width: 280px;
-      height: 52px;
-      padding: 0 12px;
+      width: 260px;
+      min-width: 260px;
+      padding: 10px 12px;
       gap: 8px;
     }
 
