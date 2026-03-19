@@ -3584,7 +3584,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // CRITICAL: Must use $state() for Svelte 5 reactivity - otherwise store subscription updates
     // won't trigger re-evaluation of $derived values that depend on this variable
     let currentTypingStatus = $state<AITypingStatus | null>(null);
-    
+
+    // True while the assistant is streaming a response for the active chat —
+    // used to apply the rainbow glow animation to the full chat container.
+    let isAssistantTyping = $derived(
+        !!(currentTypingStatus?.isTyping && currentTypingStatus.chatId === currentChat?.chat_id)
+    );
+
     // Thinking/Reasoning state for thinking models (Gemini, Anthropic Claude)
     // Map of task_id -> thinking content, streaming status, and signature metadata
     let thinkingContentByTask = $state<Map<string, { content: string; isStreaming: boolean; signature?: string | null; totalTokens?: number | null }>>(new Map());
@@ -8978,6 +8984,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     class:wide={isWide && !showSideBySideLayout}
     class:extra-wide={isExtraWide}
     class:side-by-side-active={showSideBySideLayout}
+    class:ai-typing={isAssistantTyping}
     bind:clientWidth={containerWidth}
     bind:this={activeChatContainerEl}
 >
@@ -10643,6 +10650,117 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         transition: opacity 0.3s ease;
         overflow: hidden;
         box-sizing: border-box;
+    }
+
+    /*
+     * Rainbow glow border animation while the assistant is typing.
+     * Mirrors the Apple Intelligence-style effect used in ThinkingSection.svelte,
+     * applied to the full chat container so the whole panel "lights up" during
+     * streaming. Uses the same conic-gradient ring + outer glow technique.
+     *
+     * @property declarations are required for browsers to interpolate
+     * CSS custom properties inside @keyframes (Chrome 85+, Firefox 128+, Safari 16.4+).
+     */
+    @property --chat-gradient-angle {
+        syntax: '<angle>';
+        initial-value: 0deg;
+        inherits: false;
+    }
+
+    .active-chat-container.ai-typing {
+        /* Remove static shadow — the animated pseudo-element handles the border */
+        box-shadow:
+            0 0  8px  2px rgba(255,  45,  85, 0.35),
+            0 0 18px  6px rgba(191,  90, 242, 0.22),
+            0 0 36px 12px rgba( 50, 173, 230, 0.14);
+        animation: chat-glow-shift 9s linear infinite;
+    }
+
+    /*
+     * ::before — the sharp rotating rainbow ring painted behind the container.
+     * inset: -2px grows it 2px beyond the border-radius so only the ring strip
+     * is visible (overflow:hidden on the parent clips anything further inside).
+     */
+    .active-chat-container.ai-typing::before {
+        content: '';
+        position: absolute;
+        inset: -2px;
+        border-radius: 19px; /* container radius (17px) + inset (2px) */
+        background: conic-gradient(
+            from var(--chat-gradient-angle, 0deg),
+            #ff2d55,
+            #ff6b2b,
+            #ffd60a,
+            #30d158,
+            #32ade6,
+            #bf5af2,
+            #ff375f,
+            #ff2d55
+        );
+        animation: chat-rainbow-spin 3s linear infinite;
+        z-index: 0;
+        opacity: 1;
+        filter: blur(2px);
+        pointer-events: none;
+    }
+
+    /*
+     * ::after — interior fill mask.
+     * Covers the content area with the container background so the gradient
+     * doesn't bleed into the chat. inset: 2px = the ring strip exposed above.
+     */
+    .active-chat-container.ai-typing::after {
+        content: '';
+        position: absolute;
+        inset: 2px;
+        border-radius: 15px; /* container radius (17px) - inset (2px) */
+        background: var(--color-grey-20);
+        z-index: 0;
+        pointer-events: none;
+    }
+
+    /* Ensure all content sits above the pseudo-element fill */
+    .active-chat-container.ai-typing > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    @keyframes chat-rainbow-spin {
+        from { --chat-gradient-angle: 0deg; }
+        to   { --chat-gradient-angle: 360deg; }
+    }
+
+    @keyframes chat-glow-shift {
+        0%   { box-shadow: 0 0  8px  2px rgba(255,  45,  85, 0.35), 0 0 18px  6px rgba(191,  90, 242, 0.22), 0 0 36px 12px rgba( 50, 173, 230, 0.14); }
+        16%  { box-shadow: 0 0  8px  2px rgba(255, 107,  43, 0.35), 0 0 18px  6px rgba(255,  45,  85, 0.22), 0 0 36px 12px rgba(191,  90, 242, 0.14); }
+        33%  { box-shadow: 0 0  8px  2px rgba(255, 214,  10, 0.35), 0 0 18px  6px rgba(255, 107,  43, 0.22), 0 0 36px 12px rgba(255,  45,  85, 0.14); }
+        50%  { box-shadow: 0 0  8px  2px rgba( 48, 209,  88, 0.35), 0 0 18px  6px rgba(255, 214,  10, 0.22), 0 0 36px 12px rgba(255, 107,  43, 0.14); }
+        66%  { box-shadow: 0 0  8px  2px rgba( 50, 173, 230, 0.35), 0 0 18px  6px rgba( 48, 209,  88, 0.22), 0 0 36px 12px rgba(255, 214,  10, 0.14); }
+        83%  { box-shadow: 0 0  8px  2px rgba(191,  90, 242, 0.35), 0 0 18px  6px rgba( 50, 173, 230, 0.22), 0 0 36px 12px rgba( 48, 209,  88, 0.14); }
+        100% { box-shadow: 0 0  8px  2px rgba(255,  45,  85, 0.35), 0 0 18px  6px rgba(191,  90, 242, 0.22), 0 0 36px 12px rgba( 50, 173, 230, 0.14); }
+    }
+
+    /* Dark mode: wider bloom radius and slightly stronger opacity */
+    :global(.dark) .active-chat-container.ai-typing {
+        box-shadow:
+            0 0 12px  4px rgba(255,  45,  85, 0.45),
+            0 0 24px  8px rgba(191,  90, 242, 0.30),
+            0 0 44px 14px rgba( 50, 173, 230, 0.18);
+        animation: chat-glow-shift-dark 9s linear infinite;
+    }
+
+    :global(.dark) .active-chat-container.ai-typing::after {
+        background: var(--color-grey-20);
+    }
+
+    @keyframes chat-glow-shift-dark {
+        0%   { box-shadow: 0 0 12px  4px rgba(255,  45,  85, 0.45), 0 0 24px  8px rgba(191,  90, 242, 0.30), 0 0 44px 14px rgba( 50, 173, 230, 0.18); }
+        16%  { box-shadow: 0 0 12px  4px rgba(255, 107,  43, 0.45), 0 0 24px  8px rgba(255,  45,  85, 0.30), 0 0 44px 14px rgba(191,  90, 242, 0.18); }
+        33%  { box-shadow: 0 0 12px  4px rgba(255, 214,  10, 0.45), 0 0 24px  8px rgba(255, 107,  43, 0.30), 0 0 44px 14px rgba(255,  45,  85, 0.18); }
+        50%  { box-shadow: 0 0 12px  4px rgba( 48, 209,  88, 0.45), 0 0 24px  8px rgba(255, 214,  10, 0.30), 0 0 44px 14px rgba(255, 107,  43, 0.18); }
+        66%  { box-shadow: 0 0 12px  4px rgba( 50, 173, 230, 0.45), 0 0 24px  8px rgba( 48, 209,  88, 0.30), 0 0 44px 14px rgba(255, 214,  10, 0.18); }
+        83%  { box-shadow: 0 0 12px  4px rgba(191,  90, 242, 0.45), 0 0 24px  8px rgba( 50, 173, 230, 0.30), 0 0 44px 14px rgba( 48, 209,  88, 0.18); }
+        100% { box-shadow: 0 0 12px  4px rgba(255,  45,  85, 0.45), 0 0 24px  8px rgba(191,  90, 242, 0.30), 0 0 44px 14px rgba( 50, 173, 230, 0.18); }
     }
 
     /* Responsive adjustments for narrow and medium containers */
