@@ -1,0 +1,28 @@
+# OG image for general social sharing (Twitter, LinkedIn, Facebook)
+# 1200x630px — same dimensions, can use different scenarios
+
+template: og-social
+format: og
+width: 1200
+height: 630
+
+brand:
+  headline: "Digital team mates"
+  subtitle: "For everyone."
+  features:
+    - "AI for everyday tasks & learning"
+    - "Privacy focus"
+    - "No subscription"
+    - "Fair pay per use"
+
+phone:
+  scenario: cooking-chat
+  screen_width: 220
+  screen_height: 430
+  scale: 0.52
+
+laptop:
+  scenario: code-review-chat
+  screen_width: 560
+  screen_height: 340
+  scale: 0.58

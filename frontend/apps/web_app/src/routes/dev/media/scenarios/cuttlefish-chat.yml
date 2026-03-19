@@ -1,0 +1,30 @@
+# Chat scenario: Cuttlefish color change question
+# Used in OG images and social media templates.
+# Edit this file to change the chat content shown in device mockups.
+
+name: Cuttlefish Chat
+description: A conversation about how cuttlefish change color
+
+messages:
+  - role: user
+    content: "How do cuttlefish change color so fast?"
+
+  - role: assistant
+    category: general_knowledge
+    content: |
+      Cuttlefish use specialised skin cells called **chromatophores** — tiny sacs of pigment controlled by muscles. When the muscles contract, pigment spreads across the cell surface, changing colour in under a second.
+
+      They also have:
+      - **Iridophores** — reflective cells that create iridescent blues and greens
+      - **Leucophores** — white-reflecting cells for brightness control
+      - **Papillae** — muscles that change skin texture to mimic coral or sand
+
+  - role: user
+    content: "Can they see colour themselves?"
+
+  - role: assistant
+    category: general_knowledge
+    content: |
+      Surprisingly, cuttlefish are **colour-blind** — they only have one type of photoreceptor. But they can perceive the *polarisation* of light, which may help them detect contrast and patterns in ways we can't.
+
+      Researchers think they match colours by adjusting chromatophores until the brightness and pattern of their skin matches the surroundings, rather than directly "seeing" colour.

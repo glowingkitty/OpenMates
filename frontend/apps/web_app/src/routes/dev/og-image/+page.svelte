@@ -65,6 +65,12 @@
 
 	onMount(async () => {
 		if (!browser) return;
+
+		// Force dark theme so ChatMessage CSS variables resolve correctly.
+		// The device mockup backgrounds are hardcoded dark (#1a1a1a), so
+		// ChatMessage text must use dark-theme colors (light text).
+		document.documentElement.setAttribute('data-theme', 'dark');
+
 		try {
 			await waitForTranslations();
 		} catch {

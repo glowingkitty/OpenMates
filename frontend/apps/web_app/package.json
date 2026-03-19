@@ -19,7 +19,8 @@
 	"dependencies": {
 		"@fontsource-variable/lexend-deca": "^5.2.9",
 		"@repo/ui": "workspace:*",
-		"svelte-i18n": "^4.0.1"
+		"svelte-i18n": "^4.0.1",
+		"yaml": "^2.8.1"
 	},
 	"devDependencies": {
 		"@playwright/test": "^1.49.0",

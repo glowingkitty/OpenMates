@@ -1,0 +1,19 @@
+# Instagram single post — 1080x1080px square
+# Phone mockup centered with brand info above
+
+template: instagram-single
+format: instagram-square
+width: 1080
+height: 1080
+
+brand:
+  headline: "Digital team mates"
+  subtitle: "For everyone."
+  headline_size: "2.25rem"
+  features: []
+
+phone:
+  scenario: cuttlefish-chat
+  screen_width: 280
+  screen_height: 560
+  scale: 0.55

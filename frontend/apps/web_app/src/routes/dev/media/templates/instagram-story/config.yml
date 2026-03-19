@@ -1,0 +1,22 @@
+# Instagram Story — 1080x1920px vertical format
+# Full-screen phone mockup with brand header
+
+template: instagram-story
+format: instagram-story
+width: 1080
+height: 1920
+
+brand:
+  headline: "Your AI team mates"
+  subtitle: "Always ready."
+  headline_size: "2.5rem"
+  features:
+    - "Ask anything"
+    - "Get expert help"
+    - "Privacy first"
+
+phone:
+  scenario: cuttlefish-chat
+  screen_width: 340
+  screen_height: 680
+  scale: 0.6
