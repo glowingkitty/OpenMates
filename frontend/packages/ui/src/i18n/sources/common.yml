@@ -77,7 +77,7 @@ not_found.ask_ai_label:
 
 not_found.ask_ai_message:
   context: Pre-filled message sent to AI when the user clicks Ask AI on the 404 screen, {topic} is the humanized failed URL path
-  en: "Tell me more about '{topic}'"
-  de: "Erzähl mir mehr über '{topic}'"
-  he: "ספר לי עוד על '{topic}'"
+  en: "Tell me more about ''{topic}''"
+  de: "Erzähl mir mehr über ''{topic}''"
+  he: "ספר לי עוד על ''{topic}''"
   verified_by_human: []
