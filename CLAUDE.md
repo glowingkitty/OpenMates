@@ -41,6 +41,7 @@ python3 scripts/sessions.py start --mode <MODE> --task "brief description"
 #   python3 scripts/sessions.py start --mode bug --task "fix vercel" --vercel          # latest deployment status + errors
 #   python3 scripts/sessions.py start --mode bug --task "..." --error-since 14         # error trend lookback (default: 7 days)
 #   python3 scripts/sessions.py start --mode testing --task "debug test run" --run-id <RUN_ID>  # daily test run context
+#   python3 scripts/sessions.py start --mode feature --task "..." --since-last-deploy  # show commits + changed files since last deploy
 #
 # All flags auto-add relevant tags AND inline the fetched data into the session output.
 
@@ -194,7 +195,13 @@ If you hit a failure **not related to your task**: STOP. Check `git log -5 -- <b
 
 ### Debugging Attempt Limit
 
-**2 tries max** with the same approach. Then STOP, summarize, ask user how to proceed.
+**2 tries max** with the same approach. Minor variations (different field name, different time window, different log service) count as the same approach.
+
+On the 3rd attempt:
+1. **STOP** — do not retry with another variation.
+2. Run `sessions.py context --doc debugging` to re-read the full debugging guide.
+3. Explicitly state the **new approach** and why it differs from the previous two.
+4. Ask the user for confirmation before continuing.
 
 ### Concurrent Sessions
 
@@ -205,7 +212,16 @@ If you hit a failure **not related to your task**: STOP. Check `git log -5 -- <b
 
 ### Auto-Commit After Every Task
 
-Always commit and push to `dev` after completing work. Use `sessions.py deploy`. Track all modified files first. For significant routing/Vite config changes, also run `pnpm build` in `frontend/apps/web_app/`.
+**Always use `sessions.py deploy` — never raw `git commit`.** Track all modified files first, then:
+
+```bash
+python3 scripts/sessions.py deploy-docs
+python3 scripts/sessions.py deploy --session <ID> --title "type: description" --message "body" --end
+```
+
+- For significant routing/Vite config changes, also run `pnpm build` in `frontend/apps/web_app/` before deploying.
+- If `deploy` fails due to a **pre-existing hook bug** (e.g. `set -u` unbound variable in the hook, unrelated to your change), use `sessions.py deploy --no-verify` — **not** raw `git commit --no-verify`. Add a backlog entry to track the hook bug.
+- **Never** use `git commit` directly — it bypasses session tracking and loses the deploy SHA record needed for `--since-last-deploy`.
 
 ### Research Before New Integrations
 

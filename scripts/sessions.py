@@ -1709,7 +1709,6 @@ def cmd_start(args: argparse.Namespace) -> None:
 
     # ── Workflow script modification notice ────────────────────────────────
     if workflow_dirty:
-        unowned = [f for f in workflow_dirty if f not in owned_by]
         for wf in workflow_dirty:
             owner = owned_by.get(wf)
             if owner:

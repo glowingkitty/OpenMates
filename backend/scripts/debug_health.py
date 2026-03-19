@@ -1026,6 +1026,105 @@ async def _print_error_fingerprints(top: int = 10, indent: str = "") -> None:
         print(f"{indent}{_c(DIM, f'Error fingerprints unavailable: {exc}')}")
 
 
+async def show_error_diff_since_deploy(top: int = 10) -> None:
+    """Compare error fingerprints from before vs after the last sessions.py deploy.
+
+    Reads the last_deploy_sha from .claude/sessions.json to find the deploy
+    timestamp, then queries OpenObserve for errors in two windows:
+      - BEFORE: errors that existed before the deploy timestamp (pre-existing)
+      - AFTER: errors that appeared after the deploy (potentially introduced)
+
+    Design intent: helps identify regressions without manual time-window guessing.
+    """
+    import json
+    import os as _os
+    import subprocess
+
+    # ── Find last deploy SHA and timestamp ─────────────────────────────────
+    sessions_file = _os.path.join(
+        _os.path.dirname(_os.path.abspath(__file__)),
+        "..", "..", ".claude", "sessions.json"
+    )
+    last_sha = ""
+    deploy_ts = None
+    if _os.path.exists(sessions_file):
+        try:
+            with open(sessions_file) as f:
+                sessions_data = json.load(f)
+            last_sha = sessions_data.get("last_deploy_sha", "")
+        except Exception:
+            pass
+
+    if last_sha:
+        project_root = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", "..")
+        result = subprocess.run(
+            ["git", "show", "-s", "--format=%ci", last_sha],
+            capture_output=True, text=True, timeout=10, cwd=project_root,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            from datetime import datetime
+            try:
+                # Git outputs: "2026-03-18 14:30:00 +0000"
+                ts_str = result.stdout.strip().split("\n")[0]
+                deploy_ts = datetime.fromisoformat(ts_str.replace(" +0000", "+00:00"))
+            except Exception:
+                pass
+
+    if not deploy_ts:
+        print("No previous deploy found in .claude/sessions.json.")
+        print("Run sessions.py deploy first, then use --diff to compare.")
+        print()
+        print("Falling back to standard error fingerprints:")
+        await show_error_fingerprints(top=top)
+        return
+
+    # ── Query errors before and after deploy ──────────────────────────────
+    from datetime import timezone
+    now = datetime.now(timezone.utc)
+    deploy_minutes_ago = int((now - deploy_ts).total_seconds() / 60)
+
+    # Errors in window: [deploy_ts - 30min, deploy_ts] = "before"
+    before_window = 30  # minutes before deploy to sample
+    print(_section(f"Error Diff Since Deploy ({last_sha[:9]}, {deploy_minutes_ago}m ago)"))
+
+    before_errors = await _openobserve_recent_errors(
+        limit=100, since_minutes=deploy_minutes_ago + before_window
+    )
+    after_errors = await _openobserve_recent_errors(
+        limit=100, since_minutes=deploy_minutes_ago
+    )
+
+    def _fingerprint_error(err: dict) -> str:
+        msg = (err.get("message", "") or "")[:80]
+        svc = err.get("service", "?")
+        return f"{svc}:{msg}"
+
+    before_fps = {_fingerprint_error(e) for e in before_errors}
+    after_fps = {_fingerprint_error(e) for e in after_errors}
+
+    new_fps = after_fps - before_fps
+    existing_fps = after_fps & before_fps
+
+    if new_fps:
+        print(f"  NEW since deploy ({len(new_fps)} error pattern(s)):")
+        for fp in sorted(new_fps)[:top]:
+            print(f"    ✗ {fp}")
+    else:
+        print("  NEW since deploy: none")
+
+    print()
+    if existing_fps:
+        print(f"  PRE-EXISTING (also in before-window, {len(existing_fps)} pattern(s)):")
+        for fp in sorted(existing_fps)[:top]:
+            print(f"    ~ {fp}")
+    else:
+        print("  PRE-EXISTING: none found in before-window")
+
+    print()
+    print(f"  Window: before={before_window}m pre-deploy, after={deploy_minutes_ago}m post-deploy")
+    print("  Full errors: debug.py errors --compact | debug.py errors --top 20")
+
+
 async def show_error_fingerprints(top: int = 10) -> None:
     """Main entrypoint for `debug.py errors` subcommand."""
     print(_section("Error Fingerprints (7d rolling)"))
@@ -1219,6 +1318,18 @@ async def _async_main():
         "--since", type=int, default=30,
         help="Look back N minutes for recent errors (default: 30). Used with --compact.",
     )
+    errors_p.add_argument(
+        "--diff",
+        action="store_true",
+        help="Compare error fingerprints from before vs after the last deployed commit. "
+        "Shows which errors are NEW since last deploy vs which are pre-existing.",
+    )
+    errors_p.add_argument(
+        "--since-deploy",
+        action="store_true",
+        dest="since_deploy",
+        help="Alias for --diff. Show new errors introduced since last sessions.py deploy.",
+    )
 
     args = parser.parse_args()
 
@@ -1233,7 +1344,10 @@ async def _async_main():
     elif args.command == "replay":
         await replay_request(request_id=args.request_id)
     elif args.command == "errors":
-        if args.compact:
+        use_diff = getattr(args, 'diff', False) or getattr(args, 'since_deploy', False)
+        if use_diff:
+            await show_error_diff_since_deploy(top=args.top)
+        elif args.compact:
             overview = await get_error_overview_compact(top=args.top, since_minutes=args.since)
             print(overview)
         else:

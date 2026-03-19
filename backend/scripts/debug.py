@@ -27,6 +27,8 @@ Commands:
   demo            Demo chat state
   replay          Replay a request trace from OpenObserve
   errors          Top error fingerprints
+    --diff          Compare errors before vs after last sessions.py deploy (new vs pre-existing)
+    --since-deploy  Alias for --diff
   issues          List recent issues with optional git commit cross-reference
     --since <H>     Look back N hours (default: 24)
     --check-commits Check if each issue ID appears in git commit history

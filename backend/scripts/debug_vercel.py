@@ -393,6 +393,13 @@ def main() -> None:
         help="Maximum build log events to fetch across pagination (default: 5000). "
         "Increase if build logs appear truncated.",
     )
+    parser.add_argument(
+        "--status-only",
+        dest="status_only",
+        action="store_true",
+        help="Print a single-line status summary (e.g. '✓ Ready (a5449792)' or "
+        "'✗ ERROR (dpl_xyz...)') for embedding in session headers. No build log.",
+    )
     args = parser.parse_args()
 
     token = _get_token()
@@ -414,6 +421,28 @@ def main() -> None:
     else:
         print(f"  Mode    : errors + warnings only  {DIM}(--all for full){RESET}")
     print()
+
+    if getattr(args, 'status_only', False):
+        # One-liner status for embedding in session headers
+        try:
+            deployments = _list_deployments(token, team_id, project_id, limit=1)
+            if deployments:
+                dep = deployments[0]
+                status = dep.get("state", dep.get("readyState", "?"))
+                sha = str(dep.get("meta", {}).get("githubCommitSha", ""))[:9] or dep.get("uid", "?")[:12]
+                if status in ("READY", "ready"):
+                    print(f"✓ Ready ({sha})")
+                elif status in ("ERROR", "error"):
+                    print(f"✗ ERROR ({sha})")
+                elif status in ("BUILDING", "building", "INITIALIZING"):
+                    print(f"⟳ Building ({sha})")
+                else:
+                    print(f"? {status} ({sha})")
+            else:
+                print("? No deployments found")
+        except Exception:
+            pass  # Silently fail — one-liner is best-effort
+        return
 
     try:
         inspect_deployment(

@@ -48,6 +48,8 @@ Options:
     --include-processed Include processed issues in --list results
     --delete            Delete the issue (Directus + S3). Use after confirming the issue is fixed.
     --yes               Skip confirmation when using --delete (required for non-interactive use)
+    --related-commits   Search git history for commits related to this issue by keywords from title/description.
+                        Shows matching commits and which files they touched.
     --production        Fetch data from the production Admin Debug API instead of local Directus
     --dev               Fetch data from the dev Admin Debug API (implies --production)
 """
@@ -1697,6 +1699,64 @@ def format_detail_json(
     return json.dumps(output, indent=2, default=str)
 
 
+def _find_related_commits_for_issue(title: str, description: str = "", n_commits: int = 50) -> list:
+    """Search git history for commits related to an issue by title/description keywords.
+
+    Extracts significant words from title and description, then runs git log --grep
+    for each keyword. Returns a deduplicated list of (sha, message, files) tuples.
+
+    Design intent: helps avoid re-investigating known patterns and identifies prior fixes.
+    """
+    import re as _re
+    import subprocess
+
+    # Extract keywords: words >= 5 chars, no common stop words
+    _stop_words = {
+        "should", "could", "would", "when", "there", "where", "which",
+        "broken", "bugfix", "issue", "error", "wrong", "fixed", "added",
+        "updated", "button", "click", "modal", "shows", "display", "render",
+    }
+    text = f"{title} {description}".lower()
+    words = _re.findall(r'[a-z][a-z0-9]{4,}', text)
+    keywords = [w for w in set(words) if w not in _stop_words][:6]  # limit to 6
+
+    # Also add issue ID substrings (first 8 chars of UUIDs found in text)
+    uuid_parts = _re.findall(r'[0-9a-f]{8}', text)
+    keywords += uuid_parts[:2]
+
+    if not keywords:
+        return []
+
+    # Determine project root relative to this script
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.join(script_dir, "..", "..")
+
+    found: dict[str, dict] = {}
+    for keyword in keywords:
+        try:
+            result = subprocess.run(
+                ["git", "log", f"--max-count={n_commits}", "--oneline",
+                 "--grep", keyword, "--ignore-case"],
+                capture_output=True, text=True, timeout=10,
+                cwd=project_root,
+            )
+            for line in result.stdout.strip().splitlines():
+                sha = line.split(" ", 1)[0]
+                if sha not in found:
+                    msg = line
+                    # Get files touched
+                    files_result = subprocess.run(
+                        ["git", "diff-tree", "--no-commit-id", "-r", "--name-only", sha],
+                        capture_output=True, text=True, timeout=5, cwd=project_root,
+                    )
+                    files = files_result.stdout.strip().splitlines()[:5]
+                    found[sha] = {"msg": msg, "files": files, "matched_kw": keyword}
+        except Exception:
+            continue
+
+    return list(found.values())[:8]  # cap at 8 results
+
+
 async def main():
     """Main function that inspects an issue or lists issues."""
     parser = argparse.ArgumentParser(
@@ -1805,6 +1865,13 @@ async def main():
         help='Output a condensed summary: metadata, key findings, runtime state, '
         'last 5 user actions. Skips raw HTML (messages, sidebar). '
         'Used by sessions.py for inline issue context.'
+    )
+    parser.add_argument(
+        '--related-commits',
+        action='store_true',
+        help='Search git history for commits related to this issue by extracting '
+        'keywords from the issue title and description. Shows matching commits '
+        'and files they touched. Useful for finding prior fixes to similar issues.'
     )
 
     args = parser.parse_args()
@@ -2166,6 +2233,24 @@ async def main():
                             full_logs=args.full_logs,
                             screenshot_presigned_url=screenshot_presigned_url
                         ))
+
+                    # --related-commits: search git history for prior related fixes
+                    if getattr(args, 'related_commits', False) and issue:
+                        title = decrypted.get('title', '') or issue.get('title', '') or ''
+                        description = decrypted.get('description', '') or ''
+                        related = _find_related_commits_for_issue(title, description)
+                        print()
+                        print("═" * 60)
+                        if related:
+                            print(f"Related commits ({len(related)} found):")
+                            for r in related:
+                                print(f"  {r['msg']}")
+                                for f in r['files']:
+                                    print(f"    {f}")
+                                print(f"    (matched keyword: {r['matched_kw']})")
+                        else:
+                            print("Related commits: none found in last 50 commits.")
+                        print("═" * 60)
 
         except Exception as e:
             script_logger.error(f"Error during inspection: {e}", exc_info=True)
