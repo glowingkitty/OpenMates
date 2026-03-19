@@ -8,7 +8,7 @@
 # breakage is caught immediately by tests.
 #
 # Processing logic:
-#   1. Run find_dead_code.py --json --limit MAX_FINDINGS_PER_CAT to get candidates
+#   1. Run find_dead_code.py --json --limit MAX_FINDINGS_PER_CAT (100) to get candidates
 #   2. Skip run if total findings == 0 (nothing to do)
 #   3. Skip run if HEAD SHA unchanged since last run (no new commits → no new dead code)
 #   4. Cap to MAX_FINDINGS total (prefer high-confidence items first)
@@ -34,8 +34,8 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 STATE_FILE="$SCRIPT_DIR/.dead-code-removal-state.json"
 PROMPT_TEMPLATE="$SCRIPT_DIR/prompts/dead-code-removal.md"
 
-MAX_FINDINGS_PER_CAT=15   # per-category limit fed to find_dead_code.py
-MAX_FINDINGS_TOTAL=50     # hard cap on items sent to opencode in one session
+MAX_FINDINGS_PER_CAT=100  # per-category limit fed to find_dead_code.py
+MAX_FINDINGS_TOTAL=300    # hard cap on items sent to opencode in one session
 
 # Source .env if present
 if [[ -f "$PROJECT_ROOT/.env" ]]; then
@@ -99,16 +99,21 @@ export CURRENT_SHA
 TODAY_DATE=$(date -u '+%Y-%m-%d')
 export TODAY_DATE
 
-# Collect JSON output from find_dead_code.py and pass to helper
-FINDINGS_JSON=$(python3 "$SCRIPT_DIR/find_dead_code.py" \
+# Collect JSON output from find_dead_code.py and write to temp file
+# (avoids ARG_MAX / env-var size limits when findings count is large)
+FINDINGS_TMP="$SCRIPT_DIR/.tmp/dead-code-findings-$$.json"
+mkdir -p "$SCRIPT_DIR/.tmp"
+python3 "$SCRIPT_DIR/find_dead_code.py" \
   --json \
   --limit "$MAX_FINDINGS_PER_CAT" \
   $( [[ "$CATEGORY" != "all" ]] && echo "--category $CATEGORY" || true ) \
-  )
+  > "$FINDINGS_TMP"
 
-export FINDINGS_JSON_B64
-FINDINGS_JSON_B64=$(echo "$FINDINGS_JSON" | base64 -w 0)
+export FINDINGS_FILE="$FINDINGS_TMP"
+# Clear the old base64 env var transport path
+unset FINDINGS_JSON_B64
 
 python3 "$SCRIPT_DIR/_dead_code_removal_helper.py" run
+rm -f "$FINDINGS_TMP"
 
 echo "[dead-code] Nightly dead code removal complete at $(date -u '+%Y-%m-%dT%H:%M:%SZ')"

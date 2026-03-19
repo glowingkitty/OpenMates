@@ -16,7 +16,7 @@ Environment variables (set by the shell script):
     PROJECT_ROOT            — absolute repo root path
     DRY_RUN                 — "true" to skip actual opencode invocation
     PROMPT_TEMPLATE_PATH    — path to scripts/prompts/dead-code-removal.md
-    MAX_FINDINGS_TOTAL      — hard cap on items sent to opencode (default: 50)
+    MAX_FINDINGS_TOTAL      — hard cap on items sent to opencode (default: 300)
     CURRENT_SHA             — current HEAD SHA (written to state after run)
     TODAY_DATE              — current date as YYYY-MM-DD
 
@@ -139,12 +139,14 @@ def _format_findings_body(items: list[dict]) -> str:
 
 def run() -> None:
     """Main entry point."""
+    # Findings transport: prefer file path (FINDINGS_FILE) over legacy base64 env var
+    findings_file = os.environ.get("FINDINGS_FILE", "")
     findings_b64 = os.environ.get("FINDINGS_JSON_B64", "")
     state_file = os.environ.get("STATE_FILE_PATH", "")
     project_root = os.environ.get("PROJECT_ROOT", "")
     dry_run = os.environ.get("DRY_RUN", "false").lower() == "true"
     prompt_template_path = os.environ.get("PROMPT_TEMPLATE_PATH", "")
-    max_total = int(os.environ.get("MAX_FINDINGS_TOTAL", "50"))
+    max_total = int(os.environ.get("MAX_FINDINGS_TOTAL", "300"))
     current_sha = os.environ.get("CURRENT_SHA", "unknown")
     today_date = os.environ.get("TODAY_DATE", datetime.now(timezone.utc).strftime("%Y-%m-%d"))
 
@@ -152,10 +154,14 @@ def run() -> None:
         print("[dead-code] ERROR: STATE_FILE_PATH not set.", file=sys.stderr)
         sys.exit(1)
 
-    # Decode findings
+    # Load findings — from temp file (new path) or base64 env var (legacy fallback)
     try:
-        findings_json = base64.b64decode(findings_b64).decode("utf-8")
-        data = json.loads(findings_json)
+        if findings_file:
+            with open(findings_file) as fh:
+                data = json.load(fh)
+        else:
+            findings_json = base64.b64decode(findings_b64).decode("utf-8")
+            data = json.loads(findings_json)
         all_items: list[dict] = data.get("items", [])
     except Exception as e:
         print(f"[dead-code] ERROR: Could not parse findings JSON: {e}", file=sys.stderr)

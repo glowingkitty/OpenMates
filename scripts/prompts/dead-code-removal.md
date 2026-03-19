@@ -16,7 +16,7 @@ Remove the dead code listed below from the OpenMates codebase.
 8. **Do not touch deprecated shims** — items with `DEPRECATED` in their docstring are kept for backwards compatibility unless explicitly listed below.
 9. After all changes, run the following to verify no regressions:
    - Python: `ruff check --select F401,F841 backend/ --exclude "*.ipynb"`
-   - Frontend: `cd frontend && pnpm --filter @openmates/web_app exec svelte-check --threshold warning 2>&1 | tail -5`
+   - Frontend: `cd frontend/apps/web_app && pnpm exec svelte-check --threshold warning 2>&1 | tail -5`
 10. **Commit each category** using `python3 scripts/sessions.py deploy` with title `chore: remove dead <category> code (automated)` — do NOT push to main.
 
 ## Dead code to remove
