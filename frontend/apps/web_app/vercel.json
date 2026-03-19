@@ -1,7 +1,5 @@
 {
-	"env": {
-		"ENABLE_EXPERIMENTAL_COREPACK": "1"
-	},
+	"installCommand": "cd ../.. && pnpm install --no-frozen-lockfile",
 	"rewrites": [
 		{
 			"source": "/dev/:path*",
