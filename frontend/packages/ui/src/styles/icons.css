@@ -50,7 +50,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: var(--color-primary);
+    background: var(--icon-color, var(--color-primary));
     -webkit-mask-size: 50%;
     mask-size: 50%;
     -webkit-mask-repeat: no-repeat;
@@ -126,6 +126,15 @@
 }
 .subsetting_icon.chat {
   --icon-mask-image: url("@openmates/ui/static/icons/chat.svg");
+}
+.subsetting_icon.secrets {
+  --icon-mask-image: url("@openmates/ui/static/icons/lock.svg");
+}
+.subsetting_icon.travel {
+  --icon-mask-image: url("@openmates/ui/static/icons/travel.svg");
+}
+.subsetting_icon.legal {
+  --icon-mask-image: url("@openmates/ui/static/icons/legal.svg");
 }
 .subsetting_icon.cloud {
   --icon-mask-image: url("@openmates/ui/static/icons/cloud.svg");
