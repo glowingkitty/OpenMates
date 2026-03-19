@@ -333,10 +333,6 @@ div.clickable-icon {
   mask-image: url("@openmates/ui/static/icons/current_location.svg");
 }
 
-.clickable-icon.icon_play {
-  -webkit-mask-image: url("@openmates/ui/static/icons/play.svg");
-  mask-image: url("@openmates/ui/static/icons/play.svg");
-}
 
 .clickable-icon.icon_pause {
   -webkit-mask-image: url("@openmates/ui/static/icons/pause.svg");
@@ -348,11 +344,6 @@ div.clickable-icon {
   mask-image: url("@openmates/ui/static/icons/stop_processing.svg");
 }
 
-
-.clickable-icon.icon_minus {
-  -webkit-mask-image: url("@openmates/ui/static/icons/minus.svg");
-  mask-image: url("@openmates/ui/static/icons/minus.svg");
-}
 
 .clickable-icon.icon_mail {
   -webkit-mask-image: url("@openmates/ui/static/icons/mail.svg");
@@ -466,10 +457,6 @@ div.clickable-icon {
   mask-image: url("@openmates/ui/static/icons/coins.svg");
 }
 
-.clickable-icon.icon_calendar {
-  -webkit-mask-image: url("@openmates/ui/static/icons/calendar.svg");
-  mask-image: url("@openmates/ui/static/icons/calendar.svg");
-}
 
 .clickable-icon.icon_lock {
   -webkit-mask-image: url("@openmates/ui/static/icons/lock.svg");
@@ -534,20 +521,12 @@ div.clickable-icon {
   mask-image: url("@openmates/ui/static/icons/announcement.svg");
 }
 
-.clickable-icon.icon_cloud {
-  -webkit-mask-image: url("@openmates/ui/static/icons/cloud.svg");
-  mask-image: url("@openmates/ui/static/icons/cloud.svg");
-}
 
 .clickable-icon.icon_check {
   -webkit-mask-image: url("@openmates/ui/static/icons/check.svg");
   mask-image: url("@openmates/ui/static/icons/check.svg");
 }
 
-.clickable-icon.icon_logout {
-  -webkit-mask-image: url("@openmates/ui/static/icons/logout.svg");
-  mask-image: url("@openmates/ui/static/icons/logout.svg");
-}
 
 .clickable-icon.icon_reload {
   -webkit-mask-image: url("@openmates/ui/static/icons/reload.svg");
@@ -914,9 +893,6 @@ div.clickable-icon {
   background-image: url("@openmates/ui/static/icons/mastodon.svg");
 }
 
-.icon_slack {
-  background-image: url("@openmates/ui/static/icons/slack.svg");
-}
 
 .icon_web {
   background-image: url("@openmates/ui/static/icons/web.svg");
@@ -926,9 +902,6 @@ div.clickable-icon {
   background-image: url("@openmates/ui/static/icons/github.svg");
 }
 
-.icon_opencollective {
-  background-image: url("@openmates/ui/static/icons/opencollective.svg");
-}
 
 .icon_calendar {
   background-image: url("@openmates/ui/static/icons/calendar.svg");
@@ -938,9 +911,6 @@ div.clickable-icon {
   background-image: url("@openmates/ui/static/icons/eu.svg");
 }
 
-.icon_us {
-  background-image: url("@openmates/ui/static/icons/us.svg");
-}
 
 .icon_lock {
   background-image: url("@openmates/ui/static/icons/lock.svg");
@@ -970,9 +940,6 @@ div.clickable-icon {
   background-image: url("@openmates/ui/static/icons/chat.svg");
 }
 
-.icon_open {
-  background-image: url("@openmates/ui/static/icons/open.svg");
-}
 
 /* OpenMates Endpoint Icons */
 
@@ -1466,19 +1433,7 @@ div.clickable-icon {
   }
 }
 
-.icon.app-beauty {
-  background: var(--color-app-beauty);
-  &::before {
-    background-image: url("@openmates/ui/static/icons/beauty.svg");
-  }
-}
 
-.icon.app-books {
-  background: var(--color-app-books);
-  &::before {
-    background-image: url("@openmates/ui/static/icons/book.svg");
-  }
-}
 
 .icon.app-business {
   background: var(--color-app-business);
