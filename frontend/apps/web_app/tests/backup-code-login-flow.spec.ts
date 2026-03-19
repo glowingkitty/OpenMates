@@ -60,7 +60,7 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	attachNetworkListeners(page);
 
 	test.slow();
-	test.setTimeout(240000); // Extra time for TOTP window wait + backup code flow
+	test.setTimeout(360000); // Extra time for TOTP window waits (2 logins + 2FA setup) + full flow
 
 	const logCheckpoint = createSignupLogger('BACKUP_CODE_FLOW');
 	const takeStepScreenshot = createStepScreenshotter(logCheckpoint, {
@@ -208,7 +208,13 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	expect(newTfaSecret, 'Expected a new 2FA secret.').toBeTruthy();
 	logCheckpoint('Got new 2FA secret from setup page.');
 
-	// Enter new OTP based on new secret
+	// Enter new OTP based on new secret — wait for fresh window to avoid boundary expiry
+	const setupSecondsIntoWindow = Math.floor(Date.now() / 1000) % 30;
+	if (setupSecondsIntoWindow > 27) {
+		const setupMsToWait = (30 - setupSecondsIntoWindow) * 1000 + 3000;
+		logCheckpoint(`Waiting ${setupMsToWait}ms for fresh TOTP window before 2FA setup...`);
+		await page.waitForTimeout(setupMsToWait);
+	}
 	const setupOtp = generateTotp(newTfaSecret);
 	await otpSetupInput.fill(setupOtp);
 	logCheckpoint('Entered OTP for new 2FA secret.');

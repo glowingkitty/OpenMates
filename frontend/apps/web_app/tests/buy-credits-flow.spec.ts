@@ -28,7 +28,12 @@ export {};
  * - OPENMATES_TEST_ACCOUNT_OTP_KEY
  */
 
-const { test, expect } = require('@playwright/test');
+const {
+	test,
+	expect,
+	attachConsoleListeners,
+	attachNetworkListeners
+} = require('./console-monitor');
 const {
 	createSignupLogger,
 	archiveExistingScreenshots,
@@ -38,26 +43,6 @@ const {
 	getTestAccount,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
-
-const consoleLogs: string[] = [];
-const networkActivities: string[] = [];
-
-test.beforeEach(async () => {
-	consoleLogs.length = 0;
-	networkActivities.length = 0;
-});
-
-// eslint-disable-next-line no-empty-pattern
-test.afterEach(async ({}, testInfo: any) => {
-	if (testInfo.status !== 'passed') {
-		console.log('\n--- DEBUG INFO ON FAILURE ---');
-		console.log('\n[RECENT CONSOLE LOGS]');
-		consoleLogs.slice(-30).forEach((log: string) => console.log(log));
-		console.log('\n[RECENT NETWORK ACTIVITIES]');
-		networkActivities.slice(-20).forEach((activity: string) => console.log(activity));
-		console.log('\n--- END DEBUG INFO ---\n');
-	}
-});
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
@@ -73,39 +58,38 @@ async function loginToTestAccount(
 	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
 	await headerLoginButton.click();
 
-	const emailInput = page.locator('input[name="username"][type="email"]');
-	await expect(emailInput).toBeVisible();
+	const emailInput = page.locator('#login-email-input');
+	await expect(emailInput).toBeVisible({ timeout: 10000 });
 	await emailInput.fill(TEST_EMAIL);
-	await page.getByRole('button', { name: /continue/i }).click();
+	await page.locator('#login-continue-button').click();
 
-	const passwordInput = page.locator('input[type="password"]');
+	const passwordInput = page.locator('#login-password-input');
 	await expect(passwordInput).toBeVisible({ timeout: 15000 });
 	await passwordInput.fill(TEST_PASSWORD);
 
-	const otpInput = page.locator('input[autocomplete="one-time-code"]');
+	const otpInput = page.locator('#login-otp-input');
 	await expect(otpInput).toBeVisible({ timeout: 15000 });
 
-	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
-	const errorMessage = page
-		.locator('.error-message, [class*="error"]')
-		.filter({ hasText: /wrong|invalid|incorrect/i });
-
+	const submitLoginButton = page.locator('#login-submit-button');
 	let loginSuccess = false;
 	for (let attempt = 1; attempt <= 3 && !loginSuccess; attempt++) {
+		// Wait until well into the current TOTP window to avoid boundary expiry
+		const secondsIntoWindow = Math.floor(Date.now() / 1000) % 30;
+		if (secondsIntoWindow > 27) {
+			const msToWait = (30 - secondsIntoWindow) * 1000 + 3000;
+			logCheckpoint(`Waiting ${msToWait}ms for fresh TOTP window (attempt ${attempt})...`);
+			await page.waitForTimeout(msToWait);
+		}
 		const otpCode = generateTotp(TEST_OTP_KEY);
 		await otpInput.fill(otpCode);
 		await submitLoginButton.click();
 		try {
 			await page.waitForURL(/chat/, { timeout: 12000 });
-			await expect(page.locator('.editor-content.prose')).toBeVisible({ timeout: 12000 });
+			await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 12000 });
 			loginSuccess = true;
 		} catch {
-			const hasError = await errorMessage.isVisible();
-			if (hasError && attempt < 3) {
-				await page.waitForTimeout(31000);
-				await otpInput.fill('');
-			} else if (attempt < 3) {
-				await page.waitForTimeout(2000);
+			if (attempt < 3) {
+				await page.waitForTimeout(3000);
 				await otpInput.fill('');
 			}
 		}
@@ -128,16 +112,8 @@ test('navigates to buy credits, shows pricing tiers, and loads payment form on s
 }) => {
 	test.slow();
 	test.setTimeout(240000);
-
-	page.on('console', (msg: any) =>
-		consoleLogs.push(`[${new Date().toISOString()}] [${msg.type()}] ${msg.text()}`)
-	);
-	page.on('request', (req: any) =>
-		networkActivities.push(`[${new Date().toISOString()}] >> ${req.method()} ${req.url()}`)
-	);
-	page.on('response', (res: any) =>
-		networkActivities.push(`[${new Date().toISOString()}] << ${res.status()} ${res.url()}`)
-	);
+	attachConsoleListeners(page);
+	attachNetworkListeners(page);
 
 	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
 	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
@@ -152,7 +128,7 @@ test('navigates to buy credits, shows pricing tiers, and loads payment form on s
 	await page.waitForTimeout(4000);
 
 	// Open settings
-	const profileContainer = page.locator('.profile-container');
+	const profileContainer = page.locator('#settings-menu-toggle');
 	await expect(profileContainer).toBeVisible({ timeout: 10000 });
 	await profileContainer.click();
 	log('Opened settings menu.');
@@ -241,9 +217,7 @@ test('shows current credit balance in settings main menu', async ({ page }: { pa
 	test.slow();
 	test.setTimeout(180000);
 
-	page.on('console', (msg: any) =>
-		consoleLogs.push(`[${new Date().toISOString()}] [${msg.type()}] ${msg.text()}`)
-	);
+	attachConsoleListeners(page);
 
 	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
 	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
@@ -257,7 +231,7 @@ test('shows current credit balance in settings main menu', async ({ page }: { pa
 	await page.waitForTimeout(2000);
 
 	// Open settings
-	const profileContainer = page.locator('.profile-container');
+	const profileContainer = page.locator('#settings-menu-toggle');
 	await expect(profileContainer).toBeVisible({ timeout: 10000 });
 	await profileContainer.click();
 

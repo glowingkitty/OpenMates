@@ -336,7 +336,7 @@ run_pytest() {
   else
     # Write output to a temp file to avoid "Argument list too long" (execve limit).
     local unit_tmp="$WORK_DIR/pytest_unit_raw_output.txt"
-    ($pytest_bin -m pytest --tb=short -q "${unit_args[@]}" 2>&1) \
+    (cd "$PROJECT_ROOT" && $pytest_bin -m pytest --tb=short -q "${unit_args[@]}" 2>&1) \
       > "$unit_tmp" || unit_exit=$?
     local unit_dur=$(( $(now_seconds) - unit_start ))
 
@@ -432,7 +432,7 @@ print(f'  Unit: {passed} passed, {failed} failed ({dur}s)')
     else
       # Write output to a temp file to avoid "Argument list too long" (execve limit).
       local integ_tmp="$WORK_DIR/pytest_integ_raw_output.txt"
-      ($pytest_bin -m pytest --tb=short -q "${integ_args[@]}" 2>&1) \
+      (cd "$PROJECT_ROOT" && $pytest_bin -m pytest --tb=short -q "${integ_args[@]}" 2>&1) \
         > "$integ_tmp" || integ_exit=$?
       local integ_dur=$(( $(now_seconds) - integ_start ))
 
