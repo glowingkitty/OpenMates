@@ -8884,16 +8884,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 class:side-by-side-minimizing={sideBySideAnimating && sideBySideAnimationDirection === 'minimize'}
                 class:side-by-side-restoring={sideBySideAnimating && sideBySideAnimationDirection === 'restore'}
             >
+                <!-- 404 Not-Found screen: shown exclusively when the user landed on an unknown URL.
+                     Replaces both chat-side and message-input-wrapper entirely. -->
+                {#if $notFoundPathStore !== null}
+                    <Not404Screen
+                        onSearch={handle404Search}
+                        onAskAI={handle404AskAI}
+                    />
+                {:else}
                 <!-- Left side container for chat history and buttons -->
                 <div class="chat-side" bind:this={chatSideEl}>
-                    <!-- 404 Not-Found screen: shown exclusively when the user landed on an unknown URL.
-                         Replaces the welcome screen and ChatHistory entirely. -->
-                    {#if $notFoundPathStore !== null}
-                        <Not404Screen
-                            onSearch={handle404Search}
-                            onAskAI={handle404AskAI}
-                        />
-                    {:else}
                     <!-- Daily Inspiration banners – shown above welcome greeting on new chat screen -->
                     <!-- Hidden while keyboard is open (same rule as welcome greeting) -->
                     <!-- Shown to ALL users: defaults for guests, personalized for authenticated users -->
@@ -9482,8 +9482,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                              />
                         {/if}
                     </div>
-                    {/if}<!-- end not-found / else block -->
                 </div>
+                {/if}<!-- end not-found {:else} block -->
             </div>
             {/if}
 
