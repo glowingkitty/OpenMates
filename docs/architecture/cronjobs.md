@@ -15,6 +15,8 @@ All cronjobs run on the dev server via `crontab -l` (user: `superdev`). Logs are
 | `04:00 daily`     | `scripts/nightly-issues-check.sh`       | `logs/nightly-issues.log`            |
 | `04:30 daily`     | `scripts/check-dependabot-daily.sh`     | `logs/dependabot-alerts.log`         |
 | `05:00 daily`     | `scripts/nightly-workflow-review.sh`    | `logs/nightly-workflow-review.log`   |
+| `02:30 Tue + Fri` | `scripts/security-audit.sh`             | `logs/security-audit.log`            |
+| `02:30 Wed + Sat` | `scripts/red-teaming.sh`                | `logs/red-teaming.log`               |
 | `02:00 Sun`       | `scripts/docker-cleanup.sh`             | `logs/docker-cleanup.log`            |
 | `@reboot`         | `scripts/agent-trigger-watcher.sh`      | `logs/agent-investigations.log`      |
 
@@ -120,6 +122,64 @@ Fetches open Dependabot security alerts (critical/high/medium) via the GitHub `g
 **Env vars required:** `gh` CLI authenticated; `GITHUB_REPO` (auto-detected from git remote if not set)
 
 ---
+
+### Twice-weekly security audit
+
+**Schedule:** Tue + Fri at 02:30 UTC  
+**Script:** `scripts/security-audit.sh` → `scripts/_security_helper.py`  
+**State:** `.claude/security-audit-state.json` (gitignored)  
+**Log:** `logs/security-audit.log`
+
+Runs a dedicated security code review using opencode in `plan` mode. Identifies the **top 5 most critical security issues** in the codebase, with realistic risk assessments (exploitability, impact, likelihood) and suggested fixes (without implementing them).
+
+Key features:
+- **Deduplication:** Only reviews files changed since the last audit (uses `git diff` against the last audit SHA). Known findings are included in the prompt so the agent skips them.
+- **Acknowledged risks:** Manually suppressed via `_security_helper.py acknowledge --id <id> --reason "..."`; stored in `.claude/security-acknowledged.json` (gitignored).
+- **Monthly full sweep:** Every 30 days, forces a complete review regardless of file changes.
+- **OWASP mapping:** Each finding is mapped to the relevant OWASP Top 10 category.
+
+Covers: authentication/authorization, data exposure, injection/input validation, configuration/infrastructure, and dependency/supply chain risks.
+
+**Manual invocation:**
+```bash
+./scripts/security-audit.sh              # normal run
+./scripts/security-audit.sh --dry-run    # show prompt, skip opencode
+```
+
+**Acknowledge a finding (stop re-reporting it):**
+```bash
+python3 scripts/_security_helper.py acknowledge --id "finding-id" --reason "Accepted: handled by Cloudflare"
+python3 scripts/_security_helper.py list-findings   # view all findings and history
+python3 scripts/_security_helper.py reset            # clear all state for fresh start
+```
+
+---
+
+### Twice-weekly red team probe
+
+**Schedule:** Wed + Sat at 02:30 UTC  
+**Script:** `scripts/red-teaming.sh` → `scripts/_security_helper.py`  
+**State:** `.claude/security-audit-state.json` (shared with security audit, gitignored)  
+**Log:** `logs/red-teaming.log`
+
+Simulates an external attacker probing `app.dev.openmates.org` and `api.dev.openmates.org`. Runs in opencode `plan` mode with a **20-minute hard timeout**. The agent reads source code to identify attack vectors, then uses `curl` to non-destructively probe live endpoints.
+
+Three-phase methodology:
+1. **Reconnaissance:** Source code analysis to map all API routes, auth flows, and exposed endpoints.
+2. **External probing:** HTTP header checks, unauthenticated endpoint access, information disclosure, common misconfigurations (/.env, /.git, /debug).
+3. **Safe exploitation:** Token handling tests, path traversal checks, CORS verification, auth bypass attempts.
+
+Strict guardrails:
+- No POST/PUT/DELETE requests, no admin tools, no localhost access
+- Max 5 requests per endpoint, GET/HEAD/OPTIONS only
+- No Docker exec, no database access, no reading .env or secrets
+- No brute-forcing, no account creation, no DoS attempts
+
+**Manual invocation:**
+```bash
+./scripts/red-teaming.sh              # normal run (20 min cap)
+./scripts/red-teaming.sh --dry-run    # show prompt, skip opencode
+```
 
 ### Nightly workflow review
 
