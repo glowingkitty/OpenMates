@@ -117,8 +117,8 @@ export interface Message {
 
   // PII (Personally Identifiable Information) anonymization fields
   // Used to store placeholder-to-original-value mappings for client-side restoration
-  // Server only sees placeholders (e.g., [EMAIL_1]), client restores originals for display
-  encrypted_pii_mappings?: string; // Encrypted JSON of PII mappings: { "[EMAIL_1]": { original: "user@example.com", type: "EMAIL" }, ... }
+  // Server only sees placeholders (e.g., [EMAIL_com]), client restores originals for display
+  encrypted_pii_mappings?: string; // Encrypted JSON of PII mappings: { "[EMAIL_com]": { original: "user@example.com", type: "EMAIL" }, ... }
   pii_mappings?: PIIMapping[]; // Decrypted PII mappings (computed on-demand, never stored)
 }
 
@@ -126,7 +126,7 @@ export interface Message {
  * A single PII mapping entry for restoration
  */
 export interface PIIMapping {
-  /** The placeholder text (e.g., "[EMAIL_1]") */
+  /** The placeholder text (e.g., "[EMAIL_com]") */
   placeholder: string;
   /** The original PII value (e.g., "user@example.com") */
   original: string;

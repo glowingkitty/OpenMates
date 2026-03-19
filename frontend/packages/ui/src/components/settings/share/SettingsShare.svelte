@@ -928,7 +928,7 @@
                     const { computeSHA256 } = await import('../../../message_parsing/utils');
                     
                     // Get all messages for this chat (already decrypted by getMessagesForChat)
-                    // NOTE: message.content from DB has PLACEHOLDERS (e.g., "[EMAIL_1]")
+                    // NOTE: message.content from DB has PLACEHOLDERS (e.g., "[EMAIL_com]")
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- chatDB satisfies ChatDatabaseInstance at runtime
                     const messages = await getMessagesForChat(chatDB as any, currentChatId);
                     if (messages && messages.length > 0) {

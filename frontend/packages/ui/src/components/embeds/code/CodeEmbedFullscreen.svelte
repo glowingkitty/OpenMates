@@ -58,14 +58,14 @@
     /** Callback when user clicks the "chat" button to restore chat visibility */
     onShowChat?: () => void;
     /**
-     * PII mappings from the parent chat — maps placeholder strings (e.g. "[EMAIL_1]")
+     * PII mappings from the parent chat — maps placeholder strings (e.g. "[EMAIL_com]")
      * to original values. When provided and piiRevealed is true, placeholder strings
      * in the code content are replaced with originals for display.
      */
     piiMappings?: PIIMapping[];
     /**
      * Whether PII originals are currently visible.
-     * When false (default), placeholder strings like [EMAIL_1] are shown as-is.
+     * When false (default), placeholder strings like [EMAIL_com] are shown as-is.
      * When true, placeholders are replaced with original values.
      * This is the initial value — the user can toggle locally in fullscreen.
      */
@@ -107,7 +107,7 @@
   
   /**
    * Apply PII masking to the raw code string before parsing/displaying.
-   * The AI-generated code may include placeholder strings (e.g. "[EMAIL_1]").
+   * The AI-generated code may include placeholder strings (e.g. "[EMAIL_com]").
    * When localPiiRevealed is true, restore originals; otherwise keep placeholders.
    */
   let piiProcessedCodeContent = $derived.by(() => {

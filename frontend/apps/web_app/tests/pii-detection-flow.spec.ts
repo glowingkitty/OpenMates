@@ -49,8 +49,8 @@ const {
  *       - Verifies all highlights are removed after undo all
  *       - Clears input, types a message with an email to send
  *       - Sends the message and verifies:
- *         - The user message shows the [EMAIL_1] placeholder (green, hidden mode)
- *         - The assistant response references [EMAIL_1]
+ *         - The user message shows the [EMAIL_com] placeholder (green, hidden mode)
+ *         - The assistant response references [EMAIL_com]
  *       - Tests the PII show/hide toggle button in the chat header
  *         - Clicks "Show sensitive data" to reveal the original email (orange)
  *         - Clicks "Hide sensitive data" to re-hide (green placeholder)
@@ -566,7 +566,7 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 	// Give extra time for message rendering and PII decorations
 	await page.waitForTimeout(5000);
 
-	// Find the user message that contains our text with [EMAIL_1] placeholder.
+	// Find the user message that contains our text with [EMAIL_com] placeholder.
 	// Messages are E2E encrypted, so ReadOnlyMessage needs to decrypt + init TipTap.
 	// The ReadOnlyMessage component uses lazy TipTap initialization — it only creates
 	// the TipTap editor when the element becomes visible in the viewport via
@@ -625,7 +625,7 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 		const historyText = (await chatHistory.first().textContent()) || '';
 		logCheckpoint(`Chat history text (excerpt): "${historyText.substring(0, 300)}"`);
 
-		const emailMatch = historyText.match(/\[EMAIL_\d+\]/);
+		const emailMatch = historyText.match(/\[EMAIL_\w+\]/);
 		if (emailMatch) {
 			logCheckpoint(`Found ${emailMatch[0]} in chat history text.`);
 			userMsgText = historyText;
@@ -639,10 +639,10 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 		}
 	}
 
-	// The user message text should contain [EMAIL_1] placeholder
+	// The user message text should contain [EMAIL_com] placeholder
 	logCheckpoint(`User message text for PII check: "${userMsgText.trim().substring(0, 150)}"`);
-	expect(userMsgText).toMatch(/\[EMAIL_\d+\]/);
-	logCheckpoint('User message contains [EMAIL_N] placeholder text.');
+	expect(userMsgText).toMatch(/\[EMAIL_\w+\]/);
+	logCheckpoint('User message contains [EMAIL_*] placeholder text.');
 
 	// Check if PII decoration spans are rendered (pii-restored class)
 	// These may take a moment to render since ReadOnlyMessage uses TipTap decorations
@@ -658,7 +658,7 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 	}
 
 	if (piiSpanCount > 0) {
-		// In hidden mode (default), the placeholder text like [EMAIL_1] should be displayed
+		// In hidden mode (default), the placeholder text like [EMAIL_com] should be displayed
 		const userPiiText = await userPiiSpan.first().textContent();
 		logCheckpoint(`User message PII span text (hidden mode): "${userPiiText}"`);
 
@@ -667,9 +667,9 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 		logCheckpoint(`User message PII span class: "${userPiiClass}"`);
 		expect(userPiiClass).toContain('pii-hidden');
 
-		// Verify the placeholder format [EMAIL_1]
-		expect(userPiiText).toMatch(/\[EMAIL_\d+\]/);
-		logCheckpoint('User message PII span correctly shows [EMAIL_N] in hidden mode.');
+		// Verify the placeholder format [EMAIL_com]
+		expect(userPiiText).toMatch(/\[EMAIL_\w+\]/);
+		logCheckpoint('User message PII span correctly shows [EMAIL_*] in hidden mode.');
 	} else {
 		logCheckpoint(
 			'PII decoration spans not rendered yet — placeholder text verified in raw content.'
@@ -690,10 +690,10 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 	const assistantText = await assistantMessage.textContent();
 	logCheckpoint(`Assistant response text (first 200 chars): "${assistantText?.substring(0, 200)}"`);
 
-	// The assistant should see and potentially reference [EMAIL_1] since the original was replaced
+	// The assistant should see and potentially reference [EMAIL_com] since the original was replaced
 	// This is not always guaranteed (the assistant may or may not echo it), so we just log it
-	const assistantRefersPlaceholder = assistantText?.includes('[EMAIL_1]');
-	logCheckpoint(`Assistant references [EMAIL_1]: ${assistantRefersPlaceholder}`);
+	const assistantRefersPlaceholder = assistantText?.match(/\[EMAIL_\w+\]/);
+	logCheckpoint(`Assistant references [EMAIL_*]: ${!!assistantRefersPlaceholder}`);
 
 	await takeStepScreenshot(page, 'pii-assistant-response');
 
@@ -760,7 +760,7 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 		// Re-read user message text — it should go back to showing the placeholder
 		const reHiddenMsgText = await userMessage.textContent();
 		logCheckpoint(`User message text after re-hide: "${reHiddenMsgText?.substring(0, 150)}"`);
-		expect(reHiddenMsgText).toMatch(/\[EMAIL_\d+\]/);
+		expect(reHiddenMsgText).toMatch(/\[EMAIL_\w+\]/);
 		logCheckpoint('User message correctly re-hidden with placeholder.');
 
 		// Check decoration spans reverted
@@ -771,7 +771,7 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 		if (hiddenCountAfterReHide > 0) {
 			const hiddenTextAgain = await hiddenPiiAfterReHide.first().textContent();
 			logCheckpoint(`Re-hidden PII span text: "${hiddenTextAgain}"`);
-			expect(hiddenTextAgain).toMatch(/\[EMAIL_\d+\]/);
+			expect(hiddenTextAgain).toMatch(/\[EMAIL_\w+\]/);
 			logCheckpoint('PII decoration span correctly re-hidden to placeholder format.');
 		}
 

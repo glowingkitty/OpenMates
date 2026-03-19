@@ -77,14 +77,14 @@
     /** Callback when user clicks the "chat" button to restore chat visibility */
     onShowChat?: () => void;
     /**
-     * PII mappings from the parent chat — maps placeholder strings (e.g. "[EMAIL_1]")
+     * PII mappings from the parent chat — maps placeholder strings (e.g. "[EMAIL_com]")
      * to original values. When provided and piiRevealed is true, placeholder strings
      * in the document content are replaced with the originals for display.
      */
     piiMappings?: PIIMapping[];
     /**
      * Whether PII originals are currently visible.
-     * When false (default), placeholder strings like [EMAIL_1] are shown as-is.
+     * When false (default), placeholder strings like [EMAIL_com] are shown as-is.
      * When true, placeholders are replaced with original values.
      * This is the initial value — the user can toggle locally in fullscreen.
      */

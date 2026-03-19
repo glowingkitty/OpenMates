@@ -37,10 +37,10 @@ OpenMates implements client-side PII (Personally Identifiable Information) detec
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                      MESSAGE STORED & SYNCED                             │
-│  content: "My email is [EMAIL_1] and API key [OPENAI_KEY_1]"            │
+│  content: "My email is [EMAIL_com] and API key [OPENAI_KEY_f9d]"            │
 │  pii_mappings: [                                                         │
-│    { placeholder: "[EMAIL_1]", original: "user@example.com", type: "EMAIL" }  │
-│    { placeholder: "[OPENAI_KEY_1]", original: "sk-proj-...", type: "OPENAI_KEY" } │
+│    { placeholder: "[EMAIL_com]", original: "user@example.com", type: "EMAIL" }  │
+│    { placeholder: "[OPENAI_KEY_f9d]", original: "sk-proj-...f9d", type: "OPENAI_KEY" } │
 │  ]                                                                       │
 │  Both fields encrypted with chat key before storage                      │
 └─────────────────────────────────────────────────────────────────────────┘
@@ -49,8 +49,8 @@ OpenMates implements client-side PII (Personally Identifiable Information) detec
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                    SERVER PROCESSES MESSAGE                              │
 │  Server only sees encrypted blobs - cannot read PII                      │
-│  AI receives: "My email is [EMAIL_1] and API key [OPENAI_KEY_1]"        │
-│  AI responds: "I'll contact you at [EMAIL_1]. Never share [OPENAI_KEY_1]!" │
+│  AI receives: "My email is [EMAIL_com] and API key [OPENAI_KEY_f9d]"        │
+│  AI responds: "I'll contact you at [EMAIL_com]. Never share [OPENAI_KEY_f9d]!" │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
@@ -66,18 +66,18 @@ OpenMates implements client-side PII (Personally Identifiable Information) detec
 
 | Type           | Pattern                         | Example                     | Placeholder       |
 | -------------- | ------------------------------- | --------------------------- | ----------------- |
-| EMAIL          | Standard email regex            | user@example.com            | [EMAIL_1]         |
-| PHONE          | US/International formats        | +1-555-123-4567             | [PHONE_1]         |
+| EMAIL          | Standard email regex            | user@example.com            | [EMAIL_com]         |
+| PHONE          | US/International formats        | +1-555-123-4567             | [PHONE_567]         |
 | AWS_ACCESS_KEY | AKIA followed by 16 chars       | AKIAIOSFODNN7EXAMPLE        | [AWS_KEY_1]       |
 | AWS_SECRET_KEY | 40-char with context keywords   | secret_key="abc..."         | [AWS_SECRET_1]    |
-| OPENAI_KEY     | sk-proj-_ or sk-_ patterns      | sk-proj-abc123...           | [OPENAI_KEY_1]    |
+| OPENAI_KEY     | sk-proj-_ or sk-_ patterns      | sk-proj-abc123...           | [OPENAI_KEY_f9d]    |
 | ANTHROPIC_KEY  | sk-ant-api03-\* pattern         | sk-ant-api03-...            | [ANTHROPIC_KEY_1] |
 | GITHUB_PAT     | ghp*\*, github_pat*\_, gho\_\_  | ghp_abc123...               | [GITHUB_TOKEN_1]  |
 | STRIPE_KEY     | sk*live*_, sk*test*_            | sk_live_abc...              | [STRIPE_KEY_1]    |
 | GOOGLE_API_KEY | AIza followed by 35 chars       | AIzaSyB...                  | [GOOGLE_KEY_1]    |
 | SLACK_TOKEN    | xox[bpras]-\* patterns          | xoxb-123...                 | [SLACK_TOKEN_1]   |
-| CREDIT_CARD    | Major card formats + Luhn check | 4111-1111-1111-1111         | [CARD_1]          |
-| SSN            | US Social Security Number       | 123-45-6789                 | [SSN_1]           |
+| CREDIT_CARD    | Major card formats + Luhn check | 4111-1111-1111-1111         | [CARD_111]          |
+| SSN            | US Social Security Number       | 123-45-6789                 | [SSN_789]           |
 | IPV4           | Public IP addresses             | 203.0.113.50                | [IP_1]            |
 | IPV6           | Full IPv6 format                | 2001:0db8:...               | [IPV6_1]          |
 | PRIVATE_KEY    | PEM-encoded private keys        | -----BEGIN PRIVATE KEY----- | [PRIVATE_KEY_1]   |
@@ -118,7 +118,7 @@ interface Message {
 }
 
 interface PIIMapping {
-  placeholder: string; // e.g., "[EMAIL_1]"
+  placeholder: string; // e.g., "[EMAIL_com]"
   original: string; // e.g., "user@example.com"
   type: string; // e.g., "EMAIL"
 }
@@ -128,7 +128,7 @@ interface PIIMapping {
 
 ### What the Server Sees
 
-- **Content**: `"My API key is [OPENAI_KEY_1]"` (encrypted)
+- **Content**: `"My API key is [OPENAI_KEY_f9d]"` (encrypted)
 - **PII Mappings**: Encrypted blob (cannot read without chat key)
 - **Never sees**: The actual API key value
 
@@ -168,7 +168,7 @@ When the assistant responds using placeholders from a user message:
 
 1. `ChatHistory.buildCumulativePIIMappings()` aggregates all PII mappings from user messages
 2. Assistant message content is processed with the cumulative mappings
-3. Placeholders like `[EMAIL_1]` are replaced with the original value from the relevant user message
+3. Placeholders like `[EMAIL_com]` are replaced with the original value from the relevant user message
 
 This ensures consistent restoration across the entire conversation, even for follow-up messages.
 

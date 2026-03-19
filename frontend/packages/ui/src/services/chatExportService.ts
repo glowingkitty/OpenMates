@@ -18,7 +18,7 @@ import { copyToClipboard } from "../utils/clipboardUtils";
 
 /**
  * Options for controlling PII handling during export.
- * Message content from DB contains PLACEHOLDERS (e.g., "[EMAIL_1]").
+ * Message content from DB contains PLACEHOLDERS (e.g., "[EMAIL_com]").
  * When piiHidden is false (revealed), we restore originals for the export.
  * When piiHidden is true (default), content keeps placeholders as-is.
  */

@@ -1,0 +1,42 @@
+{
+  "name": "@openmates/secret-scanner",
+  "version": "0.1.0",
+  "description": "Secret detection, tokenization, and restoration for OpenMates CLI and web app",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --tsconfig tsconfig.build.json",
+    "dev": "tsup src/index.ts --format esm --dts --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test --experimental-strip-types tests/scanner.test.ts tests/registry.test.ts tests/redact-restore.test.ts"
+  },
+  "keywords": [
+    "openmates",
+    "secret-scanner",
+    "pii",
+    "redaction",
+    "security"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "ahocorasick": "^1.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.5.0",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.2"
+  }
+}

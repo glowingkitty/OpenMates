@@ -2186,7 +2186,7 @@ export async function sendEncryptedStoragePackage(
       : null;
 
     // Encrypt PII mappings if the user message has any (for cross-device sync).
-    // PII mappings map placeholders like [EMAIL_1] back to original values.
+    // PII mappings map placeholders like [EMAIL_com] back to original values.
     let encryptedPIIMappings: string | null = null;
     if (user_message.pii_mappings && user_message.pii_mappings.length > 0) {
       try {
