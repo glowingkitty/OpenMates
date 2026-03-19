@@ -147,16 +147,17 @@ jobs:
           python-version: "3.12"
       - name: Install dependencies
         run: |
-          pip install -r backend/requirements.txt 2>/dev/null || pip install pytest pytest-json-report httpx
-        working-directory: .
+          # Install backend requirements; fall back to minimal set if full requirements fail
+          pip install pytest pytest-json-report httpx pillow 2>/dev/null
+          pip install -r backend/requirements.txt 2>/dev/null || true
       - name: Run pytest
         run: |
-          python -m pytest tests/ \
+          mkdir -p test-results
+          python -m pytest backend/tests/ \
             -m "not integration and not benchmark" \
             --tb=short -q \
-            --json-report --json-report-file=../../test-results/pytest.json \
+            --json-report --json-report-file=test-results/pytest.json \
             || true
-        working-directory: backend
         env:
           OPENMATES_TEST_ACCOUNT_API_KEY: ${{ secrets.OPENMATES_TEST_ACCOUNT_API_KEY }}
       - uses: actions/upload-artifact@v4
@@ -186,8 +187,9 @@ jobs:
         working-directory: frontend
       - name: Run vitest (packages/ui)
         run: |
+          mkdir -p $GITHUB_WORKSPACE/test-results
           npx vitest run --config vitest.simple.config.ts --reporter=json \
-            > ../../test-results/vitest.json 2>&1 || true
+            > $GITHUB_WORKSPACE/test-results/vitest.json 2>&1 || true
         working-directory: frontend/packages/ui
       - uses: actions/upload-artifact@v4
         if: always()
@@ -238,10 +240,11 @@ jobs:
       - name: Run Playwright batch ${{ matrix.batch }}
         if: steps.batch.outputs.SPECS_FOR_BATCH != ''
         run: |
+          mkdir -p $GITHUB_WORKSPACE/test-results
           cd frontend/apps/web_app
           npx playwright test ${{ steps.batch.outputs.SPECS_FOR_BATCH }} \
             --reporter=json \
-            > ../../../test-results/playwright-${{ matrix.batch }}.json 2>&1 || true
+            > $GITHUB_WORKSPACE/test-results/playwright-${{ matrix.batch }}.json 2>&1 || true
         env:
           PLAYWRIGHT_TEST_BASE_URL: ${{ needs.open-tunnel.outputs.tunnel_url }}
           OPENMATES_TEST_ACCOUNT_1_EMAIL: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_EMAIL', matrix.account)] }}
