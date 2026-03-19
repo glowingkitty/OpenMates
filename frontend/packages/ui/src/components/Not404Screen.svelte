@@ -2,28 +2,24 @@
     // frontend/packages/ui/src/components/Not404Screen.svelte
     /**
      * @file Not404Screen.svelte
-     * @description Shown when a user lands on an unknown URL path. Provides two
-     * recovery options: (1) open in-app search pre-filled with the first path
-     * segment, (2) pre-fill the message input with a human-readable AI prompt
-     * derived from the full failed path.
+     * @description 404 not-found screen with self-contained banner (title + summary)
+     * and two recovery options: search and ask AI.
      *
-     * Architecture: the parent ActiveChat.svelte renders this instead of the normal
-     * welcome screen when notFoundPathStore is non-null. The screen calls
-     * notFoundPathStore.set(null) to dismiss itself once the user acts.
+     * Uses a self-contained banner instead of ChatHeader because ChatHeader requires
+     * category!=null to render the loaded state (title/summary/icon). This avoids
+     * that dependency while matching the same visual language (primary gradient,
+     * same dimensions, same text styles, same orb animation).
      *
-     * Data flow:
-     *   unknown URL → vercel catch-all → SPA boot → +page.svelte detects pathname
-     *   → notFoundPathStore.set(path) → ActiveChat shows Not404Screen
-     *   → user clicks Search or Ask AI → action taken, store cleared
+     * Test reference: tests/not-found-404-flow.spec.ts
      */
-    import ChatHeader from './ChatHeader.svelte';
     import { text } from '@repo/ui';
+    import { getLucideIcon } from '../utils/categoryUtils';
+
+    const MapPinOff = getLucideIcon('map-pin-off');
     import { notFoundPathStore } from '../stores/notFoundPathStore';
 
     interface Props {
-        /** Called when the user picks the search option */
         onSearch: (query: string) => void;
-        /** Called when the user picks the Ask AI option; receives the pre-filled message */
         onAskAI: (message: string) => void;
     }
 
@@ -31,23 +27,11 @@
 
     const path = $derived($notFoundPathStore ?? '');
 
-    /**
-     * Strips leading slash, query string and fragment from a URL path, then
-     * replaces hyphens/underscores with spaces.
-     * "/iphone-review" → "iphone review"
-     * "/ai/image-generator?ref=x" → "ai image generator"
-     */
     function humanizePath(raw: string): string {
         const clean = raw.replace(/^\//, '').split('?')[0].split('#')[0];
         return clean.split('/').filter(Boolean).join(' ').replace(/[-_]/g, ' ');
     }
 
-    /**
-     * For search: use the first path segment only when the path has multiple
-     * segments. For single-segment paths the whole humanized string is used.
-     * "/ai/image-generator" → "ai"
-     * "/iphone-review"      → "iphone review"
-     */
     function searchQuery(raw: string): string {
         const clean = raw.replace(/^\//, '').split('?')[0].split('#')[0];
         const segments = clean.split('/').filter(Boolean);
@@ -68,16 +52,25 @@
 </script>
 
 <div class="not-found-screen">
-    <ChatHeader
-        title={$text('common.not_found.title')}
-        summary={$text('common.not_found.summary')}
-        isLoading={false}
-        icon="alert-circle"
-        category={null}
-    />
+    <div class="not-found-banner">
+        <div class="banner-orbs" aria-hidden="true">
+            <div class="orb orb-1"></div>
+            <div class="orb orb-2"></div>
+            <div class="orb orb-3"></div>
+        </div>
+
+        <div class="banner-content">
+            <div class="banner-icon" aria-hidden="true">
+                {#if MapPinOff}
+                    <MapPinOff size={38} color="rgba(255,255,255,0.9)" />
+                {/if}
+            </div>
+            <span class="banner-title">{$text('common.not_found.title')}</span>
+            <p class="banner-summary">{$text('common.not_found.summary')}</p>
+        </div>
+    </div>
 
     <div class="not-found-options">
-        <!-- Option 1: Search -->
         <button class="not-found-option" onclick={handleSearch}>
             <span class="not-found-option-icon icon_search" aria-hidden="true"></span>
             <span class="not-found-option-label">
@@ -85,7 +78,6 @@
             </span>
         </button>
 
-        <!-- Option 2: Ask AI -->
         <button class="not-found-option not-found-option-primary" onclick={handleAskAI}>
             <span class="not-found-option-icon icon_chat" aria-hidden="true"></span>
             <span class="not-found-option-label">
@@ -102,6 +94,153 @@
         width: 100%;
         height: 100%;
         overflow: hidden;
+    }
+
+    .not-found-banner {
+        position: relative;
+        width: 100%;
+        height: 240px;
+        border-radius: 0 0 14px 14px;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--color-primary);
+        --orb-color-a: #4867cd;
+        --orb-color-b: #a0beff;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+        pointer-events: none;
+        user-select: none;
+        flex-shrink: 0;
+    }
+
+    .banner-orbs {
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        overflow: hidden;
+    }
+
+    .orb {
+        position: absolute;
+        width: 480px;
+        height: 420px;
+        background: radial-gradient(
+            ellipse at center,
+            var(--orb-color-b) 0%,
+            var(--orb-color-b) 40%,
+            transparent 85%
+        );
+        filter: blur(28px);
+        opacity: 0.55;
+        will-change: transform, border-radius;
+    }
+
+    .orb-1 {
+        top: -80px;
+        left: -100px;
+        animation:
+            orbMorph1 11s ease-in-out infinite,
+            orbDrift1 19s ease-in-out infinite;
+    }
+
+    .orb-2 {
+        bottom: -120px;
+        right: -120px;
+        width: 460px;
+        height: 400px;
+        animation:
+            orbMorph2 13s ease-in-out infinite,
+            orbDrift2 23s ease-in-out infinite;
+    }
+
+    .orb-3 {
+        top: -20px;
+        left: 25%;
+        width: 340px;
+        height: 300px;
+        opacity: 0.38;
+        animation:
+            orbMorph3 17s ease-in-out infinite,
+            orbDrift3 29s ease-in-out infinite;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .orb { animation: none !important; }
+    }
+
+    .banner-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        z-index: 2;
+        padding: 16px 24px;
+        max-width: 480px;
+        width: 100%;
+        animation: fadeIn 0.35s ease-out;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to   { opacity: 1; }
+    }
+
+    .banner-icon {
+        width: 38px;
+        height: 38px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .banner-title {
+        display: block;
+        font-size: 20px;
+        font-weight: 700;
+        color: #ffffff;
+        text-align: center;
+        line-height: 1.3;
+    }
+
+    .banner-summary {
+        margin: 2px 0 0;
+        font-size: 14px;
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.9);
+        line-height: 1.45;
+        text-align: center;
+    }
+
+    @media (max-width: 730px) {
+        .not-found-banner {
+            height: 190px;
+        }
+
+        .banner-content {
+            padding: 12px 20px;
+            max-width: 360px;
+        }
+
+        .banner-icon {
+            width: 32px;
+            height: 32px;
+        }
+
+        .banner-icon :global(svg) {
+            width: 32px !important;
+            height: 32px !important;
+        }
+
+        .banner-title {
+            font-size: 17px;
+        }
+
+        .banner-summary {
+            font-size: 13px;
+        }
     }
 
     .not-found-options {
