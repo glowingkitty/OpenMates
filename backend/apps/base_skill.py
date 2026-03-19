@@ -358,12 +358,18 @@ class BaseSkill:
             )
             req = req.model_dump()
         
-        # Auto-generate 'id' for any request that doesn't include one.
+        # Auto-generate 'id' for any request that doesn't include one OR that has id=None.
         # The tool_schema tells callers that 'id' is auto-generated if not provided,
         # so we must honour that contract for both single- and multi-request payloads.
         # Sequential index-based IDs (1, 2, 3 …) are deterministic and let callers
         # match responses to requests by position when explicit IDs aren't supplied.
-        if "id" not in req:
+        #
+        # NOTE: Pydantic model serialization (model_dump()) always includes the 'id' key
+        # even when it was not explicitly set — producing {"id": None, ...}. Treating
+        # None the same as a missing key ensures auto-generation still fires correctly
+        # and prevents all requests in a batch from sharing the same id=None value,
+        # which would cause a false "duplicate id" validation error.
+        if "id" not in req or req["id"] is None:
             auto_id = request_index + 1
             req["id"] = auto_id
             log_func(

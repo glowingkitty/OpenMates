@@ -316,7 +316,19 @@ class SearchSkill(BaseSkill):
             req_count = 20
         req_country_raw = req.get("country", "us")  # Default from schema
         req_lang = req.get("search_lang", "en")  # Default from schema
-        req_safesearch = req.get("safesearch", "moderate")  # Default from schema
+        _raw_safesearch = req.get("safesearch", None)
+        # Treat empty string / None as "not provided" — fall back to "moderate".
+        # The Brave Videos API rejects empty strings with 422 (only 'off', 'moderate', 'strict' valid).
+        VALID_SAFESEARCH_VALUES = {"off", "moderate", "strict"}
+        if _raw_safesearch and _raw_safesearch in VALID_SAFESEARCH_VALUES:
+            req_safesearch = _raw_safesearch
+        else:
+            if _raw_safesearch is not None and _raw_safesearch != "":
+                logger.warning(
+                    f"Invalid safesearch value '{_raw_safesearch}' for video search '{search_query}' "
+                    f"(id: {request_id}). Valid values: {sorted(VALID_SAFESEARCH_VALUES)}. Falling back to 'moderate'."
+                )
+            req_safesearch = "moderate"
         
         # CRITICAL: Validate and correct country code to ensure it's valid for Brave Search API
         VALID_BRAVE_COUNTRY_CODES = {
