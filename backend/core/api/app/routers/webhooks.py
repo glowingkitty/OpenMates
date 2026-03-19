@@ -24,7 +24,8 @@ from fastapi import APIRouter, HTTPException, Request, Depends, Security
 from pydantic import BaseModel, Field
 
 from backend.core.api.app.services.limiter import limiter
-from backend.core.api.app.utils.auth import get_current_user, User
+from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
+from backend.core.api.app.models.user import User
 from backend.core.api.app.utils.webhook_auth import (
     verify_webhook_key,
     webhook_key_scheme,
