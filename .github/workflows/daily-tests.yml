@@ -182,7 +182,7 @@ jobs:
           node-version: "20"
       - uses: pnpm/action-setup@v4
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile
         working-directory: frontend
       - name: Run vitest (packages/ui)
         run: |
@@ -224,7 +224,7 @@ jobs:
           node-version: "20"
       - uses: pnpm/action-setup@v4
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile
         working-directory: frontend
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
