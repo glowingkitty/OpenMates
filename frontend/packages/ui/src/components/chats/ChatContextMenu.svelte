@@ -626,8 +626,6 @@
         transition: opacity 0.2s ease-in-out;
         min-width: 120px;
         max-width: min(280px, calc(100vw - 32px)); /* Constrain width for readability and mobile */
-        max-height: calc(100vh - 40px); /* Prevent menu from overflowing viewport */
-        overflow-y: auto;
     }
     
     /* Active focus mode indicator at the top of the context menu */
@@ -665,7 +663,7 @@
     
     /* Chat summary displayed above the action buttons */
     .chat-summary {
-        padding: 12px 16px 8px;
+        padding: 12px 16px 0px;
         color: var(--color-grey-70);
         font-size: 13px;
         line-height: 1.4;
