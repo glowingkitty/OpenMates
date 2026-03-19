@@ -20,6 +20,13 @@ import {
   type DailyInspiration,
 } from "./client.js";
 import type { StreamEvent } from "./ws.js";
+
+import {
+  parseMentions,
+  listMentionOptions,
+  type MentionContext,
+  type MentionType,
+} from "./mentions.js";
 import { renderEmbedPreview, renderEmbedFullscreen } from "./embedRenderers.js";
 
 type CliArgs = {
@@ -55,6 +62,10 @@ async function main(): Promise<void> {
     }
     if (command === "settings") {
       printSettingsHelp(client);
+      return;
+    }
+    if (command === "mentions") {
+      printMentionsHelp();
       return;
     }
     if (command === "embeds") {
@@ -98,6 +109,11 @@ async function main(): Promise<void> {
 
   if (command === "apps") {
     await handleApps(client, subcommand, rest, parsed.flags);
+    return;
+  }
+
+  if (command === "mentions") {
+    await handleMentions(client, subcommand, rest, parsed.flags);
     return;
   }
 
@@ -1202,8 +1218,61 @@ async function sendMessageStreaming(
     }
   };
 
+  // ── Mention resolution ─────────────────────────────────────────────
+  // Parse @mentions in the message, resolve to backend wire syntax.
+  // If any mentions fail to resolve, show error and abort.
+  let finalMessage = params.message;
+  if (params.message.includes("@")) {
+    try {
+      const mentionCtx = await client.buildMentionContext();
+      const parsed = parseMentions(params.message, mentionCtx);
+
+      // Report unresolved mentions as errors
+      if (parsed.unresolved.length > 0) {
+        clearTyping();
+        for (const u of parsed.unresolved) {
+          process.stderr.write(`\x1b[31mError:\x1b[0m Unknown mention ${u.original}\n`);
+          if (u.suggestions.length > 0) {
+            process.stderr.write(
+              `  Did you mean: ${u.suggestions.join(", ")}?\n`,
+            );
+          }
+        }
+        process.stderr.write(
+          "\nUse \x1b[2mopenmates mentions list\x1b[0m to see all available mentions.\n",
+        );
+        process.exit(1);
+      }
+
+      // Report file paths (not yet supported — inform user)
+      if (parsed.filePaths.length > 0) {
+        clearTyping();
+        process.stderr.write(
+          "\x1b[33mWarning:\x1b[0m File attachments via @path are not yet supported.\n" +
+          "  Files mentioned: " + parsed.filePaths.map(f => `@${f}`).join(", ") + "\n\n",
+        );
+      }
+
+      // Show resolved mentions as confirmation
+      if (parsed.resolved.length > 0 && !params.json) {
+        clearTyping();
+        for (const r of parsed.resolved) {
+          const typeLabel = r.type.replace("_", " ");
+          process.stderr.write(
+            `\x1b[2m  ${r.original} → ${r.displayName} (${typeLabel})\x1b[0m\n`,
+          );
+        }
+      }
+
+      finalMessage = parsed.processedMessage;
+    } catch {
+      // If mention resolution fails (e.g., network error), send as-is
+      // The backend will receive the raw @tokens and ignore unknown ones
+    }
+  }
+
   const result = await client.sendMessage({
-    message: params.message,
+    message: finalMessage,
     chatId: params.chatId,
     incognito: params.incognito,
     onStream,
@@ -2353,8 +2422,150 @@ function formatDuration(seconds: number): string {
 }
 
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Mentions
+// ---------------------------------------------------------------------------
+
+/**
+ * Handle `openmates mentions` commands.
+ * Lists available @mentions that can be used in chat messages.
+ *
+ * Mirrors: MentionDropdown.svelte (web app)
+ */
+async function handleMentions(
+  client: OpenMatesClient,
+  subcommand: string | undefined,
+  _rest: string[],
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  if (!subcommand || subcommand === "help" || subcommand === "list") {
+    // Parse optional --type filter
+    const typeFilter = typeof flags.type === "string"
+      ? flags.type as MentionType
+      : undefined;
+
+    const validTypes = ["model", "model_alias", "mate", "skill", "focus_mode", "settings_memory"];
+    if (typeFilter && !validTypes.includes(typeFilter)) {
+      console.error(
+        `Invalid type '${typeFilter}'. Valid types: ${validTypes.join(", ")}`,
+      );
+      process.exit(1);
+    }
+
+    const context = await client.buildMentionContext();
+    const options = listMentionOptions(context, typeFilter);
+
+    if (flags.json === true) {
+      console.log(JSON.stringify(options, null, 2));
+      return;
+    }
+
+    if (options.length === 0) {
+      console.log("No mentions available" + (typeFilter ? ` for type '${typeFilter}'` : "") + ".");
+      return;
+    }
+
+    // Group by type for readable output
+    const grouped = new Map<string, typeof options>();
+    for (const opt of options) {
+      const group = grouped.get(opt.type) || [];
+      group.push(opt);
+      grouped.set(opt.type, group);
+    }
+
+    const typeLabels: Record<string, string> = {
+      model_alias: "Model Aliases",
+      model: "AI Models",
+      mate: "Mates",
+      skill: "Skills",
+      focus_mode: "Focus Modes",
+      settings_memory: "Settings & Memories",
+    };
+
+    for (const [type, items] of grouped) {
+      const label = typeLabels[type] || type;
+      process.stdout.write(`\n\x1b[1m${label}\x1b[0m\n`);
+      for (const item of items) {
+        process.stdout.write(
+          `  \x1b[36m${item.displayName.padEnd(35)}\x1b[0m \x1b[2m${item.description}\x1b[0m\n`,
+        );
+      }
+    }
+    process.stdout.write("\n");
+    return;
+  }
+
+  if (subcommand === "search") {
+    const query = _rest.join(" ").trim();
+    if (!query) {
+      console.error("Missing search query. Usage: openmates mentions search <query>");
+      process.exit(1);
+    }
+
+    const context = await client.buildMentionContext();
+    const allOptions = listMentionOptions(context);
+
+    // Fuzzy match against all options
+    const normalizedQuery = query.toLowerCase().replace(/[\s_-]+/g, "");
+    const matches = allOptions
+      .filter((opt) => {
+        const normalizedName = opt.displayName.toLowerCase().replace(/[@\s_-]+/g, "");
+        const normalizedDesc = opt.description.toLowerCase().replace(/[\s_-]+/g, "");
+        return (
+          normalizedName.includes(normalizedQuery) ||
+          normalizedDesc.includes(normalizedQuery)
+        );
+      })
+      .slice(0, 15);
+
+    if (flags.json === true) {
+      console.log(JSON.stringify(matches, null, 2));
+      return;
+    }
+
+    if (matches.length === 0) {
+      console.log(`No mentions matching '${query}'.`);
+      return;
+    }
+
+    process.stdout.write(`\n\x1b[1mMatches for '${query}':\x1b[0m\n`);
+    for (const m of matches) {
+      const typeLabel = m.type.replace("_", " ");
+      process.stdout.write(
+        `  \x1b[36m${m.displayName.padEnd(35)}\x1b[0m \x1b[2m${m.description} (${typeLabel})\x1b[0m\n`,
+      );
+    }
+    process.stdout.write("\n");
+    return;
+  }
+
+  console.error(`Unknown mentions subcommand '${subcommand}'.\n`);
+  printMentionsHelp();
+  process.exit(1);
+}
+
 // Help text
 // ---------------------------------------------------------------------------
+
+function printMentionsHelp(): void {
+  console.log(`Mentions commands:
+  openmates mentions list [--type <type>] [--json]
+  openmates mentions search <query> [--json]
+
+Types:
+  model_alias       Model shortcuts (@Best, @Fast)
+  model             AI models (@Claude-Opus-4.6, @GPT-5.4)
+  mate              AI mates/personas (@Sophia, @Finn)
+  skill             App skills (@Web-Search, @Code-Get-Docs)
+  focus_mode        Focus modes (@Web-Research)
+  settings_memory   Settings & memories (@Code-Projects)
+
+Use @mentions in chat messages:
+  openmates chats new "@Sophia tell me about React hooks"
+  openmates chats send --chat abc "@best what's the weather?"
+  openmates chats new "@Web-Search latest AI news"
+  openmates chats new "@Code-Projects review my architecture"`);
+}
 
 function printHelp(): void {
   console.log(`OpenMates CLI
@@ -2365,6 +2576,7 @@ Commands:
   openmates whoami [--json]                  Show account info
   openmates chats [--help]                   Chat commands (list, search, show, ...)
   openmates apps [--help]                    App skill commands (list, run, ...)
+  openmates mentions [--help]                List available @mentions
   openmates embeds [--help]                  Embed commands (show)
   openmates settings [--help]                Settings & memories
   openmates inspirations [--lang <code>] [--json]   Daily inspirations

@@ -40,6 +40,12 @@ import {
   isSyncCacheFresh,
 } from "./storage.js";
 import { OpenMatesWsClient } from "./ws.js";
+import type {
+  MentionContext,
+  AppInfo,
+  MemoryEntryInfo,
+} from "./mentions.js";
+import { CHAT_MODELS } from "./mentions.js";
 
 // ---------------------------------------------------------------------------
 // Memory type registry — mirrors all production-stage entries from app.yml files.
@@ -2078,7 +2084,50 @@ export class OpenMatesClient {
     return { success: true, id: entryId };
   }
 
-  private normalizePath(path: string): string {
+  // ── Mention context builder ─────────────────────────────────────────
+
+  /**
+   * Build the context needed for CLI mention resolution.
+   * Fetches apps (with skills, focus modes, memory categories) and
+   * memory entries from the server, combines with static model/mate data.
+   *
+   * Mirrors: mentionSearchService.ts data sources
+   */
+  async buildMentionContext(): Promise<MentionContext> {
+    // Fetch apps data (includes skills, focus modes, memory categories)
+    let apps: AppInfo[] = [];
+    try {
+      const data = (await this.listApps()) as {
+        apps?: AppInfo[];
+      };
+      apps = data.apps ?? (Array.isArray(data) ? (data as AppInfo[]) : []);
+    } catch {
+      // Not logged in or API error — proceed with empty apps
+    }
+
+    // Fetch memory entries for entry-level mentions
+    let memoryEntries: MemoryEntryInfo[] = [];
+    try {
+      const memories = await this.listMemories();
+      memoryEntries = memories.map((m) => ({
+        id: m.id,
+        app_id: m.app_id,
+        item_type: m.item_type,
+        title: (m.data as Record<string, unknown>)?.title as string | undefined,
+      }));
+    } catch {
+      // Not logged in or decryption error — proceed without entries
+    }
+
+    return {
+      models: CHAT_MODELS,
+      mates: MATE_NAMES,
+      apps,
+      memoryEntries,
+    };
+  }
+
+    private normalizePath(path: string): string {
     if (path.startsWith("http://") || path.startsWith("https://")) {
       const url = new URL(path);
       return `${url.pathname}${url.search}`;

@@ -2,6 +2,7 @@
 export { default as DevConsole } from "./src/components/DevConsole.svelte";
 export { default as HeroHeader } from "./src/components/HeroHeader.svelte";
 export { default as ActiveChat } from "./src/components/ActiveChat.svelte";
+export { default as Not404Screen } from "./src/components/Not404Screen.svelte";
 export { default as Notification } from "./src/components/Notification.svelte";
 export { default as ChatMessageNotification } from "./src/components/ChatMessageNotification.svelte";
 export { default as DemoChat } from "./src/components/DemoChat.svelte";
@@ -74,7 +75,8 @@ export * from "./src/stores/appHealthStore"; // Export app health store for filt
 export * from "./src/stores/pushNotificationStore"; // Export push notification store for managing push notification state
 export * from "./src/stores/networkStatusStore"; // Export network status store for offline/online detection
 export * from "./src/stores/pairSessionStore"; // Export pair session store for magic pair login
-export { openSearch } from "./src/stores/searchStore"; // Export openSearch for global keyboard shortcuts
+export { openSearch, setSearchQuery } from "./src/stores/searchStore"; // Export openSearch and setSearchQuery for global keyboard shortcuts + 404 screen
+export { notFoundPathStore } from "./src/stores/notFoundPathStore"; // Export 404 not-found path store
 // loginOverlayStore removed - not needed
 
 // Demo Chats

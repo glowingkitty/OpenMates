@@ -46,3 +46,38 @@ done:
   de: Fertig
   he: בוצע
   verified_by_human: []
+
+not_found.title:
+  context: Large heading shown on the 404 not-found screen
+  en: "404"
+  de: "404"
+  he: "404"
+  verified_by_human: []
+
+not_found.summary:
+  context: Subtitle shown under the 404 heading on the not-found screen
+  en: Page not found
+  de: Seite nicht gefunden
+  he: הדף לא נמצא
+  verified_by_human: []
+
+not_found.search_label:
+  context: Label on the search option on the 404 screen, {query} is the search term derived from the failed URL path
+  en: Search for "{query}"
+  de: Suche nach „{query}"
+  he: חפש "{query}"
+  verified_by_human: []
+
+not_found.ask_ai_label:
+  context: Label on the Ask AI option on the 404 screen, {topic} is the humanized failed URL path
+  en: Ask about "{topic}"
+  de: Frage nach „{topic}"
+  he: שאל על "{topic}"
+  verified_by_human: []
+
+not_found.ask_ai_message:
+  context: Pre-filled message sent to AI when the user clicks Ask AI on the 404 screen, {topic} is the humanized failed URL path
+  en: "Tell me more about '{topic}'"
+  de: "Erzähl mir mehr über '{topic}'"
+  he: "ספר לי עוד על '{topic}'"
+  verified_by_human: []

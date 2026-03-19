@@ -14,6 +14,7 @@
     import { createEventDispatcher, tick, onMount, onDestroy } from 'svelte'; // Added onDestroy
     import { authStore, logout } from '../stores/authStore'; // Import logout action
     import { panelState } from '../stores/panelStateStore'; // Added import
+    import { openSearch, setSearchQuery } from '../stores/searchStore'; // For 404 screen search action
     import type { Chat, Message as ChatMessageModel, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult } from '../types/chat'; // Added Message, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult
     import { tooltip } from '../actions/tooltip';
     import { chatDB } from '../services/db';
@@ -116,9 +117,11 @@
     import PushNotificationBanner from './PushNotificationBanner.svelte'; // Import push notification banner component
     import { shouldShowPushBanner } from '../stores/pushNotificationStore'; // Import push notification store for banner visibility
     import DailyInspirationBanner from './DailyInspirationBanner.svelte'; // Daily inspiration carousel above welcome screen
+    import Not404Screen from './Not404Screen.svelte'; // 404 not-found screen shown when user lands on an unknown URL
     import ForkProgressBanner from './chats/ForkProgressBanner.svelte'; // Slim banner shown while a fork is in progress
     import { forkProgressStore } from '../stores/forkProgressStore'; // Global fork progress — used to show banner on source chat
     import { pendingMentionStore } from '../stores/pendingMentionStore'; // For inserting @skill mentions from suggestion clicks
+    import { notFoundPathStore } from '../stores/notFoundPathStore'; // 404 not-found path — set when user lands on unknown URL
     import type { DailyInspiration } from '../stores/dailyInspirationStore'; // Type for inspiration handler
     import { chatListCache } from '../services/chatListCache'; // For invalidating stale 'sending' status in sidebar cache
     import { updateNavFromCache } from '../stores/chatNavigationStore'; // Populate prev/next nav state from cache when sidebar hasn't been opened yet
@@ -4832,6 +4835,36 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         showWelcome = !hasMessages;
     }
 
+    // ── 404 Not-Found Screen handlers ──────────────────────────────────────────
+    /**
+     * Called by Not404Screen when the user picks the Search option.
+     * Clears the 404 state, opens the Chats sidebar and activates the search bar
+     * pre-filled with the derived query string.
+     */
+    function handle404Search(query: string) {
+        notFoundPathStore.set(null);
+        panelState.openChats();
+        openSearch({ closeChatsOnEscape: false });
+        setSearchQuery(query);
+    }
+
+    /**
+     * Called by Not404Screen when the user picks the Ask AI option.
+     * Clears the 404 state, ensures we are on a clean new-chat screen, then
+     * injects the pre-filled message into the message input via setSuggestionText.
+     */
+    async function handle404AskAI(message: string) {
+        notFoundPathStore.set(null);
+        // Ensure we start on a fresh chat (no stale active chat)
+        if (currentChat) {
+            await handleNewChatClick();
+        }
+        // Small tick so the message input mounts after possible state changes
+        await tick();
+        messageInputFieldRef?.setSuggestionText(message);
+        messageInputFieldRef?.focus();
+    }
+
     /**
      * Handler for when the create icon is clicked.
      */
@@ -8853,6 +8886,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             >
                 <!-- Left side container for chat history and buttons -->
                 <div class="chat-side" bind:this={chatSideEl}>
+                    <!-- 404 Not-Found screen: shown exclusively when the user landed on an unknown URL.
+                         Replaces the welcome screen and ChatHistory entirely. -->
+                    {#if $notFoundPathStore !== null}
+                        <Not404Screen
+                            onSearch={handle404Search}
+                            onAskAI={handle404AskAI}
+                        />
+                    {:else}
                     <!-- Daily Inspiration banners – shown above welcome greeting on new chat screen -->
                     <!-- Hidden while keyboard is open (same rule as welcome greeting) -->
                     <!-- Shown to ALL users: defaults for guests, personalized for authenticated users -->
@@ -9441,6 +9482,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                              />
                         {/if}
                     </div>
+                    {/if}<!-- end not-found / else block -->
                 </div>
             </div>
             {/if}

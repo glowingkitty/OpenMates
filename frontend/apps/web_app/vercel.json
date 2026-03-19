@@ -3,6 +3,10 @@
 		{
 			"source": "/dev/:path*",
 			"destination": "/"
+		},
+		{
+			"source": "/((?!_app|static|favicon\\.ico|robots\\.txt|sitemap\\.xml).*)",
+			"destination": "/"
 		}
 	],
 	"headers": [

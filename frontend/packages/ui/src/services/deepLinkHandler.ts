@@ -19,6 +19,7 @@ export type DeepLinkType =
   | "signup"
   | "embed"
   | "pair"
+  | "not_found"
   | "unknown";
 
 export interface DeepLinkResult {
@@ -151,6 +152,16 @@ export function parseDeepLink(
     return {
       type: "pair",
       data: { token: pairMatch[1].toUpperCase() },
+    };
+  }
+
+  // 404 not-found deep links: #404={encodedPath}
+  // Produced when the SPA is loaded for an unknown URL path via the catch-all rewrite.
+  if (normalizedHash.startsWith("#404=")) {
+    const failedPath = decodeURIComponent(normalizedHash.slice("#404=".length));
+    return {
+      type: "not_found",
+      data: { failedPath },
     };
   }
 
