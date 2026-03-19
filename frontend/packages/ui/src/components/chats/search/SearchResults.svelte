@@ -195,7 +195,7 @@
 
   /**
    * Schedule an auto-open of the currently focused result after the user stops navigating.
-   * Only auto-opens 'chat' and 'snippet' type items — settings/apps require explicit Enter.
+   * Auto-opens all result types: 'chat', 'snippet', 'settings', and 'app'.
    * Resets the timer on every navigation key so it only fires when the user pauses.
    */
   function scheduleAutoOpen(): void {
@@ -203,8 +203,6 @@
       clearTimeout(autoOpenTimer);
     }
     if (focusedIndex < 0 || focusedIndex >= allFocusableItems.length) return;
-    const item = allFocusableItems[focusedIndex];
-    if (item.type !== 'chat' && item.type !== 'snippet') return;
     autoOpenTimer = setTimeout(() => {
       autoOpenTimer = null;
       activateFocused();
