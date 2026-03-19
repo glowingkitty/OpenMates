@@ -475,6 +475,102 @@ print(f'  Integration: {passed} passed, {failed} failed ({dur}s)')
 }
 
 # =============================================================================
+# NODE UNIT (openmates-cli + secret-scanner)
+# These packages use Node's built-in test runner (node --test) instead of
+# vitest, so they are not picked up by the vitest config in packages/ui.
+# =============================================================================
+run_node_unit() {
+  if [[ "$SUITE" != "all" && "$SUITE" != "vitest" ]]; then
+    return
+  fi
+
+  echo "━━━ Node Unit (CLI + secret-scanner) ━━━"
+  local suite_start
+  suite_start="$(now_seconds)"
+
+  local packages=(
+    "frontend/packages/openmates-cli"
+    "frontend/packages/secret-scanner"
+  )
+
+  local overall_status="passed"
+
+  for pkg_rel in "${packages[@]}"; do
+    local pkg_dir="$PROJECT_ROOT/$pkg_rel"
+    if [[ ! -f "$pkg_dir/package.json" ]]; then
+      echo "  SKIP: $pkg_rel (package.json not found)"
+      continue
+    fi
+
+    local pkg_exit=0
+    local pkg_tmp="$WORK_DIR/node_unit_$(basename "$pkg_rel")_raw.txt"
+    local parsed_tmp="$WORK_DIR/node_unit_$(basename "$pkg_rel")_parsed.json"
+
+    echo "  Running tests in $pkg_rel..."
+    (cd "$pkg_dir" && npm test 2>&1) > "$pkg_tmp" || pkg_exit=$?
+
+    python3 -c "
+import re, sys, json
+
+output_file, pkg_name, exit_code_s, out_file = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+exit_code = int(exit_code_s)
+with open(output_file, 'r', errors='replace') as fh:
+    raw = fh.read()
+tests = []
+lines = raw.split(chr(10))
+i = 0
+while i < len(lines):
+    line = lines[i].strip()
+    m = re.match(r'^(not ok|ok)\\s+\\d+\\s+-\\s+(.+)$', line)
+    if m:
+        passed_str, name = m.group(1), m.group(2).strip()
+        typ, dur = None, 0.0
+        for j in range(i+1, min(i+8, len(lines))):
+            tl = lines[j].strip()
+            tm = re.match(r\"type:\\s+'?([^']+)'?\", tl)
+            dm = re.match(r'duration_ms:\\s+([0-9.]+)', tl)
+            if tm: typ = tm.group(1)
+            if dm: dur = round(float(dm.group(1)) / 1000.0, 4)
+        if typ == 'test':
+            status = 'passed' if passed_str == 'ok' else 'failed'
+            entry = {'name': f'{pkg_name} > {name}', 'status': status, 'duration_seconds': dur}
+            if status == 'failed': entry['error'] = 'see node --test output'
+            tests.append(entry)
+    i += 1
+if not tests and exit_code != 0:
+    tests.append({'name': f'{pkg_name} > run', 'status': 'failed', 'duration_seconds': 0, 'error': raw[:800] or f'npm test exited {exit_code}'})
+elif not tests:
+    tests.append({'name': f'{pkg_name} > run', 'status': 'passed', 'duration_seconds': 0})
+with open(out_file, 'w') as f: json.dump(tests, f)
+passed = sum(1 for t in tests if t['status'] == 'passed')
+failed = sum(1 for t in tests if t['status'] == 'failed')
+print(f'  {pkg_name}: {passed} passed, {failed} failed')
+if failed > 0: sys.exit(1)
+" "$pkg_tmp" "$(basename "$pkg_rel")" "$pkg_exit" "$parsed_tmp" || overall_status="failed"
+
+  done
+
+  local suite_dur=$(( $(now_seconds) - suite_start ))
+
+  python3 -c "
+import json, glob, sys, os
+work_dir, dur = sys.argv[1], int(sys.argv[2])
+all_tests = []
+for fpath in sorted(glob.glob(os.path.join(work_dir, 'node_unit_*_parsed.json'))):
+    with open(fpath) as f: all_tests.extend(json.load(f))
+if not all_tests:
+    suite = {'status': 'skipped', 'reason': 'no packages found', 'duration_seconds': dur, 'tests': []}
+else:
+    computed_status = 'failed' if any(t.get('status') == 'failed' for t in all_tests) else 'passed'
+    suite = {'status': computed_status, 'duration_seconds': dur, 'tests': all_tests}
+with open(os.path.join(work_dir, 'node_unit_suite.json'), 'w') as f: json.dump(suite, f)
+passed = sum(1 for t in all_tests if t['status'] == 'passed')
+failed = sum(1 for t in all_tests if t['status'] == 'failed')
+print(f'  Node unit total: {passed} passed, {failed} failed ({dur}s)')
+" "$WORK_DIR" "$suite_dur"
+}
+
+# =============================================================================
 # PLAYWRIGHT
 # =============================================================================
 run_playwright() {
@@ -648,8 +744,9 @@ fi
 echo "╚═══════════════════════════════════════════════════════════╝"
 echo ""
 
-# Run suites in order: vitest (fastest) → pytest → playwright (slowest)
+# Run suites in order: vitest (fastest) → node unit → pytest → playwright (slowest)
 run_vitest
+run_node_unit
 run_pytest
 run_playwright
 
@@ -677,6 +774,7 @@ suites = {}
 # Load each suite's results
 for suite_name, filename in [
     ('vitest', 'vitest_suite.json'),
+    ('node_unit', 'node_unit_suite.json'),
     ('pytest_unit', 'pytest_unit_suite.json'),
     ('pytest_integration', 'pytest_integration_suite.json'),
     ('playwright', 'playwright_suite.json'),
