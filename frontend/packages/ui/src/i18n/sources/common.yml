@@ -81,3 +81,59 @@ not_found.ask_ai_message:
   de: "Erzähl mir mehr über ''{topic}''"
   he: "ספר לי עוד על ''{topic}''"
   verified_by_human: []
+
+not_found.explanation:
+  context: Explanation paragraph on the 404 screen, {url} is the URL the user tried to visit
+  en: "The page you are looking for does not exist. This can be for one of multiple reasons. For example:"
+  de: "Die gesuchte Seite existiert nicht. Das kann verschiedene Gründe haben. Zum Beispiel:"
+  he: "הדף שחיפשת אינו קיים. זה יכול להיות מסיבות שונות. לדוגמה:"
+  verified_by_human: []
+
+not_found.reason_typo:
+  context: First bullet reason on 404 screen explaining a typo in the URL, {url} placeholder is replaced by a copyable URL element in the UI
+  en: "you made a spelling mistake in this URL"
+  de: "du hast einen Tippfehler in dieser URL gemacht"
+  he: "טעית בהקלדת כתובת ה-URL"
+  verified_by_human: []
+
+not_found.reason_removed:
+  context: Second bullet reason on 404 screen
+  en: "the page you tried to open no longer exists or the path has changed"
+  de: "die Seite, die du aufrufen wolltest, existiert nicht mehr oder der Pfad hat sich geändert"
+  he: "הדף שניסית לפתוח אינו קיים יותר, או שהנתיב השתנה"
+  verified_by_human: []
+
+not_found.suggestion_heading:
+  context: Heading above the action buttons on the 404 screen
+  en: "Suggestion:"
+  de: "Vorschlag:"
+  he: "הצעה:"
+  verified_by_human: []
+
+not_found.suggestion_body:
+  context: Text below the suggestion heading on the 404 screen
+  en: "Either try a search to find the page you are looking for, or ask OpenMates directly about the topic."
+  de: "Versuche entweder eine Suche, um die gewünschte Seite zu finden, oder frage OpenMates direkt zum Thema."
+  he: "נסה לחפש את הדף שאתה מחפש, או שאל את OpenMates ישירות על הנושא."
+  verified_by_human: []
+
+not_found.or_separator:
+  context: Short separator word between the search and ask-AI buttons on the 404 screen
+  en: "or"
+  de: "oder"
+  he: "או"
+  verified_by_human: []
+
+not_found.copy_url:
+  context: Tooltip/aria-label on the copy-URL button on the 404 screen
+  en: Copy URL
+  de: URL kopieren
+  he: העתק URL
+  verified_by_human: []
+
+not_found.url_copied:
+  context: Feedback shown briefly after the URL is copied to clipboard on the 404 screen
+  en: Copied!
+  de: Kopiert!
+  he: הועתק!
+  verified_by_human: []
