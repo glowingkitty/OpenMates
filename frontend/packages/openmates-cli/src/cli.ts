@@ -27,6 +27,8 @@ import {
   type MentionContext,
   type MentionType,
 } from "./mentions.js";
+import { OutputRedactor } from "./outputRedactor.js";
+import { processFiles, formatFilesForMessage } from "./fileEmbed.js";
 import { renderEmbedPreview, renderEmbedFullscreen } from "./embedRenderers.js";
 
 type CliArgs = {
@@ -43,6 +45,19 @@ async function main(): Promise<void> {
         ? parsed.flags["api-url"]
         : undefined,
   });
+
+  // Initialize output redactor with personal data entries from Settings & Memories.
+  // This loads user-defined names, addresses, etc. for auto-censoring in terminal output.
+  // Safe to call before login — silently skips if no session.
+  const redactor = new OutputRedactor();
+  if (client.hasSession()) {
+    try {
+      const memories = await client.listMemories();
+      redactor.initializeFromMemories(memories);
+    } catch {
+      // Not logged in or decryption error — proceed without redaction
+    }
+  }
 
   if (!command || command === "help") {
     printHelp();
@@ -103,7 +118,7 @@ async function main(): Promise<void> {
   }
 
   if (command === "chats") {
-    await handleChats(client, subcommand, rest, parsed.flags);
+    await handleChats(client, subcommand, rest, parsed.flags, redactor);
     return;
   }
 
@@ -144,6 +159,7 @@ async function handleChats(
   subcommand: string | undefined,
   rest: string[],
   flags: Record<string, string | boolean>,
+  redactor?: OutputRedactor,
 ): Promise<void> {
   if (!subcommand || subcommand === "help" || flags.help === true) {
     printChatsHelp();
@@ -195,7 +211,7 @@ async function handleChats(
       chatId: undefined,
       incognito: false,
       json: flags.json === true,
-    });
+    }, redactor);
     if (flags.json === true) printJson(result);
     return;
   }
@@ -212,7 +228,7 @@ async function handleChats(
       chatId,
       incognito: flags.incognito === true,
       json: flags.json === true,
-    });
+    }, redactor);
     if (flags.json === true) printJson(result);
     return;
   }
@@ -227,7 +243,7 @@ async function handleChats(
       message,
       incognito: true,
       json: flags.json === true,
-    });
+    }, redactor);
     if (flags.json === true) printJson(result);
     return;
   }
@@ -1129,6 +1145,7 @@ async function sendMessageStreaming(
     incognito?: boolean;
     json?: boolean;
   },
+  redactor?: OutputRedactor,
 ): Promise<{
   chatId: string;
   assistant: string;
@@ -1209,7 +1226,10 @@ async function sendMessageStreaming(
           const clean = seg.value.replace(/\n{3,}/g, "\n\n");
           const alreadyPrinted = Math.max(0, processedRawLength - offset);
           if (alreadyPrinted < clean.length) {
-            process.stdout.write(clean.slice(alreadyPrinted));
+            const chunk = clean.slice(alreadyPrinted);
+            // Redact personal data and secrets from streamed output
+            const safeChunk = redactor?.isInitialized ? redactor.redact(chunk) : chunk;
+            process.stdout.write(safeChunk);
           }
         }
         offset = segEnd;
@@ -1244,13 +1264,61 @@ async function sendMessageStreaming(
         process.exit(1);
       }
 
-      // Report file paths (not yet supported — inform user)
+      // Process file @path references
       if (parsed.filePaths.length > 0) {
-        clearTyping();
-        process.stderr.write(
-          "\x1b[33mWarning:\x1b[0m File attachments via @path are not yet supported.\n" +
-          "  Files mentioned: " + parsed.filePaths.map(f => `@${f}`).join(", ") + "\n\n",
-        );
+        const fileResult = processFiles(parsed.filePaths, redactor ?? null);
+
+        // Report blocked files
+        for (const b of fileResult.blocked) {
+          clearTyping();
+          process.stderr.write(
+            `\x1b[31mBlocked:\x1b[0m @${b.path} — ${b.error}\n`,
+          );
+        }
+
+        // Report file errors
+        for (const e of fileResult.errors) {
+          clearTyping();
+          process.stderr.write(
+            `\x1b[31mError:\x1b[0m @${e.path} — ${e.error}\n`,
+          );
+        }
+
+        // Abort if any blocked or errors
+        if (fileResult.blocked.length > 0 || fileResult.errors.length > 0) {
+          process.exit(1);
+        }
+
+        // Show processed files confirmation
+        if (fileResult.files.length > 0 && !params.json) {
+          clearTyping();
+          for (const f of fileResult.files) {
+            const suffix = f.zeroKnowledge
+              ? " (zero-knowledge mode)"
+              : f.redacted
+                ? " (secrets redacted)"
+                : "";
+            process.stderr.write(
+              `\x1b[2m  @${f.name}${suffix}\x1b[0m\n`,
+            );
+          }
+        }
+
+        // Append file content to message
+        // Remove the @path tokens from the message first
+        for (const fp of parsed.filePaths) {
+          finalMessage = finalMessage.replace(
+            new RegExp(`@${fp.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "g"),
+            "",
+          );
+        }
+        finalMessage = finalMessage.trim();
+
+        // Append formatted file blocks
+        const fileBlocks = formatFilesForMessage(fileResult.files);
+        if (fileBlocks) {
+          finalMessage += fileBlocks;
+        }
       }
 
       // Show resolved mentions as confirmation
@@ -2609,6 +2677,20 @@ Options for 'delete':
 
 'show' accepts: full UUID, 8-char short ID, exact/partial title, or "last".
 
+@mentions:
+  Use @mentions in messages to invoke models, mates, skills, or attach files:
+  @Best, @Fast          Model aliases
+  @Claude-Opus-4.6      Specific model
+  @Sophia               AI mate/persona
+  @Web-Search           App skill
+  @Code-Projects        Settings & memories
+  @/path/to/file.ts     Attach local file (secrets auto-redacted)
+
+  Sensitive files (.env) use zero-knowledge mode (only names + last 3 chars).
+  Private keys (.pem, .key, SSH keys) are blocked by default.
+
+  See all options: openmates mentions list
+
 Examples:
   openmates chats list
   openmates chats show d262cb68
@@ -2617,6 +2699,8 @@ Examples:
   openmates chats search "Madrid"
   openmates chats new "Hello, what can you help me with?"
   openmates chats send --chat d262cb68 "follow-up question"
+  openmates chats new "@Sophia help me with @./src/app.ts"
+  openmates chats new "@best review @/home/user/project/.env"
   openmates chats delete d262cb68 a1b2c3d4`);
 }
 
