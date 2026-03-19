@@ -112,9 +112,9 @@
 
     .search-icon {
         position: absolute;
-        left: 1.1875rem;
-        width: 1.4375rem;
-        height: 1.4375rem;
+        left: 0.875rem;
+        width: 1.125rem;
+        height: 1.125rem;
         pointer-events: none;
         -webkit-mask-image: url('@openmates/ui/static/icons/search.svg');
         -webkit-mask-size: contain;
@@ -129,7 +129,7 @@
 
     .search-input {
         width: 100%;
-        padding: 1.0625rem 1.4375rem 1.0625rem 3rem;
+        padding: 0.625rem 1rem 0.625rem 2.5rem;
         background: var(--color-grey-0);
         border: none;
         border-radius: 1.5rem;
@@ -157,8 +157,8 @@
     .sort-container {
         position: relative;
         flex-shrink: 0;
-        width: 3.5625rem;
-        height: 3.375rem;
+        width: 2.75rem;
+        height: 2.75rem;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -169,8 +169,8 @@
     }
 
     .sort-icon {
-        width: 1.9375rem;
-        height: 1.9375rem;
+        width: 1.375rem;
+        height: 1.375rem;
         pointer-events: none;
         -webkit-mask-image: url('@openmates/ui/static/icons/sort.svg');
         -webkit-mask-size: contain;

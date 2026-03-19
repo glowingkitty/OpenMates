@@ -2279,16 +2279,30 @@ let _chatUpdatedFlushPending = false;
 
 	/**
 	 * Handle search close — clears query and hides search results.
+	 * Called by the full-screen SearchBar (Cmd+F mode).
 	 */
 	function handleSearchClose(reason: 'button' | 'escape' = 'button'): void {
 		// Read the flag BEFORE closeSearch() resets the store to initial state
 		const shouldCloseChats = reason === 'escape' && searchState.closeChatsOnEscape;
 		closeSearch();
 		searchResults = null;
+		sidebarSearchQuery = '';
+		sidebarSearchSortOrder = 'newest';
 		if (shouldCloseChats && $isActivityHistoryOpen) {
 			panelState.toggleChats();
 		}
 		// Clear in-chat text highlighting when search closes
+		searchTextHighlightStore.set(null);
+	}
+
+	/**
+	 * Clear sidebar search state (used by the inline SearchSortBar).
+	 * Resets query and results without toggling isActive (which would swap the UI).
+	 */
+	function clearSidebarSearch(): void {
+		setSearchQuery('');
+		searchResults = null;
+		sidebarSearchSortOrder = 'newest';
 		searchTextHighlightStore.set(null);
 	}
 
@@ -3459,19 +3473,23 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 								{ value: 'newest', label: $text('chats.search.sort.newest_first') },
 								{ value: 'oldest', label: $text('chats.search.sort.oldest_first') },
 							] : []}
-							onInput={(v) => {
-								sidebarSearchQuery = v;
-								if (v.trim()) {
-									openSearch();
-									setSearchQuery(v);
-								} else {
-									handleSearchClose('button');
-								}
-							}}
-							onClear={() => {
-								sidebarSearchQuery = '';
-								handleSearchClose('button');
-							}}
+						onInput={(v) => {
+							sidebarSearchQuery = v;
+							if (v.trim()) {
+								// Update query without calling openSearch() — openSearch() sets
+								// isActive=true which swaps the top bar to <SearchBar> (wrong CSS).
+								// We keep the SearchSortBar visible and show results below via the
+								// query-only conditions in the scroll area.
+								setSearchQuery(v);
+								handleSearchQuery(v);
+							} else {
+								clearSidebarSearch();
+							}
+						}}
+						onClear={() => {
+							sidebarSearchQuery = '';
+							clearSidebarSearch();
+						}}
 						/>
 						<button
 							class="clickable-icon icon_close top-button right"
@@ -3492,7 +3510,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 		     Hidden during active search (the search results overlay replaces the chat list).
 		     Overlays the scroll container at the top or bottom edge.
 		     Clicking scrolls the active chat back into view. -->
-		{#if activeChatOutOfViewDirection && selectedChatId && !(searchState.isActive && searchState.query.trim().length > 0)}
+		{#if activeChatOutOfViewDirection && selectedChatId && !(searchState.query.trim().length > 0)}
 			<button
 				class="active-chat-pin"
 				class:pin-top={activeChatOutOfViewDirection === 'top'}
@@ -3547,7 +3565,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 			ontouchmove={handleTouchMove}
 		>
 			<!-- Search results overlay — replaces normal chat list when search is active -->
-		{#if searchState.isActive && searchState.query.trim().length > 0 && sortedSearchResults}
+		{#if searchState.query.trim().length > 0 && sortedSearchResults}
 			<SearchResults
 				bind:this={searchResultsComponent}
 				results={sortedSearchResults}
@@ -3558,15 +3576,15 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 				onSettingsClick={handleSearchSettingsClick}
 				onAppCatalogClick={handleSearchAppCatalogClick}
 			/>
-			{:else if searchState.isActive && searchState.query.trim().length > 0 && searchState.isSearching}
+			{:else if searchState.query.trim().length > 0 && searchState.isSearching}
 				<!-- Searching indicator while waiting for results -->
 				<div class="search-loading-indicator">
 					<span class="clickable-icon icon_reload syncing-icon"></span>
 				</div>
 			{/if}
 
-			<!-- Normal chat list (hidden when search is active with a query) -->
-			{#if !searchState.isActive || searchState.query.trim().length === 0}
+			<!-- Normal chat list (hidden when a search query is active) -->
+			{#if searchState.query.trim().length === 0}
 			<!-- Sync status indicator - shows during sync regardless of hidden chat state -->
 		{#if syncing}
 			<div class="show-hidden-chats-container">
@@ -3977,9 +3995,9 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 
     .top-buttons {
         position: relative;
-        height: 32px; /* Ensure container fits buttons */
-        display: flex; /* Use flexbox for easier alignment if needed */
-        justify-content: flex-end; /* Align close button to the right */
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
     }
 
     /* SearchSortBar + close button layout for the normal (non-search, non-select) state */
