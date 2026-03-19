@@ -2035,16 +2035,41 @@ export async function sendEncryptedStoragePackage(
     }
 
     if (!encryptedChatKey) {
-      // CASE 2: No encrypted_chat_key - this is a new chat, generate and save key
-      console.warn(
-        `[ChatSyncService:Senders] ⚠️ encrypted_chat_key missing for ${chat_id}, generating new key (new chat)`,
-      );
-      // CASE 2: New chat on originating device — safe to create key
+      // CASE 2: No encrypted_chat_key found in IDB.
+      // This can happen for genuinely new chats OR when a Safari IDB read-visibility
+      // race returns null even though addChat() already committed the key.
+      // CRITICAL: Try EVERY recovery path before falling back to createKeyForNewChat(),
+      // because generating a new key when messages were already encrypted with the
+      // original key causes permanent "[Content decryption failed]" corruption.
+      // See issue 3a79b598: user message encrypted with K1, then clearAllChatKeys()
+      // (from auth disruption) wiped caches, createKeyForNewChat() generated K2,
+      // and the AI response + metadata were encrypted with K2 — making the user
+      // message permanently unreadable.
       if (!chatKey) {
-        chatKey =
-          chatKeyManager.getKeySync(chat_id) ||
-          chatKeyManager.createKeyForNewChat(chat_id);
+        // 1. Sync cache check (fastest — no IDB round-trip)
+        chatKey = chatKeyManager.getKeySync(chat_id);
+
+        // 2. Async IDB fallback: load encrypted_chat_key from IDB and decrypt with
+        //    master key. This recovers the key when clearAllChatKeys() wiped the
+        //    in-memory caches (e.g., spurious WS auth failure) but the IDB still
+        //    holds the correct encrypted_chat_key from the original addChat() call.
+        if (!chatKey) {
+          chatKey = await chatKeyManager.getKey(chat_id);
+          if (chatKey) {
+            console.info(
+              `[ChatSyncService:Senders] Recovered chat key from IDB for ${chat_id} (caches were empty — likely post-auth-disruption)`,
+            );
+          }
+        }
+
+        // 3. Last resort: genuinely new chat with no key anywhere — safe to create.
+        if (!chatKey) {
+          chatKey = chatKeyManager.createKeyForNewChat(chat_id);
+        }
       }
+      console.warn(
+        `[ChatSyncService:Senders] encrypted_chat_key missing in IDB for ${chat_id}, ${chatKey ? "using recovered/cached key" : "generated new key"}`,
+      );
 
       // Encrypt and save the new key
       const { encryptChatKeyWithMasterKey } = await import("./cryptoService");
