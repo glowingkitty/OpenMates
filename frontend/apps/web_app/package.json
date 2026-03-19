@@ -19,6 +19,8 @@
 	"dependencies": {
 		"@fontsource-variable/lexend-deca": "^5.2.9",
 		"@repo/ui": "workspace:*",
+		"dompurify": "^3.3.2",
+		"markdown-it": "^14.1.1",
 		"svelte-i18n": "^4.0.1",
 		"yaml": "^2.8.1"
 	},
