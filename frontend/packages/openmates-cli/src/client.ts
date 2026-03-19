@@ -46,6 +46,7 @@ import type {
   MemoryEntryInfo,
 } from "./mentions.js";
 import { CHAT_MODELS } from "./mentions.js";
+import type { EncryptedEmbed } from "./embedCreator.js";
 
 // ---------------------------------------------------------------------------
 // Memory type registry — mirrors all production-stage entries from app.yml files.
@@ -1197,6 +1198,8 @@ export class OpenMatesClient {
     incognito?: boolean;
     /** Streaming callback — fires for typing, chunk, and done events. */
     onStream?: (event: import("./ws.js").StreamEvent) => void;
+    /** Encrypted file embeds to attach to the message (code, images, PDFs). */
+    encryptedEmbeds?: EncryptedEmbed[];
   }): Promise<{
     chatId: string;
     assistant: string;
@@ -1232,7 +1235,8 @@ export class OpenMatesClient {
     // rather than sending a single background-completion event.
     ws.send("set_active_chat", { chat_id: chatId });
 
-    ws.send("chat_message_added", {
+    // Build the message payload
+    const messagePayload: Record<string, unknown> = {
       chat_id: chatId,
       is_incognito: Boolean(params.incognito),
       message: {
@@ -1245,7 +1249,15 @@ export class OpenMatesClient {
         created_at: Math.floor(Date.now() / 1000),
         chat_has_title: Boolean(params.chatId),
       },
-    });
+    };
+
+    // Attach encrypted file embeds if present
+    // Mirrors: chatSyncServiceSenders.ts encrypted_embeds array
+    if (params.encryptedEmbeds && params.encryptedEmbeds.length > 0) {
+      messagePayload.encrypted_embeds = params.encryptedEmbeds;
+    }
+
+    ws.send("chat_message_added", messagePayload);
 
     let assistant = "";
     let category: string | null = null;
@@ -2082,6 +2094,26 @@ export class OpenMatesClient {
     }
 
     return { success: true, id: entryId };
+  }
+
+  // ── Embed encryption helpers ─────────────────────────────────────────
+
+  /**
+   * Get the master key bytes for embed encryption.
+   * Requires active session.
+   */
+  getEmbedEncryptionKeys(): { masterKey: Uint8Array; userId: string } {
+    const session = this.requireSession();
+    const masterKey = base64ToBytes(session.masterKeyExportedB64);
+    const userId = session.hashedEmail;
+    return { masterKey, userId };
+  }
+
+  /**
+   * Get the session for file upload authentication.
+   */
+  getSession(): import("./storage.js").OpenMatesSession {
+    return this.requireSession();
   }
 
   // ── Mention context builder ─────────────────────────────────────────

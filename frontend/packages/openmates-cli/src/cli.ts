@@ -28,7 +28,10 @@ import {
   type MentionType,
 } from "./mentions.js";
 import { OutputRedactor } from "./outputRedactor.js";
-import { processFiles, formatFilesForMessage } from "./fileEmbed.js";
+import { processFiles, formatEmbedsForMessage } from "./fileEmbed.js";
+import { encryptEmbed, type EncryptedEmbed } from "./embedCreator.js";
+import { uploadFile } from "./uploadService.js";
+import { toonEncodeContent } from "./embedCreator.js";
 import { renderEmbedPreview, renderEmbedFullscreen } from "./embedRenderers.js";
 
 type CliArgs = {
@@ -1238,6 +1241,9 @@ async function sendMessageStreaming(
     }
   };
 
+  // ── Encrypted embeds array (populated by file processing below) ────
+  const encryptedEmbeds: EncryptedEmbed[] = [];
+
   // ── Mention resolution ─────────────────────────────────────────────
   // Parse @mentions in the message, resolve to backend wire syntax.
   // If any mentions fail to resolve, show error and abort.
@@ -1264,7 +1270,7 @@ async function sendMessageStreaming(
         process.exit(1);
       }
 
-      // Process file @path references
+      // Process file @path references into proper encrypted embeds
       if (parsed.filePaths.length > 0) {
         const fileResult = processFiles(parsed.filePaths, redactor ?? null);
 
@@ -1290,34 +1296,104 @@ async function sendMessageStreaming(
         }
 
         // Show processed files confirmation
-        if (fileResult.files.length > 0 && !params.json) {
+        if (fileResult.embeds.length > 0 && !params.json) {
           clearTyping();
-          for (const f of fileResult.files) {
-            const suffix = f.zeroKnowledge
-              ? " (zero-knowledge mode)"
-              : f.redacted
+          for (const fe of fileResult.embeds) {
+            const suffix = fe.zeroKnowledge
+              ? " (zero-knowledge)"
+              : fe.secretsRedacted
                 ? " (secrets redacted)"
-                : "";
+                : fe.requiresUpload
+                  ? " (uploading...)"
+                  : "";
             process.stderr.write(
-              `\x1b[2m  @${f.name}${suffix}\x1b[0m\n`,
+              `\x1b[2m  \x1b[36m@${fe.displayName}\x1b[2m${suffix}\x1b[0m\n`,
             );
           }
         }
 
-        // Append file content to message
-        // Remove the @path tokens from the message first
+        // Upload files that require S3 upload (images, PDFs)
+        for (const fe of fileResult.embeds) {
+          if (fe.requiresUpload && fe.localPath) {
+            try {
+              const session = client.getSession();
+              const uploadResult = await uploadFile(fe.localPath, session);
+
+              // Update the embed with upload server response data
+              fe.embed.content = toonEncodeContent({
+                type: fe.embed.type === "pdf" ? "pdf" : "image",
+                app_id: "images",
+                skill_id: "upload",
+                status: "finished",
+                filename: fe.displayName,
+                content_hash: uploadResult.content_hash,
+                s3_base_url: uploadResult.s3_base_url,
+                files: uploadResult.files,
+                aes_key: uploadResult.aes_key,
+                aes_nonce: uploadResult.aes_nonce,
+                vault_wrapped_aes_key: uploadResult.vault_wrapped_aes_key,
+                ai_detection: uploadResult.ai_detection,
+              });
+              fe.embed.status = fe.embed.type === "pdf" ? "processing" : "finished";
+              fe.embed.contentHash = uploadResult.content_hash;
+
+              // Use the server-assigned embed_id
+              fe.embed.embedId = uploadResult.embed_id;
+
+              if (!params.json) {
+                process.stderr.write(
+                  `\x1b[32m  \u2713\x1b[0m \x1b[2m${fe.displayName} uploaded\x1b[0m\n`,
+                );
+              }
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : String(err);
+              process.stderr.write(
+                `\x1b[31mUpload failed:\x1b[0m ${fe.displayName} — ${msg}\n`,
+              );
+              process.exit(1);
+            }
+          }
+        }
+
+        // Remove @path tokens from the message text
         for (const fp of parsed.filePaths) {
           finalMessage = finalMessage.replace(
-            new RegExp(`@${fp.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "g"),
+            new RegExp(`@${fp.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}`, "g"),
             "",
           );
         }
         finalMessage = finalMessage.trim();
 
-        // Append formatted file blocks
-        const fileBlocks = formatFilesForMessage(fileResult.files);
-        if (fileBlocks) {
-          finalMessage += fileBlocks;
+        // Append embed reference blocks to the message
+        const embedRefs = formatEmbedsForMessage(fileResult.embeds);
+        if (embedRefs) {
+          finalMessage += embedRefs;
+        }
+
+        // Encrypt all embeds for the WebSocket payload
+        try {
+          const { masterKey, userId } = client.getEmbedEncryptionKeys();
+          for (const fe of fileResult.embeds) {
+            // Note: chatKey is null for new chats — server assigns it.
+            // For existing chats, we'd need to fetch the chat key from cache.
+            // For now, only master key wrapping is used (sufficient for owner access).
+            const encrypted = await encryptEmbed(
+              fe.embed,
+              masterKey,
+              null, // chatKey — not available in CLI yet for new chats
+              params.chatId || "new", // will be replaced by server
+              "pending", // messageId set during send
+              userId,
+            );
+            if (encrypted) {
+              encryptedEmbeds.push(encrypted);
+            }
+          }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          process.stderr.write(
+            `\x1b[33mWarning:\x1b[0m Embed encryption failed: ${msg}. Files sent without encryption.\n`,
+          );
         }
       }
 
@@ -1344,6 +1420,7 @@ async function sendMessageStreaming(
     chatId: params.chatId,
     incognito: params.incognito,
     onStream,
+    encryptedEmbeds: encryptedEmbeds.length > 0 ? encryptedEmbeds : undefined,
   });
 
   clearTyping();

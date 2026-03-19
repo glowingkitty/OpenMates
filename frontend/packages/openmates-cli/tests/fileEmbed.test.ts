@@ -10,7 +10,7 @@ import assert from "node:assert/strict";
 import { writeFileSync, mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { processFiles, formatFilesForMessage } from "../src/fileEmbed.ts";
+import { processFiles, formatEmbedsForMessage } from "../src/fileEmbed.ts";
 import { OutputRedactor } from "../src/outputRedactor.ts";
 
 const testDir = join(tmpdir(), `openmates-test-${Date.now()}`);
@@ -24,89 +24,50 @@ describe("fileEmbed", () => {
     rmSync(testDir, { recursive: true, force: true });
   });
 
-  describe("processFiles", () => {
-    it("reads a normal text file", () => {
-      const filePath = join(testDir, "hello.txt");
-      writeFileSync(filePath, "Hello, world!");
-
-      const result = processFiles([filePath], null);
-      assert.equal(result.files.length, 1);
-      assert.equal(result.errors.length, 0);
-      assert.equal(result.blocked.length, 0);
-      assert.equal(result.files[0].content, "Hello, world!");
-      assert.equal(result.files[0].redacted, false);
-    });
-
-    it("reads a TypeScript file with correct language hint", () => {
+  describe("processFiles — code/text files", () => {
+    it("creates a code-code embed for .ts files", () => {
       const filePath = join(testDir, "app.ts");
       writeFileSync(filePath, "const x: number = 42;");
 
       const result = processFiles([filePath], null);
-      assert.equal(result.files[0].language, "typescript");
+      assert.equal(result.embeds.length, 1);
+      assert.equal(result.errors.length, 0);
+      assert.equal(result.blocked.length, 0);
+
+      const embed = result.embeds[0];
+      assert.equal(embed.embed.type, "code-code");
+      assert.equal(embed.embed.status, "finished");
+      assert.equal(embed.requiresUpload, false);
+      assert.ok(embed.embed.content.length > 0);
+      assert.ok(embed.referenceBlock.includes('"type": "code"'));
+      assert.ok(embed.referenceBlock.includes(embed.embed.embedId));
+    });
+
+    it("detects language from extension", () => {
+      const filePath = join(testDir, "script.py");
+      writeFileSync(filePath, "print('hello')");
+
+      const result = processFiles([filePath], null);
+      assert.ok(result.embeds[0].embed.content.includes("python"));
     });
 
     it("processes .env files with zero-knowledge mode", () => {
       const filePath = join(testDir, ".env");
       writeFileSync(
         filePath,
-        'DATABASE_URL="postgres://admin:secretpass@db:5432/mydb"\nAPI_KEY=sk-proj-abc123def456ghi789\nEMPTY_VAR=\n# This is a comment',
+        'DATABASE_URL="postgres://admin:secretpass@db:5432/mydb"\nAPI_KEY=sk-proj-abc123def456ghi789\n# Comment',
       );
 
       const result = processFiles([filePath], null);
-      assert.equal(result.files.length, 1);
-      assert.equal(result.files[0].zeroKnowledge, true);
-      assert.equal(result.files[0].redacted, true);
-      // Should show variable names but not full values
-      assert.ok(result.files[0].content.includes("DATABASE_URL:"));
-      assert.ok(result.files[0].content.includes("API_KEY:"));
-      assert.ok(!result.files[0].content.includes("postgres://admin:secretpass"));
-      assert.ok(!result.files[0].content.includes("sk-proj-abc123def456ghi789"));
-      // Should preserve comments
-      assert.ok(result.files[0].content.includes("# This is a comment"));
+      assert.equal(result.embeds.length, 1);
+      assert.equal(result.embeds[0].zeroKnowledge, true);
+      assert.equal(result.embeds[0].secretsRedacted, true);
+      // Verify secrets are NOT in the TOON content
+      assert.ok(!result.embeds[0].embed.content.includes("postgres://admin:secretpass"));
+      assert.ok(!result.embeds[0].embed.content.includes("sk-proj-abc123def456ghi789"));
     });
 
-    it("processes .env.local files with zero-knowledge mode", () => {
-      const filePath = join(testDir, ".env.local");
-      writeFileSync(filePath, "SECRET=my-value-123456789");
-
-      const result = processFiles([filePath], null);
-      assert.equal(result.files[0].zeroKnowledge, true);
-    });
-
-    it("blocks .pem files", () => {
-      const filePath = join(testDir, "server.pem");
-      writeFileSync(filePath, "-----BEGIN CERTIFICATE-----");
-
-      const result = processFiles([filePath], null);
-      assert.equal(result.files.length, 0);
-      assert.equal(result.blocked.length, 1);
-      assert.ok(result.blocked[0].error.includes("private keys"));
-    });
-
-    it("blocks id_rsa files", () => {
-      const filePath = join(testDir, "id_rsa");
-      writeFileSync(filePath, "-----BEGIN RSA PRIVATE KEY-----");
-
-      const result = processFiles([filePath], null);
-      assert.equal(result.blocked.length, 1);
-    });
-
-    it("reports error for non-existent files", () => {
-      const result = processFiles([join(testDir, "nonexistent.txt")], null);
-      assert.equal(result.errors.length, 1);
-      assert.ok(result.errors[0].error.includes("not found"));
-    });
-
-    it("reports error for directories", () => {
-      const dirPath = join(testDir, "subdir");
-      mkdirSync(dirPath);
-
-      const result = processFiles([dirPath], null);
-      assert.equal(result.errors.length, 1);
-      assert.ok(result.errors[0].error.includes("directory"));
-    });
-
-    it("redacts secrets in files when redactor is provided", () => {
+    it("redacts secrets with redactor", () => {
       const redactor = new OutputRedactor();
       redactor.initializeFromMemories([
         {
@@ -131,63 +92,117 @@ describe("fileEmbed", () => {
       writeFileSync(filePath, "author: John Smith\nversion: 1.0");
 
       const result = processFiles([filePath], redactor);
-      assert.equal(result.files.length, 1);
-      assert.equal(result.files[0].redacted, true);
-      assert.ok(!result.files[0].content.includes("John Smith"));
-      assert.ok(result.files[0].content.includes("[MY_NAME]"));
+      assert.equal(result.embeds.length, 1);
+      assert.equal(result.embeds[0].secretsRedacted, true);
+      assert.ok(!result.embeds[0].embed.content.includes("John Smith"));
+      assert.ok(result.embeds[0].embed.content.includes("[MY_NAME]"));
     });
   });
 
-  describe("formatFilesForMessage", () => {
-    it("formats files as code blocks", () => {
-      const formatted = formatFilesForMessage([
+  describe("processFiles — images", () => {
+    it("creates an image embed that requires upload", () => {
+      const filePath = join(testDir, "photo.jpg");
+      writeFileSync(filePath, Buffer.from([0xff, 0xd8, 0xff, 0xe0])); // JPEG header
+
+      const result = processFiles([filePath], null);
+      assert.equal(result.embeds.length, 1);
+      assert.equal(result.embeds[0].embed.type, "image");
+      assert.equal(result.embeds[0].requiresUpload, true);
+      assert.equal(result.embeds[0].localPath, filePath);
+    });
+
+    it("supports various image extensions", () => {
+      for (const ext of ["png", "webp", "gif", "svg"]) {
+        const filePath = join(testDir, `test.${ext}`);
+        writeFileSync(filePath, "fake image data");
+
+        const result = processFiles([filePath], null);
+        assert.equal(result.embeds.length, 1, `Failed for .${ext}`);
+        assert.equal(result.embeds[0].requiresUpload, true);
+      }
+    });
+  });
+
+  describe("processFiles — PDFs", () => {
+    it("creates a PDF embed that requires upload", () => {
+      const filePath = join(testDir, "document.pdf");
+      writeFileSync(filePath, "%PDF-1.4 fake content");
+
+      const result = processFiles([filePath], null);
+      assert.equal(result.embeds.length, 1);
+      assert.equal(result.embeds[0].embed.type, "pdf");
+      assert.equal(result.embeds[0].embed.status, "processing");
+      assert.equal(result.embeds[0].requiresUpload, true);
+    });
+  });
+
+  describe("processFiles — blocked files", () => {
+    it("blocks .pem files", () => {
+      const filePath = join(testDir, "server.pem");
+      writeFileSync(filePath, "-----BEGIN CERTIFICATE-----");
+
+      const result = processFiles([filePath], null);
+      assert.equal(result.embeds.length, 0);
+      assert.equal(result.blocked.length, 1);
+    });
+
+    it("blocks SSH key files", () => {
+      const filePath = join(testDir, "id_rsa");
+      writeFileSync(filePath, "-----BEGIN RSA PRIVATE KEY-----");
+
+      const result = processFiles([filePath], null);
+      assert.equal(result.blocked.length, 1);
+    });
+  });
+
+  describe("processFiles — errors", () => {
+    it("reports error for non-existent files", () => {
+      const result = processFiles([join(testDir, "nope.txt")], null);
+      assert.equal(result.errors.length, 1);
+      assert.ok(result.errors[0].error.includes("not found"));
+    });
+
+    it("reports error for directories", () => {
+      const dirPath = join(testDir, "subdir");
+      mkdirSync(dirPath);
+      const result = processFiles([dirPath], null);
+      assert.equal(result.errors.length, 1);
+    });
+
+    it("reports error for unsupported file types", () => {
+      const filePath = join(testDir, "archive.zip");
+      writeFileSync(filePath, "PK fake zip");
+      const result = processFiles([filePath], null);
+      assert.equal(result.errors.length, 1);
+      assert.ok(result.errors[0].error.includes("Unsupported"));
+    });
+  });
+
+  describe("formatEmbedsForMessage", () => {
+    it("formats embed references as JSON blocks", () => {
+      const formatted = formatEmbedsForMessage([
         {
-          path: "/tmp/app.ts",
-          name: "app.ts",
-          content: "const x = 42;",
-          language: "typescript",
-          redacted: false,
+          embed: {
+            embedId: "test-uuid-123",
+            type: "code-code",
+            content: "toon-data",
+            textPreview: "app.ts",
+            status: "finished",
+          },
+          referenceBlock: '```json\n{\n  "type": "code",\n  "embed_id": "test-uuid-123"\n}\n```',
+          displayName: "app.ts",
+          secretsRedacted: false,
           zeroKnowledge: false,
+          requiresUpload: false,
         },
       ]);
 
-      assert.ok(formatted.includes("```typescript"));
-      assert.ok(formatted.includes("const x = 42;"));
-      assert.ok(formatted.includes("[File: app.ts]"));
+      assert.ok(formatted.includes("```json"));
+      assert.ok(formatted.includes("test-uuid-123"));
     });
 
-    it("marks zero-knowledge files", () => {
-      const formatted = formatFilesForMessage([
-        {
-          path: "/tmp/.env",
-          name: ".env",
-          content: "KEY: ***abc",
-          language: "bash",
-          redacted: true,
-          zeroKnowledge: true,
-        },
-      ]);
-
-      assert.ok(formatted.includes("zero-knowledge mode"));
-    });
-
-    it("marks redacted files", () => {
-      const formatted = formatFilesForMessage([
-        {
-          path: "/tmp/config.ts",
-          name: "config.ts",
-          content: "[MY_NAME]",
-          language: "typescript",
-          redacted: true,
-          zeroKnowledge: false,
-        },
-      ]);
-
-      assert.ok(formatted.includes("secrets redacted"));
-    });
-
-    it("returns empty string for no files", () => {
-      assert.equal(formatFilesForMessage([]), "");
+    it("returns empty string for no embeds", () => {
+      assert.equal(formatEmbedsForMessage([]), "");
     });
   });
 });

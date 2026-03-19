@@ -18,7 +18,7 @@
     "test:unit:crypto": "node --test --experimental-strip-types tests/crypto.test.ts",
     "test:unit:storage": "node --test --experimental-strip-types tests/storage.test.ts",
     "test:unit:cli": "node --test tests/cli.test.ts",
-    "test": "node --test --experimental-strip-types tests/crypto.test.ts tests/storage.test.ts && node --test tests/cli.test.ts"
+    "test": "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/crypto.test.ts tests/storage.test.ts tests/mentions.test.ts tests/outputRedactor.test.ts tests/fileEmbed.test.ts tests/embedCreator.test.ts && node --test tests/cli.test.ts"
   },
   "keywords": [
     "openmates",
@@ -30,6 +30,7 @@
     "node": ">=20"
   },
   "dependencies": {
+    "@toon-format/toon": "2.1.0",
     "qrcode-terminal": "^0.12.0",
     "ws": "^8.18.3"
   },
