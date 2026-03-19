@@ -24,6 +24,8 @@ export interface DocFile {
     plainText: string;
     /** Word count of the document */
     wordCount: number;
+    /** Short description extracted from first paragraph (max 160 chars) for SEO */
+    description: string;
 }
 
 /**

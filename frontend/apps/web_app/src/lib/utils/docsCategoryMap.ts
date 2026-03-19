@@ -36,7 +36,7 @@ export const DOCS_FOLDER_ICON: Record<string, string> = {
  * Get category and icon for a doc based on its slug path.
  * Extracts the top-level folder from the slug.
  */
-function getDocCategoryInfo(slug: string): { category: string; icon: string } {
+export function getDocCategoryInfo(slug: string): { category: string; icon: string } {
 	const topFolder = slug.split('/')[0] || '';
 	return {
 		category: DOCS_FOLDER_CATEGORY[topFolder] || 'general_knowledge',

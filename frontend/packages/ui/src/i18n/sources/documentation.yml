@@ -22,3 +22,243 @@ open_documentation:
   sv: ''
   he: פתח תיעוד
   verified_by_human: []
+search.placeholder:
+  context: Placeholder text for the search input in the docs sidebar
+  en: Search docs...
+  de: Docs durchsuchen...
+  zh: 搜索文档...
+  es: Buscar documentación...
+  fr: Rechercher la documentation...
+  pt: ''
+  ru: ''
+  ja: ドキュメントを検索...
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  he: חיפוש במסמכים...
+  verified_by_human: []
+search.no_results:
+  context: Message shown when docs search returns no results
+  en: No documents found
+  de: Keine Dokumente gefunden
+  zh: 未找到文档
+  es: No se encontraron documentos
+  fr: Aucun document trouvé
+  pt: ''
+  ru: ''
+  ja: ドキュメントが見つかりませんでした
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  he: לא נמצאו מסמכים
+  verified_by_human: []
+welcome.title:
+  context: Title shown on the docs welcome/landing page
+  en: OpenMates Documentation
+  de: OpenMates Dokumentation
+  zh: OpenMates 文档
+  es: Documentación de OpenMates
+  fr: Documentation OpenMates
+  pt: ''
+  ru: ''
+  ja: OpenMates ドキュメント
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  he: תיעוד OpenMates
+  verified_by_human: []
+welcome.subtitle:
+  context: Subtitle shown on the docs welcome/landing page
+  en: Guides, architecture documentation, and API reference.
+  de: Anleitungen, Architekturdokumentation und API-Referenz.
+  zh: 指南、架构文档和 API 参考。
+  es: Guías, documentación de arquitectura y referencia de API.
+  fr: Guides, documentation d'architecture et référence API.
+  pt: ''
+  ru: ''
+  ja: ガイド、アーキテクチャドキュメント、APIリファレンス。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  he: מדריכים, תיעוד ארכיטקטורה, ומידע על API.
+  verified_by_human: []
+page_not_found:
+  context: Message shown when a docs page is not found
+  en: Page not found
+  de: Seite nicht gefunden
+  zh: 页面未找到
+  es: Página no encontrada
+  fr: Page non trouvée
+  pt: ''
+  ru: ''
+  ja: ページが見つかりません
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  he: הדף לא נמצא
+  verified_by_human: []
+back_to_docs:
+  context: Link text to navigate back to the docs index
+  en: Back to Documentation
+  de: Zurück zur Dokumentation
+  zh: 返回文档
+  es: Volver a la documentación
+  fr: Retour à la documentation
+  pt: ''
+  ru: ''
+  ja: ドキュメントに戻る
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  he: חזרה לתיעוד
+  verified_by_human: []
+sender_name:
+  context: Name shown as the sender of docs content, displayed like a chat assistant message
+  en: OpenMates
+  de: OpenMates
+  zh: OpenMates
+  es: OpenMates
+  fr: OpenMates
+  pt: ''
+  ru: ''
+  ja: OpenMates
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  he: OpenMates
+  verified_by_human: []
+toc.title:
+  context: Title of the table of contents section in the docs sidebar
+  en: On this page
+  de: Auf dieser Seite
+  zh: 本页内容
+  es: En esta página
+  fr: Sur cette page
+  pt: ''
+  ru: ''
+  ja: このページの内容
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  he: בדף זה
+  verified_by_human: []
+documents_count:
+  context: Number of documents in a folder, shown on welcome page cards
+  en: "{count} documents"
+  de: "{count} Dokumente"
+  zh: "{count} 篇文档"
+  es: "{count} documentos"
+  fr: "{count} documents"
+  pt: ''
+  ru: ''
+  ja: "{count} 件のドキュメント"
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  he: "{count} מסמכים"
+  verified_by_human: []
+api_reference:
+  context: Label for the API Reference link in the docs sidebar
+  en: API Reference
+  de: API-Referenz
+  zh: API 参考
+  es: Referencia de API
+  fr: Référence API
+  pt: ''
+  ru: ''
+  ja: APIリファレンス
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  he: מסמך API
+  verified_by_human: []

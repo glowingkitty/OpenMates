@@ -41,4 +41,4 @@ function createDocsPanelState() {
 	};
 }
 
-const docsPanelState = createDocsPanelState();
+export const docsPanelState = createDocsPanelState();

@@ -17,6 +17,8 @@
 
 import type { RequestHandler } from './$types';
 import { getBackendUrl } from '$lib/backendUrl';
+import docsData from '$lib/generated/docs-data.json';
+import type { DocFolder, DocStructure } from '$lib/types/docs';
 
 interface DemoChatListItem {
 	slug?: string;
@@ -120,9 +122,23 @@ export const GET: RequestHandler = async ({ fetch, url }) => {
   </url>`;
 	});
 
+	// Generate docs page URLs from statically bundled docs-data.json
+	const docsUrls: string[] = [];
+	function collectDocSlugs(folder: DocFolder | DocStructure) {
+		for (const file of folder.files) {
+			docsUrls.push(`  <url>\n    <loc>${siteOrigin}/docs/${file.slug}</loc>\n    <lastmod>${today}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.6</priority>\n  </url>`);
+		}
+		for (const sub of folder.folders) {
+			collectDocSlugs(sub);
+		}
+	}
+	collectDocSlugs(docsData.structure as DocStructure);
+	// Add docs index page
+	docsUrls.unshift(`  <url>\n    <loc>${siteOrigin}/docs</loc>\n    <lastmod>${today}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>`);
 	const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${staticUrls.join('\n')}
+${docsUrls.join('\n')}
 ${demoUrls.join('\n')}
 </urlset>`;
 

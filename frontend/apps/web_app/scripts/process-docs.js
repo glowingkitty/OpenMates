@@ -249,6 +249,16 @@ function processMarkdownContent(content, filePath) {
  * @param {string} markdown - Markdown content
  * @returns {string} Plain text content
  */
+/**
+ * Extract a short description from plain text content.
+ * Skips the title and returns the first meaningful paragraph (max 160 chars).
+ */
+function extractDescription(plainText, title) {
+    const lines = plainText.split("\n").filter(l => l.trim());
+    const firstPara = lines.find(l => l.trim() && l.trim() !== title) || "";
+    return firstPara.length > 160 ? firstPara.substring(0, 157) + "..." : firstPara;
+}
+
 function extractPlainText(markdown) {
     return markdown
         // Remove code blocks
@@ -354,7 +364,8 @@ function buildDocsStructure(dir, relativePath = '', ignorePatterns = []) {
                 content: htmlContent,
                 originalMarkdown: originalMarkdown,
                 plainText: plainText,
-                wordCount: plainText.split(/\s+/).filter(w => w.trim()).length
+                wordCount: plainText.split(/\s+/).filter(w => w.trim()).length,
+                description: extractDescription(plainText, title)
             });
         }
     }

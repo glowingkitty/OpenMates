@@ -1,4 +1,8 @@
 // Components
+export { default as ChatHeader } from "./src/components/ChatHeader.svelte";
+export { default as ReadOnlyMessage } from "./src/components/ReadOnlyMessage.svelte";
+export { getCategoryGradientColors, getValidIconName, getFallbackIconForCategory, CATEGORY_GRADIENTS } from "./src/utils/categoryUtils";
+export { parse_message } from "./src/message_parsing/parse_message";
 export { default as DevConsole } from "./src/components/DevConsole.svelte";
 export { default as HeroHeader } from "./src/components/HeroHeader.svelte";
 export { default as ActiveChat } from "./src/components/ActiveChat.svelte";

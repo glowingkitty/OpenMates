@@ -5,7 +5,7 @@
 			"destination": "/"
 		},
 		{
-			"source": "/((?!_app|static|favicon\\.ico|robots\\.txt|sitemap\\.xml).*)",
+			"source": "/((?!_app|static|docs|favicon\\.ico|robots\\.txt|sitemap\\.xml).*)",
 			"destination": "/"
 		}
 	],

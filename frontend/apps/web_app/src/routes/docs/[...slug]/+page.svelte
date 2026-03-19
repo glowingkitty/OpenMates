@@ -1,216 +1,220 @@
 <script lang="ts">
     /**
      * Dynamic Docs Page
-     * 
-     * Renders individual documentation pages based on the URL slug.
-     * Handles both folder index pages and individual document pages.
-     * 
+     *
+     * Renders individual documentation pages using ChatHeader + DocsMessage,
+     * matching the chat UI pattern. Content is rendered as a single assistant
+     * message via ReadOnlyMessage/TipTap.
+     *
      * URL patterns:
      * - /docs/architecture -> Shows architecture folder index or README
      * - /docs/architecture/chats -> Shows specific document
+     *
+     * Architecture: docs/architecture/docs-web-app.md
      */
     import { page } from '$app/state';
-    import DocsContent from '$lib/components/docs/DocsContent.svelte';
+    import { ChatHeader, text } from '@repo/ui';
+    import DocsMessage from '$lib/components/docs/DocsMessage.svelte';
     import docsData from '$lib/generated/docs-data.json';
     import type { DocFile, DocFolder, DocStructure } from '$lib/types/docs';
-    
-    // Get the current slug from the URL
+    import { getDocCategoryInfo } from '$lib/utils/docsCategoryMap';
+
     let currentSlug = $derived(page.params.slug || '');
-    
-    // Find the document or folder matching the slug
     let pageData = $derived(findPageData(currentSlug));
-    
-    /**
-     * Find document data matching the given slug
-     * Searches through the nested structure
-     */
-    function findPageData(slug: string): { type: 'file' | 'folder', data: DocFile | DocFolder } | null {
+
+    /** Category info derived from the slug's top-level folder */
+    let catInfo = $derived(getDocCategoryInfo(currentSlug));
+
+    /** First paragraph of content as summary for ChatHeader */
+    let summary = $derived.by(() => {
+        if (pageData?.type !== 'file') return null;
+        const file = pageData.data as DocFile;
+        const plain = file.plainText || '';
+        // Skip the title line, get the first real paragraph
+        const lines = plain.split('\n').filter((l: string) => l.trim());
+        const firstPara = lines.find((l: string) =>
+            l.trim() && l.trim() !== file.title
+        ) || '';
+        return firstPara.length > 150 ? firstPara.substring(0, 150) + '...' : firstPara;
+    });
+
+    function findPageData(slug: string): { type: 'file' | 'folder'; data: DocFile | DocFolder } | null {
         const parts = slug.split('/').filter(Boolean);
-        
-        if (parts.length === 0) {
-            return null;
-        }
-        
+        if (parts.length === 0) return null;
+
         let current: DocStructure | DocFolder = docsData.structure as DocStructure;
-        
-        // Navigate through folders
+
         for (let i = 0; i < parts.length; i++) {
             const part = parts[i];
             const isLast = i === parts.length - 1;
-            
-            // Check if it's a file at this level
-            const file = current.files.find((f: DocFile) => 
-                f.slug === slug || 
-                f.name.replace('.md', '') === part
+
+            const file = current.files.find(
+                (f: DocFile) => f.slug === slug || f.name.replace('.md', '') === part
             );
-            
-            if (file && isLast) {
-                return { type: 'file', data: file };
-            }
-            
-            // Check if it's a folder
-            const folder = current.folders.find((f: DocFolder) => f.name === part);
-            
+            if (file && isLast) return { type: 'file', data: file };
+
+            const folder: DocFolder | undefined = current.folders.find((f: DocFolder) => f.name === part);
             if (folder) {
                 if (isLast) {
-                    // Return folder with its index file if exists
-                    const indexFile = folder.files.find((f: DocFile) => 
-                        f.name === 'README.md' || f.name === 'index.md'
+                    const indexFile = folder.files.find(
+                        (f: DocFile) => f.name === 'README.md' || f.name === 'index.md'
                     );
-                    
-                    if (indexFile) {
-                        return { type: 'file', data: indexFile };
-                    }
-                    
+                    if (indexFile) return { type: 'file', data: indexFile };
                     return { type: 'folder', data: folder };
                 }
-                
                 current = folder;
             } else {
-                // Not found
                 return null;
             }
         }
-        
         return null;
     }
-    
-    // Page title
+
     let pageTitle = $derived(
-        pageData?.type === 'file' 
-            ? pageData.data.title 
-            : pageData?.type === 'folder' 
-                ? pageData.data.title 
-                : 'Not Found'
+        pageData?.type === 'file'
+            ? pageData.data.title
+            : pageData?.type === 'folder'
+                ? pageData.data.title
+                : $text('documentation.page_not_found')
     );
+
+    /** SEO description from first paragraph */
+    let pageDescription = $derived.by(() => {
+        if (pageData?.type !== 'file') return 'OpenMates documentation';
+        const file = pageData.data as DocFile;
+        const plain = file.plainText || '';
+        const lines = plain.split('\n').filter((l: string) => l.trim());
+        const desc = lines.find((l: string) => l.trim() && l.trim() !== file.title) || '';
+        return desc.length > 160 ? desc.substring(0, 157) + '...' : desc || 'OpenMates documentation';
+    });
 </script>
 
 <svelte:head>
     <title>{pageTitle} | OpenMates Docs</title>
+    <meta name="description" content={pageDescription} />
+    <meta property="og:title" content="{pageTitle} | OpenMates Docs" />
+    <meta property="og:description" content={pageDescription} />
+    <meta property="og:type" content="article" />
+    <link rel="canonical" href="https://openmates.org/docs/{currentSlug}" />
 </svelte:head>
 
 {#if pageData?.type === 'file'}
-    <DocsContent 
-        title={pageData.data.title}
-        content={pageData.data.content}
-        originalMarkdown={pageData.data.originalMarkdown}
-    />
+    {@const file = pageData.data as DocFile}
+    <div class="docs-page-content">
+        <ChatHeader
+            title={file.title}
+            category={catInfo.category}
+            icon={catInfo.icon}
+            summary={summary}
+        />
+        <DocsMessage
+            content={file.originalMarkdown}
+            category={catInfo.category}
+        />
+    </div>
 {:else if pageData?.type === 'folder'}
-    <!-- Folder index page -->
-    <div class="folder-index">
-        <h1>{pageData.data.title}</h1>
-        
-        {#if pageData.data.files.length > 0}
-            <section class="folder-files">
-                <h2>Documents</h2>
-                <ul>
-                    {#each pageData.data.files as file}
-                        <li>
-                            <a href="/docs/{file.slug}">{file.title}</a>
-                        </li>
+    {@const folder = pageData.data as DocFolder}
+    <div class="docs-page-content">
+        <ChatHeader
+            title={folder.title}
+            category={catInfo.category}
+            icon={catInfo.icon}
+        />
+        <div class="folder-index">
+            {#if folder.files.length > 0}
+                <div class="folder-section">
+                    {#each folder.files as file (file.slug)}
+                        <a href="/docs/{file.slug}" class="folder-link">
+                            <span class="link-title">{file.title}</span>
+                        </a>
                     {/each}
-                </ul>
-            </section>
-        {/if}
-        
-        {#if pageData.data.folders.length > 0}
-            <section class="folder-subfolders">
-                <h2>Sections</h2>
-                <ul>
-                    {#each pageData.data.folders as subfolder}
-                        <li>
-                            <a href="/docs/{subfolder.path}">{subfolder.title}</a>
-                            <span class="count">({subfolder.files.length} docs)</span>
-                        </li>
+                </div>
+            {/if}
+            {#if folder.folders.length > 0}
+                <div class="folder-section">
+                    {#each folder.folders as subfolder (subfolder.path)}
+                        <a href="/docs/{subfolder.path}" class="folder-link">
+                            <span class="link-title">{subfolder.title}</span>
+                            <span class="link-count">{subfolder.files.length} docs</span>
+                        </a>
                     {/each}
-                </ul>
-            </section>
-        {/if}
+                </div>
+            {/if}
+        </div>
     </div>
 {:else}
-    <!-- Not found -->
     <div class="not-found">
-        <h1>Page Not Found</h1>
-        <p>The documentation page you're looking for doesn't exist.</p>
-        <a href="/docs">← Back to Documentation</a>
+        <h1>{$text('documentation.page_not_found')}</h1>
+        <a href="/docs">{$text('documentation.back_to_docs')}</a>
     </div>
 {/if}
 
 <style>
-    .folder-index h1 {
-        font-size: 2rem;
-        font-weight: 700;
-        color: var(--color-grey-900, #111827);
-        margin-bottom: 2rem;
+    .docs-page-content {
+        min-height: 100%;
     }
-    
-    .folder-files,
-    .folder-subfolders {
-        margin-bottom: 2rem;
+
+    .folder-index {
+        padding: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
     }
-    
-    .folder-files h2,
-    .folder-subfolders h2 {
-        font-size: 1.25rem;
-        font-weight: 600;
-        color: var(--color-grey-800, #1f2937);
-        margin-bottom: 1rem;
+
+    .folder-section {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
     }
-    
-    .folder-files ul,
-    .folder-subfolders ul {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-    }
-    
-    .folder-files li,
-    .folder-subfolders li {
-        padding: 0.75rem 0;
-        border-bottom: 1px solid var(--color-grey-200, #e5e5e5);
-    }
-    
-    .folder-files a,
-    .folder-subfolders a {
-        color: var(--color-primary, #3b82f6);
+
+    .folder-link {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.75rem 1rem;
+        border-radius: 10px;
         text-decoration: none;
+        color: var(--color-font-primary);
+        background-color: var(--color-grey-10);
+        transition: background-color 0.15s ease;
+    }
+
+    .folder-link:hover {
+        background-color: var(--color-grey-30);
+    }
+
+    .link-title {
         font-weight: 500;
+        font-size: 0.9375rem;
     }
-    
-    .folder-files a:hover,
-    .folder-subfolders a:hover {
-        text-decoration: underline;
+
+    .link-count {
+        font-size: 0.75rem;
+        color: var(--color-font-secondary);
     }
-    
-    .count {
-        color: var(--color-grey-500, #6b7280);
-        font-size: 0.875rem;
-        margin-left: 0.5rem;
-    }
-    
+
     .not-found {
-        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
         padding: 4rem 1rem;
+        gap: 1rem;
+        min-height: 50vh;
     }
-    
+
     .not-found h1 {
-        font-size: 2rem;
-        font-weight: 700;
-        color: var(--color-grey-900, #111827);
-        margin-bottom: 1rem;
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--color-font-primary);
     }
-    
-    .not-found p {
-        color: var(--color-grey-600, #4b5563);
-        margin-bottom: 2rem;
-    }
-    
+
     .not-found a {
-        color: var(--color-primary, #3b82f6);
+        color: var(--color-primary);
         text-decoration: none;
         font-weight: 500;
     }
-    
+
     .not-found a:hover {
         text-decoration: underline;
     }
