@@ -1,14 +1,11 @@
 # backend/core/api/app/utils/device_fingerprint.py
 import hashlib
-import json
 import logging
 import httpx
 import ipaddress
-from typing import Dict, Any, Optional, Mapping, Tuple, List
+from typing import Dict, Any, Optional, Mapping, Tuple
 from fastapi import Request
 from functools import lru_cache
-import time
-import secrets # Not used anymore, but keeping for now if other parts of the codebase use it
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)

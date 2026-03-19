@@ -2,7 +2,6 @@ import logging
 import os
 import base64
 import io
-import math
 # import json # No longer needed
 from typing import Optional, Tuple
 

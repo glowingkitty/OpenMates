@@ -6,7 +6,7 @@ import os
 import httpx
 import logging
 import asyncio
-from typing import Dict, Any, Optional, Union, Tuple
+from typing import Dict, Any, Optional, Tuple
 
 logger = logging.getLogger("vault-setup.client")
 

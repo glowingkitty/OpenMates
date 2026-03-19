@@ -1,7 +1,6 @@
 import logging
 import random
 import asyncio
-from typing import Dict, Any, Optional
 
 # Import the Celery app
 from backend.core.api.app.tasks.celery_config import app

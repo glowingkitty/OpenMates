@@ -1,7 +1,6 @@
 import logging
 import json
-import time
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +82,6 @@ async def add_user_device_hash(
             else:
                 logger.debug(f"No connected_devices found in Directus for user {user_id[:6]}. Starting with empty list.")
 
-        initial_connected_devices_count = len(connected_devices)
         needs_update = False
 
         if device_hash not in connected_devices:

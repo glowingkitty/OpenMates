@@ -1,8 +1,5 @@
 # backend/core/api/app/services/invoiceninja/invoices.py
 import logging
-import os
-import json
-import requests # Keep requests import for exception handling
 from typing import Optional, List, Dict, Any, Tuple
 
 # Note: These functions are intended to be part of the InvoiceNinjaService class.

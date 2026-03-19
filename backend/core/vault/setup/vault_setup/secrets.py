@@ -3,9 +3,8 @@ Functions for managing secrets in Vault.
 """
 
 import os
-import re
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Dict, Optional
 
 logger = logging.getLogger("vault-setup.secrets")
 

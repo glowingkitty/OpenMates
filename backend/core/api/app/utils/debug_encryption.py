@@ -14,7 +14,6 @@ It adds performance overhead and logs sensitive data.
 
 import logging
 import json
-import base64
 from typing import Optional, Dict, Any
 from datetime import datetime, timezone
 from enum import Enum

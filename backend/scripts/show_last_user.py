@@ -17,12 +17,10 @@ Usage:
 
 import asyncio
 import argparse
-import hashlib
-import json
 import logging
 import sys
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 
 # Add the backend directory to the Python path
 sys.path.insert(0, '/app/backend')

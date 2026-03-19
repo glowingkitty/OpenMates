@@ -1,23 +1,16 @@
 import os
 import yaml
 import logging
-import asyncio # Added for async operations
-from dotenv import load_dotenv
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import mm, inch
-from reportlab.pdfgen import canvas
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Flowable
-from reportlab.graphics.shapes import Drawing
-from reportlab.graphics.barcode.qr import QrCodeWidget
+from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
 from pathlib import Path
 
 from backend.core.api.app.services.translations import TranslationService
 from backend.core.api.app.services.email.config_loader import load_shared_urls
-from backend.core.api.app.services.pdf.flowables import ColoredLine
 from backend.core.api.app.services.pdf.utils import (sanitize_html_for_reportlab, replace_placeholders_safely)
 from backend.core.api.app.utils.secrets_manager import SecretsManager # Import SecretsManager
 

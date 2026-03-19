@@ -5,7 +5,7 @@ Functions for initializing and unsealing Vault.
 import os
 import logging
 import stat
-from typing import Dict, Any, Optional, Tuple
+from typing import Optional, Tuple
 
 logger = logging.getLogger("vault-setup.initialization")
 

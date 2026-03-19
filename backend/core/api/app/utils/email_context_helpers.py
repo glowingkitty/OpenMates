@@ -168,18 +168,6 @@ async def prepare_new_device_login_context(
 
     # --- Mailto Link Generation ---
     login_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
-    mailto_subject_template = translation_service.get_nested_translation("email.email_subject_someone_accessed_my_account", language, {})
-    mailto_body_template = translation_service.get_nested_translation("email.email_body_someone_accessed_my_account_from_new_device", language, {})
-
-    mailto_body_formatted = mailto_body_template.format(
-        login_time=login_time,
-        device_type=device_type_translated,
-        operating_system=os_name_translated,
-        city=city, # Use parsed city
-        country=country, # Use parsed country
-        account_email=account_email
-    )
-
     # --- Mailto Link Generation (using new helper) ---
     login_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC") # Keep time generation here
     

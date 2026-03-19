@@ -9,8 +9,7 @@ import logging
 import json
 import gzip
 from datetime import datetime, timedelta
-from typing import Dict, Any, Optional, List, Tuple
-from io import BytesIO
+from typing import Dict, Any, Optional, List
 
 from backend.core.api.app.services.s3.service import S3UploadService
 from backend.core.api.app.services.s3.config import get_bucket_name

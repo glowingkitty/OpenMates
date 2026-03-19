@@ -424,7 +424,6 @@ def validate_rankings(rankings: List[Dict], category: str, markdown: str = "") -
     
     # Check required fields
     required_fields = ["rank", "model", "score"]
-    optional_fields = ["votes", "organization"]
     
     models_with_all_required = 0
     models_with_votes = 0

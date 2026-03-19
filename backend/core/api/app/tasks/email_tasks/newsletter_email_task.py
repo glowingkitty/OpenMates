@@ -9,7 +9,6 @@ This module handles:
 import logging
 import asyncio
 import os
-from typing import Dict, Any
 
 # Import the Celery app
 from backend.core.api.app.tasks.celery_config import app

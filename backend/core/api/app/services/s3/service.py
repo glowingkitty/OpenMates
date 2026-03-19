@@ -456,13 +456,6 @@ class S3UploadService:
             raise HTTPException(status_code=503, detail="S3 service unavailable")
             
         try:
-            # Get bucket configuration
-            try:
-                bucket_config = self.get_bucket_config(bucket_key)
-            except ValueError:
-                logger.error(f"Unknown bucket: {bucket_key}")
-                raise HTTPException(status_code=400, detail=f"Unknown bucket: {bucket_key}")
-            
             # Get the appropriate bucket name based on environment
             bucket_name = get_bucket_name(bucket_key, self.environment)
             

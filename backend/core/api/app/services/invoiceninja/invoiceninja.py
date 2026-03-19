@@ -3,9 +3,7 @@ import requests
 import json
 import logging
 import os # Added for environment variable check
-from dataclasses import dataclass, field
 from typing import Optional, Dict, Any, List, Tuple
-from datetime import date # Added for payment date
 
 # Assuming SecretsManager is accessible via this relative path
 # Adjust the import path if necessary based on your project structure

@@ -1,4 +1,3 @@
-import os
 import httpx
 import logging
 import asyncio
@@ -87,7 +86,6 @@ async def login_admin(self):
 async def ensure_auth_token(self, admin_required=False, force_refresh=False):
     """Get a valid authentication token, refreshing if necessary"""
     # Always use admin token regardless of admin_required parameter
-    admin_required = True
     
     # If we have an admin token and not forcing refresh, assume it's valid
     # The API request method will handle 401s and force a refresh if needed

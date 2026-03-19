@@ -5,7 +5,6 @@ import random
 import string
 import requests
 import glob
-from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -67,7 +66,7 @@ def wait_for_directus():
                 print('Directus is ready! (Ping successful)')
                 return
                 
-        except Exception as e:
+        except Exception:
             pass
         
         retry_count += 1
