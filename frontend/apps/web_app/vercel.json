@@ -1,5 +1,7 @@
 {
-	"installCommand": "corepack enable && cd ../.. && pnpm install",
+	"env": {
+		"ENABLE_EXPERIMENTAL_COREPACK": "1"
+	},
 	"rewrites": [
 		{
 			"source": "/dev/:path*",
