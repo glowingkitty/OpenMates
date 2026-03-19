@@ -6,12 +6,12 @@
 import logging
 import time
 import hashlib
-from typing import Dict, Any, Optional
-from fastapi import APIRouter, Depends, HTTPException, Request, Body
+from typing import Optional
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from backend.core.api.app.models.user import User
-from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user, get_current_user_or_api_key
+from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user_or_api_key
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.cache import CacheService

@@ -14,7 +14,7 @@ import random
 import time
 from typing import Dict, Any, List, Optional, Tuple
 from urllib.parse import urlparse, parse_qs
-from pydantic import BaseModel, Field, field_validator, ValidationError
+from pydantic import BaseModel, Field, field_validator
 from celery import Celery  # For Celery type hinting
 from requests import Session
 
@@ -704,7 +704,7 @@ class TranscriptSkill(BaseSkill):
             # Format transcript with timestamps if fetch was successful
             if result.get("success") and "transcript_items" in result:
                 transcript_items = result.pop("transcript_items")
-                plain_text = result.pop("plain_text", "")
+                result.pop("plain_text", "")
                 
                 # Format transcript as multiline string with timestamps
                 # Format: [HH:MM:SS.mmm] text (one line per timestamp segment)

@@ -345,7 +345,6 @@ async def preview_newsletter_confirmed(
     """
     Preview the newsletter confirmed email template.
     """
-    import os
     
     try:
         # Get social media links (from environment or defaults)
