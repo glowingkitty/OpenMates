@@ -3320,10 +3320,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // ensures robustness in case of any transient zero-height measurement.
     let lastKnownWelcomeHeight = 0;
 
-    // Estimated height the suggestions panel occupies (header + 3 items + margin).
-    // Used as the minimum clearance we require between the welcome block bottom
-    // and the message-input top before we consider the layout "tight".
-    const SUGGESTIONS_APPROX_HEIGHT = 150;
+    // Estimated height the suggestions panel occupies (header + one row of horizontal cards + margin).
+    // The new design is a single horizontal scroll row (~90px total), down from the old
+    // vertical 3-item list (~150px). Using a lower value means the suggestions are visible
+    // on more viewport sizes without requiring the user to focus the input first.
+    const SUGGESTIONS_APPROX_HEIGHT = 90;
 
     /**
      * Re-measure whether suggestions would overlap the welcome content.

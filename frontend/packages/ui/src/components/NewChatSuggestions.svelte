@@ -180,9 +180,14 @@
     suggestionId: ''
   });
 
-  // Touch handling for context menu
+  // Touch handling for context menu and scroll-vs-tap discrimination
   let touchStartTime = $state(0);
+  let touchStartX = $state(0);  // X position at touchstart — used to detect horizontal scroll
+  let touchStartY = $state(0);  // Y position at touchstart — used to detect vertical scroll
   let touchTimer: number | undefined;
+
+  /** Max pixels a finger can move before we treat the gesture as a scroll, not a tap */
+  const TOUCH_SCROLL_THRESHOLD = 8;
 
   // Full suggestions pool with text, encrypted value, and ID
   let fullSuggestionsWithEncrypted = $state<Array<{ text: string; encrypted: string; id: string }>>([]);
@@ -421,10 +426,14 @@
   }
 
   /**
-   * Handle touch start for long-press detection
+   * Handle touch start — record position and start long-press timer.
    */
   function handleTouchStart(event: TouchEvent, suggestionText: string, suggestionId?: string) {
     touchStartTime = Date.now();
+    if (event.touches.length > 0) {
+      touchStartX = event.touches[0].clientX;
+      touchStartY = event.touches[0].clientY;
+    }
     if (touchTimer) clearTimeout(touchTimer);
     touchTimer = window.setTimeout(() => {
       handleContextMenu(event, suggestionText, suggestionId);
@@ -432,7 +441,10 @@
   }
 
   /**
-   * Handle touch end - cancel long press if it's a quick tap
+   * Handle touch end — fire click only if the finger didn't scroll.
+   * Checks both duration (< 500ms) and horizontal movement (< TOUCH_SCROLL_THRESHOLD px)
+   * to distinguish a tap from a scroll gesture. This prevents false-click pastes
+   * when the user is swiping through the suggestion card row on a touch device.
    */
   function handleTouchEnd(
     event: TouchEvent,
@@ -446,10 +458,22 @@
       clearTimeout(touchTimer);
       touchTimer = undefined;
     }
-    if (touchDuration < 500) {
+
+    // Measure how far the finger moved from the start position
+    let deltaX = 0;
+    let deltaY = 0;
+    if (event.changedTouches.length > 0) {
+      deltaX = Math.abs(event.changedTouches[0].clientX - touchStartX);
+      deltaY = Math.abs(event.changedTouches[0].clientY - touchStartY);
+    }
+
+    // Only fire the click if: short tap AND finger barely moved (not a scroll)
+    const isScroll = deltaX > TOUCH_SCROLL_THRESHOLD || deltaY > TOUCH_SCROLL_THRESHOLD;
+    if (touchDuration < 500 && !isScroll) {
       handleSuggestionClick(rawText, body, suggestionId, encryptedSuggestion);
     }
-    event.preventDefault();
+
+    // Don't preventDefault — we want native scroll to still work
   }
 
   /**
@@ -586,26 +610,22 @@
     pointer-events: none;
   }
 
-  /* Horizontally scrollable row of suggestion cards — mirrors the recent-chats
-     scroll pattern: first card starts centred in the viewport, then the user
-     scrolls right to reveal the rest. Padding-left = 50% - half-card-width so
-     the first card (310px wide) lands exactly in the centre. */
+  /* Horizontally scrollable row of suggestion cards.
+     Cards start from the left edge with consistent padding matching the header text.
+     The last card gets extra right padding so it doesn't sit flush at the edge.
+     overflow-x: auto allows swiping through all cards; scrollbar is hidden. */
   .suggestions-scroll {
     display: flex;
     flex-direction: row;
-    align-items: center;
+    align-items: stretch;
     gap: 12px;
     overflow-x: auto;
-    overflow-y: hidden;
+    overflow-y: visible;
     -webkit-overflow-scrolling: touch;
     scroll-behavior: smooth;
     scrollbar-width: none; /* Firefox */
     -ms-overflow-style: none; /* IE/Edge */
-    /* Left padding centres the first 310px card; right padding gives breathing room at the end */
-    padding: 6px 48px 10px calc(50% - 155px);
-    box-sizing: border-box;
-    width: 100%;
-    max-width: 100%;
+    padding: 4px 18px 10px 18px;
     position: relative;
     z-index: 50;
   }
@@ -616,17 +636,18 @@
 
   /* Each suggestion card: rounded rectangle with app gradient background,
      icon on the left, white text on the right.
-     Fixed width of 310px (from Figma) — text wraps naturally, no truncation. */
+     Fixed width of 240px — wide enough for ~3 words per line, narrow enough
+     that a second card is always partially visible as a scroll affordance. */
   .suggestion-card {
     display: flex;
     flex-direction: row;
     align-items: center;
     gap: 10px;
-    width: 310px;
-    min-width: 310px;
+    width: 240px;
+    min-width: 240px;
     min-height: 56px;
     height: auto;
-    padding: 10px 14px;
+    padding: 12px 16px;
     border: none;
     border-radius: 15px;
     cursor: pointer;
@@ -689,13 +710,12 @@
 
     .suggestions-scroll {
       gap: 10px;
-      /* Centre the first 260px card on smaller screens */
-      padding: 4px 32px 8px calc(50% - 130px);
+      padding: 4px 15px 8px 15px;
     }
 
     .suggestion-card {
-      width: 260px;
-      min-width: 260px;
+      width: 210px;
+      min-width: 210px;
       padding: 10px 12px;
       gap: 8px;
     }
