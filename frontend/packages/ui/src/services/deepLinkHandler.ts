@@ -42,6 +42,8 @@ export interface DeepLinkHandlers {
   onEmbed?: (embedId: string) => Promise<void>;
   /** Handler for /#pair=TOKEN deep links — opens the confirm-pair settings page */
   onPair?: (token: string) => void;
+  /** Handler for /#404=<encodedPath> deep links — shows the Not404Screen */
+  onNotFound?: (failedPath: string) => void;
   onNoHash?: () => Promise<void>; // Handler for when no hash is present
   requiresAuthentication?: (settingsPath: string) => boolean;
   isAuthenticated?: () => boolean;
@@ -253,6 +255,15 @@ export async function processDeepLink(
         return { type: "embed", processed: true };
       }
       break;
+
+    case "not_found": {
+      if (handlers.onNotFound) {
+        const failedPath = decodeURIComponent(parsed.data?.failedPath ?? "");
+        handlers.onNotFound(failedPath);
+        return { type: "not_found", processed: true };
+      }
+      break;
+    }
 
     case "pair": {
       // Pair login deep link: navigate to Settings > Account > Security > Sessions > Confirm Device.

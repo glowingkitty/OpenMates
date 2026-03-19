@@ -972,18 +972,17 @@
 			);
 		}
 
-		// 404 NOT-FOUND DETECTION: When Vercel's catch-all rewrite serves the SPA for an
-		// unknown path (e.g. /iphone-review), the pathname is not "/" — detect that and store
-		// the failed path so ActiveChat can show the Not404Screen instead of the welcome screen.
-		// We clean the URL immediately to "/" so the bad path doesn't persist in history.
-		if (browser && window.location.pathname !== '/') {
-			const failedPath = window.location.pathname + window.location.search;
-			console.debug('[+page.svelte] [404] Unknown path detected:', failedPath);
-			// Replace URL with clean root so back-navigation works naturally
-			history.replaceState(null, '', '/' + (window.location.hash || ''));
+		// 404 NOT-FOUND DETECTION: The catch-all server route at /[...path]/+server.ts
+		// redirects unknown paths to /#404=<encodedPath>. Detect that hash here and store
+		// the failed path so ActiveChat shows Not404Screen instead of the welcome screen.
+		// Clean the hash from the URL immediately so it doesn't persist in history.
+		if (browser && window.location.hash.startsWith('#404=')) {
+			const failedPath = decodeURIComponent(window.location.hash.slice('#404='.length));
+			console.debug('[+page.svelte] [404] Unknown path detected via hash:', failedPath);
+			// Remove the #404= hash from the URL bar
+			history.replaceState(null, '', '/');
 			notFoundPathStore.set(failedPath);
-			// Do not process further hash/deep-link logic — Not404Screen handles the UX
-			// (we still let the rest of onMount run for auth/init, just skip deep-link return)
+			// Do not process as a deep link — Not404Screen handles the UX from here
 		}
 
 		// SHARED-CHAT REDIRECT: Read and consume the sessionStorage flag set by the share
@@ -2323,6 +2322,12 @@
 					// For non-authenticated users: load demo-for-everyone chat
 					await loadDemoWelcomeChat();
 				}
+			},
+			onNotFound: (failedPath: string) => {
+				// /#404=<path> fired from catch-all server route or back-navigation
+				console.debug('[+page.svelte] onNotFound deep link:', failedPath);
+				history.replaceState(null, '', '/');
+				notFoundPathStore.set(failedPath);
 			},
 			onPair: (token: string) => {
 				// Set the token store BEFORE navigating so SettingsSessionsConfirmPair reads it on mount.
