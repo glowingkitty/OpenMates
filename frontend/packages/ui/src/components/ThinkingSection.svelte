@@ -15,7 +15,7 @@
   Visual Design:
   - reasoning.svg icon on the left
   - Translated "Thinking..." text during streaming, "Thought process" when done
-  - Animated conic-gradient border rotates slowly while streaming (border-only, non-distracting)
+  - Apple Intelligence-style rainbow glow border animates while streaming (full-spectrum conic-gradient + soft bloom)
   - dropdown.svg icon on the right that rotates 180° when expanded
   - Hover color change to indicate clickability
   
@@ -153,6 +153,16 @@
         inherits: false;
     }
 
+    /*
+     * Register --glow-angle for the outer glow halo layer — offset so the
+     * bloom trails the sharp border ring, creating Apple Intelligence depth.
+     */
+    @property --glow-angle {
+        syntax: '<angle>';
+        initial-value: 60deg;
+        inherits: false;
+    }
+
     .thinking-section {
         margin-bottom: 12px;
         border-radius: 8px;
@@ -182,34 +192,62 @@
         border-color: transparent;
     }
 
-    /* The spinning gradient layer — positioned behind content */
+    /*
+     * Apple Intelligence-style rainbow glow border.
+     *
+     * Layer 1 (::before) — the sharp rotating rainbow ring.
+     * A full-spectrum conic-gradient spins around the container perimeter.
+     * filter: blur(1px) softens the hard colour stops just enough to give
+     * the "luminous" quality without losing the rainbow definition.
+     *
+     * Layer 2 (::after) is split: the top half handles the interior fill mask
+     * so the gradient doesn't bleed into the content; the second pseudo-element
+     * is simulated via a box-shadow on ::before for the outer glow halo.
+     *
+     * Apple Intelligence colour stops (sampled from recorded references):
+     * magenta → orange → yellow → green → cyan → blue → violet → magenta
+     */
     .thinking-section.streaming::before {
         content: '';
         position: absolute;
-        inset: -2px;
-        border-radius: 10px; /* slightly larger than the 8px container radius */
+        inset: -3px;
+        border-radius: 11px;
         background: conic-gradient(
             from var(--gradient-angle, 0deg),
-            transparent 0deg,
-            transparent 60deg,
-            var(--color-accent-secondary, #6366f1) 120deg,
-            var(--color-accent-primary, #3b82f6) 180deg,
-            transparent 240deg,
-            transparent 360deg
+            #ff2d55,   /*  0deg  — Apple red/pink  */
+            #ff6b2b,   /* 51deg  — orange          */
+            #ffd60a,   /* 102deg — yellow          */
+            #30d158,   /* 153deg — green           */
+            #32ade6,   /* 204deg — cyan/blue       */
+            #bf5af2,   /* 255deg — purple          */
+            #ff375f,   /* 306deg — magenta         */
+            #ff2d55    /* 360deg — loop back       */
         );
-        animation: spin-border 4s linear infinite;
+        animation: rainbow-spin 3s linear infinite;
         z-index: -1;
-        opacity: 0.85;
+        opacity: 0.9;
+        filter: blur(1.5px);
     }
 
-    /* Interior fill — sits on top of the gradient but behind the children */
+    /*
+     * Interior fill — sits above the gradient ring but behind all children.
+     * Also carries the outer glow halo via box-shadow, keeping pseudo-element
+     * count to two (::before = ring, ::after = fill + outer bloom).
+     * The box-shadow uses a second rotating conic-gradient approximated by
+     * a wide spread blur in the dominant hue — Safari doesn't support
+     * box-shadow with gradient, so we use a blurred drop-shadow instead.
+     */
     .thinking-section.streaming::after {
         content: '';
         position: absolute;
-        inset: 1px; /* 1px inset matches border thickness */
+        inset: 2px;
         border-radius: 7px;
         background: var(--color-surface-secondary, rgba(0, 0, 0, 0.03));
         z-index: -1;
+        box-shadow:
+            0 0 12px 4px rgba(50, 173, 230, 0.35),   /* cyan bloom  */
+            0 0 20px 6px rgba(191, 90, 242, 0.25),   /* purple bloom */
+            0 0 28px 8px rgba(255, 45,  85, 0.15);   /* pink bloom  */
     }
     
     .thinking-section.expanded {
@@ -327,16 +365,15 @@
         opacity: 0.85;
     }
     
-    /* Spinning border gradient — rotates @property angle for smooth conic animation.
-     * Falls back gracefully in browsers without @property support (the gradient just
-     * doesn't animate, showing a static tint instead). */
-    @keyframes spin-border {
-        from {
-            --gradient-angle: 0deg;
-        }
-        to {
-            --gradient-angle: 360deg;
-        }
+    /*
+     * Rainbow spin — rotates --gradient-angle so the full spectrum travels
+     * around the container perimeter. 3s gives the snappy-but-elegant pace
+     * seen in Apple Intelligence demos (faster than the old 4s blue spin).
+     * Falls back gracefully: without @property support the gradient is static.
+     */
+    @keyframes rainbow-spin {
+        from { --gradient-angle: 0deg; }
+        to   { --gradient-angle: 360deg; }
     }
     
     /* Dark mode support */
@@ -350,9 +387,13 @@
         border-color: transparent;
     }
 
-    /* Dark interior fill for the streaming state pseudo-element */
+    /* Dark interior fill + boosted glow — rainbow blooms more on dark backgrounds */
     :global(.dark) .thinking-section.streaming::after {
         background: var(--color-surface-secondary, rgba(255, 255, 255, 0.03));
+        box-shadow:
+            0 0 16px 6px rgba(50, 173, 230, 0.45),
+            0 0 28px 10px rgba(191, 90, 242, 0.32),
+            0 0 36px 12px rgba(255, 45,  85, 0.20);
     }
     
     :global(.dark) .thinking-section.expanded {
