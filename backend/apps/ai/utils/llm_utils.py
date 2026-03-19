@@ -16,13 +16,12 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Import response types (these are shared types, not provider-specific)
-from backend.apps.ai.llm_providers.mistral_client import UnifiedMistralResponse as UnifiedMistralResponse, ParsedMistralToolCall
+from backend.apps.ai.llm_providers.mistral_client import UnifiedMistralResponse as UnifiedMistralResponse
 from backend.apps.ai.llm_providers.google_client import UnifiedGoogleResponse, ParsedGoogleToolCall as ParsedGoogleToolCall
-from backend.apps.ai.llm_providers.anthropic_client import UnifiedAnthropicResponse, ParsedAnthropicToolCall
-from backend.apps.ai.llm_providers.openai_shared import UnifiedOpenAIResponse, ParsedOpenAIToolCall, OpenAIUsageMetadata, _sanitize_schema_for_llm_providers
+from backend.apps.ai.llm_providers.anthropic_client import UnifiedAnthropicResponse
+from backend.apps.ai.llm_providers.openai_shared import UnifiedOpenAIResponse, _sanitize_schema_for_llm_providers
 from backend.apps.ai.utils.timeout_utils import (
     stream_with_first_chunk_timeout,
-    FIRST_CHUNK_TIMEOUT_SECONDS,
     PREPROCESSING_TIMEOUT_SECONDS,
     get_first_chunk_timeout_seconds,
     get_inter_chunk_timeout_seconds,
@@ -1230,12 +1229,8 @@ async def call_main_llm_stream(
 
     # Check if model_id needs server resolution (e.g., alibaba provider)
     # If the provider has a default_server configured, resolve it and transform the model_id
-    provider_prefix = ""
-    actual_model_id = model_id
     if "/" in model_id:
         parts = model_id.split("/", 1)
-        provider_prefix = parts[0]
-        actual_model_id = parts[1]
         
         # Resolve default_server for any provider that defines it in provider YAML.
         # This allows routing "provider/model" to a concrete server like "openrouter/*" or "google_ai_studio/*".
@@ -1245,8 +1240,6 @@ async def call_main_llm_stream(
             model_id = transformed_model_id
             if "/" in model_id:
                 parts = model_id.split("/", 1)
-                provider_prefix = parts[0]
-                actual_model_id = parts[1]
             else:
                 logger.warning(f"{log_prefix} Transformed model_id '{model_id}' does not contain a provider prefix.")
         else:
@@ -1455,7 +1448,6 @@ async def call_main_llm_stream(
         # Parse the server model_id to get provider prefix and actual model_id
         server_provider_prefix = ""
         server_actual_model_id = server_model_id
-        server_original_model_id = original_model_id  # Keep original for openrouter
         
         if "/" in server_model_id:
             parts = server_model_id.split("/", 1)

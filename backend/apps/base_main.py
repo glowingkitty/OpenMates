@@ -6,7 +6,6 @@ import os
 import logging
 import sys
 import logging.config
-from pythonjsonlogger import jsonlogger
 from apps.base_app import BaseApp # Available at /app/apps/base_app.py
 
 # Configure JSON logging to match the api container format (for Grafana/Loki compatibility)
