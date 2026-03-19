@@ -972,17 +972,29 @@
 			);
 		}
 
-		// 404 NOT-FOUND DETECTION: The catch-all server route at /[...path]/+server.ts
-		// redirects unknown paths to /#404=<encodedPath>. Detect that hash here and store
-		// the failed path so ActiveChat shows Not404Screen instead of the welcome screen.
-		// Clean the hash from the URL immediately so it doesn't persist in history.
-		if (browser && window.location.hash.startsWith('#404=')) {
-			const failedPath = decodeURIComponent(window.location.hash.slice('#404='.length));
-			console.debug('[+page.svelte] [404] Unknown path detected via hash:', failedPath);
-			// Remove the #404= hash from the URL bar
-			history.replaceState(null, '', '/');
-			notFoundPathStore.set(failedPath);
-			// Do not process as a deep link — Not404Screen handles the UX from here
+		// 404 NOT-FOUND DETECTION: Vercel serves index.html for all unknown paths (the SPA
+		// catches everything at the CDN edge). When the SPA boots at a non-root path like
+		// /iphone-review, window.location.pathname !== "/" — detect that here and show the
+		// Not404Screen instead of the normal welcome screen.
+		// Also handles the /#404=<path> hash emitted by the [...path]/+server.ts redirect
+		// (belt-and-suspenders for environments where the server route fires before CDN).
+		if (browser) {
+			let notFoundPath: string | null = null;
+			if (window.location.hash.startsWith('#404=')) {
+				// Server-redirect path: /#404=<encodedPath>
+				notFoundPath = decodeURIComponent(window.location.hash.slice('#404='.length));
+				console.debug('[+page.svelte] [404] Unknown path detected via #404= hash:', notFoundPath);
+				history.replaceState(null, '', '/');
+			} else if (window.location.pathname !== '/') {
+				// CDN-served SPA path: browser URL is still the original unknown path
+				notFoundPath = window.location.pathname + window.location.search;
+				console.debug('[+page.svelte] [404] Unknown path detected via pathname:', notFoundPath);
+				history.replaceState(null, '', '/');
+			}
+			if (notFoundPath) {
+				notFoundPathStore.set(notFoundPath);
+				// Do not process as a deep link — Not404Screen handles the UX from here
+			}
 		}
 
 		// SHARED-CHAT REDIRECT: Read and consume the sessionStorage flag set by the share
