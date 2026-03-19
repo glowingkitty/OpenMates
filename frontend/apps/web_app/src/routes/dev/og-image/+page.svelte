@@ -72,15 +72,15 @@
 			// Translations may fail in isolation — proceed with fallback labels
 		}
 
-		// Force dark theme AFTER waitForTranslations (which yields to the
-		// event loop). The root layout's initializeTheme() runs in the parent
-		// onMount (which fires after child onMount in Svelte). By awaiting
-		// waitForTranslations first, we ensure initializeTheme() has already
-		// run, so our theme.set('dark') is the final write and won't be
-		// overwritten. We also set the DOM attribute directly as a belt-and-
-		// suspenders measure.
-		theme.set('dark');
-		document.documentElement.setAttribute('data-theme', 'dark');
+		// Force dark theme after a microtask delay. In Svelte, parent onMount
+		// fires AFTER child onMount, so the root layout's initializeTheme()
+		// overwrites any theme.set() we do here synchronously. Deferring with
+		// setTimeout(0) ensures our dark theme set runs after all mount
+		// callbacks and reactive effects have settled.
+		setTimeout(() => {
+			theme.set('dark');
+			document.documentElement.setAttribute('data-theme', 'dark');
+		}, 0);
 
 		translationsReady = true;
 	});
