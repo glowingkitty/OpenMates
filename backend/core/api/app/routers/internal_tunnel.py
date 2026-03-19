@@ -144,10 +144,13 @@ async def open_tunnel(request: Request):
                     break
                 time.sleep(0.5)
                 continue
-            if "trycloudflare.com" in line:
-                # Extract URL from the line (format: "INF | https://xxx.trycloudflare.com")
+            if "trycloudflare.com" in line and "https://" in line:
+                # Extract URL from the line (format: "INF |  https://xxx.trycloudflare.com  |")
+                # Must have both https:// and trycloudflare.com to avoid matching the
+                # "Requesting new quick Tunnel on trycloudflare.com..." info line.
                 for token in line.split():
-                    if "trycloudflare.com" in token:
+                    token = token.strip().strip("|")
+                    if token.startswith("https://") and "trycloudflare.com" in token:
                         tunnel_url = token.strip()
                         break
                 if tunnel_url:

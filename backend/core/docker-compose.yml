@@ -46,6 +46,8 @@ services:
       - ../../.cursor:/app/.cursor
       # Mount test-results directory for admin test results API endpoint
       - ../../test-results:/app/test-results
+      # Mount cloudflared binary for ephemeral tunnel management (CI test pipeline)
+      - /home/superdev/.local/bin/cloudflared:/usr/local/bin/cloudflared:ro
     networks:
       - openmates
     depends_on:
