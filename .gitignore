@@ -173,6 +173,7 @@ logs/
 
 # Agent trigger files (written by Docker sidecar, consumed by host watcher)
 scripts/.agent-triggers/
+scripts/.tmp/
 processed_websites/
 temp_data
 
@@ -222,6 +223,10 @@ backend/preview/Caddyfile
 .claude/project-index.json
 .claude/plane-states.json
 .claude/settings.local.json
+.claude/security-audit-state.json
+.claude/security-audit-state.json.tmp
+.claude/security-acknowledged.json
+.claude/security-acknowledged.json.tmp
 .cursor
 .svelte-kit
 
