@@ -453,3 +453,118 @@ describe("new chat suggestions rendering", () => {
     );
   });
 });
+
+// ---------------------------------------------------------------------------
+// --followup flag: suggestion resolution helpers (network-free)
+// ---------------------------------------------------------------------------
+
+/**
+ * Simulate the --followup <n> resolution logic from the `chats send` handler.
+ * Returns the selected suggestion text or an error string.
+ * Mirrors the logic in handleChats() send branch in cli.ts.
+ */
+function resolveFollowUp(
+  suggestions: string[],
+  n: number,
+): { ok: true; message: string } | { ok: false; error: string } {
+  if (suggestions.length === 0) {
+    return { ok: false, error: "no_suggestions" };
+  }
+  if (isNaN(n) || n < 1) {
+    return { ok: false, error: "invalid_n" };
+  }
+  if (n > suggestions.length) {
+    return {
+      ok: false,
+      error: `out_of_range:${suggestions.length}`,
+    };
+  }
+  return { ok: true, message: suggestions[n - 1] };
+}
+
+describe("--followup flag resolution", () => {
+  const SUGGESTIONS = [
+    "What are the main trade-offs?",
+    "Can you show a code example?",
+    "How does this compare to alternatives?",
+    "What are common pitfalls to avoid?",
+    "Is there a simpler approach?",
+    "What documentation should I read next?",
+  ];
+
+  it("resolves --followup 1 to the first suggestion", () => {
+    const result = resolveFollowUp(SUGGESTIONS, 1);
+    assert.ok(result.ok);
+    assert.strictEqual(
+      result.ok && result.message,
+      "What are the main trade-offs?",
+    );
+  });
+
+  it("resolves --followup 3 to the third suggestion", () => {
+    const result = resolveFollowUp(SUGGESTIONS, 3);
+    assert.ok(result.ok);
+    assert.strictEqual(
+      result.ok && result.message,
+      "How does this compare to alternatives?",
+    );
+  });
+
+  it("resolves --followup 6 to the last suggestion (boundary)", () => {
+    const result = resolveFollowUp(SUGGESTIONS, 6);
+    assert.ok(result.ok);
+    assert.strictEqual(
+      result.ok && result.message,
+      "What documentation should I read next?",
+    );
+  });
+
+  it("returns error when n is out of range (too high)", () => {
+    const result = resolveFollowUp(SUGGESTIONS, 7);
+    assert.ok(!result.ok);
+    assert.ok(!result.ok && result.error.startsWith("out_of_range:"));
+    // Error message includes the actual count for user feedback
+    assert.ok(!result.ok && result.error.includes(String(SUGGESTIONS.length)));
+  });
+
+  it("returns error for n=0 (invalid — 1-based index)", () => {
+    const result = resolveFollowUp(SUGGESTIONS, 0);
+    assert.ok(!result.ok);
+    assert.strictEqual(!result.ok && result.error, "invalid_n");
+  });
+
+  it("returns error for negative n", () => {
+    const result = resolveFollowUp(SUGGESTIONS, -1);
+    assert.ok(!result.ok);
+    assert.strictEqual(!result.ok && result.error, "invalid_n");
+  });
+
+  it("returns error when suggestions list is empty", () => {
+    const result = resolveFollowUp([], 1);
+    assert.ok(!result.ok);
+    assert.strictEqual(!result.ok && result.error, "no_suggestions");
+  });
+
+  it("resolves a suggestion with quotes correctly (shell safety check)", () => {
+    const withQuotes = [
+      'Explain "zero-knowledge proofs" in plain English',
+      "What is a practical use case?",
+    ];
+    const result = resolveFollowUp(withQuotes, 1);
+    assert.ok(result.ok);
+    // The message contains quotes — callers must escape before embedding in shell commands
+    assert.ok(result.ok && result.message.includes('"zero-knowledge proofs"'));
+  });
+
+  it("is 1-based: --followup 1 is index 0, --followup 2 is index 1", () => {
+    const result1 = resolveFollowUp(SUGGESTIONS, 1);
+    const result2 = resolveFollowUp(SUGGESTIONS, 2);
+    assert.ok(result1.ok && result2.ok);
+    assert.notStrictEqual(
+      result1.ok && result1.message,
+      result2.ok && result2.message,
+    );
+    assert.strictEqual(result1.ok && result1.message, SUGGESTIONS[0]);
+    assert.strictEqual(result2.ok && result2.message, SUGGESTIONS[1]);
+  });
+});
