@@ -308,22 +308,26 @@ class SearchSkill(BaseSkill):
         if not search_query:
             return (request_id, [], "Missing 'query' parameter")
         
-        # Extract request-specific parameters (with defaults from schema)
-        req_count = req.get("count", 10)  # Default from schema
+        # Extract request-specific parameters (with defaults from schema).
+        # NOTE: Pydantic model_dump() serialises Optional[str] = None as None (not the
+        # string "None"). req.get(key, default) returns None (not default) when the key
+        # is present with value None. We therefore use "or <default>" to treat both None
+        # and empty-string the same as "not provided", preventing httpx from sending
+        # None/empty values to the Brave API (which rejects them with 422).
+        req_count = req.get("count") or 10
         # Enforce maximum of 20 results to limit sanitization costs
         if req_count and req_count > 20:
             logger.warning(f"Requested count {req_count} exceeds maximum of 20 for video search '{search_query}' (id: {request_id}). Capping to 20.")
             req_count = 20
-        req_country_raw = req.get("country", "us")  # Default from schema
-        req_lang = req.get("search_lang", "en")  # Default from schema
-        _raw_safesearch = req.get("safesearch", None)
-        # Treat empty string / None as "not provided" — fall back to "moderate".
-        # The Brave Videos API rejects empty strings with 422 (only 'off', 'moderate', 'strict' valid).
+        req_country_raw = req.get("country") or "us"
+        req_lang = req.get("search_lang") or "en"
+        _raw_safesearch = req.get("safesearch") or None
+        # Validate safesearch — Brave Videos API rejects anything except 'off', 'moderate', 'strict'.
         VALID_SAFESEARCH_VALUES = {"off", "moderate", "strict"}
         if _raw_safesearch and _raw_safesearch in VALID_SAFESEARCH_VALUES:
             req_safesearch = _raw_safesearch
         else:
-            if _raw_safesearch is not None and _raw_safesearch != "":
+            if _raw_safesearch:
                 logger.warning(
                     f"Invalid safesearch value '{_raw_safesearch}' for video search '{search_query}' "
                     f"(id: {request_id}). Valid values: {sorted(VALID_SAFESEARCH_VALUES)}. Falling back to 'moderate'."
