@@ -241,7 +241,7 @@
         align-items: center;
         justify-content: center;
         padding: 0.5rem 0.75rem;
-        height: 2.3125rem;
+        height: 2.8rem;
         border-radius: 3.25rem;
         background: transparent;
         cursor: pointer;
@@ -291,12 +291,12 @@
 
     /* Hover on inactive tab: lighten icon (in sync with pill opacity) */
     .settings-tab:not(.active):hover .tab-icon {
-        background-color: var(--color-grey-0);
+        background-color: #ffffff;
     }
 
     /* Active tab icon: white */
     .tab-icon.active {
-        background-color: var(--color-grey-0);
+        background-color: #ffffff;
     }
 
     /* ── Counter badge ───────────────────────────────────────────── */

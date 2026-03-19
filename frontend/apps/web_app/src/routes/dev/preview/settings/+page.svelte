@@ -187,38 +187,43 @@
 					Right side: edit button, download button, or credits counter with coin icon.
 				</p>
 				<div class="element-demo">
+					<!-- App settings entry: iconType=app uses app-specific gradient bg with white icon -->
 					<SettingsItem
-						icon="subsetting_icon calendar"
+						type="quickaction"
+						icon="2fa"
+						iconType="app"
 						title="2FA App"
 						subtitleBottom="Google Authenticator"
 						hasModifyButton={true}
 						onClick={() => {}}
 					/>
+					<!-- Memory/app settings entry: iconType=memory uses category gradient bg -->
 					<SettingsItem
+						type="quickaction"
 						icon="travel"
+						iconType="memory"
 						title="London"
 						subtitleBottom="Mar 29 – Apr 6"
-						iconType="category"
-						category="travel"
 						hasModifyButton={true}
 						onClick={() => {}}
 					/>
+					<!-- Download entry: iconType=memory, category gradient, download button on right -->
 					<SettingsItem
-						icon="document"
 						type="quickaction"
+						icon="legal"
+						iconType="memory"
 						title="2025-03-13"
 						subtitleBottom="10 EUR"
-						iconType="category"
-						category="legal"
 						rightActionIcon="download"
 						onClick={() => {}}
 					/>
+					<!-- Chat entry with credits: category icon in category gradient color -->
 					<SettingsItem
-						icon="chat"
 						type="submenu"
-						title="Legality of Ad-skipping Plugins"
+						icon="chat"
 						iconType="category"
 						category="general_knowledge"
+						title="Legality of Ad-skipping Plugins"
 						creditsDisplay="120"
 						onClick={() => {}}
 					/>

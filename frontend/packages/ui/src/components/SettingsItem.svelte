@@ -16,7 +16,7 @@
     import Toggle from './Toggle.svelte';
     import ModifyButton from './buttons/ModifyButton.svelte';
     import Icon from './Icon.svelte';
-    import { getCategoryGradientColors, getLucideIcon, getFallbackIconForCategory } from '../utils/categoryUtils';
+    import { getCategoryGradientColors } from '../utils/categoryUtils';
     import type { Snippet } from 'svelte';
 
     /** Supported SettingsItem display types */
@@ -184,17 +184,13 @@
                 </div>
             {:else if iconType === 'category' && category}
                 {@const gradientColors = getCategoryGradientColors(category)}
-                {@const iconName = categoryIcon || getFallbackIconForCategory(category)}
-                {@const IconComponent = getLucideIcon(iconName)}
-                <div class="category-circle-wrapper">
-                    <div 
-                        class="category-circle" 
-                        style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: #cccccc'}
-                    >
-                        <div class="category-icon">
-                            <IconComponent size={16} color="white" />
-                        </div>
-                    </div>
+                <div class="app-icon-wrapper">
+                    <div
+                        class="category-gradient-icon"
+                        style={gradientColors
+                            ? `background: linear-gradient(135deg, ${gradientColors.start} 9.04%, ${gradientColors.end} 90.06%); --cat-icon-url: var(--icon-url-${icon});`
+                            : `background: var(--icon-background-default); --cat-icon-url: var(--icon-url-${icon});`}
+                    ></div>
                 </div>
             {:else}
                 <div class="icon-container">
@@ -348,8 +344,7 @@
 
     /* Shared icon area sizing — all icon types use the same 44px slot */
     .icon-container,
-    .app-icon-wrapper,
-    .category-circle-wrapper {
+    .app-icon-wrapper {
         width: 44px;
         height: 44px;
         margin-inline-end: 12px;
@@ -359,25 +354,29 @@
         justify-content: center;
     }
 
-    .category-circle {
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
+    /* Category gradient icon — full-size rounded square matching app/memory style */
+    .category-gradient-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
         position: relative;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
-        border: 2px solid var(--color-background);
         transition: all 0.2s ease;
     }
 
-    .category-icon {
-        width: 16px;
-        height: 16px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+    /* White icon rendered as ::before pseudo-element on top of gradient background */
+    .category-gradient-icon::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background-color: #ffffff;
+        -webkit-mask-image: var(--cat-icon-url);
+        -webkit-mask-size: 55%;
+        -webkit-mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-image: var(--cat-icon-url);
+        mask-size: 55%;
+        mask-repeat: no-repeat;
+        mask-position: center;
     }
 
     .text-and-nested-container {
@@ -533,7 +532,7 @@
     .right-action-icon {
         position: absolute;
         inset: 0;
-        background-color: var(--color-grey-0);
+        background-color: #ffffff;
         -webkit-mask-image: var(--right-action-icon-url);
         -webkit-mask-size: 50%;
         -webkit-mask-position: center;

@@ -143,7 +143,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        background: var(--color-grey-0);
+        background: var(--color-primary);
         border-radius: 1.5rem;
         box-shadow: 0 0.25rem 0.25rem rgba(0, 0, 0, 0.1);
         cursor: pointer;
@@ -161,12 +161,12 @@
         mask-size: contain;
         mask-repeat: no-repeat;
         mask-position: center;
-        background-color: var(--color-grey-50);
+        background-color: #ffffff;
         transition: background-color 0.2s ease;
     }
 
     .sort-container:hover .sort-icon {
-        background-color: var(--color-grey-70);
+        background-color: rgba(255, 255, 255, 0.85);
     }
 
     /* Native <select> stretched over the entire pill — invisible but clickable */
