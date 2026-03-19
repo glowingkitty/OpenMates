@@ -108,6 +108,14 @@
     let authStuckTimerId: ReturnType<typeof setTimeout> | null = $state(null);
 
     /**
+     * Whether the server sent a server_restarting message before closing the WebSocket.
+     * When true, we show a "Server updating" notification instead of "You are offline"
+     * since the user's network is fine — the server is simply redeploying.
+     * Reset to false once the WebSocket reconnects successfully.
+     */
+    let isServerRestarting = $state(false);
+
+    /**
      * Get translated offline notification text fields.
      */
     function getOfflineText() {
@@ -140,6 +148,21 @@
             ) as string,
             message: $text('notifications.connection.reconnected',
                 { default: 'Connection to server restored.' }
+            ) as string,
+        };
+    }
+
+    /**
+     * Get translated text for the server-updating notification.
+     * Shown instead of "You are offline" when the server sent server_restarting.
+     */
+    function getServerUpdatingText() {
+        return {
+            title: $text('notifications.connection.server_updating.title',
+                { default: 'Server updating' }
+            ) as string,
+            message: $text('notifications.connection.server_updating',
+                { default: "The server is being updated. You'll reconnect automatically in a moment." }
             ) as string,
         };
     }
@@ -193,21 +216,34 @@
      */
     function showOfflineNotification(): void {
         if (offlineNotificationId !== null) return; // Already showing
-        console.info('[OfflineBanner] Showing offline notification');
 
-        const texts = getOfflineText();
-        const isAuthenticated = $authStore.isAuthenticated;
-
-        offlineNotificationId = notificationStore.addNotificationWithOptions('connection', {
-            title: texts.title,
-            message: texts.message,
-            duration: 0, // Persistent — does not auto-dismiss
-            dismissible: true, // User can close or swipe away
-            ...(isAuthenticated && {
-                onAction: handleReconnectTap,
-                actionLabel: texts.reconnectLabel,
-            }),
-        });
+        if (isServerRestarting) {
+            // Server sent a server_restarting message before disconnecting —
+            // show a calm "updating" banner with no reconnect button since
+            // reconnection is automatic and will succeed once the server is back.
+            console.info('[OfflineBanner] Showing server-updating notification (server_restarting flag set)');
+            const texts = getServerUpdatingText();
+            offlineNotificationId = notificationStore.addNotificationWithOptions('connection', {
+                title: texts.title,
+                message: texts.message,
+                duration: 0, // Persistent until reconnected
+                dismissible: true,
+            });
+        } else {
+            console.info('[OfflineBanner] Showing offline notification');
+            const texts = getOfflineText();
+            const isAuthenticated = $authStore.isAuthenticated;
+            offlineNotificationId = notificationStore.addNotificationWithOptions('connection', {
+                title: texts.title,
+                message: texts.message,
+                duration: 0, // Persistent — does not auto-dismiss
+                dismissible: true, // User can close or swipe away
+                ...(isAuthenticated && {
+                    onAction: handleReconnectTap,
+                    actionLabel: texts.reconnectLabel,
+                }),
+            });
+        }
     }
 
     /**
@@ -224,6 +260,9 @@
             clearTimeout(reconnectAttemptTimerId);
             reconnectAttemptTimerId = null;
         }
+        // Clear the server-restarting flag — the connection is back
+        isServerRestarting = false;
+
 
         notificationStore.removeNotification(offlineNotificationId);
         offlineNotificationId = null;
@@ -437,6 +476,38 @@
         };
     });
 
+
+    /**
+     * Effect that listens for "serverRestarting" events from WebSocketService.
+     * Fired when the server sends a server_restarting message just before closing
+     * the WebSocket (e.g., during a docker-compose restart / deployment).
+     *
+     * Sets isServerRestarting so the next showOfflineNotification() call renders
+     * the "Server updating" variant instead of "You are offline".
+     * If an offline banner is already visible, replace its text immediately.
+     * The flag resets automatically when the connection is restored.
+     */
+    $effect(() => {
+        const handler = () => {
+            console.info('[OfflineBanner] serverRestarting event — setting flag');
+            isServerRestarting = true;
+
+            if (offlineNotificationId !== null) {
+                const texts = getServerUpdatingText();
+                notificationStore.updateNotification(offlineNotificationId, {
+                    title: texts.title,
+                    message: texts.message,
+                    onAction: undefined,
+                    actionLabel: undefined,
+                });
+            }
+        };
+        webSocketService.addEventListener('serverRestarting', handler);
+
+        return () => {
+            webSocketService.removeEventListener('serverRestarting', handler);
+        };
+    });
     /**
      * Cleanup timers on component destroy.
      */

@@ -100,7 +100,8 @@ type KnownMessageTypes =
   | "user_admin_status_updated" // Notification that user admin status has changed
   | "credit_note_ready" // Notification that credit note PDF is ready for download
   | "message_queued" // Notification that a message was queued because an AI task is active
-  | "demo_chat_updated"; // Notification that a demo chat status has changed (for admins)
+  | "demo_chat_updated" // Notification that a demo chat status has changed (for admins)
+  | "server_restarting"; // Server is restarting after a deployment — distinct from network offline
 
 interface WebSocketMessage {
   type: KnownMessageTypes | string; // Allow known types + any string
@@ -186,6 +187,7 @@ class WebSocketService extends EventTarget {
     });
     this.registerDefaultErrorHandlers();
     this.registerPongHandler(); // Add call to new pong handler registration
+    this.registerServerRestartingHandler();
 
     // Listen for network online event to trigger immediate reconnection
     // This helps detect when server comes back online faster than exponential backoff
@@ -402,6 +404,17 @@ class WebSocketService extends EventTarget {
         clearTimeout(this.pongTimeoutId);
         this.pongTimeoutId = null;
       }
+    });
+  }
+
+  private registerServerRestartingHandler(): void {
+    this.on("server_restarting", (_payload: any) => {
+      // Server is about to restart after a deployment. Notify the UI so it can
+      // show a "Server updating" banner instead of the generic "You are offline"
+      // message. The WS reconnect loop will still fire normally — this message
+      // just improves the copy shown to the user while they wait.
+      console.info("[WebSocketService] Received server_restarting — dispatching serverRestarting event");
+      this.dispatchEvent(new CustomEvent("serverRestarting"));
     });
   }
 

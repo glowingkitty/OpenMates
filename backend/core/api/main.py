@@ -1288,6 +1288,17 @@ async def lifespan(app: FastAPI):
     
     # Shutdown logic
     logger.info("Shutting down application...")
+
+    # --- Notify all connected clients that the server is restarting ---
+    # This message is sent FIRST, before any cleanup tasks begin, so that
+    # clients can show a "server updating" notification instead of the generic
+    # "You are offline" banner.  broadcast_to_all() has a built-in 2-second
+    # timeout so a stuck TCP send buffer never delays the shutdown sequence.
+    if hasattr(app.state, 'connection_manager'):
+        await app.state.connection_manager.broadcast_to_all({
+            "type": "server_restarting",
+            "payload": {},
+        })
     
     # --- Persist web analytics counters to disk before shutdown ---
     # Flushes in-Redis aggregate counters to a JSON backup file so no pageview/event

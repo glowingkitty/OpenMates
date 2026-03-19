@@ -85,6 +85,20 @@ connection.reconnected.title:
   he: מחובר מחדש
   verified_by_human: []
 
+connection.server_updating.title:
+  context: Title for the notification shown when the server is restarting after a deployment/update. Distinct from "You are offline" — the user's network is fine, the server is temporarily unavailable.
+  en: Server updating
+  de: Server wird aktualisiert
+  he: השרת מתעדכן
+  verified_by_human: []
+
+connection.server_updating:
+  context: Body message shown when the server is restarting. Should reassure the user that reconnection is automatic and no action is needed.
+  en: The server is being updated. You'll reconnect automatically in a moment.
+  de: Der Server wird aktualisiert. Du wirst gleich automatisch wieder verbunden.
+  he: השרת מתעדכן. תתחבר מחדש אוטומטית בעוד רגע.
+  verified_by_human: []
+
 # Software update notifications
 software_update.title:
   context: Title for software update notification

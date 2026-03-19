@@ -12,6 +12,7 @@ services:
       context: ../../ # Changed: Build context is now the project root
       dockerfile: backend/core/api/Dockerfile # Path to Dockerfile from new context
     restart: unless-stopped
+    stop_grace_period: 15s  # Allow broadcast_to_all() + lifespan teardown before SIGKILL
     env_file: ../../.env
     environment:
       PYTHONPATH: "/app"

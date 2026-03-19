@@ -338,3 +338,45 @@ class ConnectionManager:
         # a single event-handler invocation since the WebSocket objects may
         # become stale at any point after the copy is taken.
         return dict(self.active_connections.get(user_id, {}))
+
+    async def broadcast_to_all(self, message: dict, timeout_seconds: float = 2.0) -> None:
+        """Broadcast a message to every connected WebSocket across all users.
+
+        Intended for server-wide notifications such as ``server_restarting``,
+        which is sent once during the lifespan shutdown sequence before the
+        process exits.  The ``timeout_seconds`` cap ensures a hung TCP send
+        buffer on a single slow client never delays the shutdown process.
+
+        Uses ``return_exceptions=True`` so that one broken socket does not
+        abort delivery to the remaining connections.
+        """
+        # Snapshot all sockets at this moment — iterate a flat copy so that
+        # concurrent disconnects can't mutate the dict mid-loop.
+        all_sockets = [
+            ws
+            for user_sockets in self.active_connections.values()
+            for ws in user_sockets.values()
+        ]
+
+        if not all_sockets:
+            logger.info("broadcast_to_all: no active connections, nothing to send.")
+            return
+
+        logger.info(
+            f"broadcast_to_all: sending '{message.get('type', '?')}' to "
+            f"{len(all_sockets)} connection(s) (timeout={timeout_seconds}s)"
+        )
+
+        try:
+            await asyncio.wait_for(
+                asyncio.gather(
+                    *[ws.send_json(message) for ws in all_sockets],
+                    return_exceptions=True,
+                ),
+                timeout=timeout_seconds,
+            )
+        except asyncio.TimeoutError:
+            logger.warning(
+                f"broadcast_to_all: timed out after {timeout_seconds}s — "
+                f"some clients may not have received the '{message.get('type', '?')}' message."
+            )
