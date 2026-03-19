@@ -172,6 +172,18 @@ async def setup_vault():
         logger.info("Use the backed-up root token for full access, or create other tokens/roles as needed.")
         logger.info("="*80)
 
+        # SECURITY: Delete the root token file from the shared volume after setup is complete.
+        # The root token was only needed for initial Vault configuration (policies, service tokens,
+        # secret migration). Leaving it on disk means any compromised container mounting the volume
+        # gains full Vault root access. The unseal key file is kept (needed for auto-unseal).
+        if os.path.exists(initializer.token_file):
+            try:
+                os.remove(initializer.token_file)
+                logger.info(f"SECURITY: Deleted root token file {initializer.token_file} — no longer needed after setup.")
+            except Exception as e_del:
+                logger.error(f"SECURITY WARNING: Failed to delete root token file {initializer.token_file}: {e_del}")
+                logger.error("The root token remains on the shared volume. Manual removal recommended.")
+
         logger.info("Vault setup script finished.")
         
     except Exception as e:

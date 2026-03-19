@@ -28,6 +28,7 @@ from backend.core.api.app.utils.newsletter_utils import update_newsletter_regist
 from backend.core.api.app.routes.auth_routes.auth_2fa_utils import verify_backup_code, sha_hash_backup_code
 # Import Celery app instance and specific task
 from backend.core.api.app.tasks.celery_config import app # General Celery app
+from backend.core.api.app.utils.ws_token import create_ws_token
 
 """
 Zero-Knowledge Authentication System
@@ -517,9 +518,9 @@ async def login(
                 logger.error("Cannot dispatch warm_user_cache task or check primed status: user_id is missing.")
 
 
-            if refresh_token:
-                token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
-                logger.debug(f"[WS_TOKEN_DEBUG] Returning login response (no 2FA path) with ws_token: hash={token_hash[:16]}...")
+            # SECURITY: Generate a short-lived HMAC ws_token instead of returning the raw refresh_token.
+            # This prevents XSS from stealing the full session refresh token via the JSON response body.
+            ws_token = create_ws_token(refresh_token) if refresh_token else None
             return LoginResponse(
                 success=True,
                 message="Login successful",
@@ -552,7 +553,7 @@ async def login(
                         push_notification_preferences=user_profile.get("push_notification_preferences", {}),
                         push_notification_banner_shown=bool(user_profile.get("push_notification_banner_shown", False)),
                     ),
-                    ws_token=refresh_token  # Return token for WebSocket auth (Safari iOS compatibility)
+                    ws_token=ws_token  # Short-lived HMAC token for WebSocket auth (Safari iOS compatibility)
                 )
 
         # --- 2FA IS Enabled ---
@@ -746,9 +747,8 @@ async def login(
                 else:
                     logger.error("Cannot dispatch warm_user_cache task or check primed status (OTP login): user_id is missing.")
 
-                if refresh_token:
-                    token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
-                    logger.debug(f"[WS_TOKEN_DEBUG] Returning login response (OTP) with ws_token: hash={token_hash[:16]}...")
+                # SECURITY: Short-lived HMAC ws_token (not the raw refresh_token)
+                ws_token = create_ws_token(refresh_token) if refresh_token else None
                 return LoginResponse(
                     success=True, message="Login successful",
                     user=UserResponse(
@@ -780,7 +780,7 @@ async def login(
                         push_notification_preferences=user_profile.get("push_notification_preferences", {}),
                         push_notification_banner_shown=bool(user_profile.get("push_notification_banner_shown", False)),
                     ),
-                    ws_token=refresh_token  # Return token for WebSocket auth (Safari iOS compatibility)
+                    ws_token=ws_token  # Short-lived HMAC token for WebSocket auth (Safari iOS compatibility)
                 )
 
             # --- Sub-Scenario 3b: Verify using Backup Code ---
@@ -1065,9 +1065,8 @@ async def login(
                 else:
                     logger.error("Cannot dispatch warm_user_cache task or check primed status (Backup code login): user_id is missing.")
 
-                if refresh_token:
-                    token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
-                    logger.debug(f"[WS_TOKEN_DEBUG] Returning login response (backup code) with ws_token: hash={token_hash[:16]}...")
+                # SECURITY: Short-lived HMAC ws_token (not the raw refresh_token)
+                ws_token = create_ws_token(refresh_token) if refresh_token else None
                 return LoginResponse(
                     success=True, message="Login successful using backup code",
                     user=UserResponse(
@@ -1099,7 +1098,7 @@ async def login(
                         push_notification_preferences=user_profile.get("push_notification_preferences", {}),
                         push_notification_banner_shown=bool(user_profile.get("push_notification_banner_shown", False)),
                     ),
-                    ws_token=refresh_token  # Return token for WebSocket auth (Safari iOS compatibility)
+                    ws_token=ws_token  # Short-lived HMAC token for WebSocket auth (Safari iOS compatibility)
                 )
 
             # --- Sub-Scenario 3c: Invalid Code Type ---

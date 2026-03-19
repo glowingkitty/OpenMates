@@ -58,21 +58,28 @@
 	let displayName = $derived(mateName || CATEGORY_NAMES[category] || 'George');
 
 	onMount(async () => {
-		const MarkdownIt = (await import('markdown-it')).default;
+		// Import markdown-it and DOMPurify in parallel for XSS protection
+		const [MarkdownItModule, DOMPurifyModule] = await Promise.all([
+			import('markdown-it'),
+			import('dompurify')
+		]);
+		const MarkdownIt = MarkdownItModule.default;
+		const DOMPurifyInstance = DOMPurifyModule.default;
+		// SECURITY: html:true lets markdown-it pass raw HTML through, but DOMPurify
+		// sanitizes the output to strip <script>, event handlers, and other XSS vectors.
 		const md = new MarkdownIt({ html: true, linkify: true, typographer: true, breaks: false });
-		renderedHtml = md.render(content);
+		renderedHtml = DOMPurifyInstance.sanitize(md.render(content));
 	});
 </script>
 
-<div
-	class="static-message {role}"
-	class:mobile-stacked={role === 'assistant' && isMobileStacked}
->
+<div class="static-message {role}" class:mobile-stacked={role === 'assistant' && isMobileStacked}>
 	{#if role === 'assistant'}
 		<div class="static-mate-profile {category}"></div>
 	{/if}
 
-	<div class="static-message-content {role === 'user' ? 'static-user-content' : 'static-mate-content'}">
+	<div
+		class="static-message-content {role === 'user' ? 'static-user-content' : 'static-mate-content'}"
+	>
 		{#if role === 'assistant'}
 			<div class="static-mate-name">{displayName}</div>
 		{/if}

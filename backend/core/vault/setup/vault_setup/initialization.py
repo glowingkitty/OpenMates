@@ -86,8 +86,10 @@ class VaultInitializer:
             os.makedirs(os.path.dirname(self.api_token_file), exist_ok=True)
             with open(self.api_token_file, 'w') as f:
                 f.write(api_token)
-            # Use 644 permissions as the API service needs to read this
-            os.chmod(self.api_token_file, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH) # 644
+            # SECURITY: Use 640 permissions (owner rw, group r, no world access).
+            # The API service containers run in the same group context on the shared volume.
+            # Previous 644 (world-readable) exposed the token to any process in any container.
+            os.chmod(self.api_token_file, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP)  # 640
             logger.debug(f"Saved API token specifically to {self.api_token_file}") # Keep as debug
             return True
         except Exception as e:

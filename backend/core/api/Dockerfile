@@ -42,4 +42,6 @@ EXPOSE 8000
 # Default command to run the application.
 # This is typically overridden by the 'command' in docker-compose.yml.
 # It correctly refers to the main application module path.
-CMD ["uvicorn", "backend.core.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips='*'"]
+# SECURITY: Only trust X-Forwarded-For from Docker bridge network (reverse proxy).
+# Never use '*' — it allows any client to spoof their IP and bypass rate limits.
+CMD ["uvicorn", "backend.core.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "172.16.0.0/12"]

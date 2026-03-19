@@ -69,7 +69,7 @@ class LoginResponse(BaseModel):
     message: str = Field(..., description="Response message")
     user: Optional[UserResponse] = None
     tfa_required: bool = Field(False, description="Indicates if 2FA verification is required")
-    ws_token: Optional[str] = None  # WebSocket authentication token (for Safari iOS compatibility)
+    ws_token: Optional[str] = None  # Short-lived HMAC WebSocket token (NOT the refresh token). Safari iOS compatibility.
     
     class Config:
         json_schema_extra = {
@@ -123,7 +123,7 @@ class SessionResponse(BaseModel):
     re_auth_required: Optional[str] = None # e.g., "2fa", "passkey"
     re_auth_reason: Optional[str] = None # e.g., "new_device", "location_change" - explains WHY re-auth is needed (for UI messaging)
     require_invite_code: bool = True  # Default to True for backward compatibility
-    ws_token: Optional[str] = None  # WebSocket authentication token (for Safari iOS compatibility)
+    ws_token: Optional[str] = None  # Short-lived HMAC WebSocket token (NOT the refresh token). Safari iOS compatibility.
     # Active Sessions: device info for the current request so client can encrypt and register it
     session_device_info: Optional[Dict[str, Any]] = None  # {device_name, ip_truncated, country_code, city}
     session_meta_registered: bool = False  # Whether encrypted session metadata has been registered for this session

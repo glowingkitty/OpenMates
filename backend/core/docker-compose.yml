@@ -12,7 +12,7 @@ services:
       context: ../../ # Changed: Build context is now the project root
       dockerfile: backend/core/api/Dockerfile # Path to Dockerfile from new context
     restart: unless-stopped
-    stop_grace_period: 15s  # Allow broadcast_to_all() + lifespan teardown before SIGKILL
+    stop_grace_period: 15s # Allow broadcast_to_all() + lifespan teardown before SIGKILL
     env_file: ../../.env
     environment:
       PYTHONPATH: "/app"
@@ -1414,8 +1414,9 @@ services:
     cap_add:
       - IPC_LOCK
     environment:
-      VAULT_LOG_LEVEL: "debug"
-    command: "vault server -log-level=debug -config=/vault/config/vault.hcl"
+      # SECURITY: Never use "debug" in production — Vault debug logs contain raw tokens and secrets.
+      VAULT_LOG_LEVEL: "warn"
+    command: "vault server -log-level=warn -config=/vault/config/vault.hcl"
     volumes:
       - ./vault/config:/vault/config:ro
       - vault-data:/vault/file
@@ -1437,7 +1438,8 @@ services:
     env_file: ../../.env
     environment:
       VAULT_ADDR: "http://vault:8200"
-      VAULT_LOG_LEVEL: "debug"
+      # SECURITY: Never use "debug" in production — Vault debug logs contain raw tokens and secrets.
+      VAULT_LOG_LEVEL: "warn"
       VAULT_AUTO_UNSEAL: "true" # Set to "false" to disable auto-unsealing
     volumes:
       - ./vault/setup:/app

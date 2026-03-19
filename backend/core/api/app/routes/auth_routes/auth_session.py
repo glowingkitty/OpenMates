@@ -18,6 +18,7 @@ from backend.core.api.app.routes.auth_routes.auth_utils import get_cookie_domain
 from backend.core.api.app.schemas.user import UserResponse
 from backend.core.api.app.services.cache_config import ACCESS_TOKEN_TTL_SECONDS, TOKEN_REFRESH_THRESHOLD_SECONDS
 from backend.core.api.app.services.compliance import ComplianceService
+from backend.core.api.app.utils.ws_token import create_ws_token
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -475,7 +476,9 @@ async def get_session(
             ),
             token_refresh_needed=False,
             require_invite_code=require_invite_code,
-            ws_token=refresh_token,  # Return token for WebSocket auth (Safari iOS compatibility)
+            # SECURITY: Short-lived HMAC ws_token instead of the raw refresh_token.
+            # Prevents XSS from stealing the full session token via the response body.
+            ws_token=create_ws_token(refresh_token) if refresh_token else None,
             session_device_info=session_device_info_data,
             session_meta_registered=session_meta_already_registered,
         )
