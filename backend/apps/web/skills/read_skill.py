@@ -32,6 +32,12 @@ logger = logging.getLogger(__name__)
 class WebReadRequestItem(BaseModel):
     """A single web page read request."""
 
+    id: Optional[Any] = Field(
+        default=None,
+        description="Optional caller-supplied ID for correlating responses to requests. "
+            "Auto-generated as a sequential integer if not provided.",
+    )
+
     url: str = Field(description="URL of the web page to read and extract content from.")
     formats: Optional[List[str]] = Field(
         default=None,

@@ -7035,6 +7035,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     console.warn('[ActiveChat] currentChat is null in setTimeout - cannot restore scroll position');
                     return;
                 }
+                // Ensure chatHistoryRef is still mounted (may be null if component unmounted during delay)
+                if (!chatHistoryRef) {
+                    console.warn('[ActiveChat] chatHistoryRef is null in scroll setTimeout — component likely unmounted');
+                    return;
+                }
                 
                 // When navigating via ChatHeader arrows, always scroll to top so the
                 // banner is visible (user expects to see the chat from the beginning).
@@ -7117,6 +7122,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 if (sessionDraft) {
                     console.debug(`[ActiveChat] Loading sessionStorage draft for demo chat ${currentChat.chat_id}`);
                     setTimeout(() => {
+                        // Re-check ref: component may have unmounted between the null-check and callback.
+                        if (!messageInputFieldRef) return;
                         messageInputFieldRef.setDraftContent(currentChat.chat_id, sessionDraft, 0, false);
                         // CRITICAL: Restore the original markdown from the stored draft to preserve user input
                         // This ensures URLs and other content are preserved exactly as the user typed them
@@ -7130,6 +7137,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     // This ensures that when the user types in this demo chat, the draft is saved to the correct chat ID
                     // Without this, the draft service might still use the previous chat's ID, causing drafts to overwrite each other
                     setTimeout(() => {
+                        // Re-check ref: component may have unmounted between the null-check and callback.
+                        if (!messageInputFieldRef) return;
                         // Set the draft context to the new demo chat ID, even though there's no draft content
                         // This ensures the draft service knows which chat ID to use when saving drafts
                         messageInputFieldRef.setDraftContent(currentChat.chat_id, null, 0, false);
@@ -7231,6 +7240,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             console.debug(`[ActiveChat] Successfully decrypted and parsed draft content for chat ${currentChat.chat_id}`);
                             
                             setTimeout(() => {
+                                // Re-check ref: component may have unmounted between the null-check and callback.
+                                if (!messageInputFieldRef) return;
                                 // Pass the decrypted and parsed TipTap JSON content
                                 messageInputFieldRef.setDraftContent(currentChat.chat_id, draftContentJSON, draftVersion, false);
                             }, 50);

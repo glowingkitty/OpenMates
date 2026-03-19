@@ -40,6 +40,12 @@ logger = logging.getLogger(__name__)
 class MailSearchRequestItem(BaseModel):
     """A single mail search request."""
 
+    id: Optional[Any] = Field(
+        default=None,
+        description="Optional caller-supplied ID for correlating responses to requests. "
+            "Auto-generated as a sequential integer if not provided.",
+    )
+
     query: Optional[str] = Field(
         default=None,
         description="Optional search text (subject/from/body). Empty means recent-first listing.",

@@ -33,6 +33,12 @@ logger = logging.getLogger(__name__)
 class PriceCalendarRequestItem(BaseModel):
     """A single price calendar request for a route and month."""
 
+    id: Optional[Any] = Field(
+        default=None,
+        description="Optional caller-supplied ID for correlating responses to requests. "
+            "Auto-generated as a sequential integer if not provided.",
+    )
+
     origin: str = Field(
         description="Origin city or IATA code (e.g. 'Munich' or 'MUC')."
     )

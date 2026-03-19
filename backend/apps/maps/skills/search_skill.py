@@ -27,6 +27,12 @@ logger = logging.getLogger(__name__)
 class MapSearchRequestItem(BaseModel):
     """A single maps/places search request."""
 
+    id: Optional[Any] = Field(
+        default=None,
+        description="Optional caller-supplied ID for correlating responses to requests. "
+            "Auto-generated as a sequential integer if not provided.",
+    )
+
     query: str = Field(
         description="Text query string to search for places (e.g. 'restaurants in Berlin', 'museums near Times Square')."
     )

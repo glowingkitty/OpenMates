@@ -95,6 +95,12 @@ _AUTO_PROVIDER_MULTIPLIER = 2
 class SearchRequestItem(BaseModel):
     """A single event search request."""
 
+    id: Optional[Any] = Field(
+        default=None,
+        description="Optional caller-supplied ID for correlating responses to requests. "
+            "Auto-generated as a sequential integer if not provided.",
+    )
+
     query: str = Field(
         description="Topic or theme of events to search for (e.g. 'AI', 'Python', 'hackathon', "
         "'startup', 'networking'). Do NOT include platform names like 'meetup' or 'luma'."
@@ -661,7 +667,12 @@ class SearchSkill(BaseSkill):
         if error_response:
             return error_response
 
-        requests_list = request.requests
+        # Serialize Pydantic items to plain dicts so _validate_requests_array helpers
+        # can call req.get("id") without AttributeError on Pydantic model objects.
+        requests_list = [
+            r.model_dump() if hasattr(r, "model_dump") else r
+            for r in request.requests
+        ]
         validated_requests, error = self._validate_requests_array(
             requests=requests_list,
             required_field="query",

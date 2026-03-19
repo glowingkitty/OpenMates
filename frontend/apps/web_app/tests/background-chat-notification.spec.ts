@@ -294,18 +294,32 @@ test('background chat notification shows and allows reply', async ({ page }: { p
 	}
 	logStep(`Navigated to Chat A via notification reply. Current URL: ${page.url()}`);
 	await takeScreenshot(page, 'navigated-to-chat-a');
-	// Allow extra time for WebSocket sync to recover and messages to render
-	await page.waitForTimeout(8000);
+
+	// Wait for the message editor to be present (confirms chat view is mounted)
+	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 15000 });
+
+	// Wait for at least one message of any kind to appear before asserting assistant messages.
+	// After a sidebar/hash navigation, the chat loads from IndexedDB asynchronously.
+	// Waiting for any message first prevents a race where the assertion starts before
+	// the chat list has rendered at all, causing spurious "count = 0" failures.
+	const anyMessage = page.locator('[data-testid="message-assistant"], [data-testid="message-user"]');
+	await expect(async () => {
+		const anyCount = await anyMessage.count();
+		logStep(`Total message count: ${anyCount}, URL: ${page.url()}`);
+		expect(anyCount).toBeGreaterThan(0);
+	}).toPass({ timeout: 30000 });
+
+	// Allow extra time for the AI response to finish streaming if still in progress
+	await page.waitForTimeout(5000);
 	await takeScreenshot(page, 'chat-a-after-wait');
 
 	// Wait for at least one assistant message to be visible (the original AI response)
-	// Use toContainText or count approach — messages may still be loading
 	const assistantResponse = page.getByTestId('message-assistant');
 	await expect(async () => {
 		const count = await assistantResponse.count();
 		logStep(`Assistant message count: ${count}, URL: ${page.url()}`);
 		expect(count).toBeGreaterThan(0);
-	}).toPass({ timeout: 90000 });
+	}).toPass({ timeout: 120000 });
 	await expect(assistantResponse.first()).toBeVisible({ timeout: 15000 });
 	logStep('Assistant response visible in Chat A.');
 

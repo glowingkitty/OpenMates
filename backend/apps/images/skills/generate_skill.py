@@ -33,6 +33,12 @@ logger = logging.getLogger(__name__)
 class ImageGenerationRequestItem(BaseModel):
     """A single image generation request."""
 
+    id: Optional[Any] = Field(
+        default=None,
+        description="Optional caller-supplied ID for correlating responses to requests. "
+            "Auto-generated as a sequential integer if not provided.",
+    )
+
     prompt: str = Field(description="Text description of the image to generate.")
     aspect_ratio: str = Field(
         default="1:1",

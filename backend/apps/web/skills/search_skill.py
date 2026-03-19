@@ -76,6 +76,12 @@ def strip_html_tags(text: str) -> str:
 class WebSearchRequestItem(BaseModel):
     """A single web search request."""
 
+    id: Optional[Any] = Field(
+        default=None,
+        description="Optional caller-supplied ID for correlating responses to requests. "
+            "Auto-generated as a sequential integer if not provided.",
+    )
+
     query: str = Field(description="Search query string (e.g. 'Python async', 'FastAPI best practices').")
     count: int = Field(default=10, description="Number of results for this request (max 20).")
     country: Optional[str] = Field(

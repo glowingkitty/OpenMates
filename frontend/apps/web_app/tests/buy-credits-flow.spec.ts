@@ -72,11 +72,17 @@ async function loginToTestAccount(
 
 	const submitLoginButton = page.locator('#login-submit-button');
 	let loginSuccess = false;
-	for (let attempt = 1; attempt <= 3 && !loginSuccess; attempt++) {
-		// Wait until well into the current TOTP window to avoid boundary expiry
+	for (let attempt = 1; attempt <= 5 && !loginSuccess; attempt++) {
+		// Wait until well into the current TOTP window to avoid boundary expiry.
+		// Guard expanded from 27s to 24s: if we are in the last 6 seconds of a window,
+		// wait for the window to roll over plus a 5s buffer. This absorbs:
+		//   - Network latency to the TOTP server (~1-2s)
+		//   - Clock skew between test runner and server (~1s)
+		//   - Execution time for fill + click (~1s)
+		// Previous 3s buffer was too tight at 03:00 UTC under CI load.
 		const secondsIntoWindow = Math.floor(Date.now() / 1000) % 30;
-		if (secondsIntoWindow > 27) {
-			const msToWait = (30 - secondsIntoWindow) * 1000 + 3000;
+		if (secondsIntoWindow > 24) {
+			const msToWait = (30 - secondsIntoWindow) * 1000 + 5000;
 			logCheckpoint(`Waiting ${msToWait}ms for fresh TOTP window (attempt ${attempt})...`);
 			await page.waitForTimeout(msToWait);
 		}
@@ -88,14 +94,17 @@ async function loginToTestAccount(
 			await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 12000 });
 			loginSuccess = true;
 		} catch {
-			if (attempt < 3) {
-				await page.waitForTimeout(3000);
+			if (attempt < 5) {
+				// Wait for the next TOTP window before retrying
+				const nowSecs = Math.floor(Date.now() / 1000) % 30;
+				const msToNextWindow = (30 - nowSecs) * 1000 + 5000;
+				await page.waitForTimeout(Math.min(msToNextWindow, 35000));
 				await otpInput.fill('');
 			}
 		}
 	}
 	if (!loginSuccess) {
-		throw new Error('Login failed after 3 OTP attempts');
+		throw new Error('Login failed after 5 OTP attempts');
 	}
 	await page.waitForURL(/chat/, { timeout: 20000 });
 	logCheckpoint('Logged in.');

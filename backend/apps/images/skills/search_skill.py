@@ -67,6 +67,12 @@ INTERNAL_API_TIMEOUT_SECONDS = 30
 class ImageSearchRequestItem(BaseModel):
     """A single image search request (text or reverse image search)."""
 
+    id: Optional[Any] = Field(
+        default=None,
+        description="Optional caller-supplied ID for correlating responses to requests. "
+            "Auto-generated as a sequential integer if not provided.",
+    )
+
     query: Optional[str] = Field(
         default=None,
         description="Text description of images to search for (e.g. 'sunset over mountains'). "

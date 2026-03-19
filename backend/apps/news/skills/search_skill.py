@@ -34,6 +34,12 @@ DEFAULT_RESULT_COUNT = 10
 class NewsSearchRequestItem(BaseModel):
     """A single news search request."""
 
+    id: Optional[Any] = Field(
+        default=None,
+        description="Optional caller-supplied ID for correlating responses to requests. "
+            "Auto-generated as a sequential integer if not provided.",
+    )
+
     query: str = Field(description="Search query string (e.g. 'AI news', 'Tesla earnings').")
     count: int = Field(default=10, description="Number of results for this request (max 20).")
     country: Optional[str] = Field(
@@ -674,9 +680,13 @@ class SearchSkill(BaseSkill):
         if error_response:
             return error_response
         
-        # Extract requests array from Pydantic model
-        # The Pydantic model validates the structure, but we still need to validate individual request items
-        requests = request.requests
+        # Extract requests array from Pydantic model and serialize to plain dicts.
+        # _validate_requests_array and downstream helpers call req.get("id") which requires
+        # dicts; keeping items as Pydantic objects raises AttributeError at runtime.
+        requests = [
+            r.model_dump() if hasattr(r, "model_dump") else r
+            for r in request.requests
+        ]
         
         # Validate requests array using BaseSkill helper
         validated_requests, error = self._validate_requests_array(

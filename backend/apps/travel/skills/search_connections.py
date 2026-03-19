@@ -47,6 +47,12 @@ class LegItem(BaseModel):
 class SearchConnectionsRequestItem(BaseModel):
     """A single connection search request (one-way, round trip, or multi-stop)."""
 
+    id: Optional[Any] = Field(
+        default=None,
+        description="Optional caller-supplied ID for correlating responses to requests. "
+            "Auto-generated as a sequential integer if not provided.",
+    )
+
     legs: List[LegItem] = Field(
         description="Ordered list of trip legs. One-way trip = 1 leg. "
         "Round trip = 2 legs (outbound + return). Multi-stop = N legs."

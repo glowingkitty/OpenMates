@@ -343,6 +343,20 @@ class BaseSkill:
         # Use provided logger or fall back to module-level logger for debug messages
         _log = logger or logging.getLogger(__name__)
         log_func = _log.debug
+
+        # Defensive: if a Pydantic model slipped through instead of a dict,
+        # convert it so all downstream .get() / item-assignment calls work.
+        # Callers should serialise before calling this, but we guard here too
+        # to make the failure loud (AttributeError → clear log) rather than silent.
+        if hasattr(req, "model_dump"):
+            _log.error(
+                "_validate_and_normalize_request_id received a Pydantic model "
+                f"instead of a dict (type={type(req).__name__}). "
+                "The calling skill's execute() must serialize request items with "
+                "model_dump() before passing them to BaseSkill helpers. "
+                "Auto-converting now to avoid crash, but this is a bug in the skill."
+            )
+            req = req.model_dump()
         
         # Auto-generate 'id' for any request that doesn't include one.
         # The tool_schema tells callers that 'id' is auto-generated if not provided,
@@ -475,6 +489,12 @@ class BaseSkill:
         
         # Validate that all requests have required fields: 'id' and the specified required field
         # Use BaseSkill helper method for consistent validation across all skills
+        # Serialize any Pydantic model items to plain dicts so .get() works correctly.
+        # Individual skills should do this before calling us, but we defend here too.
+        requests = [
+            r.model_dump() if hasattr(r, "model_dump") else r
+            for r in requests
+        ]
         request_ids = set()
         for i, req in enumerate(requests):
             # Validate and normalize request 'id' field using BaseSkill helper

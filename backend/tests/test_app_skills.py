@@ -377,20 +377,39 @@ class TestSkillValidation:
         assert "results" in response["results"][0]
     
     def test_web_search_multi_request_missing_id(self):
-        """Test that missing id field in multi-request call returns an error."""
+        """Test that a missing id in a multi-request call is auto-generated (not an error).
+
+        The BaseSkill contract (documented in _validate_and_normalize_request_id) states
+        that 'id' is always optional and auto-generates a sequential integer when absent.
+        A request without 'id' must succeed and the auto-generated id must appear in results.
+        Previously this test incorrectly expected a validation error; the real invariant
+        to guard is that the response has the correct number of result groups.
+        """
         endpoint = "http://app-web:8000/skills/search"
         request_data = {
             "requests": [
                 {"id": "1", "query": "vscode"},
-                {"query": "cursor"}  # Missing id - should fail for multi-request
+                {"query": "cursor"}  # Missing id — auto-generated as 2
             ]
         }
-        
+
         response = docker_exec_curl(endpoint, request_data)
-        
-        assert "error" in response
-        assert "id" in response["error"].lower()
-        assert "multi-request" in response["error"].lower() or "request 2" in response["error"].lower()
+
+        # Should succeed: missing id is auto-filled, not rejected
+        assert "results" in response, (
+            f"Expected 'results' in response but got: {response}"
+        )
+        assert len(response["results"]) == 2, (
+            f"Expected 2 result groups but got {len(response['results'])}: {response}"
+        )
+        result_ids = {str(r["id"]) for r in response["results"]}
+        assert "1" in result_ids, (
+            f"Expected explicit id '1' in results, got: {result_ids}"
+        )
+        # The second request had no id — auto-generated id should be present (as int 2 or str "2")
+        assert "2" in result_ids or 2 in {r["id"] for r in response["results"]}, (
+            f"Expected auto-generated id 2 in results, got: {result_ids}"
+        )
     
     def test_web_search_duplicate_id(self):
         """Test that duplicate ids return an error."""

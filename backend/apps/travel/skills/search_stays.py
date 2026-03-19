@@ -33,6 +33,12 @@ logger = logging.getLogger(__name__)
 class SearchStaysRequestItem(BaseModel):
     """A single accommodation search request."""
 
+    id: Optional[Any] = Field(
+        default=None,
+        description="Optional caller-supplied ID for correlating responses to requests. "
+            "Auto-generated as a sequential integer if not provided.",
+    )
+
     query: str = Field(
         description="Search query describing the destination or property "
         "(e.g. 'Hotels in Paris', 'Hostels near Eiffel Tower', 'Barcelona beachfront hotel')."

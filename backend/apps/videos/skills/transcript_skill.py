@@ -64,6 +64,12 @@ class TranscriptRequestItem(BaseModel):
     
     NOTE: YouTube Shorts URLs are NOT supported and will be rejected at validation time.
     """
+    id: Optional[Any] = Field(
+        default=None,
+        description="Optional caller-supplied ID for correlating responses to requests. "
+            "Auto-generated as a sequential integer if not provided.",
+    )
+
     url: str = Field(..., description="YouTube video URL (supports watch and youtu.be formats only - Shorts URLs are not supported)")
     languages: Optional[List[str]] = Field(
         default=None,
