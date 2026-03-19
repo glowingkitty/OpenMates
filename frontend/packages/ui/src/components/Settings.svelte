@@ -668,9 +668,16 @@ changes to the documentation (to keep the documentation up to date).
             resolvedProfileImageBlobUrl = null;
             return;
         }
+        // Stale-closure guard: if the effect re-runs before the previous fetch
+        // resolves (e.g. because an unrelated store field like last_opened changed),
+        // we cancel the old .then() so it cannot overwrite the latest state.
+        let cancelled = false;
         getProfileImageBlobUrl(url, getApiUrl(), userId).then((resolved) => {
-            resolvedProfileImageBlobUrl = resolved;
+            if (!cancelled) {
+                resolvedProfileImageBlobUrl = resolved;
+            }
         });
+        return () => { cancelled = true; };
     });
 
     // State to track active submenu view
@@ -2536,6 +2543,7 @@ changes to the documentation (to keep the documentation up to date).
             {isMenuVisible}
             {paymentEnabled}
             showProfileHeader={false}
+            resolvedProfileImageUrl={resolvedProfileImageBlobUrl}
             bind:isIncognitoEnabled
             bind:isGuestEnabled
             bind:isOfflineEnabled
