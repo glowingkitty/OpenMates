@@ -105,6 +105,22 @@
 }
 
 /* Add these new classes */
+.message-align-right {
+  /* Use logical properties so this works for both LTR (right side) and RTL (left side) */
+  margin-inline-start: auto;
+  padding-inline-start: 12px;
+  box-sizing: border-box;
+  /* Cap width so the user bubble near-side edge sits ~20px from the assistant bubble content edge.
+     Assistant content starts ~80px from start (60px avatar + margins/gap). */
+  max-width: calc(100% - 100px);
+}
+
+/* When container is ≤500px the assistant avatar stacks above the message,
+   so the user bubble no longer needs a large inline-start offset — go nearly edge-to-edge. */
+.message-align-right.mobile-compact {
+  max-width: calc(100% - 20px);
+  padding-inline-start: 0px;
+}
 
 .message-align-left {
   /* Use logical properties so this works for both LTR (left side) and RTL (right side) */
@@ -156,7 +172,10 @@
 
 /* Media query for screens smaller than 500px - padding adjustments only */
 @media (max-width: 500px) {
-  
+  .message-align-right {
+    padding-inline-start: 0px;
+    max-width: calc(100% - 20px);
+  }
 
   .message-align-left {
     padding-inline-end: 0px;
