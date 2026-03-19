@@ -11,7 +11,10 @@
 		<!-- maximum-scale=5 allows users (and accessibility tools) to zoom up to 5x while still
 			 preventing iOS Safari from auto-zooming on input focus (all inputs use font-size >= 1rem = 16px).
 			 WCAG 2.1 SC 1.4.4 requires content to be resizable up to 200% without loss of functionality. -->
-		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover"
+		/>
 		<!-- theme-color: two variants so iOS Safari colors the status bar + bottom indicator
 		     to match the app background (--color-grey-0) in both light and dark mode.
 		     Without media queries, a single hardcoded value causes a mismatch when the OS

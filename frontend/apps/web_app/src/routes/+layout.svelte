@@ -127,6 +127,41 @@
 		initializeServerStatus();
 
 		// =====================================================================
+		// --app-height CSS variable — iOS keyboard-aware viewport height
+		// =====================================================================
+		// iOS Safari does NOT resize the layout viewport when the virtual keyboard
+		// opens. As a result, 100dvh always equals the full screen height, and any
+		// element with `position: absolute; bottom: 0` inside a `height: 100dvh`
+		// container ends up hidden under the keyboard.
+		//
+		// The fix: maintain a --app-height CSS variable set to
+		// visualViewport.height (which DOES shrink when the keyboard opens).
+		// The chat container uses `height: calc(var(--app-height) - <header>)`
+		// instead of `height: calc(100dvh - <header>)`, so it always fits the
+		// visible area and the message input stays above the keyboard.
+		//
+		// visualViewport.height is preferred over window.innerHeight because it
+		// also accounts for zoom level, but both track the visual viewport on iOS.
+		// =====================================================================
+		const updateAppHeight = () => {
+			const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+			document.documentElement.style.setProperty('--app-height', `${h}px`);
+		};
+
+		updateAppHeight();
+
+		// visualViewport fires both 'resize' (keyboard open/close, orientation change)
+		// and 'scroll' (layout viewport scrolled by iOS to keep focused element visible).
+		// We need both to keep --app-height in sync.
+		if (window.visualViewport) {
+			window.visualViewport.addEventListener('resize', updateAppHeight);
+			window.visualViewport.addEventListener('scroll', updateAppHeight);
+		} else {
+			// Fallback for browsers without visualViewport API
+			window.addEventListener('resize', updateAppHeight);
+		}
+
+		// =====================================================================
 		// Mobile zoom glitch prevention
 		// =====================================================================
 		// Two distinct zoom glitches happen on iOS mobile browsers:
@@ -159,7 +194,7 @@
 			// Temporarily set a strict viewport to force zoom reset
 			vp.setAttribute(
 				'content',
-				'width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1'
+				'width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, viewport-fit=cover'
 			);
 			requestAnimationFrame(() => {
 				// Restore the original viewport content on the next frame

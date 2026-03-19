@@ -117,8 +117,10 @@
          Without it, iOS zooms in on input focus and stays zoomed after keyboard dismiss.
          iOS 10+ still allows manual pinch-zoom even with maximum-scale=1, so accessibility is preserved.
          This MUST match the viewport tag in app.html - if this tag lacks maximum-scale=1,
-         it overrides app.html when svelte:head mounts, removing the zoom protection. -->
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, shrink-to-fit=no" />
+         it overrides app.html when svelte:head mounts, removing the zoom protection.
+         viewport-fit=cover: required for env(safe-area-inset-bottom) to work on iPhone notch/home-bar
+         devices. Without it, env() returns 0 and the message input can sit behind the home indicator. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, shrink-to-fit=no, viewport-fit=cover" />
     <link rel="canonical" href={url} />
 
     <!-- JSON-LD for rich snippets -->

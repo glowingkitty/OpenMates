@@ -2749,10 +2749,33 @@
 	.chat-container {
 		display: flex;
 		flex-direction: row;
-		/* Fallback for browsers that don't support dvh */
+		/*
+		 * iOS Safari keyboard fix: use --app-height instead of 100dvh.
+		 *
+		 * iOS Safari does not resize the layout viewport when the virtual keyboard
+		 * opens — 100dvh stays at the full screen height. Any element with
+		 * `position: absolute; bottom: 0` inside this container (the message input)
+		 * would then be hidden under the keyboard.
+		 *
+		 * --app-height is set in +layout.svelte via visualViewport.height, which
+		 * DOES shrink when the keyboard opens. This makes the container the correct
+		 * height for the visible area, so `bottom: 0` lands above the keyboard.
+		 *
+		 * Cascade order:
+		 *   1. 100vh  — legacy fallback (no dvh, no CSS vars)
+		 *   2. 100dvh — modern browsers that don't support CSS vars (hypothetical)
+		 *   3. var(--app-height, 100dvh) — used by all real browsers; falls back to
+		 *      100dvh if JS hasn't set the variable yet (first paint edge case).
+		 *
+		 * env(safe-area-inset-bottom) accounts for the iPhone home-indicator bar so
+		 * the input never sits directly on top of it.
+		 */
 		height: calc(100vh - 82px - var(--dev-console-height, 0px));
-		/* Modern browsers will use this */
 		height: calc(100dvh - 82px - var(--dev-console-height, 0px));
+		height: calc(
+			var(--app-height, 100dvh) - 82px - var(--dev-console-height, 0px) -
+				env(safe-area-inset-bottom, 0px)
+		);
 		gap: 0px;
 		padding: 10px;
 		/* Logical property: extra breathing room on the inline-end side (right in LTR, left in RTL) */
@@ -2789,6 +2812,10 @@
 			padding-inline-end: 10px;
 			height: calc(100vh - 75px - var(--dev-console-height, 0px));
 			height: calc(100dvh - 75px - var(--dev-console-height, 0px));
+			height: calc(
+				var(--app-height, 100dvh) - 75px - var(--dev-console-height, 0px) -
+					env(safe-area-inset-bottom, 0px)
+			);
 		}
 		.sidebar {
 			width: 100%;
