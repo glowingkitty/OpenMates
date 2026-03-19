@@ -8,6 +8,7 @@
 	import '@repo/ui/src/styles/theme.css';
 	import '@repo/ui/src/styles/fonts.css';
 	import '@repo/ui/src/styles/icons.css';
+	import '@repo/ui/src/styles/icon-urls.generated.css';
 	import '@repo/ui/src/styles/auth.css';
 	import '@repo/ui/src/styles/markdown.css';
 	import '@repo/ui/src/styles/settings.css';

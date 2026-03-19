@@ -8,6 +8,13 @@
     4. Settings item with value → subtitle + hasModifyButton
     5. Settings subheading → type="heading"
 
+    Icon system (v2):
+    - icon: simple name string (e.g. "chat", "lock", "travel")
+    - iconColor: CSS gradient/color for the SVG icon itself (default: var(--color-primary))
+    - iconBackground: container background — 'none' (flat icon) or 'primary' (blue square + white icon)
+    - Icons are resolved via auto-generated --icon-url-{name} CSS variables
+      (see scripts/generate-icon-urls.js, src/styles/icon-urls.generated.css)
+
     Design reference: Figma "settings_menu_elements" frame (node 4944-31418)
     See also: docs/architecture/settings-ui.md
     Preview: /dev/preview/settings (shows all variants side-by-side)
@@ -15,19 +22,76 @@
 <script lang="ts">
     import Toggle from './Toggle.svelte';
     import ModifyButton from './buttons/ModifyButton.svelte';
-    import { getCategoryGradientColors } from '../utils/categoryUtils';
     import type { Snippet } from 'svelte';
 
     /** Supported SettingsItem display types */
     type SettingsItemType = 'heading' | 'submenu' | 'quickaction' | 'subsubmenu' | 'nested';
 
-    /** Icon rendering mode — determines how the left icon area is styled */
-    type SettingsItemIconType = 'default' | 'app' | 'memory' | 'skill' | 'focus' | 'category';
+    /**
+     * Icon background mode:
+     * - 'none': transparent background, icon rendered as flat gradient SVG via CSS mask
+     * - 'primary': var(--color-primary) blue gradient rounded square with white SVG inside
+     */
+    type SettingsIconBackground = 'none' | 'primary';
 
     /** App/provider icon displayed on the right side of the row */
     interface AppIconEntry {
         name: string;
         type?: 'app' | 'provider';
+    }
+
+    /**
+     * Maps logical icon names (used by callers) to SVG filenames (in static/icons/).
+     * Only entries where the name differs from the filename need to be listed here.
+     * Names that match their SVG filename exactly (e.g. "chat" → chat.svg) are resolved
+     * automatically via --icon-url-{name} CSS variables.
+     */
+    const ICON_NAME_MAP: Record<string, string> = {
+        // Settings section names → SVG filenames
+        'account': 'user',
+        'apps': 'app',
+        'app_store': 'app',
+        'developers': 'coding',
+        'gift_cards': 'gift',
+        'incognito': 'anonym',
+        'interface': 'language',
+        'messengers': 'chat',
+        'newsletter': 'mail',
+        'notifications': 'announcement',
+        'passkeys': 'passkey',
+        'pricing': 'coins',
+        'privacy': 'lock',
+        'recovery_key': 'warning',
+        'report_issue': 'bug',
+        'security': 'lock',
+        'settings_memories': 'heart',
+        'shared': 'share',
+        'storage': 'files',
+        'support': 'volunteering',
+        'tfa': '2fa',
+        'users': 'team',
+        // Subsetting aliases
+        'clock': 'time',
+        'devices': 'desktop',
+        'document': 'pdf',
+        'email': 'mail',
+        'icon_gift': 'gift',
+        'icon_info': 'question',
+        'info': 'question',
+        'key': 'security_key',
+        'low_balance': 'coins',
+        'secrets': 'lock',
+    };
+
+    /**
+     * Resolves an icon name to the CSS variable name for its SVG URL.
+     * Strips the legacy "subsetting_icon " prefix if present, then maps through ICON_NAME_MAP.
+     */
+    function resolveIconName(name: string): string {
+        // Strip legacy "subsetting_icon " prefix (backward compat)
+        let clean = name.startsWith('subsetting_icon ') ? name.slice('subsetting_icon '.length) : name;
+        // Map to SVG filename if different
+        return ICON_NAME_MAP[clean] || clean;
     }
 
     // Props using Svelte 5 runes
@@ -50,13 +114,13 @@
         onClick = undefined,
         onModifyClick = undefined,
         hasNestedItems = false,
-        iconType = 'default',
-        category = undefined,
-        categoryIcon = undefined,
+        iconColor = undefined,
+        iconBackground = undefined,
         rightActionIcon = undefined,
         creditsDisplay = undefined,
         children
     }: {
+        /** Icon name — resolved to --icon-url-{name} CSS variable. See ICON_NAME_MAP for aliases. */
         icon: string;
         type?: SettingsItemType;
         title?: string | undefined;
@@ -75,13 +139,23 @@
         onClick?: (() => void) | undefined;
         onModifyClick?: (() => void) | undefined;
         hasNestedItems?: boolean;
-        iconType?: SettingsItemIconType;
-        category?: string | undefined;
-        categoryIcon?: string | undefined;
+        /**
+         * CSS gradient/color for the SVG icon itself.
+         * Examples: "var(--color-primary)", "var(--color-app-travel)",
+         *           "linear-gradient(135deg, #4867cd, #5a85eb)"
+         * Default: "var(--color-primary)" (blue gradient)
+         */
+        iconColor?: string | undefined;
+        /**
+         * Container background mode:
+         * - 'none': transparent — flat gradient-colored SVG icon (subsetting style)
+         * - 'primary': var(--color-primary) blue rounded square with white SVG inside
+         * Default: 'primary' for heading/submenu, 'none' for quickaction/subsubmenu/nested
+         */
+        iconBackground?: SettingsIconBackground | undefined;
         /**
          * Optional right-side action button icon name (e.g. 'download' shows a download button).
          * Renders a gradient circle button identical to ModifyButton but with a different icon.
-         * When provided alongside hasModifyButton, both are shown.
          */
         rightActionIcon?: string | undefined;
         /**
@@ -95,11 +169,35 @@
     // Backward-compat: `subtitle` is an alias for `subtitleTop`, without mutating props.
     let displaySubtitleTop = $derived(subtitleTop ?? subtitle);
 
+    // Resolved icon SVG name (handles "subsetting_icon " prefix and name aliases)
+    let resolvedIconName = $derived(resolveIconName(icon));
+
+    // Determine icon background: explicit prop > type-based default
+    let resolvedBackground: SettingsIconBackground = $derived(
+        iconBackground ?? (
+            (type === 'quickaction' || type === 'subsubmenu' || type === 'nested')
+                ? 'none'
+                : 'primary'
+        )
+    );
+
+    // Determine icon color
+    let resolvedColor = $derived(iconColor ?? 'var(--color-primary)');
+
+    // Whether this icon has a solid background (blue square) or is transparent (flat icon)
+    let hasIconBg = $derived(resolvedBackground === 'primary');
+
+    // Build inline style for the icon element
+    let iconStyle = $derived(
+        `--si-icon: var(--icon-url-${resolvedIconName});` +
+        (hasIconBg
+            ? ` --si-bg: var(--color-primary);`
+            : ` --si-color: ${resolvedColor};`)
+    );
+
     // Computed values
     let isClickable = $derived(onClick !== undefined);
     let hasAnySubtitle = $derived(displaySubtitleTop || subtitleBottom);
-    let iconClass = $derived(type === 'quickaction' || type === 'subsubmenu' ? 
-        `icon settings_size subsetting_icon ${icon}` : `icon settings_size ${icon}`);
 
     /**
      * Whether the title should use the OpenMates gradient text colour.
@@ -159,33 +257,14 @@
 >
     <div class="menu-item-content">
         <div class="menu-item-left">
-            <!-- Icon rendering: app icon, memory/skill/focus gradient icon, category gradient circle, or default mask icon -->
-            {#if iconType === 'app'}
-                <div class="icon-container">
-                    <div class={`icon settings_size subsetting_icon ${icon}`} style="--icon-color: var(--color-app-{icon});"></div>
-                </div>
-            {:else if iconType === 'memory' || iconType === 'skill' || iconType === 'focus'}
-                <!-- Renders icon SVG with type-specific gradient color (no rounded bg) -->
-                <div class="icon-container">
-                    <div class={`icon settings_size subsetting_icon ${icon}`} style={
-                        iconType === 'memory' ? '--icon-color: var(--icon-memory-background);' :
-                        iconType === 'skill' ? '--icon-color: var(--icon-skill-background);' :
-                        '--icon-color: var(--icon-focus-background);'
-                    }></div>
-                </div>
-            {:else if iconType === 'category' && category}
-                {@const gradientColors = getCategoryGradientColors(category)}
-                <div class="icon-container">
-                    <div class={`icon settings_size subsetting_icon ${icon}`} style={gradientColors
-                        ? `--icon-color: linear-gradient(135deg, ${gradientColors.start} 9.04%, ${gradientColors.end} 90.06%);`
-                        : ''
-                    }></div>
-                </div>
-            {:else}
-                <div class="icon-container">
-                    <div class={iconClass}></div>
-                </div>
-            {/if}
+            <!-- Unified icon rendering — single element, two CSS modes via .has-bg -->
+            <div class="icon-container">
+                <div 
+                    class="settings-icon"
+                    class:has-bg={hasIconBg}
+                    style={iconStyle}
+                ></div>
+            </div>
             
             <div class="text-and-nested-container">
                 <div class="text-container" class:has-title={!!title} class:has-subtitle={hasAnySubtitle} class:heading-text={type === 'heading'}>
@@ -277,7 +356,7 @@
             <!-- Right-side action icon button (e.g. download) -->
             {#if rightActionIcon}
                 <div class="right-action-button" aria-label={rightActionIcon}>
-                    <div class="right-action-icon" style="--right-action-icon-url: var(--icon-url-{rightActionIcon});"></div>
+                    <div class="right-action-icon" style="--right-action-icon-url: var(--icon-url-{resolveIconName(rightActionIcon)});"></div>
                 </div>
             {/if}
 
@@ -340,6 +419,56 @@
         display: flex;
         align-items: center;
         justify-content: center;
+    }
+
+    /*
+     * Unified settings icon — two rendering modes:
+     *
+     * Mode A (.settings-icon without .has-bg):
+     *   Transparent background. SVG rendered as flat gradient-colored shape via CSS mask on ::after.
+     *   Used for quickaction, subsubmenu, nested, app icons, category icons, etc.
+     *
+     * Mode B (.settings-icon.has-bg):
+     *   Gradient background (var(--si-bg)). White SVG icon via ::before with brightness invert.
+     *   Used for heading and submenu section icons.
+     */
+    .settings-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 10px;
+        position: relative;
+    }
+
+    /* Mode A: No background — flat gradient-colored icon via CSS mask */
+    .settings-icon:not(.has-bg)::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: var(--si-color, var(--color-primary));
+        -webkit-mask-image: var(--si-icon);
+        -webkit-mask-size: 50%;
+        -webkit-mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-image: var(--si-icon);
+        mask-size: 50%;
+        mask-repeat: no-repeat;
+        mask-position: center;
+    }
+
+    /* Mode B: Solid background — white icon on gradient square */
+    .settings-icon.has-bg {
+        background: var(--si-bg, var(--color-primary));
+    }
+
+    .settings-icon.has-bg::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background-image: var(--si-icon);
+        background-size: 50%;
+        background-repeat: no-repeat;
+        background-position: center;
+        filter: brightness(0) invert(1);
     }
 
     .text-and-nested-container {

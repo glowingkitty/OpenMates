@@ -2425,13 +2425,14 @@ changes to the documentation (to keep the documentation up to date).
                         <strong class="model-detail-title">{activeSubMenuTitle}</strong>
                     </div>
                 {:else}
-                    <!-- Use iconType="app" for app store sub-pages to render proper app-style icon -->
+                    <!-- App store sub-pages render icon SVG with app-specific gradient (no bg square) -->
                     <!-- Focus mode details pages now use the same icon+title header as skills -->
                     <SettingsItem
                         type="heading"
                         icon={activeSubMenuIcon}
                         title={activeSubMenuTitle}
-                        iconType={isAppStoreSubPage ? 'app' : 'default'}
+                        iconBackground={isAppStoreSubPage ? 'none' : 'primary'}
+                        iconColor={isAppStoreSubPage ? `var(--color-app-${activeSubMenuIcon})` : undefined}
                     />
                 {/if}
             </div>

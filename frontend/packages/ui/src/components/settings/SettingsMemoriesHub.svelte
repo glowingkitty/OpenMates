@@ -193,7 +193,8 @@
                 <SettingsItem
                     type="heading"
                     icon={getAppIconName(section.app.icon_image, section.app.id)}
-                    iconType="app"
+                    iconBackground="none"
+                    iconColor={`var(--color-app-${section.app.id})`}
                     title={section.app.name_translation_key ? $text(section.app.name_translation_key) : section.app.id}
                 />
 
@@ -208,7 +209,7 @@
                     <SettingsItem
                         type="submenu"
                         icon={getCategoryIconName(entry.category.icon_image, entry.category.id)}
-                        iconType="memory"
+                        iconColor="var(--icon-memory-background)"
                         title={categoryName}
                         subtitleBottom={countText}
                         onClick={() => openCategory(entry.app, entry.category.id, categoryName)}

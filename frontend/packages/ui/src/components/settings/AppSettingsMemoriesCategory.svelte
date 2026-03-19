@@ -411,7 +411,7 @@
                         <SettingsItem
                             type="submenu"
                             icon={getCategoryIconName(category?.icon_image)}
-                            iconType="memory"
+                            iconColor="var(--icon-memory-background)"
                             title={entryTitle}
                             subtitleBottom={entrySubtitle}
                             hasModifyButton={true}
@@ -448,7 +448,7 @@
                         <SettingsItem
                             type="submenu"
                             icon={getCategoryIconName(category?.icon_image)}
-                            iconType="memory"
+                            iconColor="var(--icon-memory-background)"
                             title={$text(exampleKey)}
                             onClick={() => handleExampleClick(index, exampleKey)}
                         />

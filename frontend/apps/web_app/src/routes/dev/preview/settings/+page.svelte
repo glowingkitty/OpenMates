@@ -39,6 +39,11 @@
 		{ value: 'option3', label: 'Microsoft Authenticator' }
 	];
 
+	// Hardcoded "general_knowledge" category gradient for demo purposes.
+	// In real usage, callers inside packages/ui can import getCategoryGradientColors()
+	// to compute this dynamically (see SettingsShared.svelte for example).
+	const genKnowledgeGradientCss = 'linear-gradient(135deg, #4867cd 9.04%, #5a85eb 90.06%)';
+
 	const demoTabs = [
 		{ id: 'tasks', icon: 'projectmanagement', count: 4 },
 		{ id: 'files', icon: 'files', count: 3 },
@@ -182,16 +187,16 @@
 					<span class="element-tag existing">SettingsItem + subtitle + hasModifyButton</span>
 				</div>
 				<p class="element-purpose">
-					Used when clicking opens a sub settings menu for selecting one of multiple options.
-					Shows current value as grey subtitle below the title.
-					Right side: edit button, download button, or credits counter with coin icon.
+					Used when clicking opens a sub settings menu for selecting one of multiple options. Shows
+					current value as grey subtitle below the title. Right side: edit button, download button,
+					or credits counter with coin icon.
 				</p>
 				<div class="element-demo">
-					<!-- App settings entry: iconType=app uses app-specific gradient color on icon SVG -->
+					<!-- App settings entry: icon colored with app-specific gradient -->
 					<SettingsItem
 						type="quickaction"
 						icon="secrets"
-						iconType="app"
+						iconColor="var(--color-app-secrets)"
 						title="2FA App"
 						subtitleBottom="Google Authenticator"
 						hasModifyButton={true}
@@ -201,7 +206,7 @@
 					<SettingsItem
 						type="quickaction"
 						icon="travel"
-						iconType="app"
+						iconColor="var(--color-app-travel)"
 						title="London"
 						subtitleBottom="Mar 29 – Apr 6"
 						hasModifyButton={true}
@@ -211,7 +216,7 @@
 					<SettingsItem
 						type="quickaction"
 						icon="legal"
-						iconType="app"
+						iconColor="var(--color-app-legal)"
 						title="2025-03-13"
 						subtitleBottom="10 EUR"
 						rightActionIcon="download"
@@ -221,8 +226,8 @@
 					<SettingsItem
 						type="submenu"
 						icon="chat"
-						iconType="category"
-						category="general_knowledge"
+						iconBackground="none"
+						iconColor={genKnowledgeGradientCss}
 						title="Legality of Ad-skipping Plugins"
 						creditsDisplay="120"
 						onClick={() => {}}
