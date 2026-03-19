@@ -2,14 +2,11 @@
     // frontend/packages/ui/src/components/Not404Screen.svelte
     /**
      * @file Not404Screen.svelte
-     * @description 404 not-found screen. Shows a branded banner with the server
-     * icon, "404" heading and "Page not found" subtitle — followed by an explanation
-     * block (why the page might be missing, copyable URL) and two action buttons
-     * (Search / Ask AI) separated by an "or" divider.
+     * @description 404 not-found screen. Shows a branded banner (server icon floating
+     * at edges + centered icon/title/summary) followed by an explanation section and
+     * two standard orange <button> elements with icons, separated by an "or" line.
      *
      * Architecture: rendered by ActiveChat.svelte when notFoundPathStore is non-null.
-     * Clears the store when the user acts so the normal welcome screen takes over.
-     *
      * Test reference: tests/not-found-404-flow.spec.ts
      */
     import { text } from '@repo/ui';
@@ -23,9 +20,6 @@
     let { onSearch, onAskAI }: Props = $props();
 
     const path = $derived($notFoundPathStore ?? '');
-
-    // Full URL shown to the user (path only — we don't know the origin at build time)
-    const displayUrl = $derived(path);
 
     function humanizePath(raw: string): string {
         const clean = raw.replace(/^\//, '').split('?')[0].split('#')[0];
@@ -41,15 +35,11 @@
     const topic = $derived(humanizePath(path));
     const query = $derived(searchQuery(path));
 
-    // Copy URL feedback state
     let urlCopied = $state(false);
     let copyTimeout: ReturnType<typeof setTimeout> | null = null;
 
     function handleCopyUrl() {
-        // Copy the full URL (path) to clipboard
-        const fullUrl = typeof window !== 'undefined'
-            ? window.location.origin + path
-            : path;
+        const fullUrl = typeof window !== 'undefined' ? window.location.origin + path : path;
         navigator.clipboard.writeText(fullUrl).then(() => {
             urlCopied = true;
             if (copyTimeout) clearTimeout(copyTimeout);
@@ -57,9 +47,7 @@
         });
     }
 
-    function handleSearch() {
-        onSearch(query);
-    }
+    function handleSearch() { onSearch(query); }
 
     function handleAskAI() {
         const message = $text('common.not_found.ask_ai_message', { values: { topic } });
@@ -68,14 +56,20 @@
 </script>
 
 <div class="not-found-screen">
-    <!-- ── Banner: server icon + "404" + "Page not found" ──────────────────── -->
+    <!-- Banner: matches ChatHeader visual language exactly -->
     <div class="not-found-banner">
+        <!-- Living gradient orbs -->
         <div class="banner-orbs" aria-hidden="true">
             <div class="orb orb-1"></div>
             <div class="orb orb-2"></div>
             <div class="orb orb-3"></div>
         </div>
 
+        <!-- Decorative floating server icons at edges (126×126px, same as ChatHeader) -->
+        <div class="deco-icon deco-icon-left icon_server" aria-hidden="true"></div>
+        <div class="deco-icon deco-icon-right icon_server" aria-hidden="true"></div>
+
+        <!-- Centered content: small server icon + title + summary -->
         <div class="banner-content">
             <div class="banner-icon icon_server" aria-hidden="true"></div>
             <span class="banner-title">{$text('common.not_found.title')}</span>
@@ -83,7 +77,7 @@
         </div>
     </div>
 
-    <!-- ── Body: explanation + action buttons ─────────────────────────────── -->
+    <!-- Body: explanation + action buttons -->
     <div class="not-found-body">
         <div class="not-found-explanation">
             <p class="explanation-lead">{$text('common.not_found.explanation')}</p>
@@ -91,7 +85,7 @@
                 <li>
                     {$text('common.not_found.reason_typo')}:
                     <span class="url-chip">
-                        <code class="url-text">{displayUrl}</code>
+                        <code class="url-text">{path}</code>
                         <button
                             class="copy-url-btn"
                             onclick={handleCopyUrl}
@@ -99,11 +93,12 @@
                             title={$text('common.not_found.copy_url')}
                             type="button"
                         >
-                            {#if urlCopied}
-                                <span class="icon_check copy-icon" aria-hidden="true"></span>
-                            {:else}
-                                <span class="icon_copy copy-icon" aria-hidden="true"></span>
-                            {/if}
+                            <span
+                                class="copy-icon"
+                                class:icon_check={urlCopied}
+                                class:icon_copy={!urlCopied}
+                                aria-hidden="true"
+                            ></span>
                             {#if urlCopied}
                                 <span class="copy-feedback">{$text('common.not_found.url_copied')}</span>
                             {/if}
@@ -112,22 +107,21 @@
                 </li>
                 <li>{$text('common.not_found.reason_removed')}</li>
             </ul>
-
             <p class="suggestion-heading">{$text('common.not_found.suggestion_heading')}</p>
             <p class="suggestion-body">{$text('common.not_found.suggestion_body')}</p>
         </div>
 
-        <!-- Action buttons with "or" separator -->
+        <!-- Stacked buttons with "or" separator line between them -->
         <div class="not-found-actions">
-            <button class="action-btn action-btn-search" onclick={handleSearch} type="button">
-                <span class="icon_search action-icon" aria-hidden="true"></span>
+            <button onclick={handleSearch} type="button">
+                <span class="btn-icon icon_search" aria-hidden="true"></span>
                 {$text('common.not_found.search_label', { values: { query } })}
             </button>
 
             <span class="or-separator">{$text('common.not_found.or_separator')}</span>
 
-            <button class="action-btn action-btn-chat" onclick={handleAskAI} type="button">
-                <span class="icon_chat action-icon" aria-hidden="true"></span>
+            <button onclick={handleAskAI} type="button">
+                <span class="btn-icon icon_chat" aria-hidden="true"></span>
                 {$text('common.not_found.ask_ai_label', { values: { topic } })}
             </button>
         </div>
@@ -135,7 +129,7 @@
 </div>
 
 <style>
-    /* ── Screen container ─────────────────────────────────────────────────── */
+    /* ── Screen ───────────────────────────────────────────────────────────── */
 
     .not-found-screen {
         display: flex;
@@ -145,7 +139,7 @@
         overflow-y: auto;
     }
 
-    /* ── Banner ───────────────────────────────────────────────────────────── */
+    /* ── Banner: mirrors ChatHeader dimensions exactly ────────────────────── */
 
     .not-found-banner {
         position: relative;
@@ -164,6 +158,8 @@
         user-select: none;
         flex-shrink: 0;
     }
+
+    /* ── Orbs ─────────────────────────────────────────────────────────────── */
 
     .banner-orbs {
         position: absolute;
@@ -188,32 +184,50 @@
         will-change: transform, border-radius;
     }
 
-    .orb-1 {
-        top: -80px;
-        left: -100px;
-        animation: orbMorph1 11s ease-in-out infinite, orbDrift1 19s ease-in-out infinite;
-    }
-
-    .orb-2 {
-        bottom: -120px;
-        right: -120px;
-        width: 460px;
-        height: 400px;
-        animation: orbMorph2 13s ease-in-out infinite, orbDrift2 23s ease-in-out infinite;
-    }
-
-    .orb-3 {
-        top: -20px;
-        left: 25%;
-        width: 340px;
-        height: 300px;
-        opacity: 0.38;
-        animation: orbMorph3 17s ease-in-out infinite, orbDrift3 29s ease-in-out infinite;
-    }
+    .orb-1 { top: -80px; left: -100px; animation: orbMorph1 11s ease-in-out infinite, orbDrift1 19s ease-in-out infinite; }
+    .orb-2 { bottom: -120px; right: -120px; width: 460px; height: 400px; animation: orbMorph2 13s ease-in-out infinite, orbDrift2 23s ease-in-out infinite; }
+    .orb-3 { top: -20px; left: 25%; width: 340px; height: 300px; opacity: 0.38; animation: orbMorph3 17s ease-in-out infinite, orbDrift3 29s ease-in-out infinite; }
 
     @media (prefers-reduced-motion: reduce) {
         .orb { animation: none !important; }
     }
+
+    /* ── Decorative floating server icons (126×126, same as ChatHeader) ──── */
+
+    .deco-icon {
+        position: absolute;
+        width: 126px;
+        height: 126px;
+        z-index: 1;
+        pointer-events: none;
+        --float-rx: 10px;
+        --float-ry: 12px;
+        /* White icon via CSS mask — override icon_server's background-image */
+        background-color: rgba(255, 255, 255, 0.2) !important;
+        background-image: none !important;
+        animation:
+            decoEnter 0.6s ease-out 0.1s both,
+            decoFloat 16s linear 0.7s infinite;
+    }
+
+    .deco-icon-left {
+        left: calc(50% - 240px - 106px);
+        bottom: -15px;
+        --deco-rotate: -15deg;
+    }
+
+    .deco-icon-right {
+        right: calc(50% - 240px - 106px);
+        bottom: -15px;
+        --deco-rotate: 15deg;
+        animation-delay: 0.1s, -8s;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .deco-icon { animation: decoEnter 0.6s ease-out 0.1s both !important; }
+    }
+
+    /* ── Centered banner content ──────────────────────────────────────────── */
 
     .banner-content {
         display: flex;
@@ -227,12 +241,9 @@
         animation: fadeIn 0.35s ease-out;
     }
 
-    @keyframes fadeIn {
-        from { opacity: 0; }
-        to   { opacity: 1; }
-    }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-    /* Server icon — white mask over transparent background */
+    /* Small server icon: white mask, 38×38px (same as ChatHeader loaded-icon) */
     .banner-icon {
         width: 38px;
         height: 38px;
@@ -265,6 +276,9 @@
         .banner-icon { width: 32px; height: 32px; }
         .banner-title { font-size: 17px; }
         .banner-summary { font-size: 13px; }
+        .deco-icon { width: 90px; height: 90px; }
+        .deco-icon-left { left: calc(50% - 180px - 70px); }
+        .deco-icon-right { right: calc(50% - 180px - 70px); }
     }
 
     /* ── Body ─────────────────────────────────────────────────────────────── */
@@ -278,10 +292,10 @@
         width: 100%;
         margin: 0 auto;
         box-sizing: border-box;
-        gap: 28px;
+        gap: 24px;
     }
 
-    /* ── Explanation text ────────────────────────────────────────────────── */
+    /* ── Explanation ──────────────────────────────────────────────────────── */
 
     .not-found-explanation {
         display: flex;
@@ -290,8 +304,7 @@
         width: 100%;
     }
 
-    .explanation-lead,
-    .suggestion-body {
+    .explanation-lead, .suggestion-body {
         margin: 0;
         font-size: var(--font-size-p);
         color: var(--color-font-secondary);
@@ -312,18 +325,15 @@
         line-height: 1.6;
     }
 
-    /* URL chip with copy button */
     .url-chip {
         display: inline-flex;
         align-items: center;
         gap: 6px;
         margin-top: 4px;
-        padding: 3px 8px 3px 10px;
+        padding: 3px 6px 3px 10px;
         background: var(--color-grey-15);
         border: 1px solid var(--color-grey-25);
         border-radius: 8px;
-        max-width: 100%;
-        overflow: hidden;
     }
 
     .url-text {
@@ -333,34 +343,42 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        max-width: 300px;
+        max-width: 280px;
     }
 
+    /* Override global button styles for the tiny copy button */
     .copy-url-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        padding: 2px 4px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 4px !important;
+        padding: 2px 5px !important;
         min-width: unset !important;
         background: transparent !important;
+        background-color: transparent !important;
         border: none !important;
         border-radius: 4px !important;
-        cursor: pointer;
-        color: var(--color-font-tertiary);
-        transition: color 0.15s ease, background 0.15s ease;
-        flex-shrink: 0;
+        box-shadow: none !important;
         filter: none !important;
+        cursor: pointer !important;
+        color: var(--color-font-tertiary) !important;
+        transition: background 0.15s ease !important;
+        flex-shrink: 0 !important;
     }
 
     .copy-url-btn:hover {
-        color: var(--color-font-primary) !important;
-        background: var(--color-grey-20) !important;
+        background-color: var(--color-grey-20) !important;
         scale: none !important;
+        filter: none !important;
+    }
+
+    .copy-url-btn:active {
+        scale: none !important;
+        filter: none !important;
     }
 
     .copy-icon {
-        width: 14px;
-        height: 14px;
+        width: 14px !important;
+        height: 14px !important;
         display: block;
         opacity: 0.7;
     }
@@ -378,89 +396,42 @@
         color: var(--color-font-primary);
     }
 
-    /* ── Action buttons ──────────────────────────────────────────────────── */
+    /* ── Action buttons: stacked column, "or" as full-width separator line ── */
 
     .not-found-actions {
         display: flex;
-        flex-direction: row;
+        flex-direction: column;
         align-items: center;
-        gap: 12px;
+        gap: 0;
         width: 100%;
-        flex-wrap: wrap;
-        justify-content: center;
+        max-width: 420px;
     }
 
-    .action-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 10px 20px;
-        border-radius: 10px;
-        font-size: var(--font-size-p);
-        font-weight: 500;
-        cursor: pointer;
-        transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
-        white-space: nowrap;
+    /* The two <button> elements inherit the global orange button style.
+       We only need to set width + flex layout for the icon+label inside. */
+    .not-found-actions button {
+        width: 100%;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 10px !important;
     }
 
-    .action-btn:active {
-        transform: scale(0.97);
-        filter: none !important;
-    }
-
-    /* Search — secondary style */
-    .action-btn-search {
-        background: var(--color-grey-15);
-        border: 1.5px solid var(--color-grey-30);
-        color: var(--color-font-primary);
-    }
-
-    .action-btn-search:hover {
-        background: var(--color-grey-20) !important;
-        border-color: var(--color-grey-40) !important;
-        scale: none !important;
-        filter: none !important;
-    }
-
-    /* Ask AI — primary style */
-    .action-btn-chat {
-        background: var(--color-primary);
-        border: 1.5px solid var(--color-primary);
-        color: #ffffff;
-    }
-
-    .action-btn-chat:hover {
-        background: var(--color-primary-hover, var(--color-primary)) !important;
-        opacity: 0.9;
-        scale: none !important;
-        filter: none !important;
-    }
-
-    .action-icon {
-        width: 16px;
-        height: 16px;
+    .btn-icon {
+        width: 20px;
+        height: 20px;
         flex-shrink: 0;
-        opacity: 0.85;
+        /* Global button background is orange; icon mask needs white */
+        background-color: #ffffff !important;
+        background-image: none !important;
     }
 
     .or-separator {
+        display: block;
+        width: 100%;
+        text-align: center;
         font-size: var(--font-size-small, 13px);
         color: var(--color-font-tertiary);
-        flex-shrink: 0;
-    }
-
-    @media (max-width: 500px) {
-        .not-found-actions {
-            flex-direction: column;
-            align-items: stretch;
-        }
-
-        .action-btn {
-            justify-content: center;
-        }
-
-        .or-separator {
-            text-align: center;
-        }
+        padding: 4px 0;
     }
 </style>
