@@ -6,19 +6,70 @@ All cronjobs run on the dev server via `crontab -l` (user: `superdev`). Logs are
 
 ## Overview
 
-| Time (UTC)        | Script                               | Log                                |
-| ----------------- | ------------------------------------ | ---------------------------------- |
-| `02:00 Mon + Thu` | `scripts/weekly-codebase-audit.sh`   | `logs/codebase-audit.log`          |
-| `03:00 daily`     | `scripts/run-tests-daily.sh`         | `logs/daily-tests.log`             |
-| `04:00 daily`     | `scripts/nightly-issues-check.sh`    | `logs/nightly-issues.log`          |
-| `04:30 daily`     | `scripts/check-dependabot-daily.sh`  | `logs/dependabot-alerts.log`       |
-| `05:00 daily`     | `scripts/nightly-workflow-review.sh` | `logs/nightly-workflow-review.log` |
-| `02:00 Sun`       | `scripts/docker-cleanup.sh`          | `logs/docker-cleanup.log`          |
-| `@reboot`         | `scripts/agent-trigger-watcher.sh`   | `logs/agent-investigations.log`    |
+| Time (UTC)        | Script                                  | Log                                  |
+| ----------------- | --------------------------------------- | ------------------------------------ |
+| `*/2 * * * *`     | `scripts/check-deploy-status.sh`        | `logs/deploy-checker.log`            |
+| `02:00 daily`     | `scripts/nightly-dead-code-removal.sh`  | `logs/dead-code-removal.log`         |
+| `02:00 Mon + Thu` | `scripts/weekly-codebase-audit.sh`      | `logs/codebase-audit.log`            |
+| `03:00 daily`     | `scripts/run-tests-daily.sh`            | `logs/daily-tests.log`               |
+| `04:00 daily`     | `scripts/nightly-issues-check.sh`       | `logs/nightly-issues.log`            |
+| `04:30 daily`     | `scripts/check-dependabot-daily.sh`     | `logs/dependabot-alerts.log`         |
+| `05:00 daily`     | `scripts/nightly-workflow-review.sh`    | `logs/nightly-workflow-review.log`   |
+| `02:00 Sun`       | `scripts/docker-cleanup.sh`             | `logs/docker-cleanup.log`            |
+| `@reboot`         | `scripts/agent-trigger-watcher.sh`      | `logs/agent-investigations.log`      |
 
 ---
 
 ## Jobs
+
+### Deploy status checker
+
+**Schedule:** `*/2 * * * *` (every 2 minutes, 24/7)
+**Script:** `scripts/check-deploy-status.sh` → `scripts/_deploy_checker_helper.py`
+**State:** `scripts/.deploy-checker-state.json`
+**Log:** `logs/deploy-checker.log`
+
+Watches the `dev` branch for Vercel build failures caused by recent commits. On each run:
+
+1. Checks local git log for any commit in the last 5 minutes. If none, exits immediately (no API calls).
+2. Queries the Vercel REST API for the latest deployment on the `dev` branch.
+3. If status is `ERROR` or `CANCELED`, and this deployment ID has not been dispatched before, fetches the build log (errors + warnings, auto-paginated past the Vercel API's ~467-event cap).
+4. Dispatches an opencode session in **build mode** with the build log + commit context. The session investigates the root cause and commits a fix.
+5. Records the deployment ID in the state file to prevent duplicate dispatches.
+
+The state file keeps the last 50 dispatched deployment IDs. No cooldown period — if the fix commit also triggers a failing build, the next cycle dispatches again.
+
+Relies on `VERCEL_TOKEN` from `.env` and reads `frontend/apps/web_app/.vercel/project.json` for team/project IDs. No other env vars required.
+
+**Crontab entry:**
+```
+*/2 * * * * /home/superdev/projects/OpenMates/scripts/check-deploy-status.sh >> /home/superdev/projects/OpenMates/logs/deploy-checker.log 2>&1
+```
+
+**Manual invocation:**
+```bash
+./scripts/check-deploy-status.sh              # normal run
+./scripts/check-deploy-status.sh --dry-run    # show prompt, skip opencode
+./scripts/check-deploy-status.sh --force      # bypass recent-commit guard
+```
+
+---
+
+### Nightly dead code removal
+
+**Schedule:** 02:00 UTC daily (1 hour before test run)  
+**Script:** `scripts/nightly-dead-code-removal.sh` → `scripts/_dead_code_removal_helper.py`  
+**State:** `scripts/.dead-code-removal-state.json`
+
+Runs `scripts/find_dead_code.py` to detect up to 50 dead code items across Python (unused imports/variables), TypeScript (unused exports), Svelte (unreferenced component files), and CSS (unused global classes). Prioritises high-confidence items first. Skips if HEAD SHA is unchanged since the last run.
+
+Builds a structured prompt with per-category instructions and dispatches an opencode session in **build mode** to remove the dead code and commit it. Each category gets its own commit (`chore: remove dead <category> code (automated)`). Runs 1 hour before the daily test suite so any regressions are caught immediately.
+
+State tracks previously-removed items so the same finding is never dispatched twice. Deferred items (beyond the 50-item cap) are picked up on the next nightly run.
+
+No env vars required.
+
+---
 
 ### Twice-weekly codebase health audit
 
@@ -111,9 +162,16 @@ All scripts support dry-run mode and can be invoked directly:
 DRY_RUN=true bash scripts/nightly-workflow-review.sh
 ./scripts/weekly-codebase-audit.sh --dry-run
 ./scripts/check-dependabot-daily.sh --dry-run
+./scripts/nightly-dead-code-removal.sh --dry-run
 
 # Run against a specific past date (workflow review only)
 REVIEW_DATE=2026-03-17 bash scripts/nightly-workflow-review.sh
+
+# Force dead code removal even if SHA unchanged
+./scripts/nightly-dead-code-removal.sh --force
+
+# Scan only one category
+./scripts/nightly-dead-code-removal.sh --dry-run --category python
 
 # Force test run even with no recent commits
 ./scripts/run-tests-daily.sh --force
