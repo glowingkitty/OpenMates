@@ -56,6 +56,12 @@ importers:
       '@repo/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      dompurify:
+        specifier: ^3.3.2
+        version: 3.3.3
+      markdown-it:
+        specifier: ^14.1.1
+        version: 14.1.1
       svelte-i18n:
         specifier: ^4.0.1
         version: 4.0.1(svelte@5.54.0)
@@ -159,6 +165,9 @@ importers:
       '@toon-format/toon':
         specifier: 2.1.0
         version: 2.1.0
+      ahocorasick:
+        specifier: 1.0.2
+        version: 1.0.2
       qrcode-terminal:
         specifier: ^0.12.0
         version: 0.12.0
