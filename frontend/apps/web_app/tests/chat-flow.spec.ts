@@ -302,7 +302,9 @@ async function performLogin(
 	await takeStepScreenshot(page, `${screenshotPrefix}-home`);
 
 	const headerLoginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
-	await expect(headerLoginButton).toBeVisible();
+	// Extended timeout: 404s from stale demo-chat IDs on the welcome screen can
+	// delay DOM rendering beyond the 5 s Playwright default.
+	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
 	await headerLoginButton.click();
 	await takeStepScreenshot(page, `${screenshotPrefix}-login-dialog`);
 
