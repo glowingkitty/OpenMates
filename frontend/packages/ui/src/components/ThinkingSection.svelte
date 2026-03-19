@@ -176,6 +176,25 @@
     }
 
     /*
+     * Outer glow while streaming — radiates outside the container boundary.
+     * Using filter: drop-shadow on the element itself would be clipped by
+     * overflow:hidden, so we animate a dedicated outer glow via a wide
+     * box-shadow on the container. The shadow colour cycles through the
+     * rainbow hues at 1/3 of the ring speed, approximating the Apple
+     * Intelligence "breathing" ambient glow that trails the border arc.
+     */
+    .thinking-section.streaming {
+        /* Remove the static accent border — the animated pseudo-element replaces it */
+        border-color: transparent;
+        /* Outer glow — three stacked shadows at increasing radius/spread for bloom depth */
+        box-shadow:
+            0 0  8px  2px rgba(255,  45,  85, 0.40),   /* tight red halo      */
+            0 0 18px  6px rgba(191,  90, 242, 0.28),   /* mid purple bloom    */
+            0 0 32px 10px rgba( 50, 173, 230, 0.18);   /* wide cyan diffusion */
+        animation: glow-shift 9s linear infinite;       /* 3× ring speed = same phase */
+    }
+
+    /*
      * Animated gradient border while streaming.
      * A conic-gradient rotates slowly inside a ::before pseudo-element that is
      * positioned to match the container edges. The container clips it so only
@@ -187,10 +206,7 @@
      * slightly larger than the box so the gradient covers the border zone.
      * overflow:hidden on the parent clips it to the border-radius shape.
      */
-    .thinking-section.streaming {
-        /* Remove the static accent border — the animated pseudo-element replaces it */
-        border-color: transparent;
-    }
+
 
     /*
      * Apple Intelligence-style rainbow glow border.
@@ -207,11 +223,17 @@
      * Apple Intelligence colour stops (sampled from recorded references):
      * magenta → orange → yellow → green → cyan → blue → violet → magenta
      */
+    /*
+     * ::before — the sharp rotating rainbow ring.
+     * blur(2px) on the ring itself softens colour-stop transitions so the
+     * hues blend smoothly (no hard lines between red and orange, etc.)
+     * while still reading as a distinct coloured border — not a pure blur.
+     */
     .thinking-section.streaming::before {
         content: '';
         position: absolute;
-        inset: -3px;
-        border-radius: 11px;
+        inset: -2px;
+        border-radius: 10px;
         background: conic-gradient(
             from var(--gradient-angle, 0deg),
             #ff2d55,   /*  0deg  — Apple red/pink  */
@@ -225,17 +247,15 @@
         );
         animation: rainbow-spin 3s linear infinite;
         z-index: -1;
-        opacity: 0.9;
-        filter: blur(1.5px);
+        opacity: 1;
+        filter: blur(2px);
     }
 
     /*
-     * Interior fill — sits above the gradient ring but behind all children.
-     * Also carries the outer glow halo via box-shadow, keeping pseudo-element
-     * count to two (::before = ring, ::after = fill + outer bloom).
-     * The box-shadow uses a second rotating conic-gradient approximated by
-     * a wide spread blur in the dominant hue — Safari doesn't support
-     * box-shadow with gradient, so we use a blurred drop-shadow instead.
+     * ::after — interior fill mask.
+     * Sits above the ::before gradient ring but behind all children,
+     * covering the content area so the rainbow doesn't bleed into the text.
+     * inset: 2px = the 2px border zone exposed by ::before's -2px inset.
      */
     .thinking-section.streaming::after {
         content: '';
@@ -244,10 +264,6 @@
         border-radius: 7px;
         background: var(--color-surface-secondary, rgba(0, 0, 0, 0.03));
         z-index: -1;
-        box-shadow:
-            0 0 12px 4px rgba(50, 173, 230, 0.35),   /* cyan bloom  */
-            0 0 20px 6px rgba(191, 90, 242, 0.25),   /* purple bloom */
-            0 0 28px 8px rgba(255, 45,  85, 0.15);   /* pink bloom  */
     }
     
     .thinking-section.expanded {
@@ -375,6 +391,33 @@
         from { --gradient-angle: 0deg; }
         to   { --gradient-angle: 360deg; }
     }
+
+    /*
+     * glow-shift — smoothly cycles the outer box-shadow colours through the
+     * same rainbow spectrum as the border ring, at 1/3 of the ring speed
+     * (9s vs 3s) so the glow colour always roughly matches the arc region
+     * nearest the top of the container. Pure CSS approximation — no JS.
+     */
+    @keyframes glow-shift {
+        0%   { box-shadow: 0 0  8px  2px rgba(255,  45,  85, 0.40), 0 0 18px  6px rgba(191,  90, 242, 0.28), 0 0 32px 10px rgba( 50, 173, 230, 0.18); }
+        16%  { box-shadow: 0 0  8px  2px rgba(255, 107,  43, 0.40), 0 0 18px  6px rgba(255,  45,  85, 0.28), 0 0 32px 10px rgba(191,  90, 242, 0.18); }
+        33%  { box-shadow: 0 0  8px  2px rgba(255, 214,  10, 0.40), 0 0 18px  6px rgba(255, 107,  43, 0.28), 0 0 32px 10px rgba(255,  45,  85, 0.18); }
+        50%  { box-shadow: 0 0  8px  2px rgba( 48, 209,  88, 0.40), 0 0 18px  6px rgba(255, 214,  10, 0.28), 0 0 32px 10px rgba(255, 107,  43, 0.18); }
+        66%  { box-shadow: 0 0  8px  2px rgba( 50, 173, 230, 0.40), 0 0 18px  6px rgba( 48, 209,  88, 0.28), 0 0 32px 10px rgba(255, 214,  10, 0.18); }
+        83%  { box-shadow: 0 0  8px  2px rgba(191,  90, 242, 0.40), 0 0 18px  6px rgba( 50, 173, 230, 0.28), 0 0 32px 10px rgba( 48, 209,  88, 0.18); }
+        100% { box-shadow: 0 0  8px  2px rgba(255,  45,  85, 0.40), 0 0 18px  6px rgba(191,  90, 242, 0.28), 0 0 32px 10px rgba( 50, 173, 230, 0.18); }
+    }
+
+    /* Dark mode variant — wider radius, no opacity boost needed on dark bg */
+    @keyframes glow-shift-dark {
+        0%   { box-shadow: 0 0 12px  4px rgba(255,  45,  85, 0.50), 0 0 24px  8px rgba(191,  90, 242, 0.35), 0 0 40px 14px rgba( 50, 173, 230, 0.22); }
+        16%  { box-shadow: 0 0 12px  4px rgba(255, 107,  43, 0.50), 0 0 24px  8px rgba(255,  45,  85, 0.35), 0 0 40px 14px rgba(191,  90, 242, 0.22); }
+        33%  { box-shadow: 0 0 12px  4px rgba(255, 214,  10, 0.50), 0 0 24px  8px rgba(255, 107,  43, 0.35), 0 0 40px 14px rgba(255,  45,  85, 0.22); }
+        50%  { box-shadow: 0 0 12px  4px rgba( 48, 209,  88, 0.50), 0 0 24px  8px rgba(255, 214,  10, 0.35), 0 0 40px 14px rgba(255, 107,  43, 0.22); }
+        66%  { box-shadow: 0 0 12px  4px rgba( 50, 173, 230, 0.50), 0 0 24px  8px rgba( 48, 209,  88, 0.35), 0 0 40px 14px rgba(255, 214,  10, 0.22); }
+        83%  { box-shadow: 0 0 12px  4px rgba(191,  90, 242, 0.50), 0 0 24px  8px rgba( 50, 173, 230, 0.35), 0 0 40px 14px rgba( 48, 209,  88, 0.22); }
+        100% { box-shadow: 0 0 12px  4px rgba(255,  45,  85, 0.50), 0 0 24px  8px rgba(191,  90, 242, 0.35), 0 0 40px 14px rgba( 50, 173, 230, 0.22); }
+    }
     
     /* Dark mode support */
     :global(.dark) .thinking-section {
@@ -382,18 +425,22 @@
         border-color: var(--color-border-subtle, rgba(255, 255, 255, 0.1));
     }
 
-    /* In dark mode, streaming border stays transparent so the gradient shines through */
+    /*
+     * Dark mode streaming: transparent border + outer glow animation.
+     * Wider radius/spread than light mode since dark backgrounds let the glow bloom further.
+     */
     :global(.dark) .thinking-section.streaming {
         border-color: transparent;
+        box-shadow:
+            0 0 12px  4px rgba(255,  45,  85, 0.50),
+            0 0 24px  8px rgba(191,  90, 242, 0.35),
+            0 0 40px 14px rgba( 50, 173, 230, 0.22);
+        animation: glow-shift-dark 9s linear infinite;
     }
 
-    /* Dark interior fill + boosted glow — rainbow blooms more on dark backgrounds */
+    /* Dark interior fill mask */
     :global(.dark) .thinking-section.streaming::after {
         background: var(--color-surface-secondary, rgba(255, 255, 255, 0.03));
-        box-shadow:
-            0 0 16px 6px rgba(50, 173, 230, 0.45),
-            0 0 28px 10px rgba(191, 90, 242, 0.32),
-            0 0 36px 12px rgba(255, 45,  85, 0.20);
     }
     
     :global(.dark) .thinking-section.expanded {
