@@ -3808,6 +3808,30 @@
             console.warn('[MessageInput] setSuggestionText: editor not available or destroyed');
         }
     }
+
+    /**
+     * Append suggestion text to the editor, adding a newline separator if the
+     * editor already has content. Used by NewChatSuggestions for multi-select:
+     * clicking multiple suggestion cards combines them into a single prompt.
+     */
+    export function appendSuggestionText(text: string) {
+        if (editor && !editor.isDestroyed) {
+            if (!editor.isEmpty) {
+                // Existing content — move to end and add a newline before the new text
+                editor.commands.focus('end');
+                editor.commands.enter();
+            } else {
+                editor.commands.focus('end');
+            }
+            editor.commands.insertContent(text);
+            hasContent = true;
+            lastEditorUpdateText = editor.getText();
+            updateOriginalMarkdown(editor);
+            editor.commands.focus('end');
+        } else {
+            console.warn('[MessageInput] appendSuggestionText: editor not available or destroyed');
+        }
+    }
     export function getTextContent(): string {
         if (editor && !editor.isDestroyed) {
             return editor.getText();

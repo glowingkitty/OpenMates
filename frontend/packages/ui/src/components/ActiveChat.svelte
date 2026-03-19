@@ -183,6 +183,7 @@
     type MessageInputFieldRef = {
         setDraftContent: (chatId: string | undefined, content: TiptapJSON | string | null, version: number, isRemote: boolean) => void;
         setSuggestionText: (text: string) => void;
+        appendSuggestionText: (text: string) => void;
         setOriginalMarkdown?: (markdown: string) => void;
         setCurrentChatContext?: (chatId: string | null, content: TiptapJSON | null, version: number) => void;
         focus: () => void;
@@ -2078,6 +2079,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 messageInputFieldRef.setSuggestionText(suggestion);
                 messageInputFieldRef.focus();
             }
+        }
+    }
+
+    // Handler for new chat suggestion click — appends the suggestion text to the
+    // message input without any @mention syntax. Multiple suggestions can be clicked
+    // to combine them (each appends to existing content with a newline separator).
+    // The LLM auto-selects the appropriate skill based on the prompt content.
+    function handleNewChatSuggestionClick(suggestion: string) {
+        console.debug('[ActiveChat] New chat suggestion clicked:', suggestion);
+        if (messageInputFieldRef) {
+            messageInputFieldRef.appendSuggestionText(suggestion);
+            messageInputFieldRef.focus();
         }
     }
 
@@ -9536,10 +9549,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                               (hideWelcomeForKeyboard), giving the suggestions room to breathe.
                               Legacy fallback: also hide on very short screens (≤670px viewport). -->
                          {#if showWelcome && !messageInputMapsOpen && (!suggestionsWouldOverlapWelcome || messageInputFocused) && (viewportHeight > 670 || messageInputFocused)}
-                             <NewChatSuggestions
-                                 messageInputContent={liveInputText}
-                                 onSuggestionClick={handleSuggestionClick}
-                             />
+                              <NewChatSuggestions
+                                  onSuggestionClick={handleNewChatSuggestionClick}
+                              />
                          {/if}
 
 
