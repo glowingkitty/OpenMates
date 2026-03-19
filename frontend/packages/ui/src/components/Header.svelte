@@ -15,10 +15,22 @@
     // Props using Svelte 5 runes
     let { 
         context = 'website',
-        isLoggedIn = false
+        isLoggedIn = false,
+        /**
+         * When true (docs mode): hamburger is always visible, toggles the docs sidebar,
+         * and the right section shows a "Back to chats" link instead of Login/Signup.
+         */
+        docsMode = false,
+        /** Override toggle action for the hamburger button (used in docs mode). */
+        onToggleSidebar = undefined as (() => void) | undefined,
+        /** Whether the controlled sidebar is currently open (used in docs mode for aria state). */
+        isSidebarOpen = false,
     }: {
         context?: 'website' | 'webapp';
         isLoggedIn?: boolean;
+        docsMode?: boolean;
+        onToggleSidebar?: () => void;
+        isSidebarOpen?: boolean;
     } = $props();
     
     // Server edition state - will be fetched on mount
@@ -238,16 +250,18 @@
                 <div class="left-section">
                     <!-- Menu button container - always rendered to maintain header height -->
                     <!-- Show menu button for both authenticated and non-authenticated users (to access demo chats) -->
-                    <!-- Hide menu button visually when login interface is open, during signup, or when chats panel is open -->
+                    <!-- In docs mode: always visible, controls docs sidebar via onToggleSidebar -->
+                    <!-- In webapp mode: hide when login interface is open, during signup, or when chats panel is open -->
                     <div 
                         class="menu-button-container"
-                        class:hidden={context !== 'webapp' || $isInSignupProcess || $loginInterfaceOpen || $panelState.isActivityHistoryOpen}
+                        class:hidden={!docsMode && (context !== 'webapp' || $isInSignupProcess || $loginInterfaceOpen || $panelState.isActivityHistoryOpen)}
                     >
                         <button
                             class="clickable-icon icon_menu"
                             data-testid="sidebar-toggle"
-                            onclick={panelState.toggleChats}
+                            onclick={docsMode && onToggleSidebar ? onToggleSidebar : panelState.toggleChats}
                             aria-label={$text('header.toggle_menu')}
+                            aria-expanded={docsMode ? isSidebarOpen : $panelState.isActivityHistoryOpen}
                         ></button>
                     </div>
                     <div class="logo-container">
@@ -329,25 +343,36 @@
                     </div>
                 {/if}
                 
-                <!-- Login button for non-authenticated users in webapp context -->
-                <!-- Opens login interface which also provides signup option -->
+                <!-- Right section: docs mode shows "Back to chats" link; webapp shows Login/Signup -->
                 <!-- Always render to maintain header height, but hide visually when not needed -->
-                <div
-                    class="right-section"
-                    class:hidden={context !== 'webapp' || $authStore.isAuthenticated || $loginInterfaceOpen}
-                >
-                    <button
-                        class="login-signup-button"
-                        onclick={(e) => {
-                            e.preventDefault();
-                            // Dispatch event to open login interface (which includes Login/Sign up tabs)
-                            window.dispatchEvent(new CustomEvent('openLoginInterface'));
-                        }}
-                        aria-label={loginButtonText}
+                {#if docsMode}
+                    <div class="right-section">
+                        <a
+                            href="/"
+                            class="back-to-chats-link"
+                            aria-label={$text('documentation.back_to_chats')}
+                        >
+                            {$text('documentation.back_to_chats')}
+                        </a>
+                    </div>
+                {:else}
+                    <div
+                        class="right-section"
+                        class:hidden={context !== 'webapp' || $authStore.isAuthenticated || $loginInterfaceOpen}
                     >
-                        {loginButtonText}
-                    </button>
-                </div>
+                        <button
+                            class="login-signup-button"
+                            onclick={(e) => {
+                                e.preventDefault();
+                                // Dispatch event to open login interface (which includes Login/Sign up tabs)
+                                window.dispatchEvent(new CustomEvent('openLoginInterface'));
+                            }}
+                            aria-label={loginButtonText}
+                        >
+                            {loginButtonText}
+                        </button>
+                    </div>
+                {/if}
             </nav>
         </div>
     {/await}
@@ -720,5 +745,24 @@
         background-color: var(--color-button-primary-pressed);
         transform: scale(0.98);
         box-shadow: none;
+    }
+
+    /* "Back to chats" link shown in docs mode instead of Login/Signup */
+    .back-to-chats-link {
+        display: inline-flex;
+        align-items: center;
+        padding: 8px 12px;
+        border-radius: 8px;
+        text-decoration: none;
+        color: var(--color-font-primary);
+        font-size: 0.875rem;
+        font-weight: 500;
+        opacity: 0.75;
+        transition: opacity 0.15s ease;
+        white-space: nowrap;
+    }
+
+    .back-to-chats-link:hover {
+        opacity: 1;
     }
 </style>

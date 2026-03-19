@@ -3017,6 +3017,9 @@
     },
     "api_reference": {
       "text": "API Reference"
+    },
+    "back_to_chats": {
+      "text": "Back to chats"
     }
   },
   "email": {
@@ -9546,6 +9549,14 @@
       },
       "encryption_note": {
         "text": "All your personal data entries are encrypted on your device. Not even the OpenMates server can read them."
+      },
+      "auth": {
+        "title": {
+          "text": "Verify your identity"
+        },
+        "description": {
+          "text": "To protect your private data, please confirm your identity before editing."
+        }
       }
     },
     "terms_and_conditions": {

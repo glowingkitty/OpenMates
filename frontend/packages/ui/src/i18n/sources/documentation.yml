@@ -5,21 +5,21 @@ open_documentation:
   zh: 打开文档
   es: Abrir documentación
   fr: Ouvrir la documentation
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: ドキュメントを開く
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   he: פתח תיעוד
   verified_by_human: []
 search.placeholder:
@@ -29,21 +29,21 @@ search.placeholder:
   zh: 搜索文档...
   es: Buscar documentación...
   fr: Rechercher la documentation...
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: ドキュメントを検索...
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   he: חיפוש במסמכים...
   verified_by_human: []
 search.no_results:
@@ -53,21 +53,21 @@ search.no_results:
   zh: 未找到文档
   es: No se encontraron documentos
   fr: Aucun document trouvé
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: ドキュメントが見つかりませんでした
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   he: לא נמצאו מסמכים
   verified_by_human: []
 welcome.title:
@@ -77,21 +77,21 @@ welcome.title:
   zh: OpenMates 文档
   es: Documentación de OpenMates
   fr: Documentation OpenMates
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: OpenMates ドキュメント
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   he: תיעוד OpenMates
   verified_by_human: []
 welcome.subtitle:
@@ -101,21 +101,21 @@ welcome.subtitle:
   zh: 指南、架构文档和 API 参考。
   es: Guías, documentación de arquitectura y referencia de API.
   fr: Guides, documentation d'architecture et référence API.
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: ガイド、アーキテクチャドキュメント、APIリファレンス。
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   he: מדריכים, תיעוד ארכיטקטורה, ומידע על API.
   verified_by_human: []
 page_not_found:
@@ -125,21 +125,21 @@ page_not_found:
   zh: 页面未找到
   es: Página no encontrada
   fr: Page non trouvée
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: ページが見つかりません
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   he: הדף לא נמצא
   verified_by_human: []
 back_to_docs:
@@ -149,21 +149,21 @@ back_to_docs:
   zh: 返回文档
   es: Volver a la documentación
   fr: Retour à la documentation
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: ドキュメントに戻る
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   he: חזרה לתיעוד
   verified_by_human: []
 sender_name:
@@ -173,21 +173,21 @@ sender_name:
   zh: OpenMates
   es: OpenMates
   fr: OpenMates
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: OpenMates
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   he: OpenMates
   verified_by_human: []
 toc.title:
@@ -197,21 +197,21 @@ toc.title:
   zh: 本页内容
   es: En esta página
   fr: Sur cette page
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: このページの内容
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   he: בדף זה
   verified_by_human: []
 documents_count:
@@ -221,21 +221,21 @@ documents_count:
   zh: "{count} 篇文档"
   es: "{count} documentos"
   fr: "{count} documents"
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: "{count} 件のドキュメント"
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   he: "{count} מסמכים"
   verified_by_human: []
 api_reference:
@@ -245,20 +245,44 @@ api_reference:
   zh: API 参考
   es: Referencia de API
   fr: Référence API
-  pt: ''
-  ru: ''
+  pt: ""
+  ru: ""
   ja: APIリファレンス
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   he: מסמך API
+  verified_by_human: []
+back_to_chats:
+  context: Button/link text in the docs header to navigate back to the main chat interface
+  en: Back to chats
+  de: Zurück zu Chats
+  zh: 返回聊天
+  es: Volver a chats
+  fr: Retour aux chats
+  pt: ""
+  ru: ""
+  ja: チャットに戻る
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: חזרה לצ'אטים
   verified_by_human: []

@@ -5,6 +5,7 @@ export {
   getCategoryGradientColors,
   getValidIconName,
   getFallbackIconForCategory,
+  getLucideIcon,
   CATEGORY_GRADIENTS,
 } from "./src/utils/categoryUtils";
 export { parse_message } from "./src/message_parsing/parse_message";
