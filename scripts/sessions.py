@@ -32,7 +32,11 @@ Usage:
 
     # Deployment
     python3 scripts/sessions.py prepare-deploy --session a3f2
-    python3 scripts/sessions.py deploy  --session a3f2 --title "fix: msg" --message "body"
+    python3 scripts/sessions.py deploy  --session a3f2 --title "fix: msg" --message "body" [--no-verify]
+
+    # Query context docs
+    python3 scripts/sessions.py context --list       # list all available docs with line counts
+    python3 scripts/sessions.py context --doc <name>
 """
 
 import argparse
@@ -579,6 +583,33 @@ def _get_recent_commits(count: int = RECENT_COMMITS_COUNT) -> list[str]:
     return stdout.splitlines()
 
 
+def _get_commits_since_sha(sha: str) -> list[str]:
+    """Return commits made after the given SHA (exclusive). Used for --since-last-deploy."""
+    if not sha:
+        return []
+    rc, stdout, _ = _run_cmd([
+        "git", "log", f"{sha}..HEAD",
+        "--format=%h %ar %s",
+        "--no-merges",
+    ])
+    if rc != 0 or not stdout:
+        return []
+    return stdout.splitlines()
+
+
+def _load_last_deploy_sha() -> str:
+    """Load the last-deployed commit SHA from .claude/sessions.json metadata."""
+    data = _load_sessions()
+    return data.get("last_deploy_sha", "")
+
+
+def _save_last_deploy_sha(sha: str) -> None:
+    """Persist the last-deployed commit SHA in sessions.json."""
+    data = _load_sessions()
+    data["last_deploy_sha"] = sha
+    _save_sessions(data)
+
+
 def _get_git_status_summary() -> dict:
     """Return a compact git status summary for session start context."""
     result = {"branch": "unknown", "tracking": "", "uncommitted": [], "unpushed": 0}
@@ -884,6 +915,27 @@ def _prefetch_vercel_status() -> str:
     ansi_re = re.compile(r'\x1b\[[0-9;]*m')
     clean = ansi_re.sub('', stdout.strip())
     return clean
+
+
+def _prefetch_vercel_status_oneliner() -> str:
+    """Return a single-line Vercel deployment status for HEALTH box (bug mode).
+
+    Returns e.g. "✓ Ready (a5449792)" or "✗ ERROR (dpl_Bh9Wcq...)" or "" on failure.
+    Much faster than the full _prefetch_vercel_status since it only needs the
+    latest deployment status, not the full build log.
+    """
+    script = str(PROJECT_ROOT / "backend" / "scripts" / "debug_vercel.py")
+    if not os.path.exists(script):
+        return ""
+    cmd = ["python3", script, "--status-only"]
+    rc, stdout, stderr = _run_cmd(cmd, timeout=15)
+    if rc != 0 or not stdout.strip():
+        return ""
+    # Strip ANSI codes
+    ansi_re = re.compile(r'\[[0-9;]*m')
+    line = ansi_re.sub('', stdout.strip()).split("\n")[0].strip()
+
+    return line
 
 
 def _prefetch_user_context(email: str) -> str:
@@ -1576,6 +1628,26 @@ def cmd_start(args: argparse.Namespace) -> None:
     # Output context for Claude (mode-aware, structured with box sections)
     # ===================================================================
 
+    # ── Warn if workflow scripts themselves are modified but untracked ─────
+    dirty_set = _get_dirty_files()
+    workflow_dirty = [
+        f for f in dirty_set
+        if f in ("scripts/sessions.py",
+                 "backend/scripts/debug.py",
+                 "backend/scripts/debug_health.py",
+                 "backend/scripts/debug_issue.py",
+                 "backend/scripts/debug_logs.py",
+                 "backend/scripts/debug_vercel.py")
+    ]
+    # Check against all sessions (not just this one) to see if any session owns them
+    owned_by = {}
+    for other_sid, other_info in data.get("sessions", {}).items():
+        if other_sid == sid:
+            continue
+        for wf in workflow_dirty:
+            if wf in other_info.get("modified_files", []):
+                owned_by[wf] = other_sid
+
     # ── Header block ──────────────────────────────────────────────────────
     git_status = _get_git_status_summary()
     branch_info = git_status["branch"]
@@ -1627,19 +1699,48 @@ def cmd_start(args: argparse.Namespace) -> None:
                 age_padded = age.ljust(max_age)
                 header_lines.append(f"{prefix}  {sha}  {age_padded}  {msg}")
 
-    # Print header
-    hdr_bar = "═" * (BOX_WIDTH - len(f"== SESSION {sid} ") - 1)
-    print(f"== SESSION {sid} {hdr_bar}")
+    # Print header — include backlog count if any items pending
+    backlog_count = len(_load_backlog().get("backlog", []))
+    backlog_suffix = f" [{backlog_count} backlog]" if backlog_count > 0 else ""
+    hdr_bar = "═" * (BOX_WIDTH - len(f"== SESSION {sid} ") - len(backlog_suffix) - 1)
+    print(f"== SESSION {sid} {hdr_bar}{backlog_suffix}")
     print("\n".join(header_lines))
     print("═" * BOX_WIDTH)
+
+    # ── Workflow script modification notice ────────────────────────────────
+    if workflow_dirty:
+        unowned = [f for f in workflow_dirty if f not in owned_by]
+        for wf in workflow_dirty:
+            owner = owned_by.get(wf)
+            if owner:
+                print(
+                    f"NOTICE: {wf} has uncommitted changes (tracked by session {owner}). "
+                    f"Run: sessions.py status"
+                )
+            else:
+                print(
+                    f"NOTICE: {wf} has uncommitted changes not tracked by any session. "
+                    f"Use: sessions.py track --session {sid} --file {wf}"
+                )
 
     # ── Collect boxed sections ────────────────────────────────────────────
     sections: list[str] = []
 
-    # ── HEALTH (bug, feature, testing) ────────────────────────────────────
-    if mode in ("bug", "feature", "testing"):
+    # ── HEALTH (bug handled specially below with Vercel; feature, testing normal) ─
+    if mode in ("feature", "testing"):
         health_line = _prefetch_health_check_compact()
         sections.append(_box_section("HEALTH", [health_line]))
+
+    # ── HEALTH + VERCEL one-liner (bug mode only) ─────────────────────────
+    if mode == "bug":
+        health_line = _prefetch_health_check_compact()
+        health_lines = [health_line]
+        # Only show Vercel inline if user didn't request full Vercel box
+        if not getattr(args, "vercel", False):
+            vercel_oneliner = _prefetch_vercel_status_oneliner()
+            if vercel_oneliner:
+                health_lines.append(f"Vercel: {vercel_oneliner}")
+        sections.append(_box_section("HEALTH", health_lines))
 
     # ── RECENT ERRORS — auto-included in bug mode ────────────────────────
     if mode == "bug":
@@ -1717,6 +1818,48 @@ def cmd_start(args: argparse.Namespace) -> None:
     if run_id:
         run_content = _prefetch_test_run(run_id)
         sections.append(_box_section(f"TEST RUN {run_id[:20]}", run_content.split("\n")))
+
+    # ── Since last deploy (explicit flag) ────────────────────────────────────
+    if getattr(args, "since_last_deploy", False):
+        last_sha = _load_last_deploy_sha()
+        if last_sha:
+            since_commits = _get_commits_since_sha(last_sha)
+            if since_commits:
+                # Build aligned table
+                rows = []
+                for cl in since_commits:
+                    parts = cl.split(" ", 1)
+                    sha = parts[0]
+                    rest = parts[1] if len(parts) > 1 else ""
+                    time_str = ""
+                    msg = rest
+                    for marker in (" ago ",):
+                        idx = rest.find(marker)
+                        if idx >= 0:
+                            time_str = _format_relative_time(rest[:idx + len(marker)].strip())
+                            msg = rest[idx + len(marker):]
+                            break
+                    rows.append((sha, time_str, msg))
+                max_age = max(len(r[1]) for r in rows) if rows else 0
+                since_lines = [f"Since last deploy ({last_sha[:9]}): {len(rows)} commit(s)"]
+                for sha, age, msg in rows:
+                    since_lines.append(f"  {sha}  {age.ljust(max_age)}  {msg}")
+                # Also show changed files since last deploy
+                rc, diff_out, _ = _run_cmd(["git", "diff", "--name-status", f"{last_sha}..HEAD"])
+                if rc == 0 and diff_out:
+                    since_lines.append("")
+                    since_lines.append("Files changed:")
+                    for line in diff_out.splitlines()[:20]:
+                        since_lines.append(f"  {line}")
+                    if len(diff_out.splitlines()) > 20:
+                        since_lines.append(f"  ... +{len(diff_out.splitlines()) - 20} more")
+                sections.append(_box_section("SINCE LAST DEPLOY", since_lines))
+            else:
+                sections.append(_box_section("SINCE LAST DEPLOY",
+                    [f"No commits since last deploy ({last_sha[:9]}) — working tree is current."]))
+        else:
+            sections.append(_box_section("SINCE LAST DEPLOY",
+                ["No previous deploy found in this project. Last deploy SHA will be recorded after first sessions.py deploy."]))
 
     # Print all boxed sections
     if sections:
@@ -2578,10 +2721,18 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     if args.message:
         commit_msg += "\n\n" + args.message
 
+    no_verify = getattr(args, "no_verify", False)
+    if no_verify:
+        print(
+            "WARNING: committing without pre-commit hooks (--no-verify). "
+            "Report the hook bug as a backlog item.",
+            file=sys.stderr,
+        )
+    commit_cmd = ["git", "commit", "-m", commit_msg]
+    if no_verify:
+        commit_cmd.append("--no-verify")
     print(f"Committing: {args.title}")
-    rc, stdout, stderr = _run_cmd(
-        ["git", "commit", "-m", commit_msg]
-    )
+    rc, stdout, stderr = _run_cmd(commit_cmd)
     if rc != 0:
         print(f"git commit failed: {stderr}", file=sys.stderr)
         sys.exit(1)
@@ -2601,6 +2752,10 @@ def cmd_deploy(args: argparse.Namespace) -> None:
         print(f"git push failed: {stderr}", file=sys.stderr)
         print("Commit was created locally but not pushed.")
         sys.exit(1)
+
+    # Persist last deploy SHA for --since-last-deploy
+    if commit_hash_full:
+        _save_last_deploy_sha(commit_hash_full.strip())
 
     print()
     print("== DEPLOYED ==")
@@ -2628,7 +2783,64 @@ def cmd_deploy(args: argparse.Namespace) -> None:
 
 def cmd_context(args: argparse.Namespace) -> None:
     """Load and print a specific doc on demand (instruction doc or architecture doc)."""
+
+    # ── --list: show all available docs ───────────────────────────────────
+    if getattr(args, "list", False):
+        # Build reverse map: doc filename -> which tags auto-load it
+        doc_to_tags: dict[str, list[str]] = {}
+        for tag, docs in TAG_TO_DOCS.items():
+            for doc_filename in docs:
+                doc_to_tags.setdefault(doc_filename, []).append(tag)
+
+        print("== AVAILABLE INSTRUCTION DOCS (docs/claude/) ==")
+        print()
+        if CLAUDE_DOCS_DIR.exists():
+            rows = []
+            for f in sorted(CLAUDE_DOCS_DIR.iterdir()):
+                if f.suffix != ".md":
+                    continue
+                try:
+                    lines = sum(1 for _ in open(f))
+                except OSError:
+                    lines = 0
+                tags_that_load = doc_to_tags.get(f.name, [])
+                is_deploy = f.name in DEPLOY_PHASE_DOCS
+                tag_str = f"auto: {', '.join(tags_that_load)}" if tags_that_load else (
+                    "deploy-phase" if is_deploy else "manual only")
+                rows.append((f.stem, lines, tag_str))
+            # Aligned output
+            max_name = max(len(r[0]) for r in rows) if rows else 10
+            print(f"  {'Name':<{max_name}}  {'Lines':>5}  Tags")
+            print(f"  {'-' * max_name}  {'-----':>5}  ----")
+            for name, lines, tag_str in rows:
+                print(f"  {name:<{max_name}}  {lines:>5}  {tag_str}")
+        print()
+        print("== AVAILABLE ARCHITECTURE DOCS (docs/architecture/) ==")
+        print()
+        if ARCH_DOCS_DIR.exists():
+            arch_rows = []
+            for f in sorted(ARCH_DOCS_DIR.iterdir()):
+                if f.suffix != ".md" or f.stem == "README":
+                    continue
+                try:
+                    lines = sum(1 for _ in open(f))
+                except OSError:
+                    lines = 0
+                desc = ARCH_DOC_DESCRIPTIONS.get(f.stem, "")
+                arch_rows.append((f.stem, lines, desc))
+            max_arch = max(len(r[0]) for r in arch_rows) if arch_rows else 10
+            print(f"  {'Name':<{max_arch}}  {'Lines':>5}  Description")
+            print(f"  {'-' * max_arch}  {'-----':>5}  -----------")
+            for name, lines, desc in arch_rows:
+                print(f"  {name:<{max_arch}}  {lines:>5}  {desc}")
+        print()
+        print("Load with: sessions.py context --doc <name>")
+        return
+
     doc_name = args.doc
+    if not doc_name:
+        print("Error: provide --doc <name> or --list.", file=sys.stderr)
+        sys.exit(1)
 
     # Built-in virtual doc: skill-coverage
     if doc_name in ("skill-coverage", "skill-test-coverage"):
@@ -3535,6 +3747,12 @@ def main() -> None:
         "(e.g., '2026-03-18T03:00:01Z'). Shows summary, failing specs, and "
         "OpenObserve debug logs. Auto-adds 'test,debug' tags.",
     )
+    p_start.add_argument(
+        "--since-last-deploy",
+        action="store_true",
+        help="Show all commits and changed files since the last sessions.py deploy call. "
+        "Useful when resuming work after a break or picking up from another session.",
+    )
 
     # end
     p_end = sub.add_parser("end", help="End a session")
@@ -3661,6 +3879,13 @@ def main() -> None:
         dest="end_session",
         help="End the session after successful deploy",
     )
+    p_deploy.add_argument(
+        "--no-verify",
+        action="store_true",
+        dest="no_verify",
+        help="Bypass pre-commit hooks (git commit --no-verify). Use only when a "
+        "pre-existing hook bug prevents deploy. WARNING printed to stderr.",
+    )
 
     # lint (run linter on tracked files without deploying)
     p_lint = sub.add_parser(
@@ -3675,8 +3900,13 @@ def main() -> None:
         "context", help="Load a doc on demand (instruction or architecture)"
     )
     p_context.add_argument(
-        "--doc", "-d", required=True,
+        "--doc", "-d",
         help="Document name (e.g., 'debugging', 'sync', 'embed-types')",
+    )
+    p_context.add_argument(
+        "--list", "-l",
+        action="store_true",
+        help="List all available docs with line counts and which tags auto-load them.",
     )
 
     # summary (session handoff)
