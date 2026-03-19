@@ -492,7 +492,7 @@ export const pushNotificationStore = {
  * Derived store: Whether the user can receive push notifications
  * True if supported, permission granted, and enabled
  */
-export const canReceivePushNotifications = derived(
+const canReceivePushNotifications = derived(
   pushNotificationStore,
   ($store) =>
     $store.isSupported && $store.permission === "granted" && $store.enabled,

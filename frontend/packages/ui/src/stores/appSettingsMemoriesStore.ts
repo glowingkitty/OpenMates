@@ -727,12 +727,12 @@ export const appSettingsMemoriesForApp = (appId: string) => {
   );
 };
 
-export const appSettingsMemoriesLoading = derived(
+const appSettingsMemoriesLoading = derived(
   appSettingsMemoriesStore,
   (state) => state.isLoading,
 );
 
-export const appSettingsMemoriesError = derived(
+const appSettingsMemoriesError = derived(
   appSettingsMemoriesStore,
   (state) => state.error,
 );

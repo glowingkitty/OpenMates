@@ -44,7 +44,7 @@ const MESSAGES_STORE_NAME = "messages";
 /**
  * Extract title from TipTap JSON content (first line of text)
  */
-export function extractTitleFromContent(content: TiptapJSON): string {
+function extractTitleFromContent(content: TiptapJSON): string {
   if (!content) return "";
   try {
     const firstTextNode = content.content?.[0]?.content?.[0];

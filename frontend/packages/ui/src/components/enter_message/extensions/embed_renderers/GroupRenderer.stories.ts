@@ -150,25 +150,25 @@ const videoGroupAttrs: EmbedNodeAttributes = {
   groupCount: 2
 };
 
-export const WebsiteGroup: Story = {
+const WebsiteGroup: Story = {
   args: {
     attrs: websiteGroupAttrs
   }
 };
 
-export const CodeGroup: Story = {
+const CodeGroup: Story = {
   args: {
     attrs: codeGroupAttrs
   }
 };
 
-export const VideoGroup: Story = {
+const VideoGroup: Story = {
   args: {
     attrs: videoGroupAttrs
   }
 };
 
-export const SingleWebsite: Story = {
+const SingleWebsite: Story = {
   args: {
     attrs: {
       id: 'website-single',
@@ -185,7 +185,7 @@ export const SingleWebsite: Story = {
   }
 };
 
-export const ProcessingState: Story = {
+const ProcessingState: Story = {
   args: {
     attrs: {
       ...websiteGroupAttrs,

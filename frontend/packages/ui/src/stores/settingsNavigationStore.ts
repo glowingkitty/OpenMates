@@ -102,7 +102,7 @@ export function navigateToSettings(path: string, title: string, icon?: string, t
 /**
  * Go back in the settings navigation history
  */
-export function navigateBackInSettings(): void {
+function navigateBackInSettings(): void {
     settingsNavigationStore.update(state => {
         if (state.breadcrumbs.length <= 1) {
             return state;

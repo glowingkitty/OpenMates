@@ -39,7 +39,7 @@ export async function clearAllServiceWorkerCaches(): Promise<void> {
  * Gets the total size of all caches (approximate)
  * Note: This is an approximation as browsers don't provide exact cache sizes
  */
-export async function getCacheStorageInfo(): Promise<{
+async function getCacheStorageInfo(): Promise<{
   cacheCount: number;
   cacheNames: string[];
 }> {
@@ -68,7 +68,7 @@ export async function getCacheStorageInfo(): Promise<{
  * Clears a specific cache by name
  * @param cacheName - Name of the cache to clear
  */
-export async function clearCache(cacheName: string): Promise<boolean> {
+async function clearCache(cacheName: string): Promise<boolean> {
   try {
     if ("caches" in self) {
       const deleted = await caches.delete(cacheName);

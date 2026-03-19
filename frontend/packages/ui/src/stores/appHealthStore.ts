@@ -97,7 +97,7 @@ const appHealthStore = writable<AppHealthState>(initialState);
  * Get health status for a specific app.
  * Returns null if app health status is not available.
  */
-export const getAppHealth = derived(
+const getAppHealth = derived(
     appHealthStore,
     ($state) => (appId: string): AppHealthStatus | null => {
         return $state.appHealth[appId] || null;
@@ -152,7 +152,7 @@ export const isProviderHealthy = derived(
 /**
  * Whether the app health status has been initialized (fetched at least once).
  */
-export const isAppHealthInitialized = derived(
+const isAppHealthInitialized = derived(
     appHealthStore,
     ($state) => $state.initialized
 );
@@ -247,7 +247,7 @@ export async function initializeAppHealth(force: boolean = false): Promise<Healt
  * Resets the app health store to initial state.
  * Useful for testing or when the user logs out.
  */
-export function resetAppHealth(): void {
+function resetAppHealth(): void {
     appHealthStore.set(initialState);
 }
 

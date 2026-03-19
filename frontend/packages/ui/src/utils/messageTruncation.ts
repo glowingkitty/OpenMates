@@ -23,7 +23,7 @@ export function shouldTruncateMessage(message: Message): boolean {
  * The original full content is preserved in the message object
  * For TipTap JSON content, we truncate at the text level to avoid breaking node structure
  */
-export function createTruncatedMessage(message: Message): Message {
+function createTruncatedMessage(message: Message): Message {
   if (!shouldTruncateMessage(message)) {
     return message;
   }
@@ -113,28 +113,28 @@ export function truncateTiptapContent(tiptapContent: any, maxLength: number = MA
 /**
  * Gets the appropriate content for display (truncated or full)
  */
-export function getDisplayContent(message: Message): string {
+function getDisplayContent(message: Message): string {
   return message.is_truncated ? message.truncated_content! : message.content!;
 }
 
 /**
  * Checks if a message is currently truncated
  */
-export function isMessageTruncated(message: Message): boolean {
+function isMessageTruncated(message: Message): boolean {
   return message.is_truncated === true;
 }
 
 /**
  * Gets the full content length of a message (including truncated ones)
  */
-export function getFullContentLength(message: Message): number {
+function getFullContentLength(message: Message): number {
   return message.full_content_length || (message.content?.length || 0);
 }
 
 /**
  * Creates a message with full content restored (for on-demand loading)
  */
-export function restoreFullContent(message: Message, fullContent: string): Message {
+function restoreFullContent(message: Message, fullContent: string): Message {
   return {
     ...message,
     content: fullContent,

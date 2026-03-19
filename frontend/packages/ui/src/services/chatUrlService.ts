@@ -100,7 +100,7 @@ function clearChatUrl(): void {
  * 
  * @returns True if a chat ID is present in the URL
  */
-export function hasChatUrl(): boolean {
+function hasChatUrl(): boolean {
 	return getChatIdFromUrl() !== null;
 }
 

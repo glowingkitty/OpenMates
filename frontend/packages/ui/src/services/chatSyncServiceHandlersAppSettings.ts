@@ -161,7 +161,7 @@ function dismissPermissionNotification(requestId: string): void {
 /**
  * Get a pending permission request by ID
  */
-export function getPendingPermissionRequest(
+function getPendingPermissionRequest(
   requestId: string,
 ): PendingPermissionRequest | undefined {
   return pendingPermissionRequests.get(requestId);
@@ -170,7 +170,7 @@ export function getPendingPermissionRequest(
 /**
  * Get all pending permission requests for a chat
  */
-export function getPendingPermissionRequestsForChat(
+function getPendingPermissionRequestsForChat(
   chatId: string,
 ): PendingPermissionRequest[] {
   const requests: PendingPermissionRequest[] = [];

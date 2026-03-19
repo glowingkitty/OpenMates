@@ -1698,6 +1698,6 @@ export async function search(
  * Check if the search index has been warmed up.
  * Used to show a loading indicator on first search.
  */
-export function isSearchIndexReady(): boolean {
+function isSearchIndexReady(): boolean {
   return warmUpCompleted;
 }

@@ -95,7 +95,7 @@ export function setSearching(isSearching: boolean): void {
  * @param messageId - The message ID to scroll to (null to clear)
  * @param chatId - The chat the message belongs to
  */
-export function setActiveSearchMessage(
+function setActiveSearchMessage(
   messageId: string | null,
   chatId: string | null,
 ): void {
@@ -109,6 +109,6 @@ export function setActiveSearchMessage(
 /**
  * Check if search is currently active.
  */
-export function isSearchActive(): boolean {
+function isSearchActive(): boolean {
   return get(searchStore).isActive;
 }

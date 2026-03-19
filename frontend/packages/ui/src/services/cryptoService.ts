@@ -64,7 +64,7 @@ export function uint8ArrayToBase64(bytes: Uint8Array): string {
 /**
  * Converts Uint8Array to URL-safe Base64 string (no padding)
  */
-export function uint8ArrayToUrlSafeBase64(bytes: Uint8Array): string {
+function uint8ArrayToUrlSafeBase64(bytes: Uint8Array): string {
   const base64 = uint8ArrayToBase64(bytes);
   return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
@@ -118,7 +118,7 @@ export function generateSalt(length = 16): Uint8Array {
  * This key is used for all user data encryption and is stored in IndexedDB
  * @returns Promise<CryptoKey> - Non-extractable AES-GCM key
  */
-export async function generateUserMasterKey(): Promise<CryptoKey> {
+async function generateUserMasterKey(): Promise<CryptoKey> {
   return await crypto.subtle.generateKey(
     { name: "AES-GCM", length: AES_KEY_LENGTH },
     false, // non-extractable - cannot be exported as raw bytes
@@ -336,7 +336,7 @@ export async function clearKeyFromStorage(): Promise<void> {
 /**
  * Deletes the entire crypto database (used during logout)
  */
-export async function deleteCryptoStorage(): Promise<void> {
+async function deleteCryptoStorage(): Promise<void> {
   await deleteCryptoDatabase();
 }
 
@@ -680,7 +680,7 @@ export async function encryptEmail(
  * @param key - The decryption key (32 bytes for XSalsa20)
  * @returns Promise<string | null> - Decrypted email or null if decryption fails
  */
-export async function decryptEmail(
+async function decryptEmail(
   encryptedEmailWithNonce: string,
   key: Uint8Array,
 ): Promise<string | null> {
@@ -1646,7 +1646,7 @@ export async function hashKeyFromPRF(
  *
  * @returns boolean - True if WebAuthn and PRF extension might be supported
  */
-export function checkPRFSupport(): boolean {
+function checkPRFSupport(): boolean {
   if (typeof window === "undefined" || !navigator.credentials) {
     return false;
   }

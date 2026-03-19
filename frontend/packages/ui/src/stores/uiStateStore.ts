@@ -41,7 +41,7 @@ export const isMobileView = readable<boolean>(false, (set) => {
  * A readable store that tracks whether the viewport should auto-open
  * the chats panel by default.
  */
-export const isChatsDefaultOpenViewport = readable<boolean>(false, (set) => {
+const isChatsDefaultOpenViewport = readable<boolean>(false, (set) => {
   if (!browser) {
     set(false);
     return;

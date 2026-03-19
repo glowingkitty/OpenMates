@@ -181,7 +181,7 @@ export function completeSignup(userData: UserProfile): boolean {
  * Also persists the changes to IndexedDB.
  * @param userData Partial user profile data to update.
  */
-export function updateUser(userData: Partial<UserProfile>) {
+function updateUser(userData: Partial<UserProfile>) {
   updateProfile(userData);
   // Persist changes to DB
   userDB.updateUserData(userData).catch((dbError) => {
@@ -194,7 +194,7 @@ export function updateUser(userData: Partial<UserProfile>) {
  * Handles clearing related state if setting to unauthenticated.
  * @param value The desired authentication state (true or false).
  */
-export function setAuthenticated(value: boolean) {
+function setAuthenticated(value: boolean) {
   authStore.update((state) => ({
     ...state,
     isAuthenticated: value,

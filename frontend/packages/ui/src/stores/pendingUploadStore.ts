@@ -189,7 +189,7 @@ export function removePendingSend(chatId: string, pendingId: string): void {
  * Get the head (first/oldest) pending send for a chat, or undefined if none.
  * The head is the first to be dispatched.
  */
-export function getHeadPendingSend(
+function getHeadPendingSend(
   chatId: string,
 ): PendingSendContext | undefined {
   const state = get(_store);
@@ -200,7 +200,7 @@ export function getHeadPendingSend(
 /**
  * Get ALL pending sends for a chat (in send order).
  */
-export function getAllPendingSends(chatId: string): PendingSendContext[] {
+function getAllPendingSends(chatId: string): PendingSendContext[] {
   const state = get(_store);
   return state.get(chatId) ?? [];
 }
@@ -325,7 +325,7 @@ export function getReadyPendingSend(
  * send so the message won't be dispatched. The upload may still complete in
  * the background (the embed node attrs will be updated regardless).
  */
-export function cancelAllPendingSends(chatId: string): void {
+function cancelAllPendingSends(chatId: string): void {
   _store.update((state) => {
     if (state.has(chatId)) {
       state.delete(chatId);
@@ -350,7 +350,7 @@ export function hasPendingSends(chatId: string): boolean {
  * Get a flat list of all embed IDs that are currently blocking any pending send
  * across ALL chats. Used by embed update handlers to know which embeds to watch.
  */
-export function getAllBlockingEmbedIds(): Set<string> {
+function getAllBlockingEmbedIds(): Set<string> {
   const state = get(_store);
   const result = new Set<string>();
   Array.from(state.values()).forEach((queue) => {

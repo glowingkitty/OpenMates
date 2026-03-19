@@ -132,7 +132,7 @@ export function setEmbedPIIState(
  *
  * @param revealed - Whether PII originals should be shown
  */
-export function setEmbedPIIRevealed(revealed: boolean): void {
+function setEmbedPIIRevealed(revealed: boolean): void {
   _internalStore.update((s) => ({ ...s, revealed }));
 }
 

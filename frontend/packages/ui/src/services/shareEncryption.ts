@@ -437,7 +437,7 @@ export async function decryptShareKeyBlob(
  * @param serverTime - Current server time (Unix timestamp in seconds)
  * @returns Object with validation result
  */
-export async function validateShareLinkExpiration(
+async function validateShareLinkExpiration(
   chatId: string,
   encryptedBlob: string,
   serverTime: number,

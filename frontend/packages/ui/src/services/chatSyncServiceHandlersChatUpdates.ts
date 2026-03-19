@@ -1281,7 +1281,7 @@ export async function handleChatPinnedUpdatedImpl(
  * Handle metadata for encryption - Dual-Phase Architecture
  * Server sends plaintext metadata (title, category) for client-side encryption
  */
-export async function handleChatMetadataForEncryptionImpl(
+async function handleChatMetadataForEncryptionImpl(
   serviceInstance: ChatSynchronizationService,
   payload: {
     chat_id: string;

@@ -60,7 +60,7 @@ let loginSessionGeneration = 0;
  * Returns the current login session generation.
  * Used by authSessionActions to capture before starting background logout.
  */
-export function getLoginSessionGeneration(): number {
+function getLoginSessionGeneration(): number {
   return loginSessionGeneration;
 }
 

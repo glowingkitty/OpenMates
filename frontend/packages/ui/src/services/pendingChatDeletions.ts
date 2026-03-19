@@ -93,7 +93,7 @@ export function removePendingChatDeletion(chatId: string): void {
  * Check if a chat ID is pending server deletion.
  * Used by phased sync storage helpers to skip re-adding deleted chats.
  */
-export function isChatPendingDeletion(chatId: string): boolean {
+function isChatPendingDeletion(chatId: string): boolean {
   return getPendingChatDeletions().includes(chatId);
 }
 

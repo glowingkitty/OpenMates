@@ -68,7 +68,7 @@ export const isSelfHosted = derived(
  * Returns true until status is fetched (safe default - assumes payment enabled).
  * After fetch, returns the actual payment enabled status.
  */
-export const isPaymentEnabled = derived(
+const isPaymentEnabled = derived(
     serverStatusStore,
     ($state) => $state.status?.payment_enabled ?? true
 );
@@ -85,7 +85,7 @@ export const serverEdition = derived(
  * Whether the server status has been initialized (fetched at least once).
  * Components can use this to conditionally render content that depends on server status.
  */
-export const isServerStatusInitialized = derived(
+const isServerStatusInitialized = derived(
     serverStatusStore,
     ($state) => $state.initialized
 );
@@ -171,7 +171,7 @@ export async function initializeServerStatus(force: boolean = false): Promise<Se
  * Resets the server status store to initial state.
  * Useful for testing or when the user logs out.
  */
-export function resetServerStatus(): void {
+function resetServerStatus(): void {
     serverStatusStore.set(initialState);
 }
 

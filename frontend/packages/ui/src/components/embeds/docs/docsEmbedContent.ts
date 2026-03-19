@@ -291,7 +291,7 @@ export interface ParsedDocContent {
   previewText: string;
 }
 
-export function parseDocEmbedContent(
+function parseDocEmbedContent(
   content: string | Record<string, unknown>,
   hints?: { title?: string; filename?: string },
 ): ParsedDocContent {

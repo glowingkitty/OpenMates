@@ -183,7 +183,7 @@ export function parseSheetEmbedContent(
 /**
  * Count rows in a markdown table (excluding header and separator)
  */
-export function countTableRows(markdownTable: string): number {
+function countTableRows(markdownTable: string): number {
   const lines = markdownTable
     .trim()
     .split("\n")
@@ -195,7 +195,7 @@ export function countTableRows(markdownTable: string): number {
 /**
  * Count columns in a markdown table
  */
-export function countTableColumns(markdownTable: string): number {
+function countTableColumns(markdownTable: string): number {
   const lines = markdownTable
     .trim()
     .split("\n")
@@ -229,7 +229,7 @@ export function formatTableDimensions(rows: number, cols: number): string {
 /**
  * Convert markdown table to CSV format
  */
-export function markdownTableToCSV(markdownTable: string): string {
+function markdownTableToCSV(markdownTable: string): string {
   const parsed = parseMarkdownTable(markdownTable);
   const lines: string[] = [];
 

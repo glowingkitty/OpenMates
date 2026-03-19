@@ -58,7 +58,7 @@ export function unmarkChatIdAsDraftAudio(chatId: string): void {
  * Returns true if the given chat_id was pre-allocated for an audio recording that has
  * not yet been sent as a chat message.
  */
-export function isChatIdDraftAudio(chatId: string): boolean {
+function isChatIdDraftAudio(chatId: string): boolean {
   if (typeof localStorage === "undefined") return false;
   try {
     return localStorage.getItem(DRAFT_AUDIO_STORAGE_PREFIX + chatId) !== null;
