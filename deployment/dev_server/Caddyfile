@@ -47,6 +47,7 @@ api.dev.openmates.org {
 	@webapp_origin header Origin https://app.dev.openmates.org
 	@options_method method OPTIONS # Renamed for clarity
 	@revolut_webhook path /v1/payments/webhook # Matcher for Revolut webhook
+	@ci_tunnel path /internal/tunnel/open /internal/tunnel/close # CI ephemeral tunnel management (HMAC-auth, GitHub Actions only)
 	@websocket_path path /v1/ws* # Matcher for WebSocket paths (to exclude from compression)
 
 	# --- FILE UPLOADS SERVICE MATCHERS ---
@@ -351,7 +352,17 @@ api.dev.openmates.org {
 			}
 		}
 
-		# 13. Abort all other requests not explicitly handled above
+		# 13. Handle CI tunnel management (HMAC-authenticated, GitHub Actions only)
+		# /internal/tunnel/open and /internal/tunnel/close are the only /internal/* paths
+		# exposed externally. All other /internal/* paths remain blocked.
+		# Auth: X-Hmac-Signature header validated server-side against TUNNEL_TRIGGER_SECRET.
+		handle @ci_tunnel {
+			reverse_proxy localhost:8000 {
+				header_up Host {http.request.host}
+			}
+		}
+
+		# 14. Abort all other requests not explicitly handled above
 		# This ensures that only defined paths are accessible.
 		handle {
 			abort
