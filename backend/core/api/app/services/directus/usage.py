@@ -1250,7 +1250,14 @@ class UsageMethods:
                 elif summary_type == "app":
                     filter_dict["app_id"] = {"_eq": identifier}
                 elif summary_type == "api_key":
-                    filter_dict["api_key_hash"] = {"_eq": identifier}
+                    # CLI entries use a synthetic "cli:<device_hash>" identifier in summary tables,
+                    # but in the raw usage table they have api_key_hash=None and device_hash=<hash>.
+                    # Extract the device_hash and filter on that column instead.
+                    if identifier.startswith("cli:"):
+                        device_hash = identifier[4:]  # strip "cli:" prefix
+                        filter_dict["device_hash"] = {"_eq": device_hash}
+                    else:
+                        filter_dict["api_key_hash"] = {"_eq": identifier}
                 
                 params = {
                     "filter": filter_dict,

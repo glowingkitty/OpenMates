@@ -1441,7 +1441,9 @@ async def get_usage_details(
         
         if cached_entries:
             logger.info(f"Cache HIT for usage archive: {cache_key}")
-            # Filter cached entries by identifier
+            # Filter cached entries by identifier.
+            # CLI entries use a synthetic "cli:<device_hash>" identifier in summary tables,
+            # but raw entries have api_key_hash=None and device_hash=<hash> — match on that.
             filtered_entries = []
             identifier_key = {
                 "chat": "chat_id",
@@ -1449,8 +1451,14 @@ async def get_usage_details(
                 "api_key": "api_key_hash"
             }[type]
             
+            is_cli_identifier = type == "api_key" and identifier.startswith("cli:")
+            cli_device_hash = identifier[4:] if is_cli_identifier else None
+            
             for entry in cached_entries:
-                if entry.get(identifier_key) == identifier:
+                if is_cli_identifier:
+                    if entry.get("device_hash") == cli_device_hash:
+                        filtered_entries.append(entry)
+                elif entry.get(identifier_key) == identifier:
                     filtered_entries.append(entry)
             
             return {

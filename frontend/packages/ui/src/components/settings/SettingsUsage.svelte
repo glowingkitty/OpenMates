@@ -1509,7 +1509,7 @@ Usage Settings - View usage statistics and export usage data
 
 <SettingsTabs
     tabs={[
-        { id: 'overview', icon: 'usage' },
+        { id: 'overview', icon: 'calendar' },
         { id: 'chats',    icon: 'chat' },
         { id: 'apps',     icon: 'app' },
         { id: 'api',      icon: 'coding' },
@@ -1882,26 +1882,8 @@ Usage Settings - View usage statistics and export usage data
                                         <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
                                     </div>
                                 </button>
-                            {:else if item.type === 'api_key'}
-                                <!-- API key item -->
-                                <div class="overview-usage-item">
-                                    <div class="app-usage-icon-wrapper">
-                                        <Icon 
-                                            name="code"
-                                            type="default"
-                                            size="28px"
-                                        />
-                                    </div>
-                                    <div class="overview-item-content">
-                                        <div class="overview-item-title">{$text('settings.usage.api_key_label')}</div>
-                                        <div class="overview-item-subtitle">{item.entry_count} {item.entry_count === 1 ? 'request' : 'requests'}</div>
-                                    </div>
-                                    <div class="overview-item-credits">
-                                        <span class="credits-amount">{formatCredits(item.total_credits)}</span>
-                                        <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
-                                    </div>
-                                </div>
                             {/if}
+                            <!-- api_key items are intentionally excluded from the overview tab -->
                         {/each}
                     {/if}
                 </div>
@@ -2041,20 +2023,21 @@ Usage Settings - View usage statistics and export usage data
             {#if selectedApiKeyHash && selectedApiKeyMonth}
                 {@const labelKey = `${selectedApiKeyHash}:${selectedApiKeyMonth}`}
                 {@const apiKeyLabel = apiKeyLabels.get(labelKey) || { title: $text('settings.usage.api_key_details'), subtitle: '' }}
+                {@const isCliEntry = selectedApiKeyHash?.startsWith('cli:')}
                 
                 <div class="detail-header">
                     <div class="detail-icon-wrapper">
                         <Icon 
-                            name="code"
+                            name={isCliEntry ? 'coding' : 'code'}
                             type="default"
                             size="40px"
                         />
                     </div>
                     <div class="detail-info">
                         <h3>{apiKeyLabel.title}</h3>
-                        {#if apiKeyLabel.subtitle}
+                        {#if apiKeyLabel.subtitle && !isCliEntry}
                             <p>{apiKeyLabel.subtitle}</p>
-                        {:else}
+                        {:else if !isCliEntry}
                             <p>{$text('settings.usage.api_key_details')}</p>
                         {/if}
                     </div>
@@ -2365,14 +2348,14 @@ Usage Settings - View usage statistics and export usage data
                         >
                             <div class="api-key-usage-icon-wrapper">
                                 <Icon 
-                                    name={summary.api_key_hash?.startsWith('cli:') ? 'terminal' : 'code'}
+                                    name={summary.api_key_hash?.startsWith('cli:') ? 'coding' : 'code'}
                                     type="default"
                                     size="28px"
                                 />
                             </div>
                             <div class="api-key-usage-content">
                                 <div class="api-key-usage-title">{apiKeyLabel.title}</div>
-                                {#if apiKeyLabel.subtitle}
+                                {#if apiKeyLabel.subtitle && !summary.api_key_hash?.startsWith('cli:')}
                                     <div class="api-key-usage-prefix">{apiKeyLabel.subtitle}</div>
                                 {/if}
                             </div>
