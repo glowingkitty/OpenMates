@@ -66,18 +66,22 @@
 	onMount(async () => {
 		if (!browser) return;
 
-		// Force dark theme so ChatMessage CSS variables resolve correctly.
-		// The device mockup backgrounds are hardcoded dark (#1a1a1a), so
-		// ChatMessage text must use dark-theme colors (light text).
-		// Must set the store (not just the attribute) because the root layout
-		// has a reactive $effect that continuously syncs the store to the DOM.
-		theme.set('dark');
-
 		try {
 			await waitForTranslations();
 		} catch {
 			// Translations may fail in isolation — proceed with fallback labels
 		}
+
+		// Force dark theme AFTER waitForTranslations (which yields to the
+		// event loop). The root layout's initializeTheme() runs in the parent
+		// onMount (which fires after child onMount in Svelte). By awaiting
+		// waitForTranslations first, we ensure initializeTheme() has already
+		// run, so our theme.set('dark') is the final write and won't be
+		// overwritten. We also set the DOM attribute directly as a belt-and-
+		// suspenders measure.
+		theme.set('dark');
+		document.documentElement.setAttribute('data-theme', 'dark');
+
 		translationsReady = true;
 	});
 </script>
