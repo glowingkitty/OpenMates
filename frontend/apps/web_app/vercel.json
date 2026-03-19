@@ -1,4 +1,5 @@
 {
+	"installCommand": "corepack enable && cd ../.. && pnpm install",
 	"rewrites": [
 		{
 			"source": "/dev/:path*",
