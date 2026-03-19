@@ -162,6 +162,17 @@ export class ChatKeyManager {
   /** Operations queued waiting for a key to arrive */
   private pendingOps: Map<string, QueuedOperation[]> = new Map();
 
+  /**
+   * Operation lock counter. When > 0, clearAll() is deferred.
+   * This prevents multi-tab auth disruptions from wiping the key cache
+   * while sendEncryptedStoragePackage() or other critical crypto operations
+   * are mid-flight — the root cause of K1→K2 key corruption.
+   */
+  private criticalOpCount = 0;
+
+  /** If clearAll() was requested while locked, it runs when the lock drops to 0 */
+  private deferredClearAll = false;
+
   /** Callback to fetch encrypted_chat_key from IndexedDB for a given chatId */
   private fetchEncryptedChatKey:
     | ((chatId: string) => Promise<string | null>)
@@ -698,11 +709,55 @@ export class ChatKeyManager {
     }
   }
 
+  // ---- Critical Operation Lock ----
+
+  /**
+   * Acquire a lock that prevents clearAll() from running.
+   * Call this before starting a critical crypto operation (e.g. sendEncryptedStoragePackage).
+   * MUST be paired with releaseCriticalOp().
+   */
+  acquireCriticalOp(): void {
+    this.criticalOpCount++;
+    if (this.criticalOpCount === 1) {
+      console.debug("[ChatKeyManager] Critical crypto operation lock acquired");
+    }
+  }
+
+  /**
+   * Release the critical operation lock.
+   * If clearAll() was deferred, it runs now (when count drops to 0).
+   */
+  releaseCriticalOp(): void {
+    this.criticalOpCount = Math.max(0, this.criticalOpCount - 1);
+    if (this.criticalOpCount === 0 && this.deferredClearAll) {
+      console.warn(
+        "[ChatKeyManager] Executing deferred clearAll() after critical op completed",
+      );
+      this.deferredClearAll = false;
+      this.clearAll();
+    }
+  }
+
   /**
    * Clear ALL chat keys from memory.
    * Called on logout, forced logout, or session expiry.
+   *
+   * If a critical crypto operation is in progress (acquireCriticalOp),
+   * the clear is DEFERRED until the operation completes. This prevents
+   * the multi-tab auth disruption from wiping keys mid-flight, which
+   * causes sendEncryptedStoragePackage to generate a new key (K2) and
+   * corrupt messages already encrypted with the original key (K1).
    */
   clearAll(): void {
+    if (this.criticalOpCount > 0) {
+      console.warn(
+        `[ChatKeyManager] clearAll() DEFERRED — ${this.criticalOpCount} critical crypto op(s) in progress. ` +
+          `Keys will be cleared when all operations complete.`,
+      );
+      this.deferredClearAll = true;
+      return;
+    }
+
     // Reject all pending operations
     for (const [chatId, queue] of Array.from(this.pendingOps.entries())) {
       for (const op of queue) {
@@ -719,6 +774,7 @@ export class ChatKeyManager {
     this.provenances.clear();
     this.loadingPromises.clear();
     this.pendingOps.clear();
+    this.deferredClearAll = false;
     console.debug("[ChatKeyManager] All keys cleared");
   }
 

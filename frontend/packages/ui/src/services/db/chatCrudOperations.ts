@@ -28,6 +28,9 @@ interface ChatDatabaseInstance {
     mode: IDBTransactionMode,
   ): Promise<IDBTransaction>;
 
+  // Chat retrieval (for IDB integrity checks)
+  getChat(chatId: string, transaction?: IDBTransaction): Promise<Chat | null>;
+
   // Chat key management methods (from chatKeyManagement)
   getChatKey(chatId: string): Uint8Array | null;
   setChatKey(
@@ -138,23 +141,49 @@ export async function encryptChatForStorage(
       );
     }
   } else if (!chatKey) {
-    // No cached key and no server key - generate new one (new chat creation)
-    console.log(
-      `[ChatDatabase] Generating NEW chat key for chat ${chat.chat_id} (new chat creation)`,
-    );
-    chatKey = generateChatKey();
-    dbInstance.setChatKey(chat.chat_id, chatKey, "created");
-    // CRITICAL FIX: await the async encryption function to prevent storing a Promise in IndexedDB
-    const encryptedChatKey = await encryptChatKeyWithMasterKey(chatKey);
-    if (encryptedChatKey) {
-      encryptedChat.encrypted_chat_key = encryptedChatKey;
+    // No cached key and no server key on the chat object.
+    // SAFETY: Before generating, do one last IDB check. The chat object passed
+    // to addChat() might lack encrypted_chat_key (e.g., share page creates a
+    // minimal Chat), but the IDB may already hold the real chat with a key
+    // written by a previous call or another tab.
+    const existingChat = await dbInstance.getChat(chat.chat_id);
+    if (existingChat?.encrypted_chat_key) {
+      chatKey = await decryptChatKeyWithMasterKey(
+        existingChat.encrypted_chat_key,
+      );
+      if (chatKey) {
+        dbInstance.setChatKey(chat.chat_id, chatKey, "master_key");
+        encryptedChat.encrypted_chat_key = existingChat.encrypted_chat_key;
+        console.info(
+          `[ChatDatabase] Recovered existing encrypted_chat_key from IDB for chat ${chat.chat_id} ` +
+            `(chat object lacked key but IDB had one — prevented unnecessary key generation)`,
+        );
+      }
+    }
+
+    if (!chatKey) {
+      // Genuinely new chat with no key anywhere - safe to generate
       console.log(
-        `[ChatDatabase] ✅ Generated and stored encrypted_chat_key for new chat ${chat.chat_id}: ${encryptedChatKey.substring(0, 20)}... (length: ${encryptedChatKey.length})`,
+        `[ChatDatabase] Generating NEW chat key for chat ${chat.chat_id} (new chat creation)`,
       );
-    } else {
-      console.error(
-        `[ChatDatabase] ❌ Failed to encrypt chat key for new chat ${chat.chat_id} - master key may be missing`,
-      );
+      chatKey = generateChatKey();
+      dbInstance.setChatKey(chat.chat_id, chatKey, "created");
+    }
+    // Only encrypt and store if we don't already have an encrypted_chat_key
+    // (the recovery path above may have already set it)
+    if (!encryptedChat.encrypted_chat_key) {
+      // CRITICAL FIX: await the async encryption function to prevent storing a Promise in IndexedDB
+      const encryptedChatKey = await encryptChatKeyWithMasterKey(chatKey);
+      if (encryptedChatKey) {
+        encryptedChat.encrypted_chat_key = encryptedChatKey;
+        console.log(
+          `[ChatDatabase] ✅ Generated and stored encrypted_chat_key for new chat ${chat.chat_id}: ${encryptedChatKey.substring(0, 20)}... (length: ${encryptedChatKey.length})`,
+        );
+      } else {
+        console.error(
+          `[ChatDatabase] ❌ Failed to encrypt chat key for new chat ${chat.chat_id} - master key may be missing`,
+        );
+      }
     }
   } else {
     // Key already in cache - make sure encrypted version is in the chat object

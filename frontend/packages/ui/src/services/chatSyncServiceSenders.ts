@@ -1933,6 +1933,13 @@ export async function sendEncryptedStoragePackage(
   }
   serviceInstance.markMessageSyncing(messageId);
 
+  // CRITICAL: Acquire the operation lock BEFORE any key operations.
+  // This prevents clearAllChatKeys() (triggered by multi-tab auth disruptions)
+  // from wiping the key cache while we're encrypting. Without this lock,
+  // a simultaneous clearAll() can cause us to lose the key mid-operation,
+  // triggering a fallback to key generation that corrupts the chat.
+  chatKeyManager.acquireCriticalOp();
+
   try {
     const {
       chat_id,
@@ -2062,26 +2069,48 @@ export async function sendEncryptedStoragePackage(
           }
         }
 
-        // 3. Last resort: genuinely new chat with no key anywhere — safe to create.
+        // 3. SAFETY: If all recovery paths failed, ABORT. NEVER generate a new key
+        //    here. This function runs AFTER the user message was already encrypted
+        //    with the original key (K1). Generating a new key (K2) would make the
+        //    user message permanently unreadable while the AI response and metadata
+        //    get encrypted with K2 — classic "[Content decryption failed]" corruption.
+        //    See issues 3a79b598, c8cdf290: multi-tab auth disruption cleared caches
+        //    mid-flight, causing createKeyForNewChat() to generate K2 here.
         if (!chatKey) {
-          chatKey = chatKeyManager.createKeyForNewChat(chat_id);
+          console.error(
+            `[ChatSyncService:Senders] ❌ CRITICAL: All key recovery paths failed for ${chat_id}. ` +
+              `ABORTING sendEncryptedStoragePackage to prevent key corruption. ` +
+              `The encrypted storage package will be retried on next sync or page load. ` +
+              `Recovery paths tried: chatKeyManager.getKeySync(), chatKeyManager.getKey(), ` +
+              `chatDB.getChatKey(), chatDB.getEncryptedChatKey().`,
+          );
+          return;
         }
       }
       console.warn(
-        `[ChatSyncService:Senders] encrypted_chat_key missing in IDB for ${chat_id}, ${chatKey ? "using recovered/cached key" : "generated new key"}`,
+        `[ChatSyncService:Senders] encrypted_chat_key missing in IDB for ${chat_id}, using recovered/cached key`,
       );
 
-      // Encrypt and save the new key
+      // Re-wrap the recovered key and save it to IDB so future calls don't hit this path
       const { encryptChatKeyWithMasterKey } = await import("./cryptoService");
       encryptedChatKey = await encryptChatKeyWithMasterKey(chatKey);
 
       if (encryptedChatKey) {
-        // Update chat in DB with the encrypted key
-        chat.encrypted_chat_key = encryptedChatKey;
-        await chatDB.updateChat(chat);
-        console.log(
-          `[ChatSyncService:Senders] ✅ Generated and saved encrypted_chat_key for ${chat_id}: ${encryptedChatKey.substring(0, 20)}...`,
-        );
+        // SAFETY: Only write if the chat doesn't already have a different encrypted_chat_key.
+        // Re-read from IDB to avoid overwriting a key that was written by another tab.
+        const freshChat = await chatDB.getChat(chat_id);
+        if (freshChat && !freshChat.encrypted_chat_key) {
+          chat.encrypted_chat_key = encryptedChatKey;
+          await chatDB.updateChat(chat);
+          console.log(
+            `[ChatSyncService:Senders] ✅ Saved recovered encrypted_chat_key for ${chat_id}: ${encryptedChatKey.substring(0, 20)}...`,
+          );
+        } else if (freshChat?.encrypted_chat_key) {
+          console.info(
+            `[ChatSyncService:Senders] encrypted_chat_key already present in IDB for ${chat_id} (written by another path) — not overwriting`,
+          );
+          encryptedChatKey = freshChat.encrypted_chat_key;
+        }
       } else {
         console.error(
           `[ChatSyncService:Senders] ❌ Failed to encrypt chat key for ${chat_id} - master key may be missing`,
@@ -2312,6 +2341,10 @@ export async function sendEncryptedStoragePackage(
     );
     // Unmark on error so a legitimate retry can proceed
     serviceInstance.unmarkMessageSyncing(messageId);
+  } finally {
+    // CRITICAL: Always release the operation lock, even on error/early return.
+    // If clearAll() was deferred while we held the lock, it will run now.
+    chatKeyManager.releaseCriticalOp();
   }
 }
 

@@ -629,11 +629,14 @@ export async function decryptMessageFields(
   const chatKey = chatKeyManager.getKeySync(chatId);
 
   if (!chatKey) {
+    const keyState = chatKeyManager.getState(chatId);
+    const prov = chatKeyManager.getProvenance(chatId);
     console.error(
       `[CLIENT_DECRYPT] ❌ CRITICAL: No chat key found for chat ${chatId}, cannot decrypt message fields! ` +
         `Message ID: ${message.message_id}, Role: ${message.role}, Status: ${message.status}, ` +
         `Has encrypted_content: ${!!message.encrypted_content}, ` +
-        `Encrypted content length: ${message.encrypted_content?.length || 0}`,
+        `Encrypted content length: ${message.encrypted_content?.length || 0}, ` +
+        `Key state: ${keyState}, Last provenance: ${prov ? `source=${prov.source} fp=${prov.keyFingerprint}` : "none"}`,
     );
     return decryptedMessage;
   }
@@ -662,10 +665,15 @@ export async function decryptMessageFields(
         );
       } else {
         // Decryption failed but didn't throw - encrypted_content might be malformed
+        const prov = chatKeyManager.getProvenance(chatId);
         console.error(
           `[CLIENT_DECRYPT] ❌ Failed to decrypt content for message ${message.message_id} - ` +
             `encrypted_content present but decryption returned null. ` +
-            `This may indicate vault-encrypted content was sent instead of client-encrypted!`,
+            `Key provenance: ${prov ? `source=${prov.source}, fp=${prov.keyFingerprint}, loaded=${new Date(prov.timestamp).toISOString()}` : "unknown"}. ` +
+            `Message role: ${message.role}, status: ${message.status}, created_at: ${message.created_at}. ` +
+            `This may indicate: key was rotated after message was encrypted, ` +
+            `vault-encrypted content was sent instead of client-encrypted, ` +
+            `or multi-tab auth disruption caused key regeneration.`,
         );
         // Keep encrypted field for debugging, set content to placeholder
         decryptedMessage.content =
