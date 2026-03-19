@@ -1099,6 +1099,12 @@
     /* Slide-up-from-bottom animation — starts off-screen at the bottom */
     transition: transform 320ms cubic-bezier(0.32, 0, 0.2, 1);
     overflow: hidden;
+    /* Promote to compositor layer before the slide-in fires so WebKit/iOS
+       doesn't have to rasterize the full subtree (gradient header + blurred
+       orbs + content) on the main thread during the transition.
+       Without this hint, Safari defers layer promotion until the first
+       animation frame, causing the visible stall on iPad. */
+    will-change: transform;
     /* Container queries so child components can detect their available width */
     container-type: inline-size;
     container-name: fullscreen;
