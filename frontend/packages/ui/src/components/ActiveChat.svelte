@@ -10653,13 +10653,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     /*
-     * Rainbow glow border animation while the assistant is typing.
-     * Mirrors the Apple Intelligence-style effect used in ThinkingSection.svelte,
-     * applied to the full chat container so the whole panel "lights up" during
-     * streaming. Uses the same conic-gradient ring + outer glow technique.
+     * Rainbow border animation while the assistant is typing.
+     * Mirrors ThinkingSection.svelte: a conic-gradient ::before ring spins around
+     * the container perimeter. The ring fades in/out via opacity transition so
+     * the effect starts and ends smoothly rather than snapping on/off.
      *
-     * @property declarations are required for browsers to interpolate
-     * CSS custom properties inside @keyframes (Chrome 85+, Firefox 128+, Safari 16.4+).
+     * @property is required for @keyframes to interpolate the CSS custom property.
+     * (Chrome 85+, Firefox 128+, Safari 16.4+)
      */
     @property --chat-gradient-angle {
         syntax: '<angle>';
@@ -10667,21 +10667,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         inherits: false;
     }
 
-    .active-chat-container.ai-typing {
-        /* Remove static shadow — the animated pseudo-element handles the border */
-        box-shadow:
-            0 0  8px  2px rgba(255,  45,  85, 0.35),
-            0 0 18px  6px rgba(191,  90, 242, 0.22),
-            0 0 36px 12px rgba( 50, 173, 230, 0.14);
-        animation: chat-glow-shift 9s linear infinite;
-    }
-
     /*
-     * ::before — the sharp rotating rainbow ring painted behind the container.
-     * inset: -2px grows it 2px beyond the border-radius so only the ring strip
-     * is visible (overflow:hidden on the parent clips anything further inside).
+     * ::before — always present on the container, invisible by default.
+     * opacity: 0 → 1 transition provides the smooth fade-in when typing starts,
+     * and the reverse fade-out when typing ends (class removed).
      */
-    .active-chat-container.ai-typing::before {
+    .active-chat-container::before {
         content: '';
         position: absolute;
         inset: -2px;
@@ -10699,28 +10690,38 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         );
         animation: chat-rainbow-spin 3s linear infinite;
         z-index: 0;
-        opacity: 1;
+        opacity: 0;
         filter: blur(2px);
         pointer-events: none;
+        transition: opacity 0.6s ease;
+    }
+
+    .active-chat-container.ai-typing::before {
+        opacity: 1;
     }
 
     /*
-     * ::after — interior fill mask.
-     * Covers the content area with the container background so the gradient
-     * doesn't bleed into the chat. inset: 2px = the ring strip exposed above.
+     * ::after — interior fill mask, always present.
+     * Transparent by default; transitions to the container background when typing
+     * so the ring gradient doesn't bleed into the chat content.
      */
-    .active-chat-container.ai-typing::after {
+    .active-chat-container::after {
         content: '';
         position: absolute;
         inset: 2px;
         border-radius: 15px; /* container radius (17px) - inset (2px) */
-        background: var(--color-grey-20);
+        background: transparent;
         z-index: 0;
         pointer-events: none;
+        transition: background 0.6s ease;
+    }
+
+    .active-chat-container.ai-typing::after {
+        background: var(--color-grey-20);
     }
 
     /* Ensure all content sits above the pseudo-element fill */
-    .active-chat-container.ai-typing > * {
+    .active-chat-container > * {
         position: relative;
         z-index: 1;
     }
@@ -10728,39 +10729,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     @keyframes chat-rainbow-spin {
         from { --chat-gradient-angle: 0deg; }
         to   { --chat-gradient-angle: 360deg; }
-    }
-
-    @keyframes chat-glow-shift {
-        0%   { box-shadow: 0 0  8px  2px rgba(255,  45,  85, 0.35), 0 0 18px  6px rgba(191,  90, 242, 0.22), 0 0 36px 12px rgba( 50, 173, 230, 0.14); }
-        16%  { box-shadow: 0 0  8px  2px rgba(255, 107,  43, 0.35), 0 0 18px  6px rgba(255,  45,  85, 0.22), 0 0 36px 12px rgba(191,  90, 242, 0.14); }
-        33%  { box-shadow: 0 0  8px  2px rgba(255, 214,  10, 0.35), 0 0 18px  6px rgba(255, 107,  43, 0.22), 0 0 36px 12px rgba(255,  45,  85, 0.14); }
-        50%  { box-shadow: 0 0  8px  2px rgba( 48, 209,  88, 0.35), 0 0 18px  6px rgba(255, 214,  10, 0.22), 0 0 36px 12px rgba(255, 107,  43, 0.14); }
-        66%  { box-shadow: 0 0  8px  2px rgba( 50, 173, 230, 0.35), 0 0 18px  6px rgba( 48, 209,  88, 0.22), 0 0 36px 12px rgba(255, 214,  10, 0.14); }
-        83%  { box-shadow: 0 0  8px  2px rgba(191,  90, 242, 0.35), 0 0 18px  6px rgba( 50, 173, 230, 0.22), 0 0 36px 12px rgba( 48, 209,  88, 0.14); }
-        100% { box-shadow: 0 0  8px  2px rgba(255,  45,  85, 0.35), 0 0 18px  6px rgba(191,  90, 242, 0.22), 0 0 36px 12px rgba( 50, 173, 230, 0.14); }
-    }
-
-    /* Dark mode: wider bloom radius and slightly stronger opacity */
-    :global(.dark) .active-chat-container.ai-typing {
-        box-shadow:
-            0 0 12px  4px rgba(255,  45,  85, 0.45),
-            0 0 24px  8px rgba(191,  90, 242, 0.30),
-            0 0 44px 14px rgba( 50, 173, 230, 0.18);
-        animation: chat-glow-shift-dark 9s linear infinite;
-    }
-
-    :global(.dark) .active-chat-container.ai-typing::after {
-        background: var(--color-grey-20);
-    }
-
-    @keyframes chat-glow-shift-dark {
-        0%   { box-shadow: 0 0 12px  4px rgba(255,  45,  85, 0.45), 0 0 24px  8px rgba(191,  90, 242, 0.30), 0 0 44px 14px rgba( 50, 173, 230, 0.18); }
-        16%  { box-shadow: 0 0 12px  4px rgba(255, 107,  43, 0.45), 0 0 24px  8px rgba(255,  45,  85, 0.30), 0 0 44px 14px rgba(191,  90, 242, 0.18); }
-        33%  { box-shadow: 0 0 12px  4px rgba(255, 214,  10, 0.45), 0 0 24px  8px rgba(255, 107,  43, 0.30), 0 0 44px 14px rgba(255,  45,  85, 0.18); }
-        50%  { box-shadow: 0 0 12px  4px rgba( 48, 209,  88, 0.45), 0 0 24px  8px rgba(255, 214,  10, 0.30), 0 0 44px 14px rgba(255, 107,  43, 0.18); }
-        66%  { box-shadow: 0 0 12px  4px rgba( 50, 173, 230, 0.45), 0 0 24px  8px rgba( 48, 209,  88, 0.30), 0 0 44px 14px rgba(255, 214,  10, 0.18); }
-        83%  { box-shadow: 0 0 12px  4px rgba(191,  90, 242, 0.45), 0 0 24px  8px rgba( 50, 173, 230, 0.30), 0 0 44px 14px rgba( 48, 209,  88, 0.18); }
-        100% { box-shadow: 0 0 12px  4px rgba(255,  45,  85, 0.45), 0 0 24px  8px rgba(191,  90, 242, 0.30), 0 0 44px 14px rgba( 50, 173, 230, 0.18); }
     }
 
     /* Responsive adjustments for narrow and medium containers */

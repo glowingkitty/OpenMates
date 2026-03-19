@@ -153,16 +153,6 @@
         inherits: false;
     }
 
-    /*
-     * Register --glow-angle for the outer glow halo layer — offset so the
-     * bloom trails the sharp border ring, creating Apple Intelligence depth.
-     */
-    @property --glow-angle {
-        syntax: '<angle>';
-        initial-value: 60deg;
-        inherits: false;
-    }
-
     .thinking-section {
         margin-bottom: 12px;
         border-radius: 8px;
@@ -172,64 +162,20 @@
         position: relative;
         /* isolation: isolate keeps the ::before gradient behind children */
         isolation: isolate;
-        transition: border-color 0.2s ease, background-color 0.2s ease;
+        transition: border-color 0.6s ease, background-color 0.2s ease;
     }
 
-    /*
-     * Outer glow while streaming — radiates outside the container boundary.
-     * Using filter: drop-shadow on the element itself would be clipped by
-     * overflow:hidden, so we animate a dedicated outer glow via a wide
-     * box-shadow on the container. The shadow colour cycles through the
-     * rainbow hues at 1/3 of the ring speed, approximating the Apple
-     * Intelligence "breathing" ambient glow that trails the border arc.
-     */
     .thinking-section.streaming {
         /* Remove the static accent border — the animated pseudo-element replaces it */
         border-color: transparent;
-        /* Outer glow — three stacked shadows at increasing radius/spread for bloom depth */
-        box-shadow:
-            0 0  8px  2px rgba(255,  45,  85, 0.40),   /* tight red halo      */
-            0 0 18px  6px rgba(191,  90, 242, 0.28),   /* mid purple bloom    */
-            0 0 32px 10px rgba( 50, 173, 230, 0.18);   /* wide cyan diffusion */
-        animation: glow-shift 9s linear infinite;       /* 3× ring speed = same phase */
     }
 
     /*
-     * Animated gradient border while streaming.
-     * A conic-gradient rotates slowly inside a ::before pseudo-element that is
-     * positioned to match the container edges. The container clips it so only
-     * the 1px border strip is visible — giving a subtle "living" border effect.
-     * The ::after pseudo-element acts as the interior background fill so the
-     * gradient doesn't bleed into the content area.
-     *
-     * Technique: pseudo-element sits behind all children (z-index: -1) and is
-     * slightly larger than the box so the gradient covers the border zone.
-     * overflow:hidden on the parent clips it to the border-radius shape.
+     * ::before — the rotating rainbow ring, always present but invisible until streaming.
+     * opacity transitions from 0 → 1 when .streaming is added, giving a smooth fade-in.
+     * The same transition fades it back out when streaming ends.
      */
-
-
-    /*
-     * Apple Intelligence-style rainbow glow border.
-     *
-     * Layer 1 (::before) — the sharp rotating rainbow ring.
-     * A full-spectrum conic-gradient spins around the container perimeter.
-     * filter: blur(1px) softens the hard colour stops just enough to give
-     * the "luminous" quality without losing the rainbow definition.
-     *
-     * Layer 2 (::after) is split: the top half handles the interior fill mask
-     * so the gradient doesn't bleed into the content; the second pseudo-element
-     * is simulated via a box-shadow on ::before for the outer glow halo.
-     *
-     * Apple Intelligence colour stops (sampled from recorded references):
-     * magenta → orange → yellow → green → cyan → blue → violet → magenta
-     */
-    /*
-     * ::before — the sharp rotating rainbow ring.
-     * blur(2px) on the ring itself softens colour-stop transitions so the
-     * hues blend smoothly (no hard lines between red and orange, etc.)
-     * while still reading as a distinct coloured border — not a pure blur.
-     */
-    .thinking-section.streaming::before {
+    .thinking-section::before {
         content: '';
         position: absolute;
         inset: -2px;
@@ -247,23 +193,33 @@
         );
         animation: rainbow-spin 3s linear infinite;
         z-index: -1;
-        opacity: 1;
+        opacity: 0;
         filter: blur(2px);
+        transition: opacity 0.6s ease;
+    }
+
+    .thinking-section.streaming::before {
+        opacity: 1;
     }
 
     /*
      * ::after — interior fill mask.
-     * Sits above the ::before gradient ring but behind all children,
-     * covering the content area so the rainbow doesn't bleed into the text.
+     * Always present; becomes visible (same background as container) when streaming
+     * so the gradient ring doesn't bleed into the content area.
      * inset: 2px = the 2px border zone exposed by ::before's -2px inset.
      */
-    .thinking-section.streaming::after {
+    .thinking-section::after {
         content: '';
         position: absolute;
         inset: 2px;
         border-radius: 7px;
-        background: var(--color-surface-secondary, rgba(0, 0, 0, 0.03));
+        background: transparent;
         z-index: -1;
+        transition: background 0.6s ease;
+    }
+
+    .thinking-section.streaming::after {
+        background: var(--color-surface-secondary, rgba(0, 0, 0, 0.03));
     }
     
     .thinking-section.expanded {
@@ -392,50 +348,15 @@
         to   { --gradient-angle: 360deg; }
     }
 
-    /*
-     * glow-shift — smoothly cycles the outer box-shadow colours through the
-     * same rainbow spectrum as the border ring, at 1/3 of the ring speed
-     * (9s vs 3s) so the glow colour always roughly matches the arc region
-     * nearest the top of the container. Pure CSS approximation — no JS.
-     */
-    @keyframes glow-shift {
-        0%   { box-shadow: 0 0  8px  2px rgba(255,  45,  85, 0.40), 0 0 18px  6px rgba(191,  90, 242, 0.28), 0 0 32px 10px rgba( 50, 173, 230, 0.18); }
-        16%  { box-shadow: 0 0  8px  2px rgba(255, 107,  43, 0.40), 0 0 18px  6px rgba(255,  45,  85, 0.28), 0 0 32px 10px rgba(191,  90, 242, 0.18); }
-        33%  { box-shadow: 0 0  8px  2px rgba(255, 214,  10, 0.40), 0 0 18px  6px rgba(255, 107,  43, 0.28), 0 0 32px 10px rgba(255,  45,  85, 0.18); }
-        50%  { box-shadow: 0 0  8px  2px rgba( 48, 209,  88, 0.40), 0 0 18px  6px rgba(255, 214,  10, 0.28), 0 0 32px 10px rgba(255, 107,  43, 0.18); }
-        66%  { box-shadow: 0 0  8px  2px rgba( 50, 173, 230, 0.40), 0 0 18px  6px rgba( 48, 209,  88, 0.28), 0 0 32px 10px rgba(255, 214,  10, 0.18); }
-        83%  { box-shadow: 0 0  8px  2px rgba(191,  90, 242, 0.40), 0 0 18px  6px rgba( 50, 173, 230, 0.28), 0 0 32px 10px rgba( 48, 209,  88, 0.18); }
-        100% { box-shadow: 0 0  8px  2px rgba(255,  45,  85, 0.40), 0 0 18px  6px rgba(191,  90, 242, 0.28), 0 0 32px 10px rgba( 50, 173, 230, 0.18); }
-    }
-
-    /* Dark mode variant — wider radius, no opacity boost needed on dark bg */
-    @keyframes glow-shift-dark {
-        0%   { box-shadow: 0 0 12px  4px rgba(255,  45,  85, 0.50), 0 0 24px  8px rgba(191,  90, 242, 0.35), 0 0 40px 14px rgba( 50, 173, 230, 0.22); }
-        16%  { box-shadow: 0 0 12px  4px rgba(255, 107,  43, 0.50), 0 0 24px  8px rgba(255,  45,  85, 0.35), 0 0 40px 14px rgba(191,  90, 242, 0.22); }
-        33%  { box-shadow: 0 0 12px  4px rgba(255, 214,  10, 0.50), 0 0 24px  8px rgba(255, 107,  43, 0.35), 0 0 40px 14px rgba(255,  45,  85, 0.22); }
-        50%  { box-shadow: 0 0 12px  4px rgba( 48, 209,  88, 0.50), 0 0 24px  8px rgba(255, 214,  10, 0.35), 0 0 40px 14px rgba(255, 107,  43, 0.22); }
-        66%  { box-shadow: 0 0 12px  4px rgba( 50, 173, 230, 0.50), 0 0 24px  8px rgba( 48, 209,  88, 0.35), 0 0 40px 14px rgba(255, 214,  10, 0.22); }
-        83%  { box-shadow: 0 0 12px  4px rgba(191,  90, 242, 0.50), 0 0 24px  8px rgba( 50, 173, 230, 0.35), 0 0 40px 14px rgba( 48, 209,  88, 0.22); }
-        100% { box-shadow: 0 0 12px  4px rgba(255,  45,  85, 0.50), 0 0 24px  8px rgba(191,  90, 242, 0.35), 0 0 40px 14px rgba( 50, 173, 230, 0.22); }
-    }
-    
     /* Dark mode support */
     :global(.dark) .thinking-section {
         background: var(--color-surface-secondary, rgba(255, 255, 255, 0.03));
         border-color: var(--color-border-subtle, rgba(255, 255, 255, 0.1));
     }
 
-    /*
-     * Dark mode streaming: transparent border + outer glow animation.
-     * Wider radius/spread than light mode since dark backgrounds let the glow bloom further.
-     */
+    /* Dark mode streaming: transparent border (ring pseudo-element handles the visual) */
     :global(.dark) .thinking-section.streaming {
         border-color: transparent;
-        box-shadow:
-            0 0 12px  4px rgba(255,  45,  85, 0.50),
-            0 0 24px  8px rgba(191,  90, 242, 0.35),
-            0 0 40px 14px rgba( 50, 173, 230, 0.22);
-        animation: glow-shift-dark 9s linear infinite;
     }
 
     /* Dark interior fill mask */
