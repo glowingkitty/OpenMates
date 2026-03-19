@@ -208,7 +208,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        batch: [0, 1, 2, 3]
+        include:
+          - batch: 0
+            account: 1
+          - batch: 1
+            account: 2
+          - batch: 2
+            account: 3
+          - batch: 3
+            account: 4
     steps:
       - uses: actions/checkout@v4
         with:
@@ -240,9 +248,9 @@ jobs:
             > ../../../test-results/playwright-${{ matrix.batch }}.json 2>&1 || true
         env:
           PLAYWRIGHT_TEST_BASE_URL: ${{ needs.open-tunnel.outputs.tunnel_url }}
-          OPENMATES_TEST_ACCOUNT_1_EMAIL: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_EMAIL', matrix.batch + 1)] }}
-          OPENMATES_TEST_ACCOUNT_1_PASSWORD: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_PASSWORD', matrix.batch + 1)] }}
-          OPENMATES_TEST_ACCOUNT_1_OTP_KEY: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_OTP_KEY', matrix.batch + 1)] }}
+          OPENMATES_TEST_ACCOUNT_1_EMAIL: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_EMAIL', matrix.account)] }}
+          OPENMATES_TEST_ACCOUNT_1_PASSWORD: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_PASSWORD', matrix.account)] }}
+          OPENMATES_TEST_ACCOUNT_1_OTP_KEY: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_OTP_KEY', matrix.account)] }}
           PLAYWRIGHT_WORKER_SLOT: "1"
           SIGNUP_TEST_EMAIL_DOMAINS: ${{ secrets.SIGNUP_TEST_EMAIL_DOMAINS }}
           MAILOSAUR_API_KEY: ${{ secrets.MAILOSAUR_API_KEY }}
