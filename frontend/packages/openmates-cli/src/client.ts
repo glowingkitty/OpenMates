@@ -47,6 +47,14 @@ import type {
 } from "./mentions.js";
 import { CHAT_MODELS } from "./mentions.js";
 import type { EncryptedEmbed } from "./embedCreator.js";
+import {
+  generateChatShareBlob,
+  generateEmbedShareBlob,
+  deriveWebOrigin,
+  buildChatShareUrl,
+  buildEmbedShareUrl,
+  type ShareDuration,
+} from "./shareEncryption.js";
 
 // ---------------------------------------------------------------------------
 // Memory type registry — mirrors all production-stage entries from app.yml files.
@@ -2114,6 +2122,120 @@ export class OpenMatesClient {
    */
   getSession(): import("./storage.js").OpenMatesSession {
     return this.requireSession();
+  }
+
+  // ── Share link creation ──────────────────────────────────────────────
+
+  /**
+   * Create a shareable link for a chat.
+   *
+   * Mirrors: SettingsShare.svelte generateShareLink() + shareEncryption.ts generateShareKeyBlob()
+   *
+   * The chat key is decrypted from encrypted_chat_key in the sync cache,
+   * then used to generate the encrypted blob. The chat key bytes never leave
+   * the process — only the blob (which the recipient needs to access the chat)
+   * is placed in the URL fragment (never sent to the server).
+   *
+   * @param chatId          UUID or short ID of the chat to share
+   * @param durationSeconds Expiry (0 = no expiry, default)
+   * @param password        Optional password protection (max 10 chars)
+   * @returns Full share URL, e.g. https://openmates.org/share/chat/{id}#key={blob}
+   */
+  async createChatShareLink(
+    chatId: string,
+    durationSeconds: ShareDuration = 0,
+    password?: string,
+  ): Promise<string> {
+    const session = this.requireSession();
+    const masterKey = base64ToBytes(session.masterKeyExportedB64);
+
+    // Ensure sync cache is fresh so we have the encrypted_chat_key
+    const cache = await this.ensureSynced();
+
+    // Resolve the chat — support short IDs and "last"
+    let resolvedId = chatId;
+    if (chatId.toLowerCase() === "__last__" || chatId.toLowerCase() === "last") {
+      const sorted = [...cache.chats].sort(
+        (a, b) =>
+          Number(b.details.updated_at ?? 0) - Number(a.details.updated_at ?? 0),
+      );
+      if (!sorted.length) throw new Error("No chats found.");
+      resolvedId = String(sorted[0].details.id ?? "");
+    } else {
+      const found = cache.chats.find(
+        (c) =>
+          String(c.details.id ?? "").startsWith(chatId) ||
+          String(c.details.id ?? "") === chatId,
+      );
+      if (!found) throw new Error(`Chat '${chatId}' not found. Run 'openmates chats list' first.`);
+      resolvedId = String(found.details.id ?? "");
+    }
+
+    // Decrypt the chat key from encrypted_chat_key
+    const chat = cache.chats.find((c) => String(c.details.id ?? "") === resolvedId);
+    if (!chat) throw new Error(`Chat '${resolvedId}' not in local cache.`);
+
+    const encChatKey = typeof chat.details.encrypted_chat_key === "string"
+      ? chat.details.encrypted_chat_key
+      : null;
+    if (!encChatKey) {
+      throw new Error("Chat does not have an encryption key. It may be a public/demo chat — share it directly by its URL.");
+    }
+
+    const chatKeyBytes = await decryptBytesWithAesGcm(encChatKey, masterKey);
+    if (!chatKeyBytes) throw new Error("Failed to decrypt chat key. Try logging in again.");
+
+    const blob = await generateChatShareBlob(resolvedId, chatKeyBytes, durationSeconds, password);
+    const origin = deriveWebOrigin(session.apiUrl);
+    return buildChatShareUrl(origin, resolvedId, blob);
+  }
+
+  /**
+   * Create a shareable link for an embed.
+   *
+   * Mirrors: SettingsShare.svelte (embed path) + embedShareEncryption.ts generateEmbedShareKeyBlob()
+   *
+   * Resolves the embed's AES-256 key using the same 3-strategy key resolution
+   * as resolveEmbedKey(), then generates the encrypted blob.
+   *
+   * @param embedIdOrShort  UUID or short prefix of the embed to share
+   * @param durationSeconds Expiry (0 = no expiry, default)
+   * @param password        Optional password protection (max 10 chars)
+   * @returns Full share URL, e.g. https://openmates.org/share/embed/{id}#key={blob}
+   */
+  async createEmbedShareLink(
+    embedIdOrShort: string,
+    durationSeconds: ShareDuration = 0,
+    password?: string,
+  ): Promise<string> {
+    const session = this.requireSession();
+    const masterKey = base64ToBytes(session.masterKeyExportedB64);
+
+    const cache = await this.ensureSynced();
+    const { createHash } = await import("node:crypto");
+
+    const embed = cache.embeds.find(
+      (e) =>
+        String(e.embed_id ?? "").startsWith(embedIdOrShort) ||
+        String(e.id ?? "").startsWith(embedIdOrShort),
+    );
+    if (!embed) {
+      throw new Error(`Embed '${embedIdOrShort}' not found in local cache.`);
+    }
+
+    const embedId = String(embed.embed_id ?? embed.id ?? "");
+    const hashedEmbedId = createHash("sha256").update(embedId).digest("hex");
+
+    const embedKeyBytes = await this.resolveEmbedKey(
+      cache, masterKey, embed as Record<string, unknown>, embedId, hashedEmbedId,
+    );
+    if (!embedKeyBytes) {
+      throw new Error("Could not resolve embed encryption key. Ensure you are logged in as the owner.");
+    }
+
+    const blob = await generateEmbedShareBlob(embedId, embedKeyBytes, durationSeconds, password);
+    const origin = deriveWebOrigin(session.apiUrl);
+    return buildEmbedShareUrl(origin, embedId, blob);
   }
 
   // ── Mention context builder ─────────────────────────────────────────

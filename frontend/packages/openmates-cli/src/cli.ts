@@ -30,6 +30,7 @@ import {
 import { OutputRedactor } from "./outputRedactor.js";
 import { processFiles, formatEmbedsForMessage } from "./fileEmbed.js";
 import { encryptEmbed, type EncryptedEmbed } from "./embedCreator.js";
+import type { ShareDuration } from "./shareEncryption.js";
 import { uploadFile } from "./uploadService.js";
 import { toonEncodeContent } from "./embedCreator.js";
 import { renderEmbedPreview, renderEmbedFullscreen } from "./embedRenderers.js";
@@ -347,6 +348,43 @@ async function handleChats(
     return;
   }
 
+  if (subcommand === "share") {
+    const id = rest[0] || "last";
+    const durationSeconds = (
+      typeof flags.expires === "string"
+        ? parseInt(flags.expires, 10)
+        : 0
+    ) as ShareDuration;
+    const password =
+      typeof flags.password === "string" ? flags.password : undefined;
+
+    if (password && password.length > 10) {
+      console.error("Password must be at most 10 characters.");
+      process.exit(1);
+    }
+
+    try {
+      const url = await client.createChatShareLink(id, durationSeconds, password);
+      if (flags.json === true) {
+        printJson({ url, chat_id: id, expires: durationSeconds, password_protected: !!password });
+      } else {
+        process.stdout.write(`\n[1mChat share link[0m\n`);
+        process.stdout.write(`${url}\n\n`);
+        if (durationSeconds > 0) {
+          process.stdout.write(`[2mExpires in ${humanizeDuration(durationSeconds)}[0m\n`);
+        }
+        if (password) {
+          process.stdout.write(`[2mPassword protected[0m\n`);
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`Share link error: ${msg}`);
+      process.exit(1);
+    }
+    return;
+  }
+
   console.error(`Unknown chats subcommand '${subcommand}'.\n`);
   printChatsHelp();
   process.exit(1);
@@ -641,6 +679,47 @@ async function handleEmbeds(
       printJson(embed);
     } else {
       await renderEmbedFullscreen(embed, client);
+    }
+    return;
+  }
+
+  if (subcommand === "share") {
+    const id = rest[0];
+    if (!id) {
+      console.error("Missing embed ID. Usage: openmates embeds share <embed-id>");
+      process.exit(1);
+    }
+    const durationSeconds = (
+      typeof flags.expires === "string"
+        ? parseInt(flags.expires, 10)
+        : 0
+    ) as ShareDuration;
+    const password =
+      typeof flags.password === "string" ? flags.password : undefined;
+
+    if (password && password.length > 10) {
+      console.error("Password must be at most 10 characters.");
+      process.exit(1);
+    }
+
+    try {
+      const url = await client.createEmbedShareLink(id, durationSeconds, password);
+      if (flags.json === true) {
+        printJson({ url, embed_id: id, expires: durationSeconds, password_protected: !!password });
+      } else {
+        process.stdout.write(`\n[1mEmbed share link[0m\n`);
+        process.stdout.write(`${url}\n\n`);
+        if (durationSeconds > 0) {
+          process.stdout.write(`[2mExpires in ${humanizeDuration(durationSeconds)}[0m\n`);
+        }
+        if (password) {
+          process.stdout.write(`[2mPassword protected[0m\n`);
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`Share link error: ${msg}`);
+      process.exit(1);
     }
     return;
   }
@@ -2692,6 +2771,14 @@ async function handleMentions(
 // Help text
 // ---------------------------------------------------------------------------
 
+/** Format a share duration for display */
+function humanizeDuration(seconds: number): string {
+  if (seconds === 0) return "never";
+  if (seconds < 3600) return `${Math.round(seconds / 60)} minute(s)`;
+  if (seconds < 86400) return `${Math.round(seconds / 3600)} hour(s)`;
+  return `${Math.round(seconds / 86400)} day(s)`;
+}
+
 function printMentionsHelp(): void {
   console.log(`Mentions commands:
   openmates mentions list [--type <type>] [--json]
@@ -2741,6 +2828,7 @@ function printChatsHelp(): void {
   openmates chats new <message> [--json]
   openmates chats send [--chat <id>] [--incognito] <message> [--json]
   openmates chats delete <id1> [id2] [id3] ... [--yes]
+  openmates chats share [<chat-id>] [--expires <seconds>] [--password <pwd>] [--json]
   openmates chats incognito <message> [--json]
   openmates chats incognito-history [--json]
   openmates chats incognito-clear
@@ -2778,7 +2866,10 @@ Examples:
   openmates chats send --chat d262cb68 "follow-up question"
   openmates chats new "@Sophia help me with @./src/app.ts"
   openmates chats new "@best review @/home/user/project/.env"
-  openmates chats delete d262cb68 a1b2c3d4`);
+  openmates chats delete d262cb68 a1b2c3d4
+  openmates chats share d262cb68
+  openmates chats share last --expires 604800
+  openmates chats share d262cb68 --password mypass`);
 }
 
 function printAppsHelp(): void {
@@ -2809,6 +2900,7 @@ Examples:
 function printEmbedsHelp(): void {
   console.log(`Embeds commands:
   openmates embeds show <embed-id> [--json]
+  openmates embeds share <embed-id> [--expires <seconds>] [--password <pwd>] [--json]
 
 'show' displays the full decrypted content of an embed.
 The embed ID can be the full UUID or just the first 8 characters.
