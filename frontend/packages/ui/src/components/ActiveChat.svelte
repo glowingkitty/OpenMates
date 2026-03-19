@@ -3313,11 +3313,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      */
     let suggestionsWouldOverlapWelcome = $state(false);
 
-    // Cache the last measured welcome content height so that when the welcome
-    // block is hidden (hideWelcomeForKeyboard removes it from DOM), we can still
-    // use its height for overlap calculations. Without this, hiding the welcome
-    // causes welcomeHeight=0 → no overlap → show welcome → overlap again → hide
-    // → infinite flicker loop.
+    // Cache the last measured welcome content height so that if getBoundingClientRect()
+    // ever returns 0 (edge case), we still have a valid value for overlap calculations.
+    // With the DOM-keep approach (opacity:0 via .hidden-for-keyboard), the element
+    // stays in the DOM and should always return its real height — but the cache
+    // ensures robustness in case of any transient zero-height measurement.
     let lastKnownWelcomeHeight = 0;
 
     // Estimated height the suggestions panel occupies (header + 3 items + margin).
@@ -3347,9 +3347,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
         // Height of the welcome content block (greeting + resume card).
         // When the element is visible, measure it and cache the value.
-        // When hidden (e.g. hideWelcomeForKeyboard removed it from DOM), use the
-        // cached height so the overlap calculation remains stable — otherwise the
-        // cycle hide→welcomeHeight=0→noOverlap→show→overlap→hide causes flicker.
+        // When hidden via .hidden-for-keyboard (opacity:0, still in DOM), the element
+        // still has its real layout height (opacity doesn't affect layout), so
+        // getBoundingClientRect() returns the true height. The cache exists as a
+        // fallback for any edge-case where height is temporarily reported as 0.
         const measuredWelcomeHeight = welcomeContentEl ? welcomeContentEl.getBoundingClientRect().height : 0;
         if (measuredWelcomeHeight > 0) {
             lastKnownWelcomeHeight = measuredWelcomeHeight;
@@ -9030,8 +9031,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     <!-- Hidden while keyboard is open (same rule as welcome greeting) -->
                     <!-- Shown to ALL users: defaults for guests, personalized for authenticated users -->
                     <!-- Rendered FIRST so it appears above the top-buttons row on the welcome screen -->
-                    {#if showWelcome && !hideWelcomeForKeyboard}
-                        <div class="daily-inspiration-area">
+                    <!-- Kept in the DOM (not destroyed) when keyboard opens to prevent iOS layout reflow
+                         during keyboard animation. Instead, opacity fades to 0 and pointer-events are
+                         disabled. This avoids the scroll-position jumps caused by DOM churn on iOS Safari. -->
+                    {#if showWelcome}
+                        <div class="daily-inspiration-area" class:hidden-for-keyboard={hideWelcomeForKeyboard}>
                             <DailyInspirationBanner
                                 onStartChat={handleStartChatFromInspiration}
                                 onEmbedFullscreen={handleInspirationEmbedFullscreen}
@@ -9149,9 +9153,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
                     <!-- Welcome greeting – always visible on the new chat screen -->
                     <!-- Also hide on mobile when keyboard is open to free up vertical space -->
-                    {#if showWelcome && !hideWelcomeForKeyboard}
+                    <!-- Kept in the DOM (not destroyed) when keyboard opens — see daily-inspiration-area
+                         comment above for the iOS layout-reflow rationale. -->
+                    {#if showWelcome}
                         <div
                             class="center-content"
+                            class:hidden-for-keyboard={hideWelcomeForKeyboard}
                             bind:this={welcomeContentEl}
                         >
                             <div class="team-profile">
@@ -11785,6 +11792,51 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     .daily-inspiration-area {
         width: 100%;
         box-sizing: border-box;
+    }
+
+    /*
+     * Keyboard-open hiding: fade out (don't destroy) welcome-screen elements when the
+     * virtual keyboard opens on mobile/iOS. Keeping elements in the DOM prevents the
+     * layout reflow that causes the message input to jump out of view on iOS Safari —
+     * the browser's scroll-adjustment algorithm gets confused when large DOM subtrees
+     * are destroyed while the keyboard animation is in progress.
+     *
+     * .center-content uses position:absolute so it has no effect on flow layout.
+     * .daily-inspiration-area is in-flow, so we also collapse its height to avoid
+     * pushing the top-buttons row down while invisible.
+     *
+     * pointer-events:none prevents accidental taps on invisible content.
+     * visibility:hidden (via transition delay) removes it from the accessibility tree
+     * after the fade completes.
+     */
+    .daily-inspiration-area.hidden-for-keyboard,
+    .center-content.hidden-for-keyboard {
+        opacity: 0;
+        pointer-events: none;
+        /* Delay visibility:hidden until after the opacity transition completes */
+        visibility: hidden;
+        transition:
+            opacity 180ms ease-out,
+            visibility 0s linear 180ms;
+    }
+
+    .daily-inspiration-area:not(.hidden-for-keyboard),
+    .center-content:not(.hidden-for-keyboard) {
+        opacity: 1;
+        pointer-events: auto;
+        visibility: visible;
+        transition:
+            opacity 220ms ease-in,
+            visibility 0s linear 0s;
+    }
+
+    /* When hiding the daily inspiration area, collapse its height so it doesn't
+     * reserve vertical space while invisible (center-content is position:absolute,
+     * so height-collapse is not needed there). We do NOT animate the height —
+     * an instant collapse avoids a secondary reflow during the keyboard animation. */
+    .daily-inspiration-area.hidden-for-keyboard {
+        max-height: 0;
+        overflow: hidden;
     }
 
     /* Add styles for left and right button containers */
