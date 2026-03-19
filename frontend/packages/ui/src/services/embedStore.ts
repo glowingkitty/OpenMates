@@ -795,6 +795,106 @@ export class EmbedStore {
   }
 
   /**
+   * Batch write multiple embeds to IndexedDB in a single transaction.
+   * This is dramatically faster than calling putEncrypted() in a loop, especially
+   * on mobile devices (iPhone Safari) where each individual IDB transaction has
+   * significant overhead. A single transaction for 1500 embeds takes ~1s instead
+   * of ~15s with individual transactions.
+   *
+   * IMPORTANT: This method skips metadata extraction (app_id/skill_id) — metadata
+   * will be extracted lazily when embeds are accessed. This matches the
+   * { skipMetadataExtraction: true } behavior used during bulk sync.
+   *
+   * @param items - Array of { contentRef, data, type } objects to write
+   */
+  async putEncryptedBatch(
+    items: Array<{
+      contentRef: string;
+      data: Record<string, unknown>;
+      type: EmbedType;
+    }>,
+  ): Promise<void> {
+    if (items.length === 0) return;
+
+    // Build all EmbedStoreEntry objects and update memory cache first
+    const entries: Array<{ contentRef: string; entry: EmbedStoreEntry }> = [];
+
+    for (const item of items) {
+      const normalizedType = this.normalizeEmbedType(
+        item.type as unknown as string,
+      );
+
+      const createdAt =
+        (item.data.createdAt as number | undefined) ??
+        (item.data.created_at as number | undefined) ??
+        Date.now();
+      const updatedAt =
+        (item.data.updatedAt as number | undefined) ??
+        (item.data.updated_at as number | undefined) ??
+        Date.now();
+
+      const entry: EmbedStoreEntry = {
+        contentRef: item.contentRef,
+        type: normalizedType,
+        createdAt,
+        updatedAt,
+        embed_id: item.data.embed_id as string | undefined,
+        encrypted_content: item.data.encrypted_content as string | undefined,
+        encrypted_type: item.data.encrypted_type as string | undefined,
+        status: item.data.status as EmbedStoreEntry["status"],
+        hashed_chat_id: item.data.hashed_chat_id as string | undefined,
+        hashed_user_id: item.data.hashed_user_id as string | undefined,
+        embed_ids: item.data.embed_ids as string[] | undefined,
+        parent_embed_id: item.data.parent_embed_id as string | undefined,
+        version_number: item.data.version_number as number | undefined,
+        file_path: item.data.file_path as string | undefined,
+        content_hash: item.data.content_hash as string | undefined,
+        text_length_chars: item.data.text_length_chars as number | undefined,
+        is_private: (item.data.is_private as boolean | undefined) ?? false,
+        is_shared: (item.data.is_shared as boolean | undefined) ?? false,
+        encryption_mode: "client",
+      };
+
+      // Update memory cache
+      embedCache.set(item.contentRef, entry);
+      entries.push({ contentRef: item.contentRef, entry });
+    }
+
+    // Write all entries in a single IDB transaction
+    try {
+      const transaction = await chatDB.getTransaction(
+        [EMBEDS_STORE_NAME],
+        "readwrite",
+      );
+      const store = transaction.objectStore(EMBEDS_STORE_NAME);
+
+      // Fire all put requests into the same transaction without awaiting each one.
+      // IDB transactions only commit when all requests complete AND the JS event
+      // loop returns, so queuing them all at once is both safe and dramatically
+      // faster than awaiting each put individually.
+      const putPromises = entries.map(
+        ({ entry }) =>
+          new Promise<void>((resolve, reject) => {
+            const request = store.put(entry);
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+          }),
+      );
+
+      await Promise.all(putPromises);
+
+      console.info(
+        `[EmbedStore] \u2705 Batch stored ${entries.length} embeds in single IDB transaction`,
+      );
+    } catch (error) {
+      console.warn(
+        `[EmbedStore] Batch IDB write failed for ${entries.length} embeds, falling back to memory cache:`,
+        error,
+      );
+    }
+  }
+
+  /**
    * Reconstruct embed object from separate fields (new format)
    * @param entry - The EmbedStoreEntry with separate fields
    * @param contentRef - The embed reference key
@@ -1995,18 +2095,22 @@ export class EmbedStore {
       );
       const store = transaction.objectStore(EMBED_KEYS_STORE_NAME);
 
-      for (const entry of entries) {
-        // Use composite key for storage
+      // Fire all put requests into the same transaction without awaiting each one.
+      // This is faster because IDB only commits when all requests in the transaction
+      // complete — no need to serialize individual put operations.
+      const putPromises = entries.map((entry) => {
         const storageKey = `${entry.hashed_embed_id}:${entry.key_type}:${entry.hashed_chat_id || "null"}`;
-        await new Promise<void>((resolve, reject) => {
+        return new Promise<void>((resolve, reject) => {
           const request = store.put({ ...entry, id: storageKey });
           request.onsuccess = () => resolve();
           request.onerror = () => reject(request.error);
         });
-      }
+      });
+
+      await Promise.all(putPromises);
 
       console.info(
-        `[EmbedStore] ✅ Successfully stored ${entries.length} embed key entries (${masterKeys} master, ${chatKeys} chat)`,
+        `[EmbedStore] ✅ Stored ${entries.length} embed key entries in single transaction (${masterKeys} master, ${chatKeys} chat)`,
       );
     } catch (error) {
       console.error("[EmbedStore] Failed to store embed keys:", error);

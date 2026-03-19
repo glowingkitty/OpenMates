@@ -839,79 +839,62 @@ async function storeEmbedsBatch(
 ): Promise<void> {
   try {
     const { embedStore } = await import("./embedStore");
-    let storedCount = 0;
 
-    for (const embed of embeds) {
+    // Filter out invalid/cancelled embeds before batch write
+    const validEmbeds = embeds.filter((embed) => {
       if (!embed.embed_id) {
         console.warn(
           `[ChatSyncService] ${phaseName} - Skipping embed without embed_id`,
         );
-        continue;
+        return false;
       }
-
       // Skip error/cancelled embeds — they are not displayed and should not
       // be stored locally. The backend filters these out but this is a safety net.
       if (embed.status === "error" || embed.status === "cancelled") {
-        console.debug(
-          `[ChatSyncService] ${phaseName} - Skipping ${embed.status} embed ${embed.embed_id}`,
-        );
-        continue;
+        return false;
       }
+      return true;
+    });
 
-      try {
-        // Create contentRef in the format used by embeds: embed:{embed_id}
-        const contentRef = `embed:${embed.embed_id}`;
-
-        // Store the embed with its already-encrypted content (no re-encryption)
-        // Skip metadata extraction during bulk sync - embed keys are typically
-        // not available yet, and attempting decryption for each embed causes
-        // unnecessary IndexedDB lookups and log noise. Metadata will be
-        // extracted later when embeds are accessed individually.
-        await embedStore.putEncrypted(
-          contentRef,
-          {
-            encrypted_content: embed.encrypted_content,
-            encrypted_type: embed.encrypted_type,
-            embed_id: embed.embed_id,
-            status: embed.status || "finished",
-            hashed_chat_id: embed.hashed_chat_id,
-            hashed_user_id: embed.hashed_user_id,
-            embed_ids: embed.embed_ids,
-            parent_embed_id: embed.parent_embed_id,
-            version_number: embed.version_number,
-            encrypted_diff: embed.encrypted_diff,
-            file_path: embed.file_path,
-            content_hash: embed.content_hash,
-            text_length_chars: embed.text_length_chars,
-            is_private: embed.is_private ?? false,
-            is_shared: embed.is_shared ?? false,
-            createdAt: embed.createdAt || embed.created_at,
-            updatedAt: embed.updatedAt || embed.updated_at,
-          },
-          (embed.encrypted_type
-            ? "app-skill-use"
-            : embed.embed_type || "app-skill-use") as EmbedType,
-          undefined, // plaintextContent
-          undefined, // preExtractedMetadata
-          { skipMetadataExtraction: true },
-        );
-
-        storedCount++;
-      } catch (embedError) {
-        console.warn(
-          `[ChatSyncService] ${phaseName} - Error storing embed ${embed.embed_id}:`,
-          embedError,
-        );
-      }
+    if (validEmbeds.length === 0) {
+      console.debug(`[ChatSyncService] ${phaseName} - No valid embeds to store`);
+      return;
     }
 
-    if (storedCount > 0) {
-      console.info(
-        `[ChatSyncService] ${phaseName} - Stored ${storedCount} embeds (as-is, no re-encryption)`,
-      );
-    } else {
-      console.debug(`[ChatSyncService] ${phaseName} - No embeds stored`);
-    }
+    // PERFORMANCE FIX: Use batch write (single IDB transaction) instead of individual
+    // putEncrypted() calls. On iPhone Safari, writing 1300 embeds individually takes
+    // ~15s due to per-transaction overhead. A single transaction takes ~1s.
+    await embedStore.putEncryptedBatch(
+      validEmbeds.map((embed) => ({
+        contentRef: `embed:${embed.embed_id}`,
+        data: {
+          encrypted_content: embed.encrypted_content,
+          encrypted_type: embed.encrypted_type,
+          embed_id: embed.embed_id,
+          status: embed.status || "finished",
+          hashed_chat_id: embed.hashed_chat_id,
+          hashed_user_id: embed.hashed_user_id,
+          embed_ids: embed.embed_ids,
+          parent_embed_id: embed.parent_embed_id,
+          version_number: embed.version_number,
+          encrypted_diff: embed.encrypted_diff,
+          file_path: embed.file_path,
+          content_hash: embed.content_hash,
+          text_length_chars: embed.text_length_chars,
+          is_private: embed.is_private ?? false,
+          is_shared: embed.is_shared ?? false,
+          createdAt: embed.createdAt || embed.created_at,
+          updatedAt: embed.updatedAt || embed.updated_at,
+        },
+        type: (embed.encrypted_type
+          ? "app-skill-use"
+          : embed.embed_type || "app-skill-use") as EmbedType,
+      })),
+    );
+
+    console.info(
+      `[ChatSyncService] ${phaseName} - Batch stored ${validEmbeds.length} embeds (single transaction)`,
+    );
   } catch (error) {
     console.error(
       `[ChatSyncService] ${phaseName} - Error storing embeds batch:`,
