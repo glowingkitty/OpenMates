@@ -45,6 +45,8 @@ from backend.core.api.app.routes import daily_inspirations_api  # noqa: E402 # I
 from backend.core.api.app.routes import analytics_beacon  # noqa: E402 # Import analytics beacon router (privacy-preserving first-party analytics)
 from backend.core.api.app.routes import debug_sync  # noqa: E402 # Import debug sync status router (JWT-authed, non-admin, for window.debug integration)
 from backend.core.api.app.routes import settings_software_update  # noqa: E402 # Import software update settings router (admin-only)
+from backend.core.api.app.routers import webhooks as webhooks_router  # noqa: E402 # Webhook CRUD + incoming webhook handler
+from backend.core.api.app.routers import internal_tunnel  # noqa: E402 # Ephemeral tunnel management for CI
 from backend.core.api.app.services.directus import DirectusService  # noqa: E402
 from backend.core.api.app.services.cache import CacheService  # noqa: E402
 from backend.core.api.app.services.metrics import MetricsService  # noqa: E402
@@ -1650,6 +1652,8 @@ def create_app() -> FastAPI:
     app.include_router(debug_sync.router, include_in_schema=False)  # Debug sync status - JWT auth, no admin required, window.debug integration
     app.include_router(settings_software_update.router, include_in_schema=False)  # Software update settings - admin only, not in public API docs
     app.include_router(push_router, include_in_schema=False)  # Push notification routes - VAPID key + subscription management
+    app.include_router(webhooks_router.router, include_in_schema=True)  # Webhook CRUD + incoming webhook handler (JWT + webhook key auth)
+    app.include_router(internal_tunnel.router, include_in_schema=False)  # Ephemeral tunnel management for CI (HMAC auth)
     from backend.core.api.app.routes import usage_api
     app.include_router(usage_api.router, include_in_schema=True)  # Usage API router - supports both session and API key auth
     

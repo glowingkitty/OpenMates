@@ -3634,6 +3634,68 @@ def cmd_backlog_list(args: argparse.Namespace) -> None:
     print("Add new:   sessions.py backlog-add --title \"...\" --description \"...\" [--files f1 f2]")
 
 
+def cmd_trigger_tests(args: argparse.Namespace) -> None:
+    """Trigger the GitHub Actions daily test workflow via gh CLI."""
+    suite = getattr(args, "suite", "all") or "all"
+    env = getattr(args, "env", "development") or "development"
+    watch = getattr(args, "watch", False)
+
+    # Check gh is installed
+    rc, _, stderr = _run_cmd(["gh", "--version"])
+    if rc != 0:
+        print("ERROR: 'gh' CLI not found. Install: https://cli.github.com/", file=sys.stderr)
+        sys.exit(1)
+
+    # Check authentication
+    rc, _, _ = _run_cmd(["gh", "auth", "status"])
+    if rc != 0:
+        print("ERROR: Not authenticated with gh. Run: gh auth login", file=sys.stderr)
+        sys.exit(1)
+
+    # Trigger the workflow
+    print(f"Triggering daily-tests workflow (suite={suite}, environment={env})...")
+    rc, stdout, stderr = _run_cmd([
+        "gh", "workflow", "run", "daily-tests.yml",
+        "--ref", "dev",
+        "-f", f"suite={suite}",
+        "-f", f"environment={env}",
+    ], cwd=str(PROJECT_ROOT))
+
+    if rc != 0:
+        print(f"ERROR: Failed to trigger workflow: {stderr}", file=sys.stderr)
+        sys.exit(1)
+
+    print("Workflow triggered successfully.")
+
+    # Wait briefly for GitHub to register the run, then show URL
+    import time as _time
+    _time.sleep(5)
+    rc, stdout, _ = _run_cmd([
+        "gh", "run", "list",
+        "--workflow=daily-tests.yml",
+        "--limit=1",
+        "--json", "databaseId,status,url",
+    ], cwd=str(PROJECT_ROOT))
+
+    if rc == 0 and stdout.strip():
+        try:
+            import json as _json
+            runs = _json.loads(stdout)
+            if runs:
+                run = runs[0]
+                print(f"Run URL: {run.get('url', 'unknown')}")
+                print(f"Status:  {run.get('status', 'unknown')}")
+
+                if watch:
+                    run_id = run.get("databaseId")
+                    if run_id:
+                        print(f"\nWatching run {run_id}...")
+                        os.system(f"gh run watch {run_id}")
+        except Exception:
+            if stdout:
+                print(stdout)
+
+
 def cmd_debug_vercel(args: argparse.Namespace) -> None:
     """Start a session and print Vercel build logs via the REST API (works for ERROR deployments)."""
     # Auto-start a session
@@ -3951,6 +4013,29 @@ def main() -> None:
         help="Specific file path to check documentation for",
     )
 
+    # trigger-tests
+    p_trigger_tests = sub.add_parser(
+        "trigger-tests",
+        help="Trigger the GitHub Actions daily test workflow",
+    )
+    p_trigger_tests.add_argument(
+        "--suite",
+        choices=["all", "playwright", "pytest", "vitest"],
+        default="all",
+        help="Test suite to run (default: all)",
+    )
+    p_trigger_tests.add_argument(
+        "--env",
+        choices=["development", "production"],
+        default="development",
+        help="Target environment (default: development)",
+    )
+    p_trigger_tests.add_argument(
+        "--watch", "-w",
+        action="store_true",
+        help="Stream live status after triggering",
+    )
+
     # debug-vercel
     sub.add_parser(
         "debug-vercel",
@@ -4062,6 +4147,7 @@ def main() -> None:
         "deploy-docs": cmd_deploy_docs,
         "check-tests": cmd_check_tests,
         "check-docs": cmd_check_docs,
+        "trigger-tests": cmd_trigger_tests,
         "debug-vercel": cmd_debug_vercel,
         "code-quality": cmd_code_quality,
         "find-redundancy": cmd_find_redundancy,

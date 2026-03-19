@@ -875,6 +875,192 @@ class DirectusService:
             logger.error(f"Exception updating API key last_used_at for hash {key_hash[:16]}...: {e}", exc_info=True)
             return False
 
+    # -----------------------------------------------------------------------
+    # Webhook key management (incoming webhooks)
+    # Pattern mirrors API key methods above.
+    # -----------------------------------------------------------------------
+
+    async def get_webhook_by_key_hash(self, key_hash: str) -> Optional[Dict[str, Any]]:
+        """
+        Retrieves a webhook record by its key hash (for authentication).
+
+        Args:
+            key_hash: SHA-256 hash of the webhook key
+
+        Returns:
+            Webhook record if found, None otherwise
+        """
+        params = {
+            "filter[key_hash][_eq]": key_hash,
+            "fields": "id,user_id,hashed_user_id,key_hash,encrypted_name,direction,"
+                      "permissions,require_confirmation,is_active,expires_at,last_used_at",
+            "limit": 1
+        }
+        try:
+            items = await self.get_items("webhooks", params)
+            if items:
+                return items[0]
+            return None
+        except Exception as e:
+            logger.error(f"Exception getting webhook by hash: {e}", exc_info=True)
+            return None
+
+    async def get_user_webhooks_by_user_id(self, user_id: str) -> List[Dict[str, Any]]:
+        """
+        Retrieves all webhook keys for a user by user_id.
+
+        Args:
+            user_id: The user's UUID
+
+        Returns:
+            List of webhook records
+        """
+        params = {
+            "filter[user_id][_eq]": user_id,
+            "fields": "id,key_hash,encrypted_key_prefix,encrypted_name,direction,"
+                      "permissions,require_confirmation,is_active,expires_at,last_used_at,created_at",
+            "sort": "-created_at"
+        }
+        try:
+            items = await self.get_items("webhooks", params)
+            return items if items else []
+        except Exception as e:
+            logger.error(f"Exception getting user webhooks for user_id {user_id[:8]}...: {e}", exc_info=True)
+            return []
+
+    async def create_webhook(
+        self,
+        user_id: str,
+        hashed_user_id: str,
+        key_hash: str,
+        encrypted_key_prefix: str,
+        encrypted_name: str,
+        direction: str = "incoming",
+        permissions: Optional[List[str]] = None,
+        require_confirmation: bool = False,
+        expires_at: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Creates a new webhook record in the webhooks collection.
+
+        Args:
+            user_id: The user's UUID
+            hashed_user_id: SHA256 hash of user_id
+            key_hash: SHA-256 hash of the full webhook key
+            encrypted_key_prefix: Client-side encrypted key prefix
+            encrypted_name: Client-side encrypted webhook name
+            direction: "incoming" or "outgoing" (default: "incoming")
+            permissions: List of allowed actions (default: ["trigger_chat"])
+            require_confirmation: Whether user must approve each incoming chat
+            expires_at: Optional expiration timestamp (ISO format)
+
+        Returns:
+            Created webhook record if successful, None otherwise
+        """
+        current_timestamp = datetime.now(timezone.utc).isoformat()
+
+        payload = {
+            "user_id": user_id,
+            "hashed_user_id": hashed_user_id,
+            "key_hash": key_hash,
+            "encrypted_key_prefix": encrypted_key_prefix,
+            "encrypted_name": encrypted_name,
+            "direction": direction,
+            "permissions": permissions or ["trigger_chat"],
+            "require_confirmation": require_confirmation,
+            "is_active": True,
+            "created_at": current_timestamp,
+            "updated_at": current_timestamp,
+        }
+        if expires_at:
+            payload["expires_at"] = expires_at
+
+        try:
+            success, created_item = await self.create_item("webhooks", payload)
+            if success and created_item:
+                logger.info(f"Successfully created webhook for user {user_id}")
+                return created_item
+            else:
+                logger.error(f"Failed to create webhook for user {user_id} - no item returned.")
+                return None
+        except Exception as e:
+            logger.error(f"Exception creating webhook for user {user_id}: {e}", exc_info=True)
+            return None
+
+    async def delete_webhook(self, webhook_id: str) -> bool:
+        """
+        Deletes a webhook by its ID.
+
+        Args:
+            webhook_id: The webhook record ID
+
+        Returns:
+            True if deleted successfully, False otherwise
+        """
+        try:
+            success = await self.delete_item("webhooks", webhook_id)
+            if success:
+                logger.info(f"Successfully deleted webhook {webhook_id}")
+            return success
+        except Exception as e:
+            logger.error(f"Exception deleting webhook {webhook_id}: {e}", exc_info=True)
+            return False
+
+    async def update_webhook_last_used(self, key_hash: str, last_used_at: Optional[str] = None) -> bool:
+        """
+        Updates the last_used_at timestamp for a webhook.
+
+        Args:
+            key_hash: SHA-256 hash of the webhook key
+            last_used_at: Optional ISO timestamp; defaults to current UTC time
+
+        Returns:
+            True if updated successfully, False otherwise
+        """
+        try:
+            webhook = await self.get_webhook_by_key_hash(key_hash)
+            if not webhook:
+                logger.warning(f"Webhook not found for hash update: {key_hash[:16]}...")
+                return False
+
+            webhook_id = webhook.get("id")
+            if not webhook_id:
+                logger.error(f"Webhook record missing ID: {key_hash[:16]}...")
+                return False
+
+            timestamp = last_used_at or datetime.now(timezone.utc).isoformat()
+            update_data = {"last_used_at": timestamp, "updated_at": timestamp}
+            updated = await self._update_item("webhooks", webhook_id, update_data)
+            if updated:
+                logger.debug(f"Updated webhook {webhook_id} last_used_at -> {timestamp}")
+            else:
+                logger.warning(f"Failed to update last_used_at for webhook {webhook_id}")
+            return updated is not None
+        except Exception as e:
+            logger.error(f"Exception updating webhook last_used_at for hash {key_hash[:16]}...: {e}", exc_info=True)
+            return False
+
+    async def update_webhook(self, webhook_id: str, data: Dict[str, Any]) -> bool:
+        """
+        Updates a webhook record with arbitrary fields.
+
+        Args:
+            webhook_id: The webhook record ID
+            data: Dict of fields to update
+
+        Returns:
+            True if updated successfully, False otherwise
+        """
+        try:
+            data["updated_at"] = datetime.now(timezone.utc).isoformat()
+            updated = await self._update_item("webhooks", webhook_id, data)
+            if updated:
+                logger.debug(f"Updated webhook {webhook_id}: {list(data.keys())}")
+            return updated is not None
+        except Exception as e:
+            logger.error(f"Exception updating webhook {webhook_id}: {e}", exc_info=True)
+            return False
+
     async def _update_item(self, collection: str, item_id: str, data: Dict[str, Any], params: Optional[Dict] = None, admin_required: bool = False) -> Optional[Dict]:
         """
         Internal helper to update an item in a Directus collection by its ID.

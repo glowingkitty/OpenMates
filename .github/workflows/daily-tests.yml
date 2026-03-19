@@ -1,0 +1,301 @@
+# .github/workflows/daily-tests.yml
+#
+# Daily test suite for OpenMates — replaces the crontab-based run-tests-daily.sh.
+#
+# Runs pytest (unit), vitest (frontend unit), and Playwright E2E specs in parallel.
+# Playwright specs are sharded across 4 matrix jobs (18 specs each) using separate
+# test accounts to avoid collisions.
+#
+# Triggers:
+# - Schedule: 3am UTC daily (same as previous crontab)
+# - Manual: workflow_dispatch with suite/environment selectors
+# - CLI: python3 scripts/sessions.py trigger-tests
+#
+# Security:
+# - Minimal permissions (contents: read only)
+# - All secrets via ${{ secrets.* }} (never logged)
+# - Ephemeral Cloudflare Tunnel for Playwright (HMAC-authenticated, auto-closes)
+# - Only runs on dev branch
+#
+# Architecture: docs/architecture/github-actions-ci.md
+
+name: Daily Test Suite
+
+on:
+  schedule:
+    - cron: "0 3 * * *" # 3am UTC daily
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: "Test suite to run"
+        type: choice
+        options:
+          - all
+          - playwright
+          - pytest
+          - vitest
+        default: all
+      environment:
+        description: "Target environment"
+        type: choice
+        options:
+          - development
+          - production
+        default: development
+
+# Only one test run at a time
+concurrency:
+  group: daily-tests
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  # -----------------------------------------------------------------
+  # Gate: skip if no commits in last 24h (scheduled only)
+  # -----------------------------------------------------------------
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: dev
+          fetch-depth: 0
+      - name: Check for recent commits
+        id: check
+        run: |
+          # Always run on manual trigger
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "Manual trigger — running"
+            exit 0
+          fi
+
+          # Only run on dev branch for scheduled triggers
+          if [ "${{ github.ref }}" != "refs/heads/dev" ]; then
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            echo "Not on dev branch — skipping"
+            exit 0
+          fi
+
+          # Check for commits in last 24 hours
+          COMMITS=$(git log --oneline --since="24 hours ago" | wc -l)
+          if [ "$COMMITS" -eq 0 ]; then
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            echo "No commits in last 24h — skipping"
+          else
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "$COMMITS commit(s) in last 24h — running"
+          fi
+
+  # -----------------------------------------------------------------
+  # Open tunnel: expose dev server to GitHub Actions runners
+  # -----------------------------------------------------------------
+  open-tunnel:
+    runs-on: ubuntu-latest
+    needs: gate
+    if: needs.gate.outputs.should_run == 'true' && (github.event.inputs.suite == 'all' || github.event.inputs.suite == 'playwright' || github.event.inputs.suite == '')
+    outputs:
+      tunnel_url: ${{ steps.open.outputs.tunnel_url }}
+      session_id: ${{ steps.open.outputs.session_id }}
+    steps:
+      - name: Open ephemeral tunnel
+        id: open
+        run: |
+          TIMESTAMP=$(date +%s)
+          BODY='{"run_id":"${{ github.run_id }}","requested_by":"github-actions"}'
+          SIGNATURE=$(echo -n "${TIMESTAMP}${BODY}" | openssl dgst -sha256 -hmac "${{ secrets.TUNNEL_TRIGGER_SECRET }}" | awk '{print $2}')
+
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            "${{ secrets.OPENMATES_API_URL }}/internal/tunnel/open" \
+            -H "Content-Type: application/json" \
+            -H "X-Hmac-Signature: ${SIGNATURE}" \
+            -H "X-Timestamp: ${TIMESTAMP}" \
+            -d "${BODY}")
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY_RESP=$(echo "$RESPONSE" | head -n -1)
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::Failed to open tunnel: HTTP ${HTTP_CODE} — ${BODY_RESP}"
+            exit 1
+          fi
+
+          TUNNEL_URL=$(echo "$BODY_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['tunnel_url'])")
+          SESSION_ID=$(echo "$BODY_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['session_id'])")
+
+          echo "tunnel_url=${TUNNEL_URL}" >> "$GITHUB_OUTPUT"
+          echo "session_id=${SESSION_ID}" >> "$GITHUB_OUTPUT"
+          echo "Tunnel opened: ${TUNNEL_URL} (session: ${SESSION_ID})"
+
+  # -----------------------------------------------------------------
+  # pytest: backend unit tests
+  # -----------------------------------------------------------------
+  pytest:
+    runs-on: ubuntu-latest
+    needs: gate
+    if: needs.gate.outputs.should_run == 'true' && (github.event.inputs.suite == 'all' || github.event.inputs.suite == 'pytest' || github.event.inputs.suite == '')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: dev
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          pip install -r backend/requirements.txt 2>/dev/null || pip install pytest pytest-json-report httpx
+        working-directory: .
+      - name: Run pytest
+        run: |
+          python -m pytest tests/ \
+            -m "not integration and not benchmark" \
+            --tb=short -q \
+            --json-report --json-report-file=../../test-results/pytest.json \
+            || true
+        working-directory: backend
+        env:
+          OPENMATES_TEST_ACCOUNT_API_KEY: ${{ secrets.OPENMATES_TEST_ACCOUNT_API_KEY }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pytest-results
+          path: test-results/pytest.json
+          if-no-files-found: ignore
+
+  # -----------------------------------------------------------------
+  # vitest: frontend unit tests
+  # -----------------------------------------------------------------
+  vitest:
+    runs-on: ubuntu-latest
+    needs: gate
+    if: needs.gate.outputs.should_run == 'true' && (github.event.inputs.suite == 'all' || github.event.inputs.suite == 'vitest' || github.event.inputs.suite == '')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: dev
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: frontend
+      - name: Run vitest (packages/ui)
+        run: |
+          npx vitest run --config vitest.simple.config.ts --reporter=json \
+            > ../../test-results/vitest.json 2>&1 || true
+        working-directory: frontend/packages/ui
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vitest-results
+          path: test-results/vitest.json
+          if-no-files-found: ignore
+
+  # -----------------------------------------------------------------
+  # Playwright: E2E specs (sharded across 4 batches of 18)
+  # -----------------------------------------------------------------
+  playwright:
+    runs-on: ubuntu-latest
+    needs: [gate, open-tunnel]
+    if: needs.gate.outputs.should_run == 'true' && (github.event.inputs.suite == 'all' || github.event.inputs.suite == 'playwright' || github.event.inputs.suite == '')
+    strategy:
+      fail-fast: false
+      matrix:
+        batch: [0, 1, 2, 3]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: dev
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: frontend
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+        working-directory: frontend/apps/web_app
+      - name: Get spec batch
+        id: batch
+        run: |
+          python3 scripts/ci/get_spec_batch.py ${{ matrix.batch }} 18
+        env:
+          PROJECT_ROOT: ${{ github.workspace }}
+      - name: Run Playwright batch ${{ matrix.batch }}
+        if: steps.batch.outputs.SPECS_FOR_BATCH != ''
+        run: |
+          cd frontend/apps/web_app
+          npx playwright test ${{ steps.batch.outputs.SPECS_FOR_BATCH }} \
+            --reporter=json \
+            > ../../../test-results/playwright-${{ matrix.batch }}.json 2>&1 || true
+        env:
+          PLAYWRIGHT_TEST_BASE_URL: ${{ needs.open-tunnel.outputs.tunnel_url }}
+          OPENMATES_TEST_ACCOUNT_1_EMAIL: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_EMAIL', matrix.batch + 1)] }}
+          OPENMATES_TEST_ACCOUNT_1_PASSWORD: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_PASSWORD', matrix.batch + 1)] }}
+          OPENMATES_TEST_ACCOUNT_1_OTP_KEY: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_OTP_KEY', matrix.batch + 1)] }}
+          PLAYWRIGHT_WORKER_SLOT: "1"
+          SIGNUP_TEST_EMAIL_DOMAINS: ${{ secrets.SIGNUP_TEST_EMAIL_DOMAINS }}
+          MAILOSAUR_API_KEY: ${{ secrets.MAILOSAUR_API_KEY }}
+          MAILOSAUR_SERVER_ID: ${{ secrets.MAILOSAUR_SERVER_ID }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-results-${{ matrix.batch }}
+          path: test-results/playwright-${{ matrix.batch }}.json
+          if-no-files-found: ignore
+
+  # -----------------------------------------------------------------
+  # Report: aggregate results, email, OpenObserve, webhook
+  # -----------------------------------------------------------------
+  report:
+    runs-on: ubuntu-latest
+    needs: [gate, open-tunnel, pytest, vitest, playwright]
+    if: always() && needs.gate.outputs.should_run == 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: dev
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Aggregate and report
+        run: |
+          python3 scripts/ci/aggregate_results.py
+        env:
+          ARTIFACTS_DIR: artifacts
+          OPENMATES_API_URL: ${{ secrets.OPENMATES_API_URL }}
+          INTERNAL_API_SHARED_TOKEN: ${{ secrets.INTERNAL_API_SHARED_TOKEN }}
+          ADMIN_NOTIFY_EMAIL: ${{ secrets.ADMIN_NOTIFY_EMAIL }}
+          OPENMATES_WEBHOOK_KEY: ${{ secrets.OPENMATES_WEBHOOK_KEY }}
+          GIT_SHA: ${{ github.sha }}
+          GIT_BRANCH: dev
+          GITHUB_RUN_ID: ${{ github.run_id }}
+      - name: Close tunnel
+        if: always() && needs.open-tunnel.outputs.session_id != ''
+        run: |
+          TIMESTAMP=$(date +%s)
+          BODY='{"session_id":"${{ needs.open-tunnel.outputs.session_id }}"}'
+          SIGNATURE=$(echo -n "${TIMESTAMP}${BODY}" | openssl dgst -sha256 -hmac "${{ secrets.TUNNEL_TRIGGER_SECRET }}" | awk '{print $2}')
+
+          curl -s -X POST \
+            "${{ secrets.OPENMATES_API_URL }}/internal/tunnel/close" \
+            -H "Content-Type: application/json" \
+            -H "X-Hmac-Signature: ${SIGNATURE}" \
+            -H "X-Timestamp: ${TIMESTAMP}" \
+            -d "${BODY}" || echo "Tunnel close failed (may have auto-expired)"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: aggregated-results
+          path: test-results/last-run.json
+          if-no-files-found: ignore
