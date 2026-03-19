@@ -385,6 +385,6 @@ export function getMatesById(): Record<string, MateMetadata> {
  * Get the list of valid mate IDs for mention detection.
  * This replaces the hardcoded VALID_MATES array in mateHelpers.ts
  */
-export function getValidMateIds(): string[] {
+function getValidMateIds(): string[] {
   return matesMetadata.map((mate) => mate.id);
 }

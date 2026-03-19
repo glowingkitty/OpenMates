@@ -54,7 +54,7 @@ function applyPIIToContent(
  * @param chat - The chat to download
  * @param messages - Array of messages in the chat
  */
-export async function downloadChatAsYaml(
+async function downloadChatAsYaml(
   chat: Chat,
   messages: Message[],
 ): Promise<void> {
@@ -890,7 +890,7 @@ function downloadYamlFile(content: string, filename: string): void {
  * This function will handle downloading files associated with the chat
  * when file upload functionality is implemented
  */
-export async function downloadChatFiles(chatId: string): Promise<void> {
+async function downloadChatFiles(chatId: string): Promise<void> {
   // TODO: Implement file download functionality
   // This will be called when file uploads are implemented
   console.debug(

@@ -1236,7 +1236,7 @@ export async function addMessageToIndex(
  * Remove a chat from the search index (e.g., when deleted).
  * @param chatId - The chat ID to remove
  */
-export function removeChatFromIndex(chatId: string): void {
+function removeChatFromIndex(chatId: string): void {
   messageIndex.delete(chatId);
   indexedChatIds.delete(chatId);
   metadataIndex.delete(chatId);
@@ -1246,7 +1246,7 @@ export function removeChatFromIndex(chatId: string): void {
 /**
  * Clear the entire search index (e.g., on logout).
  */
-export function clearSearchIndex(): void {
+function clearSearchIndex(): void {
   messageIndex.clear();
   indexedChatIds.clear();
   metadataIndex.clear();
