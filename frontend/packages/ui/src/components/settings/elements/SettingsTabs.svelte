@@ -7,7 +7,7 @@
     - Inactive icons: var(--color-grey-30)
     - Active icon: white (#fff)
     - Hover on inactive: gradient at 0.5 opacity (smooth transition)
-    - Optional counter badges: round, white text, bottom-left of icon
+    - Optional counter badges: round, white text, bottom-right next to icon
     - >4 tabs: scrollable with fade gradients at left/right edges
 
     Icons use --icon-url-{name} CSS custom properties (defined by Icon.svelte :root block)
@@ -301,21 +301,21 @@
 
     /* ── Counter badge ───────────────────────────────────────────── */
     /*
-     * Positioned at the BOTTOM-LEFT of the icon div.
+     * Positioned at the BOTTOM-RIGHT next to the icon.
      * Must be round: equal width/height, border-radius 50%.
      * White text on red background.
     */
     .tab-count {
         position: absolute;
-        /* Bottom-left relative to the icon area */
+        /* Bottom-right next to the icon */
         bottom: 0.125rem;
-        left: 0.125rem;
+        right: 0.125rem;
         /* Perfect circle */
         width: 1.125rem;
         height: 1.125rem;
         border-radius: 50%;
         background: var(--color-error, #FF553B);
-        color: var(--color-grey-0);
+        color: #ffffff;
         font-family: 'Lexend Deca Variable', sans-serif;
         font-weight: 700;
         font-size: 0.625rem;

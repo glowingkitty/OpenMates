@@ -5,6 +5,8 @@
 
      Design:
      - Search input: white pill (24px radius, shadow), search icon left, placeholder grey
+     - Optional delete icon: shown on the right inside the input when query is non-empty,
+       fades in/out with an opacity transition, clears the input on click.
      - Sort button: white pill (24px radius, shadow), sort.svg icon only.
        On click opens a NATIVE OS <select> dropdown (not a custom dropdown).
 
@@ -28,6 +30,7 @@
         sortOptions = [],
         onFocusIn = undefined,
         onInput = undefined,
+        onClear = undefined,
     }: {
         /** Current search query — use bind:searchQuery in parent */
         searchQuery?: string;
@@ -41,11 +44,19 @@
         onFocusIn?: (() => void) | undefined;
         /** Called with each keystroke value (e.g. to pipe into search store) */
         onInput?: ((value: string) => void) | undefined;
+        /** Called when the delete/clear button is pressed — clears the query */
+        onClear?: (() => void) | undefined;
     } = $props();
+
+    function handleClear() {
+        searchQuery = '';
+        onClear?.();
+        onInput?.('');
+    }
 </script>
 
 <div class="search-sort-bar">
-    <!-- Search input with search icon -->
+    <!-- Search input with search icon and optional clear button -->
     <div class="search-container">
         <div class="search-icon" aria-hidden="true"></div>
         <input
@@ -57,6 +68,14 @@
             onfocusin={onFocusIn}
             oninput={(e) => onInput?.((e.target as HTMLInputElement).value)}
         />
+        <!-- Delete/clear button — fades in when query is non-empty -->
+        <button
+            type="button"
+            class="clear-button"
+            class:visible={searchQuery.length > 0}
+            aria-label="Clear search"
+            onclick={handleClear}
+        ></button>
     </div>
 
     <!-- Sort: visible icon button over a hidden native <select> -->
@@ -143,7 +162,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        background: var(--color-primary);
+        background: var(--color-grey-0);
         border-radius: 1.5rem;
         box-shadow: 0 0.25rem 0.25rem rgba(0, 0, 0, 0.1);
         cursor: pointer;
@@ -161,12 +180,12 @@
         mask-size: contain;
         mask-repeat: no-repeat;
         mask-position: center;
-        background-color: #ffffff;
-        transition: background-color 0.2s ease;
+        background: var(--color-primary);
+        transition: opacity 0.2s ease;
     }
 
     .sort-container:hover .sort-icon {
-        background-color: rgba(255, 255, 255, 0.85);
+        opacity: 0.8;
     }
 
     /* Native <select> stretched over the entire pill — invisible but clickable */
@@ -180,5 +199,49 @@
         border: none;
         /* Larger font prevents iOS auto-zoom on focus */
         font-size: 1rem;
+    }
+
+    /* ── Clear / delete button inside search pill ────────────────── */
+    .clear-button {
+        position: absolute;
+        right: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 1.25rem;
+        height: 1.25rem;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s ease;
+        /* Red delete icon using mask + background-color */
+        -webkit-mask-image: url('@openmates/ui/static/icons/delete.svg');
+        -webkit-mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-image: url('@openmates/ui/static/icons/delete.svg');
+        mask-size: contain;
+        mask-repeat: no-repeat;
+        mask-position: center;
+        background-color: var(--color-error);
+    }
+
+    .clear-button.visible {
+        opacity: 0.7;
+        pointer-events: auto;
+    }
+
+    .clear-button.visible:hover {
+        opacity: 1;
+    }
+
+    /* Add right padding to search input so text doesn't overlap clear button */
+    .search-container:has(.clear-button.visible) .search-input {
+        padding-right: 2.75rem;
     }
 </style>

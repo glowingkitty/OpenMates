@@ -187,31 +187,31 @@
 					Right side: edit button, download button, or credits counter with coin icon.
 				</p>
 				<div class="element-demo">
-					<!-- App settings entry: iconType=app uses app-specific gradient bg with white icon -->
+					<!-- App settings entry: iconType=app uses app-specific gradient color on icon SVG -->
 					<SettingsItem
 						type="quickaction"
-						icon="2fa"
+						icon="secrets"
 						iconType="app"
 						title="2FA App"
 						subtitleBottom="Google Authenticator"
 						hasModifyButton={true}
 						onClick={() => {}}
 					/>
-					<!-- Memory/app settings entry: iconType=memory uses category gradient bg -->
+					<!-- App settings entry: icon SVG colored with app gradient -->
 					<SettingsItem
 						type="quickaction"
 						icon="travel"
-						iconType="memory"
+						iconType="app"
 						title="London"
 						subtitleBottom="Mar 29 – Apr 6"
 						hasModifyButton={true}
 						onClick={() => {}}
 					/>
-					<!-- Download entry: iconType=memory, category gradient, download button on right -->
+					<!-- Download entry: icon SVG colored with app gradient, download button on right -->
 					<SettingsItem
 						type="quickaction"
 						icon="legal"
-						iconType="memory"
+						iconType="app"
 						title="2025-03-13"
 						subtitleBottom="10 EUR"
 						rightActionIcon="download"

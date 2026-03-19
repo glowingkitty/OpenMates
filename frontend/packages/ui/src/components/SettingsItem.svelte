@@ -15,7 +15,6 @@
 <script lang="ts">
     import Toggle from './Toggle.svelte';
     import ModifyButton from './buttons/ModifyButton.svelte';
-    import Icon from './Icon.svelte';
     import { getCategoryGradientColors } from '../utils/categoryUtils';
     import type { Snippet } from 'svelte';
 
@@ -162,35 +161,25 @@
         <div class="menu-item-left">
             <!-- Icon rendering: app icon, memory/skill/focus gradient icon, category gradient circle, or default mask icon -->
             {#if iconType === 'app'}
-                <div class="app-icon-wrapper">
-                    <Icon 
-                        name={icon}
-                        type="app"
-                        size="38px"
-                        className="app-icon-main no-fade"
-                        borderColor="#ffffff"
-                    />
+                <div class="icon-container">
+                    <div class={`icon settings_size subsetting_icon ${icon}`} style="--icon-color: var(--color-app-{icon});"></div>
                 </div>
             {:else if iconType === 'memory' || iconType === 'skill' || iconType === 'focus'}
-                <!-- Renders rounded square with type-specific gradient: pink/grey/purple -->
-                <div class="app-icon-wrapper">
-                    <Icon 
-                        name={icon}
-                        type={iconType}
-                        size="38px"
-                        className="app-icon-main no-fade"
-                        noAnimation={true}
-                    />
+                <!-- Renders icon SVG with type-specific gradient color (no rounded bg) -->
+                <div class="icon-container">
+                    <div class={`icon settings_size subsetting_icon ${icon}`} style={
+                        iconType === 'memory' ? '--icon-color: var(--icon-memory-background);' :
+                        iconType === 'skill' ? '--icon-color: var(--icon-skill-background);' :
+                        '--icon-color: var(--icon-focus-background);'
+                    }></div>
                 </div>
             {:else if iconType === 'category' && category}
                 {@const gradientColors = getCategoryGradientColors(category)}
-                <div class="app-icon-wrapper">
-                    <div
-                        class="category-gradient-icon"
-                        style={gradientColors
-                            ? `background: linear-gradient(135deg, ${gradientColors.start} 9.04%, ${gradientColors.end} 90.06%); --cat-icon-url: var(--icon-url-${icon});`
-                            : `background: var(--icon-background-default); --cat-icon-url: var(--icon-url-${icon});`}
-                    ></div>
+                <div class="icon-container">
+                    <div class={`icon settings_size subsetting_icon ${icon}`} style={gradientColors
+                        ? `--icon-color: linear-gradient(135deg, ${gradientColors.start} 9.04%, ${gradientColors.end} 90.06%);`
+                        : ''
+                    }></div>
                 </div>
             {:else}
                 <div class="icon-container">
@@ -343,8 +332,7 @@
     }
 
     /* Shared icon area sizing — all icon types use the same 44px slot */
-    .icon-container,
-    .app-icon-wrapper {
+    .icon-container {
         width: 44px;
         height: 44px;
         margin-inline-end: 12px;
@@ -352,31 +340,6 @@
         display: flex;
         align-items: center;
         justify-content: center;
-    }
-
-    /* Category gradient icon — full-size rounded square matching app/memory style */
-    .category-gradient-icon {
-        width: 38px;
-        height: 38px;
-        border-radius: 10px;
-        position: relative;
-        transition: all 0.2s ease;
-    }
-
-    /* White icon rendered as ::before pseudo-element on top of gradient background */
-    .category-gradient-icon::before {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background-color: #ffffff;
-        -webkit-mask-image: var(--cat-icon-url);
-        -webkit-mask-size: 55%;
-        -webkit-mask-repeat: no-repeat;
-        -webkit-mask-position: center;
-        mask-image: var(--cat-icon-url);
-        mask-size: 55%;
-        mask-repeat: no-repeat;
-        mask-position: center;
     }
 
     .text-and-nested-container {
