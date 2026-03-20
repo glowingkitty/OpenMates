@@ -570,6 +570,13 @@ def _get_dirty_files() -> set[str]:
     return dirty
 
 
+def _get_staged_files() -> set[str]:
+    """Return set of file paths currently in the git index (staged for commit)."""
+    rc, stdout, _ = _run_cmd(["git", "diff", "--name-only", "--cached"])
+    if rc != 0 or not stdout:
+        return set()
+    return {line.strip() for line in stdout.splitlines() if line.strip()}
+
 
 def _get_recent_commits(count: int = RECENT_COMMITS_COUNT) -> list[str]:
     """Return recent git commits as one-line summaries with relative timestamps."""
@@ -2668,10 +2675,25 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     to_commit = [
         f for f in modified if f in dirty_files and f not in exclude
     ]
+    dirty_but_untracked = [f for f in dirty_files if f not in modified and f not in exclude]
 
     if not to_commit:
-        print("No files to commit.")
-        sys.exit(0)
+        # Surface untracked dirty files so the caller knows why nothing was committed
+        if dirty_but_untracked:
+            print("No tracked files to commit, but these dirty files are NOT tracked by this session:", file=sys.stderr)
+            for f in sorted(dirty_but_untracked):
+                print(f"  ? {f}", file=sys.stderr)
+            print("Run: sessions.py track --session <ID> --file <path>  to include them.", file=sys.stderr)
+        else:
+            print("No files to commit.")
+        sys.exit(2)
+
+    # Warn about dirty files that will be left out
+    if dirty_but_untracked:
+        print("Warning — dirty files NOT tracked by this session (will not be committed):")
+        for f in sorted(dirty_but_untracked):
+            print(f"  ? {f}")
+        print()
 
     # 1. Run linter (with CSS/HTML support and longer timeout)
     no_verify = getattr(args, "no_verify", False)
@@ -2711,7 +2733,17 @@ def cmd_deploy(args: argparse.Namespace) -> None:
         else:
             print("Translations: PASSED")
 
-    # 2. Git add
+    # 2. Git add — reset any staged files not belonging to this session first,
+    # to prevent index bleed from concurrent sessions that already ran git add.
+    staged_files = _get_staged_files()
+    foreign_staged = [f for f in staged_files if f not in to_commit]
+    if foreign_staged:
+        print(f"Unstaging {len(foreign_staged)} file(s) staged by another session...")
+        rc, _, stderr = _run_cmd(["git", "reset", "HEAD"] + foreign_staged)
+        if rc != 0:
+            print(f"git reset failed: {stderr}", file=sys.stderr)
+            sys.exit(1)
+
     print(f"Adding {len(to_commit)} files...")
     rc, _, stderr = _run_cmd(["git", "add"] + to_commit)
     if rc != 0:
@@ -2739,13 +2771,10 @@ def cmd_deploy(args: argparse.Namespace) -> None:
         print(f"git commit failed: {stderr}", file=sys.stderr)
         sys.exit(1)
 
-    # Extract commit hash (short for display, full for URLs)
-    rc, commit_hash, _ = _run_cmd(
-        ["git", "rev-parse", "--short", "HEAD"]
-    )
+    # Extract commit hash — one rev-parse call, slice for short form
     rc, commit_hash_full, _ = _run_cmd(["git", "rev-parse", "HEAD"])
-    if rc != 0 or not commit_hash_full:
-        commit_hash_full = commit_hash
+    commit_hash_full = (commit_hash_full or "").strip()
+    commit_hash = commit_hash_full[:7] if commit_hash_full else "unknown"
 
     # 4. Git push
     print("Pushing to origin dev...")
