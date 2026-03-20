@@ -5,11 +5,12 @@
 
 import logging
 import hashlib
+import re
 import time
 import os
 from typing import Dict, Any, Optional, List
 from fastapi import APIRouter, HTTPException, Request, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
@@ -946,3 +947,158 @@ async def update_embed_share_metadata(
     except Exception as e:
         logger.error(f"Error updating share metadata for embed {payload.embed_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to update embed metadata")
+
+
+# --- Short URL Sharing Endpoints ---
+# These enable ephemeral short URLs for the "hand someone a link across the room" use case.
+# The server stores only opaque encrypted blobs — zero-knowledge is preserved because the
+# decryption key lives only in the URL fragment (#token-shortKey), never sent to the server.
+
+# Validation: token must be 6-12 alphanumeric chars (base62)
+SHORT_URL_TOKEN_PATTERN = re.compile(r"^[A-Za-z0-9]{6,12}$")
+# Max size for encrypted URL blob (base64-encoded AES-GCM ciphertext)
+SHORT_URL_MAX_BLOB_SIZE = 4096
+
+
+class CreateShortUrlRequest(BaseModel):
+    """Request model for creating a short URL."""
+    token: str = Field(..., description="Lookup token (6-12 base62 chars, generated client-side)")
+    encrypted_url: str = Field(..., description="AES-GCM encrypted share URL blob (opaque to server)")
+    ttl_seconds: int = Field(
+        default=300,
+        description="Time-to-live in seconds (60-3600, default 300)",
+        ge=60,
+        le=3600,
+    )
+
+
+class CreateShortUrlResponse(BaseModel):
+    """Response model for short URL creation."""
+    success: bool = Field(..., description="Whether the short URL was created successfully")
+    expires_at: int = Field(..., description="Unix timestamp when the short URL expires")
+
+
+class ResolveShortUrlResponse(BaseModel):
+    """Response model for short URL resolution."""
+    encrypted_url: str = Field(..., description="The encrypted share URL blob")
+
+
+@router.post("/short-url", response_model=CreateShortUrlResponse)
+@limiter.limit("10/hour")  # Stricter rate limit for creation (per user via auth)
+async def create_short_url(
+    request: Request,
+    payload: CreateShortUrlRequest,
+    current_user: User = Depends(get_current_user),
+    cache_service: CacheService = Depends(get_cache_service),
+) -> Dict[str, Any]:
+    """
+    Create an ephemeral short URL entry.
+
+    The client generates a token and shortKey, encrypts the full share URL with
+    a key derived from shortKey via PBKDF2, and sends only the token + encrypted
+    blob to this endpoint. The server stores the opaque blob in Redis with a TTL.
+
+    Requires authentication to prevent abuse.
+
+    Security:
+    - Rate limited to 10/hour per user
+    - Token validated as 6-12 alphanumeric chars
+    - Encrypted URL blob max 4KB
+    - TTL clamped to 60s-3600s
+    """
+    try:
+        # Validate token format
+        if not SHORT_URL_TOKEN_PATTERN.match(payload.token):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid token format: must be 6-12 alphanumeric characters",
+            )
+
+        # Validate blob size
+        if len(payload.encrypted_url) > SHORT_URL_MAX_BLOB_SIZE:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Encrypted URL too large: max {SHORT_URL_MAX_BLOB_SIZE} characters",
+            )
+
+        # Check if token already exists (prevent collisions)
+        existing = await cache_service.resolve_short_url(payload.token)
+        if existing is not None:
+            raise HTTPException(
+                status_code=409,
+                detail="Token already in use. Please generate a new one.",
+            )
+
+        # Store in Redis
+        stored = await cache_service.store_short_url(
+            token=payload.token,
+            encrypted_url=payload.encrypted_url,
+            ttl_seconds=payload.ttl_seconds,
+        )
+
+        if not stored:
+            raise HTTPException(status_code=500, detail="Failed to store short URL")
+
+        expires_at = int(time.time()) + payload.ttl_seconds
+        logger.info(f"Short URL created: token={payload.token}, ttl={payload.ttl_seconds}s, user={current_user.id}")
+
+        return {"success": True, "expires_at": expires_at}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating short URL: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to create short URL")
+
+
+@router.get("/short-url/{token}", response_model=ResolveShortUrlResponse)
+@limiter.limit("30/minute")  # Per-IP rate limit for resolution
+async def resolve_short_url(
+    request: Request,
+    token: str,
+    cache_service: CacheService = Depends(get_cache_service),
+) -> Dict[str, Any]:
+    """
+    Resolve an ephemeral short URL.
+
+    Returns the encrypted blob for a given token. The client decrypts it using
+    the shortKey from the URL fragment (never sent to server).
+
+    No authentication required — anyone with the token can resolve it.
+
+    Security:
+    - Rate limited to 30/minute per IP
+    - Max 10 resolves per token lifetime (prevents brute-force)
+    - Token validated as 6-12 alphanumeric chars
+    """
+    try:
+        # Validate token format
+        if not SHORT_URL_TOKEN_PATTERN.match(token):
+            raise HTTPException(status_code=404, detail="Not found")
+
+        # Check resolve count BEFORE returning the blob
+        from backend.core.api.app.services import cache_config
+        current_count = await cache_service.get_resolve_count(token)
+        if current_count >= cache_config.MAX_SHORT_URL_RESOLVES:
+            logger.warning(f"Short URL token={token} exceeded max resolves ({current_count})")
+            raise HTTPException(
+                status_code=429,
+                detail="This short link has been used too many times and is now disabled.",
+            )
+
+        # Resolve the encrypted blob
+        encrypted_url = await cache_service.resolve_short_url(token)
+        if encrypted_url is None:
+            raise HTTPException(status_code=404, detail="Short link expired or not found")
+
+        # Increment resolve counter
+        new_count = await cache_service.increment_resolve_count(token)
+        logger.debug(f"Short URL resolved: token={token}, resolve_count={new_count}")
+
+        return {"encrypted_url": encrypted_url}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error resolving short URL token={token}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal error")

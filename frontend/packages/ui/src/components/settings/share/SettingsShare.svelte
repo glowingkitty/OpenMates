@@ -31,6 +31,12 @@
     import { decodeToonContent } from '../../../services/embedResolver';
     import { embedPreviewRegistry } from '../../../services/embedPreviewRegistry';
     import { copyToClipboard } from '../../../utils/clipboardUtils';
+    import { getApiEndpoint } from '../../../config/api';
+    import {
+        generateShortUrlParts,
+        encryptShareUrl,
+        buildShortUrl,
+    } from '../../../services/shortUrlEncryption';
     // PII detection service is dynamically imported where needed (restorePIIInText in community share)
     
     // Define interface for embed context to avoid 'any'
@@ -112,6 +118,17 @@
     // QR code fullscreen overlay state
     let showQRFullscreen = $state(false);
     
+    // Short link state
+    let shortLinkUrl = $state('');
+    let isShortLinkGenerated = $state(false);
+    let isShortLinkGenerating = $state(false);
+    let isShortLinkCopied = $state(false);
+    let shortLinkError = $state('');
+    let shortLinkTtl: 60 | 300 | 900 | 3600 = $state(300); // Default 5 min
+    let shortLinkExpiresAt = $state(0);
+    let shortLinkCountdown = $state('');
+    let shortLinkCountdownInterval: ReturnType<typeof setInterval> | null = null;
+
     // Viewport dimensions for responsive QR code sizing
     let viewportWidth = $state(0);
     let viewportHeight = $state(0);
@@ -1237,6 +1254,149 @@
         }
     }
 
+    // ===============================
+    // Short Link Generation
+    // ===============================
+
+    /**
+     * TTL options for short links
+     */
+    const shortLinkTtlOptions: { value: 60 | 300 | 900 | 3600; label: string }[] = [
+        { value: 60, label: '1 min' },
+        { value: 300, label: '5 min' },
+        { value: 900, label: '15 min' },
+        { value: 3600, label: '1 hour' },
+    ];
+
+    /**
+     * Generate a short link for the current share URL.
+     * Encrypts the full share URL client-side and stores the encrypted blob on the server.
+     */
+    async function generateShortLink() {
+        if (!generatedLink || !$authStore.isAuthenticated) return;
+
+        isShortLinkGenerating = true;
+        shortLinkError = '';
+
+        try {
+            // Generate token + shortKey
+            const { token, shortKey } = generateShortUrlParts();
+
+            // Encrypt the full share URL (including #key= fragment)
+            const encryptedBlob = await encryptShareUrl(generatedLink, token, shortKey);
+
+            // Send to API
+            const response = await fetch(getApiEndpoint('/v1/share/short-url'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'Origin': window.location.origin,
+                },
+                body: JSON.stringify({
+                    token,
+                    encrypted_url: encryptedBlob,
+                    ttl_seconds: shortLinkTtl,
+                }),
+                credentials: 'include',
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+                shortLinkError = errorData.detail || 'Failed to create short link';
+                console.error('[SettingsShare] Short link creation failed:', errorData);
+                return;
+            }
+
+            const data = await response.json();
+            if (data.success) {
+                shortLinkUrl = buildShortUrl(token, shortKey);
+                isShortLinkGenerated = true;
+                shortLinkExpiresAt = data.expires_at;
+                startShortLinkCountdown();
+                console.debug('[SettingsShare] Short link generated:', shortLinkUrl);
+            } else {
+                shortLinkError = 'Failed to create short link';
+            }
+        } catch (error) {
+            console.error('[SettingsShare] Error generating short link:', error);
+            shortLinkError = 'Network error. Please try again.';
+        } finally {
+            isShortLinkGenerating = false;
+        }
+    }
+
+    /**
+     * Copy the short link to clipboard
+     */
+    async function copyShortLinkToClipboard() {
+        if (!shortLinkUrl) return;
+
+        try {
+            const clipResult = await copyToClipboard(shortLinkUrl);
+            if (!clipResult.success) throw new Error(clipResult.error || 'Copy failed');
+            isShortLinkCopied = true;
+            console.debug('[SettingsShare] Short link copied to clipboard');
+
+            setTimeout(() => {
+                isShortLinkCopied = false;
+            }, 2000);
+        } catch (error) {
+            console.error('[SettingsShare] Error copying short link:', error);
+        }
+    }
+
+    /**
+     * Start the countdown timer for the short link TTL
+     */
+    function startShortLinkCountdown() {
+        // Clear any existing interval
+        if (shortLinkCountdownInterval) {
+            clearInterval(shortLinkCountdownInterval);
+        }
+
+        function updateCountdown() {
+            const now = Math.floor(Date.now() / 1000);
+            const remaining = shortLinkExpiresAt - now;
+
+            if (remaining <= 0) {
+                shortLinkCountdown = 'Expired';
+                isShortLinkGenerated = false;
+                if (shortLinkCountdownInterval) {
+                    clearInterval(shortLinkCountdownInterval);
+                    shortLinkCountdownInterval = null;
+                }
+                return;
+            }
+
+            const minutes = Math.floor(remaining / 60);
+            const seconds = remaining % 60;
+            if (minutes > 0) {
+                shortLinkCountdown = `${minutes}m ${seconds.toString().padStart(2, '0')}s`;
+            } else {
+                shortLinkCountdown = `${seconds}s`;
+            }
+        }
+
+        updateCountdown();
+        shortLinkCountdownInterval = setInterval(updateCountdown, 1000);
+    }
+
+    /**
+     * Reset short link state
+     */
+    function resetShortLinkState() {
+        shortLinkUrl = '';
+        isShortLinkGenerated = false;
+        isShortLinkCopied = false;
+        shortLinkError = '';
+        shortLinkCountdown = '';
+        if (shortLinkCountdownInterval) {
+            clearInterval(shortLinkCountdownInterval);
+            shortLinkCountdownInterval = null;
+        }
+    }
+
     /**
      * Update viewport dimensions and recalculate QR code sizes
      */
@@ -1311,6 +1471,7 @@
         qrCodeSvg = '';
         isCopied = false;
         sharedChatId = null; // Clear shared chat ID when resetting
+        resetShortLinkState();
     }
     
     // Reset generated link when configuration changes (but only if we're in configuration step)
@@ -1662,6 +1823,77 @@
                 <div class="copy-icon" class:icon_check={isCopied} class:icon_copy={!isCopied}></div>
                 <span>{isCopied ? $text('settings.share.link_copied') : $text('settings.share.click_to_copy')}</span>
             </button>
+
+            <!-- Short Link Section (only for authenticated users) -->
+            {#if $authStore.isAuthenticated}
+                <div class="short-link-section" transition:slide={{ duration: 200, easing: cubicOut }}>
+                    <div class="short-link-header">
+                        <h4 class="short-link-title">{$text('settings.share.short_link')}</h4>
+                        <p class="short-link-info">{$text('settings.share.short_link_info')}</p>
+                    </div>
+
+                    {#if !isShortLinkGenerated}
+                        <!-- TTL selector -->
+                        <div class="short-link-ttl-options">
+                            {#each shortLinkTtlOptions as option}
+                                <button
+                                    class="short-link-ttl-option"
+                                    class:selected={shortLinkTtl === option.value}
+                                    onclick={() => { shortLinkTtl = option.value; }}
+                                >
+                                    {option.label}
+                                </button>
+                            {/each}
+                        </div>
+
+                        <!-- Generate button -->
+                        <button
+                            class="short-link-generate-button"
+                            onclick={generateShortLink}
+                            disabled={isShortLinkGenerating}
+                        >
+                            {#if isShortLinkGenerating}
+                                {$text('settings.share.short_link_generating')}
+                            {:else}
+                                {$text('settings.share.short_link_generate')}
+                            {/if}
+                        </button>
+
+                        {#if shortLinkError}
+                            <p class="short-link-error">{shortLinkError}</p>
+                        {/if}
+                    {:else}
+                        <!-- Generated short link -->
+                        <button
+                            class="short-link-copy-button"
+                            class:copied={isShortLinkCopied}
+                            onclick={copyShortLinkToClipboard}
+                        >
+                            <span class="short-link-url">{shortLinkUrl}</span>
+                            <span class="short-link-copy-label">
+                                {isShortLinkCopied ? $text('settings.share.link_copied') : $text('settings.share.click_to_copy')}
+                            </span>
+                        </button>
+
+                        <!-- Countdown timer -->
+                        {#if shortLinkCountdown}
+                            <p class="short-link-countdown">
+                                {$text('settings.share.short_link_expires_in')} {shortLinkCountdown}
+                            </p>
+                        {/if}
+
+                        <!-- Generate new button -->
+                        <button
+                            class="short-link-regenerate-button"
+                            onclick={() => { resetShortLinkState(); }}
+                        >
+                            {$text('settings.share.short_link_new')}
+                        </button>
+                    {/if}
+
+                    <p class="short-link-encryption-note">{$text('settings.share.short_link_encryption_note')}</p>
+                </div>
+            {/if}
 
             <!-- Expiration Info (if time limit set) -->
             {#if selectedDuration > 0}
@@ -2249,5 +2481,161 @@
         font-family: monospace;
         word-break: break-all;
         line-height: 1.3;
+    }
+
+    /* Short Link Section */
+    .short-link-section {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 16px;
+        background-color: var(--color-grey-5);
+        border-radius: 10px;
+        border: 1px solid var(--color-grey-20);
+    }
+
+    .short-link-header {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .short-link-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--color-grey-100);
+        margin: 0;
+    }
+
+    .short-link-info {
+        font-size: 12px;
+        color: var(--color-grey-60);
+        margin: 0;
+        line-height: 1.4;
+    }
+
+    .short-link-ttl-options {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+
+    .short-link-ttl-option {
+        padding: 6px 12px;
+        border: 1px solid var(--color-grey-30);
+        border-radius: 16px;
+        background-color: var(--color-grey-5);
+        color: var(--color-grey-80);
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .short-link-ttl-option:hover {
+        background-color: var(--color-grey-10);
+    }
+
+    .short-link-ttl-option.selected {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+    }
+
+    .short-link-generate-button {
+        width: 100%;
+        padding: 10px 16px;
+        background-color: var(--color-grey-10);
+        border: 1px solid var(--color-grey-30);
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--color-grey-100);
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .short-link-generate-button:hover:not(:disabled) {
+        background-color: var(--color-grey-15, #e8e8e8);
+    }
+
+    .short-link-generate-button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .short-link-copy-button {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        width: 100%;
+        padding: 12px 16px;
+        background-color: var(--color-grey-10);
+        border: 2px dashed var(--color-grey-40);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .short-link-copy-button:hover {
+        background-color: var(--color-grey-15, #e8e8e8);
+        border-color: var(--color-grey-50);
+    }
+
+    .short-link-copy-button.copied {
+        background-color: var(--color-success-light, #dcfce7);
+        border-color: var(--color-success, #22c55e);
+        border-style: solid;
+    }
+
+    .short-link-url {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--color-primary);
+        font-family: monospace;
+        letter-spacing: 0.5px;
+        word-break: break-all;
+    }
+
+    .short-link-copy-label {
+        font-size: 11px;
+        color: var(--color-grey-60);
+    }
+
+    .short-link-countdown {
+        font-size: 12px;
+        color: var(--color-grey-60);
+        text-align: center;
+        margin: 0;
+    }
+
+    .short-link-regenerate-button {
+        padding: 6px 12px;
+        background: none;
+        border: none;
+        font-size: 12px;
+        color: var(--color-grey-60);
+        cursor: pointer;
+        text-align: center;
+        transition: color 0.2s;
+    }
+
+    .short-link-regenerate-button:hover {
+        color: var(--color-grey-100);
+    }
+
+    .short-link-encryption-note {
+        font-size: 11px;
+        color: var(--color-grey-50);
+        margin: 0;
+        line-height: 1.4;
+        text-align: center;
+    }
+
+    .short-link-error {
+        font-size: 12px;
+        color: var(--color-error, #ef4444);
+        margin: 0;
+        text-align: center;
     }
 </style>

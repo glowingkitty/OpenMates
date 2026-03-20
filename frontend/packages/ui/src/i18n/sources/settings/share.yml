@@ -1225,6 +1225,181 @@ link_for_embed:
   he: קישור להטמעה
   verified_by_human: []
 
+short_link:
+  context: Title for the short link section in share panel
+  en: Short Link
+  de: Kurzlink
+  zh: 短链接
+  es: Enlace corto
+  fr: Lien court
+  pt: Link curto
+  ru: Короткая ссылка
+  ja: ショートリンク
+  ko: 짧은 링크
+  it: Link breve
+  tr: Kısa bağlantı
+  vi: Liên kết ngắn
+  id: Tautan pendek
+  pl: Krótki link
+  nl: Korte link
+  ar: رابط قصير
+  hi: छोटा लिंक
+  th: ลิงก์สั้น
+  cs: Krátký odkaz
+  sv: Kort länk
+  he: קישור קצר
+  verified_by_human: []
+
+short_link_info:
+  context: Description text for the short link feature
+  en: Generate a temporary short link to share across the room. Expires automatically.
+  de: Erstelle einen temporären Kurzlink zum Teilen im Raum. Läuft automatisch ab.
+  zh: 生成一个临时短链接以便在房间内分享。自动过期。
+  es: Genera un enlace corto temporal para compartir en la sala. Expira automáticamente.
+  fr: Générez un lien court temporaire à partager dans la pièce. Expire automatiquement.
+  pt: Gere um link curto temporário para compartilhar na sala. Expira automaticamente.
+  ru: Создайте временную короткую ссылку для передачи рядом. Автоматически истекает.
+  ja: 部屋の中で共有するための一時的なショートリンクを生成します。自動的に期限切れになります。
+  ko: 방에서 공유할 임시 짧은 링크를 생성합니다. 자동으로 만료됩니다.
+  it: Genera un link breve temporaneo da condividere nella stanza. Scade automaticamente.
+  tr: Odada paylaşmak için geçici kısa bağlantı oluşturun. Otomatik olarak süresi dolar.
+  vi: Tạo liên kết ngắn tạm thời để chia sẻ trong phòng. Tự động hết hạn.
+  id: Buat tautan pendek sementara untuk dibagikan di ruangan. Kedaluwarsa otomatis.
+  pl: Wygeneruj tymczasowy krótki link do udostępnienia w pokoju. Wygasa automatycznie.
+  nl: Genereer een tijdelijke korte link om in de kamer te delen. Verloopt automatisch.
+  ar: أنشئ رابطًا قصيرًا مؤقتًا للمشاركة في الغرفة. تنتهي صلاحيته تلقائيًا.
+  hi: कमरे में साझा करने के लिए एक अस्थायी छोटा लिंक जनरेट करें। स्वचालित रूप से समाप्त हो जाता है।
+  th: สร้างลิงก์สั้นชั่วคราวเพื่อแชร์ในห้อง หมดอายุโดยอัตโนมัติ
+  cs: Vytvořte dočasný krátký odkaz ke sdílení v místnosti. Automaticky vyprší.
+  sv: Generera en tillfällig kort länk att dela i rummet. Upphör automatiskt.
+  he: צור קישור קצר זמני לשיתוף בחדר. מפוגג אוטומטית.
+  verified_by_human: []
+
+short_link_generate:
+  context: Button to generate a short link
+  en: Generate short link
+  de: Kurzlink erstellen
+  zh: 生成短链接
+  es: Generar enlace corto
+  fr: Générer un lien court
+  pt: Gerar link curto
+  ru: Создать короткую ссылку
+  ja: ショートリンクを生成
+  ko: 짧은 링크 생성
+  it: Genera link breve
+  tr: Kısa bağlantı oluştur
+  vi: Tạo liên kết ngắn
+  id: Buat tautan pendek
+  pl: Wygeneruj krótki link
+  nl: Korte link genereren
+  ar: إنشاء رابط قصير
+  hi: छोटा लिंक जनरेट करें
+  th: สร้างลิงก์สั้น
+  cs: Vytvořit krátký odkaz
+  sv: Generera kort länk
+  he: צור קישור קצר
+  verified_by_human: []
+
+short_link_generating:
+  context: Button label while generating a short link
+  en: Generating...
+  de: Wird erstellt...
+  zh: 生成中...
+  es: Generando...
+  fr: Génération...
+  pt: Gerando...
+  ru: Создание...
+  ja: 生成中...
+  ko: 생성 중...
+  it: Generazione...
+  tr: Oluşturuluyor...
+  vi: Đang tạo...
+  id: Membuat...
+  pl: Generowanie...
+  nl: Genereren...
+  ar: جاري الإنشاء...
+  hi: जनरेट हो रहा है...
+  th: กำลังสร้าง...
+  cs: Vytváření...
+  sv: Genererar...
+  he: מייצר...
+  verified_by_human: []
+
+short_link_expires_in:
+  context: Text showing remaining time before short link expires
+  en: Expires in
+  de: Läuft ab in
+  zh: 过期时间
+  es: Expira en
+  fr: Expire dans
+  pt: Expira em
+  ru: Истекает через
+  ja: 有効期限
+  ko: 만료까지
+  it: Scade tra
+  tr: Süre sonu
+  vi: Hết hạn trong
+  id: Kedaluwarsa dalam
+  pl: Wygasa za
+  nl: Verloopt over
+  ar: تنتهي صلاحيته خلال
+  hi: समाप्त होने में
+  th: หมดอายุใน
+  cs: Vyprší za
+  sv: Upphör om
+  he: פג תוקף בעוד
+  verified_by_human: []
+
+short_link_new:
+  context: Button to generate a new short link after one has been created
+  en: Generate new link
+  de: Neuen Link erstellen
+  zh: 生成新链接
+  es: Generar nuevo enlace
+  fr: Générer un nouveau lien
+  pt: Gerar novo link
+  ru: Создать новую ссылку
+  ja: 新しいリンクを生成
+  ko: 새 링크 생성
+  it: Genera nuovo link
+  tr: Yeni bağlantı oluştur
+  vi: Tạo liên kết mới
+  id: Buat tautan baru
+  pl: Wygeneruj nowy link
+  nl: Nieuwe link genereren
+  ar: إنشاء رابط جديد
+  hi: नया लिंक जनरेट करें
+  th: สร้างลิงก์ใหม่
+  cs: Vytvořit nový odkaz
+  sv: Generera ny länk
+  he: צור קישור חדש
+  verified_by_human: []
+
+short_link_encryption_note:
+  context: Note explaining zero-knowledge encryption for short links
+  en: Encrypted on your device. Server stores only an encrypted blob it cannot read.
+  de: Auf deinem Gerät verschlüsselt. Der Server speichert nur einen verschlüsselten Block, den er nicht lesen kann.
+  zh: 在您的设备上加密。服务器仅存储无法读取的加密数据块。
+  es: Cifrado en tu dispositivo. El servidor almacena solo un blob cifrado que no puede leer.
+  fr: Chiffré sur votre appareil. Le serveur ne stocke qu'un blob chiffré qu'il ne peut pas lire.
+  pt: Criptografado no seu dispositivo. O servidor armazena apenas um blob criptografado que não pode ler.
+  ru: Зашифровано на вашем устройстве. Сервер хранит только зашифрованный блок, который не может прочитать.
+  ja: お使いのデバイスで暗号化されます。サーバーは読み取れない暗号化されたブロブのみを保存します。
+  ko: 기기에서 암호화됩니다. 서버는 읽을 수 없는 암호화된 블롭만 저장합니다.
+  it: Crittografato sul tuo dispositivo. Il server memorizza solo un blob crittografato che non può leggere.
+  tr: Cihazınızda şifrelenir. Sunucu yalnızca okuyamadığı şifreli bir blob saklar.
+  vi: Được mã hóa trên thiết bị của bạn. Máy chủ chỉ lưu trữ một blob được mã hóa mà nó không thể đọc.
+  id: Dienkripsi di perangkat Anda. Server hanya menyimpan blob terenkripsi yang tidak dapat dibacanya.
+  pl: Zaszyfrowane na Twoim urządzeniu. Serwer przechowuje tylko zaszyfrowany blob, którego nie może odczytać.
+  nl: Versleuteld op je apparaat. De server slaat alleen een versleuteld blob op dat het niet kan lezen.
+  ar: مشفر على جهازك. يخزن الخادم فقط كتلة مشفرة لا يمكنه قراءتها.
+  hi: आपके डिवाइस पर एन्क्रिप्ट किया गया। सर्वर केवल एक एन्क्रिप्टेड ब्लॉब संग्रहीत करता है जिसे वह पढ़ नहीं सकता।
+  th: เข้ารหัสบนอุปกรณ์ของคุณ เซิร์ฟเวอร์เก็บเฉพาะ blob ที่เข้ารหัสซึ่งไม่สามารถอ่านได้
+  cs: Zašifrováno na vašem zařízení. Server ukládá pouze zašifrovaný blob, který nemůže přečíst.
+  sv: Krypterad på din enhet. Servern lagrar bara en krypterad blob den inte kan läsa.
+  he: מוצפן במכשיר שלך. השרת שומר רק blob מוצפן שהוא לא יכול לקרוא.
+  verified_by_human: []
+
 share_transcript:
   context: Navigation title when sharing a video transcript
   en: Share Transcript

@@ -29,6 +29,10 @@
     "./services/clientLogForwarder": {
       "types": "./src/services/clientLogForwarder.ts",
       "default": "./src/services/clientLogForwarder.ts"
+    },
+    "./services/shortUrlEncryption": {
+      "types": "./src/services/shortUrlEncryption.ts",
+      "default": "./src/services/shortUrlEncryption.ts"
     }
   },
   "scripts": {

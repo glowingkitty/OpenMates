@@ -9248,6 +9248,27 @@
       "link_for_embed": {
         "text": "Link for embed"
       },
+      "short_link": {
+        "text": "Short Link"
+      },
+      "short_link_info": {
+        "text": "Generate a temporary short link to share across the room. Expires automatically."
+      },
+      "short_link_generate": {
+        "text": "Generate short link"
+      },
+      "short_link_generating": {
+        "text": "Generating..."
+      },
+      "short_link_expires_in": {
+        "text": "Expires in"
+      },
+      "short_link_new": {
+        "text": "Generate new link"
+      },
+      "short_link_encryption_note": {
+        "text": "Encrypted on your device. Server stores only an encrypted blob it cannot read."
+      },
       "share_transcript": {
         "text": "Share Transcript"
       }
