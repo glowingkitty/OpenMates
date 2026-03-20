@@ -29,8 +29,25 @@ instructions:
         - For random times, specify a date range and optional daily time window
         - Use the user's timezone from the system prompt by default. Only ask if not available or if the user explicitly mentions a different timezone.
         - Ask the user if they want a new chat or follow-up in current chat
-        - Use response_type "simple" by default for basic reminders (e.g., "remind me about this", "remind me to check this later"). Use "full" only when the user explicitly wants a detailed AI-generated follow-up with new information (e.g., "remind me and give me the latest updates", "remind me and research...").
-        
+        - Choose response_type carefully — it controls what happens when the reminder fires:
+
+          Use "simple" (default) when the user wants a **passive notification**:
+            e.g. "remind me about this chat", "check this tomorrow", "ping me at 3pm",
+                 "don't forget about X", "remind me to look at this later".
+            → No AI response is generated. A notification, email, and a visual marker
+              in the chat history appear. Nothing else. Use this for the vast majority
+              of reminders — when the user just wants to be nudged back.
+
+          Use "full" ONLY when the user explicitly wants the **AI to execute a task**
+          at that scheduled time:
+            e.g. "search the news every morning and summarize",
+                 "remind me and give me the latest updates on X",
+                 "every Monday, pull the week's top headlines and brief me".
+            → The AI wakes up and runs the task when the reminder fires.
+
+          Rule: if the user says "remind me about this chat" → always "simple" +
+          target_type="existing_chat". When in doubt, use "simple".
+
         If the user doesn't have email notifications configured, recommend they set it up
         to ensure they receive reminder notifications even when not actively using the app.
 
@@ -101,7 +118,7 @@ skills:
             - simple
             - full
           default: simple
-          description: "How the AI responds when the reminder fires. 'simple' sends a brief predefined nudge message without LLM inference (lower cost, faster). 'full' triggers a complete AI response with context and web searches. Default is 'simple' — use 'full' only when the user explicitly wants a detailed AI-generated follow-up (e.g., 'remind me and give me an update on...')."
+          description: "'simple' = notification-only: no AI response is generated, just a notification, email, and a visual marker in the chat history. Use for passive nudges ('remind me about this', 'ping me tomorrow'). 'full' = action trigger: the AI executes a task when the reminder fires. Use ONLY when the user wants the AI to actively do something ('summarize the news every morning', 'give me an update on X'). Default is 'simple'."
 
         repeat:
           type: object

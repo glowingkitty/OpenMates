@@ -34,20 +34,23 @@ class SetReminderRequest(BaseModel):
     prompt: str = Field(..., description="The reminder message/prompt")
     trigger_type: str = Field(..., description="'specific' or 'random'")
     timezone: str = Field(..., description="User's timezone")
-    
+
     # For specific trigger
     trigger_datetime: Optional[str] = Field(None, description="ISO 8601 datetime for specific trigger")
-    
+
     # For random trigger
     random_start_date: Optional[str] = Field(None, description="Start date (YYYY-MM-DD)")
     random_end_date: Optional[str] = Field(None, description="End date (YYYY-MM-DD)")
     random_time_start: Optional[str] = Field(None, description="Earliest time (HH:MM)")
     random_time_end: Optional[str] = Field(None, description="Latest time (HH:MM)")
-    
+
     # Target configuration
     target_type: str = Field(default="new_chat", description="'new_chat' or 'existing_chat'")
     new_chat_title: Optional[str] = Field(None, description="Title for new chat")
-    
+
+    # Response type: "simple" = notification-only (no AI), "full" = AI executes a task
+    response_type: str = Field(default="simple", description="'simple' for notification-only (no AI), 'full' for AI action trigger")
+
     # Repeat configuration
     repeat: Optional[Dict[str, Any]] = Field(None, description="Repeat configuration")
 
@@ -229,11 +232,11 @@ class SetReminderSkill(BaseSkill):
                         # Check if created within last 60 seconds
                         time_diff = current_time - existing.get("created_at", 0)
                         if 0 <= time_diff <= 60:
-                            # Compare prompts (both are encrypted, so compare the
-                            # source chat_id + trigger_type + timezone as a proxy)
+                            # Compare trigger_type + timezone as a dedup proxy.
+                            # trigger_at is not yet parsed at this point, so we rely on the
+                            # 60-second window + type + timezone to catch duplicates.
                             if (existing.get("trigger_type") == trigger_type
-                                    and existing.get("timezone") == timezone
-                                    and existing.get("trigger_at") == trigger_at):
+                                    and existing.get("timezone") == timezone):
                                 logger.warning(
                                     f"DEDUP: Skipping duplicate set-reminder call for user {user_id} "
                                     f"in chat {chat_id} - reminder {existing.get('id') or existing.get('reminder_id')} "

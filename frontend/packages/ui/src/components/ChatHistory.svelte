@@ -28,6 +28,7 @@
     
   // ChatHeader: permanent display-only card shown at the top of new chats (title + category circle)
   import ChatHeader from './ChatHeader.svelte';
+  import ReminderSetterPanel from './reminder/ReminderSetterPanel.svelte';
   // Note: Icon was previously used for preprocessing step cards (now removed).
   // If Icon is needed elsewhere in future, re-import it.
 
@@ -535,6 +536,19 @@
   });
   let piiRevealed = $derived(currentChatId ? (piiRevealedMap.get(currentChatId) ?? false) : false);
   
+  // ─── Reminder panel state ─────────────────────────────────────────────────
+  // Managed locally so no prop threading is needed. Closes automatically when
+  // the user switches chats via the $effect below.
+
+  let reminderPanelOpen = $state(false);
+
+  $effect(() => {
+    // Close the panel whenever the active chat changes
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    currentChatId;
+    reminderPanelOpen = false;
+  });
+
   // CRITICAL: Only show permission dialog if it belongs to the current chat
   // This prevents the dialog from showing in the wrong chat when user switches chats
   // The dialog's chatId must match the currently active chat's ID
@@ -1530,6 +1544,7 @@
                 isLoading={isNewChatGeneratingTitle}
                 isCreditsError={isNewChatCreditsError}
                 {isIncognito}
+                onReminderClick={currentChatId && !isIncognito ? () => { reminderPanelOpen = true; } : undefined}
             />
         </div>
     {/if}
@@ -1576,7 +1591,7 @@
                         role={msg.role}
                         category={msg.category}
                         model_name={msg.model_name}
-                        content={msg.content}
+                        content={msg.content as string | Record<string, unknown> | null}
                         status={msg.status}
                         is_truncated={msg.is_truncated}
                         original_message={msg.original_message}
@@ -1631,6 +1646,18 @@
             {#if shouldShowPermissionDialog}
                 <div class="permission-dialog-wrapper" in:fade={{ duration: 200 }}>
                     <AppSettingsMemoriesPermissionDialog />
+                </div>
+            {/if}
+
+            <!-- Reminder setter panel — opened by the bell button in ChatHeader.
+                 Renders inline so the user sets the reminder in context, without a modal. -->
+            {#if reminderPanelOpen && currentChatId}
+                <div class="reminder-panel-wrapper" in:fade={{ duration: 150 }}>
+                    <ReminderSetterPanel
+                        chatId={currentChatId}
+                        onClose={() => { reminderPanelOpen = false; }}
+                        onSuccess={(_data) => { reminderPanelOpen = false; }}
+                    />
                 </div>
             {/if}
             
@@ -1814,6 +1841,13 @@
     justify-content: center;
     padding: 20px 0;
     margin-top: 10px;
+  }
+
+  .reminder-panel-wrapper {
+    width: 100%;
+    display: flex;
+    justify-content: flex-start;
+    padding: 4px 0 12px;
   }
 
   /* Follow-up suggestions wrapper — shown inline in the chat history after the last

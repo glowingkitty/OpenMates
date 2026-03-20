@@ -62,6 +62,9 @@
     /** When true, renders the incognito-specific variant: fixed dark gradient, anonym icon,
      *  and "Incognito Mode" as the title. Overrides all other visual states. */
     isIncognito = false,
+    /** Optional callback to open the reminder setter panel. When provided, renders a
+     *  bell icon button in the top-right corner of the banner. */
+    onReminderClick = undefined,
   }: {
     title?: string;
     category?: string | null;
@@ -73,6 +76,7 @@
     isCreditsError?: boolean;
     chatCreatedAt?: number | null;
     isIncognito?: boolean;
+    onReminderClick?: (() => void) | undefined;
   } = $props();
 
   // ─── Relative-time ticker ──────────────────────────────────────────────────
@@ -140,6 +144,7 @@
   /** Lucide chevron icons for prev/next arrows. */
   const ChevronLeft = getLucideIcon('chevron-left');
   const ChevronRight = getLucideIcon('chevron-right');
+  const Bell = getLucideIcon('bell');
 
   /**
    * Navigate to the previous chat in the list.
@@ -405,6 +410,20 @@
       type="button"
     >
       <ChevronRight size={22} color="rgba(255,255,255,0.85)" />
+    </button>
+  {/if}
+
+  <!-- ── Set reminder button ──
+       Shown in the top-right corner when an onReminderClick handler is provided.
+       Opens the ReminderSetterPanel inline in the chat history. -->
+  {#if onReminderClick}
+    <button
+      class="reminder-btn"
+      onclick={(e) => { e.stopPropagation(); onReminderClick(); }}
+      aria-label={$text('chat.header.set_reminder')}
+      type="button"
+    >
+      <Bell size={18} color="rgba(255,255,255,0.9)" />
     </button>
   {/if}
 </div>
@@ -748,6 +767,42 @@
   .nav-arrow-right {
     right: 0;
     border-radius: 10px 0 0 10px !important; /* rounded on the left (inner) side */
+  }
+
+  /* ─── Set reminder button ───────────────────────────────────────────────────
+     Small icon button in the top-right corner of the banner.
+     Mirrors the nav-arrow interactive style (transparent bg, white-tint hover). */
+  .reminder-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 20;
+    pointer-events: auto;
+    width: 34px !important;
+    height: 34px !important;
+    min-width: unset !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none;
+    border-radius: 8px !important;
+    background-color: rgba(255, 255, 255, 0.12) !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+    filter: none !important;
+  }
+
+  .reminder-btn:hover {
+    background-color: rgba(255, 255, 255, 0.22) !important;
+    scale: none !important;
+  }
+
+  .reminder-btn:active {
+    background-color: rgba(255, 255, 255, 0.30) !important;
+    scale: none !important;
+    filter: none !important;
   }
 
   /* ─── Living gradient orbs ──────────────────────────────────────────────────

@@ -887,6 +887,12 @@ header.next_chat:
   he: "הצ'אט הבא"
   verified_by_human: []
 
+header.set_reminder:
+  context: Accessible label for the bell button in the top-right of the chat header banner that opens the reminder setter panel
+  en: Set reminder
+  de: Erinnerung setzen
+  verified_by_human: [en, de]
+
 thinking.placeholder:
   context: Placeholder text shown in the thinking section while waiting for the AI reasoning model to start producing thinking content
   en: Let me think about that...

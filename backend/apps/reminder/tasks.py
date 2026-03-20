@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 # Hot cache window: 48 hours
 HOT_CACHE_WINDOW_SECONDS = 48 * 3600
 
-# System message template for reminders
+# Embed display content for all reminder types (shown in the reminder_fired WebSocket event).
 REMINDER_MESSAGE_TEMPLATE = """🔔 **Reminder**
 
 {prompt}
@@ -41,12 +41,10 @@ REMINDER_MESSAGE_TEMPLATE = """🔔 **Reminder**
 ---
 *This reminder was set on {created_date}*"""
 
-# Simple assistant nudge message for response_type="simple" reminders.
-SIMPLE_REMINDER_RESPONSE_TEMPLATE = """As a reminder, you wanted to come back to this chat!
-
-> {prompt}
-
-Feel free to ask if you need any help with this."""
+# System message injected into the AI's message history for response_type="full".
+# Wraps the user's task prompt with clear context so the LLM knows it was scheduled
+# to execute a task — not that a user just typed a message.
+REMINDER_TASK_TEMPLATE = "[Scheduled Reminder — Task Triggered]\n\nTask: {prompt}\n\nCarry out this task now. Do not explain that a reminder fired unless the user explicitly asks."
 
 
 # =========================================================================
@@ -266,6 +264,11 @@ async def _process_due_reminders_async(task: BaseServiceTask):
                     "chat_title": chat_title,
                     "user_id": user_id,
                     "fired_at": current_time,
+                    # response_type lets the frontend know whether to render a
+                    # timeline marker (simple) or await an AI response bubble (full).
+                    "response_type": response_type,
+                    "trigger_at_formatted": format_reminder_time(current_time, timezone),
+                    "prompt_preview": prompt[:80],
                 }
 
                 # WebSocket delivery
@@ -319,31 +322,11 @@ async def _process_due_reminders_async(task: BaseServiceTask):
                     except Exception as ai_error:
                         logger.warning(f"Failed to dispatch AI request for reminder {reminder_id}: {ai_error}")
                 else:
-                    # Simple response: predefined assistant message
-                    try:
-                        simple_response = SIMPLE_REMINDER_RESPONSE_TEMPLATE.format(prompt=prompt)
-                        simple_message_id = str(uuid.uuid4())
-                        simple_delivery_payload = {
-                            "type": "ai_response",
-                            "chat_id": target_chat_id,
-                            "message_id": simple_message_id,
-                            "content": simple_response,
-                            "user_id": user_id,
-                            "fired_at": current_time,
-                        }
-                        try:
-                            await task.publish_websocket_event(
-                                user_id_hash=user_id,
-                                event="pending_ai_response",
-                                payload=simple_delivery_payload
-                            )
-                        except Exception as ws_error:
-                            logger.error(f"Failed to publish simple response WS event for reminder {reminder_id}: {ws_error}")
-                        await cache_service.add_pending_reminder_delivery(
-                            user_id=user_id, delivery_payload=simple_delivery_payload
-                        )
-                    except Exception as simple_error:
-                        logger.warning(f"Failed to send simple reminder response for reminder {reminder_id}: {simple_error}")
+                    # Simple reminder: no AI response is generated.
+                    # The reminder_fired WebSocket event (already published above) carries
+                    # response_type="simple" so the frontend renders a timeline marker
+                    # in the chat history instead of an AI bubble.
+                    logger.debug(f"Simple reminder {reminder_id}: skipping AI response, timeline marker will be shown")
 
                 # Handle repeating vs one-time
                 if repeat_config:
@@ -629,8 +612,11 @@ async def _dispatch_reminder_ai_request(
             except Exception as e:
                 logger.warning(f"Could not restore chat history for AI request: {e}")
 
+    # Wrap the prompt with task context so the LLM knows it was triggered by a
+    # scheduled reminder — not a spontaneous user message.
+    task_content = REMINDER_TASK_TEMPLATE.format(prompt=prompt)
     message_history.append({
-        "content": prompt,
+        "content": task_content,
         "role": "user",
         "created_at": int(time.time()),
     })

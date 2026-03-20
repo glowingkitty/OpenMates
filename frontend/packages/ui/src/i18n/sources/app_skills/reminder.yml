@@ -369,3 +369,181 @@ cancel_reminder.how_to_use.3:
   sv: Avbryt alla påminnelser för imorgon
   he: "**בטל** את כל התזכורות למחר"
   verified_by_human: [en, de]
+
+# ─── Reminder setter panel (direct UI, no LLM) ──────────────────────────────
+
+panel.title:
+  context: Title shown at the top of the inline reminder setter panel
+  en: Set a Reminder
+  de: Erinnerung setzen
+  verified_by_human: [en, de]
+
+panel.date:
+  context: Label for the date input field in the reminder setter panel
+  en: Date
+  de: Datum
+  verified_by_human: [en, de]
+
+panel.time:
+  context: Label for the time input field in the reminder setter panel
+  en: Time
+  de: Uhrzeit
+  verified_by_human: [en, de]
+
+panel.note:
+  context: Label for the optional note/prompt field in the reminder setter panel
+  en: Note (optional)
+  de: Notiz (optional)
+  verified_by_human: [en, de]
+
+panel.note_placeholder:
+  context: Placeholder text for the note field in the reminder setter panel
+  en: Check this chat
+  de: Diesen Chat prüfen
+  verified_by_human: [en, de]
+
+panel.target_this_chat:
+  context: Option label — reminder fires in the current existing chat
+  en: In this chat
+  de: In diesem Chat
+  verified_by_human: [en, de]
+
+panel.target_new_chat:
+  context: Option label — reminder opens a new chat when it fires
+  en: New chat
+  de: Neuer Chat
+  verified_by_human: [en, de]
+
+panel.type_notification:
+  context: Option label — reminder sends a notification only, no AI response
+  en: Notification only
+  de: Nur Benachrichtigung
+  verified_by_human: [en, de]
+
+panel.type_action:
+  context: Option label — reminder triggers an AI action when it fires
+  en: Trigger AI action
+  de: KI-Aktion auslösen
+  verified_by_human: [en, de]
+
+panel.action_prompt_label:
+  context: Label for the action prompt textarea shown when response type is "full"
+  en: What should the AI do?
+  de: Was soll die KI tun?
+  verified_by_human: [en, de]
+
+panel.action_prompt_placeholder:
+  context: Placeholder for the action prompt field
+  en: e.g. Search the latest news and summarize them
+  de: z.B. Aktuelle Nachrichten suchen und zusammenfassen
+  verified_by_human: [en, de]
+
+panel.repeat:
+  context: Label for the repeat frequency selector in the reminder setter panel
+  en: Repeat
+  de: Wiederholen
+  verified_by_human: [en, de]
+
+panel.repeat_none:
+  context: Option — no repeat, one-time reminder
+  en: None
+  de: Keine
+  verified_by_human: [en, de]
+
+panel.repeat_daily:
+  context: Option — repeat daily
+  en: Daily
+  de: Täglich
+  verified_by_human: [en, de]
+
+panel.repeat_weekly:
+  context: Option — repeat weekly
+  en: Weekly
+  de: Wöchentlich
+  verified_by_human: [en, de]
+
+panel.repeat_monthly:
+  context: Option — repeat monthly
+  en: Monthly
+  de: Monatlich
+  verified_by_human: [en, de]
+
+panel.repeat_custom:
+  context: Option — custom repeat interval (every N days/weeks/months)
+  en: Custom
+  de: Benutzerdefiniert
+  verified_by_human: [en, de]
+
+panel.repeat_every:
+  context: Label prefix for custom repeat interval, e.g. "Every 3 days"
+  en: Every
+  de: Alle
+  verified_by_human: [en, de]
+
+panel.repeat_days:
+  context: Unit label for custom repeat interval — days
+  en: days
+  de: Tage
+  verified_by_human: [en, de]
+
+panel.repeat_weeks:
+  context: Unit label for custom repeat interval — weeks
+  en: weeks
+  de: Wochen
+  verified_by_human: [en, de]
+
+panel.repeat_months:
+  context: Unit label for custom repeat interval — months
+  en: months
+  de: Monate
+  verified_by_human: [en, de]
+
+panel.end_date:
+  context: Label for the optional repeat end date field
+  en: End date (optional)
+  de: Enddatum (optional)
+  verified_by_human: [en, de]
+
+panel.submit:
+  context: Submit button label in the reminder setter panel
+  en: Set Reminder
+  de: Erinnerung setzen
+  verified_by_human: [en, de]
+
+panel.cancel:
+  context: Cancel/dismiss button label in the reminder setter panel
+  en: Cancel
+  de: Abbrechen
+  verified_by_human: [en, de]
+
+panel.error_past:
+  context: Validation error shown when the user picks a date/time in the past
+  en: Please choose a future date and time.
+  de: Bitte wähle ein zukünftiges Datum und eine Uhrzeit.
+  verified_by_human: [en, de]
+
+panel.error_generic:
+  context: Generic error shown when the API call to set a reminder fails
+  en: Failed to set reminder. Please try again.
+  de: Erinnerung konnte nicht gesetzt werden. Bitte versuche es erneut.
+  verified_by_human: [en, de]
+
+panel.setting:
+  context: Loading state shown on the submit button while the API call is in progress
+  en: Setting...
+  de: Wird gesetzt...
+  verified_by_human: [en, de]
+
+# ─── Timeline marker for fired simple reminders ─────────────────────────────
+
+timeline.label:
+  context: Label shown in the timeline event marker when a simple reminder fires in the chat history
+  en: Reminder
+  de: Erinnerung
+  verified_by_human: [en, de]
+
+timeline.fired_at:
+  context: Timeline event marker text showing when the reminder fired. {time} is a formatted date/time string.
+  en: "Reminder · {time}"
+  de: "Erinnerung · {time}"
+  verified_by_human: [en, de]
