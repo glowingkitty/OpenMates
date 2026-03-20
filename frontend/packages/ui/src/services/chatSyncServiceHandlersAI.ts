@@ -2997,19 +2997,29 @@ export async function handleSendEmbedDataImpl(
         );
       }
 
-      // Dispatch event so ActiveChat can track the error and update the UI
-      serviceInstance.dispatchEvent(
-        new CustomEvent("embedUpdated", {
-          detail: {
-            embed_id: embedData.embed_id,
-            chat_id: embedData.chat_id,
-            message_id: embedData.message_id,
-            status: embedData.status,
-            child_embed_ids: embedData.embed_ids,
-            isProcessing: false,
-          },
-        }),
-      );
+      // For cancelled embeds (e.g., budget-suppressed placeholders), skip the UI
+      // event entirely — the placeholder was already removed from memory cache above,
+      // so dispatching embedUpdated would only trigger a pointless re-render.
+      // For error embeds, dispatch so ActiveChat can track it in _embedErrors and
+      // show the error banner.
+      if (embedData.status === "error") {
+        serviceInstance.dispatchEvent(
+          new CustomEvent("embedUpdated", {
+            detail: {
+              embed_id: embedData.embed_id,
+              chat_id: embedData.chat_id,
+              message_id: embedData.message_id,
+              status: embedData.status,
+              child_embed_ids: embedData.embed_ids,
+              isProcessing: false,
+            },
+          }),
+        );
+      } else {
+        console.debug(
+          `[ChatSyncService:AI] Skipping embedUpdated dispatch for cancelled embed ${embedData.embed_id} — silently removed`,
+        );
+      }
     } else {
       // ============================================================
       // FINALIZED STATUS (completed/etc): Full encryption and persistence
