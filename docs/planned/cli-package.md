@@ -81,9 +81,75 @@ For REST API endpoints for app skills and focus modes, see [REST API Architectur
 
 ---
 
+## 🛠️ Development — Running from the Git Repo
+
+When developing or testing CLI changes locally, you do **not** need to rebuild after every edit. Use `tsx` to run TypeScript source directly:
+
+```bash
+cd frontend/packages/openmates-cli
+
+# Run any CLI command directly from source (no build step needed):
+npx tsx src/cli.ts --help
+npx tsx src/cli.ts login
+npx tsx src/cli.ts chats list
+npx tsx src/cli.ts apps --help
+```
+
+> **Why not `node --experimental-strip-types`?** The source files use `.js` import extensions (standard ESM convention, e.g. `import { ... } from "./client.js"`). Node's built-in TypeScript stripping cannot resolve `.js` → `.ts`, but `tsx` handles this automatically.
+
+### Alternative: Watch Mode (auto-rebuild)
+
+If you prefer running from the compiled `dist/` output (e.g. to test the exact build artifact):
+
+```bash
+# Terminal 1 — watch mode rebuilds dist/ on every file save:
+npm run dev
+
+# Terminal 2 — run from compiled output:
+node dist/cli.js --help
+```
+
+### Building for Production / Publishing
+
+```bash
+npm run build          # tsup → ESM output in dist/
+node dist/cli.js --help  # verify the build works
+```
+
+### Linking Globally (optional)
+
+To make the `openmates` command available system-wide during development:
+
+```bash
+cd frontend/packages/openmates-cli
+npm link
+
+# Now works from anywhere:
+openmates --help
+
+# Remove when done:
+npm unlink -g openmates
+```
+
+### Running Tests
+
+```bash
+# Unit tests (no build required):
+node --test --experimental-strip-types tests/crypto.test.ts
+node --test --experimental-strip-types tests/storage.test.ts
+
+# CLI tests (requires build):
+npm run build && node --test tests/cli.test.ts
+
+# Full test suite:
+npm test
+```
+
+---
+
 ## 📦 Folder Structure
 
-### Python (`openmates/`)
+### Python (`openmates/`) — Planned
 
 ```
 openmates/
@@ -95,15 +161,27 @@ openmates/
 ├── pyproject.toml
 ```
 
-### Node.js (`openmates/`)
+### Node.js (`frontend/packages/openmates-cli/`)
 
 ```
-openmates/
+openmates-cli/
 ├── src/
-│   ├── index.js           # SDK entry
-│   ├── cli.js             # CLI entrypoint (Commander)
-│   └── server.js          # Docker setup helpers
-├── package.json
+│   ├── cli.ts             # CLI entry point (manual arg parsing, no framework)
+│   ├── index.ts           # SDK entry for programmatic use
+│   ├── client.ts          # OpenMatesClient — all SDK operations + decryption
+│   ├── crypto.ts          # AES-256-GCM + PBKDF2 crypto (Node.js webcrypto)
+│   ├── embedRenderers.ts  # Terminal rendering for all embed types
+│   ├── http.ts            # Thin fetch wrapper
+│   ├── storage.ts         # ~/.openmates session/cache persistence
+│   └── ws.ts              # WebSocket client for chat streaming
+├── tests/
+│   ├── crypto.test.ts     # Roundtrip + format tests
+│   ├── storage.test.ts    # Session/cache persistence tests
+│   └── cli.test.ts        # Registry + schema tests (requires build)
+├── dist/                  # Build output (gitignored)
+│   ├── cli.js             # Compiled CLI (bin entry)
+│   └── index.js           # Compiled SDK entry
+└── package.json
 ```
 
 ---
@@ -136,16 +214,14 @@ openmates = "openmates.cli:cli"
   "version": "0.1.0",
   "description": "OpenMates SDK and CLI",
   "type": "module",
-  "main": "src/index.js",
+  "main": "dist/index.js",
   "bin": {
-    "openmates": "./src/cli.js"
-  },
-  "dependencies": {
-    "commander": "^12.0.0",
-    "axios": "^1.6.7"
+    "openmates": "dist/cli.js"
   }
 }
 ```
+
+The CLI uses manual argument parsing (no Commander/yargs) and has minimal runtime dependencies beyond Node.js built-ins. Build tool: `tsup` (ESM output with TypeScript declarations).
 
 **After npm install -g openmates:**
 
