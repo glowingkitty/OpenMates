@@ -202,6 +202,18 @@ export async function loadChatKeysFromDatabase(
           // This happens after the transaction completes, which is fine
           (async () => {
             try {
+              // Pre-fetch master key ONCE before the batch loop to avoid
+              // N concurrent IndexedDB reads of the crypto database.
+              // Without this, each decryptChatKeyWithMasterKey call opens its own
+              // IDB connection, causing massive contention for stayLoggedIn=true users.
+              const { getKeyFromStorage } = await import("../cryptoService");
+              const prefetchedMasterKey = await getKeyFromStorage();
+              if (!prefetchedMasterKey) {
+                console.warn("[ChatDatabase] No master key available, skipping bulk key decryption");
+                resolve();
+                return;
+              }
+
               const BATCH_SIZE = 20;
               for (
                 let i = 0;
@@ -211,7 +223,7 @@ export async function loadChatKeysFromDatabase(
                 const batch = keysToDecrypt.slice(i, i + BATCH_SIZE);
                 await Promise.all(
                   batch.map(({ chatId, encryptedKey }) =>
-                    decryptChatKeyWithMasterKey(encryptedKey)
+                    decryptChatKeyWithMasterKey(encryptedKey, prefetchedMasterKey)
                       .then((chatKey) => {
                         if (chatKey) {
                           chatKeyManager.injectKey(

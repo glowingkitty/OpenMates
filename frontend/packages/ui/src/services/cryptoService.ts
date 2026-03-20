@@ -1141,8 +1141,9 @@ export async function encryptChatKeyWithMasterKey(
  */
 export async function decryptChatKeyWithMasterKey(
   encryptedChatKeyWithIV: string,
+  prefetchedMasterKey?: CryptoKey,
 ): Promise<Uint8Array | null> {
-  const masterKey = await getKeyFromStorage();
+  const masterKey = prefetchedMasterKey ?? await getKeyFromStorage();
   if (!masterKey) {
     return null;
   }
