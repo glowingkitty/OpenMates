@@ -459,7 +459,11 @@
         position: relative;
     }
 
-    /* Mode A: No background — flat gradient-colored icon via CSS mask */
+    /* Mode A: Subtle grey gradient background — flat gradient-colored icon via CSS mask */
+    .settings-icon:not(.has-bg) {
+        background: linear-gradient(135deg, var(--color-grey-20), var(--color-grey-30));
+    }
+
     .settings-icon:not(.has-bg)::after {
         content: '';
         position: absolute;

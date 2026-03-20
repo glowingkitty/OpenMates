@@ -93,6 +93,8 @@
         <div
             class="settings-tabs-container"
             class:scrollable={isScrollable}
+            class:at-start={isScrollable && !showLeftFade}
+            class:at-end={isScrollable && !showRightFade}
             bind:this={scrollEl}
             onscroll={updateFades}
         >
@@ -150,6 +152,28 @@
         position: relative;
         border-radius: 3.25rem;
         box-shadow: 0 0.25rem 0.25rem rgba(0, 0, 0, 0.1);
+        transition: border-radius 0.25s ease;
+    }
+
+    /* When scrollable, adjust outer border-radius to match scroll position */
+    .settings-tabs-outer.scrollable {
+        /* Default (middle): no rounded edges */
+        border-radius: 0;
+    }
+
+    .settings-tabs-outer.scrollable:not(.fade-left) {
+        /* At start: round left side */
+        border-radius: 3.25rem 0 0 3.25rem;
+    }
+
+    .settings-tabs-outer.scrollable:not(.fade-right) {
+        /* At end: round right side */
+        border-radius: 0 3.25rem 3.25rem 0;
+    }
+
+    .settings-tabs-outer.scrollable:not(.fade-left):not(.fade-right) {
+        /* Both edges visible: fully rounded */
+        border-radius: 3.25rem;
     }
 
     /* Edge fade gradients for scrollable mode */
@@ -159,22 +183,21 @@
         position: absolute;
         top: 0;
         bottom: 0;
-        width: 1.25rem;
+        width: 2.5rem;
         pointer-events: none;
         z-index: 2;
-        border-radius: 3.25rem;
         opacity: 0;
         transition: opacity 0.25s ease;
     }
 
     .settings-tabs-outer.scrollable::before {
         left: 0;
-        background: linear-gradient(to right, var(--color-grey-0), transparent);
+        background: linear-gradient(to right, var(--tabs-bg, var(--color-grey-0)) 20%, transparent);
     }
 
     .settings-tabs-outer.scrollable::after {
         right: 0;
-        background: linear-gradient(to left, var(--color-grey-0), transparent);
+        background: linear-gradient(to left, var(--tabs-bg, var(--color-grey-0)) 20%, transparent);
     }
 
     .settings-tabs-outer.fade-left::before {
@@ -187,17 +210,33 @@
 
     /* Scrollable inner container (no border-radius so it doesn't clip) */
     .settings-tabs-container {
-        background: var(--color-grey-0);
+        background: var(--tabs-bg, var(--color-grey-0));
         border-radius: 3.25rem;
         overflow: hidden;
+        transition: border-radius 0.25s ease;
     }
 
     .settings-tabs-container.scrollable {
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
         scrollbar-width: none;
-        /* Remove right border-radius when scrollable to allow content to peek */
+        /* Default: no rounded edges on either side (middle scroll position) */
+        border-radius: 0;
+    }
+
+    /* At start (left edge visible, no left scroll): round left side */
+    .settings-tabs-container.scrollable.at-start {
         border-radius: 3.25rem 0 0 3.25rem;
+    }
+
+    /* At end (right edge visible, no right scroll): round right side */
+    .settings-tabs-container.scrollable.at-end {
+        border-radius: 0 3.25rem 3.25rem 0;
+    }
+
+    /* At both start and end (all tabs visible — shouldn't happen with >4, but safe): fully rounded */
+    .settings-tabs-container.scrollable.at-start.at-end {
+        border-radius: 3.25rem;
     }
 
     .settings-tabs-container.scrollable::-webkit-scrollbar {
