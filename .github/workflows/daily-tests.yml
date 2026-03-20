@@ -252,13 +252,15 @@ jobs:
         env:
           PROJECT_ROOT: ${{ github.workspace }}
       - name: Run Playwright batch ${{ matrix.batch }}
+        id: pw_run
         if: steps.batch.outputs.SPECS_FOR_BATCH != ''
+        continue-on-error: true
         run: |
           mkdir -p $GITHUB_WORKSPACE/test-results
           cd frontend/apps/web_app
           npx playwright test ${{ steps.batch.outputs.SPECS_FOR_BATCH }} \
             --reporter=json \
-            > $GITHUB_WORKSPACE/test-results/playwright-${{ matrix.batch }}.json 2>&1 || true
+            > $GITHUB_WORKSPACE/test-results/playwright-${{ matrix.batch }}.json
         env:
           PLAYWRIGHT_TEST_BASE_URL: ${{ needs.open-tunnel.outputs.tunnel_url }}
           OPENMATES_TEST_ACCOUNT_1_EMAIL: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_EMAIL', matrix.account)] }}
@@ -274,6 +276,11 @@ jobs:
           name: playwright-results-${{ matrix.batch }}
           path: test-results/playwright-${{ matrix.batch }}.json
           if-no-files-found: ignore
+      - name: Fail if Playwright tests failed
+        if: steps.pw_run.outcome == 'failure'
+        run: |
+          echo "::error::Playwright batch ${{ matrix.batch }} failed"
+          exit 1
 
   # -----------------------------------------------------------------
   # Report: aggregate results, email, OpenObserve, webhook

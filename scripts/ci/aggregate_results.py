@@ -64,6 +64,10 @@ def main():
     pw_files = sorted(glob.glob(os.path.join(artifacts_dir, "playwright-results-*", "playwright-*.json")))
     if pw_files:
         suites["playwright"] = _merge_playwright(pw_files)
+    elif glob.glob(os.path.join(artifacts_dir, "playwright-results-*")):
+        # Artifact dirs exist but no JSON files — Playwright ran but produced no output
+        print("WARNING: Playwright artifact dirs found but no JSON results", file=sys.stderr)
+        suites["playwright"] = {"status": "error", "tests": [], "duration_seconds": 0}
 
     # --- Compute summary ---
     total = passed = failed = skipped = 0
@@ -102,6 +106,12 @@ def main():
     if api_url and webhook_key:
         message = _build_message(result, run_url)
         _send_webhook(api_url, webhook_key, message)
+
+    # Fail if any suite produced 0 tests (status "error") — never silently pass with no results
+    for suite_name, suite_data in suites.items():
+        if suite_data.get("status") == "error":
+            print(f"ERROR: Suite '{suite_name}' has 0 tests — marking run as failed", file=sys.stderr)
+            failed += 1
 
     if failed > 0:
         sys.exit(1)
@@ -179,7 +189,10 @@ def _parse_pytest(path: str) -> dict:
                     if test.get("outcome") != "passed" else None
                 ),
             })
-        status = "passed" if all(t["status"] == "passed" for t in tests) else "failed"
+        if not tests:
+            status = "error"
+        else:
+            status = "passed" if all(t["status"] == "passed" for t in tests) else "failed"
         return {"status": status, "tests": tests, "duration_seconds": 0}
     except Exception as e:
         print(f"WARNING: Failed to parse pytest results: {e}", file=sys.stderr)
@@ -206,7 +219,10 @@ def _parse_vitest(path: str) -> dict:
                         if assertion.get("status") != "passed" else None
                     ),
                 })
-        status = "passed" if all(t["status"] == "passed" for t in tests) else "failed"
+        if not tests:
+            status = "error"
+        else:
+            status = "passed" if all(t["status"] == "passed" for t in tests) else "failed"
         return {"status": status, "tests": tests, "duration_seconds": 0}
     except Exception as e:
         print(f"WARNING: Failed to parse vitest results: {e}", file=sys.stderr)
@@ -238,7 +254,10 @@ def _merge_playwright(paths: list) -> dict:
         except Exception as e:
             print(f"WARNING: Failed to parse Playwright results from {path}: {e}", file=sys.stderr)
 
-    status = "passed" if all(t["status"] == "passed" for t in all_tests) else "failed"
+    if not all_tests:
+        status = "error"
+    else:
+        status = "passed" if all(t["status"] == "passed" for t in all_tests) else "failed"
     return {"status": status, "tests": all_tests, "duration_seconds": 0}
 
 
