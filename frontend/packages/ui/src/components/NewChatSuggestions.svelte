@@ -591,9 +591,8 @@
   }
 
   .suggestions-header {
-    color: var(--color-grey-50);
+    color: var(--color-grey-60);
     font-size: 16px;
-    font-weight: 500;
     /* Align header left edge with the first card (mirroring recent-chats centering).
        Cards are 240px wide → left edge at 50% - 120px centres the first card. */
     padding: 0 0 0 calc(50% - 120px);
