@@ -2311,64 +2311,64 @@
     },
     "new_chat_suggestions": {
       "quantum_computing": {
-        "text": "Teach me about quantum computing in simple terms"
+        "text": "[study] Teach me about quantum computing in simple terms"
       },
       "plan_trip_japan": {
-        "text": "Help me plan a 7-day trip to Japan"
+        "text": "[travel] Help me plan a 7-day trip to Japan"
       },
       "ai_news": {
-        "text": "What's the latest news about AI developments?"
+        "text": "[news-search] What's the latest news about AI developments?"
       },
       "photosynthesis": {
-        "text": "Explain how photosynthesis works"
+        "text": "[study] Explain how photosynthesis works"
       },
       "professional_email": {
-        "text": "Help me write a professional email"
+        "text": "[mail] Help me write a professional email"
       },
       "healthy_breakfast": {
-        "text": "What are some healthy breakfast ideas?"
+        "text": "[nutrition] What are some healthy breakfast ideas?"
       },
       "blockchain": {
-        "text": "Explain blockchain technology"
+        "text": "[web-search] Explain blockchain technology"
       },
       "learn_spanish": {
-        "text": "Help me learn Spanish basics"
+        "text": "[study] Help me learn Spanish basics"
       },
       "ml_vs_ai": {
-        "text": "What's the difference between machine learning and AI?"
+        "text": "[web-search] What's the difference between machine learning and AI?"
       },
       "improve_productivity": {
-        "text": "How do I improve my productivity?"
+        "text": "[life_coaching] How do I improve my productivity?"
       },
       "theory_relativity": {
-        "text": "Explain the theory of relativity"
+        "text": "[study] Explain the theory of relativity"
       },
       "workout_plan": {
-        "text": "Help me create a workout plan"
+        "text": "[fitness] Help me create a workout plan"
       },
       "cybersecurity": {
-        "text": "What are the best practices for cybersecurity?"
+        "text": "[web-search] What are the best practices for cybersecurity?"
       },
       "learn_coding": {
-        "text": "How do I start learning to code?"
+        "text": "[code] How do I start learning to code?"
       },
       "stock_market": {
-        "text": "Explain how the stock market works"
+        "text": "[web-search] Explain how the stock market works"
       },
       "cover_letter": {
-        "text": "Help me write a cover letter"
+        "text": "[mail] Help me write a cover letter"
       },
       "writing_prompts": {
-        "text": "What are some creative writing prompts?"
+        "text": "[books] What are some creative writing prompts?"
       },
       "carbon_footprint": {
-        "text": "How do I reduce my carbon footprint?"
+        "text": "[web-search] How do I reduce my carbon footprint?"
       },
       "internet_history": {
-        "text": "Explain the history of the Internet"
+        "text": "[web-search] Explain the history of the Internet"
       },
       "meal_prep": {
-        "text": "Help me plan a healthy meal prep"
+        "text": "[nutrition] Help me plan a healthy meal prep"
       },
       "discover_web_search": {
         "text": "[web-search] What's happening in the world today?"

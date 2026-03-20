@@ -1,482 +1,482 @@
 quantum_computing:
-  context: Default new chat suggestion
-  en: Teach me about quantum computing in simple terms
-  de: Erkläre mir Quantencomputing in einfachen Worten
-  zh: 用简单的语言教我关于量子计算
-  es: Explícame la computación cuántica en términos simples
-  fr: Expliquez-moi l'informatique quantique en termes simples
-  pt: Ensine-me sobre computação quântica em termos simples
-  ru: Научи меня о квантовых вычислениях простыми словами
-  ja: 量子コンピュータについて簡潔に教えてください
-  ko: 양자 컴퓨팅에 대해 쉽게 설명해주세요
-  it: Insegnami l'informatica quantistica in termini semplici
-  tr: Kuantum bilişimi basit terimlerle öğret
-  vi: Dạy tôi về điện toán lượng tử bằng những thuật ngữ đơn giản
-  id: Ajari saya tentang komputasi kuantum dalam istilah yang sederhana
-  pl: Nauczaj mnie o komputacji kwantowej w prostych słowach
-  nl: Leer me over quantum computing in eenvoudige termen
-  ar: علمني عن الحوسبة الكمية بعبارات بسيطة
-  hi: मुझे क्वांटम कंप्यूटिंग के बारे में सरल शब्दों में सिखाएं
-  th: สอนฉันเกี่ยวกับการคำนวณควอนตัมในแง่ง่าย ๆ
-  cs: Vysvětli mi kvantové počítače prostřednictvím jednoduchých výrazů
-  sv: Lär mig om kvantberäkning i enkla termer
-  he: למד אותי על מחשוב קוונטי במונחים פשוטים
+  context: Default new chat suggestion — [study] prefix routes to study app
+  en: "[study] Teach me about quantum computing in simple terms"
+  de: "[study] Erkläre mir Quantencomputing in einfachen Worten"
+  zh: "[study] 用简单的语言教我关于量子计算"
+  es: "[study] Explícame la computación cuántica en términos simples"
+  fr: "[study] Expliquez-moi l'informatique quantique en termes simples"
+  pt: "[study] Ensine-me sobre computação quântica em termos simples"
+  ru: "[study] Научи меня о квантовых вычислениях простыми словами"
+  ja: "[study] 量子コンピュータについて簡潔に教えてください"
+  ko: "[study] 양자 컴퓨팅에 대해 쉽게 설명해주세요"
+  it: "[study] Insegnami l'informatica quantistica in termini semplici"
+  tr: "[study] Kuantum bilişimi basit terimlerle öğret"
+  vi: "[study] Dạy tôi về điện toán lượng tử bằng những thuật ngữ đơn giản"
+  id: "[study] Ajari saya tentang komputasi kuantum dalam istilah yang sederhana"
+  pl: "[study] Nauczaj mnie o komputacji kwantowej w prostych słowach"
+  nl: "[study] Leer me over quantum computing in eenvoudige termen"
+  ar: "[study] علمني عن الحوسبة الكمية بعبارات بسيطة"
+  hi: "[study] मुझे क्वांटम कंप्यूटिंग के बारे में सरल शब्दों में सिखाएं"
+  th: "[study] สอนฉันเกี่ยวกับการคำนวณควอนตัมในแง่ง่าย ๆ"
+  cs: "[study] Vysvětli mi kvantové počítače prostřednictvím jednoduchých výrazů"
+  sv: "[study] Lär mig om kvantberäkning i enkla termer"
+  he: "[study] למד אותי על מחשוב קוונטי במונחים פשוטים"
   verified_by_human: []
 plan_trip_japan:
-  context: Default new chat suggestion
-  en: Help me plan a 7-day trip to Japan
-  de: Hilf mir, eine 7-tägige Reise nach Japan zu planen
-  zh: 帮助我计划一个为期7天的日本之旅
-  es: Ayúdame a planificar un viaje de 7 días a Japón
-  fr: Aidez-moi à planifier un voyage de 7 jours au Japon
-  pt: Ajude-me a planejar uma viagem de 7 dias ao Japão
-  ru: Помогите мне спланировать 7-дневную поездку в Японию
-  ja: 日本への7日間の旅行を計画するのを手伝ってください
-  ko: 일본으로의 7일 여행을 계획하는 것을 도와주세요
-  it: Aiutami a pianificare un viaggio di 7 giorni in Giappone
-  tr: Japonya'ya 7 günlük bir yolculuk planlamasına yardım et
-  vi: Giúp tôi lên kế hoạch cho một chuyến đi 7 ngày đến Nhật Bản
-  id: Bantu saya merencanakan perjalanan 7 hari ke Jepang
-  pl: Pomóż mi zaplanować 7-dniową podróż do Japonii
-  nl: Help mij een 7-daagse reis naar Japan te plannen
-  ar: ساعدني في التخطيط لرحلة مدتها 7 أيام إلى اليابان
-  hi: मुझे जापान के 7 दिवसीय यात्रा की योजना बनाने में मदद करें
-  th: ช่วยฉันวางแผนการเดินทาง 7 วันไปญี่ปุ่น
-  cs: Pomozte mi naplánovat 7denní cestu do Japonska
-  sv: Hjälp mig planera en 7-dagars resa till Japan
-  he: עזור לי לתכנן טיול של 7 ימים ליפן
+  context: Default new chat suggestion — [travel] prefix routes to travel app
+  en: "[travel] Help me plan a 7-day trip to Japan"
+  de: "[travel] Hilf mir, eine 7-tägige Reise nach Japan zu planen"
+  zh: "[travel] 帮助我计划一个为期7天的日本之旅"
+  es: "[travel] Ayúdame a planificar un viaje de 7 días a Japón"
+  fr: "[travel] Aidez-moi à planifier un voyage de 7 jours au Japon"
+  pt: "[travel] Ajude-me a planejar uma viagem de 7 dias ao Japão"
+  ru: "[travel] Помогите мне спланировать 7-дневную поездку в Японию"
+  ja: "[travel] 日本への7日間の旅行を計画するのを手伝ってください"
+  ko: "[travel] 일본으로의 7일 여행을 계획하는 것을 도와주세요"
+  it: "[travel] Aiutami a pianificare un viaggio di 7 giorni in Giappone"
+  tr: "[travel] Japonya'ya 7 günlük bir yolculuk planlamasına yardım et"
+  vi: "[travel] Giúp tôi lên kế hoạch cho một chuyến đi 7 ngày đến Nhật Bản"
+  id: "[travel] Bantu saya merencanakan perjalanan 7 hari ke Jepang"
+  pl: "[travel] Pomóż mi zaplanować 7-dniową podróż do Japonii"
+  nl: "[travel] Help mij een 7-daagse reis naar Japan te plannen"
+  ar: "[travel] ساعدني في التخطيط لرحلة مدتها 7 أيام إلى اليابان"
+  hi: "[travel] मुझे जापान के 7 दिवसीय यात्रा की योजना बनाने में मदद करें"
+  th: "[travel] ช่วยฉันวางแผนการเดินทาง 7 วันไปญี่ปุ่น"
+  cs: "[travel] Pomozte mi naplánovat 7denní cestu do Japonska"
+  sv: "[travel] Hjälp mig planera en 7-dagars resa till Japan"
+  he: "[travel] עזור לי לתכנן טיול של 7 ימים ליפן"
   verified_by_human: []
 ai_news:
-  context: Default new chat suggestion
-  en: What's the latest news about AI developments?
-  de: Was sind die neuesten Nachrichten über KI-Entwicklungen?
-  zh: 关于人工智能发展的最新消息是什么？
-  es: ¿Cuáles son las últimas noticias sobre desarrollos de IA?
-  fr: Quelles sont les dernières nouvelles sur les développements de l'IA ?
-  pt: Quais são as últimas notícias sobre desenvolvimentos de IA?
-  ru: Какие последние новости о развитии ИИ?
-  ja: AI開発に関する最新ニュースは何ですか？
-  ko: AI 개발에 관한 최신 뉴스는 무엇입니까?
-  it: Quali sono le ultime notizie sugli sviluppi dell'IA?
-  tr: Yapay zeka gelişmeleri hakkında en son haberler neler?
-  vi: Tin tức mới nhất về phát triển AI là gì?
-  id: Apa berita terbaru tentang perkembangan AI?
-  pl: Jakie są ostatnie wiadomości o rozwoju sztucznej inteligencji?
-  nl: Wat is het laatste nieuws over AI-ontwikkelingen?
-  ar: ما أحدث الأخبار عن تطورات الذكاء الاصطناعي؟
-  hi: AI विकास के बारे में सबसे नई खबर क्या है?
-  th: ข่าวล่าสุดเกี่ยวกับการพัฒนา AI คืออะไร?
-  cs: Jaké jsou nejnovější zprávy o vývoji AI?
-  sv: Vad är senaste nyheterna om AI-utveckling?
-  he: "מהן החדשות האחרונות על פיתוחי בינה מלאכותית?"
+  context: Default new chat suggestion — [news-search] prefix routes to news search skill
+  en: "[news-search] What's the latest news about AI developments?"
+  de: "[news-search] Was sind die neuesten Nachrichten über KI-Entwicklungen?"
+  zh: "[news-search] 关于人工智能发展的最新消息是什么？"
+  es: "[news-search] ¿Cuáles son las últimas noticias sobre desarrollos de IA?"
+  fr: "[news-search] Quelles sont les dernières nouvelles sur les développements de l'IA ?"
+  pt: "[news-search] Quais são as últimas notícias sobre desenvolvimentos de IA?"
+  ru: "[news-search] Какие последние новости о развитии ИИ?"
+  ja: "[news-search] AI開発に関する最新ニュースは何ですか？"
+  ko: "[news-search] AI 개발에 관한 최신 뉴스는 무엇입니까?"
+  it: "[news-search] Quali sono le ultime notizie sugli sviluppi dell'IA?"
+  tr: "[news-search] Yapay zeka gelişmeleri hakkında en son haberler neler?"
+  vi: "[news-search] Tin tức mới nhất về phát triển AI là gì?"
+  id: "[news-search] Apa berita terbaru tentang perkembangan AI?"
+  pl: "[news-search] Jakie są ostatnie wiadomości o rozwoju sztucznej inteligencji?"
+  nl: "[news-search] Wat is het laatste nieuws over AI-ontwikkelingen?"
+  ar: "[news-search] ما أحدث الأخبار عن تطورات الذكاء الاصطناعي؟"
+  hi: "[news-search] AI विकास के बारे में सबसे नई खबर क्या है?"
+  th: "[news-search] ข่าวล่าสุดเกี่ยวกับการพัฒนา AI คืออะไร?"
+  cs: "[news-search] Jaké jsou nejnovější zprávy o vývoji AI?"
+  sv: "[news-search] Vad är senaste nyheterna om AI-utveckling?"
+  he: "[news-search] מהן החדשות האחרונות על פיתוחי בינה מלאכותית?"
   verified_by_human: []
 photosynthesis:
-  context: Default new chat suggestion
-  en: Explain how photosynthesis works
-  de: Erkläre, wie Photosynthese funktioniert
-  zh: 解释光合作用如何工作
-  es: Explica cómo funciona la fotosíntesis
-  fr: Expliquez comment fonctionne la photosynthèse
-  pt: Explique como a fotossíntese funciona
-  ru: Объясните, как работает фотосинтез
-  ja: 光合成の仕組みを説明してください
-  ko: 광합성이 어떻게 작동하는지 설명하세요
-  it: Spiega come funziona la fotosintesi
-  tr: Fotosentezin nasıl çalıştığını açıkla
-  vi: Giải thích cách thức hoạt động của quang hợp
-  id: Jelaskan bagaimana fotosintesis bekerja
-  pl: Wyjaśnij, jak działa fotosynteza
-  nl: Leg uit hoe fotosynthese werkt
-  ar: اشرح كيف يعمل التمثيل الضوئي
-  hi: समझाइए कि प्रकाश संश्लेषण कैसे काम करता है
-  th: อธิบายวิธีการทำงานของโฟโตซิงเทซิส
-  cs: Vysvětli, jak funguje fotosyntéza
-  sv: Förklara hur fotosyntes fungerar
-  he: הסבר לי איך עובד תהליך הפוטוסינתזה
+  context: Default new chat suggestion — [study] prefix routes to study app
+  en: "[study] Explain how photosynthesis works"
+  de: "[study] Erkläre, wie Photosynthese funktioniert"
+  zh: "[study] 解释光合作用如何工作"
+  es: "[study] Explica cómo funciona la fotosíntesis"
+  fr: "[study] Expliquez comment fonctionne la photosynthèse"
+  pt: "[study] Explique como a fotossíntese funciona"
+  ru: "[study] Объясните, как работает фотосинтез"
+  ja: "[study] 光合成の仕組みを説明してください"
+  ko: "[study] 광합성이 어떻게 작동하는지 설명하세요"
+  it: "[study] Spiega come funziona la fotosintesi"
+  tr: "[study] Fotosentezin nasıl çalıştığını açıkla"
+  vi: "[study] Giải thích cách thức hoạt động của quang hợp"
+  id: "[study] Jelaskan bagaimana fotosintesis bekerja"
+  pl: "[study] Wyjaśnij, jak działa fotosynteza"
+  nl: "[study] Leg uit hoe fotosynthese werkt"
+  ar: "[study] اشرح كيف يعمل التمثيل الضوئي"
+  hi: "[study] समझाइए कि प्रकाश संश्लेषण कैसे काम करता है"
+  th: "[study] อธิบายวิธีการทำงานของโฟโตซิงเทซิส"
+  cs: "[study] Vysvětli, jak funguje fotosyntéza"
+  sv: "[study] Förklara hur fotosyntes fungerar"
+  he: "[study] הסבר לי איך עובד תהליך הפוטוסינתזה"
   verified_by_human: []
 professional_email:
-  context: Default new chat suggestion
-  en: Help me write a professional email
-  de: Hilf mir, eine professionelle E-Mail zu schreiben
-  zh: 帮助我写一封专业的电子邮件
-  es: Ayúdame a escribir un correo electrónico profesional
-  fr: Aidez-moi à rédiger un email professionnel
-  pt: Ajude-me a escrever um email profissional
-  ru: Помогите мне написать профессиональное письмо
-  ja: プロフェッショナルなメールを書くのを手伝ってください
-  ko: 전문적인 이메일을 작성하도록 도와주세요
-  it: Aiutami a scrivere un'email professionale
-  tr: Profesyonel bir e-posta yazmama yardım et
-  vi: Giúp tôi viết một email chuyên nghiệp
-  id: Bantu saya menulis email profesional
-  pl: Pomóż mi napisać profesjonalną wiadomość e-mail
-  nl: Help mij een professionele e-mail te schrijven
-  ar: ساعدني في كتابة بريد إلكتروني احترافي
-  hi: मुझे एक पेशेवर ईमेल लिखने में मदद करें
-  th: ช่วยฉันเขียนอีเมลระดับมืออาชีพ
-  cs: Pomozte mi napsat profesionální email
-  sv: Hjälp mig att skriva ett professionellt e-postmeddelande
-  he: עזור לי לכתוב אימייל מקצועי
+  context: Default new chat suggestion — [mail] prefix routes to mail app
+  en: "[mail] Help me write a professional email"
+  de: "[mail] Hilf mir, eine professionelle E-Mail zu schreiben"
+  zh: "[mail] 帮助我写一封专业的电子邮件"
+  es: "[mail] Ayúdame a escribir un correo electrónico profesional"
+  fr: "[mail] Aidez-moi à rédiger un email professionnel"
+  pt: "[mail] Ajude-me a escrever um email profissional"
+  ru: "[mail] Помогите мне написать профессиональное письмо"
+  ja: "[mail] プロフェッショナルなメールを書くのを手伝ってください"
+  ko: "[mail] 전문적인 이메일을 작성하도록 도와주세요"
+  it: "[mail] Aiutami a scrivere un'email professionale"
+  tr: "[mail] Profesyonel bir e-posta yazmama yardım et"
+  vi: "[mail] Giúp tôi viết một email chuyên nghiệp"
+  id: "[mail] Bantu saya menulis email profesional"
+  pl: "[mail] Pomóż mi napisać profesjonalną wiadomość e-mail"
+  nl: "[mail] Help mij een professionele e-mail te schrijven"
+  ar: "[mail] ساعدني في كتابة بريد إلكتروني احترافي"
+  hi: "[mail] मुझे एक पेशेवर ईमेल लिखने में मदद करें"
+  th: "[mail] ช่วยฉันเขียนอีเมลระดับมืออาชีพ"
+  cs: "[mail] Pomozte mi napsat profesionální email"
+  sv: "[mail] Hjälp mig att skriva ett professionellt e-postmeddelande"
+  he: "[mail] עזור לי לכתוב אימייל מקצועי"
   verified_by_human: []
 healthy_breakfast:
-  context: Default new chat suggestion
-  en: What are some healthy breakfast ideas?
-  de: Was sind einige gesunde Frühstücksideen?
-  zh: 一些健康的早餐主意是什么？
-  es: ¿Cuáles son algunas ideas de desayuno saludable?
-  fr: Quelles sont quelques idées de petit-déjeuner sain ?
-  pt: Quais são algumas ideias de café da manhã saudável?
-  ru: Какие идеи здорового завтрака?
-  ja: 健康的な朝食のアイデアは何ですか？
-  ko: 건강한 아침 식사 아이디어는 무엇입니까?
-  it: Quali sono alcune idee per una colazione sana?
-  tr: Bazı sağlıklı kahvaltı fikirleri neler?
-  vi: Một số ý tưởng bữa sáng lành mạnh là gì?
-  id: Apa beberapa ide sarapan sehat?
-  pl: Jakie są pomysły na zdrowe śniadanie?
-  nl: Wat zijn enkele gezonde ontbijt ideën?
-  ar: ما بعض أفكار الفطور الصحية؟
-  hi: कुछ स्वस्थ नाश्ते की विचारें क्या हैं?
-  th: ความคิดอาหารเช้าที่มีสุขภาพดีบางประการคืออะไร?
-  cs: Jaké jsou některé nápady na zdravou snídaňi?
-  sv: Vilka är några idéer för frukost som är hälsosam?
-  he: "מהם כמה רעיונות לארוחת בוקר בריאה?"
+  context: Default new chat suggestion — [nutrition] prefix routes to nutrition app
+  en: "[nutrition] What are some healthy breakfast ideas?"
+  de: "[nutrition] Was sind einige gesunde Frühstücksideen?"
+  zh: "[nutrition] 一些健康的早餐主意是什么？"
+  es: "[nutrition] ¿Cuáles son algunas ideas de desayuno saludable?"
+  fr: "[nutrition] Quelles sont quelques idées de petit-déjeuner sain ?"
+  pt: "[nutrition] Quais são algumas ideias de café da manhã saudável?"
+  ru: "[nutrition] Какие идеи здорового завтрака?"
+  ja: "[nutrition] 健康的な朝食のアイデアは何ですか？"
+  ko: "[nutrition] 건강한 아침 식사 아이디어는 무엇입니까?"
+  it: "[nutrition] Quali sono alcune idee per una colazione sana?"
+  tr: "[nutrition] Bazı sağlıklı kahvaltı fikirleri neler?"
+  vi: "[nutrition] Một số ý tưởng bữa sáng lành mạnh là gì?"
+  id: "[nutrition] Apa beberapa ide sarapan sehat?"
+  pl: "[nutrition] Jakie są pomysły na zdrowe śniadanie?"
+  nl: "[nutrition] Wat zijn enkele gezonde ontbijt ideën?"
+  ar: "[nutrition] ما بعض أفكار الفطور الصحية؟"
+  hi: "[nutrition] कुछ स्वस्थ नाश्ते की विचारें क्या हैं?"
+  th: "[nutrition] ความคิดอาหารเช้าที่มีสุขภาพดีบางประการคืออะไร?"
+  cs: "[nutrition] Jaké jsou některé nápady na zdravou snídaňi?"
+  sv: "[nutrition] Vilka är några idéer för frukost som är hälsosam?"
+  he: "[nutrition] מהם כמה רעיונות לארוחת בוקר בריאה?"
   verified_by_human: []
 blockchain:
-  context: Default new chat suggestion
-  en: Explain blockchain technology
-  de: Erkläre Blockchain-Technologie
-  zh: 解释区块链技术
-  es: Explica la tecnología blockchain
-  fr: Expliquez la technologie de la blockchain
-  pt: Explique a tecnologia blockchain
-  ru: Объясните технологию блокчейна
-  ja: ブロックチェーン技術を説明してください
-  ko: 블록체인 기술을 설명하세요
-  it: Spiega la tecnologia blockchain
-  tr: Blockchain teknolojisini açıkla
-  vi: Giải thích công nghệ blockchain
-  id: Jelaskan teknologi blockchain
-  pl: Wyjaśnij technologię blockchain
-  nl: Leg blockchain-technologie uit
-  ar: شرح تكنولوجيا البلوكتشين
-  hi: ब्लॉकचेन तकनीक समझाइए
-  th: อธิบายเทคโนโลยี Blockchain
-  cs: Vysvětli technologii blockchain
-  sv: Förklara blockchain-teknologi
-  he: "הסבר לי על טכנולוגיית בלוקצ'יין"
+  context: Default new chat suggestion — [web-search] prefix routes to web search skill
+  en: "[web-search] Explain blockchain technology"
+  de: "[web-search] Erkläre Blockchain-Technologie"
+  zh: "[web-search] 解释区块链技术"
+  es: "[web-search] Explica la tecnología blockchain"
+  fr: "[web-search] Expliquez la technologie de la blockchain"
+  pt: "[web-search] Explique a tecnologia blockchain"
+  ru: "[web-search] Объясните технологию блокчейна"
+  ja: "[web-search] ブロックチェーン技術を説明してください"
+  ko: "[web-search] 블록체인 기술을 설명하세요"
+  it: "[web-search] Spiega la tecnologia blockchain"
+  tr: "[web-search] Blockchain teknolojisini açıkla"
+  vi: "[web-search] Giải thích công nghệ blockchain"
+  id: "[web-search] Jelaskan teknologi blockchain"
+  pl: "[web-search] Wyjaśnij technologię blockchain"
+  nl: "[web-search] Leg blockchain-technologie uit"
+  ar: "[web-search] شرح تكنولوجيا البلوكتشين"
+  hi: "[web-search] ब्लॉकचेन तकनीक समझाइए"
+  th: "[web-search] อธิบายเทคโนโลยี Blockchain"
+  cs: "[web-search] Vysvětli technologii blockchain"
+  sv: "[web-search] Förklara blockchain-teknologi"
+  he: "[web-search] הסבר לי על טכנולוגיית בלוקצ'יין"
   verified_by_human: []
 learn_spanish:
-  context: Default new chat suggestion
-  en: Help me learn Spanish basics
-  de: Hilf mir, Spanisch-Grundlagen zu lernen
-  zh: 帮助我学习西班牙语基础
-  es: Ayúdame a aprender los conceptos básicos del español
-  fr: Aidez-moi à apprendre les bases de l'espagnol
-  pt: Ajude-me a aprender o básico do espanhol
-  ru: Помогите мне выучить основы испанского языка
-  ja: スペイン語の基本を学ぶのを手伝ってください
-  ko: 스페인어 기초를 배우도록 도와주세요
-  it: Aiutami a imparare le basi dello spagnolo
-  tr: İspanyolca temellerini öğrenmeme yardım et
-  vi: Giúp tôi học những kiến thức cơ bản về tiếng Tây Ban Nha
-  id: Bantu saya mempelajari dasar-dasar bahasa Spanyol
-  pl: Pomóż mi nauczyć się podstaw języka hiszpańskiego
-  nl: Help mij de basisprincipes van het Spaans te leren
-  ar: ساعدني في تعلم أساسيات اللغة الإسبانية
-  hi: मुझे स्पेनिश की बुनियादी बातें सीखने में मदद करें
-  th: ช่วยฉันเรียนรู้พื้นฐานของภาษาสเปน
-  cs: Pomozte mi naučit se základy španělštiny
-  sv: Hjälp mig att lära mig grunderna i spanska
-  he: עזור לי ללמוד ספרדית בסיסית
+  context: Default new chat suggestion — [study] prefix routes to study app
+  en: "[study] Help me learn Spanish basics"
+  de: "[study] Hilf mir, Spanisch-Grundlagen zu lernen"
+  zh: "[study] 帮助我学习西班牙语基础"
+  es: "[study] Ayúdame a aprender los conceptos básicos del español"
+  fr: "[study] Aidez-moi à apprendre les bases de l'espagnol"
+  pt: "[study] Ajude-me a aprender o básico do espanhol"
+  ru: "[study] Помогите мне выучить основы испанского языка"
+  ja: "[study] スペイン語の基本を学ぶのを手伝ってください"
+  ko: "[study] 스페인어 기초를 배우도록 도와주세요"
+  it: "[study] Aiutami a imparare le basi dello spagnolo"
+  tr: "[study] İspanyolca temellerini öğrenmeme yardım et"
+  vi: "[study] Giúp tôi học những kiến thức cơ bản về tiếng Tây Ban Nha"
+  id: "[study] Bantu saya mempelajari dasar-dasar bahasa Spanyol"
+  pl: "[study] Pomóż mi nauczyć się podstaw języka hiszpańskiego"
+  nl: "[study] Help mij de basisprincipes van het Spaans te leren"
+  ar: "[study] ساعدني في تعلم أساسيات اللغة الإسبانية"
+  hi: "[study] मुझे स्पेनिश की बुनियादी बातें सीखने में मदद करें"
+  th: "[study] ช่วยฉันเรียนรู้พื้นฐานของภาษาสเปน"
+  cs: "[study] Pomozte mi naučit se základy španělštiny"
+  sv: "[study] Hjälp mig att lära mig grunderna i spanska"
+  he: "[study] עזור לי ללמוד ספרדית בסיסית"
   verified_by_human: []
 ml_vs_ai:
-  context: Default new chat suggestion
-  en: What's the difference between machine learning and AI?
-  de: Was ist der Unterschied zwischen Machine Learning und KI?
-  zh: 机器学习和人工智能有什么区别？
-  es: ¿Cuál es la diferencia entre aprendizaje automático e IA?
-  fr: Quelle est la différence entre l'apprentissage automatique et l'IA ?
-  pt: Qual é a diferença entre aprendizado de máquina e IA?
-  ru: В чем разница между машинным обучением и ИИ?
-  ja: 機械学習とAIの違いは何ですか？
-  ko: 머신러닝과 AI의 차이점은 무엇입니까?
-  it: Qual è la differenza tra l'apprendimento automatico e l'IA?
-  tr: Makine öğrenmesi ile yapay zeka arasındaki fark nedir?
-  vi: Sự khác biệt giữa học máy và AI là gì?
-  id: Apa perbedaan antara pembelajaran mesin dan AI?
-  pl: Jaka jest różnica między uczeniem maszynowym a sztuczną inteligencją?
-  nl: Wat is het verschil tussen machine learning en AI?
-  ar: ما الفرق بين التعلم الآلي والذكاء الاصطناعي؟
-  hi: मशीन लर्निंग और एआई के बीच क्या अंतर है?
-  th: ความแตกต่างระหว่างการเรียนรู้ของเครื่องและ AI คืออะไร?
-  cs: Jaký je rozdíl mezi strojovým učením a umělou inteligencí?
-  sv: Vad är skillnaden mellan maskininlärning och AI?
-  he: "מה ההבדל בין למידת מכונה לבינה מלאכותית?"
+  context: Default new chat suggestion — [web-search] prefix routes to web search skill
+  en: "[web-search] What's the difference between machine learning and AI?"
+  de: "[web-search] Was ist der Unterschied zwischen Machine Learning und KI?"
+  zh: "[web-search] 机器学习和人工智能有什么区别？"
+  es: "[web-search] ¿Cuál es la diferencia entre aprendizaje automático e IA?"
+  fr: "[web-search] Quelle est la différence entre l'apprentissage automatique et l'IA ?"
+  pt: "[web-search] Qual é a diferença entre aprendizado de máquina e IA?"
+  ru: "[web-search] В чем разница между машинным обучением и ИИ?"
+  ja: "[web-search] 機械学習とAIの違いは何ですか？"
+  ko: "[web-search] 머신러닝과 AI의 차이점은 무엇입니까?"
+  it: "[web-search] Qual è la differenza tra l'apprendimento automatico e l'IA?"
+  tr: "[web-search] Makine öğrenmesi ile yapay zeka arasındaki fark nedir?"
+  vi: "[web-search] Sự khác biệt giữa học máy và AI là gì?"
+  id: "[web-search] Apa perbedaan antara pembelajaran mesin dan AI?"
+  pl: "[web-search] Jaka jest różnica między uczeniem maszynowym a sztuczną inteligencją?"
+  nl: "[web-search] Wat is het verschil tussen machine learning en AI?"
+  ar: "[web-search] ما الفرق بين التعلم الآلي والذكاء الاصطناعي؟"
+  hi: "[web-search] मशीन लर्निंग और एआई के बीच क्या अंतर है?"
+  th: "[web-search] ความแตกต่างระหว่างการเรียนรู้ของเครื่องและ AI คืออะไร?"
+  cs: "[web-search] Jaký je rozdíl mezi strojovým učením a umělou inteligencí?"
+  sv: "[web-search] Vad är skillnaden mellan maskininlärning och AI?"
+  he: "[web-search] מה ההבדל בין למידת מכונה לבינה מלאכותית?"
   verified_by_human: []
 improve_productivity:
-  context: Default new chat suggestion
-  en: How do I improve my productivity?
-  de: Wie verbessere ich meine Produktivität?
-  zh: 我如何提高生产率？
-  es: ¿Cómo mejoro mi productividad?
-  fr: Comment puis-je améliorer ma productivité ?
-  pt: Como posso melhorar minha produtividade?
-  ru: Как я могу повысить свою производительность?
-  ja: 生産性を向上させるにはどうすればよいですか？
-  ko: 생산성을 개선하려면 어떻게 해야 합니까?
-  it: Come posso migliorare la mia produttività?
-  tr: Verimliliğimi nasıl iyileştirebilirim?
-  vi: Làm thế nào để tôi cải thiện năng suất của mình?
-  id: Bagaimana cara saya meningkatkan produktivitas saya?
-  pl: Jak mogę poprawić swoją produktywność?
-  nl: Hoe kan ik mijn productiviteit verbeteren?
-  ar: كيف يمكنني تحسين إنتاجيتي؟
-  hi: मैं अपनी उत्पादकता कैसे बढ़ा सकता हूं?
-  th: ฉันจะปรับปรุงประสิทธิผลของตนเองได้อย่างไร?
-  cs: Jak mohu zlepšit svou produktivitu?
-  sv: Hur kan jag förbättra min produktivitet?
-  he: "איך אוכל לשפר את הפרודוקטיביות שלי?"
+  context: Default new chat suggestion — [life_coaching] prefix routes to life coaching app
+  en: "[life_coaching] How do I improve my productivity?"
+  de: "[life_coaching] Wie verbessere ich meine Produktivität?"
+  zh: "[life_coaching] 我如何提高生产率？"
+  es: "[life_coaching] ¿Cómo mejoro mi productividad?"
+  fr: "[life_coaching] Comment puis-je améliorer ma productivité ?"
+  pt: "[life_coaching] Como posso melhorar minha produtividade?"
+  ru: "[life_coaching] Как я могу повысить свою производительность?"
+  ja: "[life_coaching] 生産性を向上させるにはどうすればよいですか？"
+  ko: "[life_coaching] 생산성을 개선하려면 어떻게 해야 합니까?"
+  it: "[life_coaching] Come posso migliorare la mia produttività?"
+  tr: "[life_coaching] Verimliliğimi nasıl iyileştirebilirim?"
+  vi: "[life_coaching] Làm thế nào để tôi cải thiện năng suất của mình?"
+  id: "[life_coaching] Bagaimana cara saya meningkatkan produktivitas saya?"
+  pl: "[life_coaching] Jak mogę poprawić swoją produktywność?"
+  nl: "[life_coaching] Hoe kan ik mijn productiviteit verbeteren?"
+  ar: "[life_coaching] كيف يمكنني تحسين إنتاجيتي؟"
+  hi: "[life_coaching] मैं अपनी उत्पादकता कैसे बढ़ा सकता हूं?"
+  th: "[life_coaching] ฉันจะปรับปรุงประสิทธิผลของตนเองได้อย่างไร?"
+  cs: "[life_coaching] Jak mohu zlepšit svou produktivitu?"
+  sv: "[life_coaching] Hur kan jag förbättra min produktivitet?"
+  he: "[life_coaching] איך אוכל לשפר את הפרודוקטיביות שלי?"
   verified_by_human: []
 theory_relativity:
-  context: Default new chat suggestion
-  en: Explain the theory of relativity
-  de: Erkläre die Relativitätstheorie
-  zh: 解释相对论
-  es: Explica la teoría de la relatividad
-  fr: Expliquez la théorie de la relativité
-  pt: Explique a teoria da relatividade
-  ru: Объясните теорию относительности
-  ja: 相対性理論を説明してください
-  ko: 상대성 이론을 설명하세요
-  it: Spiega la teoria della relatività
-  tr: Görecelik teorisini açıkla
-  vi: Giải thích lý thuyết tương đối
-  id: Jelaskan teori relativitas
-  pl: Wyjaśnij teorię względności
-  nl: Leg de relativiteitstheorie uit
-  ar: شرح نظرية النسبية
-  hi: सापेक्षता के सिद्धांत को समझाइए
-  th: อธิบายทฤษฎีสัมพัทธภาพ
-  cs: Vysvětli teorii relativity
-  sv: Förklara relativitetsteorin
-  he: הסבר לי את תורת היחסות
+  context: Default new chat suggestion — [study] prefix routes to study app
+  en: "[study] Explain the theory of relativity"
+  de: "[study] Erkläre die Relativitätstheorie"
+  zh: "[study] 解释相对论"
+  es: "[study] Explica la teoría de la relatividad"
+  fr: "[study] Expliquez la théorie de la relativité"
+  pt: "[study] Explique a teoria da relatividade"
+  ru: "[study] Объясните теорию относительности"
+  ja: "[study] 相対性理論を説明してください"
+  ko: "[study] 상대성 이론을 설명하세요"
+  it: "[study] Spiega la teoria della relatività"
+  tr: "[study] Görecelik teorisini açıkla"
+  vi: "[study] Giải thích lý thuyết tương đối"
+  id: "[study] Jelaskan teori relativitas"
+  pl: "[study] Wyjaśnij teorię względności"
+  nl: "[study] Leg de relativiteitstheorie uit"
+  ar: "[study] شرح نظرية النسبية"
+  hi: "[study] सापेक्षता के सिद्धांत को समझाइए"
+  th: "[study] อธิบายทฤษฎีสัมพัทธภาพ"
+  cs: "[study] Vysvětli teorii relativity"
+  sv: "[study] Förklara relativitetsteorin"
+  he: "[study] הסבר לי את תורת היחסות"
   verified_by_human: []
 workout_plan:
-  context: Default new chat suggestion
-  en: Help me create a workout plan
-  de: Hilf mir, einen Trainingsplan zu erstellen
-  zh: 帮助我创建一个锻炼计划
-  es: Ayúdame a crear un plan de entrenamiento
-  fr: Aidez-moi à créer un plan d'entraînement
-  pt: Ajude-me a criar um plano de treino
-  ru: Помогите мне создать план тренировки
-  ja: ワークアウトプランの作成を手伝ってください
-  ko: 운동 계획을 만드는 것을 도와주세요
-  it: Aiutami a creare un piano di allenamento
-  tr: Antrenman planı oluşturmama yardım et
-  vi: Giúp tôi tạo kế hoạch tập luyện
-  id: Bantu saya membuat rencana latihan
-  pl: Pomóż mi stworzyć plan treningowy
-  nl: Help mij een trainingsplan te maken
-  ar: ساعدني في إنشاء خطة تمرين
-  hi: मुझे एक वर्कआउट प्लान बनाने में मदद करें
-  th: ช่วยฉันสร้างแผนการออกกำลังกาย
-  cs: Pomozte mi vytvořit plán tréninku
-  sv: Hjälp mig skapa en träningsplan
-  he: עזור לי לבנות תוכנית אימונים
+  context: Default new chat suggestion — [fitness] prefix routes to fitness app
+  en: "[fitness] Help me create a workout plan"
+  de: "[fitness] Hilf mir, einen Trainingsplan zu erstellen"
+  zh: "[fitness] 帮助我创建一个锻炼计划"
+  es: "[fitness] Ayúdame a crear un plan de entrenamiento"
+  fr: "[fitness] Aidez-moi à créer un plan d'entraînement"
+  pt: "[fitness] Ajude-me a criar um plano de treino"
+  ru: "[fitness] Помогите мне создать план тренировки"
+  ja: "[fitness] ワークアウトプランの作成を手伝ってください"
+  ko: "[fitness] 운동 계획을 만드는 것을 도와주세요"
+  it: "[fitness] Aiutami a creare un piano di allenamento"
+  tr: "[fitness] Antrenman planı oluşturmama yardım et"
+  vi: "[fitness] Giúp tôi tạo kế hoạch tập luyện"
+  id: "[fitness] Bantu saya membuat rencana latihan"
+  pl: "[fitness] Pomóż mi stworzyć plan treningowy"
+  nl: "[fitness] Help mij een trainingsplan te maken"
+  ar: "[fitness] ساعدني في إنشاء خطة تمرين"
+  hi: "[fitness] मुझे एक वर्कआउट प्लान बनाने में मदद करें"
+  th: "[fitness] ช่วยฉันสร้างแผนการออกกำลังกาย"
+  cs: "[fitness] Pomozte mi vytvořit plán tréninku"
+  sv: "[fitness] Hjälp mig skapa en träningsplan"
+  he: "[fitness] עזור לי לבנות תוכנית אימונים"
   verified_by_human: []
 cybersecurity:
-  context: Default new chat suggestion
-  en: What are the best practices for cybersecurity?
-  de: Was sind die Best Practices für Cybersicherheit?
-  zh: 网络安全的最佳实践是什么？
-  es: ¿Cuáles son las mejores prácticas de ciberseguridad?
-  fr: Quelles sont les meilleures pratiques en matière de cybersécurité ?
-  pt: Quais são as melhores práticas de cibersegurança?
-  ru: Какие лучшие практики кибербезопасности?
-  ja: サイバーセキュリティのベストプラクティスは何ですか？
-  ko: 사이버 보안의 최고의 관행은 무엇입니까?
-  it: Quali sono le migliori pratiche per la sicurezza informatica?
-  tr: Siber güvenlik için en iyi uygulamalar nelerdir?
-  vi: Các phương pháp tốt nhất cho an ninh mạng là gì?
-  id: Apa praktik terbaik untuk keamanan siber?
-  pl: Jakie są najlepsze praktyki w zakresie cyberbezpieczeństwa?
-  nl: Wat zijn de beste praktijken voor cyberbeveiliging?
-  ar: ما أفضل الممارسات للأمن السيبراني؟
-  hi: साइबर सुरक्षा के लिए सर्वश्रेष्ठ प्रथाएं क्या हैं?
-  th: ปฏิบัติที่ดีที่สุดสำหรับความปลอดภัยไซเบอร์คืออะไร?
-  cs: Jaké jsou nejlepší postupy pro kybernetickou bezpečnost?
-  sv: Vilka är de bästa metoderna för cybersäkerhet?
-  he: "מהן שיטות העבודה המומלצות לאבטחת סייבר?"
+  context: Default new chat suggestion — [web-search] prefix routes to web search skill
+  en: "[web-search] What are the best practices for cybersecurity?"
+  de: "[web-search] Was sind die Best Practices für Cybersicherheit?"
+  zh: "[web-search] 网络安全的最佳实践是什么？"
+  es: "[web-search] ¿Cuáles son las mejores prácticas de ciberseguridad?"
+  fr: "[web-search] Quelles sont les meilleures pratiques en matière de cybersécurité ?"
+  pt: "[web-search] Quais são as melhores práticas de cibersegurança?"
+  ru: "[web-search] Какие лучшие практики кибербезопасности?"
+  ja: "[web-search] サイバーセキュリティのベストプラクティスは何ですか？"
+  ko: "[web-search] 사이버 보안의 최고의 관행은 무엇입니까?"
+  it: "[web-search] Quali sono le migliori pratiche per la sicurezza informatica?"
+  tr: "[web-search] Siber güvenlik için en iyi uygulamalar nelerdir?"
+  vi: "[web-search] Các phương pháp tốt nhất cho an ninh mạng là gì?"
+  id: "[web-search] Apa praktik terbaik untuk keamanan siber?"
+  pl: "[web-search] Jakie są najlepsze praktyki w zakresie cyberbezpieczeństwa?"
+  nl: "[web-search] Wat zijn de beste praktijken voor cyberbeveiliging?"
+  ar: "[web-search] ما أفضل الممارسات للأمن السيبراني؟"
+  hi: "[web-search] साइबर सुरक्षा के लिए सर्वश्रेष्ठ प्रथाएं क्या हैं?"
+  th: "[web-search] ปฏิบัติที่ดีที่สุดสำหรับความปลอดภัยไซเบอร์คืออะไร?"
+  cs: "[web-search] Jaké jsou nejlepší postupy pro kybernetickou bezpečnost?"
+  sv: "[web-search] Vilka är de bästa metoderna för cybersäkerhet?"
+  he: "[web-search] מהן שיטות העבודה המומלצות לאבטחת סייבר?"
   verified_by_human: []
 learn_coding:
-  context: Default new chat suggestion
-  en: How do I start learning to code?
-  de: Wie fange ich an, Programmieren zu lernen?
-  zh: 我如何开始学习编码？
-  es: ¿Cómo empiezo a aprender a programar?
-  fr: Comment commencer à apprendre à coder ?
-  pt: Como começo a aprender a programar?
-  ru: Как я начинаю учиться программировать?
-  ja: コーディングを学び始めるにはどうすればよいですか？
-  ko: 코딩 학습을 시작하려면 어떻게 해야 합니까?
-  it: Come comincio a imparare a programmare?
-  tr: Kodlamaya başlamak için nasıl başlarım?
-  vi: Làm thế nào tôi bắt đầu học lập trình?
-  id: Bagaimana saya mulai belajar kode?
-  pl: Jak zaczynam się uczyć programowania?
-  nl: Hoe begin ik met coderen?
-  ar: كيف أبدأ بتعلم البرمجة؟
-  hi: मैं कोडिंग सीखना कैसे शुरू करूं?
-  th: ฉันจะเริ่มต้นการเรียนรู้การเขียนโปรแกรมได้อย่างไร?
-  cs: Jak začnu učit se programovat?
-  sv: Hur börjar jag lära mig att koda?
-  he: "איך מתחילים ללמוד תכנות?"
+  context: Default new chat suggestion — [code] prefix routes to code app
+  en: "[code] How do I start learning to code?"
+  de: "[code] Wie fange ich an, Programmieren zu lernen?"
+  zh: "[code] 我如何开始学习编码？"
+  es: "[code] ¿Cómo empiezo a aprender a programar?"
+  fr: "[code] Comment commencer à apprendre à coder ?"
+  pt: "[code] Como começo a aprender a programar?"
+  ru: "[code] Как я начинаю учиться программировать?"
+  ja: "[code] コーディングを学び始めるにはどうすればよいですか？"
+  ko: "[code] 코딩 학습을 시작하려면 어떻게 해야 합니까?"
+  it: "[code] Come comincio a imparare a programmare?"
+  tr: "[code] Kodlamaya başlamak için nasıl başlarım?"
+  vi: "[code] Làm thế nào tôi bắt đầu học lập trình?"
+  id: "[code] Bagaimana saya mulai belajar kode?"
+  pl: "[code] Jak zaczynam się uczyć programowania?"
+  nl: "[code] Hoe begin ik met coderen?"
+  ar: "[code] كيف أبدأ بتعلم البرمجة؟"
+  hi: "[code] मैं कोडिंग सीखना कैसे शुरू करूं?"
+  th: "[code] ฉันจะเริ่มต้นการเรียนรู้การเขียนโปรแกรมได้อย่างไร?"
+  cs: "[code] Jak začnu učit se programovat?"
+  sv: "[code] Hur börjar jag lära mig att koda?"
+  he: "[code] איך מתחילים ללמוד תכנות?"
   verified_by_human: []
 stock_market:
-  context: Default new chat suggestion
-  en: Explain how the stock market works
-  de: Erkläre, wie der Aktienmarkt funktioniert
-  zh: 解释股票市场如何运作
-  es: Explica cómo funciona el mercado de valores
-  fr: Expliquez comment fonctionnent les marchés boursiers
-  pt: Explique como funciona o mercado de ações
-  ru: Объясните, как работает фондовый рынок
-  ja: 株式市場がどのように機能するかを説明してください
-  ko: 주식 시장이 어떻게 작동하는지 설명하세요
-  it: Spiega come funziona il mercato azionario
-  tr: Borsa nasıl çalıştığını açıkla
-  vi: Giải thích cách thức hoạt động của thị trường chứng khoán
-  id: Jelaskan cara kerja pasar saham
-  pl: Wyjaśnij, jak działa rynek akcji
-  nl: Leg uit hoe de aandelenmarkt werkt
-  ar: اشرح كيف يعمل سوق الأسهم
-  hi: समझाइए कि शेयर बाजार कैसे काम करता है
-  th: อธิบายวิธีการทำงานของตลาดหุ้น
-  cs: Vysvětli, jak funguje akciový trh
-  sv: Förklara hur aktiemarkanden fungerar
-  he: הסבר לי איך עובד שוק ההון
+  context: Default new chat suggestion — [web-search] prefix routes to web search skill
+  en: "[web-search] Explain how the stock market works"
+  de: "[web-search] Erkläre, wie der Aktienmarkt funktioniert"
+  zh: "[web-search] 解释股票市场如何运作"
+  es: "[web-search] Explica cómo funciona el mercado de valores"
+  fr: "[web-search] Expliquez comment fonctionnent les marchés boursiers"
+  pt: "[web-search] Explique como funciona o mercado de ações"
+  ru: "[web-search] Объясните, как работает фондовый рынок"
+  ja: "[web-search] 株式市場がどのように機能するかを説明してください"
+  ko: "[web-search] 주식 시장이 어떻게 작동하는지 설명하세요"
+  it: "[web-search] Spiega come funziona il mercato azionario"
+  tr: "[web-search] Borsa nasıl çalıştığını açıkla"
+  vi: "[web-search] Giải thích cách thức hoạt động của thị trường chứng khoán"
+  id: "[web-search] Jelaskan cara kerja pasar saham"
+  pl: "[web-search] Wyjaśnij, jak działa rynek akcji"
+  nl: "[web-search] Leg uit hoe de aandelenmarkt werkt"
+  ar: "[web-search] اشرح كيف يعمل سوق الأسهم"
+  hi: "[web-search] समझाइए कि शेयर बाजार कैसे काम करता है"
+  th: "[web-search] อธิบายวิธีการทำงานของตลาดหุ้น"
+  cs: "[web-search] Vysvětli, jak funguje akciový trh"
+  sv: "[web-search] Förklara hur aktiemarkanden fungerar"
+  he: "[web-search] הסבר לי איך עובד שוק ההון"
   verified_by_human: []
 cover_letter:
-  context: Default new chat suggestion
-  en: Help me write a cover letter
-  de: Hilf mir, ein Anschreiben zu verfassen
-  zh: 帮助我写一封求职信
-  es: Ayúdame a escribir una carta de presentación
-  fr: Aidez-moi à rédiger une lettre de motivation
-  pt: Ajude-me a escrever uma carta de apresentação
-  ru: Помогите мне написать сопроводительное письмо
-  ja: カバーレターを書くのを手伝ってください
-  ko: 커버 레터를 작성하도록 도와주세요
-  it: Aiutami a scrivere una lettera di presentazione
-  tr: Kapak mektubu yazmamda yardım et
-  vi: Giúp tôi viết thư xin việc
-  id: Bantu saya menulis surat lamaran
-  pl: Pomóż mi napisać list motywacyjny
-  nl: Help mij een sollicitatiebrief te schrijven
-  ar: ساعدني في كتابة خطاب التغطية
-  hi: मुझे कवर लेटर लिखने में मदद करें
-  th: ช่วยฉันเขียนจดหมายสมัครงาน
-  cs: Pomozte mi napsat motivační dopis
-  sv: Hjälp mig skriva ett följebrev
-  he: עזור לי לכתוב מכתב מקדים (Cover Letter)
+  context: Default new chat suggestion — [mail] prefix routes to mail app
+  en: "[mail] Help me write a cover letter"
+  de: "[mail] Hilf mir, ein Anschreiben zu verfassen"
+  zh: "[mail] 帮助我写一封求职信"
+  es: "[mail] Ayúdame a escribir una carta de presentación"
+  fr: "[mail] Aidez-moi à rédiger une lettre de motivation"
+  pt: "[mail] Ajude-me a escrever uma carta de apresentação"
+  ru: "[mail] Помогите мне написать сопроводительное письмо"
+  ja: "[mail] カバーレターを書くのを手伝ってください"
+  ko: "[mail] 커버 레터를 작성하도록 도와주세요"
+  it: "[mail] Aiutami a scrivere una lettera di presentazione"
+  tr: "[mail] Kapak mektubu yazmamda yardım et"
+  vi: "[mail] Giúp tôi viết thư xin việc"
+  id: "[mail] Bantu saya menulis surat lamaran"
+  pl: "[mail] Pomóż mi napisać list motywacyjny"
+  nl: "[mail] Help mij een sollicitatiebrief te schrijven"
+  ar: "[mail] ساعدني في كتابة خطاب التغطية"
+  hi: "[mail] मुझे कवर लेटर लिखने में मदद करें"
+  th: "[mail] ช่วยฉันเขียนจดหมายสมัครงาน"
+  cs: "[mail] Pomozte mi napsat motivační dopis"
+  sv: "[mail] Hjälp mig skriva ett följebrev"
+  he: "[mail] עזור לי לכתוב מכתב מקדים (Cover Letter)"
   verified_by_human: []
 writing_prompts:
-  context: Default new chat suggestion
-  en: What are some creative writing prompts?
-  de: Was sind einige kreative Schreibanregungen?
-  zh: 一些创意写作提示是什么？
-  es: ¿Cuáles son algunos temas de escritura creativa?
-  fr: Quels sont les sujets d'écriture créative ?
-  pt: Quais são alguns tópicos de redação criativa?
-  ru: Какие есть творческие идеи для написания?
-  ja: 創意的なライティング・プロンプトは何ですか？
-  ko: 창의적인 글쓰기 프롬프트는 무엇입니까?
-  it: Quali sono alcuni spunti di scrittura creativa?
-  tr: Bazı yaratıcı yazma ipuçları neler?
-  vi: Một số gợi ý viết sáng tạo là gì?
-  id: Apa beberapa ide tulisan kreatif?
-  pl: Jakie są pomysły do kreatywnego pisania?
-  nl: Wat zijn enkele creatieve schrijftips?
-  ar: ما بعض أفكار الكتابة الإبداعية؟
-  hi: कुछ रचनात्मक लेखन विचारें क्या हैं?
-  th: ความคิดเกี่ยวกับการเขียนสร้างสรรค์บางส่วนคืออะไร?
-  cs: Jaké jsou některé nápady na kreativní psaní?
-  sv: Vad är några idéer för kreativt skrivande?
-  he: "מהם כמה רעיונות לכתיבה יוצרת?"
+  context: Default new chat suggestion — [books] prefix routes to books app
+  en: "[books] What are some creative writing prompts?"
+  de: "[books] Was sind einige kreative Schreibanregungen?"
+  zh: "[books] 一些创意写作提示是什么？"
+  es: "[books] ¿Cuáles son algunos temas de escritura creativa?"
+  fr: "[books] Quels sont les sujets d'écriture créative ?"
+  pt: "[books] Quais são alguns tópicos de redação criativa?"
+  ru: "[books] Какие есть творческие идеи для написания?"
+  ja: "[books] 創意的なライティング・プロンプトは何ですか？"
+  ko: "[books] 창의적인 글쓰기 프롬프트는 무엇입니까?"
+  it: "[books] Quali sono alcuni spunti di scrittura creativa?"
+  tr: "[books] Bazı yaratıcı yazma ipuçları neler?"
+  vi: "[books] Một số gợi ý viết sáng tạo là gì?"
+  id: "[books] Apa beberapa ide tulisan kreatif?"
+  pl: "[books] Jakie są pomysły do kreatywnego pisania?"
+  nl: "[books] Wat zijn enkele creatieve schrijftips?"
+  ar: "[books] ما بعض أفكار الكتابة الإبداعية؟"
+  hi: "[books] कुछ रचनात्मक लेखन विचारें क्या हैं?"
+  th: "[books] ความคิดเกี่ยวกับการเขียนสร้างสรรค์บางส่วนคืออะไร?"
+  cs: "[books] Jaké jsou některé nápady na kreativní psaní?"
+  sv: "[books] Vad är några idéer för kreativt skrivande?"
+  he: "[books] מהם כמה רעיונות לכתיבה יוצרת?"
   verified_by_human: []
 carbon_footprint:
-  context: Default new chat suggestion
-  en: How do I reduce my carbon footprint?
-  de: Wie reduziere ich meinen CO2-Fußabdruck?
-  zh: 我如何减少我的碳足迹？
-  es: ¿Cómo reduzco mi huella de carbono?
-  fr: Comment puis-je réduire mon empreinte carbone ?
-  pt: Como reduzo minha pegada de carbono?
-  ru: Как мне уменьшить мой углеродный след?
-  ja: 炭素足跡を減らすにはどうすればよいですか？
-  ko: 탄소 발자국을 줄이려면 어떻게 해야 합니까?
-  it: Come riduco la mia impronta di carbonio?
-  tr: Karbon ayakizimi nasıl azaltabilirim?
-  vi: Làm thế nào để tôi giảm lượng khí thải carbon?
-  id: Bagaimana cara saya mengurangi jejak karbon saya?
-  pl: Jak mogę zmniejszyć moją ślad węglowy?
-  nl: Hoe kan ik mijn koolstofvoetafdruk verminderen?
-  ar: كيف أقلل من بصمتي الكربونية؟
-  hi: मैं अपने कार्बन पदचिह्न को कैसे कम करूं?
-  th: ฉันจะลดปริมาณคาร์บอนไดออกไซด์ของฉันได้อย่างไร?
-  cs: Jak mohu snížit svoji uhlíkovou stopu?
-  sv: Hur kan jag minska mitt kolfotavtryck?
-  he: "איך אוכל לצמצם את טביעת הרגל הפחמנית שלי?"
+  context: Default new chat suggestion — [web-search] prefix routes to web search skill
+  en: "[web-search] How do I reduce my carbon footprint?"
+  de: "[web-search] Wie reduziere ich meinen CO2-Fußabdruck?"
+  zh: "[web-search] 我如何减少我的碳足迹？"
+  es: "[web-search] ¿Cómo reduzco mi huella de carbono?"
+  fr: "[web-search] Comment puis-je réduire mon empreinte carbone ?"
+  pt: "[web-search] Como reduzo minha pegada de carbono?"
+  ru: "[web-search] Как мне уменьшить мой углеродный след?"
+  ja: "[web-search] 炭素足跡を減らすにはどうすればよいですか？"
+  ko: "[web-search] 탄소 발자국을 줄이려면 어떻게 해야 합니까?"
+  it: "[web-search] Come riduco la mia impronta di carbonio?"
+  tr: "[web-search] Karbon ayakizimi nasıl azaltabilirim?"
+  vi: "[web-search] Làm thế nào để tôi giảm lượng khí thải carbon?"
+  id: "[web-search] Bagaimana cara saya mengurangi jejak karbon saya?"
+  pl: "[web-search] Jak mogę zmniejszyć moją ślad węglowy?"
+  nl: "[web-search] Hoe kan ik mijn koolstofvoetafdruk verminderen?"
+  ar: "[web-search] كيف أقلل من بصمتي الكربونية؟"
+  hi: "[web-search] मैं अपने कार्बन पदचिह्न को कैसे कम करूं?"
+  th: "[web-search] ฉันจะลดปริมาณคาร์บอนไดออกไซด์ของฉันได้อย่างไร?"
+  cs: "[web-search] Jak mohu snížit svoji uhlíkovou stopu?"
+  sv: "[web-search] Hur kan jag minska mitt kolfotavtryck?"
+  he: "[web-search] איך אוכל לצמצם את טביעת הרגל הפחמנית שלי?"
   verified_by_human: []
 internet_history:
-  context: Default new chat suggestion
-  en: Explain the history of the Internet
-  de: Erkläre die Geschichte des Internets
-  zh: 解释互联网的历史
-  es: Explica la historia de Internet
-  fr: Expliquez l'histoire d'Internet
-  pt: Explique a história da Internet
-  ru: Объясните историю Интернета
-  ja: インターネットの歴史を説明してください
-  ko: 인터넷의 역사를 설명하세요
-  it: Spiega la storia di Internet
-  tr: İnternetin tarihini açıkla
-  vi: Giải thích lịch sử của Internet
-  id: Jelaskan sejarah Internet
-  pl: Wyjaśnij historię Internetu
-  nl: Leg de geschiedenis van het internet uit
-  ar: شرح تاريخ الإنترنت
-  hi: इंटरनेट का इतिहास समझाइए
-  th: อธิบายประวัติศาสตร์ของอินเทอร์เน็ต
-  cs: Vysvětli historii internetu
-  sv: Förklara Internet historia
-  he: הסבר לי על ההיסטוריה של האינטרנט
+  context: Default new chat suggestion — [web-search] prefix routes to web search skill
+  en: "[web-search] Explain the history of the Internet"
+  de: "[web-search] Erkläre die Geschichte des Internets"
+  zh: "[web-search] 解释互联网的历史"
+  es: "[web-search] Explica la historia de Internet"
+  fr: "[web-search] Expliquez l'histoire d'Internet"
+  pt: "[web-search] Explique a história da Internet"
+  ru: "[web-search] Объясните историю Интернета"
+  ja: "[web-search] インターネットの歴史を説明してください"
+  ko: "[web-search] 인터넷의 역사를 설명하세요"
+  it: "[web-search] Spiega la storia di Internet"
+  tr: "[web-search] İnternetin tarihini açıkla"
+  vi: "[web-search] Giải thích lịch sử của Internet"
+  id: "[web-search] Jelaskan sejarah Internet"
+  pl: "[web-search] Wyjaśnij historię Internetu"
+  nl: "[web-search] Leg de geschiedenis van het internet uit"
+  ar: "[web-search] شرح تاريخ الإنترنت"
+  hi: "[web-search] इंटरनेट का इतिहास समझाइए"
+  th: "[web-search] อธิบายประวัติศาสตร์ของอินเทอร์เน็ต"
+  cs: "[web-search] Vysvětli historii internetu"
+  sv: "[web-search] Förklara Internet historia"
+  he: "[web-search] הסבר לי על ההיסטוריה של האינטרנט"
   verified_by_human: []
 meal_prep:
-  context: Default new chat suggestion
-  en: Help me plan a healthy meal prep
-  de: Hilf mir, eine gesunde Essensvorbereitung zu planen
-  zh: 帮我计划一个健康的膳食准备
-  es: Ayúdame a planificar una preparación de comidas saludable
-  fr: Aidez-moi à planifier une préparation de repas saine
-  pt: Ajude-me a planejar uma preparação de refeição saudável
-  ru: Помогите мне спланировать здоровую подготовку к еде
-  ja: 健康的な食事準備を計画するのを手伝ってください
-  ko: 건강한 식사 준비를 계획하도록 도와주세요
-  it: Aiutami a pianificare una preparazione di pasti sana
-  tr: Sağlıklı bir yemek hazırlığı planlamasına yardım et
-  vi: Giúp tôi lên kế hoạch chuẩn bị bữa ăn lành mạnh
-  id: Bantu saya merencanakan persiapan makanan yang sehat
-  pl: Pomóż mi zaplanować zdrową przygotowanie posiłków
-  nl: Help mij een gezonde maaltijdbereiding te plannen
-  ar: ساعدني في التخطيط لتحضير وجبة صحية
-  hi: मुझे स्वस्थ भोजन तैयारी की योजना बनाने में मदद करें
-  th: ช่วยฉันวางแผนการเตรียมอาหารที่ดีต่อสุขภาพ
-  cs: Pomozte mi naplánovat zdravou přípravu jídel
-  sv: Hjälp mig planera en hälsosam måltidsförberedelse
-  he: עזור לי לתכנן הכנת ארוחות בריאות מראש
+  context: Default new chat suggestion — [nutrition] prefix routes to nutrition app
+  en: "[nutrition] Help me plan a healthy meal prep"
+  de: "[nutrition] Hilf mir, eine gesunde Essensvorbereitung zu planen"
+  zh: "[nutrition] 帮我计划一个健康的膳食准备"
+  es: "[nutrition] Ayúdame a planificar una preparación de comidas saludable"
+  fr: "[nutrition] Aidez-moi à planifier une préparation de repas saine"
+  pt: "[nutrition] Ajude-me a planejar uma preparação de refeição saudável"
+  ru: "[nutrition] Помогите мне спланировать здоровую подготовку к еде"
+  ja: "[nutrition] 健康的な食事準備を計画するのを手伝ってください"
+  ko: "[nutrition] 건강한 식사 준비를 계획하도록 도와주세요"
+  it: "[nutrition] Aiutami a pianificare una preparazione di pasti sana"
+  tr: "[nutrition] Sağlıklı bir yemek hazırlığı planlamasına yardım et"
+  vi: "[nutrition] Giúp tôi lên kế hoạch chuẩn bị bữa ăn lành mạnh"
+  id: "[nutrition] Bantu saya merencanakan persiapan makanan yang sehat"
+  pl: "[nutrition] Pomóż mi zaplanować zdrową przygotowanie posiłków"
+  nl: "[nutrition] Help mij een gezonde maaltijdbereiding te plannen"
+  ar: "[nutrition] ساعدني في التخطيط لتحضير وجبة صحية"
+  hi: "[nutrition] मुझे स्वस्थ भोजन तैयारी की योजना बनाने में मदद करें"
+  th: "[nutrition] ช่วยฉันวางแผนการเตรียมอาหารที่ดีต่อสุขภาพ"
+  cs: "[nutrition] Pomozte mi naplánovat zdravou přípravu jídel"
+  sv: "[nutrition] Hjälp mig planera en hälsosam måltidsförberedelse"
+  he: "[nutrition] עזור לי לתכנן הכנת ארוחות בריאות מראש"
   verified_by_human: []
 discover_web_search:
   context: Default new chat suggestion — shows the web search skill to new users via [web-search] prefix

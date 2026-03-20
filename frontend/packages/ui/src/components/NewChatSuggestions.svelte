@@ -79,19 +79,24 @@
       return { appId: 'ai', subId: null, body };
     }
 
-    // App + skill prefix like [web-search], [images-generate]
+    // App + skill prefix like [web-search], [images-generate], [reminder-set-reminder]
     const appId = prefix.substring(0, dashIdx);
     const subIdRaw = prefix.substring(dashIdx + 1);
-    // Replace dashes with underscores to correct LLM errors (e.g. "set-reminder" -> "set_reminder")
-    const subId = subIdRaw.replace(/-/g, '_');
+    // Replace dashes with underscores to correct LLM errors (e.g. "set_reminder" variant).
+    // Some YAML skill IDs use dashes (e.g. "set-reminder"), so we check both forms.
+    const subIdUnderscored = subIdRaw.replace(/-/g, '_');
 
-    // Validate that appId and subId correspond to a real skill or focus mode
+    // Validate against the known app skills/focus modes store — try both dash and underscore forms
     const app = appsMetadata?.apps?.[appId];
-    const isValidSkill = app?.skills?.some(s => s.id === subId) ?? false;
-    const isValidFocus = app?.focus_modes?.some(f => f.id === subId) ?? false;
+    const matchedSkill = app?.skills?.find(s => s.id === subIdRaw || s.id === subIdUnderscored);
+    const matchedFocus = !matchedSkill
+      ? app?.focus_modes?.find(f => f.id === subIdRaw || f.id === subIdUnderscored)
+      : undefined;
 
-    if (app && (isValidSkill || isValidFocus)) {
-      return { appId, subId, body };
+    if (app && (matchedSkill || matchedFocus)) {
+      // Return the actual stored ID (preserves dashes if the YAML uses dashes)
+      const actualSubId = (matchedSkill ?? matchedFocus)!.id;
+      return { appId, subId: actualSubId, body };
     }
 
     // Valid app but unknown skill — show app icon only
@@ -113,17 +118,18 @@
     if (!app) return appId;
 
     if (subId) {
-      // Check skills first
-      const skill = app.skills?.find(s => s.id === subId);
-      if (skill?.icon_image) return skill.icon_image.replace(/\.svg$/i, '');
+      // Check skills first — try exact match and dash↔underscore variant
+      const subIdAlt = subId.includes('-') ? subId.replace(/-/g, '_') : subId.replace(/_/g, '-');
+      const skill = app.skills?.find(s => s.id === subId || s.id === subIdAlt);
+      if (skill?.icon_image) return skill.icon_image.replace(/\.svg$/i, '').trim();
 
       // Check focus modes
-      const focus = app.focus_modes?.find(f => f.id === subId);
-      if (focus?.icon_image) return focus.icon_image.replace(/\.svg$/i, '');
+      const focus = app.focus_modes?.find(f => f.id === subId || f.id === subIdAlt);
+      if (focus?.icon_image) return focus.icon_image.replace(/\.svg$/i, '').trim();
     }
 
     // Fallback to app icon
-    if (app.icon_image) return app.icon_image.replace(/\.svg$/i, '');
+    if (app.icon_image) return app.icon_image.replace(/\.svg$/i, '').trim();
 
     // Last resort: use appId as icon name
     return appId;
@@ -567,6 +573,10 @@
     animation-delay: 200ms;
     transition: opacity 200ms ease;
     opacity: 1;
+    /* Must span full parent width so children's calc(50% - 120px) padding resolves
+       against the actual container width, not a content-shrunk width.
+       Without this, align-items:center on the parent shrinks us and breaks centering. */
+    width: 100%;
     /* overflow-x must NOT be set here — it would clip the scroll container's cards */
   }
 
@@ -584,10 +594,14 @@
     color: var(--color-grey-50);
     font-size: 16px;
     font-weight: 500;
-    padding: 0 18px;
+    /* Align header left edge with the first card (mirroring recent-chats centering).
+       Cards are 240px wide → left edge at 50% - 120px centres the first card. */
+    padding: 0 0 0 calc(50% - 120px);
     letter-spacing: 0.5px;
     opacity: 0.9;
     margin-bottom: 6px;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   @keyframes fadeIn {
@@ -596,7 +610,10 @@
   }
 
   /* Horizontally scrollable row of suggestion cards.
-     Cards start from the left with padding matching the header text (18px).
+     First card is centred in the chat area via padding-left: calc(50% - 120px)
+     (cards are 240px wide, so half-card = 120px). This mirrors the recent-chats
+     scroll container which uses calc(50% - 150px) for its 300px cards.
+     Right padding (48px) keeps a partial next-card visible as a scroll affordance.
      overflow-x: auto enables horizontal scrolling; overflow-y must also be
      set (not left as 'visible') since mixing overflow-x:auto with overflow-y:visible
      forces both to auto per CSS spec, which can clip shadows. */
@@ -612,9 +629,14 @@
     scrollbar-width: none; /* Firefox */
     -ms-overflow-style: none; /* IE/Edge */
     /* Extra bottom padding so card drop-shadows aren't clipped */
-    padding: 4px 18px 14px 18px;
+    padding: 4px 48px 14px calc(50% - 120px);
     /* Negative bottom margin to reclaim the extra padding without affecting layout */
     margin-bottom: -4px;
+    /* Must match recent-chats-scroll-container: explicit width + border-box so
+       padding-left calc(50% - 120px) resolves against the full container width. */
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
   }
 
   .suggestions-scroll::-webkit-scrollbar {
@@ -679,26 +701,31 @@
   }
 
   /* White bold text — matches Figma: Lexend Deca Bold 14px, line-height ~18px.
-     Text wraps naturally within the fixed 310px card — no truncation. */
+     Clamped to 2 lines with ellipsis so cards keep a consistent height. */
   .card-text {
     color: #FFFFFF;
     font-size: 14px;
     font-weight: 700;
     line-height: 1.3;
     text-align: left;
-    white-space: normal;
-    word-break: break-word;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    /* Allow flex child to shrink below content width so line-clamp works */
+    min-width: 0;
   }
 
   @media (max-width: 730px) {
     .suggestions-header {
-      padding: 0 15px;
+      /* Cards are 210px on mobile → left edge at 50% - 105px */
+      padding: 0 0 0 calc(50% - 105px);
       font-size: 14px;
     }
 
     .suggestions-scroll {
       gap: 10px;
-      padding: 4px 15px 8px 15px;
+      padding: 4px 15px 8px calc(50% - 105px);
     }
 
     .suggestion-card {
