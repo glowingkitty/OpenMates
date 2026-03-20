@@ -245,6 +245,9 @@ test_results/
 test-results/
 *.test_results.json
 
+# Test coverage reports (auto-generated; use CI artifacts instead)
+frontend/packages/ui/coverage/
+
 # Domain security configuration files
 restricted_domains.txt
 **/restricted_domains.txt
