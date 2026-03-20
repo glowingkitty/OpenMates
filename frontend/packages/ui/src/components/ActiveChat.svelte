@@ -8818,6 +8818,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 <div class="new-chat-button-wrapper">
                                     <button
                                         class="clickable-icon icon_share top-button"
+                                        data-testid="chat-share-button"
                                         aria-label={$text('chat.share')}
                                         onclick={handleShareChat}
                                         use:tooltip

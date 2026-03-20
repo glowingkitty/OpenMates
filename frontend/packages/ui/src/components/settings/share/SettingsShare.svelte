@@ -1553,7 +1553,7 @@
         <div class="chat-info-display" transition:fade={{ duration: 200 }}>
             {#if isEmbedSharing && embedContext}
                 <!-- Embed Preview Display -->
-                <div class="embed-preview">
+                <div class="embed-preview" data-testid="share-embed-preview">
                     <div class="embed-preview-header">
                         <span class="embed-preview-label">{$text('settings.share.sharing_embed')}</span>
                     </div>
@@ -1583,7 +1583,7 @@
                 </div>
             {:else if currentChat && displayChatId}
                 <!-- Chat Info Display -->
-                <div class="chat-preview">
+                <div class="chat-preview" data-testid="share-chat-preview">
                     <div class="chat-preview-header">
                         <span class="chat-preview-label">{$text('settings.share.sharing_chat')}</span>
                     </div>
@@ -1610,6 +1610,7 @@
         <!-- Share Button (shown FIRST - triggers link generation) -->
         <button
             class="share-chat-button primary-action"
+            data-testid="share-generate-link"
             onclick={generateLink}
             disabled={!canGenerateLink}
         >
@@ -1818,6 +1819,7 @@
             <button
                 class="copy-link-button"
                 class:copied={isCopied}
+                data-testid="share-copy-link"
                 onclick={copyLinkToClipboard}
             >
                 <div class="copy-icon" class:icon_check={isCopied} class:icon_copy={!isCopied}></div>
@@ -1826,7 +1828,7 @@
 
             <!-- Short Link Section (only for authenticated users) -->
             {#if $authStore.isAuthenticated}
-                <div class="short-link-section" transition:slide={{ duration: 200, easing: cubicOut }}>
+                <div class="short-link-section" data-testid="share-short-link-section" transition:slide={{ duration: 200, easing: cubicOut }}>
                     <div class="short-link-header">
                         <h4 class="short-link-title">{$text('settings.share.short_link')}</h4>
                         <p class="short-link-info">{$text('settings.share.short_link_info')}</p>
@@ -1849,6 +1851,7 @@
                         <!-- Generate button -->
                         <button
                             class="short-link-generate-button"
+                            data-testid="share-short-link-generate"
                             onclick={generateShortLink}
                             disabled={isShortLinkGenerating}
                         >
@@ -1867,6 +1870,7 @@
                         <button
                             class="short-link-copy-button"
                             class:copied={isShortLinkCopied}
+                            data-testid="share-short-link-copy"
                             onclick={copyShortLinkToClipboard}
                         >
                             <span class="short-link-url">{shortLinkUrl}</span>
@@ -1877,7 +1881,7 @@
 
                         <!-- Countdown timer -->
                         {#if shortLinkCountdown}
-                            <p class="short-link-countdown">
+                            <p class="short-link-countdown" data-testid="share-short-link-countdown">
                                 {$text('settings.share.short_link_expires_in')} {shortLinkCountdown}
                             </p>
                         {/if}
@@ -1897,7 +1901,7 @@
 
             <!-- Expiration Info (if time limit set) -->
             {#if selectedDuration > 0}
-                <p class="expiration-info">
+                <p class="expiration-info" data-testid="share-expiration-info">
                     {$text('settings.share.link_will_expire_in')} {$text(durationOptions.find(d => d.value === selectedDuration)?.labelKey || '')}
                 </p>
             {/if}
@@ -1907,6 +1911,7 @@
                 <h4 class="qr-code-title">{$text('settings.share.qr_code')}</h4>
                 <button
                     class="qr-code-container clickable"
+                    data-testid="share-qr-code"
                     onclick={showQRCodeFullscreen}
                     aria-label="Show QR code fullscreen"
                     title="Click to enlarge QR code"
@@ -1926,6 +1931,7 @@
             {#if isOwnedByUser && !isPublicChatType}
                 <button
                     class="back-to-config-button"
+                    data-testid="share-back-to-config"
                     onclick={backToConfiguration}
                 >
                     {$text('settings.share.change_settings')}
@@ -1940,6 +1946,7 @@
 {#if showQRFullscreen && qrCodeSvg}
     <div
         class="qr-fullscreen-overlay"
+        data-testid="share-qr-fullscreen"
         use:portal
         role="dialog"
         aria-modal="true"
