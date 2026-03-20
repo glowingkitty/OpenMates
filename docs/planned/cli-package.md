@@ -94,6 +94,29 @@ npm test
 
 ---
 
+## Connecting to the Dev Server
+
+By default the CLI points at production (`https://api.openmates.org`). To use the dev server instead, pass the `--api-url` flag:
+
+```bash
+# Any command — just add --api-url:
+npx tsx src/cli.ts --api-url https://api.dev.openmates.org login
+npx tsx src/cli.ts --api-url https://api.dev.openmates.org chats list
+```
+
+Or set the environment variable so you don't have to repeat it:
+
+```bash
+export OPENMATES_API_URL=https://api.dev.openmates.org
+
+npx tsx src/cli.ts login    # now hits dev server
+npx tsx src/cli.ts chats list
+```
+
+The CLI auto-derives the web app URL for pair-auth (`https://app.dev.openmates.org` for dev, `http://localhost:5173` for localhost). Override with `OPENMATES_APP_URL` if needed.
+
+---
+
 ## Implemented Commands
 
 All commands support `--json` for machine-readable output, `--api-url <url>` to override the API, and `--help` for contextual help. For full flag details, run `openmates <command> --help`.
