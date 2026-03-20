@@ -14,7 +14,7 @@
     import { externalLinks } from '../../config/links';
     import InputWarning from '../common/InputWarning.svelte';
     import Toggle from '../Toggle.svelte';
-    import SettingsTextarea from './elements/SettingsTextarea.svelte';
+    import { SettingsInput, SettingsTextarea, SettingsInfoBox } from './elements';
     import { onMount, createEventDispatcher } from 'svelte';
     import { isPublicChat } from '../../demo_chats/convertToChat';
     import { logCollector } from '../../services/logCollector';
@@ -1537,25 +1537,21 @@
         <!-- Title Input -->
         <div class="input-group">
             <label for="issue-title">{$text('settings.report_issue.title_label')}</label>
-            <div class="input-wrapper">
-                <input
-                    id="issue-title"
-                    bind:this={titleInput}
-                    type="text"
-                    placeholder={$text('settings.report_issue.title_placeholder')}
-                    bind:value={issueTitle}
-                    onkeypress={handleTitleKeyPress}
-                    disabled={isSubmitting}
-                    class:error={!!titleError}
-                    aria-label={$text('settings.report_issue.title_label')}
-                    required
+            <SettingsInput
+                bind:value={issueTitle}
+                bind:inputRef={titleInput}
+                id="issue-title"
+                placeholder={$text('settings.report_issue.title_placeholder')}
+                disabled={isSubmitting}
+                hasError={!!titleError}
+                ariaLabel={$text('settings.report_issue.title_label')}
+                onKeydown={handleTitleKeyPress}
+            />
+            {#if showTitleWarning && titleError}
+                <InputWarning
+                    message={titleError}
                 />
-                {#if showTitleWarning && titleError}
-                    <InputWarning
-                        message={titleError}
-                    />
-                {/if}
-            </div>
+            {/if}
         </div>
         
         <!-- User Flow — "What did you do?" (optional) -->
@@ -1641,24 +1637,22 @@
         {:else}
             <div class="input-group">
                 <label for="contact-email">{$text('settings.report_issue.email_label')}</label>
-                <div class="input-wrapper">
-                    <input
-                        id="contact-email"
-                        bind:this={emailInput}
-                        type="email"
-                        placeholder={$text('settings.report_issue.email_placeholder')}
-                        bind:value={contactEmail}
-                        oninput={handleEmailInput}
-                        disabled={isSubmitting}
-                        class:error={!!emailError}
-                        aria-label={$text('settings.report_issue.email_label')}
+                <SettingsInput
+                    bind:value={contactEmail}
+                    bind:inputRef={emailInput}
+                    id="contact-email"
+                    type="email"
+                    placeholder={$text('settings.report_issue.email_placeholder')}
+                    disabled={isSubmitting}
+                    hasError={!!emailError}
+                    ariaLabel={$text('settings.report_issue.email_label')}
+                    onInput={handleEmailInput}
+                />
+                {#if showEmailWarning && emailError}
+                    <InputWarning
+                        message={emailError}
                     />
-                    {#if showEmailWarning && emailError}
-                        <InputWarning
-                            message={emailError}
-                        />
-                    {/if}
-                </div>
+                {/if}
                 <p class="input-hint">{$text('settings.report_issue.email_hint')}</p>
             </div>
         {/if}
@@ -1820,9 +1814,9 @@
         
         <!-- Error message -->
         {#if errorMessage}
-            <div class="message error-message" role="alert">
+            <SettingsInfoBox type="error">
                 {errorMessage}
-            </div>
+            </SettingsInfoBox>
         {/if}
 
         <!-- Device Information Notice -->
@@ -1983,43 +1977,6 @@
         flex: 1;
     }
     
-    .input-wrapper {
-        position: relative;
-        width: 100%;
-    }
-    
-    .input-wrapper input,
-    .input-wrapper textarea {
-        width: 100%;
-        padding: 12px;
-        border: 1px solid var(--color-grey-30);
-        border-radius: 8px;
-        font-size: 14px;
-        font-family: inherit;
-        background-color: var(--color-grey-20);
-        color: var(--color-font-primary);
-        transition: border-color 0.2s ease;
-    }
-    
-    .input-wrapper input:focus,
-    .input-wrapper textarea:focus {
-        border-color: var(--color-primary);
-    }
-    
-    .input-wrapper input.error {
-        border-color: var(--color-error, #e74c3c);
-    }
-    
-    .input-wrapper input:disabled,
-    .input-wrapper textarea:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-    }
-    
-    .input-wrapper textarea {
-        resize: vertical;
-        min-height: 100px;
-    }
     
     .signal-reminder {
         padding: 12px;
@@ -2083,24 +2040,6 @@
         cursor: not-allowed;
     }
     
-    .message {
-        padding: 12px;
-        border-radius: 8px;
-        font-size: 14px;
-        line-height: 1.4;
-    }
-    
-    .success-message {
-        background-color: var(--color-success-light, #e8f5e9);
-        color: var(--color-success-dark, #2e7d32);
-        border: 1px solid var(--color-success, #4caf50);
-    }
-    
-    .error-message {
-        background-color: var(--color-error-light, #ffebee);
-        color: var(--color-error-dark, #c62828);
-        border: 1px solid var(--color-error, #f44336);
-    }
 
     /* Issue ID copyable element within success message */
     .issue-id-container {

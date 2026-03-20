@@ -20,7 +20,8 @@
 		SettingsFileUpload,
 		SettingsConsentToggle,
 		SettingsQuote,
-		SettingsTabs
+		SettingsTabs,
+		SettingsInfoBox
 	} from '@repo/ui/components/settings/elements';
 
 	// --- State for interactive demos ---
@@ -415,6 +416,34 @@
 				</div>
 			</div>
 		</section>
+
+		<!-- 13. Info Box -->
+		<div class="element-block">
+			<div class="element-header">
+				<h3>13. Info Box</h3>
+				<span class="element-tag new">SettingsInfoBox</span>
+			</div>
+			<p class="element-purpose">
+				Reusable message box for info, success, error, and warning states. White pill card
+				with colored left accent and type-appropriate icon.
+			</p>
+			<div class="element-demo">
+				<h4 class="variant-label">Info (default)</h4>
+				<SettingsInfoBox type="info">This feature requires an internet connection to sync your data.</SettingsInfoBox>
+			</div>
+			<div class="element-demo">
+				<h4 class="variant-label">Success</h4>
+				<SettingsInfoBox type="success">Your subscription has been confirmed successfully.</SettingsInfoBox>
+			</div>
+			<div class="element-demo">
+				<h4 class="variant-label">Error</h4>
+				<SettingsInfoBox type="error">Something went wrong. Please try again later.</SettingsInfoBox>
+			</div>
+			<div class="element-demo">
+				<h4 class="variant-label">Warning</h4>
+				<SettingsInfoBox type="warning">You can cancel your subscription at any time from your account settings.</SettingsInfoBox>
+			</div>
+		</div>
 
 		<!-- ============================================= -->
 		<!-- SECTION C: Search & Sort Bar                  -->

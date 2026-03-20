@@ -389,19 +389,21 @@
 
             <!-- Regular Settings -->
             {#each Object.entries(settingsViews).filter(([key]) => isTopLevelView(key) && (key !== 'logs' || isAdminUser)) as [key]}
-                <SettingsItem 
+                <SettingsItem
+                    type="submenu"
                     icon={key === 'logs' ? 'server' : key}
                     title={key === 'logs' ? 'Logs' : $text(`settings.${key}`)}
-                    onClick={() => showSettingsView(key, null)} 
+                    onClick={() => showSettingsView(key, null)}
                 />
             {/each}
 
             <!-- Only show logout button for authenticated users -->
             {#if username}
-                <SettingsItem 
-                    icon="subsetting_icon logout" 
-                    title={$text('settings.logout')} 
-                    onClick={handleLogout} 
+                <SettingsItem
+                    type="quickaction"
+                    icon="subsetting_icon logout"
+                    title={$text('settings.logout')}
+                    onClick={handleLogout}
                 />
             {/if}
         </div>

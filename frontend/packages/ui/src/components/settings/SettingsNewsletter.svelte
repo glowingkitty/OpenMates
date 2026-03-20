@@ -12,6 +12,7 @@ changes to the documentation (to keep the documentation up to date).
     import { text } from '@repo/ui';
     import { getApiEndpoint, apiEndpoints } from '../../config/api';
     import InputWarning from '../common/InputWarning.svelte';
+    import { SettingsInput, SettingsInfoBox } from './elements';
     import { replaceState } from '$app/navigation';
     
     // State for email input and form submission
@@ -359,25 +360,22 @@ changes to the documentation (to keep the documentation up to date).
     <!-- Email input form -->
     <div class="newsletter-form">
         <div class="input-group">
-            <div class="input-wrapper">
-                <span class="clickable-icon icon_mail"></span>
-                <input
-                    bind:this={emailInput}
-                    type="email"
-                    placeholder={$text('settings.newsletter_email_placeholder')}
-                    bind:value={email}
-                    onkeypress={handleKeyPress}
-                    disabled={isSubmitting}
-                    class:error={!!emailError}
-                    aria-label={$text('settings.newsletter_email_placeholder')}
-                    autocomplete="email"
+            <SettingsInput
+                bind:value={email}
+                bind:inputRef={emailInput}
+                type="email"
+                placeholder={$text('settings.newsletter_email_placeholder')}
+                disabled={isSubmitting}
+                hasError={!!emailError}
+                ariaLabel={$text('settings.newsletter_email_placeholder')}
+                autocomplete="email"
+                onKeydown={handleKeyPress}
+            />
+            {#if showEmailWarning && emailError}
+                <InputWarning
+                    message={emailError}
                 />
-                {#if showEmailWarning && emailError}
-                    <InputWarning
-                        message={emailError}
-                    />
-                {/if}
-            </div>
+            {/if}
         </div>
         
         <div class="button-container">
@@ -396,23 +394,23 @@ changes to the documentation (to keep the documentation up to date).
         
         <!-- Processing action message (from email links) -->
         {#if isProcessingAction}
-            <div class="message processing-message" role="alert">
+            <SettingsInfoBox type="info">
                 {$text('settings.newsletter_processing')}
-            </div>
+            </SettingsInfoBox>
         {/if}
-        
+
         <!-- Success message -->
         {#if successMessage}
-            <div class="message success-message" role="alert">
+            <SettingsInfoBox type="success">
                 {successMessage}
-            </div>
+            </SettingsInfoBox>
         {/if}
-        
+
         <!-- Error message -->
         {#if errorMessage}
-            <div class="message error-message" role="alert">
+            <SettingsInfoBox type="error">
                 {errorMessage}
-            </div>
+            </SettingsInfoBox>
         {/if}
     </div>
     
@@ -437,54 +435,10 @@ changes to the documentation (to keep the documentation up to date).
     .input-group {
         margin-bottom: 1rem;
     }
-    
-    .input-wrapper {
-        position: relative;
-        display: flex;
-        align-items: center;
-        width: 100%;
-        max-width: 350px;
-        margin: 0 auto;
-    }
-    
-    .input-wrapper .clickable-icon {
-        position: absolute;
-        left: 1rem;
-        color: var(--color-grey-60);
-        z-index: 1;
-    }
-    
-    .input-wrapper input.error {
-        border-color: var(--color-error, #e74c3c);
-    }
-    
+
     .button-container button {
         width: 100%;
         margin-bottom: 10px;
-    }
-    .message {
-        padding: 10px 12px;
-        border-radius: 8px;
-        font-size: 14px;
-        line-height: 1.4;
-    }
-    
-    .success-message {
-        background-color: var(--color-success-light, #e8f5e9);
-        color: var(--color-success-dark, #2e7d32);
-        border: 1px solid var(--color-success, #4caf50);
-    }
-    
-    .error-message {
-        background-color: var(--color-error-light, #ffebee);
-        color: var(--color-error-dark, #c62828);
-        border: 1px solid var(--color-error, #f44336);
-    }
-    
-    .processing-message {
-        background-color: var(--color-info-light, #e3f2fd);
-        color: var(--color-info-dark, #1565c0);
-        border: 1px solid var(--color-info, #2196f3);
     }
     
     .newsletter-info {

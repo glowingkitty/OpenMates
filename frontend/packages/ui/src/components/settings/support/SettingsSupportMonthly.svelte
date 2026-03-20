@@ -14,6 +14,7 @@
     import Payment from '../../Payment.svelte';
     import { authStore } from '../../../stores/authStore';
     import InputWarning from '../../common/InputWarning.svelte';
+    import { SettingsInput, SettingsInfoBox } from '../elements';
     import SettingsSupportMonthlyConfirmation from './SettingsSupportMonthlyConfirmation.svelte';
 
     // Predefined monthly support amounts in EUR
@@ -141,15 +142,12 @@
 
 {:else if !showPaymentForm}
     <!-- Monthly Support Tier Selection -->
-    <div class="disclaimer-container">
-        <div class="disclaimer">
-            <span class="clickable-icon icon_info"></span>
-            <div>
-                <p>{$text('settings.support.disclaimer')}</p>
-                <p class="cancellation-info">{$text('settings.support.monthly.cancellation_info')}</p>
-            </div>
-        </div>
-    </div>
+    <SettingsInfoBox type="info">
+        <p>{$text('settings.support.disclaimer')}</p>
+        <p style="font-size: 0.8125rem; font-style: italic;">{$text('settings.support.monthly.cancellation_info')}</p>
+    </SettingsInfoBox>
+
+    <div class="tier-spacer"></div>
 
     {#each monthlyTiers as tier}
         <SettingsItem
@@ -183,33 +181,28 @@
                 <div class="email-field-label">
                     {$text('settings.support.email_label')}
                 </div>
-                <div class="input-wrapper">
-                    <span class="clickable-icon icon_mail"></span>
-                    <input
-                        bind:this={emailInput}
-                        type="email"
-                        bind:value={email}
-                        placeholder={$text('login.email_placeholder')}
-                        required
-                        autocomplete="email"
-                        disabled={paymentStarted}
-                        onblur={() => (emailTouched = true)}
-                        onkeydown={(e) => e.key === 'Enter' && continueToPayment()}
-                        class:error={emailTouched && !!emailError}
+                <SettingsInput
+                    bind:value={email}
+                    bind:inputRef={emailInput}
+                    type="email"
+                    placeholder={$text('login.email_placeholder')}
+                    autocomplete="email"
+                    disabled={paymentStarted}
+                    hasError={emailTouched && !!emailError}
+                    onBlur={() => (emailTouched = true)}
+                    onKeydown={(e) => e.key === 'Enter' && continueToPayment()}
+                />
+                {#if emailTouched && emailError}
+                    <InputWarning
+                        message={emailError}
                     />
-                    {#if emailTouched && emailError}
-                        <InputWarning
-                            message={emailError}
-                        />
-                    {/if}
-                </div>
+                {/if}
             </div>
         {/if}
 
-        <div class="cancellation-notice">
-            <span class="clickable-icon icon_info"></span>
-            <p>{$text('settings.support.monthly.cancellation_details')}</p>
-        </div>
+        <SettingsInfoBox type="warning">
+            {$text('settings.support.monthly.cancellation_details')}
+        </SettingsInfoBox>
 
         {#if !isAuthenticated}
             <div class="button-group">
@@ -244,43 +237,8 @@
 {/if}
 
 <style>
-    .disclaimer-container {
-        margin-bottom: 20px;
-        padding: 0 15px;
-    }
-
-    .disclaimer {
-        display: flex;
-        align-items: flex-start;
-        gap: 12px;
-        padding: 16px;
-        background-color: var(--color-info-light, #e3f2fd);
-        border: 1px solid var(--color-info, #2196f3);
-        border-radius: 8px;
-    }
-
-    .disclaimer .clickable-icon {
-        width: 20px;
-        height: 20px;
-        margin-top: 2px;
-        flex-shrink: 0;
-        background-color: var(--color-info, #2196f3);
-    }
-
-    .disclaimer div p {
-        margin: 0 0 8px 0;
-        font-size: 14px;
-        line-height: 1.4;
-        color: var(--color-info-dark, #1976d2);
-    }
-
-    .disclaimer div p:last-child {
-        margin-bottom: 0;
-    }
-
-    .cancellation-info {
-        font-size: 13px !important;
-        font-style: italic;
+    .tier-spacer {
+        height: 1rem;
     }
 
     .payment-form-container {
@@ -351,40 +309,6 @@
         color: var(--color-grey-70);
     }
 
-    .input-wrapper {
-        position: relative;
-        display: flex;
-        align-items: center;
-        width: 100%;
-    }
-
-    .input-wrapper .clickable-icon {
-        position: absolute;
-        left: 12px;
-        width: 20px;
-        height: 20px;
-        background-color: var(--color-grey-60);
-        z-index: 1;
-    }
-
-    .input-wrapper input {
-        width: 100%;
-        padding: 12px 12px 12px 44px;
-        border: 2px solid var(--color-grey-30);
-        border-radius: 8px;
-        font-size: 14px;
-        background-color: var(--color-grey-10);
-        transition: border-color 0.2s;
-    }
-
-    .input-wrapper input:focus {
-        border-color: var(--color-primary);
-    }
-
-    .input-wrapper input.error {
-        border-color: var(--color-error, #e74c3c);
-    }
-
     .button-group {
         display: flex;
         gap: 8px;
@@ -430,42 +354,12 @@
         background: var(--color-grey-10);
     }
 
-    .cancellation-notice {
-        display: flex;
-        align-items: flex-start;
-        gap: 10px;
-        padding: 12px 16px;
-        margin-bottom: 20px;
-        background-color: var(--color-warning-light, #fff3cd);
-        border: 1px solid var(--color-warning, #ffc107);
-        border-radius: 8px;
-    }
-
-    .cancellation-notice .clickable-icon {
-        width: 18px;
-        height: 18px;
-        margin-top: 1px;
-        flex-shrink: 0;
-        background-color: var(--color-warning-dark, #856404);
-    }
-
-    .cancellation-notice p {
-        margin: 0;
-        font-size: 13px;
-        line-height: 1.4;
-        color: var(--color-warning-dark, #856404);
-    }
-
     .payment-component-container {
         margin-top: 24px;
     }
 
     @media (max-width: 480px) {
         .payment-form-container {
-            padding: 0 5px;
-        }
-
-        .disclaimer-container {
             padding: 0 5px;
         }
     }

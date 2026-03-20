@@ -20,3 +20,4 @@ export { default as SettingsFileUpload } from "./SettingsFileUpload.svelte";
 export { default as SettingsConsentToggle } from "./SettingsConsentToggle.svelte";
 export { default as SettingsQuote } from "./SettingsQuote.svelte";
 export { default as SettingsTabs } from "./SettingsTabs.svelte";
+export { default as SettingsInfoBox } from "./SettingsInfoBox.svelte";

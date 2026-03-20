@@ -13,6 +13,7 @@
     import Payment from '../../Payment.svelte';
     import { authStore } from '../../../stores/authStore';
     import InputWarning from '../../common/InputWarning.svelte';
+    import { SettingsInput, SettingsInfoBox } from '../elements';
     import SettingsSupportOneTimeConfirmation from './SettingsSupportOneTimeConfirmation.svelte';
 
     // Predefined support amounts in EUR
@@ -140,12 +141,11 @@
 
 {:else if !showPaymentForm}
     <!-- Support Tier Selection -->
-    <div class="disclaimer-container">
-        <div class="disclaimer">
-            <span class="clickable-icon icon_info"></span>
-            <p>{$text('settings.support.disclaimer')}</p>
-        </div>
-    </div>
+    <SettingsInfoBox type="info">
+        {$text('settings.support.disclaimer')}
+    </SettingsInfoBox>
+
+    <div class="tier-spacer"></div>
 
     {#each supportTiers as tier}
         <SettingsItem
@@ -175,26 +175,22 @@
                 <div class="email-field-label">
                     {$text('settings.support.email_label')}
                 </div>
-                <div class="input-wrapper">
-                    <span class="clickable-icon icon_mail"></span>
-                    <input
-                        bind:this={emailInput}
-                        type="email"
-                        bind:value={email}
-                        placeholder={$text('login.email_placeholder')}
-                        required
-                        autocomplete="email"
-                        disabled={paymentStarted}
-                        onblur={() => (emailTouched = true)}
-                        onkeydown={(e) => e.key === 'Enter' && continueToPayment()}
-                        class:error={emailTouched && !!emailError}
+                <SettingsInput
+                    bind:value={email}
+                    bind:inputRef={emailInput}
+                    type="email"
+                    placeholder={$text('login.email_placeholder')}
+                    autocomplete="email"
+                    disabled={paymentStarted}
+                    hasError={emailTouched && !!emailError}
+                    onBlur={() => (emailTouched = true)}
+                    onKeydown={(e) => e.key === 'Enter' && continueToPayment()}
+                />
+                {#if emailTouched && emailError}
+                    <InputWarning
+                        message={emailError}
                     />
-                    {#if emailTouched && emailError}
-                        <InputWarning
-                            message={emailError}
-                        />
-                    {/if}
-                </div>
+                {/if}
             </div>
         {/if}
 
@@ -230,34 +226,8 @@
 {/if}
 
 <style>
-    .disclaimer-container {
-        margin-bottom: 20px;
-        padding: 0 15px;
-    }
-
-    .disclaimer {
-        display: flex;
-        align-items: flex-start;
-        gap: 12px;
-        padding: 16px;
-        background-color: var(--color-info-light, #e3f2fd);
-        border: 1px solid var(--color-info, #2196f3);
-        border-radius: 8px;
-    }
-
-    .disclaimer .clickable-icon {
-        width: 20px;
-        height: 20px;
-        margin-top: 2px;
-        flex-shrink: 0;
-        background-color: var(--color-info, #2196f3);
-    }
-
-    .disclaimer p {
-        margin: 0;
-        font-size: 14px;
-        line-height: 1.4;
-        color: var(--color-info-dark, #1976d2);
+    .tier-spacer {
+        height: 1rem;
     }
 
     .payment-form-container {
@@ -313,40 +283,6 @@
         color: var(--color-grey-70);
     }
 
-    .input-wrapper {
-        position: relative;
-        display: flex;
-        align-items: center;
-        width: 100%;
-    }
-
-    .input-wrapper .clickable-icon {
-        position: absolute;
-        left: 12px;
-        width: 20px;
-        height: 20px;
-        background-color: var(--color-grey-60);
-        z-index: 1;
-    }
-
-    .input-wrapper input {
-        width: 100%;
-        padding: 12px 12px 12px 44px;
-        border: 2px solid var(--color-grey-30);
-        border-radius: 8px;
-        font-size: 14px;
-        background-color: var(--color-grey-10);
-        transition: border-color 0.2s;
-    }
-
-    .input-wrapper input:focus {
-        border-color: var(--color-primary);
-    }
-
-    .input-wrapper input.error {
-        border-color: var(--color-error, #e74c3c);
-    }
-
     .button-group {
         display: flex;
         gap: 8px;
@@ -398,10 +334,6 @@
 
     @media (max-width: 480px) {
         .payment-form-container {
-            padding: 0 5px;
-        }
-
-        .disclaimer-container {
             padding: 0 5px;
         }
     }
