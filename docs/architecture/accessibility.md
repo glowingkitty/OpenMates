@@ -157,3 +157,37 @@ Expected keyboard tab order:
 5. Sidebar (if open; hidden from tab order when closed via `visibility: hidden`)
 
 Focus is programmatically moved to `#main-chat` when a chat is selected from the sidebar.
+
+---
+
+## Automated Accessibility Testing
+
+E2E accessibility tests live in `frontend/apps/web_app/tests/a11y-*.spec.ts` and use `@axe-core/playwright` for automated WCAG 2.1 AA violation scanning.
+
+### Test Files
+
+| File | Coverage |
+|------|----------|
+| `a11y-helpers.ts` | Shared utilities: `scanPageA11y`, `scanComponentA11y`, `assertNoA11yViolations`, `KNOWN_VIOLATIONS` |
+| `a11y-pages.spec.ts` | Full-page axe scans: landing, login, chat, settings, 404 |
+| `a11y-keyboard-nav.spec.ts` | Skip link, tab order, focus trap, sidebar toggle via keyboard |
+| `a11y-modal-dialogs.spec.ts` | Dialog ARIA attributes, focus trap, Escape, overlay roles |
+
+### Known Exclusions
+
+These violations are tracked but excluded from CI failure:
+
+- `color-contrast` — `--color-font-secondary` (#a9a9a9, ~2.6:1) and `--color-font-field-placeholder` (#9e9e9e, ~2.8:1) are below WCAG AA on light backgrounds
+- Third-party iframes (Stripe, reCAPTCHA) are excluded from scans
+
+### Running
+
+```bash
+# All a11y specs
+npx playwright test a11y-
+
+# Specific suite
+npx playwright test a11y-pages
+npx playwright test a11y-keyboard-nav
+npx playwright test a11y-modal-dialogs
+```

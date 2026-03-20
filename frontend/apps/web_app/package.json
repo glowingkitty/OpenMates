@@ -25,6 +25,7 @@
 		"yaml": "^2.8.1"
 	},
 	"devDependencies": {
+		"@axe-core/playwright": "4.11.1",
 		"@playwright/test": "^1.49.0",
 		"@repo/eslint-config": "workspace:*",
 		"@repo/typescript-config": "workspace:*",
