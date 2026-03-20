@@ -93,6 +93,9 @@ def api_client():
     headers = {
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json",
+        # The API enforces origin allowlist checks. Without a valid Origin header
+        # the middleware returns 502/403. Use the dev app URL so tests reach endpoints.
+        "Origin": "https://app.dev.openmates.org",
     }
     with httpx.Client(
         base_url=API_BASE_URL,
