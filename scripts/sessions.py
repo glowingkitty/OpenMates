@@ -2674,8 +2674,9 @@ def cmd_deploy(args: argparse.Namespace) -> None:
         sys.exit(0)
 
     # 1. Run linter (with CSS/HTML support and longer timeout)
+    no_verify = getattr(args, "no_verify", False)
     lint_flags = _get_lint_flags(to_commit)
-    if lint_flags:
+    if lint_flags and not no_verify:
         print("Running linter...")
         rc, stdout, stderr = _run_lint(to_commit)
         if rc != 0:
@@ -2686,6 +2687,8 @@ def cmd_deploy(args: argparse.Namespace) -> None:
                 print(stderr, file=sys.stderr)
             sys.exit(1)
         print("Lint: PASSED")
+    elif lint_flags and no_verify:
+        print("Lint: SKIPPED (--no-verify)")
 
     # 1b. Translation validation — hard-fail if any $text() key is missing from en.json
     if _has_frontend_files(to_commit):
