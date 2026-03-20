@@ -598,8 +598,8 @@
     color: var(--color-grey-60);
     font-size: 16px;
     /* Align header left edge with the first card (mirroring recent-chats centering).
-       Cards are 240px wide → left edge at 50% - 120px centres the first card. */
-    padding: 0 0 0 calc(50% - 120px);
+       Cards are 300px wide → left edge at 50% - 150px centres the first card. */
+    padding: 0 0 0 calc(50% - 150px);
     letter-spacing: 0.5px;
     opacity: 0.9;
     margin-bottom: 6px;
@@ -613,8 +613,8 @@
   }
 
   /* Horizontally scrollable row of suggestion cards.
-     First card is centred in the chat area via padding-left: calc(50% - 120px)
-     (cards are 240px wide, so half-card = 120px). This mirrors the recent-chats
+     First card is centred in the chat area via padding-left: calc(50% - 150px)
+     (cards are 300px wide, so half-card = 150px). This mirrors the recent-chats
      scroll container which uses calc(50% - 150px) for its 300px cards.
      Right padding (48px) keeps a partial next-card visible as a scroll affordance.
      overflow-x: auto enables horizontal scrolling; overflow-y must also be
@@ -632,7 +632,7 @@
     scrollbar-width: none; /* Firefox */
     -ms-overflow-style: none; /* IE/Edge */
     /* Extra bottom padding so card drop-shadows aren't clipped */
-    padding: 4px 48px 14px calc(50% - 120px);
+    padding: 4px 48px 14px calc(50% - 150px);
     /* Negative bottom margin to reclaim the extra padding without affecting layout */
     margin-bottom: -4px;
     /* Must match recent-chats-scroll-container: explicit width + border-box so
@@ -648,16 +648,17 @@
 
   /* Each suggestion card: rounded rectangle with app gradient background,
      icon on the left, white text on the right.
-     Fixed width of 240px — wide enough for ~3 words per line, narrow enough
-     that a second card is always partially visible as a scroll affordance.
+     Fixed width of 300px (matching recent-chats cards) — wide enough for
+     longer suggestion text, narrow enough that a second card is partially
+     visible as a scroll affordance. Mobile uses 210px (see media query).
      Cards are always full-height (align-items: stretch on parent). */
   .suggestion-card {
     display: flex;
     flex-direction: row;
     align-items: center;
     gap: 10px;
-    width: 240px;
-    min-width: 240px;
+    width: 300px;
+    min-width: 300px;
     min-height: 56px;
     height: auto;
     padding: 12px 16px;
