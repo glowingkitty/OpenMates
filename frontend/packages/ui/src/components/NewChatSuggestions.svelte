@@ -31,9 +31,11 @@
   const VISIBLE_COUNT = 10;
 
   let {
-    onSuggestionClick
+    onSuggestionClick,
+    messageInputContent = ''
   }: {
     onSuggestionClick: (suggestion: string) => void;
+    messageInputContent?: string;
   } = $props();
 
   // Apps metadata for icon resolution
@@ -176,6 +178,22 @@
 
   // Force reactivity to language changes
   let currentLocale = $state($locale);
+
+  // Debounced filter query — updated 400ms after user pauses typing.
+  // Self-contained here so no extra overhead is added to MessageInput or ActiveChat.
+  let filterQuery = $state('');
+  let _filterDebounceTimer: ReturnType<typeof setTimeout> | undefined;
+
+  $effect(() => {
+    const raw = messageInputContent.trim().toLowerCase();
+    if (_filterDebounceTimer) clearTimeout(_filterDebounceTimer);
+    _filterDebounceTimer = setTimeout(() => {
+      filterQuery = raw;
+    }, 400);
+    return () => {
+      if (_filterDebounceTimer) clearTimeout(_filterDebounceTimer);
+    };
+  });
 
   // Context menu state
   let contextMenu = $state({
@@ -371,8 +389,32 @@
         };
       });
 
-    return parsed.slice(0, VISIBLE_COUNT);
+    // Apply search filter when query is active
+    const filtered = filterQuery
+      ? parsed.filter(s =>
+          s.body.toLowerCase().includes(filterQuery) ||
+          s.appId.toLowerCase().includes(filterQuery)
+        )
+      : parsed;
+
+    // Graceful fallback: if filter matches nothing, show all (not empty)
+    const pool = (filterQuery && filtered.length === 0) ? parsed : filtered;
+
+    return pool.slice(0, VISIBLE_COUNT);
   });
+
+  // True when filter produced 0 matches and we're showing the fallback pool
+  let noMatchFallback = $derived(
+    filterQuery !== '' &&
+    !loading &&
+    fullSuggestionsWithEncrypted
+      .filter(s => !hiddenSuggestionTexts.has(s.text))
+      .every(s => {
+        const body = parseSuggestion(s.text).body.toLowerCase();
+        const appId = parseSuggestion(s.text).appId.toLowerCase();
+        return !body.includes(filterQuery) && !appId.includes(filterQuery);
+      })
+  );
 
   /**
    * Handle suggestion click — hide the card from view, track for deletion on send,
@@ -536,7 +578,11 @@
   <div class="suggestions-wrapper" class:fade-out={fadeState === 'fading-out'} class:fade-in={fadeState === 'fading-in'}>
     <div class="suggestions-header">
       {#key currentLocale}
-        {$text('chat.suggestions.header_click')}
+        {#if noMatchFallback}
+          <span class="filter-no-match">{$text('chat.suggestions.filter_no_match')}</span>
+        {:else}
+          {$text('chat.suggestions.header_click')}
+        {/if}
       {/key}
     </div>
     <div class="suggestions-scroll">
@@ -718,6 +764,13 @@
     overflow: hidden;
     /* Allow flex child to shrink below content width so line-clamp works */
     min-width: 0;
+  }
+
+  .filter-no-match {
+    color: var(--color-grey-50);
+    font-style: italic;
+    font-size: 14px;
+    opacity: 0.75;
   }
 
   @media (max-width: 730px) {

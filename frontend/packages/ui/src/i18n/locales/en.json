@@ -2390,6 +2390,9 @@
       "explore_next": {
         "text": "What do you want to explore next?"
       },
+      "filter_no_match": {
+        "text": "No matching suggestions — showing all"
+      },
       "header_click": {
         "text": "OpenMates can help you with:"
       },
