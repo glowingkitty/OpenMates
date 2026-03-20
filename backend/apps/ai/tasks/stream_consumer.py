@@ -80,6 +80,12 @@ _INLINE_EMBED_LINK_PATTERN = re.compile(
 # where XYZ is a 2-4 character alphanumeric random suffix.
 _EMBED_REF_SUFFIX_PATTERN = re.compile(r'-[a-zA-Z0-9]{2,4}$')
 
+# Regex to detect bare embed ref brackets that are missing the (embed:...) parenthetical.
+# Matches: [domain.tld-XYZ] where the bracketed content has a dot and looks like an embed_ref.
+# Negative lookahead (?!\() ensures we only match brackets NOT already followed by (...).
+# Example: [news.ycombinator.com-ANo] → should become [Hacker News](embed:news.ycombinator.com-ANo)
+_BARE_EMBED_REF_PATTERN = re.compile(r'\[([^\]\s]+\.[^\]\s]+)\](?!\()')
+
 # Regex to detect mixed URL+embed patterns where the LLM wrote both a markdown
 # https:// link and an (embed:ref) parenthetical for the same anchor.
 # Matches: [display text](https://some-url) (embed:some-ref)
@@ -471,7 +477,16 @@ async def _fix_bad_embed_display_text(
     # Find all inline embed links (skip blockquote source-quotes)
     # We use finditer on the full response but exclude lines starting with ">"
     all_matches = list(_INLINE_EMBED_LINK_PATTERN.finditer(aggregated_response))
-    if not all_matches:
+
+    # Find bare bracket embed refs: [domain.tld-XYZ] NOT followed by (...)
+    # These are cases where the LLM forgot the (embed:...) parenthetical entirely.
+    bare_matches = list(_BARE_EMBED_REF_PATTERN.finditer(aggregated_response))
+    bare_matches = [
+        m for m in bare_matches
+        if _EMBED_REF_SUFFIX_PATTERN.search(m.group(1))
+    ]
+
+    if not all_matches and not bare_matches:
         return aggregated_response
 
     # Filter out matches that are inside blockquote lines (source quotes)
@@ -615,6 +630,36 @@ async def _fix_bad_embed_display_text(
         logger.info(
             f"{log_prefix} [EMBED_DISPLAY_FIX] Fixed {replacements_made} bad embed display text(s)"
         )
+
+    # --- Bare embed ref fix ---
+    # Handle [embed_ref_slug] brackets where the LLM omitted the (embed:...) parenthetical.
+    # Only convert if the bracketed content is a known embed_ref from this response.
+    # Process in reverse order to preserve match positions after in-place replacements.
+    if bare_matches and embed_ref_to_title:
+        # Re-scan on the (possibly already modified) text so positions are accurate.
+        current_bare_matches = list(_BARE_EMBED_REF_PATTERN.finditer(modified))
+        current_bare_matches = [
+            m for m in current_bare_matches
+            if _EMBED_REF_SUFFIX_PATTERN.search(m.group(1))
+            and m.group(1) in embed_ref_to_title
+        ]
+
+        bare_fixed = 0
+        for match in reversed(current_bare_matches):
+            embed_ref = match.group(1)
+            full_match = match.group(0)
+            display = embed_ref_to_title.get(embed_ref) or _EMBED_REF_SUFFIX_PATTERN.sub('', embed_ref)
+            new_link = f"[{display}](embed:{embed_ref})"
+            modified = modified[:match.start()] + new_link + modified[match.end():]
+            bare_fixed += 1
+            logger.info(
+                f"{log_prefix} [EMBED_DISPLAY_FIX] Fixed bare ref: {full_match} → {new_link}"
+            )
+
+        if bare_fixed > 0:
+            logger.info(
+                f"{log_prefix} [EMBED_DISPLAY_FIX] Fixed {bare_fixed} bare embed bracket(s)"
+            )
 
     return modified
 

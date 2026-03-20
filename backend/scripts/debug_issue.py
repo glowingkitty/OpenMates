@@ -1188,7 +1188,7 @@ def format_compact_output(
 
     lines = []
     for issue in issues:
-        issue_id = issue.get("id", "N/A")[:8]
+        issue_id = issue.get("id", "N/A")
         title = truncate_string(issue.get("title", "N/A"), 60)
         user_id = issue.get("reported_by_user_id")
         user_str = f"user:{user_id[:8]}" if user_id else "user:anon"
