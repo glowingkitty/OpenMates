@@ -105,31 +105,44 @@ jobs:
       - name: Open ephemeral tunnel
         id: open
         run: |
-          TIMESTAMP=$(date +%s)
-          BODY='{"run_id":"${{ github.run_id }}","requested_by":"github-actions"}'
-          SIGNATURE=$(echo -n "${TIMESTAMP}${BODY}" | openssl dgst -sha256 -hmac "${{ secrets.TUNNEL_TRIGGER_SECRET }}" | awk '{print $2}')
+          # Retry up to 4 times (30s apart) to handle transient API unavailability
+          # (e.g. container restarting after a recent deploy)
+          MAX_ATTEMPTS=4
+          ATTEMPT=0
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            ATTEMPT=$((ATTEMPT + 1))
+            TIMESTAMP=$(date +%s)
+            BODY='{"run_id":"${{ github.run_id }}","requested_by":"github-actions"}'
+            SIGNATURE=$(echo -n "${TIMESTAMP}${BODY}" | openssl dgst -sha256 -hmac "${{ secrets.TUNNEL_TRIGGER_SECRET }}" | awk '{print $2}')
 
-          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
-            "${{ secrets.OPENMATES_API_URL }}/internal/tunnel/open" \
-            -H "Content-Type: application/json" \
-            -H "X-Hmac-Signature: ${SIGNATURE}" \
-            -H "X-Timestamp: ${TIMESTAMP}" \
-            -d "${BODY}")
+            RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+              "${{ secrets.OPENMATES_API_URL }}/internal/tunnel/open" \
+              -H "Content-Type: application/json" \
+              -H "X-Hmac-Signature: ${SIGNATURE}" \
+              -H "X-Timestamp: ${TIMESTAMP}" \
+              -d "${BODY}")
 
-          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-          BODY_RESP=$(echo "$RESPONSE" | head -n -1)
+            HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+            BODY_RESP=$(echo "$RESPONSE" | head -n -1)
 
-          if [ "$HTTP_CODE" != "200" ]; then
-            echo "::error::Failed to open tunnel: HTTP ${HTTP_CODE} — ${BODY_RESP}"
-            exit 1
-          fi
+            if [ "$HTTP_CODE" = "200" ]; then
+              TUNNEL_URL=$(echo "$BODY_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['tunnel_url'])")
+              SESSION_ID=$(echo "$BODY_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['session_id'])")
+              echo "tunnel_url=${TUNNEL_URL}" >> "$GITHUB_OUTPUT"
+              echo "session_id=${SESSION_ID}" >> "$GITHUB_OUTPUT"
+              echo "Tunnel opened: ${TUNNEL_URL} (session: ${SESSION_ID})"
+              exit 0
+            fi
 
-          TUNNEL_URL=$(echo "$BODY_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['tunnel_url'])")
-          SESSION_ID=$(echo "$BODY_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['session_id'])")
+            echo "Attempt ${ATTEMPT}/${MAX_ATTEMPTS} failed: HTTP ${HTTP_CODE} — ${BODY_RESP}"
+            if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
+              echo "Retrying in 30s..."
+              sleep 30
+            fi
+          done
 
-          echo "tunnel_url=${TUNNEL_URL}" >> "$GITHUB_OUTPUT"
-          echo "session_id=${SESSION_ID}" >> "$GITHUB_OUTPUT"
-          echo "Tunnel opened: ${TUNNEL_URL} (session: ${SESSION_ID})"
+          echo "::error::Failed to open tunnel after ${MAX_ATTEMPTS} attempts"
+          exit 1
 
   # -----------------------------------------------------------------
   # pytest: backend unit tests
