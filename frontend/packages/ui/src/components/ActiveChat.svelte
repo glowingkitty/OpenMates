@@ -10354,25 +10354,33 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     /* ===========================================
        Rainbow border ring + outer glow while AI is typing
-       Ring: conic-gradient ::before pseudo-element (same technique as ThinkingSection)
-       Glow: animated box-shadow cycling through rainbow hues (ActiveChat only)
+       Uses @property --chat-gradient-angle to animate the conic-gradient rotation
+       (same technique as ThinkingSection — smooth gradient spin, no transform artifacts)
        =========================================== */
 
-    /* The ::before creates the rotating rainbow ring behind the container.
-     * Always present but invisible (opacity: 0) until .ai-typing is added. */
+    @property --chat-gradient-angle {
+        syntax: '<angle>';
+        initial-value: 0deg;
+        inherits: false;
+    }
+
+    /* ::before — rotating rainbow ring behind the container.
+     * Always present but invisible (opacity: 0) until .ai-typing is added.
+     * filter: blur(2px) softens the ring into a smooth Apple Intelligence-style glow. */
     .active-chat-container::before {
         content: '';
         position: absolute;
         inset: -2px;
         border-radius: 19px; /* container 17px + 2px inset */
         background: conic-gradient(
-            from 0deg,
+            from var(--chat-gradient-angle, 0deg),
             #ff2d55, #ff6b2b, #ffd60a,
             #30d158, #32ade6, #bf5af2,
             #ff2d55
         );
         z-index: -1;
         opacity: 0;
+        filter: blur(2px);
         transition: opacity 0.6s ease;
         animation: chat-rainbow-spin 3s linear infinite;
     }
@@ -10402,45 +10410,25 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     @keyframes chat-rainbow-spin {
-        to { transform: rotate(360deg); }
+        from { --chat-gradient-angle: 0deg; }
+        to   { --chat-gradient-angle: 360deg; }
     }
 
-    /* Outer glow — animated box-shadow cycling through rainbow hues */
+    /* Outer glow — soft static multi-color bloom that fades in with the border.
+     * No color-cycling animation; the spinning border ring provides all the motion. */
     .active-chat-container.ai-typing {
         box-shadow:
-            0 0  8px  2px rgba(255,  45,  85, 0.35),
-            0 0 18px  6px rgba(191,  90, 242, 0.22),
-            0 0 36px 12px rgba( 50, 173, 230, 0.14);
-        animation: chat-glow-shift 9s linear infinite;
-    }
-
-    @keyframes chat-glow-shift {
-        0%   { box-shadow: 0 0  8px  2px rgba(255,  45,  85, 0.35), 0 0 18px  6px rgba(191,  90, 242, 0.22), 0 0 36px 12px rgba( 50, 173, 230, 0.14); }
-        16%  { box-shadow: 0 0  8px  2px rgba(255, 107,  43, 0.35), 0 0 18px  6px rgba(255,  45,  85, 0.22), 0 0 36px 12px rgba(191,  90, 242, 0.14); }
-        33%  { box-shadow: 0 0  8px  2px rgba(255, 214,  10, 0.35), 0 0 18px  6px rgba(255, 107,  43, 0.22), 0 0 36px 12px rgba(255,  45,  85, 0.14); }
-        50%  { box-shadow: 0 0  8px  2px rgba( 48, 209,  88, 0.35), 0 0 18px  6px rgba(255, 214,  10, 0.22), 0 0 36px 12px rgba(255, 107,  43, 0.14); }
-        66%  { box-shadow: 0 0  8px  2px rgba( 50, 173, 230, 0.35), 0 0 18px  6px rgba( 48, 209,  88, 0.22), 0 0 36px 12px rgba(255, 214,  10, 0.14); }
-        83%  { box-shadow: 0 0  8px  2px rgba(191,  90, 242, 0.35), 0 0 18px  6px rgba( 50, 173, 230, 0.22), 0 0 36px 12px rgba( 48, 209,  88, 0.14); }
-        100% { box-shadow: 0 0  8px  2px rgba(255,  45,  85, 0.35), 0 0 18px  6px rgba(191,  90, 242, 0.22), 0 0 36px 12px rgba( 50, 173, 230, 0.14); }
+            0 0  8px  2px rgba(191,  90, 242, 0.18),
+            0 0 20px  6px rgba( 50, 173, 230, 0.12),
+            0 0 40px 14px rgba(255,  45,  85, 0.08);
     }
 
     /* Dark mode: wider bloom, stronger opacity */
     :global(.dark) .active-chat-container.ai-typing {
         box-shadow:
-            0 0 12px  4px rgba(255,  45,  85, 0.45),
-            0 0 24px  8px rgba(191,  90, 242, 0.30),
-            0 0 44px 14px rgba( 50, 173, 230, 0.18);
-        animation: chat-glow-shift-dark 9s linear infinite;
-    }
-
-    @keyframes chat-glow-shift-dark {
-        0%   { box-shadow: 0 0 12px  4px rgba(255,  45,  85, 0.45), 0 0 24px  8px rgba(191,  90, 242, 0.30), 0 0 44px 14px rgba( 50, 173, 230, 0.18); }
-        16%  { box-shadow: 0 0 12px  4px rgba(255, 107,  43, 0.45), 0 0 24px  8px rgba(255,  45,  85, 0.30), 0 0 44px 14px rgba(191,  90, 242, 0.18); }
-        33%  { box-shadow: 0 0 12px  4px rgba(255, 214,  10, 0.45), 0 0 24px  8px rgba(255, 107,  43, 0.30), 0 0 44px 14px rgba(255,  45,  85, 0.18); }
-        50%  { box-shadow: 0 0 12px  4px rgba( 48, 209,  88, 0.45), 0 0 24px  8px rgba(255, 214,  10, 0.30), 0 0 44px 14px rgba(255, 107,  43, 0.18); }
-        66%  { box-shadow: 0 0 12px  4px rgba( 50, 173, 230, 0.45), 0 0 24px  8px rgba( 48, 209,  88, 0.30), 0 0 44px 14px rgba(255, 214,  10, 0.18); }
-        83%  { box-shadow: 0 0 12px  4px rgba(191,  90, 242, 0.45), 0 0 24px  8px rgba( 50, 173, 230, 0.30), 0 0 44px 14px rgba( 48, 209,  88, 0.18); }
-        100% { box-shadow: 0 0 12px  4px rgba(255,  45,  85, 0.45), 0 0 24px  8px rgba(191,  90, 242, 0.30), 0 0 44px 14px rgba( 50, 173, 230, 0.18); }
+            0 0 12px  4px rgba(191,  90, 242, 0.25),
+            0 0 28px  8px rgba( 50, 173, 230, 0.16),
+            0 0 48px 16px rgba(255,  45,  85, 0.10);
     }
 
     /* Responsive adjustments for narrow and medium containers */
