@@ -31,6 +31,7 @@ import { clearAllSharedChatKeys } from "../services/sharedChatKeyStorage";
 import { clearAllSessionStorageDrafts } from "../services/drafts/sessionStorageDraftService";
 import { resetChatNavigationList } from "./chatNavigationStore";
 import { clientLogForwarder } from "../services/clientLogForwarder";
+import { resetUserAvailableSkills } from "./appSkillsStore";
 import { applyServerDarkMode } from "./theme";
 
 // Import core auth state and related flags
@@ -461,6 +462,7 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
     deviceVerificationReason.set(null);
     phasedSyncState.reset(); // Reset phased sync state on logout
     aiTypingStore.reset(); // Reset typing indicator state on logout to prevent stale "{mate} is typing" indicators
+    resetUserAvailableSkills(); // Reset user-specific skill availability so next user gets fresh data
     dailyInspirationStore.reset(); // Clear user-specific inspirations on logout so defaults are shown to logged-out users
     // Immediately repopulate public default inspirations in the same tab session.
     // We intentionally skip IndexedDB on logout because the master key was just
