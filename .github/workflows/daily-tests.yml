@@ -115,17 +115,18 @@ jobs:
             BODY='{"run_id":"${{ github.run_id }}","requested_by":"github-actions"}'
             SIGNATURE=$(echo -n "${TIMESTAMP}${BODY}" | openssl dgst -sha256 -hmac "${{ secrets.TUNNEL_TRIGGER_SECRET }}" | awk '{print $2}')
 
-            RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            RESPONSE=$(curl -s --http1.1 -w "\n%{http_code}" -X POST \
               "${{ secrets.OPENMATES_API_URL }}/internal/tunnel/open" \
               -H "Content-Type: application/json" \
               -H "X-Hmac-Signature: ${SIGNATURE}" \
               -H "X-Timestamp: ${TIMESTAMP}" \
-              -d "${BODY}")
+              -d "${BODY}" \
+              --connect-timeout 10 --max-time 60 2>/dev/null) || true
 
             HTTP_CODE=$(echo "$RESPONSE" | tail -1)
             BODY_RESP=$(echo "$RESPONSE" | head -n -1)
 
-            if [ "$HTTP_CODE" = "200" ]; then
+            if [ -n "$HTTP_CODE" ] && [ "$HTTP_CODE" = "200" ]; then
               TUNNEL_URL=$(echo "$BODY_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['tunnel_url'])")
               SESSION_ID=$(echo "$BODY_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['session_id'])")
               echo "tunnel_url=${TUNNEL_URL}" >> "$GITHUB_OUTPUT"
