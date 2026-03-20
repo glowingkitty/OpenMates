@@ -181,6 +181,15 @@ Every new `.py`, `.ts`, `.svelte` file needs a header comment (5-10 lines): purp
 
 ## Critical Rules
 
+### NEVER Edit Generated JSON Translation Files
+
+**The `.json` files in `frontend/packages/ui/src/i18n/locales/` are auto-generated. NEVER edit them directly.**
+
+- Only edit the source `.yml` files in `frontend/packages/ui/src/i18n/sources/`
+- After editing `.yml` files, run `cd frontend/packages/ui && npm run build:translations` to regenerate the JSON
+- This applies to ALL operations: adding keys, fixing typos, updating translations — always edit `.yml`, never `.json`
+- If a task requires new or changed user-facing strings, edit the `.yml` source and rebuild
+
 ### State Understanding Before Acting
 
 Before planning or writing any code, state your interpretation of the task and wait for confirmation. For bugs: expected vs actual behavior, which system is responsible. See loaded `planning.md` for format.
