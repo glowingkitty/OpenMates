@@ -19,7 +19,7 @@ import { reportIssueStore } from '../stores/reportIssueStore';
 import { messageHighlightStore, searchTextHighlightStore } from '../stores/messageHighlightStore';
 import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadStore';
   import { chatDB } from '../services/db';
-  import { chatKeyManager } from '$ui/services/encryption/ChatKeyManager';
+  import { chatKeyManager } from '../services/encryption/ChatKeyManager';
   import { chatSyncService } from '../services/chatSyncService';
   import type { AppSettingsMemoriesResponseContent, AppSettingsMemoriesResponseCategory } from '../services/chatSyncServiceHandlersAppSettings';
   import { appSkillsStore } from '../stores/appSkillsStore';
