@@ -1797,6 +1797,7 @@ async def handle_main_processing(
     # Track total skill calls across all iterations to prevent runaway research loops.
     # Each request within a tool call counts as one skill call.
     total_skill_calls = 0
+    streaming_skill_count = 0  # Mirrors total_skill_calls during streaming to suppress over-budget placeholders
     budget_warning_injected = False
     force_no_tools = False  # When True, force tool_choice="none" to make LLM answer with gathered info
     
@@ -1907,6 +1908,10 @@ async def handle_main_processing(
         # This allows us to create placeholders IMMEDIATELY when tool calls are detected,
         # showing the "processing" state to users before skill execution starts
         inline_placeholder_embeds: Dict[str, Dict[str, Any]] = {}
+
+        # Sync streaming budget counter with execution-phase counter at each iteration start
+        # so it carries over correctly from previous iterations
+        streaming_skill_count = total_skill_calls
         
         # Flag set when AllServersFailedError is caught during stream consumption.
         # When set, the outer loop will attempt the next model in the fallback list.
@@ -1986,6 +1991,26 @@ async def handle_main_processing(
                         # The execution phase will also detect this duplicate and skip execution
                         continue
                     
+                    # === STREAMING-PHASE BUDGET CHECK ===
+                    # Count requests in this tool call to check against budget.
+                    # Skip placeholder creation entirely when the budget would be exceeded,
+                    # preventing phantom "Searching..." cards that flash then transition to error.
+                    _streaming_requests_count = 1
+                    _streaming_requests_list = parsed_args.get("requests", []) if isinstance(parsed_args, dict) else []
+                    if isinstance(_streaming_requests_list, list) and len(_streaming_requests_list) > 0:
+                        _streaming_requests_count = len(_streaming_requests_list)
+
+                    if app_id != "system" and (
+                        streaming_skill_count >= HARD_LIMIT_SKILL_CALLS
+                        or streaming_skill_count + _streaming_requests_count > HARD_LIMIT_SKILL_CALLS
+                    ):
+                        logger.info(
+                            f"{log_prefix} INLINE: [BUDGET_SKIP] Suppressing placeholder for '{tool_name}' "
+                            f"({_streaming_requests_count} requests) - would exceed budget "
+                            f"(streaming_skill_count={streaming_skill_count}, limit={HARD_LIMIT_SKILL_CALLS})"
+                        )
+                        continue  # Skip placeholder creation entirely
+
                     # Create placeholder embed IMMEDIATELY (before skill execution)
                     # Skip for system tools (e.g., activate_focus_mode, deactivate_focus_mode)
                     # because they create their own specific embed types (focus_mode_activation)
@@ -2123,6 +2148,10 @@ async def handle_main_processing(
                                     status="processing",
                                     preview_data={"request_count": len(placeholder_embeds_list)}
                                 )
+
+                                # Track streaming budget for multi-request placeholder
+                                if app_id != "system":
+                                    streaming_skill_count += _streaming_requests_count
                         else:
                             # SINGLE REQUEST: Extract ALL input parameters
                             # This ensures placeholders include all relevant metadata (query, url, languages, etc.)
@@ -2212,6 +2241,10 @@ async def handle_main_processing(
                                     status="processing",
                                     preview_data=metadata  # Include query/provider in preview
                                 )
+
+                                # Track streaming budget for single-request placeholder
+                                if app_id != "system":
+                                    streaming_skill_count += _streaming_requests_count
                             else:
                                 logger.warning(f"{log_prefix} INLINE: Failed to create placeholder embed for '{tool_name}'")
                 except Exception as e:
@@ -2399,10 +2432,11 @@ async def handle_main_processing(
                     # Set force_no_tools to prevent further tool calls
                     force_no_tools = True
 
-                    # === BUG FIX: Update orphaned placeholder embeds to error ===
-                    # When the budget check skips a tool call, placeholder embeds that were
-                    # already created (status=processing) are left stuck forever.
-                    # We must update them to error so the frontend shows the correct state.
+                    # === SAFETY NET: Cancel any orphaned placeholder embeds ===
+                    # With the streaming-phase budget check, orphaned placeholders should be rare.
+                    # This handles edge cases where a placeholder slipped through (e.g., counter
+                    # desync between streaming and execution phases). Use "cancelled" instead of
+                    # "error" for a cleaner UX — the frontend silently removes cancelled embeds.
                     orphaned_placeholder = inline_placeholder_embeds.get(tool_call_id)
                     if orphaned_placeholder and cache_service and user_vault_key_id and directus_service:
                         try:
@@ -2412,37 +2446,22 @@ async def handle_main_processing(
                                 directus_service=directus_service,
                                 encryption_service=encryption_service
                             )
-                            error_msg = "Research limit reached — this result was not fetched."
 
+                            # Collect embed IDs from both single and multi-request placeholders
+                            _orphaned_ids = []
                             if isinstance(orphaned_placeholder, dict) and orphaned_placeholder.get("multiple"):
-                                # Multiple placeholder embeds (multi-request tool call)
                                 for _p in orphaned_placeholder.get("placeholders", []):
                                     _eid = _p.get("embed_id") if isinstance(_p, dict) else None
                                     if _eid:
-                                        await _budget_embed_service.update_embed_status_to_error(
-                                            embed_id=_eid,
-                                            app_id=app_id,
-                                            skill_id=skill_id,
-                                            error_message=error_msg,
-                                            chat_id=request_data.chat_id,
-                                            message_id=request_data.message_id,
-                                            user_id=request_data.user_id,
-                                            user_id_hash=request_data.user_id_hash,
-                                            user_vault_key_id=user_vault_key_id,
-                                            task_id=task_id,
-                                            log_prefix=log_prefix
-                                        )
-                                        logger.info(
-                                            f"{log_prefix} [SKILL_BUDGET] Updated orphaned placeholder {_eid} to error"
-                                        )
+                                        _orphaned_ids.append(_eid)
                             elif isinstance(orphaned_placeholder, dict) and "embed_id" in orphaned_placeholder:
-                                # Single placeholder embed
-                                _eid = orphaned_placeholder["embed_id"]
-                                await _budget_embed_service.update_embed_status_to_error(
+                                _orphaned_ids.append(orphaned_placeholder["embed_id"])
+
+                            for _eid in _orphaned_ids:
+                                await _budget_embed_service.update_embed_status_to_cancelled(
                                     embed_id=_eid,
                                     app_id=app_id,
                                     skill_id=skill_id,
-                                    error_message=error_msg,
                                     chat_id=request_data.chat_id,
                                     message_id=request_data.message_id,
                                     user_id=request_data.user_id,
@@ -2451,12 +2470,14 @@ async def handle_main_processing(
                                     task_id=task_id,
                                     log_prefix=log_prefix
                                 )
-                                logger.info(
-                                    f"{log_prefix} [SKILL_BUDGET] Updated orphaned placeholder {_eid} to error"
+                            if _orphaned_ids:
+                                logger.warning(
+                                    f"{log_prefix} [SKILL_BUDGET] Cancelled {len(_orphaned_ids)} orphaned placeholder(s) "
+                                    f"for '{tool_name}' — streaming budget check should have prevented these"
                                 )
                         except Exception as _budget_err:
                             logger.warning(
-                                f"{log_prefix} [SKILL_BUDGET] Failed to update orphaned placeholder to error: {_budget_err}"
+                                f"{log_prefix} [SKILL_BUDGET] Failed to cancel orphaned placeholder: {_budget_err}"
                             )
 
                     continue  # Skip to next tool call
