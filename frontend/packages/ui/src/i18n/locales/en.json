@@ -1592,6 +1592,97 @@
             "text": "**Cancel** all reminders for tomorrow"
           }
         }
+      },
+      "panel": {
+        "title": {
+          "text": "Set a Reminder"
+        },
+        "date": {
+          "text": "Date"
+        },
+        "time": {
+          "text": "Time"
+        },
+        "note": {
+          "text": "Note (optional)"
+        },
+        "note_placeholder": {
+          "text": "Check this chat"
+        },
+        "target_this_chat": {
+          "text": "In this chat"
+        },
+        "target_new_chat": {
+          "text": "New chat"
+        },
+        "type_notification": {
+          "text": "Notification only"
+        },
+        "type_action": {
+          "text": "Trigger AI action"
+        },
+        "action_prompt_label": {
+          "text": "What should the AI do?"
+        },
+        "action_prompt_placeholder": {
+          "text": "e.g. Search the latest news and summarize them"
+        },
+        "repeat": {
+          "text": "Repeat"
+        },
+        "repeat_none": {
+          "text": "None"
+        },
+        "repeat_daily": {
+          "text": "Daily"
+        },
+        "repeat_weekly": {
+          "text": "Weekly"
+        },
+        "repeat_monthly": {
+          "text": "Monthly"
+        },
+        "repeat_custom": {
+          "text": "Custom"
+        },
+        "repeat_every": {
+          "text": "Every"
+        },
+        "repeat_days": {
+          "text": "days"
+        },
+        "repeat_weeks": {
+          "text": "weeks"
+        },
+        "repeat_months": {
+          "text": "months"
+        },
+        "end_date": {
+          "text": "End date (optional)"
+        },
+        "submit": {
+          "text": "Set Reminder"
+        },
+        "cancel": {
+          "text": "Cancel"
+        },
+        "error_past": {
+          "text": "Please choose a future date and time."
+        },
+        "error_generic": {
+          "text": "Failed to set reminder. Please try again."
+        },
+        "setting": {
+          "text": "Setting..."
+        }
+      },
+      "timeline": {
+        "label": {
+          "text": "Reminder"
+        },
+        "fired_at": {
+          "text": "Reminder · {time}"
+        }
       }
     },
     "shopping": {
@@ -2173,6 +2264,9 @@
       },
       "next_chat": {
         "text": "Next chat"
+      },
+      "set_reminder": {
+        "text": "Set reminder"
       }
     },
     "thinking": {
@@ -6936,6 +7030,91 @@
     },
     "skill_execution_failed": {
       "text": "Hmm... I wasn't able to use {skill_name} properly. Could you clarify what you'd like me to do so I can try again?"
+    }
+  },
+  "reminder": {
+    "panel": {
+      "title": {
+        "text": "Set reminder"
+      },
+      "cancel": {
+        "text": "Cancel"
+      },
+      "date": {
+        "text": "Date"
+      },
+      "time": {
+        "text": "Time"
+      },
+      "target_this_chat": {
+        "text": "This chat"
+      },
+      "target_new_chat": {
+        "text": "New chat"
+      },
+      "type_notification": {
+        "text": "Notification"
+      },
+      "type_action": {
+        "text": "Action"
+      },
+      "action_prompt_label": {
+        "text": "Action prompt"
+      },
+      "action_prompt_placeholder": {
+        "text": "What should I do when this reminder triggers?"
+      },
+      "note": {
+        "text": "Note"
+      },
+      "note_placeholder": {
+        "text": "Optional note"
+      },
+      "repeat": {
+        "text": "Repeat"
+      },
+      "repeat_none": {
+        "text": "No repeat"
+      },
+      "repeat_daily": {
+        "text": "Daily"
+      },
+      "repeat_weekly": {
+        "text": "Weekly"
+      },
+      "repeat_monthly": {
+        "text": "Monthly"
+      },
+      "repeat_custom": {
+        "text": "Custom"
+      },
+      "repeat_every": {
+        "text": "Every"
+      },
+      "repeat_days": {
+        "text": "Days"
+      },
+      "repeat_weeks": {
+        "text": "Weeks"
+      },
+      "repeat_months": {
+        "text": "Months"
+      },
+      "end_date": {
+        "text": "End date"
+      },
+      "setting": {
+        "text": "Setting…"
+      },
+      "submit": {
+        "text": "Set reminder"
+      },
+      "error_past": {
+        "text": "Please choose a future date and time."
+      },
+      "error_generic": {
+        "text": "Something went wrong. Please try again."
+      }
     }
   },
   "settings": {

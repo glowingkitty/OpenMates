@@ -1,0 +1,161 @@
+panel.title:
+  context: Title shown at the top of the inline reminder setter panel
+  en: Set reminder
+  de: Erinnerung setzen
+  verified_by_human: [en, de]
+
+panel.cancel:
+  context: Label for the close/cancel button in the reminder setter panel (also used as aria-label)
+  en: Cancel
+  de: Abbrechen
+  verified_by_human: [en, de]
+
+panel.date:
+  context: Label for the date input field in the reminder setter panel
+  en: Date
+  de: Datum
+  verified_by_human: [en, de]
+
+panel.time:
+  context: Label for the time input field in the reminder setter panel
+  en: Time
+  de: Uhrzeit
+  verified_by_human: [en, de]
+
+panel.target_this_chat:
+  context: Toggle button label — reminder will trigger in the current chat
+  en: This chat
+  de: Dieser Chat
+  verified_by_human: [en, de]
+
+panel.target_new_chat:
+  context: Toggle button label — reminder will trigger in a new chat
+  en: New chat
+  de: Neuer Chat
+  verified_by_human: [en, de]
+
+panel.type_notification:
+  context: Toggle button label — reminder sends a simple notification (no AI action)
+  en: Notification
+  de: Benachrichtigung
+  verified_by_human: [en, de]
+
+panel.type_action:
+  context: Toggle button label — reminder triggers a full AI action/response
+  en: Action
+  de: Aktion
+  verified_by_human: [en, de]
+
+panel.action_prompt_label:
+  context: Label for the action prompt textarea shown when response type is "action"
+  en: Action prompt
+  de: Aktionsanweisung
+  verified_by_human: [en, de]
+
+panel.action_prompt_placeholder:
+  context: Placeholder for the action prompt textarea in the reminder setter panel
+  en: What should I do when this reminder triggers?
+  de: Was soll ich tun, wenn diese Erinnerung ausgelöst wird?
+  verified_by_human: [en, de]
+
+panel.note:
+  context: Label for the note input shown when response type is "notification"
+  en: Note
+  de: Notiz
+  verified_by_human: [en, de]
+
+panel.note_placeholder:
+  context: Placeholder for the note input in the reminder setter panel (also used as default prompt when no note is entered)
+  en: Optional note
+  de: Optionale Notiz
+  verified_by_human: [en, de]
+
+panel.repeat:
+  context: Label for the repeat/recurrence select field in the reminder setter panel
+  en: Repeat
+  de: Wiederholen
+  verified_by_human: [en, de]
+
+panel.repeat_none:
+  context: Option in the repeat select — reminder does not repeat
+  en: No repeat
+  de: Keine Wiederholung
+  verified_by_human: [en, de]
+
+panel.repeat_daily:
+  context: Option in the repeat select — reminder repeats every day
+  en: Daily
+  de: Täglich
+  verified_by_human: [en, de]
+
+panel.repeat_weekly:
+  context: Option in the repeat select — reminder repeats every week
+  en: Weekly
+  de: Wöchentlich
+  verified_by_human: [en, de]
+
+panel.repeat_monthly:
+  context: Option in the repeat select — reminder repeats every month
+  en: Monthly
+  de: Monatlich
+  verified_by_human: [en, de]
+
+panel.repeat_custom:
+  context: Option in the repeat select — reminder repeats on a custom interval
+  en: Custom
+  de: Benutzerdefiniert
+  verified_by_human: [en, de]
+
+panel.repeat_every:
+  context: Label for the custom repeat interval number input (e.g. "Every [3] days")
+  en: Every
+  de: Alle
+  verified_by_human: [en, de]
+
+panel.repeat_days:
+  context: Option in the custom repeat unit select — interval unit is days
+  en: Days
+  de: Tage
+  verified_by_human: [en, de]
+
+panel.repeat_weeks:
+  context: Option in the custom repeat unit select — interval unit is weeks
+  en: Weeks
+  de: Wochen
+  verified_by_human: [en, de]
+
+panel.repeat_months:
+  context: Option in the custom repeat unit select — interval unit is months
+  en: Months
+  de: Monate
+  verified_by_human: [en, de]
+
+panel.end_date:
+  context: Label for the optional end date input shown when a repeat type is selected
+  en: End date
+  de: Enddatum
+  verified_by_human: [en, de]
+
+panel.setting:
+  context: Submit button label shown while the reminder is being saved (loading state)
+  en: Setting…
+  de: Wird gesetzt…
+  verified_by_human: [en, de]
+
+panel.submit:
+  context: Submit button label in the reminder setter panel (idle state)
+  en: Set reminder
+  de: Erinnerung setzen
+  verified_by_human: [en, de]
+
+panel.error_past:
+  context: Validation error shown when the user selects a date/time in the past
+  en: Please choose a future date and time.
+  de: Bitte wähle einen zukünftigen Zeitpunkt.
+  verified_by_human: [en, de]
+
+panel.error_generic:
+  context: Generic error message shown when the reminder API call fails
+  en: Something went wrong. Please try again.
+  de: Etwas ist schiefgelaufen. Bitte versuche es erneut.
+  verified_by_human: [en, de]
