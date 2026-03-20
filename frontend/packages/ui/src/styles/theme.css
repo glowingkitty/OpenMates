@@ -760,6 +760,16 @@ a:focus-visible {
   border-radius: 2px;
 }
 
+/* Hide browser default focus ring on mouse/touch — only show on keyboard nav.
+   :focus-visible below handles keyboard users with a clear outline. */
+input:focus,
+textarea:focus,
+select:focus,
+button:focus,
+[contenteditable]:focus {
+  outline: none;
+}
+
 /* Inputs and textareas — tighter ring that follows field shape. */
 input:focus-visible,
 textarea:focus-visible,
