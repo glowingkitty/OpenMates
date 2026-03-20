@@ -3138,6 +3138,23 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      */
     let suggestionsWouldOverlapWelcome = $state(false);
 
+    // Sticky focus state: stays true for 150ms after blur so that the
+    // suggestions visibility condition doesn't flicker when the user clicks
+    // outside the message input (overlap recalc needs time to settle).
+    let messageInputRecentlyFocused = $state(false);
+    let blurTimer: number | undefined;
+
+    $effect(() => {
+        if (messageInputFocused) {
+            if (blurTimer) clearTimeout(blurTimer);
+            messageInputRecentlyFocused = true;
+        } else {
+            blurTimer = window.setTimeout(() => {
+                messageInputRecentlyFocused = false;
+            }, 150);
+        }
+    });
+
     // Cache the last measured welcome content height so that when the welcome
     // block is hidden (hideWelcomeForKeyboard removes it from DOM), we can still
     // use its height for overlap calculations. Without this, hiding the welcome
@@ -9243,7 +9260,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                               is focused — at which point the welcome content is also hidden
                               (hideWelcomeForKeyboard), giving the suggestions room to breathe.
                               Legacy fallback: also hide on very short screens (≤670px viewport). -->
-                         {#if showWelcome && !messageInputMapsOpen && (!suggestionsWouldOverlapWelcome || messageInputFocused) && (viewportHeight > 670 || messageInputFocused)}
+                         {#if showWelcome && !messageInputMapsOpen && (!suggestionsWouldOverlapWelcome || messageInputRecentlyFocused) && (viewportHeight > 670 || messageInputRecentlyFocused)}
                              <NewChatSuggestions
                                  messageInputContent={liveInputText}
                                  onSuggestionClick={handleSuggestionClick}
@@ -11220,7 +11237,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
 
-    .message-input-container :global(> *) {
+    .message-input-container :global(> *:not(.suggestions-wrapper)) {
         max-width: 629px;
         width: 100%;
     }
