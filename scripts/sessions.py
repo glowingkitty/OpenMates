@@ -3039,14 +3039,14 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     if args.message:
         commit_msg += "\n\n" + args.message
 
-    # Append task summary if session has a linked task with a summary set
+    # Append task summary into the commit description if session has a linked task
     linked_task_id = session.get("task_id")
     if linked_task_id:
         linked_task = _load_task(linked_task_id)
         if linked_task:
             task_summary = linked_task.get("summary", "").strip()
             if task_summary:
-                commit_msg += f"\n\n---\nTask {linked_task_id} summary:\n{task_summary}"
+                commit_msg += "\n\n" + task_summary
 
     no_verify = getattr(args, "no_verify", False)
     if no_verify:
