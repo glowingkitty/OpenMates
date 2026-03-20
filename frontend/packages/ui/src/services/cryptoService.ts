@@ -943,6 +943,66 @@ export function clearEmailSalt(): void {
 // ============================================================================
 
 /**
+ * Cache for imported CryptoKey objects, keyed by key fingerprint.
+ * Avoids redundant crypto.subtle.importKey() calls when encrypting/decrypting
+ * multiple fields with the same chat key (e.g., 7 fields per message).
+ *
+ * Two separate caches for encrypt vs decrypt usage flags since importKey
+ * requires specifying the allowed operations upfront.
+ */
+const cryptoKeyCache = {
+  encrypt: new Map<string, CryptoKey>(),
+  decrypt: new Map<string, CryptoKey>(),
+};
+
+// Simple FNV-1a fingerprint for cache keying (matches ChatKeyManager's approach)
+function chatKeyFingerprint(key: Uint8Array): string {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < key.length; i++) {
+    hash ^= key[i];
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
+}
+
+/**
+ * Get or import a CryptoKey for the given raw key bytes, using cache.
+ */
+async function getOrImportCryptoKey(
+  rawKey: Uint8Array,
+  usage: "encrypt" | "decrypt",
+): Promise<CryptoKey> {
+  const fp = chatKeyFingerprint(rawKey);
+  const cache = cryptoKeyCache[usage];
+  const cached = cache.get(fp);
+  if (cached) return cached;
+
+  const cryptoKey = await crypto.subtle.importKey(
+    "raw",
+    new Uint8Array(rawKey),
+    { name: "AES-GCM" },
+    false,
+    [usage],
+  );
+  cache.set(fp, cryptoKey);
+  return cryptoKey;
+}
+
+/**
+ * Clear cached CryptoKeys for a specific key fingerprint or all keys.
+ * Call when a chat key is removed to prevent stale cache entries.
+ */
+export function clearCryptoKeyCache(fingerprint?: string): void {
+  if (fingerprint) {
+    cryptoKeyCache.encrypt.delete(fingerprint);
+    cryptoKeyCache.decrypt.delete(fingerprint);
+  } else {
+    cryptoKeyCache.encrypt.clear();
+    cryptoKeyCache.decrypt.clear();
+  }
+}
+
+/**
  * Generates a chat-specific AES key (32 bytes for AES-256)
  * @returns Uint8Array - The generated chat key
  */
@@ -963,16 +1023,8 @@ export async function encryptWithChatKey(
   const encoder = new TextEncoder();
   const dataBytes = encoder.encode(data);
 
-  // Import chat key for AES-GCM
-  // Ensure chatKey is a proper BufferSource
-  const chatKeyBuffer = new Uint8Array(chatKey);
-  const cryptoKey = await crypto.subtle.importKey(
-    "raw",
-    chatKeyBuffer,
-    { name: "AES-GCM" },
-    false,
-    ["encrypt"],
-  );
+  // Use cached CryptoKey to avoid redundant importKey calls
+  const cryptoKey = await getOrImportCryptoKey(chatKey, "encrypt");
 
   const iv = crypto.getRandomValues(new Uint8Array(AES_IV_LENGTH));
   const encrypted = await crypto.subtle.encrypt(
@@ -1006,16 +1058,8 @@ export async function decryptWithChatKey(
     const iv = combined.slice(0, AES_IV_LENGTH);
     const ciphertext = combined.slice(AES_IV_LENGTH);
 
-    // Import chat key for AES-GCM
-    // Ensure chatKey is a proper BufferSource
-    const chatKeyBuffer = new Uint8Array(chatKey);
-    const cryptoKey = await crypto.subtle.importKey(
-      "raw",
-      chatKeyBuffer,
-      { name: "AES-GCM" },
-      false,
-      ["decrypt"],
-    );
+    // Use cached CryptoKey to avoid redundant importKey calls
+    const cryptoKey = await getOrImportCryptoKey(chatKey, "decrypt");
 
     const decrypted = await crypto.subtle.decrypt(
       { name: "AES-GCM", iv },

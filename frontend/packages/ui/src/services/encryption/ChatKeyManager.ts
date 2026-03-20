@@ -21,6 +21,7 @@ import {
   generateChatKey,
   encryptChatKeyWithMasterKey,
   decryptChatKeyWithMasterKey,
+  clearCryptoKeyCache,
 } from "../cryptoService";
 
 // ---------------------------------------------------------------------------
@@ -741,6 +742,11 @@ export class ChatKeyManager {
    * Used when locking hidden chats or removing a chat.
    */
   removeKey(chatId: string): void {
+    // Clear cached CryptoKey for this chat key's fingerprint
+    const key = this.keys.get(chatId);
+    if (key) {
+      clearCryptoKeyCache(computeKeyFingerprint(key));
+    }
     this.keys.delete(chatId);
     this.states.delete(chatId);
     this.provenances.delete(chatId);
@@ -835,6 +841,8 @@ export class ChatKeyManager {
     this.loadingPromises.clear();
     this.pendingOps.clear();
     this.deferredClearAll = false;
+    // Clear all cached CryptoKey objects since all raw keys are gone
+    clearCryptoKeyCache();
     console.debug("[ChatKeyManager] All keys cleared");
   }
 

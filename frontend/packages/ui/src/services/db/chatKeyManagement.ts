@@ -198,24 +198,37 @@ export async function loadChatKeysFromDatabase(
           // Continue cursor synchronously (transaction must stay alive)
           cursor.continue();
         } else {
-          // Cursor is done - now decrypt all collected keys
+          // Cursor is done - now decrypt all collected keys in parallel batches
           // This happens after the transaction completes, which is fine
           (async () => {
             try {
-              for (const { chatId, encryptedKey } of keysToDecrypt) {
-                try {
-                  const chatKey =
-                    await decryptChatKeyWithMasterKey(encryptedKey);
-                  if (chatKey) {
-                    // ChatKeyManager is the single source of truth
-                    chatKeyManager.injectKey(chatId, chatKey, "bulk_init");
-                  }
-                } catch (decryptError) {
-                  console.error(
-                    `[ChatDatabase] Error decrypting chat key for ${chatId}:`,
-                    decryptError,
-                  );
-                }
+              const BATCH_SIZE = 20;
+              for (
+                let i = 0;
+                i < keysToDecrypt.length;
+                i += BATCH_SIZE
+              ) {
+                const batch = keysToDecrypt.slice(i, i + BATCH_SIZE);
+                await Promise.all(
+                  batch.map(({ chatId, encryptedKey }) =>
+                    decryptChatKeyWithMasterKey(encryptedKey)
+                      .then((chatKey) => {
+                        if (chatKey) {
+                          chatKeyManager.injectKey(
+                            chatId,
+                            chatKey,
+                            "bulk_init",
+                          );
+                        }
+                      })
+                      .catch((decryptError) => {
+                        console.error(
+                          `[ChatDatabase] Error decrypting chat key for ${chatId}:`,
+                          decryptError,
+                        );
+                      }),
+                  ),
+                );
               }
               console.debug(
                 `[ChatDatabase] Loaded ${keysToDecrypt.length} chat keys from database`,
@@ -261,14 +274,10 @@ export async function getEncryptedChatKey(
   try {
     const chat = await dbInstance.getChat(chatId);
     const encryptedKey = chat?.encrypted_chat_key || null;
-    if (encryptedKey) {
-      console.log(
-        `[ChatDatabase] ✅ Retrieved encrypted_chat_key for chat ${chatId}: ${encryptedKey.substring(0, 20)}... (length: ${encryptedKey.length})`,
-      );
-    } else {
+    if (!encryptedKey) {
       console.warn(
-        `[ChatDatabase] ⚠️ No encrypted_chat_key found for chat ${chatId} - chat object:`,
-        chat ? "exists but missing key" : "not found",
+        `[ChatDatabase] No encrypted_chat_key found for chat ${chatId}:`,
+        chat ? "exists but missing key" : "chat not found",
       );
     }
     return encryptedKey;
@@ -593,12 +602,6 @@ export async function decryptMessageFields(
   // Decrypt content if present
   if (message.encrypted_content) {
     try {
-      // Enhanced logging for decryption attempts
-      console.debug(
-        `[CLIENT_DECRYPT] 🔓 Attempting to decrypt message ${message.message_id} ` +
-          `(chat: ${chatId}, role: ${message.role}, status: ${message.status}, ` +
-          `encrypted_content length: ${message.encrypted_content.length})`,
-      );
       const decryptedContentString = await decryptWithChatKey(
         message.encrypted_content,
         chatKey,
@@ -608,10 +611,6 @@ export async function decryptMessageFields(
         decryptedMessage.content = decryptedContentString;
         // Clear encrypted field
         delete decryptedMessage.encrypted_content;
-        console.debug(
-          `[CLIENT_DECRYPT] ✅ Successfully decrypted message ${message.message_id} ` +
-            `(content length: ${decryptedContentString.length} chars)`,
-        );
       } else {
         // Decryption failed but didn't throw - encrypted_content might be malformed
         const prov = chatKeyManager.getProvenance(chatId);
@@ -658,145 +657,132 @@ export async function decryptMessageFields(
       }
       // Keep encrypted_content for debugging
     }
-  } else {
-    console.debug(
-      `[CLIENT_DECRYPT] ⚠️ Message ${message.message_id} has no encrypted_content ` +
-        `(chat: ${chatId}, role: ${message.role}, status: ${message.status})`,
+  }
+
+  // Decrypt remaining fields in parallel — all use the same chatKey and are independent.
+  // Each field decryption is wrapped in its own try/catch to prevent one failure from blocking others.
+  const fieldDecryptions: Promise<void>[] = [];
+
+  if (message.encrypted_sender_name) {
+    fieldDecryptions.push(
+      decryptWithChatKey(message.encrypted_sender_name, chatKey)
+        .then((val) => {
+          if (val) {
+            decryptedMessage.sender_name = val;
+            delete decryptedMessage.encrypted_sender_name;
+          }
+        })
+        .catch((error) => {
+          console.error(
+            `[ChatDatabase] Error decrypting sender_name for message ${message.message_id}:`,
+            error,
+          );
+          decryptedMessage.sender_name = message.sender_name || "Unknown";
+        }),
     );
   }
 
-  // Decrypt sender_name if present
-  if (message.encrypted_sender_name) {
-    try {
-      const decryptedSenderName = await decryptWithChatKey(
-        message.encrypted_sender_name,
-        chatKey,
-      );
-      if (decryptedSenderName) {
-        decryptedMessage.sender_name = decryptedSenderName;
-        // Clear encrypted field
-        delete decryptedMessage.encrypted_sender_name;
-      }
-    } catch (error) {
-      // DEFENSIVE: Handle malformed encrypted_sender_name
-      console.error(
-        `[ChatDatabase] Error decrypting sender_name for message ${message.message_id}:`,
-        error,
-      );
-      decryptedMessage.sender_name = message.sender_name || "Unknown";
-    }
-  }
-
-  // Decrypt category if present
   if (message.encrypted_category) {
-    try {
-      const decryptedCategory = await decryptWithChatKey(
-        message.encrypted_category,
-        chatKey,
-      );
-      if (decryptedCategory) {
-        decryptedMessage.category = decryptedCategory;
-        // Clear encrypted field
-        delete decryptedMessage.encrypted_category;
-      }
-    } catch (error) {
-      // DEFENSIVE: Handle malformed encrypted_category
-      console.error(
-        `[ChatDatabase] Error decrypting category for message ${message.message_id}:`,
-        error,
-      );
-      decryptedMessage.category = message.category || undefined;
-    }
+    fieldDecryptions.push(
+      decryptWithChatKey(message.encrypted_category, chatKey)
+        .then((val) => {
+          if (val) {
+            decryptedMessage.category = val;
+            delete decryptedMessage.encrypted_category;
+          }
+        })
+        .catch((error) => {
+          console.error(
+            `[ChatDatabase] Error decrypting category for message ${message.message_id}:`,
+            error,
+          );
+          decryptedMessage.category = message.category || undefined;
+        }),
+    );
   }
 
-  // Decrypt model_name if present
   if (message.encrypted_model_name) {
-    try {
-      const decryptedModelName = await decryptWithChatKey(
-        message.encrypted_model_name,
-        chatKey,
-      );
-      if (decryptedModelName) {
-        decryptedMessage.model_name = decryptedModelName;
-        // Clear encrypted field
-        delete decryptedMessage.encrypted_model_name;
-      }
-    } catch (error) {
-      console.error(
-        `[ChatDatabase] Error decrypting model_name for message ${message.message_id}:`,
-        error,
-      );
-      decryptedMessage.model_name = message.model_name || undefined;
-    }
+    fieldDecryptions.push(
+      decryptWithChatKey(message.encrypted_model_name, chatKey)
+        .then((val) => {
+          if (val) {
+            decryptedMessage.model_name = val;
+            delete decryptedMessage.encrypted_model_name;
+          }
+        })
+        .catch((error) => {
+          console.error(
+            `[ChatDatabase] Error decrypting model_name for message ${message.message_id}:`,
+            error,
+          );
+          decryptedMessage.model_name = message.model_name || undefined;
+        }),
+    );
   } else if (message.role === "assistant" && !decryptedMessage.model_name) {
     // We don't use a default fallback here anymore, to avoid showing model names for error messages
     // that were generated by the system rather than an actual LLM.
     decryptedMessage.model_name = undefined;
   }
 
-  // Decrypt thinking_content if present (from thinking models like Gemini, Anthropic Claude)
   if (message.encrypted_thinking_content) {
-    try {
-      const decryptedThinkingContent = await decryptWithChatKey(
-        message.encrypted_thinking_content,
-        chatKey,
-      );
-      if (decryptedThinkingContent) {
-        decryptedMessage.thinking_content = decryptedThinkingContent;
-        decryptedMessage.has_thinking = true; // Set flag for UI
-        // Clear encrypted field
-        delete decryptedMessage.encrypted_thinking_content;
-      }
-    } catch (error) {
-      console.error(
-        `[ChatDatabase] Error decrypting thinking_content for message ${message.message_id}:`,
-        error,
-      );
-      decryptedMessage.thinking_content = undefined;
-    }
+    fieldDecryptions.push(
+      decryptWithChatKey(message.encrypted_thinking_content, chatKey)
+        .then((val) => {
+          if (val) {
+            decryptedMessage.thinking_content = val;
+            decryptedMessage.has_thinking = true;
+            delete decryptedMessage.encrypted_thinking_content;
+          }
+        })
+        .catch((error) => {
+          console.error(
+            `[ChatDatabase] Error decrypting thinking_content for message ${message.message_id}:`,
+            error,
+          );
+          decryptedMessage.thinking_content = undefined;
+        }),
+    );
   }
 
-  // Decrypt thinking_signature if present (for multi-turn verification)
   if (message.encrypted_thinking_signature) {
-    try {
-      const decryptedThinkingSignature = await decryptWithChatKey(
-        message.encrypted_thinking_signature,
-        chatKey,
-      );
-      if (decryptedThinkingSignature) {
-        decryptedMessage.thinking_signature = decryptedThinkingSignature;
-        // Clear encrypted field
-        delete decryptedMessage.encrypted_thinking_signature;
-      }
-    } catch (error) {
-      console.error(
-        `[ChatDatabase] Error decrypting thinking_signature for message ${message.message_id}:`,
-        error,
-      );
-      decryptedMessage.thinking_signature = undefined;
-    }
+    fieldDecryptions.push(
+      decryptWithChatKey(message.encrypted_thinking_signature, chatKey)
+        .then((val) => {
+          if (val) {
+            decryptedMessage.thinking_signature = val;
+            delete decryptedMessage.encrypted_thinking_signature;
+          }
+        })
+        .catch((error) => {
+          console.error(
+            `[ChatDatabase] Error decrypting thinking_signature for message ${message.message_id}:`,
+            error,
+          );
+          decryptedMessage.thinking_signature = undefined;
+        }),
+    );
   }
 
-  // Decrypt pii_mappings if present (for client-side PII restoration)
   if (message.encrypted_pii_mappings) {
-    try {
-      const decryptedPIIMappings = await decryptWithChatKey(
-        message.encrypted_pii_mappings,
-        chatKey,
-      );
-      if (decryptedPIIMappings) {
-        decryptedMessage.pii_mappings = JSON.parse(decryptedPIIMappings);
-        // Clear encrypted field
-        delete decryptedMessage.encrypted_pii_mappings;
-      }
-    } catch (error) {
-      console.error(
-        `[ChatDatabase] Error decrypting pii_mappings for message ${message.message_id}:`,
-        error,
-      );
-      decryptedMessage.pii_mappings = undefined;
-    }
+    fieldDecryptions.push(
+      decryptWithChatKey(message.encrypted_pii_mappings, chatKey)
+        .then((val) => {
+          if (val) {
+            decryptedMessage.pii_mappings = JSON.parse(val);
+            delete decryptedMessage.encrypted_pii_mappings;
+          }
+        })
+        .catch((error) => {
+          console.error(
+            `[ChatDatabase] Error decrypting pii_mappings for message ${message.message_id}:`,
+            error,
+          );
+          decryptedMessage.pii_mappings = undefined;
+        }),
+    );
   }
+
+  await Promise.all(fieldDecryptions);
 
   return decryptedMessage;
 }

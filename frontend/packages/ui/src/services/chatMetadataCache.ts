@@ -51,10 +51,6 @@ class ChatMetadataCache {
 
     // Check for pending invalidations and clear them
     if (pendingInvalidations.has(chatId)) {
-      console.debug(
-        "[ChatMetadataCache] Processing pending invalidation for chat:",
-        chatId,
-      );
       this.cache.delete(chatId);
       pendingInvalidations.delete(chatId);
     }
@@ -89,47 +85,25 @@ class ChatMetadataCache {
     chat: Chat,
   ): Promise<DecryptedChatMetadata | null> {
     try {
-      console.debug(
-        "[ChatMetadataCache] Decrypting metadata for chat:",
-        chat.chat_id,
-        {
-          hasEncryptedTitle: !!chat.encrypted_title,
-          hasEncryptedChatKey: !!chat.encrypted_chat_key,
-        },
-      );
-
       // Ensure chat key is loaded from encrypted_chat_key if available
       if (chat.encrypted_chat_key && !chatKeyManager.getKeySync(chat.chat_id)) {
         const { decryptChatKeyWithMasterKey } = await import("./cryptoService");
-        // CRITICAL FIX: await decryptChatKeyWithMasterKey since it's async to prevent storing Promises
         const chatKey = await decryptChatKeyWithMasterKey(
           chat.encrypted_chat_key,
         );
         if (chatKey) {
-          // Store the chat key in the database service's cache
           chatDB.setChatKey(chat.chat_id, chatKey);
-          console.debug(
-            `[ChatMetadataCache] Loaded chat key for chat ${chat.chat_id}`,
-          );
         }
       }
 
       // Decrypt title from encrypted_title field using chat-specific key
       let title: string | null = null;
       if (chat.encrypted_title) {
-        // Get chat key for decryption (should be available after decryptChatFromStorage)
         const chatKey = chatKeyManager.getKeySync(chat.chat_id);
-        console.debug(`[ChatMetadataCache] Chat key from cache: ${!!chatKey}`);
-
         if (chatKey) {
           const { decryptWithChatKey } = await import("./cryptoService");
-          // CRITICAL FIX: await decryptWithChatKey since it's async to prevent storing Promises
           title = await decryptWithChatKey(chat.encrypted_title, chatKey);
-          if (title) {
-            console.debug(
-              `[ChatMetadataCache] Successfully decrypted title for chat ${chat.chat_id}: ${title.substring(0, 50)}...`,
-            );
-          } else {
+          if (!title) {
             console.warn(
               `[ChatMetadataCache] Failed to decrypt title for chat ${chat.chat_id}`,
             );
@@ -139,26 +113,15 @@ class ChatMetadataCache {
             `[ChatMetadataCache] No chat key found for chat ${chat.chat_id}, cannot decrypt title`,
           );
         }
-      } else {
-        // No encrypted title - this is normal for new chats
-        console.debug(
-          `[ChatMetadataCache] No encrypted title for chat ${chat.chat_id} - will use fallback in UI`,
-        );
       }
 
-      // CRITICAL FIX: await decryptWithMasterKey since it's async to prevent storing Promises (causes "[object Promise]" in UI)
-      // Decrypt draft preview
+      // Decrypt draft preview with master key
       let draftPreview: string | null = null;
       if (chat.encrypted_draft_preview) {
         draftPreview = await decryptWithMasterKey(chat.encrypted_draft_preview);
-        // console.debug('[ChatMetadataCache] Decrypted draft preview:', {
-        //     chatId: chat.chat_id,
-        //     previewLength: draftPreview?.length || 0,
-        //     preview: draftPreview?.substring(0, 50) + (draftPreview && draftPreview.length > 50 ? '...' : '')
-        // });
       }
 
-      // Decrypt icon, category, summary, and active focus ID with chat-specific key
+      // Decrypt chat-key fields in parallel — all use the same key and are independent
       let icon: string | null = null;
       let category: string | null = null;
       let summary: string | null = null;
@@ -167,42 +130,26 @@ class ChatMetadataCache {
       if (chatKey) {
         const { decryptWithChatKey } = await import("./cryptoService");
 
-        if (chat.encrypted_icon) {
-          // CRITICAL FIX: await decryptWithChatKey since it's async to prevent storing Promises
-          icon = await decryptWithChatKey(chat.encrypted_icon, chatKey);
-          console.debug(
-            `[ChatMetadataCache] Decrypted icon for chat ${chat.chat_id}: ${icon}`,
-          );
-        }
+        const [iconResult, categoryResult, summaryResult, focusResult] =
+          await Promise.all([
+            chat.encrypted_icon
+              ? decryptWithChatKey(chat.encrypted_icon, chatKey)
+              : null,
+            chat.encrypted_category
+              ? decryptWithChatKey(chat.encrypted_category, chatKey)
+              : null,
+            chat.encrypted_chat_summary
+              ? decryptWithChatKey(chat.encrypted_chat_summary, chatKey)
+              : null,
+            chat.encrypted_active_focus_id
+              ? decryptWithChatKey(chat.encrypted_active_focus_id, chatKey)
+              : null,
+          ]);
 
-        if (chat.encrypted_category) {
-          // CRITICAL FIX: await decryptWithChatKey since it's async to prevent storing Promises
-          category = await decryptWithChatKey(chat.encrypted_category, chatKey);
-          console.debug(
-            `[ChatMetadataCache] Decrypted category for chat ${chat.chat_id}: ${category}`,
-          );
-        }
-
-        if (chat.encrypted_chat_summary) {
-          // CRITICAL FIX: await decryptWithChatKey since it's async to prevent storing Promises
-          summary = await decryptWithChatKey(
-            chat.encrypted_chat_summary,
-            chatKey,
-          );
-          console.debug(
-            `[ChatMetadataCache] Decrypted summary for chat ${chat.chat_id}: ${summary?.substring(0, 50)}...`,
-          );
-        }
-
-        if (chat.encrypted_active_focus_id) {
-          activeFocusId = await decryptWithChatKey(
-            chat.encrypted_active_focus_id,
-            chatKey,
-          );
-          console.debug(
-            `[ChatMetadataCache] Decrypted active focus ID for chat ${chat.chat_id}: ${activeFocusId}`,
-          );
-        }
+        icon = iconResult;
+        category = categoryResult;
+        summary = summaryResult;
+        activeFocusId = focusResult;
       }
 
       return {
@@ -239,15 +186,10 @@ class ChatMetadataCache {
       const firstKey = this.cache.keys().next().value;
       if (firstKey) {
         this.cache.delete(firstKey);
-        console.debug(
-          "[ChatMetadataCache] Evicted oldest cache entry:",
-          firstKey,
-        );
       }
     }
 
     this.cache.set(chatId, metadata);
-    console.debug("[ChatMetadataCache] Cached metadata for chat:", chatId);
   }
 
   /**
@@ -256,10 +198,7 @@ class ChatMetadataCache {
    * @param chatId The chat ID to invalidate
    */
   invalidateChat(chatId: string): void {
-    if (this.cache.has(chatId)) {
-      this.cache.delete(chatId);
-      console.debug("[ChatMetadataCache] Invalidated cache for chat:", chatId);
-    }
+    this.cache.delete(chatId);
     // Track this invalidation globally in case components are unmounted
     pendingInvalidations.add(chatId);
   }
@@ -270,7 +209,6 @@ class ChatMetadataCache {
    */
   clearAll(): void {
     this.cache.clear();
-    console.debug("[ChatMetadataCache] Cleared all cached metadata");
   }
 
   /**
@@ -303,12 +241,7 @@ class ChatMetadataCache {
       this.cache.delete(key);
     }
 
-    if (expiredKeys.length > 0) {
-      console.debug(
-        "[ChatMetadataCache] Cleaned up expired entries:",
-        expiredKeys.length,
-      );
-    }
+    // Expired entry cleanup is silent — only errors are worth logging
   }
 }
 
