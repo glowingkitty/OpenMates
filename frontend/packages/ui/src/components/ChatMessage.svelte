@@ -19,6 +19,7 @@ import { reportIssueStore } from '../stores/reportIssueStore';
 import { messageHighlightStore, searchTextHighlightStore } from '../stores/messageHighlightStore';
 import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadStore';
   import { chatDB } from '../services/db';
+  import { chatKeyManager } from '$ui/services/encryption/ChatKeyManager';
   import { chatSyncService } from '../services/chatSyncService';
   import type { AppSettingsMemoriesResponseContent, AppSettingsMemoriesResponseCategory } from '../services/chatSyncServiceHandlersAppSettings';
   import { appSkillsStore } from '../stores/appSkillsStore';
@@ -674,7 +675,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       const { decryptWithChatKey } = await import('../services/cryptoService');
       const chat = await chatDB.getChat(chatId);
       if (chat?.encrypted_title) {
-        const key = chatDB.getChatKey(chatId);
+        const key = await chatKeyManager.getKey(chatId);
         if (key) {
           defaultTitle = await decryptWithChatKey(chat.encrypted_title, key) ?? '';
         }
