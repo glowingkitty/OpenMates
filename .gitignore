@@ -268,6 +268,19 @@ rankings.json
 # Local debug and cache artifacts
 debug_output*.yml
 shared/cache/web_analytics_backup.json
+shared/cache/pending_reminders_backup.json
+
+# Script auto-generated state files
+scripts/.dead-code-removal-state.json
+scripts/.deploy-checker-state.json
+scripts/.workflow-review-state.json
+scripts/dependabot-processed.json.bak
+
+# Test output artifacts
+backend/tests/output/
+
+# Claude Code — worktree runtime state (empty dirs managed by sessions.py)
+.claude/worktrees/
 
 # OpenCode AI editor local state
 .opencode/
