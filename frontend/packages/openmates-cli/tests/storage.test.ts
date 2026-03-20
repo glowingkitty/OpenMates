@@ -2,14 +2,14 @@
  * Unit tests for CLI local session storage.
  *
  * Tests session persistence, file permissions, incognito history,
- * and edge cases like missing/corrupt files.
+ * backward compatibility with legacy sessions, and keychain migration.
  *
  * Run: node --test --experimental-strip-types tests/storage.test.ts
  */
 
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, statSync } from "node:fs";
+import { existsSync, statSync, readFileSync, writeFileSync, chmodSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -175,5 +175,162 @@ describe("loadIncognitoHistory / saveIncognitoHistory / clearIncognitoHistory", 
     const final = loadIncognitoHistory();
     assert.strictEqual(final.length, 2);
     assert.strictEqual(final[1].content, "Reply");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Backward compatibility — legacy session files (no masterKeyStorage field)
+// ---------------------------------------------------------------------------
+
+describe("legacy session backward compatibility", () => {
+  before(() => {
+    clearSession();
+  });
+
+  after(() => {
+    clearSession();
+  });
+
+  it("loads legacy session with inline masterKeyExportedB64", () => {
+    // Write a legacy session file directly (no masterKeyStorage field)
+    const legacySession = {
+      apiUrl: "https://api.dev.openmates.org",
+      sessionId: "legacy-session-id",
+      wsToken: "ws-token-legacy",
+      cookies: { auth_refresh_token: "legacy-refresh" },
+      masterKeyExportedB64: "LEGACY_KEY_BASE64_VALUE==",
+      hashedEmail: "legacy-email-hash",
+      userEmailSalt: "legacy-salt",
+      createdAt: 1700000000000,
+      authorizerDeviceName: "Legacy Mac",
+      autoLogoutMinutes: null,
+    };
+
+    const filePath = join(STATE_DIR, "session.json");
+    writeFileSync(filePath, JSON.stringify(legacySession, null, 2) + "\n", {
+      mode: 0o600,
+    });
+    chmodSync(filePath, 0o600);
+
+    const loaded = loadSession();
+    assert.ok(loaded, "should load legacy session");
+    assert.strictEqual(loaded.masterKeyExportedB64, "LEGACY_KEY_BASE64_VALUE==");
+    assert.strictEqual(loaded.sessionId, "legacy-session-id");
+    assert.strictEqual(loaded.apiUrl, "https://api.dev.openmates.org");
+  });
+
+  it("auto-migrates legacy session and removes plaintext key from disk", () => {
+    // Write a legacy session
+    const legacySession = {
+      apiUrl: "https://api.dev.openmates.org",
+      sessionId: "migrate-test-id",
+      wsToken: null,
+      cookies: {},
+      masterKeyExportedB64: "MIGRATE_THIS_KEY==",
+      hashedEmail: "migrate-email-hash",
+      userEmailSalt: "migrate-salt",
+      createdAt: 1700000000000,
+      authorizerDeviceName: null,
+      autoLogoutMinutes: null,
+    };
+
+    const filePath = join(STATE_DIR, "session.json");
+    writeFileSync(filePath, JSON.stringify(legacySession, null, 2) + "\n", {
+      mode: 0o600,
+    });
+    chmodSync(filePath, 0o600);
+
+    // Load triggers auto-migration
+    const loaded = loadSession();
+    assert.ok(loaded, "should load and migrate");
+    assert.strictEqual(loaded.masterKeyExportedB64, "MIGRATE_THIS_KEY==");
+
+    // After migration, re-read the file — it should now have masterKeyStorage
+    const onDisk = JSON.parse(readFileSync(filePath, "utf-8"));
+    assert.ok(onDisk.masterKeyStorage, "should have masterKeyStorage after migration");
+
+    // If migrated to keychain or encrypted, plaintext key should be absent
+    if (onDisk.masterKeyStorage !== "plaintext") {
+      assert.strictEqual(
+        onDisk.masterKeyExportedB64,
+        undefined,
+        "plaintext key should be removed from disk after migration",
+      );
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Keychain-aware session storage
+// ---------------------------------------------------------------------------
+
+describe("keychain-aware session storage", () => {
+  before(() => {
+    clearSession();
+  });
+
+  after(() => {
+    clearSession();
+  });
+
+  it("saves session with masterKeyStorage field on disk", () => {
+    saveSession(SAMPLE_SESSION);
+    const filePath = join(STATE_DIR, "session.json");
+    const onDisk = JSON.parse(readFileSync(filePath, "utf-8"));
+    assert.ok(
+      ["keychain", "encrypted", "plaintext"].includes(onDisk.masterKeyStorage),
+      `masterKeyStorage should be set, got: ${onDisk.masterKeyStorage}`,
+    );
+  });
+
+  it("master key is not stored as plaintext when keychain/encrypted available", () => {
+    saveSession(SAMPLE_SESSION);
+    const filePath = join(STATE_DIR, "session.json");
+    const onDisk = JSON.parse(readFileSync(filePath, "utf-8"));
+
+    if (onDisk.masterKeyStorage === "keychain") {
+      assert.strictEqual(
+        onDisk.masterKeyExportedB64,
+        undefined,
+        "key should not be on disk when stored in keychain",
+      );
+      assert.strictEqual(
+        onDisk.masterKeyEncrypted,
+        undefined,
+        "no encrypted data when using keychain",
+      );
+    } else if (onDisk.masterKeyStorage === "encrypted") {
+      assert.strictEqual(
+        onDisk.masterKeyExportedB64,
+        undefined,
+        "plaintext key should not be on disk when encrypted",
+      );
+      assert.ok(
+        onDisk.masterKeyEncrypted,
+        "encrypted data should be present",
+      );
+    } else {
+      // Plaintext fallback — key is on disk (least secure tier)
+      assert.ok(onDisk.masterKeyExportedB64, "plaintext key should be present");
+    }
+  });
+
+  it("save → load roundtrip preserves master key in memory", () => {
+    saveSession(SAMPLE_SESSION);
+    const loaded = loadSession();
+    assert.ok(loaded, "should load session");
+    assert.strictEqual(
+      loaded.masterKeyExportedB64,
+      SAMPLE_SESSION.masterKeyExportedB64,
+      "master key should be available in memory regardless of storage tier",
+    );
+  });
+
+  it("clearSession removes keychain entry and session file", () => {
+    saveSession(SAMPLE_SESSION);
+    clearSession();
+    const filePath = join(STATE_DIR, "session.json");
+    assert.ok(!existsSync(filePath), "session.json should be removed");
+    assert.strictEqual(loadSession(), null);
   });
 });

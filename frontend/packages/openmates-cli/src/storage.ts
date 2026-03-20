@@ -4,7 +4,9 @@
  * Purpose: persist pair-login session data and local-only incognito chats.
  * Architecture: filesystem state in ~/.openmates with strict permissions.
  * Architecture doc: docs/architecture/openmates-cli.md
- * Security: chmod 700 dir and 600 files on write.
+ * Security: master key stored via OS keychain or machine-encrypted file when
+ *           available; falls back to plaintext in session.json.
+ *           See src/keychain.ts for the three-tier storage strategy.
  * Tests: frontend/packages/openmates-cli/tests/storage.test.ts
  */
 
@@ -19,6 +21,18 @@ import {
 import { homedir } from "node:os";
 import { join } from "node:path";
 
+import {
+  type MasterKeyStorageType,
+  storeMasterKey,
+  retrieveMasterKey,
+  deleteMasterKey,
+} from "./keychain.js";
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+/** In-memory session — always has masterKeyExportedB64 populated. */
 export interface OpenMatesSession {
   apiUrl: string;
   sessionId: string;
@@ -32,11 +46,37 @@ export interface OpenMatesSession {
   autoLogoutMinutes: number | null;
 }
 
+/**
+ * On-disk session — master key may be absent if stored externally.
+ * masterKeyStorage indicates where the key lives.
+ */
+interface SessionOnDisk {
+  apiUrl: string;
+  sessionId: string;
+  wsToken: string | null;
+  cookies: Record<string, string>;
+  /** Present only when masterKeyStorage is "plaintext" or for legacy sessions */
+  masterKeyExportedB64?: string;
+  /** Where the master key is stored (absent in legacy sessions = plaintext) */
+  masterKeyStorage?: MasterKeyStorageType;
+  /** Base64 AES-256-GCM ciphertext (only when masterKeyStorage is "encrypted") */
+  masterKeyEncrypted?: string;
+  hashedEmail: string;
+  userEmailSalt: string;
+  createdAt: number;
+  authorizerDeviceName: string | null;
+  autoLogoutMinutes: number | null;
+}
+
 export interface IncognitoHistoryItem {
   role: "user" | "assistant";
   content: string;
   createdAt: number;
 }
+
+// ---------------------------------------------------------------------------
+// Filesystem helpers
+// ---------------------------------------------------------------------------
 
 function getStateDir(): string {
   return join(homedir(), ".openmates");
@@ -69,21 +109,140 @@ function writeJsonFile(filePath: string, data: unknown): void {
   chmodSync(filePath, 0o600);
 }
 
+// ---------------------------------------------------------------------------
+// Session CRUD — keychain-aware
+// ---------------------------------------------------------------------------
+
+/**
+ * Save session to disk. Attempts to store the master key in the OS keychain
+ * or an encrypted file; only falls back to plaintext if both fail.
+ */
 export function saveSession(session: OpenMatesSession): void {
   const filePath = join(ensureStateDir(), "session.json");
-  writeJsonFile(filePath, session);
+
+  const result = storeMasterKey(session.masterKeyExportedB64, session.hashedEmail);
+
+  const onDisk: SessionOnDisk = {
+    apiUrl: session.apiUrl,
+    sessionId: session.sessionId,
+    wsToken: session.wsToken,
+    cookies: session.cookies,
+    hashedEmail: session.hashedEmail,
+    userEmailSalt: session.userEmailSalt,
+    createdAt: session.createdAt,
+    authorizerDeviceName: session.authorizerDeviceName,
+    autoLogoutMinutes: session.autoLogoutMinutes,
+    masterKeyStorage: result.type,
+  };
+
+  if (result.type === "encrypted") {
+    onDisk.masterKeyEncrypted = result.encryptedData;
+  } else if (result.type === "plaintext") {
+    onDisk.masterKeyExportedB64 = session.masterKeyExportedB64;
+  }
+  // For "keychain", the key is not stored on disk at all
+
+  writeJsonFile(filePath, onDisk);
+
+  if (result.type !== "plaintext") {
+    process.stderr.write(
+      `[keychain] Master key stored via ${result.type}\n`,
+    );
+  }
 }
 
+/**
+ * Load session from disk. Retrieves the master key from whatever storage
+ * tier it was saved to. Auto-migrates legacy plaintext sessions to keychain
+ * when possible.
+ */
 export function loadSession(): OpenMatesSession | null {
   const filePath = join(ensureStateDir(), "session.json");
-  return readJsonFile<OpenMatesSession>(filePath);
+  const onDisk = readJsonFile<SessionOnDisk>(filePath);
+  if (!onDisk) return null;
+
+  let masterKey: string | null = null;
+
+  // Legacy session (no masterKeyStorage field) — key is inline
+  if (!onDisk.masterKeyStorage) {
+    masterKey = onDisk.masterKeyExportedB64 ?? null;
+
+    // Auto-migrate: try to move key to keychain/encrypted storage
+    if (masterKey) {
+      const session = buildSession(onDisk, masterKey);
+      try {
+        saveSession(session);
+        process.stderr.write(
+          "[keychain] Migrated legacy session to secure storage\n",
+        );
+      } catch {
+        // Migration failed — keep working with plaintext key in memory
+      }
+    }
+
+    return masterKey ? buildSession(onDisk, masterKey) : null;
+  }
+
+  // Retrieve key from the appropriate tier
+  switch (onDisk.masterKeyStorage) {
+    case "keychain":
+      masterKey = retrieveMasterKey("keychain", onDisk.hashedEmail);
+      break;
+
+    case "encrypted":
+      masterKey = retrieveMasterKey(
+        "encrypted",
+        onDisk.hashedEmail,
+        onDisk.masterKeyEncrypted,
+      );
+      break;
+
+    case "plaintext":
+      masterKey = onDisk.masterKeyExportedB64 ?? null;
+      break;
+  }
+
+  if (!masterKey) {
+    process.stderr.write(
+      `[keychain] Failed to retrieve master key from ${onDisk.masterKeyStorage} — session invalid\n`,
+    );
+    return null;
+  }
+
+  return buildSession(onDisk, masterKey);
 }
 
+/**
+ * Clear session — removes the file and deletes the keychain entry if applicable.
+ */
 export function clearSession(): void {
   const filePath = join(ensureStateDir(), "session.json");
+
+  // Read current storage type before deleting, so we can clean up the keychain
+  const onDisk = readJsonFile<SessionOnDisk>(filePath);
+  if (onDisk?.masterKeyStorage) {
+    deleteMasterKey(onDisk.masterKeyStorage, onDisk.hashedEmail);
+  }
+
   if (existsSync(filePath)) {
     rmSync(filePath);
   }
+}
+
+/** Reconstruct in-memory OpenMatesSession from on-disk data + master key. */
+function buildSession(onDisk: SessionOnDisk, masterKey: string): OpenMatesSession {
+  return {
+    apiUrl: onDisk.apiUrl,
+    sessionId: onDisk.sessionId,
+    wsToken: onDisk.wsToken,
+    cookies: onDisk.cookies,
+    masterKeyExportedB64: masterKey,
+    hashedEmail: onDisk.hashedEmail,
+    userEmailSalt: onDisk.userEmailSalt,
+    createdAt: onDisk.createdAt,
+    authorizerDeviceName: onDisk.authorizerDeviceName,
+    autoLogoutMinutes: onDisk.autoLogoutMinutes,
+  };
 }
 
 export function loadIncognitoHistory(): IncognitoHistoryItem[] {
