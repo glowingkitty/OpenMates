@@ -239,6 +239,8 @@ When adding a new third-party provider, update: `shared/docs/privacy_policy.yml`
 
 **NEVER** create PRs, merge branches, publish releases, or use `git stash` unless the user explicitly asks.
 
+**Always work directly in the `dev` repository. NEVER use git worktrees (`git worktree add`) or isolated worktree modes** — all work happens in the main working directory only.
+
 **Committing and pushing to `dev` via `sessions.py deploy` is NOT a destructive action** — it is the expected default after every task. Do NOT wait for explicit permission to commit and push.
 
 ### No Private Infrastructure in Committed Files
