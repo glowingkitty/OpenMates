@@ -22,6 +22,10 @@ explore_next:
   sv: "Vad vill du utforska härnäst?"
   he: "מה אתה רוצה לחקור הלאה?"
   verified_by_human: []
+filter_no_match:
+  context: Header text shown above suggestions when the typed query matched no suggestions (graceful fallback — all suggestions are still shown)
+  en: "No matching suggestions — showing all"
+  verified_by_human: []
 header_click:
   context: Header text above the new chat suggestion cards on the welcome screen
   en: "OpenMates can help you with:"
