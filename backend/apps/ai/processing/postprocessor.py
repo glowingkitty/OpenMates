@@ -804,8 +804,11 @@ async def translate_new_chat_suggestions(
         f"You are a professional translation engine. "
         f"Translate each suggestion into {language_name} ({target_language}). "
         f"Rules:\n"
+        f"- Each suggestion may start with a routing prefix in square brackets, e.g. [web-search], [ai], [reminder].\n"
+        f"  CRITICAL: Preserve the [prefix] EXACTLY as-is at the start of the translated suggestion.\n"
+        f"  Only translate the text that comes AFTER the [prefix]. Never translate or modify the prefix itself.\n"
         f"- Preserve the exact meaning and intent of each suggestion\n"
-        f"- Keep each suggestion short (max 5 words)\n"
+        f"- Keep each suggestion short (max 8 words after the prefix)\n"
         f"- Return EXACTLY {len(suggestions)} translated suggestions — one per input item\n"
         f"- Use natural, conversational phrasing in {language_name}\n"
         f"- Do NOT add explanations, commentary, or extra items"
@@ -813,6 +816,8 @@ async def translate_new_chat_suggestions(
 
     suggestions_list = "\n".join(f"{i + 1}. {s}" for i, s in enumerate(suggestions))
     user_message = (
+        f"Important: Preserve the [prefix] at the start of each suggestion unchanged. "
+        f"Only translate the text after it.\n\n"
         f"Translate these {len(suggestions)} suggestions to {language_name}:\n\n"
         f"{suggestions_list}"
     )
