@@ -343,6 +343,17 @@ python3 scripts/sessions.py deploy --session <ID> --title "type: description" --
 🧪 Testing: <what was tested, how, results>
 ⚠️ Risks: <what could break — or "Low risk">
 
+🏛️ Architecture & Key Functions Touched: *(omit if purely cosmetic)*
+- `path/to/file.ts:fn` — what it does and why it matters
+- List any architectural decisions made or patterns established during this session
+  (e.g. "chose optimistic update over refetch because X", "this fn is the single entry point for Y")
+
+🪵 Logging & Debugging Gaps: *(omit if none)*
+- Any place where a log was missing and made debugging harder
+- Any tool/script that returned incomplete, ambiguous, or noisy output
+- Suggested improvement: what log line / metric / flag would have saved time
+  (e.g. "debug.py issue --timeline didn't show frontend store state at crash time")
+
 🔍 Session Processing Issues: *(omit if none)*
 - List obstacles that slowed down or blocked task completion
 ```
