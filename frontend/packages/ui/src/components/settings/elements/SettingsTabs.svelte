@@ -145,72 +145,62 @@
 <style>
     .settings-tabs-wrapper {
         padding: 0 0.625rem;
+        /* Shadow lives here so mask-image on .settings-tabs-outer doesn't clip it */
+        filter: drop-shadow(0 0.25rem 0.25rem rgba(0, 0, 0, 0.1));
     }
 
-    /* Outer wrapper handles the fade overlays — must not clip them */
     .settings-tabs-outer {
         position: relative;
         border-radius: 3.25rem;
-        box-shadow: 0 0.25rem 0.25rem rgba(0, 0, 0, 0.1);
         transition: border-radius 0.25s ease;
     }
 
-    /* When scrollable, adjust outer border-radius to match scroll position */
+    /*
+     * Scrollable mode: mask-image fades edges to true transparency.
+     * --fade-left/--fade-right default to black (opaque); toggled to transparent
+     * by .fade-left/.fade-right classes when there's more content to scroll.
+     */
     .settings-tabs-outer.scrollable {
-        /* Default (middle): no rounded edges */
         border-radius: 0;
+        -webkit-mask-image: linear-gradient(
+            to right,
+            var(--fade-left, black) 0%,
+            black 2.5rem,
+            black calc(100% - 2.5rem),
+            var(--fade-right, black) 100%
+        );
+        mask-image: linear-gradient(
+            to right,
+            var(--fade-left, black) 0%,
+            black 2.5rem,
+            black calc(100% - 2.5rem),
+            var(--fade-right, black) 100%
+        );
     }
 
     .settings-tabs-outer.scrollable:not(.fade-left) {
-        /* At start: round left side */
         border-radius: 3.25rem 0 0 3.25rem;
     }
 
     .settings-tabs-outer.scrollable:not(.fade-right) {
-        /* At end: round right side */
         border-radius: 0 3.25rem 3.25rem 0;
     }
 
     .settings-tabs-outer.scrollable:not(.fade-left):not(.fade-right) {
-        /* Both edges visible: fully rounded */
         border-radius: 3.25rem;
     }
 
-    /* Edge fade gradients for scrollable mode */
-    .settings-tabs-outer.scrollable::before,
-    .settings-tabs-outer.scrollable::after {
-        content: '';
-        position: absolute;
-        top: 0;
-        bottom: 0;
-        width: 2.5rem;
-        pointer-events: none;
-        z-index: 2;
-        opacity: 0;
-        transition: opacity 0.25s ease;
+    .settings-tabs-outer.fade-left {
+        --fade-left: transparent;
     }
 
-    .settings-tabs-outer.scrollable::before {
-        left: 0;
-        background: linear-gradient(to right, var(--tabs-bg, var(--color-grey-0)) 20%, transparent);
-    }
-
-    .settings-tabs-outer.scrollable::after {
-        right: 0;
-        background: linear-gradient(to left, var(--tabs-bg, var(--color-grey-0)) 20%, transparent);
-    }
-
-    .settings-tabs-outer.fade-left::before {
-        opacity: 1;
-    }
-
-    .settings-tabs-outer.fade-right::after {
-        opacity: 1;
+    .settings-tabs-outer.fade-right {
+        --fade-right: transparent;
     }
 
     /* Scrollable inner container (no border-radius so it doesn't clip) */
     .settings-tabs-container {
-        background: var(--tabs-bg, var(--color-grey-0));
+        background: var(--color-grey-0);
         border-radius: 3.25rem;
         overflow: hidden;
         transition: border-radius 0.25s ease;
