@@ -1,6 +1,7 @@
 // frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
 import type { ChatSynchronizationService } from "./chatSyncService";
 import { chatDB } from "./db";
+import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { userDB } from "./userDB";
 import { notificationStore } from "../stores/notificationStore";
 import { activeChatStore } from "../stores/activeChatStore";
@@ -46,22 +47,18 @@ async function populateResumeChatDataFromPhase1(
   try {
     const { phasedSyncState } = await import("../stores/phasedSyncStateStore");
 
-    // Decrypt title, category, icon, and summary for the resume card display.
-    // Previously summary was never decrypted here, causing the Phase 1 sync bridge
-    // in ActiveChat.svelte to always set resumeChatSummary=null — which could overwrite
-    // the valid summary loaded from IndexedDB by the concurrent $effect.
+    // Decrypt title, category, icon for the resume card display
     let displayTitle = "Untitled Chat";
     let displayCategory: string | null = null;
     let displayIcon: string | null = null;
-    let displaySummary: string | null = null;
 
     try {
       const { decryptWithChatKey, decryptChatKeyWithMasterKey } =
         await import("./cryptoService");
-      let chatKey = chatDB.getChatKey(chatId);
+      let chatKey = await chatKeyManager.getKey(chatId);
       if (!chatKey && chat.encrypted_chat_key) {
         chatKey = await decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
-        if (chatKey) chatDB.setChatKey(chatId, chatKey, "server_sync");
+        if (chatKey) chatDB.setChatKey(chatId, chatKey);
       }
       if (chatKey) {
         if (chat.encrypted_title) {
@@ -93,16 +90,6 @@ async function populateResumeChatDataFromPhase1(
             /* fall through */
           }
         }
-        if (chat.encrypted_chat_summary) {
-          try {
-            displaySummary = await decryptWithChatKey(
-              chat.encrypted_chat_summary,
-              chatKey,
-            );
-          } catch {
-            /* fall through — card will show title only */
-          }
-        }
       }
     } catch (decryptErr) {
       console.warn(
@@ -120,11 +107,10 @@ async function populateResumeChatDataFromPhase1(
       displayCategory,
       displayIcon,
       true, // force — bypass currentActiveChatId guard
-      displaySummary,
     );
 
     console.info(
-      `[ChatSyncService:CoreSync] ✅ Populated resume card from Phase 1 for chat "${chatId}": title="${displayTitle}", summary=${displaySummary ? `"${displaySummary.slice(0, 40)}..."` : "null"}`,
+      `[ChatSyncService:CoreSync] ✅ Populated resume card from Phase 1 for chat "${chatId}": title="${displayTitle}"`,
     );
   } catch (err) {
     console.error(
@@ -184,7 +170,7 @@ export async function handleInitialSyncResponseImpl(
 
           if (chatKey) {
             // Cache the decrypted chat key for future use
-            chatDB.setChatKey(serverChat.chat_id, chatKey, "server_sync");
+            chatDB.setChatKey(serverChat.chat_id, chatKey);
             console.log(
               `[CLIENT_DECRYPT] ✅ Decrypted and cached chat key for ${serverChat.chat_id} ` +
                 `(key length: ${chatKey.length} bytes)`,
@@ -698,14 +684,131 @@ export async function handlePhase1LastChatImpl(
       );
     }
 
-    // EARLY DISPATCH: Wait briefly for chat/messages/suggestions IDB transactions to
-    // commit, then populate the resume card and dispatch phase_1_last_chat_ready BEFORE
-    // saving embeds. Embeds are not needed for the resume card, chat list, or the "Continue
-    // where you left off" UI — they are only needed when rendering embed content inside an
-    // opened chat. By dispatching early, the user sees the resume card in <1s instead of
-    // waiting 5-17s for hundreds of embeds to be written (especially slow on iPhone Safari
-    // where IDB writes are much slower).
-    await new Promise((resolve) => setTimeout(resolve, 150));
+    // CRITICAL: Save embed_keys FIRST (needed to decrypt embed content for app_id/skill_id extraction)
+    // Without embed_keys, embeds cannot be decrypted and putEncrypted can't extract metadata
+    if (payload.embed_keys && payload.embed_keys.length > 0) {
+      console.info(
+        "[ChatSyncService:CoreSync] Saving",
+        payload.embed_keys.length,
+        "embed_keys to EmbedStore (FIRST, before embeds)",
+      );
+      try {
+        const { embedStore } = await import("./embedStore");
+
+        // Store all embed key entries
+        await embedStore.storeEmbedKeys(payload.embed_keys);
+
+        console.info(
+          "[ChatSyncService:CoreSync] ✅ Successfully saved",
+          payload.embed_keys.length,
+          "embed_keys to EmbedStore",
+        );
+      } catch (embedKeyError) {
+        console.error(
+          "[ChatSyncService:CoreSync] Error saving embed_keys to EmbedStore:",
+          embedKeyError,
+        );
+      }
+    } else {
+      console.debug(
+        "[ChatSyncService:CoreSync] No embed_keys in Phase 1 payload (embeds may not have keys yet)",
+      );
+    }
+
+    // Now save embeds - keys are available so putEncrypted can extract app_id/skill_id metadata
+    console.debug("[ChatSyncService:CoreSync] Phase 1 payload embeds check:", {
+      hasEmbeds: !!payload.embeds,
+      embedsLength: payload.embeds?.length || 0,
+      embedIds:
+        payload.embeds?.map((e: SyncEmbed) => e.embed_id).slice(0, 5) || [],
+    });
+
+    if (payload.embeds && payload.embeds.length > 0) {
+      console.info(
+        "[ChatSyncService:CoreSync] Saving",
+        payload.embeds.length,
+        "embeds to EmbedStore",
+      );
+      try {
+        const { embedStore } = await import("./embedStore");
+
+        for (const embed of payload.embeds) {
+          // Each embed should have: embed_id, encrypted_content, encrypted_type, status, etc.
+          if (!embed.embed_id) {
+            console.warn(
+              "[ChatSyncService:CoreSync] Embed missing embed_id, skipping:",
+              embed,
+            );
+            continue;
+          }
+
+          // Skip error/cancelled embeds — not displayed, not worth storing locally
+          if (embed.status === "error" || embed.status === "cancelled") {
+            console.debug(
+              `[ChatSyncService:CoreSync] Skipping ${embed.status} embed ${embed.embed_id}`,
+            );
+            continue;
+          }
+
+          // Create contentRef in the format used by embeds: embed:{embed_id}
+          const contentRef = `embed:${embed.embed_id}`;
+
+          // Store the embed with its already-encrypted content (no re-encryption)
+          // Skip metadata extraction during bulk sync - embed keys may not be
+          // available yet, and attempting decryption per embed is expensive.
+          // Metadata will be extracted later when embeds are accessed.
+          await embedStore.putEncrypted(
+            contentRef,
+            {
+              encrypted_content: embed.encrypted_content, // Already client-encrypted from Directus
+              encrypted_type: embed.encrypted_type, // Already client-encrypted from Directus
+              embed_id: embed.embed_id,
+              status: embed.status || "finished",
+              hashed_chat_id: embed.hashed_chat_id,
+              hashed_user_id: embed.hashed_user_id,
+              embed_ids: embed.embed_ids,
+              parent_embed_id: embed.parent_embed_id,
+              version_number: embed.version_number,
+              encrypted_diff: embed.encrypted_diff,
+              file_path: embed.file_path,
+              content_hash: embed.content_hash,
+              text_length_chars: embed.text_length_chars,
+              is_private: embed.is_private ?? false,
+              is_shared: embed.is_shared ?? false,
+              createdAt: embed.createdAt || embed.created_at,
+              updatedAt: embed.updatedAt || embed.updated_at,
+            },
+            (embed.encrypted_type
+              ? "app-skill-use"
+              : embed.embed_type || "app-skill-use") as EmbedType,
+            undefined, // plaintextContent
+            undefined, // preExtractedMetadata
+            { skipMetadataExtraction: true },
+          );
+        }
+
+        console.info(
+          "[ChatSyncService:CoreSync] ✅ Successfully saved",
+          payload.embeds.length,
+          "embeds to EmbedStore (as-is, no re-encryption)",
+        );
+      } catch (embedError) {
+        console.error(
+          "[ChatSyncService:CoreSync] Error saving embeds to EmbedStore:",
+          embedError,
+        );
+      }
+    } else {
+      console.debug(
+        "[ChatSyncService:CoreSync] No embeds in Phase 1 payload (chat may not have any)",
+      );
+    }
+
+    // CRITICAL FIX: Add delay to ensure ALL IndexedDB operations are queryable
+    // This includes chat suggestions which use their own transaction.
+    // 250ms gives IDB transactions enough time to commit and become visible to
+    // subsequent reads from AppSkillUseRenderer (was 50ms — too short on slower devices).
+    await new Promise((resolve) => setTimeout(resolve, 250));
   } catch (error) {
     console.error(
       "[ChatSyncService:CoreSync] Error saving Phase 1 data to IndexedDB:",
@@ -736,126 +839,14 @@ export async function handlePhase1LastChatImpl(
     }
   }
 
-  // Dispatch event so Chats.svelte can update the chat list and show the resume card.
-  // This fires BEFORE embeds are written — embeds are saved in the background below.
+  // Now dispatch event so Chats.svelte can open the chat
   console.info(
-    "[ChatSyncService:CoreSync] Dispatching phase_1_last_chat_ready event (early, before embeds):",
-    payload.chat_id,
+    "[ChatSyncService:CoreSync] Dispatching phase_1_last_chat_ready event with payload:",
+    payload,
   );
   serviceInstance.dispatchEvent(
     new CustomEvent("phase_1_last_chat_ready", { detail: payload }),
   );
-
-  // BACKGROUND: Save embed_keys and embeds to IndexedDB after dispatching the event.
-  // These writes can take 1-17s on mobile (especially when Phase 2/3 embeds are being
-  // written concurrently). Since embeds are only needed when viewing a specific chat's
-  // content, deferring them does not affect the chat list or resume card display.
-  // Errors are caught and logged but do not block the sync flow.
-  _savePhase1EmbedsBackground(payload).catch((err) => {
-    console.error(
-      "[ChatSyncService:CoreSync] Error saving Phase 1 embeds in background:",
-      err,
-    );
-  });
-}
-
-/**
- * Background helper: saves embed_keys and embeds from Phase 1 payload to IndexedDB.
- * Called non-blocking after the phase_1_last_chat_ready event is dispatched so that
- * embed IDB writes do not block the resume card or chat list from appearing.
- */
-async function _savePhase1EmbedsBackground(
-  payload: Phase1LastChatPayload,
-): Promise<void> {
-  // Save embed_keys FIRST (needed to decrypt embed content for app_id/skill_id extraction)
-  if (payload.embed_keys && payload.embed_keys.length > 0) {
-    console.info(
-      "[ChatSyncService:CoreSync] [BG] Saving",
-      payload.embed_keys.length,
-      "embed_keys to EmbedStore",
-    );
-    try {
-      const { embedStore } = await import("./embedStore");
-      await embedStore.storeEmbedKeys(payload.embed_keys);
-      console.info(
-        "[ChatSyncService:CoreSync] [BG] \u2705 Saved",
-        payload.embed_keys.length,
-        "embed_keys",
-      );
-    } catch (embedKeyError) {
-      console.error(
-        "[ChatSyncService:CoreSync] [BG] Error saving embed_keys:",
-        embedKeyError,
-      );
-    }
-  }
-
-  // Save embeds using batch write (single IDB transaction)
-  if (payload.embeds && payload.embeds.length > 0) {
-    console.info(
-      "[ChatSyncService:CoreSync] [BG] Saving",
-      payload.embeds.length,
-      "embeds to EmbedStore (batch)",
-    );
-    try {
-      const { embedStore } = await import("./embedStore");
-
-      // Filter out invalid/cancelled embeds before batch write
-      const validEmbeds = payload.embeds.filter((embed: SyncEmbed) => {
-        if (!embed.embed_id) {
-          console.warn(
-            "[ChatSyncService:CoreSync] [BG] Embed missing embed_id, skipping",
-          );
-          return false;
-        }
-        if (embed.status === "error" || embed.status === "cancelled") {
-          return false;
-        }
-        return true;
-      });
-
-      if (validEmbeds.length > 0) {
-        await embedStore.putEncryptedBatch(
-          validEmbeds.map((embed: SyncEmbed) => ({
-            contentRef: `embed:${embed.embed_id}`,
-            data: {
-              encrypted_content: embed.encrypted_content,
-              encrypted_type: embed.encrypted_type,
-              embed_id: embed.embed_id,
-              status: embed.status || "finished",
-              hashed_chat_id: embed.hashed_chat_id,
-              hashed_user_id: embed.hashed_user_id,
-              embed_ids: embed.embed_ids,
-              parent_embed_id: embed.parent_embed_id,
-              version_number: embed.version_number,
-              encrypted_diff: embed.encrypted_diff,
-              file_path: embed.file_path,
-              content_hash: embed.content_hash,
-              text_length_chars: embed.text_length_chars,
-              is_private: embed.is_private ?? false,
-              is_shared: embed.is_shared ?? false,
-              createdAt: embed.createdAt || embed.created_at,
-              updatedAt: embed.updatedAt || embed.updated_at,
-            },
-            type: (embed.encrypted_type
-              ? "app-skill-use"
-              : embed.embed_type || "app-skill-use") as EmbedType,
-          })),
-        );
-      }
-
-      console.info(
-        "[ChatSyncService:CoreSync] [BG] \u2705 Saved",
-        validEmbeds.length,
-        "embeds (batch)",
-      );
-    } catch (embedError) {
-      console.error(
-        "[ChatSyncService:CoreSync] [BG] Error saving embeds:",
-        embedError,
-      );
-    }
-  }
 }
 
 export function handleCachePrimedImpl(

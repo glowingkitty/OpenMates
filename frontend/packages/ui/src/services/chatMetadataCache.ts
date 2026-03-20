@@ -3,6 +3,7 @@
 
 import { decryptWithMasterKey } from "./cryptoService";
 import { chatDB } from "./db";
+import { chatKeyManager } from "./encryption/ChatKeyManager";
 import type { Chat } from "../types/chat";
 
 /**
@@ -15,7 +16,6 @@ export interface DecryptedChatMetadata {
   icon: string | null; // Decrypted icon name
   category: string | null; // Decrypted category name
   summary: string | null; // Decrypted chat summary (2-3 sentences)
-  tags: string[] | null; // Decrypted chat tags (up to 10 tags for search)
   activeFocusId: string | null; // Decrypted active focus mode ID (e.g., "jobs-career_insights")
   lastDecrypted: number; // Timestamp when this metadata was last decrypted
 }
@@ -99,7 +99,7 @@ class ChatMetadataCache {
       );
 
       // Ensure chat key is loaded from encrypted_chat_key if available
-      if (chat.encrypted_chat_key && !chatDB.getChatKey(chat.chat_id)) {
+      if (chat.encrypted_chat_key && !chatKeyManager.getKeySync(chat.chat_id)) {
         const { decryptChatKeyWithMasterKey } = await import("./cryptoService");
         // CRITICAL FIX: await decryptChatKeyWithMasterKey since it's async to prevent storing Promises
         const chatKey = await decryptChatKeyWithMasterKey(
@@ -107,7 +107,7 @@ class ChatMetadataCache {
         );
         if (chatKey) {
           // Store the chat key in the database service's cache
-          chatDB.setChatKey(chat.chat_id, chatKey, "master_key");
+          chatDB.setChatKey(chat.chat_id, chatKey);
           console.debug(
             `[ChatMetadataCache] Loaded chat key for chat ${chat.chat_id}`,
           );
@@ -118,7 +118,7 @@ class ChatMetadataCache {
       let title: string | null = null;
       if (chat.encrypted_title) {
         // Get chat key for decryption (should be available after decryptChatFromStorage)
-        const chatKey = chatDB.getChatKey(chat.chat_id);
+        const chatKey = chatKeyManager.getKeySync(chat.chat_id);
         console.debug(`[ChatMetadataCache] Chat key from cache: ${!!chatKey}`);
 
         if (chatKey) {
@@ -158,13 +158,12 @@ class ChatMetadataCache {
         // });
       }
 
-      // Decrypt icon, category, summary, tags, and active focus ID with chat-specific key
+      // Decrypt icon, category, summary, and active focus ID with chat-specific key
       let icon: string | null = null;
       let category: string | null = null;
       let summary: string | null = null;
-      let tags: string[] | null = null;
       let activeFocusId: string | null = null;
-      const chatKey = chatDB.getChatKey(chat.chat_id);
+      const chatKey = chatKeyManager.getKeySync(chat.chat_id);
       if (chatKey) {
         const { decryptWithChatKey } = await import("./cryptoService");
 
@@ -195,27 +194,6 @@ class ChatMetadataCache {
           );
         }
 
-        if (chat.encrypted_chat_tags) {
-          const tagsStr = await decryptWithChatKey(
-            chat.encrypted_chat_tags,
-            chatKey,
-          );
-          if (tagsStr) {
-            try {
-              tags = JSON.parse(tagsStr);
-            } catch {
-              // Tags might be a comma-separated string rather than JSON
-              tags = tagsStr
-                .split(",")
-                .map((t: string) => t.trim())
-                .filter(Boolean);
-            }
-          }
-          console.debug(
-            `[ChatMetadataCache] Decrypted tags for chat ${chat.chat_id}: ${tags?.join(", ")}`,
-          );
-        }
-
         if (chat.encrypted_active_focus_id) {
           activeFocusId = await decryptWithChatKey(
             chat.encrypted_active_focus_id,
@@ -234,7 +212,6 @@ class ChatMetadataCache {
         icon,
         category,
         summary,
-        tags,
         activeFocusId,
         lastDecrypted: Date.now(),
       };

@@ -1034,7 +1034,7 @@ export async function sendNewMessageImpl(
   // so we decrypt it here and send the plaintext focus_id to the server for AI context.
   if (!isIncognitoChat && chat?.encrypted_active_focus_id) {
     try {
-      const chatKey = chatDB.getChatKey(message.chat_id);
+      const chatKey = await chatKeyManager.getKey(message.chat_id);
       if (chatKey) {
         const { decryptWithChatKey } = await import("./cryptoService");
         const activeFocusId = await decryptWithChatKey(
@@ -1933,13 +1933,6 @@ export async function sendEncryptedStoragePackage(
   }
   serviceInstance.markMessageSyncing(messageId);
 
-  // CRITICAL: Acquire the operation lock BEFORE any key operations.
-  // This prevents clearAllChatKeys() (triggered by multi-tab auth disruptions)
-  // from wiping the key cache while we're encrypting. Without this lock,
-  // a simultaneous clearAll() can cause us to lose the key mid-operation,
-  // triggering a fallback to key generation that corrupts the chat.
-  chatKeyManager.acquireCriticalOp();
-
   try {
     const {
       chat_id,
@@ -1978,7 +1971,7 @@ export async function sendEncryptedStoragePackage(
 
     let encryptedChatKey = await chatDB.getEncryptedChatKey(chat_id);
     // Prefer any cached chat key first (covers hidden chats already unlocked).
-    let chatKey: Uint8Array | null = chatDB.getChatKey(chat_id);
+    let chatKey: Uint8Array | null = await chatKeyManager.getKey(chat_id);
 
     if (!chatKey && encryptedChatKey) {
       // CASE 1: encrypted_chat_key exists - MUST decrypt it to get the original key
@@ -2042,75 +2035,28 @@ export async function sendEncryptedStoragePackage(
     }
 
     if (!encryptedChatKey) {
-      // CASE 2: No encrypted_chat_key found in IDB.
-      // This can happen for genuinely new chats OR when a Safari IDB read-visibility
-      // race returns null even though addChat() already committed the key.
-      // CRITICAL: Try EVERY recovery path before falling back to createKeyForNewChat(),
-      // because generating a new key when messages were already encrypted with the
-      // original key causes permanent "[Content decryption failed]" corruption.
-      // See issue 3a79b598: user message encrypted with K1, then clearAllChatKeys()
-      // (from auth disruption) wiped caches, createKeyForNewChat() generated K2,
-      // and the AI response + metadata were encrypted with K2 — making the user
-      // message permanently unreadable.
-      if (!chatKey) {
-        // 1. Sync cache check (fastest — no IDB round-trip)
-        chatKey = chatKeyManager.getKeySync(chat_id);
-
-        // 2. Async IDB fallback: load encrypted_chat_key from IDB and decrypt with
-        //    master key. This recovers the key when clearAllChatKeys() wiped the
-        //    in-memory caches (e.g., spurious WS auth failure) but the IDB still
-        //    holds the correct encrypted_chat_key from the original addChat() call.
-        if (!chatKey) {
-          chatKey = await chatKeyManager.getKey(chat_id);
-          if (chatKey) {
-            console.info(
-              `[ChatSyncService:Senders] Recovered chat key from IDB for ${chat_id} (caches were empty — likely post-auth-disruption)`,
-            );
-          }
-        }
-
-        // 3. SAFETY: If all recovery paths failed, ABORT. NEVER generate a new key
-        //    here. This function runs AFTER the user message was already encrypted
-        //    with the original key (K1). Generating a new key (K2) would make the
-        //    user message permanently unreadable while the AI response and metadata
-        //    get encrypted with K2 — classic "[Content decryption failed]" corruption.
-        //    See issues 3a79b598, c8cdf290: multi-tab auth disruption cleared caches
-        //    mid-flight, causing createKeyForNewChat() to generate K2 here.
-        if (!chatKey) {
-          console.error(
-            `[ChatSyncService:Senders] ❌ CRITICAL: All key recovery paths failed for ${chat_id}. ` +
-              `ABORTING sendEncryptedStoragePackage to prevent key corruption. ` +
-              `The encrypted storage package will be retried on next sync or page load. ` +
-              `Recovery paths tried: chatKeyManager.getKeySync(), chatKeyManager.getKey(), ` +
-              `chatDB.getChatKey(), chatDB.getEncryptedChatKey().`,
-          );
-          return;
-        }
-      }
+      // CASE 2: No encrypted_chat_key - this is a new chat, generate and save key
       console.warn(
-        `[ChatSyncService:Senders] encrypted_chat_key missing in IDB for ${chat_id}, using recovered/cached key`,
+        `[ChatSyncService:Senders] ⚠️ encrypted_chat_key missing for ${chat_id}, generating new key (new chat)`,
       );
+      // CASE 2: New chat on originating device — safe to create key
+      if (!chatKey) {
+        chatKey =
+          chatKeyManager.getKeySync(chat_id) ||
+          chatKeyManager.createKeyForNewChat(chat_id);
+      }
 
-      // Re-wrap the recovered key and save it to IDB so future calls don't hit this path
+      // Encrypt and save the new key
       const { encryptChatKeyWithMasterKey } = await import("./cryptoService");
       encryptedChatKey = await encryptChatKeyWithMasterKey(chatKey);
 
       if (encryptedChatKey) {
-        // SAFETY: Only write if the chat doesn't already have a different encrypted_chat_key.
-        // Re-read from IDB to avoid overwriting a key that was written by another tab.
-        const freshChat = await chatDB.getChat(chat_id);
-        if (freshChat && !freshChat.encrypted_chat_key) {
-          chat.encrypted_chat_key = encryptedChatKey;
-          await chatDB.updateChat(chat);
-          console.log(
-            `[ChatSyncService:Senders] ✅ Saved recovered encrypted_chat_key for ${chat_id}: ${encryptedChatKey.substring(0, 20)}...`,
-          );
-        } else if (freshChat?.encrypted_chat_key) {
-          console.info(
-            `[ChatSyncService:Senders] encrypted_chat_key already present in IDB for ${chat_id} (written by another path) — not overwriting`,
-          );
-          encryptedChatKey = freshChat.encrypted_chat_key;
-        }
+        // Update chat in DB with the encrypted key
+        chat.encrypted_chat_key = encryptedChatKey;
+        await chatDB.updateChat(chat);
+        console.log(
+          `[ChatSyncService:Senders] ✅ Generated and saved encrypted_chat_key for ${chat_id}: ${encryptedChatKey.substring(0, 20)}...`,
+        );
       } else {
         console.error(
           `[ChatSyncService:Senders] ❌ Failed to encrypt chat key for ${chat_id} - master key may be missing`,
@@ -2215,7 +2161,7 @@ export async function sendEncryptedStoragePackage(
       : null;
 
     // Encrypt PII mappings if the user message has any (for cross-device sync).
-    // PII mappings map placeholders like [EMAIL_com] back to original values.
+    // PII mappings map placeholders like [EMAIL_1] back to original values.
     let encryptedPIIMappings: string | null = null;
     if (user_message.pii_mappings && user_message.pii_mappings.length > 0) {
       try {
@@ -2341,10 +2287,6 @@ export async function sendEncryptedStoragePackage(
     );
     // Unmark on error so a legitimate retry can proceed
     serviceInstance.unmarkMessageSyncing(messageId);
-  } finally {
-    // CRITICAL: Always release the operation lock, even on error/early return.
-    // If clearAll() was deferred while we held the lock, it will run now.
-    chatKeyManager.releaseCriticalOp();
   }
 }
 
@@ -2706,6 +2648,8 @@ export async function sendDeleteNewChatSuggestionByIdImpl(
   }
 }
 
+
+
 /**
  * Request additional older chats from the server beyond the initial 100.
  * Used by the "Show more" button for on-demand pagination.
@@ -2727,34 +2671,6 @@ export async function sendLoadMoreChatsImpl(
   } catch (error) {
     console.error(
       "[ChatSyncService:Senders] Error requesting more chats:",
-      error,
-    );
-  }
-}
-
-// ─── Metadata chats sync (expanded search: chats 101–1000) ─────────────────
-
-/**
- * Request metadata-only chat records for chats 101–1000 from the server.
- * Triggered automatically after Phase 3 completes when total_chat_count > 100.
- *
- * Sends existing metadata-only chat IDs so the server can skip unchanged chats.
- * Response is handled by handleSyncMetadataChatsResponseImpl.
- */
-export async function sendSyncMetadataChatsImpl(
-  serviceInstance: ChatSynchronizationService,
-  existingChatIds: string[] = [],
-): Promise<void> {
-  try {
-    await webSocketService.sendMessage("sync_metadata_chats", {
-      existing_chat_ids: existingChatIds,
-    });
-    console.info(
-      `[ChatSyncService:Senders] Requested metadata chats sync (existing_on_client=${existingChatIds.length})`,
-    );
-  } catch (error) {
-    console.error(
-      "[ChatSyncService:Senders] Error requesting metadata chats sync:",
       error,
     );
   }

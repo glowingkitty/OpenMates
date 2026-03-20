@@ -31,6 +31,7 @@
 //   async and non-blocking. forkProgressStore is global and survives navigation.
 
 import { chatDB } from "./db";
+import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { forkProgressStore } from "../stores/forkProgressStore";
 import { notificationStore } from "../stores/notificationStore";
 import { activeChatStore } from "../stores/activeChatStore";
@@ -183,7 +184,7 @@ async function runForkAsync(
       newChatRecord.user_id = sourceChat.user_id;
     }
 
-    const sourceChatKey = chatDB.getChatKey(sourceChatId);
+    const sourceChatKey = await chatKeyManager.getKey(sourceChatId);
     if (sourceChatKey) {
       // Re-encrypt category
       if (sourceChat?.encrypted_category) {

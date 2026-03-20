@@ -4,6 +4,7 @@
  */
 
 import { chatDB } from "./db";
+import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { chatMetadataCache } from "./chatMetadataCache";
 import { tipTapToCanonicalMarkdown } from "../message_parsing/serializers";
 import type { Chat, Message, PIIMapping } from "../types/chat";
@@ -18,7 +19,7 @@ import { copyToClipboard } from "../utils/clipboardUtils";
 
 /**
  * Options for controlling PII handling during export.
- * Message content from DB contains PLACEHOLDERS (e.g., "[EMAIL_com]").
+ * Message content from DB contains PLACEHOLDERS (e.g., "[EMAIL_1]").
  * When piiHidden is false (revealed), we restore originals for the export.
  * When piiHidden is true (default), content keeps placeholders as-is.
  */
@@ -54,7 +55,7 @@ function applyPIIToContent(
  * @param chat - The chat to download
  * @param messages - Array of messages in the chat
  */
-async function downloadChatAsYaml(
+export async function downloadChatAsYaml(
   chat: Chat,
   messages: Message[],
 ): Promise<void> {
@@ -567,7 +568,7 @@ async function convertMessageToYaml(
       else if (message.encrypted_thinking_content) {
         try {
           // Get chat key for this message's chat to decrypt thinking content
-          const chatKey = chatDB.getChatKey(message.chat_id);
+          const chatKey = await chatKeyManager.getKey(message.chat_id);
           if (chatKey) {
             const { decryptWithChatKey } = await import("./cryptoService");
             const decryptedThinking = await decryptWithChatKey(
@@ -890,7 +891,7 @@ function downloadYamlFile(content: string, filename: string): void {
  * This function will handle downloading files associated with the chat
  * when file upload functionality is implemented
  */
-async function downloadChatFiles(chatId: string): Promise<void> {
+export async function downloadChatFiles(chatId: string): Promise<void> {
   // TODO: Implement file download functionality
   // This will be called when file uploads are implemented
   console.debug(

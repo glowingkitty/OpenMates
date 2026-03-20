@@ -1,6 +1,7 @@
 // frontend/packages/ui/src/services/chatSyncService.ts
 // Handles chat data synchronization between client and server via WebSockets.
 import { chatDB } from "./db";
+import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { webSocketService } from "./websocketService";
 import { websocketStatus } from "../stores/websocketStatusStore";
 import { notificationStore } from "../stores/notificationStore";
@@ -35,7 +36,6 @@ import type {
   Phase2RecentChatsPayload,
   Phase3FullSyncPayload,
   LoadMoreChatsResponsePayload,
-  MetadataChatsResponsePayload,
   // Client to Server specific payloads (if not already covered or if preferred to list them all here)
   // UpdateTitlePayload, // Now in types/chat.ts
   // UpdateDraftPayload, // Now in types/chat.ts
@@ -304,12 +304,6 @@ export class ChatSynchronizationService extends EventTarget {
       phasedSyncHandlers.handleLoadMoreChatsResponseImpl(
         this,
         payload as LoadMoreChatsResponsePayload,
-      ),
-    );
-    webSocketService.on("sync_metadata_chats_response", (payload) =>
-      phasedSyncHandlers.handleSyncMetadataChatsResponseImpl(
-        this,
-        payload as MetadataChatsResponsePayload,
       ),
     );
     webSocketService.on("phased_sync_complete", (payload) =>
@@ -600,16 +594,15 @@ export class ChatSynchronizationService extends EventTarget {
           {
             const chat = await chatDB.getChat(chat_id);
             if (chat) {
-              // Decrypt title, category, icon, summary for the resume card display
+              // Decrypt title, category, icon for the resume card display
               let displayTitle = chat.title || "Untitled Chat";
               let displayCategory = chat.category || null;
               let displayIcon = chat.icon || null;
-              let displaySummary = chat.chat_summary || null;
 
               try {
                 const { decryptWithChatKey, decryptChatKeyWithMasterKey } =
                   await import("./cryptoService");
-                let chatKey = chatDB.getChatKey(chat_id);
+                let chatKey = await chatKeyManager.getKey(chat_id);
                 if (!chatKey && chat.encrypted_chat_key) {
                   chatKey = await decryptChatKeyWithMasterKey(
                     chat.encrypted_chat_key,
@@ -648,16 +641,6 @@ export class ChatSynchronizationService extends EventTarget {
                       /* fall through */
                     }
                   }
-                  if (chat.encrypted_chat_summary) {
-                    try {
-                      displaySummary = await decryptWithChatKey(
-                        chat.encrypted_chat_summary,
-                        chatKey,
-                      );
-                    } catch {
-                      /* fall through */
-                    }
-                  }
                 }
               } catch (decryptErr) {
                 console.warn(
@@ -677,7 +660,6 @@ export class ChatSynchronizationService extends EventTarget {
                 displayCategory,
                 displayIcon,
                 true, // force — caller verified user is on welcome screen
-                displaySummary,
               );
               console.warn(
                 `[ChatSyncService] Updated resume card from cross-device last_opened_updated: "${displayTitle}" (${chat_id})`,
@@ -738,9 +720,6 @@ export class ChatSynchronizationService extends EventTarget {
       webSocketService.on("app_settings_memories_entry_stored", (payload) =>
         module.handleAppSettingsMemoriesEntryStoredImpl(this, payload),
       );
-      webSocketService.on("app_settings_memories_entry_deleted", (payload) =>
-        module.handleAppSettingsMemoriesEntryDeletedImpl(this, payload),
-      );
       webSocketService.on("system_message_confirmed", (payload) =>
         module.handleSystemMessageConfirmedImpl(this, payload),
       );
@@ -752,13 +731,6 @@ export class ChatSynchronizationService extends EventTarget {
       // The server sends plaintext content; this handler encrypts with chat key and persists
       webSocketService.on("reminder_fired", (payload) =>
         module.handleReminderFiredImpl(this, payload),
-      );
-
-      // Handle incoming webhook chat events from server.
-      // The server vault-encrypts the message; this handler decrypts with vault key,
-      // re-encrypts with the chat key, and persists as a system message (new chat).
-      webSocketService.on("webhook_chat", (payload) =>
-        module.handleWebhookChatImpl(this, payload),
       );
 
       // Handle user_notification events — server-initiated toasts with optional deep-link buttons.
@@ -796,7 +768,7 @@ export class ChatSynchronizationService extends EventTarget {
         const { chatDB } = await import("./db");
         const chat = await chatDB.getChat(chatId);
         if (chat) {
-          const chatKey = chatDB.getChatKey(chatId);
+          const chatKey = await chatKeyManager.getKey(chatId);
           if (chatKey) {
             const { encryptWithChatKey } = await import("./cryptoService");
             const encryptedFocusId = await encryptWithChatKey(focusId, chatKey);
@@ -1017,22 +989,11 @@ export class ChatSynchronizationService extends EventTarget {
     // When a session is revoked remotely (via Active Sessions settings), the server
     // broadcasts a force_logout event via Redis → WebSocket. This handler triggers
     // the full logout flow on this device, clearing all local state.
-    //
-    // The backend is responsible for NOT sending this event to the device that
-    // initiated the revocation (via exclude_connection_hash in the Redis payload,
-    // handled in websockets.py listen_for_user_updates). If this handler fires,
-    // this device IS the intended target and should log out.
-    //
-    // reason values:
-    //   "session_revoked"            — a specific other session was revoked
-    //   "all_other_sessions_revoked" — logout-all-others was used
-    //   "all_devices_logout"         — nuclear option (current device also targeted)
     webSocketService.on("force_logout", (payload) => {
-      const p = payload as { reason?: string; revoked_session_id?: string };
-      const reason = p?.reason || "session_revoked";
-      const revokedId = p?.revoked_session_id;
+      const reason =
+        (payload as { reason?: string })?.reason || "session_revoked";
       console.warn(
-        `[ChatSyncService] Received force_logout event (reason: ${reason}${revokedId ? `, revoked_session_id: ${revokedId}` : ""}). Triggering logout.`,
+        `[ChatSyncService] Received force_logout event (reason: ${reason}). Triggering logout.`,
       );
       // Set the forced-logout flag so reconnect logic doesn't fight the logout.
       // Use the canonical setter (includes 30s safety-timeout auto-reset) instead
@@ -1554,17 +1515,6 @@ export class ChatSynchronizationService extends EventTarget {
     limit: number = 20,
   ): Promise<void> {
     await senders.sendLoadMoreChatsImpl(this, offset, limit);
-  }
-
-  /**
-   * Request metadata-only chat records for chats 101–1000 from the server.
-   * Triggered automatically after Phase 3 when total_chat_count > 100.
-   * These chats are stored in IndexedDB for expanded search coverage.
-   */
-  public async sendSyncMetadataChats(
-    existingChatIds: string[] = [],
-  ): Promise<void> {
-    await senders.sendSyncMetadataChatsImpl(this, existingChatIds);
   }
 
   /**

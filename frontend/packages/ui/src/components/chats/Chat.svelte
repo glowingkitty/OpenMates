@@ -3,6 +3,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { chatSyncService } from '../../services/chatSyncService';
   import { chatDB } from '../../services/db';
+  import { chatKeyManager } from '../../services/encryption/ChatKeyManager';
   import { notificationStore } from '../../stores/notificationStore';
   import { unreadMessagesStore } from '../../stores/unreadMessagesStore';
   import { text } from '@repo/ui'; // Use text store from @repo/ui
@@ -329,7 +330,7 @@
     
     // For regular chats, decrypt from encrypted fields
     // Get chat key for decryption
-    const chatKey = chatDB.getChatKey(chat.chat_id);
+    const chatKey = await chatKeyManager.getKey(chat.chat_id);
     if (!chatKey) {
       console.warn(`[Chat] No chat key found for chat ${chat.chat_id}, cannot decrypt icon/category`);
       return result;
@@ -544,7 +545,7 @@
     // CRITICAL: For non-authenticated users, check if this is a shared chat (has chat key) or sessionStorage-only chat
     if (!$authStore.isAuthenticated) {
       // Check if this is a shared chat (has chat key in cache) or sessionStorage-only chat
-      const chatKey = chatDB.getChatKey(currentChat.chat_id);
+      const chatKey = chatKeyManager.getKeySync(currentChat.chat_id);
       const sessionDraftPreview = getSessionStorageDraftPreview(currentChat.chat_id);
       
       if (sessionDraftPreview) {
@@ -1424,7 +1425,7 @@
       // Hidden chats are already unlocked - we can use the current combined secret
       // Get the current chat key (decrypted with master key)
       // First try: Check cache (fast path for chats that have been accessed)
-      let chatKey = chatDB.getChatKey(chatIdToHide);
+      let chatKey = await chatKeyManager.getKey(chatIdToHide);
       
       // Second try: If not in cache, decrypt from encrypted_chat_key
       // This is critical for draft-only chats that haven't loaded their key into cache yet
@@ -1898,7 +1899,6 @@
 <div
   class="chat-item-wrapper"
   class:active={isActive}
-  data-testid="chat-item"
   role="button"
   tabindex="0"
   oncontextmenu={handleContextMenu}
@@ -2082,7 +2082,7 @@
                    "INCOGNITO" sidebar section header, making per-chat badges redundant. -->
             </div>
             {#if typingIndicatorInTitleView}
-              <span class="status-message typing-shimmer" data-testid="chat-typing-shimmer">
+              <span class="status-message typing-shimmer">
                 {#if activeSkillInfo}
                   <span class="skill-icon icon_rounded {activeSkillInfo.appId}"></span>
                 {/if}

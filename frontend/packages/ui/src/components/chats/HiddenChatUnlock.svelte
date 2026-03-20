@@ -122,7 +122,8 @@
                 }
                 
                 // Get the chat key (decrypt from encrypted_chat_key if needed)
-                let chatKey = chatDB.getChatKey(chatIdToHide);
+                const { chatKeyManager } = await import('../../services/encryption/ChatKeyManager');
+                let chatKey = await chatKeyManager.getKey(chatIdToHide);
                 if (!chatKey && chatToHide.encrypted_chat_key) {
                     const { decryptChatKeyWithMasterKey } = await import('../../services/cryptoService');
                     try {

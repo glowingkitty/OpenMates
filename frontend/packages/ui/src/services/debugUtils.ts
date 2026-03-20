@@ -737,13 +737,13 @@ async function attemptMessageDecryption(
   // Step 1: Obtain the chat key
   let chatKey: Uint8Array | null = null;
   try {
-    const { chatDB } = await import("./db");
-    chatKey = chatDB.getChatKey(chatId);
+    const { chatKeyManager } = await import("./encryption/ChatKeyManager");
+    chatKey = await chatKeyManager.getKey(chatId);
     if (chatKey) {
       result.chatKeySource = "cache";
     }
   } catch {
-    // chatDB not available
+    // chatKeyManager not available
   }
 
   // If not in cache, try to unwrap from chat metadata
@@ -1045,8 +1045,8 @@ export async function inspectMessage(
             const encTitle = chatMeta.encrypted_title as string | undefined;
             if (!encTitle) return "(no title)";
             const { decryptWithChatKey } = await import("./cryptoService");
-            const { chatDB } = await import("./db");
-            let chatKey = chatDB.getChatKey(chatId!);
+            const { chatKeyManager } = await import("./encryption/ChatKeyManager");
+            let chatKey = await chatKeyManager.getKey(chatId!);
             if (!chatKey && chatMeta.encrypted_chat_key) {
               const { decryptChatKeyWithMasterKey } =
                 await import("./cryptoService");
@@ -1104,8 +1104,8 @@ export async function inspectMessage(
       // Re-decrypt to get full content (not truncated preview)
       try {
         const { decryptWithChatKey } = await import("./cryptoService");
-        const { chatDB } = await import("./db");
-        let chatKey = chatDB.getChatKey(chatId!);
+        const { chatKeyManager } = await import("./encryption/ChatKeyManager");
+        let chatKey = await chatKeyManager.getKey(chatId!);
         if (!chatKey && chatMeta?.encrypted_chat_key) {
           const { decryptChatKeyWithMasterKey } =
             await import("./cryptoService");
@@ -1704,13 +1704,13 @@ async function attemptChatDecryption(
   // Step 1: Obtain the chat key
   let chatKey: Uint8Array | null = null;
   try {
-    const { chatDB } = await import("./db");
-    chatKey = chatDB.getChatKey(chatId);
+    const { chatKeyManager } = await import("./encryption/ChatKeyManager");
+    chatKey = await chatKeyManager.getKey(chatId);
     if (chatKey) {
       report.chatKeySource = "cache";
     }
   } catch {
-    // chatDB not available
+    // chatKeyManager not available
   }
 
   // If not in cache, try to unwrap from encrypted_chat_key
@@ -2964,6 +2964,7 @@ async function debugDailyInspirations(): Promise<void> {
   } else {
     // Lazy-import modules needed for the assistant-message check
     let chatDBModule: null | (typeof import("./db"))["chatDB"] = null;
+    let chatKeyManagerModule: null | (typeof import("./encryption/ChatKeyManager"))["chatKeyManager"] = null;
     let decryptWithChatKeyFn:
       | null
       | (typeof import("./cryptoService"))["decryptWithChatKey"] = null;
@@ -2972,11 +2973,13 @@ async function debugDailyInspirations(): Promise<void> {
       | (typeof import("./cryptoService"))["decryptChatKeyWithMasterKey"] =
       null;
     try {
-      const [dbMod, cryptoMod] = await Promise.all([
+      const [dbMod, cryptoMod, keyManagerMod] = await Promise.all([
         import("./db"),
         import("./cryptoService"),
+        import("./encryption/ChatKeyManager"),
       ]);
       chatDBModule = dbMod.chatDB;
+      chatKeyManagerModule = keyManagerMod.chatKeyManager;
       decryptWithChatKeyFn = cryptoMod.decryptWithChatKey;
       decryptChatKeyWithMasterKeyFn = cryptoMod.decryptChatKeyWithMasterKey;
     } catch {
@@ -3090,7 +3093,7 @@ async function debugDailyInspirations(): Promise<void> {
               );
             } else {
               // Get the chat key (from cache first, then unwrap from encrypted_chat_key)
-              let chatKey: Uint8Array | null = chatDBModule.getChatKey(chatId);
+              let chatKey: Uint8Array | null = chatKeyManagerModule?.getKeySync(chatId) ?? null;
               if (!chatKey) {
                 const chatMeta = chat as unknown as Record<string, unknown>;
                 if (chatMeta.encrypted_chat_key) {

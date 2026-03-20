@@ -517,7 +517,7 @@ export async function handleNewChatMessageImpl(
 
       // If encrypted_chat_key is provided and we haven't already decrypted it above
       // (the title/category block already decrypts + caches the key), decrypt it now.
-      if (payload.encrypted_chat_key && !chatDB.getChatKey(payload.chat_id)) {
+      if (payload.encrypted_chat_key && !chatKeyManager.getKeySync(payload.chat_id)) {
         try {
           const { decryptChatKeyWithMasterKey } =
             await import("./cryptoService");
@@ -556,7 +556,7 @@ export async function handleNewChatMessageImpl(
       );
     } else if (
       payload.encrypted_chat_key &&
-      !chatDB.getChatKey(payload.chat_id)
+      !chatKeyManager.getKeySync(payload.chat_id)
     ) {
       // Existing chat without cached key - try to decrypt and cache for immediate encryption
       try {
@@ -627,7 +627,7 @@ export async function handleNewChatMessageImpl(
     //
     // Instead, push the message into the pending queue and flush it in
     // flushPendingMessagesForChat() once the correct key is available.
-    if (chatDB.getChatKey(payload.chat_id)) {
+    if (chatKeyManager.getKeySync(payload.chat_id)) {
       await chatDB.saveMessage(newMessage);
       console.debug(
         `[ChatSyncService:ChatUpdates] Saved new message ${payload.message_id} to chat ${payload.chat_id}`,
@@ -917,7 +917,7 @@ export async function handleChatMessageReceivedImpl(
       // can't be decrypted → "[Content decryption failed]".
       // If the key is missing, queue the message and wait for the key to arrive
       // (same pattern as new_chat_message handler).
-      const existingKey = chatDB.getChatKeyOrNull(payload.chat_id);
+      const existingKey = chatKeyManager.getKeySync(payload.chat_id);
       if (!existingKey) {
         console.warn(
           `[ChatSyncService:ChatUpdates] chat_message_added for chat ${payload.chat_id}: ` +
@@ -1281,7 +1281,7 @@ export async function handleChatPinnedUpdatedImpl(
  * Handle metadata for encryption - Dual-Phase Architecture
  * Server sends plaintext metadata (title, category) for client-side encryption
  */
-async function handleChatMetadataForEncryptionImpl(
+export async function handleChatMetadataForEncryptionImpl(
   serviceInstance: ChatSynchronizationService,
   payload: {
     chat_id: string;
@@ -1513,7 +1513,7 @@ export async function handleEncryptedChatMetadataImpl(
       payload.encrypted_chat_key !== undefined &&
       payload.encrypted_chat_key !== chat.encrypted_chat_key
     ) {
-      const cachedKey = chatDB.getChatKeyOrNull(payload.chat_id);
+      const cachedKey = chatKeyManager.getKeySync(payload.chat_id);
       let rawKeysMatch = false;
 
       if (cachedKey) {

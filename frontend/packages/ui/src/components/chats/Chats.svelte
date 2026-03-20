@@ -1,11 +1,11 @@
 <script lang="ts">
-	/* eslint-disable no-console */
 	import { onMount, onDestroy, createEventDispatcher, tick } from 'svelte';
 	import { text } from '@repo/ui'; // Import text store for translations
 	import ChatComponent from './Chat.svelte'; // Renamed to avoid conflict with Chat type
 	import { panelState, isActivityHistoryOpen } from '../../stores/panelStateStore';
 	import { authStore } from '../../stores/authStore';
 	import { chatDB } from '../../services/db';
+	import { chatKeyManager } from '../../services/encryption/ChatKeyManager';
 	import { draftEditorUIState } from '../../services/drafts/draftState'; // Renamed import
 	import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../../services/drafts/draftConstants';
 	import type { Chat as ChatType, Message } from '../../types/chat'; // Removed unused ChatComponentVersions, TiptapJSON
@@ -33,9 +33,8 @@
 
 	// --- Search imports ---
 	import SearchBar from './search/SearchBar.svelte';
-	import SearchSortBar from '../settings/SearchSortBar.svelte';
 	import SearchResults from './search/SearchResults.svelte';
-	import { search as performSearch, warmUpSearchIndex, warmUpMetadataSearchIndex, type SearchResults as SearchResultsType } from '../../services/searchService';
+	import { search as performSearch, warmUpSearchIndex, type SearchResults as SearchResultsType } from '../../services/searchService';
 	import { searchStore, openSearch, closeSearch, setSearchQuery, setSearching } from '../../stores/searchStore';
 	import { navigateToSettings } from '../../stores/settingsNavigationStore';
 	import { messageHighlightStore, searchTextHighlightStore } from '../../stores/messageHighlightStore';
@@ -125,30 +124,6 @@ let _chatUpdatedFlushPending = false;
 	let searchResults: SearchResultsType | null = $state(null);
 	// Reference to the SearchResults component for keyboard navigation
 	let searchResultsComponent: { focusNext: () => void; focusPrevious: () => void; activateFocused: () => void } | null = $state(null);
-	// Local search query for the SearchSortBar (non-active-search mode)
-	let sidebarSearchQuery = $state('');
-	// Sort order when sidebar search is active: 'newest' (default) or 'oldest'
-	let sidebarSearchSortOrder = $state('newest');
-	// Sorted search results — re-sorted whenever raw results or sort order changes
-	let sortedSearchResults = $derived((() => {
-		if (!searchResults) return null;
-		if (sidebarSearchSortOrder === 'oldest') {
-			return {
-				...searchResults,
-				chats: [...searchResults.chats].sort(
-					(a, b) => (a.chat.created_at ?? 0) - (b.chat.created_at ?? 0)
-				),
-			};
-		}
-		// Default: newest first (already sorted by search service, but re-sort explicitly)
-		return {
-			...searchResults,
-			chats: [...searchResults.chats].sort(
-				(a, b) => (b.chat.last_edited_overall_timestamp ?? b.chat.created_at ?? 0) -
-				          (a.chat.last_edited_overall_timestamp ?? a.chat.created_at ?? 0)
-			),
-		};
-	})());
 	
 	// Self-hosted mode state is now managed by serverStatusStore
 	// isSelfHosted is imported from the store (initialized once at app load to prevent UI flashing)
@@ -344,18 +319,7 @@ let _chatUpdatedFlushPending = false;
 		void visiblePublicChats;
 
 		// 1. Process real chats from IndexedDB (exclude public chats - they come from visiblePublicChats)
-		// DEDUP GUARD: allChatsFromDB itself can contain duplicates due to a race between
-		// chatListCache.upsertChat() and setCache() (microtask flush vs DB read completion).
-		// Deduplicate by chat_id before processing — first occurrence wins.
-		const dbSeenIds = new Set<string>();
-		const dedupedFromDB: ChatType[] = [];
-		for (const chat of allChatsFromDB) {
-			if (!dbSeenIds.has(chat.chat_id)) {
-				dbSeenIds.add(chat.chat_id);
-				dedupedFromDB.push(chat);
-			}
-		}
-		const processedRealChats = dedupedFromDB
+		const processedRealChats = allChatsFromDB
 			.filter(chat => !isLegalChat(chat.chat_id) && !isPublicChat(chat.chat_id));
 
 		// 2. Identify which visiblePublicChats should be excluded (already in IndexedDB for some reason)
@@ -421,7 +385,7 @@ let _chatUpdatedFlushPending = false;
 			for (const chat of processedRealChats) {
 				if (!existingChatIds.has(chat.chat_id)) {
 					// Check if we have a key for this chat (indicating it's a shared chat we can decrypt)
-					const hasKey = chatDB.getChatKey(chat.chat_id) !== null;
+					const hasKey = chatKeyManager.getKeySync(chat.chat_id) !== null;
 					if (hasKey) {
 						sharedChats.push(chat);
 						console.debug('[Chats] Added shared chat to list (has key in cache):', chat.chat_id);
@@ -741,7 +705,7 @@ let _chatUpdatedFlushPending = false;
 	let handleHiddenChatsAutoLocked: () => void; // Handler for hidden chats auto-locked event
 	let handleChatHidden: (event: Event) => void; // Handler for chat hidden event
 	let handleChatUnhidden: (event: Event) => void; // Handler for chat unhidden event
-	let handleOpenSearchEvent: EventListener; // Handler for global 'openSearch' window event (Cmd+F)
+	let handleOpenSearchEvent: () => void; // Handler for global 'openSearch' window event (Cmd+F)
 	// NOTE: navigateChatPrevious/navigateChatNext window event listeners were removed.
 	// Navigation is now handled directly by chatNavigationStore.navigatePrev()/navigateNext()
 	// which works even when this sidebar component is unmounted.
@@ -913,7 +877,7 @@ let _chatUpdatedFlushPending = false;
 				try {
 					const { decryptWithChatKey, decryptChatKeyWithMasterKey } = await import('../../services/cryptoService');
 					// First decrypt the chat key if we have it encrypted
-					let chatKey = chatDB.getChatKey(targetChatId);
+					let chatKey = await chatKeyManager.getKey(targetChatId);
 					if (!chatKey && chat.encrypted_chat_key) {
 						chatKey = await decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
 						if (chatKey) {
@@ -1053,23 +1017,6 @@ let _chatUpdatedFlushPending = false;
 			warmUpSearchIndex(allChatIds).catch(err =>
 				console.error('[Chats] Search index warm-up error (phase 3):', err),
 			);
-		}
-
-		// Phase 4: Automatically sync metadata-only chats (101–1000) for expanded search
-		if (hasMoreOnServer && totalServerChatCount > 100) {
-			console.info(`[Chats] Phase 4: Requesting metadata chats for expanded search (total=${totalServerChatCount})`);
-			// Get existing metadata-only chat IDs from IndexedDB so server can skip them
-			chatDB.getMetadataOnlyChatIds().then(existingIds => {
-				chatSyncService.sendSyncMetadataChats(existingIds).catch(err =>
-					console.error('[Chats] Error requesting metadata chats sync:', err),
-				);
-			}).catch(err => {
-				console.error('[Chats] Error getting metadata chat IDs:', err);
-				// Fall back: request without existing IDs
-				chatSyncService.sendSyncMetadataChats([]).catch(err2 =>
-					console.error('[Chats] Error requesting metadata chats sync (fallback):', err2),
-				);
-			});
 		}
 	};
 
@@ -1241,36 +1188,6 @@ let _chatUpdatedFlushPending = false;
 		serverPaginationOffset = offset + chats.length;
 		loadingMoreChats = false;
 		loadTier = 'all_local'; // Reset from 'loading_server' back to 'all_local'
-	};
-
-	/**
-	 * Handles 'metadata_chats_ready' events from Phase 4 metadata sync.
-	 * These are metadata-only chats (positions 101–1000) now stored in IndexedDB.
-	 * Updates the chat list and warms up the metadata search index.
-	 */
-	const handleMetadataChatsReadyEvent = async (event: CustomEvent<{ chat_count: number; total_count: number }>) => {
-		const { chat_count, total_count } = event.detail;
-		console.info(`[Chats] Metadata chats ready: ${chat_count} chats synced (total on server: ${total_count})`);
-
-		if (chat_count > 0) {
-			// Refresh the chat list from IndexedDB (now includes metadata-only chats)
-			chatListCache.markDirty();
-			await updateChatListFromDB(true);
-
-			// Update pagination — metadata chats (101–1000) are now in IndexedDB,
-			// so "show more" only applies beyond position 1000
-			totalServerChatCount = total_count;
-			hasMoreOnServer = total_count > (100 + chat_count);
-			serverPaginationOffset = 100 + chat_count;
-
-			// Warm up the metadata search index for the newly synced metadata-only chats
-			const metadataChats = allChatsFromDB.filter(c => c.is_metadata_only);
-			if (metadataChats.length > 0) {
-				warmUpMetadataSearchIndex(metadataChats).catch(err =>
-					console.error('[Chats] Metadata search index warm-up error:', err),
-				);
-			}
-		}
 	};
 
 	/**
@@ -1682,7 +1599,6 @@ let _chatUpdatedFlushPending = false;
 		chatSyncService.addEventListener('phase_3_last_100_chats_ready', handlePhase3Last100ChatsReadyEvent as EventListener);
 		chatSyncService.addEventListener('phasedSyncComplete', handlePhasedSyncCompleteEvent as EventListener);
 		chatSyncService.addEventListener('load_more_chats_ready', handleLoadMoreChatsReadyEvent as EventListener);
-		chatSyncService.addEventListener('metadata_chats_ready', handleMetadataChatsReadyEvent as EventListener);
 
 		// Subscribe to draftEditorUIState to select newly created chats
 		unsubscribeDraftState = draftEditorUIState.subscribe(async value => { // Use renamed store
@@ -1918,7 +1834,7 @@ let _chatUpdatedFlushPending = false;
 
 		// Handle global 'openSearch' event dispatched by KeyboardShortcuts (Cmd+F / Ctrl+F).
 		// Ensures the Chats panel is open (on any viewport) and activates the search bar.
-		handleOpenSearchEvent = (_event: Event) => {
+		handleOpenSearchEvent = () => {
 			// Open the Chats panel if it is currently closed — on any screen size.
 			// panelState.toggleChats() is a toggle, so we only call it when the panel is closed.
 			if (!$isActivityHistoryOpen) {
@@ -1993,9 +1909,7 @@ let _chatUpdatedFlushPending = false;
 		// CRITICAL: Check global cache first to avoid unnecessary DB reads on remount
 		// This cache persists across component instances (when sidebar closes/opens)
 		// Only used for authenticated users - unauthenticated users are handled above
-		// Pass isComponentRemount=true so the cache forces a miss when the sidebar was
-		// destroyed since the last full setCache() (events were lost while unmounted).
-		const cached = chatListCache.getCache(false, /* isComponentRemount */ true);
+		const cached = chatListCache.getCache(false);
 		if (cached) {
 			console.debug("[Chats] Using cached chats on initialize, skipping DB read");
 			allChatsFromDB = cached;
@@ -2032,13 +1946,6 @@ let _chatUpdatedFlushPending = false;
 	}
 
 	onDestroy(() => {
-		// Notify the cache that event listeners are being removed.
-		// While the sidebar is unmounted, chatUpdated/chatDeleted events from
-		// chatSyncService won't be processed by this component. The cache may
-		// receive partial upserts from service-layer code but miss subsequent
-		// metadata/message updates. This flag ensures a fresh DB read on remount.
-		chatListCache.notifySidebarDestroyed();
-
 		window.removeEventListener('language-changed', languageChangeHandler);
 		window.removeEventListener('language-changed', handleLanguageChangeForDemos);
 		window.removeEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleLocalChatListChanged);
@@ -2059,7 +1966,6 @@ let _chatUpdatedFlushPending = false;
 		chatSyncService.removeEventListener('phase_3_last_100_chats_ready', handlePhase3Last100ChatsReadyEvent as EventListener);
 		chatSyncService.removeEventListener('phasedSyncComplete', handlePhasedSyncCompleteEvent as EventListener);
 		chatSyncService.removeEventListener('load_more_chats_ready', handleLoadMoreChatsReadyEvent as EventListener);
-		chatSyncService.removeEventListener('metadata_chats_ready', handleMetadataChatsReadyEvent as EventListener);
 
 		if (handleGlobalChatSelectedEvent) {
 			window.removeEventListener('globalChatSelected', handleGlobalChatSelectedEvent);
@@ -2279,30 +2185,11 @@ let _chatUpdatedFlushPending = false;
 
 	/**
 	 * Handle search close — clears query and hides search results.
-	 * Called by the full-screen SearchBar (Cmd+F mode).
 	 */
-	function handleSearchClose(reason: 'button' | 'escape' = 'button'): void {
-		// Read the flag BEFORE closeSearch() resets the store to initial state
-		const shouldCloseChats = reason === 'escape' && searchState.closeChatsOnEscape;
+	function handleSearchClose(): void {
 		closeSearch();
 		searchResults = null;
-		sidebarSearchQuery = '';
-		sidebarSearchSortOrder = 'newest';
-		if (shouldCloseChats && $isActivityHistoryOpen) {
-			panelState.toggleChats();
-		}
 		// Clear in-chat text highlighting when search closes
-		searchTextHighlightStore.set(null);
-	}
-
-	/**
-	 * Clear sidebar search state (used by the inline SearchSortBar).
-	 * Resets query and results without toggling isActive (which would swap the UI).
-	 */
-	function clearSidebarSearch(): void {
-		setSearchQuery('');
-		searchResults = null;
-		sidebarSearchSortOrder = 'newest';
 		searchTextHighlightStore.set(null);
 	}
 
@@ -2887,7 +2774,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
                 }
                 
                 // Get the chat key (decrypt from encrypted_chat_key if needed)
-                let chatKey = chatDB.getChatKey(chatIdToHideAfterInlineUnlock);
+                let chatKey = await chatKeyManager.getKey(chatIdToHideAfterInlineUnlock);
                 if (!chatKey && chatToHide.encrypted_chat_key) {
                     const { decryptChatKeyWithMasterKey } = await import('../../services/cryptoService');
                     try {
@@ -3420,7 +3307,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 				     after the user navigated to a chat result from search. -->
 			<SearchBar
 				onSearch={handleSearchQuery}
-				onClose={(reason) => handleSearchClose(reason)}
+				onClose={handleSearchClose}
 				onArrowDown={() => searchResultsComponent?.focusNext()}
 				onArrowUp={() => searchResultsComponent?.focusPrevious()}
 				onEnter={() => searchResultsComponent?.activateFocused()}
@@ -3463,41 +3350,19 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 							{$text('chats.cancel')}
 						</button>
 					{:else}
-					<!-- Search & sort bar (new Figma design) + close button -->
-					<div class="search-sort-bar-area">
-						<SearchSortBar
-							bind:searchQuery={sidebarSearchQuery}
-							bind:sortBy={sidebarSearchSortOrder}
-							searchPlaceholder={$text('chats.search.placeholder')}
-							sortOptions={sidebarSearchQuery.trim().length > 0 ? [
-								{ value: 'newest', label: $text('chats.search.sort.newest_first') },
-								{ value: 'oldest', label: $text('chats.search.sort.oldest_first') },
-							] : []}
-						onInput={(v) => {
-							sidebarSearchQuery = v;
-							if (v.trim()) {
-								// Update query without calling openSearch() — openSearch() sets
-								// isActive=true which swaps the top bar to <SearchBar> (wrong CSS).
-								// We keep the SearchSortBar visible and show results below via the
-								// query-only conditions in the scroll area.
-								setSearchQuery(v);
-								handleSearchQuery(v);
-							} else {
-								clearSidebarSearch();
-							}
-						}}
-						onClear={() => {
-							sidebarSearchQuery = '';
-							clearSidebarSearch();
-						}}
-						/>
+						<!-- Search button + close button -->
+						<button
+							class="clickable-icon icon_search top-button"
+							aria-label="Search"
+							onclick={() => openSearch()}
+							use:tooltip
+						></button>
 						<button
 							class="clickable-icon icon_close top-button right"
 							aria-label={$text('activity.close')}
 							onclick={handleClose}
 							use:tooltip
 						></button>
-					</div>
 					{/if}
 				</div>
 			{/if}
@@ -3510,7 +3375,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 		     Hidden during active search (the search results overlay replaces the chat list).
 		     Overlays the scroll container at the top or bottom edge.
 		     Clicking scrolls the active chat back into view. -->
-		{#if activeChatOutOfViewDirection && selectedChatId && !(searchState.query.trim().length > 0)}
+		{#if activeChatOutOfViewDirection && selectedChatId && !(searchState.isActive && searchState.query.trim().length > 0)}
 			<button
 				class="active-chat-pin"
 				class:pin-top={activeChatOutOfViewDirection === 'top'}
@@ -3556,8 +3421,6 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 
 		<div 
 			class="activity-history"
-			role="region"
-			aria-label={$text('chats.activity_history')}
 			bind:this={activityHistoryElement}
 			onscroll={handleScroll}
 			onwheel={handleWheel}
@@ -3565,10 +3428,10 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 			ontouchmove={handleTouchMove}
 		>
 			<!-- Search results overlay — replaces normal chat list when search is active -->
-		{#if searchState.query.trim().length > 0 && sortedSearchResults}
+		{#if searchState.isActive && searchState.query.trim().length > 0 && searchResults}
 			<SearchResults
 				bind:this={searchResultsComponent}
-				results={sortedSearchResults}
+				results={searchResults}
 				query={searchState.query}
 				activeChatId={selectedChatId}
 				onChatClick={handleSearchChatClick}
@@ -3576,15 +3439,15 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 				onSettingsClick={handleSearchSettingsClick}
 				onAppCatalogClick={handleSearchAppCatalogClick}
 			/>
-			{:else if searchState.query.trim().length > 0 && searchState.isSearching}
+			{:else if searchState.isActive && searchState.query.trim().length > 0 && searchState.isSearching}
 				<!-- Searching indicator while waiting for results -->
 				<div class="search-loading-indicator">
 					<span class="clickable-icon icon_reload syncing-icon"></span>
 				</div>
 			{/if}
 
-			<!-- Normal chat list (hidden when a search query is active) -->
-			{#if searchState.query.trim().length === 0}
+			<!-- Normal chat list (hidden when search is active with a query) -->
+			{#if !searchState.isActive || searchState.query.trim().length === 0}
 			<!-- Sync status indicator - shows during sync regardless of hidden chat state -->
 		{#if syncing}
 			<div class="show-hidden-chats-container">
@@ -3995,22 +3858,9 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 
     .top-buttons {
         position: relative;
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-    }
-
-    /* SearchSortBar + close button layout for the normal (non-search, non-select) state */
-    .search-sort-bar-area {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        width: 100%;
-    }
-
-    .search-sort-bar-area :global(.search-sort-bar) {
-        flex: 1;
-        min-width: 0;
+        height: 32px; /* Ensure container fits buttons */
+        display: flex; /* Use flexbox for easier alignment if needed */
+        justify-content: flex-end; /* Align close button to the right */
     }
 
     .top-button {

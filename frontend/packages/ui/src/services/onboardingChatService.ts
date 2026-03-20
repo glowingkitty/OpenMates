@@ -22,6 +22,7 @@ import {
 import { addChat } from "./db/chatCrudOperations";
 import { saveMessage } from "./db/messageOperations";
 import { chatDB } from "./db";
+import { chatKeyManager } from "./encryption/ChatKeyManager";
 import type { Chat, Message } from "../types/chat";
 
 /**
@@ -209,7 +210,7 @@ export async function hasOnboardingChat(): Promise<boolean> {
     for (const chat of allChats) {
       if (chat.encrypted_active_focus_id) {
         try {
-          const chatKey = dbInstance.getChatKey(chat.chat_id);
+          const chatKey = await chatKeyManager.getKey(chat.chat_id);
           if (!chatKey) continue;
 
           // Dynamically import to avoid circular dependency

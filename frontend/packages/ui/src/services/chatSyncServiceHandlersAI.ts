@@ -1019,7 +1019,7 @@ export async function handleAITypingStartedImpl( // Changed to async
       };
       if (
         payloadWithKey.encrypted_chat_key &&
-        !chatDB.getChatKeyOrNull(payload.chat_id)
+        !chatKeyManager.getKeySync(payload.chat_id)
       ) {
         try {
           const { decryptChatKeyWithMasterKey } =
@@ -2167,7 +2167,7 @@ export async function handleRequestChatHistoryImpl(
     let activeFocusId: string | null = null;
     if (chat?.encrypted_active_focus_id) {
       try {
-        const chatKey = chatDB.getChatKey(payload.chat_id);
+        const chatKey = await chatKeyManager.getKey(payload.chat_id);
         if (chatKey) {
           const { decryptWithChatKey } = await import("./cryptoService");
           activeFocusId = await decryptWithChatKey(
@@ -3457,7 +3457,7 @@ export async function handleSendEmbedDataImpl(
         // (AES-GCM auth tag fails on every future reload because the stored wrapped key
         // was encrypted with the wrong key — decryption always returns null).
         // See: chatSyncServiceHandlersChatUpdates.ts:625 for the identical guard on messages.
-        const chatKey = chatDB.getChatKey(embedData.chat_id);
+        const chatKey = await chatKeyManager.getKey(embedData.chat_id);
         if (!chatKey) {
           throw new Error(
             `[ChatSyncService:AI] Chat key not in cache for chat ${embedData.chat_id} — ` +
