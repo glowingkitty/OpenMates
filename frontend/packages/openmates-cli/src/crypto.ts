@@ -137,6 +137,37 @@ export async function decryptBytesWithAesGcm(
   }
 }
 
+/**
+ * Encrypt raw bytes with AES-256-GCM and return base64(IV || ciphertext).
+ *
+ * Mirrors cryptoService.ts encryptChatKeyWithMasterKey() — used for wrapping
+ * a 32-byte chat key with the master key. MUST use this (not the string
+ * variant) because the input is binary, not UTF-8.
+ */
+export async function encryptBytesWithAesGcm(
+  data: Uint8Array,
+  rawKeyBytes: Uint8Array,
+): Promise<string> {
+  const iv = cryptoApi.getRandomValues(new Uint8Array(AES_GCM_IV_LENGTH));
+  const key = await cryptoApi.subtle.importKey(
+    "raw",
+    toArrayBuffer(rawKeyBytes),
+    { name: "AES-GCM" },
+    false,
+    ["encrypt"],
+  );
+  const encrypted = await cryptoApi.subtle.encrypt(
+    { name: "AES-GCM", iv: toArrayBuffer(iv) },
+    key,
+    toArrayBuffer(data),
+  );
+  const cipherBytes = new Uint8Array(encrypted);
+  const combined = new Uint8Array(iv.length + cipherBytes.length);
+  combined.set(iv);
+  combined.set(cipherBytes, iv.length);
+  return bytesToBase64(combined);
+}
+
 export async function encryptWithAesGcmCombined(
   plaintext: string,
   rawKeyBytes: Uint8Array,

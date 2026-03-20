@@ -19,7 +19,9 @@ import {
   decryptWithAesGcmCombined,
   decryptBytesWithAesGcm,
   encryptWithAesGcmCombined,
+  encryptBytesWithAesGcm,
   base64ToBytes,
+  bytesToBase64,
   hashItemKey,
 } from "./crypto.js";
 import { OpenMatesHttpClient } from "./http.js";
@@ -1363,11 +1365,14 @@ export class OpenMatesClient {
     await ws.open();
 
     const messageId = randomUUID();
+    const createdAt = Math.floor(Date.now() / 1000);
+    const isNewChat = !params.chatId;
     // Mark this chat as active so the server streams incremental chunks
     // rather than sending a single background-completion event.
     ws.send("set_active_chat", { chat_id: chatId });
 
-    // Build the message payload
+    // ── Phase 1: Plaintext message for AI processing ──
+    // Mirrors: chatSyncServiceSenders.ts sendMessageToServer()
     const messagePayload: Record<string, unknown> = {
       chat_id: chatId,
       is_incognito: Boolean(params.incognito),
@@ -1378,10 +1383,55 @@ export class OpenMatesClient {
         sender_name: "User",
         status: "sent",
         content: params.message,
-        created_at: Math.floor(Date.now() / 1000),
+        created_at: createdAt,
         chat_has_title: Boolean(params.chatId),
       },
     };
+
+    // For non-incognito chats, resolve or generate the chat key and include
+    // the encrypted_chat_key in Phase 1 so the server can store it for sync.
+    // Mirrors: chatSyncServiceSenders.ts sendEncryptedStoragePackage() key logic
+    let chatKeyBytes: Uint8Array | null = null;
+    let encryptedChatKey: string | null = null;
+
+    if (!params.incognito) {
+      const masterKey = this.getMasterKeyBytes();
+
+      if (isNewChat) {
+        // New chat — generate a fresh 32-byte AES-256 key
+        chatKeyBytes = globalThis.crypto
+          ? new Uint8Array(globalThis.crypto.getRandomValues(new Uint8Array(32)))
+          : new Uint8Array(
+              (await import("node:crypto")).webcrypto.getRandomValues(
+                new Uint8Array(32),
+              ),
+            );
+        // Encrypt the chat key with the master key for server storage
+        encryptedChatKey = await encryptBytesWithAesGcm(
+          chatKeyBytes,
+          masterKey,
+        );
+        messagePayload.encrypted_chat_key = encryptedChatKey;
+      } else {
+        // Existing chat — decrypt the chat key from the sync cache
+        const cache = await this.ensureSynced();
+        const chat = cache.chats.find(
+          (c) =>
+            String(c.details.id ?? "") === chatId ||
+            String(c.details.id ?? "").startsWith(chatId),
+        );
+        if (chat) {
+          const encKey =
+            typeof chat.details.encrypted_chat_key === "string"
+              ? chat.details.encrypted_chat_key
+              : null;
+          if (encKey) {
+            chatKeyBytes = await decryptBytesWithAesGcm(encKey, masterKey);
+            encryptedChatKey = encKey;
+          }
+        }
+      }
+    }
 
     // Attach encrypted file embeds if present
     // Mirrors: chatSyncServiceSenders.ts encrypted_embeds array
@@ -1390,6 +1440,37 @@ export class OpenMatesClient {
     }
 
     ws.send("chat_message_added", messagePayload);
+
+    // ── Phase 2: Encrypted metadata for Directus persistence + cross-device sync ──
+    // Mirrors: chatSyncServiceSenders.ts sendEncryptedStoragePackage()
+    // Without this, the message is only cached for AI but never persisted to Directus,
+    // so the web app and other devices cannot sync the message.
+    if (!params.incognito && chatKeyBytes) {
+      const encryptedContent = await encryptWithAesGcmCombined(
+        params.message,
+        chatKeyBytes,
+      );
+      const encryptedSenderName = await encryptWithAesGcmCombined(
+        "User",
+        chatKeyBytes,
+      );
+
+      const metadataPayload: Record<string, unknown> = {
+        chat_id: chatId,
+        message_id: messageId,
+        encrypted_content: encryptedContent,
+        encrypted_sender_name: encryptedSenderName,
+        created_at: createdAt,
+        encrypted_chat_key: encryptedChatKey,
+        versions: {
+          messages_v: 0,
+          title_v: 0,
+          last_edited_overall_timestamp: createdAt,
+        },
+      };
+
+      ws.send("encrypted_chat_metadata", metadataPayload);
+    }
 
     let assistant = "";
     let category: string | null = null;

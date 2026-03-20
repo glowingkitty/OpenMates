@@ -14,7 +14,9 @@ import {
   base64ToBytes,
   bytesToBase64,
   encryptWithAesGcmCombined,
+  encryptBytesWithAesGcm,
   decryptWithAesGcmCombined,
+  decryptBytesWithAesGcm,
   hashItemKey,
 } from "../src/crypto.ts";
 
@@ -119,6 +121,44 @@ describe("encryptWithAesGcmCombined / decryptWithAesGcmCombined", () => {
     const bytes = base64ToBytes(encrypted);
     // Minimum: 12 IV + 4 data + 16 GCM auth tag = 32 bytes
     assert.ok(bytes.length >= 32, `combined blob too short: ${bytes.length}`);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// encryptBytesWithAesGcm / decryptBytesWithAesGcm roundtrip (chat key wrapping)
+// ---------------------------------------------------------------------------
+
+describe("encryptBytesWithAesGcm / decryptBytesWithAesGcm", () => {
+  it("roundtrips a 32-byte chat key through master-key wrapping", async () => {
+    const masterKey = new Uint8Array(32).fill(0xaa);
+    const chatKey = new Uint8Array(32);
+    // Fill with a recognizable pattern
+    for (let i = 0; i < 32; i++) chatKey[i] = i;
+
+    const encrypted = await encryptBytesWithAesGcm(chatKey, masterKey);
+    const decrypted = await decryptBytesWithAesGcm(encrypted, masterKey);
+
+    assert.ok(decrypted, "decryption should succeed");
+    assert.deepEqual(decrypted, chatKey, "roundtrip must preserve exact bytes");
+  });
+
+  it("returns null when decrypting with wrong master key", async () => {
+    const masterKey1 = new Uint8Array(32).fill(0x11);
+    const masterKey2 = new Uint8Array(32).fill(0x22);
+    const chatKey = new Uint8Array(32).fill(0xff);
+
+    const encrypted = await encryptBytesWithAesGcm(chatKey, masterKey1);
+    const result = await decryptBytesWithAesGcm(encrypted, masterKey2);
+    assert.strictEqual(result, null, "wrong key should return null");
+  });
+
+  it("produces different ciphertexts for the same key (random IV)", async () => {
+    const masterKey = new Uint8Array(32).fill(0xbb);
+    const chatKey = new Uint8Array(32).fill(0xcc);
+
+    const c1 = await encryptBytesWithAesGcm(chatKey, masterKey);
+    const c2 = await encryptBytesWithAesGcm(chatKey, masterKey);
+    assert.notStrictEqual(c1, c2, "random IV should make ciphertexts differ");
   });
 });
 
