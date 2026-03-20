@@ -215,20 +215,67 @@ class ChatDatabase {
     }
     const shouldSkipOrphanDetection = this.isSkipOrphanDetectionEnabled();
 
-    // If a deletion was in progress, reset the flag and proceed with init.
+    // If a deletion was in progress, complete it before re-opening the database.
     // This handles the race where a user re-logs in immediately after forced logout:
-    // deleteDatabase() sets isDeleting=true, but login resets store flags — the
-    // IDB deleteDatabase() request may be stuck indefinitely (no handlers fire when
-    // db.close() was called but IDB hasn't fully released the connection). Instead
-    // of awaiting a promise that may never resolve, just reset and re-init: the DB
-    // either was deleted (init creates a fresh one) or still exists (init opens it).
+    // deleteDatabase() sets isDeleting=true, but login resets store flags. A pending
+    // indexedDB.deleteDatabase() request blocks all subsequent indexedDB.open() calls
+    // per the IDB spec — the open handlers never fire while a delete is pending.
+    //
+    // Fix: close any lingering connection, then re-issue deleteDatabase() with a
+    // timeout. The fresh delete either completes quickly (DB already deleted or no
+    // open connections) or times out, after which we proceed to open anyway.
     if (this.isDeleting) {
       console.warn(
-        "[ChatDatabase] Resetting isDeleting flag — proceeding with fresh init",
+        "[ChatDatabase] Deletion was in progress — completing before re-init",
       );
       this.isDeleting = false;
-      this.deletionPromise = null;
       this.initializationPromise = null;
+      this.deletionPromise = null;
+
+      // Close any lingering connection that might block the pending deletion
+      if (this.db) {
+        this.db.close();
+        this.db = null;
+      }
+
+      // Complete the pending deletion (or timeout) before proceeding to open()
+      await new Promise<void>((resolve) => {
+        const DB_DELETE_TIMEOUT_MS = 3000;
+        const timeout = setTimeout(() => {
+          console.warn(
+            `[ChatDatabase] Pending deletion timed out (${DB_DELETE_TIMEOUT_MS}ms) — proceeding with open`,
+          );
+          resolve();
+        }, DB_DELETE_TIMEOUT_MS);
+
+        try {
+          const req = indexedDB.deleteDatabase(this.DB_NAME);
+          req.onsuccess = () => {
+            console.warn(
+              "[ChatDatabase] Pending deletion completed successfully",
+            );
+            clearTimeout(timeout);
+            resolve();
+          };
+          req.onerror = () => {
+            console.warn(
+              "[ChatDatabase] Pending deletion errored — proceeding",
+            );
+            clearTimeout(timeout);
+            resolve();
+          };
+          req.onblocked = () => {
+            console.warn(
+              "[ChatDatabase] Deletion blocked by another connection — proceeding",
+            );
+            clearTimeout(timeout);
+            resolve();
+          };
+        } catch {
+          clearTimeout(timeout);
+          resolve();
+        }
+      });
     }
 
     // CRITICAL: Detect "orphaned database" scenario BEFORE checking flags or opening DB

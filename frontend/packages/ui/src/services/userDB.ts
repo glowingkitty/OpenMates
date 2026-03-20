@@ -35,15 +35,60 @@ class UserDatabaseService {
    * the flag itself, ensuring cleanup happens even if this is the first database operation.
    */
   async init(): Promise<void> {
-    // If a deletion was in progress, reset the flag and proceed with init.
-    // The IDB deleteDatabase() request may be stuck indefinitely — don't await it.
-    // The DB either was deleted (init creates a fresh one) or still exists (init opens it).
+    // If a deletion was in progress, complete it before re-opening the database.
+    // A pending indexedDB.deleteDatabase() request blocks all subsequent open() calls
+    // per the IDB spec — the open handlers never fire while a delete is pending.
     if (this.isDeleting) {
       console.warn(
-        "[UserDatabase] Resetting isDeleting flag — proceeding with fresh init",
+        "[UserDatabase] Deletion was in progress — completing before re-init",
       );
       this.isDeleting = false;
       this.deletionPromise = null;
+
+      // Close any lingering connection that might block the pending deletion
+      if (this.db) {
+        this.db.close();
+        this.db = null;
+      }
+
+      // Complete the pending deletion (or timeout) before proceeding to open()
+      await new Promise<void>((resolve) => {
+        const DB_DELETE_TIMEOUT_MS = 3000;
+        const timeout = setTimeout(() => {
+          console.warn(
+            `[UserDatabase] Pending deletion timed out (${DB_DELETE_TIMEOUT_MS}ms) — proceeding with open`,
+          );
+          resolve();
+        }, DB_DELETE_TIMEOUT_MS);
+
+        try {
+          const req = indexedDB.deleteDatabase(this.DB_NAME);
+          req.onsuccess = () => {
+            console.warn(
+              "[UserDatabase] Pending deletion completed successfully",
+            );
+            clearTimeout(timeout);
+            resolve();
+          };
+          req.onerror = () => {
+            console.warn(
+              "[UserDatabase] Pending deletion errored — proceeding",
+            );
+            clearTimeout(timeout);
+            resolve();
+          };
+          req.onblocked = () => {
+            console.warn(
+              "[UserDatabase] Deletion blocked by another connection — proceeding",
+            );
+            clearTimeout(timeout);
+            resolve();
+          };
+        } catch {
+          clearTimeout(timeout);
+          resolve();
+        }
+      });
     }
 
     // CRITICAL: Detect "orphaned database" scenario BEFORE checking flags or opening DB

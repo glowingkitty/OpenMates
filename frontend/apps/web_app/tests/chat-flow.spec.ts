@@ -403,6 +403,108 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	// =========================================================================
 	await performLogin(page, logChatCheckpoint, takeStepScreenshot, '01');
 
+	// =========================================================================
+	// PHASE 1a: Verify database init + most recent chats load after login
+	// =========================================================================
+	// This catches the critical bug where a pending indexedDB.deleteDatabase()
+	// blocks indexedDB.open(), causing init() to hang and sync to never complete.
+	logChatCheckpoint('Phase 1a: Verifying database init and most recent chats...');
+
+	// Wait for console logs indicating successful DB init + sync progress.
+	// These are the critical markers: if init() hangs, we never see "Database opened"
+	// and sync never gets past "1/4".
+	const dbInitSuccess = await page.waitForEvent('console', {
+		predicate: (msg: any) =>
+			msg.text().includes('[ChatDatabase] Database opened successfully') ||
+			msg.text().includes('[ChatDatabase] Loaded') ||
+			msg.text().includes('[ChatSyncService] 2/4:'),
+		timeout: 15000
+	}).then(() => true).catch(() => false);
+
+	if (!dbInitSuccess) {
+		// Check for the specific stuck-deletion pattern
+		const stuckDeletion = consoleLogs.some(
+			(log) =>
+				log.includes('Deletion in progress — waiting') ||
+				log.includes('Database is being deleted')
+		);
+		if (stuckDeletion) {
+			logChatCheckpoint(
+				'CRITICAL: Database init stuck — pending deletion blocking open(). ' +
+					'This is the isDeleting race condition bug.'
+			);
+		}
+		logChatCheckpoint(
+			'WARNING: Database init markers not detected within 15s. ' +
+				'DB may be stuck or sync may have failed.'
+		);
+	} else {
+		logChatCheckpoint('Database initialized and sync progressed past phase 1.');
+	}
+
+	// Open sidebar and verify the "most recent chats" section has loaded
+	await ensureSidebarOpen(page, logChatCheckpoint);
+
+	// Verify at least one chat group (time-grouped section like "Today") is visible.
+	// The .chat-group container with .group-title is the time-grouped section header.
+	const chatGroups = page.locator('.chat-group');
+	const chatGroupCount = await chatGroups.count().catch(() => 0);
+	logChatCheckpoint(`Found ${chatGroupCount} chat group section(s) in sidebar.`);
+
+	// Verify at least one real chat item is visible (not just demo/empty state)
+	const chatItems = page.locator('.chat-item-wrapper');
+	const chatItemCount = await chatItems.count().catch(() => 0);
+	logChatCheckpoint(`Found ${chatItemCount} chat item(s) in sidebar.`);
+
+	// The test account should have existing chats from previous test runs
+	// If the sidebar shows zero chat items, sync failed to load data
+	if (chatItemCount === 0) {
+		// Check if we see the empty state indicator
+		const noChats = page.locator('.no-chats-indicator');
+		const hasNoChats = await noChats.isVisible().catch(() => false);
+		if (hasNoChats) {
+			logChatCheckpoint(
+				'CRITICAL: Sidebar shows "no chats" indicator — sync failed to load any data.'
+			);
+		}
+	}
+
+	// Verify syncing indicator is NOT stuck (it should disappear after sync completes)
+	const syncingIndicator = page.locator('.syncing-inline-indicator');
+	try {
+		// Wait up to 20s for the syncing indicator to disappear (sync should complete)
+		await expect(syncingIndicator).not.toBeVisible({ timeout: 20000 });
+		logChatCheckpoint('Sync completed — syncing indicator is gone.');
+	} catch {
+		logChatCheckpoint(
+			'WARNING: Syncing indicator still visible after 20s — sync may be stuck.'
+		);
+	}
+
+	// Assert: the sidebar must have at least 1 chat group with real chats
+	expect(chatItemCount).toBeGreaterThan(0);
+	logChatCheckpoint(`Phase 1a passed: ${chatItemCount} chats loaded in sidebar.`);
+
+	// Take screenshot showing loaded sidebar with chats
+	await takeStepScreenshot(page, '01a-sidebar-chats-loaded');
+
+	// Close sidebar to restore default state
+	await ensureSidebarClosed(page, logChatCheckpoint);
+
+	// Verify no "Database is being deleted" errors in console
+	const deletionErrors = consoleLogs.filter(
+		(log) =>
+			log.includes('Database is being deleted') ||
+			log.includes('Deletion in progress — waiting')
+	);
+	if (deletionErrors.length > 0) {
+		logChatCheckpoint(
+			`CRITICAL: Found ${deletionErrors.length} "Database is being deleted" error(s) in console`
+		);
+	}
+	expect(deletionErrors.length).toBe(0);
+	logChatCheckpoint('No database deletion errors detected in console.');
+
 	// Click "New Chat" button for a fresh start (visible in the main chat area)
 	const newChatButton = page.locator('.new-chat-cta-button, .icon_create');
 	if (
