@@ -238,15 +238,29 @@
 
       {#if status === 'finished' && imageUrl && !imageError}
         <!-- Decrypted image — shown full-bleed -->
-        <div class="image-content" class:clickable={isFullscreenEnabled}>
-          <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_noninteractive_element_interactions -->
-          <img
-            src={imageUrl}
-            alt={filename || 'Image'}
-            class="preview-image"
-            onclick={isFullscreenEnabled ? onFullscreen : undefined}
-          />
-        </div>
+        {#if isFullscreenEnabled}
+          <div
+            class="image-content clickable"
+            onclick={onFullscreen}
+            onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onFullscreen?.(); } }}
+            role="button"
+            tabindex="0"
+          >
+            <img
+              src={imageUrl}
+              alt={filename || 'Image'}
+              class="preview-image"
+            />
+          </div>
+        {:else}
+          <div class="image-content">
+            <img
+              src={imageUrl}
+              alt={filename || 'Image'}
+              class="preview-image"
+            />
+          </div>
+        {/if}
 
       {:else if status === 'finished' && imageError}
         <!-- Image decrypt failed -->

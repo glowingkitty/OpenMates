@@ -338,18 +338,29 @@
           Page-1 screenshot available: show full-bleed like ImageEmbedPreview.
           Clicking opens the fullscreen viewer (cursor: zoom-in).
         -->
-        <div
-          class="image-content"
-          class:clickable={status === 'finished' && !!handleFullscreen}
-        >
-          <!-- svelte-ignore a11y_no_noninteractive_element_interactions a11y_click_events_have_key_events -->
-          <img
-            src={imageUrl}
-            alt={localFilename || 'PDF page 1'}
-            class="preview-image"
-            onclick={status === 'finished' ? handleFullscreen : undefined}
-          />
-        </div>
+        {#if status === 'finished' && !!handleFullscreen}
+          <div
+            class="image-content clickable"
+            onclick={handleFullscreen}
+            onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleFullscreen?.(); } }}
+            role="button"
+            tabindex="0"
+          >
+            <img
+              src={imageUrl}
+              alt={localFilename || 'PDF page 1'}
+              class="preview-image"
+            />
+          </div>
+        {:else}
+          <div class="image-content">
+            <img
+              src={imageUrl}
+              alt={localFilename || 'PDF page 1'}
+              class="preview-image"
+            />
+          </div>
+        {/if}
 
       {:else}
         <!--

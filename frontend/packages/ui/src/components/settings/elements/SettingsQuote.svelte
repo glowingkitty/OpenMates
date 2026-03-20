@@ -34,16 +34,7 @@
     }
 </script>
 
-<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-<div
-    class="settings-quote"
-    class:clickable={isClickable}
-    onclick={isClickable ? handleClick : undefined}
-    onkeydown={isClickable ? handleKeydown : undefined}
-    role={isClickable ? 'button' : 'blockquote'}
-    tabindex={isClickable ? 0 : undefined}
-    aria-label={ariaLabel || text}
->
+{#snippet quoteContent()}
     <!-- Top-right quote icon -->
     <svg class="quote-icon quote-icon-top" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
         <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z"/>
@@ -56,7 +47,28 @@
     <svg class="quote-icon quote-icon-bottom" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
         <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z"/>
     </svg>
+{/snippet}
+
+{#if isClickable}
+<div
+    class="settings-quote clickable"
+    onclick={handleClick}
+    onkeydown={handleKeydown}
+    role="button"
+    tabindex="0"
+    aria-label={ariaLabel || text}
+>
+    {@render quoteContent()}
 </div>
+{:else}
+<div
+    class="settings-quote"
+    role="blockquote"
+    aria-label={ariaLabel || text}
+>
+    {@render quoteContent()}
+</div>
+{/if}
 
 <style>
     .settings-quote {

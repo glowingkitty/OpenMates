@@ -586,13 +586,14 @@ ${downloadHtmlContent}
           inside this area. touch-action: pan-x pan-y allows us to intercept
           pinch gestures while keeping normal scroll.
         -->
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div
           class="doc-canvas-scroll"
           bind:this={canvasScrollEl}
           ontouchstart={handleTouchStart}
           ontouchmove={handleTouchMove}
           ontouchend={handleTouchEnd}
+          role="region"
+          aria-label="Document viewer"
         >
           <!--
             Scroll-size wrapper: explicit dimensions matching the visual (scaled)

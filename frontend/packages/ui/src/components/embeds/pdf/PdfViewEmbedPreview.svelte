@@ -310,18 +310,29 @@
           Page-1 screenshot: full-bleed image, same as PDFEmbedPreview finished state.
           Clicking opens the original PDF fullscreen viewer.
         -->
-        <div
-          class="image-content"
-          class:clickable={localStatus === 'finished' && isFullscreenEnabled}
-        >
-          <!-- svelte-ignore a11y_no_noninteractive_element_interactions a11y_click_events_have_key_events -->
-          <img
-            src={imageUrl}
-            alt={filename || 'PDF page 1'}
-            class="preview-image"
-            onclick={localStatus === 'finished' ? onFullscreen : undefined}
-          />
-        </div>
+        {#if localStatus === 'finished' && isFullscreenEnabled}
+          <div
+            class="image-content clickable"
+            onclick={onFullscreen}
+            onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onFullscreen?.(); } }}
+            role="button"
+            tabindex="0"
+          >
+            <img
+              src={imageUrl}
+              alt={filename || 'PDF page 1'}
+              class="preview-image"
+            />
+          </div>
+        {:else}
+          <div class="image-content">
+            <img
+              src={imageUrl}
+              alt={filename || 'PDF page 1'}
+              class="preview-image"
+            />
+          </div>
+        {/if}
       {:else}
         <!--
           No screenshot: centered view (eye) icon while loading or on error.

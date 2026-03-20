@@ -62,20 +62,33 @@
     />
 
     <!-- Styled clickable area -->
-    <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+    {#if disabled}
     <div
-        class="settings-file-upload"
-        class:disabled
+        class="settings-file-upload disabled"
         class:has-file={selectedFileName}
         onclick={handleClick}
         onkeydown={handleKeydown}
         role="button"
-        tabindex={disabled ? -1 : 0}
+        tabindex="-1"
         aria-label={ariaLabel || label || 'Select file'}
     >
         <div class="file-icon" aria-hidden="true"></div>
         <span class="file-label">{selectedFileName || label}</span>
     </div>
+    {:else}
+    <div
+        class="settings-file-upload"
+        class:has-file={selectedFileName}
+        onclick={handleClick}
+        onkeydown={handleKeydown}
+        role="button"
+        tabindex="0"
+        aria-label={ariaLabel || label || 'Select file'}
+    >
+        <div class="file-icon" aria-hidden="true"></div>
+        <span class="file-label">{selectedFileName || label}</span>
+    </div>
+    {/if}
 </div>
 
 <style>
@@ -115,7 +128,6 @@
     .settings-file-upload:focus-visible {
         box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.15),
                     0 0 0 0.125rem var(--color-primary-start);
-        outline: none;
     }
 
     .settings-file-upload.disabled {

@@ -86,17 +86,7 @@
     }
 </script>
 
-<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-<div
-    class="settings-consent-toggle"
-    class:disabled
-    onclick={handleToggleClick}
-    onkeydown={handleKeydown}
-    role="checkbox"
-    aria-checked={checked}
-    aria-label={ariaLabel || consentText}
-    tabindex={disabled ? -1 : 0}
->
+{#snippet toggleContent()}
     <div class="consent-toggle-left">
         <Toggle
             {checked}
@@ -113,7 +103,33 @@
             {/if}
         {/each}
     </div>
+{/snippet}
+
+{#if disabled}
+<div
+    class="settings-consent-toggle disabled"
+    onclick={handleToggleClick}
+    onkeydown={handleKeydown}
+    role="checkbox"
+    aria-checked={checked}
+    aria-label={ariaLabel || consentText}
+    tabindex="-1"
+>
+    {@render toggleContent()}
 </div>
+{:else}
+<div
+    class="settings-consent-toggle"
+    onclick={handleToggleClick}
+    onkeydown={handleKeydown}
+    role="checkbox"
+    aria-checked={checked}
+    aria-label={ariaLabel || consentText}
+    tabindex="0"
+>
+    {@render toggleContent()}
+</div>
+{/if}
 
 <style>
     .settings-consent-toggle {

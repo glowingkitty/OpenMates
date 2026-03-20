@@ -238,23 +238,8 @@
     }
 </script>
 
-<!-- Single unified template — clickable vs non-clickable is handled via conditional attributes -->
-<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-<div 
-    class="menu-item"
-    class:clickable={isClickable}
-    class:disabled={disabled}
-    class:heading={type === 'heading'}
-    class:submenu={type === 'submenu'}
-    class:quickaction={type === 'quickaction'}
-    class:subsubmenu={type === 'subsubmenu'}
-    class:nested={type === 'nested'}
-    class:has-nested-items={hasNestedItems}
-    onclick={isClickable ? handleItemClick : undefined}
-    onkeydown={isClickable ? (e) => !disabled && handleKeydown(e, () => onClick?.()) : undefined}
-    role={isClickable ? 'menuitem' : 'presentation'}
-    tabindex={isClickable ? (disabled ? -1 : 0) : undefined}
->
+<!-- Shared inner content rendered via snippet to avoid duplication across interactive/non-interactive variants -->
+{#snippet menuItemContent()}
     <div class="menu-item-content">
         <div class="menu-item-left">
             <!-- Unified icon rendering — single element, two CSS modes via .has-bg -->
@@ -369,7 +354,42 @@
             {/if}
         </div>
     </div>
+{/snippet}
+
+<!-- Clickable variant: interactive role with keyboard support -->
+{#if isClickable}
+<div
+    class="menu-item clickable"
+    class:disabled={disabled}
+    class:heading={type === 'heading'}
+    class:submenu={type === 'submenu'}
+    class:quickaction={type === 'quickaction'}
+    class:subsubmenu={type === 'subsubmenu'}
+    class:nested={type === 'nested'}
+    class:has-nested-items={hasNestedItems}
+    onclick={handleItemClick}
+    onkeydown={(e) => !disabled && handleKeydown(e, () => onClick?.())}
+    role="menuitem"
+    tabindex={disabled ? -1 : 0}
+>
+    {@render menuItemContent()}
 </div>
+{:else}
+<!-- Non-clickable variant: presentation role, no tabindex -->
+<div
+    class="menu-item"
+    class:disabled={disabled}
+    class:heading={type === 'heading'}
+    class:submenu={type === 'submenu'}
+    class:quickaction={type === 'quickaction'}
+    class:subsubmenu={type === 'subsubmenu'}
+    class:nested={type === 'nested'}
+    class:has-nested-items={hasNestedItems}
+    role="presentation"
+>
+    {@render menuItemContent()}
+</div>
+{/if}
 
 <style>
     .menu-item {

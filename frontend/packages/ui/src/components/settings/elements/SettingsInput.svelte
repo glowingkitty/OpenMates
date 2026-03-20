@@ -68,7 +68,6 @@
 </script>
 
 <div class="settings-input-wrapper">
-    <!-- svelte-ignore a11y_no_interactive_element_to_noninteractive_role -->
     <input
         class="settings-input"
         class:error={hasError}
@@ -110,7 +109,6 @@
         font-size: var(--input-font-size, 1rem);
         line-height: 1.25;
         color: var(--color-grey-100);
-        outline: none;
         transition: box-shadow 0.2s ease;
         box-sizing: border-box;
     }
