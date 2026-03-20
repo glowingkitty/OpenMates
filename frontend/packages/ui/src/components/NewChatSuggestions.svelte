@@ -263,13 +263,9 @@
       return;
     }
 
-    // Show defaults immediately so UI isn't empty
-    if (loading && fullSuggestionsWithEncrypted.length === 0) {
-      applyDefaultSuggestions();
-      loading = false;
-    }
-
-    // Load real suggestions from IndexedDB in the background
+    // For authenticated users, keep loading=true (component hidden) until
+    // IndexedDB results arrive. This prevents a flash where default suggestions
+    // briefly appear before being replaced by user-specific ones.
     try {
       await chatDB.init();
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -295,12 +291,20 @@
       realSuggestions = shuffleArray(realSuggestions);
 
       if (realSuggestions.length > 0) {
-        transitionToSuggestions(realSuggestions);
+        fullSuggestionsWithEncrypted = realSuggestions;
+        showingDefaults = false;
+      } else {
+        // No user-specific suggestions — fall back to defaults
+        applyDefaultSuggestions();
       }
+      loading = false;
     } catch (error) {
       if ($authStore.isAuthenticated) {
         console.error('[NewChatSuggestions] Error loading suggestions:', error);
       }
+      // On error, fall back to defaults so the UI isn't permanently empty
+      applyDefaultSuggestions();
+      loading = false;
     }
   };
 
