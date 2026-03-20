@@ -19,6 +19,9 @@ class UserDatabaseService {
   // Flag to prevent new operations during database deletion
   // This ensures that no new transactions are started while we're trying to delete the database
   private isDeleting: boolean = false;
+  // Promise that resolves when an in-progress deleteDatabase() finishes.
+  // Used by init() to wait for deletion instead of throwing permanently.
+  private deletionPromise: Promise<void> | null = null;
 
   /**
    * Initialize the database.
@@ -32,10 +35,28 @@ class UserDatabaseService {
    * the flag itself, ensuring cleanup happens even if this is the first database operation.
    */
   async init(): Promise<void> {
-    // Prevent initialization during deletion to avoid blocking the delete operation
+    // If a deletion is in progress, wait for it to finish instead of throwing.
+    // This handles the race where a user re-logs in immediately after forced logout:
+    // deleteDatabase() sets isDeleting=true, but login resets store flags — without
+    // this await, init() would throw permanently until the page is reloaded.
     if (this.isDeleting) {
-      console.warn("[UserDatabase] Skipping init - database is being deleted");
-      throw new Error("Database is being deleted and cannot be initialized");
+      if (this.deletionPromise) {
+        console.warn(
+          "[UserDatabase] Deletion in progress — waiting for completion before init",
+        );
+        try {
+          await this.deletionPromise;
+        } catch {
+          console.warn(
+            "[UserDatabase] Deletion promise rejected — proceeding with init",
+          );
+        }
+      } else {
+        console.warn(
+          "[UserDatabase] isDeleting=true but no deletionPromise — resetting flag",
+        );
+        this.isDeleting = false;
+      }
     }
 
     // CRITICAL: Detect "orphaned database" scenario BEFORE checking flags or opening DB
@@ -1238,7 +1259,7 @@ class UserDatabaseService {
     // Set flag to prevent new operations during deletion
     this.isDeleting = true;
 
-    return new Promise((resolve, reject) => {
+    this.deletionPromise = new Promise((resolve, reject) => {
       if (this.db) {
         this.db.close(); // Close the connection before deleting
         this.db = null;
@@ -1257,6 +1278,7 @@ class UserDatabaseService {
             `[UserDatabase] Database ${this.DB_NAME} deleted successfully.`,
           );
           this.isDeleting = false;
+          this.deletionPromise = null;
 
           // Clear localStorage marker used for orphaned database detection
           if (typeof localStorage !== "undefined") {
@@ -1278,22 +1300,27 @@ class UserDatabaseService {
             (event.target as IDBOpenDBRequest).error,
           );
           this.isDeleting = false;
+          this.deletionPromise = null;
           reject((event.target as IDBOpenDBRequest).error);
         };
 
-        // CRITICAL: Do NOT reject on onblocked - just log a warning
-        // The deletion will succeed once all connections close
-        // Rejecting here caused logout errors when other operations were in progress
         request.onblocked = (event) => {
           console.warn(
             `[UserDatabase] Deletion of database ${this.DB_NAME} is waiting for other connections to close.`,
             event,
           );
-          // Don't reject - the deletion will proceed once connections close
-          // This is consistent with how chatDB handles this case
+          // Reset isDeleting so init() is not permanently blocked if deletion
+          // gets stuck (e.g. another tab holds an open connection).
+          this.isDeleting = false;
+          this.deletionPromise = null;
+          // Resolve instead of leaving the promise hanging — callers (init()) waiting
+          // on this promise need to unblock so the app can recover.
+          resolve();
         };
       }, 100); // Small delay to allow pending transactions to complete
     });
+
+    return this.deletionPromise;
   }
 }
 

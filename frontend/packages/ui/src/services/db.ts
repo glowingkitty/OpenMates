@@ -122,6 +122,9 @@ class ChatDatabase {
 
   // Flag to prevent new operations during database deletion
   private isDeleting: boolean = false;
+  // Promise that resolves when an in-progress deleteDatabase() finishes.
+  // Used by init() to wait for deletion instead of throwing permanently.
+  private deletionPromise: Promise<void> | null = null;
 
   // Flag to skip orphan detection for shared chat sessions.
   // This is backed by sessionStorage to persist across page navigations within
@@ -212,9 +215,33 @@ class ChatDatabase {
     }
     const shouldSkipOrphanDetection = this.isSkipOrphanDetectionEnabled();
 
-    // Prevent initialization during deletion
+    // If a deletion is in progress, wait for it to finish instead of throwing.
+    // This handles the race where a user re-logs in immediately after forced logout:
+    // deleteDatabase() sets isDeleting=true, but login resets store flags — without
+    // this await, init() would throw permanently until the page is reloaded.
     if (this.isDeleting) {
-      throw new Error("Database is being deleted and cannot be initialized");
+      if (this.deletionPromise) {
+        console.warn(
+          "[ChatDatabase] Deletion in progress — waiting for completion before init",
+        );
+        try {
+          await this.deletionPromise;
+        } catch {
+          // Deletion failed (e.g., blocked by another tab) — proceed anyway,
+          // the DB may still exist and be usable.
+          console.warn(
+            "[ChatDatabase] Deletion promise rejected — proceeding with init",
+          );
+        }
+        // Reset init state so the DB can be re-opened fresh
+        this.initializationPromise = null;
+      } else {
+        // isDeleting is true but no promise — should not happen, reset defensively
+        console.warn(
+          "[ChatDatabase] isDeleting=true but no deletionPromise — resetting flag",
+        );
+        this.isDeleting = false;
+      }
     }
 
     // CRITICAL: Detect "orphaned database" scenario BEFORE checking flags or opening DB
@@ -1389,7 +1416,7 @@ class ChatDatabase {
 
     this.isDeleting = true;
 
-    return new Promise((resolve, reject) => {
+    this.deletionPromise = new Promise((resolve, reject) => {
       if (this.db) {
         this.db.close();
         this.db = null;
@@ -1407,6 +1434,7 @@ class ChatDatabase {
             `[ChatDatabase] Database ${this.DB_NAME} deleted successfully.`,
           );
           this.isDeleting = false;
+          this.deletionPromise = null;
 
           // Clear localStorage markers used for orphaned database detection
           if (typeof localStorage !== "undefined") {
@@ -1426,6 +1454,7 @@ class ChatDatabase {
             (event.target as IDBOpenDBRequest).error,
           );
           this.isDeleting = false;
+          this.deletionPromise = null;
           reject((event.target as IDBOpenDBRequest).error);
         };
 
@@ -1439,9 +1468,15 @@ class ChatDatabase {
           // keep retrying the deletion in the background, but we cannot leave the
           // singleton in a permanently unusable state across a re-login.
           this.isDeleting = false;
+          this.deletionPromise = null;
+          // Resolve instead of leaving the promise hanging — callers (init()) waiting
+          // on this promise need to unblock so the app can recover.
+          resolve();
         };
       }, 100);
     });
+
+    return this.deletionPromise;
   }
 
   // ============================================================================
