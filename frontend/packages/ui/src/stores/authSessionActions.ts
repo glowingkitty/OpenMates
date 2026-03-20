@@ -286,10 +286,19 @@ export async function checkAuth(
         // shown one (when +page.svelte sets the flag, it shows its own notification via setTimeout).
         // Also skip for shared chat sessions and pair login — users opening a share link or pair
         // link shouldn't see logout alerts.
+        // Also skip if the local profile is completely empty (username falsy, user_id null) — this
+        // means the user has no local session record (e.g. DB schema upgrade wiped data, or a stale
+        // server cookie survived an explicit logout). Showing "You have been logged out" is
+        // misleading when the user was never logged in from the browser's perspective.
+        const localProfile = get(userProfile);
+        const hadLocalSession =
+          localProfile?.username || localProfile?.user_id;
+
         if (
           !alreadyForcedLogout &&
           !isSharedChatSession &&
-          !isPairLoginPending
+          !isPairLoginPending &&
+          hadLocalSession
         ) {
           const $text = get(text);
           const { wasStayLoggedIn } =
