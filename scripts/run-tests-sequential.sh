@@ -161,6 +161,7 @@ run_spec() {
     docker compose --env-file .env -f docker-compose.playwright.yml run --rm \
       -e "PLAYWRIGHT_WORKER_SLOT=$slot" \
       -e "PLAYWRIGHT_TEST_FILE=$spec" \
+      -e "PLAYWRIGHT_TEST_BASE_URL=${E2E_DEV_TEST_BASE_URL:-${PLAYWRIGHT_TEST_BASE_URL:-}}" \
       -e SIGNUP_TEST_EMAIL_DOMAINS \
       -e MAILOSAUR_API_KEY \
       -e MAILOSAUR_SERVER_ID \
