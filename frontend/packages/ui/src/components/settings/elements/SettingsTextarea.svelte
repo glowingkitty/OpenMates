@@ -68,7 +68,6 @@
         font-size: var(--input-font-size, 1rem);
         line-height: 1.25;
         color: var(--color-grey-100);
-        outline: none;
         transition: box-shadow 0.2s ease;
         resize: vertical;
         box-sizing: border-box;

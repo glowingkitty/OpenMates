@@ -3419,8 +3419,9 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 			</button>
 		{/if}
 
-		<div 
+		<div
 			class="activity-history"
+			role="list"
 			bind:this={activityHistoryElement}
 			onscroll={handleScroll}
 			onwheel={handleWheel}
@@ -3719,7 +3720,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 									handleKeyDown(e, chat);
 								}}
 								aria-current={selectedChatId === chat.chat_id ? 'page' : undefined}
-								aria-label={chat.encrypted_title || 'Unnamed chat'}
+								aria-label={chat.title || $text('chat.untitled_chat')}
 							>
 								<ChatComponent 
 									chat={chat} 
@@ -4196,7 +4197,6 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 
     .overscroll-unlock-input:focus {
         border-color: var(--color-primary);
-        outline: none;
     }
 
     .overscroll-unlock-input.error {

@@ -293,10 +293,11 @@
     
 </script>
 
-<div 
-    class="app-store-card" 
+<div
+    class="app-store-card"
     role="button"
     tabindex="0"
+    aria-label={app.name}
     onclick={handleInteraction}
     onkeydown={handleInteraction}
     style={`background: ${getAppGradient(app.id)}`}
@@ -309,7 +310,7 @@
             <!-- Only show above app icon if NOT a skill card (skill cards show icons next to "via") -->
             <!-- Icons have decreasing opacity from left to right: 1, 0.85, 0.7, 0.55, 0.4 -->
             {#if orderedProviders.length > 0 && !isSkillCard}
-                <div class="provider-icons-background">
+                <div class="provider-icons-background" aria-hidden="true">
                     {#each orderedProviders.slice(0, MAX_PROVIDER_ICONS) as provider, index}
                         <div 
                             class="provider-icon-container"
@@ -351,8 +352,8 @@
         <h3 class="app-card-name">{appName}</h3>
     </div>
     
-    <!-- App description below -->
-    <p class="app-card-description">{appDescription}</p>
+    <!-- App description below — aria-hidden since card has aria-label={app.name} -->
+    <p class="app-card-description" aria-hidden="true">{appDescription}</p>
     
     <!-- Skill-specific providers below description (only for skill cards) -->
     <!-- Show provider icons next to "via" text instead of above app icon -->
@@ -361,7 +362,7 @@
         {@const maxSkillProviderIcons = 4}
         {@const displayedProviders = orderedProviders.slice(0, maxSkillProviderIcons)}
         {@const remainingCount = orderedProviders.length - maxSkillProviderIcons}
-        <div class="skill-providers">
+        <div class="skill-providers" aria-hidden="true">
             <span class="via-text">via</span>
             {#each displayedProviders as provider, index}
                 <div class="skill-provider-icon" style="opacity: {getProviderIconOpacity(index)}">
@@ -387,7 +388,6 @@
         padding: 1rem;
         cursor: pointer;
         transition: all 0.2s ease;
-        outline: none;
         /* Prevent mobile browsers from misinterpreting taps as scroll gestures
            in horizontally scrollable containers */
         touch-action: manipulation;

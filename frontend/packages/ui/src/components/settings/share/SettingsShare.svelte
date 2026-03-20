@@ -13,6 +13,7 @@
 <script lang="ts">
     import { text } from '@repo/ui';
     import { onMount, type Component } from 'svelte';
+    import { focusTrap } from '../../../actions/focusTrap';
     import Toggle from '../../Toggle.svelte';
     import { fade, slide } from 'svelte/transition';
     import { cubicOut } from 'svelte/easing';
@@ -1711,12 +1712,8 @@
         role="dialog"
         aria-modal="true"
         aria-label="QR Code Fullscreen"
-        onclick={closeQRCodeFullscreen}
-        onkeydown={(e) => {
-            if (e.key === 'Escape') {
-                closeQRCodeFullscreen();
-            }
-        }}
+        use:focusTrap={{ onEscape: closeQRCodeFullscreen }}
+        onmousedown={(e) => { if (e.target === e.currentTarget) closeQRCodeFullscreen(); }}
         tabindex="-1"
         transition:fade={{ duration: 200 }}
     >
@@ -1841,7 +1838,6 @@
     }
     
     .password-input:focus {
-        outline: none;
         border-color: var(--color-primary);
     }
     

@@ -657,7 +657,6 @@ step_4_top_content_svelte:
     }
 
     .secret-code-input:focus {
-        outline: none;
         border-color: var(--color-primary, #007bff);
     }
 

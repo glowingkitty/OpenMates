@@ -15,6 +15,7 @@
 
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { focusTrap } from '../../../actions/focusTrap';
   import { text } from '@repo/ui';
   import { getApiEndpoint, getApiUrl } from '../../../config/api';
   import SettingsInput from '../elements/SettingsInput.svelte';
@@ -277,21 +278,21 @@
 
 <!-- Create Webhook Modal -->
 {#if showCreateForm}
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
   <div
     class="modal-overlay"
-    role="button"
-    tabindex="0"
-    onclick={() => showCreateForm = false}
-    onkeydown={(e) => { if (e.key === 'Escape') showCreateForm = false; }}
+    role="presentation"
+    onmousedown={(e) => { if (e.target === e.currentTarget) showCreateForm = false; }}
   >
     <div
       class="modal"
-      role="presentation"
-      onclick={(e) => e.stopPropagation()}
-      onkeydown={(e) => e.stopPropagation()}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="webhook-create-title"
+      tabindex="-1"
+      use:focusTrap={{ onEscape: () => showCreateForm = false }}
+      onmousedown={(e) => e.stopPropagation()}
     >
-      <h3>{$text('settings.developers_webhooks_create')}</h3>
+      <h3 id="webhook-create-title">{$text('settings.developers_webhooks_create')}</h3>
       <p style="color: var(--color-font-secondary); font-size: var(--font-size-p); margin-bottom: 1rem;">
         {$text('settings.developers_webhooks_description')}
       </p>
@@ -336,21 +337,21 @@
 
 <!-- Show Created Key Modal -->
 {#if showCreatedKey}
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
   <div
     class="modal-overlay"
-    role="button"
-    tabindex="0"
-    onclick={() => showCreatedKey = false}
-    onkeydown={(e) => { if (e.key === 'Escape') showCreatedKey = false; }}
+    role="presentation"
+    onmousedown={(e) => { if (e.target === e.currentTarget) showCreatedKey = false; }}
   >
     <div
       class="modal"
-      role="presentation"
-      onclick={(e) => e.stopPropagation()}
-      onkeydown={(e) => e.stopPropagation()}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="webhook-created-title"
+      tabindex="-1"
+      use:focusTrap={{ onEscape: () => showCreatedKey = false }}
+      onmousedown={(e) => e.stopPropagation()}
     >
-      <h3>{$text('settings.developers_webhooks_created_title')}</h3>
+      <h3 id="webhook-created-title">{$text('settings.developers_webhooks_created_title')}</h3>
       <p class="warning-text">{$text('settings.developers_webhooks_created_warning')}</p>
 
       <div class="created-key-container">

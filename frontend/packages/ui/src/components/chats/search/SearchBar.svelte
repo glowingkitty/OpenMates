@@ -180,7 +180,6 @@
     color: var(--color-font-primary);
     font-size: 15px;
     padding: 4px 0;
-    outline: none;
     min-width: 0;
     /* Override browser default search input styles */
     -webkit-appearance: none;

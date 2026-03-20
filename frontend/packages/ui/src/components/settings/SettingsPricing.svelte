@@ -144,7 +144,6 @@
         background-repeat: no-repeat;
         background-position: right 9px center;
         transition: background-color 0.15s ease, border-color 0.15s ease;
-        outline: none;
     }
 
     .currency-select:hover {

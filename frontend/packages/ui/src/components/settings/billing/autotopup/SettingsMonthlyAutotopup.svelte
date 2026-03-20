@@ -639,7 +639,6 @@ Allows creating new subscriptions if user has a saved payment method
     }
 
     .form-group select:focus {
-        outline: none;
         border-color: var(--color-primary);
     }
 
@@ -691,7 +690,6 @@ Allows creating new subscriptions if user has a saved payment method
     }
 
     .billing-day-select:focus {
-        outline: none;
         border-color: var(--color-primary);
     }
 

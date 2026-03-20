@@ -290,7 +290,6 @@
         height: 8px;
         border-radius: 4px;
         background: var(--color-grey-20);
-        outline: none;
         -webkit-appearance: none;
         appearance: none;
     }

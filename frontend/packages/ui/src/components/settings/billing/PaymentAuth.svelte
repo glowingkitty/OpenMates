@@ -8,6 +8,7 @@ PaymentAuth - Component for authenticating payment with passkey or 2FA
     import { getApiEndpoint, apiEndpoints } from '../../../config/api';
     import * as cryptoService from '../../../services/cryptoService';
     import { getSessionId } from '../../../utils/sessionId';
+    import { focusTrap } from '../../../actions/focusTrap';
 
     const dispatch = createEventDispatcher();
 
@@ -260,8 +261,8 @@ PaymentAuth - Component for authenticating payment with passkey or 2FA
     }
 </script>
 
-<div class="auth-modal-overlay" onclick={handleCancel} onkeydown={(e) => e.key === 'Escape' && handleCancel()} role="dialog" aria-modal="true" aria-labelledby="auth-title">
-    <div class="auth-modal" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
+<div class="auth-modal-overlay" role="presentation" onmousedown={(e) => { if (e.target === e.currentTarget) handleCancel(); }}>
+    <div class="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title" tabindex="-1" use:focusTrap={{ onEscape: handleCancel }} onmousedown={(e) => e.stopPropagation()}>
         <div class="auth-header">
             <h3 id="auth-title">{$text('settings.billing.payment_auth_title')}</h3>
             <button class="close-btn" onclick={handleCancel} aria-label="Close">×</button>
@@ -390,7 +391,6 @@ PaymentAuth - Component for authenticating payment with passkey or 2FA
     }
 
     .tfa-input:focus {
-        outline: none;
         border-color: var(--color-primary);
     }
 

@@ -390,7 +390,6 @@
         <!-- Results list -->
         <div class="mention-results">
             {#each results as result, index (result.id)}
-                <!-- svelte-ignore a11y_click_events_have_key_events -->
                 <div
                     class="mention-result"
                     class:selected={getFlatIndex(index) === selectedIndex}
@@ -398,6 +397,7 @@
                     tabindex="-1"
                     aria-selected={getFlatIndex(index) === selectedIndex}
                     onclick={(e) => handleResultClick(result, e)}
+                    onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleResultClick(result, e); } }}
                     onmouseenter={() => { selectedIndex = getFlatIndex(index); }}
                 >
                     <!-- Icon -->
@@ -476,7 +476,6 @@
                         {@const entriesToShow = data.showAll ? data.entries : data.entries.slice(0, 5)}
                         <div class="expanded-entries" transition:slide={{ duration: 150 }}>
                             {#each entriesToShow as entry, entryIdx (entry.id)}
-                                <!-- svelte-ignore a11y_click_events_have_key_events -->
                                 <div
                                     class="mention-result entry-item"
                                     class:selected={getFlatIndex(index, entryIdx) === selectedIndex}
@@ -484,6 +483,7 @@
                                     tabindex="-1"
                                     aria-selected={getFlatIndex(index, entryIdx) === selectedIndex}
                                     onclick={(e) => handleResultClick(entry, e)}
+                                    onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleResultClick(entry, e); } }}
                                     onmouseenter={() => { selectedIndex = getFlatIndex(index, entryIdx); }}
                                 >
                                     <!-- Entry icon (indented) -->
@@ -508,12 +508,12 @@
 
                             <!-- Show more button -->
                             {#if !data.showAll && data.totalCount > 5}
-                                <!-- svelte-ignore a11y_click_events_have_key_events -->
                                 <div
                                     class="show-more-button"
                                     role="button"
                                     tabindex="-1"
                                     onclick={(e) => handleShowMore(result.id, e)}
+                                    onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleShowMore(result.id, e); } }}
                                 >
                                     {$text('enter_message.mention_dropdown.show_more').replace('{count}', String(data.totalCount - 5))}
                                 </div>

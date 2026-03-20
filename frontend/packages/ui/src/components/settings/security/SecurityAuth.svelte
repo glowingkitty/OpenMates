@@ -13,6 +13,7 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
     import * as cryptoService from '../../../services/cryptoService';
     import SettingsInput from '../elements/SettingsInput.svelte';
     import { getSessionId } from '../../../utils/sessionId';
+    import { focusTrap } from '../../../actions/focusTrap';
 
     // ========================================================================
     // PROPS
@@ -534,20 +535,18 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
     }
 </script>
 
-<div 
-    class="auth-modal-overlay" 
-    role="presentation" 
-    onclick={handleCancel}
-    onkeydown={(e) => e.key === 'Escape' && handleCancel()}
+<div
+    class="auth-modal-overlay"
+    role="presentation"
+    onmousedown={(e) => { if (e.target === e.currentTarget) handleCancel(); }}
 >
-    <div 
-        class="auth-modal" 
-        role="dialog" 
-        aria-modal="true" 
+    <div
+        class="auth-modal"
+        role="dialog"
+        aria-modal="true"
         aria-labelledby="auth-title"
         tabindex={-1}
-        onclick={(e) => e.stopPropagation()}
-        onkeydown={(e) => e.stopPropagation()}
+        use:focusTrap={{ onEscape: handleCancel }}
     >
         <div class="auth-header">
             <h3 id="auth-title">{displayTitle}</h3>

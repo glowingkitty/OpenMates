@@ -342,7 +342,7 @@
 
 /* Tiptap ProseMirror base styles */
 :global(.ProseMirror) {
-  outline: none !important;
+
   white-space: pre-wrap;
   word-wrap: break-word;
   padding: 0.5rem 0;

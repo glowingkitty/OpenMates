@@ -467,7 +467,6 @@
 		flex: 1;
 		background: none;
 		border: none;
-		outline: none;
 		color: var(--color-font-primary);
 		font-size: 0.875rem;
 		min-width: 0;

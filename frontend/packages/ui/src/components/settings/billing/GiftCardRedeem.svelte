@@ -221,7 +221,6 @@ Tests: (none yet)
     }
 
     .gift-card-input:focus {
-        outline: none;
         border-color: var(--primary-color, #007bff);
         box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
     }

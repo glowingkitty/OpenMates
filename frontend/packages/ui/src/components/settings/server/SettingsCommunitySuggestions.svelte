@@ -850,11 +850,12 @@
             </div>
 
             <div class="email-suggestion-card">
-                <!-- svelte-ignore a11y_click_events_have_key_events -->
-                <!-- svelte-ignore a11y_no_static_element_interactions -->
-                <div 
-                    class="suggestion-chat-preview clickable" 
+                <div
+                    class="suggestion-chat-preview clickable"
+                    role="button"
+                    tabindex="0"
                     onclick={() => openChatPreview(pendingSuggestion!)}
+                    onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openChatPreview(pendingSuggestion!); } }}
                     title="Click to preview chat content"
                 >
                     <Chat 
@@ -929,11 +930,12 @@
             <div class="suggestions-grid">
                 {#each suggestions as suggestion}
                     <div class="suggestion-card">
-                        <!-- svelte-ignore a11y_click_events_have_key_events -->
-                        <!-- svelte-ignore a11y_no_static_element_interactions -->
-                        <div 
+                        <div
                             class="suggestion-chat-preview clickable"
+                            role="button"
+                            tabindex="0"
                             onclick={() => openChatPreview(suggestion)}
+                            onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openChatPreview(suggestion); } }}
                             title="Click to preview chat content"
                         >
                             <Chat 
@@ -1000,12 +1002,19 @@
 
 <!-- Chat Preview Modal -->
 {#if previewOpen}
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="preview-overlay" onclick={closePreview}>
-        <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div class="preview-modal" onclick={(e) => e.stopPropagation()}>
+    <div
+        class="preview-overlay"
+        role="button"
+        tabindex="0"
+        onclick={closePreview}
+        onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); closePreview(); } }}
+    >
+        <div
+            class="preview-modal"
+            role="presentation"
+            onclick={(e) => e.stopPropagation()}
+            onkeydown={(e) => e.stopPropagation()}
+        >
             <div class="preview-header">
                 <h3>{previewData?.title || previewSuggestion?.title || 'Chat Preview'}</h3>
                 <button class="preview-close-btn" onclick={closePreview} aria-label="Close preview">
@@ -1454,7 +1463,6 @@
     }
 
     .replacement-select:focus {
-        outline: none;
         border-color: var(--color-primary);
         box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
     }

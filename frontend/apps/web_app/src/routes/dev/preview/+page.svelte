@@ -258,7 +258,6 @@
 		color: var(--color-font-primary);
 		font-size: 14px;
 		font-family: var(--font-primary, 'Lexend Deca Variable'), sans-serif;
-		outline: none;
 		box-sizing: border-box;
 	}
 

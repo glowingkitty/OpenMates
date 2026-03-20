@@ -618,7 +618,6 @@
     background: transparent;
     border: none;
     resize: none;
-    outline: none;
     padding: 0;
     margin: 0;
     font-family: inherit;

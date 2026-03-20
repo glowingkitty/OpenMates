@@ -732,7 +732,6 @@
     }
 
     .model-select:focus {
-        outline: none;
         border-color: var(--color-primary-start);
     }
 

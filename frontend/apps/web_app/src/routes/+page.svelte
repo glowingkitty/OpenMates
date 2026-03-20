@@ -2434,6 +2434,9 @@
 
 		await loadChatWithRetry();
 
+		// Move focus to main chat area for keyboard/screen reader users
+		document.getElementById('main-chat')?.focus();
+
 		// Optionally close Activity History on mobile after selection
 		// if ($panelState.isMobileView) { // Assuming isMobileView is exposed or checked
 		//    panelState.toggleActivityHistory(); // Or a specific close action
@@ -2578,6 +2581,9 @@
 
 <!-- Removed svelte:window binding for innerWidth -->
 
+<!-- Accessibility: skip navigation link for keyboard users (WCAG 2.4.1) -->
+<a href="#main-chat" class="skip-link">{$text('navigation.skip_to_content')}</a>
+
 <!-- Notification overlay - positioned outside main-content to stay visible when chats menu is open on mobile -->
 <div class="notification-container">
 	{#each $notificationStore.notifications as notification (notification.id)}
@@ -2614,7 +2620,7 @@
 		class:authenticated={$authStore.isAuthenticated}
 		class:signup-process={$isInSignupProcess}
 	>
-		<div class="chat-wrapper">
+		<div class="chat-wrapper" id="main-chat" tabindex="-1">
 			<!-- ActiveChat component - loads welcome chat via JS for PWA -->
 			<ActiveChat bind:this={activeChat} />
 		</div>

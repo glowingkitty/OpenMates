@@ -768,6 +768,29 @@ select:focus-visible {
   outline-offset: 2px;
 }
 
+/* ── Skip navigation link ─────────────────────────────────────────────
+   Visually hidden by default, slides into view on keyboard focus.
+   Allows keyboard users to skip sidebar/header and jump to main content.
+   See docs/architecture/accessibility.md for details. */
+.skip-link {
+  position: fixed;
+  top: -3rem;
+  left: 0;
+  z-index: 100000;
+  background: var(--color-button-primary, #ff553b);
+  color: var(--color-grey-0, #fff);
+  padding: 0.5rem 1rem;
+  font-weight: 600;
+  font-size: var(--font-size-p, 1rem);
+  text-decoration: none;
+  border-radius: 0 0 4px 0;
+  transition: top 0.2s ease;
+}
+
+.skip-link:focus {
+  top: 0;
+}
+
 /* Global scrollbar styles - applies to all scrollable elements */
 /* Force scrollbars to ALWAYS be visible in Chrome/Webkit browsers */
 /* Firefox scrollbar styles */

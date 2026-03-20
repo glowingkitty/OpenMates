@@ -6855,6 +6855,9 @@
     },
     "workflows": {
       "text": "Workflows"
+    },
+    "skip_to_content": {
+      "text": "Skip to content"
     }
   },
   "notifications": {

@@ -4,7 +4,7 @@
   // TODO later replace all existing icons with this component
 
   // Props for the component using Svelte 5 runes mode
-  let { 
+  let {
     name = '',
     type = 'default',
     inline = false,
@@ -17,7 +17,9 @@
     onClick = undefined,
     className = '',
     noMargin = false,
-    noAnimation = false
+    noAnimation = false,
+    ariaHidden = false,
+    ariaLabel = undefined
   }: {
     name?: string;
     type?: 'default' | 'app' | 'skill' | 'provider' | 'focus' | 'memory' | 'clickable' | 'subsetting' | 'placeholder';
@@ -32,6 +34,10 @@
     className?: string;
     noMargin?: boolean;
     noAnimation?: boolean;
+    /** When true, hides the icon from screen readers (use for decorative icons inside labeled parents) */
+    ariaHidden?: boolean;
+    /** Override the accessible label (defaults to icon name; ignored when ariaHidden is true) */
+    ariaLabel?: string | undefined;
   } = $props();
 
   // Create a reactive variable for the lowercase name using $derived (Svelte 5 runes mode)
@@ -244,26 +250,28 @@
 </script>
 
 {#if actualElement === 'div'}
-  <div 
+  <div
     class="icon-container {computedClassName}"
-    class:no-margin={noMargin} 
-    aria-label={name || 'placeholder'} 
+    class:no-margin={noMargin}
+    aria-hidden={ariaHidden ? 'true' : undefined}
+    aria-label={ariaHidden ? undefined : (ariaLabel || name || undefined)}
     style={style}
   ></div>
 {:else if actualElement === 'button'}
-  <button 
+  <button
     class="icon-container {computedClassName}"
-    class:no-margin={noMargin} 
-    aria-label={name || 'placeholder'} 
-    style={style} 
+    class:no-margin={noMargin}
+    aria-label={ariaLabel || name || 'Icon button'}
+    style={style}
     onclick={onClick}
     type="button"
   ></button>
 {:else if actualElement === 'span'}
-  <span 
+  <span
     class="icon-container {computedClassName}"
-    class:no-margin={noMargin} 
-    aria-label={name || 'placeholder'} 
+    class:no-margin={noMargin}
+    aria-hidden={ariaHidden ? 'true' : undefined}
+    aria-label={ariaHidden ? undefined : (ariaLabel || name || undefined)}
     style={style}
   ></span>
 {/if}

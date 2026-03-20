@@ -467,8 +467,7 @@ When enabled, notifications are sent to the user's login email (from account set
     
     <!-- iOS PWA Instructions Modal -->
     {#if showIOSInstructions}
-        <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <div class="ios-modal-overlay" role="dialog" aria-modal="true" tabindex="-1" onclick={closeIOSInstructions}>
+        <div class="ios-modal-overlay" role="dialog" aria-modal="true" tabindex="-1" onclick={closeIOSInstructions} onkeydown={(e) => { if (e.key === 'Escape') { e.preventDefault(); closeIOSInstructions(); } }}>
             <div class="ios-modal" role="presentation" onclick={(e) => e.stopPropagation()}>
                 <h3 class="ios-modal-title">
                     {$text('notifications.push.ios_install_title')}

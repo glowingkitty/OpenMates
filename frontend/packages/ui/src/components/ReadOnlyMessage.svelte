@@ -1258,7 +1258,6 @@
 
     /* Style overrides for read-only mode */
     :global(.read-only-message .ProseMirror) {
-        outline: none;
         cursor: default;
         padding: 0;
         /* Enable text selection by default */

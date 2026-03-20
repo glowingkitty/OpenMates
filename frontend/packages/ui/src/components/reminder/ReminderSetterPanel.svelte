@@ -412,7 +412,6 @@
   }
 
   .field-input:focus {
-    outline: none;
     border-color: var(--color-primary-light, var(--color-primary));
   }
 

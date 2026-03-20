@@ -578,7 +578,6 @@ Zero-knowledge crypto: docs/architecture/zero-knowledge-storage.md
     }
 
     .pin-input:focus {
-        outline: none;
         border-color: var(--color-primary);
     }
 

@@ -2,6 +2,7 @@
     import { text } from '@repo/ui';
     import { hiddenChatStore } from '../../stores/hiddenChatStore';
     import { notificationStore } from '../../stores/notificationStore';
+    import { focusTrap } from '../../actions/focusTrap';
 
     interface Props {
         show?: boolean;
@@ -245,21 +246,22 @@
 </script>
 
 {#if show}
-    <div 
-        class="hidden-chat-unlock-overlay" 
-        role="presentation" 
-        onclick={handleClose}
-        onkeydown={handleKeydown}
+    <div
+        class="hidden-chat-unlock-overlay"
+        role="presentation"
+        onmousedown={(e) => { if (e.target === e.currentTarget) handleClose(); }}
     >
-        <div 
-            class="hidden-chat-unlock-modal" 
-            role="dialog" 
-            tabindex={-1}
-            onclick={(e) => e.stopPropagation()}
-            onkeydown={(e) => e.stopPropagation()}
+        <div
+            class="hidden-chat-unlock-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="hidden-chat-unlock-title"
+            tabindex="-1"
+            use:focusTrap={{ onEscape: handleClose }}
+            onmousedown={(e) => e.stopPropagation()}
         >
             <div class="modal-header">
-                <h3>
+                <h3 id="hidden-chat-unlock-title">
                     {isFirstTime 
                         ? $text('chats.hidden_chats.set_password_title')
                         : $text('chats.hidden_chats.unlock_title')
@@ -475,7 +477,6 @@
 
     .input-group input:focus {
         border-color: var(--color-primary);
-        outline: none;
     }
 
     .input-group input.error {

@@ -4200,9 +4200,13 @@
                 </button>
                 <!-- Toggle: click to start 1s deactivation countdown (click again to undo).
                      stopPropagation on the wrapper prevents clicks from reaching the pill-body button. -->
-                <!-- svelte-ignore a11y_click_events_have_key_events -->
-                <!-- svelte-ignore a11y_no_static_element_interactions -->
-                <div class="focus-pill-toggle" onclick={(e) => e.stopPropagation()}>
+                <div
+                    class="focus-pill-toggle"
+                    role="button"
+                    tabindex="0"
+                    onclick={(e) => e.stopPropagation()}
+                    onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); } }}
+                >
                     <Toggle
                         checked={!focusPillDeactivating}
                         on:change={handleFocusPillToggle}
@@ -4226,9 +4230,13 @@
                     <span class="focus-pill-label">{$text('settings.incognito_mode_active')}</span>
                 </div>
                 <!-- Toggle: immediately disables incognito mode -->
-                <!-- svelte-ignore a11y_click_events_have_key_events -->
-                <!-- svelte-ignore a11y_no_static_element_interactions -->
-                <div class="focus-pill-toggle" onclick={(e) => e.stopPropagation()}>
+                <div
+                    class="focus-pill-toggle"
+                    role="button"
+                    tabindex="0"
+                    onclick={(e) => e.stopPropagation()}
+                    onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); } }}
+                >
                     <Toggle
                         checked={true}
                         on:change={handleIncognitoPillToggle}

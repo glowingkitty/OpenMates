@@ -901,7 +901,6 @@
 
   .search-setting-item.focused {
     background-color: var(--color-grey-25);
-    outline: none;
   }
 
   .item-icon {
@@ -951,7 +950,6 @@
 
   .search-chat-item.focused {
     background-color: var(--color-grey-25);
-    outline: none;
   }
 
   /* Message snippet rows shown under matching chats */
@@ -994,7 +992,6 @@
   .message-snippet.focused {
     background-color: var(--color-grey-25);
     color: var(--color-font-primary);
-    outline: none;
   }
 
   /* Metadata source label (e.g., "Summary" or "Tag") for metadata-only search matches.

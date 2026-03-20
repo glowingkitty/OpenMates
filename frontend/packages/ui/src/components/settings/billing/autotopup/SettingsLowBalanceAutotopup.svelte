@@ -291,7 +291,6 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
     }
 
     .form-group select:focus {
-        outline: none;
         border-color: var(--color-primary);
     }
 

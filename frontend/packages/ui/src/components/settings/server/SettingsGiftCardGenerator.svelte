@@ -11,6 +11,7 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
 <script lang="ts">
     import { getApiEndpoint, text } from '@repo/ui';
     import { notificationStore } from '../../../stores/notificationStore';
+    import { focusTrap } from '../../../actions/focusTrap';
     import { fade } from 'svelte/transition';
     import QRCodeSVG from 'qrcode-svg';
     import { onMount } from 'svelte';
@@ -511,8 +512,8 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
         role="dialog"
         aria-modal="true"
         aria-label="QR Code"
-        onclick={closeQR}
-        onkeydown={(e) => { if (e.key === 'Escape') closeQR(); }}
+        use:focusTrap={{ onEscape: closeQR }}
+        onmousedown={(e) => { if (e.target === e.currentTarget) closeQR(); }}
         tabindex="-1"
         transition:fade={{ duration: 200 }}
     >
@@ -594,7 +595,6 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
     }
 
     .field-input:focus {
-        outline: none;
         border-color: var(--accent-color, var(--color-grey-50));
     }
 

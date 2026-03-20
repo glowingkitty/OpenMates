@@ -246,7 +246,6 @@
         color: var(--color-text-primary, #ffffff);
         font-size: 15px;
         padding: 12px 14px;
-        outline: none;
         transition: border-color 0.2s ease;
     }
 

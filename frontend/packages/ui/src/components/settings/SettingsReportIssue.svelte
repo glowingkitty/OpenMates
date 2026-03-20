@@ -2003,7 +2003,6 @@
     
     .input-wrapper input:focus,
     .input-wrapper textarea:focus {
-        outline: none;
         border-color: var(--color-primary);
     }
     

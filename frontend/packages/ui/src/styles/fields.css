@@ -44,7 +44,6 @@ input[type="tel"]:focus,
 input[type="url"]:focus,
 input[type="number"]:focus {
   /* Focus state enhancements */
-  outline: none;
   border-color: var(--color-grey-50);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }

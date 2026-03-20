@@ -568,7 +568,6 @@
     font-size: 12px;
     background: var(--color-grey-0);
     color: var(--color-font-primary);
-    outline: none;
     box-sizing: border-box;
   }
   

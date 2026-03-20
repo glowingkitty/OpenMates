@@ -261,7 +261,6 @@
     }
     
     .thinking-header:focus {
-        outline: none;
         box-shadow: inset 0 0 0 2px var(--color-accent-primary, #3b82f6);
     }
     

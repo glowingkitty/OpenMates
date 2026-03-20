@@ -340,7 +340,6 @@
     }
 
     .input-wrapper input:focus {
-        outline: none;
         border-color: var(--color-primary);
     }
 
