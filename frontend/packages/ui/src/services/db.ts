@@ -215,33 +215,20 @@ class ChatDatabase {
     }
     const shouldSkipOrphanDetection = this.isSkipOrphanDetectionEnabled();
 
-    // If a deletion is in progress, wait for it to finish instead of throwing.
+    // If a deletion was in progress, reset the flag and proceed with init.
     // This handles the race where a user re-logs in immediately after forced logout:
-    // deleteDatabase() sets isDeleting=true, but login resets store flags — without
-    // this await, init() would throw permanently until the page is reloaded.
+    // deleteDatabase() sets isDeleting=true, but login resets store flags — the
+    // IDB deleteDatabase() request may be stuck indefinitely (no handlers fire when
+    // db.close() was called but IDB hasn't fully released the connection). Instead
+    // of awaiting a promise that may never resolve, just reset and re-init: the DB
+    // either was deleted (init creates a fresh one) or still exists (init opens it).
     if (this.isDeleting) {
-      if (this.deletionPromise) {
-        console.warn(
-          "[ChatDatabase] Deletion in progress — waiting for completion before init",
-        );
-        try {
-          await this.deletionPromise;
-        } catch {
-          // Deletion failed (e.g., blocked by another tab) — proceed anyway,
-          // the DB may still exist and be usable.
-          console.warn(
-            "[ChatDatabase] Deletion promise rejected — proceeding with init",
-          );
-        }
-        // Reset init state so the DB can be re-opened fresh
-        this.initializationPromise = null;
-      } else {
-        // isDeleting is true but no promise — should not happen, reset defensively
-        console.warn(
-          "[ChatDatabase] isDeleting=true but no deletionPromise — resetting flag",
-        );
-        this.isDeleting = false;
-      }
+      console.warn(
+        "[ChatDatabase] Resetting isDeleting flag — proceeding with fresh init",
+      );
+      this.isDeleting = false;
+      this.deletionPromise = null;
+      this.initializationPromise = null;
     }
 
     // CRITICAL: Detect "orphaned database" scenario BEFORE checking flags or opening DB

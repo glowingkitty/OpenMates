@@ -35,28 +35,15 @@ class UserDatabaseService {
    * the flag itself, ensuring cleanup happens even if this is the first database operation.
    */
   async init(): Promise<void> {
-    // If a deletion is in progress, wait for it to finish instead of throwing.
-    // This handles the race where a user re-logs in immediately after forced logout:
-    // deleteDatabase() sets isDeleting=true, but login resets store flags — without
-    // this await, init() would throw permanently until the page is reloaded.
+    // If a deletion was in progress, reset the flag and proceed with init.
+    // The IDB deleteDatabase() request may be stuck indefinitely — don't await it.
+    // The DB either was deleted (init creates a fresh one) or still exists (init opens it).
     if (this.isDeleting) {
-      if (this.deletionPromise) {
-        console.warn(
-          "[UserDatabase] Deletion in progress — waiting for completion before init",
-        );
-        try {
-          await this.deletionPromise;
-        } catch {
-          console.warn(
-            "[UserDatabase] Deletion promise rejected — proceeding with init",
-          );
-        }
-      } else {
-        console.warn(
-          "[UserDatabase] isDeleting=true but no deletionPromise — resetting flag",
-        );
-        this.isDeleting = false;
-      }
+      console.warn(
+        "[UserDatabase] Resetting isDeleting flag — proceeding with fresh init",
+      );
+      this.isDeleting = false;
+      this.deletionPromise = null;
     }
 
     // CRITICAL: Detect "orphaned database" scenario BEFORE checking flags or opening DB
