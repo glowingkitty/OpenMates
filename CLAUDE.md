@@ -198,6 +198,15 @@ Before planning or writing any code, state your interpretation of the task and w
 
 Every non-trivial task needs a checklist of verifiable acceptance criteria before implementation. For reproducible bugs, include a Firecrawl browser verification step.
 
+For multi-session tasks (spans >1 session or touches >3 files), create a task file first:
+```bash
+python3 scripts/sessions.py task-create --session <ID> --title "..." --context "..."
+python3 scripts/sessions.py task-step --id t001 --add "[ ] Step one"
+python3 scripts/sessions.py task-ac --id t001 --add "[ ] Acceptance criterion"
+```
+Any agent can resume with `sessions.py start --mode <mode> --task "..." --task-id t001`.
+At task completion, save a summary: `sessions.py task-update --id t001 --status done --summary "What was done and why"`.
+
 ### Unexpected Failures
 
 If you hit a failure **not related to your task**: STOP. Check `git log -5 -- <broken-file>`. If your session didn't change it, report to user.
@@ -328,6 +337,27 @@ python3 scripts/sessions.py deploy-docs
 python3 scripts/sessions.py prepare-deploy --session <ID>
 python3 scripts/sessions.py deploy --session <ID> --title "type: description" --message "body" --end
 # → outputs the commit SHA → paste it into the summary below
+```
+
+**If the session has a linked task file (`--task-id`), pass the full task summary as `--message` so it becomes the git commit description, and also save it to the task file:**
+
+```bash
+# 1. Deploy — pass the summary as --message (use the SHA placeholder first, then update)
+python3 scripts/sessions.py deploy --session <ID> \
+  --title "feat: description" \
+  --message "## Task Summary
+🏷️ Type: Feature
+🔗 Commit: <sha>
+✨ Goal: ..." \
+  --end
+# → note the SHA from output
+
+# 2. Save the summary (with real SHA) to the task file
+python3 scripts/sessions.py task-update --id <TASK_ID> --status done \
+  --summary "## Task Summary
+🏷️ Type: Feature
+🔗 Commit: <real-sha>
+✨ Goal: ..."
 ```
 
 **End every task with this structured summary:**
