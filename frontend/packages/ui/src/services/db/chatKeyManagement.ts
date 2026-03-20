@@ -9,7 +9,6 @@
 
 import type { Message, Chat } from "../../types/chat";
 import {
-  generateChatKey,
   encryptWithChatKey,
   decryptWithChatKey,
   decryptChatKeyWithMasterKey,
@@ -23,168 +22,121 @@ import { websocketStatus } from "../../stores/websocketStatusStore";
  * Type for ChatDatabase instance to avoid circular import.
  * This interface defines the minimal required properties from ChatDatabase
  * that this module needs to access.
+ *
+ * NOTE: chatKeys (the legacy dual cache) has been removed. ChatKeyManager is now
+ * the single source of truth for all chat keys.
  */
 interface ChatDatabaseInstance {
   db: IDBDatabase | null;
-  chatKeys: Map<string, Uint8Array>;
   CHATS_STORE_NAME: string;
   getChat(chatId: string, transaction?: IDBTransaction): Promise<Chat | null>;
 }
 
 /**
- * Get chat key from cache.
- * If the key is not in cache, returns null. The caller should then either:
- * - Load the key from the database via loadChatKeysFromDatabase
- * - Generate a new key if this is a new chat
+ * Get chat key from ChatKeyManager (single source of truth).
  *
- * @param dbInstance - Reference to the ChatDatabase instance
+ * @param _dbInstance - Unused (kept for API compatibility during migration)
  * @param chatId - The ID of the chat
- * @returns The chat key if found in cache, null otherwise
+ * @returns The chat key if in memory, null otherwise
  */
 export function getChatKey(
-  dbInstance: ChatDatabaseInstance,
+  _dbInstance: ChatDatabaseInstance,
   chatId: string,
 ): Uint8Array | null {
-  // First check if key is in cache
-  const cachedKey = dbInstance.chatKeys.get(chatId);
-  if (cachedKey) {
-    return cachedKey;
-  }
-
-  // If not in cache, return null
-  // The ChatMetadataCache will handle loading the key when needed
-  return null;
+  return chatKeyManager.getKeySync(chatId);
 }
 
 /**
- * Set chat key in cache.
- * The ChatKeyManager's immutability guard will prevent silently replacing
- * an existing key with a different one — this is a safety feature.
+ * Set chat key — delegates entirely to ChatKeyManager (single source of truth).
+ * The immutability guard prevents silently replacing an existing key with a different one.
  *
- * @param dbInstance - Reference to the ChatDatabase instance
+ * @param _dbInstance - Unused (kept for API compatibility during migration)
  * @param chatId - The ID of the chat
  * @param chatKey - The chat key to cache
  * @param source - Where this key came from (for provenance tracking)
  */
 export function setChatKey(
-  dbInstance: ChatDatabaseInstance,
+  _dbInstance: ChatDatabaseInstance,
   chatId: string,
   chatKey: Uint8Array,
   source?: import("../encryption/ChatKeyManager").KeySource,
 ): void {
-  dbInstance.chatKeys.set(chatId, chatKey);
-  // Keep ChatKeyManager in sync during migration.
-  // injectKey() has an immutability guard — if a different key already exists,
-  // the replacement is BLOCKED and logged as an error. This prevents silent corruption.
   chatKeyManager.injectKey(chatId, chatKey, source);
 }
 
 /**
- * Clear chat key from cache.
- * Used when locking hidden chats or on logout.
+ * Clear a single chat key. Delegates to ChatKeyManager.
  *
- * @param dbInstance - Reference to the ChatDatabase instance
+ * @param _dbInstance - Unused (kept for API compatibility)
  * @param chatId - The ID of the chat whose key should be cleared
  */
 export function clearChatKey(
-  dbInstance: ChatDatabaseInstance,
+  _dbInstance: ChatDatabaseInstance,
   chatId: string,
 ): void {
-  dbInstance.chatKeys.delete(chatId);
   chatKeyManager.removeKey(chatId);
 }
 
 /**
- * Clear all chat keys from cache.
- * Used on logout to ensure no keys remain in memory.
+ * Clear all chat keys. Delegates to ChatKeyManager.
  *
- * @param dbInstance - Reference to the ChatDatabase instance
+ * @param _dbInstance - Unused (kept for API compatibility)
  */
-export function clearAllChatKeys(dbInstance: ChatDatabaseInstance): void {
-  dbInstance.chatKeys.clear();
+export function clearAllChatKeys(_dbInstance: ChatDatabaseInstance): void {
   chatKeyManager.clearAll();
 }
 
 /**
- * Get or generate chat key for a specific chat.
- * If the key is not in cache, generates a new one and caches it.
- *
- * @deprecated Use `getChatKeyOrNull()` for read paths (decryption) or
- *   `getOrCreateChatKeyForOriginator()` for write paths on the originating
- *   device (e.g. sendHandlers creating a brand-new chat). This function
- *   silently generates a WRONG random key when the real key hasn't been
- *   loaded yet, causing "[Content decryption failed]" on secondary devices.
- *   It is kept for backwards compatibility during gradual migration.
- *
- * @param dbInstance - Reference to the ChatDatabase instance
- * @param chatId - The ID of the chat
- * @returns The chat key (from cache or newly generated)
+ * @deprecated DEAD — never generates correct keys for existing chats.
+ * Kept only so TypeScript doesn't break callers that haven't been migrated yet.
+ * All callers should use chatKeyManager.createKeyForNewChat() or getKeySync().
  */
 export function getOrGenerateChatKey(
-  dbInstance: ChatDatabaseInstance,
+  _dbInstance: ChatDatabaseInstance,
   chatId: string,
 ): Uint8Array {
-  let chatKey = getChatKey(dbInstance, chatId);
-  if (!chatKey) {
-    // Try to load chat key from database
-    // This is a synchronous method, so we can't await here
-    // The loadChatKeysFromDatabase method should have loaded all keys during initialization
-    // If not, we'll generate a new key (which might cause decryption issues)
-    console.warn(
-      `[ChatDatabase] Chat key not found in cache for chat ${chatId}, generating new key. This may cause decryption issues.`,
-    );
-    chatKey = generateChatKey();
-    setChatKey(dbInstance, chatId, chatKey);
-  }
-  return chatKey;
+  const existing = chatKeyManager.getKeySync(chatId);
+  if (existing) return existing;
+  console.error(
+    `[chatKeyManagement] getOrGenerateChatKey() called for ${chatId} but key not in ChatKeyManager. ` +
+      `This is a bug — key should have been loaded by initializeCrypto(). ` +
+      `Refusing to silently generate a wrong key.`,
+  );
+  // Return a dummy key so TypeScript is happy, but log loud enough that this is found in review.
+  // The actual encryption will fail when this wrong key is used.
+  throw new Error(
+    `[chatKeyManagement] No key for ${chatId} — call chatKeyManager.createKeyForNewChat() explicitly`,
+  );
 }
 
 /**
- * Get chat key from cache, returning null if not available.
+ * Get chat key from ChatKeyManager, returning null if not loaded.
  *
- * USE THIS for read paths (decryption / message display) where generating
- * a random key would be WRONG — the caller should queue the operation and
- * retry after the real key arrives.
- *
- * @param dbInstance - Reference to the ChatDatabase instance
+ * @param _dbInstance - Unused (kept for API compatibility)
  * @param chatId - The ID of the chat
- * @returns The chat key if available, null otherwise
  */
 export function getChatKeyOrNull(
-  dbInstance: ChatDatabaseInstance,
+  _dbInstance: ChatDatabaseInstance,
   chatId: string,
 ): Uint8Array | null {
-  return getChatKey(dbInstance, chatId);
+  return chatKeyManager.getKeySync(chatId);
 }
 
 /**
  * Get or create chat key for the ORIGINATING device of a new chat.
+ * Delegates to ChatKeyManager.createKeyForNewChat() so the key is
+ * tracked with provenance 'created' and the immutability guard applies.
  *
- * USE THIS in send handlers when the current device is the one creating
- * a brand-new chat. It is safe to generate a new key here because this
- * IS the authoritative device — the generated key will be encrypted with
- * the master key and broadcast to other devices.
- *
- * DO NOT use this on secondary devices receiving a chat from another
- * device — use `getChatKeyOrNull()` instead and wait for the real key.
- *
- * @param dbInstance - Reference to the ChatDatabase instance
+ * @param _dbInstance - Unused (kept for API compatibility)
  * @param chatId - The ID of the chat
- * @returns The chat key (from cache or newly generated for originator)
  */
 export function getOrCreateChatKeyForOriginator(
-  dbInstance: ChatDatabaseInstance,
+  _dbInstance: ChatDatabaseInstance,
   chatId: string,
 ): Uint8Array {
-  let chatKey = getChatKey(dbInstance, chatId);
-  if (!chatKey) {
-    console.info(
-      `[ChatDatabase] Originator creating new chat key for chat ${chatId}`,
-    );
-    chatKey = generateChatKey();
-    setChatKey(dbInstance, chatId, chatKey);
-  }
-  return chatKey;
+  const existing = chatKeyManager.getKeySync(chatId);
+  if (existing) return existing;
+  return chatKeyManager.createKeyForNewChat(chatId);
 }
 
 /**
@@ -235,7 +187,7 @@ export async function loadChatKeysFromDatabase(
           const chat = cursor.value;
           if (
             chat.encrypted_chat_key &&
-            !dbInstance.chatKeys.has(chat.chat_id)
+            !chatKeyManager.hasKey(chat.chat_id)
           ) {
             // Collect keys to decrypt after cursor is done
             keysToDecrypt.push({
@@ -252,13 +204,10 @@ export async function loadChatKeysFromDatabase(
             try {
               for (const { chatId, encryptedKey } of keysToDecrypt) {
                 try {
-                  // CRITICAL FIX: await decryptChatKeyWithMasterKey since it's async
-                  // This ensures we get a Uint8Array instead of a Promise
                   const chatKey =
                     await decryptChatKeyWithMasterKey(encryptedKey);
                   if (chatKey) {
-                    dbInstance.chatKeys.set(chatId, chatKey);
-                    // Also populate ChatKeyManager for the new architecture
+                    // ChatKeyManager is the single source of truth
                     chatKeyManager.injectKey(chatId, chatKey, "bulk_init");
                   }
                 } catch (decryptError) {

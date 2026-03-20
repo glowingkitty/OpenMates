@@ -14,11 +14,28 @@ import {
   encryptChatKeyWithMasterKey,
   decryptChatKeyWithMasterKey,
 } from "../cryptoService";
+
+/** FNV-1a fingerprint — same algorithm as ChatKeyManager.computeKeyFingerprint */
+function computeKeyFingerprint(key: Uint8Array): string {
+  let h1 = 0x811c9dc5;
+  let h2 = 0x1a47e90b;
+  for (let i = 0; i < key.length; i++) {
+    h1 ^= key[i];
+    h1 = Math.imul(h1, 0x01000193);
+  }
+  for (let i = key.length - 1; i >= 0; i--) {
+    h2 ^= key[i];
+    h2 = Math.imul(h2, 0x01000193);
+  }
+  return (h1 >>> 0).toString(16).padStart(8, "0") + (h2 >>> 0).toString(16).padStart(8, "0");
+}
+import { chatKeyManager } from "../encryption/ChatKeyManager";
 import { get } from "svelte/store";
 import { forcedLogoutInProgress, isLoggingOut } from "../../stores/signupState";
 
 // Type for ChatDatabase instance to avoid circular import
-// Only includes properties/methods needed by this module
+// Only includes properties/methods needed by this module.
+// NOTE: getChatKey/setChatKey/clearChatKey have been removed — use chatKeyManager directly.
 interface ChatDatabaseInstance {
   db: IDBDatabase | null;
   CHATS_STORE_NAME: string;
@@ -30,15 +47,6 @@ interface ChatDatabaseInstance {
 
   // Chat retrieval (for IDB integrity checks)
   getChat(chatId: string, transaction?: IDBTransaction): Promise<Chat | null>;
-
-  // Chat key management methods (from chatKeyManagement)
-  getChatKey(chatId: string): Uint8Array | null;
-  setChatKey(
-    chatId: string,
-    chatKey: Uint8Array,
-    source?: import("../encryption/ChatKeyManager").KeySource,
-  ): void;
-  clearChatKey(chatId: string): void;
 }
 
 // Store name constant for messages (needed for deleteChat)
@@ -127,76 +135,66 @@ export async function encryptChatForStorage(
     return encryptedChat;
   }
 
-  let chatKey = dbInstance.getChatKey(chat.chat_id);
+  // Step 1: check ChatKeyManager (single source of truth)
+  let chatKey = chatKeyManager.getKeySync(chat.chat_id);
+
+  // Step 2: server-provided encrypted_chat_key on the incoming chat object
   if (!chatKey && chat.encrypted_chat_key) {
-    // Decrypt the server-provided key and cache it
-    // CRITICAL FIX: await decryptChatKeyWithMasterKey since it's async
     chatKey = await decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
     if (chatKey) {
-      dbInstance.setChatKey(chat.chat_id, chatKey, "master_key");
-      encryptedChat.encrypted_chat_key = chat.encrypted_chat_key; // Keep the server's encrypted key
+      chatKeyManager.injectKey(chat.chat_id, chatKey, "master_key");
+      encryptedChat.encrypted_chat_key = chat.encrypted_chat_key;
     } else {
       console.error(
         `[ChatDatabase] Failed to decrypt chat key for chat ${chat.chat_id}`,
       );
     }
-  } else if (!chatKey) {
-    // No cached key and no server key on the chat object.
-    // SAFETY: Before generating, do one last IDB check. The chat object passed
-    // to addChat() might lack encrypted_chat_key (e.g., share page creates a
-    // minimal Chat), but the IDB may already hold the real chat with a key
-    // written by a previous call or another tab.
+  }
+
+  // Step 3: IDB integrity check — the chat object may lack the key but IDB already holds it
+  if (!chatKey) {
     const existingChat = await dbInstance.getChat(chat.chat_id);
     if (existingChat?.encrypted_chat_key) {
       chatKey = await decryptChatKeyWithMasterKey(
         existingChat.encrypted_chat_key,
       );
       if (chatKey) {
-        dbInstance.setChatKey(chat.chat_id, chatKey, "master_key");
+        chatKeyManager.injectKey(chat.chat_id, chatKey, "master_key");
         encryptedChat.encrypted_chat_key = existingChat.encrypted_chat_key;
         console.info(
-          `[ChatDatabase] Recovered existing encrypted_chat_key from IDB for chat ${chat.chat_id} ` +
-            `(chat object lacked key but IDB had one — prevented unnecessary key generation)`,
+          `[ChatDatabase] Recovered existing encrypted_chat_key from IDB for chat ${chat.chat_id}`,
         );
       }
-    }
-
-    if (!chatKey) {
-      // Genuinely new chat with no key anywhere - safe to generate
-      console.log(
-        `[ChatDatabase] Generating NEW chat key for chat ${chat.chat_id} (new chat creation)`,
-      );
-      chatKey = generateChatKey();
-      dbInstance.setChatKey(chat.chat_id, chatKey, "created");
-    }
-    // Only encrypt and store if we don't already have an encrypted_chat_key
-    // (the recovery path above may have already set it)
-    if (!encryptedChat.encrypted_chat_key) {
-      // CRITICAL FIX: await the async encryption function to prevent storing a Promise in IndexedDB
-      const encryptedChatKey = await encryptChatKeyWithMasterKey(chatKey);
-      if (encryptedChatKey) {
-        encryptedChat.encrypted_chat_key = encryptedChatKey;
-        console.log(
-          `[ChatDatabase] ✅ Generated and stored encrypted_chat_key for new chat ${chat.chat_id}: ${encryptedChatKey.substring(0, 20)}... (length: ${encryptedChatKey.length})`,
-        );
-      } else {
-        console.error(
-          `[ChatDatabase] ❌ Failed to encrypt chat key for new chat ${chat.chat_id} - master key may be missing`,
-        );
-      }
-    }
-  } else {
-    // Key already in cache - make sure encrypted version is in the chat object
-    if (!chat.encrypted_chat_key) {
-      // CRITICAL FIX: await the async encryption function to prevent storing a Promise in IndexedDB
-      const encryptedChatKey = await encryptChatKeyWithMasterKey(chatKey);
-      if (encryptedChatKey) {
-        encryptedChat.encrypted_chat_key = encryptedChatKey;
-      }
-    } else {
-      encryptedChat.encrypted_chat_key = chat.encrypted_chat_key;
     }
   }
+
+  // Step 4: genuinely new chat — generate a key explicitly (no silent fallbacks)
+  if (!chatKey) {
+    console.log(
+      `[ChatDatabase] Generating NEW chat key for chat ${chat.chat_id} (new chat creation)`,
+    );
+    chatKey = generateChatKey();
+    chatKeyManager.injectKey(chat.chat_id, chatKey, "created");
+  }
+
+  // Ensure encrypted_chat_key is present in the stored object
+  if (!encryptedChat.encrypted_chat_key) {
+    const encryptedChatKey = await encryptChatKeyWithMasterKey(chatKey);
+    if (encryptedChatKey) {
+      encryptedChat.encrypted_chat_key = encryptedChatKey;
+    } else {
+      console.error(
+        `[ChatDatabase] ❌ Failed to encrypt chat key for chat ${chat.chat_id} — master key may be missing`,
+      );
+    }
+  }
+
+  // Stamp key_version and key_fingerprint for decryption-failure diagnosis and future key rotation.
+  // key_version starts at 1 for new chats; existing chats without this field read as null (version unknown).
+  if (!encryptedChat.key_version) {
+    encryptedChat.key_version = 1;
+  }
+  encryptedChat.key_fingerprint = computeKeyFingerprint(chatKey);
 
   // TODO: Add encryption for new fields when implemented:
   // - encrypted_chat_summary (from post-processing)
@@ -266,24 +264,20 @@ export async function decryptChatFromStorage(
     }
 
     if (result.chatKey) {
-      // Cache the key (update cache even if it was already cached)
-      dbInstance.setChatKey(chat.chat_id, result.chatKey, "master_key");
-      // Mark chat as hidden ONLY if it was decrypted via the hidden path (i.e., unlocked with current password)
-      // This ensures only chats that can be decrypted with the current password show up in hidden section
+      // Inject into ChatKeyManager (single source of truth)
+      chatKeyManager.injectKey(chat.chat_id, result.chatKey, "master_key");
       if (result.isHidden) {
         decryptedChat.is_hidden = true;
       } else {
-        // Explicitly mark as not hidden if decrypted via normal path
         decryptedChat.is_hidden = false;
       }
     } else {
       // Both decryption paths failed - could be corrupted or a locked hidden chat
-      // OR a hidden chat encrypted with a different password (can't decrypt with current password)
       console.debug(
         `[ChatDatabase] Failed to decrypt chat key for chat ${chat.chat_id} (both normal and hidden paths failed)`,
       );
-      // Clear any cached key since decryption failed
-      dbInstance.clearChatKey(chat.chat_id);
+      // Clear any stale key since decryption failed
+      chatKeyManager.removeKey(chat.chat_id);
       // is_hidden is already false from the initial clear above
     }
 

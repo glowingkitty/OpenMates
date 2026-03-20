@@ -114,7 +114,9 @@ class ChatDatabase {
   // Version 20: Added daily_inspirations store for client-side persistence of personalised inspirations
   // Version 21: Delete stale old-format community demo chats (demo-1, demo-2, demo-e0090311, …)
   //             that may have been saved to chats_db before the server migrated to word-slug IDs.
-  private readonly VERSION = 21;
+  // Version 22: key_version + key_fingerprint fields on chats store (no migration needed — new nullable fields).
+  //             Enables key rotation, decryption failure diagnosis, and audit trail.
+  private readonly VERSION = 22;
   public readonly DAILY_INSPIRATIONS_STORE_NAME = "daily_inspirations";
   private initializationPromise: Promise<void> | null = null;
 
@@ -129,8 +131,9 @@ class ChatDatabase {
   private static readonly SKIP_ORPHAN_DETECTION_KEY =
     "openmates_skip_orphan_detection";
 
-  // Chat key cache for performance - public for chatKeyManagement module to access
-  public chatKeys: Map<string, Uint8Array> = new Map();
+  // NOTE: chatKeys (the legacy dual-cache Map) has been removed.
+  // ChatKeyManager is now the single source of truth for all chat keys.
+  // See: frontend/packages/ui/src/services/encryption/ChatKeyManager.ts
 
   // ============================================================================
   // DATABASE INITIALIZATION
@@ -1483,26 +1486,16 @@ class ChatDatabase {
   public async loadSharedChatKeysFromStorage(): Promise<void> {
     try {
       const { getAllSharedChatKeys } = await import("./sharedChatKeyStorage");
-      const { chatKeyManager } = await import("./encryption/ChatKeyManager");
       const sharedKeys = await getAllSharedChatKeys();
 
       if (sharedKeys.size > 0) {
-        // Merge shared keys into the chat keys cache
-        // Don't overwrite existing keys (from master key decryption)
+        // Inject shared keys into ChatKeyManager (single source of truth).
+        // injectKey() guards against overwriting a key already loaded from the
+        // master-key path (loadChatKeysFromDatabase runs before this).
         let loadedCount = 0;
         let skippedCount = 0;
-        // Use Array.from() for compatibility with older TypeScript targets
-        const entries = Array.from(sharedKeys.entries());
-        for (const [chatId, keyBytes] of entries) {
-          // Guard: never overwrite a key that was already loaded from the
-          // master-key path (loadChatKeysFromDatabase runs before this).
-          // Check BOTH caches to prevent two-cache divergence.
-          if (!this.chatKeys.has(chatId) && !chatKeyManager.hasKey(chatId)) {
-            this.chatKeys.set(chatId, keyBytes);
-            // CRITICAL FIX: Keep ChatKeyManager in sync to prevent two-cache
-            // divergence where chatDB.chatKeys has a key but chatKeyManager
-            // does not (or vice versa), causing different decrypt paths to use
-            // different keys.
+        for (const [chatId, keyBytes] of Array.from(sharedKeys.entries())) {
+          if (!chatKeyManager.hasKey(chatId)) {
             chatKeyManager.injectKey(chatId, keyBytes, "shared_storage");
             loadedCount++;
           } else {
@@ -1510,7 +1503,7 @@ class ChatDatabase {
           }
         }
         console.warn(
-          `[ChatDatabase] Loaded ${loadedCount} shared chat keys from storage` +
+          `[ChatDatabase] Loaded ${loadedCount} shared chat keys into ChatKeyManager` +
             (skippedCount > 0
               ? ` (skipped ${skippedCount} — already loaded from master key)`
               : ""),
@@ -1814,3 +1807,30 @@ class ChatDatabase {
 }
 
 export const chatDB = new ChatDatabase();
+
+// ---------------------------------------------------------------------------
+// cryptoReady — eager-loading guarantee
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolves after the database has been opened AND all encrypted_chat_keys have
+ * been decrypted into ChatKeyManager.  Components that display encrypted content
+ * (chat list, message view) MUST await this before rendering so that
+ * chatKeyManager.getKeySync() never returns null for a chat the user owns.
+ *
+ * Usage in a SvelteKit +page.svelte:
+ *
+ *   import { cryptoReady } from '$ui/services/db';
+ *   onMount(async () => { await cryptoReady; });
+ *
+ * The promise is resolved once per page load. Subsequent awaits return instantly.
+ * If init() throws (e.g. blocked during logout), the promise stays pending —
+ * callers should add a timeout guard for that edge case.
+ */
+export const cryptoReady: Promise<void> = chatDB
+  .init()
+  .then(() => chatDB.loadChatKeysFromDatabase())
+  .catch((err) => {
+    // Non-fatal: if init fails (e.g. during logout), log and let the UI handle it
+    console.warn("[db] cryptoReady init failed (may be expected during logout):", err);
+  });

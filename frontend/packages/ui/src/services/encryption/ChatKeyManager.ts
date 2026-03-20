@@ -144,6 +144,16 @@ function keysAreEqual(a: Uint8Array, b: Uint8Array): boolean {
  * await chatKeyManager.receiveKeyFromServer(chatId, encryptedChatKey);
  * ```
  */
+// ---------------------------------------------------------------------------
+// BroadcastChannel message types (cross-tab coordination)
+// ---------------------------------------------------------------------------
+
+type CrossTabMessage =
+  /** A tab called clearAll() — all other tabs should also clear */
+  | { type: "clearAll" }
+  /** A tab loaded a new key — broadcast so other tabs can warm their cache */
+  | { type: "keyLoaded"; chatId: string; encryptedChatKey: string };
+
 export class ChatKeyManager {
   // ---- State ----
 
@@ -182,6 +192,42 @@ export class ChatKeyManager {
   private hiddenChatKeyDecryptor:
     | ((encryptedKey: string, chatId?: string) => Promise<Uint8Array | null>)
     | null = null;
+
+  /**
+   * BroadcastChannel for cross-tab coordination.
+   * When this tab clears all keys (logout), other tabs are notified so they
+   * also clear — preventing stale decrypted keys from lingering in other tabs.
+   * Each tab's own critical-op lock is still respected on the receiving side.
+   */
+  private broadcastChannel: BroadcastChannel | null = null;
+
+  // ---- Constructor ----
+
+  constructor() {
+    // Initialise BroadcastChannel if available (not available in SSR/Node)
+    if (typeof BroadcastChannel !== "undefined") {
+      this.broadcastChannel = new BroadcastChannel("openmates_crypto_v1");
+      this.broadcastChannel.onmessage = (event: MessageEvent) => {
+        this.handleCrossTabMessage(event.data as CrossTabMessage);
+      };
+    }
+  }
+
+  // ---- Cross-tab messaging ----
+
+  private handleCrossTabMessage(msg: CrossTabMessage): void {
+    if (msg.type === "clearAll") {
+      console.debug(
+        "[ChatKeyManager] Received cross-tab clearAll — clearing keys",
+      );
+      // clearAll() respects the critical-op lock: if THIS tab has a critical
+      // op running, the clear will be deferred until the op finishes.
+      this.clearAll({ broadcast: false });
+    }
+    // keyLoaded: another tab loaded a key — we could warm our cache here,
+    // but decrypting the encrypted key requires the master key (async).
+    // Instead we rely on the existing lazy-load path (getKey/loadKeyFromDB).
+  }
 
   // ---- Initialization ----
 
@@ -734,7 +780,8 @@ export class ChatKeyManager {
         "[ChatKeyManager] Executing deferred clearAll() after critical op completed",
       );
       this.deferredClearAll = false;
-      this.clearAll();
+      // broadcast=false: already sent when clearAll() was first called
+      this.clearAll({ broadcast: false });
     }
   }
 
@@ -747,15 +794,28 @@ export class ChatKeyManager {
    * the multi-tab auth disruption from wiping keys mid-flight, which
    * causes sendEncryptedStoragePackage to generate a new key (K2) and
    * corrupt messages already encrypted with the original key (K1).
+   *
+   * By default also broadcasts to other tabs via BroadcastChannel so they
+   * also clear their in-memory keys (cross-tab logout safety).
    */
-  clearAll(): void {
+  clearAll({ broadcast = true }: { broadcast?: boolean } = {}): void {
     if (this.criticalOpCount > 0) {
       console.warn(
         `[ChatKeyManager] clearAll() DEFERRED — ${this.criticalOpCount} critical crypto op(s) in progress. ` +
           `Keys will be cleared when all operations complete.`,
       );
       this.deferredClearAll = true;
+      // Still broadcast immediately so other tabs begin their own deferred clear
+      if (broadcast) {
+        this.broadcastChannel?.postMessage({ type: "clearAll" } satisfies CrossTabMessage);
+      }
       return;
+    }
+
+    // Broadcast BEFORE clearing so other tabs receive the message while this
+    // tab is still alive (prevents timing issues on tab close)
+    if (broadcast) {
+      this.broadcastChannel?.postMessage({ type: "clearAll" } satisfies CrossTabMessage);
     }
 
     // Reject all pending operations
@@ -779,6 +839,13 @@ export class ChatKeyManager {
   }
 
   // ---- State Inspection (for debug tools) ----
+
+  /**
+   * Total number of keys currently held in memory.
+   */
+  size(): number {
+    return this.keys.size;
+  }
 
   /**
    * Get the current state of a chat key.
@@ -843,19 +910,6 @@ export class ChatKeyManager {
     return this.provenances.get(chatId) ?? null;
   }
 
-  // ---- Legacy Compatibility ----
-
-  /**
-   * Access the raw keys Map for legacy code that reads chatDB.chatKeys directly.
-   *
-   * @deprecated — callers should migrate to getKeySync() / getKey() / withKey().
-   * This is provided ONLY for the transition period so that existing code
-   * referencing `chatDB.chatKeys` continues to work.
-   */
-  get legacyKeysMap(): Map<string, Uint8Array> {
-    return this.keys;
-  }
-
   /**
    * Bulk-load all keys during app initialization.
    * Called by loadChatKeysFromDatabase() after iterating all chats in IDB.
@@ -866,11 +920,19 @@ export class ChatKeyManager {
     entries: Array<[string, Uint8Array]>,
     source: KeySource = "bulk_init",
   ): void {
+    let injected = 0;
+    let skipped = 0;
     for (const [chatId, chatKey] of entries) {
-      this.setKeyWithProvenance(chatId, chatKey, source);
+      // Use injectKey so the immutability guard applies — a key already loaded
+      // from a higher-priority source (master_key, server_sync) will not be
+      // silently overwritten by a bulk load.
+      const accepted = this.injectKey(chatId, chatKey, source);
+      if (accepted) injected++;
+      else skipped++;
     }
     console.debug(
-      `[ChatKeyManager] Bulk-injected ${entries.length} chat keys (source=${source})`,
+      `[ChatKeyManager] Bulk-injected ${injected} chat keys (source=${source})` +
+        (skipped > 0 ? `, skipped ${skipped} (already loaded from higher-priority source)` : ""),
     );
   }
 }
