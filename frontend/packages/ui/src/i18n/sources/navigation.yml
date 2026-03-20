@@ -142,3 +142,27 @@ workflows:
   sv: ''
   he: תהליכי עבודה
   verified_by_human: []
+skip_to_content:
+  context: Accessibility skip link - allows keyboard users to skip navigation and jump to main content
+  en: Skip to content
+  de: Zum Inhalt springen
+  zh: 跳转到内容
+  es: Saltar al contenido
+  fr: Aller au contenu
+  pt: ''
+  ru: ''
+  ja: コンテンツにスキップ
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  he: דלג לתוכן
+  verified_by_human: []
