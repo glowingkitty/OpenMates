@@ -4,14 +4,21 @@ Full reference: `sessions.py context --doc planning`
 
 ## Steps (required for non-trivial tasks)
 
-1. **State understanding** — Write what you think the user wants. Ask "Is this correct?" Wait for confirmation
-2. **Define scope** — In scope, out of scope, dependencies
-3. **List affected files** — Every file to create/modify/delete
-4. **State assumptions** — Every assumption you're making (verify if unsure)
-5. **Processing example** — Concrete step-by-step data flow with real values (CRITICAL — catches misunderstandings)
-6. **Acceptance criteria** — Checkboxes, user-perspective, falsifiable. Bug fixes: include Firecrawl verification step
-7. **Suggest E2E tests** — `should ...` format, 3-8 per feature. Don't write code, just list descriptions
-8. **Flag risks** — Unknowns, potential regressions, concurrent session conflicts
+0. **State understanding** — Write what you think the user wants. Ask "Is this correct?" Wait for confirmation
+0b. **Create task file** (multi-session tasks: spans >1 session or touches >3 files):
+    ```bash
+    python3 scripts/sessions.py task-create --session <ID> --title "..." --context "..."
+    python3 scripts/sessions.py task-step --id <TASK_ID> --add "[ ] Step"
+    ```
+    Any agent can resume via `sessions.py start --task-id <TASK_ID>`.
+    At completion: `sessions.py task-update --id <TASK_ID> --status done --summary "..."`.
+1. **Define scope** — In scope, out of scope, dependencies
+2. **List affected files** — Every file to create/modify/delete
+3. **State assumptions** — Every assumption you're making (verify if unsure)
+4. **Processing example** — Concrete step-by-step data flow with real values (CRITICAL — catches misunderstandings)
+5. **Acceptance criteria** — Checkboxes, user-perspective, falsifiable. Bug fixes: include Firecrawl verification step
+6. **Suggest E2E tests** — `should ...` format, 3-8 per feature. Don't write code, just list descriptions
+7. **Flag risks** — Unknowns, potential regressions, concurrent session conflicts
 
 ## Template
 

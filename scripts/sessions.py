@@ -59,6 +59,8 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 SESSIONS_FILE = PROJECT_ROOT / ".claude" / "sessions.json"
 BACKLOG_FILE = PROJECT_ROOT / ".claude" / "backlog.json"
+TASKS_DIR = PROJECT_ROOT / ".claude" / "tasks"
+TASKS_META_FILE = TASKS_DIR / ".meta.json"
 PROJECT_INDEX_FILE = PROJECT_ROOT / ".claude" / "project-index.json"
 CODE_MAPPING_FILE = PROJECT_ROOT / "docs" / "architecture" / "code-mapping.yml"
 STALE_SESSION_HOURS = 24
@@ -716,6 +718,241 @@ def _get_arch_doc_index() -> list[dict]:
         desc = ARCH_DOC_DESCRIPTIONS.get(f.stem, "")
         index.append({"name": f.stem, "file": f.name, "description": desc})
     return index
+
+# ---------------------------------------------------------------------------
+# Task file helpers (.claude/tasks/<id>-<slug>.yml)
+# ---------------------------------------------------------------------------
+
+
+def _tasks_dir() -> Path:
+    """Return the tasks directory, creating it if needed."""
+    TASKS_DIR.mkdir(parents=True, exist_ok=True)
+    return TASKS_DIR
+
+
+def _load_task_meta() -> dict:
+    """Load .meta.json, returning defaults if missing."""
+    _tasks_dir()
+    if not TASKS_META_FILE.exists():
+        return {"next_id": 1, "last_id": None}
+    try:
+        with open(TASKS_META_FILE) as f:
+            return json.load(f)
+    except Exception:
+        return {"next_id": 1, "last_id": None}
+
+
+def _save_task_meta(meta: dict) -> None:
+    TASKS_META_FILE.parent.mkdir(parents=True, exist_ok=True)
+    tmp = TASKS_META_FILE.with_suffix(".tmp")
+    with open(tmp, "w") as f:
+        json.dump(meta, f)
+    tmp.replace(TASKS_META_FILE)
+
+
+def _slugify(title: str) -> str:
+    """Convert title to lowercase-hyphenated slug, max 40 chars."""
+    import re as _re
+    slug = title.lower()
+    slug = _re.sub(r"[^a-z0-9]+", "-", slug)
+    slug = slug.strip("-")
+    return slug[:40].rstrip("-")
+
+
+def _task_id_to_path(task_id: str) -> "Path | None":
+    """Glob for <task_id>-*.yml inside the tasks dir."""
+    d = _tasks_dir()
+    matches = list(d.glob(f"{task_id}-*.yml"))
+    return matches[0] if matches else None
+
+
+def _parse_task_file(path: "Path") -> dict:
+    """
+    Custom line-by-line YAML reader for task files.
+    Handles: scalar strings, block scalars (|), and list items (- "...").
+    No external dependencies. Only handles the exact schema defined in the plan.
+    """
+    with open(path) as f:
+        lines = f.readlines()
+
+    task: dict = {}
+    i = 0
+    n = len(lines)
+
+    while i < n:
+        line = lines[i].rstrip("\n")
+        # Skip comments and blank lines at top level
+        if line.startswith("#") or line.strip() == "":
+            i += 1
+            continue
+
+        # Top-level key: value or key: |
+        if ":" in line and not line.startswith(" ") and not line.startswith("-"):
+            colon = line.index(":")
+            key = line[:colon].strip()
+            rest = line[colon + 1:].strip()
+
+            if rest == "|":
+                # Block scalar: collect indented lines
+                i += 1
+                block_lines = []
+                while i < n:
+                    bl = lines[i].rstrip("\n")
+                    if bl == "" or bl.startswith("  "):
+                        block_lines.append(bl[2:] if bl.startswith("  ") else "")
+                        i += 1
+                    else:
+                        break
+                # Strip trailing blank lines
+                while block_lines and block_lines[-1] == "":
+                    block_lines.pop()
+                task[key] = "\n".join(block_lines)
+            else:
+                # Inline value — strip surrounding quotes
+                val = rest.strip("\"'")
+                task[key] = val
+                i += 1
+        elif line.startswith("  - ") or line.startswith("    - "):
+            # List continuation — shouldn't reach here at top level; skip
+            i += 1
+        else:
+            i += 1
+
+        # After reading a scalar key, check if next lines are list items
+        # (for keys like plan:, acceptance_criteria:, tags:, files_to_modify:, files_modified:)
+        if (
+            ":" in line
+            and not line.startswith(" ")
+            and not line.startswith("-")
+        ):
+            key_just_set = line.split(":")[0].strip()
+            list_keys = {"plan", "acceptance_criteria", "tags", "files_to_modify", "files_modified"}
+            if key_just_set in list_keys and task.get(key_just_set) == "":
+                # Collect the list items
+                items = []
+                while i < n:
+                    bl = lines[i].rstrip("\n")
+                    if bl.startswith("  - "):
+                        items.append(bl[4:].strip().strip("\"'"))
+                        i += 1
+                    elif bl.strip() == "":
+                        i += 1
+                        # peek ahead
+                        if i < n and not lines[i].startswith("  "):
+                            break
+                    else:
+                        break
+                task[key_just_set] = items
+
+    # Ensure list fields are always lists
+    for lk in ("plan", "acceptance_criteria", "tags", "files_to_modify", "files_modified"):
+        if lk not in task:
+            task[lk] = []
+        elif not isinstance(task[lk], list):
+            task[lk] = []
+
+    return task
+
+
+def _render_task_file(task: dict) -> str:
+    """Serialize task dict to YAML string with fixed field order."""
+    lines = []
+    lines.append(f"id: {task.get('id', '')}")
+    lines.append(f"title: \"{task.get('title', '')}\"")
+    lines.append(f"status: {task.get('status', 'todo')}")
+    lines.append(f"mode: {task.get('mode', 'feature')}")
+    # tags
+    tags = task.get("tags", [])
+    if tags:
+        lines.append("tags:")
+        for t in tags:
+            lines.append(f"  - {t}")
+    else:
+        lines.append("tags: []")
+    lines.append(f"created: \"{task.get('created', _now_iso())}\"")
+    lines.append(f"updated: \"{task.get('updated', _now_iso())}\"")
+    lines.append(f"session: {task.get('session', '~')}")
+    # context block scalar
+    ctx = task.get("context", "")
+    if ctx:
+        lines.append("context: |")
+        for cl in ctx.split("\n"):
+            lines.append(f"  {cl}")
+    else:
+        lines.append("context: ''")
+    # plan list
+    plan = task.get("plan", [])
+    if plan:
+        lines.append("plan:")
+        for step in plan:
+            lines.append(f"  - \"{step}\"")
+    else:
+        lines.append("plan: []")
+    # acceptance_criteria list
+    ac = task.get("acceptance_criteria", [])
+    if ac:
+        lines.append("acceptance_criteria:")
+        for item in ac:
+            lines.append(f"  - \"{item}\"")
+    else:
+        lines.append("acceptance_criteria: []")
+    # files_to_modify list
+    ftm = task.get("files_to_modify", [])
+    if ftm:
+        lines.append("files_to_modify:")
+        for f in ftm:
+            lines.append(f"  - \"{f}\"")
+    else:
+        lines.append("files_to_modify: []")
+    # files_modified list
+    fm = task.get("files_modified", [])
+    if fm:
+        lines.append("files_modified:")
+        for f in fm:
+            lines.append(f"  - \"{f}\"")
+    else:
+        lines.append("files_modified: []")
+    # notes block scalar
+    notes = task.get("notes", "")
+    if notes:
+        lines.append("notes: |")
+        for nl in notes.split("\n"):
+            lines.append(f"  {nl}")
+    else:
+        lines.append("notes: ''")
+    # summary block scalar
+    summary = task.get("summary", "")
+    if summary:
+        lines.append("summary: |")
+        for sl in summary.split("\n"):
+            lines.append(f"  {sl}")
+    else:
+        lines.append("summary: ''")
+    return "\n".join(lines) + "\n"
+
+
+def _load_task(task_id: str) -> "dict | None":
+    """Load a task file by ID. Returns None if not found."""
+    path = _task_id_to_path(task_id)
+    if path is None:
+        return None
+    return _parse_task_file(path)
+
+
+def _save_task(task: dict) -> None:
+    """Set updated timestamp and write task atomically."""
+    task["updated"] = _now_iso()
+    task_id = task["id"]
+    path = _task_id_to_path(task_id)
+    if path is None:
+        # New file
+        slug = _slugify(task.get("title", task_id))
+        path = _tasks_dir() / f"{task_id}-{slug}.yml"
+    tmp = path.with_suffix(".tmp")
+    with open(tmp, "w") as f:
+        f.write(_render_task_file(task))
+    tmp.replace(path)
+
 
 # ---------------------------------------------------------------------------
 # Backlog helpers
@@ -1618,8 +1855,10 @@ def cmd_start(args: argparse.Namespace) -> None:
 
     mode = args.mode
 
+    task_id_arg = getattr(args, "task_id", None)
+
     # Register session
-    data["sessions"][sid] = {
+    session_record: dict = {
         "task": args.task or "(pending)",
         "mode": mode,
         "tags": tags,
@@ -1627,7 +1866,20 @@ def cmd_start(args: argparse.Namespace) -> None:
         "last_active": _now_iso(),
         "modified_files": [],
         "writing": None,
+        "task_id": task_id_arg,
     }
+    data["sessions"][sid] = session_record
+
+    # Link task file to this session if --task-id was given
+    if task_id_arg:
+        linked_task = _load_task(task_id_arg)
+        if linked_task:
+            linked_task["session"] = sid
+            _save_task(linked_task)
+        else:
+            print(f"Warning: --task-id {task_id_arg!r} not found; ignoring.", file=sys.stderr)
+            task_id_arg = None
+            data["sessions"][sid]["task_id"] = None
 
     _save_sessions(data)
 
@@ -1895,7 +2147,8 @@ def cmd_start(args: argparse.Namespace) -> None:
         elif info.get("modified_files"):
             files_str = f" [{len(info['modified_files'])} files]"
         tags_str = f" ({','.join(info['tags'])})" if info.get("tags") else ""
-        session_lines.append(f"{osid}: {info.get('task', '?')[:55]}{tags_str}{files_str}")
+        task_lnk = f" [task:{info['task_id']}]" if info.get("task_id") else ""
+        session_lines.append(f"{osid}: {info.get('task', '?')[:55]}{tags_str}{task_lnk}{files_str}")
 
     locks = data.get("locks", {})
     active_locks = [
@@ -2026,6 +2279,35 @@ def cmd_start(args: argparse.Namespace) -> None:
             if remaining > 0:
                 print(f"  ... +{remaining} more (sessions.py backlog-list)")
 
+    # ── Linked task pending steps ───────────────────────────────────────────
+    if mode != "question" and task_id_arg:
+        linked = _load_task(task_id_arg)
+        if linked:
+            plan = linked.get("plan", [])
+            pending = [(i + 1, s) for i, s in enumerate(plan) if "[ ]" in s]
+            ac = linked.get("acceptance_criteria", [])
+            pending_ac = [(i + 1, s) for i, s in enumerate(ac) if "[ ]" in s]
+            done_count = sum(1 for s in plan if "[x]" in s)
+            total_count = len(plan)
+            print()
+            print(f"┌─ TASK {task_id_arg}: {linked.get('title', '?')} ───")
+            print(f"  Status: {linked.get('status', '?')}  |  {done_count}/{total_count} steps done")
+            if pending:
+                print("  Pending steps:")
+                for num, step in pending:
+                    print(f"    [{num}] {step}")
+            else:
+                print("  All steps complete (or no steps defined).")
+            if pending_ac:
+                print("  Pending AC:")
+                for num, item in pending_ac:
+                    print(f"    [{num}] {item}")
+            notes = linked.get("notes", "")
+            if notes:
+                print(f"  Notes: {notes[:120]}{'...' if len(notes) > 120 else ''}")
+            print(f"  Full details: sessions.py task-show --id {task_id_arg}")
+            print("└─────────────────────────────────────────────────────")
+
     # ── Deploy reminder (compact, 1 line) ──────────────────────────────────
     if mode != "question":
         print()
@@ -2146,9 +2428,11 @@ def cmd_status(args: argparse.Namespace) -> None:
             writing = info.get("writing")
             mod_count = len(info.get("modified_files", []))
             writing_str = f" WRITING: {writing}" if writing else ""
+            linked_task = info.get("task_id")
+            task_str = f" [task: {linked_task}]" if linked_task else ""
             print(
                 f"  [{sid}] {info.get('task', '?')} "
-                f"(modified: {mod_count} files){writing_str}"
+                f"(modified: {mod_count} files){task_str}{writing_str}"
             )
             if info.get("modified_files"):
                 for f in info["modified_files"]:
@@ -3666,6 +3950,315 @@ def cmd_backlog_list(args: argparse.Namespace) -> None:
     print("Add new:   sessions.py backlog-add --title \"...\" --description \"...\" [--files f1 f2]")
 
 
+def cmd_task_create(args: argparse.Namespace) -> None:
+    """Create a new task YAML file in .claude/tasks/."""
+    meta = _load_task_meta()
+    next_num = meta.get("next_id", 1)
+    task_id = f"t{next_num:03d}"
+
+    title = args.title
+    tags = [t.strip() for t in args.tags.split(",")] if getattr(args, "tags", None) else []
+    files_to_modify = list(getattr(args, "files", None) or [])
+
+    task: dict = {
+        "id": task_id,
+        "title": title,
+        "status": "in_progress",
+        "mode": getattr(args, "mode", None) or "feature",
+        "tags": tags,
+        "created": _now_iso(),
+        "updated": _now_iso(),
+        "session": getattr(args, "session", None) or "~",
+        "context": getattr(args, "context", None) or "",
+        "plan": [],
+        "acceptance_criteria": [],
+        "files_to_modify": files_to_modify,
+        "files_modified": [],
+        "notes": "",
+        "summary": "",
+    }
+
+    _save_task(task)
+
+    # Update meta
+    meta["next_id"] = next_num + 1
+    meta["last_id"] = task_id
+    _save_task_meta(meta)
+
+    # Link to session if provided
+    session_id = getattr(args, "session", None)
+    if session_id:
+        data = _load_sessions()
+        if session_id in data.get("sessions", {}):
+            data["sessions"][session_id]["task_id"] = task_id
+            _save_sessions(data)
+
+    path = _task_id_to_path(task_id)
+    print(f"Created task {task_id}: {title}")
+    print(f"  File: {path}")
+    print(f"  Add steps:    sessions.py task-step --id {task_id} --add \"[ ] Step description\"")
+    print(f"  Add AC:       sessions.py task-ac   --id {task_id} --add \"[ ] Acceptance criterion\"")
+    print(f"  Show:         sessions.py task-show --id {task_id}")
+
+
+def cmd_task_step(args: argparse.Namespace) -> None:
+    """Add or check off a plan step in a task file."""
+    task_id = args.id
+    task = _load_task(task_id)
+    if task is None:
+        print(f"Error: Task {task_id} not found.", file=sys.stderr)
+        sys.exit(1)
+
+    plan = task.get("plan", [])
+
+    if getattr(args, "add", None):
+        plan.append(args.add)
+        task["plan"] = plan
+        _save_task(task)
+        print(f"[{task_id}] Added step [{len(plan)}]: {args.add}")
+
+    elif getattr(args, "done", None) is not None:
+        idx = args.done - 1
+        if idx < 0 or idx >= len(plan):
+            print(f"Error: Step {args.done} out of range (1–{len(plan)}).", file=sys.stderr)
+            sys.exit(1)
+        step = plan[idx]
+        # Replace [ ] with [x]
+        if "[ ]" in step:
+            step = step.replace("[ ]", "[x]", 1)
+        elif "[x]" in step:
+            print(f"Step {args.done} is already checked off.")
+            return
+        else:
+            step = "[x] " + step
+        plan[idx] = step
+        task["plan"] = plan
+        _save_task(task)
+        print(f"[{task_id}] Checked off step {args.done}: {step}")
+    else:
+        print("Use --add \"<text>\" or --done <N>.", file=sys.stderr)
+        sys.exit(1)
+
+
+def cmd_task_ac(args: argparse.Namespace) -> None:
+    """Add or check off an acceptance criterion in a task file."""
+    task_id = args.id
+    task = _load_task(task_id)
+    if task is None:
+        print(f"Error: Task {task_id} not found.", file=sys.stderr)
+        sys.exit(1)
+
+    ac = task.get("acceptance_criteria", [])
+
+    if getattr(args, "add", None):
+        ac.append(args.add)
+        task["acceptance_criteria"] = ac
+        _save_task(task)
+        print(f"[{task_id}] Added AC [{len(ac)}]: {args.add}")
+
+    elif getattr(args, "done", None) is not None:
+        idx = args.done - 1
+        if idx < 0 or idx >= len(ac):
+            print(f"Error: AC {args.done} out of range (1–{len(ac)}).", file=sys.stderr)
+            sys.exit(1)
+        item = ac[idx]
+        if "[ ]" in item:
+            item = item.replace("[ ]", "[x]", 1)
+        elif "[x]" in item:
+            print(f"AC {args.done} is already checked off.")
+            return
+        else:
+            item = "[x] " + item
+        ac[idx] = item
+        task["acceptance_criteria"] = ac
+        _save_task(task)
+        print(f"[{task_id}] Checked off AC {args.done}: {item}")
+    else:
+        print("Use --add \"<text>\" or --done <N>.", file=sys.stderr)
+        sys.exit(1)
+
+
+def cmd_task_show(args: argparse.Namespace) -> None:
+    """Print full task details with numbered steps."""
+    task_id = args.id
+    task = _load_task(task_id)
+    if task is None:
+        print(f"Error: Task {task_id} not found.", file=sys.stderr)
+        sys.exit(1)
+
+    plan = task.get("plan", [])
+    ac = task.get("acceptance_criteria", [])
+    done_steps = sum(1 for s in plan if "[x]" in s)
+    total_steps = len(plan)
+
+    print(f"== TASK {task_id}: {task.get('title', '?')} ==")
+    print(f"Status: {task.get('status', '?')}  |  {done_steps}/{total_steps} steps done  |  Session: {task.get('session', '~')}")
+    print(f"Mode: {task.get('mode', '?')}  |  Tags: {', '.join(task.get('tags', [])) or 'none'}")
+    print(f"Created: {task.get('created', '?')}  |  Updated: {task.get('updated', '?')}")
+
+    ctx = task.get("context", "")
+    if ctx:
+        print()
+        print("Context:")
+        for cl in ctx.split("\n"):
+            print(f"  {cl}")
+
+    if plan:
+        print()
+        print("Plan:")
+        for i, step in enumerate(plan, 1):
+            print(f"  [{i}] {step}")
+
+    if ac:
+        print()
+        print("Acceptance Criteria:")
+        for i, item in enumerate(ac, 1):
+            print(f"  [{i}] {item}")
+
+    ftm = task.get("files_to_modify", [])
+    if ftm:
+        print()
+        print("Files to modify:")
+        for f in ftm:
+            print(f"  - {f}")
+
+    fm = task.get("files_modified", [])
+    if fm:
+        print()
+        print("Files modified:")
+        for f in fm:
+            print(f"  - {f}")
+
+    notes = task.get("notes", "")
+    if notes:
+        print()
+        print("Notes:")
+        for nl in notes.split("\n"):
+            print(f"  {nl}")
+
+    summary = task.get("summary", "")
+    if summary:
+        print()
+        print("Summary:")
+        for sl in summary.split("\n"):
+            print(f"  {sl}")
+
+
+def cmd_task_list(args: argparse.Namespace) -> None:
+    """List all task files as a compact table."""
+    d = _tasks_dir()
+    task_files = sorted(d.glob("t[0-9][0-9][0-9]-*.yml"))
+
+    if not task_files:
+        print("No tasks found. Create one: sessions.py task-create --title \"...\"")
+        return
+
+    status_filter = getattr(args, "status", None)
+
+    tasks = []
+    for path in task_files:
+        try:
+            t = _parse_task_file(path)
+            tasks.append(t)
+        except Exception:
+            continue
+
+    if status_filter:
+        tasks = [t for t in tasks if t.get("status") == status_filter]
+
+    if not tasks:
+        print(f"No tasks with status '{status_filter}'.")
+        return
+
+    # Group by status
+    groups: dict[str, list[dict]] = {}
+    for t in tasks:
+        s = t.get("status", "todo")
+        groups.setdefault(s, []).append(t)
+
+    order = ["in_progress", "todo", "done", "abandoned"]
+    print(f"== TASKS ({len(tasks)}) ==")
+    for status in order:
+        if status not in groups:
+            continue
+        print(f"\n  {status.upper()}:")
+        for t in groups[status]:
+            plan = t.get("plan", [])
+            done = sum(1 for s in plan if "[x]" in s)
+            total = len(plan)
+            sess = t.get("session", "~")
+            title = t.get("title", "?")
+            tid = t.get("id", "?")
+            step_info = f"{done}/{total} steps" if total else "no steps"
+            print(f"    {tid}  {title[:50]:<50}  [{step_info}]  session:{sess}")
+    print()
+    print("Show details: sessions.py task-show --id <id>")
+    print("Resume:       sessions.py start --mode <mode> --task \"...\" --task-id <id>")
+
+
+def cmd_task_update(args: argparse.Namespace) -> None:
+    """Update scalar fields in a task file."""
+    task_id = args.id
+    task = _load_task(task_id)
+    if task is None:
+        print(f"Error: Task {task_id} not found.", file=sys.stderr)
+        sys.exit(1)
+
+    changed = []
+    if getattr(args, "status", None):
+        task["status"] = args.status
+        changed.append(f"status={args.status}")
+    if getattr(args, "title", None):
+        task["title"] = args.title
+        changed.append(f"title={args.title!r}")
+    if getattr(args, "session", None):
+        task["session"] = args.session
+        changed.append(f"session={args.session}")
+    if getattr(args, "notes", None):
+        existing = task.get("notes", "")
+        task["notes"] = (existing + "\n" + args.notes).strip()
+        changed.append("notes appended")
+    if getattr(args, "summary", None):
+        existing = task.get("summary", "")
+        task["summary"] = (existing + "\n" + args.summary).strip() if existing else args.summary
+        changed.append("summary set")
+
+    if not changed:
+        print("Nothing to update. Use --status, --title, --session, --notes, or --summary.")
+        return
+
+    _save_task(task)
+
+    # If session is updated, link it in sessions.json too
+    if getattr(args, "session", None):
+        data = _load_sessions()
+        session_id = args.session
+        if session_id in data.get("sessions", {}):
+            data["sessions"][session_id]["task_id"] = task_id
+            _save_sessions(data)
+
+    print(f"[{task_id}] Updated: {', '.join(changed)}")
+
+
+def cmd_task_track(args: argparse.Namespace) -> None:
+    """Append a file path to files_modified in a task file."""
+    task_id = args.id
+    task = _load_task(task_id)
+    if task is None:
+        print(f"Error: Task {task_id} not found.", file=sys.stderr)
+        sys.exit(1)
+
+    file_path = args.file
+    fm = task.get("files_modified", [])
+    if file_path not in fm:
+        fm.append(file_path)
+        task["files_modified"] = fm
+        _save_task(task)
+        print(f"[{task_id}] Tracked: {file_path}")
+    else:
+        print(f"[{task_id}] Already tracked: {file_path}")
+
+
 def cmd_trigger_tests(args: argparse.Namespace) -> None:
     """Trigger the GitHub Actions daily test workflow via gh CLI."""
     suite = getattr(args, "suite", "all") or "all"
@@ -3845,6 +4438,12 @@ def main() -> None:
         action="store_true",
         help="Show all commits and changed files since the last sessions.py deploy call. "
         "Useful when resuming work after a break or picking up from another session.",
+    )
+    p_start.add_argument(
+        "--task-id",
+        metavar="TASK_ID",
+        help="Link an existing task file to this session (e.g. t003). "
+        "Displays pending steps inline at startup.",
     )
 
     # end
@@ -4157,6 +4756,77 @@ def main() -> None:
         help="List all current backlog tasks",
     )
 
+    # task-create
+    p_task_create = sub.add_parser(
+        "task-create",
+        help="Create a persistent task YAML file in .claude/tasks/",
+    )
+    p_task_create.add_argument("--title", "-t", required=True, help="Task title")
+    p_task_create.add_argument("--session", "-s", help="Link to this session ID")
+    p_task_create.add_argument("--context", "-c", help="Background context for the task")
+    p_task_create.add_argument("--mode", "-m", choices=list(VALID_MODES), default="feature",
+                               help="Task mode (default: feature)")
+    p_task_create.add_argument("--tags", help="Comma-separated tags")
+    p_task_create.add_argument("--files", "-f", nargs="*", metavar="FILE",
+                               help="Files to modify (space-separated)")
+
+    # task-step
+    p_task_step = sub.add_parser(
+        "task-step",
+        help="Add or check off a plan step in a task file",
+    )
+    p_task_step.add_argument("--id", "-i", required=True, metavar="TASK_ID", help="Task ID (e.g. t001)")
+    p_task_step.add_argument("--add", "-a", metavar="TEXT", help="Add a new step (e.g. '[ ] Step text')")
+    p_task_step.add_argument("--done", "-d", type=int, metavar="N", help="Mark step N as done")
+
+    # task-ac
+    p_task_ac = sub.add_parser(
+        "task-ac",
+        help="Add or check off an acceptance criterion in a task file",
+    )
+    p_task_ac.add_argument("--id", "-i", required=True, metavar="TASK_ID", help="Task ID")
+    p_task_ac.add_argument("--add", "-a", metavar="TEXT", help="Add a new acceptance criterion")
+    p_task_ac.add_argument("--done", "-d", type=int, metavar="N", help="Mark AC N as done")
+
+    # task-show
+    p_task_show = sub.add_parser(
+        "task-show",
+        help="Print full task details with numbered steps",
+    )
+    p_task_show.add_argument("--id", "-i", required=True, metavar="TASK_ID", help="Task ID")
+
+    # task-list
+    p_task_list = sub.add_parser(
+        "task-list",
+        help="List all task files as a compact table",
+    )
+    p_task_list.add_argument(
+        "--status",
+        choices=["todo", "in_progress", "done", "abandoned"],
+        help="Filter by status",
+    )
+
+    # task-update
+    p_task_update = sub.add_parser(
+        "task-update",
+        help="Update scalar fields in a task file",
+    )
+    p_task_update.add_argument("--id", "-i", required=True, metavar="TASK_ID", help="Task ID")
+    p_task_update.add_argument("--status", choices=["todo", "in_progress", "done", "abandoned"],
+                               help="New status")
+    p_task_update.add_argument("--title", help="New title")
+    p_task_update.add_argument("--session", "-s", help="Link a session ID")
+    p_task_update.add_argument("--notes", help="Append text to notes field")
+    p_task_update.add_argument("--summary", help="Set/append task summary (what was done and why)")
+
+    # task-track
+    p_task_track = sub.add_parser(
+        "task-track",
+        help="Append a file to files_modified in a task file",
+    )
+    p_task_track.add_argument("--id", "-i", required=True, metavar="TASK_ID", help="Task ID")
+    p_task_track.add_argument("--file", "-f", required=True, help="File path")
+
     args = parser.parse_args()
 
     commands = {
@@ -4187,6 +4857,13 @@ def main() -> None:
         "backlog-add": cmd_backlog_add,
         "backlog-done": cmd_backlog_done,
         "backlog-list": cmd_backlog_list,
+        "task-create": cmd_task_create,
+        "task-step": cmd_task_step,
+        "task-ac": cmd_task_ac,
+        "task-show": cmd_task_show,
+        "task-list": cmd_task_list,
+        "task-update": cmd_task_update,
+        "task-track": cmd_task_track,
     }
 
     cmd_func = commands.get(args.command)

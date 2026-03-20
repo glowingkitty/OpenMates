@@ -44,6 +44,36 @@ Wait for a yes/no before proceeding to planning.
 
 ---
 
+### 0b. Create a Task File (multi-session tasks)
+
+If the task spans more than one session or touches more than 3 files, create a task file immediately after confirming understanding. This gives any agent an exact checkpoint to resume from.
+
+```bash
+# Create the task file (links to current session automatically)
+python3 scripts/sessions.py task-create --session <ID> --title "Short title" \
+    --context "Why this task exists and what the goal is" --files path/to/file.py
+
+# Add plan steps (use [ ] prefix for unchecked, [x] for already done)
+python3 scripts/sessions.py task-step --id t001 --add "[ ] Step one"
+python3 scripts/sessions.py task-step --id t001 --add "[ ] Step two"
+
+# Add acceptance criteria
+python3 scripts/sessions.py task-ac --id t001 --add "[ ] Observable outcome one"
+
+# Resume in a new session
+python3 scripts/sessions.py start --mode feature --task "continue X" --task-id t001
+# → Shows pending steps inline at startup
+
+# Mark a step done as you go
+python3 scripts/sessions.py task-step --id t001 --done 1
+
+# At task completion — save summary + mark done
+python3 scripts/sessions.py task-update --id t001 --status done \
+    --summary "Implemented X by doing Y. Key decision: Z because ..."
+```
+
+The `summary` field is the handoff note for the next agent — explain what was done, why, and any non-obvious decisions made.
+
 ### 1. Define Scope
 
 State clearly what is in scope and what is NOT:
