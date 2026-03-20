@@ -650,6 +650,8 @@ export class OpenMatesClient {
     const loginUrl = `${appBase}/#pair=${token}`;
 
     stdout.write("\n");
+    printLogo();
+    stdout.write("\n");
     this.renderPairQrCode(loginUrl);
     stdout.write(`Open on your logged-in device: ${loginUrl}\n`);
     stdout.write(`Then enter the 6-char PIN shown on that device.\n\n`);
@@ -2830,4 +2832,17 @@ export function parseNewChatSuggestionText(text: string): {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Print the OpenMates ASCII logo — "Open" in bold white, "Mates" in brand blue. */
+function printLogo(): void {
+  const W = "\x1b[1;37m"; // bold white
+  const B = "\x1b[38;2;74;103;205m"; // brand blue #4A67CD
+  const R = "\x1b[0m"; // reset
+  const lines = [
+    `${W} █▀▀█ █▀▀█ █▀▀ █▀▀▄${B} █▀▄▀█ █▀▀█ ▀▀█▀▀ █▀▀ █▀▀${R}`,
+    `${W} █  █ █▄▄█ █▀▀ █  █${B} █ ▀ █ █▄▄█   █   █▀▀ ▀▀█${R}`,
+    `${W} ▀▀▀▀ ▀    ▀▀▀ ▀  ▀${B} ▀   ▀ ▀  ▀   ▀   ▀▀▀ ▀▀▀${R}`,
+  ];
+  stdout.write(lines.join("\n") + "\n");
 }
