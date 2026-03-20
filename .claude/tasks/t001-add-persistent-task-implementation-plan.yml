@@ -1,0 +1,34 @@
+id: t001
+title: "Add persistent task + implementation plan system"
+status: done
+mode: feature
+tags:
+  - backend
+  - planning
+created: "2026-03-20T12:48:00Z"
+updated: "2026-03-20T12:49:40Z"
+session: 25b6
+context: |
+  When a Claude session ends, there is no structured handoff. This introduces .claude/tasks/ so any agent can resume from an exact checkpoint.
+plan:
+  - "[x] Add TASKS_DIR, TASKS_META_FILE constants and task helpers"
+  - "[x] Add cmd_task_create/step/ac/show/list/update/track commands"
+  - "[x] Modify cmd_start: --task-id flag + pending steps display"
+  - "[x] Modify cmd_status: show [task: tXXX] inline"
+  - "[x] Register 7 new subparsers + commands dict entries"
+  - "[x] Update CLAUDE.md and planning docs"
+acceptance_criteria:
+  - "[x] task-create produces valid YAML with correct slug + incremented ID"
+  - "[x] task-step --done 3 marks step 3 [x] and updates timestamp"
+  - "[x] sessions.py start --task-id t001 shows pending steps inline"
+  - "[x] task-list shows all tasks grouped by status"
+  - "[x] task-update --summary saves structured summary to YAML"
+files_to_modify:
+  - "scripts/sessions.py"
+  - "CLAUDE.md"
+  - "docs/claude/planning-compact.md"
+  - "docs/claude/planning.md"
+files_modified: []
+notes: ''
+summary: |
+  Added .claude/tasks/ system to sessions.py: 7 new commands (task-create/step/ac/show/list/update/track), custom YAML parser/renderer (~300 lines, no deps), --task-id flag on start shows pending steps inline, cmd_status shows linked task. summary field persists handoff notes for next agent. Updated CLAUDE.md + planning docs to require task files for multi-session work.

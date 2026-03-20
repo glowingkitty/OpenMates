@@ -1,0 +1,33 @@
+{
+  "backlog": [
+    {
+      "id": 1,
+      "title": "Fix E402 lint errors in skill_executor.py (pre-existing import ordering)",
+      "description": "backend/apps/ai/processing/skill_executor.py has 3 E402 (module level import not at top of file) errors at lines 50-56. These block lint-gated deploy for any change to this file. The imports are after a large block of other imports and comments \u2014 need to restructure the file to fix.",
+      "files": [
+        "backend/apps/ai/processing/skill_executor.py"
+      ],
+      "added": "2026-03-19"
+    },
+    {
+      "id": 2,
+      "title": "Fix pre-existing ESLint crash (ajv/eslintrc TypeError on defaultMeta)",
+      "description": "ESLint 9.35.0 crashes with 'Cannot set properties of undefined (setting defaultMeta)' due to @eslint/eslintrc ajv version conflict. This blocks sessions.py deploy without --no-verify. Pre-existing issue, not introduced by recent changes.",
+      "files": [
+        "node_modules/.pnpm/@eslint+eslintrc@3.3.1",
+        "package.json"
+      ],
+      "added": "2026-03-19"
+    },
+    {
+      "id": 3,
+      "title": "ESLint not configured/installed in CLI package",
+      "description": "ESLint not installed or incomplete in frontend/packages/openmates-cli or repo root. Run pnpm install from repo root to fix.",
+      "files": [
+        "frontend/packages/openmates-cli/package.json"
+      ],
+      "added": "2026-03-19"
+    }
+  ],
+  "next_id": 4
+}
