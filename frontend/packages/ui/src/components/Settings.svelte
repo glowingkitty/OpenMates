@@ -2761,11 +2761,21 @@ changes to the documentation (to keep the documentation up to date).
             bottom: 18px;
             height: auto;
             z-index: 1000;
-            visibility: hidden; /* Hide by default on mobile */
+            /* Override desktop width animation — keep full width, slide with GPU-accelerated transform */
+            width: 323px;
+            transition: transform 0.3s ease, visibility 0.3s ease;
+            transform: translateX(calc(100% + 40px));
+            visibility: hidden;
+            will-change: transform;
         }
 
         .settings-menu.visible {
+            transform: translateX(0);
             visibility: visible;
+        }
+
+        :global([dir="rtl"]) .settings-menu:not(.visible) {
+            transform: translateX(calc(-100% - 40px));
         }
 
         .settings-menu.overlay {
@@ -2784,6 +2794,15 @@ changes to the documentation (to keep the documentation up to date).
         .settings-menu {
             inset-inline-end: 10px;
             bottom: 10px;
+            transform: translateX(calc(100% + 20px));
+        }
+
+        :global([dir="rtl"]) .settings-menu:not(.visible) {
+            transform: translateX(calc(-100% - 20px));
+        }
+
+        .settings-menu.visible {
+            transform: translateX(0);
         }
     }
 
