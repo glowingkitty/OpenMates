@@ -189,15 +189,13 @@ Fixtures are JSON files in `backend/apps/ai/testing/fixtures/`:
     "selected_model_id": "anthropic/claude-sonnet-4-20250514",
     "steps": [...]
   },
-  "stream_chunks": [
-    {"sequence": 1, "full_content_so_far": "The capital"},
-    {"sequence": 2, "full_content_so_far": "The capital of Germany is Berlin.", "is_final": true}
-  ],
+  "response": "The capital of Germany is Berlin.",
   "skill_executions": [],
-  "usage": { "prompt_tokens": 150, "completion_tokens": 12 },
-  "final_response": "The capital of Germany is Berlin."
+  "usage": { "prompt_tokens": 150, "completion_tokens": 12 }
 }
 ```
+
+Fixtures store only the full `response` text. Stream chunks are generated at replay time by splitting at sentence/paragraph boundaries. This keeps fixtures small and human-editable.
 
 ### Security
 

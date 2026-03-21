@@ -2,17 +2,20 @@
 # Records real LLM responses and skill outputs as fixture files for E2E test mocking.
 #
 # When a user message contains <<<TEST_RECORD:fixture_id>>>, the Celery task runs
-# normally (real LLM + real skills) but wraps the Redis publish calls to capture
-# every event. After the task completes, the recorder serializes everything to a
-# fixture JSON file that can later be replayed with <<<TEST_MOCK:fixture_id>>>.
+# normally (real LLM + real skills). After the task completes, the recorder saves
+# the full response and metadata as a fixture JSON file that can later be replayed
+# with <<<TEST_MOCK:fixture_id>>>.
+#
+# Fixtures store only the full response text — chunks are generated at replay time
+# by splitting at sentence/paragraph boundaries. This keeps fixtures small and
+# human-editable.
 #
 # Security: Only works when SERVER_ENVIRONMENT != "production".
 #
-# Architecture context: See docs/architecture/e2e-test-mock-replay.md
+# Architecture context: See docs/claude/testing-ref.md ("E2E Mock/Replay System")
 
 import json
 import logging
-import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -28,15 +31,18 @@ FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 class FixtureRecorder:
     """
-    Records Redis events published during a real LLM task execution.
+    Records data during a real LLM task execution for later mock replay.
+
+    Captures preprocessing results, typing metadata, the full response text,
+    skill executions, and usage data. Saves as a compact JSON fixture.
 
     Usage (in ask_skill_task.py):
         recorder = FixtureRecorder(fixture_id, request_data)
-        # ... run normal processing ...
         recorder.record_preprocessing(preprocessing_result)
-        recorder.record_stream_chunk(sequence, full_content_so_far, is_final)
-        recorder.record_skill_execution(app_id, skill_id, status, preview_data, at_sequence)
+        recorder.record_typing_started(category, model_name, ...)
+        recorder.record_skill_execution(app_id, skill_id, status, preview_data)
         recorder.record_usage(prompt_tokens, completion_tokens, ...)
+        recorder.set_response(aggregated_final_response)
         recorder.save()
     """
 
@@ -49,21 +55,16 @@ class FixtureRecorder:
         if request_data.message_history:
             for msg in reversed(request_data.message_history):
                 if msg.role == "user":
-                    # Truncate to first 200 chars for the fixture
                     self.user_message_snippet = msg.content[:200]
                     break
 
         # Collected data
         self.preprocessing_data: Dict[str, Any] = {}
         self.typing_started_data: Dict[str, Any] = {}
-        self.stream_chunks: List[Dict[str, Any]] = []
-        self.chunk_timestamps_ms: List[int] = []
         self.skill_executions: Dict[str, Dict[str, Any]] = {}  # keyed by "app_id.skill_id"
         self.usage_data: Dict[str, Any] = {}
         self.thinking_content: Optional[str] = None
-        self.final_response: str = ""
-
-        self._first_chunk_time: Optional[float] = None
+        self.response: str = ""
 
         logger.info(f"[RECORD] FixtureRecorder initialized for fixture '{fixture_id}'")
 
@@ -115,34 +116,6 @@ class FixtureRecorder:
         if icon_names:
             self.typing_started_data["icon_names"] = icon_names
 
-    def record_stream_chunk(
-        self,
-        sequence: int,
-        full_content_so_far: str,
-        is_final: bool = False,
-    ) -> None:
-        """
-        Record a single streaming chunk.
-
-        Also captures inter-chunk timing for realistic speed replay.
-        """
-        now = time.monotonic()
-        if self._first_chunk_time is None:
-            self._first_chunk_time = now
-
-        elapsed_ms = int((now - self._first_chunk_time) * 1000)
-        self.chunk_timestamps_ms.append(elapsed_ms)
-
-        chunk_data: Dict[str, Any] = {
-            "sequence": sequence,
-            "full_content_so_far": full_content_so_far,
-        }
-        if is_final:
-            chunk_data["is_final"] = True
-            self.final_response = full_content_so_far
-
-        self.stream_chunks.append(chunk_data)
-
     def record_skill_execution(
         self,
         app_id: str,
@@ -150,7 +123,7 @@ class FixtureRecorder:
         status: str,
         preview_data: Optional[Dict[str, Any]] = None,
         error: Optional[str] = None,
-        at_sequence: Optional[int] = None,
+        at_fraction: Optional[float] = None,
     ) -> None:
         """
         Record a skill execution status update.
@@ -161,8 +134,8 @@ class FixtureRecorder:
             status: Status ("processing", "finished", "error")
             preview_data: Skill-specific preview data
             error: Error message if status is "error"
-            at_sequence: Stream chunk sequence number when this event was published.
-                         Used during replay to interleave skill events with stream chunks.
+            at_fraction: When during streaming this event should fire (0.0-1.0).
+                         E.g., 0.3 = after 30% of chunks have been sent.
         """
         key = f"{app_id}.{skill_id}"
 
@@ -178,8 +151,8 @@ class FixtureRecorder:
             update["preview_data"] = preview_data
         if error:
             update["error"] = error
-        if at_sequence is not None:
-            update["at_sequence"] = at_sequence
+        if at_fraction is not None:
+            update["at_fraction"] = at_fraction
 
         self.skill_executions[key]["status_updates"].append(update)
 
@@ -202,6 +175,10 @@ class FixtureRecorder:
         """Record thinking/reasoning content from thinking models."""
         self.thinking_content = content
 
+    def set_response(self, response: str) -> None:
+        """Set the full aggregated response text."""
+        self.response = response
+
     def save(self) -> Path:
         """
         Save the recorded data as a fixture JSON file.
@@ -209,22 +186,17 @@ class FixtureRecorder:
         Returns:
             Path to the saved fixture file.
         """
-        # Infer speed profile from actual chunk timing
-        inferred_speed = self._infer_speed_profile()
-
         fixture = {
             "fixture_id": self.fixture_id,
             "recorded_at": self.recorded_at,
-            "speed_profile": inferred_speed,
-            "recorded_chunk_timestamps_ms": self.chunk_timestamps_ms,
+            "speed_profile": "instant",
             "user_message_snippet": self.user_message_snippet,
             "preprocessing": self.preprocessing_data,
             "typing_started": self.typing_started_data,
-            "stream_chunks": self.stream_chunks,
+            "response": self.response,
             "skill_executions": list(self.skill_executions.values()),
             "thinking_content": self.thinking_content,
             "usage": self.usage_data,
-            "final_response": self.final_response,
         }
 
         # Ensure fixtures directory exists
@@ -236,85 +208,7 @@ class FixtureRecorder:
 
         logger.info(
             f"[RECORD] Saved fixture '{self.fixture_id}' to {fixture_path} "
-            f"({len(self.stream_chunks)} chunks, "
-            f"{len(self.skill_executions)} skill executions, "
-            f"inferred_speed={inferred_speed})"
+            f"(response={len(self.response)} chars, "
+            f"{len(self.skill_executions)} skill executions)"
         )
         return fixture_path
-
-    def generate_chunks_from_response(self, full_response: str) -> None:
-        """
-        Generate synthetic stream chunks from the aggregated final response.
-
-        If no chunks were recorded via record_stream_chunk() (e.g., because we
-        couldn't hook into stream_consumer.py), this creates approximate chunks
-        by splitting the response at word boundaries.
-
-        The exact chunking doesn't matter for replay — speed profiles control
-        the pacing. What matters is that the content builds up progressively.
-        """
-        if self.stream_chunks:
-            # Chunks were already recorded directly — use those
-            # Just ensure the final_response is set
-            if not self.final_response and self.stream_chunks:
-                last_chunk = self.stream_chunks[-1]
-                self.final_response = last_chunk.get("full_content_so_far", "")
-            return
-
-        if not full_response:
-            return
-
-        self.final_response = full_response
-
-        # Split into ~20-50 chunks at word boundaries
-        words = full_response.split(" ")
-        target_chunks = min(max(len(words) // 3, 5), 50)
-        words_per_chunk = max(1, len(words) // target_chunks)
-
-        for i in range(0, len(words), words_per_chunk):
-            chunk_words = words[: i + words_per_chunk]
-            content_so_far = " ".join(chunk_words)
-            is_final = (i + words_per_chunk) >= len(words)
-
-            chunk_data: Dict[str, Any] = {
-                "sequence": len(self.stream_chunks) + 1,
-                "full_content_so_far": content_so_far,
-            }
-            if is_final:
-                chunk_data["is_final"] = True
-                chunk_data["full_content_so_far"] = full_response  # Ensure exact final content
-
-            self.stream_chunks.append(chunk_data)
-
-        # Generate synthetic timestamps (evenly spaced)
-        self.chunk_timestamps_ms = [
-            i * 20 for i in range(len(self.stream_chunks))
-        ]
-
-    def _infer_speed_profile(self) -> str:
-        """
-        Infer the closest speed profile from actual inter-chunk timings.
-
-        Calculates the median inter-chunk delay and maps it to the closest
-        named speed profile.
-        """
-        if len(self.chunk_timestamps_ms) < 2:
-            return "medium"  # Not enough data, default to medium
-
-        # Calculate inter-chunk delays
-        delays = [
-            self.chunk_timestamps_ms[i] - self.chunk_timestamps_ms[i - 1]
-            for i in range(1, len(self.chunk_timestamps_ms))
-        ]
-        delays.sort()
-        median_delay = delays[len(delays) // 2]
-
-        # Map to closest profile
-        if median_delay <= 2:
-            return "instant"
-        elif median_delay <= 10:
-            return "fast"
-        elif median_delay <= 35:
-            return "medium"
-        else:
-            return "slow"

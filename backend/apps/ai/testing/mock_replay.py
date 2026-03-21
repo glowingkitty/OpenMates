@@ -8,14 +8,13 @@
 #
 # Security: All functions return None / no-op when SERVER_ENVIRONMENT == "production".
 #
-# Architecture context: See docs/architecture/e2e-test-mock-replay.md
+# Architecture context: See docs/claude/testing-ref.md ("E2E Mock/Replay System")
 
 import asyncio
 import json
 import logging
 import os
 import re
-import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -119,9 +118,10 @@ def load_fixture(fixture_id: str) -> Dict[str, Any]:
     with open(fixture_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
+    response = data.get("response") or data.get("final_response", "")
     logger.info(
         f"[MOCK] Loaded fixture '{fixture_id}' "
-        f"({len(data.get('stream_chunks', []))} chunks, "
+        f"(response={len(response)} chars, "
         f"{len(data.get('skill_executions', []))} skill executions)"
     )
     return data
@@ -135,7 +135,6 @@ def build_preprocessing_result(fixture_data: Dict[str, Any]) -> PreprocessingRes
     It contains the model selection, category, title, etc. from the original recorded response.
     """
     preprocessing = fixture_data.get("preprocessing", {})
-    usage = fixture_data.get("usage", {})
 
     return PreprocessingResult(
         can_proceed=preprocessing.get("can_proceed", True),
@@ -151,6 +150,58 @@ def build_preprocessing_result(fixture_data: Dict[str, Any]) -> PreprocessingRes
         llm_response_temp=preprocessing.get("llm_response_temp"),
         complexity=preprocessing.get("complexity"),
     )
+
+
+def _split_response_into_chunks(response: str) -> List[str]:
+    """
+    Split a full response into progressive cumulative chunk strings.
+
+    Returns a list where each entry is the response content up to that point
+    (i.e., response[:boundary]). The last entry is always the full response.
+
+    Splits at paragraph breaks (\\n\\n), then sentence ends (. ),
+    falling back to ~80-char word boundaries for long runs without punctuation.
+    """
+    if not response:
+        return [response] if response == "" else []
+
+    boundaries: List[int] = []
+    pos = 0
+
+    while pos < len(response):
+        # Look for next paragraph break
+        para_idx = response.find("\n\n", pos)
+        if para_idx != -1 and para_idx < pos + 200:
+            boundaries.append(para_idx + 2)
+            pos = para_idx + 2
+            continue
+
+        # Look for next sentence end
+        sent_idx = response.find(". ", pos)
+        if sent_idx != -1 and sent_idx < pos + 200:
+            boundaries.append(sent_idx + 2)
+            pos = sent_idx + 2
+            continue
+
+        # Fallback: word boundary around ~80 chars
+        target = pos + 80
+        if target >= len(response):
+            break
+        space_idx = response.find(" ", target)
+        if space_idx != -1:
+            boundaries.append(space_idx + 1)
+            pos = space_idx + 1
+        else:
+            break
+
+    # Build cumulative chunks from boundaries
+    chunks = [response[:b] for b in boundaries]
+
+    # Always end with the full response
+    if not chunks or chunks[-1] != response:
+        chunks.append(response)
+
+    return chunks
 
 
 async def replay_fixture(
@@ -169,24 +220,11 @@ async def replay_fixture(
     3. ai_message_chunk events (with configurable streaming speed)
     4. Skill execution status events (if any)
 
+    The fixture stores only the full response text. Chunks are generated at replay
+    time by splitting at sentence/paragraph boundaries.
+
     Everything downstream (billing preflight, postprocessing, persistence) still runs
     with the synthetic PreprocessingResult and aggregated response from the fixture.
-
-    Args:
-        fixture_id: ID of the fixture to replay
-        task_id: Current Celery task ID (used as message_id for the AI response)
-        request_data: The AskSkillRequest with user/chat context
-        cache_service: CacheService for Redis pub/sub
-        speed_override: Optional speed profile override (from marker)
-
-    Returns:
-        Dict containing:
-            - preprocessing_result: Synthetic PreprocessingResult
-            - aggregated_final_response: The full response text
-            - thinking_content: List of thinking text chunks (if any)
-            - main_processor_debug_metadata: Empty dict (no real processing)
-            - revoked_in_consumer: False
-            - soft_limited_in_consumer: False
     """
     fixture_data = load_fixture(fixture_id)
     preprocessing_result = build_preprocessing_result(fixture_data)
@@ -195,9 +233,13 @@ async def replay_fixture(
     speed_profile = speed_override or fixture_data.get("speed_profile", DEFAULT_SPEED_PROFILE)
     chunk_delay = get_chunk_delay_seconds(speed_profile)
 
+    # Get the full response text (support both new "response" and legacy "final_response" fields)
+    full_response = fixture_data.get("response") or fixture_data.get("final_response", "")
+
     logger.info(
         f"[MOCK] Replaying fixture '{fixture_id}' for task {task_id}, "
-        f"speed_profile={speed_profile}, chunk_delay={chunk_delay}s"
+        f"speed_profile={speed_profile}, chunk_delay={chunk_delay}s, "
+        f"response_len={len(full_response)}"
     )
 
     # --- 1. Publish preprocessing step events ---
@@ -210,28 +252,34 @@ async def replay_fixture(
         fixture_data, task_id, request_data, cache_service, preprocessing_result
     )
 
-    # --- 3. Publish skill execution events (interleaved with stream chunks) ---
-    # Skills are published at the sequence numbers recorded in the fixture.
-    skill_events_by_sequence = _build_skill_event_schedule(fixture_data)
+    # --- 3. Build skill event schedule ---
+    skill_events_by_fraction = _build_skill_event_schedule(fixture_data)
 
-    # --- 4. Publish ai_message_chunk events ---
-    stream_chunks = fixture_data.get("stream_chunks", [])
+    # --- 4. Generate chunks and publish ai_message_chunk events ---
+    # Support legacy fixtures that still have stream_chunks
+    legacy_chunks = fixture_data.get("stream_chunks", [])
+    if legacy_chunks:
+        cumulative_chunks = [c.get("full_content_so_far", "") for c in legacy_chunks]
+    else:
+        cumulative_chunks = _split_response_into_chunks(full_response)
+
     usage = fixture_data.get("usage", {})
+    total_chunks = len(cumulative_chunks)
 
-    for i, chunk in enumerate(stream_chunks):
-        sequence = chunk.get("sequence", i + 1)
+    for i, content_so_far in enumerate(cumulative_chunks):
+        sequence = i + 1
+        is_final = (i == total_chunks - 1)
+        fraction = (i + 1) / total_chunks if total_chunks > 0 else 1.0
 
-        # Publish any skill events scheduled before or at this sequence number
-        for seq_num in sorted(skill_events_by_sequence.keys()):
-            if seq_num <= sequence:
-                for skill_event in skill_events_by_sequence.pop(seq_num):
+        # Publish any skill events scheduled at or before this fraction
+        for frac_threshold in sorted(list(skill_events_by_fraction.keys())):
+            if frac_threshold <= fraction:
+                for skill_event in skill_events_by_fraction.pop(frac_threshold):
                     await _publish_skill_status(
                         skill_event, task_id, request_data, cache_service
                     )
 
-        is_final = chunk.get("is_final", i == len(stream_chunks) - 1)
-
-        payload = {
+        payload: Dict[str, Any] = {
             "type": "ai_message_chunk",
             "task_id": task_id,
             "chat_id": request_data.chat_id,
@@ -239,7 +287,7 @@ async def replay_fixture(
             "user_id_hash": request_data.user_id_hash,
             "message_id": task_id,
             "user_message_id": request_data.message_id,
-            "full_content_so_far": chunk.get("full_content_so_far", ""),
+            "full_content_so_far": content_so_far if not is_final else full_response,
             "sequence": sequence,
             "is_final_chunk": is_final,
             "external_request": request_data.is_external,
@@ -273,9 +321,9 @@ async def replay_fixture(
         if not is_final and chunk_delay > 0:
             await asyncio.sleep(chunk_delay)
 
-    # Publish any remaining skill events (after all stream chunks)
-    for seq_num in sorted(skill_events_by_sequence.keys()):
-        for skill_event in skill_events_by_sequence[seq_num]:
+    # Publish any remaining skill events
+    for frac in sorted(skill_events_by_fraction.keys()):
+        for skill_event in skill_events_by_fraction[frac]:
             await _publish_skill_status(
                 skill_event, task_id, request_data, cache_service
             )
@@ -297,16 +345,15 @@ async def replay_fixture(
         thinking_channel = f"chat_stream_thinking::{request_data.chat_id}"
         await cache_service.publish_event(thinking_channel, thinking_payload)
 
-    final_response = fixture_data.get("final_response", "")
     logger.info(
         f"[MOCK] Fixture '{fixture_id}' replay complete. "
-        f"Response length: {len(final_response)} chars, "
-        f"{len(stream_chunks)} chunks published."
+        f"Response length: {len(full_response)} chars, "
+        f"{total_chunks} chunks published."
     )
 
     return {
         "preprocessing_result": preprocessing_result,
-        "aggregated_final_response": final_response,
+        "aggregated_final_response": full_response,
         "thinking_content": thinking_content_list,
         "main_processor_debug_metadata": {"mocked": True, "fixture_id": fixture_id},
         "revoked_in_consumer": False,
@@ -394,15 +441,17 @@ async def _publish_typing_started(
 
 def _build_skill_event_schedule(
     fixture_data: Dict[str, Any],
-) -> Dict[int, List[Dict[str, Any]]]:
+) -> Dict[float, List[Dict[str, Any]]]:
     """
-    Build a mapping of stream sequence number → skill events to publish.
+    Build a mapping of chunk fraction → skill events to publish.
 
-    Skill executions in the fixture have an optional 'at_sequence' field
-    indicating when in the stream they should be published. Events without
-    a sequence are published before streaming starts (sequence 0).
+    Skill executions in the fixture have an optional 'at_fraction' field (0.0-1.0)
+    indicating when during streaming they should be published. Events without a
+    fraction are published before streaming starts (fraction 0.0).
+
+    Also supports legacy 'at_sequence' (converted to fraction 0.0 for simplicity).
     """
-    schedule: Dict[int, List[Dict[str, Any]]] = {}
+    schedule: Dict[float, List[Dict[str, Any]]] = {}
     skill_executions = fixture_data.get("skill_executions", [])
 
     for skill_exec in skill_executions:
@@ -411,7 +460,10 @@ def _build_skill_event_schedule(
         skill_id = skill_exec.get("skill_id", "")
 
         for update in status_updates:
-            seq = update.get("at_sequence", 0)
+            # Support new at_fraction and legacy at_sequence
+            fraction = update.get("at_fraction", 0.0)
+            if "at_sequence" in update and "at_fraction" not in update:
+                fraction = 0.0  # Legacy: publish at start
             event = {
                 "app_id": app_id,
                 "skill_id": skill_id,
@@ -419,7 +471,7 @@ def _build_skill_event_schedule(
                 "preview_data": update.get("preview_data", {}),
                 "error": update.get("error"),
             }
-            schedule.setdefault(seq, []).append(event)
+            schedule.setdefault(fraction, []).append(event)
 
     return schedule
 

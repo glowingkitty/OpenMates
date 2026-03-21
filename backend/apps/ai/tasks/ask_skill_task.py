@@ -1573,9 +1573,7 @@ async def _async_process_ai_skill_ask_task(
                 )
                 if thinking_content:
                     _fixture_recorder.record_thinking_content("".join(thinking_content))
-                # Generate synthetic stream chunks from the aggregated response
-                # (the exact chunking doesn't matter — speed profiles control replay pacing)
-                _fixture_recorder.generate_chunks_from_response(aggregated_final_response)
+                _fixture_recorder.set_response(aggregated_final_response)
                 try:
                     fixture_path = _fixture_recorder.save()
                     logger.info(f"[Task ID: {task_id}] TEST RECORD: Fixture saved to {fixture_path}")
