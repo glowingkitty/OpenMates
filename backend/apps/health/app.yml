@@ -301,6 +301,21 @@ skills:
                   Maximum number of doctors to check for availability. Higher values
                   return more results but take longer. Defaults to 10.
                 default: 10
+              visit_motive_category:
+                type: string
+                description: >
+                  Filter results by appointment type category. When set, the skill
+                  searches a larger pool of doctors and filters by the Doctolib visit
+                  motive name to return only relevant appointment types.
+                  "general" = consultation, acute visit, new patient examination.
+                  "checkup" = preventive screening, health check, cancer screening.
+                  "vaccination" = immunisation appointments.
+                  "followup" = follow-up visit, existing patient, check-up after treatment.
+                enum:
+                  - general
+                  - checkup
+                  - vaccination
+                  - followup
             required:
               - speciality
               - city

@@ -182,6 +182,120 @@ DEFAULT_MAX_SLOTS = 10
 # Max doctors to check per request when not specified
 DEFAULT_MAX_DOCTORS = 10
 
+# When visit_motive_category filtering is active, search a larger doctor pool
+# then filter down, so we have enough relevant results after filtering.
+FILTERED_SEARCH_MAX_DOCTORS = 30
+
+# ---------------------------------------------------------------------------
+# Visit motive category filtering
+# ---------------------------------------------------------------------------
+# Doctolib returns one "matchedVisitMotive" per doctor. The motive name is
+# chosen by Doctolib's algorithm and often returns irrelevant types like
+# "Impfung" or "DMP" when the user wants a general consultation.
+#
+# These patterns let us filter by category AFTER the search (no extra API
+# calls needed). Each category maps to regex patterns (case-insensitive)
+# that match against the German motive names returned by Doctolib.
+
+VISIT_MOTIVE_CATEGORIES: Dict[str, List[str]] = {
+    # General consultation / acute visit — the most common user intent
+    "general": [
+        r"erstuntersuchung",
+        r"neupatient",
+        r"akut",
+        r"sprechstunde",
+        r"allgemein",
+        r"beratung",
+        r"konsultation",
+        r"consultation",
+        r"(?:^|\s)termin(?:vereinbarung)?$",
+        r"hausärztlich",
+        r"hausarzt",
+    ],
+    # Preventive checkups and screenings
+    "checkup": [
+        r"vorsorge",
+        r"check[\s-]?up",
+        r"gesundheitsuntersuchung",
+        r"früherkennung",
+        r"screening",
+        r"j[12]\b",
+        r"u\d+\b",
+        r"krebsvorsorge",
+        r"hautkrebsscreening",
+    ],
+    # Vaccinations
+    "vaccination": [
+        r"impf",
+        r"vaccin",
+    ],
+    # Follow-up / existing patient
+    "followup": [
+        r"folge",
+        r"kontroll",
+        r"nachsorge",
+        r"wiedervorstellung",
+        r"bestandspatient",
+        r"follow[\s-]?up",
+    ],
+}
+
+# Motive names that are almost never what a general user wants.
+# These are excluded when ANY category filter is active, unless the
+# motive also matches the requested category patterns.
+NOISE_MOTIVE_PATTERNS: List[str] = [
+    r"renafan",
+    r"disease\s+management",
+    r"\bdmp\b",
+    r"rettungsstelle",
+    r"hausarztrettungsstelle",
+    r"gutachten",
+    r"attest",
+    r"reisemedizin",
+    r"tauchtauglichkeit",
+    r"führerschein",
+    r"sportmedizin",
+]
+
+
+def _matches_motive_category(motive_name: str, category: str) -> bool:
+    """Check if a visit motive name matches a given category.
+
+    Returns True if the motive matches any pattern in the category,
+    AND does not match a known noise pattern (unless the noise pattern
+    also matches the category).
+    """
+    if not motive_name or category not in VISIT_MOTIVE_CATEGORIES:
+        return False
+
+    name_lower = motive_name.lower()
+
+    # Check if it matches the requested category
+    category_match = any(
+        re.search(pattern, name_lower)
+        for pattern in VISIT_MOTIVE_CATEGORIES[category]
+    )
+    if not category_match:
+        return False
+
+    # Even if it matched the category, reject known noise
+    is_noise = any(
+        re.search(pattern, name_lower)
+        for pattern in NOISE_MOTIVE_PATTERNS
+    )
+    return not is_noise
+
+
+def _is_noise_motive(motive_name: str) -> bool:
+    """Check if a visit motive name is known noise (irrelevant for most users)."""
+    if not motive_name:
+        return False
+    name_lower = motive_name.lower()
+    return any(
+        re.search(pattern, name_lower)
+        for pattern in NOISE_MOTIVE_PATTERNS
+    )
+
 # ---------------------------------------------------------------------------
 # Pydantic request/response models
 # ---------------------------------------------------------------------------
@@ -216,6 +330,18 @@ class SearchAppointmentsRequestItem(BaseModel):
     days_ahead: Optional[int] = Field(
         default=None,
         description="Number of days ahead to look for availability.",
+    )
+    visit_motive_category: Optional[str] = Field(
+        default=None,
+        description=(
+            "Filter results by appointment type category. Supported categories: "
+            "'general' (consultation, acute visit, new patient), "
+            "'checkup' (preventive screening, health check), "
+            "'vaccination' (immunisation), "
+            "'followup' (follow-up, existing patient). "
+            "When set, increases the doctor search pool and filters by visit motive "
+            "name to return only relevant appointment types."
+        ),
     )
 
 
@@ -529,12 +655,25 @@ async def _process_single_doctolib_request(
     # Use "or" to handle None from Pydantic model_dump() — prevents int(None) TypeError
     days_ahead = int(request.get("days_ahead") or 7)
     max_doctors = int(request.get("max_doctors", DEFAULT_MAX_DOCTORS))
+    visit_motive_category = request.get("visit_motive_category")
+
+    # When a motive category is set, widen the search pool so that after
+    # filtering we still have enough doctors to fill DEFAULT_MAX_SLOTS.
+    if visit_motive_category:
+        search_max_doctors = max(max_doctors, FILTERED_SEARCH_MAX_DOCTORS)
+    else:
+        search_max_doctors = max_doctors
 
     # Validate required fields
     if not speciality_raw:
         return request_id, [], "Missing required field: 'speciality'"
     if not city_raw:
         return request_id, [], "Missing required field: 'city'"
+    if visit_motive_category and visit_motive_category not in VISIT_MOTIVE_CATEGORIES:
+        return request_id, [], (
+            f"Unknown visit_motive_category '{visit_motive_category}'. "
+            f"Supported: {', '.join(sorted(VISIT_MOTIVE_CATEGORIES.keys()))}"
+        )
 
     # Resolve speciality slug
     speciality_slug = DOCTOLIB_SPECIALITY_SLUGS.get(speciality_raw, speciality_raw)
@@ -544,7 +683,7 @@ async def _process_single_doctolib_request(
 
     logger.info(
         "[health:search_appointments] Processing request %s: %s in %s "
-        "(insurance=%s, telehealth=%s, language=%s, days=%d, max=%d)",
+        "(insurance=%s, telehealth=%s, language=%s, days=%d, max=%d, motive_category=%s)",
         request_id,
         speciality_slug,
         city_slug,
@@ -553,6 +692,7 @@ async def _process_single_doctolib_request(
         language,
         days_ahead,
         max_doctors,
+        visit_motive_category,
     )
 
     try:
@@ -560,6 +700,8 @@ async def _process_single_doctolib_request(
         place = await _resolve_location(client, city_slug, speciality_slug)
 
         # Step 2: Search doctors (paginated)
+        # When filtering by motive category, search a larger pool (search_max_doctors)
+        # so we have enough relevant results after filtering.
         providers = await _search_doctors(
             client=client,
             speciality_slug=speciality_slug,
@@ -568,11 +710,35 @@ async def _process_single_doctolib_request(
             telehealth=telehealth,
             language=language,
             days_ahead=days_ahead,
-            max_doctors=max_doctors,
+            max_doctors=search_max_doctors,
         )
 
         if not providers:
             return request_id, [], None
+
+        # Step 2b: Filter by visit motive category (if requested)
+        # This is a client-side filter on the matchedVisitMotive.name returned
+        # by Doctolib for each provider. No extra API calls needed.
+        if visit_motive_category:
+            pre_filter_count = len(providers)
+            providers = [
+                p for p in providers
+                if _matches_motive_category(
+                    p.get("matchedVisitMotive", {}).get("name", ""),
+                    visit_motive_category,
+                )
+            ]
+            logger.info(
+                "[health:search_appointments] Motive filter '%s': %d/%d providers passed",
+                visit_motive_category,
+                len(providers),
+                pre_filter_count,
+            )
+            if not providers:
+                return request_id, [], None
+
+        # Cap filtered providers at max_doctors for availability fetching
+        providers = providers[:max_doctors]
 
         # Step 3: Fetch availability for all doctors in parallel
         availability_tasks = []
