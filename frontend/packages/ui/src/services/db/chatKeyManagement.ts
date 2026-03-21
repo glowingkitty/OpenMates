@@ -18,6 +18,34 @@ import { get } from "svelte/store";
 import { forcedLogoutInProgress } from "../../stores/signupState";
 import { websocketStatus } from "../../stores/websocketStatusStore";
 
+// ---------------------------------------------------------------------------
+// Cached chat version map — populated during loadChatKeysFromDatabase cursor
+// so startPhasedSync() can skip the expensive getAllChats() IDB read.
+// ---------------------------------------------------------------------------
+export interface ChatVersionEntry {
+  messages_v: number;
+  title_v: number;
+  draft_v: number;
+}
+
+/** In-memory version map populated during bulk key loading. */
+const cachedChatVersionMap = new Map<string, ChatVersionEntry>();
+
+/**
+ * Returns the version map collected during loadChatKeysFromDatabase().
+ * If the map is empty, it means keys haven't been loaded yet (caller should fall back to IDB).
+ */
+export function getCachedChatVersionMap(): Map<string, ChatVersionEntry> {
+  return cachedChatVersionMap;
+}
+
+/**
+ * Clear the cached version map (e.g. on logout).
+ */
+export function clearCachedChatVersionMap(): void {
+  cachedChatVersionMap.clear();
+}
+
 /**
  * Type for ChatDatabase instance to avoid circular import.
  * This interface defines the minimal required properties from ChatDatabase
@@ -84,6 +112,7 @@ export function clearChatKey(
  */
 export function clearAllChatKeys(_dbInstance: ChatDatabaseInstance): void {
   chatKeyManager.clearAll();
+  clearCachedChatVersionMap();
 }
 
 /**
@@ -181,6 +210,10 @@ export async function loadChatKeysFromDatabase(
       // Cannot await inside cursor callback because transaction would finish before cursor.continue()
       const keysToDecrypt: Array<{ chatId: string; encryptedKey: string }> = [];
 
+      // PERF: Clear + repopulate version map during this cursor pass so
+      // startPhasedSync() can skip a separate getAllChats() IDB read.
+      cachedChatVersionMap.clear();
+
       request.onsuccess = (event) => {
         const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
         if (cursor) {
@@ -195,6 +228,12 @@ export async function loadChatKeysFromDatabase(
               encryptedKey: chat.encrypted_chat_key,
             });
           }
+          // PERF: Collect version info for startPhasedSync() delta checking
+          cachedChatVersionMap.set(chat.chat_id, {
+            messages_v: chat.messages_v || 0,
+            title_v: chat.title_v || 0,
+            draft_v: chat.draft_v || 0,
+          });
           // Continue cursor synchronously (transaction must stay alive)
           cursor.continue();
         } else {

@@ -18,6 +18,7 @@ import type { EmbedKeyEntry } from "./embedStore";
 import type { EmbedType } from "../message_parsing/types";
 import { chatDB } from "./db";
 import { userDB } from "./userDB";
+import { chatListCache } from "./chatListCache";
 import { updateTotalChatCount } from "../stores/userProfile";
 import { activeChatStore } from "../stores/activeChatStore";
 import { unreadMessagesStore } from "../stores/unreadMessagesStore";
@@ -435,6 +436,7 @@ async function storeRecentChats(
             messages_v: 0, // Reset to force re-sync on next load
           };
           await chatDB.addChat(mergedChat);
+          chatListCache.upsertChat(mergedChat);
 
           // Dispatch event to notify about the inconsistency
           serviceInstance.dispatchEvent(
@@ -486,6 +488,7 @@ async function storeRecentChats(
 
       if (shouldSkipMessageSync) {
         await chatDB.addChat(mergedChat);
+        chatListCache.upsertChat(mergedChat);
         continue;
       }
 
@@ -498,6 +501,7 @@ async function storeRecentChats(
           `[ChatSyncService] Phase 2 - Saving new chat ${chatId} without messages`,
         );
         await chatDB.addChat(mergedChat);
+        chatListCache.upsertChat(mergedChat);
         continue;
       }
 
@@ -511,6 +515,7 @@ async function storeRecentChats(
       // Save chat and messages
       try {
         await chatDB.addChat(mergedChat);
+        chatListCache.upsertChat(mergedChat);
         console.debug(
           `[ChatSyncService] Phase 2 - Saved chat ${chatId} to IndexedDB`,
         );
@@ -660,6 +665,7 @@ async function storeAllChats(
             messages_v: 0, // Reset to force re-sync on next load
           };
           await chatDB.addChat(mergedChat);
+          chatListCache.upsertChat(mergedChat);
 
           // Dispatch event to notify about the inconsistency
           serviceInstance.dispatchEvent(
@@ -712,12 +718,14 @@ async function storeAllChats(
 
       if (shouldSkipMessageSync) {
         await chatDB.addChat(mergedChat);
+        chatListCache.upsertChat(mergedChat);
         continue;
       }
 
       // Save chat and messages
       try {
         await chatDB.addChat(mergedChat);
+        chatListCache.upsertChat(mergedChat);
         console.debug(
           `[ChatSyncService] Phase 3 - Saved chat ${chatId} to IndexedDB`,
         );

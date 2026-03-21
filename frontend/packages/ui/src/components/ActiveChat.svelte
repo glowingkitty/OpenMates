@@ -9994,24 +9994,31 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 ''
                             )}
                             {@const restoreFromPip = embedFullscreenData.restoreFromPip || false}
-                            <!-- Construct VideoMetadata from decoded content (snake_case -> camelCase) -->
+                            <!-- Construct VideoMetadata from decoded content.
+                                 TOON preserves nested objects and camelCase field names from the backend.
+                                 Video search results use: channelTitle, viewCount, thumbnail.original, etc.
+                                 GroupRenderer enrichedContent uses: channel_name, view_count, thumbnail (string), etc.
+                                 We must handle BOTH formats here. -->
+                            {@const dc = embedFullscreenData.decodedContent}
+                            {@const thumbnailStr =
+                                (typeof dc?.thumbnail === 'string' ? dc.thumbnail : null) ??
+                                dc?.thumbnail_original ??
+                                (typeof dc?.thumbnail === 'object' && dc?.thumbnail != null ? (dc.thumbnail as Record<string, unknown>).original as string | undefined : null) ??
+                                ''}
                             {@const videoMetadata = {
                                 videoId,
                                 title: videoTitle,
-                                description: coerceString(embedFullscreenData.decodedContent?.description, ''),
-                                channelName: coerceString(embedFullscreenData.decodedContent?.channel_name, ''),
-                                channelId: coerceString(embedFullscreenData.decodedContent?.channel_id, ''),
-                                thumbnailUrl: coerceString(
-                                    embedFullscreenData.decodedContent?.thumbnail_original ??
-                                    (typeof embedFullscreenData.decodedContent?.thumbnail === 'string' ? embedFullscreenData.decodedContent.thumbnail : null),
-                                    ''),
-                                duration: (embedFullscreenData.decodedContent?.duration_seconds || embedFullscreenData.decodedContent?.duration_formatted) ? {
-                                    totalSeconds: coerceNumber(embedFullscreenData.decodedContent?.duration_seconds, 0),
-                                    formatted: coerceString(embedFullscreenData.decodedContent?.duration_formatted, '')
+                                description: coerceString(dc?.description, ''),
+                                channelName: coerceString(dc?.channel_name ?? dc?.channelTitle, ''),
+                                channelId: coerceString(dc?.channel_id ?? dc?.channelId, ''),
+                                thumbnailUrl: coerceString(thumbnailStr, ''),
+                                duration: (dc?.duration_seconds || dc?.duration_formatted) ? {
+                                    totalSeconds: coerceNumber(dc?.duration_seconds, 0),
+                                    formatted: coerceString(dc?.duration_formatted, '')
                                 } : undefined,
-                                viewCount: coerceNumber(embedFullscreenData.decodedContent?.view_count, 0),
-                                likeCount: coerceNumber(embedFullscreenData.decodedContent?.like_count, 0),
-                                publishedAt: coerceString(embedFullscreenData.decodedContent?.published_at, '')
+                                viewCount: coerceNumber(dc?.view_count ?? dc?.viewCount, 0),
+                                likeCount: coerceNumber(dc?.like_count ?? dc?.likeCount, 0),
+                                publishedAt: coerceString(dc?.published_at ?? dc?.publishedAt, '')
                             }}
                             <VideoEmbedFullscreen
                                 url={videoUrl}

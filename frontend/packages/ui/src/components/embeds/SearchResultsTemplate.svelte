@@ -26,6 +26,7 @@
   import UnifiedEmbedFullscreen, { type ChildEmbedContext } from './UnifiedEmbedFullscreen.svelte';
   import ChildEmbedOverlay from './ChildEmbedOverlay.svelte';
   import { text } from '@repo/ui';
+  import { activeEmbedStore } from '../../stores/activeEmbedStore';
   import type { Snippet } from 'svelte';
 
   /**
@@ -156,6 +157,11 @@
 
   function handleResultSelect(index: number) {
     selectedIndex = index;
+    // Update URL hash to reflect the child embed ID for shareable deep links
+    const result = allResults[index];
+    if (result?.embed_id) {
+      activeEmbedStore.setActiveEmbed(result.embed_id, null);
+    }
   }
 
   function handleChildClose() {
@@ -164,6 +170,10 @@
       onClose();
     } else {
       selectedIndex = -1;
+      // Restore parent embed ID in URL hash
+      if (currentEmbedId) {
+        activeEmbedStore.setActiveEmbed(currentEmbedId, null);
+      }
     }
   }
 
@@ -176,11 +186,19 @@
   }
 
   function handleChildPrevious() {
-    if (selectedIndex > 0) selectedIndex -= 1;
+    if (selectedIndex > 0) {
+      selectedIndex -= 1;
+      const result = allResults[selectedIndex];
+      if (result?.embed_id) activeEmbedStore.setActiveEmbed(result.embed_id, null);
+    }
   }
 
   function handleChildNext() {
-    if (selectedIndex < allResults.length - 1) selectedIndex += 1;
+    if (selectedIndex < allResults.length - 1) {
+      selectedIndex += 1;
+      const result = allResults[selectedIndex];
+      if (result?.embed_id) activeEmbedStore.setActiveEmbed(result.embed_id, null);
+    }
   }
 
   /**

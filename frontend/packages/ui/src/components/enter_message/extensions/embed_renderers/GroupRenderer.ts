@@ -2489,23 +2489,54 @@ export class GroupRenderer implements EmbedRenderer {
       }) => {
         // Merge preview's fetched metadata with decoded content
         // Convert VideoMetadata camelCase to backend TOON snake_case format
+        // Extract thumbnail URL from various formats:
+        // - metadata?.thumbnailUrl: string from preview server
+        // - decodedContent?.thumbnail: TOON preserves as object {"original": "..."} or string
+        // - decodedContent?.thumbnail_original: TOON-flattened (edge case)
+        const thumbObj = decodedContent?.thumbnail;
+        const thumbnailUrl =
+          metadata?.thumbnailUrl ||
+          (typeof thumbObj === "string" ? thumbObj : undefined) ||
+          decodedContent?.thumbnail_original ||
+          (typeof thumbObj === "object" && thumbObj != null
+            ? (thumbObj as Record<string, unknown>).original
+            : undefined) ||
+          undefined;
+
         const enrichedContent = {
           ...decodedContent,
           // Override with preview's fetched metadata if provided (maps to backend format)
+          // Also map camelCase TOON fields to snake_case that ActiveChat expects
           video_id: metadata?.videoId || decodedContent?.video_id,
           title: metadata?.title || decodedContent?.title,
           description: metadata?.description || decodedContent?.description,
-          channel_name: metadata?.channelName || decodedContent?.channel_name,
-          channel_id: metadata?.channelId || decodedContent?.channel_id,
-          thumbnail: metadata?.thumbnailUrl || decodedContent?.thumbnail_original || (typeof decodedContent?.thumbnail === 'string' ? decodedContent.thumbnail : undefined),
+          channel_name:
+            metadata?.channelName ||
+            decodedContent?.channel_name ||
+            decodedContent?.channelTitle,
+          channel_id:
+            metadata?.channelId ||
+            decodedContent?.channel_id ||
+            decodedContent?.channelId,
+          thumbnail: thumbnailUrl,
           duration_seconds:
             metadata?.duration?.totalSeconds ||
             decodedContent?.duration_seconds,
           duration_formatted:
-            metadata?.duration?.formatted || decodedContent?.duration_formatted,
-          view_count: metadata?.viewCount || decodedContent?.view_count,
-          like_count: metadata?.likeCount || decodedContent?.like_count,
-          published_at: metadata?.publishedAt || decodedContent?.published_at,
+            metadata?.duration?.formatted ||
+            decodedContent?.duration_formatted,
+          view_count:
+            metadata?.viewCount ||
+            decodedContent?.view_count ||
+            decodedContent?.viewCount,
+          like_count:
+            metadata?.likeCount ||
+            decodedContent?.like_count ||
+            decodedContent?.likeCount,
+          published_at:
+            metadata?.publishedAt ||
+            decodedContent?.published_at ||
+            decodedContent?.publishedAt,
         };
 
         console.debug(
@@ -2530,16 +2561,17 @@ export class GroupRenderer implements EmbedRenderer {
           status: status as "processing" | "finished" | "error",
           isMobile: false, // Default to desktop in message view
           onFullscreen: handleFullscreen,
-          // Pass all metadata from decodedContent (loaded from IndexedDB embed store)
-          channelName: decodedContent?.channel_name,
-          channelId: decodedContent?.channel_id,
-          channelThumbnail: decodedContent?.channel_thumbnail,
-          thumbnail: decodedContent?.thumbnail_original ?? (typeof decodedContent?.thumbnail === 'string' ? decodedContent.thumbnail : undefined),
+          // Pass metadata from decodedContent (loaded from IndexedDB embed store)
+          // Handle both snake_case (enriched by GroupRenderer) and camelCase (raw TOON) field names
+          channelName: decodedContent?.channel_name || decodedContent?.channelTitle,
+          channelId: decodedContent?.channel_id || decodedContent?.channelId,
+          channelThumbnail: decodedContent?.channel_thumbnail || (typeof decodedContent?.meta_url === 'object' && decodedContent?.meta_url != null ? (decodedContent.meta_url as Record<string, unknown>).profile_image as string | undefined : undefined) || decodedContent?.meta_url_profile_image,
+          thumbnail: (typeof decodedContent?.thumbnail === 'string' ? decodedContent.thumbnail : undefined) || decodedContent?.thumbnail_original || (typeof decodedContent?.thumbnail === 'object' && decodedContent?.thumbnail != null ? (decodedContent.thumbnail as Record<string, unknown>).original as string | undefined : undefined),
           durationSeconds: decodedContent?.duration_seconds,
           durationFormatted: decodedContent?.duration_formatted,
-          viewCount: decodedContent?.view_count,
-          likeCount: decodedContent?.like_count,
-          publishedAt: decodedContent?.published_at,
+          viewCount: decodedContent?.view_count ?? decodedContent?.viewCount,
+          likeCount: decodedContent?.like_count ?? decodedContent?.likeCount,
+          publishedAt: decodedContent?.published_at ?? decodedContent?.publishedAt,
           videoId: decodedContent?.video_id,
         },
       });
