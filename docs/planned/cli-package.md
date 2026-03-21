@@ -187,7 +187,7 @@ All commands support `--json` for machine-readable output, `--api-url <url>` to 
 
 These are not yet implemented. Design docs with full details:
 
-- **Server management** (`openmates server install/start/stop/logs/update/reset`) — Docker-based self-hosted instance management. See [cli-remote-access.md](./cli-remote-access.md).
+- ~~**Server management** (`openmates server install/start/stop/logs/update/reset`)~~ — **Implemented.** Also includes `status`, `restart`, `make-admin`, and `uninstall`. See `src/server.ts`.
 - **Remote access** (`openmates remote-access start`) — Enable web app to interact with server's filesystem with security modes. See [cli-remote-access.md](./cli-remote-access.md).
 - **Secret tokenization** — Reversible secret redaction using Aho-Corasick multi-pattern matching, so the LLM never sees real secret values. See [cli-remote-access.md](./cli-remote-access.md).
 - **Python SDK** — `pip install openmates` with Click-based CLI. Same functionality as Node.js package.

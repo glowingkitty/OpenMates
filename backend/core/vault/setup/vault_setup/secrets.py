@@ -4,7 +4,8 @@ Functions for managing secrets in Vault.
 
 import os
 import logging
-from typing import Dict, Optional
+from pathlib import Path
+from typing import Dict, List, Optional
 
 logger = logging.getLogger("vault-setup.secrets")
 
@@ -83,7 +84,7 @@ class SecretsManager:
         """Check if secrets have been migrated to Vault using the new path structure flag."""
         try:
             response = await self.client.vault_request("get", self.secrets_imported_flag_path)
-            if response and response.get("data", {}).get("data", {}).get(self.secrets_imported_flag_key) == True:
+            if response and response.get("data", {}).get("data", {}).get(self.secrets_imported_flag_key) is True:
                 logger.info(f"Secrets migration flag '{self.secrets_imported_flag_key}' is set. Assuming migration to provider paths already performed.")
                 return True
             return False
@@ -99,25 +100,26 @@ class SecretsManager:
                     secrets[env_var_key] = value
         return secrets
 
-    async def _process_env_secrets(self, is_initial_migration: bool) -> int:
+    async def _process_env_secrets(self, is_initial_migration: bool) -> tuple[int, List[str]]:
         """
         Finds, parses, and writes/updates secrets from environment variables to Vault.
-        Returns the count of successfully processed (written/updated) secrets.
+        Returns a tuple of (count of successfully processed secrets, list of imported env var names).
         """
         secrets_from_env = self.find_secrets_in_env()
         if not secrets_from_env:
             logger.info("No secrets found in environment matching prefix.")
-            return 0
+            return 0, []
 
         logger.info(f"Found {len(secrets_from_env)} potential secrets in environment with prefix '{self.secret_prefix}'.")
         processed_count = 0
+        imported_keys: List[str] = []
 
         for env_var_name, env_var_value in secrets_from_env.items():
             parsed = self._parse_env_var_name(env_var_name)
             if not parsed:
                 logger.warning(f"Skipping env var '{env_var_name}' due to parsing failure.")
                 continue
-            
+
             vault_path, vault_key, _ = parsed
 
             # During initial migration, we always attempt to write.
@@ -126,8 +128,49 @@ class SecretsManager:
             # The _write_secret_to_vault handles logging if overwriting different existing value.
             if await self._write_secret_to_vault(vault_path, vault_key, env_var_value, env_var_name):
                 processed_count += 1
-        
-        return processed_count
+                imported_keys.append(env_var_name)
+
+        return processed_count, imported_keys
+
+    @staticmethod
+    def _replace_imported_secrets_in_env(env_path: str, imported_keys: List[str]) -> None:
+        """Replace imported secret values in .env with IMPORTED_TO_VAULT.
+
+        After secrets are successfully written to Vault, this rewrites the .env
+        file so the raw values are no longer on disk. Only replaces keys that
+        were actually imported during this run.
+        """
+        if not imported_keys:
+            return
+
+        env_file = Path(env_path)
+        if not env_file.exists():
+            logger.warning(f"Cannot auto-replace secrets: {env_path} not found")
+            return
+
+        try:
+            lines = env_file.read_text().splitlines()
+            updated: List[str] = []
+            replaced_count = 0
+            for line in lines:
+                replaced = False
+                for key in imported_keys:
+                    if line.startswith(f"{key}=") and "IMPORTED_TO_VAULT" not in line:
+                        updated.append(f"{key}=IMPORTED_TO_VAULT")
+                        replaced = True
+                        replaced_count += 1
+                        break
+                if not replaced:
+                    updated.append(line)
+
+            if replaced_count > 0:
+                env_file.write_text("\n".join(updated) + "\n")
+                logger.info(
+                    f"Auto-replaced {replaced_count} imported secret(s) in "
+                    f"{env_path} with IMPORTED_TO_VAULT"
+                )
+        except Exception as e:
+            logger.warning(f"Could not auto-replace secrets in {env_path}: {e}")
 
     async def migrate_secrets_to_vault(self) -> bool:
         """Migrate secrets from .env to Vault using the SECRET__{PROVIDER}__{KEY} convention."""
@@ -138,8 +181,13 @@ class SecretsManager:
             logger.info("Initial secrets migration to provider paths already performed (flag found).")
             return True # Already migrated
 
-        migrated_count = await self._process_env_secrets(is_initial_migration=True)
+        migrated_count, imported_keys = await self._process_env_secrets(is_initial_migration=True)
         self.initial_migration_processed_count = migrated_count # Store count for this run
+
+        # Auto-replace imported values in .env with IMPORTED_TO_VAULT
+        # The .env file is mounted at /app/dotenv inside the vault-setup container
+        env_file_path = "/app/dotenv"
+        self._replace_imported_secrets_in_env(env_file_path, imported_keys)
 
         if migrated_count > 0:
             logger.info(f"Successfully migrated {migrated_count} secrets to their respective Vault provider paths.")
@@ -164,10 +212,13 @@ class SecretsManager:
         logger.info("Synchronizing current environment secrets (SECRET__*) to Vault provider paths...")
         
         # Re-process all current env secrets. _process_env_secrets handles writing/overwriting.
-        processed_count = await self._process_env_secrets(is_initial_migration=False)
+        processed_count, imported_keys = await self._process_env_secrets(is_initial_migration=False)
 
         if processed_count > 0:
             logger.info(f"Successfully processed (added/updated) {processed_count} secrets in Vault from current environment variables.")
+            # Auto-replace newly imported values
+            env_file_path = "/app/dotenv"
+            self._replace_imported_secrets_in_env(env_file_path, imported_keys)
         else:
             logger.info("No secrets from environment were newly added or updated in Vault.")
             

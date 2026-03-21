@@ -1447,6 +1447,7 @@ services:
     volumes:
       - ./vault/setup:/app
       - vault-setup-data:/app/data # Persistent storage for tokens and keys
+      - ../../.env:/app/dotenv:rw # Mount .env for auto-replacing imported secrets with IMPORTED_TO_VAULT
     networks:
       - openmates
     depends_on:

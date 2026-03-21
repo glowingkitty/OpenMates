@@ -36,6 +36,7 @@ import type { ShareDuration } from "./shareEncryption.js";
 import { uploadFile } from "./uploadService.js";
 import { toonEncodeContent } from "./embedCreator.js";
 import { renderEmbedPreview, renderEmbedFullscreen } from "./embedRenderers.js";
+import { handleServer, printServerHelp } from "./server.js";
 
 type CliArgs = {
   positionals: string[];
@@ -101,7 +102,17 @@ async function main(): Promise<void> {
       printNewChatSuggestionsHelp();
       return;
     }
+    if (command === "server") {
+      printServerHelp();
+      return;
+    }
     printHelp();
+    return;
+  }
+
+  // Server commands don't need login or the client
+  if (command === "server") {
+    await handleServer(subcommand, rest, parsed.flags);
     return;
   }
 
@@ -3689,6 +3700,7 @@ Commands:
   openmates settings [--help]                Settings & memories
   openmates inspirations [--lang <code>] [--json]   Daily inspirations
   openmates newchatsuggestions [--limit <n>] [--json]   Personalized new chat suggestions
+  openmates server [--help]                   Server management (install, start, stop, ...)
 
 Flags:
   --json          Output raw JSON instead of formatted output
