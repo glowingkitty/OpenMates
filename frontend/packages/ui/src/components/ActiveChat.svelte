@@ -10001,7 +10001,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 description: coerceString(embedFullscreenData.decodedContent?.description, ''),
                                 channelName: coerceString(embedFullscreenData.decodedContent?.channel_name, ''),
                                 channelId: coerceString(embedFullscreenData.decodedContent?.channel_id, ''),
-                                thumbnailUrl: coerceString(embedFullscreenData.decodedContent?.thumbnail, ''),
+                                thumbnailUrl: coerceString(
+                                    embedFullscreenData.decodedContent?.thumbnail_original ??
+                                    (typeof embedFullscreenData.decodedContent?.thumbnail === 'string' ? embedFullscreenData.decodedContent.thumbnail : null),
+                                    ''),
                                 duration: (embedFullscreenData.decodedContent?.duration_seconds || embedFullscreenData.decodedContent?.duration_formatted) ? {
                                     totalSeconds: coerceNumber(embedFullscreenData.decodedContent?.duration_seconds, 0),
                                     formatted: coerceString(embedFullscreenData.decodedContent?.duration_formatted, '')

@@ -196,8 +196,12 @@
   $effect(() => {
     if (url) {
       try {
-        // If we have metadata, use it (already set in initial state)
-        if (metadata) {
+        // If we have metadata WITH a thumbnail, use it (already set in initial state)
+        // When metadata is provided but thumbnailUrl is empty (e.g. shared embed where
+        // TOON flattens "thumbnail.original" → "thumbnail_original" and the metadata
+        // constructor reads the now-missing "thumbnail" key), fall through to the URL
+        // extraction below so a thumbnail is always generated from the video ID.
+        if (metadata?.thumbnailUrl) {
           console.debug('[VideoEmbedFullscreen] Using metadata from preview:', {
             videoId: metadata.videoId,
             title: metadata.title?.substring(0, 50),
@@ -207,22 +211,23 @@
           return;
         }
         
-        // If videoId was provided as prop (from PiP restoration), use it
-        // Otherwise, extract from URL
-        if (propVideoId) {
-          // Use provided videoId and generate raw thumbnail URL (will be proxied)
-          videoId = propVideoId;
-          rawThumbnailUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
-        } else {
-          // YouTube URL patterns - extract video ID from URL
+        // Determine the effective video ID from all sources:
+        // 1. metadata.videoId (from preview or ActiveChat-constructed metadata)
+        // 2. propVideoId (from PiP restoration)
+        // 3. Extracted from URL
+        const effectiveVideoId = metadata?.videoId || propVideoId || (() => {
           const youtubeMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/);
-          if (youtubeMatch) {
-            videoId = youtubeMatch[1];
-            rawThumbnailUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
-            if (!title) {
-              displayTitle = 'YouTube Video';
-            }
-          }
+          return youtubeMatch ? youtubeMatch[1] : '';
+        })();
+
+        if (effectiveVideoId) {
+          videoId = effectiveVideoId;
+          // Generate thumbnail from video ID (hqdefault always exists, maxresdefault only for HD)
+          rawThumbnailUrl = `https://img.youtube.com/vi/${effectiveVideoId}/maxresdefault.jpg`;
+        }
+
+        if (!title && !metadata?.title) {
+          displayTitle = 'YouTube Video';
         }
       } catch (e) {
         console.debug('[VideoEmbedFullscreen] Error parsing URL:', e);

@@ -2497,7 +2497,7 @@ export class GroupRenderer implements EmbedRenderer {
           description: metadata?.description || decodedContent?.description,
           channel_name: metadata?.channelName || decodedContent?.channel_name,
           channel_id: metadata?.channelId || decodedContent?.channel_id,
-          thumbnail: metadata?.thumbnailUrl || decodedContent?.thumbnail,
+          thumbnail: metadata?.thumbnailUrl || decodedContent?.thumbnail_original || (typeof decodedContent?.thumbnail === 'string' ? decodedContent.thumbnail : undefined),
           duration_seconds:
             metadata?.duration?.totalSeconds ||
             decodedContent?.duration_seconds,
@@ -2534,7 +2534,7 @@ export class GroupRenderer implements EmbedRenderer {
           channelName: decodedContent?.channel_name,
           channelId: decodedContent?.channel_id,
           channelThumbnail: decodedContent?.channel_thumbnail,
-          thumbnail: decodedContent?.thumbnail,
+          thumbnail: decodedContent?.thumbnail_original ?? (typeof decodedContent?.thumbnail === 'string' ? decodedContent.thumbnail : undefined),
           durationSeconds: decodedContent?.duration_seconds,
           durationFormatted: decodedContent?.duration_formatted,
           viewCount: decodedContent?.view_count,
