@@ -22,7 +22,7 @@
 <script lang="ts">
     import Toggle from './Toggle.svelte';
     import ModifyButton from './buttons/ModifyButton.svelte';
-    import type { Snippet } from 'svelte';
+    import type { Snippet, Component } from 'svelte';
 
     /** Supported SettingsItem display types */
     type SettingsItemType = 'heading' | 'submenu' | 'quickaction' | 'subsubmenu' | 'nested';
@@ -116,6 +116,7 @@
         hasNestedItems = false,
         iconColor = undefined,
         iconBackground = undefined,
+        lucideIcon = undefined,
         rightActionIcon = undefined,
         creditsDisplay = undefined,
         children
@@ -153,6 +154,12 @@
          * Default: 'primary' for heading/submenu, 'none' for quickaction/subsubmenu/nested
          */
         iconBackground?: SettingsIconBackground | undefined;
+        /**
+         * Optional Lucide icon component to render instead of the CSS mask-based icon.
+         * When provided, the Lucide component renders inside the icon container with
+         * the same background/sizing as the standard icon. Useful for dynamic/category icons.
+         */
+        lucideIcon?: Component<{ size?: number; color?: string }> | undefined;
         /**
          * Optional right-side action button icon name (e.g. 'download' shows a download button).
          * Renders a gradient circle button identical to ModifyButton but with a different icon.
@@ -244,11 +251,22 @@
         <div class="menu-item-left">
             <!-- Unified icon rendering — single element, two CSS modes via .has-bg -->
             <div class="icon-container">
-                <div 
-                    class="settings-icon"
-                    class:has-bg={hasIconBg}
-                    style={iconStyle}
-                ></div>
+                {#if lucideIcon}
+                    {@const LucideComp = lucideIcon}
+                    <div
+                        class="settings-icon lucide-icon"
+                        class:has-bg={hasIconBg}
+                        style={hasIconBg ? `--si-bg: ${resolvedColor};` : `background: linear-gradient(135deg, var(--color-grey-20), var(--color-grey-30));`}
+                    >
+                        <LucideComp size={hasIconBg ? 20 : 22} color={hasIconBg ? 'white' : resolvedColor} />
+                    </div>
+                {:else}
+                    <div
+                        class="settings-icon"
+                        class:has-bg={hasIconBg}
+                        style={iconStyle}
+                    ></div>
+                {/if}
             </div>
             
             <div class="text-and-nested-container">
@@ -493,6 +511,17 @@
         background-repeat: no-repeat;
         background-position: center;
         filter: brightness(0) invert(1);
+    }
+
+    /* Mode C: Lucide icon component rendered inside the container */
+    .settings-icon.lucide-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .settings-icon.lucide-icon:not(.has-bg) {
+        color: var(--si-color, var(--color-primary));
     }
 
     .text-and-nested-container {

@@ -1493,23 +1493,17 @@ Usage Settings - View usage statistics and export usage data
     });
 </script>
 
-<!-- Header with Export button -->
-<div class="usage-header">
-    <div class="header-content">
-        <h2 class="header-title">{$text('settings.usage.title')}</h2>
-        <button 
-            class="export-button"
-            onclick={exportToCSV}
-            title={$text('settings.usage.export')}
-        >
-            {$text('settings.usage.export')}
-        </button>
-    </div>
-</div>
+<!-- Download usage data -->
+<SettingsItem
+    type="quickaction"
+    icon="download"
+    title={$text('settings.usage.export')}
+    onClick={exportToCSV}
+/>
 
 <SettingsTabs
     tabs={[
-        { id: 'overview', icon: 'calendar' },
+        { id: 'overview', icon: 'event' },
         { id: 'chats',    icon: 'chat' },
         { id: 'apps',     icon: 'app' },
         { id: 'api',      icon: 'coding' },
@@ -1518,6 +1512,7 @@ Usage Settings - View usage statistics and export usage data
     onChange={(tab) => { activeTab = tab as UsageTab; }}
 />
 
+<div class="tab-content-panel">
 {#if isLoading}
     <div class="loading-state">
         <div class="loading-spinner"></div>
@@ -1800,7 +1795,7 @@ Usage Settings - View usage statistics and export usage data
             </div>
         {:else}
             {#each dailyOverview as day}
-                <SettingsItem type="heading" icon="calendar" title={getDayLabel(day.date)} creditsDisplay={formatCredits(day.total_credits)} />
+                <SettingsItem type="heading" icon="event" title={getDayLabel(day.date)} creditsDisplay={formatCredits(day.total_credits)} />
 
                 {#if day.items.length === 0}
                     <div class="overview-empty-day">
@@ -1819,7 +1814,9 @@ Usage Settings - View usage statistics and export usage data
                             {@const isHiddenChat = chat ? ((chat as any).is_hidden_candidate || (chat as any).is_hidden) : false}
                             {@const canShowDetails = !isIncognitoChat && !isDeletedChat && (!isHiddenChat || (isHiddenChat && hiddenChatsUnlocked))}
                             {@const category = canShowDetails ? (metadata?.category || null) : null}
+                            {@const iconName = canShowDetails ? (metadata?.icon || (category ? getFallbackIconForCategory(category) : 'help-circle')) : 'help-circle'}
                             {@const gradientColors = canShowDetails && category ? getCategoryGradientColors(category) : null}
+                            {@const LucideIcon = (!isDeletedChat && !isIncognitoChat && !isUnsentDraft) ? getLucideIcon(iconName) : null}
                             {@const title = isIncognitoChat ? $text('settings.usage.incognito_chat') : (isUnsentDraft ? $text('settings.usage.unsent_draft') : (isDeletedChat ? $text('settings.usage.deleted_chat') : (canShowDetails ? (metadata?.title || chat?.title || 'Chat') : 'Chat')))}
                             {@const itemIcon = isIncognitoChat ? 'anonym' : (isUnsentDraft ? 'recordaudio' : (isDeletedChat ? 'delete' : 'chat'))}
                             {@const itemIconColor = isIncognitoChat ? 'var(--color-grey-50)' : (isUnsentDraft ? 'linear-gradient(135deg, #6B8DD6, #8E37D7)' : (isDeletedChat ? 'var(--color-grey-40)' : (gradientColors ? `linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'var(--color-grey-50)')))}
@@ -1827,8 +1824,9 @@ Usage Settings - View usage statistics and export usage data
                             <SettingsItem
                                 type="submenu"
                                 icon={itemIcon}
-                                iconBackground="none"
+                                iconBackground={LucideIcon ? 'primary' : 'none'}
                                 iconColor={itemIconColor}
+                                lucideIcon={LucideIcon}
                                 title={title}
                                 subtitleBottom={`${item.entry_count} ${item.entry_count === 1 ? 'request' : 'requests'}`}
                                 creditsDisplay={formatCredits(item.total_credits)}
@@ -2126,84 +2124,39 @@ Usage Settings - View usage statistics and export usage data
         {:else}
             {#each Array.from(chatsByMonth.entries()) as [month, summaries]}
                 {@const monthTotal = summaries.reduce((sum, s) => sum + s.totalCredits, 0)}
-                <div class="time-group">
-                    <div class="time-header">
-                        <h4 class="time-title">{month}</h4>
-                        <div class="time-total">
-                            <span class="credits-amount">{formatCredits(monthTotal)}</span>
-                            <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
-                        </div>
-                    </div>
-                    
-                    {#each summaries as summary}
-                        {@const chat = summary.chat}
-                        {@const metadata = summary.metadata}
-                        {@const cachedEntry = chatMetadataMap.get(summary.chat_id)}
-                        {@const isIncognitoChat = summary.chat_id === 'incognito'}
-                        {@const isDeletedChat = cachedEntry?.isDeleted === true}
-                        {@const isUnsentDraft = isDeletedChat && draftAudioChatIds.has(summary.chat_id)}
-                        {@const isHiddenChat = chat ? ((chat as any).is_hidden_candidate || (chat as any).is_hidden) : false}
-                        {@const canShowDetails = !isIncognitoChat && !isDeletedChat && (!isHiddenChat || (isHiddenChat && hiddenChatsUnlocked))}
-                        {@const category = canShowDetails ? (metadata?.category || null) : null}
-                        {@const iconName = isIncognitoChat ? 'incognito' : (canShowDetails ? (metadata?.icon || (category ? getFallbackIconForCategory(category) : 'help-circle')) : (isDeletedChat ? 'trash-2' : 'help-circle'))}
-                        {@const gradientColors = canShowDetails && category ? getCategoryGradientColors(category) : null}
-                        {@const IconComponent = (isDeletedChat || isIncognitoChat) ? null : getLucideIcon(iconName)}
-                        {@const title = isIncognitoChat ? $text('settings.usage.incognito_chat') : (isUnsentDraft ? $text('settings.usage.unsent_draft') : (isDeletedChat ? $text('settings.usage.deleted_chat') : (canShowDetails ? (metadata?.title || chat?.title || 'Chat') : 'Chat')))}
-                        
-                        <button
-                            type="button"
-                            class="chat-usage-item clickable"
-                            class:deleted={isDeletedChat}
-                            onclick={async () => {
-                                selectedChatId = summary.chat_id;
-                                // Fetch details for this chat and month
-                                await fetchUsageDetails('chats', summary.chat_id, summary.month);
-                            }}
-                            aria-label={$text('settings.usage.view_chat_details')}
-                        >
-                            <div class="chat-usage-icon-wrapper">
-                                {#if isIncognitoChat}
-                                    <div class="chat-usage-icon-circle" style="background: #555555;">
-                                        <div class="chat-usage-icon">
-                                            <div class="icon icon_incognito" style="width: 14px; height: 14px; filter: brightness(0) invert(1);"></div>
-                                        </div>
-                                    </div>
-                                {:else if isUnsentDraft}
-                                    <!-- Unsent draft: mic icon, purple gradient background -->
-                                    <div class="chat-usage-icon-circle" style="background: linear-gradient(135deg, #6B8DD6, #8E37D7);">
-                                        <div class="chat-usage-icon">
-                                            <div class="clickable-icon icon_recordaudio" style="width: 14px; height: 14px; background: white;"></div>
-                                        </div>
-                                    </div>
-                                {:else if isDeletedChat}
-                                    <div class="chat-usage-icon-circle deleted-icon-circle">
-                                        <div class="chat-usage-icon">
-                                            <div class="clickable-icon icon_delete" style="width: 14px; height: 14px;"></div>
-                                        </div>
-                                    </div>
-                                {:else}
-                                    <div 
-                                        class="chat-usage-icon-circle" 
-                                        style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: #cccccc'}
-                                    >
-                                        <div class="chat-usage-icon">
-                                            {#if IconComponent}
-                                                <IconComponent size={16} color="white" />
-                                            {/if}
-                                        </div>
-                                    </div>
-                                {/if}
-                            </div>
-                            <div class="chat-usage-content">
-                                <div class="chat-usage-title" class:deleted-text={isDeletedChat && !isUnsentDraft}>{title}</div>
-                            </div>
-                            <div class="chat-usage-credits">
-                                <span class="credits-amount">{formatCredits(summary.totalCredits)}</span>
-                                <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
-                            </div>
-                        </button>
-                    {/each}
-                </div>
+                <SettingsItem type="heading" icon="event" title={month} creditsDisplay={formatCredits(monthTotal)} />
+
+                {#each summaries as summary}
+                    {@const chat = summary.chat}
+                    {@const metadata = summary.metadata}
+                    {@const cachedEntry = chatMetadataMap.get(summary.chat_id)}
+                    {@const isIncognitoChat = summary.chat_id === 'incognito'}
+                    {@const isDeletedChat = cachedEntry?.isDeleted === true}
+                    {@const isUnsentDraft = isDeletedChat && draftAudioChatIds.has(summary.chat_id)}
+                    {@const isHiddenChat = chat ? ((chat as any).is_hidden_candidate || (chat as any).is_hidden) : false}
+                    {@const canShowDetails = !isIncognitoChat && !isDeletedChat && (!isHiddenChat || (isHiddenChat && hiddenChatsUnlocked))}
+                    {@const category = canShowDetails ? (metadata?.category || null) : null}
+                    {@const iconName = canShowDetails ? (metadata?.icon || (category ? getFallbackIconForCategory(category) : 'help-circle')) : 'help-circle'}
+                    {@const gradientColors = canShowDetails && category ? getCategoryGradientColors(category) : null}
+                    {@const LucideIcon = (!isDeletedChat && !isIncognitoChat && !isUnsentDraft) ? getLucideIcon(iconName) : null}
+                    {@const title = isIncognitoChat ? $text('settings.usage.incognito_chat') : (isUnsentDraft ? $text('settings.usage.unsent_draft') : (isDeletedChat ? $text('settings.usage.deleted_chat') : (canShowDetails ? (metadata?.title || chat?.title || 'Chat') : 'Chat')))}
+                    {@const chatItemIcon = isIncognitoChat ? 'anonym' : (isUnsentDraft ? 'recordaudio' : (isDeletedChat ? 'delete' : 'chat'))}
+                    {@const chatItemColor = isIncognitoChat ? 'var(--color-grey-50)' : (isUnsentDraft ? 'linear-gradient(135deg, #6B8DD6, #8E37D7)' : (isDeletedChat ? 'var(--color-grey-40)' : (gradientColors ? `linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'var(--color-grey-50)')))}
+
+                    <SettingsItem
+                        type="submenu"
+                        icon={chatItemIcon}
+                        iconBackground={LucideIcon ? 'primary' : 'none'}
+                        iconColor={chatItemColor}
+                        lucideIcon={LucideIcon}
+                        title={title}
+                        creditsDisplay={formatCredits(summary.totalCredits)}
+                        onClick={async () => {
+                            selectedChatId = summary.chat_id;
+                            await fetchUsageDetails('chats', summary.chat_id, summary.month);
+                        }}
+                    />
+                {/each}
             {/each}
         {/if}
     {:else if activeTab === 'apps'}
@@ -2217,47 +2170,25 @@ Usage Settings - View usage statistics and export usage data
         {:else}
             {#each Array.from(appsByMonth.entries()) as [month, summaries]}
                 {@const monthTotal = summaries.reduce((sum, s) => sum + s.totalCredits, 0)}
-                <div class="time-group">
-                    <div class="time-header">
-                        <h4 class="time-title">{month}</h4>
-                        <div class="time-total">
-                            <span class="credits-amount">{formatCredits(monthTotal)}</span>
-                            <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
-                        </div>
-                    </div>
-                    
-                    {#each summaries as summary}
-                        {@const appName = getAppName(summary.app_id)}
-                        {@const appIconName = getAppIconName(summary.app_id)}
-                        
-                        <button
-                            type="button"
-                            class="app-usage-item clickable"
-                            onclick={async () => {
-                                selectedAppId = summary.app_id;
-                                selectedAppMonth = summary.month;
-                                // Fetch details for this app and month
-                                await fetchUsageDetails('apps', summary.app_id, summary.month);
-                            }}
-                            aria-label={$text('settings.usage.view_app_details')}
-                        >
-                            <div class="app-usage-icon-wrapper">
-                                <Icon 
-                                    name={appIconName}
-                                    type="app"
-                                    size="28px"
-                                />
-                            </div>
-                            <div class="app-usage-content">
-                                <div class="app-usage-title">{appName}</div>
-                            </div>
-                            <div class="app-usage-credits">
-                                <span class="credits-amount">{formatCredits(summary.totalCredits)}</span>
-                                <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
-                            </div>
-                        </button>
-                    {/each}
-                </div>
+                <SettingsItem type="heading" icon="event" title={month} creditsDisplay={formatCredits(monthTotal)} />
+
+                {#each summaries as summary}
+                    {@const appName = getAppName(summary.app_id)}
+                    {@const appIconName = getAppIconName(summary.app_id)}
+
+                    <SettingsItem
+                        type="submenu"
+                        icon={appIconName}
+                        iconBackground="none"
+                        title={appName}
+                        creditsDisplay={formatCredits(summary.totalCredits)}
+                        onClick={async () => {
+                            selectedAppId = summary.app_id;
+                            selectedAppMonth = summary.month;
+                            await fetchUsageDetails('apps', summary.app_id, summary.month);
+                        }}
+                    />
+                {/each}
             {/each}
         {/if}
     {:else if activeTab === 'api'}
@@ -2276,50 +2207,27 @@ Usage Settings - View usage statistics and export usage data
         {:else}
             {#each Array.from(apiKeysByMonth.entries()) as [month, summaries]}
                 {@const monthTotal = summaries.reduce((sum, s) => sum + s.totalCredits, 0)}
-                <div class="time-group">
-                    <div class="time-header">
-                        <h4 class="time-title">{month}</h4>
-                        <div class="time-total">
-                            <span class="credits-amount">{formatCredits(monthTotal)}</span>
-                            <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
-                        </div>
-                    </div>
-                    
-                    {#each summaries as summary}
-                        {@const labelKey = `${summary.api_key_hash}:${summary.month}`}
-                        {@const apiKeyLabel = apiKeyLabels.get(labelKey) || { title: $text('settings.usage.api_key_details'), subtitle: '' }}
-                        
-                        <button
-                            type="button"
-                            class="api-key-usage-item clickable"
-                            onclick={async () => {
-                                selectedApiKeyHash = summary.api_key_hash;
-                                selectedApiKeyMonth = summary.month;
-                                // Fetch details for this API key and month
-                                await fetchUsageDetails('api', summary.api_key_hash, summary.month);
-                            }}
-                            aria-label={$text('settings.usage.view_api_key_details')}
-                        >
-                            <div class="api-key-usage-icon-wrapper">
-                                <Icon 
-                                    name={summary.api_key_hash?.startsWith('cli:') ? 'coding' : 'code'}
-                                    type="default"
-                                    size="28px"
-                                />
-                            </div>
-                            <div class="api-key-usage-content">
-                                <div class="api-key-usage-title">{apiKeyLabel.title}</div>
-                                {#if apiKeyLabel.subtitle && !summary.api_key_hash?.startsWith('cli:')}
-                                    <div class="api-key-usage-prefix">{apiKeyLabel.subtitle}</div>
-                                {/if}
-                            </div>
-                            <div class="api-key-usage-credits">
-                                <span class="credits-amount">{formatCredits(summary.totalCredits)}</span>
-                                <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
-                            </div>
-                        </button>
-                    {/each}
-                </div>
+                <SettingsItem type="heading" icon="event" title={month} creditsDisplay={formatCredits(monthTotal)} />
+
+                {#each summaries as summary}
+                    {@const labelKey = `${summary.api_key_hash}:${summary.month}`}
+                    {@const apiKeyLabel = apiKeyLabels.get(labelKey) || { title: $text('settings.usage.api_key_details'), subtitle: '' }}
+                    {@const apiIcon = summary.api_key_hash?.startsWith('cli:') ? 'coding' : 'security_key'}
+
+                    <SettingsItem
+                        type="submenu"
+                        icon={apiIcon}
+                        iconBackground="none"
+                        title={apiKeyLabel.title}
+                        subtitleBottom={apiKeyLabel.subtitle && !summary.api_key_hash?.startsWith('cli:') ? apiKeyLabel.subtitle : undefined}
+                        creditsDisplay={formatCredits(summary.totalCredits)}
+                        onClick={async () => {
+                            selectedApiKeyHash = summary.api_key_hash;
+                            selectedApiKeyMonth = summary.month;
+                            await fetchUsageDetails('api', summary.api_key_hash, summary.month);
+                        }}
+                    />
+                {/each}
             {/each}
         {/if}
     {:else}
@@ -2333,29 +2241,17 @@ Usage Settings - View usage statistics and export usage data
             </div>
         {:else}
             {#each processedEntries as [timePeriod, { entries, total }]}
-            <div class="time-group">
-                <div class="time-header">
-                    <h4 class="time-title">{timePeriod}</h4>
-                    <div class="time-total">
-                        <span class="credits-amount">{formatCredits(total)}</span>
-                        <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
-                    </div>
-                </div>
-                
+                <SettingsItem type="heading" icon="event" title={timePeriod} creditsDisplay={formatCredits(total)} />
+
                 {#each entries as entry}
-                    <!-- Non-chat entry or entry without chat_id -->
-                    <div class="usage-item">
-                        <div class="item-icon icon icon_{getEntryIcon(entry)}"></div>
-                        <div class="item-content">
-                            <div class="item-title">{getEntryDisplayName(entry)}</div>
-                        </div>
-                        <div class="item-credits">
-                            <span class="credits-amount">{formatCredits(entry.credits || 0)}</span>
-                            <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
-                        </div>
-                    </div>
+                    <SettingsItem
+                        type="quickaction"
+                        icon={getEntryIcon(entry)}
+                        iconBackground="none"
+                        title={getEntryDisplayName(entry)}
+                        creditsDisplay={formatCredits(entry.credits || 0)}
+                    />
                 {/each}
-            </div>
             {/each}
         {/if}
     {/if}
@@ -2373,27 +2269,9 @@ Usage Settings - View usage statistics and export usage data
         </div>
     {/if}
 {/if}
+</div>
 
 <style>
-    .usage-header {
-        padding: 10px;
-        margin-bottom: 16px;
-    }
-
-    .header-content {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 8px;
-    }
-
-    .header-title {
-        margin: 0;
-        color: var(--color-grey-100);
-        font-size: 18px;
-        font-weight: 600;
-    }
-
     .export-button {
         display: flex;
         align-items: center;
@@ -2414,11 +2292,13 @@ Usage Settings - View usage statistics and export usage data
         transform: translateY(-1px);
     }
 
-    .header-description {
-        margin: 0;
-        color: var(--color-grey-60);
-        font-size: 14px;
-        line-height: 1.4;
+    /* Panel that visually groups tab content below the tab bar */
+    .tab-content-panel {
+        margin: 8px 10px 0;
+        padding: 4px 0;
+        background: var(--color-grey-5, var(--color-grey-10));
+        border-radius: 12px;
+        border: 1px solid var(--color-grey-20);
     }
 
     .loading-state {
@@ -2483,32 +2363,6 @@ Usage Settings - View usage statistics and export usage data
         line-height: 1.4;
     }
 
-    .time-group {
-        margin-bottom: 24px;
-    }
-
-    .time-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0 10px 12px;
-        margin-bottom: 12px;
-        border-bottom: 1px solid var(--color-grey-20);
-    }
-
-    .time-title {
-        color: var(--color-grey-80);
-        font-size: 16px;
-        font-weight: 600;
-        margin: 0;
-    }
-
-    .time-total {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-    }
-
     .credits-amount {
         color: var(--color-grey-80);
         font-size: 14px;
@@ -2532,80 +2386,7 @@ Usage Settings - View usage statistics and export usage data
         flex-shrink: 0;
     }
 
-    .usage-item {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 12px 16px;
-        margin-bottom: 8px;
-        background: var(--color-grey-10);
-        border-radius: 12px;
-        border: 1px solid var(--color-grey-20);
-        transition: all 0.2s ease;
-        width: 100%;
-        text-align: left;
-    }
-
-    .usage-item:hover {
-        background: var(--color-grey-15);
-        border-color: var(--color-grey-30);
-    }
-
-    .usage-item.clickable {
-        cursor: pointer;
-    }
-
-    .item-icon {
-        width: 24px;
-        height: 24px;
-        flex-shrink: 0;
-    }
-
-    .item-content {
-        flex: 1;
-        min-width: 0;
-    }
-
-    .item-title {
-        color: var(--color-grey-100);
-        font-size: 14px;
-        font-weight: 500;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .item-credits {
-        color: var(--color-grey-80);
-        font-size: 14px;
-        font-weight: 600;
-        flex-shrink: 0;
-        display: flex;
-        align-items: center;
-        gap: 4px;
-    }
-
-    /* Chat usage item styles (matching Chat.svelte) */
-    .chat-usage-item {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 12px 16px;
-        margin-bottom: 8px;
-        background: var(--color-grey-10);
-        border-radius: 12px;
-        border: 1px solid var(--color-grey-20);
-        transition: all 0.2s ease;
-        width: 100%;
-        text-align: left;
-        cursor: pointer;
-    }
-
-    .chat-usage-item:hover {
-        background: var(--color-grey-15);
-        border-color: var(--color-grey-30);
-    }
-
+    /* Chat usage icon styles (used in detail views) */
     .chat-usage-icon-wrapper {
         flex: 0 0 28px;
         position: relative;
@@ -2631,145 +2412,6 @@ Usage Settings - View usage statistics and export usage data
         display: flex;
         align-items: center;
         justify-content: center;
-    }
-
-    .chat-usage-content {
-        flex: 1;
-        min-width: 0;
-    }
-
-    .chat-usage-title {
-        color: var(--color-grey-100);
-        font-size: 14px;
-        font-weight: 500;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .chat-usage-credits {
-        color: var(--color-grey-80);
-        font-size: 14px;
-        font-weight: 600;
-        flex-shrink: 0;
-        display: flex;
-        align-items: center;
-        gap: 4px;
-    }
-
-    /* App usage item styles (similar to chat usage) */
-    .app-usage-item {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 12px 16px;
-        margin-bottom: 8px;
-        background: var(--color-grey-10);
-        border-radius: 12px;
-        border: 1px solid var(--color-grey-20);
-        transition: all 0.2s ease;
-        width: 100%;
-        text-align: left;
-        cursor: pointer;
-    }
-
-    .app-usage-item:hover {
-        background: var(--color-grey-15);
-        border-color: var(--color-grey-30);
-    }
-
-    .app-usage-icon-wrapper {
-        flex: 0 0 28px;
-        position: relative;
-        height: 28px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .app-usage-content {
-        flex: 1;
-        min-width: 0;
-    }
-
-    .app-usage-title {
-        color: var(--color-grey-100);
-        font-size: 14px;
-        font-weight: 500;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .app-usage-credits {
-        color: var(--color-grey-80);
-        font-size: 14px;
-        font-weight: 600;
-        flex-shrink: 0;
-        display: flex;
-        align-items: center;
-        gap: 4px;
-    }
-
-    /* API key usage item styles (similar to app usage) */
-    .api-key-usage-item {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 12px 16px;
-        margin-bottom: 8px;
-        background: var(--color-grey-10);
-        border-radius: 12px;
-        border: 1px solid var(--color-grey-20);
-        transition: all 0.2s ease;
-        width: 100%;
-        text-align: left;
-        cursor: pointer;
-    }
-
-    .api-key-usage-item:hover {
-        background: var(--color-grey-15);
-        border-color: var(--color-grey-30);
-    }
-
-    .api-key-usage-icon-wrapper {
-        flex: 0 0 28px;
-        position: relative;
-        height: 28px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .api-key-usage-content {
-        flex: 1;
-        min-width: 0;
-    }
-
-    .api-key-usage-title {
-        color: var(--color-grey-100);
-        font-size: 14px;
-        font-weight: 500;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .api-key-usage-prefix {
-        color: var(--color-grey-60);
-        font-size: 12px;
-        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-        margin-top: 2px;
-    }
-
-    .api-key-usage-credits {
-        color: var(--color-grey-80);
-        font-size: 14px;
-        font-weight: 600;
-        flex-shrink: 0;
-        display: flex;
-        align-items: center;
-        gap: 4px;
     }
 
     .usage-detail-view {
@@ -3064,17 +2706,4 @@ Usage Settings - View usage statistics and export usage data
         color: var(--color-grey-50);
     }
 
-    /* Deleted chat styles */
-    .deleted-icon-circle {
-        background: var(--color-grey-25, #3a3a3a);
-    }
-
-    .deleted-text {
-        color: var(--color-grey-50);
-        font-style: italic;
-    }
-
-    .chat-usage-item.deleted {
-        opacity: 0.7;
-    }
 </style>

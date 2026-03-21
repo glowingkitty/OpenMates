@@ -117,14 +117,15 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
     })}
 />
 
+<!-- Divider before Usage -->
+<div class="section-divider"></div>
+
 <!-- Usage Section -->
-<div class="usage-section">
-    <SettingsItem type="heading" icon="usage" title={$text('settings.usage')} />
-    <SettingsUsage
-        on:chatSelected={(e) => dispatch('chatSelected', e.detail)}
-        on:closeSettings={() => dispatch('closeSettings')}
-    />
-</div>
+<SettingsItem type="heading" icon="usage" title={$text('settings.usage')} />
+<SettingsUsage
+    on:chatSelected={(e) => dispatch('chatSelected', e.detail)}
+    on:closeSettings={() => dispatch('closeSettings')}
+/>
 
 {#if errorMessage}
     <div class="settings-error">{errorMessage}</div>
@@ -184,9 +185,11 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
         background-color: var(--color-grey-90);
     }
 
-    /* Usage Section */
-    .usage-section {
-        margin-top: 8px;
+    /* Divider between billing items and usage section */
+    .section-divider {
+        height: 1px;
+        background: var(--color-grey-25);
+        margin: 12px 10px;
     }
 
     /* Error uses global .settings-error from settings.css */
