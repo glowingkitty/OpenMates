@@ -23,6 +23,7 @@ import {
   decryptChatKeyWithMasterKey,
   clearCryptoKeyCache,
 } from "../cryptoService";
+import { clearDecryptionFailureCache } from "../db/decryptionFailureCache";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -570,6 +571,9 @@ export class ChatKeyManager {
       timestamp: Date.now(),
       keyFingerprint: computeKeyFingerprint(chatKey),
     });
+    // Clear decryption failure cache for this chat — new key may succeed
+    // where the old one failed (key rotation, re-encryption, etc.)
+    clearDecryptionFailureCache(chatId);
   }
 
   // ---- Queue-and-Flush ----
@@ -843,6 +847,8 @@ export class ChatKeyManager {
     this.deferredClearAll = false;
     // Clear all cached CryptoKey objects since all raw keys are gone
     clearCryptoKeyCache();
+    // Clear decryption failure cache — all keys gone, fresh start on re-login
+    clearDecryptionFailureCache();
     console.debug("[ChatKeyManager] All keys cleared");
   }
 

@@ -14,6 +14,10 @@ import {
   decryptChatKeyWithMasterKey,
 } from "../cryptoService";
 import { chatKeyManager } from "../encryption/ChatKeyManager";
+import {
+  isKnownDecryptionFailure,
+  recordDecryptionFailure,
+} from "./decryptionFailureCache";
 import { get } from "svelte/store";
 import { forcedLogoutInProgress } from "../../stores/signupState";
 import { websocketStatus } from "../../stores/websocketStatusStore";
@@ -652,62 +656,70 @@ export async function decryptMessageFields(
 
   // Decrypt content if present
   if (message.encrypted_content) {
-    try {
-      const decryptedContentString = await decryptWithChatKey(
-        message.encrypted_content,
-        chatKey,
-        { chatId, fieldName: "content" },
-      );
-      if (decryptedContentString) {
-        // Content is now a markdown string (never Tiptap JSON on server!)
-        decryptedMessage.content = decryptedContentString;
-        // Clear encrypted field
-        delete decryptedMessage.encrypted_content;
-      } else {
-        // Decryption failed but didn't throw - encrypted_content might be malformed
-        const prov = chatKeyManager.getProvenance(chatId);
-        console.error(
-          `[CLIENT_DECRYPT] ❌ Failed to decrypt content for message ${message.message_id} - ` +
-            `encrypted_content present but decryption returned null. ` +
-            `Key provenance: ${prov ? `source=${prov.source}, fp=${prov.keyFingerprint}, loaded=${new Date(prov.timestamp).toISOString()}` : "unknown"}. ` +
-            `Message role: ${message.role}, status: ${message.status}, created_at: ${message.created_at}. ` +
-            `This may indicate: key was rotated after message was encrypted, ` +
-            `vault-encrypted content was sent instead of client-encrypted, ` +
-            `or multi-tab auth disruption caused key regeneration.`,
+    if (isKnownDecryptionFailure(chatId, message.message_id, "content")) {
+      // Skip — this message/field has permanently failed before with this key
+      decryptedMessage.content =
+        message.content || "[Content decryption failed]";
+    } else {
+      try {
+        const decryptedContentString = await decryptWithChatKey(
+          message.encrypted_content,
+          chatKey,
+          { chatId, fieldName: "content" },
         );
-        // Keep encrypted field for debugging, set content to placeholder
-        decryptedMessage.content =
-          message.content || "[Content decryption failed]";
-      }
-    } catch (error) {
-      // DEFENSIVE: Handle malformed encrypted_content (e.g., from messages with status 'sending' that never completed encryption)
-      // Also handle database operation errors during logout (OperationError from IndexedDB)
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      const isOperationError =
-        errorMessage.includes("OperationError") ||
-        errorMessage.includes("database");
-      const logLevel = isOperationError ? "debug" : "error"; // Reduce noise for expected logout-related errors
+        if (decryptedContentString) {
+          // Content is now a markdown string (never Tiptap JSON on server!)
+          decryptedMessage.content = decryptedContentString;
+          // Clear encrypted field
+          delete decryptedMessage.encrypted_content;
+        } else {
+          // Decryption failed but didn't throw - encrypted_content might be malformed
+          recordDecryptionFailure(chatId, message.message_id, "content");
+          const prov = chatKeyManager.getProvenance(chatId);
+          console.error(
+            `[CLIENT_DECRYPT] ❌ Failed to decrypt content for message ${message.message_id} - ` +
+              `encrypted_content present but decryption returned null. ` +
+              `Key provenance: ${prov ? `source=${prov.source}, fp=${prov.keyFingerprint}, loaded=${new Date(prov.timestamp).toISOString()}` : "unknown"}. ` +
+              `Message role: ${message.role}, status: ${message.status}, created_at: ${message.created_at}. ` +
+              `This may indicate: key was rotated after message was encrypted, ` +
+              `vault-encrypted content was sent instead of client-encrypted, ` +
+              `or multi-tab auth disruption caused key regeneration.`,
+          );
+          // Keep encrypted field for debugging, set content to placeholder
+          decryptedMessage.content =
+            message.content || "[Content decryption failed]";
+        }
+      } catch (error) {
+        // DEFENSIVE: Handle malformed encrypted_content (e.g., from messages with status 'sending' that never completed encryption)
+        // Also handle database operation errors during logout (OperationError from IndexedDB)
+        recordDecryptionFailure(chatId, message.message_id, "content");
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        const isOperationError =
+          errorMessage.includes("OperationError") ||
+          errorMessage.includes("database");
+        const logLevel = isOperationError ? "debug" : "error"; // Reduce noise for expected logout-related errors
 
-      console[logLevel](
-        `[CLIENT_DECRYPT] ${isOperationError ? "⚠️" : "❌ CRITICAL:"} Error decrypting content for message ${message.message_id} ` +
-          `(role: ${message.role}, status: ${message.status}, chat: ${chatId}): ` +
-          `${errorMessage}. ` +
-          `Encrypted content length: ${message.encrypted_content?.length || 0}, ` +
-          `Has plaintext fallback: ${!!message.content}. ` +
-          `${isOperationError ? "This may be due to database operations during logout." : "This may indicate vault-encrypted content was sent instead of client-encrypted!"}`,
-      );
-      // If message already has plaintext content, use it (common for status='sending')
-      if (message.content) {
-        console.warn(
-          `[CLIENT_DECRYPT] ⚠️ Using existing plaintext content for message ${message.message_id} - ` +
-            `encryption may not have completed or content was stored incorrectly`,
+        console[logLevel](
+          `[CLIENT_DECRYPT] ${isOperationError ? "⚠️" : "❌ CRITICAL:"} Error decrypting content for message ${message.message_id} ` +
+            `(role: ${message.role}, status: ${message.status}, chat: ${chatId}): ` +
+            `${errorMessage}. ` +
+            `Encrypted content length: ${message.encrypted_content?.length || 0}, ` +
+            `Has plaintext fallback: ${!!message.content}. ` +
+            `${isOperationError ? "This may be due to database operations during logout." : "This may indicate vault-encrypted content was sent instead of client-encrypted!"}`,
         );
-        decryptedMessage.content = message.content;
-      } else {
-        decryptedMessage.content = "[Content decryption failed]";
+        // If message already has plaintext content, use it (common for status='sending')
+        if (message.content) {
+          console.warn(
+            `[CLIENT_DECRYPT] ⚠️ Using existing plaintext content for message ${message.message_id} - ` +
+              `encryption may not have completed or content was stored incorrectly`,
+          );
+          decryptedMessage.content = message.content;
+        } else {
+          decryptedMessage.content = "[Content decryption failed]";
+        }
+        // Keep encrypted_content for debugging
       }
-      // Keep encrypted_content for debugging
     }
   }
 
@@ -715,60 +727,77 @@ export async function decryptMessageFields(
   // Each field decryption is wrapped in its own try/catch to prevent one failure from blocking others.
   const fieldDecryptions: Promise<void>[] = [];
 
-  if (message.encrypted_sender_name) {
+  // Helper to decrypt a field with failure caching
+  const decryptField = (
+    encryptedValue: string,
+    fieldName: string,
+    onSuccess: (val: string) => void,
+    onFailure: () => void,
+  ) => {
+    if (isKnownDecryptionFailure(chatId, message.message_id, fieldName)) {
+      onFailure();
+      return;
+    }
     fieldDecryptions.push(
-      decryptWithChatKey(message.encrypted_sender_name, chatKey, { chatId, fieldName: "sender_name" })
+      decryptWithChatKey(encryptedValue, chatKey, { chatId, fieldName })
         .then((val) => {
           if (val) {
-            decryptedMessage.sender_name = val;
-            delete decryptedMessage.encrypted_sender_name;
+            onSuccess(val);
+          } else {
+            recordDecryptionFailure(chatId, message.message_id, fieldName);
+            onFailure();
           }
         })
         .catch((error) => {
+          recordDecryptionFailure(chatId, message.message_id, fieldName);
           console.error(
-            `[ChatDatabase] Error decrypting sender_name for message ${message.message_id}:`,
+            `[ChatDatabase] Error decrypting ${fieldName} for message ${message.message_id}:`,
             error,
           );
-          decryptedMessage.sender_name = message.sender_name || "Unknown";
+          onFailure();
         }),
+    );
+  };
+
+  if (message.encrypted_sender_name) {
+    decryptField(
+      message.encrypted_sender_name,
+      "sender_name",
+      (val) => {
+        decryptedMessage.sender_name = val;
+        delete decryptedMessage.encrypted_sender_name;
+      },
+      () => {
+        decryptedMessage.sender_name = message.sender_name || "Unknown";
+      },
     );
   }
 
   if (message.encrypted_category) {
-    fieldDecryptions.push(
-      decryptWithChatKey(message.encrypted_category, chatKey, { chatId, fieldName: "category" })
-        .then((val) => {
-          if (val) {
-            decryptedMessage.category = val;
-            delete decryptedMessage.encrypted_category;
-          }
-        })
-        .catch((error) => {
-          console.error(
-            `[ChatDatabase] Error decrypting category for message ${message.message_id}:`,
-            error,
-          );
-          decryptedMessage.category = message.category || undefined;
-        }),
+    decryptField(
+      message.encrypted_category,
+      "category",
+      (val) => {
+        decryptedMessage.category = val;
+        delete decryptedMessage.encrypted_category;
+      },
+      () => {
+        decryptedMessage.category = message.category || undefined;
+      },
     );
   }
 
   if (message.encrypted_model_name) {
-    fieldDecryptions.push(
-      decryptWithChatKey(message.encrypted_model_name, chatKey, { chatId, fieldName: "model_name" })
-        .then((val) => {
-          if (val) {
-            decryptedMessage.model_name = val;
-            delete decryptedMessage.encrypted_model_name;
-          }
-        })
-        .catch((error) => {
-          console.error(
-            `[ChatDatabase] Error decrypting model_name for message ${message.message_id}:`,
-            error,
-          );
-          decryptedMessage.model_name = message.model_name || undefined;
-        }),
+    decryptField(
+      message.encrypted_model_name,
+      "model_name",
+      (val) => {
+        decryptedMessage.model_name = val;
+        delete decryptedMessage.encrypted_model_name;
+      },
+      () => {
+        decryptedMessage.model_name = message.model_name || undefined;
+      },
     );
   } else if (message.role === "assistant" && !decryptedMessage.model_name) {
     // We don't use a default fallback here anymore, to avoid showing model names for error messages
@@ -777,60 +806,45 @@ export async function decryptMessageFields(
   }
 
   if (message.encrypted_thinking_content) {
-    fieldDecryptions.push(
-      decryptWithChatKey(message.encrypted_thinking_content, chatKey, { chatId, fieldName: "thinking_content" })
-        .then((val) => {
-          if (val) {
-            decryptedMessage.thinking_content = val;
-            decryptedMessage.has_thinking = true;
-            delete decryptedMessage.encrypted_thinking_content;
-          }
-        })
-        .catch((error) => {
-          console.error(
-            `[ChatDatabase] Error decrypting thinking_content for message ${message.message_id}:`,
-            error,
-          );
-          decryptedMessage.thinking_content = undefined;
-        }),
+    decryptField(
+      message.encrypted_thinking_content,
+      "thinking_content",
+      (val) => {
+        decryptedMessage.thinking_content = val;
+        decryptedMessage.has_thinking = true;
+        delete decryptedMessage.encrypted_thinking_content;
+      },
+      () => {
+        decryptedMessage.thinking_content = undefined;
+      },
     );
   }
 
   if (message.encrypted_thinking_signature) {
-    fieldDecryptions.push(
-      decryptWithChatKey(message.encrypted_thinking_signature, chatKey, { chatId, fieldName: "thinking_signature" })
-        .then((val) => {
-          if (val) {
-            decryptedMessage.thinking_signature = val;
-            delete decryptedMessage.encrypted_thinking_signature;
-          }
-        })
-        .catch((error) => {
-          console.error(
-            `[ChatDatabase] Error decrypting thinking_signature for message ${message.message_id}:`,
-            error,
-          );
-          decryptedMessage.thinking_signature = undefined;
-        }),
+    decryptField(
+      message.encrypted_thinking_signature,
+      "thinking_signature",
+      (val) => {
+        decryptedMessage.thinking_signature = val;
+        delete decryptedMessage.encrypted_thinking_signature;
+      },
+      () => {
+        decryptedMessage.thinking_signature = undefined;
+      },
     );
   }
 
   if (message.encrypted_pii_mappings) {
-    fieldDecryptions.push(
-      decryptWithChatKey(message.encrypted_pii_mappings, chatKey, { chatId, fieldName: "pii_mappings" })
-        .then((val) => {
-          if (val) {
-            decryptedMessage.pii_mappings = JSON.parse(val);
-            delete decryptedMessage.encrypted_pii_mappings;
-          }
-        })
-        .catch((error) => {
-          console.error(
-            `[ChatDatabase] Error decrypting pii_mappings for message ${message.message_id}:`,
-            error,
-          );
-          decryptedMessage.pii_mappings = undefined;
-        }),
+    decryptField(
+      message.encrypted_pii_mappings,
+      "pii_mappings",
+      (val) => {
+        decryptedMessage.pii_mappings = JSON.parse(val);
+        delete decryptedMessage.encrypted_pii_mappings;
+      },
+      () => {
+        decryptedMessage.pii_mappings = undefined;
+      },
     );
   }
 
