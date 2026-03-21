@@ -93,6 +93,134 @@ Progress tracked in `test-results/progress.txt`.
 
 ---
 
+## E2E Mock/Replay System (LLM & App Skills)
+
+Many E2E specs trigger real LLM inference and external API calls (web search, travel, etc.), which cost money per run. The mock/replay system lets tests use pre-recorded responses instead, controlled by the `E2E_USE_MOCKS` env var.
+
+### How It Works
+
+1. **Marker in message text**: When `E2E_USE_MOCKS=1`, the `withMockMarker()` helper appends a `<<<TEST_MOCK:fixture_id>>>` marker to the chat message
+2. **Backend detects marker**: In `ask_skill_task.py`, the marker is detected and stripped before processing
+3. **Fixture replay**: Instead of calling the real LLM/skill APIs, pre-recorded events are published to the same Redis channels
+4. **Everything else is real**: WebSocket, encryption, billing preflight, postprocessing, persistence, frontend rendering — all unchanged
+
+### What's Mocked vs Real
+
+| Layer | Mock Mode | Real Mode |
+|-------|-----------|-----------|
+| WebSocket, encryption, IndexedDB | **Real** | Real |
+| Preprocessing LLM call (title, category, model) | Mocked (fixture data) | Real |
+| Credit check & billing preflight | **Real** (validates fixture's model ID) | Real |
+| **LLM provider API call** | **Mocked** — fixture stream chunks | Real |
+| **Skill external APIs** (Brave, YouTube, etc.) | **Mocked** — fixture skill results | Real |
+| Postprocessing (suggestions, persistence) | **Real** | Real |
+
+### Running Tests in Mock Mode
+
+```bash
+# With mocks (zero API cost):
+docker compose --env-file .env -f docker-compose.playwright.yml run --rm \
+  -e E2E_USE_MOCKS=1 \
+  -e PLAYWRIGHT_TEST_FILE="chat-flow.spec.ts" playwright
+
+# Without mocks (real APIs, full integration):
+docker compose --env-file .env -f docker-compose.playwright.yml run --rm \
+  -e PLAYWRIGHT_TEST_FILE="chat-flow.spec.ts" playwright
+```
+
+### Multi-Turn Conversations
+
+Each message in a multi-turn chat gets its own fixture ID. Each turn maps to a separate Celery task, so each needs its own recorded response:
+
+```typescript
+await page.keyboard.type(withMockMarker('Write a function', 'code_gen_turn1'));
+// ... wait for response ...
+await page.keyboard.type(withMockMarker('Add error handling', 'code_gen_turn2'));
+// ... wait for response ...
+await page.keyboard.type(withMockMarker('Refactor to class', 'code_gen_turn3'));
+```
+
+### Speed Profiles
+
+Fixtures include a `speed_profile` that controls simulated streaming speed. Override per-test via the marker:
+
+| Profile | Delay | Use case |
+|---------|-------|----------|
+| `instant` | 0ms | CI (default) — fastest execution |
+| `fast` | 5ms/chunk | Simulates ~500 tps (Cerebras, Groq) |
+| `medium` | 20ms/chunk | Simulates ~150 tps (GPT-4o, Sonnet) |
+| `slow` | 50ms/chunk | Simulates ~60 tps — for streaming UX tests |
+
+```typescript
+// Override speed for streaming behavior tests:
+withMockMarker('Explain gravity', 'chat_scroll_test', 'slow')
+// → appends <<<TEST_MOCK:chat_scroll_test:slow>>>
+```
+
+### Recording New Fixtures
+
+To record a real response as a fixture:
+
+1. Use `withRecordMarker()` in the spec (or manually add `<<<TEST_RECORD:fixture_id>>>` to the message)
+2. Run the test against real APIs — the backend captures all events and saves to `backend/apps/ai/testing/fixtures/{fixture_id}.json`
+3. Switch back to `withMockMarker()` for subsequent runs
+
+```typescript
+// One-time recording:
+await page.keyboard.type(withRecordMarker('Capital of Germany?', 'chat_flow_capital'));
+// → runs real LLM, saves fixture to backend/apps/ai/testing/fixtures/chat_flow_capital.json
+
+// Then switch to mock for all future runs:
+await page.keyboard.type(withMockMarker('Capital of Germany?', 'chat_flow_capital'));
+```
+
+### Fixture File Format
+
+Fixtures are JSON files in `backend/apps/ai/testing/fixtures/`:
+
+```json
+{
+  "fixture_id": "chat_flow_capital",
+  "speed_profile": "instant",
+  "preprocessing": {
+    "can_proceed": true,
+    "category": "general_knowledge",
+    "title": "Capital of Germany",
+    "selected_model_id": "anthropic/claude-sonnet-4-20250514",
+    "steps": [...]
+  },
+  "stream_chunks": [
+    {"sequence": 1, "full_content_so_far": "The capital"},
+    {"sequence": 2, "full_content_so_far": "The capital of Germany is Berlin.", "is_final": true}
+  ],
+  "skill_executions": [],
+  "usage": { "prompt_tokens": 150, "completion_tokens": 12 },
+  "final_response": "The capital of Germany is Berlin."
+}
+```
+
+### Security
+
+- Mock markers are **ignored in production** (`SERVER_ENVIRONMENT == "production"`)
+- The testing module is never imported in production environments
+- Fixture files contain only recorded AI responses, no secrets
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `backend/apps/ai/testing/mock_replay.py` | Marker detection, fixture loading, Redis replay |
+| `backend/apps/ai/testing/fixture_recorder.py` | Records real responses as fixture files |
+| `backend/apps/ai/testing/fixtures/` | Fixture JSON files |
+| `backend/apps/ai/tasks/ask_skill_task.py` | Interception point (~40 lines) |
+| `frontend/apps/web_app/tests/signup-flow-helpers.ts` | `withMockMarker()`, `withRecordMarker()` |
+
+### Instrumented Specs
+
+All specs that send chat messages are instrumented with `withMockMarker()`. Fixtures must be recorded before mock mode works for each spec. See the fixture ID in each spec's `withMockMarker()` call.
+
+---
+
 ## TipTap Editor Interaction in Playwright
 
 - Never click editor after inserting embed — triggers fullscreen overlay
