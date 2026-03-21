@@ -3293,6 +3293,56 @@ health.doctors_with_slots:
   he: רופאים זמינים
   verified_by_human: []
 
+health.appointment_available:
+  context: Singular label in the health appointment search preview card — "1 appointment available"
+  en: appointment available
+  de: Termin verfügbar
+  zh: 个预约可用
+  es: cita disponible
+  fr: rendez-vous disponible
+  pt: consulta disponível
+  ru: запись доступна
+  ja: 予約可能
+  ko: 예약 가능
+  it: appuntamento disponibile
+  tr: randevu mevcut
+  vi: lịch hẹn có sẵn
+  id: janji temu tersedia
+  pl: wizyta dostępna
+  nl: afspraak beschikbaar
+  ar: موعد متاح
+  hi: अपॉइंटमेंट उपलब्ध
+  th: นัดหมายว่าง
+  cs: termín k dispozici
+  sv: tid tillgänglig
+  he: תור זמין
+  verified_by_human: []
+
+health.appointments_available:
+  context: Plural label in the health appointment search preview card — "3 appointments available"
+  en: appointments available
+  de: Termine verfügbar
+  zh: 个预约可用
+  es: citas disponibles
+  fr: rendez-vous disponibles
+  pt: consultas disponíveis
+  ru: записи доступны
+  ja: 予約可能
+  ko: 예약 가능
+  it: appuntamenti disponibili
+  tr: randevu mevcut
+  vi: lịch hẹn có sẵn
+  id: janji temu tersedia
+  pl: wizyty dostępne
+  nl: afspraken beschikbaar
+  ar: مواعيد متاحة
+  hi: अपॉइंटमेंट उपलब्ध हैं
+  th: นัดหมายว่าง
+  cs: termíny k dispozici
+  sv: tider tillgängliga
+  he: תורים זמינים
+  verified_by_human: []
+
 health.book_slot:
   context: Button label to book a specific appointment slot on the health appointment fullscreen card
   en: Book

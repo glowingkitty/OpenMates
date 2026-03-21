@@ -1,16 +1,16 @@
 <!--
   frontend/packages/ui/src/components/embeds/health/HealthAppointmentEmbedFullscreen.svelte
 
-  Fullscreen detail view for a single doctor appointment result.
+  Fullscreen detail view for a single appointment slot.
   Uses EntryWithMapTemplate for responsive map + detail card layout.
 
   Shows map when gps_coordinates are available (Doctolib provides gpsPoint).
   Falls back to details-only layout when no coordinates.
 
   Shows:
+  - Appointment slot datetime (prominent)
   - Doctor name, speciality, address
   - Telehealth/insurance badges
-  - Available appointment slots (informational, not clickable -- they expire)
   - "Book on Doctolib" CTA linking to the practice_url
 
   See docs/architecture/embeds.md
@@ -28,29 +28,29 @@
 
   interface AppointmentData {
     embed_id: string;
+    /** ISO datetime for this specific appointment slot */
+    slot_datetime?: string;
     name?: string;
     speciality?: string;
     address?: string;
     gps_coordinates?: { latitude: number; longitude: number };
-    slots_count?: number;
-    next_slot?: string;
-    next_slot_url?: string;
-    slots?: SlotData[];
     insurance?: string;
     telehealth?: boolean;
     practice_url?: string;
     provider?: string;
+    // Legacy backward-compat (old per-doctor cached embeds)
+    slots_count?: number;
+    next_slot?: string;
+    slots?: SlotData[];
   }
 
   interface Props {
     appointment?: AppointmentData;
+    slot_datetime?: string;
     name?: string;
     speciality?: string;
     address?: string;
     gps_coordinates?: { latitude: number; longitude: number };
-    slots_count?: number;
-    next_slot?: string;
-    slots?: SlotData[];
     insurance?: string;
     telehealth?: boolean;
     practice_url?: string;
@@ -61,17 +61,19 @@
     hasNextEmbed?: boolean;
     onNavigatePrevious?: () => void;
     onNavigateNext?: () => void;
+    // Legacy backward-compat
+    slots_count?: number;
+    next_slot?: string;
+    slots?: SlotData[];
   }
 
   let {
     appointment,
+    slot_datetime,
     name,
     speciality,
     address,
     gps_coordinates,
-    slots_count,
-    next_slot,
-    slots: slotsProp,
     insurance,
     telehealth,
     practice_url,
@@ -82,6 +84,9 @@
     hasNextEmbed = false,
     onNavigatePrevious,
     onNavigateNext,
+    slots_count,
+    next_slot,
+    slots: slotsProp,
   }: Props = $props();
 
   function isNonEmptyString(value: unknown): value is string {
@@ -103,8 +108,7 @@
       isNonEmptyString(name) ||
       isNonEmptyString(speciality) ||
       isNonEmptyString(address) ||
-      (Array.isArray(slotsProp) && slotsProp.length > 0) ||
-      typeof slots_count === 'number' ||
+      isNonEmptyString(slot_datetime) ||
       isNonEmptyString(next_slot) ||
       isNonEmptyString(practice_url);
 
@@ -112,17 +116,19 @@
 
     return {
       embed_id: embedId || 'health-appointment-preview',
+      slot_datetime,
       name,
       speciality,
       address,
       gps_coordinates,
-      slots_count,
-      next_slot,
-      slots: slotsProp,
       insurance,
       telehealth,
       practice_url,
       provider,
+      // Legacy backward-compat
+      slots_count,
+      next_slot,
+      slots: slotsProp,
     } as AppointmentData;
   });
 
@@ -135,17 +141,20 @@
     } catch { return iso; }
   }
 
-  // Defensive: appointment may be undefined during async component loading in dev preview
-  let hasSlots = $derived((activeAppointment?.slots_count ?? 0) > 0);
+  // Effective slot datetime: new per-slot format, or legacy per-doctor format
+  let effectiveSlotDatetime = $derived(
+    activeAppointment?.slot_datetime || activeAppointment?.next_slot || null
+  );
 
-  function getSlotsFromAppointment(appt: AppointmentData | undefined): SlotData[] {
+  // Legacy support: old per-doctor embeds may have multiple slots
+  function getLegacySlots(appt: AppointmentData | undefined): SlotData[] {
     if (!appt) return [];
     if (appt.slots && Array.isArray(appt.slots) && appt.slots.length > 0) return appt.slots;
-    if (appt.next_slot) return [{ datetime: appt.next_slot }];
     return [];
   }
 
-  let slots = $derived(getSlotsFromAppointment(activeAppointment));
+  let legacySlots = $derived(getLegacySlots(activeAppointment));
+  let isLegacyMultiSlot = $derived(!activeAppointment?.slot_datetime && legacySlots.length > 1);
 
   // Map data from gps_coordinates
   let mapCenter = $derived(
@@ -184,6 +193,13 @@
   {mapMarkers}
 >
   {#snippet detailContent(_ctx)}
+    <!-- Slot datetime — prominent -->
+    {#if effectiveSlotDatetime}
+      <div class="slot-highlight">
+        <span class="slot-highlight-datetime">{formatSlot(effectiveSlotDatetime)}</span>
+      </div>
+    {/if}
+
     <!-- Doctor info -->
     <div class="doctor-header">
       {#if activeAppointment.name}
@@ -211,11 +227,11 @@
       {/if}
     </div>
 
-    <!-- Slots -->
-    {#if hasSlots && slots.length > 0}
+    <!-- Legacy: old per-doctor embeds with multiple slots -->
+    {#if isLegacyMultiSlot}
       <div class="slots-section">
         <div class="slots-grid">
-          {#each slots as slot}
+          {#each legacySlots as slot}
             <div class="slot-card">
               <span class="slot-datetime">{formatSlot(slot.datetime)}</span>
             </div>
@@ -223,8 +239,8 @@
         </div>
         <p class="slots-disclaimer">{$text('embeds.health.slots_may_be_outdated')}</p>
       </div>
-    {:else}
-      <div class="no-slots">{$text('embeds.health.no_slots_available')}</div>
+    {:else if effectiveSlotDatetime}
+      <p class="slots-disclaimer">{$text('embeds.health.slots_may_be_outdated')}</p>
     {/if}
   {/snippet}
 
@@ -245,6 +261,20 @@
 {/if}
 
 <style>
+  .slot-highlight {
+    text-align: center;
+    padding: 12px 16px;
+    border-radius: 12px;
+    background-color: rgba(var(--color-primary-rgb, 74, 144, 226), 0.08);
+    border: 1px solid rgba(var(--color-primary-rgb, 74, 144, 226), 0.2);
+  }
+  .slot-highlight-datetime {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--color-primary);
+    line-height: 1.3;
+  }
+
   .doctor-header { text-align: center; }
   .doctor-name {
     font-size: 22px;
@@ -315,13 +345,6 @@
     text-align: center;
     margin: 0;
   }
-  .no-slots {
-    text-align: center;
-    padding: 20px 0;
-    color: var(--color-font-secondary);
-    font-size: 14px;
-  }
-
   .doctolib-link {
     display: inline-flex;
     align-items: center;

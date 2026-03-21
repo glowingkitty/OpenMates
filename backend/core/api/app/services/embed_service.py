@@ -2049,6 +2049,8 @@ class EmbedService:
             return "image_result"
         elif app_id == "videos" and skill_id == "search":
             return "video"
+        elif app_id == "health" and skill_id == "search_appointments":
+            return "appointment"
         else:
             return "website"  # Default: web search, news, etc.
 
@@ -2508,8 +2510,8 @@ class EmbedService:
             hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
             hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
 
-            # Determine if this is a composite result (web search, places, events, connections, stays)
-            is_composite = skill_id in ["search", "places_search", "events_search", "search_connections", "search_stays"]
+            # Determine if this is a composite result (web search, places, events, connections, stays, appointments, products)
+            is_composite = skill_id in ["search", "places_search", "events_search", "search_connections", "search_stays", "search_appointments", "search_products"]
 
             child_embed_ids = []
 
@@ -3347,10 +3349,10 @@ class EmbedService:
             hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
             hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
             
-            # Determine if this is a composite result (web search, places, events, connections, stays)
+            # Determine if this is a composite result (web search, places, events, connections, stays, appointments, products)
             # Check both app_id and skill_id to determine composite vs single
             # Maps search uses skill_id "search" but should create "place" embeds, not "website" embeds
-            is_composite = skill_id in ["search", "places_search", "events_search", "search_connections", "search_stays"]
+            is_composite = skill_id in ["search", "places_search", "events_search", "search_connections", "search_stays", "search_appointments", "search_products"]
             
             child_embed_ids = []
             

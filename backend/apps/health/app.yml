@@ -11,9 +11,14 @@ embed_types:
     skill_id: search_appointments
     frontend_type: app-skill-use
     backend_type: app_skill_use
-    has_children: false
+    has_children: true
+    child_type: appointment
+    child_frontend_type: health-appointment
+    groupable: false
     preview_component: health/HealthSearchEmbedPreview.svelte
     fullscreen_component: health/HealthSearchEmbedFullscreen.svelte
+    child_preview_component: health/HealthAppointmentEmbedPreview.svelte
+    child_fullscreen_component: health/HealthAppointmentEmbedFullscreen.svelte
     icon: heart
     gradient_var: "--color-app-health"
     i18n_namespace: embeds.health.search_appointments

@@ -843,11 +843,12 @@ async function renderHealthSearchFullscreen(
   }
   console.log(`${results.length} appointments:\n`);
   for (const r of results) {
+    const slotDt = str(r.slot_datetime) ?? str(r.next_slot) ?? str(r.date) ?? "";
     const name = str(r.name) ?? str(r.doctor_name) ?? str(r.title) ?? "";
-    const date = str(r.date) ?? str(r.appointment_date) ?? "";
+    const speciality = str(r.speciality) ?? "";
     const address = str(r.address) ?? "";
-    if (name) process.stdout.write(`  \x1b[1m${name}\x1b[0m\n`);
-    if (date) process.stdout.write(`  ${date}\n`);
+    if (slotDt) process.stdout.write(`  \x1b[1m${slotDt}\x1b[0m\n`);
+    if (name) process.stdout.write(`  ${name}${speciality ? ` · ${speciality}` : ""}\n`);
     if (address) process.stdout.write(`  \x1b[2m${address}\x1b[0m\n`);
     console.log();
   }

@@ -25,18 +25,21 @@
   import { getProviderIconUrl } from '../../../data/providerIcons';
 
   /**
-   * A single appointment result (doctor with slots).
+   * A single appointment slot result.
    * Only the fields needed for the preview card.
    */
   interface AppointmentResult {
     type?: string;
+    /** ISO datetime for this specific appointment slot */
+    slot_datetime?: string;
     name?: string;
     speciality?: string;
     address?: string;
-    slots_count?: number;
-    next_slot?: string;
     insurance?: string;
     telehealth?: boolean;
+    // Legacy backward-compat (old per-doctor cached embeds)
+    slots_count?: number;
+    next_slot?: string;
   }
 
   interface Props {
@@ -164,13 +167,15 @@
           if (!c) return null;
           return {
             type: (c.type as string) || 'appointment',
+            slot_datetime: (c.slot_datetime as string) || undefined,
             name: (c.name as string) || undefined,
             speciality: (c.speciality as string) || undefined,
             address: (c.address as string) || undefined,
-            slots_count: (c.slots_count as number) || 0,
-            next_slot: (c.next_slot as string) || undefined,
             insurance: (c.insurance as string) || undefined,
             telehealth: (c.telehealth as boolean) || false,
+            // Legacy backward-compat
+            slots_count: (c.slots_count as number) || 0,
+            next_slot: (c.next_slot as string) || undefined,
           } as AppointmentResult;
         }));
 
@@ -206,16 +211,14 @@
   // Summary line: "Augenarzt in Berlin" or raw query
   let searchSummary = $derived(query || '');
 
-  // Count doctors with at least one slot
-  let doctorsWithSlots = $derived(flatResults.filter(r => (r.slots_count ?? 0) > 0).length);
-
-  // Total doctors found
-  let totalDoctors = $derived(flatResults.length);
+  // Total appointment slots found
+  let totalAppointments = $derived(flatResults.length);
 
   // Earliest available slot across all results
+  // New format: slot_datetime; legacy: next_slot
   let earliestSlot = $derived.by(() => {
     const slots = flatResults
-      .map(r => r.next_slot)
+      .map(r => r.slot_datetime || r.next_slot)
       .filter((s): s is string => !!s)
       .sort();
     return slots[0] || null;
@@ -290,14 +293,14 @@
         </div>
 
       {:else if status === 'finished'}
-        <!-- Finished state: doctor count + earliest slot -->
+        <!-- Finished state: appointment count + earliest slot -->
         <div class="search-results-info">
-          {#if totalDoctors > 0}
+          {#if totalAppointments > 0}
             <span class="doctor-count">
-              {doctorsWithSlots}
-              {doctorsWithSlots === 1
-                ? $text('embeds.health.doctor_with_slots')
-                : $text('embeds.health.doctors_with_slots')}
+              {totalAppointments}
+              {totalAppointments === 1
+                ? $text('embeds.health.appointment_available')
+                : $text('embeds.health.appointments_available')}
             </span>
           {/if}
 

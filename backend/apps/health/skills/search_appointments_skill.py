@@ -176,8 +176,8 @@ DOCTOLIB_CITY_SLUGS: Dict[str, str] = {
     "darmstadt":            "darmstadt",
 }
 
-# Max slots to include per doctor in results (to keep payload manageable)
-MAX_SLOTS_PER_DOCTOR = 5
+# Max total appointment slots to return per request (soonest first)
+DEFAULT_MAX_SLOTS = 10
 
 # Max doctors to check per request when not specified
 DEFAULT_MAX_DOCTORS = 10
@@ -494,9 +494,9 @@ def _extract_gps(loc: Dict[str, Any]) -> Optional[Dict[str, float]]:
         return None
 
 
-def _result_hash(practice_id: int, visit_motive_id: int) -> str:
+def _result_hash(practice_id: int, visit_motive_id: int, slot_datetime: str = "") -> str:
     """Generate a stable short hash for a result item."""
-    key = f"{practice_id}:{visit_motive_id}"
+    key = f"{practice_id}:{visit_motive_id}:{slot_datetime}"
     return hashlib.sha256(key.encode()).hexdigest()[:16]
 
 
@@ -614,8 +614,13 @@ async def _process_single_doctolib_request(
         # Run all availability fetches in parallel
         availabilities = await asyncio.gather(*availability_tasks, return_exceptions=True)
 
-        # Step 4: Build result items
-        results: List[Dict[str, Any]] = []
+        # Step 4: Collect all slots across all doctors, then flatten to per-slot results
+        # Each result item = one appointment slot with duplicated doctor metadata.
+        # Sorted by slot_datetime ascending (soonest first), capped at DEFAULT_MAX_SLOTS.
+        all_slot_items: List[Dict[str, Any]] = []
+        doctors_checked = 0
+        doctors_with_slots = 0
+
         for provider, avail in zip(valid_providers, availabilities):
             if isinstance(avail, Exception):
                 logger.warning(
@@ -625,6 +630,7 @@ async def _process_single_doctolib_request(
                 )
                 avail = {"availabilities": [], "total": 0, "next_slot": None}
 
+            doctors_checked += 1
             visit_motive = provider.get("matchedVisitMotive", {})
             online_booking = provider.get("onlineBooking", {})
             references = provider.get("references", {})
@@ -634,29 +640,19 @@ async def _process_single_doctolib_request(
             practice_id = references.get("practiceId")
 
             # Collect all available slots from availability response
-            all_slots: List[str] = []
+            slot_datetimes: List[str] = []
             for day in avail.get("availabilities", []):
-                all_slots.extend(day.get("slots", []))
+                slot_datetimes.extend(day.get("slots", []))
 
+            if not slot_datetimes:
+                continue
+
+            doctors_with_slots += 1
             ins_sector_obj = visit_motive.get("insuranceSector") or {}
             primary_agenda_id = agenda_ids[0] if agenda_ids else None
 
-            displayed_slots = all_slots[:MAX_SLOTS_PER_DOCTOR]
-
-            # Slots are stored as {datetime} objects only — no booking_url.
-            # Doctolib slot deep-links embed a specific ISO time that expires as soon
-            # as the slot is taken or ages past its window.  Surfacing such links would
-            # show users a broken or wrong booking page.  Instead we show the datetimes
-            # as informational data and direct users to practice_url for live availability.
-            slots_objects = [
-                {"datetime": dt}
-                for dt in displayed_slots
-            ]
-
-            result_item: Dict[str, Any] = {
-                "type": "appointment",
-                "hash": _result_hash(practice_id, visit_motive_id),
-                # Doctor / practice info
+            # Shared doctor metadata — duplicated into each slot item
+            doctor_metadata = {
                 "name": _doctor_name(provider),
                 "title": provider.get("title", ""),
                 "gender": provider.get("gender"),
@@ -666,37 +662,37 @@ async def _process_single_doctolib_request(
                 "speciality": provider.get("speciality", {}).get("name", ""),
                 "languages": provider.get("languages", []),
                 "telehealth": online_booking.get("telehealth", False),
-                # Appointment info
                 "visit_motive": visit_motive.get("name", ""),
                 "insurance": ins_sector_obj.get("type", ""),
                 "allows_new_patients": visit_motive.get("allowNewPatients", True),
-                # Availability — slots is a list of {datetime} objects (no booking_url).
-                # Slot deep-links are intentionally omitted: they encode a specific ISO
-                # timestamp that expires once the slot is taken or ages past its window.
-                # Users are directed to practice_url for live availability instead.
-                "slots_count": len(all_slots),
-                "next_slot": avail.get("next_slot") or (all_slots[0] if all_slots else None),
-                "slots": slots_objects,
-                # Live availability page — always valid, no expiry.
                 "practice_url": _practice_url(provider),
-                # Provider/platform metadata
                 "provider_platform": "Doctolib",
                 "country": "DE",
-                # IDs (excluded from LLM via ignore_fields_for_inference)
                 "visit_motive_id": visit_motive_id,
                 "agenda_id": primary_agenda_id,
                 "practice_id": practice_id,
             }
-            results.append(result_item)
 
-        # Sort: doctors with slots first, then by next_slot time
-        results.sort(key=lambda r: (0 if r["next_slot"] else 1, r["next_slot"] or ""))
+            # Create one result item per slot
+            for slot_dt in slot_datetimes:
+                slot_item: Dict[str, Any] = {
+                    "type": "appointment",
+                    "hash": _result_hash(practice_id, visit_motive_id, slot_dt),
+                    "slot_datetime": slot_dt,
+                    **doctor_metadata,
+                }
+                all_slot_items.append(slot_item)
+
+        # Sort all slots by datetime ascending (soonest first), cap at DEFAULT_MAX_SLOTS
+        all_slot_items.sort(key=lambda r: r["slot_datetime"])
+        results: List[Dict[str, Any]] = all_slot_items[:DEFAULT_MAX_SLOTS]
 
         logger.info(
-            "[health:search_appointments] Request %s: found %d doctors, %d with slots",
+            "[health:search_appointments] Request %s: checked %d doctors, %d with slots, returning %d slot results",
             request_id,
+            doctors_checked,
+            doctors_with_slots,
             len(results),
-            sum(1 for r in results if r["slots_count"] > 0),
         )
         return request_id, results, None
 

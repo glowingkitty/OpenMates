@@ -21,7 +21,7 @@
   import { text } from '@repo/ui';
 
   /**
-   * A single appointment slot.
+   * A single appointment slot (legacy format).
    */
   interface SlotData {
     datetime: string;
@@ -29,23 +29,26 @@
   }
 
   /**
-   * Appointment result — one doctor with their available slots.
+   * Appointment result — one appointment slot with doctor metadata.
    */
   interface AppointmentResult {
     embed_id: string;
     type?: string;
+    /** ISO datetime for this specific appointment slot */
+    slot_datetime?: string;
     name?: string;
     speciality?: string;
     address?: string;
     gps_coordinates?: { latitude: number; longitude: number };
-    slots_count?: number;
-    next_slot?: string;
-    next_slot_url?: string;
-    slots?: SlotData[];
     insurance?: string;
     telehealth?: boolean;
     practice_url?: string;
     provider?: string;
+    // Legacy backward-compat (old per-doctor cached embeds)
+    slots_count?: number;
+    next_slot?: string;
+    next_slot_url?: string;
+    slots?: SlotData[];
   }
 
   interface Props {
@@ -175,18 +178,20 @@
     return {
       embed_id: asString(content.embed_id) || embedId,
       type: asString(content.type) || 'appointment',
+      slot_datetime: asString(content.slot_datetime),
       name: asString(content.name),
       speciality: asString(content.speciality),
       address: asString(content.address),
       gps_coordinates: parseGpsCoordinates(content),
-      slots_count: slotsCount,
-      next_slot: asString(content.next_slot),
-      next_slot_url: asString(content.next_slot_url),
-      slots,
       insurance: asString(content.insurance),
       telehealth: asBoolean(content.telehealth),
       practice_url: asString(content.practice_url),
       provider: asString(content.provider),
+      // Legacy backward-compat
+      slots_count: slotsCount,
+      next_slot: asString(content.next_slot),
+      next_slot_url: asString(content.next_slot_url),
+      slots,
     };
   }
 
@@ -258,17 +263,17 @@
   {#snippet resultCard({ result, onSelect })}
     <HealthAppointmentEmbedPreview
       id={result.embed_id}
+      slotDatetime={result.slot_datetime}
       name={result.name}
       speciality={result.speciality}
       address={result.address}
-      slotsCount={result.slots_count}
-      nextSlot={result.next_slot}
-      nextSlotUrl={result.next_slot_url}
       insurance={result.insurance}
       telehealth={result.telehealth}
       status="finished"
       isMobile={false}
       onFullscreen={onSelect}
+      nextSlot={result.next_slot}
+      slotsCount={result.slots_count}
     />
   {/snippet}
 
