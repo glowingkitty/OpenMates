@@ -159,6 +159,7 @@ jobs:
     if: needs.gate.outputs.should_run == 'true' && (github.event.inputs.suite == 'all' || github.event.inputs.suite == 'playwright' || github.event.inputs.suite == '')
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         include:
           - batch: 0
