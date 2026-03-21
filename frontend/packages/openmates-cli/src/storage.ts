@@ -328,9 +328,14 @@ export function clearSyncCache(): void {
 
 /**
  * Check if the sync cache is fresh enough to use without re-syncing.
- * @param maxAgeMs Maximum age in milliseconds (default: 30 seconds)
+ * @param maxAgeMs Maximum age in milliseconds (default: 5 minutes).
+ *
+ * The CLI is a stateless process — unlike the web app (30s), there's no
+ * persistent WebSocket to push real-time updates.  A longer TTL avoids
+ * expensive full Phase 3 syncs on every invocation while still catching
+ * changes within a reasonable window.
  */
-export function isSyncCacheFresh(maxAgeMs = 30_000): boolean {
+export function isSyncCacheFresh(maxAgeMs = 300_000): boolean {
   const cache = loadSyncCache();
   if (!cache) return false;
   return Date.now() - cache.syncedAt < maxAgeMs;

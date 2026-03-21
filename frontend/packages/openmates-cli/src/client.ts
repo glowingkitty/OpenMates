@@ -1259,9 +1259,23 @@ export class OpenMatesClient {
    * Accepts full UUIDs unchanged. Returns undefined if no match found.
    */
   async resolveFullChatId(idOrShort: string): Promise<string | undefined> {
-    const cache = await this.ensureSynced();
+    // Try stale cache first — chat IDs don't change, so any cached version
+    // is sufficient for short-ID resolution. Only sync if the cache is empty
+    // or the ID wasn't found (possibly a newly created chat).
+    const staleCache = loadSyncCache();
     const lower = idOrShort.toLowerCase();
-    for (const chat of cache.chats) {
+
+    if (staleCache) {
+      for (const chat of staleCache.chats) {
+        const fullId = String(chat.details.id ?? "");
+        if (fullId === idOrShort) return fullId;
+        if (fullId.toLowerCase().startsWith(lower)) return fullId;
+      }
+    }
+
+    // Not found in stale cache (or no cache) — force a fresh sync
+    const freshCache = await this.ensureSynced(/* forceRefresh */ true);
+    for (const chat of freshCache.chats) {
       const fullId = String(chat.details.id ?? "");
       if (fullId === idOrShort) return fullId;
       if (fullId.toLowerCase().startsWith(lower)) return fullId;
@@ -1460,8 +1474,10 @@ export class OpenMatesClient {
         );
         messagePayload.encrypted_chat_key = encryptedChatKey;
       } else {
-        // Existing chat — decrypt the chat key from the sync cache
-        const cache = await this.ensureSynced();
+        // Existing chat — decrypt the chat key from the sync cache.
+        // Chat keys don't change, so stale cache is fine — avoid a full
+        // Phase 3 sync just to retrieve a key we likely already have.
+        const cache = loadSyncCache() ?? (await this.ensureSynced());
         const chat = cache.chats.find(
           (c) =>
             String(c.details.id ?? "") === chatId ||
