@@ -203,8 +203,12 @@ jobs:
         if: steps.skip_check.outputs.skip != 'true'
         run: |
           if [ -n "${{ github.event.inputs.spec }}" ]; then
-            # Single spec mode — use full path to avoid substring matching
-            echo "SPECS_FOR_BATCH=tests/${{ github.event.inputs.spec }}" >> "$GITHUB_OUTPUT"
+            # Single/multi spec mode — prefix each spec with tests/ for exact matching
+            SPECS=""
+            for s in ${{ github.event.inputs.spec }}; do
+              SPECS="$SPECS tests/$s"
+            done
+            echo "SPECS_FOR_BATCH=${SPECS# }" >> "$GITHUB_OUTPUT"
           else
             python3 scripts/ci/get_spec_batch.py ${{ matrix.batch }} 18
           fi
