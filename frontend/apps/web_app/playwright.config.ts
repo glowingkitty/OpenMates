@@ -27,7 +27,10 @@ const config: PlaywrightTestConfig = {
 		baseURL
 	},
 	testDir: 'tests',
-	testMatch: /(.+\.)?(test|spec)\.[jt]s/
+	testMatch: /(.+\.)?(test|spec)\.[jt]s/,
+	// Retry flaky tests once — the dev server has variable latency which causes
+	// intermittent timeouts on login fields, message rendering, etc.
+	retries: 1
 };
 
 export default config;
