@@ -186,6 +186,11 @@ DEFAULT_MAX_DOCTORS = 10
 # then filter down, so we have enough relevant results after filtering.
 FILTERED_SEARCH_MAX_DOCTORS = 30
 
+# Retry configuration for transient Doctolib errors (403 from anti-bot, 429
+# rate limits). Each retry uses a fresh proxy IP via Webshare's rotating pool.
+DOCTOLIB_MAX_RETRIES = 5
+DOCTOLIB_RETRY_DELAY_SECONDS = 2
+
 # ---------------------------------------------------------------------------
 # Visit motive category filtering
 # ---------------------------------------------------------------------------
@@ -211,6 +216,11 @@ VISIT_MOTIVE_CATEGORIES: Dict[str, List[str]] = {
         r"(?:^|\s)termin(?:vereinbarung)?$",
         r"hausärztlich",
         r"hausarzt",
+        r"schmerz",              # Schmerztermin (dentist pain appointment)
+        r"beschwerden",          # Akute Beschwerden (already covered by akut, but explicit)
+        r"notfall",              # Notfall / Notfallsprechstunde
+        r"untersuchung",         # General examination
+        r"behandlung(?!\s+bot)", # Behandlung but NOT "Behandlung Botox..."
     ],
     # Preventive checkups and screenings
     "checkup": [
@@ -223,6 +233,7 @@ VISIT_MOTIVE_CATEGORIES: Dict[str, List[str]] = {
         r"u\d+\b",
         r"krebsvorsorge",
         r"hautkrebsscreening",
+        r"gesichtsfeld",          # Visual field test (ophthalmology screening)
     ],
     # Vaccinations
     "vaccination": [
@@ -255,6 +266,15 @@ NOISE_MOTIVE_PATTERNS: List[str] = [
     r"tauchtauglichkeit",
     r"führerschein",
     r"sportmedizin",
+    r"botox",
+    r"hyaluron",
+    r"filler",
+    r"lasik",
+    r"brillenfrei",
+    r"ästhetik",
+    r"kosmetisch",
+    r"bleaching",
+    r"professionelle\s+zahnreinigung",  # PZR — dental cleaning, not a medical visit
 ]
 
 
@@ -1005,9 +1025,6 @@ class SearchAppointmentsSkill(BaseSkill):
         changing the signature expected by _process_requests_in_parallel.
         """
         async def _process(req: Dict[str, Any], **kwargs) -> Tuple[str, List[Dict[str, Any]], Optional[str]]:
-            # Create a fresh client per request — ensures independent proxy IP
-            # rotation across concurrent requests (Webshare assigns a new IP per
-            # connection when using the rotating endpoint p.webshare.io:80).
             # NOTE: signature uses 'req' to match the kwarg passed by
             # BaseSkill._process_requests_in_parallel (which calls req=req).
             client_kwargs: Dict[str, Any] = {
@@ -1018,26 +1035,60 @@ class SearchAppointmentsSkill(BaseSkill):
             if proxy_url:
                 client_kwargs["proxy"] = proxy_url
 
-            async with httpx.AsyncClient(**client_kwargs) as client:
-                request_id, results, error = await _process_single_doctolib_request(client, req)
-                if error or not results:
-                    return request_id, results, error
+            # Retry on transient 403/429 errors from Doctolib's anti-bot protection.
+            # Each retry creates a fresh httpx.AsyncClient, which — when using
+            # Webshare's rotating proxy — gets assigned a new IP address.
+            request_id = str(req.get("id", "1"))
+            last_error: Optional[str] = None
 
-                try:
-                    sanitized_results = await sanitize_long_text_fields_in_payload(
-                        payload=results,
-                        task_id=f"health_appointments_{request_id}",
-                        secrets_manager=secrets_manager,
-                        cache_service=cache_service,
-                    )
-                    return request_id, sanitized_results, None
-                except Exception as sanitize_error:
-                    logger.error(
-                        "Appointment content sanitization failed for request %s: %s",
-                        request_id,
-                        sanitize_error,
-                        exc_info=True,
-                    )
-                    return request_id, [], "Content sanitization failed"
+            for attempt in range(DOCTOLIB_MAX_RETRIES):
+                async with httpx.AsyncClient(**client_kwargs) as client:
+                    request_id, results, error = await _process_single_doctolib_request(client, req)
+
+                if not error:
+                    break
+                last_error = error
+
+                # Only retry on transient HTTP errors (bad proxy IP or rate limit)
+                is_retryable = any(code in error for code in ("403", "429"))
+                if not is_retryable:
+                    break
+
+                logger.info(
+                    "[health:search_appointments] Retryable error on attempt %d/%d for request %s: %s",
+                    attempt + 1,
+                    DOCTOLIB_MAX_RETRIES,
+                    request_id,
+                    error[:80],
+                )
+                await asyncio.sleep(DOCTOLIB_RETRY_DELAY_SECONDS)
+            else:
+                # All retries exhausted
+                logger.warning(
+                    "[health:search_appointments] All %d retries failed for request %s",
+                    DOCTOLIB_MAX_RETRIES,
+                    request_id,
+                )
+                return request_id, [], last_error
+
+            if error or not results:
+                return request_id, results, error
+
+            try:
+                sanitized_results = await sanitize_long_text_fields_in_payload(
+                    payload=results,
+                    task_id=f"health_appointments_{request_id}",
+                    secrets_manager=secrets_manager,
+                    cache_service=cache_service,
+                )
+                return request_id, sanitized_results, None
+            except Exception as sanitize_error:
+                logger.error(
+                    "Appointment content sanitization failed for request %s: %s",
+                    request_id,
+                    sanitize_error,
+                    exc_info=True,
+                )
+                return request_id, [], "Content sanitization failed"
 
         return _process
