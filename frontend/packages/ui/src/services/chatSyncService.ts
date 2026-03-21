@@ -2,6 +2,7 @@
 // Handles chat data synchronization between client and server via WebSockets.
 import { chatDB } from "./db";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
+import { getCachedChatVersionMap } from "./db/chatKeyManagement";
 import { webSocketService } from "./websocketService";
 import { websocketStatus } from "../stores/websocketStatusStore";
 import { notificationStore } from "../stores/notificationStore";
@@ -9,6 +10,7 @@ import { aiTypingStore } from "../stores/aiTypingStore";
 import { phasedSyncState } from "../stores/phasedSyncStateStore";
 import { get } from "svelte/store";
 import { forcedLogoutInProgress, isLoggingOut } from "../stores/signupState";
+import { authStore } from "../stores/authStore";
 import type {
   OfflineChange,
   Message,
@@ -235,8 +237,12 @@ export class ChatSynchronizationService extends EventTarget {
         this.clearPhasedSyncTimeout();
 
         // Start periodic retry for pending messages when connection is lost
-        // This ensures messages are automatically retried every few seconds
-        this.startPendingMessageRetry();
+        // This ensures messages are automatically retried every few seconds.
+        // Only start if authenticated — on cold boot without auth, websocketStatus
+        // starts as "disconnected" but there are no pending messages to retry.
+        if (get(authStore).isAuthenticated) {
+          this.startPendingMessageRetry();
+        }
       }
     });
   }
@@ -1585,20 +1591,12 @@ export class ChatSynchronizationService extends EventTarget {
       // to prevent the UI from being stuck forever in "Loading chats..." state
       this.startPhasedSyncTimeout();
 
-      // Get client version data for delta checking
-      const allChats = await chatDB.getAllChats();
-      console.warn(
-        `[ChatSyncService] 2/4: Found ${allChats.length} chats locally in IndexedDB.`,
-      );
+      // PERF: Use cached version map from loadChatKeysFromDatabase() cursor pass
+      // when available, avoiding a redundant full getAllChats() IDB scan.
+      const versionMap = getCachedChatVersionMap();
+      const useCachedVersions = versionMap.size > 0;
 
       // CRITICAL: Filter out chats that are pending server deletion.
-      // If we include them in client_chat_ids, the server won't re-send them (good).
-      // But if we DON'T include them, the server sees them as "new" and sends them back.
-      // Since these chats were already deleted from IndexedDB (optimistic delete),
-      // they won't be in allChats. However, as an extra safety measure, we also
-      // exclude any pending deletion IDs from the version map. The real protection
-      // is in the phased sync handlers (storeRecentChats/storeAllChats) which skip
-      // chats that are in the pending deletions set.
       const { getPendingChatDeletionsSet } =
         await import("./pendingChatDeletions");
       const pendingDeletions = getPendingChatDeletionsSet();
@@ -1614,15 +1612,31 @@ export class ChatSynchronizationService extends EventTarget {
       > = {};
       const client_chat_ids: string[] = [];
 
-      for (const chat of allChats) {
-        // Skip chats pending deletion - they should not appear in client state
-        if (pendingDeletions.has(chat.chat_id)) continue;
-        client_chat_ids.push(chat.chat_id);
-        client_chat_versions[chat.chat_id] = {
-          messages_v: chat.messages_v || 0,
-          title_v: chat.title_v || 0,
-          draft_v: chat.draft_v || 0,
-        };
+      if (useCachedVersions) {
+        // Fast path: use in-memory version map (no IDB read needed)
+        for (const [chatId, versions] of versionMap) {
+          if (pendingDeletions.has(chatId)) continue;
+          client_chat_ids.push(chatId);
+          client_chat_versions[chatId] = versions;
+        }
+        console.warn(
+          `[ChatSyncService] 2/4: Found ${client_chat_ids.length} chats from cached version map (skipped IDB read).`,
+        );
+      } else {
+        // Fallback: full IDB read (first load or after logout/re-login)
+        const allChats = await chatDB.getAllChats();
+        console.warn(
+          `[ChatSyncService] 2/4: Found ${allChats.length} chats locally in IndexedDB (fallback read).`,
+        );
+        for (const chat of allChats) {
+          if (pendingDeletions.has(chat.chat_id)) continue;
+          client_chat_ids.push(chat.chat_id);
+          client_chat_versions[chat.chat_id] = {
+            messages_v: chat.messages_v || 0,
+            title_v: chat.title_v || 0,
+            draft_v: chat.draft_v || 0,
+          };
+        }
       }
 
       // Get client suggestions count
@@ -1931,6 +1945,11 @@ export class ChatSynchronizationService extends EventTarget {
     // Only start retry if WebSocket is not connected
     if (this.webSocketConnected) {
       return; // Don't retry if already connected
+    }
+
+    // Don't start retry if user is not authenticated — no pending messages possible
+    if (!get(authStore).isAuthenticated) {
+      return;
     }
 
     console.warn(

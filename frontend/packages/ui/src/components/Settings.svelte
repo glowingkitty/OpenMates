@@ -453,7 +453,11 @@ changes to the documentation (to keep the documentation up to date).
             const recentIcons = await loadRecentHeaderChatIcons();
             headerChatDecorIcons = buildHeaderDecorIcons(recentIcons);
         } catch (error) {
-            console.error('[Settings] Failed to load recent chat icons for settings header:', error);
+            if (error instanceof Error && error.message?.includes('blocked during logout')) {
+                console.debug('[Settings] DB unavailable during cleanup, skipping header icons');
+            } else {
+                console.error('[Settings] Failed to load recent chat icons for settings header:', error);
+            }
         } finally {
             isRefreshingHeaderIcons = false;
         }

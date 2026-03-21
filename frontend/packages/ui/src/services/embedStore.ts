@@ -1127,7 +1127,16 @@ export class EmbedStore {
           }
         }
       } catch (error) {
-        console.warn("[EmbedStore] Failed to load from IndexedDB:", error);
+        if (
+          error instanceof Error &&
+          error.message?.includes("blocked during logout")
+        ) {
+          console.debug(
+            "[EmbedStore] DB unavailable during cleanup, skipping",
+          );
+        } else {
+          console.warn("[EmbedStore] Failed to load from IndexedDB:", error);
+        }
         return undefined;
       }
     }

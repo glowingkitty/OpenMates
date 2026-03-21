@@ -128,6 +128,7 @@ class WebSocketService extends EventTarget {
   private pongTimeoutId: NodeJS.Timeout | null = null; // Track pong timeout
   private readonly PONG_TIMEOUT = 5000; // 5 seconds to wait for pong
   private lastActivityTimestamp = 0; // Track last incoming data activity (any message received)
+  private hasEverConnected = false; // Tracks whether a WebSocket connection was ever established (suppresses initial network change event)
   private consecutiveAbnormalClosures = 0; // Track consecutive 1006 (abnormal closure) failures for auth detection
   private readonly AUTH_FAILURE_THRESHOLD = 4; // After 4 consecutive 1006 failures, treat as auth error
   // Rationale: 2 was too aggressive — transient network events (WiFi handoff, brief server
@@ -249,6 +250,11 @@ class WebSocketService extends EventTarget {
       const connection = (navigator as any).connection;
       if (connection && typeof connection.addEventListener === "function") {
         connection.addEventListener("change", () => {
+          // Skip if we've never connected and user isn't authenticated —
+          // browsers fire a 'change' event during initial page load
+          if (!this.hasEverConnected && !get(authStore).isAuthenticated) {
+            return;
+          }
           console.info(
             "[WebSocketService] Network connection type changed — checking connection",
           );
@@ -505,6 +511,7 @@ class WebSocketService extends EventTarget {
             return;
           }
           console.info("[WebSocketService] Connection established.");
+          this.hasEverConnected = true;
           this.reconnectAttempts = 0; // Reset on successful connection
           this.reconnectInterval = 1000; // Reset interval
           this.consecutiveAbnormalClosures = 0; // Reset auth failure counter on successful connection
