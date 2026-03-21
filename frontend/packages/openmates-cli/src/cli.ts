@@ -376,6 +376,8 @@ async function handleChats(
         .getChatFollowUpSuggestions(chat.id)
         .catch(() => [] as string[]);
       printJson({ chat, messages, follow_up_suggestions: followUpSuggestions });
+    } else if (flags.raw === true) {
+      await printChatConversationRaw(chat, messages);
     } else {
       // Fetch follow-up suggestions to display at the end of the conversation
       const followUpSuggestions = await client
@@ -2236,17 +2238,79 @@ function renderEmbedFromMeta(
 }
 
 /**
- * Clean display text: strip unresolvable embed badge refs.
+ * Render message text with embed references resolved.
  *
- * - `[!](embed:slug)`  → "" (large preview badge — already shown as embed block above)
- * - `[text](embed:slug)` → "text" (inline text badge — keep the display text only)
+ * Embed references in message content use markdown link syntax:
+ * - `[!](embed:slug)` — block-level preview badge (rendered as child embed preview)
+ * - `[text](embed:slug)` — inline text badge (rendered as "text [↗ domain]")
+ *
+ * The embedRefIndex maps slugs to decrypted embeds so we can render them.
+ * Falls back to displaying the slug domain when the embed can't be resolved.
  */
-function cleanMessageText(text: string): string {
-  return text
-    .replace(/\[!\]\(embed:[^)]+\)/g, "") // [!](embed:...) → remove
-    .replace(/\[([^\]]+)\]\(embed:[^)]+\)/g, "$1") // [text](embed:...) → text
-    .replace(/\n{3,}/g, "\n\n") // collapse 3+ blank lines
-    .trim();
+async function renderMessageText(
+  text: string,
+  embedRefIndex: Map<string, import("./client.js").DecryptedEmbed>,
+  client: import("./client.js").OpenMatesClient,
+): Promise<void> {
+  // Split text into segments: regular text vs embed reference lines.
+  // Process line-by-line to handle [!](embed:...) block refs properly.
+  const lines = text.split("\n");
+  const outputLines: string[] = [];
+
+  for (const line of lines) {
+    // Check for block-level embed refs: [!](embed:slug) or [](embed:slug)
+    // These may appear alone on a line or with whitespace
+    const blockMatch = line.match(/^\s*\[!?\]\(embed:([^)]+)\)\s*$/);
+    if (blockMatch) {
+      // Flush any pending text before rendering embed blocks
+      if (outputLines.length > 0) {
+        const flushed = outputLines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+        if (flushed) process.stdout.write(`${flushed}\n`);
+        outputLines.length = 0;
+      }
+
+      const slug = blockMatch[1];
+      const embed = embedRefIndex.get(slug);
+      if (embed) {
+        await renderEmbedPreview(embed, client);
+      } else {
+        // Unresolved block ref — show slug as hint
+        const domain = slug.replace(/-[A-Za-z0-9]{3}$/, "");
+        process.stdout.write(
+          `\x1b[2m┌─\x1b[0m \x1b[33m?\x1b[0m \x1b[2m${domain}\x1b[0m\n` +
+            `\x1b[2m└─ (embed not in cache)\x1b[0m\n`,
+        );
+      }
+      continue;
+    }
+
+    // Replace inline embed refs: [text](embed:slug) → "text [↗ domain]"
+    const processed = line.replace(
+      /\[([^\]]+)\]\(embed:([^)]+)\)/g,
+      (_match, displayText: string, slug: string) => {
+        const embed = embedRefIndex.get(slug);
+        if (embed) {
+          // Use the embed's URL or text preview for extra context
+          const url =
+            typeof embed.content?.url === "string" ? embed.content.url : null;
+          const domain = url
+            ? new URL(url).hostname.replace(/^www\./, "")
+            : slug.replace(/-[A-Za-z0-9]{3}$/, "");
+          return `${displayText} \x1b[2m[↗ ${domain}]\x1b[0m`;
+        }
+        // Unresolved — show slug domain as fallback
+        const domain = slug.replace(/-[A-Za-z0-9]{3}$/, "");
+        return `${displayText} \x1b[2m[↗ ${domain}]\x1b[0m`;
+      },
+    );
+    outputLines.push(processed);
+  }
+
+  // Flush remaining text
+  if (outputLines.length > 0) {
+    const flushed = outputLines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+    if (flushed) process.stdout.write(`${flushed}\n`);
+  }
 }
 
 /**
@@ -2287,6 +2351,13 @@ async function printChatConversation(
     process.stdout.write("\x1b[2m(no messages)\x1b[0m\n");
     return;
   }
+
+  // Build embed ref index (slug → DecryptedEmbed) so we can resolve
+  // [text](embed:slug) and [!](embed:slug) references in message text.
+  // This decrypts all cached embeds once — fast for typical chat sizes.
+  process.stderr.write("\x1b[2mResolving embed references...\x1b[0m\r");
+  const embedRefIndex = await client.buildEmbedRefIndex();
+  process.stderr.write("\x1b[2K"); // clear progress line
 
   for (let i = 0; i < messages.length; i++) {
     const msg = messages[i];
@@ -2330,8 +2401,7 @@ async function printChatConversation(
             renderEmbedFromMeta(seg.value, seg.meta);
           }
         } else {
-          const cleaned = cleanMessageText(seg.value);
-          if (cleaned) process.stdout.write(`${cleaned}\n`);
+          await renderMessageText(seg.value, embedRefIndex, client);
         }
       }
     }
@@ -2364,6 +2434,55 @@ async function printChatConversation(
   process.stdout.write(
     `\x1b[2mContinue: openmates chats send --chat ${chat.shortId} "your message"\x1b[0m\n`,
   );
+}
+
+/**
+ * Print chat conversation in raw mode — shows the original decrypted message
+ * content without any embed rendering or text cleaning. Useful for debugging
+ * how the AI wrote embed references and understanding the underlying format.
+ */
+async function printChatConversationRaw(
+  chat: {
+    id: string;
+    shortId: string;
+    title: string | null;
+    category: string | null;
+    mateName: string | null;
+    updatedAt: number | null;
+  },
+  messages: DecryptedMessage[],
+): Promise<void> {
+  const title = chat.title ?? "(no title)";
+  const ts = formatTimestamp(chat.updatedAt);
+
+  process.stdout.write(`\x1b[2m${chat.shortId}  ${ts}\x1b[0m\n`);
+  process.stdout.write(`\x1b[1;4m# ${title}\x1b[0m  \x1b[2m(raw)\x1b[0m\n\n`);
+
+  if (messages.length === 0) {
+    process.stdout.write("\x1b[2m(no messages)\x1b[0m\n");
+    return;
+  }
+
+  for (const msg of messages) {
+    const msgTs = formatTimestamp(msg.createdAt);
+
+    process.stdout.write(`${SEP}\n`);
+
+    const role =
+      msg.role === "user"
+        ? "You"
+        : (msg.senderName ?? msg.role);
+    process.stdout.write(`\x1b[1m${role}\x1b[0m  \x1b[2m${msgTs}\x1b[0m\n`);
+    process.stdout.write(`${SEP}\n`);
+
+    if (msg.content) {
+      process.stdout.write(`${msg.content}\n`);
+    } else {
+      process.stdout.write("\x1b[2m(empty)\x1b[0m\n");
+    }
+  }
+
+  process.stdout.write(`${SEP}\n`);
 }
 
 // Legacy renderInlineEmbed and printEmbedDetail removed — replaced by
@@ -3567,7 +3686,7 @@ Flags:
 function printChatsHelp(): void {
   console.log(`Chats commands:
   openmates chats list [--limit <n>] [--page <n>] [--json]
-  openmates chats show <chat-id> [--json]
+  openmates chats show <chat-id> [--raw] [--json]
   openmates chats open [<n>] [--json]
   openmates chats search <query> [--json]
   openmates chats new <message> [--json]
@@ -3583,6 +3702,10 @@ function printChatsHelp(): void {
 Options for 'list':
   --limit <n>   Number of chats per page (default: 10)
   --page <n>    Page number (default: 1)
+
+Options for 'show':
+  --raw         Show raw decrypted message content without rendering embeds
+                or cleaning embed references. Useful for debugging.
 
 Options for 'open':
   <n>           Position of the chat to open (default: 1 = most recent)

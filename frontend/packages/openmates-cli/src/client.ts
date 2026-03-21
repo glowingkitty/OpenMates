@@ -1101,6 +1101,41 @@ export class OpenMatesClient {
   }
 
   /**
+   * Build a slug → DecryptedEmbed index for all embeds in the sync cache.
+   *
+   * Child embeds store an `embed_ref` slug in their encrypted content (e.g.
+   * "youtube.com-p3f", "marineinsight.com-wrP"). This method decrypts all
+   * embeds and builds a map from slug to the decrypted embed, so the chat
+   * renderer can resolve `[text](embed:slug)` and `[!](embed:slug)` refs.
+   *
+   * Mirrors the web app's embedStore.embedRefToIdIndex (in-memory only).
+   */
+  async buildEmbedRefIndex(): Promise<Map<string, DecryptedEmbed>> {
+    const cache = await this.ensureSynced();
+    const index = new Map<string, DecryptedEmbed>();
+
+    for (const rawEmbed of cache.embeds) {
+      const embedId = String(rawEmbed.embed_id ?? rawEmbed.id ?? "");
+      if (!embedId) continue;
+
+      try {
+        const decrypted = await this.getEmbed(embedId);
+        const ref =
+          typeof decrypted.content?.embed_ref === "string"
+            ? decrypted.content.embed_ref
+            : null;
+        if (ref) {
+          index.set(ref, decrypted);
+        }
+      } catch {
+        // Embed decryption failed — skip silently (key mismatch, etc.)
+      }
+    }
+
+    return index;
+  }
+
+  /**
    * Resolve the embed decryption key for a given embed.
    *
    * Strategy:
