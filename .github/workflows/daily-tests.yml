@@ -7,9 +7,9 @@
 # test accounts to avoid collisions.
 #
 # Triggers:
-# - Schedule: 3am UTC daily (same as previous crontab)
 # - Manual: workflow_dispatch with suite/environment selectors
 # - CLI: python3 scripts/sessions.py trigger-tests
+# - Cron: dev server crontab triggers via `gh workflow run` at 3am UTC
 #
 # Security:
 # - Minimal permissions (contents: read only)
@@ -22,8 +22,6 @@
 name: Daily Test Suite
 
 on:
-  schedule:
-    - cron: "0 3 * * *" # 3am UTC daily
   workflow_dispatch:
     inputs:
       suite:
@@ -67,21 +65,7 @@ jobs:
       - name: Check for recent commits
         id: check
         run: |
-          # Always run on manual trigger
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "should_run=true" >> "$GITHUB_OUTPUT"
-            echo "Manual trigger — running"
-            exit 0
-          fi
-
-          # Only run on dev branch for scheduled triggers
-          if [ "${{ github.ref }}" != "refs/heads/dev" ]; then
-            echo "should_run=false" >> "$GITHUB_OUTPUT"
-            echo "Not on dev branch — skipping"
-            exit 0
-          fi
-
-          # Check for commits in last 24 hours
+          # Check for commits in last 24 hours — skip if nothing changed
           COMMITS=$(git log --oneline --since="24 hours ago" | wc -l)
           if [ "$COMMITS" -eq 0 ]; then
             echo "should_run=false" >> "$GITHUB_OUTPUT"
@@ -161,9 +145,9 @@ jobs:
           python-version: "3.12"
       - name: Install dependencies
         run: |
-          # Install backend requirements; fall back to minimal set if full requirements fail
-          pip install pytest pytest-json-report httpx pillow 2>/dev/null
-          pip install -r backend/requirements.txt 2>/dev/null || true
+          pip install pytest pytest-json-report pytest-asyncio
+          pip install -r backend/core/api/requirements.txt
+          pip install -r backend/requirements-dev.txt
       - name: Run pytest
         run: |
           mkdir -p test-results
