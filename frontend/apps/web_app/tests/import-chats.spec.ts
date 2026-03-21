@@ -60,14 +60,14 @@ async function loginToTestAccount(page: any): Promise<void> {
 	}
 
 	const emailInput = page.locator(
-		'input[name="username"][type="email"], input[placeholder*="E-Mail"], input[autocomplete="username"]'
+		'#login-email-input'
 	);
 	await expect(emailInput.first()).toBeVisible({ timeout: 15000 });
 	await emailInput.first().fill(TEST_EMAIL);
 	await page.getByRole('button', { name: /continue/i }).click();
 
-	const passwordInput = page.locator('input[type="password"]');
-	const otpInput = page.locator('input[autocomplete="one-time-code"]');
+	const passwordInput = page.locator('#login-password-input');
+	const otpInput = page.locator('#login-otp-input');
 	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
 
 	await expect(passwordInput).toBeVisible({ timeout: 15000 });

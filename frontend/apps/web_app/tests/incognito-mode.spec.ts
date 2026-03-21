@@ -43,9 +43,9 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 
 const SELECTORS = {
 	// Login / auth
-	emailInput: 'input[name="username"][type="email"]',
-	passwordInput: 'input[type="password"]',
-	otpInput: 'input[autocomplete="one-time-code"]',
+	emailInput: '#login-email-input',
+	passwordInput: '#login-password-input',
+	otpInput: '#login-otp-input',
 	submitLoginButton: 'button[type="submit"]:text-matches("log in|login", "i")',
 
 	// Chat UI

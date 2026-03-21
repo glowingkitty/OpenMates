@@ -51,7 +51,7 @@ async function loginTestAccount(page: any, log: any): Promise<void> {
 	await expect(loginBtn).toBeVisible();
 	await loginBtn.click();
 
-	const emailInput = page.locator('input[name="username"][type="email"]');
+	const emailInput = page.locator('#login-email-input');
 	await expect(emailInput).toBeVisible();
 	await page.waitForTimeout(1000);
 	await emailInput.fill(TEST_EMAIL);
@@ -60,11 +60,11 @@ async function loginTestAccount(page: any, log: any): Promise<void> {
 	await expect(continueBtn).toBeEnabled({ timeout: 30000 });
 	await continueBtn.click();
 
-	const pwInput = page.locator('input[type="password"]');
+	const pwInput = page.locator('#login-password-input');
 	await expect(pwInput).toBeVisible();
 	await pwInput.fill(TEST_PASSWORD);
 
-	const otpInput = page.locator('input[autocomplete="one-time-code"]');
+	const otpInput = page.locator('#login-otp-input');
 	await expect(otpInput).toBeVisible();
 	await otpInput.fill(generateTotp(TEST_OTP_KEY));
 

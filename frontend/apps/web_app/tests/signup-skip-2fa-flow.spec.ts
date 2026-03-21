@@ -242,11 +242,11 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	await emailInputRelogin.fill(signupEmail);
 	await page.getByRole('button', { name: /continue|next/i }).click();
 
-	const passwordInputRelogin = page.locator('input[type="password"]');
+	const passwordInputRelogin = page.locator('#login-password-input');
 	await expect(passwordInputRelogin.first()).toBeVisible({ timeout: 15000 });
 	await passwordInputRelogin.first().fill(signupPassword);
 
-	await expect(page.locator('input[autocomplete="one-time-code"]').first()).not.toBeVisible();
+	await expect(page.locator('#login-otp-input').first()).not.toBeVisible();
 
 	const loginSubmitButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
 	await expect(loginSubmitButton).toBeVisible({ timeout: 15000 });

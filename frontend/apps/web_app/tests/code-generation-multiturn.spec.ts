@@ -70,7 +70,7 @@ async function loginToTestAccount(page: any, log: any, screenshot: any) {
 	await page.waitForTimeout(1000); // Wait for login dialog animation
 	await screenshot(page, 'login-dialog');
 
-	const emailInput = page.locator('input[name="username"][type="email"]');
+	const emailInput = page.locator('#login-email-input');
 	await expect(emailInput).toBeVisible({ timeout: 10000 });
 	await emailInput.fill(TEST_EMAIL);
 	log(`Filled email: "${TEST_EMAIL}"`);
@@ -85,11 +85,11 @@ async function loginToTestAccount(page: any, log: any, screenshot: any) {
 	await continueButton.click();
 	log('Entered email and clicked continue.');
 
-	const passwordInput = page.locator('input[type="password"]');
+	const passwordInput = page.locator('#login-password-input');
 	await expect(passwordInput).toBeVisible({ timeout: 15000 });
 	await passwordInput.fill(TEST_PASSWORD);
 
-	const otpInput = page.locator('input[autocomplete="one-time-code"]');
+	const otpInput = page.locator('#login-otp-input');
 	await expect(otpInput).toBeVisible({ timeout: 15000 });
 
 	const submitButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });

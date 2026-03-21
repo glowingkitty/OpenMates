@@ -93,21 +93,21 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 	await screenshot(page, 'login-dialog');
 
 	// ── 3. Enter email ───────────────────────────────────────────────────────
-	const emailInput = page.locator('input[name="username"][type="email"]');
+	const emailInput = page.locator('#login-email-input');
 	await expect(emailInput).toBeVisible();
 	await emailInput.fill(TEST_EMAIL);
 	await page.getByRole('button', { name: /continue/i }).click();
 	log('Entered email and clicked continue.');
 
 	// ── 4. Enter password ────────────────────────────────────────────────────
-	const passwordInput = page.locator('input[type="password"]');
+	const passwordInput = page.locator('#login-password-input');
 	await expect(passwordInput).toBeVisible();
 	await passwordInput.fill(TEST_PASSWORD);
 	await screenshot(page, 'password-entered');
 
 	// ── 5. Handle 2FA OTP ────────────────────────────────────────────────────
 	const otpCode = generateTotp(TEST_OTP_KEY);
-	const otpInput = page.locator('input[autocomplete="one-time-code"]');
+	const otpInput = page.locator('#login-otp-input');
 	await expect(otpInput).toBeVisible();
 	await otpInput.fill(otpCode);
 	log('Generated and entered OTP.');

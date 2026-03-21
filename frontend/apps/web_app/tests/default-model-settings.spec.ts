@@ -69,18 +69,18 @@ async function loginToTestAccount(
 	await headerLoginButton.click();
 	await takeStepScreenshot(page, 'login-dialog');
 
-	const emailInput = page.locator('input[name="username"][type="email"]');
+	const emailInput = page.locator('#login-email-input');
 	await expect(emailInput).toBeVisible();
 	await emailInput.fill(TEST_EMAIL);
 	await page.getByRole('button', { name: /continue/i }).click();
 	logCheckpoint('Entered email and clicked continue.');
 
-	const passwordInput = page.locator('input[type="password"]');
+	const passwordInput = page.locator('#login-password-input');
 	await expect(passwordInput).toBeVisible({ timeout: 15000 });
 	await passwordInput.fill(TEST_PASSWORD);
 	await takeStepScreenshot(page, 'password-entered');
 
-	const otpInput = page.locator('input[autocomplete="one-time-code"]');
+	const otpInput = page.locator('#login-otp-input');
 	await expect(otpInput).toBeVisible({ timeout: 15000 });
 
 	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });

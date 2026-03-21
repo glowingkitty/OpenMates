@@ -191,18 +191,18 @@ async function loginViaPair(page: any, apiUrl: string, logCheckpoint: (msg: stri
 	await expect(loginBtn).toBeVisible({ timeout: 15000 });
 	await loginBtn.click();
 
-	const emailInput = page.locator('input[name="username"][type="email"]');
+	const emailInput = page.locator('#login-email-input');
 	await expect(emailInput).toBeVisible();
 	await emailInput.fill(TEST_EMAIL);
 	const continueBtn = page.getByRole('button', { name: /continue/i });
 	await expect(continueBtn).toBeEnabled({ timeout: 5000 });
 	await continueBtn.click();
 
-	const passwordInput = page.locator('input[type="password"]');
+	const passwordInput = page.locator('#login-password-input');
 	await expect(passwordInput).toBeVisible({ timeout: 15000 });
 	await passwordInput.fill(TEST_PASSWORD);
 
-	const otpInput = page.locator('input[autocomplete="one-time-code"]');
+	const otpInput = page.locator('#login-otp-input');
 	await expect(otpInput).toBeVisible({ timeout: 15000 });
 
 	const submitBtn = page.locator('button[type="submit"]', { hasText: /log in|login/i });

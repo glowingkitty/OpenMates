@@ -134,9 +134,9 @@ test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 	logCheckpoint('Submitted email for lookup.');
 
 	// Wait for password+TFA form to appear
-	const passwordInput = page.locator('input[type="password"]');
+	const passwordInput = page.locator('#login-password-input');
 	await expect(passwordInput).toBeVisible({ timeout: 15000 });
-	const tfaInput = page.locator('input[autocomplete="one-time-code"]');
+	const tfaInput = page.locator('#login-otp-input');
 	await expect(tfaInput).toBeVisible({ timeout: 15000 });
 	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
 
@@ -341,13 +341,13 @@ test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 	logCheckpoint('Submitted email for re-login.');
 
 	// Enter password
-	const passwordInputRelogin = page.locator('input[type="password"]');
+	const passwordInputRelogin = page.locator('#login-password-input');
 	await expect(passwordInputRelogin).toBeVisible({ timeout: 15000 });
 	await passwordInputRelogin.fill(OPENMATES_TEST_ACCOUNT_PASSWORD);
 	logCheckpoint('Filled password for re-login.');
 
 	// The TFA input should already be visible (tfa_enabled=true from lookup)
-	const tfaInputRelogin = page.locator('input[autocomplete="one-time-code"]');
+	const tfaInputRelogin = page.locator('#login-otp-input');
 	await expect(tfaInputRelogin).toBeVisible({ timeout: 15000 });
 	await takeStepScreenshot(page, 'tfa-prompt-relogin');
 

@@ -163,7 +163,7 @@ test('completes full account recovery flow with same password', async ({
 	logRecoveryCheckpoint('Submitted email for lookup.');
 
 	// Wait for password step to appear
-	const passwordInput = page.locator('input[type="password"]');
+	const passwordInput = page.locator('#login-password-input');
 	await expect(passwordInput.first()).toBeVisible({ timeout: 15000 });
 	await takeStepScreenshot(page, 'password-step');
 	logRecoveryCheckpoint('Reached password step.');
@@ -371,7 +371,7 @@ test('completes full account recovery flow with same password', async ({
 	await page.getByRole('button', { name: /continue/i }).click();
 
 	// Wait for password input
-	const loginPasswordInput = page.locator('input[type="password"]');
+	const loginPasswordInput = page.locator('#login-password-input');
 	await expect(loginPasswordInput.first()).toBeVisible({ timeout: 15000 });
 	await takeStepScreenshot(page, 'login-password-step');
 
@@ -390,7 +390,7 @@ test('completes full account recovery flow with same password', async ({
 	await takeStepScreenshot(page, 'after-login-click');
 
 	// Check if 2FA input appeared
-	const tfaInput = page.locator('input[autocomplete="one-time-code"]');
+	const tfaInput = page.locator('#login-otp-input');
 	const tfaVisible = await tfaInput
 		.first()
 		.isVisible()

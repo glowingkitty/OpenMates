@@ -54,9 +54,9 @@ const API_BASE_URL = BASE_URL.replace('://app.dev.', '://api.dev.').replace('://
 
 const SELECTORS = {
 	// Login / auth
-	emailInput: 'input[name="username"][type="email"]',
-	passwordInput: 'input[type="password"]',
-	otpInput: 'input[autocomplete="one-time-code"]',
+	emailInput: '#login-email-input',
+	passwordInput: '#login-password-input',
+	otpInput: '#login-otp-input',
 	submitLoginButton: 'button[type="submit"]:text-matches("log in|login", "i")',
 
 	// Chat UI (used as "logged-in" signal)

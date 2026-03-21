@@ -211,19 +211,19 @@ test('message sync: verifies all messages are synced after sending multiple mess
 	await headerLoginButton.click();
 	await takeStepScreenshot(page, '02-login-dialog');
 
-	const emailInput = page.locator('input[name="username"][type="email"]');
+	const emailInput = page.locator('#login-email-input');
 	await expect(emailInput).toBeVisible();
 	await emailInput.fill(TEST_EMAIL);
 	await page.getByRole('button', { name: /continue/i }).click();
 	logCheckpoint('Entered email and clicked continue.');
 
-	const passwordInput = page.locator('input[type="password"]');
+	const passwordInput = page.locator('#login-password-input');
 	await expect(passwordInput).toBeVisible();
 	await passwordInput.fill(TEST_PASSWORD);
 	await takeStepScreenshot(page, '03-password-entered');
 
 	const otpCode = generateTotp(TEST_OTP_KEY);
-	const otpInput = page.locator('input[autocomplete="one-time-code"]');
+	const otpInput = page.locator('#login-otp-input');
 	await expect(otpInput).toBeVisible();
 	await otpInput.fill(otpCode);
 	logCheckpoint('Generated and entered OTP.');
@@ -439,17 +439,17 @@ test('message sync: verifies messages_v is properly updated', async ({ page }: {
 	await expect(headerLoginButton).toBeVisible();
 	await headerLoginButton.click();
 
-	const emailInput = page.locator('input[name="username"][type="email"]');
+	const emailInput = page.locator('#login-email-input');
 	await expect(emailInput).toBeVisible();
 	await emailInput.fill(TEST_EMAIL);
 	await page.getByRole('button', { name: /continue/i }).click();
 
-	const passwordInput = page.locator('input[type="password"]');
+	const passwordInput = page.locator('#login-password-input');
 	await expect(passwordInput).toBeVisible();
 	await passwordInput.fill(TEST_PASSWORD);
 
 	const otpCode = generateTotp(TEST_OTP_KEY);
-	const otpInput = page.locator('input[autocomplete="one-time-code"]');
+	const otpInput = page.locator('#login-otp-input');
 	await expect(otpInput).toBeVisible();
 	await otpInput.fill(otpCode);
 
