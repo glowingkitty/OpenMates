@@ -119,7 +119,7 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
 
 <!-- Usage Section -->
 <div class="usage-section">
-    <h3 class="usage-section-headline">{$text('settings.usage')}</h3>
+    <SettingsItem type="heading" icon="usage" title={$text('settings.usage')} />
     <SettingsUsage
         on:chatSelected={(e) => dispatch('chatSelected', e.detail)}
         on:closeSettings={() => dispatch('closeSettings')}
@@ -186,17 +186,7 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
 
     /* Usage Section */
     .usage-section {
-        margin-top: 16px;
-    }
-
-    .usage-section-headline {
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--color-grey-60);
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        padding: 0 10px 6px 10px;
-        margin: 0;
+        margin-top: 8px;
     }
 
     /* Error uses global .settings-error from settings.css */

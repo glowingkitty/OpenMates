@@ -1800,93 +1800,47 @@ Usage Settings - View usage statistics and export usage data
             </div>
         {:else}
             {#each dailyOverview as day}
-                <div class="time-group">
-                    <div class="time-header">
-                        <h4 class="time-title">{getDayLabel(day.date)}</h4>
-                        <div class="time-total">
-                            <span class="credits-amount">{formatCredits(day.total_credits)}</span>
-                            <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
-                        </div>
+                <SettingsItem type="heading" icon="calendar" title={getDayLabel(day.date)} creditsDisplay={formatCredits(day.total_credits)} />
+
+                {#if day.items.length === 0}
+                    <div class="overview-empty-day">
+                        <span class="overview-empty-text">{$text('settings.usage.no_usage_on_day')}</span>
                     </div>
-                    
-                    {#if day.items.length === 0}
-                        <div class="overview-empty-day">
-                            <span class="overview-empty-text">{$text('settings.usage.no_usage_on_day')}</span>
-                        </div>
-                    {:else}
-                        {#each day.items as item}
-                            {#if item.type === 'chat' && item.chat_id}
-                                <!-- Chat item - clickable to drill down -->
-                                {@const cached = chatMetadataMap.get(item.chat_id)}
-                                {@const metadata = cached?.metadata}
-                                {@const chat = cached?.chat}
-                                {@const isIncognitoChat = item.chat_id === 'incognito'}
-                                {@const isDeletedChat = cached?.isDeleted === true || item.is_deleted === true}
-                                {@const isUnsentDraft = isDeletedChat && item.chat_id != null && draftAudioChatIds.has(item.chat_id)}
-                                {@const isHiddenChat = chat ? ((chat as any).is_hidden_candidate || (chat as any).is_hidden) : false}
-                                {@const canShowDetails = !isIncognitoChat && !isDeletedChat && (!isHiddenChat || (isHiddenChat && hiddenChatsUnlocked))}
-                                {@const category = canShowDetails ? (metadata?.category || null) : null}
-                                {@const iconName = isIncognitoChat ? 'incognito' : (canShowDetails ? (metadata?.icon || (category ? getFallbackIconForCategory(category) : 'help-circle')) : (isDeletedChat ? 'trash-2' : 'help-circle'))}
-                                {@const gradientColors = canShowDetails && category ? getCategoryGradientColors(category) : null}
-                                {@const IconComponent = (isDeletedChat || isIncognitoChat) ? null : getLucideIcon(iconName)}
-                                {@const title = isIncognitoChat ? $text('settings.usage.incognito_chat') : (isUnsentDraft ? $text('settings.usage.unsent_draft') : (isDeletedChat ? $text('settings.usage.deleted_chat') : (canShowDetails ? (metadata?.title || chat?.title || 'Chat') : 'Chat')))}
-                                
-                                <button
-                                    type="button"
-                                    class="overview-usage-item clickable"
-                                    class:deleted={isDeletedChat}
-                                    onclick={async () => {
-                                        overviewSelectedChatId = item.chat_id;
-                                        await fetchChatEntries(item.chat_id!);
-                                    }}
-                                >
-                                    <div class="chat-usage-icon-wrapper">
-                                        {#if isIncognitoChat}
-                                            <div class="chat-usage-icon-circle" style="background: #555555;">
-                                                <div class="chat-usage-icon">
-                                                    <div class="icon icon_incognito" style="width: 14px; height: 14px; filter: brightness(0) invert(1);"></div>
-                                                </div>
-                                            </div>
-                                        {:else if isUnsentDraft}
-                                            <!-- Unsent draft: mic icon, purple gradient background -->
-                                            <div class="chat-usage-icon-circle" style="background: linear-gradient(135deg, #6B8DD6, #8E37D7);">
-                                                <div class="chat-usage-icon">
-                                                    <div class="clickable-icon icon_recordaudio" style="width: 14px; height: 14px; background: white;"></div>
-                                                </div>
-                                            </div>
-                                        {:else if isDeletedChat}
-                                            <div class="chat-usage-icon-circle deleted-icon-circle">
-                                                <div class="chat-usage-icon">
-                                                    <div class="clickable-icon icon_delete" style="width: 14px; height: 14px;"></div>
-                                                </div>
-                                            </div>
-                                        {:else}
-                                            <div 
-                                                class="chat-usage-icon-circle" 
-                                                style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: #cccccc'}
-                                            >
-                                                <div class="chat-usage-icon">
-                                                    {#if IconComponent}
-                                                        <IconComponent size={16} color="white" />
-                                                    {/if}
-                                                </div>
-                                            </div>
-                                        {/if}
-                                    </div>
-                                    <div class="overview-item-content">
-                                        <div class="overview-item-title" class:deleted-text={isDeletedChat && !isUnsentDraft}>{title}</div>
-                                        <div class="overview-item-subtitle">{item.entry_count} {item.entry_count === 1 ? 'request' : 'requests'}</div>
-                                    </div>
-                                    <div class="overview-item-credits">
-                                        <span class="credits-amount">{formatCredits(item.total_credits)}</span>
-                                        <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
-                                    </div>
-                                </button>
-                            {/if}
-                            <!-- api_key items are intentionally excluded from the overview tab -->
-                        {/each}
-                    {/if}
-                </div>
+                {:else}
+                    {#each day.items as item}
+                        {#if item.type === 'chat' && item.chat_id}
+                            <!-- Chat item - clickable to drill down -->
+                            {@const cached = chatMetadataMap.get(item.chat_id)}
+                            {@const metadata = cached?.metadata}
+                            {@const chat = cached?.chat}
+                            {@const isIncognitoChat = item.chat_id === 'incognito'}
+                            {@const isDeletedChat = cached?.isDeleted === true || item.is_deleted === true}
+                            {@const isUnsentDraft = isDeletedChat && item.chat_id != null && draftAudioChatIds.has(item.chat_id)}
+                            {@const isHiddenChat = chat ? ((chat as any).is_hidden_candidate || (chat as any).is_hidden) : false}
+                            {@const canShowDetails = !isIncognitoChat && !isDeletedChat && (!isHiddenChat || (isHiddenChat && hiddenChatsUnlocked))}
+                            {@const category = canShowDetails ? (metadata?.category || null) : null}
+                            {@const gradientColors = canShowDetails && category ? getCategoryGradientColors(category) : null}
+                            {@const title = isIncognitoChat ? $text('settings.usage.incognito_chat') : (isUnsentDraft ? $text('settings.usage.unsent_draft') : (isDeletedChat ? $text('settings.usage.deleted_chat') : (canShowDetails ? (metadata?.title || chat?.title || 'Chat') : 'Chat')))}
+                            {@const itemIcon = isIncognitoChat ? 'anonym' : (isUnsentDraft ? 'recordaudio' : (isDeletedChat ? 'delete' : 'chat'))}
+                            {@const itemIconColor = isIncognitoChat ? 'var(--color-grey-50)' : (isUnsentDraft ? 'linear-gradient(135deg, #6B8DD6, #8E37D7)' : (isDeletedChat ? 'var(--color-grey-40)' : (gradientColors ? `linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'var(--color-grey-50)')))}
+
+                            <SettingsItem
+                                type="submenu"
+                                icon={itemIcon}
+                                iconBackground="none"
+                                iconColor={itemIconColor}
+                                title={title}
+                                subtitleBottom={`${item.entry_count} ${item.entry_count === 1 ? 'request' : 'requests'}`}
+                                creditsDisplay={formatCredits(item.total_credits)}
+                                onClick={async () => {
+                                    overviewSelectedChatId = item.chat_id;
+                                    await fetchChatEntries(item.chat_id!);
+                                }}
+                            />
+                        {/if}
+                        <!-- api_key items are intentionally excluded from the overview tab -->
+                    {/each}
+                {/if}
             {/each}
             
             <!-- Load more days button -->
@@ -3032,62 +2986,6 @@ Usage Settings - View usage statistics and export usage data
         border-color: var(--color-grey-40);
     }
 
-    /* Daily overview styles */
-    .overview-usage-item {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 12px 16px;
-        margin-bottom: 8px;
-        background: var(--color-grey-10);
-        border-radius: 12px;
-        border: 1px solid var(--color-grey-20);
-        transition: all 0.2s ease;
-        width: 100%;
-        text-align: left;
-        font: inherit;
-        color: inherit;
-    }
-
-    .overview-usage-item.clickable {
-        cursor: pointer;
-    }
-
-    .overview-usage-item:hover {
-        background: var(--color-grey-15);
-        border-color: var(--color-grey-30);
-    }
-
-    .overview-item-content {
-        flex: 1;
-        min-width: 0;
-    }
-
-    .overview-item-title {
-        color: var(--color-grey-100);
-        font-size: 14px;
-        font-weight: 500;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .overview-item-subtitle {
-        color: var(--color-grey-50);
-        font-size: 12px;
-        margin-top: 2px;
-    }
-
-    .overview-item-credits {
-        color: var(--color-grey-80);
-        font-size: 14px;
-        font-weight: 600;
-        flex-shrink: 0;
-        display: flex;
-        align-items: center;
-        gap: 4px;
-    }
-
     .overview-empty-day {
         padding: 16px;
         text-align: center;
@@ -3176,7 +3074,6 @@ Usage Settings - View usage statistics and export usage data
         font-style: italic;
     }
 
-    .overview-usage-item.deleted,
     .chat-usage-item.deleted {
         opacity: 0.7;
     }
