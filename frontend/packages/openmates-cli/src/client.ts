@@ -1101,20 +1101,35 @@ export class OpenMatesClient {
   }
 
   /**
-   * Build a slug → DecryptedEmbed index for all embeds in the sync cache.
+   * Build a slug → DecryptedEmbed index for child embeds of specific parents.
    *
    * Child embeds store an `embed_ref` slug in their encrypted content (e.g.
-   * "youtube.com-p3f", "marineinsight.com-wrP"). This method decrypts all
-   * embeds and builds a map from slug to the decrypted embed, so the chat
-   * renderer can resolve `[text](embed:slug)` and `[!](embed:slug)` refs.
+   * "youtube.com-p3f", "marineinsight.com-wrP"). This method only decrypts
+   * child embeds whose parent_embed_id is in the provided set, keeping it
+   * fast even when the cache has thousands of embeds.
+   *
+   * @param parentEmbedIds - Set of parent embed IDs to resolve children for.
+   *   Pass the embed IDs extracted from the chat's message JSON blocks.
    *
    * Mirrors the web app's embedStore.embedRefToIdIndex (in-memory only).
    */
-  async buildEmbedRefIndex(): Promise<Map<string, DecryptedEmbed>> {
+  async buildEmbedRefIndex(
+    parentEmbedIds: Set<string>,
+  ): Promise<Map<string, DecryptedEmbed>> {
+    if (parentEmbedIds.size === 0) return new Map();
+
     const cache = await this.ensureSynced();
     const index = new Map<string, DecryptedEmbed>();
 
-    for (const rawEmbed of cache.embeds) {
+    // Only decrypt child embeds whose parent is in the target set
+    const childEmbeds = cache.embeds.filter((e) => {
+      const parentId = String(
+        (e as Record<string, unknown>).parent_embed_id ?? "",
+      );
+      return parentId && parentEmbedIds.has(parentId);
+    });
+
+    for (const rawEmbed of childEmbeds) {
       const embedId = String(rawEmbed.embed_id ?? rawEmbed.id ?? "");
       if (!embedId) continue;
 
@@ -2775,10 +2790,40 @@ export class OpenMatesClient {
 
     // Delta merge: server only sent new/changed chats. Carry forward
     // unchanged chats from the existing cache so we don't lose them.
+    // Also preserve cached messages when the server sends a chat update
+    // without messages (delta optimization — messages_v unchanged).
     if (existingCache) {
+      const cachedById = new Map(
+        existingCache.chats.map((c) => [String(c.details.id ?? ""), c]),
+      );
       const serverChatIds = new Set(
         chats.map((c) => String(c.details.id ?? "")),
       );
+
+      // Preserve messages for chats the server sent without messages
+      // (server skips messages when client's messages_v matches).
+      for (const chat of chats) {
+        const chatId = String(chat.details.id ?? "");
+        const cached = cachedById.get(chatId);
+        if (
+          cached &&
+          chat.messages.length === 0 &&
+          cached.messages.length > 0
+        ) {
+          const serverV =
+            typeof chat.details.messages_v === "number"
+              ? chat.details.messages_v
+              : 0;
+          const cachedV =
+            typeof cached.details.messages_v === "number"
+              ? cached.details.messages_v
+              : 0;
+          if (serverV === cachedV) {
+            chat.messages = cached.messages;
+          }
+        }
+      }
+
       for (const cached of existingCache.chats) {
         const cachedId = String(cached.details.id ?? "");
         if (cachedId && !serverChatIds.has(cachedId)) {

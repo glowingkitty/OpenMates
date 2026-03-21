@@ -2352,12 +2352,26 @@ async function printChatConversation(
     return;
   }
 
-  // Build embed ref index (slug → DecryptedEmbed) so we can resolve
-  // [text](embed:slug) and [!](embed:slug) references in message text.
-  // This decrypts all cached embeds once — fast for typical chat sizes.
-  process.stderr.write("\x1b[2mResolving embed references...\x1b[0m\r");
-  const embedRefIndex = await client.buildEmbedRefIndex();
-  process.stderr.write("\x1b[2K"); // clear progress line
+  // Collect parent embed IDs from message JSON blocks, then build a
+  // slug → DecryptedEmbed index for only their child embeds.
+  // This avoids decrypting all 2000+ embeds in the cache.
+  const parentEmbedIds = new Set<string>();
+  for (const msg of messages) {
+    if (!msg.content) continue;
+    const segs = parseMessageSegments(msg.content);
+    for (const seg of segs) {
+      if (seg.type === "embed" && seg.value) {
+        parentEmbedIds.add(seg.value);
+      }
+    }
+  }
+  // Also check if any message text contains embed: refs at all
+  const hasEmbedRefs = messages.some(
+    (m) => m.content && /\(embed:[^)]+\)/.test(m.content),
+  );
+  const embedRefIndex = hasEmbedRefs
+    ? await client.buildEmbedRefIndex(parentEmbedIds)
+    : new Map<string, import("./client.js").DecryptedEmbed>();
 
   for (let i = 0; i < messages.length; i++) {
     const msg = messages[i];
