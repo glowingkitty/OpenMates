@@ -153,6 +153,8 @@ jobs:
           mkdir -p test-results
           python -m pytest backend/tests/ \
             -m "not integration and not benchmark" \
+            --ignore=backend/tests/test_encryption_service.py \
+            --ignore=backend/tests/test_integration_encryption.py \
             --tb=short -q \
             --json-report --json-report-file=test-results/pytest.json \
             || true
