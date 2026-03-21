@@ -42,7 +42,8 @@ const {
 	createStepScreenshotter,
 	generateTotp,
 	getTestAccount,
-	getE2EDebugUrl
+	getE2EDebugUrl,
+	withMockMarker
 } = require('./signup-flow-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
@@ -258,7 +259,7 @@ async function sendMessageAndGetModel(
 	const messageEditor = page.locator('.editor-content.prose');
 	await expect(messageEditor).toBeVisible();
 	await messageEditor.click();
-	await page.keyboard.type(question);
+	await page.keyboard.type(withMockMarker(question, 'default_model_settings'));
 	logCheckpoint(`Typed question: "${question}"`);
 	await takeStepScreenshot(page, `${stepLabel}-question-typed`);
 

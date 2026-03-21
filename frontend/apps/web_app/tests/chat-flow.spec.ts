@@ -65,7 +65,8 @@ const {
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
-	getE2EDebugUrl
+	getE2EDebugUrl,
+	withMockMarker
 } = require('./signup-flow-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
@@ -522,7 +523,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	const messageEditor = page.locator('.editor-content.prose');
 	await expect(messageEditor).toBeVisible();
 	await messageEditor.click();
-	await page.keyboard.type('Capital of Germany?');
+	await page.keyboard.type(withMockMarker('Capital of Germany?', 'chat_flow_capital'));
 	await takeStepScreenshot(page, '02-message-filled');
 
 	// The send button only appears when the editor has content (hasContent reactive state).

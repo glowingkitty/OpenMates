@@ -32,7 +32,8 @@ const {
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
-	getE2EDebugUrl
+	getE2EDebugUrl,
+	withMockMarker
 } = require('./signup-flow-helpers');
 
 /**
@@ -280,7 +281,7 @@ async function typeQuestionAndSend(
 	stepLabel: string
 ): Promise<void> {
 	// Type a space after the autocompleted model, then the question
-	await page.keyboard.type(' ' + question);
+	await page.keyboard.type(withMockMarker(' ' + question, 'model_override'));
 	logCheckpoint(`Typed question: "${question}"`);
 	await takeStepScreenshot(page, `${stepLabel}-question-typed`);
 

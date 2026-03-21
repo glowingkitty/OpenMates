@@ -35,7 +35,8 @@ const {
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
-	getE2EDebugUrl
+	getE2EDebugUrl,
+	withMockMarker
 } = require('./signup-flow-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
@@ -245,7 +246,7 @@ test('shares a web search embed via fullscreen share button', async ({
 	// ── Step 3: Send a web search query ───────────────────────────────────
 	await sendMessage(
 		page,
-		"Search on the web for 'Berlin weather'",
+		withMockMarker("Search on the web for 'Berlin weather'", 'share_embed_flow'),
 		logCheckpoint,
 		takeStepScreenshot,
 		'share-embed'

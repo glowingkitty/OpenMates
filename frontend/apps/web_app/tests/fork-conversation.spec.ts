@@ -32,7 +32,8 @@ const {
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
-	getE2EDebugUrl
+	getE2EDebugUrl,
+	withMockMarker
 } = require('./signup-flow-helpers');
 
 /**
@@ -137,7 +138,7 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 	const messageEditor = page.locator('.editor-content.prose');
 	await expect(messageEditor).toBeVisible();
 	await messageEditor.click();
-	await page.keyboard.type('Reply with the single word: alpha');
+	await page.keyboard.type(withMockMarker('Reply with the single word: alpha', 'fork_conversation_turn1'));
 	log('Typed first message.');
 	await screenshot(page, 'first-message-typed');
 
@@ -162,7 +163,7 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 
 	// ── 10. Send second message ──────────────────────────────────────────────
 	await messageEditor.click();
-	await page.keyboard.type('Reply with the single word: beta');
+	await page.keyboard.type(withMockMarker('Reply with the single word: beta', 'fork_conversation_turn2'));
 	log('Typed second message.');
 
 	await sendButton.click();

@@ -32,7 +32,8 @@ const {
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
-	getE2EDebugUrl
+	getE2EDebugUrl,
+	withMockMarker
 } = require('./signup-flow-helpers');
 
 /**
@@ -348,7 +349,7 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 
 	await messageEditor.click();
 	// Type slowly enough for PII detection to process but not too slowly
-	await page.keyboard.type(piiText, { delay: 5 });
+	await page.keyboard.type(withMockMarker(piiText, 'pii_detection_check'), { delay: 5 });
 	logCheckpoint(`Typed PII text (${piiText.length} chars).`);
 
 	// PII detection triggers on delimiters (space, period, etc.) or after 800ms debounce.
@@ -526,7 +527,7 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 
 	// Type a simple message with an email that should be replaced on send
 	const sendText = 'Please contact me at testuser@privateemail.org about my account.';
-	await page.keyboard.type(sendText, { delay: 5 });
+	await page.keyboard.type(withMockMarker(sendText, 'pii_detection_send'), { delay: 5 });
 	logCheckpoint(`Typed send message: "${sendText}"`);
 
 	// Wait for PII detection

@@ -59,7 +59,8 @@ const {
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
-	getE2EDebugUrl
+	getE2EDebugUrl,
+	withMockMarker
 } = require('./signup-flow-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
@@ -272,7 +273,7 @@ test('sends location embed and AI response contains the station name', async ({
 	// the response fast and deterministic.
 	// ======================================================================
 	await page.keyboard.type(
-		'Simple answer please: what is the station called, what address and which lat/lon? (only give me the details i provided you, without using any app skills.)'
+		withMockMarker('Simple answer please: what is the station called, what address and which lat/lon? (only give me the details i provided you, without using any app skills.)', 'location_embed')
 	);
 	logCheckpoint('Typed question after embed.');
 	await takeStepScreenshot(page, 'message-ready-to-send');

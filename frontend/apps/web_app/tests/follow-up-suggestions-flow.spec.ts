@@ -32,7 +32,8 @@ const {
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
-	getE2EDebugUrl
+	getE2EDebugUrl,
+	withMockMarker
 } = require('./signup-flow-helpers');
 
 const consoleLogs: string[] = [];
@@ -155,7 +156,7 @@ test('shows follow-up suggestion chips after AI response and clicking one fills 
 	const messageEditor = page.locator('.editor-content.prose');
 	await expect(messageEditor).toBeVisible({ timeout: 10000 });
 	await messageEditor.click();
-	await page.keyboard.type(message);
+	await page.keyboard.type(withMockMarker(message, 'follow_up_suggestions'));
 
 	const sendButton = page.locator('.send-button');
 	await expect(sendButton).toBeEnabled();

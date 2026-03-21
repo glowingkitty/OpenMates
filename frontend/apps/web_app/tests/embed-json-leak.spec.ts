@@ -32,7 +32,8 @@ const {
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
-	getE2EDebugUrl
+	getE2EDebugUrl,
+	withMockMarker
 } = require('./signup-flow-helpers');
 
 /**
@@ -228,7 +229,7 @@ test('code embeds render without raw JSON embed references leaking', async ({
 	const editor = page.locator('.editor-content.prose');
 	await expect(editor).toBeVisible();
 	await editor.click();
-	await page.keyboard.type(testMessage);
+	await page.keyboard.type(withMockMarker(testMessage, 'embed_json_leak'));
 	logCheckpoint(`Typed message: "${testMessage}"`);
 	await takeStepScreenshot(page, 'message-typed');
 

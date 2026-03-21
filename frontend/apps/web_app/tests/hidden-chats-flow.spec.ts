@@ -45,7 +45,8 @@ const {
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
-	getE2EDebugUrl
+	getE2EDebugUrl,
+	withMockMarker
 } = require('./signup-flow-helpers');
 
 const consoleLogs: string[] = [];
@@ -229,7 +230,7 @@ test('hides a chat using the inline vault form and chat disappears from visible 
 
 	// Create a chat to hide
 	log('Creating test chat to hide...');
-	await createTestChat(page, 'What is the capital of France?', log);
+	await createTestChat(page, withMockMarker('What is the capital of France?', 'hidden_chats_1'), log);
 	await screenshot(page, 'test-chat-created');
 
 	// Get the active chat item reference before hiding
@@ -309,7 +310,7 @@ test('shows error in inline vault form on wrong password without closing the for
 
 	// Create a chat to trigger the hide flow
 	log('Creating test chat for wrong-password test...');
-	await createTestChat(page, 'What is the speed of light?', log);
+	await createTestChat(page, withMockMarker('What is the speed of light?', 'hidden_chats_2'), log);
 	await screenshot(page, 'test-chat-created');
 
 	// Open context menu → Hide
@@ -431,7 +432,7 @@ test('unlocks hidden chats via sidebar button and can right-click to unhide', as
 
 	// Step 1: Create and hide a chat
 	log('Creating test chat to hide then unhide...');
-	await createTestChat(page, 'What is photosynthesis?', log);
+	await createTestChat(page, withMockMarker('What is photosynthesis?', 'hidden_chats_3'), log);
 	await screenshot(page, 'test-chat-created');
 
 	// Hide the chat using the inline vault form
@@ -528,7 +529,7 @@ test('hides second chat directly without inline form when vault is already unloc
 
 	// Step 1: Create first chat and hide it (this unlocks the vault in memory)
 	log('Creating first chat to unlock vault...');
-	await createTestChat(page, 'What is the boiling point of water?', log);
+	await createTestChat(page, withMockMarker('What is the boiling point of water?', 'hidden_chats_4'), log);
 	await screenshot(page, 'first-chat-created');
 
 	await openContextMenuForActiveChat(page);
@@ -564,7 +565,7 @@ test('hides second chat directly without inline form when vault is already unloc
 		await page.goto('/?new=true');
 		await page.waitForTimeout(3000);
 	}
-	await createTestChat(page, 'How many planets are in our solar system?', log);
+	await createTestChat(page, withMockMarker('How many planets are in our solar system?', 'hidden_chats_5'), log);
 	await screenshot(page, 'second-chat-created');
 
 	// Step 3: Try to hide the second chat — since vault is unlocked in memory,

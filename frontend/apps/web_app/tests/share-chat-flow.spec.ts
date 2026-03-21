@@ -35,7 +35,8 @@ const {
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
-	getE2EDebugUrl
+	getE2EDebugUrl,
+	withMockMarker
 } = require('./signup-flow-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
@@ -245,7 +246,7 @@ test('creates and shares a chat link with QR code and short link', async ({
 	// ── Step 3: Send a simple question ────────────────────────────────────
 	await sendMessage(
 		page,
-		'What is the capital of France?',
+		withMockMarker('What is the capital of France?', 'share_chat_flow'),
 		logCheckpoint,
 		takeStepScreenshot,
 		'share-chat'

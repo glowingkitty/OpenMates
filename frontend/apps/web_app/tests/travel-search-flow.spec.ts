@@ -32,7 +32,8 @@ const {
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
-	getE2EDebugUrl
+	getE2EDebugUrl,
+	withMockMarker
 } = require('./signup-flow-helpers');
 
 /**
@@ -383,7 +384,7 @@ test('travel connection search with fullscreen and connection detail interaction
 					? 'rd'
 					: 'th';
 	const naturalDate = `${monthNames[futureDate.getMonth()]} ${day}${daySuffix}, ${futureDate.getFullYear()}`;
-	const searchQuery = `Find me flights from Berlin to London on ${naturalDate}`;
+	const searchQuery = withMockMarker(`Find me flights from Berlin to London on ${naturalDate}`, 'travel_search_flight');
 	await sendMessage(page, searchQuery, logCheckpoint, takeStepScreenshot, 'travel-search');
 
 	// Wait for assistant response
@@ -913,7 +914,7 @@ test('travel price calendar with fullscreen and calendar grid verification', asy
 	];
 	const monthName = monthNames[futureDate.getMonth()];
 	const year = futureDate.getFullYear();
-	const calendarQuery = `Show me the cheapest flight prices from Berlin to Barcelona for ${monthName} ${year}. I'm flexible on dates, just show me a price calendar overview.`;
+	const calendarQuery = withMockMarker(`Show me the cheapest flight prices from Berlin to Barcelona for ${monthName} ${year}. I'm flexible on dates, just show me a price calendar overview.`, 'travel_search_calendar');
 	await sendMessage(page, calendarQuery, logCheckpoint, takeStepScreenshot, 'price-calendar');
 
 	// Wait for assistant response

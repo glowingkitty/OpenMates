@@ -32,7 +32,8 @@ const {
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
-	getE2EDebugUrl
+	getE2EDebugUrl,
+	withMockMarker
 } = require('./signup-flow-helpers');
 
 /**
@@ -139,7 +140,7 @@ test('scroll and streaming behavior after sending a message', async ({ page }: {
 	const messageEditor = page.locator('.editor-content.prose');
 	await expect(messageEditor).toBeVisible();
 	await messageEditor.click();
-	await page.keyboard.type('What is the capital of France? Please explain in detail.');
+	await page.keyboard.type(withMockMarker('What is the capital of France? Please explain in detail.', 'chat_scroll_streaming', 'medium'));
 	await takeStepScreenshot(page, 'message-typed');
 
 	const sendButton = page.locator('.send-button');

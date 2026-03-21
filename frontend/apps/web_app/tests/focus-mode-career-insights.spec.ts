@@ -40,7 +40,8 @@ const {
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
-	getE2EDebugUrl
+	getE2EDebugUrl,
+	withMockMarker
 } = require('./signup-flow-helpers');
 
 /**
@@ -440,7 +441,7 @@ test('career frustration message triggers Career insights focus mode', async ({
 		"I don't feel like I'm growing anymore and I'm not sure what direction to take my career. " +
 		'Can you help me figure out what I should do next?';
 
-	await sendMessage(page, careerMessage, logCheckpoint, takeStepScreenshot, 'career-advice');
+	await sendMessage(page, withMockMarker(careerMessage, 'focus_career_1'), logCheckpoint, takeStepScreenshot, 'career-advice');
 
 	// ======================================================================
 	// STEP 3: Wait for assistant response
@@ -610,7 +611,7 @@ test('clicking focus mode embed during countdown rejects focus mode activation',
 		"I've been in the same position for 3 years with no growth opportunities. " +
 		'What career path should I consider?';
 
-	await sendMessage(page, careerMessage, logCheckpoint, takeStepScreenshot, 'reject-career');
+	await sendMessage(page, withMockMarker(careerMessage, 'focus_career_2'), logCheckpoint, takeStepScreenshot, 'reject-career');
 
 	// ======================================================================
 	// STEP 3: Wait for the focus mode embed to appear during streaming
@@ -781,7 +782,7 @@ test('chat context menu shows focus mode indicator when career insights is activ
 		"I'm very frustrated with my career. I've been doing the same thing for years " +
 		'and I need help figuring out my next career move. What should I do?';
 
-	await sendMessage(page, careerMessage, logCheckpoint, takeStepScreenshot, 'ctx-menu-career');
+	await sendMessage(page, withMockMarker(careerMessage, 'focus_career_3'), logCheckpoint, takeStepScreenshot, 'ctx-menu-career');
 
 	logCheckpoint('Waiting for assistant response...');
 	const assistantMessage = page.locator('.message-wrapper.assistant');
@@ -913,7 +914,7 @@ test('focus mode remains active on follow-up messages', async ({ page }: { page:
 		"I've been working as a software developer for 5 years but feel stuck. " +
 		'What career options should I explore?';
 
-	await sendMessage(page, careerMessage, logCheckpoint, takeStepScreenshot, 'followup-initial');
+	await sendMessage(page, withMockMarker(careerMessage, 'focus_career_4'), logCheckpoint, takeStepScreenshot, 'followup-initial');
 
 	logCheckpoint('Waiting for assistant response...');
 	const assistantMessage = page.locator('.message-wrapper.assistant');
@@ -945,7 +946,7 @@ test('focus mode remains active on follow-up messages', async ({ page }: { page:
 		"I'm particularly interested in transitioning to a product management role. " +
 		'What skills do I need and how should I prepare?';
 
-	await sendMessage(page, followUpMessage, logCheckpoint, takeStepScreenshot, 'followup-msg');
+	await sendMessage(page, withMockMarker(followUpMessage, 'focus_career_5'), logCheckpoint, takeStepScreenshot, 'followup-msg');
 
 	// ======================================================================
 	// STEP 5: Wait for follow-up assistant response
@@ -1105,7 +1106,7 @@ test('focus active banner is shown when career insights focus mode is active', a
 	const careerMessage =
 		"I've been stuck in my career for years and need help deciding what to do next professionally. Can you help me?";
 
-	await sendMessage(page, careerMessage, logCheckpoint, takeStepScreenshot, 'banner-career');
+	await sendMessage(page, withMockMarker(careerMessage, 'focus_career_6'), logCheckpoint, takeStepScreenshot, 'banner-career');
 
 	logCheckpoint('Waiting for assistant response...');
 	await expect(page.locator('.message-wrapper.assistant').first()).toBeVisible({ timeout: 60000 });
@@ -1294,7 +1295,7 @@ test('stop button in focus mode embed context menu deactivates focus mode', asyn
 	// STEP 2: Trigger focus mode activation
 	const careerMessage =
 		"I'm very stuck in my career. I need help figuring out my professional direction.";
-	await sendMessage(page, careerMessage, logCheckpoint, takeStepScreenshot, 'stop-career');
+	await sendMessage(page, withMockMarker(careerMessage, 'focus_career_7'), logCheckpoint, takeStepScreenshot, 'stop-career');
 
 	await expect(page.locator('.message-wrapper.assistant').first()).toBeVisible({ timeout: 60000 });
 	await waitForFocusModeEmbed(page, logCheckpoint, takeStepScreenshot, 'stop-focus');
@@ -1412,7 +1413,7 @@ test('details link in focus mode context menu opens focus mode settings page', a
 	// STEP 2: Trigger focus mode activation
 	const careerMessage =
 		"I'm feeling stuck in my career and not sure where to go professionally. Please help.";
-	await sendMessage(page, careerMessage, logCheckpoint, takeStepScreenshot, 'details-career');
+	await sendMessage(page, withMockMarker(careerMessage, 'focus_career_8'), logCheckpoint, takeStepScreenshot, 'details-career');
 
 	await expect(page.locator('.message-wrapper.assistant').first()).toBeVisible({ timeout: 60000 });
 	await waitForFocusModeEmbed(page, logCheckpoint, takeStepScreenshot, 'details-focus');
@@ -1526,7 +1527,7 @@ test('chat entry shows focus mode badge when career insights is active', async (
 	// STEP 2: Trigger focus mode activation
 	const careerMessage =
 		"I need serious career guidance. I've been in the same job for 5 years with no growth.";
-	await sendMessage(page, careerMessage, logCheckpoint, takeStepScreenshot, 'badge-career');
+	await sendMessage(page, withMockMarker(careerMessage, 'focus_career_9'), logCheckpoint, takeStepScreenshot, 'badge-career');
 
 	await expect(page.locator('.message-wrapper.assistant').first()).toBeVisible({ timeout: 60000 });
 	await waitForFocusModeEmbed(page, logCheckpoint, takeStepScreenshot, 'badge-focus');

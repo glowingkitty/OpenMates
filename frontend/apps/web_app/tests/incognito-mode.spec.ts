@@ -14,7 +14,8 @@ const {
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
-	getE2EDebugUrl
+	getE2EDebugUrl,
+	withMockMarker
 } = require('./signup-flow-helpers');
 
 /**
@@ -254,7 +255,7 @@ test('incognito mode — full flow', async ({ page }: { page: any }) => {
 	// Type and send a message
 	await expect(messageEditor).toBeVisible({ timeout: 10000 });
 	await messageEditor.click();
-	await page.keyboard.type('Hello from incognito');
+	await page.keyboard.type(withMockMarker('Hello from incognito', 'incognito_mode'));
 	await takeStepScreenshot(page, '07-message-typed');
 
 	const sendButton = page.locator(SELECTORS.sendButton);

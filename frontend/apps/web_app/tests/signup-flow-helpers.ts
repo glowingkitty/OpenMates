@@ -743,6 +743,64 @@ function getE2EDebugUrl(path: string = '/'): string {
 	return `${basePath}#${existingParams}${e2eParams}`;
 }
 
+/**
+ * Append a <<<TEST_MOCK:fixture_id>>> marker to a chat message when E2E_USE_MOCKS is set.
+ *
+ * When tests run with E2E_USE_MOCKS=1, the backend replays a pre-recorded fixture
+ * instead of calling real LLM providers and external APIs. This eliminates inference
+ * costs and makes tests deterministic.
+ *
+ * For multi-turn conversations, each message needs its own fixture ID (e.g., "code_gen_turn1",
+ * "code_gen_turn2"). The fixture ID maps to a JSON file in backend/apps/ai/testing/fixtures/.
+ *
+ * An optional speed profile controls the simulated streaming speed:
+ *   "slow"    (~60 tps)   — for testing streaming UX behavior
+ *   "medium"  (~150 tps)  — realistic for most models
+ *   "fast"    (~500 tps)  — simulates fast providers (Cerebras, Groq)
+ *   "instant" (0ms delay) — default for CI, fastest execution
+ *
+ * @param message    The chat message text to send
+ * @param fixtureId  Identifier for the fixture file (e.g., "chat_flow_capital")
+ * @param speed      Optional speed profile override (default: uses fixture's speed_profile)
+ * @returns          Message text, optionally with mock marker appended
+ *
+ * @example
+ *   // Basic usage:
+ *   await page.keyboard.type(withMockMarker('Capital of Germany?', 'chat_flow_capital'));
+ *
+ *   // With speed override for streaming UX tests:
+ *   await page.keyboard.type(withMockMarker('Hello', 'chat_scroll_test', 'slow'));
+ *
+ *   // Multi-turn conversation:
+ *   await page.keyboard.type(withMockMarker('Write a function', 'code_gen_turn1'));
+ *   // ... wait for response ...
+ *   await page.keyboard.type(withMockMarker('Add error handling', 'code_gen_turn2'));
+ */
+function withMockMarker(message: string, fixtureId: string, speed?: string): string {
+	if (process.env.E2E_USE_MOCKS) {
+		const speedSuffix = speed ? `:${speed}` : '';
+		return `${message} <<<TEST_MOCK:${fixtureId}${speedSuffix}>>>`;
+	}
+	return message;
+}
+
+/**
+ * Append a <<<TEST_RECORD:fixture_id>>> marker to a chat message.
+ *
+ * Used to record a real LLM response as a fixture file. The test runs normally
+ * (hitting real APIs) but the backend captures all events and saves them as
+ * a fixture JSON file in backend/apps/ai/testing/fixtures/{fixtureId}.json.
+ *
+ * After recording, the fixture can be replayed with withMockMarker().
+ *
+ * @param message    The chat message text to send
+ * @param fixtureId  Identifier for the fixture file to create
+ * @returns          Message text with record marker appended
+ */
+function withRecordMarker(message: string, fixtureId: string): string {
+	return `${message} <<<TEST_RECORD:${fixtureId}>>>`;
+}
+
 module.exports = {
 	ARTIFACTS_DIRNAME,
 	PREVIOUS_RUN_DIRNAME,
@@ -758,5 +816,7 @@ module.exports = {
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
-	getE2EDebugUrl
+	getE2EDebugUrl,
+	withMockMarker,
+	withRecordMarker,
 };

@@ -62,6 +62,10 @@ services:
       # E2E_DEBUG_TOKEN: scoped HMAC token for /e2e/client-logs (NOT INTERNAL_API_SHARED_TOKEN)
       E2E_RUN_ID:
       E2E_DEBUG_TOKEN:
+      # E2E mock mode: when set (e.g., E2E_USE_MOCKS=1), tests append <<<TEST_MOCK:fixture_id>>>
+      # markers to chat messages, causing the backend to replay pre-recorded fixture data instead
+      # of calling real LLM providers and external APIs. Zero inference cost per test run.
+      E2E_USE_MOCKS:
     networks:
       - openmates
     # NOTE: Use $$ to escape $ so docker-compose passes the variable expansion
@@ -71,7 +75,7 @@ services:
         cd /workspace &&
         # Create an isolated, throwaway Playwright project inside the container.
         npm init -y >/dev/null 2>&1 &&
-        npm install --silent @playwright/test@1.49.0 &&
+        npm install --silent @playwright/test@1.49.0 @axe-core/playwright@4.11.1 &&
         # Install CLI runtime deps (ws, qrcode-terminal) for cli-pair-login.spec.ts.
         # pnpm symlinks break across Docker mounts, so we install directly in /workspace/cli.
         if [ -f /workspace/cli/package.json ]; then

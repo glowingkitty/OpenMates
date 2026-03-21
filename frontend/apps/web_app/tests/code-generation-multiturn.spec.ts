@@ -16,7 +16,8 @@ const {
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
-	getE2EDebugUrl
+	getE2EDebugUrl,
+	withMockMarker
 } = require('./signup-flow-helpers');
 
 /**
@@ -364,10 +365,13 @@ test('multi-turn code generation: iterative improvements with code embed verific
 
 	await sendMessage(
 		page,
-		'Write a Python function called "process_csv" that reads a CSV file, ' +
-			'accepts a "sort_column" parameter, sorts the data by that column, ' +
-			'and returns the top 5 rows. Use pandas. ' +
-			'Show the complete code in a single code block.',
+		withMockMarker(
+			'Write a Python function called "process_csv" that reads a CSV file, ' +
+				'accepts a "sort_column" parameter, sorts the data by that column, ' +
+				'and returns the top 5 rows. Use pandas. ' +
+				'Show the complete code in a single code block.',
+			'code_gen_turn1'
+		),
 		log
 	);
 
@@ -421,10 +425,13 @@ test('multi-turn code generation: iterative improvements with code embed verific
 	const countBeforeTurn2 = await assistantMessages.count();
 	await sendMessage(
 		page,
-		'Now improve the process_csv function: add error handling for FileNotFoundError ' +
-			'and KeyError (invalid column name), add type hints to all parameters and return type, ' +
-			'and add a docstring. Keep the original process_csv function name and pandas usage. ' +
-			'Show the complete updated file.',
+		withMockMarker(
+			'Now improve the process_csv function: add error handling for FileNotFoundError ' +
+				'and KeyError (invalid column name), add type hints to all parameters and return type, ' +
+				'and add a docstring. Keep the original process_csv function name and pandas usage. ' +
+				'Show the complete updated file.',
+			'code_gen_turn2'
+		),
 		log
 	);
 
@@ -478,11 +485,14 @@ test('multi-turn code generation: iterative improvements with code embed verific
 	const countBeforeTurn3 = await assistantMessages.count();
 	await sendMessage(
 		page,
-		'Refactor this into a class called CsvProcessor with methods: ' +
-			'__init__ (takes filepath), load_data, sort_by_column, and get_top_rows. ' +
-			'Keep all the error handling and type hints from before. ' +
-			'The class should still use pandas and the CSV processing logic from process_csv. ' +
-			'Show the complete updated file.',
+		withMockMarker(
+			'Refactor this into a class called CsvProcessor with methods: ' +
+				'__init__ (takes filepath), load_data, sort_by_column, and get_top_rows. ' +
+				'Keep all the error handling and type hints from before. ' +
+				'The class should still use pandas and the CSV processing logic from process_csv. ' +
+				'Show the complete updated file.',
+			'code_gen_turn3'
+		),
 		log
 	);
 

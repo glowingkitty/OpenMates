@@ -75,7 +75,8 @@ const {
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
-	getE2EDebugUrl
+	getE2EDebugUrl,
+	withMockMarker
 } = require('./signup-flow-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
@@ -222,7 +223,7 @@ test('daily inspiration chat: creates chat and allows follow-up message without 
 	const messageEditor = page.locator('.editor-content.prose');
 	await expect(messageEditor).toBeVisible();
 	await messageEditor.click();
-	await page.keyboard.type('tell me more');
+	await page.keyboard.type(withMockMarker('tell me more', 'daily_inspiration'));
 	await screenshot(page, 'followup-message-typed');
 
 	const sendButton = page.locator('[data-action="send-message"]');

@@ -791,800 +791,894 @@ async def _async_process_ai_skill_ask_task(
         )
         user_overrides = None
 
-    # --- Step 0.5: Chat Compression (long chat history summarization) ---
-    # When the total token estimate of the message history exceeds the compression threshold,
-    # older messages are summarized into a structured summary. This runs BEFORE preprocessing
-    # because the worker already has SecretsManager for LLM API calls.
-    # Architecture context: See docs/architecture/chat-compression.md
-    compression_performed = False
-    try:
-        if (
-            request_data.message_history
-            and cache_service_instance
-            and encryption_service_instance
-            and user_vault_key_id
-            and not request_data.is_external  # Skip compression for external API requests
-        ):
-            # Convert AIHistoryMessage objects to dicts for the compressor
-            message_dicts_for_compression = [
-                {
-                    "role": msg.role,
-                    "content": msg.content,
-                    "created_at": msg.created_at,
-                    "category": getattr(msg, "category", None),
-                    "sender_name": getattr(msg, "sender_name", None),
-                }
-                for msg in request_data.message_history
-            ]
-
-            # Check for admin threshold override
-            compression_threshold = DEFAULT_COMPRESSION_TRIGGER_THRESHOLD
-            admin_threshold = await get_admin_compression_threshold(
-                cache_service_instance, request_data.user_id
+    # --- TEST MOCK/RECORD DETECTION ---
+    # Detect <<<TEST_MOCK:fixture_id>>> or <<<TEST_RECORD:fixture_id>>> markers in the
+    # last user message. When found, skip real LLM inference and replay pre-recorded
+    # fixture data through the same Redis channels. Everything else (encryption, billing,
+    # postprocessing, persistence) remains real.
+    # SECURITY: Only works when SERVER_ENVIRONMENT != "production".
+    _test_marker = None  # None or (mode, fixture_id, speed_override)
+    _fixture_recorder = None  # FixtureRecorder instance for record mode
+    if os.getenv("SERVER_ENVIRONMENT", "production") != "production":
+        from backend.apps.ai.testing.mock_replay import detect_marker, strip_marker
+        if request_data.message_history:
+            last_user_msg = next(
+                (m for m in reversed(request_data.message_history) if m.role == "user"),
+                None,
             )
-            if admin_threshold is not None:
-                compression_threshold = admin_threshold
-                logger.info(
-                    f"[Task ID: {task_id}] Using admin compression threshold: "
-                    f"{compression_threshold} tokens"
-                )
+            if last_user_msg:
+                _test_marker = detect_marker(last_user_msg.content)
+                if _test_marker:
+                    last_user_msg.content = strip_marker(last_user_msg.content)
+                    logger.info(
+                        f"[Task ID: {task_id}] TEST {_test_marker[0].upper()}: "
+                        f"fixture='{_test_marker[1]}', speed_override={_test_marker[2]}"
+                    )
+                    if _test_marker[0] == "record":
+                        from backend.apps.ai.testing.fixture_recorder import FixtureRecorder
+                        _fixture_recorder = FixtureRecorder(_test_marker[1], request_data)
 
-            if should_compress(message_dicts_for_compression, compression_threshold):
-                logger.info(
-                    f"[Task ID: {task_id}] Chat compression triggered for chat "
-                    f"{request_data.chat_id} ({len(message_dicts_for_compression)} messages)"
-                )
+    # --- MOCK BRANCH: Skip compression + preprocessing + main processing ---
+    # When a TEST_MOCK marker is detected, replay pre-recorded fixture data and jump
+    # directly to postprocessing. All variables that postprocessing depends on are set
+    # from the fixture.
+    if _test_marker and _test_marker[0] == "mock":
+        from backend.apps.ai.testing.mock_replay import replay_fixture
+        compression_performed = False
+        mock_result = await replay_fixture(
+            fixture_id=_test_marker[1],
+            task_id=task_id,
+            request_data=request_data,
+            cache_service=cache_service_instance,
+            speed_override=_test_marker[2],
+        )
+        preprocessing_result = mock_result["preprocessing_result"]
+        aggregated_final_response = mock_result["aggregated_final_response"]
+        thinking_content = mock_result.get("thinking_content", [])
+        main_processor_debug_metadata = mock_result.get("main_processor_debug_metadata", {})
+        revoked_in_consumer = False
+        soft_limited_in_consumer = False
+        task_was_revoked = False
+        task_was_soft_limited = False
 
-                # Publish compression_started event to frontend
-                if request_data.user_id_hash:
-                    compression_started_payload = {
-                        "type": "chat_compression_started",
-                        "event_for_client": "chat_compression_started",
-                        "task_id": task_id,
-                        "chat_id": request_data.chat_id,
-                        "user_id_uuid": request_data.user_id,
-                        "user_id_hash": request_data.user_id_hash,
+        # Persist server provider/region on preprocessing_result for billing
+        preprocessing_result.server_provider_name = "Mock"
+        preprocessing_result.server_region = None
+
+        logger.info(
+            f"[Task ID: {task_id}] MOCK replay complete. "
+            f"Response: {len(aggregated_final_response)} chars. "
+            f"Skipping to queue processing + postprocessing."
+        )
+    else:
+        # ═══ NORMAL FLOW: real compression + preprocessing + main processing ═══
+
+        # --- Step 0.5: Chat Compression (long chat history summarization) ---
+        # When the total token estimate of the message history exceeds the compression threshold,
+        # older messages are summarized into a structured summary. This runs BEFORE preprocessing
+        # because the worker already has SecretsManager for LLM API calls.
+        # Architecture context: See docs/architecture/chat-compression.md
+        compression_performed = False
+        try:
+            if (
+                request_data.message_history
+                and cache_service_instance
+                and encryption_service_instance
+                and user_vault_key_id
+                and not request_data.is_external  # Skip compression for external API requests
+            ):
+                # Convert AIHistoryMessage objects to dicts for the compressor
+                message_dicts_for_compression = [
+                    {
+                        "role": msg.role,
+                        "content": msg.content,
+                        "created_at": msg.created_at,
+                        "category": getattr(msg, "category", None),
+                        "sender_name": getattr(msg, "sender_name", None),
                     }
-                    compression_channel = (
-                        f"ai_typing_indicator_events::{request_data.user_id_hash}"
-                    )
-                    await cache_service_instance.publish_event(
-                        compression_channel, compression_started_payload
-                    )
+                    for msg in request_data.message_history
+                ]
 
-                # Run compression
-                compression_result = await compress_chat_history(
-                    message_history=message_dicts_for_compression,
-                    task_id=task_id,
-                    secrets_manager=secrets_manager,
-                    compression_threshold=compression_threshold,
+                # Check for admin threshold override
+                compression_threshold = DEFAULT_COMPRESSION_TRIGGER_THRESHOLD
+                admin_threshold = await get_admin_compression_threshold(
+                    cache_service_instance, request_data.user_id
                 )
-
-                if compression_result.was_compressed and compression_result.summary_content:
-                    compression_performed = True
+                if admin_threshold is not None:
+                    compression_threshold = admin_threshold
                     logger.info(
-                        f"[Task ID: {task_id}] Compression succeeded: "
-                        f"{compression_result.compressed_message_count} messages compressed, "
-                        f"~{compression_result.summary_token_estimate} token summary"
+                        f"[Task ID: {task_id}] Using admin compression threshold: "
+                        f"{compression_threshold} tokens"
                     )
 
-                    # Create a summary system message in the AI cache
-                    import uuid as _uuid
-                    summary_message_id = f"compression_{_uuid.uuid4().hex[:12]}"
-                    summary_timestamp = int(time.time())
-
-                    # Vault-encrypt the summary content for AI cache storage
-                    encrypted_summary, _ = await encryption_service_instance.encrypt_with_user_key(
-                        compression_result.summary_content, user_vault_key_id
-                    )
-
-                    summary_cache_msg = MessageInCache(
-                        id=summary_message_id,
-                        chat_id=request_data.chat_id,
-                        role="system",
-                        category=COMPRESSION_SUMMARY_CATEGORY,
-                        sender_name=None,
-                        encrypted_content=encrypted_summary,
-                        created_at=summary_timestamp,
-                        status="sent",
-                    )
-
-                    # Replace the AI cache with: [summary_message] + [recent_messages]
-                    # First, build the new cache list
-                    new_cache_messages = [summary_cache_msg.model_dump_json()]
-
-                    # Re-encrypt and add the recent messages that were kept
-                    if compression_result.recent_messages:
-                        for recent_msg in compression_result.recent_messages:
-                            recent_content = recent_msg.get("content", "")
-                            encrypted_recent, _ = await encryption_service_instance.encrypt_with_user_key(
-                                recent_content, user_vault_key_id
-                            )
-                            recent_cache_msg = MessageInCache(
-                                id=f"recent_{_uuid.uuid4().hex[:8]}",
-                                chat_id=request_data.chat_id,
-                                role=recent_msg.get("role", "user"),
-                                category=recent_msg.get("category"),
-                                sender_name=recent_msg.get("sender_name"),
-                                encrypted_content=encrypted_recent,
-                                created_at=recent_msg.get("created_at", summary_timestamp),
-                                status="sent",
-                            )
-                            new_cache_messages.append(recent_cache_msg.model_dump_json())
-
-                    # Overwrite the AI cache with the compressed history
-                    await cache_service_instance.set_ai_messages_history(
-                        user_id=request_data.user_id,
-                        chat_id=request_data.chat_id,
-                        encrypted_messages_json_list=new_cache_messages,
-                    )
+                if should_compress(message_dicts_for_compression, compression_threshold):
                     logger.info(
-                        f"[Task ID: {task_id}] AI cache updated: "
-                        f"{len(new_cache_messages)} messages (1 summary + "
-                        f"{len(new_cache_messages) - 1} recent)"
+                        f"[Task ID: {task_id}] Chat compression triggered for chat "
+                        f"{request_data.chat_id} ({len(message_dicts_for_compression)} messages)"
                     )
 
-                    # Persist compression summary to Directus for long-term storage.
-                    # The summary is vault-encrypted (server-side), stored with
-                    # encrypted_category so the sync layer can identify it.
-                    try:
-                        encrypted_category_value, _ = (
-                            await encryption_service_instance.encrypt_with_user_key(
-                                COMPRESSION_SUMMARY_CATEGORY, user_vault_key_id
-                            )
-                        )
-                        now_ts_persist = int(time.time())
-                        celery_config.app.send_task(
-                            "app.tasks.persistence_tasks.persist_new_chat_message",
-                            kwargs={
-                                "message_id": summary_message_id,
-                                "chat_id": request_data.chat_id,
-                                "hashed_user_id": request_data.user_id_hash,
-                                "role": "system",
-                                "encrypted_sender_name": None,
-                                "encrypted_category": encrypted_category_value,
-                                "encrypted_model_name": None,
-                                "encrypted_content": encrypted_summary,
-                                "created_at": summary_timestamp,
-                                "new_chat_messages_version": None,
-                                "new_last_edited_overall_timestamp": now_ts_persist,
-                                "encrypted_chat_key": None,
-                                "user_id": request_data.user_id,
-                            },
-                            queue="persistence",
-                        )
-                        logger.info(
-                            f"[Task ID: {task_id}] Dispatched Celery task to persist "
-                            f"compression summary {summary_message_id} to Directus"
-                        )
-                    except Exception as e_persist:
-                        # Non-fatal: summary is still in AI cache
-                        logger.warning(
-                            f"[Task ID: {task_id}] Failed to dispatch compression "
-                            f"summary persistence (non-fatal): {e_persist}"
-                        )
-
-                    # Update request_data.message_history with compressed version
-                    # so preprocessing and main processing use the compressed history
-                    compressed_history: list = []
-
-                    # Add compression summary as system message
-                    compressed_history.append(
-                        AIHistoryMessage(
-                            content=compression_result.summary_content,
-                            role="system",
-                            category=COMPRESSION_SUMMARY_CATEGORY,
-                            created_at=summary_timestamp,
-                        )
-                    )
-
-                    # Add recent messages kept in full
-                    if compression_result.recent_messages:
-                        for recent_msg in compression_result.recent_messages:
-                            compressed_history.append(
-                                AIHistoryMessage(
-                                    content=recent_msg.get("content", ""),
-                                    role=recent_msg.get("role", "user"),
-                                    category=recent_msg.get("category"),
-                                    created_at=recent_msg.get("created_at", summary_timestamp),
-                                )
-                            )
-
-                    request_data.message_history = compressed_history
-                    logger.info(
-                        f"[Task ID: {task_id}] message_history replaced: "
-                        f"{len(compressed_history)} messages "
-                        f"(was {len(message_dicts_for_compression)})"
-                    )
-
-                    # Publish compression_completed event to frontend
+                    # Publish compression_started event to frontend
                     if request_data.user_id_hash:
-                        compression_completed_payload = {
-                            "type": "chat_compression_completed",
-                            "event_for_client": "chat_compression_completed",
+                        compression_started_payload = {
+                            "type": "chat_compression_started",
+                            "event_for_client": "chat_compression_started",
                             "task_id": task_id,
                             "chat_id": request_data.chat_id,
                             "user_id_uuid": request_data.user_id,
                             "user_id_hash": request_data.user_id_hash,
-                            "compressed_message_count": compression_result.compressed_message_count,
-                            "summary_token_estimate": compression_result.summary_token_estimate,
-                            "compressed_up_to_timestamp": compression_result.compressed_up_to_timestamp,
-                            "summary_message_id": summary_message_id,
-                        }
-                        await cache_service_instance.publish_event(
-                            compression_channel, compression_completed_payload
-                        )
-
-                elif compression_result.error:
-                    logger.warning(
-                        f"[Task ID: {task_id}] Compression failed (non-fatal, proceeding "
-                        f"with full history): {compression_result.error}"
-                    )
-                    # Publish compression_completed with error so frontend can clear the indicator
-                    if request_data.user_id_hash:
-                        compression_error_payload = {
-                            "type": "chat_compression_completed",
-                            "event_for_client": "chat_compression_completed",
-                            "task_id": task_id,
-                            "chat_id": request_data.chat_id,
-                            "user_id_uuid": request_data.user_id,
-                            "user_id_hash": request_data.user_id_hash,
-                            "error": compression_result.error,
                         }
                         compression_channel = (
                             f"ai_typing_indicator_events::{request_data.user_id_hash}"
                         )
                         await cache_service_instance.publish_event(
-                            compression_channel, compression_error_payload
+                            compression_channel, compression_started_payload
                         )
-    except Exception as e_compression:
-        logger.error(
-            f"[Task ID: {task_id}] Chat compression failed with exception (non-fatal, "
-            f"proceeding with full history): {e_compression}",
-            exc_info=True,
-        )
-        # Non-fatal: if compression fails, we proceed with the full history
-        # and rely on the existing truncation in main_processor.py
 
-    # --- Step 1: Preprocessing ---
-    # The synchronous wrapper (process_ai_skill_ask_task) will call self.update_state for PROGRESS.
-    logger.info(f"[Task ID: {task_id}] Starting preprocessing step...")
-    logger.info(f"[Task ID: {task_id}] Chat has title flag from request_data: {request_data.chat_has_title}")
+                    # Run compression
+                    compression_result = await compress_chat_history(
+                        message_history=message_dicts_for_compression,
+                        task_id=task_id,
+                        secrets_manager=secrets_manager,
+                        compression_threshold=compression_threshold,
+                    )
 
-    preprocessing_result: Optional[PreprocessingResult] = None
-    try:
-        if not cache_service_instance:
-            logger.error(f"[Task ID: {task_id}] CacheService instance is not available. Cannot proceed with preprocessing credit check.")
-            raise RuntimeError("CacheService not available for preprocessing.")
-
-        # Build the preprocessing stream channel so the preprocessor can emit real-time step events.
-        # Channel format: preprocessing_stream::{user_id_hash}
-        # The frontend WebSocket listener subscribes to this channel via user_id_hash.
-        # is_new_chat is True when the chat has no title yet (first message in a new chat).
-        # This drives whether the "Generating chat title..." step is shown.
-        preprocessing_stream_channel = (
-            f"preprocessing_stream::{request_data.user_id_hash}"
-            if request_data.user_id_hash and not request_data.is_external
-            else None
-        )
-        is_new_chat_for_preprocessing = not request_data.chat_has_title
-
-        preprocessing_result = await handle_preprocessing(
-            request_data=request_data, # This now contains chat_has_title boolean flag from the client
-            skill_config=skill_config,
-            base_instructions=base_instructions,
-            cache_service=cache_service_instance,
-            secrets_manager=secrets_manager,
-            directus_service=directus_service_instance, # Passed for reuse
-            encryption_service=encryption_service_instance, # Passed for reuse
-            user_app_settings_and_memories_metadata=user_app_memories_metadata,
-            discovered_apps_metadata=discovered_apps_metadata,  # Pass discovered apps for tool preselection
-            user_overrides=user_overrides,  # Pass user overrides from @ mentioning syntax
-            preprocessing_stream_channel=preprocessing_stream_channel,  # Channel for real-time step streaming
-            is_new_chat=is_new_chat_for_preprocessing  # Whether title generation step applies
-        )
-
-        # --- Cache debug data for preprocessing stage ---
-        # This caches the last 10 requests for debugging purposes (encrypted, 30-minute TTL)
-        # IMPORTANT: Store FULL content to enable proper debugging of the AI decision process
-        try:
-            if cache_service_instance and encryption_service_instance:
-                # Prepare preprocessor input data with FULL message history for debugging
-                # Convert message history to serializable format
-                message_history_serialized = None
-                if request_data.message_history:
-                    message_history_serialized = [
-                        msg.model_dump() if hasattr(msg, 'model_dump') else (
-                            {"role": msg.role, "content": msg.content, "created_at": msg.created_at, 
-                             "sender_name": getattr(msg, 'sender_name', None), "category": getattr(msg, 'category', None)}
-                            if hasattr(msg, 'role') else msg
+                    if compression_result.was_compressed and compression_result.summary_content:
+                        compression_performed = True
+                        logger.info(
+                            f"[Task ID: {task_id}] Compression succeeded: "
+                            f"{compression_result.compressed_message_count} messages compressed, "
+                            f"~{compression_result.summary_token_estimate} token summary"
                         )
-                        for msg in request_data.message_history
-                    ]
-                
-                preprocessor_input = {
-                    "chat_id": request_data.chat_id,
-                    "message_id": request_data.message_id,
-                    "user_id": request_data.user_id,
-                    "user_id_hash": request_data.user_id_hash,
-                    "chat_has_title": request_data.chat_has_title,
-                    "mate_id": request_data.mate_id,
-                    "active_focus_id": request_data.active_focus_id,
-                    "user_preferences": request_data.user_preferences,
-                    # FULL message history for debugging
-                    "message_history": message_history_serialized,
-                    "message_history_count": len(request_data.message_history) if request_data.message_history else 0,
-                    # Skill config
-                    "skill_config": skill_config.model_dump() if skill_config else None,
-                    # Discovered apps metadata
-                    "discovered_apps_count": len(discovered_apps_metadata) if discovered_apps_metadata else 0,
-                    "discovered_app_ids": list(discovered_apps_metadata.keys()) if discovered_apps_metadata else [],
-                    # Base instructions: include full preprocessor tool definitions for debugging
-                    # (the tool description contains the rendered system prompt for preprocessing)
-                    "base_instructions_keys": list(base_instructions.keys()) if base_instructions else [],
-                    "preprocessor_tool_definition": base_instructions.get("preprocess_request_tool") if base_instructions else None,
-                    "preprocessor_fast_tool_definition": base_instructions.get("fast_preprocess_request_tool") if base_instructions else None,
-                    # App settings and memories metadata from client (what's available to choose from)
-                    # Raw format from client: ["code-preferred_technologies", "travel-trips", ...]
-                    "app_settings_memories_metadata_from_client": request_data.app_settings_memories_metadata,
-                    "app_settings_memories_metadata_from_client_count": len(request_data.app_settings_memories_metadata) if request_data.app_settings_memories_metadata else 0,
-                    # Parsed format used by preprocessor: { "app_id": ["item_type1", "item_type2"], ... }
-                    "user_app_memories_metadata_parsed": user_app_memories_metadata,
-                    "user_app_memories_metadata_parsed_apps_count": len(user_app_memories_metadata) if user_app_memories_metadata else 0,
-                    "user_app_memories_metadata_parsed_total_keys": sum(len(keys) for keys in user_app_memories_metadata.values()) if user_app_memories_metadata else 0,
-                }
-                
-                # Prepare preprocessor output data (full model dump)
-                preprocessor_output = preprocessing_result.model_dump() if preprocessing_result else None
-                
-                await cache_service_instance.cache_debug_request_entry(
-                    encryption_service=encryption_service_instance,
-                    task_id=task_id,
-                    chat_id=request_data.chat_id,
-                    user_id=request_data.user_id,
-                    stage="preprocessor",
-                    input_data=preprocessor_input,
-                    output_data=preprocessor_output,
-                )
-                logger.debug(f"[Task ID: {task_id}] Cached preprocessor debug data (admin only)")
-        except Exception as e_debug:
-            # Don't fail the task if debug caching fails - just log the error
-            logger.warning(f"[Task ID: {task_id}] Failed to cache preprocessor debug data (non-fatal): {e_debug}")
 
-        # Note: We no longer handle harmful content rejection here.
-        # Instead, we let it flow through to the stream consumer which will handle it properly
-        # with the normal streaming flow, ensuring the frontend gets proper completion signals.
-    except Exception as e:
-        logger.error(f"[Task ID: {task_id}] Error during preprocessing: {e}", exc_info=True)
-        raise RuntimeError(f"Preprocessing failed: {e}")
+                        # Create a summary system message in the AI cache
+                        import uuid as _uuid
+                        summary_message_id = f"compression_{_uuid.uuid4().hex[:12]}"
+                        summary_timestamp = int(time.time())
 
-    # --- User override: start focus mode from @focus:app_id:focus_id ---
-    # When the user explicitly mentions exactly one focus mode, set it as active for this request
-    # so the main processor injects the focus prompt and the model runs in that focus.
-    if user_overrides and len(user_overrides.focus_modes) == 1:
-        app_id, focus_id = user_overrides.focus_modes[0]
-        requested_focus_id = f"{app_id}-{focus_id}"
-        request_data.active_focus_id = requested_focus_id
-        logger.info(
-            f"[Task ID: {task_id}] USER_OVERRIDE: Set active_focus_id from @focus to '{requested_focus_id}' for this request."
-        )
+                        # Vault-encrypt the summary content for AI cache storage
+                        encrypted_summary, _ = await encryption_service_instance.encrypt_with_user_key(
+                            compression_result.summary_content, user_vault_key_id
+                        )
 
-    # --- Billing preflight validation ---
-    # Ensure that we have pricing info configured for the selected provider/model BEFORE we start streaming.
-    # Skip preflight entirely if preprocessing says we cannot proceed (e.g., insufficient credits, harmful content).
-    if preprocessing_result and preprocessing_result.can_proceed:
-        try:
-            if not preprocessing_result.selected_main_llm_model_id:
-                raise RuntimeError("Selected main LLM model id missing from preprocessing result.")
+                        summary_cache_msg = MessageInCache(
+                            id=summary_message_id,
+                            chat_id=request_data.chat_id,
+                            role="system",
+                            category=COMPRESSION_SUMMARY_CATEGORY,
+                            sender_name=None,
+                            encrypted_content=encrypted_summary,
+                            created_at=summary_timestamp,
+                            status="sent",
+                        )
 
-            full_model_id: str = preprocessing_result.selected_main_llm_model_id
-            # Expected format: "provider/model_name" (e.g., "openai/gpt-5"). Never assume a default provider.
-            if "/" in full_model_id:
-                provider_prefix, model_suffix = full_model_id.split("/", 1)  # Keep nested model ids intact for pricing lookup
-            else:
-                raise RuntimeError(
-                    f"Model id '{full_model_id}' must include a provider prefix (format 'provider/model')."
-                )
+                        # Replace the AI cache with: [summary_message] + [recent_messages]
+                        # First, build the new cache list
+                        new_cache_messages = [summary_cache_msg.model_dump_json()]
 
-            # Validate provider pricing exists via local worker ConfigManager only.
-            if not celery_config.config_manager:
-                raise RuntimeError("Global ConfigManager not initialized in worker. Provider pricing unavailable.")
+                        # Re-encrypt and add the recent messages that were kept
+                        if compression_result.recent_messages:
+                            for recent_msg in compression_result.recent_messages:
+                                recent_content = recent_msg.get("content", "")
+                                encrypted_recent, _ = await encryption_service_instance.encrypt_with_user_key(
+                                    recent_content, user_vault_key_id
+                                )
+                                recent_cache_msg = MessageInCache(
+                                    id=f"recent_{_uuid.uuid4().hex[:8]}",
+                                    chat_id=request_data.chat_id,
+                                    role=recent_msg.get("role", "user"),
+                                    category=recent_msg.get("category"),
+                                    sender_name=recent_msg.get("sender_name"),
+                                    encrypted_content=encrypted_recent,
+                                    created_at=recent_msg.get("created_at", summary_timestamp),
+                                    status="sent",
+                                )
+                                new_cache_messages.append(recent_cache_msg.model_dump_json())
 
-            provider_pricing_cfg = celery_config.config_manager.get_provider_config(provider_prefix)
-            if not provider_pricing_cfg:
-                raise RuntimeError(
-                    f"Pricing configuration missing for provider '{provider_prefix}'. Ensure '/app/backend/providers/{provider_prefix}.yml' is mounted for the worker."
-                )
+                        # Overwrite the AI cache with the compressed history
+                        await cache_service_instance.set_ai_messages_history(
+                            user_id=request_data.user_id,
+                            chat_id=request_data.chat_id,
+                            encrypted_messages_json_list=new_cache_messages,
+                        )
+                        logger.info(
+                            f"[Task ID: {task_id}] AI cache updated: "
+                            f"{len(new_cache_messages)} messages (1 summary + "
+                            f"{len(new_cache_messages) - 1} recent)"
+                        )
 
-            model_pricing_details = celery_config.config_manager.get_model_pricing(provider_prefix, model_suffix)
-            if not model_pricing_details:
-                raise RuntimeError(
-                    f"Pricing details missing for model '{model_suffix}' under provider '{provider_prefix}'. "
-                    f"Add the model with a 'pricing' section to '/app/backend/providers/{provider_prefix}.yml'."
-                )
+                        # Persist compression summary to Directus for long-term storage.
+                        # The summary is vault-encrypted (server-side), stored with
+                        # encrypted_category so the sync layer can identify it.
+                        try:
+                            encrypted_category_value, _ = (
+                                await encryption_service_instance.encrypt_with_user_key(
+                                    COMPRESSION_SUMMARY_CATEGORY, user_vault_key_id
+                                )
+                            )
+                            now_ts_persist = int(time.time())
+                            celery_config.app.send_task(
+                                "app.tasks.persistence_tasks.persist_new_chat_message",
+                                kwargs={
+                                    "message_id": summary_message_id,
+                                    "chat_id": request_data.chat_id,
+                                    "hashed_user_id": request_data.user_id_hash,
+                                    "role": "system",
+                                    "encrypted_sender_name": None,
+                                    "encrypted_category": encrypted_category_value,
+                                    "encrypted_model_name": None,
+                                    "encrypted_content": encrypted_summary,
+                                    "created_at": summary_timestamp,
+                                    "new_chat_messages_version": None,
+                                    "new_last_edited_overall_timestamp": now_ts_persist,
+                                    "encrypted_chat_key": None,
+                                    "user_id": request_data.user_id,
+                                },
+                                queue="persistence",
+                            )
+                            logger.info(
+                                f"[Task ID: {task_id}] Dispatched Celery task to persist "
+                                f"compression summary {summary_message_id} to Directus"
+                            )
+                        except Exception as e_persist:
+                            # Non-fatal: summary is still in AI cache
+                            logger.warning(
+                                f"[Task ID: {task_id}] Failed to dispatch compression "
+                                f"summary persistence (non-fatal): {e_persist}"
+                            )
 
-            logger.info(
-                f"[Task ID: {task_id}] Billing preflight validation passed for provider='{provider_prefix}', model='{model_suffix}'."
-            )
-        except Exception as billing_preflight_exc:
-            logger.critical(
-                f"[Task ID: {task_id}] Billing preflight validation failed: {billing_preflight_exc}",
+                        # Update request_data.message_history with compressed version
+                        # so preprocessing and main processing use the compressed history
+                        compressed_history: list = []
+
+                        # Add compression summary as system message
+                        compressed_history.append(
+                            AIHistoryMessage(
+                                content=compression_result.summary_content,
+                                role="system",
+                                category=COMPRESSION_SUMMARY_CATEGORY,
+                                created_at=summary_timestamp,
+                            )
+                        )
+
+                        # Add recent messages kept in full
+                        if compression_result.recent_messages:
+                            for recent_msg in compression_result.recent_messages:
+                                compressed_history.append(
+                                    AIHistoryMessage(
+                                        content=recent_msg.get("content", ""),
+                                        role=recent_msg.get("role", "user"),
+                                        category=recent_msg.get("category"),
+                                        created_at=recent_msg.get("created_at", summary_timestamp),
+                                    )
+                                )
+
+                        request_data.message_history = compressed_history
+                        logger.info(
+                            f"[Task ID: {task_id}] message_history replaced: "
+                            f"{len(compressed_history)} messages "
+                            f"(was {len(message_dicts_for_compression)})"
+                        )
+
+                        # Publish compression_completed event to frontend
+                        if request_data.user_id_hash:
+                            compression_completed_payload = {
+                                "type": "chat_compression_completed",
+                                "event_for_client": "chat_compression_completed",
+                                "task_id": task_id,
+                                "chat_id": request_data.chat_id,
+                                "user_id_uuid": request_data.user_id,
+                                "user_id_hash": request_data.user_id_hash,
+                                "compressed_message_count": compression_result.compressed_message_count,
+                                "summary_token_estimate": compression_result.summary_token_estimate,
+                                "compressed_up_to_timestamp": compression_result.compressed_up_to_timestamp,
+                                "summary_message_id": summary_message_id,
+                            }
+                            await cache_service_instance.publish_event(
+                                compression_channel, compression_completed_payload
+                            )
+
+                    elif compression_result.error:
+                        logger.warning(
+                            f"[Task ID: {task_id}] Compression failed (non-fatal, proceeding "
+                            f"with full history): {compression_result.error}"
+                        )
+                        # Publish compression_completed with error so frontend can clear the indicator
+                        if request_data.user_id_hash:
+                            compression_error_payload = {
+                                "type": "chat_compression_completed",
+                                "event_for_client": "chat_compression_completed",
+                                "task_id": task_id,
+                                "chat_id": request_data.chat_id,
+                                "user_id_uuid": request_data.user_id,
+                                "user_id_hash": request_data.user_id_hash,
+                                "error": compression_result.error,
+                            }
+                            compression_channel = (
+                                f"ai_typing_indicator_events::{request_data.user_id_hash}"
+                            )
+                            await cache_service_instance.publish_event(
+                                compression_channel, compression_error_payload
+                            )
+        except Exception as e_compression:
+            logger.error(
+                f"[Task ID: {task_id}] Chat compression failed with exception (non-fatal, "
+                f"proceeding with full history): {e_compression}",
                 exc_info=True,
             )
-            # Fail early to prevent unbillable processing
-            raise RuntimeError(f"Billing preflight failed: {billing_preflight_exc}")
-    else:
-        logger.info(f"[Task ID: {task_id}] Skipping billing preflight: preprocessing.can_proceed is False (reason: {getattr(preprocessing_result, 'rejection_reason', None)}).")
+            # Non-fatal: if compression fails, we proceed with the full history
+            # and rely on the existing truncation in main_processor.py
 
-    # --- Handle Title and Mates Update (after preprocessing) ---
-    # Note: We now handle title/mates updates for both successful and harmful content cases
-    # since harmful content still gets processed through the stream consumer
-    # Title and metadata will be sent via ai_typing_started event below
+        # --- Step 1: Preprocessing ---
+        # The synchronous wrapper (process_ai_skill_ask_task) will call self.update_state for PROGRESS.
+        logger.info(f"[Task ID: {task_id}] Starting preprocessing step...")
+        logger.info(f"[Task ID: {task_id}] Chat has title flag from request_data: {request_data.chat_has_title}")
 
-    # --- Notify client that main processing (typing) is starting ---
-    # Note: We send typing indicator for successful and harmful content cases
-    # since harmful content gets processed through the stream consumer with a predefined response.
-    # SKIP for insufficient_credits: these generate a system notice (not an assistant response),
-    # so showing a typing indicator would misleadingly look like a regular assistant is responding.
-    should_send_typing = (
-        preprocessing_result.rejection_reason != "insufficient_credits"
-        and preprocessing_result.rejection_reason != "internal_error_llm_preprocessing_failed"
-    ) if preprocessing_result else True
-    if preprocessing_result and cache_service_instance and should_send_typing:
+        preprocessing_result: Optional[PreprocessingResult] = None
         try:
-            # Use category from preprocessing_result for typing indicator
-            typing_category = preprocessing_result.category or "general_knowledge" # Default if category is None
-            # Get model_name from preprocessing_result
-            # CRITICAL: For error messages (e.g. insufficient credits), we don't show a model name
-            model_name = preprocessing_result.selected_main_llm_model_name if preprocessing_result.can_proceed else None
-            
-            # Extract provider from the selected_main_llm_model_id (format: "provider/model")
-            # Then get the actual server (e.g., Cerebras) from the provider config
-            # CRITICAL: We must always extract a real server/provider name, never default to "AI"
-            provider_name = None  # Will be set from config
-            server_region = None  # Will be set from config (e.g., "EU", "US", "APAC")
-            
-            if preprocessing_result.selected_main_llm_model_id:
-                logger.info(f"[Task ID: {task_id}] Starting provider name extraction from model_id: '{preprocessing_result.selected_main_llm_model_id}'")
-                model_id_parts = preprocessing_result.selected_main_llm_model_id.split("/", 1)
-                if len(model_id_parts) == 2:
-                    provider_id = model_id_parts[0]
-                    model_id = model_id_parts[1]
-                    logger.debug(f"[Task ID: {task_id}] Parsed provider_id='{provider_id}', model_id='{model_id}'")
-                    
-                    # Get the actual server running the model from ConfigManager
-                    if celery_config.config_manager:
-                        provider_config = celery_config.config_manager.get_provider_config(provider_id)
-                        if provider_config and 'models' in provider_config:
-                            logger.debug(f"[Task ID: {task_id}] Provider config found for '{provider_id}', has {len(provider_config['models'])} model(s)")
-                            # Find the model in the provider config
-                            model_found = False
-                            available_model_ids = [m.get('id') for m in provider_config['models']]
-                            logger.debug(f"[Task ID: {task_id}] Searching for model_id='{model_id}' in available models: {available_model_ids}")
-                            for model_cfg in provider_config['models']:
-                                if model_cfg.get('id') == model_id:
-                                    model_found = True
-                                    # Get the default_server (e.g., "cerebras")
-                                    default_server_id = model_cfg.get('default_server')
-                                    logger.debug(f"[Task ID: {task_id}] Model '{model_id}' has default_server='{default_server_id}', servers list exists: {'servers' in model_cfg}")
-                                    
-                                    if default_server_id and 'servers' in model_cfg:
-                                        # Find the server entry and get its name
-                                        server_found = False
-                                        servers_list = model_cfg['servers']
-                                        logger.debug(f"[Task ID: {task_id}] Searching for server '{default_server_id}' in {len(servers_list)} server(s): {[s.get('id') for s in servers_list]}")
-                                        
-                                        for server in servers_list:
-                                            server_id = server.get('id')
-                                            logger.debug(f"[Task ID: {task_id}] Checking server id '{server_id}' against default_server '{default_server_id}' (match: {server_id == default_server_id})")
-                                            if server_id == default_server_id:
-                                                provider_name = server.get('name')
-                                                server_region = server.get('region')  # e.g., "EU", "US", "APAC"
-                                                logger.debug(f"[Task ID: {task_id}] Server match found! Server name: '{provider_name}', region: '{server_region}'")
-                                                if not provider_name:
-                                                    # Server name not set, use capitalized server ID
-                                                    provider_name = default_server_id.capitalize()
-                                                    logger.warning(f"[Task ID: {task_id}] Server '{default_server_id}' found but has no 'name' field, using capitalized ID '{provider_name}'")
-                                                else:
-                                                    logger.info(f"[Task ID: {task_id}] ✅ Successfully extracted server name '{provider_name}', region '{server_region}' for default_server '{default_server_id}' in model '{model_id}'")
-                                                server_found = True
-                                                break
-                                        if not server_found:
-                                            # Server not found in servers list, use capitalized server ID
-                                            provider_name = default_server_id.capitalize()
-                                            logger.warning(f"[Task ID: {task_id}] Server '{default_server_id}' not found in servers list for model '{model_id}'. Available server IDs: {[s.get('id') for s in servers_list]}. Using capitalized ID '{provider_name}'")
-                                    else:
-                                        # Model found but no default_server or servers configured
-                                        # Fallback to provider name from provider config
-                                        provider_name = provider_config.get('name') or provider_id.capitalize()
-                                        if not default_server_id:
-                                            logger.warning(f"[Task ID: {task_id}] Model '{model_id}' has no default_server configured, using provider name '{provider_name}'")
-                                        else:
-                                            logger.warning(f"[Task ID: {task_id}] Model '{model_id}' has no servers list configured, using provider name '{provider_name}'")
-                                    break
-                            
-                            if not model_found:
-                                # Model not found in config, fallback to provider name from provider config
-                                provider_name = provider_config.get('name') or provider_id.capitalize()
-                                logger.warning(f"[Task ID: {task_id}] Model '{model_id}' not found in provider '{provider_id}' config, using provider name '{provider_name}'")
-                        elif provider_config:
-                            # Provider config exists but no models list, use provider name
-                            provider_name = provider_config.get('name') or provider_id.capitalize()
-                            logger.warning(f"[Task ID: {task_id}] Provider '{provider_id}' config has no models list, using provider name '{provider_name}'")
-                        else:
-                            # Provider config not found, use capitalized provider ID as fallback
-                            provider_name = provider_id.capitalize()
-                            logger.warning(f"[Task ID: {task_id}] Provider config not found for '{provider_id}', using capitalized provider ID '{provider_name}'")
-                    else:
-                        # ConfigManager not available, use capitalized provider ID as fallback
-                        provider_name = provider_id.capitalize()
-                        logger.warning(f"[Task ID: {task_id}] ConfigManager not available, using capitalized provider ID '{provider_name}'")
-                    
-                    logger.debug(f"[Task ID: {task_id}] Final provider name: '{provider_name}' from model_id '{preprocessing_result.selected_main_llm_model_id}'")
-                else:
-                    # Model ID doesn't have expected format (provider/model)
-                    # Try to extract provider from the beginning of the string
-                    logger.warning(f"[Task ID: {task_id}] Model ID '{preprocessing_result.selected_main_llm_model_id}' doesn't have expected format 'provider/model'.")
-                    # Use the first part as provider ID if it exists
-                    if model_id_parts and len(model_id_parts) > 0:
-                        potential_provider = model_id_parts[0]
-                        provider_name = potential_provider.capitalize()
-                        logger.warning(f"[Task ID: {task_id}] Using extracted provider ID '{provider_name}' from malformed model ID")
-                    else:
-                        # Last resort: use the whole model ID as provider name
-                        provider_name = preprocessing_result.selected_main_llm_model_id.capitalize()
-                        logger.warning(f"[Task ID: {task_id}] Using entire model ID as provider name '{provider_name}'")
-            else:
-                # selected_main_llm_model_id is None - this is a critical error, but we still need a fallback
-                logger.error(f"[Task ID: {task_id}] selected_main_llm_model_id is None or empty! Cannot determine provider name. This should not happen.")
-                # Try to get provider name from category or other sources
-                # As absolute last resort, use the category name
-                if preprocessing_result.category:
-                    provider_name = preprocessing_result.category.capitalize()
-                    logger.warning(f"[Task ID: {task_id}] Using category '{provider_name}' as provider name fallback")
-                else:
-                    # This should never happen in normal operation
-                    provider_name = "Unknown"
-                    logger.error(f"[Task ID: {task_id}] No provider name could be determined! Using 'Unknown' as last resort.")
-            
-            # Final validation - ensure we have a provider name
-            if not provider_name:
-                logger.error(f"[Task ID: {task_id}] CRITICAL: provider_name is still None after all extraction attempts!")
-                provider_name = "Unknown"
-            
-            # Persist server provider/region on preprocessing_result so stream_consumer.py
-            # can include them in usage_details for billing persistence to the usage collection
-            preprocessing_result.server_provider_name = provider_name
-            preprocessing_result.server_region = server_region
-            
-            # Log the final provider name and server region that will be sent to client
-            logger.info(f"[Task ID: {task_id}] Provider name to send to client: '{provider_name}', server region: '{server_region}'")
-            
-            # CROSS-DEVICE FIX: Fetch encrypted_chat_key so secondary devices can
-            # decrypt messages without generating a wrong random key.
-            # The ai_typing_started event arrives BEFORE the AI response, so this
-            # gives secondary devices the key early enough to avoid queuing issues.
-            #
-            # For NEW chats, the cache may not have the key yet (the client's
-            # sendEncryptedStoragePackage/persist_encrypted_chat_metadata Celery task
-            # may not have completed). Fall back to Directus if cache misses.
-            encrypted_chat_key_for_typing: str | None = None
+            if not cache_service_instance:
+                logger.error(f"[Task ID: {task_id}] CacheService instance is not available. Cannot proceed with preprocessing credit check.")
+                raise RuntimeError("CacheService not available for preprocessing.")
+
+            # Build the preprocessing stream channel so the preprocessor can emit real-time step events.
+            # Channel format: preprocessing_stream::{user_id_hash}
+            # The frontend WebSocket listener subscribes to this channel via user_id_hash.
+            # is_new_chat is True when the chat has no title yet (first message in a new chat).
+            # This drives whether the "Generating chat title..." step is shown.
+            preprocessing_stream_channel = (
+                f"preprocessing_stream::{request_data.user_id_hash}"
+                if request_data.user_id_hash and not request_data.is_external
+                else None
+            )
+            is_new_chat_for_preprocessing = not request_data.chat_has_title
+
+            preprocessing_result = await handle_preprocessing(
+                request_data=request_data, # This now contains chat_has_title boolean flag from the client
+                skill_config=skill_config,
+                base_instructions=base_instructions,
+                cache_service=cache_service_instance,
+                secrets_manager=secrets_manager,
+                directus_service=directus_service_instance, # Passed for reuse
+                encryption_service=encryption_service_instance, # Passed for reuse
+                user_app_settings_and_memories_metadata=user_app_memories_metadata,
+                discovered_apps_metadata=discovered_apps_metadata,  # Pass discovered apps for tool preselection
+                user_overrides=user_overrides,  # Pass user overrides from @ mentioning syntax
+                preprocessing_stream_channel=preprocessing_stream_channel,  # Channel for real-time step streaming
+                is_new_chat=is_new_chat_for_preprocessing  # Whether title generation step applies
+            )
+
+            # --- TEST RECORD: capture preprocessing result ---
+            if _fixture_recorder and preprocessing_result:
+                _fixture_recorder.record_preprocessing(preprocessing_result)
+
+            # --- Cache debug data for preprocessing stage ---
+            # This caches the last 10 requests for debugging purposes (encrypted, 30-minute TTL)
+            # IMPORTANT: Store FULL content to enable proper debugging of the AI decision process
             try:
-                chat_list_item = await cache_service_instance.get_chat_list_item_data(
-                    request_data.user_id, request_data.chat_id
-                )
-                if chat_list_item and hasattr(chat_list_item, 'encrypted_chat_key'):
-                    encrypted_chat_key_for_typing = chat_list_item.encrypted_chat_key
-                    logger.debug(f"[Task ID: {task_id}] Retrieved encrypted_chat_key from cache for typing event")
-            except Exception as e_key:
-                logger.warning(f"[Task ID: {task_id}] Could not fetch encrypted_chat_key from cache for typing event: {e_key}")
+                if cache_service_instance and encryption_service_instance:
+                    # Prepare preprocessor input data with FULL message history for debugging
+                    # Convert message history to serializable format
+                    message_history_serialized = None
+                    if request_data.message_history:
+                        message_history_serialized = [
+                            msg.model_dump() if hasattr(msg, 'model_dump') else (
+                                {"role": msg.role, "content": msg.content, "created_at": msg.created_at, 
+                                 "sender_name": getattr(msg, 'sender_name', None), "category": getattr(msg, 'category', None)}
+                                if hasattr(msg, 'role') else msg
+                            )
+                            for msg in request_data.message_history
+                        ]
+                
+                    preprocessor_input = {
+                        "chat_id": request_data.chat_id,
+                        "message_id": request_data.message_id,
+                        "user_id": request_data.user_id,
+                        "user_id_hash": request_data.user_id_hash,
+                        "chat_has_title": request_data.chat_has_title,
+                        "mate_id": request_data.mate_id,
+                        "active_focus_id": request_data.active_focus_id,
+                        "user_preferences": request_data.user_preferences,
+                        # FULL message history for debugging
+                        "message_history": message_history_serialized,
+                        "message_history_count": len(request_data.message_history) if request_data.message_history else 0,
+                        # Skill config
+                        "skill_config": skill_config.model_dump() if skill_config else None,
+                        # Discovered apps metadata
+                        "discovered_apps_count": len(discovered_apps_metadata) if discovered_apps_metadata else 0,
+                        "discovered_app_ids": list(discovered_apps_metadata.keys()) if discovered_apps_metadata else [],
+                        # Base instructions: include full preprocessor tool definitions for debugging
+                        # (the tool description contains the rendered system prompt for preprocessing)
+                        "base_instructions_keys": list(base_instructions.keys()) if base_instructions else [],
+                        "preprocessor_tool_definition": base_instructions.get("preprocess_request_tool") if base_instructions else None,
+                        "preprocessor_fast_tool_definition": base_instructions.get("fast_preprocess_request_tool") if base_instructions else None,
+                        # App settings and memories metadata from client (what's available to choose from)
+                        # Raw format from client: ["code-preferred_technologies", "travel-trips", ...]
+                        "app_settings_memories_metadata_from_client": request_data.app_settings_memories_metadata,
+                        "app_settings_memories_metadata_from_client_count": len(request_data.app_settings_memories_metadata) if request_data.app_settings_memories_metadata else 0,
+                        # Parsed format used by preprocessor: { "app_id": ["item_type1", "item_type2"], ... }
+                        "user_app_memories_metadata_parsed": user_app_memories_metadata,
+                        "user_app_memories_metadata_parsed_apps_count": len(user_app_memories_metadata) if user_app_memories_metadata else 0,
+                        "user_app_memories_metadata_parsed_total_keys": sum(len(keys) for keys in user_app_memories_metadata.values()) if user_app_memories_metadata else 0,
+                    }
+                
+                    # Prepare preprocessor output data (full model dump)
+                    preprocessor_output = preprocessing_result.model_dump() if preprocessing_result else None
+                
+                    await cache_service_instance.cache_debug_request_entry(
+                        encryption_service=encryption_service_instance,
+                        task_id=task_id,
+                        chat_id=request_data.chat_id,
+                        user_id=request_data.user_id,
+                        stage="preprocessor",
+                        input_data=preprocessor_input,
+                        output_data=preprocessor_output,
+                    )
+                    logger.debug(f"[Task ID: {task_id}] Cached preprocessor debug data (admin only)")
+            except Exception as e_debug:
+                # Don't fail the task if debug caching fails - just log the error
+                logger.warning(f"[Task ID: {task_id}] Failed to cache preprocessor debug data (non-fatal): {e_debug}")
 
-            # Fallback: If cache miss (common for new chats), try Directus directly
-            if not encrypted_chat_key_for_typing:
-                try:
-                    ds = DirectusService()
-                    chat_data = await ds.get_items('chats', {
-                        'filter[id][_eq]': request_data.chat_id,
-                        'fields': 'encrypted_chat_key',
-                        'limit': 1
-                    })
-                    if chat_data and chat_data[0].get('encrypted_chat_key'):
-                        encrypted_chat_key_for_typing = chat_data[0]['encrypted_chat_key']
-                        logger.info(f"[Task ID: {task_id}] Retrieved encrypted_chat_key from Directus fallback for typing event")
-                    else:
-                        logger.info(f"[Task ID: {task_id}] encrypted_chat_key not yet in Directus for chat {request_data.chat_id} (very new chat)")
-                except Exception as e_db:
-                    logger.warning(f"[Task ID: {task_id}] Could not fetch encrypted_chat_key from Directus for typing event: {e_db}")
-            
-            # Build typing payload with conditional metadata (only for new chats)
-            typing_payload_data = { 
-                "type": "ai_processing_started_event", 
-                "event_for_client": "ai_typing_started", 
-                "task_id": task_id, # This is the AI's message_id for the new message being generated
-                "chat_id": request_data.chat_id,
-                "user_id_uuid": request_data.user_id, # Actual user ID for routing
-                "user_id_hash": request_data.user_id_hash, # Hashed user ID for logging/internal use
-                "user_message_id": request_data.message_id, # ID of the user message that triggered this AI response
-                "category": typing_category, # Send category instead of mate_name
-                "model_name": model_name, # Add model_name to the payload
-                "provider_name": provider_name, # Add provider_name to the payload
-                "server_region": server_region, # Add server region to the payload (e.g., "EU", "US", "APAC")
-                # CRITICAL: Include is_continuation flag so client knows to skip re-persisting the user message
-                # When this is True, the user message was already persisted before the app settings/memories
-                # or focus mode deferred activation pause
-                "is_continuation": request_data.is_app_settings_memories_continuation or request_data.is_focus_mode_continuation,
-            }
-            
-            # Include encrypted_chat_key so secondary devices can cache it early
-            if encrypted_chat_key_for_typing:
-                typing_payload_data["encrypted_chat_key"] = encrypted_chat_key_for_typing
-            
-            # Log the complete typing payload for debugging
-            logger.info(f"[Task ID: {task_id}] Typing payload BEFORE adding title/icon: category={typing_category}, model_name={model_name}, provider_name={provider_name}, server_region={server_region}")
-            
-            # Only add title and icon_names if they were generated (new chat only)
-            # If chat already has a title, preprocessing skips generation of these fields
-            # CRITICAL: title and icon_names should ONLY be sent together (both or neither)
-            # This ensures metadata is only set once during the first message
-            if preprocessing_result.title and preprocessing_result.icon_names:
-                # NEW CHAT ONLY - both title and icon_names must be present
-                typing_payload_data["title"] = preprocessing_result.title
-                typing_payload_data["icon_names"] = preprocessing_result.icon_names
+            # Note: We no longer handle harmful content rejection here.
+            # Instead, we let it flow through to the stream consumer which will handle it properly
+            # with the normal streaming flow, ensuring the frontend gets proper completion signals.
+        except Exception as e:
+            logger.error(f"[Task ID: {task_id}] Error during preprocessing: {e}", exc_info=True)
+            raise RuntimeError(f"Preprocessing failed: {e}")
+
+        # --- User override: start focus mode from @focus:app_id:focus_id ---
+        # When the user explicitly mentions exactly one focus mode, set it as active for this request
+        # so the main processor injects the focus prompt and the model runs in that focus.
+        if user_overrides and len(user_overrides.focus_modes) == 1:
+            app_id, focus_id = user_overrides.focus_modes[0]
+            requested_focus_id = f"{app_id}-{focus_id}"
+            request_data.active_focus_id = requested_focus_id
+            logger.info(
+                f"[Task ID: {task_id}] USER_OVERRIDE: Set active_focus_id from @focus to '{requested_focus_id}' for this request."
+            )
+
+        # --- Billing preflight validation ---
+        # Ensure that we have pricing info configured for the selected provider/model BEFORE we start streaming.
+        # Skip preflight entirely if preprocessing says we cannot proceed (e.g., insufficient credits, harmful content).
+        if preprocessing_result and preprocessing_result.can_proceed:
+            try:
+                if not preprocessing_result.selected_main_llm_model_id:
+                    raise RuntimeError("Selected main LLM model id missing from preprocessing result.")
+
+                full_model_id: str = preprocessing_result.selected_main_llm_model_id
+                # Expected format: "provider/model_name" (e.g., "openai/gpt-5"). Never assume a default provider.
+                if "/" in full_model_id:
+                    provider_prefix, model_suffix = full_model_id.split("/", 1)  # Keep nested model ids intact for pricing lookup
+                else:
+                    raise RuntimeError(
+                        f"Model id '{full_model_id}' must include a provider prefix (format 'provider/model')."
+                    )
+
+                # Validate provider pricing exists via local worker ConfigManager only.
+                if not celery_config.config_manager:
+                    raise RuntimeError("Global ConfigManager not initialized in worker. Provider pricing unavailable.")
+
+                provider_pricing_cfg = celery_config.config_manager.get_provider_config(provider_prefix)
+                if not provider_pricing_cfg:
+                    raise RuntimeError(
+                        f"Pricing configuration missing for provider '{provider_prefix}'. Ensure '/app/backend/providers/{provider_prefix}.yml' is mounted for the worker."
+                    )
+
+                model_pricing_details = celery_config.config_manager.get_model_pricing(provider_prefix, model_suffix)
+                if not model_pricing_details:
+                    raise RuntimeError(
+                        f"Pricing details missing for model '{model_suffix}' under provider '{provider_prefix}'. "
+                        f"Add the model with a 'pricing' section to '/app/backend/providers/{provider_prefix}.yml'."
+                    )
+
                 logger.info(
-                    f"[Task ID: {task_id}] NEW CHAT: Including title and icon metadata in typing event "
-                    f"(title_length={len(preprocessing_result.title)}, icon_count={len(preprocessing_result.icon_names)})"
+                    f"[Task ID: {task_id}] Billing preflight validation passed for provider='{provider_prefix}', model='{model_suffix}'."
                 )
-            elif preprocessing_result.title or preprocessing_result.icon_names:
-                # VALIDATION ERROR: Both should be present or both should be absent
-                logger.warning(f"[Task ID: {task_id}] INCONSISTENCY: title={bool(preprocessing_result.title)}, icon_names={bool(preprocessing_result.icon_names)}. Should be both present or both absent. Skipping metadata to avoid partial update.")
-            else:
-                logger.debug(f"[Task ID: {task_id}] FOLLOW-UP MESSAGE: No title/icon_names generated (chat already has metadata)")
-            
-            # CRITICAL: Skip WebSocket events for external requests (REST API)
-            # This prevents typing indicators from popping up in the web app when a user makes an API call.
-            if not request_data.is_external:
-                typing_indicator_channel = f"ai_typing_indicator_events::{request_data.user_id_hash}" # Channel uses hashed ID
-                await cache_service_instance.publish_event(typing_indicator_channel, typing_payload_data)
-                logger.info(f"[Task ID: {task_id}] Published '{typing_payload_data['event_for_client']}' event to Redis channel '{typing_indicator_channel}' with metadata for encryption.")
-            else:
-                logger.info(f"[Task ID: {task_id}] External request detected. Skipping '{typing_payload_data['event_for_client']}' Redis publish for Web App.")
-        except Exception as e_typing_pub:
-            event_name_for_log = typing_payload_data.get('event_for_client', 'ai_typing_started') if 'typing_payload_data' in locals() else 'ai_typing_started'
-            logger.error(f"[Task ID: {task_id}] Failed to publish event for '{event_name_for_log}' to Redis: {e_typing_pub}", exc_info=True)
-    elif not cache_service_instance and preprocessing_result and preprocessing_result.can_proceed: 
-        logger.warning(f"[Task ID: {task_id}] Cache service not available. Skipping 'ai_typing_started' Redis publish.")
-
-
-    # --- Step 2: Main Processing (with streaming) ---
-    # Sync wrapper handles Celery state update for progress
-    logger.info(f"[Task ID: {task_id}] Starting main processing step (streaming)...")
-
-    # Old debug log for "Main-processing Input (from PreprocessingResult)" is removed.
-    # llm_utils.py logs the input to the main processing LLM call.
-    
-    aggregated_final_response: str = ""
-    revoked_in_consumer = False
-    soft_limited_in_consumer = False
-    thinking_content: list = []  # Accumulated thinking chunks from the stream (for debug cache only)
-
-    try:
-        aggregated_final_response, revoked_in_consumer, soft_limited_in_consumer, thinking_content, main_processor_debug_metadata = await _consume_main_processing_stream(  # type: ignore[assignment]
-            task_id=task_id,
-            request_data=request_data,
-            preprocessing_result=preprocessing_result,
-            base_instructions=base_instructions,
-            directus_service=directus_service_instance,
-            encryption_service=encryption_service_instance,
-            user_vault_key_id=user_vault_key_id,
-            all_mates_configs=all_mates_configs,
-            discovered_apps_metadata=discovered_apps_metadata,
-            cache_service=cache_service_instance,
-            secrets_manager=secrets_manager,
-            # Pass always-include skills from skill config - these skills are ALWAYS available
-            # to the main LLM regardless of preprocessing preselection.
-            # This is a safety net for critical skills like web-search that should be available
-            # for follow-up queries even when preprocessing fails to detect the user's intent.
-            always_include_skills=skill_config.always_include_skills if skill_config else None
-        )
-        logger.info(f"[Task ID: {task_id}] Main processing stream consumed.")
-
-        # --- Cache debug data for main processor stage ---
-        # This caches the last 10 requests for debugging purposes (encrypted, 30-minute TTL)
-        # IMPORTANT: Store FULL content to enable proper debugging of the AI decision process
-        try:
-            if cache_service_instance and encryption_service_instance:
-                # Safely serialize preprocessing_result to avoid serialization errors
-                # Use mode='json' for JSON-safe output, catching any serialization issues
-                preprocessing_result_dict = None
-                if preprocessing_result:
-                    try:
-                        preprocessing_result_dict = preprocessing_result.model_dump(mode='json')
-                    except Exception as e_serialize:
-                        logger.error(f"[Task ID: {task_id}] Failed to serialize preprocessing_result for debug cache: {e_serialize}")
-                        # Fallback: try to capture key fields manually
-                        preprocessing_result_dict = {
-                            "serialization_error": str(e_serialize),
-                            "can_proceed": getattr(preprocessing_result, 'can_proceed', None),
-                            "category": getattr(preprocessing_result, 'category', None),
-                        }
-                
-                # Prepare main processor input data with FULL preprocessing result
-                # and debug metadata from main_processor (system prompt, tools, message history)
-                main_processor_input = {
-                    "chat_id": request_data.chat_id,
-                    "task_id": task_id,
-                    # Full preprocessing result that drives main processor behavior
-                    "preprocessing_result": preprocessing_result_dict,
-                    # Key fields extracted for quick reference
-                    "preprocessing_can_proceed": preprocessing_result.can_proceed if preprocessing_result else None,
-                    "preprocessing_selected_model": preprocessing_result.selected_main_llm_model_id if preprocessing_result else None,
-                    "preprocessing_category": preprocessing_result.category if preprocessing_result else None,
-                    "preprocessing_preselected_skills": preprocessing_result.relevant_app_skills if preprocessing_result else [],
-                    "preprocessing_chat_summary": preprocessing_result.chat_summary if preprocessing_result else None,
-                    "preprocessing_chat_tags": preprocessing_result.chat_tags if preprocessing_result else [],
-                    # Context info
-                    "message_history_count": len(request_data.message_history) if request_data.message_history else 0,
-                    "discovered_apps_count": len(discovered_apps_metadata) if discovered_apps_metadata else 0,
-                    "discovered_app_ids": list(discovered_apps_metadata.keys()) if discovered_apps_metadata else [],
-                    "always_include_skills": skill_config.always_include_skills if skill_config else None,
-                    "user_vault_key_id": user_vault_key_id,
-                    "mates_count": len(all_mates_configs) if all_mates_configs else 0,
-                    # --- Debug metadata from main_processor (P0/P1/P2 enrichment) ---
-                    # Full system prompt sent to the LLM (the most important missing piece for debugging)
-                    "system_prompt": main_processor_debug_metadata.get("system_prompt") if main_processor_debug_metadata else None,
-                    "system_prompt_char_count": main_processor_debug_metadata.get("system_prompt_char_count", 0) if main_processor_debug_metadata else 0,
-                    # Tool names and description previews available to the LLM
-                    "available_tools": main_processor_debug_metadata.get("available_tools") if main_processor_debug_metadata else None,
-                    "available_tools_count": main_processor_debug_metadata.get("available_tools_count", 0) if main_processor_debug_metadata else 0,
-                    # Truncated message history (first + last 3 messages) sent to the LLM
-                    "message_history_sent_to_llm": main_processor_debug_metadata.get("message_history_sent_to_llm") if main_processor_debug_metadata else None,
-                    "message_history_sent_to_llm_total": main_processor_debug_metadata.get("message_history_total_count", 0) if main_processor_debug_metadata else 0,
-                }
-                
-                # Prepare main processor output data with FULL response
-                thinking_text = "".join(thinking_content) if thinking_content else None
-                main_processor_output = {
-                    # FULL AI response for debugging
-                    "full_response": aggregated_final_response,
-                    "response_length": len(aggregated_final_response) if aggregated_final_response else 0,
-                    "revoked_in_consumer": revoked_in_consumer,
-                    "soft_limited_in_consumer": soft_limited_in_consumer,
-                    # Thinking content from reasoning models (Gemini, Anthropic) — displayed in separate section
-                    "thinking_content": thinking_text,
-                    "thinking_length": len(thinking_text) if thinking_text else 0,
-                }
-                
-                await cache_service_instance.cache_debug_request_entry(
-                    encryption_service=encryption_service_instance,
-                    task_id=task_id,
-                    chat_id=request_data.chat_id,
-                    user_id=request_data.user_id,
-                    stage="main_processor",
-                    input_data=main_processor_input,
-                    output_data=main_processor_output,
+            except Exception as billing_preflight_exc:
+                logger.critical(
+                    f"[Task ID: {task_id}] Billing preflight validation failed: {billing_preflight_exc}",
+                    exc_info=True,
                 )
-                logger.info(f"[Task ID: {task_id}] Cached main_processor debug data (admin only)")
-        except Exception as e_debug:
-            # Don't fail the task if debug caching fails - log at ERROR level with full traceback
-            logger.error(f"[Task ID: {task_id}] Failed to cache main_processor debug data (non-fatal): {e_debug}", exc_info=True)
-
-        # Sync wrapper handles Celery state update for progress
-        task_was_revoked = revoked_in_consumer # Update overall flag
-        task_was_soft_limited = soft_limited_in_consumer # Update overall flag
-
-    except SoftTimeLimitExceeded:
-        logger.warning(f"[Task ID: {task_id}] Soft time limit exceeded during task execution (around _consume_main_processing_stream call).")
-        task_was_soft_limited = True # Set overall flag
-        raise # Re-raise for sync wrapper to handle Celery state
-    except Exception as e:
-        # Check for revocation if an unexpected error occurs
-        # Use .state == 'REVOKED' for checking revocation status
-        if celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
-            logger.warning(f"[Task ID: {task_id}] Task revoked during or after main processing stream execution.")
-            task_was_revoked = True # Set overall flag
+                # Fail early to prevent unbillable processing
+                raise RuntimeError(f"Billing preflight failed: {billing_preflight_exc}")
         else:
-            logger.error(f"[Task ID: {task_id}] Error during main processing stream execution: {e}", exc_info=True)
-        raise RuntimeError(f"Main processing stream execution failed: {e}") # Re-raise for sync wrapper
+            logger.info(f"[Task ID: {task_id}] Skipping billing preflight: preprocessing.can_proceed is False (reason: {getattr(preprocessing_result, 'rejection_reason', None)}).")
+
+        # --- Handle Title and Mates Update (after preprocessing) ---
+        # Note: We now handle title/mates updates for both successful and harmful content cases
+        # since harmful content still gets processed through the stream consumer
+        # Title and metadata will be sent via ai_typing_started event below
+
+        # --- Notify client that main processing (typing) is starting ---
+        # Note: We send typing indicator for successful and harmful content cases
+        # since harmful content gets processed through the stream consumer with a predefined response.
+        # SKIP for insufficient_credits: these generate a system notice (not an assistant response),
+        # so showing a typing indicator would misleadingly look like a regular assistant is responding.
+        should_send_typing = (
+            preprocessing_result.rejection_reason != "insufficient_credits"
+            and preprocessing_result.rejection_reason != "internal_error_llm_preprocessing_failed"
+        ) if preprocessing_result else True
+        if preprocessing_result and cache_service_instance and should_send_typing:
+            try:
+                # Use category from preprocessing_result for typing indicator
+                typing_category = preprocessing_result.category or "general_knowledge" # Default if category is None
+                # Get model_name from preprocessing_result
+                # CRITICAL: For error messages (e.g. insufficient credits), we don't show a model name
+                model_name = preprocessing_result.selected_main_llm_model_name if preprocessing_result.can_proceed else None
+            
+                # Extract provider from the selected_main_llm_model_id (format: "provider/model")
+                # Then get the actual server (e.g., Cerebras) from the provider config
+                # CRITICAL: We must always extract a real server/provider name, never default to "AI"
+                provider_name = None  # Will be set from config
+                server_region = None  # Will be set from config (e.g., "EU", "US", "APAC")
+            
+                if preprocessing_result.selected_main_llm_model_id:
+                    logger.info(f"[Task ID: {task_id}] Starting provider name extraction from model_id: '{preprocessing_result.selected_main_llm_model_id}'")
+                    model_id_parts = preprocessing_result.selected_main_llm_model_id.split("/", 1)
+                    if len(model_id_parts) == 2:
+                        provider_id = model_id_parts[0]
+                        model_id = model_id_parts[1]
+                        logger.debug(f"[Task ID: {task_id}] Parsed provider_id='{provider_id}', model_id='{model_id}'")
+                    
+                        # Get the actual server running the model from ConfigManager
+                        if celery_config.config_manager:
+                            provider_config = celery_config.config_manager.get_provider_config(provider_id)
+                            if provider_config and 'models' in provider_config:
+                                logger.debug(f"[Task ID: {task_id}] Provider config found for '{provider_id}', has {len(provider_config['models'])} model(s)")
+                                # Find the model in the provider config
+                                model_found = False
+                                available_model_ids = [m.get('id') for m in provider_config['models']]
+                                logger.debug(f"[Task ID: {task_id}] Searching for model_id='{model_id}' in available models: {available_model_ids}")
+                                for model_cfg in provider_config['models']:
+                                    if model_cfg.get('id') == model_id:
+                                        model_found = True
+                                        # Get the default_server (e.g., "cerebras")
+                                        default_server_id = model_cfg.get('default_server')
+                                        logger.debug(f"[Task ID: {task_id}] Model '{model_id}' has default_server='{default_server_id}', servers list exists: {'servers' in model_cfg}")
+                                    
+                                        if default_server_id and 'servers' in model_cfg:
+                                            # Find the server entry and get its name
+                                            server_found = False
+                                            servers_list = model_cfg['servers']
+                                            logger.debug(f"[Task ID: {task_id}] Searching for server '{default_server_id}' in {len(servers_list)} server(s): {[s.get('id') for s in servers_list]}")
+                                        
+                                            for server in servers_list:
+                                                server_id = server.get('id')
+                                                logger.debug(f"[Task ID: {task_id}] Checking server id '{server_id}' against default_server '{default_server_id}' (match: {server_id == default_server_id})")
+                                                if server_id == default_server_id:
+                                                    provider_name = server.get('name')
+                                                    server_region = server.get('region')  # e.g., "EU", "US", "APAC"
+                                                    logger.debug(f"[Task ID: {task_id}] Server match found! Server name: '{provider_name}', region: '{server_region}'")
+                                                    if not provider_name:
+                                                        # Server name not set, use capitalized server ID
+                                                        provider_name = default_server_id.capitalize()
+                                                        logger.warning(f"[Task ID: {task_id}] Server '{default_server_id}' found but has no 'name' field, using capitalized ID '{provider_name}'")
+                                                    else:
+                                                        logger.info(f"[Task ID: {task_id}] ✅ Successfully extracted server name '{provider_name}', region '{server_region}' for default_server '{default_server_id}' in model '{model_id}'")
+                                                    server_found = True
+                                                    break
+                                            if not server_found:
+                                                # Server not found in servers list, use capitalized server ID
+                                                provider_name = default_server_id.capitalize()
+                                                logger.warning(f"[Task ID: {task_id}] Server '{default_server_id}' not found in servers list for model '{model_id}'. Available server IDs: {[s.get('id') for s in servers_list]}. Using capitalized ID '{provider_name}'")
+                                        else:
+                                            # Model found but no default_server or servers configured
+                                            # Fallback to provider name from provider config
+                                            provider_name = provider_config.get('name') or provider_id.capitalize()
+                                            if not default_server_id:
+                                                logger.warning(f"[Task ID: {task_id}] Model '{model_id}' has no default_server configured, using provider name '{provider_name}'")
+                                            else:
+                                                logger.warning(f"[Task ID: {task_id}] Model '{model_id}' has no servers list configured, using provider name '{provider_name}'")
+                                        break
+                            
+                                if not model_found:
+                                    # Model not found in config, fallback to provider name from provider config
+                                    provider_name = provider_config.get('name') or provider_id.capitalize()
+                                    logger.warning(f"[Task ID: {task_id}] Model '{model_id}' not found in provider '{provider_id}' config, using provider name '{provider_name}'")
+                            elif provider_config:
+                                # Provider config exists but no models list, use provider name
+                                provider_name = provider_config.get('name') or provider_id.capitalize()
+                                logger.warning(f"[Task ID: {task_id}] Provider '{provider_id}' config has no models list, using provider name '{provider_name}'")
+                            else:
+                                # Provider config not found, use capitalized provider ID as fallback
+                                provider_name = provider_id.capitalize()
+                                logger.warning(f"[Task ID: {task_id}] Provider config not found for '{provider_id}', using capitalized provider ID '{provider_name}'")
+                        else:
+                            # ConfigManager not available, use capitalized provider ID as fallback
+                            provider_name = provider_id.capitalize()
+                            logger.warning(f"[Task ID: {task_id}] ConfigManager not available, using capitalized provider ID '{provider_name}'")
+                    
+                        logger.debug(f"[Task ID: {task_id}] Final provider name: '{provider_name}' from model_id '{preprocessing_result.selected_main_llm_model_id}'")
+                    else:
+                        # Model ID doesn't have expected format (provider/model)
+                        # Try to extract provider from the beginning of the string
+                        logger.warning(f"[Task ID: {task_id}] Model ID '{preprocessing_result.selected_main_llm_model_id}' doesn't have expected format 'provider/model'.")
+                        # Use the first part as provider ID if it exists
+                        if model_id_parts and len(model_id_parts) > 0:
+                            potential_provider = model_id_parts[0]
+                            provider_name = potential_provider.capitalize()
+                            logger.warning(f"[Task ID: {task_id}] Using extracted provider ID '{provider_name}' from malformed model ID")
+                        else:
+                            # Last resort: use the whole model ID as provider name
+                            provider_name = preprocessing_result.selected_main_llm_model_id.capitalize()
+                            logger.warning(f"[Task ID: {task_id}] Using entire model ID as provider name '{provider_name}'")
+                else:
+                    # selected_main_llm_model_id is None - this is a critical error, but we still need a fallback
+                    logger.error(f"[Task ID: {task_id}] selected_main_llm_model_id is None or empty! Cannot determine provider name. This should not happen.")
+                    # Try to get provider name from category or other sources
+                    # As absolute last resort, use the category name
+                    if preprocessing_result.category:
+                        provider_name = preprocessing_result.category.capitalize()
+                        logger.warning(f"[Task ID: {task_id}] Using category '{provider_name}' as provider name fallback")
+                    else:
+                        # This should never happen in normal operation
+                        provider_name = "Unknown"
+                        logger.error(f"[Task ID: {task_id}] No provider name could be determined! Using 'Unknown' as last resort.")
+            
+                # Final validation - ensure we have a provider name
+                if not provider_name:
+                    logger.error(f"[Task ID: {task_id}] CRITICAL: provider_name is still None after all extraction attempts!")
+                    provider_name = "Unknown"
+            
+                # Persist server provider/region on preprocessing_result so stream_consumer.py
+                # can include them in usage_details for billing persistence to the usage collection
+                preprocessing_result.server_provider_name = provider_name
+                preprocessing_result.server_region = server_region
+            
+                # Log the final provider name and server region that will be sent to client
+                logger.info(f"[Task ID: {task_id}] Provider name to send to client: '{provider_name}', server region: '{server_region}'")
+            
+                # CROSS-DEVICE FIX: Fetch encrypted_chat_key so secondary devices can
+                # decrypt messages without generating a wrong random key.
+                # The ai_typing_started event arrives BEFORE the AI response, so this
+                # gives secondary devices the key early enough to avoid queuing issues.
+                #
+                # For NEW chats, the cache may not have the key yet (the client's
+                # sendEncryptedStoragePackage/persist_encrypted_chat_metadata Celery task
+                # may not have completed). Fall back to Directus if cache misses.
+                encrypted_chat_key_for_typing: str | None = None
+                try:
+                    chat_list_item = await cache_service_instance.get_chat_list_item_data(
+                        request_data.user_id, request_data.chat_id
+                    )
+                    if chat_list_item and hasattr(chat_list_item, 'encrypted_chat_key'):
+                        encrypted_chat_key_for_typing = chat_list_item.encrypted_chat_key
+                        logger.debug(f"[Task ID: {task_id}] Retrieved encrypted_chat_key from cache for typing event")
+                except Exception as e_key:
+                    logger.warning(f"[Task ID: {task_id}] Could not fetch encrypted_chat_key from cache for typing event: {e_key}")
+
+                # Fallback: If cache miss (common for new chats), try Directus directly
+                if not encrypted_chat_key_for_typing:
+                    try:
+                        ds = DirectusService()
+                        chat_data = await ds.get_items('chats', {
+                            'filter[id][_eq]': request_data.chat_id,
+                            'fields': 'encrypted_chat_key',
+                            'limit': 1
+                        })
+                        if chat_data and chat_data[0].get('encrypted_chat_key'):
+                            encrypted_chat_key_for_typing = chat_data[0]['encrypted_chat_key']
+                            logger.info(f"[Task ID: {task_id}] Retrieved encrypted_chat_key from Directus fallback for typing event")
+                        else:
+                            logger.info(f"[Task ID: {task_id}] encrypted_chat_key not yet in Directus for chat {request_data.chat_id} (very new chat)")
+                    except Exception as e_db:
+                        logger.warning(f"[Task ID: {task_id}] Could not fetch encrypted_chat_key from Directus for typing event: {e_db}")
+            
+                # Build typing payload with conditional metadata (only for new chats)
+                typing_payload_data = { 
+                    "type": "ai_processing_started_event", 
+                    "event_for_client": "ai_typing_started", 
+                    "task_id": task_id, # This is the AI's message_id for the new message being generated
+                    "chat_id": request_data.chat_id,
+                    "user_id_uuid": request_data.user_id, # Actual user ID for routing
+                    "user_id_hash": request_data.user_id_hash, # Hashed user ID for logging/internal use
+                    "user_message_id": request_data.message_id, # ID of the user message that triggered this AI response
+                    "category": typing_category, # Send category instead of mate_name
+                    "model_name": model_name, # Add model_name to the payload
+                    "provider_name": provider_name, # Add provider_name to the payload
+                    "server_region": server_region, # Add server region to the payload (e.g., "EU", "US", "APAC")
+                    # CRITICAL: Include is_continuation flag so client knows to skip re-persisting the user message
+                    # When this is True, the user message was already persisted before the app settings/memories
+                    # or focus mode deferred activation pause
+                    "is_continuation": request_data.is_app_settings_memories_continuation or request_data.is_focus_mode_continuation,
+                }
+            
+                # Include encrypted_chat_key so secondary devices can cache it early
+                if encrypted_chat_key_for_typing:
+                    typing_payload_data["encrypted_chat_key"] = encrypted_chat_key_for_typing
+            
+                # Log the complete typing payload for debugging
+                logger.info(f"[Task ID: {task_id}] Typing payload BEFORE adding title/icon: category={typing_category}, model_name={model_name}, provider_name={provider_name}, server_region={server_region}")
+            
+                # Only add title and icon_names if they were generated (new chat only)
+                # If chat already has a title, preprocessing skips generation of these fields
+                # CRITICAL: title and icon_names should ONLY be sent together (both or neither)
+                # This ensures metadata is only set once during the first message
+                if preprocessing_result.title and preprocessing_result.icon_names:
+                    # NEW CHAT ONLY - both title and icon_names must be present
+                    typing_payload_data["title"] = preprocessing_result.title
+                    typing_payload_data["icon_names"] = preprocessing_result.icon_names
+                    logger.info(
+                        f"[Task ID: {task_id}] NEW CHAT: Including title and icon metadata in typing event "
+                        f"(title_length={len(preprocessing_result.title)}, icon_count={len(preprocessing_result.icon_names)})"
+                    )
+                elif preprocessing_result.title or preprocessing_result.icon_names:
+                    # VALIDATION ERROR: Both should be present or both should be absent
+                    logger.warning(f"[Task ID: {task_id}] INCONSISTENCY: title={bool(preprocessing_result.title)}, icon_names={bool(preprocessing_result.icon_names)}. Should be both present or both absent. Skipping metadata to avoid partial update.")
+                else:
+                    logger.debug(f"[Task ID: {task_id}] FOLLOW-UP MESSAGE: No title/icon_names generated (chat already has metadata)")
+            
+                # CRITICAL: Skip WebSocket events for external requests (REST API)
+                # This prevents typing indicators from popping up in the web app when a user makes an API call.
+                if not request_data.is_external:
+                    typing_indicator_channel = f"ai_typing_indicator_events::{request_data.user_id_hash}" # Channel uses hashed ID
+                    await cache_service_instance.publish_event(typing_indicator_channel, typing_payload_data)
+                    logger.info(f"[Task ID: {task_id}] Published '{typing_payload_data['event_for_client']}' event to Redis channel '{typing_indicator_channel}' with metadata for encryption.")
+
+                    # --- TEST RECORD: capture typing_started event ---
+                    if _fixture_recorder:
+                        _fixture_recorder.record_typing_started(
+                            category=typing_payload_data.get("category"),
+                            model_name=typing_payload_data.get("model_name"),
+                            provider_name=typing_payload_data.get("provider_name"),
+                            server_region=typing_payload_data.get("server_region"),
+                            icon_names=typing_payload_data.get("icon_names"),
+                        )
+                else:
+                    logger.info(f"[Task ID: {task_id}] External request detected. Skipping '{typing_payload_data['event_for_client']}' Redis publish for Web App.")
+            except Exception as e_typing_pub:
+                event_name_for_log = typing_payload_data.get('event_for_client', 'ai_typing_started') if 'typing_payload_data' in locals() else 'ai_typing_started'
+                logger.error(f"[Task ID: {task_id}] Failed to publish event for '{event_name_for_log}' to Redis: {e_typing_pub}", exc_info=True)
+        elif not cache_service_instance and preprocessing_result and preprocessing_result.can_proceed: 
+            logger.warning(f"[Task ID: {task_id}] Cache service not available. Skipping 'ai_typing_started' Redis publish.")
+
+
+        # --- Step 2: Main Processing (with streaming) ---
+        # Sync wrapper handles Celery state update for progress
+        logger.info(f"[Task ID: {task_id}] Starting main processing step (streaming)...")
+
+        # Old debug log for "Main-processing Input (from PreprocessingResult)" is removed.
+        # llm_utils.py logs the input to the main processing LLM call.
+    
+        aggregated_final_response: str = ""
+        revoked_in_consumer = False
+        soft_limited_in_consumer = False
+        thinking_content: list = []  # Accumulated thinking chunks from the stream (for debug cache only)
+
+        try:
+            aggregated_final_response, revoked_in_consumer, soft_limited_in_consumer, thinking_content, main_processor_debug_metadata = await _consume_main_processing_stream(  # type: ignore[assignment]
+                task_id=task_id,
+                request_data=request_data,
+                preprocessing_result=preprocessing_result,
+                base_instructions=base_instructions,
+                directus_service=directus_service_instance,
+                encryption_service=encryption_service_instance,
+                user_vault_key_id=user_vault_key_id,
+                all_mates_configs=all_mates_configs,
+                discovered_apps_metadata=discovered_apps_metadata,
+                cache_service=cache_service_instance,
+                secrets_manager=secrets_manager,
+                # Pass always-include skills from skill config - these skills are ALWAYS available
+                # to the main LLM regardless of preprocessing preselection.
+                # This is a safety net for critical skills like web-search that should be available
+                # for follow-up queries even when preprocessing fails to detect the user's intent.
+                always_include_skills=skill_config.always_include_skills if skill_config else None
+            )
+            logger.info(f"[Task ID: {task_id}] Main processing stream consumed.")
+
+            # --- TEST RECORD: capture final response and save fixture ---
+            if _fixture_recorder:
+                # Extract usage data from debug metadata if available
+                _rec_usage = main_processor_debug_metadata or {}
+                _fixture_recorder.record_usage(
+                    model_name=preprocessing_result.selected_main_llm_model_name if preprocessing_result else None,
+                )
+                if thinking_content:
+                    _fixture_recorder.record_thinking_content("".join(thinking_content))
+                # Generate synthetic stream chunks from the aggregated response
+                # (the exact chunking doesn't matter — speed profiles control replay pacing)
+                _fixture_recorder.generate_chunks_from_response(aggregated_final_response)
+                try:
+                    fixture_path = _fixture_recorder.save()
+                    logger.info(f"[Task ID: {task_id}] TEST RECORD: Fixture saved to {fixture_path}")
+                except Exception as e_rec:
+                    logger.error(f"[Task ID: {task_id}] TEST RECORD: Failed to save fixture: {e_rec}", exc_info=True)
+
+            # --- Cache debug data for main processor stage ---
+            # This caches the last 10 requests for debugging purposes (encrypted, 30-minute TTL)
+            # IMPORTANT: Store FULL content to enable proper debugging of the AI decision process
+            try:
+                if cache_service_instance and encryption_service_instance:
+                    # Safely serialize preprocessing_result to avoid serialization errors
+                    # Use mode='json' for JSON-safe output, catching any serialization issues
+                    preprocessing_result_dict = None
+                    if preprocessing_result:
+                        try:
+                            preprocessing_result_dict = preprocessing_result.model_dump(mode='json')
+                        except Exception as e_serialize:
+                            logger.error(f"[Task ID: {task_id}] Failed to serialize preprocessing_result for debug cache: {e_serialize}")
+                            # Fallback: try to capture key fields manually
+                            preprocessing_result_dict = {
+                                "serialization_error": str(e_serialize),
+                                "can_proceed": getattr(preprocessing_result, 'can_proceed', None),
+                                "category": getattr(preprocessing_result, 'category', None),
+                            }
+                
+                    # Prepare main processor input data with FULL preprocessing result
+                    # and debug metadata from main_processor (system prompt, tools, message history)
+                    main_processor_input = {
+                        "chat_id": request_data.chat_id,
+                        "task_id": task_id,
+                        # Full preprocessing result that drives main processor behavior
+                        "preprocessing_result": preprocessing_result_dict,
+                        # Key fields extracted for quick reference
+                        "preprocessing_can_proceed": preprocessing_result.can_proceed if preprocessing_result else None,
+                        "preprocessing_selected_model": preprocessing_result.selected_main_llm_model_id if preprocessing_result else None,
+                        "preprocessing_category": preprocessing_result.category if preprocessing_result else None,
+                        "preprocessing_preselected_skills": preprocessing_result.relevant_app_skills if preprocessing_result else [],
+                        "preprocessing_chat_summary": preprocessing_result.chat_summary if preprocessing_result else None,
+                        "preprocessing_chat_tags": preprocessing_result.chat_tags if preprocessing_result else [],
+                        # Context info
+                        "message_history_count": len(request_data.message_history) if request_data.message_history else 0,
+                        "discovered_apps_count": len(discovered_apps_metadata) if discovered_apps_metadata else 0,
+                        "discovered_app_ids": list(discovered_apps_metadata.keys()) if discovered_apps_metadata else [],
+                        "always_include_skills": skill_config.always_include_skills if skill_config else None,
+                        "user_vault_key_id": user_vault_key_id,
+                        "mates_count": len(all_mates_configs) if all_mates_configs else 0,
+                        # --- Debug metadata from main_processor (P0/P1/P2 enrichment) ---
+                        # Full system prompt sent to the LLM (the most important missing piece for debugging)
+                        "system_prompt": main_processor_debug_metadata.get("system_prompt") if main_processor_debug_metadata else None,
+                        "system_prompt_char_count": main_processor_debug_metadata.get("system_prompt_char_count", 0) if main_processor_debug_metadata else 0,
+                        # Tool names and description previews available to the LLM
+                        "available_tools": main_processor_debug_metadata.get("available_tools") if main_processor_debug_metadata else None,
+                        "available_tools_count": main_processor_debug_metadata.get("available_tools_count", 0) if main_processor_debug_metadata else 0,
+                        # Truncated message history (first + last 3 messages) sent to the LLM
+                        "message_history_sent_to_llm": main_processor_debug_metadata.get("message_history_sent_to_llm") if main_processor_debug_metadata else None,
+                        "message_history_sent_to_llm_total": main_processor_debug_metadata.get("message_history_total_count", 0) if main_processor_debug_metadata else 0,
+                    }
+                
+                    # Prepare main processor output data with FULL response
+                    thinking_text = "".join(thinking_content) if thinking_content else None
+                    main_processor_output = {
+                        # FULL AI response for debugging
+                        "full_response": aggregated_final_response,
+                        "response_length": len(aggregated_final_response) if aggregated_final_response else 0,
+                        "revoked_in_consumer": revoked_in_consumer,
+                        "soft_limited_in_consumer": soft_limited_in_consumer,
+                        # Thinking content from reasoning models (Gemini, Anthropic) — displayed in separate section
+                        "thinking_content": thinking_text,
+                        "thinking_length": len(thinking_text) if thinking_text else 0,
+                    }
+                
+                    await cache_service_instance.cache_debug_request_entry(
+                        encryption_service=encryption_service_instance,
+                        task_id=task_id,
+                        chat_id=request_data.chat_id,
+                        user_id=request_data.user_id,
+                        stage="main_processor",
+                        input_data=main_processor_input,
+                        output_data=main_processor_output,
+                    )
+                    logger.info(f"[Task ID: {task_id}] Cached main_processor debug data (admin only)")
+            except Exception as e_debug:
+                # Don't fail the task if debug caching fails - log at ERROR level with full traceback
+                logger.error(f"[Task ID: {task_id}] Failed to cache main_processor debug data (non-fatal): {e_debug}", exc_info=True)
+
+            # Sync wrapper handles Celery state update for progress
+            task_was_revoked = revoked_in_consumer # Update overall flag
+            task_was_soft_limited = soft_limited_in_consumer # Update overall flag
+
+        except SoftTimeLimitExceeded:
+            logger.warning(f"[Task ID: {task_id}] Soft time limit exceeded during task execution (around _consume_main_processing_stream call).")
+            task_was_soft_limited = True # Set overall flag
+            raise # Re-raise for sync wrapper to handle Celery state
+        except Exception as e:
+            # Check for revocation if an unexpected error occurs
+            # Use .state == 'REVOKED' for checking revocation status
+            if celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
+                logger.warning(f"[Task ID: {task_id}] Task revoked during or after main processing stream execution.")
+                task_was_revoked = True # Set overall flag
+            else:
+                logger.error(f"[Task ID: {task_id}] Error during main processing stream execution: {e}", exc_info=True)
+            raise RuntimeError(f"Main processing stream execution failed: {e}") # Re-raise for sync wrapper
 
     # --- Queue Processing (after main processing, before post-processing) ---
     # Process queued messages immediately after main processing completes

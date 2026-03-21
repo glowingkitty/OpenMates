@@ -73,7 +73,8 @@ const {
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
-	getE2EDebugUrl
+	getE2EDebugUrl,
+	withMockMarker
 } = require('./signup-flow-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
@@ -442,7 +443,7 @@ test('single web search with fullscreen, website result click, and button verifi
 	// ======================================================================
 	// STEP 1: Send a message that triggers exactly one web search
 	// ======================================================================
-	const searchQuery = "Search on the web for 'Amadeus API'";
+	const searchQuery = withMockMarker("Search on the web for 'Amadeus API'", 'web_search_single');
 	await sendMessage(page, searchQuery, logCheckpoint, takeStepScreenshot, 'single-search');
 
 	// Wait for assistant response
@@ -742,7 +743,7 @@ test('multiple web searches are grouped and fullscreen works on grouped items', 
 		'2) Search for the population of London, ' +
 		'3) Search for the population of Berlin. ' +
 		'Do all three searches.';
-	await sendMessage(page, multiSearchQuery, logCheckpoint, takeStepScreenshot, 'multi-search');
+	await sendMessage(page, withMockMarker(multiSearchQuery, 'web_search_multi'), logCheckpoint, takeStepScreenshot, 'multi-search');
 
 	// Wait for assistant response
 	logCheckpoint('Waiting for assistant response with multiple web search results...');
