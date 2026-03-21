@@ -28,6 +28,59 @@ import type { OpenMatesClient } from "./client.js";
 const str = (v: unknown): string | null =>
   typeof v === "string" && v.length > 0 ? v : null;
 
+/** Direct types for child embeds — these have their own type field and should
+ * NOT be dispatched via the parent's app_id/skill_id switch. */
+const DIRECT_TYPES = new Set([
+  "code",
+  "code-code",
+  "docs-doc",
+  "doc",
+  "sheets-sheet",
+  "sheet",
+  "pdf",
+  "image",
+  "web-website",
+  "videos-video",
+  "travel-connection",
+  "travel-stay",
+  "maps",
+  "maps-place",
+  "recording",
+  "mail-email",
+  "math-plot",
+  "events-event",
+  "health-appointment",
+  "shopping-product",
+  "images-image-result",
+  "news-article",
+]);
+
+/** Human-readable labels for direct types */
+const DIRECT_TYPE_LABELS: Record<string, string> = {
+  "code": "code",
+  "code-code": "code",
+  "docs-doc": "document",
+  "doc": "document",
+  "sheets-sheet": "sheet",
+  "sheet": "sheet",
+  "pdf": "pdf",
+  "image": "image",
+  "web-website": "website",
+  "videos-video": "video",
+  "travel-connection": "connection",
+  "travel-stay": "stay",
+  "maps": "place",
+  "maps-place": "place",
+  "recording": "recording",
+  "mail-email": "email",
+  "math-plot": "plot",
+  "events-event": "event",
+  "health-appointment": "appointment",
+  "shopping-product": "product",
+  "images-image-result": "image",
+  "news-article": "article",
+};
+
 const STATUS_ICONS: Record<string, string> = {
   processing: "\x1b[33m⟳\x1b[0m",
   finished: "\x1b[32m✓\x1b[0m",
@@ -88,10 +141,26 @@ export async function renderEmbedPreview(
   client: OpenMatesClient,
 ): Promise<void> {
   const shortId = embed.embedId.slice(0, 8);
+  const c = (embed.content ?? {}) as Record<string, unknown>;
+  const resolvedType = embed.type ?? str(c.type) ?? "";
+
+  // Child embeds (e.g. individual video, website, connection) have their own
+  // type field but may inherit parent's app_id/skill_id. Check type first to
+  // dispatch to the correct direct-type renderer.
+  if (DIRECT_TYPES.has(resolvedType)) {
+    const typeLabel = DIRECT_TYPE_LABELS[resolvedType] ?? resolvedType;
+    const ln = (s: string) => process.stdout.write(`\x1b[2m│\x1b[0m  ${s}\n`);
+    process.stdout.write(`\x1b[2m┌─\x1b[0m \x1b[1m${typeLabel}\x1b[0m\n`);
+    renderByDirectType(embed, c, ln);
+    process.stdout.write(
+      `\x1b[2m└─ openmates embeds show ${shortId}\x1b[0m\n`,
+    );
+    return;
+  }
+
   const app = embed.appId ?? str(embed.content?.app_id) ?? "";
   const skill = embed.skillId ?? str(embed.content?.skill_id) ?? "";
   const label = skill ? `${app}/${skill}` : app || "embed";
-  const c = (embed.content ?? {}) as Record<string, unknown>;
   const status = str(c.status) ?? (embed.type ? null : null);
 
   // Build header components
@@ -208,10 +277,27 @@ export async function renderEmbedFullscreen(
   embed: DecryptedEmbed,
   client: OpenMatesClient,
 ): Promise<void> {
+  const c = (embed.content ?? {}) as Record<string, unknown>;
+  const resolvedType = embed.type ?? str(c.type) ?? "";
+
+  // Child embeds with a direct type — use type-specific fullscreen renderer.
+  if (DIRECT_TYPES.has(resolvedType)) {
+    const typeLabel = DIRECT_TYPE_LABELS[resolvedType] ?? resolvedType;
+    process.stdout.write(
+      `\x1b[1m${typeLabel}\x1b[0m  \x1b[2m${embed.embedId.slice(0, 8)}\x1b[0m\n`,
+    );
+    if (embed.createdAt)
+      process.stdout.write(
+        `\x1b[2mCreated:\x1b[0m ${formatTs(embed.createdAt)}\n`,
+      );
+    process.stdout.write("\n");
+    renderDirectTypeFullscreen(embed, c);
+    return;
+  }
+
   const app = embed.appId ?? str(embed.content?.app_id) ?? "";
   const skill = embed.skillId ?? str(embed.content?.skill_id) ?? "";
   const label = skill ? `${app}/${skill}` : app || "embed";
-  const c = (embed.content ?? {}) as Record<string, unknown>;
   const status = str(c.status);
 
   // Header
@@ -1124,6 +1210,25 @@ function renderDirectTypeFullscreen(
       if (title) process.stdout.write(`\x1b[1m${title}\x1b[0m\n`);
       if (url) process.stdout.write(`\x1b[2m${url}\x1b[0m\n`);
       if (age) process.stdout.write(`\x1b[2mAge: ${age}\x1b[0m\n`);
+      if (desc) {
+        console.log();
+        console.log(desc);
+      }
+      break;
+    }
+
+    case "videos-video": {
+      const title = str(c.title);
+      const url = str(c.url);
+      const channel = str(c.channel) ?? str(c.author) ?? "";
+      const duration = str(c.duration) ?? "";
+      const desc = str(c.description) ?? str(c.snippet) ?? "";
+      if (title) process.stdout.write(`\x1b[1m${title}\x1b[0m\n`);
+      if (url) process.stdout.write(`\x1b[2m${url}\x1b[0m\n`);
+      if (channel)
+        process.stdout.write(
+          `\x1b[2mChannel:\x1b[0m ${channel}${duration ? `  \x1b[2m(${duration})\x1b[0m` : ""}\n`,
+        );
       if (desc) {
         console.log();
         console.log(desc);
