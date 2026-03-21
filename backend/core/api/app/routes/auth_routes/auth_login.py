@@ -1162,15 +1162,6 @@ async def finalize_login_session(
     if cookie_domain:
         logger.info(f"Setting cookies with domain={cookie_domain} for cross-subdomain authentication")
     
-    # Determine if we should use secure cookies based on environment
-    # Safari iOS strictly enforces that Secure=True cookies can ONLY be set over HTTPS
-    # In development (localhost), we must set Secure=False to allow HTTP cookies
-    is_dev = os.getenv("SERVER_ENVIRONMENT", "development").lower() == "development"
-    use_secure_cookies = not is_dev  # Only use Secure=True in production (HTTPS)
-    
-    if is_dev:
-        logger.info("Development environment detected - using non-secure cookies for Safari iOS compatibility")
-    
     # Set authentication cookies
     if "cookies" in auth_data:
         logger.info(f"Setting {len(auth_data['cookies'])} cookies")
@@ -1180,19 +1171,19 @@ async def finalize_login_session(
             cookie_name = name
             if name.startswith("directus_"):
                 cookie_name = "auth_" + name[9:]
-            
+
             # Build cookie parameters
-            # Safari/iOS cookie requirements:
+            # - Secure=True requires HTTPS (both dev and prod use HTTPS)
             # - SameSite=Lax works for same-site subdomains (app.domain.com <-> api.domain.com)
-            # - Secure=True ONLY on HTTPS (Safari strictly enforces this)
-            # - Secure=False on HTTP/localhost (development mode)
             # - Path=/ ensures cookie is available to all endpoints
+            # IMPORTANT: secure must match the value used in auth_logout.py delete_cookie calls,
+            # otherwise browsers treat them as different cookies and logout fails to clear them.
             cookie_params = {
                 "key": cookie_name,
                 "value": value,
                 "httponly": True,
-                "secure": use_secure_cookies,  # False in dev (HTTP), True in prod (HTTPS)
-                "samesite": "lax",  # Lax works for same-site subdomains (Safari compatible)
+                "secure": True,
+                "samesite": "lax",
                 "max_age": cookie_max_age,
                 "path": "/"
             }

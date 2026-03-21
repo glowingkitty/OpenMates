@@ -799,9 +799,12 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
 }
 
 /**
- * Deletes all cookies by setting their expiration date to the past.
- * This ensures complete cookie cleanup during logout for enhanced security.
- * Includes deletion of Stripe cookies (__stripe_mid, __stripe_sid) and all other cookies.
+ * Deletes all cookies visible to JavaScript by setting their expiration date to the past.
+ *
+ * LIMITATION: This function CANNOT delete httpOnly cookies (e.g., auth_refresh_token)
+ * because document.cookie cannot enumerate them (browser security by design).
+ * The backend logout endpoint (auth_logout.py) is the ONLY reliable mechanism for
+ * clearing httpOnly auth cookies via Set-Cookie response headers.
  */
 export function deleteAllCookies(): void {
   const cookies = document.cookie.split(";");

@@ -106,6 +106,9 @@ export class ChatSynchronizationService extends EventTarget {
         "[ChatSyncService] WebSocket handlers were cleared. Resetting registration flag.",
       );
       this.handlersRegistered = false;
+      // Stop pending message retry on logout — without this, the interval
+      // keeps running every 5s after logout, spamming "Skipping pending message retry"
+      this.stopPendingMessageRetry();
     });
 
     websocketStatus.subscribe((storeState) => {
@@ -1957,6 +1960,12 @@ export class ChatSynchronizationService extends EventTarget {
     );
 
     this.pendingMessageRetryInterval = setInterval(async () => {
+      // Stop retry if user logged out while interval was running
+      if (!get(authStore).isAuthenticated) {
+        this.stopPendingMessageRetry();
+        return;
+      }
+
       // Check if connection was restored
       if (this.webSocketConnected) {
         // Stop periodic retry and do one final retry
