@@ -453,6 +453,327 @@ async function handleChats(
     return;
   }
 
+  if (subcommand === "download") {
+    const chatId = rest[0];
+    if (!chatId) {
+      console.error("Missing chat ID.\n");
+      printChatsHelp();
+      process.exit(1);
+    }
+    const resolvedId = chatId.toLowerCase() === "last" ? "__last__" : chatId;
+    const { chat, messages } = await client.getChatMessages(resolvedId);
+
+    // Determine output directory
+    const outputDir =
+      typeof flags.output === "string" ? flags.output : process.cwd();
+    const useZip = flags.zip === true;
+
+    // Generate filename base (same pattern as web app: YYYY-MM-DD_HH-MM-SS_title)
+    const timestampMs =
+      chat.updatedAt && chat.updatedAt < 1e12
+        ? chat.updatedAt * 1000
+        : (chat.updatedAt ?? Date.now());
+    const dateStr = new Date(timestampMs)
+      .toISOString()
+      .slice(0, 19)
+      .replace(/[:-]/g, "-")
+      .replace("T", "_");
+    const safeTitle = (chat.title ?? "Untitled Chat")
+      .replace(/[<>:"/\\|?*]/g, "")
+      .substring(0, 50)
+      .trim();
+    const filenameBase = `${dateStr}_${safeTitle}`;
+
+    // Build YAML content (mirrors chatExportService.convertChatToYaml)
+    const yamlChat: Record<string, unknown> = {
+      title: chat.title ?? null,
+      exported_at: new Date().toISOString(),
+      message_count: messages.length,
+      summary: chat.summary ?? null,
+    };
+    const yamlMessages: Record<string, unknown>[] = [];
+    for (const msg of messages) {
+      const msgTimestampMs =
+        msg.createdAt < 1e12 ? msg.createdAt * 1000 : msg.createdAt;
+      yamlMessages.push({
+        role: msg.role,
+        sender:
+          msg.senderName ??
+          (msg.role === "user" ? "You" : (msg.category ?? "Assistant")),
+        model: msg.modelName ?? null,
+        timestamp: new Date(msgTimestampMs).toISOString(),
+        content: msg.content,
+      });
+    }
+    // Simple YAML serialization (no external dependency)
+    const yamlContent = serializeToYaml({
+      chat: yamlChat,
+      messages: yamlMessages,
+    });
+
+    // Build Markdown content (mirrors zipExportService.convertChatToMarkdown)
+    let mdContent = "";
+    if (chat.title) mdContent += `# ${chat.title}\n\n`;
+    mdContent += `*Created: ${new Date(timestampMs).toISOString()}*\n\n---\n\n`;
+    for (const msg of messages) {
+      const msgTimestampMs =
+        msg.createdAt < 1e12 ? msg.createdAt * 1000 : msg.createdAt;
+      const role =
+        msg.role === "user" ? "You" : (msg.senderName ?? "Assistant");
+      mdContent += `## ${role} - ${new Date(msgTimestampMs).toISOString()}\n\n`;
+      // Strip embed JSON blocks from markdown output, keep surrounding text
+      const cleaned = msg.content.replace(
+        /```(?:json_embed|json)\n[\s\S]*?\n```/g,
+        "",
+      );
+      if (cleaned.trim()) mdContent += `${cleaned.trim()}\n\n`;
+    }
+
+    // Extract code embeds and video transcript embeds from messages
+    const codeEmbeds: Array<{
+      embedId: string;
+      language: string;
+      filename?: string;
+      content: string;
+      filePath?: string;
+    }> = [];
+    const transcriptEmbeds: Array<{
+      embedId: string;
+      filename: string;
+      content: string;
+    }> = [];
+    const processedEmbedIds = new Set<string>();
+
+    // Collect all embed IDs from messages
+    const allEmbedIds: string[] = [];
+    for (const msg of messages) {
+      const segments = parseMessageSegments(msg.content);
+      for (const seg of segments) {
+        if (seg.type === "embed" && !processedEmbedIds.has(seg.value)) {
+          processedEmbedIds.add(seg.value);
+          allEmbedIds.push(seg.value);
+        }
+      }
+    }
+
+    // Process embeds (code + transcripts) with recursive child embed handling
+    const embedQueue = [...allEmbedIds];
+    while (embedQueue.length > 0) {
+      const eid = embedQueue.shift()!;
+      try {
+        const embed = await client.getEmbed(eid);
+
+        // Code embeds
+        if (embed.type === "code" && embed.content) {
+          const code =
+            typeof embed.content.code === "string"
+              ? embed.content.code
+              : typeof embed.content.content === "string"
+                ? (embed.content.content as string)
+                : null;
+          if (code) {
+            codeEmbeds.push({
+              embedId: embed.embedId,
+              language:
+                typeof embed.content.language === "string"
+                  ? embed.content.language
+                  : "text",
+              filename:
+                typeof embed.content.filename === "string"
+                  ? embed.content.filename
+                  : undefined,
+              content: code,
+              filePath:
+                typeof embed.content.file_path === "string"
+                  ? embed.content.file_path
+                  : undefined,
+            });
+          }
+        }
+
+        // Video transcript embeds
+        if (
+          embed.type === "app_skill_use" &&
+          embed.appId === "videos" &&
+          (embed.skillId === "get_transcript" ||
+            embed.skillId === "get-transcript") &&
+          embed.content
+        ) {
+          const results = (embed.content.results ??
+            embed.content.data ??
+            []) as Array<Record<string, unknown>>;
+          if (Array.isArray(results) && results.length > 0) {
+            let text = "";
+            for (const r of results) {
+              const meta = r.metadata as
+                | Record<string, unknown>
+                | undefined;
+              if (meta?.title) text += `# ${meta.title}\n\n`;
+              if (r.url) text += `Source: ${r.url}\n\n`;
+              text += String(
+                r.transcript ??
+                  r.formatted_transcript ??
+                  r.text ??
+                  r.content ??
+                  "",
+              );
+              text += "\n\n---\n\n";
+            }
+            let fname = `${eid.slice(0, 8)}_transcript.md`;
+            const firstMeta = (results[0]?.metadata as
+              | Record<string, unknown>
+              | undefined);
+            if (firstMeta?.title) {
+              fname = `${String(firstMeta.title).replace(/[^a-z0-9]/gi, "_").toLowerCase()}_transcript.md`;
+            }
+            transcriptEmbeds.push({
+              embedId: eid,
+              filename: fname,
+              content: text,
+            });
+          }
+        }
+
+        // Queue child embeds for processing
+        if (embed.content?.embed_ids) {
+          const childIds = Array.isArray(embed.content.embed_ids)
+            ? (embed.content.embed_ids as string[])
+            : typeof embed.content.embed_ids === "string"
+              ? embed.content.embed_ids.split("|").filter(Boolean)
+              : [];
+          for (const childId of childIds) {
+            if (!processedEmbedIds.has(childId)) {
+              processedEmbedIds.add(childId);
+              embedQueue.push(childId);
+            }
+          }
+        }
+      } catch {
+        // Embed not in cache — skip
+      }
+    }
+
+    // Write files
+    const { mkdir, writeFile } = await import("node:fs/promises");
+    const { join } = await import("node:path");
+
+    if (useZip) {
+      // Zip mode — create temp directory, then shell out to system zip
+      const tmpDir = join(outputDir, `.${filenameBase}_tmp`);
+      await mkdir(tmpDir, { recursive: true });
+      await writeFile(join(tmpDir, `${filenameBase}.yml`), yamlContent);
+      await writeFile(join(tmpDir, `${filenameBase}.md`), mdContent);
+      if (codeEmbeds.length > 0) {
+        for (const ce of codeEmbeds) {
+          const fpath =
+            ce.filePath ??
+            ce.filename ??
+            `${ce.embedId.slice(0, 8)}.${getExtForLang(ce.language)}`;
+          const fullPath = join(tmpDir, "code", fpath);
+          await mkdir(fullPath.substring(0, fullPath.lastIndexOf("/")), {
+            recursive: true,
+          });
+          await writeFile(fullPath, ce.content);
+        }
+      }
+      if (transcriptEmbeds.length > 0) {
+        const tDir = join(tmpDir, "transcripts");
+        await mkdir(tDir, { recursive: true });
+        for (const te of transcriptEmbeds) {
+          await writeFile(join(tDir, te.filename), te.content);
+        }
+      }
+      // Create zip using system zip command
+      const zipPath = join(outputDir, `${filenameBase}.zip`);
+      const { execSync } = await import("node:child_process");
+      try {
+        execSync(`cd "${tmpDir}" && zip -r "${zipPath}" .`, { stdio: "pipe" });
+        // Clean up temp dir
+        const { rm } = await import("node:fs/promises");
+        await rm(tmpDir, { recursive: true, force: true });
+        process.stdout.write(`\x1b[32m\u2713\x1b[0m ${zipPath}\n`);
+      } catch {
+        // zip not available — keep the directory as fallback
+        process.stderr.write(
+          `\x1b[33m!\x1b[0m 'zip' command not found — files saved to ${tmpDir}\n`,
+        );
+      }
+    } else {
+      // Direct file mode — write files into target directory
+      const chatDir = join(outputDir, filenameBase);
+      await mkdir(chatDir, { recursive: true });
+      const written: string[] = [];
+
+      await writeFile(join(chatDir, `${filenameBase}.yml`), yamlContent);
+      written.push(`${filenameBase}.yml`);
+
+      await writeFile(join(chatDir, `${filenameBase}.md`), mdContent);
+      written.push(`${filenameBase}.md`);
+
+      if (codeEmbeds.length > 0) {
+        for (const ce of codeEmbeds) {
+          const fpath =
+            ce.filePath ??
+            ce.filename ??
+            `${ce.embedId.slice(0, 8)}.${getExtForLang(ce.language)}`;
+          const fullPath = join(chatDir, "code", fpath);
+          await mkdir(fullPath.substring(0, fullPath.lastIndexOf("/")), {
+            recursive: true,
+          });
+          await writeFile(fullPath, ce.content);
+          written.push(`code/${fpath}`);
+        }
+      }
+
+      if (transcriptEmbeds.length > 0) {
+        const tDir = join(chatDir, "transcripts");
+        await mkdir(tDir, { recursive: true });
+        for (const te of transcriptEmbeds) {
+          await writeFile(join(tDir, te.filename), te.content);
+          written.push(`transcripts/${te.filename}`);
+        }
+      }
+
+      // Print summary
+      const label = chat.title ? `"${chat.title}"` : chat.shortId;
+      process.stdout.write(
+        `\x1b[1mDownloaded chat ${label}\x1b[0m → ${chatDir}\n\n`,
+      );
+      for (const f of written) {
+        process.stdout.write(`  \x1b[32m\u2713\x1b[0m ${f}\n`);
+      }
+      process.stdout.write(
+        `\n\x1b[2m${written.length} file(s) written.\x1b[0m\n`,
+      );
+    }
+
+    if (flags.json === true) {
+      const files: string[] = [
+        `${filenameBase}.yml`,
+        `${filenameBase}.md`,
+      ];
+      for (const ce of codeEmbeds) {
+        files.push(
+          `code/${ce.filePath ?? ce.filename ?? ce.embedId.slice(0, 8)}`,
+        );
+      }
+      for (const te of transcriptEmbeds) {
+        files.push(`transcripts/${te.filename}`);
+      }
+      printJson({
+        chat_id: chat.id,
+        title: chat.title,
+        output_dir: useZip
+          ? join(outputDir, `${filenameBase}.zip`)
+          : join(outputDir, filenameBase),
+        files,
+        code_embeds: codeEmbeds.length,
+        transcript_embeds: transcriptEmbeds.length,
+      });
+    }
+    return;
+  }
+
   if (subcommand === "share") {
     const id = rest[0] || "last";
     const durationSeconds = (
@@ -495,6 +816,64 @@ async function handleChats(
       const msg = err instanceof Error ? err.message : String(err);
       console.error(`Share link error: ${msg}`);
       process.exit(1);
+    }
+    return;
+  }
+
+  if (subcommand === "open") {
+    const n =
+      rest[0] !== undefined ? parseInt(rest[0], 10) : 1;
+    if (isNaN(n) || n < 1) {
+      console.error(
+        `Invalid position '${rest[0]}'. Must be a positive integer (1 = most recent, 2 = second most recent, ...).`,
+      );
+      process.exit(1);
+    }
+
+    // Fetch enough chats to reach position n (sorted most-recent-first)
+    const result = await client.listChats(n, 1);
+    if (result.total === 0) {
+      console.error(
+        "No chats found. Run 'openmates chats list' to sync.",
+      );
+      process.exit(1);
+    }
+    if (n > result.total) {
+      console.error(
+        `Only ${result.total} chat(s) available — cannot open chat #${n}.`,
+      );
+      process.exit(1);
+    }
+
+    const chat = result.chats[n - 1];
+    const appUrl = deriveAppUrl(client.apiUrl);
+    const url = `${appUrl}/#chat-id=${chat.id}`;
+
+    if (!flags.json) {
+      const label = chat.title ? `"${chat.title}"` : chat.id.slice(0, 8);
+      process.stderr.write(
+        `\x1b[2mOpening chat #${n}: ${label}\x1b[0m\n`,
+      );
+    }
+
+    // Open in default browser using platform-appropriate command
+    const { exec } = await import("node:child_process");
+    const platform = process.platform;
+    const openCmd =
+      platform === "darwin"
+        ? `open "${url}"`
+        : platform === "win32"
+          ? `start "" "${url}"`
+          : `xdg-open "${url}"`;
+    exec(openCmd, (err) => {
+      if (err) {
+        // Fallback: print the URL so the user can open it manually
+        console.log(url);
+      }
+    });
+
+    if (flags.json === true) {
+      printJson({ url, chat_id: chat.id, position: n, title: chat.title });
     }
     return;
   }
@@ -3029,6 +3408,113 @@ async function handleMentions(
 // ---------------------------------------------------------------------------
 
 /** Format a share duration for display */
+/**
+ * Simple YAML serializer for chat export (no external dependency).
+ * Handles nested objects, arrays, and multiline strings.
+ * Mirrors chatExportService.convertToYamlString for compatibility.
+ */
+function serializeToYaml(
+  data: Record<string, unknown>,
+  indent: number = 0,
+): string {
+  const pad = "  ".repeat(indent);
+  let out = "";
+  for (const [key, val] of Object.entries(data)) {
+    if (val === null || val === undefined) {
+      out += `${pad}${key}: null\n`;
+    } else if (typeof val === "boolean" || typeof val === "number") {
+      out += `${pad}${key}: ${val}\n`;
+    } else if (typeof val === "string") {
+      if (val.includes("\n")) {
+        out += `${pad}${key}: |\n`;
+        for (const line of val.split("\n")) {
+          out += `${pad}  ${line}\n`;
+        }
+      } else {
+        // Escape strings that could be misinterpreted as YAML
+        const needsQuote =
+          val.includes(":") ||
+          val.includes("#") ||
+          val.startsWith("{") ||
+          val.startsWith("[") ||
+          val.startsWith("'") ||
+          val.startsWith('"') ||
+          val === "" ||
+          val === "true" ||
+          val === "false" ||
+          val === "null";
+        out += `${pad}${key}: ${needsQuote ? `"${val.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"` : val}\n`;
+      }
+    } else if (Array.isArray(val)) {
+      out += `${pad}${key}:\n`;
+      for (const item of val) {
+        if (typeof item === "object" && item !== null) {
+          out += `${pad}- \n`;
+          out += serializeToYaml(
+            item as Record<string, unknown>,
+            indent + 2,
+          );
+        } else {
+          out += `${pad}- ${item}\n`;
+        }
+      }
+    } else if (typeof val === "object") {
+      out += `${pad}${key}:\n`;
+      out += serializeToYaml(val as Record<string, unknown>, indent + 1);
+    }
+  }
+  return out;
+}
+
+/** Map language identifier to file extension for code embed downloads. */
+function getExtForLang(language: string): string {
+  const map: Record<string, string> = {
+    javascript: "js",
+    typescript: "ts",
+    python: "py",
+    ruby: "rb",
+    rust: "rs",
+    golang: "go",
+    go: "go",
+    java: "java",
+    kotlin: "kt",
+    swift: "swift",
+    csharp: "cs",
+    "c#": "cs",
+    cpp: "cpp",
+    "c++": "cpp",
+    c: "c",
+    html: "html",
+    css: "css",
+    scss: "scss",
+    json: "json",
+    yaml: "yml",
+    yml: "yml",
+    xml: "xml",
+    sql: "sql",
+    shell: "sh",
+    bash: "sh",
+    zsh: "sh",
+    powershell: "ps1",
+    dockerfile: "Dockerfile",
+    docker: "Dockerfile",
+    markdown: "md",
+    md: "md",
+    toml: "toml",
+    ini: "ini",
+    lua: "lua",
+    r: "r",
+    php: "php",
+    perl: "pl",
+    scala: "scala",
+    svelte: "svelte",
+    vue: "vue",
+    jsx: "jsx",
+    tsx: "tsx",
+  };
+  return map[language.toLowerCase()] ?? (language.toLowerCase() || "txt");
+}
+
 function humanizeDuration(seconds: number): string {
   if (seconds === 0) return "never";
   if (seconds < 3600) return `${Math.round(seconds / 60)} minute(s)`;
@@ -3082,10 +3568,12 @@ function printChatsHelp(): void {
   console.log(`Chats commands:
   openmates chats list [--limit <n>] [--page <n>] [--json]
   openmates chats show <chat-id> [--json]
+  openmates chats open [<n>] [--json]
   openmates chats search <query> [--json]
   openmates chats new <message> [--json]
   openmates chats send [--chat <id>] [--incognito] <message> [--json]
   openmates chats send --chat <id> --followup <n> [--json]
+  openmates chats download <chat-id> [--output <path>] [--zip] [--json]
   openmates chats delete <id1> [id2] [id3] ... [--yes]
   openmates chats share [<chat-id>] [--expires <seconds>] [--password <pwd>] [--json]
   openmates chats incognito <message> [--json]
@@ -3096,11 +3584,23 @@ Options for 'list':
   --limit <n>   Number of chats per page (default: 10)
   --page <n>    Page number (default: 1)
 
+Options for 'open':
+  <n>           Position of the chat to open (default: 1 = most recent)
+                1 = most recent, 2 = second most recent, etc.
+                Opens the chat in your default browser.
+
 Options for 'send':
   --chat <id>      Chat to continue (full UUID or 8-char short ID)
   --followup <n>   Send the nth follow-up suggestion for this chat instead of
                    typing the full message (requires --chat)
   --incognito      Send without saving to chat history
+
+Options for 'download':
+  --output <path>  Target directory (default: current directory)
+  --zip            Create a .zip archive instead of a folder
+  Downloads: .yml (YAML export), .md (Markdown), code/ (code embeds),
+  transcripts/ (video transcripts). Files are saved into a folder named
+  with the chat's date and title.
 
 Options for 'delete':
   --yes         Skip confirmation prompt
@@ -3123,6 +3623,8 @@ Options for 'delete':
 
 Examples:
   openmates chats list
+  openmates chats open              (opens most recent chat in browser)
+  openmates chats open 3            (opens 3rd most recent chat)
   openmates chats show d262cb68
   openmates chats show last
   openmates chats show "Flight Connections Berlin to Bangkok"
@@ -3133,6 +3635,9 @@ Examples:
   openmates chats send --chat d262cb68 --followup 3
   openmates chats new "@Sophia help me with @./src/app.ts"
   openmates chats new "@best review @/home/user/project/.env"
+  openmates chats download last
+  openmates chats download d262cb68 --output ~/exports
+  openmates chats download last --zip
   openmates chats delete d262cb68 a1b2c3d4
   openmates chats share d262cb68
   openmates chats share last --expires 604800
