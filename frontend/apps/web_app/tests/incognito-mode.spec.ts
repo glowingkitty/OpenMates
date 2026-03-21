@@ -51,7 +51,7 @@ const SELECTORS = {
 	// Chat UI
 	messageEditor: '.editor-content.prose',
 	sendButton: '.send-button',
-	menuButton: '.menu-button-container button.icon_menu',
+	menuButton: '[data-testid="sidebar-toggle"]',
 	activityHistoryWrapper: '.activity-history-wrapper',
 
 	// Settings

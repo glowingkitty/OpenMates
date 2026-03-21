@@ -255,7 +255,7 @@ async function deleteActiveChat(
 
 	try {
 		// Open sidebar if collapsed (use short timeout to avoid blocking)
-		const sidebarToggle = page.locator('.sidebar-toggle-button');
+		const sidebarToggle = page.locator('[data-testid="sidebar-toggle"]');
 		if (await sidebarToggle.isVisible({ timeout: 3000 }).catch(() => false)) {
 			await sidebarToggle.click();
 			await page.waitForTimeout(500);

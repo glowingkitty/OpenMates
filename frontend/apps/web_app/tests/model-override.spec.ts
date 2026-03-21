@@ -371,7 +371,7 @@ async function deleteActiveChat(
 
 	try {
 		// Ensure sidebar is open (if on mobile/narrow screen)
-		const sidebarToggle = page.locator('.sidebar-toggle-button');
+		const sidebarToggle = page.locator('[data-testid="sidebar-toggle"]');
 		if (await sidebarToggle.isVisible()) {
 			await sidebarToggle.click();
 			await page.waitForTimeout(500);

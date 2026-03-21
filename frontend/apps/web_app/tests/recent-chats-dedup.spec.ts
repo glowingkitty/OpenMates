@@ -125,7 +125,7 @@ async function getSidebarChatTitles(
 	count: number = 5
 ): Promise<string[]> {
 	// Open sidebar
-	const menuToggle = page.locator('.icon_menu');
+	const menuToggle = page.locator('[data-testid="sidebar-toggle"]');
 	const activityHistory = page.locator('.activity-history-wrapper');
 	const isSidebarOpen = await activityHistory.isVisible().catch(() => false);
 	if (!isSidebarOpen) {
@@ -198,7 +198,7 @@ async function closeSidebar(page: any, logStep: (...args: any[]) => void): Promi
 		await closeButton.click();
 		logStep('Closed sidebar via Close button.');
 	} else {
-		const menuToggle = page.locator('.icon_menu');
+		const menuToggle = page.locator('[data-testid="sidebar-toggle"]');
 		if (await menuToggle.isVisible({ timeout: 1000 }).catch(() => false)) {
 			await menuToggle.click();
 			logStep('Closed sidebar via menu toggle.');
@@ -330,7 +330,7 @@ test('resume card updates to last opened chat on each new-chat transition', asyn
 	logStep('Phase 3: Opening chat B...');
 
 	// Open sidebar, click chat B
-	const menuToggle = page.locator('.icon_menu');
+	const menuToggle = page.locator('[data-testid="sidebar-toggle"]');
 	await expect(menuToggle).toBeVisible({ timeout: 5000 });
 	await menuToggle.click();
 	await page.waitForTimeout(2000);

@@ -286,7 +286,7 @@ test('daily inspiration chat: creates chat and allows follow-up message without 
 	log('Cleaning up: deleting the inspiration chat...');
 
 	// Ensure sidebar is accessible
-	const sidebarToggle = page.locator('.sidebar-toggle-button');
+	const sidebarToggle = page.locator('[data-testid="sidebar-toggle"]');
 	if (await sidebarToggle.isVisible()) {
 		await sidebarToggle.click();
 		await page.waitForTimeout(500);

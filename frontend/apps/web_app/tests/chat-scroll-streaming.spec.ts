@@ -355,7 +355,7 @@ test('scroll and streaming behavior after sending a message', async ({ page }: {
 	logCheckpoint('Cleaning up: deleting test chat...');
 
 	// Ensure sidebar is open
-	const sidebarToggle = page.locator('.sidebar-toggle-button');
+	const sidebarToggle = page.locator('[data-testid="sidebar-toggle"]');
 	if (await sidebarToggle.isVisible()) {
 		await sidebarToggle.click();
 		await page.waitForTimeout(500);

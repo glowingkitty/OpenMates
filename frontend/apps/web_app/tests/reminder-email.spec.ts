@@ -78,7 +78,7 @@ async function loginTestAccount(page: any, log: any): Promise<void> {
 }
 
 async function deleteActiveChat(page: any, log: any): Promise<void> {
-	const sidebarToggle = page.locator('.sidebar-toggle-button');
+	const sidebarToggle = page.locator('[data-testid="sidebar-toggle"]');
 	if (await sidebarToggle.isVisible({ timeout: 1000 }).catch(() => false)) {
 		await sidebarToggle.click();
 		await page.waitForTimeout(500);

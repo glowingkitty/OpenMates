@@ -177,7 +177,7 @@ async function deleteActiveChat(
 		// Ensure sidebar is open
 		const activityHistory = page.locator('.activity-history-wrapper');
 		if (!(await activityHistory.isVisible().catch(() => false))) {
-			const menuToggle = page.locator('.icon_menu');
+			const menuToggle = page.locator('[data-testid="sidebar-toggle"]');
 			if (await menuToggle.isVisible().catch(() => false)) {
 				await menuToggle.click();
 				await page.waitForTimeout(1000);

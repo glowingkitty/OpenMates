@@ -310,7 +310,7 @@ async function deleteActiveChat(
 		const activityHistory = page.locator('.activity-history-wrapper');
 		const isSidebarVisible = await activityHistory.isVisible().catch(() => false);
 		if (!isSidebarVisible) {
-			const menuToggle = page.locator('.icon_menu');
+			const menuToggle = page.locator('[data-testid="sidebar-toggle"]');
 			if (await menuToggle.isVisible().catch(() => false)) {
 				await menuToggle.click();
 				await page.waitForTimeout(2000);
@@ -343,7 +343,7 @@ async function deleteActiveChat(
 		logCheckpoint('Chat deleted successfully.');
 
 		// Close sidebar
-		const menuToggle = page.locator('.icon_menu');
+		const menuToggle = page.locator('[data-testid="sidebar-toggle"]');
 		if (await menuToggle.isVisible().catch(() => false)) {
 			const sidebarStillOpen = await activityHistory.isVisible().catch(() => false);
 			if (sidebarStillOpen) {

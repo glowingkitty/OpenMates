@@ -206,11 +206,7 @@ test.describe('Modal ARIA — authenticated', () => {
 		await loginAndWait(page);
 
 		// Open settings
-		const settingsButton = page
-			.locator(
-				'[data-testid="settings-button"], .icon_settings, button:has(.icon_settings)'
-			)
-			.first();
+		const settingsButton = page.locator('.profile-container[role="button"]');
 		await expect(settingsButton).toBeVisible({ timeout: 10000 });
 		await settingsButton.click();
 		await page.waitForTimeout(1000);
@@ -255,11 +251,7 @@ test.describe('Modal ARIA — authenticated', () => {
 		await loginAndWait(page);
 
 		// Open settings to get a dialog with overlay
-		const settingsButton = page
-			.locator(
-				'[data-testid="settings-button"], .icon_settings, button:has(.icon_settings)'
-			)
-			.first();
+		const settingsButton = page.locator('.profile-container[role="button"]');
 		await expect(settingsButton).toBeVisible({ timeout: 10000 });
 		await settingsButton.click();
 		await page.waitForTimeout(1000);

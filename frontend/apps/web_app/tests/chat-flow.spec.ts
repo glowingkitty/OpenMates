@@ -170,7 +170,7 @@ async function ensureSidebarOpen(
 	}
 
 	// Click the menu toggle button in the header to open the sidebar
-	const menuToggle = page.locator('.icon_menu');
+	const menuToggle = page.locator('[data-testid="sidebar-toggle"]');
 	await expect(menuToggle).toBeVisible({ timeout: 5000 });
 	await menuToggle.click();
 	logCheckpoint('[Sidebar] Clicked menu toggle to open sidebar.');
@@ -198,7 +198,7 @@ async function ensureSidebarClosed(
 	}
 
 	// Click the menu toggle button to close the sidebar
-	const menuToggle = page.locator('.icon_menu');
+	const menuToggle = page.locator('[data-testid="sidebar-toggle"]');
 	if (await menuToggle.isVisible().catch(() => false)) {
 		await menuToggle.click();
 		logCheckpoint('[Sidebar] Clicked menu toggle to close sidebar.');

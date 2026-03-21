@@ -207,7 +207,7 @@ async function ensureSidebarOpen(
 	}
 
 	// Try clicking the hamburger menu button to open the sidebar
-	const menuButton = page.locator('.menu-button-container button.icon_menu');
+	const menuButton = page.locator('[data-testid="sidebar-toggle"]');
 	if (await menuButton.isVisible({ timeout: 2000 }).catch(() => false)) {
 		await menuButton.click();
 		logCheckpoint('Clicked hamburger menu to open sidebar.');

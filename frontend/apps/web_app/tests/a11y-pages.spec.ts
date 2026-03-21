@@ -140,10 +140,8 @@ test.describe('Accessibility — authenticated pages', () => {
 
 		await loginAndWait(page);
 
-		// Open settings — look for the settings button/icon
-		const settingsButton = page.locator(
-			'[data-testid="settings-button"], .icon_settings, button:has(.icon_settings)'
-		).first();
+		// Open settings — click the profile container (settings toggle)
+		const settingsButton = page.locator('.profile-container[role="button"]');
 		await expect(settingsButton).toBeVisible({ timeout: 10000 });
 		await settingsButton.click();
 		await page.waitForTimeout(1000);

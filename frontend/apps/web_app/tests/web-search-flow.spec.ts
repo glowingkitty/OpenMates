@@ -335,7 +335,7 @@ async function deleteActiveChat(
 	logCheckpoint('Attempting to delete the chat (best-effort cleanup)...');
 
 	try {
-		const sidebarToggle = page.locator('.sidebar-toggle-button');
+		const sidebarToggle = page.locator('[data-testid="sidebar-toggle"]');
 		if (await sidebarToggle.isVisible()) {
 			await sidebarToggle.click();
 			await page.waitForTimeout(500);

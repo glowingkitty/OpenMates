@@ -305,7 +305,7 @@ async function assertNoJsonEmbedLeaks(page: any, messageIndex: number, log: any)
  */
 async function deleteActiveChat(page: any, log: any) {
 	// Ensure sidebar is open
-	const sidebarToggle = page.locator('.sidebar-toggle-button');
+	const sidebarToggle = page.locator('[data-testid="sidebar-toggle"]');
 	if (await sidebarToggle.isVisible().catch(() => false)) {
 		await sidebarToggle.click();
 		await page.waitForTimeout(500);
