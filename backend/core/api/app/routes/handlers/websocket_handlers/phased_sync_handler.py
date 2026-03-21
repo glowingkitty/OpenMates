@@ -1042,13 +1042,17 @@ async def _handle_phase2_sync(
         all_embed_keys = []
         seen_embed_key_ids = set()  # Deduplicate by id
         
-        # Collect all hashed_chat_ids for batch fetch
+        # Collect hashed_chat_ids for batch embed_keys fetch.
+        # CRITICAL: Use ALL chats (not just chats_to_send) because embed_keys may be
+        # missing from the client's IDB even when chat versions match (e.g., after cache
+        # clear, IDB corruption, or new device). Without this, version-matched chats
+        # never get their embed_keys re-delivered, permanently breaking embed decryption.
         hashed_chat_ids_for_keys = []
-        for chat_wrapper in chats_to_send:
+        for chat_wrapper in all_recent_chats:
             chat_id = chat_wrapper.get("chat_details", {}).get("id")
             if chat_id:
                 hashed_chat_ids_for_keys.append(hashlib.sha256(chat_id.encode()).hexdigest())
-        
+
         if hashed_chat_ids_for_keys:
             try:
                 # Batch fetch all embed_keys for all chats in 2 queries instead of N*2
@@ -1061,9 +1065,9 @@ async def _handle_phase2_sync(
                             seen_embed_key_ids.add(key_id)
             except Exception as e:
                 logger.warning(f"Phase 2: Error batch fetching embed_keys for {len(hashed_chat_ids_for_keys)} chats: {e}")
-        
+
         if all_embed_keys:
-            logger.info(f"Phase 2: Sending {len(all_embed_keys)} embed_keys for {len(chats_to_send)} chats (batch optimized)")
+            logger.info(f"Phase 2: Sending {len(all_embed_keys)} embed_keys for {len(all_recent_chats)} chats (batch optimized, includes version-matched)")
         
         # Send Phase 2 data to client (only chats that need updating)
         # Embeds and embed_keys are sent as flat deduplicated arrays, not per-chat
@@ -1442,13 +1446,15 @@ async def _handle_phase3_sync(
         all_embed_keys = []
         seen_embed_key_ids = set()  # Deduplicate by id
         
-        # Collect all hashed_chat_ids for batch fetch
+        # Collect hashed_chat_ids for batch embed_keys fetch.
+        # CRITICAL: Use ALL chats (not just chats_to_send) — same rationale as Phase 2:
+        # embed_keys may be missing from client IDB even when chat versions match.
         hashed_chat_ids_for_keys = []
-        for chat_wrapper in chats_to_send:
+        for chat_wrapper in all_chats_from_server:
             chat_id = chat_wrapper.get("chat_details", {}).get("id")
             if chat_id:
                 hashed_chat_ids_for_keys.append(hashlib.sha256(chat_id.encode()).hexdigest())
-        
+
         if hashed_chat_ids_for_keys:
             try:
                 # Batch fetch all embed_keys for all chats in 2 queries instead of N*2
@@ -1461,9 +1467,9 @@ async def _handle_phase3_sync(
                             seen_embed_key_ids.add(key_id)
             except Exception as e:
                 logger.warning(f"Phase 3: Error batch fetching embed_keys for {len(hashed_chat_ids_for_keys)} chats: {e}")
-        
+
         if all_embed_keys:
-            logger.info(f"Phase 3: Sending {len(all_embed_keys)} embed_keys for {len(chats_to_send)} chats (batch optimized)")
+            logger.info(f"Phase 3: Sending {len(all_embed_keys)} embed_keys for {len(all_chats_from_server)} chats (batch optimized, includes version-matched)")
 
         # Send Phase 3 data to client (chats only - NO suggestions, always sent in Phase 1)
         # Embeds and embed_keys are sent as flat deduplicated arrays, not per-chat
