@@ -732,6 +732,64 @@ function main() {
   console.log(
     `[generate-embed-registry] ✓ Successfully generated registry with ${allEmbedTypes.length} embed types`,
   );
+
+  // -------------------------------------------------------------------------
+  // Validate GroupRenderer registrations — fail if a type in EMBED_RENDERER_MAP
+  // maps to "GroupRenderer" but has no corresponding entry in
+  // GroupRenderer.individualMounters. This catches the common mistake of
+  // declaring a new child embed type in app.yml without adding a mounter.
+  // -------------------------------------------------------------------------
+  const groupRendererPath = resolve(
+    __dirname,
+    "../src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts",
+  );
+  const groupRendererSource = readFileSync(groupRendererPath, "utf-8");
+
+  // Extract registered mounter keys from the individualMounters Map constructor.
+  // Pattern matches: ["type-name", (...) => ...] entries.
+  const mounterSection = groupRendererSource.match(
+    /this\.individualMounters\s*=\s*new Map[^[]*\[([\s\S]*?)\]\s*\)/,
+  );
+  const registeredMounters = new Set();
+  if (mounterSection) {
+    const mounterPattern = /\[\s*"([^"]+)",\s*\(/g;
+    let match;
+    while ((match = mounterPattern.exec(mounterSection[1])) !== null) {
+      registeredMounters.add(match[1]);
+    }
+  }
+
+  // Get all types from the renderer map that require GroupRenderer mounting
+  // (excluding -group variants and app-skill-use — same filter as the runtime check).
+  const expectedGroupTypes = Object.entries(rendererMap)
+    .filter(
+      ([type, renderer]) =>
+        renderer === "GroupRenderer" &&
+        !type.endsWith("-group") &&
+        type !== "app-skill-use",
+    )
+    .map(([type]) => type);
+
+  const missingMounters = expectedGroupTypes.filter(
+    (t) => !registeredMounters.has(t),
+  );
+  if (missingMounters.length > 0) {
+    console.error(
+      `\n[generate-embed-registry] ERROR: GroupRenderer.individualMounters is missing ${missingMounters.length} type(s):`,
+    );
+    for (const t of missingMounters) {
+      console.error(
+        `  - "${t}" (add a mounter in GroupRenderer.ts constructor)`,
+      );
+    }
+    console.error(
+      `\nSee docs/claude/embed-types.md for the registration checklist.\n`,
+    );
+    process.exit(1);
+  }
+  console.log(
+    `[generate-embed-registry] ✓ All ${expectedGroupTypes.length} GroupRenderer types have registered mounters`,
+  );
 }
 
 // Run
