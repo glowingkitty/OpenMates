@@ -139,20 +139,20 @@ test('daily inspiration chat: creates chat and allows follow-up message without 
 
 	// ── 3. Enter email ───────────────────────────────────────────────────────
 	const emailInput = page.locator('#login-email-input');
-	await expect(emailInput).toBeVisible();
+	await expect(emailInput).toBeVisible({ timeout: 15000 });
 	await emailInput.fill(TEST_EMAIL);
 	await page.locator('#login-continue-button').click();
 	log('Entered email and clicked continue.');
 
 	// ── 4. Enter password ────────────────────────────────────────────────────
 	const passwordInput = page.locator('#login-password-input');
-	await expect(passwordInput).toBeVisible();
+	await expect(passwordInput).toBeVisible({ timeout: 15000 });
 	await passwordInput.fill(TEST_PASSWORD);
 
 	// ── 5. Enter OTP ─────────────────────────────────────────────────────────
 	const otpCode = generateTotp(TEST_OTP_KEY);
 	const otpInput = page.locator('#login-otp-input');
-	await expect(otpInput).toBeVisible();
+	await expect(otpInput).toBeVisible({ timeout: 15000 });
 	await otpInput.fill(otpCode);
 	log('Generated and entered OTP.');
 

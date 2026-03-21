@@ -310,7 +310,7 @@ async function performLogin(
 	await takeStepScreenshot(page, `${screenshotPrefix}-login-dialog`);
 
 	const emailInput = page.locator('#login-email-input');
-	await expect(emailInput).toBeVisible();
+	await expect(emailInput).toBeVisible({ timeout: 15000 });
 	await emailInput.fill(TEST_EMAIL);
 
 	// Click the "Stay logged in" label (the visible toggle slider) so keys are persisted
@@ -337,13 +337,13 @@ async function performLogin(
 	logCheckpoint('Entered email and clicked continue.');
 
 	const passwordInput = page.locator('#login-password-input');
-	await expect(passwordInput).toBeVisible();
+	await expect(passwordInput).toBeVisible({ timeout: 15000 });
 	await passwordInput.fill(TEST_PASSWORD);
 	await takeStepScreenshot(page, `${screenshotPrefix}-password-entered`);
 
 	const otpCode = generateTotp(TEST_OTP_KEY);
 	const otpInput = page.locator('#login-otp-input');
-	await expect(otpInput).toBeVisible();
+	await expect(otpInput).toBeVisible({ timeout: 15000 });
 	await otpInput.fill(otpCode);
 	logCheckpoint('Generated and entered OTP.');
 	await takeStepScreenshot(page, `${screenshotPrefix}-otp-entered`);

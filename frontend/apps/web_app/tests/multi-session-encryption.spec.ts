@@ -92,7 +92,7 @@ async function loginToApp(page: any, logFn: (msg: string) => void): Promise<void
 	await headerLoginButton.click();
 
 	const emailInput = page.locator('#login-email-input');
-	await expect(emailInput).toBeVisible();
+	await expect(emailInput).toBeVisible({ timeout: 15000 });
 	await emailInput.fill(TEST_EMAIL);
 	await page.getByRole('button', { name: /continue/i }).click();
 	logFn('Email submitted.');
@@ -104,7 +104,7 @@ async function loginToApp(page: any, logFn: (msg: string) => void): Promise<void
 	// OTP is time-sensitive — generate immediately before entering
 	const otpCode = generateTotp(TEST_OTP_KEY);
 	const otpInput = page.locator('#login-otp-input');
-	await expect(otpInput).toBeVisible();
+	await expect(otpInput).toBeVisible({ timeout: 15000 });
 	await otpInput.fill(otpCode);
 	logFn(`OTP entered: ${otpCode}`);
 

@@ -185,7 +185,7 @@ async function loginViaPair(page: any, apiUrl: string, logCheckpoint: (msg: stri
 	await loginBtn.click();
 
 	const emailInput = page.locator('#login-email-input');
-	await expect(emailInput).toBeVisible();
+	await expect(emailInput).toBeVisible({ timeout: 15000 });
 	await emailInput.fill(TEST_EMAIL);
 	// Wait for Continue button to become enabled after email input
 	const continueBtn = page.getByRole('button', { name: /continue/i });

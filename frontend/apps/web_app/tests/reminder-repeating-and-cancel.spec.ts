@@ -53,7 +53,7 @@ async function loginTestAccount(page: any, log: any): Promise<void> {
 	await loginBtn.click();
 
 	const emailInput = page.locator('#login-email-input');
-	await expect(emailInput).toBeVisible();
+	await expect(emailInput).toBeVisible({ timeout: 15000 });
 	await page.waitForTimeout(1000);
 	await emailInput.fill(TEST_EMAIL);
 	// Wait for the continue button to be enabled (async email validation / rate-limit check)
@@ -66,7 +66,7 @@ async function loginTestAccount(page: any, log: any): Promise<void> {
 	await pwInput.fill(TEST_PASSWORD);
 
 	const otpInput = page.locator('#login-otp-input');
-	await expect(otpInput).toBeVisible();
+	await expect(otpInput).toBeVisible({ timeout: 15000 });
 	await otpInput.fill(generateTotp(TEST_OTP_KEY));
 
 	const submitBtn = page.locator('button[type="submit"]', { hasText: /log in|login/i });

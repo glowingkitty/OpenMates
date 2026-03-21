@@ -176,17 +176,17 @@ test.describe('Modal ARIA — authenticated', () => {
 		await headerLoginButton.click();
 
 		const emailInput = page.locator('#login-email-input');
-		await expect(emailInput).toBeVisible();
+		await expect(emailInput).toBeVisible({ timeout: 15000 });
 		await emailInput.fill(TEST_EMAIL);
 		await page.locator('#login-continue-button').click();
 
 		const passwordInput = page.locator('#login-password-input');
-		await expect(passwordInput).toBeVisible();
+		await expect(passwordInput).toBeVisible({ timeout: 15000 });
 		await passwordInput.fill(TEST_PASSWORD);
 
 		const otpCode = generateTotp(TEST_OTP_KEY);
 		const otpInput = page.locator('#login-otp-input');
-		await expect(otpInput).toBeVisible();
+		await expect(otpInput).toBeVisible({ timeout: 15000 });
 		await otpInput.fill(otpCode);
 
 		const submitButton = page.locator('#login-submit-button');

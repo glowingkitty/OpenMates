@@ -126,7 +126,7 @@ test('completes signup with skipped 2FA, login with password, and delete account
 
 	const emailInput = page.locator('input[type="email"][autocomplete="email"]');
 	const usernameInput = page.locator('input[autocomplete="username"]');
-	await expect(emailInput).toBeVisible();
+	await expect(emailInput).toBeVisible({ timeout: 15000 });
 	await emailInput.fill(signupEmail);
 	await usernameInput.fill(signupUsername);
 

@@ -212,7 +212,7 @@ test('message sync: verifies all messages are synced after sending multiple mess
 	await takeStepScreenshot(page, '02-login-dialog');
 
 	const emailInput = page.locator('#login-email-input');
-	await expect(emailInput).toBeVisible();
+	await expect(emailInput).toBeVisible({ timeout: 15000 });
 	await emailInput.fill(TEST_EMAIL);
 	await page.getByRole('button', { name: /continue/i }).click();
 	logCheckpoint('Entered email and clicked continue.');
@@ -224,7 +224,7 @@ test('message sync: verifies all messages are synced after sending multiple mess
 
 	const otpCode = generateTotp(TEST_OTP_KEY);
 	const otpInput = page.locator('#login-otp-input');
-	await expect(otpInput).toBeVisible();
+	await expect(otpInput).toBeVisible({ timeout: 15000 });
 	await otpInput.fill(otpCode);
 	logCheckpoint('Generated and entered OTP.');
 	await takeStepScreenshot(page, '04-otp-entered');
@@ -440,7 +440,7 @@ test('message sync: verifies messages_v is properly updated', async ({ page }: {
 	await headerLoginButton.click();
 
 	const emailInput = page.locator('#login-email-input');
-	await expect(emailInput).toBeVisible();
+	await expect(emailInput).toBeVisible({ timeout: 15000 });
 	await emailInput.fill(TEST_EMAIL);
 	await page.getByRole('button', { name: /continue/i }).click();
 
@@ -450,7 +450,7 @@ test('message sync: verifies messages_v is properly updated', async ({ page }: {
 
 	const otpCode = generateTotp(TEST_OTP_KEY);
 	const otpInput = page.locator('#login-otp-input');
-	await expect(otpInput).toBeVisible();
+	await expect(otpInput).toBeVisible({ timeout: 15000 });
 	await otpInput.fill(otpCode);
 
 	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });

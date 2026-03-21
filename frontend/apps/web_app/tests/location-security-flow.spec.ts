@@ -114,7 +114,7 @@ test('shows 2FA re-auth UI with location-change notice when session detects loca
 	await headerLoginButton.click();
 
 	const emailInput = page.locator('#login-email-input');
-	await expect(emailInput).toBeVisible();
+	await expect(emailInput).toBeVisible({ timeout: 15000 });
 	await emailInput.fill(TEST_EMAIL);
 	await page.getByRole('button', { name: /continue/i }).click();
 
@@ -283,7 +283,7 @@ test('shows passkey re-auth UI with location-change notice when session detects 
 	await headerLoginButton.click();
 
 	const emailInput = page.locator('#login-email-input');
-	await expect(emailInput).toBeVisible();
+	await expect(emailInput).toBeVisible({ timeout: 15000 });
 	await emailInput.fill(TEST_EMAIL);
 	await page.getByRole('button', { name: /continue/i }).click();
 

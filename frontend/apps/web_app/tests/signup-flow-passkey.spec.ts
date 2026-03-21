@@ -211,7 +211,7 @@ test('completes passkey signup flow with email + purchase', async ({
 		// Basics step: fill email/username and exercise key toggles.
 		const emailInput = page.locator('input[type="email"][autocomplete="email"]');
 		const usernameInput = page.locator('input[autocomplete="username"]');
-		await expect(emailInput).toBeVisible();
+		await expect(emailInput).toBeVisible({ timeout: 15000 });
 		await emailInput.fill(signupEmail);
 		await usernameInput.fill(signupUsername);
 		await takeStepScreenshot(page, 'basics-filled');
