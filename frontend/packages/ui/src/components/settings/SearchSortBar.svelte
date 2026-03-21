@@ -88,6 +88,9 @@
     {#if filterOptions.length > 0}
         <div class="filter-container">
             <div class="filter-icon" aria-hidden="true"></div>
+            {#if filterBy && filterBy !== 'all'}
+                <span class="filter-count" aria-label="1 active filter">1</span>
+            {/if}
             <select
                 class="filter-select"
                 bind:value={filterBy}
@@ -207,6 +210,27 @@
 
     .filter-container:hover .filter-icon {
         opacity: 0.8;
+    }
+
+    .filter-count {
+        position: absolute;
+        bottom: 0.125rem;
+        right: 0.125rem;
+        width: 1.125rem;
+        height: 1.125rem;
+        border-radius: 50%;
+        background: var(--color-error, #FF553B);
+        color: #ffffff;
+        font-family: 'Lexend Deca Variable', sans-serif;
+        font-weight: 700;
+        font-size: 0.625rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.2);
+        z-index: 2;
+        pointer-events: none;
     }
 
     .filter-select {

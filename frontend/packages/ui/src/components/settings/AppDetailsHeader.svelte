@@ -36,7 +36,6 @@
 -->
 <script lang="ts">
   import { text } from '@repo/ui';
-  import Icon from '../Icon.svelte';
   import type { AppMetadata } from '../../types/apps';
   import {
     appStoreNavigationStore,
@@ -283,56 +282,23 @@
     onclick={isSubItemMentionClickable ? onSubItemMention : undefined}
   >
     {#if settingsPage && settingsPageIcon}
-      <!-- Standard settings sub-page: show a white mask icon on the gradient -->
+      <!-- Standard settings sub-page: plain white mask icon on the gradient (no container) -->
       <div
-        class="app-icon-slot settings-page-icon-slot"
-        style="
-          width: {iconSize}px;
-          height: {iconSize}px;
-          flex-shrink: 0;
-        "
-      >
-        <div
-          class="settings-page-mask-icon icon_{settingsPageIcon}"
-          style="width: {Math.round(iconSize * 0.58)}px; height: {Math.round(iconSize * 0.58)}px;"
-        ></div>
-      </div>
+        class="banner-mask-icon"
+        style="width: {iconSize}px; height: {iconSize}px; -webkit-mask-image: var(--icon-url-{settingsPageIcon}); mask-image: var(--icon-url-{settingsPageIcon});"
+      ></div>
     {:else if subItem?.iconName}
-      <!-- Sub-item page: show item-specific icon with skill/focus/memory gradient -->
+      <!-- Sub-item page: plain white mask icon on the gradient (no container) -->
       <div
-        class="app-icon-slot"
-        style="
-          width: {iconSize}px;
-          height: {iconSize}px;
-          flex-shrink: 0;
-        "
-      >
-        <Icon
-          name={subItem.iconName}
-          type={subItem.iconType ?? 'skill'}
-          size="{iconSize}px"
-          borderColor="#ffffff"
-          noAnimation={true}
-        />
-      </div>
+        class="banner-mask-icon"
+        style="width: {iconSize}px; height: {iconSize}px; -webkit-mask-image: var(--icon-url-{subItem.iconName}); mask-image: var(--icon-url-{subItem.iconName});"
+      ></div>
     {:else if app?.icon_image}
-      <!-- Top-level app page: show app icon with app gradient -->
+      <!-- Top-level app page: plain white mask icon on the gradient (no container) -->
       <div
-        class="app-icon-slot"
-        style="
-          width: {iconSize}px;
-          height: {iconSize}px;
-          flex-shrink: 0;
-        "
-      >
-        <Icon
-          name={iconName}
-          type="app"
-          size="{iconSize}px"
-          borderColor="#ffffff"
-          noAnimation={true}
-        />
-      </div>
+        class="banner-mask-icon"
+        style="width: {iconSize}px; height: {iconSize}px; -webkit-mask-image: var(--icon-url-{iconName}); mask-image: var(--icon-url-{iconName});"
+      ></div>
     {/if}
     <!-- Name + category label stacked vertically when expanded -->
     <div
@@ -536,26 +502,18 @@
     border-radius: 10px;
   }
 
-  .app-icon-slot {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    /* Size is driven by inline style */
-    transition: width 0.15s, height 0.15s;
-  }
-
-  /* Settings page icon slot: semi-transparent white circle + white mask icon inside */
-  .settings-page-icon-slot {
-    border-radius: 14px;
-    background-color: rgba(255, 255, 255, 0.2);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  }
-
-  /* The mask icon rendered inside the settings page icon slot.
-     icons.css sets background to --color-primary; we override it to white here. */
-  .settings-page-mask-icon {
+  /* Bare white mask icon rendered directly on the gradient banner (no container).
+     mask-image is set via inline style using --icon-url-{name} CSS variables
+     from icon-urls.generated.css. */
+  .banner-mask-icon {
     background: rgba(255, 255, 255, 0.95) !important;
-    /* Size is driven by inline style */
+    flex-shrink: 0;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
     transition: width 0.15s, height 0.15s;
   }
 
@@ -757,10 +715,9 @@
        so the capability-count row remains visible within the fixed banner height. */
 
     /* Constrain the icon to 40px on mobile (JS sets 50px via inline style) */
-    .app-icon-slot {
+    .banner-mask-icon {
       max-width: 40px !important;
       max-height: 40px !important;
-      overflow: hidden;
     }
 
     .app-description {
