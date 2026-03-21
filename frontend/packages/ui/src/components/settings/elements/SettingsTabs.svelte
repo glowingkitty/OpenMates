@@ -4,7 +4,7 @@
     Matches Figma "Tabs" element:
     - Icon-only tabs (no text labels)
     - Active tab: gradient pill slides left/right with CSS transition
-    - Inactive icons: var(--color-grey-30)
+    - Inactive icons: var(--color-grey-70)
     - Active icon: white (#fff)
     - Hover on inactive: gradient at 0.5 opacity (smooth transition)
     - Optional counter badges: round, white text, bottom-right next to icon
@@ -314,7 +314,7 @@
         mask-size: contain;
         mask-repeat: no-repeat;
         mask-position: center;
-        background-color: var(--color-grey-30);
+        background-color: var(--color-grey-70);
         transition: background-color 0.25s ease;
     }
 

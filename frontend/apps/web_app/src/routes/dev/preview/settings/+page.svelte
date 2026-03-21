@@ -657,9 +657,12 @@
 		width: 14rem;
 	}
 
-	/* Tab content panel — shows below tabs */
+	/* Tab content panel — overlaps bottom half of tabs for visual connection */
 	.tab-content-panel {
-		padding: 1rem 0.625rem 0.5rem;
+		background: var(--color-grey-10, #f9f9f9);
+		border-radius: 0.75rem;
+		margin-top: -1.4rem;
+		padding: 2.4rem 0.625rem 0.5rem;
 		font-size: 0.875rem;
 		color: var(--color-grey-70, #666);
 		line-height: 1.4;
