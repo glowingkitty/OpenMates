@@ -2,36 +2,34 @@
 Search Appointments skill for the health app.
 
 Searches for available doctor/specialist appointments across multiple providers
-and countries. Currently supports Doctolib (Germany) with an extensible provider
-architecture for future additions (Jameda, Doctolib France/Italy, ZocDoc, etc.).
+and countries. Supports Doctolib Germany and Jameda (DocPlanner) with a simple
+provider dispatch based on the `provider_platform` request field.
 
 The skill uses the standard BaseSkill request/response pattern with the 'requests'
 array convention. Each request can target a different speciality, city, and provider.
 
 Architecture:
-- Provider abstraction: each booking platform is a separate provider class
+- Two providers in one file: Doctolib (reverse-engineered scraping) and Jameda
+  (reverse-engineered DocPlanner API with anonymous token auth)
 - Async + parallel: all requests processed concurrently via asyncio.gather
-- Proxy-aware: HTTP calls route through Webshare rotating residential proxies
-  to avoid IP rate-limiting by booking platforms
-- Caching: location metadata (window.place) and filter data cached in Redis
-  to avoid redundant HTML scraping on repeated searches
+- Proxy-aware: Doctolib routes through Webshare rotating residential proxies;
+  Jameda needs no proxy (token-based auth, no anti-bot)
 
 API flow for Doctolib Germany:
   1. GET  /augenheilkunde/berlin  → HTML page with window.place location metadata
-  2. GET  /phs_proxy/raw_filters  → Available filter options for the speciality
-  3. POST /phs_proxy/raw?page=N   → Doctor listing (20 per page, paginated)
-  4. GET  /search/availabilities.json  → Appointment slots per doctor (parallel)
+  2. POST /phs_proxy/raw?page=N   → Doctor listing (20 per page, paginated)
+  3. GET  /search/availabilities.json  → Appointment slots per doctor (parallel)
 
-Slot deep-links are intentionally NOT generated:
-  Doctolib slot URLs (e.g. /appointments/new?slot=ISO&...) encode a specific time
-  slot captured at fetch time.  By the time a user clicks such a link the slot is
-  likely already taken or expired.  Instead we surface slot datetimes as
-  informational data and direct users to the practice page (practice_url) where
-  they can browse live availability and book themselves.
+API flow for Jameda (DocPlanner):
+  1. GET  /token                                  → Anonymous access_token (24h TTL)
+  2. GET  /allgemeinmediziner/berlin               → HTML search page, extract data-doctor-id
+  3. GET  /api/v3/doctors/{id}/addresses            → Doctor addresses with has_slots flag
+  4. GET  /api/v3/doctors/{id}/addresses/{id}/slots → Available slots with booking URLs
+  5. GET  /api/v3/doctors/{id}/addresses/{id}/services → Service list with prices
 
 URL types exposed in results:
-  - practice_url: /augenheilkunde/berlin/dr-name?pid=practice-123
-    → Practice page with live availability (always valid)
+  - practice_url: Doctolib practice page with live availability (always valid)
+  - booking_url: Jameda direct slot booking URL (time-specific, but more durable)
 """
 
 import asyncio
@@ -39,7 +37,8 @@ import hashlib
 import json
 import logging
 import re
-from datetime import date
+import time
+from datetime import date, timedelta
 from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 from urllib.parse import urlencode
 
@@ -192,6 +191,106 @@ DOCTOLIB_MAX_RETRIES = 5
 DOCTOLIB_RETRY_DELAY_SECONDS = 2
 
 # ---------------------------------------------------------------------------
+# Jameda (DocPlanner) constants
+# ---------------------------------------------------------------------------
+
+JAMEDA_BASE_URL = "https://www.jameda.de"
+
+# Anonymous token cache — refreshed 1h before 24h expiry.
+# Module-level dict so it persists across requests within the same process.
+JAMEDA_TOKEN_TTL_SECONDS = 23 * 3600
+_jameda_token_cache: Dict[str, Any] = {"token": None, "expires_at": 0.0}
+
+# Jameda speciality aliases → URL slug (verified against jameda.de)
+# URL pattern: jameda.de/<slug>/<city>
+JAMEDA_SPECIALITY_SLUGS: Dict[str, str] = {
+    "augenarzt":                    "augenarzt",
+    "augenheilkunde":               "augenarzt",
+    "ophthalmologist":              "augenarzt",
+    "eye_doctor":                   "augenarzt",
+    "allgemeinmedizin":             "allgemeinmediziner",
+    "hausarzt":                     "hausarzt",
+    "general_practitioner":         "allgemeinmediziner",
+    "hautarzt":                     "hautarzt-dermatologe",
+    "dermatologie":                 "hautarzt-dermatologe",
+    "dermatologist":                "hautarzt-dermatologe",
+    "skin_doctor":                  "hautarzt-dermatologe",
+    "frauenarzt":                   "frauenarzt-gynaekologe",
+    "gynäkologie":                  "frauenarzt-gynaekologe",
+    "gynecologist":                 "frauenarzt-gynaekologe",
+    "gynae":                        "frauenarzt-gynaekologe",
+    "gynaecologist":                "frauenarzt-gynaekologe",
+    "hno":                          "hals-nasen-ohren-arzt",
+    "hno-arzt":                     "hals-nasen-ohren-arzt",
+    "ent":                          "hals-nasen-ohren-arzt",
+    "internist":                    "internist",
+    "innere-medizin":               "internist",
+    "kardiologie":                  "kardiologe",
+    "kardiologe":                   "kardiologe",
+    "cardiologist":                 "kardiologe",
+    "kinderarzt":                   "kinder-und-jugendarzt",
+    "kinderheilkunde":              "kinder-und-jugendarzt",
+    "pediatrician":                 "kinder-und-jugendarzt",
+    "neurologie":                   "neurologe",
+    "neurologe":                    "neurologe",
+    "neurologist":                  "neurologe",
+    "orthopädie":                   "orthopaede",
+    "orthopade":                    "orthopaede",
+    "orthopedist":                  "orthopaede",
+    "urologie":                     "urologe",
+    "urologe":                      "urologe",
+    "urologist":                    "urologe",
+    "zahnarzt":                     "zahnarzt",
+    "dentist":                      "zahnarzt",
+    "zahnmedizin":                  "zahnarzt",
+    "gastroenterologie":            "gastroenterologe",
+    "gastroenterologist":           "gastroenterologe",
+    "chirurg":                      "chirurg",
+    "surgeon":                      "chirurg",
+    "radiologe":                    "radiologe",
+    "radiologist":                  "radiologe",
+    "rheumatologie":                "rheumatologe",
+    "rheumatologe":                 "rheumatologe",
+    "rheumatologist":               "rheumatologe",
+    "psychiatrie":                  "psychiater",
+    "psychiatrist":                 "psychiater",
+    "psychotherapie":               "psychotherapeut",
+    "psychotherapist":              "psychotherapeut",
+}
+
+# Jameda city slugs — mostly plain lowercase city names.
+# Where Jameda differs from Doctolib (which uses e.g. "frankfurt-am-main"),
+# we override here. For cities not listed, we use the raw lowercase input
+# (which is correct for most German cities on Jameda).
+JAMEDA_CITY_SLUGS: Dict[str, str] = {
+    "münchen":              "muenchen",
+    "munich":               "muenchen",
+    "muenchen":             "muenchen",
+    "köln":                 "koeln",
+    "cologne":              "koeln",
+    "koeln":                "koeln",
+    "düsseldorf":           "duesseldorf",
+    "dusseldorf":           "duesseldorf",
+    "duesseldorf":          "duesseldorf",
+    "nürnberg":             "nuernberg",
+    "nuremberg":            "nuernberg",
+    "nuernberg":            "nuernberg",
+    "münster":              "muenster",
+    "munster":              "muenster",
+    "muenster":             "muenster",
+    "saarbrücken":          "saarbruecken",
+    "saarbruecken":         "saarbruecken",
+    "hanover":              "hannover",
+    # Jameda uses plain "frankfurt", NOT "frankfurt-am-main"
+    "frankfurt":            "frankfurt",
+    "frankfurt am main":    "frankfurt",
+    # Jameda uses plain "freiburg", NOT "freiburg-im-breisgau"
+    "freiburg":             "freiburg",
+    # Jameda uses plain "halle", NOT "halle-saale"
+    "halle":                "halle",
+}
+
+# ---------------------------------------------------------------------------
 # Visit motive category filtering
 # ---------------------------------------------------------------------------
 # Doctolib returns one "matchedVisitMotive" per doctor. The motive name is
@@ -333,7 +432,10 @@ class SearchAppointmentsRequestItem(BaseModel):
     )
     provider_platform: str = Field(
         default="doctolib_de",
-        description="Booking platform to search. Currently supported: 'doctolib_de' (Doctolib Germany).",
+        description=(
+            "Booking platform to search. Supported: 'doctolib_de' (Doctolib Germany), "
+            "'jameda' (Jameda Germany — includes ratings, prices, direct booking URLs)."
+        ),
     )
     insurance_sector: Optional[str] = Field(
         default=None,
@@ -854,6 +956,13 @@ async def _process_single_doctolib_request(
                 "practice_url": _practice_url(provider),
                 "provider_platform": "Doctolib",
                 "country": "DE",
+                # Jameda-specific fields (null for Doctolib results)
+                "booking_url": None,
+                "rating": None,
+                "rating_count": None,
+                "price": None,
+                "service_name": None,
+                # Internal IDs (excluded from LLM)
                 "visit_motive_id": visit_motive_id,
                 "agenda_id": primary_agenda_id,
                 "practice_id": practice_id,
@@ -888,6 +997,411 @@ async def _process_single_doctolib_request(
             request_id,
             exc,
             exc_info=True,
+        )
+        return request_id, [], str(exc)
+
+
+# ---------------------------------------------------------------------------
+# Jameda (DocPlanner) HTTP helpers
+# ---------------------------------------------------------------------------
+
+
+async def _get_jameda_token(client: httpx.AsyncClient) -> str:
+    """Obtain an anonymous Jameda access_token via GET /token.
+
+    Token is cached in-memory for ~23 hours (token valid 24h).
+    No authentication required — any visitor can get a token.
+    """
+    now = time.time()
+    if _jameda_token_cache["token"] and now < _jameda_token_cache["expires_at"]:
+        return _jameda_token_cache["token"]
+
+    resp = await client.get(
+        f"{JAMEDA_BASE_URL}/token",
+        headers={"Accept": "application/json"},
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    token = data["access_token"]
+    _jameda_token_cache["token"] = token
+    _jameda_token_cache["expires_at"] = now + JAMEDA_TOKEN_TTL_SECONDS
+    logger.debug("[health:jameda] Obtained anonymous token (cached %dh)", JAMEDA_TOKEN_TTL_SECONDS // 3600)
+    return token
+
+
+def _jameda_api_headers(token: str) -> Dict[str, str]:
+    """Return headers for Jameda DocPlanner API calls."""
+    return {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/json",
+        "User-Agent": (
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+        ),
+        "Referer": f"{JAMEDA_BASE_URL}/",
+    }
+
+
+async def _jameda_search_doctors_algolia(
+    client: httpx.AsyncClient,
+    speciality_slug: str,
+    city_slug: str,
+    max_doctors: int,
+) -> List[Dict[str, Any]]:
+    """Search Jameda doctors via the DocPlanner Algolia index.
+
+    Uses the public Algolia API (same key the Jameda frontend uses) to search
+    the de_autocomplete_doctor index. Returns doctor IDs, ratings, and review
+    counts — no HTML scraping needed.
+
+    Returns list of dicts: {doctor_id, name, rating, rating_count, has_calendar}.
+    Only returns doctors with calendar=True (online booking enabled).
+    """
+    # Algolia search query: "speciality_slug city_slug"
+    # The index is full-text — searching "allgemeinmediziner berlin" matches
+    # doctors whose URL or specialization contains those terms.
+    query = f"{speciality_slug} {city_slug}"
+
+    resp = await client.post(
+        "https://docplanner-dsn.algolia.net/1/indexes/*/queries",
+        json={
+            "requests": [{
+                "indexName": "de_autocomplete_doctor",
+                "params": (
+                    f"query={query}"
+                    f"&hitsPerPage={max_doctors}"
+                    "&attributesToRetrieve=objectID,fullname_formatted,specializations,"
+                    "cities,calendar,stars,opinionCount"
+                ),
+            }],
+        },
+        headers={
+            "x-algolia-api-key": "189da7b805744e97ef09dea8dbe7e35f",
+            "x-algolia-application-id": "docplanner",
+            "Content-Type": "application/json",
+            "Referer": f"{JAMEDA_BASE_URL}/",
+            "Origin": JAMEDA_BASE_URL,
+        },
+    )
+    resp.raise_for_status()
+    data = resp.json()
+
+    hits = data.get("results", [{}])[0].get("hits", [])
+    total = data.get("results", [{}])[0].get("nbHits", 0)
+
+    results: List[Dict[str, Any]] = []
+    for hit in hits:
+        # objectID format: "doctor-12345"
+        obj_id = hit.get("objectID", "")
+        doctor_id = obj_id.replace("doctor-", "") if obj_id.startswith("doctor-") else ""
+        if not doctor_id:
+            continue
+
+        # Only include doctors with online booking calendar
+        if not hit.get("calendar"):
+            continue
+
+        results.append({
+            "doctor_id": doctor_id,
+            "name": hit.get("fullname_formatted", ""),
+            "rating": hit.get("stars"),
+            "rating_count": hit.get("opinionCount"),
+            "specializations": hit.get("specializations", []),
+        })
+
+    logger.info(
+        "[health:jameda] Algolia search '%s': %d total hits, %d with calendar (returning %d)",
+        query, total, len(results), len(results),
+    )
+    return results
+
+
+async def _jameda_fetch_addresses(
+    client: httpx.AsyncClient,
+    token: str,
+    doctor_id: str,
+) -> List[Dict[str, Any]]:
+    """GET /api/v3/doctors/{id}/addresses — returns addresses with slot info.
+
+    Filters to addresses where has_slots=True and calendar_active=True.
+    """
+    url = f"{JAMEDA_BASE_URL}/api/v3/doctors/{doctor_id}/addresses"
+    resp = await client.get(url, headers=_jameda_api_headers(token))
+    resp.raise_for_status()
+    data = resp.json()
+
+    addresses = [
+        addr for addr in data.get("_items", [])
+        if addr.get("has_slots") and addr.get("calendar_active", True)
+    ]
+    return addresses
+
+
+async def _jameda_fetch_slots(
+    client: httpx.AsyncClient,
+    token: str,
+    doctor_id: str,
+    address_id: str,
+    days_ahead: int,
+) -> List[Dict[str, Any]]:
+    """GET /api/v3/doctors/{id}/addresses/{id}/slots — available appointment slots.
+
+    Returns list of slot dicts with 'start' (ISO datetime) and 'booking_url'.
+    """
+    start_dt = date.today()
+    end_dt = start_dt + timedelta(days=days_ahead)
+    start_iso = f"{start_dt.isoformat()}T00:00:00+01:00"
+    end_iso = f"{end_dt.isoformat()}T23:59:59+01:00"
+
+    url = (
+        f"{JAMEDA_BASE_URL}/api/v3/doctors/{doctor_id}/addresses/{address_id}/slots"
+        f"?start={start_iso}&end={end_iso}"
+    )
+    try:
+        resp = await client.get(url, headers=_jameda_api_headers(token))
+        resp.raise_for_status()
+        data = resp.json()
+        return data.get("_items", [])
+    except Exception as exc:
+        logger.warning(
+            "[health:jameda] Slot fetch error for doctor %s address %s: %s",
+            doctor_id, address_id, exc,
+        )
+        return []
+
+
+async def _jameda_fetch_services(
+    client: httpx.AsyncClient,
+    token: str,
+    doctor_id: str,
+    address_id: str,
+) -> List[Dict[str, Any]]:
+    """GET /api/v3/doctors/{id}/addresses/{id}/services — service list with prices.
+
+    Returns list of service dicts with 'id', 'name', 'price', 'is_default'.
+    """
+    url = f"{JAMEDA_BASE_URL}/api/v3/doctors/{doctor_id}/addresses/{address_id}/services"
+    try:
+        resp = await client.get(url, headers=_jameda_api_headers(token))
+        resp.raise_for_status()
+        data = resp.json()
+        return data.get("_items", [])
+    except Exception as exc:
+        logger.warning(
+            "[health:jameda] Service fetch error for doctor %s address %s: %s",
+            doctor_id, address_id, exc,
+        )
+        return []
+
+
+async def _process_single_jameda_request(
+    client: httpx.AsyncClient,
+    request: Dict[str, Any],
+) -> Tuple[str, List[Dict[str, Any]], Optional[str]]:
+    """Process a single search request against Jameda (DocPlanner API).
+
+    Flow:
+    1. Get anonymous token (cached 23h)
+    2. Scrape search page for doctor IDs
+    3. For each doctor: fetch addresses → filter has_slots → fetch slots + services
+    4. Apply visit_motive_category filtering on service names
+    5. Build unified result items, sort by slot_datetime, cap at DEFAULT_MAX_SLOTS
+
+    Returns: (request_id, result_items, error_str_or_None)
+    """
+    request_id = str(request.get("id", "1"))
+    speciality_raw = str(request.get("speciality", "")).lower().strip().replace(" ", "-")
+    city_raw = str(request.get("city", "")).lower().strip()
+    days_ahead = int(request.get("days_ahead") or 7)
+    max_doctors = int(request.get("max_doctors", DEFAULT_MAX_DOCTORS))
+    visit_motive_category = request.get("visit_motive_category")
+
+    if not speciality_raw:
+        return request_id, [], "Missing required field: 'speciality'"
+    if not city_raw:
+        return request_id, [], "Missing required field: 'city'"
+    if visit_motive_category and visit_motive_category not in VISIT_MOTIVE_CATEGORIES:
+        return request_id, [], (
+            f"Unknown visit_motive_category '{visit_motive_category}'. "
+            f"Supported: {', '.join(sorted(VISIT_MOTIVE_CATEGORIES.keys()))}"
+        )
+
+    # Resolve slugs
+    speciality_slug = JAMEDA_SPECIALITY_SLUGS.get(speciality_raw, speciality_raw)
+    # City: check Jameda-specific map first, then fall back to raw lowercase
+    city_slug = JAMEDA_CITY_SLUGS.get(city_raw, city_raw.replace(" ", "-"))
+
+    logger.info(
+        "[health:jameda] Processing request %s: %s in %s (days=%d, max=%d, category=%s)",
+        request_id, speciality_slug, city_slug, days_ahead, max_doctors, visit_motive_category,
+    )
+
+    try:
+        # Step 1: Get token
+        token = await _get_jameda_token(client)
+
+        # Step 2: Search doctors via Algolia (no HTML scraping needed)
+        search_max = max(max_doctors, FILTERED_SEARCH_MAX_DOCTORS) if visit_motive_category else max_doctors
+        doctor_infos = await _jameda_search_doctors_algolia(client, speciality_slug, city_slug, search_max)
+        if not doctor_infos:
+            return request_id, [], None
+
+        # Step 3: For each doctor, fetch addresses (filter has_slots)
+        address_tasks = [
+            _jameda_fetch_addresses(client, token, doc["doctor_id"])
+            for doc in doctor_infos
+        ]
+        all_addresses = await asyncio.gather(*address_tasks, return_exceptions=True)
+
+        # Build list of (doctor_info, address) pairs to fetch slots for
+        doctor_address_pairs: List[Tuple[Dict[str, Any], Dict[str, Any]]] = []
+        for doc_info, addrs in zip(doctor_infos, all_addresses):
+            if isinstance(addrs, Exception):
+                logger.warning("[health:jameda] Address fetch error for doctor %s: %s", doc_info["doctor_id"], addrs)
+                continue
+            for addr in addrs:
+                doctor_address_pairs.append((doc_info, addr))
+                break  # Use first valid address per doctor
+
+        if not doctor_address_pairs:
+            return request_id, [], None
+
+        # Step 4: Fetch slots and services in parallel for all doctor-address pairs
+        slot_tasks = []
+        service_tasks = []
+        for doc_info, addr in doctor_address_pairs:
+            did = doc_info["doctor_id"]
+            aid = str(addr.get("id", ""))
+            slot_tasks.append(_jameda_fetch_slots(client, token, did, aid, days_ahead))
+            service_tasks.append(_jameda_fetch_services(client, token, did, aid))
+
+        all_slots, all_services = await asyncio.gather(
+            asyncio.gather(*slot_tasks, return_exceptions=True),
+            asyncio.gather(*service_tasks, return_exceptions=True),
+        )
+
+        # Step 5: Build result items
+        all_slot_items: List[Dict[str, Any]] = []
+        doctors_checked = 0
+        doctors_with_slots = 0
+
+        for (doc_info, addr), slots, services in zip(doctor_address_pairs, all_slots, all_services):
+            if isinstance(slots, Exception):
+                logger.warning("[health:jameda] Slot error for doctor %s: %s", doc_info["doctor_id"], slots)
+                slots = []
+            if isinstance(services, Exception):
+                services = []
+
+            doctors_checked += 1
+            if not slots:
+                continue
+
+            # Pick default/first service for metadata
+            default_service = None
+            for svc in services:
+                if svc.get("is_default"):
+                    default_service = svc
+                    break
+            if not default_service and services:
+                default_service = services[0]
+
+            service_name = default_service.get("name", "") if default_service else ""
+            service_price = default_service.get("price") if default_service else None
+
+            # Apply visit_motive_category filtering on service names
+            if visit_motive_category:
+                # Check if ANY service matches the category
+                has_matching_service = any(
+                    _matches_motive_category(svc.get("name", ""), visit_motive_category)
+                    for svc in services
+                ) if services else False
+                # Also check the default service name
+                if not has_matching_service and service_name:
+                    has_matching_service = _matches_motive_category(service_name, visit_motive_category)
+                if not has_matching_service:
+                    continue
+                # Use the matching service for display
+                for svc in services:
+                    if _matches_motive_category(svc.get("name", ""), visit_motive_category):
+                        service_name = svc.get("name", "")
+                        service_price = svc.get("price")
+                        break
+
+            doctors_with_slots += 1
+            did = doc_info["doctor_id"]
+            aid = str(addr.get("id", ""))
+
+            # Build address string
+            street = addr.get("street", "")
+            post_code = addr.get("post_code", "")
+            city_name = addr.get("city_name", "")
+            city_part = f"{post_code} {city_name}".strip()
+            address_str = ", ".join(p for p in [street, city_part] if p)
+
+            # GPS from address
+            coord = addr.get("coordinate") or {}
+            gps = None
+            if coord.get("lat") and coord.get("lon"):
+                gps = {"latitude": coord["lat"], "longitude": coord["lon"]}
+
+            # Doctor metadata — prefer Algolia name (doctor name) over address name (practice name)
+            doctor_name = doc_info.get("name") or addr.get("name", "")
+            algolia_specs = doc_info.get("specializations", [])
+            spec_display = algolia_specs[0] if algolia_specs else speciality_slug
+            doctor_metadata = {
+                "name": doctor_name,
+                "title": "",
+                "gender": None,
+                "doctor_type": "PERSON",
+                "address": address_str,
+                "gps_coordinates": gps,
+                "speciality": spec_display,
+                "languages": [],
+                "telehealth": False,
+                "visit_motive": service_name,
+                "insurance": "",
+                "allows_new_patients": True,
+                "practice_url": f"{JAMEDA_BASE_URL}/{speciality_slug}/{city_slug}",
+                "provider_platform": "Jameda",
+                "country": "DE",
+                # Jameda-specific fields
+                "booking_url": None,  # set per-slot below
+                "rating": doc_info.get("rating"),
+                "rating_count": doc_info.get("rating_count"),
+                "price": service_price,
+                "service_name": service_name,
+                # Internal IDs (excluded from LLM)
+                "visit_motive_id": None,
+                "agenda_id": None,
+                "practice_id": int(aid) if aid.isdigit() else None,
+            }
+
+            for slot in slots:
+                slot_dt = slot.get("start", "")
+                booking_url = slot.get("booking_url", "")
+                slot_item: Dict[str, Any] = {
+                    "type": "appointment",
+                    "hash": _result_hash(int(aid) if aid.isdigit() else 0, 0, slot_dt),
+                    "slot_datetime": slot_dt,
+                    **doctor_metadata,
+                    "booking_url": booking_url,
+                }
+                all_slot_items.append(slot_item)
+
+        # Sort by datetime ascending, cap at DEFAULT_MAX_SLOTS
+        all_slot_items.sort(key=lambda r: r["slot_datetime"])
+        results: List[Dict[str, Any]] = all_slot_items[:DEFAULT_MAX_SLOTS]
+
+        logger.info(
+            "[health:jameda] Request %s: checked %d doctors, %d with slots, returning %d slot results",
+            request_id, doctors_checked, doctors_with_slots, len(results),
+        )
+        return request_id, results, None
+
+    except Exception as exc:
+        logger.error(
+            "[health:jameda] Error processing request %s: %s",
+            request_id, exc, exc_info=True,
         )
         return request_id, [], str(exc)
 
@@ -1004,11 +1518,22 @@ class SearchAppointmentsSkill(BaseSkill):
             all_results, validated, logger
         )
 
+        # Derive provider label from the requests
+        platforms_used = set(
+            r.get("provider_platform", "doctolib_de") for r in validated
+        )
+        if platforms_used == {"jameda"}:
+            provider_label = "Jameda"
+        elif platforms_used == {"doctolib_de"}:
+            provider_label = "Doctolib"
+        else:
+            provider_label = "Doctolib, Jameda"
+
         return self._build_response_with_errors(
             response_class=SearchAppointmentsResponse,
             grouped_results=grouped,
             errors=errors,
-            provider="Doctolib",
+            provider=provider_label,
             suggestions=self.FOLLOW_UP_SUGGESTIONS,
             logger=logger,
         )
@@ -1027,49 +1552,57 @@ class SearchAppointmentsSkill(BaseSkill):
         async def _process(req: Dict[str, Any], **kwargs) -> Tuple[str, List[Dict[str, Any]], Optional[str]]:
             # NOTE: signature uses 'req' to match the kwarg passed by
             # BaseSkill._process_requests_in_parallel (which calls req=req).
-            client_kwargs: Dict[str, Any] = {
-                "timeout": httpx.Timeout(30.0, connect=10.0),
-                "follow_redirects": True,
-                "headers": _make_browser_headers(),
-            }
-            if proxy_url:
-                client_kwargs["proxy"] = proxy_url
-
-            # Retry on transient 403/429 errors from Doctolib's anti-bot protection.
-            # Each retry creates a fresh httpx.AsyncClient, which — when using
-            # Webshare's rotating proxy — gets assigned a new IP address.
+            provider_platform = req.get("provider_platform", "doctolib_de")
             request_id = str(req.get("id", "1"))
-            last_error: Optional[str] = None
 
-            for attempt in range(DOCTOLIB_MAX_RETRIES):
-                async with httpx.AsyncClient(**client_kwargs) as client:
-                    request_id, results, error = await _process_single_doctolib_request(client, req)
+            if provider_platform == "jameda":
+                # Jameda: no proxy needed, anonymous token auth, no retry needed
+                jameda_kwargs: Dict[str, Any] = {
+                    "timeout": httpx.Timeout(30.0, connect=10.0),
+                    "follow_redirects": True,
+                }
+                async with httpx.AsyncClient(**jameda_kwargs) as client:
+                    request_id, results, error = await _process_single_jameda_request(client, req)
 
-                if not error:
-                    break
-                last_error = error
-
-                # Only retry on transient HTTP errors (bad proxy IP or rate limit)
-                is_retryable = any(code in error for code in ("403", "429"))
-                if not is_retryable:
-                    break
-
-                logger.info(
-                    "[health:search_appointments] Retryable error on attempt %d/%d for request %s: %s",
-                    attempt + 1,
-                    DOCTOLIB_MAX_RETRIES,
-                    request_id,
-                    error[:80],
-                )
-                await asyncio.sleep(DOCTOLIB_RETRY_DELAY_SECONDS)
             else:
-                # All retries exhausted
-                logger.warning(
-                    "[health:search_appointments] All %d retries failed for request %s",
-                    DOCTOLIB_MAX_RETRIES,
-                    request_id,
-                )
-                return request_id, [], last_error
+                # Doctolib: proxy + retry for anti-bot 403/429
+                client_kwargs: Dict[str, Any] = {
+                    "timeout": httpx.Timeout(30.0, connect=10.0),
+                    "follow_redirects": True,
+                    "headers": _make_browser_headers(),
+                }
+                if proxy_url:
+                    client_kwargs["proxy"] = proxy_url
+
+                last_error: Optional[str] = None
+
+                for attempt in range(DOCTOLIB_MAX_RETRIES):
+                    async with httpx.AsyncClient(**client_kwargs) as client:
+                        request_id, results, error = await _process_single_doctolib_request(client, req)
+
+                    if not error:
+                        break
+                    last_error = error
+
+                    is_retryable = any(code in error for code in ("403", "429"))
+                    if not is_retryable:
+                        break
+
+                    logger.info(
+                        "[health:search_appointments] Retryable error on attempt %d/%d for request %s: %s",
+                        attempt + 1,
+                        DOCTOLIB_MAX_RETRIES,
+                        request_id,
+                        error[:80],
+                    )
+                    await asyncio.sleep(DOCTOLIB_RETRY_DELAY_SECONDS)
+                else:
+                    logger.warning(
+                        "[health:search_appointments] All %d retries failed for request %s",
+                        DOCTOLIB_MAX_RETRIES,
+                        request_id,
+                    )
+                    return request_id, [], last_error
 
             if error or not results:
                 return request_id, results, error

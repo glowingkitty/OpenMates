@@ -216,6 +216,7 @@ skills:
         unit_name: request
     providers:
       - Doctolib
+      - Jameda
     exclude_fields_for_llm:
       - type
       - hash
@@ -257,10 +258,12 @@ skills:
               provider_platform:
                 type: string
                 description: >
-                  Booking platform to search. Currently supported: "doctolib_de"
-                  (Doctolib Germany). Future: "jameda", "doctolib_fr", "zocdoc".
+                  Booking platform to search. "doctolib_de" (Doctolib Germany) or
+                  "jameda" (Jameda Germany — includes ratings, prices, direct booking
+                  URLs). Both platforms cover German doctors; Jameda has richer metadata.
                 enum:
                   - doctolib_de
+                  - jameda
                 default: doctolib_de
               insurance_sector:
                 type: string
