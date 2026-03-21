@@ -72,7 +72,16 @@ async def get_current_user_ws(
                 else:
                     logger.warning("WebSocket auth: Session not found in cache after ws_token verification")
             else:
-                logger.warning("WebSocket auth: HMAC ws_token verification failed (invalid signature or expired)")
+                # HMAC verification failed — try treating the token as a raw refresh token.
+                # This supports the CLI which may send the raw auth_refresh_token when the
+                # HMAC ws_token is expired or unavailable (e.g. INTERNAL_API_SHARED_TOKEN unset).
+                logger.debug("WebSocket auth: HMAC ws_token verification failed, trying raw token lookup")
+                raw_user_data = await cache_service.get_user_by_token(ws_token_param)
+                if raw_user_data:
+                    logger.debug("WebSocket auth: Raw refresh token found in cache — using as fallback")
+                    auth_refresh_token = ws_token_param
+                else:
+                    logger.warning("WebSocket auth: HMAC ws_token verification failed and raw token not in cache")
 
     if not auth_refresh_token:
         logger.warning("WebSocket connection denied: Missing 'auth_refresh_token' in both cookie and query parameters.")

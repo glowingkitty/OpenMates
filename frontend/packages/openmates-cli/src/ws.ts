@@ -36,18 +36,31 @@ export class OpenMatesWsClient {
     wsToken: string | null;
     refreshToken: string | null;
     userAgent?: string;
+    cookies?: Record<string, string>;
   }) {
     const wsBase = options.apiUrl.replace(/^http/, "ws").replace(/\/$/, "");
-    const token = options.wsToken ?? options.refreshToken ?? "";
+    // Use || (not ??) so empty-string wsToken falls through to refreshToken.
+    // create_ws_token() returns "" when INTERNAL_API_SHARED_TOKEN is unset.
+    const token = options.wsToken || options.refreshToken || "";
     const query = new URLSearchParams({
       sessionId: options.sessionId,
       token,
     });
     // Pass the same User-Agent as the HTTP login call so the device fingerprint
     // hash (SHA256(OS:Country:UserID)) matches the one registered at login time.
+    // Also forward cookies — Node.js ws library doesn't auto-send HTTP cookies,
+    // so the backend's cookie-based auth path needs them explicitly.
     const wsHeaders: Record<string, string> = {};
     if (options.userAgent) {
       wsHeaders["User-Agent"] = options.userAgent;
+    }
+    if (options.cookies) {
+      const cookieStr = Object.entries(options.cookies)
+        .map(([k, v]) => `${k}=${v}`)
+        .join("; ");
+      if (cookieStr) {
+        wsHeaders.Cookie = cookieStr;
+      }
     }
     this.socket = new WebSocket(`${wsBase}/v1/ws?${query.toString()}`, {
       headers: wsHeaders,
@@ -67,6 +80,23 @@ export class OpenMatesWsClient {
       this.socket.once("error", (error) => {
         clearTimeout(timeout);
         reject(error);
+      });
+      // ws library emits 'unexpected-response' when the server returns a non-101
+      // status. When this listener exists, ws does NOT emit the generic 'error'
+      // event for the upgrade failure, so there is no double-reject risk.
+      this.socket.once("unexpected-response", (_req, res) => {
+        clearTimeout(timeout);
+        if (res.statusCode === 401 || res.statusCode === 403) {
+          reject(
+            new Error(
+              "Session expired or invalid. Please run `openmates login` to re-authenticate.",
+            ),
+          );
+        } else {
+          reject(
+            new Error(`Unexpected server response: ${res.statusCode}`),
+          );
+        }
       });
     });
   }

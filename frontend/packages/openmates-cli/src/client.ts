@@ -1391,8 +1391,6 @@ export class OpenMatesClient {
     /** Follow-up suggestions from post-processing (may be empty for incognito chats). */
     followUpSuggestions: string[];
   }> {
-    const session = this.requireSession();
-
     // Resolve short IDs (8-char prefix) to full UUIDs via sync cache.
     // Full UUIDs and undefined (new chat) pass through unchanged.
     let chatId: string;
@@ -1411,8 +1409,7 @@ export class OpenMatesClient {
       chatId = params.chatId;
     }
 
-    const ws = this.makeWsClient(session);
-    await ws.open();
+    const { ws, session } = await this.openWsClient();
 
     const messageId = randomUUID();
     const createdAt = Math.floor(Date.now() / 1000);
@@ -1588,8 +1585,6 @@ export class OpenMatesClient {
    * Sends a delete_chat WebSocket message and waits for the server ack.
    */
   async deleteChat(chatIdInput: string): Promise<void> {
-    const session = this.requireSession();
-
     // Resolve short IDs (8-char prefix) to full UUIDs via sync cache.
     let chatId: string;
     if (chatIdInput.length < 36) {
@@ -1604,8 +1599,7 @@ export class OpenMatesClient {
       chatId = chatIdInput;
     }
 
-    const ws = this.makeWsClient(session);
-    await ws.open();
+    const { ws } = await this.openWsClient();
 
     try {
       ws.send("delete_chat", { chatId: chatId });
@@ -2279,9 +2273,7 @@ export class OpenMatesClient {
    * WebSocket. The server deletes from Directus and broadcasts to all devices.
    */
   async deleteMemory(entryId: string): Promise<{ success: boolean }> {
-    const session = this.requireSession();
-    const ws = this.makeWsClient(session);
-    await ws.open();
+    const { ws } = await this.openWsClient();
 
     try {
       ws.send("delete_app_settings_memories_entry", { entry_id: entryId });
@@ -2314,7 +2306,6 @@ export class OpenMatesClient {
     entryId?: string;
     itemVersion: number;
   }): Promise<{ success: boolean; id: string }> {
-    const session = this.requireSession();
     const masterKey = this.getMasterKeyBytes();
     const registryKey = `${params.appId}/${params.itemType}`;
     const schema = MEMORY_TYPE_REGISTRY[registryKey];
@@ -2373,8 +2364,7 @@ export class OpenMatesClient {
       masterKey,
     );
 
-    const ws = this.makeWsClient(session);
-    await ws.open();
+    const { ws } = await this.openWsClient();
     try {
       ws.send("store_app_settings_memories_entry", {
         entry: {
@@ -2657,7 +2647,51 @@ export class OpenMatesClient {
       refreshToken: session.cookies.auth_refresh_token ?? null,
       // Same User-Agent as login so OS-based device fingerprint hash matches.
       userAgent: this.getCliUserAgent(),
+      // Node.js ws library doesn't auto-send cookies on upgrade requests.
+      cookies: session.cookies,
     });
+  }
+
+  /**
+   * Refresh ws_token, then create and open a WebSocket client.
+   * Combines refreshWsToken() + makeWsClient() + ws.open() into one call
+   * so every WebSocket usage gets a fresh HMAC token automatically.
+   */
+  private async openWsClient(): Promise<{
+    ws: OpenMatesWsClient;
+    session: OpenMatesSession;
+  }> {
+    await this.refreshWsToken();
+    const session = this.requireSession();
+    const ws = this.makeWsClient(session);
+    await ws.open();
+    return { ws, session };
+  }
+
+  /**
+   * Refresh the ws_token by calling /auth/session.
+   * The HMAC ws_token has a 5-minute TTL — the web app refreshes it on every
+   * /auth/session call, but the CLI stores it from login and never updates it.
+   * This method fetches a fresh ws_token and captures any rotated cookies.
+   */
+  private async refreshWsToken(): Promise<void> {
+    const session = this.requireSession();
+    try {
+      const res = await this.http.post<{
+        success?: boolean;
+        ws_token?: string;
+      }>("/v1/auth/session", {}, this.getCliRequestHeaders());
+      if (res.ok && res.data.ws_token) {
+        session.wsToken = res.data.ws_token;
+      }
+      // Capture any rotated cookies from the response (HTTP client does this
+      // automatically via captureCookies — just persist the updated map).
+      session.cookies = this.http.getCookieMap();
+      saveSession(session);
+    } catch {
+      // Best-effort — if /auth/session fails, proceed with the existing
+      // wsToken and let the WebSocket auth cookie fallback handle it.
+    }
   }
 
   /**
@@ -2714,9 +2748,7 @@ export class OpenMatesClient {
       }
     }
 
-    const session = this.requireSession();
-    const ws = this.makeWsClient(session);
-    await ws.open();
+    const { ws } = await this.openWsClient();
     const chats: CachedChat[] = [];
     let embeds: Record<string, unknown>[] = [];
     let embedKeys: Record<string, unknown>[] = [];
