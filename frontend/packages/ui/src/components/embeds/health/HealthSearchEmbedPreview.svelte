@@ -275,7 +275,7 @@
       <!-- Search summary: "Augenarzt in Berlin" -->
       <div class="search-query">{searchSummary}</div>
 
-      <!-- Provider label: "via Doctolib" with Doctolib logo -->
+      <!-- Provider label: "via Doctolib & Jameda" -->
       <div class="search-provider">
         <span>{$text('embeds.via')}</span>
         <img
@@ -283,6 +283,8 @@
           alt="Doctolib"
           class="provider-logo"
         />
+        <span>&</span>
+        <span class="provider-name">Jameda</span>
       </div>
 
       <!-- Error state -->
@@ -378,6 +380,10 @@
 
   .health-search-details.mobile .search-provider .provider-logo {
     height: 12px;
+  }
+
+  .search-provider .provider-name {
+    font-weight: 600;
   }
 
   /* Results summary row */

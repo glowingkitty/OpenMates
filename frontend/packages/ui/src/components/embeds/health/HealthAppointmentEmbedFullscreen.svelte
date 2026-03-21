@@ -38,6 +38,13 @@
     telehealth?: boolean;
     practice_url?: string;
     provider?: string;
+    provider_platform?: string;
+    // Jameda-specific fields (null for Doctolib results)
+    booking_url?: string;
+    rating?: number;
+    rating_count?: number;
+    price?: number;
+    service_name?: string;
     // Legacy backward-compat (old per-doctor cached embeds)
     slots_count?: number;
     next_slot?: string;
@@ -217,6 +224,28 @@
       {/if}
     </div>
 
+    <!-- Rating (Jameda) -->
+    {#if activeAppointment.rating != null}
+      <div class="rating-row">
+        <span class="rating-stars">{activeAppointment.rating.toFixed(1)} ★</span>
+        {#if activeAppointment.rating_count}
+          <span class="rating-count">({activeAppointment.rating_count} {$text('embeds.health.reviews')})</span>
+        {/if}
+      </div>
+    {/if}
+
+    <!-- Service + Price (Jameda) -->
+    {#if activeAppointment.service_name || activeAppointment.price != null}
+      <div class="service-row">
+        {#if activeAppointment.service_name}
+          <span class="service-name">{activeAppointment.service_name}</span>
+        {/if}
+        {#if activeAppointment.price != null}
+          <span class="service-price">{activeAppointment.price} €</span>
+        {/if}
+      </div>
+    {/if}
+
     <!-- Badges -->
     <div class="badges-row">
       {#if activeAppointment.telehealth}
@@ -245,9 +274,20 @@
   {/snippet}
 
   {#snippet ctaContent()}
-    {#if activeAppointment.practice_url}
+    {#if activeAppointment.booking_url}
+      <!-- Jameda: direct booking URL for this specific slot -->
       <a
-        class="doctolib-link"
+        class="booking-link jameda-link"
+        href={activeAppointment.booking_url}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        {$text('embeds.health.book_on_jameda')}
+      </a>
+    {:else if activeAppointment.practice_url}
+      <!-- Doctolib: practice page with live availability -->
+      <a
+        class="booking-link doctolib-link"
         href={activeAppointment.practice_url}
         target="_blank"
         rel="noopener noreferrer"
@@ -344,6 +384,65 @@
     color: var(--color-font-secondary);
     text-align: center;
     margin: 0;
+  }
+  /* Rating row */
+  .rating-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .rating-stars {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--color-warning, #f5a623);
+  }
+  .rating-count {
+    font-size: 13px;
+    color: var(--color-font-secondary);
+  }
+
+  /* Service + Price row */
+  .service-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .service-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-font-primary);
+  }
+  .service-price {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--color-font-primary);
+  }
+
+  /* Shared booking link base */
+  .booking-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+    text-decoration: none;
+    padding: 10px 20px;
+    border-radius: 20px;
+    transition: background-color 0.15s;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .jameda-link {
+    background-color: #00a98f;
+    border: 1.5px solid #00a98f;
+  }
+  .jameda-link:hover {
+    background-color: #009880;
   }
   .doctolib-link {
     display: inline-flex;

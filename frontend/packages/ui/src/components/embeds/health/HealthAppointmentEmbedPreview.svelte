@@ -36,6 +36,12 @@
     insurance?: string;
     /** Whether the doctor offers telehealth consultations */
     telehealth?: boolean;
+    /** Star rating (0-5, from Jameda) */
+    rating?: number;
+    /** Service price in EUR (from Jameda) */
+    price?: number;
+    /** Provider platform: "Doctolib" | "Jameda" */
+    providerPlatform?: string;
     /** Processing status */
     status?: 'processing' | 'finished' | 'error';
     /** Whether to use mobile layout */
@@ -57,6 +63,9 @@
     address,
     insurance,
     telehealth = false,
+    rating,
+    price,
+    providerPlatform,
     status = 'finished',
     isMobile = false,
     onFullscreen,
@@ -123,6 +132,21 @@
       <!-- Address (first line only) -->
       {#if address}
         <div class="doctor-address">{address.split('\n')[0]}</div>
+      {/if}
+
+      <!-- Rating + Price row (Jameda) -->
+      {#if rating != null || price != null}
+        <div class="extras-row">
+          {#if rating != null}
+            <span class="rating-compact">{rating.toFixed(1)} ★</span>
+          {/if}
+          {#if price != null}
+            <span class="price-compact">{price} €</span>
+          {/if}
+          {#if providerPlatform}
+            <span class="provider-compact">{providerPlatform}</span>
+          {/if}
+        </div>
       {/if}
 
       <!-- Badges row: telehealth, insurance -->
@@ -208,6 +232,32 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  /* Rating + Price extras row */
+  .extras-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 1px;
+  }
+
+  .rating-compact {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-warning, #f5a623);
+  }
+
+  .price-compact {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-font-secondary);
+  }
+
+  .provider-compact {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--color-grey-50);
   }
 
   /* Badges row */

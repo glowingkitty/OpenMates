@@ -3542,6 +3542,57 @@ health.no_appointments_found:
   sv: Inga bokningar hittades.
   he: לא נמצאו תורים.
   verified_by_human: []
+
+health.book_on_jameda:
+  context: Button label linking to the direct booking URL on Jameda where the user can book the specific appointment slot
+  en: Book on Jameda
+  de: Auf Jameda buchen
+  zh: 在 Jameda 预约
+  es: Reservar en Jameda
+  fr: Réserver sur Jameda
+  pt: Reservar no Jameda
+  ru: Записаться на Jameda
+  ja: Jameda で予約する
+  ko: Jameda에서 예약
+  it: Prenota su Jameda
+  tr: Jameda'da randevu al
+  vi: Đặt lịch trên Jameda
+  id: Pesan di Jameda
+  pl: Zarezerwuj na Jameda
+  nl: Boek op Jameda
+  ar: احجز على Jameda
+  hi: Jameda पर बुक करें
+  th: จองบน Jameda
+  cs: Rezervovat na Jameda
+  sv: Boka på Jameda
+  he: הזמן ב-Jameda
+  verified_by_human: []
+
+health.reviews:
+  context: Label after the review count number on Jameda appointment cards — e.g. "(42 reviews)"
+  en: reviews
+  de: Bewertungen
+  zh: 条评价
+  es: opiniones
+  fr: avis
+  pt: avaliações
+  ru: отзывов
+  ja: 件のレビュー
+  ko: 개 리뷰
+  it: recensioni
+  tr: değerlendirme
+  vi: đánh giá
+  id: ulasan
+  pl: opinii
+  nl: beoordelingen
+  ar: تقييمات
+  hi: समीक्षाएं
+  th: รีวิว
+  cs: hodnocení
+  sv: omdömen
+  he: ביקורות
+  verified_by_human: []
+
 shopping.product:
   context: Singular label for a shopping product result
   en: product

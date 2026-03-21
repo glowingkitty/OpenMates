@@ -4326,6 +4326,12 @@
       },
       "no_appointments_found": {
         "text": "No appointments found."
+      },
+      "book_on_jameda": {
+        "text": "Book on Jameda"
+      },
+      "reviews": {
+        "text": "reviews"
       }
     },
     "shopping": {

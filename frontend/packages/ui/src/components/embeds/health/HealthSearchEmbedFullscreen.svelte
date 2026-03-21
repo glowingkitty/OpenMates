@@ -44,6 +44,13 @@
     telehealth?: boolean;
     practice_url?: string;
     provider?: string;
+    provider_platform?: string;
+    // Jameda-specific fields (null for Doctolib results)
+    booking_url?: string;
+    rating?: number;
+    rating_count?: number;
+    price?: number;
+    service_name?: string;
     // Legacy backward-compat (old per-doctor cached embeds)
     slots_count?: number;
     next_slot?: string;
@@ -187,6 +194,13 @@
       telehealth: asBoolean(content.telehealth),
       practice_url: asString(content.practice_url),
       provider: asString(content.provider),
+      provider_platform: asString(content.provider_platform),
+      // Jameda-specific fields
+      booking_url: asString(content.booking_url),
+      rating: asNumber(content.rating),
+      rating_count: asNumber(content.rating_count),
+      price: asNumber(content.price),
+      service_name: asString(content.service_name),
       // Legacy backward-compat
       slots_count: slotsCount,
       next_slot: asString(content.next_slot),
@@ -269,6 +283,9 @@
       address={result.address}
       insurance={result.insurance}
       telehealth={result.telehealth}
+      rating={result.rating}
+      price={result.price}
+      providerPlatform={result.provider_platform}
       status="finished"
       isMobile={false}
       onFullscreen={onSelect}
