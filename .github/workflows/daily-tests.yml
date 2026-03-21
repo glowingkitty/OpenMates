@@ -14,7 +14,7 @@
 # Security:
 # - Minimal permissions (contents: read only)
 # - All secrets via ${{ secrets.* }} (never logged)
-# - Ephemeral Cloudflare Tunnel for Playwright (HMAC-authenticated, auto-closes)
+# - Playwright hits the public Vercel frontend (E2E_DEV_TEST_BASE_URL secret)
 # - Only runs on dev branch
 #
 # Architecture: docs/architecture/github-actions-ci.md
@@ -74,60 +74,6 @@ jobs:
             echo "should_run=true" >> "$GITHUB_OUTPUT"
             echo "$COMMITS commit(s) in last 24h — running"
           fi
-
-  # -----------------------------------------------------------------
-  # Open tunnel: expose dev server to GitHub Actions runners
-  # -----------------------------------------------------------------
-  open-tunnel:
-    runs-on: ubuntu-latest
-    needs: gate
-    if: needs.gate.outputs.should_run == 'true' && (github.event.inputs.suite == 'all' || github.event.inputs.suite == 'playwright' || github.event.inputs.suite == '')
-    outputs:
-      tunnel_url: ${{ steps.open.outputs.tunnel_url }}
-      session_id: ${{ steps.open.outputs.session_id }}
-    steps:
-      - name: Open ephemeral tunnel
-        id: open
-        run: |
-          # Retry up to 4 times (30s apart) to handle transient API unavailability
-          # (e.g. container restarting after a recent deploy)
-          MAX_ATTEMPTS=4
-          ATTEMPT=0
-          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
-            ATTEMPT=$((ATTEMPT + 1))
-            TIMESTAMP=$(date +%s)
-            BODY='{"run_id":"${{ github.run_id }}","requested_by":"github-actions"}'
-            SIGNATURE=$(echo -n "${TIMESTAMP}${BODY}" | openssl dgst -sha256 -hmac "${{ secrets.TUNNEL_TRIGGER_SECRET }}" | awk '{print $2}')
-
-            RESPONSE=$(curl -s --http1.1 -w "\n%{http_code}" -X POST \
-              "${{ secrets.OPENMATES_API_URL }}/internal/tunnel/open" \
-              -H "Content-Type: application/json" \
-              -H "X-Hmac-Signature: ${SIGNATURE}" \
-              -H "X-Timestamp: ${TIMESTAMP}" \
-              -d "${BODY}" \
-              --connect-timeout 10 --max-time 60 2>/dev/null) || true
-
-            HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-            BODY_RESP=$(echo "$RESPONSE" | head -n -1)
-
-            if [ -n "$HTTP_CODE" ] && [ "$HTTP_CODE" = "200" ]; then
-              TUNNEL_URL=$(echo "$BODY_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['tunnel_url'])")
-              SESSION_ID=$(echo "$BODY_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['session_id'])")
-              echo "tunnel_url=${TUNNEL_URL}" >> "$GITHUB_OUTPUT"
-              echo "session_id=${SESSION_ID}" >> "$GITHUB_OUTPUT"
-              echo "Tunnel opened: ${TUNNEL_URL} (session: ${SESSION_ID})"
-              exit 0
-            fi
-
-            echo "Attempt ${ATTEMPT}/${MAX_ATTEMPTS} failed: HTTP ${HTTP_CODE} — ${BODY_RESP}"
-            if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
-              echo "Retrying in 30s..."
-              sleep 30
-            fi
-          done
-
-          echo "::error::Failed to open tunnel after ${MAX_ATTEMPTS} attempts"
-          exit 1
 
   # -----------------------------------------------------------------
   # pytest: backend unit tests
@@ -203,7 +149,7 @@ jobs:
   # -----------------------------------------------------------------
   playwright:
     runs-on: ubuntu-latest
-    needs: [gate, open-tunnel]
+    needs: [gate]
     if: needs.gate.outputs.should_run == 'true' && (github.event.inputs.suite == 'all' || github.event.inputs.suite == 'playwright' || github.event.inputs.suite == '')
     strategy:
       fail-fast: false
@@ -248,7 +194,7 @@ jobs:
             --reporter=json \
             > $GITHUB_WORKSPACE/test-results/playwright-${{ matrix.batch }}.json
         env:
-          PLAYWRIGHT_TEST_BASE_URL: ${{ needs.open-tunnel.outputs.tunnel_url }}
+          PLAYWRIGHT_TEST_BASE_URL: ${{ secrets.E2E_DEV_TEST_BASE_URL }}
           OPENMATES_TEST_ACCOUNT_1_EMAIL: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_EMAIL', matrix.account)] }}
           OPENMATES_TEST_ACCOUNT_1_PASSWORD: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_PASSWORD', matrix.account)] }}
           OPENMATES_TEST_ACCOUNT_1_OTP_KEY: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_OTP_KEY', matrix.account)] }}
@@ -273,7 +219,7 @@ jobs:
   # -----------------------------------------------------------------
   report:
     runs-on: ubuntu-latest
-    needs: [gate, open-tunnel, pytest, vitest, playwright]
+    needs: [gate, pytest, vitest, playwright]
     if: always() && needs.gate.outputs.should_run == 'true'
     steps:
       - uses: actions/checkout@v4
@@ -294,19 +240,6 @@ jobs:
           GITHUB_RUN_ID: ${{ github.run_id }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_SERVER_URL: ${{ github.server_url }}
-      - name: Close tunnel
-        if: always() && needs.open-tunnel.outputs.session_id != ''
-        run: |
-          TIMESTAMP=$(date +%s)
-          BODY='{"session_id":"${{ needs.open-tunnel.outputs.session_id }}"}'
-          SIGNATURE=$(echo -n "${TIMESTAMP}${BODY}" | openssl dgst -sha256 -hmac "${{ secrets.TUNNEL_TRIGGER_SECRET }}" | awk '{print $2}')
-
-          curl -s -X POST \
-            "${{ secrets.OPENMATES_API_URL }}/internal/tunnel/close" \
-            -H "Content-Type: application/json" \
-            -H "X-Hmac-Signature: ${SIGNATURE}" \
-            -H "X-Timestamp: ${TIMESTAMP}" \
-            -d "${BODY}" || echo "Tunnel close failed (may have auto-expired)"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
