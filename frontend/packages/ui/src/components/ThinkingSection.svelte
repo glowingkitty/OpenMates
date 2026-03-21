@@ -8,14 +8,14 @@
   - Auto-collapses when streaming completes (collapsed by default for finished thinking)
   - User can manually toggle expand/collapse at any time (respected during streaming)
   - Auto-scrolls content to the bottom as new chunks arrive
-  - Animated rotating gradient border while streaming (clearly signals "thinking in progress")
+  - Grey border highlight while streaming (clearly signals "thinking in progress")
   - Uses ReadOnlyMessage for markdown rendering
   - All user-facing text is i18n-translated
-  
+
   Visual Design:
   - reasoning.svg icon on the left
   - Translated "Thinking..." text during streaming, "Thought process" when done
-  - Apple Intelligence-style rainbow glow border animates while streaming (full-spectrum conic-gradient + soft bloom)
+  - Subtle grey border while streaming
   - dropdown.svg icon on the right that rotates 180° when expanded
   - Hover color change to indicate clickability
   
@@ -140,19 +140,6 @@
 {/if}
 
 <style>
-    /*
-     * Register --gradient-angle as an animatable CSS custom property.
-     * This is required for @keyframes to interpolate the angle value used in
-     * the conic-gradient on the streaming border pseudo-element.
-     * Without this, browsers cannot tween custom properties in @keyframes.
-     * @property is widely supported (Chrome 85+, Firefox 128+, Safari 16.4+).
-     */
-    @property --gradient-angle {
-        syntax: '<angle>';
-        initial-value: 0deg;
-        inherits: false;
-    }
-
     .thinking-section {
         margin-bottom: 12px;
         border-radius: 8px;
@@ -160,77 +147,17 @@
         border: 1px solid var(--color-border-subtle, rgba(0, 0, 0, 0.08));
         overflow: hidden;
         position: relative;
-        /* isolation: isolate keeps the ::before gradient behind children */
-        isolation: isolate;
-        transition: border-color 0.6s ease, background-color 0.2s ease;
+        transition: background-color 0.2s ease;
     }
 
     .thinking-section.streaming {
-        /* Remove the static accent border — the animated pseudo-element replaces it */
-        border-color: transparent;
-    }
-
-    /*
-     * ::before — the rotating rainbow ring, always present but invisible until streaming.
-     * opacity transitions from 0 → 1 when .streaming is added, giving a smooth fade-in.
-     * The same transition fades it back out when streaming ends.
-     */
-    .thinking-section::before {
-        content: '';
-        position: absolute;
-        inset: -2px;
-        border-radius: 10px;
-        background: conic-gradient(
-            from var(--gradient-angle, 0deg),
-            #ff2d55,   /*  0deg  — Apple red/pink  */
-            #ff6b2b,   /* 51deg  — orange          */
-            #ffd60a,   /* 102deg — yellow          */
-            #30d158,   /* 153deg — green           */
-            #32ade6,   /* 204deg — cyan/blue       */
-            #bf5af2,   /* 255deg — purple          */
-            #ff375f,   /* 306deg — magenta         */
-            #ff2d55    /* 360deg — loop back       */
-        );
-        animation: rainbow-spin 3s linear infinite;
-        z-index: -1;
-        opacity: 0;
-        filter: blur(2px);
-        transition: opacity 0.6s ease;
-    }
-
-    .thinking-section.streaming::before {
-        opacity: 1;
-    }
-
-    /*
-     * ::after — interior fill mask.
-     * Always present; becomes visible (same background as container) when streaming
-     * so the gradient ring doesn't bleed into the content area.
-     * inset: 2px = the 2px border zone exposed by ::before's -2px inset.
-     */
-    .thinking-section::after {
-        content: '';
-        position: absolute;
-        inset: 2px;
-        border-radius: 7px;
-        background: transparent;
-        z-index: -1;
-        transition: background 0.6s ease;
-    }
-
-    .thinking-section.streaming::after {
-        background: var(--color-surface-secondary, rgba(0, 0, 0, 0.03));
+        border-color: var(--color-grey-20);
     }
     
     .thinking-section.expanded {
         background: var(--color-grey-20);
     }
 
-    /* When expanded AND streaming, keep the interior fill consistent with expanded bg */
-    .thinking-section.expanded.streaming::after {
-        background: var(--color-grey-20);
-    }
-    
     .thinking-header {
         display: flex;
         align-items: center;
@@ -336,38 +263,17 @@
         opacity: 0.85;
     }
     
-    /*
-     * Rainbow spin — rotates --gradient-angle so the full spectrum travels
-     * around the container perimeter. 3s gives the snappy-but-elegant pace
-     * seen in Apple Intelligence demos (faster than the old 4s blue spin).
-     * Falls back gracefully: without @property support the gradient is static.
-     */
-    @keyframes rainbow-spin {
-        from { --gradient-angle: 0deg; }
-        to   { --gradient-angle: 360deg; }
-    }
-
     /* Dark mode support */
     :global(.dark) .thinking-section {
         background: var(--color-surface-secondary, rgba(255, 255, 255, 0.03));
         border-color: var(--color-border-subtle, rgba(255, 255, 255, 0.1));
     }
 
-    /* Dark mode streaming: transparent border (ring pseudo-element handles the visual) */
     :global(.dark) .thinking-section.streaming {
-        border-color: transparent;
+        border-color: var(--color-grey-20);
     }
 
-    /* Dark interior fill mask */
-    :global(.dark) .thinking-section.streaming::after {
-        background: var(--color-surface-secondary, rgba(255, 255, 255, 0.03));
-    }
-    
     :global(.dark) .thinking-section.expanded {
-        background: var(--color-surface-primary, #1a1a1a);
-    }
-
-    :global(.dark) .thinking-section.expanded.streaming::after {
         background: var(--color-surface-primary, #1a1a1a);
     }
     

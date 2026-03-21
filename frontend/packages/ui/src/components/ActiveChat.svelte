@@ -10391,7 +10391,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         z-index: -1;
         opacity: 0;
         filter: blur(2px);
-        transition: opacity 0.6s ease;
         animation: chat-rainbow-spin 3s linear infinite;
     }
 
@@ -10408,7 +10407,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         border-radius: 15px; /* container 17px - 2px inset */
         background: transparent;
         z-index: -1;
-        transition: background 0.6s ease;
     }
 
     .active-chat-container.ai-typing::after {
