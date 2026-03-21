@@ -543,6 +543,13 @@
         font-weight: 500;
     }
 
+    /* Brighter gradient for dark mode readability */
+    :global([data-theme="dark"]) .menu-title.gradient-text {
+        background: linear-gradient(135deg, #6387ff 9.04%, #7ea4ff 90.06%);
+        -webkit-background-clip: text;
+        background-clip: text;
+    }
+
     .heading .menu-title strong {
         font-weight: 600;
     }

@@ -1358,6 +1358,18 @@
         color: transparent !important;
     }
 
+    /* Brighter link gradient for dark mode readability */
+    :global([data-theme="dark"] .read-only-message .ProseMirror .markdown-link),
+    :global([data-theme="dark"] .read-only-message .ProseMirror .markdown-paragraph a),
+    :global([data-theme="dark"] .read-only-message .ProseMirror a),
+    :global([data-theme="dark"] .read-only-message .markdown-link),
+    :global([data-theme="dark"] .read-only-message .markdown-paragraph a),
+    :global([data-theme="dark"] .read-only-message a) {
+        background: linear-gradient(135deg, #6387ff 9.04%, #7ea4ff 90.06%) !important;
+        -webkit-background-clip: text !important;
+        background-clip: text !important;
+    }
+
     /* Alternative approach for browsers that don't support :has() */
     :global(.read-only-message .markdown-list-item > .markdown-paragraph:not(:last-child) .ProseMirror-trailingBreak) {
         display: none;
