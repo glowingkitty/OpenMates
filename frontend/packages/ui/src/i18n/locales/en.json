@@ -4297,6 +4297,12 @@
       "doctors_with_slots": {
         "text": "doctors available"
       },
+      "appointment_available": {
+        "text": "appointment available"
+      },
+      "appointments_available": {
+        "text": "appointments available"
+      },
       "book_slot": {
         "text": "Book"
       },
