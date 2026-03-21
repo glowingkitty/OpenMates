@@ -258,13 +258,15 @@ skills:
               provider_platform:
                 type: string
                 description: >
-                  Booking platform to search. "doctolib_de" (Doctolib Germany) or
-                  "jameda" (Jameda Germany — includes ratings, prices, direct booking
-                  URLs). Both platforms cover German doctors; Jameda has richer metadata.
+                  Booking platform to search. "both" (default) searches Doctolib and
+                  Jameda in parallel and merges results sorted by soonest slot.
+                  "doctolib_de" for Doctolib Germany only. "jameda" for Jameda Germany
+                  only (includes ratings, prices, direct booking URLs).
                 enum:
+                  - both
                   - doctolib_de
                   - jameda
-                default: doctolib_de
+                default: both
               insurance_sector:
                 type: string
                 description: >

@@ -431,10 +431,11 @@ class SearchAppointmentsRequestItem(BaseModel):
         description="City where to search for appointments (e.g. 'Berlin', 'München', 'Munich', 'Hamburg')."
     )
     provider_platform: str = Field(
-        default="doctolib_de",
+        default="both",
         description=(
-            "Booking platform to search. Supported: 'doctolib_de' (Doctolib Germany), "
-            "'jameda' (Jameda Germany — includes ratings, prices, direct booking URLs)."
+            "Booking platform to search. 'both' (default) searches Doctolib and Jameda "
+            "in parallel and merges results. 'doctolib_de' for Doctolib Germany only. "
+            "'jameda' for Jameda Germany only (includes ratings, prices, direct booking URLs)."
         ),
     )
     insurance_sector: Optional[str] = Field(
@@ -1520,7 +1521,7 @@ class SearchAppointmentsSkill(BaseSkill):
 
         # Derive provider label from the requests
         platforms_used = set(
-            r.get("provider_platform", "doctolib_de") for r in validated
+            r.get("provider_platform", "both") for r in validated
         )
         if platforms_used == {"jameda"}:
             provider_label = "Jameda"
@@ -1549,60 +1550,95 @@ class SearchAppointmentsSkill(BaseSkill):
         httpx.AsyncClient. Wrapping in a closure lets us inject proxy_url without
         changing the signature expected by _process_requests_in_parallel.
         """
+        async def _run_doctolib(req: Dict[str, Any]) -> Tuple[str, List[Dict[str, Any]], Optional[str]]:
+            """Run Doctolib search with proxy + retry logic."""
+            client_kwargs: Dict[str, Any] = {
+                "timeout": httpx.Timeout(30.0, connect=10.0),
+                "follow_redirects": True,
+                "headers": _make_browser_headers(),
+            }
+            if proxy_url:
+                client_kwargs["proxy"] = proxy_url
+
+            request_id = str(req.get("id", "1"))
+            last_error: Optional[str] = None
+
+            for attempt in range(DOCTOLIB_MAX_RETRIES):
+                async with httpx.AsyncClient(**client_kwargs) as client:
+                    request_id, results, error = await _process_single_doctolib_request(client, req)
+
+                if not error:
+                    return request_id, results, None
+                last_error = error
+
+                is_retryable = any(code in error for code in ("403", "429"))
+                if not is_retryable:
+                    return request_id, results, error
+
+                logger.info(
+                    "[health:search_appointments] Retryable error on attempt %d/%d for request %s: %s",
+                    attempt + 1, DOCTOLIB_MAX_RETRIES, request_id, error[:80],
+                )
+                await asyncio.sleep(DOCTOLIB_RETRY_DELAY_SECONDS)
+
+            logger.warning(
+                "[health:search_appointments] All %d retries failed for request %s",
+                DOCTOLIB_MAX_RETRIES, request_id,
+            )
+            return request_id, [], last_error
+
+        async def _run_jameda(req: Dict[str, Any]) -> Tuple[str, List[Dict[str, Any]], Optional[str]]:
+            """Run Jameda search with anonymous token auth."""
+            jameda_kwargs: Dict[str, Any] = {
+                "timeout": httpx.Timeout(30.0, connect=10.0),
+                "follow_redirects": True,
+            }
+            async with httpx.AsyncClient(**jameda_kwargs) as client:
+                return await _process_single_jameda_request(client, req)
+
         async def _process(req: Dict[str, Any], **kwargs) -> Tuple[str, List[Dict[str, Any]], Optional[str]]:
             # NOTE: signature uses 'req' to match the kwarg passed by
             # BaseSkill._process_requests_in_parallel (which calls req=req).
-            provider_platform = req.get("provider_platform", "doctolib_de")
+            provider_platform = req.get("provider_platform", "both")
             request_id = str(req.get("id", "1"))
 
-            if provider_platform == "jameda":
-                # Jameda: no proxy needed, anonymous token auth, no retry needed
-                jameda_kwargs: Dict[str, Any] = {
-                    "timeout": httpx.Timeout(30.0, connect=10.0),
-                    "follow_redirects": True,
-                }
-                async with httpx.AsyncClient(**jameda_kwargs) as client:
-                    request_id, results, error = await _process_single_jameda_request(client, req)
+            if provider_platform == "both":
+                # Search both providers in parallel, merge results by slot_datetime
+                doctolib_result, jameda_result = await asyncio.gather(
+                    _run_doctolib(req),
+                    _run_jameda(req),
+                    return_exceptions=True,
+                )
+
+                merged: List[Dict[str, Any]] = []
+                errors_list: List[str] = []
+
+                for label, result in [("Doctolib", doctolib_result), ("Jameda", jameda_result)]:
+                    if isinstance(result, Exception):
+                        logger.warning("[health:both] %s failed: %s", label, result)
+                        errors_list.append(f"{label}: {result}")
+                        continue
+                    _, items, err = result
+                    if err:
+                        logger.info("[health:both] %s returned error: %s", label, err[:80])
+                        errors_list.append(f"{label}: {err}")
+                    if items:
+                        merged.extend(items)
+
+                if not merged:
+                    error_summary = "; ".join(errors_list) if errors_list else None
+                    return request_id, [], error_summary
+
+                # Sort combined results by slot_datetime, cap at DEFAULT_MAX_SLOTS
+                merged.sort(key=lambda r: r.get("slot_datetime", ""))
+                results = merged[:DEFAULT_MAX_SLOTS]
+                error = None
+
+            elif provider_platform == "jameda":
+                request_id, results, error = await _run_jameda(req)
 
             else:
-                # Doctolib: proxy + retry for anti-bot 403/429
-                client_kwargs: Dict[str, Any] = {
-                    "timeout": httpx.Timeout(30.0, connect=10.0),
-                    "follow_redirects": True,
-                    "headers": _make_browser_headers(),
-                }
-                if proxy_url:
-                    client_kwargs["proxy"] = proxy_url
-
-                last_error: Optional[str] = None
-
-                for attempt in range(DOCTOLIB_MAX_RETRIES):
-                    async with httpx.AsyncClient(**client_kwargs) as client:
-                        request_id, results, error = await _process_single_doctolib_request(client, req)
-
-                    if not error:
-                        break
-                    last_error = error
-
-                    is_retryable = any(code in error for code in ("403", "429"))
-                    if not is_retryable:
-                        break
-
-                    logger.info(
-                        "[health:search_appointments] Retryable error on attempt %d/%d for request %s: %s",
-                        attempt + 1,
-                        DOCTOLIB_MAX_RETRIES,
-                        request_id,
-                        error[:80],
-                    )
-                    await asyncio.sleep(DOCTOLIB_RETRY_DELAY_SECONDS)
-                else:
-                    logger.warning(
-                        "[health:search_appointments] All %d retries failed for request %s",
-                        DOCTOLIB_MAX_RETRIES,
-                        request_id,
-                    )
-                    return request_id, [], last_error
+                request_id, results, error = await _run_doctolib(req)
 
             if error or not results:
                 return request_id, results, error
