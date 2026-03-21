@@ -656,6 +656,7 @@ export async function decryptMessageFields(
       const decryptedContentString = await decryptWithChatKey(
         message.encrypted_content,
         chatKey,
+        { chatId, fieldName: "content" },
       );
       if (decryptedContentString) {
         // Content is now a markdown string (never Tiptap JSON on server!)
@@ -716,7 +717,7 @@ export async function decryptMessageFields(
 
   if (message.encrypted_sender_name) {
     fieldDecryptions.push(
-      decryptWithChatKey(message.encrypted_sender_name, chatKey)
+      decryptWithChatKey(message.encrypted_sender_name, chatKey, { chatId, fieldName: "sender_name" })
         .then((val) => {
           if (val) {
             decryptedMessage.sender_name = val;
@@ -735,7 +736,7 @@ export async function decryptMessageFields(
 
   if (message.encrypted_category) {
     fieldDecryptions.push(
-      decryptWithChatKey(message.encrypted_category, chatKey)
+      decryptWithChatKey(message.encrypted_category, chatKey, { chatId, fieldName: "category" })
         .then((val) => {
           if (val) {
             decryptedMessage.category = val;
@@ -754,7 +755,7 @@ export async function decryptMessageFields(
 
   if (message.encrypted_model_name) {
     fieldDecryptions.push(
-      decryptWithChatKey(message.encrypted_model_name, chatKey)
+      decryptWithChatKey(message.encrypted_model_name, chatKey, { chatId, fieldName: "model_name" })
         .then((val) => {
           if (val) {
             decryptedMessage.model_name = val;
@@ -777,7 +778,7 @@ export async function decryptMessageFields(
 
   if (message.encrypted_thinking_content) {
     fieldDecryptions.push(
-      decryptWithChatKey(message.encrypted_thinking_content, chatKey)
+      decryptWithChatKey(message.encrypted_thinking_content, chatKey, { chatId, fieldName: "thinking_content" })
         .then((val) => {
           if (val) {
             decryptedMessage.thinking_content = val;
@@ -797,7 +798,7 @@ export async function decryptMessageFields(
 
   if (message.encrypted_thinking_signature) {
     fieldDecryptions.push(
-      decryptWithChatKey(message.encrypted_thinking_signature, chatKey)
+      decryptWithChatKey(message.encrypted_thinking_signature, chatKey, { chatId, fieldName: "thinking_signature" })
         .then((val) => {
           if (val) {
             decryptedMessage.thinking_signature = val;
@@ -816,7 +817,7 @@ export async function decryptMessageFields(
 
   if (message.encrypted_pii_mappings) {
     fieldDecryptions.push(
-      decryptWithChatKey(message.encrypted_pii_mappings, chatKey)
+      decryptWithChatKey(message.encrypted_pii_mappings, chatKey, { chatId, fieldName: "pii_mappings" })
         .then((val) => {
           if (val) {
             decryptedMessage.pii_mappings = JSON.parse(val);

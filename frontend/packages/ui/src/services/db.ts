@@ -1170,6 +1170,13 @@ class ChatDatabase {
     return messageOps.batchSaveMessages(this, messages);
   }
 
+  async getMessageCountForChat(
+    chat_id: string,
+    transaction?: IDBTransaction,
+  ): Promise<number> {
+    return messageOps.getMessageCountForChat(this, chat_id, transaction);
+  }
+
   async getMessagesForChat(
     chat_id: string,
     transaction?: IDBTransaction,

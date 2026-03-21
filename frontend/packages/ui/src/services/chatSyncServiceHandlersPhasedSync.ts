@@ -24,6 +24,12 @@ import { activeChatStore } from "../stores/activeChatStore";
 import { unreadMessagesStore } from "../stores/unreadMessagesStore";
 
 /**
+ * Tracks chat IDs fully processed in Phase 2 so Phase 3 can skip them.
+ * Cleared after Phase 3 completes.
+ */
+let phase2ProcessedChatIds: Set<string> | null = null;
+
+/**
  * Yield control back to the browser's main thread.
  * This prevents long-running sync operations from blocking UI rendering,
  * which is especially important on mobile devices with limited resources.
@@ -84,8 +90,8 @@ export async function handlePhase2RecentChatsImpl(
       return;
     }
 
-    // Store recent chats data
-    await storeRecentChats(serviceInstance, chats);
+    // Store recent chats data and track processed IDs for Phase 3 dedup
+    phase2ProcessedChatIds = await storeRecentChats(serviceInstance, chats);
 
     // CRITICAL: Store embed_keys FIRST (needed to decrypt embed content for app_id/skill_id extraction)
     if (embed_keys && Array.isArray(embed_keys) && embed_keys.length > 0) {
@@ -167,8 +173,9 @@ export async function handlePhase3FullSyncImpl(
       return;
     }
 
-    // Store all chats data
-    await storeAllChats(serviceInstance, chats);
+    // Store all chats data, skipping those already processed in Phase 2
+    await storeAllChats(serviceInstance, chats, phase2ProcessedChatIds ?? undefined);
+    phase2ProcessedChatIds = null; // Clear after Phase 3 completes
 
     // CRITICAL: Store embed_keys FIRST (needed to decrypt embed content for app_id/skill_id extraction)
     if (embed_keys && Array.isArray(embed_keys) && embed_keys.length > 0) {
@@ -339,7 +346,8 @@ async function storeRecentChats(
     messages?: Message[];
     server_message_count?: number;
   }>,
-): Promise<void> {
+): Promise<Set<string>> {
+  const processedChatIds = new Set<string>();
   try {
     // Get current user's ID for ownership tracking
     // All synced chats belong to the current user (server filters by hashed_user_id)
@@ -414,8 +422,7 @@ async function storeRecentChats(
         server_message_count !== null &&
         server_message_count > 0
       ) {
-        const localMessages = await chatDB.getMessagesForChat(chatId);
-        const localMessageCount = localMessages?.length || 0;
+        const localMessageCount = await chatDB.getMessageCountForChat(chatId);
 
         console.debug(
           `[ChatSyncService] Phase 2 - Message count validation for chat ${chatId}: ` +
@@ -459,9 +466,8 @@ async function storeRecentChats(
         serverMessagesV === localMessagesV &&
         shouldSyncMessages
       ) {
-        // Check if we have messages in the database
-        const localMessages = await chatDB.getMessagesForChat(chatId);
-        const localMessageCount = localMessages?.length || 0;
+        // Check if we have messages in the database (count-only, no decryption needed)
+        const localMessageCount = await chatDB.getMessageCountForChat(chatId);
         const serverMessageCount = messages?.length || 0;
 
         console.debug(
@@ -489,6 +495,7 @@ async function storeRecentChats(
       if (shouldSkipMessageSync) {
         await chatDB.addChat(mergedChat);
         chatListCache.upsertChat(mergedChat);
+        processedChatIds.add(chatId);
         continue;
       }
 
@@ -502,6 +509,7 @@ async function storeRecentChats(
         );
         await chatDB.addChat(mergedChat);
         chatListCache.upsertChat(mergedChat);
+        processedChatIds.add(chatId);
         continue;
       }
 
@@ -530,6 +538,7 @@ async function storeRecentChats(
             `[CLIENT_SYNC] ✅ Phase 2 - Successfully saved ${preparedMessages.length} messages for chat ${chatId}`,
           );
         }
+        processedChatIds.add(chatId);
       } catch (saveError) {
         console.error(
           `[ChatSyncService] Phase 2 - Error saving chat/messages for chat ${chatId}:`,
@@ -547,6 +556,7 @@ async function storeRecentChats(
       error,
     );
   }
+  return processedChatIds;
 }
 
 /**
@@ -563,6 +573,7 @@ async function storeAllChats(
     messages?: Message[];
     server_message_count?: number;
   }>,
+  phase2ChatIds?: Set<string>,
 ): Promise<void> {
   try {
     console.debug(
@@ -608,6 +619,14 @@ async function storeAllChats(
         continue;
       }
 
+      // Skip chats already fully processed in Phase 2 (same server data, same merge result)
+      if (phase2ChatIds?.has(chatId)) {
+        console.debug(
+          `[ChatSyncService] Phase 3 - Skipping chat ${chatId} (already processed in Phase 2)`,
+        );
+        continue;
+      }
+
       console.debug(
         `[ChatSyncService] Processing chat ${chatId} with ${messages?.length || 0} messages`,
       );
@@ -643,8 +662,7 @@ async function storeAllChats(
         server_message_count !== null &&
         server_message_count > 0
       ) {
-        const localMessages = await chatDB.getMessagesForChat(chatId);
-        const localMessageCount = localMessages?.length || 0;
+        const localMessageCount = await chatDB.getMessageCountForChat(chatId);
 
         console.debug(
           `[ChatSyncService] Phase 3 - Message count validation for chat ${chatId}: ` +
@@ -688,8 +706,7 @@ async function storeAllChats(
         serverMessagesV === localMessagesV &&
         shouldSyncMessages
       ) {
-        const localMessages = await chatDB.getMessagesForChat(chatId);
-        const localMessageCount = localMessages?.length || 0;
+        const localMessageCount = await chatDB.getMessageCountForChat(chatId);
         const serverMessageCount = messages?.length || 0;
 
         console.debug(
