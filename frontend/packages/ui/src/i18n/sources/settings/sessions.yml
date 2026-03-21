@@ -290,6 +290,21 @@ pair_confirm_error:
   en: Authorization failed. Please try again.
   de: Autorisierung fehlgeschlagen. Bitte versuche es erneut.
 
+pair_confirm_cancel:
+  context: Cancel button shown on PIN display page to go back without waiting for completion
+  en: Cancel
+  de: Abbrechen
+
+pair_complete_success:
+  context: Success notification shown after device pairing completes
+  en: Device paired successfully
+  de: Gerät erfolgreich gekoppelt
+
+new_badge:
+  context: Badge shown on a newly paired device in the sessions list
+  en: New
+  de: Neu
+
 pair_invalid_token:
   context: Error when the pair token is invalid or not found
   en: This pair code is invalid or has expired. Ask the other device to generate a new code.

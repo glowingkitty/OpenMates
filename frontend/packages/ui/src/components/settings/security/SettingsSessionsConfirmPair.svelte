@@ -14,14 +14,19 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
 -->
 
 <script lang="ts">
-    import { onMount, createEventDispatcher } from 'svelte';
+    import { onMount, onDestroy, createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
     import { getApiEndpoint } from '../../../config/api';
     import { uint8ArrayToBase64, getKeyFromStorage } from '../../../services/cryptoService';
     import { get } from 'svelte/store';
-    import { pendingPairToken } from '../../../stores/pairSessionStore';
+    import { pendingPairToken, newlyPairedSession } from '../../../stores/pairSessionStore';
+    import { notificationStore } from '../../../stores/notificationStore';
 
-    const dispatch = createEventDispatcher<{ denied: void; done: void }>();
+    const dispatch = createEventDispatcher<{
+        denied: void;
+        done: void;
+        openSettings: { settingsPath: string; direction: string; icon: string; title: string };
+    }>();
 
     // ========================================================================
     // STATE
@@ -61,6 +66,7 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
     let generatedPin = $state<string | null>(null);
     let autoLogoutMinutes = $state<number | null>(null);
     const PAIR_PIN_ALPHABET = 'ABCDEFGHJKLMNPQRTUVWXY3468';
+    let completionPollInterval: ReturnType<typeof setInterval> | null = null;
 
     // ========================================================================
     // LIFECYCLE
@@ -173,6 +179,7 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
             }
 
             pageStatus = 'pin_display';
+            startCompletionPolling();
         } catch (err: unknown) {
             console.error('[ConfirmPair] Authorization failed:', err);
             errorMessage = err instanceof Error ? err.message : $text('settings.sessions.pair_confirm_error');
@@ -184,6 +191,48 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
         pageStatus = 'denied';
         dispatch('denied');
     }
+
+    /**
+     * After displaying the PIN, poll /pair/poll/{token} every 3 seconds to detect
+     * when the initiating device completes pairing (token gets deleted → status 'expired').
+     * On completion, auto-redirect to the sessions list with a success notification.
+     */
+    function startCompletionPolling() {
+        if (completionPollInterval) return;
+        completionPollInterval = setInterval(async () => {
+            try {
+                const response = await fetch(getApiEndpoint(`/v1/auth/pair/poll/${token}`), {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' },
+                });
+                const data = await response.json().catch(() => ({}));
+                if (data.status === 'expired') {
+                    stopCompletionPolling();
+                    newlyPairedSession.set(true);
+                    notificationStore.success(get(text)('settings.sessions.pair_complete_success'));
+                    dispatch('openSettings', {
+                        settingsPath: 'account/security/sessions',
+                        direction: 'backward',
+                        icon: 'devices',
+                        title: get(text)('settings.sessions.title'),
+                    });
+                }
+            } catch {
+                // Network error — keep polling
+            }
+        }, 3000);
+    }
+
+    function stopCompletionPolling() {
+        if (completionPollInterval) {
+            clearInterval(completionPollInterval);
+            completionPollInterval = null;
+        }
+    }
+
+    onDestroy(() => {
+        stopCompletionPolling();
+    });
 
     // ========================================================================
     // CRYPTO HELPERS
@@ -416,7 +465,6 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
         <p class="status-text">{$text('settings.sessions.pair_confirm_allowing')}</p>
 
     {:else if pageStatus === 'pin_display' && generatedPin}
-        <h2 class="page-title">{$text('settings.sessions.pair_confirm_show_pin')}</h2>
         <p class="page-description">{$text('settings.sessions.pair_confirm_pin_hint')}</p>
 
         <div class="pin-display-row">
@@ -440,8 +488,19 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
             </button>
         </div>
 
-        <button class="btn btn-secondary" onclick={() => dispatch('done')}>
-            Done
+        <button class="btn btn-secondary" onclick={() => {
+            stopCompletionPolling();
+            // Invalidate the token on the backend (fire-and-forget)
+            if (token) {
+                fetch(getApiEndpoint(`/v1/auth/pair/${token}`), {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                }).catch(() => {});
+            }
+            dispatch('done');
+        }}>
+            {$text('settings.sessions.pair_confirm_cancel')}
         </button>
 
     {:else if pageStatus === 'denied'}

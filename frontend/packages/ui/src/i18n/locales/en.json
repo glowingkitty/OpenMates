@@ -7193,7 +7193,16 @@
         }
       },
       "security": {
-        "text": "Security"
+        "text": "Security",
+        "sessions": {
+          "text": "Sessions",
+          "confirm_pair": {
+            "text": "Confirm Pairing"
+          },
+          "pair_initiate": {
+            "text": "Log In from Another Device"
+          }
+        }
       },
       "passkeys": {
         "text": "Passkeys"
@@ -11218,6 +11227,15 @@
       },
       "pair_confirm_error": {
         "text": "Authorization failed. Please try again."
+      },
+      "pair_confirm_cancel": {
+        "text": "Cancel"
+      },
+      "pair_complete_success": {
+        "text": "Device paired successfully"
+      },
+      "new_badge": {
+        "text": "New"
       },
       "pair_invalid_token": {
         "text": "This pair code is invalid or has expired. Ask the other device to generate a new code."

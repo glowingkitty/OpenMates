@@ -274,6 +274,13 @@ function clearPairSession(): void {
 export const pendingPairToken = writable<string | null>(null);
 
 /**
+ * Set to true by SettingsSessionsConfirmPair when pairing completes successfully.
+ * Read once by SettingsSessions to show a "New" badge on the newest session.
+ * Cleared after the sessions list reads it.
+ */
+export const newlyPairedSession = writable<boolean>(false);
+
+/**
  * Format remaining seconds as MM:SS string.
  */
 function formatRemainingTime(seconds: number): string {

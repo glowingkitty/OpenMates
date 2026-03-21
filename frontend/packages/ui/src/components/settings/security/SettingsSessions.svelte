@@ -10,7 +10,8 @@ Architecture: docs/architecture/device-sessions.md
     import { text } from '@repo/ui';
     import { getApiEndpoint } from '../../../config/api';
     import { decryptWithMasterKey } from '../../../services/cryptoService';
-    import { pendingPairToken } from '../../../stores/pairSessionStore';
+    import { pendingPairToken, newlyPairedSession } from '../../../stores/pairSessionStore';
+    import { get } from 'svelte/store';
     import SettingsInput from '../elements/SettingsInput.svelte';
 
     const dispatch = createEventDispatcher();
@@ -51,13 +52,27 @@ Architecture: docs/architecture/device-sessions.md
     let processingAll = $state(false);
     let addDeviceInput = $state('');
     let addDeviceError = $state('');
+    /** Session ID of the most recently paired device (for "New" badge) */
+    let newlyPairedSessionId = $state<string | null>(null);
 
     // ========================================================================
     // LIFECYCLE
     // ========================================================================
 
-    onMount(() => {
-        loadSessions();
+    onMount(async () => {
+        // Check if we arrived here after a successful pairing
+        const justPaired = get(newlyPairedSession);
+        await loadSessions();
+        if (justPaired && sessions.length > 0) {
+            // Find the newest non-current session (the one just paired)
+            const newest = sessions
+                .filter(s => !s.is_current)
+                .sort((a, b) => b.created_at - a.created_at)[0];
+            if (newest) {
+                newlyPairedSessionId = newest.session_id;
+            }
+            newlyPairedSession.set(false);
+        }
     });
 
     // ========================================================================
@@ -379,6 +394,9 @@ Architecture: docs/architecture/device-sessions.md
                                 {#if session.is_current}
                                     <span class="current-badge">{$text('settings.sessions.this_device')}</span>
                                 {/if}
+                                {#if newlyPairedSessionId === session.session_id}
+                                    <span class="new-badge">{$text('settings.sessions.new_badge')}</span>
+                                {/if}
                             </h3>
                             <p class="session-location">
                                 {#if session.country_code}
@@ -603,6 +621,17 @@ Architecture: docs/architecture/device-sessions.md
         font-weight: 500;
         background: rgba(59, 130, 246, 0.1);
         color: #3b82f6;
+        white-space: nowrap;
+    }
+
+    .new-badge {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 500;
+        background: rgba(40, 167, 69, 0.1);
+        color: #28a745;
         white-space: nowrap;
     }
 
