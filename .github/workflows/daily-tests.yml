@@ -202,8 +202,8 @@ jobs:
         if: steps.skip_check.outputs.skip != 'true'
         run: |
           if [ -n "${{ github.event.inputs.spec }}" ]; then
-            # Single spec mode — just pass the spec name
-            echo "SPECS_FOR_BATCH=${{ github.event.inputs.spec }}" >> "$GITHUB_OUTPUT"
+            # Single spec mode — use full path to avoid substring matching
+            echo "SPECS_FOR_BATCH=tests/${{ github.event.inputs.spec }}" >> "$GITHUB_OUTPUT"
           else
             python3 scripts/ci/get_spec_batch.py ${{ matrix.batch }} 18
           fi
