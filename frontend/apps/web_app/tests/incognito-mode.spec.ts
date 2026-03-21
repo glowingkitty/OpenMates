@@ -63,7 +63,7 @@ const SELECTORS = {
 	incognitoActivateButton: '[data-testid="incognito-activate-button"]',
 
 	// Incognito visual indicators
-	incognitoBanner: '.incognito-banner',
+	incognitoBanner: '.incognito-pill',
 	// The incognito group header is an h2.group-title rendered inside the INCOGNITO chat group.
 	// It replaces the old per-chat .incognito-label badge (removed in favour of a single group header).
 	incognitoGroupHeader: 'h2.group-title',

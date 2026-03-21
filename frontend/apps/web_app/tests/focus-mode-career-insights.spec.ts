@@ -90,10 +90,10 @@ const SELECTORS = {
 	// -----------------------------------------------------------------------
 	// New selectors for additional requirements
 	// -----------------------------------------------------------------------
-	/** Fixed "Focus active" header banner shown above message input when focus mode is active */
-	focusActiveBanner: '.focus-active-banner[data-app-id="jobs"]',
-	/** Text inside the focus active banner */
-	focusActiveBannerText: '.focus-active-banner[data-app-id="jobs"] .focus-active-banner-text',
+	/** Focus pill shown above message input when focus mode is active */
+	focusActiveBanner: '.focus-pill',
+	/** Label text inside the focus pill */
+	focusActiveBannerText: '.focus-pill .focus-pill-label',
 	/** Focus mode badge on Chat.svelte entry (bottom-right of category circle) */
 	focusModeBadge: '.focus-mode-badge',
 	/** Mention dropdown shown when user types @ in the message editor */
