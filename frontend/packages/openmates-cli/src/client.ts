@@ -2623,6 +2623,47 @@ export class OpenMatesClient {
       if (cache) return cache;
     }
 
+    // Delta sync: load existing cache (even if stale) to extract version data.
+    // Mirrors chatSyncService.ts:startPhasedSync — sends client_chat_versions
+    // so the server skips unchanged chats instead of re-sending everything.
+    const existingCache = loadSyncCache();
+
+    // Build delta sync payload from cached data
+    const clientChatVersions: Record<
+      string,
+      { messages_v: number; title_v: number; draft_v: number }
+    > = {};
+    const clientChatIds: string[] = [];
+    const clientEmbedIds: string[] = [];
+
+    if (existingCache) {
+      for (const chat of existingCache.chats) {
+        const id = String(chat.details.id ?? "");
+        if (!id) continue;
+        clientChatIds.push(id);
+        clientChatVersions[id] = {
+          messages_v:
+            typeof chat.details.messages_v === "number"
+              ? chat.details.messages_v
+              : 0,
+          title_v:
+            typeof chat.details.title_v === "number"
+              ? chat.details.title_v
+              : 0,
+          draft_v:
+            typeof chat.details.draft_v === "number"
+              ? chat.details.draft_v
+              : 0,
+        };
+      }
+      for (const embed of existingCache.embeds) {
+        const embedId = String(
+          (embed as Record<string, unknown>).id ?? "",
+        );
+        if (embedId) clientEmbedIds.push(embedId);
+      }
+    }
+
     const session = this.requireSession();
     const ws = this.makeWsClient(session);
     await ws.open();
@@ -2635,9 +2676,9 @@ export class OpenMatesClient {
     try {
       ws.send("phased_sync_request", {
         phase: "phase3",
-        client_chat_versions: {},
-        client_chat_ids: [],
-        client_embed_ids: [],
+        client_chat_versions: clientChatVersions,
+        client_chat_ids: clientChatIds,
+        client_embed_ids: clientEmbedIds,
       });
       const initial = await ws.waitForMessage("phase_3_last_100_chats_ready");
       const initialPayload = initial.payload as {
@@ -2697,6 +2738,45 @@ export class OpenMatesClient {
       ws.close();
     }
 
+    // Delta merge: server only sent new/changed chats. Carry forward
+    // unchanged chats from the existing cache so we don't lose them.
+    if (existingCache) {
+      const serverChatIds = new Set(
+        chats.map((c) => String(c.details.id ?? "")),
+      );
+      for (const cached of existingCache.chats) {
+        const cachedId = String(cached.details.id ?? "");
+        if (cachedId && !serverChatIds.has(cachedId)) {
+          chats.push(cached);
+        }
+      }
+      // Also carry forward embeds/embed_keys not already in the server response
+      const serverEmbedIds = new Set(
+        embeds.map((e) => String((e as Record<string, unknown>).id ?? "")),
+      );
+      for (const cached of existingCache.embeds) {
+        const cachedId = String(
+          (cached as Record<string, unknown>).id ?? "",
+        );
+        if (cachedId && !serverEmbedIds.has(cachedId)) {
+          embeds.push(cached);
+        }
+      }
+      const serverEmbedKeyIds = new Set(
+        embedKeys.map((e) =>
+          String((e as Record<string, unknown>).id ?? ""),
+        ),
+      );
+      for (const cached of existingCache.embedKeys) {
+        const cachedId = String(
+          (cached as Record<string, unknown>).id ?? "",
+        );
+        if (cachedId && !serverEmbedKeyIds.has(cachedId)) {
+          embedKeys.push(cached);
+        }
+      }
+    }
+
     // Sort by last_edited_overall_timestamp descending
     chats.sort(
       (a, b) =>
@@ -2707,6 +2787,12 @@ export class OpenMatesClient {
           ? a.details.last_edited_overall_timestamp
           : 0),
     );
+
+    // Handle deleted chats: if merged count exceeds server total,
+    // some chats were deleted server-side. Trim oldest (end of sorted list).
+    if (totalChatCount > 0 && chats.length > totalChatCount) {
+      chats.length = totalChatCount;
+    }
 
     const cache: SyncCache = {
       syncedAt: Date.now(),
