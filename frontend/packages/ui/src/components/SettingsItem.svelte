@@ -195,10 +195,12 @@
     let hasIconBg = $derived(resolvedBackground === 'primary');
 
     // Build inline style for the icon element
+    // When iconColor is explicitly provided with a background, use it for --si-bg
+    // so custom gradients (e.g. app-specific colors) render on the icon container.
     let iconStyle = $derived(
         `--si-icon: var(--icon-url-${resolvedIconName});` +
         (hasIconBg
-            ? ` --si-bg: var(--color-primary);`
+            ? ` --si-bg: ${iconColor ?? 'var(--color-primary)'};`
             : ` --si-color: ${resolvedColor};`)
     );
 

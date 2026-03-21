@@ -173,38 +173,29 @@
             </div>
         {/if}
 
-        <!-- Settings & Memories section - always show cards for each category -->
+        <!-- Settings & Memories section - always show categories as list items -->
         {#if memoryFields.length > 0}
             <div class="section">
                 <SettingsItem
                     type="heading"
-                    icon="settings"
+                    icon={getIconName(app.icon_image)}
+                    iconBackground="none"
+                    iconColor={`var(--color-app-${appId})`}
                     title={$text('settings.app_store.settings_memories.title')}
                 />
                 <p class="section-description">{$text('settings.app_store.settings_memories.section_description')}</p>
-                <div class="items-scroll-container">
-                    <div class="items-scroll">
-                        {#each memoryFields as category (category.id)}
-                            {@const categoryApp: AppMetadata = {
-                                id: appId,
-                                name_translation_key: category.name_translation_key,
-                                description_translation_key: category.description_translation_key,
-                                // Use category's own icon_image if available; fall back to app icon
-                                icon_image: category.icon_image || app.icon_image,
-                                icon_colorgradient: app.icon_colorgradient,
-                                providers: [],
-                                skills: [],
-                                focus_modes: [],
-                                settings_and_memories: []
-                            }}
-                            <AppStoreCard
-                                app={categoryApp}
-                                cardIconType="memory"
-                                onSelect={() => handleSettingsMemoriesCategorySelect(category.id)}
-                            />
-                        {/each}
-                    </div>
-                </div>
+                {#each memoryFields as category (category.id)}
+                    {@const categoryIconName = category.icon_image
+                        ? category.icon_image.replace(/\.svg$/, '')
+                        : category.id}
+                    <SettingsItem
+                        type="submenu"
+                        icon={categoryIconName}
+                        iconColor="var(--icon-memory-background)"
+                        title={$text(category.name_translation_key || category.id)}
+                        onClick={() => handleSettingsMemoriesCategorySelect(category.id)}
+                    />
+                {/each}
             </div>
         {/if}
         
