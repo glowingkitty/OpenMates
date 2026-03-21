@@ -628,6 +628,11 @@
        Without this, align-items:center on the parent shrinks us and breaks centering. */
     width: 100%;
     /* overflow-x must NOT be set here — it would clip the scroll container's cards */
+
+    /* Fade edges to transparent so the gap between scroll content and
+       the parent container's padding is not visible as a hard cut-off. */
+    -webkit-mask-image: linear-gradient(to right, transparent, black 28px, black calc(100% - 28px), transparent);
+    mask-image: linear-gradient(to right, transparent, black 28px, black calc(100% - 28px), transparent);
   }
 
   .suggestions-wrapper.fade-out {
@@ -774,6 +779,12 @@
   }
 
   @media (max-width: 730px) {
+    .suggestions-wrapper {
+      /* Tighter fade on mobile to preserve more visible card area */
+      -webkit-mask-image: linear-gradient(to right, transparent, black 16px, black calc(100% - 16px), transparent);
+      mask-image: linear-gradient(to right, transparent, black 16px, black calc(100% - 16px), transparent);
+    }
+
     .suggestions-header {
       /* Cards are 210px on mobile → left edge at 50% - 105px */
       padding: 0 0 0 calc(50% - 105px);
