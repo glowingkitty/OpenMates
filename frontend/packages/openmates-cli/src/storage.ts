@@ -145,9 +145,7 @@ export function saveSession(session: OpenMatesSession): void {
   writeJsonFile(filePath, onDisk);
 
   if (result.type !== "plaintext") {
-    process.stderr.write(
-      `[keychain] Master key stored via ${result.type}\n`,
-    );
+    process.stderr.write("Decrypting data...\n");
   }
 }
 
@@ -172,9 +170,7 @@ export function loadSession(): OpenMatesSession | null {
       const session = buildSession(onDisk, masterKey);
       try {
         saveSession(session);
-        process.stderr.write(
-          "[keychain] Migrated legacy session to secure storage\n",
-        );
+        process.stderr.write("Decrypting data...\n");
       } catch {
         // Migration failed — keep working with plaintext key in memory
       }
@@ -204,7 +200,7 @@ export function loadSession(): OpenMatesSession | null {
 
   if (!masterKey) {
     process.stderr.write(
-      `[keychain] Failed to retrieve master key from ${onDisk.masterKeyStorage} — session invalid\n`,
+      `Failed to retrieve master key — session invalid\n`,
     );
     return null;
   }
