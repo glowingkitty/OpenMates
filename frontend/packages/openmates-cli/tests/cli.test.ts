@@ -15,6 +15,8 @@ import {
   deriveAppUrl,
   MEMORY_TYPE_REGISTRY,
   parseNewChatSuggestionText,
+  serializeToYaml,
+  getExtForLang,
 } from "../dist/index.js";
 
 // ---------------------------------------------------------------------------
@@ -566,5 +568,184 @@ describe("--followup flag resolution", () => {
     );
     assert.strictEqual(result1.ok && result1.message, SUGGESTIONS[0]);
     assert.strictEqual(result2.ok && result2.message, SUGGESTIONS[1]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// serializeToYaml
+// ---------------------------------------------------------------------------
+
+describe("serializeToYaml", () => {
+  it("serializes simple key-value pairs", () => {
+    const result = serializeToYaml({ name: "Alice", age: 30 });
+    assert.ok(result.includes("name: Alice"));
+    assert.ok(result.includes("age: 30"));
+  });
+
+  it("serializes null values", () => {
+    const result = serializeToYaml({ title: null });
+    assert.ok(result.includes("title: null"));
+  });
+
+  it("serializes boolean values", () => {
+    const result = serializeToYaml({ active: true, deleted: false });
+    assert.ok(result.includes("active: true"));
+    assert.ok(result.includes("deleted: false"));
+  });
+
+  it("serializes multiline strings with block scalar", () => {
+    const result = serializeToYaml({ content: "line one\nline two\nline three" });
+    assert.ok(result.includes("content: |"));
+    assert.ok(result.includes("  line one"));
+    assert.ok(result.includes("  line two"));
+  });
+
+  it("quotes strings containing colons", () => {
+    const result = serializeToYaml({ url: "https://example.com" });
+    assert.ok(result.includes('"https://example.com"'));
+  });
+
+  it("quotes strings containing hash marks", () => {
+    const result = serializeToYaml({ comment: "color #ff0000" });
+    assert.ok(result.includes('"color #ff0000"'));
+  });
+
+  it("quotes strings that look like YAML booleans", () => {
+    const result = serializeToYaml({ value: "true" });
+    assert.ok(result.includes('"true"'));
+  });
+
+  it("quotes empty strings", () => {
+    const result = serializeToYaml({ empty: "" });
+    assert.ok(result.includes('empty: ""'));
+  });
+
+  it("serializes nested objects", () => {
+    const result = serializeToYaml({ chat: { title: "Hello", count: 5 } });
+    assert.ok(result.includes("chat:"));
+    assert.ok(result.includes("  title: Hello"));
+    assert.ok(result.includes("  count: 5"));
+  });
+
+  it("serializes arrays of primitives", () => {
+    const result = serializeToYaml({ tags: ["a", "b", "c"] });
+    assert.ok(result.includes("tags:"));
+    assert.ok(result.includes("- a"));
+    assert.ok(result.includes("- b"));
+  });
+
+  it("serializes arrays of objects", () => {
+    const result = serializeToYaml({
+      messages: [
+        { role: "user", content: "hi" },
+        { role: "assistant", content: "hello" },
+      ],
+    });
+    assert.ok(result.includes("messages:"));
+    assert.ok(result.includes("role: user"));
+    assert.ok(result.includes("role: assistant"));
+    assert.ok(result.includes("content: hi"));
+    assert.ok(result.includes("content: hello"));
+  });
+
+  it("preserves double quotes in unquoted strings", () => {
+    const result = serializeToYaml({ note: 'say "hello"' });
+    assert.ok(result.includes('note: say "hello"'));
+  });
+
+  it("handles deeply nested structures", () => {
+    const result = serializeToYaml({
+      a: { b: { c: { d: "deep" } } },
+    });
+    assert.ok(result.includes("      d: deep"));
+  });
+
+  it("produces consistent output matching web app YAML format", () => {
+    const result = serializeToYaml({
+      chat: {
+        title: "Test Chat",
+        exported_at: "2026-03-21T10:00:00.000Z",
+        message_count: 2,
+        summary: null,
+      },
+      messages: [
+        {
+          role: "user",
+          sender: "You",
+          model: null,
+          timestamp: "2026-03-21T10:00:00.000Z",
+          content: "Hello",
+        },
+      ],
+    });
+    // Verify structure matches expected chat export format
+    assert.ok(result.includes("chat:"));
+    assert.ok(result.includes("  title: Test Chat"));
+    assert.ok(result.includes("  message_count: 2"));
+    assert.ok(result.includes("  summary: null"));
+    assert.ok(result.includes("messages:"));
+    assert.ok(result.includes("    role: user"));
+    assert.ok(result.includes("    sender: You"));
+    assert.ok(result.includes("    content: Hello"));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getExtForLang
+// ---------------------------------------------------------------------------
+
+describe("getExtForLang", () => {
+  it("maps common languages to correct extensions", () => {
+    assert.strictEqual(getExtForLang("javascript"), "js");
+    assert.strictEqual(getExtForLang("typescript"), "ts");
+    assert.strictEqual(getExtForLang("python"), "py");
+    assert.strictEqual(getExtForLang("ruby"), "rb");
+    assert.strictEqual(getExtForLang("rust"), "rs");
+    assert.strictEqual(getExtForLang("golang"), "go");
+    assert.strictEqual(getExtForLang("go"), "go");
+    assert.strictEqual(getExtForLang("java"), "java");
+    assert.strictEqual(getExtForLang("csharp"), "cs");
+    assert.strictEqual(getExtForLang("cpp"), "cpp");
+  });
+
+  it("maps web languages correctly", () => {
+    assert.strictEqual(getExtForLang("html"), "html");
+    assert.strictEqual(getExtForLang("css"), "css");
+    assert.strictEqual(getExtForLang("scss"), "scss");
+    assert.strictEqual(getExtForLang("json"), "json");
+    assert.strictEqual(getExtForLang("yaml"), "yml");
+    assert.strictEqual(getExtForLang("xml"), "xml");
+  });
+
+  it("maps shell and config languages correctly", () => {
+    assert.strictEqual(getExtForLang("shell"), "sh");
+    assert.strictEqual(getExtForLang("bash"), "sh");
+    assert.strictEqual(getExtForLang("powershell"), "ps1");
+    assert.strictEqual(getExtForLang("dockerfile"), "Dockerfile");
+    assert.strictEqual(getExtForLang("toml"), "toml");
+    assert.strictEqual(getExtForLang("sql"), "sql");
+  });
+
+  it("maps Svelte/React frameworks correctly", () => {
+    assert.strictEqual(getExtForLang("svelte"), "svelte");
+    assert.strictEqual(getExtForLang("vue"), "vue");
+    assert.strictEqual(getExtForLang("jsx"), "jsx");
+    assert.strictEqual(getExtForLang("tsx"), "tsx");
+  });
+
+  it("is case-insensitive", () => {
+    assert.strictEqual(getExtForLang("JavaScript"), "js");
+    assert.strictEqual(getExtForLang("PYTHON"), "py");
+    assert.strictEqual(getExtForLang("TypeScript"), "ts");
+  });
+
+  it("falls back to lowercased language name for unknown languages", () => {
+    assert.strictEqual(getExtForLang("zig"), "zig");
+    assert.strictEqual(getExtForLang("haskell"), "haskell");
+    assert.strictEqual(getExtForLang("ELIXIR"), "elixir");
+  });
+
+  it("returns 'txt' for empty string", () => {
+    assert.strictEqual(getExtForLang(""), "txt");
   });
 });

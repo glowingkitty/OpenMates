@@ -15,6 +15,7 @@ export {
   MATE_NAMES,
   parseNewChatSuggestionText,
 } from "./client.js";
+export { serializeToYaml, getExtForLang } from "./cli.js";
 export type {
   DecryptedMemoryEntry,
   DecryptedMessage,

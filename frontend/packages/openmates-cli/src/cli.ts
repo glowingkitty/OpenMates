@@ -3413,7 +3413,7 @@ async function handleMentions(
  * Handles nested objects, arrays, and multiline strings.
  * Mirrors chatExportService.convertToYamlString for compatibility.
  */
-function serializeToYaml(
+export function serializeToYaml(
   data: Record<string, unknown>,
   indent: number = 0,
 ): string {
@@ -3467,7 +3467,7 @@ function serializeToYaml(
 }
 
 /** Map language identifier to file extension for code embed downloads. */
-function getExtForLang(language: string): string {
+export function getExtForLang(language: string): string {
   const map: Record<string, string> = {
     javascript: "js",
     typescript: "ts",
