@@ -39,6 +39,7 @@ import ImagesSearchEmbedPreview from "../../../embeds/images/ImagesSearchEmbedPr
 import ShoppingSearchEmbedPreview from "../../../embeds/shopping/ShoppingSearchEmbedPreview.svelte";
 import EventsSearchEmbedPreview from "../../../embeds/events/EventsSearchEmbedPreview.svelte";
 import HealthSearchEmbedPreview from "../../../embeds/health/HealthSearchEmbedPreview.svelte";
+import HealthAppointmentEmbedPreview from "../../../embeds/health/HealthAppointmentEmbedPreview.svelte";
 import PdfReadEmbedPreview from "../../../embeds/pdf/PdfReadEmbedPreview.svelte";
 import PdfViewEmbedPreview from "../../../embeds/pdf/PdfViewEmbedPreview.svelte";
 import PdfSearchEmbedPreview from "../../../embeds/pdf/PdfSearchEmbedPreview.svelte";
@@ -232,6 +233,16 @@ export class GroupRenderer implements EmbedRenderer {
         "images-image-result",
         (item, embedData, decodedContent, content) =>
           this.renderImageResultComponent(
+            item,
+            embedData,
+            decodedContent,
+            content,
+          ),
+      ],
+      [
+        "health-appointment",
+        (item, embedData, decodedContent, content) =>
+          this.renderHealthAppointmentComponent(
             item,
             embedData,
             decodedContent,
@@ -512,6 +523,8 @@ export class GroupRenderer implements EmbedRenderer {
         return this.renderMapsPlaceItem(item, embedData, decodedContent);
       case "images-image-result":
         return this.renderImageResultItem(item, embedData, decodedContent);
+      case "health-appointment":
+        return this.renderHealthAppointmentItem(item, embedData, decodedContent);
       default:
         console.error(
           `[GroupRenderer] No renderer found for embed type: ${baseType}`,
@@ -4076,6 +4089,120 @@ export class GroupRenderer implements EmbedRenderer {
 
     const displayName = typeDisplayNames[baseType] || baseType;
     return `${count} ${displayName}${count > 1 ? "s" : ""}`;
+  }
+
+  // =========================================================================
+  // Health appointment embed rendering — individual Svelte component + HTML fallback
+  // =========================================================================
+
+  /**
+   * Render a single health-appointment embed using HealthAppointmentEmbedPreview.
+   * Each child embed represents one appointment slot with doctor metadata.
+   */
+  private async renderHealthAppointmentComponent(
+    item: EmbedNodeAttributes,
+    embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
+    content: HTMLElement,
+  ): Promise<void> {
+    const embedId = item.contentRef?.replace("embed:", "") || item.id || "";
+    const status = (decodedContent?.status ||
+      embedData?.status ||
+      item.status ||
+      "finished") as "processing" | "finished" | "error";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn("[GroupRenderer] Error unmounting existing component:", e);
+      }
+    }
+    content.innerHTML = "";
+
+    if (!content.isConnected) {
+      console.warn(
+        "[GroupRenderer] Skipping HealthAppointmentEmbedPreview mount — target detached from DOM",
+      );
+      return;
+    }
+
+    if (status === "processing") {
+      content.innerHTML = await this.renderHealthAppointmentItem(
+        item,
+        embedData,
+        decodedContent,
+      );
+      return;
+    }
+
+    try {
+      const component = mount(HealthAppointmentEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          slotDatetime: (decodedContent?.slot_datetime as string) || undefined,
+          name: (decodedContent?.name as string) || undefined,
+          speciality: (decodedContent?.speciality as string) || undefined,
+          address: (decodedContent?.address as string) || undefined,
+          insurance: (decodedContent?.insurance as string) || undefined,
+          telehealth: (decodedContent?.telehealth as boolean) || false,
+          status,
+          isMobile: false,
+          onFullscreen: () =>
+            this.openFullscreen(item, embedData, decodedContent),
+          // Legacy backward-compat
+          nextSlot: (decodedContent?.next_slot as string) || undefined,
+          slotsCount: (decodedContent?.slots_count as number) || undefined,
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug(
+        "[GroupRenderer] Mounted HealthAppointmentEmbedPreview component:",
+        { embedId, slotDatetime: decodedContent?.slot_datetime, status },
+      );
+    } catch (error) {
+      const err = error as Error;
+      console.error(
+        "[GroupRenderer] Error mounting HealthAppointmentEmbedPreview:",
+        err?.name,
+        err?.message,
+        err?.stack,
+      );
+      if (content.isConnected) {
+        content.innerHTML = await this.renderHealthAppointmentItem(
+          item,
+          embedData,
+          decodedContent,
+        );
+      }
+    }
+  }
+
+  /**
+   * HTML fallback for health-appointment embeds (used by renderItemContent switch).
+   */
+  private async renderHealthAppointmentItem(
+    _item: EmbedNodeAttributes,
+    _embedData?: EmbedData | null,
+    decodedContent: DecodedEmbedContent | null = null,
+  ): Promise<string> {
+    const slotDatetime =
+      decodedContent?.slot_datetime || decodedContent?.next_slot || "";
+    const name = decodedContent?.name || "Doctor";
+    const speciality = decodedContent?.speciality || "";
+
+    return `
+      <div class="embed-app-icon health">
+        <span class="icon icon_health"></span>
+      </div>
+      <div class="embed-text-content">
+        <div class="embed-text-line">${slotDatetime}</div>
+        ${name ? `<div class="embed-text-subline">${name}${speciality ? ` · ${speciality}` : ""}</div>` : ""}
+      </div>
+    `;
   }
 
   /**
