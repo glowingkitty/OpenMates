@@ -1220,6 +1220,48 @@ export function generateEmbedKey(): Uint8Array {
 }
 
 /**
+ * Derives an embed-specific AES key deterministically from the chat key and embed ID.
+ * Uses HKDF-SHA256 so that every tab/device with the same chat key produces the
+ * identical embed key for a given embed — eliminating the multi-tab race condition
+ * where two tabs would generate different random keys for the same embed.
+ *
+ * Security note: embed keys were already derivable from the chat key via the
+ * key_type='chat' wrapped entries in embed_keys, so this does not weaken the
+ * security boundary. The chat key remains the root of trust.
+ *
+ * @param chatKey - The chat's encryption key (32 bytes)
+ * @param embedId - The embed ID (used as HKDF info parameter)
+ * @returns Promise<Uint8Array> - Deterministic 32-byte embed key
+ */
+export async function deriveEmbedKeyFromChatKey(
+  chatKey: Uint8Array,
+  embedId: string,
+): Promise<Uint8Array> {
+  // Import chatKey as HKDF key material.
+  // Wrap in a new Uint8Array to guarantee a plain ArrayBuffer backing store
+  // (avoids TS strict-mode BufferSource incompatibility with SharedArrayBuffer).
+  const hkdfKey = await crypto.subtle.importKey(
+    "raw",
+    new Uint8Array(chatKey) as unknown as ArrayBuffer,
+    "HKDF",
+    false,
+    ["deriveBits"],
+  );
+
+  // Fixed salt scoped to this derivation context (prevents cross-protocol collisions)
+  const salt = new TextEncoder().encode("openmates-embed-key-v1");
+  const info = new TextEncoder().encode(embedId);
+
+  const derivedBits = await crypto.subtle.deriveBits(
+    { name: "HKDF", hash: "SHA-256", salt, info },
+    hkdfKey,
+    256, // 32 bytes for AES-256
+  );
+
+  return new Uint8Array(derivedBits);
+}
+
+/**
  * Wraps an embed key with the user's master key for owner cross-chat access
  * @param embedKey - The embed-specific key to wrap
  * @returns Promise<string | null> - Base64 encoded wrapped key or null if master key not found

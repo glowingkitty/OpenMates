@@ -94,7 +94,7 @@ export * from "./src/demo_chats/store"; // Export demo chat stores
 export * from "./src/demo_chats"; // Export demo chat data and helpers
 
 // Services
-export { chatDB } from "./src/services/db"; // Export chat database
+export { chatDB, cryptoReady } from "./src/services/db"; // Export chat database + crypto init promise
 export { userDB } from "./src/services/userDB"; // Export user database
 export { chatSyncService } from "./src/services/chatSyncService"; // Export chat sync service
 export { webSocketService } from "./src/services/websocketService"; // Export WebSocket service for auth error handling
@@ -105,6 +105,7 @@ export {
   checkAndClearMasterKeyOnLoad,
   // Embed key management functions for wrapped key architecture
   generateEmbedKey,
+  deriveEmbedKeyFromChatKey,
   wrapEmbedKeyWithMasterKey,
   wrapEmbedKeyWithChatKey,
   unwrapEmbedKeyWithMasterKey,

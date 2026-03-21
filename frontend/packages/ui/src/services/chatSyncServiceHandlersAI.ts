@@ -119,9 +119,28 @@ import type {
 } from "../types/chat"; // Assuming these types might be moved or are already in a shared types file
 
 // --- Deduplication tracking for embed processing ---
-// Track which finalized embeds have already been processed to prevent duplicate key generation
-// Key: embed_id, Value: true if already processed
+// Track which finalized embeds have already been processed to prevent duplicate key generation.
+// This Set is per-tab (in-memory). Cross-tab coordination uses BroadcastChannel below.
 const processedFinalizedEmbeds = new Set<string>();
+
+// --- Cross-tab embed processing deduplication ---
+// Prevents redundant encrypt+store work when multiple tabs receive the same send_embed_data.
+// With deterministic HKDF keys both tabs derive the same key, so correctness is not at risk,
+// but this avoids duplicate server writes and wasted CPU on the second tab.
+let embedBroadcastChannel: BroadcastChannel | null = null;
+try {
+  if (typeof BroadcastChannel !== "undefined") {
+    embedBroadcastChannel = new BroadcastChannel("openmates_embed_dedup_v1");
+    embedBroadcastChannel.onmessage = (event) => {
+      const { type, embedId } = event.data || {};
+      if (type === "embed_processed" && typeof embedId === "string") {
+        processedFinalizedEmbeds.add(embedId);
+      }
+    };
+  }
+} catch {
+  // BroadcastChannel not available (SSR, older browser) — dedup is per-tab only
+}
 
 // --- Thinking content buffering (cross-device persistence) ---
 // We buffer thinking content per message_id so we can:
@@ -198,10 +217,16 @@ function isEmbedAlreadyProcessed(embedId: string): boolean {
 }
 
 /**
- * Mark an embed as processed (for finalized embeds only)
+ * Mark an embed as processed (for finalized embeds only).
+ * Also broadcasts to other tabs via BroadcastChannel so they skip redundant work.
  */
 function markEmbedAsProcessed(embedId: string): void {
   processedFinalizedEmbeds.add(embedId);
+  try {
+    embedBroadcastChannel?.postMessage({ type: "embed_processed", embedId });
+  } catch {
+    // BroadcastChannel may be closed — non-fatal
+  }
 }
 
 /**
@@ -2905,36 +2930,46 @@ export async function handleSendEmbedDataImpl(
         );
       }
 
-      // Generate embed-specific encryption key early (if not already exists)
+      // Derive embed-specific encryption key early (if not already exists)
       // This is CRITICAL for key inheritance: child embeds arrive while parent is still processing
       // and they need the parent's key to encrypt themselves.
+      // Uses HKDF(chatKey, embedId) so every tab derives the SAME key — prevents multi-tab race.
       try {
-        const { generateEmbedKey } = await import("./cryptoService");
+        const { deriveEmbedKeyFromChatKey } = await import("./cryptoService");
         const { computeSHA256 } = await import("../message_parsing/utils");
         const { embedStore } = await import("./embedStore");
+        const { chatKeyManager } = await import("./encryption/ChatKeyManager");
         const hashedChatId = await computeSHA256(embedData.chat_id);
 
-        // Only generate if not already in cache
+        // Only derive if not already in cache
         const existingKey = await embedStore.getEmbedKey(
           embedData.embed_id,
           hashedChatId,
         );
         if (!existingKey) {
-          const newKey = generateEmbedKey();
-          // Cache the key so children can find it
-          embedStore.setEmbedKeyInCache(
-            embedData.embed_id,
-            newKey,
-            hashedChatId,
-          );
-          embedStore.setEmbedKeyInCache(embedData.embed_id, newKey, undefined); // master fallback
-          console.debug(
-            `[ChatSyncService:AI] Generated and cached early key for processing parent embed ${embedData.embed_id}`,
-          );
+          const chatKey = await chatKeyManager.getKey(embedData.chat_id);
+          if (chatKey) {
+            // Deterministic derivation: HKDF(chatKey, embedId) — same on every tab
+            const newKey = await deriveEmbedKeyFromChatKey(chatKey, embedData.embed_id);
+            // Cache the key so children can find it
+            embedStore.setEmbedKeyInCache(
+              embedData.embed_id,
+              newKey,
+              hashedChatId,
+            );
+            embedStore.setEmbedKeyInCache(embedData.embed_id, newKey, undefined); // master fallback
+            console.debug(
+              `[ChatSyncService:AI] Derived and cached early key (HKDF) for processing parent embed ${embedData.embed_id}`,
+            );
+          } else {
+            console.debug(
+              `[ChatSyncService:AI] Chat key not available yet for early embed key derivation — will derive at finalization`,
+            );
+          }
         }
       } catch (err) {
         console.warn(
-          `[ChatSyncService:AI] Failed to generate early key for processing embed:`,
+          `[ChatSyncService:AI] Failed to derive early key for processing embed:`,
           err,
         );
       }
@@ -3272,6 +3307,7 @@ export async function handleSendEmbedDataImpl(
 
       const {
         generateEmbedKey,
+        deriveEmbedKeyFromChatKey,
         encryptWithEmbedKey,
         wrapEmbedKeyWithMasterKey,
         wrapEmbedKeyWithChatKey,
@@ -3364,7 +3400,10 @@ export async function handleSendEmbedDataImpl(
           `[ChatSyncService:AI] Cached inherited key for child embed ${embedData.embed_id}`,
         );
       } else {
-        // Parent embed: Use already cached key or generate new unique key
+        // Parent embed: Use already cached key or derive deterministically from chat key.
+        // HKDF(chatKey, embedId) ensures every tab produces the SAME embed key,
+        // preventing multi-tab race conditions where different tabs generate different
+        // random keys for the same embed (causing permanent key/content mismatch).
         const cachedKey = await embedStore.getEmbedKey(
           embedData.embed_id,
           hashedChatId,
@@ -3372,13 +3411,23 @@ export async function handleSendEmbedDataImpl(
         if (cachedKey) {
           embedKey = cachedKey;
           console.debug(
-            `[ChatSyncService:AI] Using existing early-generated key for finalized parent embed ${embedData.embed_id}`,
+            `[ChatSyncService:AI] Using existing cached key for finalized parent embed ${embedData.embed_id}`,
           );
         } else {
-          embedKey = generateEmbedKey();
-          console.debug(
-            `[ChatSyncService:AI] Generated new embed_key for finalized parent embed ${embedData.embed_id}`,
-          );
+          // Derive deterministically from chat key — all tabs produce the same result
+          const chatKeyForDerivation = await chatKeyManager.getKey(embedData.chat_id);
+          if (chatKeyForDerivation) {
+            embedKey = await deriveEmbedKeyFromChatKey(chatKeyForDerivation, embedData.embed_id);
+            console.debug(
+              `[ChatSyncService:AI] Derived embed key (HKDF) for finalized parent embed ${embedData.embed_id}`,
+            );
+          } else {
+            // Fallback to random key if chat key unavailable (should not happen for finalized embeds)
+            embedKey = generateEmbedKey();
+            console.warn(
+              `[ChatSyncService:AI] ⚠️ Chat key unavailable for HKDF derivation, using random key for embed ${embedData.embed_id}`,
+            );
+          }
         }
 
         // CRITICAL: Cache the parent embed key immediately after generation/retrieval
