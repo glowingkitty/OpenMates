@@ -913,6 +913,10 @@ main::-webkit-scrollbar-thumb {
   --color-warning: #f0a050;
   --color-warning-bg: rgba(240, 160, 80, 0.15);
 
+  /* Primary Color - brighter for dark mode contrast */
+  --color-primary-start: #6387ff;
+  --color-primary-end: #7ea4ff;
+
   /* App/Code - dark mode */
   --color-app-code-start: #1b8fe3;
   /* App/Videos - dark mode */
