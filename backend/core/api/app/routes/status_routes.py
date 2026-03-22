@@ -20,8 +20,9 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.services.status_aggregator import (
+    build_all_service_daily_statuses,
     build_health_groups,
-    build_timeline_buckets,
+    compute_overall_daily_timeline,
     compute_overall_status,
     gather_health_data,
     strip_admin_fields_from_incidents,
@@ -33,6 +34,7 @@ from backend.core.api.app.services.test_results_service import (
     get_flaky_tests,
     get_latest_run_detail,
     get_latest_run_summary,
+    get_per_suite_daily_history,
 )
 
 logger = logging.getLogger(__name__)
@@ -112,48 +114,63 @@ async def get_status(
         "is_admin": is_admin,
     }
 
-    # Health data (needed for overall_status and health section)
-    health_data = None
-    if "health" in sections or True:  # Always need overall_status
-        health_data = await gather_health_data(request)
-        response["overall_status"] = compute_overall_status(health_data)
+    # Health data (always needed for overall_status)
+    health_data = await gather_health_data(request)
+    response["overall_status"] = compute_overall_status(health_data)
 
-    # Health groups
-    if "health" in sections and health_data:
-        include_service_detail = detail == "full" and is_admin
-        response["health"] = {
-            "groups": build_health_groups(health_data, is_admin=include_service_detail),
-        }
-
-    # Timeline
-    if "timeline" in sections:
+    # Build per-service 30-day timelines (needed for health groups and overall timeline)
+    service_timelines: Dict[str, Any] = {}
+    if "health" in sections or "timeline" in sections:
         try:
             directus = DirectusService(cache_service=CacheService())
             try:
-                response["timeline"] = {
-                    "period_days": 30,
-                    "buckets": await build_timeline_buckets(directus, period_days=30),
-                }
+                service_timelines = await build_all_service_daily_statuses(
+                    directus, health_data, days=30,
+                )
             finally:
                 await directus.close()
         except Exception as e:
-            logger.error(f"[STATUS] Error building timeline: {e}", exc_info=True)
-            response["timeline"] = {"period_days": 30, "buckets": []}
+            logger.error(f"[STATUS] Error building service timelines: {e}", exc_info=True)
 
-    # Tests
+    # Overall 30-day timeline (one segment per day, aggregated from all services)
+    if "timeline" in sections:
+        response["overall_timeline_30d"] = compute_overall_daily_timeline(service_timelines)
+
+    # Health groups with per-service and per-group timelines
+    if "health" in sections:
+        response["health"] = {
+            "groups": build_health_groups(
+                health_data, service_timelines, is_admin=is_admin,
+            ),
+        }
+
+    # Tests — all data visible to all users (error messages gated by is_admin in categorized_test_summary)
     if "tests" in sections:
         test_summary = get_latest_run_summary()
         if test_summary:
             test_section = dict(test_summary)
             test_section["trend"] = get_daily_trend(days=30)
-            # Add categorized breakdown
-            categorized = get_categorized_test_summary(is_admin=is_admin)
+            # Add per-suite 30-day history
+            suite_history = get_per_suite_daily_history(days=30)
+            for suite in test_section.get("suites", []):
+                suite["timeline_30d"] = suite_history.get(suite["name"], [])
+            # Add categorized breakdown (all users see categories + test names; admin sees errors)
+            categorized = get_categorized_test_summary(is_admin=True)  # Always include test names
+            # Strip error fields for non-admin
+            if not is_admin:
+                for cat_data in categorized.get("categories", {}).values():
+                    if cat_data.get("tests"):
+                        for test in cat_data["tests"]:
+                            test.pop("error", None)
             test_section["categories"] = categorized.get("categories", {})
             response["tests"] = test_section
         else:
-            response["tests"] = {"overall_status": "unknown", "latest_run": None, "suites": [], "trend": [], "categories": {}}
+            response["tests"] = {
+                "overall_status": "unknown", "latest_run": None,
+                "suites": [], "trend": [], "categories": {},
+            }
 
-    # Incidents — use 30-day window
+    # Incidents — 30-day window
     if "incidents" in sections:
         try:
             from datetime import timedelta as _td

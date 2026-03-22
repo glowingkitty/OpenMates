@@ -187,6 +187,54 @@ def get_daily_trend(days: int = 14) -> List[Dict[str, Any]]:
     return trend
 
 
+def get_per_suite_daily_history(days: int = 30) -> Dict[str, List[Dict[str, Any]]]:
+    """
+    Build per-suite 30-day pass rate history from daily run files.
+    Returns { "playwright": [{date, pass_rate, passed, failed, total}, ...], ... }
+    """
+    cached = _get_cached(f"per_suite_history:{days}")
+    if cached is not None:
+        return cached
+
+    pattern = os.path.join(TEST_RESULTS_DIR, "daily-run-*.json")
+    files = sorted(glob(pattern), reverse=True)[:days]
+
+    # suite_name -> [{date, pass_rate, passed, failed, total}]
+    history: Dict[str, List[Dict[str, Any]]] = {}
+
+    for filepath in files:
+        data = _read_json_file(filepath)
+        if not data:
+            continue
+
+        filename = Path(filepath).stem
+        date_str = filename.replace("daily-run-", "")
+
+        for suite_name, suite_data in data.get("suites", {}).items():
+            tests = suite_data.get("tests", [])
+            passed = sum(1 for t in tests if t.get("status") == "passed")
+            failed = sum(1 for t in tests if t.get("status") == "failed")
+            total = len(tests)
+            pass_rate = round(passed / total * 100) if total > 0 else 0
+
+            if suite_name not in history:
+                history[suite_name] = []
+            history[suite_name].append({
+                "date": date_str,
+                "pass_rate": pass_rate,
+                "passed": passed,
+                "failed": failed,
+                "total": total,
+            })
+
+    # Sort oldest-first per suite
+    for suite_name in history:
+        history[suite_name].sort(key=lambda x: x["date"])
+
+    _set_cached(f"per_suite_history:{days}", history)
+    return history
+
+
 def get_flaky_tests() -> List[Dict[str, Any]]:
     """Read flaky-history.json and return flaky test data."""
     cached = _get_cached("flaky_tests")

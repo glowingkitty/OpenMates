@@ -1,13 +1,13 @@
 # backend/core/api/app/services/status_aggregator.py
 # Aggregates health check data (Redis) + test results (disk) for the unified status API.
 # Architecture: See docs/architecture/status-page.md
-# Tests: N/A — covered by status API integration tests
+# Tests: backend/tests/test_status_service.py
 
 from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, List, Set
 
 logger = logging.getLogger(__name__)
@@ -20,7 +20,7 @@ _STATUS_MAP = {
     "unknown": "unknown",
 }
 
-# Service group definitions matching backend/status/app/config.py
+# Service group definitions
 GROUP_DISPLAY_NAMES = {
     "ai_providers": "AI Providers",
     "core_platform": "Core Platform",
@@ -32,17 +32,29 @@ GROUP_DISPLAY_NAMES = {
     "apps": "Applications",
 }
 
-# Map service IDs to their groups
 _PAYMENT_IDS = {"stripe", "polar", "revolut", "invoiceninja"}
 _EMAIL_IDS = {"brevo"}
 _MODERATION_IDS = {"sightengine"}
 _SEARCH_IDS = {"brave_search", "brave"}
 _INFRA_IDS = {"vercel", "aws_bedrock"}
 
+_STATUS_SEVERITY = {"down": 3, "degraded": 2, "operational": 1, "unknown": 0}
+
 
 def _normalize_status(status: str) -> str:
     """Normalize health status labels to status page conventions."""
     return _STATUS_MAP.get(status, "unknown")
+
+
+def _worst_status(statuses: set) -> str:
+    """Return the worst status from a set of statuses."""
+    if "down" in statuses:
+        return "down"
+    if "degraded" in statuses:
+        return "degraded"
+    if "operational" in statuses:
+        return "operational"
+    return "unknown"
 
 
 def _get_external_group(service_id: str) -> str:
@@ -64,25 +76,13 @@ def _compute_group_status(services: List[Dict[str, Any]]) -> str:
     """Compute overall group status from individual service statuses."""
     if not services:
         return "unknown"
-    statuses = {s.get("status", "unknown") for s in services}
-    if statuses == {"operational"}:
-        return "operational"
-    if "down" in statuses:
-        return "down"
-    if "degraded" in statuses:
-        return "degraded"
-    return "unknown"
+    return _worst_status({s.get("status", "unknown") for s in services})
 
 
 async def gather_health_data(request) -> Dict[str, Dict[str, Any]]:
     """
     Gather current health data from Redis cache.
-
     Returns dict with keys: providers, apps, external_services.
-    Each value is a dict of service_id → health data.
-
-    This is extracted from the /v1/health endpoint logic in main.py
-    to be reused by both /v1/health and /v1/status.
     """
     from backend.core.api.app.services.cache import CacheService
 
@@ -90,7 +90,6 @@ async def gather_health_data(request) -> Dict[str, Dict[str, Any]]:
     apps_health: Dict[str, Any] = {}
     external_services_health: Dict[str, Any] = {}
 
-    # Build discovered app IDs set
     discovered_app_ids: Set[str] = set()
     if hasattr(request.app.state, "discovered_apps_metadata"):
         discovered_app_ids = set(request.app.state.discovered_apps_metadata.keys())
@@ -102,7 +101,6 @@ async def gather_health_data(request) -> Dict[str, Dict[str, Any]]:
             logger.warning("[STATUS] Redis client unavailable")
             return {"providers": {}, "apps": {}, "external_services": {}}
 
-        # Supplement discovered apps from Redis cache
         cached_meta_json = await client.get("discovered_apps_metadata_v1")
         if cached_meta_json:
             if isinstance(cached_meta_json, bytes):
@@ -110,7 +108,6 @@ async def gather_health_data(request) -> Dict[str, Dict[str, Any]]:
             cached_meta = json.loads(cached_meta_json)
             discovered_app_ids |= set(cached_meta.keys())
 
-        # Provider health
         for key in await client.keys("health_check:provider:*"):
             if isinstance(key, bytes):
                 key = key.decode("utf-8")
@@ -127,7 +124,6 @@ async def gather_health_data(request) -> Dict[str, Dict[str, Any]]:
                     "response_times_ms": data.get("response_times_ms", {}),
                 }
 
-        # App health (filtered by discovered apps)
         for key in await client.keys("health_check:app:*"):
             if isinstance(key, bytes):
                 key = key.decode("utf-8")
@@ -146,7 +142,6 @@ async def gather_health_data(request) -> Dict[str, Dict[str, Any]]:
                     "last_check": data.get("last_check"),
                 }
 
-        # External service health
         for key in await client.keys("health_check:external:*"):
             if isinstance(key, bytes):
                 key = key.decode("utf-8")
@@ -173,77 +168,204 @@ async def gather_health_data(request) -> Dict[str, Dict[str, Any]]:
     }
 
 
+# ─── Per-service 30-day daily timelines ──────────────────────────────────────
+
+
+def _generate_date_range(days: int = 30) -> List[str]:
+    """Generate list of date strings for the last N days (oldest first)."""
+    today = date.today()
+    return [(today - timedelta(days=days - 1 - i)).isoformat() for i in range(days)]
+
+
+async def build_all_service_daily_statuses(
+    directus_service,
+    health_data: Dict[str, Dict[str, Any]],
+    days: int = 30,
+) -> Dict[str, List[Dict[str, str]]]:
+    """
+    Build per-service 30-day daily status from health transition events.
+
+    Returns dict keyed by "service_type/service_id" → [{date, status}, ...] (30 entries).
+    Uses single bulk query for all events, then fills gaps per service.
+    """
+    since_ts = int((datetime.now(timezone.utc) - timedelta(days=days)).timestamp())
+    dates = _generate_date_range(days)
+
+    # Single query: all events across all services
+    events = await directus_service.health_event.get_health_history(
+        since_timestamp=since_ts,
+        limit=1000,
+    )
+
+    # Group events by service key
+    events_by_service: Dict[str, List[Dict[str, Any]]] = {}
+    for event in events:
+        stype = event.get("service_type", "")
+        sid = event.get("service_id", "")
+        key = f"{stype}/{sid}"
+        events_by_service.setdefault(key, []).append(event)
+
+    # Build current status lookup from Redis data
+    current_statuses: Dict[str, str] = {}
+    type_map = {"providers": "provider", "apps": "app", "external_services": "external"}
+    for category, stype in type_map.items():
+        for sid, data in health_data.get(category, {}).items():
+            current_statuses[f"{stype}/{sid}"] = _normalize_status(data.get("status", "unknown"))
+
+    # Build per-service timeline
+    result: Dict[str, List[Dict[str, str]]] = {}
+
+    for svc_key, current in current_statuses.items():
+        svc_events = events_by_service.get(svc_key, [])
+
+        # Sort oldest-first
+        svc_events.sort(key=lambda e: e.get("created_at", ""))
+
+        # For each day, determine status
+        timeline = []
+        last_known = current  # Default: current Redis status (used for gap-filling)
+
+        # Find the initial status: the event just before the window, or fallback to current
+        # Walk events oldest-first to carry forward
+        running_status = current
+        for d in dates:
+            day_statuses = set()
+            for ev in svc_events:
+                ev_date = ev.get("created_at", "")[:10]  # "2026-03-22T..." → "2026-03-22"
+                if ev_date == d:
+                    day_statuses.add(_normalize_status(ev.get("new_status", "unknown")))
+                elif ev_date < d:
+                    # This event happened before this day — update running status
+                    running_status = _normalize_status(ev.get("new_status", "unknown"))
+
+            if day_statuses:
+                # Multiple transitions on this day — use worst
+                day_status = _worst_status(day_statuses)
+                running_status = day_status
+            else:
+                day_status = running_status
+
+            timeline.append({"date": d, "status": day_status})
+
+        result[svc_key] = timeline
+
+    return result
+
+
+def compute_group_daily_timeline(
+    service_timelines: Dict[str, List[Dict[str, str]]],
+    service_keys: List[str],
+) -> List[Dict[str, str]]:
+    """Aggregate multiple service timelines into one group timeline. Worst status per day wins."""
+    if not service_keys:
+        return []
+
+    # Get the date list from the first service
+    first_key = next((k for k in service_keys if k in service_timelines), None)
+    if not first_key:
+        return []
+
+    dates = [entry["date"] for entry in service_timelines[first_key]]
+    result = []
+    for i, d in enumerate(dates):
+        day_statuses = set()
+        for key in service_keys:
+            tl = service_timelines.get(key, [])
+            if i < len(tl):
+                day_statuses.add(tl[i]["status"])
+        result.append({"date": d, "status": _worst_status(day_statuses)})
+    return result
+
+
+def compute_overall_daily_timeline(
+    service_timelines: Dict[str, List[Dict[str, str]]],
+) -> List[Dict[str, str]]:
+    """Compute overall daily timeline from all service timelines."""
+    return compute_group_daily_timeline(service_timelines, list(service_timelines.keys()))
+
+
+# ─── Health groups with timelines ────────────────────────────────────────────
+
+
 def build_health_groups(
     health_data: Dict[str, Dict[str, Any]],
+    service_timelines: Dict[str, List[Dict[str, str]]],
     is_admin: bool = False,
 ) -> List[Dict[str, Any]]:
     """
-    Build grouped service health data for the status page.
+    Build grouped service health data with per-service and per-group 30-day timelines.
 
-    Args:
-        health_data: Raw health data from gather_health_data()
-        is_admin: If True, include error messages and response times
-
-    Returns:
-        List of group dicts with group_name, display_name, status, service_count.
-        If is_admin, each group also has a services[] array with details.
+    Always includes services[] (all users can see individual service status + timelines).
+    Admin additionally gets error_message, response_time_ms, last_check.
     """
     groups: Dict[str, List[Dict[str, Any]]] = {}
+    group_service_keys: Dict[str, List[str]] = {}
 
     # AI providers
     for provider_id, data in health_data.get("providers", {}).items():
         group_name = "ai_providers"
-        service = {
+        svc_key = f"provider/{provider_id}"
+        service: Dict[str, Any] = {
             "id": provider_id,
             "name": provider_id.replace("_", " ").title(),
             "status": _normalize_status(data.get("status", "unknown")),
+            "timeline_30d": service_timelines.get(svc_key, []),
         }
         if is_admin:
             service["error_message"] = data.get("last_error")
             service["response_time_ms"] = data.get("response_times_ms", {})
             service["last_check"] = data.get("last_check")
         groups.setdefault(group_name, []).append(service)
+        group_service_keys.setdefault(group_name, []).append(svc_key)
 
     # Applications
     for app_id, data in health_data.get("apps", {}).items():
         group_name = "apps"
+        svc_key = f"app/{app_id}"
         service = {
             "id": app_id,
             "name": app_id.replace("_", " ").title(),
             "status": _normalize_status(data.get("status", "unknown")),
+            "timeline_30d": service_timelines.get(svc_key, []),
         }
         if is_admin:
             service["api"] = data.get("api", {})
             service["worker"] = data.get("worker", {})
             service["last_check"] = data.get("last_check")
         groups.setdefault(group_name, []).append(service)
+        group_service_keys.setdefault(group_name, []).append(svc_key)
 
     # External services (grouped by type)
     for service_id, data in health_data.get("external_services", {}).items():
         group_name = _get_external_group(service_id)
+        svc_key = f"external/{service_id}"
         service = {
             "id": service_id,
             "name": service_id.replace("_", " ").title(),
             "status": _normalize_status(data.get("status", "unknown")),
+            "timeline_30d": service_timelines.get(svc_key, []),
         }
         if is_admin:
             service["error_message"] = data.get("last_error")
             service["response_time_ms"] = data.get("response_times_ms", {})
             service["last_check"] = data.get("last_check")
         groups.setdefault(group_name, []).append(service)
+        group_service_keys.setdefault(group_name, []).append(svc_key)
 
-    # Build final group list
+    # Build final group list with group-level timelines
     result = []
     for group_name, services in sorted(groups.items()):
-        group = {
+        group_tl = compute_group_daily_timeline(
+            service_timelines, group_service_keys.get(group_name, [])
+        )
+        result.append({
             "group_name": group_name,
             "display_name": GROUP_DISPLAY_NAMES.get(group_name, group_name.replace("_", " ").title()),
             "status": _compute_group_status(services),
             "service_count": len(services),
-        }
-        if is_admin:
-            group["services"] = services
-        result.append(group)
+            "timeline_30d": group_tl,
+            "services": services,
+        })
 
     return result
 
@@ -270,124 +392,31 @@ def compute_overall_status(health_data: Dict[str, Dict[str, Any]]) -> str:
     return "operational"
 
 
-async def build_timeline_buckets(
-    directus_service,
-    period_days: int = 90,
-) -> List[Dict[str, Any]]:
-    """
-    Build timeline buckets from health event history.
-
-    Computes time buckets where each bucket has the worst status
-    during that period. Gaps are filled with the previous status.
-
-    Args:
-        directus_service: DirectusService instance for querying health events
-        period_days: How many days of history to include
-
-    Returns:
-        List of {start, end, status} dicts, oldest first.
-    """
-    import math
-
-    now = datetime.now(timezone.utc)
-    since = now - timedelta(days=period_days)
-    since_ts = int(since.timestamp())
-
-    # Choose bucket size based on period
-    if period_days <= 7:
-        bucket_hours = 1
-    elif period_days <= 30:
-        bucket_hours = 4
-    else:
-        bucket_hours = 24
-
-    # Get health events for the period
-    events = await directus_service.health_event.get_health_history(
-        since_timestamp=since_ts,
-        limit=1000,
-    )
-
-    # Build buckets
-    total_hours = period_days * 24
-    num_buckets = math.ceil(total_hours / bucket_hours)
-    buckets = []
-
-    for i in range(num_buckets):
-        bucket_start = since + timedelta(hours=i * bucket_hours)
-        bucket_end = since + timedelta(hours=(i + 1) * bucket_hours)
-        if bucket_end > now:
-            bucket_end = now
-
-        # Find events in this bucket
-        bucket_statuses = set()
-        for event in events:
-            event_time_str = event.get("created_at", "")
-            try:
-                event_time = datetime.fromisoformat(event_time_str.replace("Z", "+00:00"))
-            except (ValueError, AttributeError):
-                continue
-            if bucket_start <= event_time < bucket_end:
-                new_status = event.get("new_status", "unknown")
-                bucket_statuses.add(_normalize_status(new_status))
-
-        # Determine bucket status (worst wins)
-        if "down" in bucket_statuses:
-            bucket_status = "down"
-        elif "degraded" in bucket_statuses:
-            bucket_status = "degraded"
-        elif bucket_statuses:
-            bucket_status = "operational"
-        else:
-            bucket_status = "operational"  # No events = assume operational
-
-        buckets.append({
-            "start": bucket_start.isoformat(),
-            "end": bucket_end.isoformat(),
-            "status": bucket_status,
-        })
-
-    return buckets
+# ─── Admin field stripping ───────────────────────────────────────────────────
 
 
 def strip_admin_fields_from_tests(test_data: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Remove admin-only fields (error messages, detailed errors) from test data.
-    Returns a copy safe for non-admin users.
-    """
+    """Remove admin-only fields (error messages) from test data."""
     if not test_data:
         return test_data
 
     result = dict(test_data)
 
-    # Strip errors from individual test rows in suites
     if "suites" in result and isinstance(result["suites"], dict):
         cleaned_suites = {}
         for suite_name, suite_data in result["suites"].items():
             cleaned_suite = dict(suite_data)
             if "tests" in cleaned_suite:
                 cleaned_suite["tests"] = [
-                    {
-                        "name": t.get("name", ""),
-                        "file": t.get("file", ""),
-                        "status": t.get("status", "unknown"),
-                        "duration_seconds": t.get("duration_seconds", 0),
-                        # error deliberately omitted
-                    }
+                    {k: v for k, v in t.items() if k != "error"}
                     for t in cleaned_suite["tests"]
                 ]
             cleaned_suites[suite_name] = cleaned_suite
         result["suites"] = cleaned_suites
 
-    # Strip errors from flaky tests
     if "flaky_tests" in result:
         result["flaky_tests"] = [
-            {
-                "name": t.get("name", ""),
-                "flaky_count": t.get("flaky_count", 0),
-                "total_runs": t.get("total_runs", 0),
-                "last_flaky": t.get("last_flaky"),
-                # error deliberately omitted
-            }
+            {k: v for k, v in t.items() if k != "error"}
             for t in result.get("flaky_tests", [])
         ]
 
@@ -403,7 +432,6 @@ def strip_admin_fields_from_incidents(events: List[Dict[str, Any]]) -> List[Dict
             "previous_status": _normalize_status(e.get("previous_status", "unknown")),
             "new_status": _normalize_status(e.get("new_status", "unknown")),
             "created_at": e.get("created_at"),
-            # error_message and duration_seconds deliberately omitted
         }
         for e in events
     ]
