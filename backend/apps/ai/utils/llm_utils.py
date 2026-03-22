@@ -1,5 +1,6 @@
 # backend/apps/ai/utils/llm_utils.py
 # Utilities for interacting with Language Models (LLMs).
+# ruff: noqa: E402
 
 import logging
 from typing import Dict, Any, List, Optional, AsyncIterator, Union
@@ -74,6 +75,34 @@ def _is_reasoning_model(model_id: str) -> bool:
     for model in provider_config.get("models", []):
         if isinstance(model, dict) and model.get("id") == model_suffix:
             return bool(model.get("reasoning"))
+    return False
+
+
+def _is_usage_chunk(chunk: Any) -> bool:
+    """Return True when a streamed chunk is usage metadata, not user-visible output."""
+    return chunk.__class__.__name__ in {
+        "MistralUsage",
+        "GoogleUsageMetadata",
+        "AnthropicUsageMetadata",
+        "OpenAIUsageMetadata",
+    }
+
+
+def _chunk_has_substantive_output(chunk: Any) -> bool:
+    """Return True when a chunk contains real assistant progress we should keep."""
+    if isinstance(chunk, str):
+        return bool(chunk)
+
+    if hasattr(chunk, "tool_call_id") and hasattr(chunk, "function_name"):
+        return True
+
+    chunk_type = getattr(chunk, "type", None)
+    chunk_type_value = getattr(chunk_type, "value", chunk_type)
+    if chunk_type_value == "text":
+        return bool(getattr(chunk, "content", None))
+    if chunk_type_value == "tool_call":
+        return getattr(chunk, "tool_call", None) is not None
+
     return False
 
 
@@ -248,7 +277,7 @@ def _extract_text_from_tiptap(tiptap_content: Any) -> str:
         if not isinstance(tiptap_content, (str, dict, list)):
             try:
                 return str(tiptap_content)
-            except:
+            except Exception:
                 return ""
         return ""
 
@@ -1403,7 +1432,8 @@ async def call_main_llm_stream(
                     )
                     # IMPORTANT: Stream chunks exactly as they arrive from provider.
                     # Paragraph aggregation is handled in main_processor so non-text
-                    # chunks (thinking/tool calls/usage) stay fully real-time.
+                    # chunks stay fully real-time. Usage metadata is buffered until
+                    # we confirm the provider produced substantive output.
                     async for _retry_chunk in _retry_timeout_stream:
                         yield _retry_chunk
                     logger.info(
@@ -1560,6 +1590,8 @@ async def call_main_llm_stream(
                     f"{inter_chunk_timeout_seconds}s inter-chunk timeout..."
                 )
                 try:
+                    buffered_usage_chunks: List[Any] = []
+                    provider_produced_substantive_output = False
                     # Wrap stream with first chunk AND inter-chunk timeout protection
                     # This prevents both dead streams (never starts) and hung streams (stops mid-stream)
                     timeout_stream = stream_with_first_chunk_timeout(
@@ -1569,10 +1601,37 @@ async def call_main_llm_stream(
                     )
                     # IMPORTANT: Stream chunks exactly as they arrive from provider.
                     # Paragraph aggregation is handled in main_processor so non-text
-                    # chunks (thinking/tool calls/usage) stay fully real-time.
+                    # chunks stay fully real-time. Usage metadata is buffered until
+                    # we confirm the provider produced substantive output.
                     async for chunk in timeout_stream:
+                        if _is_usage_chunk(chunk):
+                            buffered_usage_chunks.append(chunk)
+                            continue
+
+                        if _chunk_has_substantive_output(chunk):
+                            provider_produced_substantive_output = True
+
                         _any_content_yielded = True
                         yield chunk
+
+                    if not provider_produced_substantive_output:
+                        error_msg = (
+                            "Provider stream completed without any substantive output "
+                            "(no text or tool calls)."
+                        )
+                        logger.error(f"{attempt_log_prefix} {error_msg}")
+                        last_error = error_msg
+                        if len(attempted_servers) < len(servers_to_try):
+                            logger.warning(
+                                f"{attempt_log_prefix} Empty-stream failure detected. "
+                                "Will try next server if available."
+                            )
+                            continue
+
+                        raise AllServersFailedError(original_model_id, attempted_servers, last_error)
+
+                    for usage_chunk in buffered_usage_chunks:
+                        yield usage_chunk
                     # Successfully completed - return from function
                     return
                 except TimeoutError as timeout_err:
