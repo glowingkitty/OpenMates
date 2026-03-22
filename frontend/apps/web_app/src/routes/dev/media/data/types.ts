@@ -53,16 +53,24 @@ export interface MediaTemplateConfig {
 	pages?: number;
 	brand?: BrandConfig;
 	phone?: {
-		scenario: string;
+		scenario?: string;
+		screen?: 'new-chat' | 'chat';
 		screen_width?: number;
 		screen_height?: number;
 		scale?: number;
+		show_sidebar?: boolean;
+		chat_title?: string;
+		chat_category?: string;
 	};
 	laptop?: {
-		scenario: string;
+		scenario?: string;
+		screen?: 'new-chat' | 'chat';
 		screen_width?: number;
 		screen_height?: number;
 		scale?: number;
+		show_sidebar?: boolean;
+		chat_title?: string;
+		chat_category?: string;
 	};
 	slides?: SlideConfig[];
 }

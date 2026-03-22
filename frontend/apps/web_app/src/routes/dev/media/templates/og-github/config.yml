@@ -16,13 +16,17 @@ brand:
     - "Fair pay per use"
 
 phone:
-  scenario: cuttlefish-chat
+  screen: new-chat
   screen_width: 220
   screen_height: 430
   scale: 0.52
 
 laptop:
+  screen: chat
   scenario: cuttlefish-chat
   screen_width: 560
   screen_height: 340
   scale: 0.58
+  show_sidebar: true
+  chat_title: "Cuttlefish Colors"
+  chat_category: "general_knowledge"

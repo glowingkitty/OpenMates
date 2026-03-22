@@ -4,6 +4,10 @@
   Left side: Logo + headline + feature bullet points.
   Right side: Phone (front) + Laptop (behind, extending off-canvas right).
 
+  Device screens show the real app UI via MockAppScreen:
+    - Phone: new chat screen with suggestion cards
+    - Laptop: existing chat with sidebar + messages
+
   Content is loaded from YAML scenario files for reproducibility.
   Screenshots are captured by Playwright using the .media-ready sentinel.
 
@@ -18,12 +22,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
-	import { page } from '$app/stores';
 	import MediaCanvas from '../../components/MediaCanvas.svelte';
 	import BrandHeader from '../../components/BrandHeader.svelte';
 	import DevicePhone from '../../components/DevicePhone.svelte';
 	import DeviceLaptop from '../../components/DeviceLaptop.svelte';
-	import MockChatFeed from '../../components/MockChatFeed.svelte';
+	import MockAppScreen from '../../components/MockAppScreen.svelte';
 	import { loadScenario, loadTemplateConfig } from '../../data/loader';
 	import type { MediaMessage } from '../../data/types';
 
@@ -32,24 +35,26 @@
 	const phoneConfig = config.phone!;
 	const laptopConfig = config.laptop!;
 
-	// Load scenario — can be overridden via ?scenario= query param
-	let messages = $state<MediaMessage[]>([]);
+	// Load scenario for chat mode devices
+	let laptopMessages = $state<MediaMessage[]>([]);
 	let ready = $state(false);
 
 	onMount(() => {
 		if (!browser) return;
 
 		const params = new URL(window.location.href).searchParams;
-		const scenarioId = params.get('scenario') || phoneConfig.scenario;
 
-		try {
-			const scenario = loadScenario(scenarioId);
-			messages = scenario.messages;
-		} catch (e) {
-			console.error('Failed to load scenario:', e);
-			// Fallback: load default scenario
-			const scenario = loadScenario('cuttlefish-chat');
-			messages = scenario.messages;
+		// Load messages for the laptop (chat mode)
+		if (laptopConfig.screen === 'chat' && laptopConfig.scenario) {
+			const scenarioId = params.get('scenario') || laptopConfig.scenario;
+			try {
+				const scenario = loadScenario(scenarioId);
+				laptopMessages = scenario.messages;
+			} catch (e) {
+				console.error('Failed to load scenario:', e);
+				const scenario = loadScenario('cuttlefish-chat');
+				laptopMessages = scenario.messages;
+			}
 		}
 
 		ready = true;
@@ -70,7 +75,7 @@
 
 			<!-- Right: Device mockups -->
 			<div class="og-right">
-				{#if messages.length > 0}
+				{#if ready}
 					<!-- Laptop (behind, partially off-canvas right) -->
 					<div class="og-laptop-wrap">
 						<DeviceLaptop
@@ -78,10 +83,15 @@
 							screenHeight={laptopConfig.screen_height}
 						>
 							{#snippet screen()}
-								<MockChatFeed
-									{messages}
+								<MockAppScreen
+									mode={laptopConfig.screen || 'chat'}
+									messages={laptopMessages}
 									scale={laptopConfig.scale}
 									containerWidth={laptopConfig.screen_width}
+									containerHeight={laptopConfig.screen_height}
+									showSidebar={laptopConfig.show_sidebar ?? true}
+									chatTitle={laptopConfig.chat_title || 'Cuttlefish Colors'}
+									chatCategory={laptopConfig.chat_category || 'general_knowledge'}
 								/>
 							{/snippet}
 						</DeviceLaptop>
@@ -94,10 +104,11 @@
 							screenHeight={phoneConfig.screen_height}
 						>
 							{#snippet screen()}
-								<MockChatFeed
-									{messages}
+								<MockAppScreen
+									mode={phoneConfig.screen || 'new-chat'}
 									scale={phoneConfig.scale}
 									containerWidth={phoneConfig.screen_width}
+									containerHeight={phoneConfig.screen_height}
 								/>
 							{/snippet}
 						</DevicePhone>
