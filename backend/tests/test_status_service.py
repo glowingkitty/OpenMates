@@ -7,6 +7,7 @@
 #   /OpenMates/.venv/bin/python3 -m pytest -s backend/tests/test_status_service.py
 
 import json
+from datetime import date, timedelta
 
 import pytest
 
@@ -14,18 +15,22 @@ from backend.core.api.app.services.test_results_service import (
     _read_json_file,
     _cache,
     _cache_timestamps,
-    get_latest_run_summary,
-    get_latest_run_detail,
     get_daily_trend,
+    get_categorized_test_summary,
     get_flaky_tests,
+    get_latest_run_detail,
+    get_latest_run_summary,
+    get_per_suite_daily_history,
+    get_per_test_history,
 )
 
 from backend.core.api.app.services.status_aggregator import (
-    _normalize_status,
-    _get_external_group,
     _compute_group_status,
+    _get_external_group,
+    _normalize_status,
     build_health_groups,
     compute_overall_status,
+    filter_public_status_health_data,
     strip_admin_fields_from_tests,
     strip_admin_fields_from_incidents,
 )
@@ -66,6 +71,16 @@ SAMPLE_RUN = {
         },
     },
 }
+
+
+def _iso_day(offset_days: int = 0) -> str:
+    return (date.today() + timedelta(days=offset_days)).isoformat()
+
+
+def _write_daily_run(tmp_path, offset_days: int, payload: dict) -> None:
+    day = _iso_day(offset_days)
+    run_file = tmp_path / f"daily-run-{day}.json"
+    run_file.write_text(json.dumps(payload))
 
 
 # ─── test_results_service unit tests ─────────────────────────────────────────
@@ -146,36 +161,137 @@ class TestGetLatestRunDetail:
         )
 
         result = get_latest_run_detail(suite_name="vitest")
+        assert result is not None
         assert "vitest" in result["suites"]
         assert "playwright" not in result["suites"]
 
 
 class TestGetDailyTrend:
     def test_reads_daily_run_files(self, tmp_path, monkeypatch):
-        # Create 3 daily files
-        for i, date in enumerate(["2026-03-20", "2026-03-21", "2026-03-22"]):
-            f = tmp_path / f"daily-run-{date}.json"
-            f.write_text(json.dumps({
-                "summary": {"total": 10 + i, "passed": 8 + i, "failed": 2, "skipped": 0},
-            }))
+        _write_daily_run(tmp_path, -2, {
+            "run_id": f"{_iso_day(-2)}T03:00:00Z",
+            "summary": {"total": 10, "passed": 8, "failed": 2, "skipped": 0},
+        })
+        _write_daily_run(tmp_path, -1, {
+            "run_id": f"{_iso_day(-1)}T03:00:00Z",
+            "summary": {"total": 11, "passed": 9, "failed": 2, "skipped": 0},
+        })
+        _write_daily_run(tmp_path, 0, {
+            "run_id": f"{_iso_day(0)}T03:00:00Z",
+            "summary": {"total": 12, "passed": 10, "failed": 2, "skipped": 0},
+        })
         monkeypatch.setattr(
             "backend.core.api.app.services.test_results_service.TEST_RESULTS_DIR",
             str(tmp_path),
         )
 
-        result = get_daily_trend(days=14)
+        result = get_daily_trend(days=3)
         assert len(result) == 3
-        # Should be sorted oldest first
-        assert result[0]["date"] == "2026-03-20"
-        assert result[2]["date"] == "2026-03-22"
+        assert result[0]["date"] == _iso_day(-2)
+        assert result[2]["date"] == _iso_day(0)
+        assert result[2]["run_at"] == f"{_iso_day(0)}T03:00:00Z"
+        assert result[2]["has_run"] is True
+
+    def test_includes_placeholder_for_missing_days(self, tmp_path, monkeypatch):
+        _write_daily_run(tmp_path, 0, {
+            "run_id": f"{_iso_day(0)}T03:00:00Z",
+            "summary": {"total": 12, "passed": 10, "failed": 2, "skipped": 0},
+        })
+        monkeypatch.setattr(
+            "backend.core.api.app.services.test_results_service.TEST_RESULTS_DIR",
+            str(tmp_path),
+        )
+
+        result = get_daily_trend(days=2)
+        assert len(result) == 2
+        assert result[0]["date"] == _iso_day(-1)
+        assert result[0]["has_run"] is False
+        assert result[0]["run_at"] is None
+        assert result[1]["has_run"] is True
 
     def test_returns_empty_list_when_no_files(self, tmp_path, monkeypatch):
         monkeypatch.setattr(
             "backend.core.api.app.services.test_results_service.TEST_RESULTS_DIR",
             str(tmp_path),
         )
-        result = get_daily_trend(days=14)
-        assert result == []
+        result = get_daily_trend(days=2)
+        assert len(result) == 2
+        assert all(entry["has_run"] is False for entry in result)
+
+
+class TestPerSuiteAndPerTestHistory:
+    def test_fills_missing_suite_and_test_days(self, tmp_path, monkeypatch):
+        run_file = tmp_path / "last-run.json"
+        run_file.write_text(json.dumps(SAMPLE_RUN))
+        _write_daily_run(tmp_path, 0, {
+            "run_id": f"{_iso_day(0)}T03:00:00Z",
+            "suites": {
+                "playwright": {
+                    "tests": [
+                        {"name": "test-a.spec.ts", "file": "test-a.spec.ts", "status": "passed"},
+                        {"name": "test-b.spec.ts", "file": "test-b.spec.ts", "status": "failed"},
+                    ]
+                }
+            }
+        })
+        monkeypatch.setattr(
+            "backend.core.api.app.services.test_results_service.TEST_RESULTS_DIR",
+            str(tmp_path),
+        )
+
+        suite_history = get_per_suite_daily_history(days=2)
+        assert len(suite_history["playwright"]) == 2
+        assert suite_history["playwright"][0]["has_run"] is False
+        assert suite_history["playwright"][1]["has_run"] is True
+        assert suite_history["playwright"][1]["run_at"] == f"{_iso_day(0)}T03:00:00Z"
+
+        test_history = get_per_test_history(days=2)
+        assert len(test_history["test-a.spec.ts"]) == 2
+        assert test_history["test-a.spec.ts"][0]["status"] == "not_run"
+        assert test_history["test-a.spec.ts"][1]["status"] == "passed"
+
+
+class TestCategorizedSummary:
+    def test_category_history_weights_not_run_lighter_than_failures(self, tmp_path, monkeypatch):
+        last_run = {
+            "run_id": f"{_iso_day(0)}T13:15:25Z",
+            "summary": {"total": 2, "passed": 2, "failed": 0, "skipped": 0},
+            "suites": {
+                "playwright": {
+                    "tests": [
+                        {"name": "chat-flow.spec.ts", "file": "chat-flow.spec.ts", "status": "passed"},
+                        {"name": "chat-search-flow.spec.ts", "file": "chat-search-flow.spec.ts", "status": "passed"},
+                    ]
+                }
+            }
+        }
+        (tmp_path / "last-run.json").write_text(json.dumps(last_run))
+        _write_daily_run(tmp_path, 0, {
+            "run_id": f"{_iso_day(0)}T13:15:25Z",
+            "suites": {
+                "playwright": {
+                    "tests": [
+                        {"name": "chat-flow.spec.ts", "file": "chat-flow.spec.ts", "status": "passed"},
+                    ]
+                }
+            }
+        })
+        monkeypatch.setattr(
+            "backend.core.api.app.services.test_results_service.TEST_RESULTS_DIR",
+            str(tmp_path),
+        )
+
+        summary = get_categorized_test_summary(is_admin=True)
+        chat_history = summary["categories"]["Chat"]["history"]
+        assert len(chat_history) == 30
+        assert chat_history[-1]["date"] == _iso_day(0)
+        assert chat_history[-1]["passed"] == 1
+        assert chat_history[-1]["not_run"] == 1
+        assert chat_history[-1]["has_run"] is True
+        assert chat_history[-1]["tone"] == 75
+        assert chat_history[-1]["run_at"] == f"{_iso_day(0)}T13:15:25Z"
+        assert chat_history[-2]["has_run"] is False
+        assert chat_history[-2]["tone"] is None
 
 
 class TestGetFlakyTests:
@@ -279,16 +395,17 @@ class TestComputeOverallStatus:
 
 
 class TestBuildHealthGroups:
-    def test_non_admin_excludes_services(self):
+    def test_non_admin_includes_public_services_and_timelines(self):
         health_data = {
             "providers": {"openai": {"status": "healthy", "last_error": "test error"}},
             "apps": {},
             "external_services": {},
         }
-        groups = build_health_groups(health_data, is_admin=False)
+        groups = build_health_groups(health_data, {"provider/openai": [{"date": _iso_day(0), "status": "operational"}]}, is_admin=False)
         assert len(groups) == 1
         assert groups[0]["group_name"] == "ai_providers"
-        assert "services" not in groups[0]
+        assert "services" in groups[0]
+        assert groups[0]["services"][0]["timeline_30d"][0]["status"] == "operational"
 
     def test_admin_includes_services_with_errors(self):
         health_data = {
@@ -296,9 +413,26 @@ class TestBuildHealthGroups:
             "apps": {},
             "external_services": {},
         }
-        groups = build_health_groups(health_data, is_admin=True)
+        groups = build_health_groups(health_data, {}, is_admin=True)
         assert "services" in groups[0]
         assert groups[0]["services"][0]["error_message"] == "timeout"
+
+
+class TestFilterPublicStatusHealthData:
+    def test_filters_protonmail_from_public_status_overview(self):
+        health_data = {
+            "providers": {
+                "openai": {"status": "healthy"},
+                "protonmail": {"status": "unhealthy"},
+            },
+            "apps": {},
+            "external_services": {},
+        }
+
+        filtered = filter_public_status_health_data(health_data)
+
+        assert "openai" in filtered["providers"]
+        assert "protonmail" not in filtered["providers"]
 
 
 class TestStripAdminFieldsFromTests:

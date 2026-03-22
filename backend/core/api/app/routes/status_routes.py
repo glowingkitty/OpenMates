@@ -25,6 +25,7 @@ from backend.core.api.app.services.status_aggregator import (
     compute_overall_daily_timeline,
     compute_overall_status,
     gather_health_data,
+    filter_public_status_health_data,
     strip_admin_fields_from_incidents,
     strip_admin_fields_from_tests,
 )
@@ -115,7 +116,7 @@ async def get_status(
     }
 
     # Health data (always needed for overall_status)
-    health_data = await gather_health_data(request)
+    health_data = filter_public_status_health_data(await gather_health_data(request))
     response["overall_status"] = compute_overall_status(health_data)
 
     # Build per-service 30-day timelines (needed for health groups and overall timeline)

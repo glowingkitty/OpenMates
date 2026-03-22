@@ -37,6 +37,7 @@ _EMAIL_IDS = {"brevo"}
 _MODERATION_IDS = {"sightengine"}
 _SEARCH_IDS = {"brave_search", "brave"}
 _INFRA_IDS = {"vercel", "aws_bedrock"}
+_PUBLIC_STATUS_EXCLUDED_PROVIDER_IDS = {"protonmail"}
 
 _STATUS_SEVERITY = {"down": 3, "degraded": 2, "operational": 1, "unknown": 0}
 
@@ -77,6 +78,20 @@ def _compute_group_status(services: List[Dict[str, Any]]) -> str:
     if not services:
         return "unknown"
     return _worst_status({s.get("status", "unknown") for s in services})
+
+
+def filter_public_status_health_data(health_data: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    """Remove internal-only providers from the public status overview payload."""
+    filtered_providers = {
+        provider_id: provider_data
+        for provider_id, provider_data in health_data.get("providers", {}).items()
+        if provider_id not in _PUBLIC_STATUS_EXCLUDED_PROVIDER_IDS
+    }
+    return {
+        "providers": filtered_providers,
+        "apps": dict(health_data.get("apps", {})),
+        "external_services": dict(health_data.get("external_services", {})),
+    }
 
 
 async def gather_health_data(request) -> Dict[str, Dict[str, Any]]:
@@ -223,7 +238,6 @@ async def build_all_service_daily_statuses(
 
         # For each day, determine status
         timeline = []
-        last_known = current  # Default: current Redis status (used for gap-filling)
 
         # Find the initial status: the event just before the window, or fallback to current
         # Walk events oldest-first to carry forward

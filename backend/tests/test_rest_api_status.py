@@ -70,8 +70,8 @@ def test_status_summary_includes_health_groups():
             assert "status" in group
             assert "service_count" in group
             assert group["status"] in ("operational", "degraded", "down", "unknown")
-            # Summary should NOT include individual services
-            assert "services" not in group
+            assert "services" in group
+            assert isinstance(group["services"], list)
 
 
 @pytest.mark.integration
@@ -101,22 +101,19 @@ def test_status_summary_includes_tests():
 
 @pytest.mark.integration
 def test_status_summary_includes_timeline():
-    """Summary response includes 90-day timeline buckets."""
+    """Summary response includes 30-day overall timeline entries."""
     with _public_client() as client:
         data = client.get("/v1/status").json()
 
-        assert "timeline" in data
-        timeline = data["timeline"]
-        assert timeline["period_days"] == 90
-        assert "buckets" in timeline
-        assert isinstance(timeline["buckets"], list)
-        assert len(timeline["buckets"]) > 0
+        assert "overall_timeline_30d" in data
+        timeline = data["overall_timeline_30d"]
+        assert isinstance(timeline, list)
+        assert len(timeline) > 0
 
-        for bucket in timeline["buckets"]:
-            assert "start" in bucket
-            assert "end" in bucket
-            assert "status" in bucket
-            assert bucket["status"] in ("operational", "degraded", "down", "unknown")
+        for entry in timeline:
+            assert "date" in entry
+            assert "status" in entry
+            assert entry["status"] in ("operational", "degraded", "down", "unknown")
 
 
 @pytest.mark.integration
@@ -142,7 +139,7 @@ def test_status_section_filter_health_only():
         assert "health" in data
         assert "overall_status" in data
         assert "tests" not in data
-        assert "timeline" not in data
+        assert "overall_timeline_30d" not in data
         assert "incidents" not in data
 
 
@@ -154,7 +151,7 @@ def test_status_section_filter_tests_only():
 
         assert "tests" in data
         assert "health" not in data
-        assert "timeline" not in data
+        assert "overall_timeline_30d" not in data
         assert "incidents" not in data
 
 
@@ -166,7 +163,7 @@ def test_status_section_filter_multiple():
 
         assert "health" in data
         assert "tests" in data
-        assert "timeline" not in data
+        assert "overall_timeline_30d" not in data
         assert "incidents" not in data
 
 

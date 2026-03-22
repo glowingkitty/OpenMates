@@ -9,6 +9,7 @@ import json
 import logging
 import os
 import time
+from datetime import date, timedelta
 from glob import glob
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -22,6 +23,8 @@ TEST_RESULTS_DIR = os.getenv("TEST_RESULTS_DIR", "/app/test-results")
 _cache: Dict[str, Any] = {}
 _cache_timestamps: Dict[str, float] = {}
 CACHE_TTL_SECONDS = 60
+NO_RUN_STATUS = "not_run"
+NOT_RUN_TONE_WEIGHT = 0.5
 
 
 def _get_cached(key: str) -> Optional[Any]:
@@ -36,6 +39,64 @@ def _set_cached(key: str, value: Any) -> None:
     """Store value in cache with current timestamp."""
     _cache[key] = value
     _cache_timestamps[key] = time.time()
+
+
+def _generate_date_range(days: int) -> List[str]:
+    """Generate the last N calendar dates, oldest first."""
+    today = date.today()
+    return [(today - timedelta(days=days - 1 - index)).isoformat() for index in range(days)]
+
+
+def _extract_daily_run_date(filepath: str) -> str:
+    """Extract the YYYY-MM-DD date from a daily run filename."""
+    return Path(filepath).stem.replace("daily-run-", "")
+
+
+def _load_daily_runs(days: int) -> List[Dict[str, Any]]:
+    """Load daily run files and normalize them into a fixed date window."""
+    pattern = os.path.join(TEST_RESULTS_DIR, "daily-run-*.json")
+    files = sorted(glob(pattern), reverse=True)[:days]
+    runs_by_date: Dict[str, Dict[str, Any]] = {}
+
+    for filepath in files:
+        data = _read_json_file(filepath)
+        if not data:
+            continue
+        date_str = _extract_daily_run_date(filepath)
+        runs_by_date[date_str] = {
+            "date": date_str,
+            "data": data,
+            "run_at": data.get("run_id"),
+        }
+
+    return [
+        {
+            "date": date_str,
+            "data": runs_by_date.get(date_str, {}).get("data"),
+            "run_at": runs_by_date.get(date_str, {}).get("run_at"),
+        }
+        for date_str in _generate_date_range(days)
+    ]
+
+
+def _normalize_test_status(status: Optional[str]) -> str:
+    """Normalize test statuses for timeline rendering."""
+    if status == "passed":
+        return "passed"
+    if status == "failed":
+        return "failed"
+    return NO_RUN_STATUS
+
+
+def _compute_tone_score(passed: int, failed: int, not_run: int) -> Optional[int]:
+    """Return a 0-100 green-to-red score, with not-run lighter than failed."""
+    expected_total = passed + failed + not_run
+    observed_total = passed + failed
+    if expected_total <= 0 or observed_total <= 0:
+        return None
+    severity = (failed + (not_run * NOT_RUN_TONE_WEIGHT)) / expected_total
+    bounded = max(0.0, min(1.0, 1.0 - severity))
+    return round(bounded * 100)
 
 
 def _read_json_file(path: str) -> Optional[Dict[str, Any]]:
@@ -158,30 +219,32 @@ def get_daily_trend(days: int = 14) -> List[Dict[str, Any]]:
     if cached is not None:
         return cached
 
-    pattern = os.path.join(TEST_RESULTS_DIR, "daily-run-*.json")
-    files = sorted(glob(pattern), reverse=True)[:days]
-
     trend = []
-    for filepath in files:
-        data = _read_json_file(filepath)
+    for run in _load_daily_runs(days):
+        data = run["data"]
         if not data:
+            trend.append({
+                "date": run["date"],
+                "total": 0,
+                "passed": 0,
+                "failed": 0,
+                "skipped": 0,
+                "has_run": False,
+                "run_at": None,
+            })
             continue
 
-        # Extract date from filename: daily-run-2026-03-22.json
-        filename = Path(filepath).stem  # daily-run-2026-03-22
-        date_str = filename.replace("daily-run-", "")
         summary = data.get("summary", {})
 
         trend.append({
-            "date": date_str,
+            "date": run["date"],
             "total": summary.get("total", 0),
             "passed": summary.get("passed", 0),
             "failed": summary.get("failed", 0),
             "skipped": summary.get("skipped", 0),
+            "has_run": summary.get("total", 0) > 0,
+            "run_at": run.get("run_at"),
         })
-
-    # Sort oldest first for charting (left-to-right)
-    trend.sort(key=lambda x: x["date"])
 
     _set_cached(f"daily_trend:{days}", trend)
     return trend
@@ -196,40 +259,39 @@ def get_per_suite_daily_history(days: int = 30) -> Dict[str, List[Dict[str, Any]
     if cached is not None:
         return cached
 
-    pattern = os.path.join(TEST_RESULTS_DIR, "daily-run-*.json")
-    files = sorted(glob(pattern), reverse=True)[:days]
+    latest_run = _read_json_file(os.path.join(TEST_RESULTS_DIR, "last-run.json")) or {}
+    expected_totals = {
+        suite_name: len((suite_data or {}).get("tests", []))
+        for suite_name, suite_data in latest_run.get("suites", {}).items()
+    }
 
-    # suite_name -> [{date, pass_rate, passed, failed, total}]
     history: Dict[str, List[Dict[str, Any]]] = {}
 
-    for filepath in files:
-        data = _read_json_file(filepath)
-        if not data:
-            continue
-
-        filename = Path(filepath).stem
-        date_str = filename.replace("daily-run-", "")
-
-        for suite_name, suite_data in data.get("suites", {}).items():
-            tests = suite_data.get("tests", [])
+    for run in _load_daily_runs(days):
+        data = run["data"]
+        daily_suites = data.get("suites", {}) if data else {}
+        for suite_name in expected_totals:
+            suite_data = daily_suites.get(suite_name)
+            tests = suite_data.get("tests", []) if suite_data else []
             passed = sum(1 for t in tests if t.get("status") == "passed")
             failed = sum(1 for t in tests if t.get("status") == "failed")
-            total = len(tests)
-            pass_rate = round(passed / total * 100) if total > 0 else 0
+            observed_total = len(tests)
+            expected_total = expected_totals.get(suite_name, observed_total)
+            not_run = max(expected_total - observed_total, 0)
+            pass_rate = round(passed / observed_total * 100) if observed_total > 0 else 0
 
             if suite_name not in history:
                 history[suite_name] = []
             history[suite_name].append({
-                "date": date_str,
+                "date": run["date"],
                 "pass_rate": pass_rate,
                 "passed": passed,
                 "failed": failed,
-                "total": total,
+                "total": observed_total,
+                "not_run": not_run,
+                "has_run": observed_total > 0,
+                "run_at": run.get("run_at") if observed_total > 0 else None,
             })
-
-    # Sort oldest-first per suite
-    for suite_name in history:
-        history[suite_name].sort(key=lambda x: x["date"])
 
     _set_cached(f"per_suite_history:{days}", history)
     return history
@@ -275,37 +337,34 @@ def get_per_test_history(days: int = 30) -> Dict[str, List[Dict[str, Any]]]:
     if cached is not None:
         return cached
 
-    pattern = os.path.join(TEST_RESULTS_DIR, "daily-run-*.json")
-    files = sorted(glob(pattern), reverse=True)[:days]
+    latest_run = _read_json_file(os.path.join(TEST_RESULTS_DIR, "last-run.json")) or {}
+    expected_tests: Dict[str, None] = {}
+    for suite_data in latest_run.get("suites", {}).values():
+        for test in suite_data.get("tests", []):
+            test_key = test.get("file") or test.get("name", "")
+            if test_key:
+                expected_tests[test_key] = None
 
-    # test_name -> [{date, status}]
-    history: Dict[str, List[Dict[str, Any]]] = {}
+    history: Dict[str, List[Dict[str, Any]]] = {test_key: [] for test_key in expected_tests}
 
-    for filepath in files:
-        data = _read_json_file(filepath)
-        if not data:
-            continue
+    for run in _load_daily_runs(days):
+        daily_statuses: Dict[str, str] = {}
+        if run["data"]:
+            for suite_data in run["data"].get("suites", {}).values():
+                for test in suite_data.get("tests", []):
+                    test_key = test.get("file") or test.get("name", "")
+                    if test_key:
+                        expected_tests.setdefault(test_key, None)
+                        history.setdefault(test_key, [])
+                        daily_statuses[test_key] = _normalize_test_status(test.get("status"))
 
-        filename = Path(filepath).stem
-        date_str = filename.replace("daily-run-", "")
-
-        for suite_name, suite_data in data.get("suites", {}).items():
-            for test in suite_data.get("tests", []):
-                # Use file name as key for Playwright (name is often None),
-                # fall back to name for vitest/pytest
-                test_key = test.get("file") or test.get("name", "")
-                if not test_key:
-                    continue
-                if test_key not in history:
-                    history[test_key] = []
-                history[test_key].append({
-                    "date": date_str,
-                    "status": test.get("status", "unknown"),
-                })
-
-    # Sort each test's history oldest-first
-    for test_name in history:
-        history[test_name].sort(key=lambda x: x["date"])
+        for test_key in expected_tests:
+            history.setdefault(test_key, []).append({
+                "date": run["date"],
+                "status": daily_statuses.get(test_key, NO_RUN_STATUS),
+                "has_run": test_key in daily_statuses,
+                "run_at": run.get("run_at") if test_key in daily_statuses else None,
+            })
 
     _set_cached(f"per_test_history:{days}", history)
     return history
@@ -421,22 +480,41 @@ def get_categorized_test_summary(is_admin: bool = False) -> Dict[str, Any]:
                 d = entry["date"]
                 if d not in day_stats:
                     day_stats[d] = {"passed": 0, "failed": 0, "total": 0}
-                day_stats[d]["total"] += 1
                 if entry["status"] == "passed":
+                    day_stats[d]["total"] += 1
                     day_stats[d]["passed"] += 1
                 elif entry["status"] == "failed":
+                    day_stats[d]["total"] += 1
                     day_stats[d]["failed"] += 1
 
-        cat_data["history"] = [
-            {
-                "date": d,
-                "pass_rate": round(s["passed"] / s["total"] * 100) if s["total"] > 0 else 0,
-                "total": s["total"],
-                "passed": s["passed"],
-                "failed": s["failed"],
-            }
-            for d, s in sorted(day_stats.items())
-        ]
+        category_history = []
+        for date_str in _generate_date_range(30):
+            stats = day_stats.get(date_str, {"passed": 0, "failed": 0, "total": 0})
+            expected_total = len(cat_test_names)
+            observed_total = stats["total"]
+            not_run = max(expected_total - observed_total, 0)
+            run_at = None
+            for test_name in cat_test_names:
+                for entry in per_test_hist.get(test_name, []):
+                    if entry.get("date") == date_str and entry.get("run_at"):
+                        run_at = entry["run_at"]
+                        break
+                if run_at:
+                    break
+
+            category_history.append({
+                "date": date_str,
+                "pass_rate": round(stats["passed"] / expected_total * 100) if expected_total > 0 else 0,
+                "total": expected_total,
+                "passed": stats["passed"],
+                "failed": stats["failed"],
+                "not_run": not_run,
+                "has_run": observed_total > 0,
+                "run_at": run_at,
+                "tone": _compute_tone_score(stats["passed"], stats["failed"], not_run),
+            })
+
+        cat_data["history"] = category_history
 
         # Compute overall pass_rate for color
         if cat_data["total"] > 0:
