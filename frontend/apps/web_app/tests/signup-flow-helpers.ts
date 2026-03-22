@@ -777,6 +777,10 @@ function getE2EDebugUrl(path: string = '/'): string {
  *   await page.keyboard.type(withMockMarker('Add error handling', 'code_gen_turn2'));
  */
 function withMockMarker(message: string, fixtureId: string, speed?: string): string {
+	if (process.env.E2E_RECORD_FIXTURES) {
+		// Record mode: run real LLMs but capture the response as a fixture file
+		return `${message} <<<TEST_RECORD:${fixtureId}>>>`;
+	}
 	if (process.env.E2E_USE_MOCKS) {
 		const speedSuffix = speed ? `:${speed}` : '';
 		return `${message} <<<TEST_MOCK:${fixtureId}${speedSuffix}>>>`;

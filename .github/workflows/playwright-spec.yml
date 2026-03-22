@@ -1,0 +1,103 @@
+# .github/workflows/playwright-spec.yml
+#
+# Runs a single Playwright E2E spec file.
+# Designed to be triggered in parallel — one workflow run per spec.
+#
+# Triggers:
+# - workflow_dispatch with spec name and account number
+# - Called by scripts/ci/trigger_parallel_specs.sh
+#
+# Architecture: docs/architecture/github-actions-ci.md
+
+name: "Playwright: Single Spec"
+
+on:
+  workflow_dispatch:
+    inputs:
+      spec:
+        description: "Spec file name (e.g. chat-flow.spec.ts)"
+        required: true
+        type: string
+      account:
+        description: "Test account number (1-20)"
+        required: true
+        type: string
+        default: "1"
+      record_fixtures:
+        description: "Record LLM fixtures instead of replaying mocks"
+        type: boolean
+        default: false
+      use_mocks:
+        description: "Use mock LLM responses (requires recorded fixtures)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  run-spec:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: dev
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - uses: pnpm/action-setup@v4
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+        working-directory: frontend
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+        working-directory: frontend/apps/web_app
+      - name: Run spec
+        id: pw_run
+        continue-on-error: true
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/test-results
+          cd frontend/apps/web_app
+          npx playwright test "tests/${{ github.event.inputs.spec }}" \
+            --reporter=json \
+            > $GITHUB_WORKSPACE/test-results/playwright.json
+        env:
+          PLAYWRIGHT_TEST_BASE_URL: ${{ secrets.E2E_DEV_TEST_BASE_URL }}
+          OPENMATES_TEST_ACCOUNT_1_EMAIL: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_EMAIL', github.event.inputs.account)] }}
+          OPENMATES_TEST_ACCOUNT_1_PASSWORD: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_PASSWORD', github.event.inputs.account)] }}
+          OPENMATES_TEST_ACCOUNT_1_OTP_KEY: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_OTP_KEY', github.event.inputs.account)] }}
+          PLAYWRIGHT_WORKER_SLOT: "1"
+          SIGNUP_TEST_EMAIL_DOMAINS: ${{ secrets.SIGNUP_TEST_EMAIL_DOMAINS }}
+          MAILOSAUR_API_KEY: ${{ secrets.MAILOSAUR_API_KEY }}
+          MAILOSAUR_SERVER_ID: ${{ secrets.MAILOSAUR_SERVER_ID }}
+          E2E_USE_MOCKS: ${{ github.event.inputs.use_mocks == 'true' && '1' || '' }}
+          E2E_RECORD_FIXTURES: ${{ github.event.inputs.record_fixtures == 'true' && '1' || '' }}
+      - name: Show results
+        if: always()
+        run: |
+          if [ -f test-results/playwright.json ]; then
+            python3 -c "
+          import json
+          data = json.load(open('test-results/playwright.json'))
+          for suite in data.get('suites', []):
+            for spec in suite.get('specs', []):
+              for test in spec.get('tests', []):
+                results = test.get('results', [])
+                last = results[-1] if results else {}
+                status = last.get('status', '?')
+                print(f'{status}: {spec.get(\"title\", \"?\")}')
+          errors = data.get('errors', [])
+          if errors:
+            for e in errors:
+              print(f'ERROR: {e.get(\"message\",\"\")[:200]}')
+          "
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-${{ github.event.inputs.spec }}
+          path: test-results/playwright.json
+          if-no-files-found: ignore
+      - name: Fail if tests failed
+        if: steps.pw_run.outcome == 'failure'
+        run: exit 1
