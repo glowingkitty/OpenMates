@@ -34,6 +34,7 @@ from backend.core.api.app.services.status_aggregator import (
     strip_admin_fields_from_tests,
 )
 from backend.core.api.app.services.test_results_service import (
+    get_intra_day_runs,
     get_per_test_history,
     get_categorized_test_summary,
     get_daily_trend,
@@ -284,6 +285,7 @@ async def get_status_health_detail(
                     "name": s["name"],
                     "status": s["status"],
                     "timeline_30d": s.get("timeline_30d", []),
+                    **({"skills": s["skills"]} if s.get("skills") else {}),
                 }
                 for s in target_group["services"]
             ]
@@ -434,3 +436,26 @@ async def get_status_incidents_detail(
         }
     finally:
         await directus.close()
+
+
+@router.get("/tests/runs", dependencies=[])
+@limiter.limit("60/minute")
+async def get_status_intra_day_runs(
+    request: Request,
+    date: str = Query(
+        ...,
+        description="Date in YYYY-MM-DD format to get all test runs for.",
+        pattern=r"^\d{4}-\d{2}-\d{2}$",
+    ),
+):
+    """
+    Get all individual test runs for a specific date.
+    Used for the intra-day sub-timeline when clicking a day with multiple runs.
+    Returns run summaries sorted by timestamp ascending.
+    """
+    runs = get_intra_day_runs(date)
+    return {
+        "date": date,
+        "run_count": len(runs),
+        "runs": runs,
+    }

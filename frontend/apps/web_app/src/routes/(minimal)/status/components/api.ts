@@ -3,7 +3,7 @@
 // Architecture: docs/architecture/infrastructure/status-page.md
 
 import { getApiEndpoint } from '@repo/ui';
-import type { StatusSummary, HealthGroupDetail, TestSuiteDetail } from './types';
+import type { StatusSummary, HealthGroupDetail, TestSuiteDetail, IntraDayRunsResponse } from './types';
 
 const BASE = '/v1/status';
 
@@ -31,6 +31,13 @@ export async function fetchTestDetail(
 		url += `&category=${encodeURIComponent(category)}`;
 	}
 	const res = await fetch(getApiEndpoint(url));
+	if (!res.ok) throw new Error(`${res.status}`);
+	return res.json();
+}
+
+/** Fetch all test runs for a specific date (intra-day sub-timeline). */
+export async function fetchIntraDayRuns(date: string): Promise<IntraDayRunsResponse> {
+	const res = await fetch(getApiEndpoint(`${BASE}/tests/runs?date=${encodeURIComponent(date)}`));
 	if (!res.ok) throw new Error(`${res.status}`);
 	return res.json();
 }

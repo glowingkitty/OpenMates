@@ -433,7 +433,7 @@ def build_health_groups(
         groups.setdefault(group_name, []).append(service)
         group_service_keys.setdefault(group_name, []).append(svc_key)
 
-    # Applications
+    # Applications (include per-skill status)
     for app_id, data in health_data.get("apps", {}).items():
         group_name = "apps"
         svc_key = f"app/{app_id}"
@@ -442,6 +442,7 @@ def build_health_groups(
             "name": app_id.replace("_", " ").title(),
             "status": _normalize_status(data.get("status", "unknown")),
             "timeline_30d": service_timelines.get(svc_key, []),
+            "skills": data.get("skills", []),
         }
         if is_admin:
             service["api"] = data.get("api", {})

@@ -66,6 +66,7 @@
 		entries={suite.timeline_30d}
 		timelineKey={`suite-${suite.name}`}
 		bind:selected
+		enableIntraDay
 	/>
 
 	{#if expanded}

@@ -38,11 +38,23 @@ export type HealthGroup = {
 	timeline_30d: TimelineEntry[];
 };
 
+export type SkillProvider = {
+	name: string;
+	status: string;
+};
+
+export type SkillStatus = {
+	id: string;
+	status: string;
+	providers: SkillProvider[];
+};
+
 export type Service = {
 	id: string;
 	name: string;
 	status: string;
 	timeline_30d: TimelineEntry[];
+	skills?: SkillStatus[];
 	error_message?: string;
 	response_time_ms?: Record<string, number>;
 	last_check?: string;
@@ -95,6 +107,26 @@ export type TestSuiteDetail = {
 	>;
 	categories: Record<string, TestCategory>;
 	flaky_tests: TestData[];
+};
+
+export type IntraDayRun = {
+	run_id: string;
+	timestamp: string;
+	duration_seconds: number;
+	git_sha: string;
+	summary: {
+		total: number;
+		passed: number;
+		failed: number;
+		skipped: number;
+	};
+	status: string;
+};
+
+export type IntraDayRunsResponse = {
+	date: string;
+	run_count: number;
+	runs: IntraDayRun[];
 };
 
 export type ServiceIssue = {

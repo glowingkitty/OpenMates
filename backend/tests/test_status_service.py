@@ -19,6 +19,7 @@ from backend.core.api.app.services.test_results_service import (
     get_daily_trend,
     get_categorized_test_summary,
     get_flaky_tests,
+    get_intra_day_runs,
     get_latest_run_detail,
     get_latest_run_summary,
     get_per_suite_daily_history,
@@ -364,6 +365,46 @@ class TestGetFlakyTests:
             str(tmp_path),
         )
         result = get_flaky_tests()
+        assert result == []
+
+
+class TestGetIntraDayRuns:
+    def test_loads_multiple_runs_for_date(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(
+            "backend.core.api.app.services.test_results_service.TEST_RESULTS_DIR",
+            str(tmp_path),
+        )
+        # Write two run files for the same date
+        run1 = {
+            "run_id": "2026-03-22T03:00:01Z",
+            "git_sha": "abc1234",
+            "duration_seconds": 300,
+            "summary": {"total": 10, "passed": 8, "failed": 2, "skipped": 0},
+        }
+        run2 = {
+            "run_id": "2026-03-22T15:30:00Z",
+            "git_sha": "def5678",
+            "duration_seconds": 250,
+            "summary": {"total": 10, "passed": 10, "failed": 0, "skipped": 0},
+        }
+        (tmp_path / "run-20260322T030001Z.json").write_text(json.dumps(run1))
+        (tmp_path / "run-20260322T153000Z.json").write_text(json.dumps(run2))
+
+        result = get_intra_day_runs("2026-03-22")
+        assert len(result) == 2
+        assert result[0]["run_id"] == "2026-03-22T03:00:01Z"
+        assert result[0]["status"] == "failed"
+        assert result[0]["summary"]["failed"] == 2
+        assert result[1]["run_id"] == "2026-03-22T15:30:00Z"
+        assert result[1]["status"] == "passed"
+        assert result[1]["git_sha"] == "def5678"
+
+    def test_returns_empty_for_date_with_no_runs(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(
+            "backend.core.api.app.services.test_results_service.TEST_RESULTS_DIR",
+            str(tmp_path),
+        )
+        result = get_intra_day_runs("2026-01-01")
         assert result == []
 
 

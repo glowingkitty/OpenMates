@@ -1125,6 +1125,52 @@ async def _check_app_health(app_id: str, port: int = 8000) -> Dict[str, Any]:
         response_time_ms=None  # Apps don't have response time tracking
     )
     
+    # Build per-skill availability from cached provider health
+    skills_health = []
+    try:
+        client = await cache_service.client
+        if client and api_healthy:
+            # Fetch app health response which now includes skill→provider mapping
+            try:
+                async with httpx.AsyncClient(timeout=5.0) as http_client:
+                    app_url = f"http://app-{app_id}:{port}/health"
+                    resp = await http_client.get(app_url)
+                    if resp.status_code == 200:
+                        app_health_data = resp.json()
+                        for skill_info in app_health_data.get("skills", []):
+                            skill_id = skill_info.get("id", "")
+                            providers = skill_info.get("providers", [])
+                            # Check each provider's cached health status
+                            skill_available = True
+                            provider_statuses = []
+                            for prov in providers:
+                                prov_name = prov.get("name", "")
+                                if prov.get("no_api_key"):
+                                    provider_statuses.append({"name": prov_name, "status": "healthy"})
+                                    continue
+                                # Check provider health cache
+                                prov_cache_key = f"health_check:provider:{prov_name}"
+                                prov_raw = await client.get(prov_cache_key)
+                                if prov_raw:
+                                    if isinstance(prov_raw, bytes):
+                                        prov_raw = prov_raw.decode("utf-8")
+                                    prov_data = json.loads(prov_raw)
+                                    prov_status = prov_data.get("status", "unknown")
+                                    provider_statuses.append({"name": prov_name, "status": prov_status})
+                                    if prov_status == "unhealthy":
+                                        skill_available = False
+                                else:
+                                    provider_statuses.append({"name": prov_name, "status": "unknown"})
+                            skills_health.append({
+                                "id": skill_id,
+                                "status": "available" if skill_available else "unavailable",
+                                "providers": provider_statuses,
+                            })
+            except Exception as e:
+                logger.debug(f"Health check: Could not fetch skill info for app '{app_id}': {e}")
+    except Exception as e:
+        logger.debug(f"Health check: Could not build skill health for app '{app_id}': {e}")
+
     # Store result in cache
     health_data = {
         "status": overall_status,
@@ -1136,7 +1182,8 @@ async def _check_app_health(app_id: str, port: int = 8000) -> Dict[str, Any]:
             "status": worker_status,  # "healthy", "unhealthy", or "not_applicable"
             "last_error": worker_error
         },
-        "last_check": current_timestamp
+        "last_check": current_timestamp,
+        "skills": skills_health,
     }
     
     try:

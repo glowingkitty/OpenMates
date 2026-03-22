@@ -371,6 +371,50 @@ def get_per_test_history(days: int = 30) -> Dict[str, List[Dict[str, Any]]]:
     return history
 
 
+def get_intra_day_runs(target_date: str) -> List[Dict[str, Any]]:
+    """
+    Load all individual run-*.json files for a given date.
+    Returns list of run summaries sorted by timestamp ascending.
+    Used for the intra-day sub-timeline when clicking a day with multiple runs.
+
+    Args:
+        target_date: Date string in YYYY-MM-DD format.
+    """
+    cache_key = f"intra_day_runs:{target_date}"
+    cached = _get_cached(cache_key)
+    if cached is not None:
+        return cached
+
+    # Match run files for this date: run-YYYYMMDDTHHMMSSZ.json
+    date_compact = target_date.replace("-", "")
+    pattern = os.path.join(TEST_RESULTS_DIR, f"run-{date_compact}T*.json")
+    files = sorted(glob(pattern))
+
+    runs = []
+    for filepath in files:
+        data = _read_json_file(filepath)
+        if not data:
+            continue
+        run_id = data.get("run_id", "")
+        summary = data.get("summary", {})
+        runs.append({
+            "run_id": run_id,
+            "timestamp": run_id,
+            "duration_seconds": data.get("duration_seconds", 0),
+            "git_sha": data.get("git_sha", ""),
+            "summary": {
+                "total": summary.get("total", 0),
+                "passed": summary.get("passed", 0),
+                "failed": summary.get("failed", 0),
+                "skipped": summary.get("skipped", 0),
+            },
+            "status": "failed" if summary.get("failed", 0) > 0 else "passed",
+        })
+
+    _set_cached(cache_key, runs)
+    return runs
+
+
 # Test categories based on spec naming conventions (Playwright E2E)
 PLAYWRIGHT_CATEGORIES = {
     "Auth & Signup": ["account-recovery", "backup-code", "multi-session", "recovery-key", "signup", "session-revoke"],

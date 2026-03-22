@@ -668,7 +668,30 @@ class BaseApp:
 
         @self.fastapi_app.get("/health", tags=["App Info"])
         async def health_check():
-            return {"status": "ok", "app_id": self.id, "name_translation_key": self.name_translation_key}
+            result = {
+                "status": "ok",
+                "app_id": self.id,
+                "name_translation_key": self.name_translation_key,
+            }
+            # Include per-skill provider info if app config is loaded
+            if self.app_config and self.app_config.skills:
+                skills_status = []
+                for skill in self.app_config.skills:
+                    if skill.stage == "planning":
+                        continue
+                    skill_info = {
+                        "id": skill.id,
+                        "providers": [],
+                    }
+                    if skill.providers:
+                        for prov in skill.providers:
+                            skill_info["providers"].append({
+                                "name": prov.name,
+                                "no_api_key": prov.no_api_key,
+                            })
+                    skills_status.append(skill_info)
+                result["skills"] = skills_status
+            return result
 
     async def get_user_credits(self, user_id: str) -> int:
         """

@@ -121,6 +121,7 @@
 							timelineKey="tests-trend"
 							bind:selected
 							showLabels
+							enableIntraDay
 						/>
 					</div>
 				{/if}
