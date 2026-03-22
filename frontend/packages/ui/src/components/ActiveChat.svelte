@@ -2327,8 +2327,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             case 'download': {
                 resumeCardContextMenuDownloading = true;
                 try {
-                    const messages = await chatDB.getMessagesForChat(chat.chat_id);
+                    // Public chats (demo/legal) use static bundle; regular chats use IndexedDB
+                    const messages = isPublicChat(chat.chat_id)
+                        ? getDemoMessages(chat.chat_id, DEMO_CHATS, LEGAL_CHATS)
+                        : await chatDB.getMessagesForChat(chat.chat_id);
                     await downloadChatAsZip(chat, messages);
+                    notificationStore.success('Chat downloaded successfully');
                 } catch (err) {
                     console.error('[ActiveChat] Download failed:', err);
                     notificationStore.error('Download failed');
@@ -2340,7 +2344,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
             case 'copy': {
                 try {
-                    const messages = await chatDB.getMessagesForChat(chat.chat_id);
+                    const messages = isPublicChat(chat.chat_id)
+                        ? getDemoMessages(chat.chat_id, DEMO_CHATS, LEGAL_CHATS)
+                        : await chatDB.getMessagesForChat(chat.chat_id);
                     await copyChatToClipboard(chat, messages);
                     notificationStore.success('Chat copied to clipboard');
                 } catch (err) {
