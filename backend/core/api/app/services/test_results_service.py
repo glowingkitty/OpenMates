@@ -379,7 +379,7 @@ TEST_CATEGORIES = {
     "Search & AI": ["code-generation", "focus-mode", "follow-up-suggestions"],
     "Media & Embeds": ["audio-recording", "embed-", "file-attachment", "pdf-flow"],
     "Settings & Security": ["api-keys", "incognito", "language-settings", "location-security", "mention-dropdown", "model-override", "pii-detection"],
-    "Infrastructure": ["app-load", "connection-resilience", "dev-preview", "preview-error", "seo-demo", "shared-chat"],
+    "Infrastructure": ["app-load", "connection-resilience", "dev-preview", "preview-error", "seo-demo", "shared-chat", "status-page"],
     "Reminders": ["reminder-"],
     "Skills": ["skill-"],
     "Accessibility": ["a11y-"],
