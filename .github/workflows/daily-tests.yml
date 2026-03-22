@@ -45,9 +45,10 @@ on:
           - production
         default: development
 
-# Only one test run at a time
+# When running a specific spec, allow parallel runs (each spec gets its own group).
+# When running full suite (spec=''), use shared group to prevent overlapping full runs.
 concurrency:
-  group: daily-tests
+  group: ${{ github.event.inputs.spec && format('spec-{0}', github.event.inputs.spec) || 'daily-tests' }}
   cancel-in-progress: false
 
 permissions:
@@ -246,6 +247,7 @@ jobs:
           SIGNUP_TEST_EMAIL_DOMAINS: ${{ secrets.SIGNUP_TEST_EMAIL_DOMAINS }}
           MAILOSAUR_API_KEY: ${{ secrets.MAILOSAUR_API_KEY }}
           MAILOSAUR_SERVER_ID: ${{ secrets.MAILOSAUR_SERVER_ID }}
+          E2E_USE_MOCKS: "1"
       - uses: actions/upload-artifact@v4
         if: always() && steps.skip_check.outputs.skip != 'true'
         with:

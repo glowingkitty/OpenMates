@@ -15,7 +15,7 @@
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-WORKFLOW="playwright-spec.yml"
+WORKFLOW="daily-tests.yml"
 BRANCH="dev"
 MAX_ACCOUNTS=10
 USE_MOCKS="true"
@@ -53,10 +53,8 @@ for spec in "${SPECS[@]}"; do
   echo "  [$ACCOUNT] $spec"
   gh workflow run "$WORKFLOW" \
     --ref "$BRANCH" \
-    -f "spec=$spec" \
-    -f "account=$ACCOUNT" \
-    -f "use_mocks=$USE_MOCKS" \
-    -f "record_fixtures=$RECORD_FIXTURES" &
+    -f "suite=playwright" \
+    -f "spec=$spec" &
 
   ACCOUNT=$(( (ACCOUNT % MAX_ACCOUNTS) + 1 ))
   TRIGGERED=$((TRIGGERED + 1))
