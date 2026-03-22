@@ -34,7 +34,8 @@ const noopLog = (_message: string, _metadata?: Record<string, unknown>): void =>
 async function loginToTestAccount(
 	page: any,
 	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void = noopLog,
-	takeStepScreenshot: (page: any, label: string) => Promise<void> = noopScreenshot
+	takeStepScreenshot: (page: any, label: string) => Promise<void> = noopScreenshot,
+	options: { waitForEditor?: boolean } = {}
 ): Promise<void> {
 	const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
@@ -88,6 +89,16 @@ async function loginToTestAccount(
 
 	let loginSuccess = false;
 	for (let attempt = 1; attempt <= 3 && !loginSuccess; attempt++) {
+		// Avoid TOTP window boundary race: if we're in the last 3s of a 30s window,
+		// wait for the next window so the generated code is valid long enough.
+		const nowSec = Math.floor(Date.now() / 1000);
+		const secondsIntoWindow = nowSec % 30;
+		if (secondsIntoWindow >= 27) {
+			const waitMs = (30 - secondsIntoWindow) * 1000 + 2000;
+			logCheckpoint(`Near TOTP window boundary (${secondsIntoWindow}s in), waiting ${waitMs}ms...`);
+			await page.waitForTimeout(waitMs);
+		}
+
 		const otpCode = generateTotp(TEST_OTP_KEY);
 		await otpInput.fill(otpCode);
 		logCheckpoint(`Generated and entered OTP (attempt ${attempt}).`);
@@ -114,12 +125,17 @@ async function loginToTestAccount(
 		}
 	}
 
-	logCheckpoint('Waiting for chat interface to load...');
-	await page.waitForTimeout(3000);
-
-	const messageEditor = page.locator('.editor-content.prose');
-	await expect(messageEditor).toBeVisible({ timeout: 20000 });
-	logCheckpoint('Chat interface loaded - message editor visible.');
+	const { waitForEditor = true } = options;
+	if (waitForEditor) {
+		logCheckpoint('Waiting for chat interface to load...');
+		await page.waitForTimeout(3000);
+		const messageEditor = page.locator('.editor-content.prose');
+		await expect(messageEditor).toBeVisible({ timeout: 20000 });
+		logCheckpoint('Chat interface loaded - message editor visible.');
+	} else {
+		logCheckpoint('Login complete (skipping editor wait).');
+		await page.waitForTimeout(2000);
+	}
 }
 
 /**

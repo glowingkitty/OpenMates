@@ -99,7 +99,7 @@ test('creates an API key, verifies format, and deletes it', async ({ page }: { p
 	const screenshot = createStepScreenshotter(log);
 	await archiveExistingScreenshots(log);
 
-	await loginToTestAccount(page, log, screenshot);
+	await loginToTestAccount(page, log, screenshot, { waitForEditor: false });
 	await page.waitForTimeout(2000);
 
 	await navigateToApiKeys(page, log);
@@ -224,7 +224,7 @@ test('create button is disabled when API key name is empty', async ({ page }: { 
 	const screenshot = createStepScreenshotter(log);
 	await archiveExistingScreenshots(log);
 
-	await loginToTestAccount(page, log, screenshot);
+	await loginToTestAccount(page, log, screenshot, { waitForEditor: false });
 	await page.waitForTimeout(2000);
 
 	await navigateToApiKeys(page, log);
@@ -310,7 +310,7 @@ test('creates API key, verifies device approval flow, and saves working key', as
 	await archiveExistingScreenshots(log);
 
 	// ── Phase 1: Login ────────────────────────────────────────────────────────
-	await loginToTestAccount(page, log, screenshot);
+	await loginToTestAccount(page, log, screenshot, { waitForEditor: false });
 	await page.waitForTimeout(2000);
 
 	// ── Phase 2: Navigate to API Keys and create a new key ───────────────────
@@ -505,7 +505,7 @@ test('shows limit warning and disabled create button when 5 API keys exist', asy
 	const screenshot = createStepScreenshotter(log);
 	await archiveExistingScreenshots(log);
 
-	await loginToTestAccount(page, log, screenshot);
+	await loginToTestAccount(page, log, screenshot, { waitForEditor: false });
 	await page.waitForTimeout(2000);
 
 	await navigateToApiKeys(page, log);

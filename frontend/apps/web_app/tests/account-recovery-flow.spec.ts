@@ -37,6 +37,7 @@ const {
 	getSignupTestDomain,
 	getMailosaurServerId,
 	createMailosaurClient,
+	checkMailosaurQuota,
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
@@ -108,6 +109,10 @@ test('completes full account recovery flow with same password', async ({
 	const signupDomain = getSignupTestDomain(SIGNUP_TEST_EMAIL_DOMAINS);
 	test.skip(!signupDomain, 'SIGNUP_TEST_EMAIL_DOMAINS must include a test domain.');
 	test.skip(!MAILOSAUR_API_KEY, 'MAILOSAUR_API_KEY is required for email validation.');
+	if (MAILOSAUR_API_KEY) {
+		const quota = await checkMailosaurQuota(MAILOSAUR_API_KEY);
+		test.skip(!quota.available, `Mailosaur daily email quota reached (${quota.current}/${quota.limit}).`);
+	}
 	test.skip(!OPENMATES_TEST_ACCOUNT_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
 	test.skip(!OPENMATES_TEST_ACCOUNT_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
 

@@ -191,7 +191,8 @@ skills:
       per_unit:
         credits: 25
     providers:
-      - SerpAPI
+      - name: SerpAPI
+        display_name: Google
     exclude_fields_for_llm:
       - type
       - hash
@@ -316,7 +317,8 @@ skills:
       per_unit:
         credits: 25
     providers:
-      - SerpAPI
+      - name: SerpAPI
+        display_name: Google
     tool_schema:
       type: object
       properties:

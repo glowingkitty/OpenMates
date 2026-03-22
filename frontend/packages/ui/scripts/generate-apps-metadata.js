@@ -464,10 +464,13 @@ function parseAppYaml(appId, filePath) {
 
         if (Array.isArray(skill.providers) && skill.providers.length > 0) {
           // Use explicitly defined providers if present
-          // Providers can be plain strings ("Brave") or objects ({name: "Doctolib", no_api_key: true})
+          // Providers can be plain strings ("Brave") or objects ({name: "SerpAPI", display_name: "Google"})
+          // Use display_name for user-facing UI; fall back to name if not set
           skillProviders = skill.providers
             .map((p) => {
-              if (typeof p === "object" && p !== null && p.name) return p.name.trim();
+              if (typeof p === "object" && p !== null) {
+                return (p.display_name || p.name || "").trim();
+              }
               return (p || "").trim();
             })
             .filter((p) => p.length > 0);

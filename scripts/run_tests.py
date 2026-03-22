@@ -77,6 +77,8 @@ class SpecResult:
     file: Optional[str] = None
     run_id: Optional[int] = None
     account: Optional[int] = None
+    retries: int = 0
+    flaky: bool = False
 
 
 @dataclass
@@ -104,6 +106,44 @@ class RunResult:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+def _print_flaky_report() -> None:
+    """Print top flaky tests from flaky-history.json."""
+    history_path = RESULTS_DIR / "flaky-history.json"
+    if not history_path.is_file():
+        print("No flaky history found (test-results/flaky-history.json)")
+        return
+
+    with open(history_path) as f:
+        history = json.load(f)
+
+    tests = history.get("tests", {})
+    if not tests:
+        print("No test history recorded yet.")
+        return
+
+    # Sort by flaky_count descending, then by flakiness rate
+    ranked = []
+    for key, entry in tests.items():
+        total = entry.get("total_runs", 0)
+        flaky = entry.get("flaky_count", 0)
+        if total > 0 and flaky > 0:
+            rate = flaky / total
+            ranked.append((key, flaky, total, rate, entry.get("last_flaky_date", "?")))
+
+    if not ranked:
+        print("No flaky tests detected in history.")
+        return
+
+    ranked.sort(key=lambda x: (-x[3], -x[1]))  # rate desc, then count desc
+
+    print(f"\nTop flaky tests ({len(ranked)} total):\n")
+    print(f"{'Rate':>6}  {'Flaky/Total':>12}  {'Last Flaky':<12}  Test")
+    print(f"{'─' * 6}  {'─' * 12}  {'─' * 12}  {'─' * 40}")
+    for key, flaky, total, rate, last_date in ranked[:15]:
+        print(f"{rate:5.0%}   {flaky:>4}/{total:<6}  {last_date:<12}  {key}")
+    print()
+
 
 def _log(msg: str, level: str = "INFO") -> None:
     """Print a timestamped log line."""
@@ -513,6 +553,10 @@ class BatchRunner:
             d["file"] = r.file
         if r.run_id:
             d["run_id"] = r.run_id
+        if r.retries > 0:
+            d["retries"] = r.retries
+        if r.flaky:
+            d["flaky"] = True
         return d
 
 
@@ -1363,8 +1407,14 @@ def main() -> int:
                         help="Run with real LLM calls instead of mocks")
     parser.add_argument("--dry-run", action="store_true",
                         help="Show what would run without executing")
+    parser.add_argument("--flaky-report", action="store_true",
+                        help="Show top flaky tests from history and exit")
 
     args = parser.parse_args()
+
+    if args.flaky_report:
+        _print_flaky_report()
+        return 0
 
     # Daily mode: acquire lockfile
     lock_fd = None
