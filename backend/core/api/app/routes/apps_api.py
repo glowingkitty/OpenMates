@@ -392,6 +392,7 @@ def get_provider_api_key_env_vars(provider_id: str) -> List[str]:
         "youtube": ["SECRET__YOUTUBE__API_KEY", "SECRET__YOUTUBE__API_KEY"],
         "google_maps": ["SECRET__GOOGLE_MAPS__API_KEY"],
         "protonmail": ["SECRET__PROTONMAIL__BRIDGE_PASSWORD"],
+        "serpapi": ["SECRET__SERPAPI__API_KEY"],
     }
     
     # Return mapped env vars or default pattern
@@ -480,13 +481,18 @@ async def is_skill_available(skill: AppSkillDefinition, app_id: str, secrets_man
         return True
 
     # Check if at least one provider has an available API key (or needs no key)
-    for provider_name in skill.providers:
-        provider_id = map_provider_name_to_id(provider_name, app_id)
+    for provider_ref in skill.providers:
+        # Providers marked with no_api_key=True (e.g., web scrapers) are always available
+        if provider_ref.no_api_key:
+            logger.debug(f"Skill '{skill.id}' is available - provider '{provider_ref.name}' does not require an API key")
+            return True
+
+        provider_id = map_provider_name_to_id(provider_ref.name, app_id)
         is_available = await check_provider_api_key_available(provider_id, secrets_manager, config_manager)
         if is_available:
             logger.debug(f"Skill '{skill.id}' is available - provider '{provider_id}' has API key configured")
             return True
-    
+
     # No providers have API keys configured
     logger.debug(f"Skill '{skill.id}' is not available - no providers have API keys configured")
     return False
@@ -663,7 +669,8 @@ async def get_skill_providers_with_pricing(
     
     # Then, fetch pricing and metadata for each provider listed in the skill
     if skill.providers:
-        for provider_name in skill.providers:
+        for provider_ref in skill.providers:
+            provider_name = provider_ref.name
             provider_id = map_provider_name_to_id(provider_name, app_id)
             
             # Get provider config to extract name and description
@@ -928,7 +935,7 @@ async def calculate_skill_credits(
     if not pricing_config and skill_def.providers and len(skill_def.providers) > 0:
         # Skill doesn't have explicit pricing, but has providers - try to get provider-level pricing
         # Use the first provider (most skills will have one primary provider)
-        provider_name = skill_def.providers[0]
+        provider_name = skill_def.providers[0].name
         # Normalize provider name to lowercase (provider IDs in YAML are lowercase, e.g., "brave")
         provider_id = provider_name.lower()
         
@@ -1030,7 +1037,7 @@ def resolve_skill_provider_info(
     if skill.full_model_reference and "/" in skill.full_model_reference:
         provider_id = skill.full_model_reference.split("/", 1)[0]
     elif skill.providers and len(skill.providers) > 0:
-        pname = skill.providers[0]
+        pname = skill.providers[0].name
         provider_id = pname.lower()
         # Same name-to-ID mapping as main_processor.py
         if pname == "Google" and app_id == "maps":

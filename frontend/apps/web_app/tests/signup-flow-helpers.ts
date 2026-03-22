@@ -275,6 +275,37 @@ function buildSignupEmail(domain: string): string {
 }
 
 /**
+ * Check Mailosaur daily email quota via /api/usage/limits.
+ * Returns { available: boolean, current, limit } so callers can skip tests cleanly.
+ */
+async function checkMailosaurQuota(apiKey: string): Promise<{ available: boolean; current: number; limit: number }> {
+	const token = Buffer.from(`${apiKey}:`).toString('base64');
+	try {
+		const res = await fetch(`${MAILOSAUR_BASE_URL}/usage/limits`, {
+			headers: { Authorization: `Basic ${token}` }
+		});
+		if (!res.ok) {
+			console.log(`[Mailosaur] Quota check failed: HTTP ${res.status}`);
+			return { available: false, current: 0, limit: 0 };
+		}
+		const data = await res.json();
+		const email = data.email || {};
+		const current = email.current ?? 0;
+		const limit = email.limit ?? 0;
+		const available = current < limit;
+		if (!available) {
+			console.log(`[Mailosaur] Daily email quota reached (${current}/${limit}). Tests requiring email will be skipped.`);
+		} else {
+			console.log(`[Mailosaur] Email quota: ${current}/${limit} used.`);
+		}
+		return { available, current, limit };
+	} catch (err) {
+		console.log(`[Mailosaur] Quota check error: ${err}`);
+		return { available: false, current: 0, limit: 0 };
+	}
+}
+
+/**
  * Create a Mailosaur client wrapper with basic auth and polling helpers.
  * The goal is to keep mail polling logic consistent across signup tests.
  */
@@ -865,6 +896,7 @@ module.exports = {
 	getSignupTestDomain,
 	getMailosaurServerId,
 	buildSignupEmail,
+	checkMailosaurQuota,
 	createMailosaurClient,
 	generateTotp,
 	assertNoMissingTranslations,
