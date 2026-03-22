@@ -76,7 +76,12 @@ const BENIGN_ERROR_PATTERNS: RegExp[] = [
 	// Third-party script errors (Stripe, etc.)
 	/js\.stripe\.com/,
 	// ResizeObserver loop limit — benign browser warning
-	/ResizeObserver loop/i
+	/ResizeObserver loop/i,
+	// Chunk loading failures during Vercel deploys — app recovers on reload
+	/Failed to fetch dynamically imported module/i,
+	/Loading chunk \d+ failed/i,
+	/ChunkLoadError/i,
+	/_app\/immutable\/chunks\/.*\b404\b/i
 ];
 
 /**
@@ -203,8 +208,18 @@ function attachNetworkListeners(page: any): void {
 	});
 
 	page.on('response', (response: any) => {
+		const url: string = response.url();
 		const timestamp = new Date().toISOString();
-		networkActivities.push(`[${timestamp}] << ${response.status()} ${response.url()}`);
+		networkActivities.push(`[${timestamp}] << ${response.status()} ${url}`);
+
+		// Auto-reload on chunk 404 (Vercel deploy happened mid-test).
+		// Without reload the app hangs because the component JS is gone.
+		if (response.status() === 404 && url.includes('/_app/immutable/chunks/')) {
+			console.log(
+				`[ConsoleMonitor] Chunk 404 detected (${url.split('/').pop()}), reloading to pick up new deployment...`
+			);
+			page.reload().catch(() => {});
+		}
 	});
 }
 
