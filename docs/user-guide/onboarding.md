@@ -153,7 +153,7 @@ When the AI preprocessor selects the `welcome` focus mode outside of the pre-act
 4. If not rejected, the Celery task publishes `focus_mode_activated` to Redis, which is forwarded over WebSocket to the client
 5. Client encrypts the focus ID and writes `encrypted_active_focus_id` to IndexedDB, then sends `update_encrypted_active_focus_id` back to the server for persistence
 
-See [Focus Mode Architecture](../architecture/web-app.md) for the full generic focus mode flow.
+See [Focus Mode Architecture](../architecture/frontend/web-app.md) for the full generic focus mode flow.
 
 ---
 
@@ -195,6 +195,6 @@ ShareUsecaseSkill.execute(summary, language, user_id=<ignored>)
 
 ## Related Documentation
 
-- [Web App Architecture](../architecture/web-app.md)
-- [Signup/Login Flow](../architecture/signup-and-auth.md)
-- [Focus Mode Architecture](../architecture/web-app.md)
+- [Web App Architecture](../architecture/frontend/web-app.md)
+- [Signup/Login Flow](../architecture/core/signup-and-auth.md)
+- [Focus Mode Architecture](../architecture/frontend/web-app.md)
