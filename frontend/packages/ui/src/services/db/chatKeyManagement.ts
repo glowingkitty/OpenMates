@@ -654,9 +654,12 @@ export async function decryptMessageFields(
     return decryptedMessage;
   }
 
+  // Get key fingerprint for per-key failure cache lookups
+  const keyFp = chatKeyManager.getProvenance(chatId)?.keyFingerprint;
+
   // Decrypt content if present
   if (message.encrypted_content) {
-    if (isKnownDecryptionFailure(chatId, message.message_id, "content")) {
+    if (isKnownDecryptionFailure(chatId, message.message_id, "content", keyFp)) {
       // Skip — this message/field has permanently failed before with this key
       decryptedMessage.content =
         message.content || "[Content decryption failed]";
@@ -674,7 +677,7 @@ export async function decryptMessageFields(
           delete decryptedMessage.encrypted_content;
         } else {
           // Decryption failed but didn't throw - encrypted_content might be malformed
-          recordDecryptionFailure(chatId, message.message_id, "content");
+          recordDecryptionFailure(chatId, message.message_id, "content", keyFp);
           const prov = chatKeyManager.getProvenance(chatId);
           console.error(
             `[CLIENT_DECRYPT] ❌ Failed to decrypt content for message ${message.message_id} - ` +
@@ -692,7 +695,7 @@ export async function decryptMessageFields(
       } catch (error) {
         // DEFENSIVE: Handle malformed encrypted_content (e.g., from messages with status 'sending' that never completed encryption)
         // Also handle database operation errors during logout (OperationError from IndexedDB)
-        recordDecryptionFailure(chatId, message.message_id, "content");
+        recordDecryptionFailure(chatId, message.message_id, "content", keyFp);
         const errorMessage =
           error instanceof Error ? error.message : String(error);
         const isOperationError =
@@ -734,7 +737,7 @@ export async function decryptMessageFields(
     onSuccess: (val: string) => void,
     onFailure: () => void,
   ) => {
-    if (isKnownDecryptionFailure(chatId, message.message_id, fieldName)) {
+    if (isKnownDecryptionFailure(chatId, message.message_id, fieldName, keyFp)) {
       onFailure();
       return;
     }
@@ -744,12 +747,12 @@ export async function decryptMessageFields(
           if (val) {
             onSuccess(val);
           } else {
-            recordDecryptionFailure(chatId, message.message_id, fieldName);
+            recordDecryptionFailure(chatId, message.message_id, fieldName, keyFp);
             onFailure();
           }
         })
         .catch((error) => {
-          recordDecryptionFailure(chatId, message.message_id, fieldName);
+          recordDecryptionFailure(chatId, message.message_id, fieldName, keyFp);
           console.error(
             `[ChatDatabase] Error decrypting ${fieldName} for message ${message.message_id}:`,
             error,

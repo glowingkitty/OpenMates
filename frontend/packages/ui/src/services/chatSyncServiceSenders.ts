@@ -1943,6 +1943,13 @@ export async function sendEncryptedStoragePackage(
   }
   serviceInstance.markMessageSyncing(messageId);
 
+  // CRITICAL FIX: Acquire critical operation lock to prevent clearAll() from wiping
+  // the key cache mid-flight. Without this lock, an auth disruption (e.g. token expiry
+  // triggering WebSocket "Authentication failed") calls clearAll() which wipes keys.
+  // This function then falls through to CASE 2 (new key generation), creating key K2
+  // while the user message in IDB was encrypted with K1 — permanent decryption failure.
+  chatKeyManager.acquireCriticalOp();
+
   try {
     const {
       chat_id,
@@ -2046,10 +2053,30 @@ export async function sendEncryptedStoragePackage(
 
     if (!encryptedChatKey) {
       // CASE 2: No encrypted_chat_key - this is a new chat, generate and save key
+      // SAFETY: Re-read IDB before generating a new key. Another tab or a deferred
+      // write from this tab might have stored encrypted_chat_key since our first read.
+      const freshChat = await chatDB.getChat(chat_id);
+      const freshEncKey = freshChat?.encrypted_chat_key;
+      if (freshEncKey) {
+        console.info(
+          `[ChatSyncService:Senders] encrypted_chat_key appeared on re-read for ${chat_id} — using existing key instead of generating`,
+        );
+        encryptedChatKey = freshEncKey;
+        if (!chatKey) {
+          const { decryptChatKeyWithMasterKey } = await import("./cryptoService");
+          chatKey = await decryptChatKeyWithMasterKey(freshEncKey);
+          if (chatKey) {
+            chatDB.setChatKey(chat_id, chatKey);
+          }
+        }
+      }
+    }
+
+    if (!encryptedChatKey) {
       console.warn(
         `[ChatSyncService:Senders] ⚠️ encrypted_chat_key missing for ${chat_id}, generating new key (new chat)`,
       );
-      // CASE 2: New chat on originating device — safe to create key
+      // New chat on originating device — safe to create key
       if (!chatKey) {
         chatKey =
           chatKeyManager.getKeySync(chat_id) ||
@@ -2297,6 +2324,9 @@ export async function sendEncryptedStoragePackage(
     );
     // Unmark on error so a legitimate retry can proceed
     serviceInstance.unmarkMessageSyncing(messageId);
+  } finally {
+    // CRITICAL: Always release the lock so deferred clearAll() can proceed.
+    chatKeyManager.releaseCriticalOp();
   }
 }
 

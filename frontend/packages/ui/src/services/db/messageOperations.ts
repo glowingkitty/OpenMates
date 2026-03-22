@@ -10,6 +10,7 @@
 // - Message status priority handling
 
 import type { Message } from "../../types/chat";
+import { chatKeyManager } from "../encryption/ChatKeyManager";
 
 // Type for ChatDatabase instance to avoid circular import
 // Only includes properties/methods needed by this module
@@ -477,10 +478,18 @@ export async function saveMessage(
 
   // CRITICAL FIX: Do all async work BEFORE checking transaction state
   // Encrypt message content before storing in IndexedDB (zero-knowledge architecture)
-  const encryptedMessage = await dbInstance.encryptMessageFields(
-    message,
-    message.chat_id,
-  );
+  // Acquire critical op lock to prevent clearAll() from wiping keys between
+  // getKey() and encrypt() inside encryptMessageFields().
+  chatKeyManager.acquireCriticalOp();
+  let encryptedMessage: Message;
+  try {
+    encryptedMessage = await dbInstance.encryptMessageFields(
+      message,
+      message.chat_id,
+    );
+  } finally {
+    chatKeyManager.releaseCriticalOp();
+  }
 
   // CRITICAL FIX: Check existing messages WITHOUT using the transaction (to avoid expiration)
   // We'll check for duplicates using a separate read-only transaction
