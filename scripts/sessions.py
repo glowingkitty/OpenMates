@@ -718,11 +718,12 @@ def _get_arch_doc_index() -> list[dict]:
     index = []
     if not ARCH_DOCS_DIR.exists():
         return index
-    for f in sorted(ARCH_DOCS_DIR.iterdir()):
-        if f.suffix != ".md" or f.stem == "README":
+    for f in sorted(ARCH_DOCS_DIR.rglob("*.md")):
+        if f.stem == "README":
             continue
+        rel = f.relative_to(ARCH_DOCS_DIR)
         desc = ARCH_DOC_DESCRIPTIONS.get(f.stem, "")
-        index.append({"name": f.stem, "file": f.name, "description": desc})
+        index.append({"name": f.stem, "file": str(rel), "description": desc})
     return index
 
 # ---------------------------------------------------------------------------
@@ -3149,15 +3150,16 @@ def cmd_context(args: argparse.Namespace) -> None:
         print()
         if ARCH_DOCS_DIR.exists():
             arch_rows = []
-            for f in sorted(ARCH_DOCS_DIR.iterdir()):
-                if f.suffix != ".md" or f.stem == "README":
+            for f in sorted(ARCH_DOCS_DIR.rglob("*.md")):
+                if f.stem == "README":
                     continue
                 try:
                     lines = sum(1 for _ in open(f))
                 except OSError:
                     lines = 0
+                rel = str(f.relative_to(ARCH_DOCS_DIR))
                 desc = ARCH_DOC_DESCRIPTIONS.get(f.stem, "")
-                arch_rows.append((f.stem, lines, desc))
+                arch_rows.append((rel, lines, desc))
             max_arch = max(len(r[0]) for r in arch_rows) if arch_rows else 10
             print(f"  {'Name':<{max_arch}}  {'Lines':>5}  Description")
             print(f"  {'-' * max_arch}  {'-----':>5}  -----------")
@@ -3198,7 +3200,7 @@ def cmd_context(args: argparse.Namespace) -> None:
         print(f"\n== END {doc_name_md} ==")
         return
 
-    # Check docs/architecture/
+    # Check docs/architecture/ (search subdirectories too)
     arch_path = ARCH_DOCS_DIR / doc_name_md
     if arch_path.exists():
         with open(arch_path) as f:
@@ -3207,6 +3209,17 @@ def cmd_context(args: argparse.Namespace) -> None:
         print(content.rstrip())
         print(f"\n== END {doc_name_md} ==")
         return
+    # Search subdirectories by filename
+    if ARCH_DOCS_DIR.exists():
+        for candidate in ARCH_DOCS_DIR.rglob(doc_name_md):
+            if candidate.is_file():
+                rel = candidate.relative_to(ARCH_DOCS_DIR)
+                with open(candidate) as f:
+                    content = f.read()
+                print(f"== docs/architecture/{rel} ==")
+                print(content.rstrip())
+                print(f"\n== END {rel} ==")
+                return
 
     # Not found — show available docs
     print(f"Error: Document '{doc_name}' not found.", file=sys.stderr)
@@ -3217,8 +3230,8 @@ def cmd_context(args: argparse.Namespace) -> None:
                 print(f"  {f.stem}", file=sys.stderr)
     print("\nAvailable architecture docs (docs/architecture/):", file=sys.stderr)
     if ARCH_DOCS_DIR.exists():
-        for f in sorted(ARCH_DOCS_DIR.iterdir()):
-            if f.suffix == ".md" and f.stem != "README":
+        for f in sorted(ARCH_DOCS_DIR.rglob("*.md")):
+            if f.stem != "README":
                 print(f"  {f.stem}", file=sys.stderr)
     sys.exit(1)
 

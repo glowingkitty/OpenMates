@@ -25,6 +25,10 @@ export type {
   MemoryTypeDef,
   MemoryFieldDef,
   OpenMatesClientOptions,
+  DocsTree,
+  DocsFolder,
+  DocsFile,
+  DocsSearchResult,
 } from "./client.js";
 export type {
   OpenMatesSession,

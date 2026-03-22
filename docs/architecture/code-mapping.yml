@@ -5,52 +5,52 @@
 # the session start command flags the doc as potentially stale.
 #
 # Format:
-#   doc-name.md:
+#   subcategory/doc-name.md:
 #     - glob/pattern/to/related/code/**/*.py
 #
 # Glob patterns are relative to the project root.
+# Doc paths are relative to docs/architecture/.
 
-account-backup.md:
+# === core/ ===
+
+core/account-backup.md:
   - backend/core/api/app/routes/profile_api.py
   - frontend/packages/ui/src/services/accountExportService.ts
   - frontend/packages/ui/src/services/zipExportService.ts
 
-account-recovery.md:
+core/account-recovery.md:
   - backend/core/api/app/routes/auth.py
   - frontend/packages/ui/src/components/signup/**/*.svelte
 
-admin-console-log-forwarding.md:
-  - backend/core/api/app/routes/admin_client_logs.py
-  - frontend/packages/ui/src/services/clientLogForwarder.ts
-  - frontend/packages/ui/src/services/logCollector.ts
-
-ai-model-selection.md:
-  - backend/apps/ai/skills/*/skill.py
-  - backend/shared/config/**/*.py
-  - backend/shared/providers/**/*.py
-
-app-skills.md:
-  - backend/apps/base_app.py
-  - backend/apps/base_skill.py
-  - backend/apps/base_main.py
-  - backend/apps/base_app.yml
-
-daily-inspiration.md:
-  - backend/core/api/app/routes/daily_inspirations_api.py
-  - backend/core/api/app/routes/default_inspirations.py
-  - frontend/packages/ui/src/stores/dailyInspirationStore.ts
-  - frontend/packages/ui/src/services/dailyInspirationDB.ts
-
-developer-settings.md:
-  - backend/core/api/app/routes/settings.py
-  - frontend/packages/ui/src/components/settings/**/*.svelte
-
-device-sessions.md:
+core/passkeys.md:
   - backend/core/api/app/routes/auth.py
-  - frontend/packages/ui/src/stores/authSessionActions.ts
+  - frontend/packages/ui/src/components/signup/**/*.svelte
   - frontend/packages/ui/src/stores/authStore.ts
 
-embeds.md:
+core/security.md:
+  - backend/core/vault/**/*.py
+  - backend/shared/python_utils/encryption*.py
+  - frontend/packages/ui/src/services/cryptoService.ts
+  - frontend/packages/ui/src/services/cryptoKeyStorage.ts
+
+core/servers.md:
+  - backend/core/docker-compose.yml
+  - backend/core/docker-compose.override.yml
+
+core/signup-and-auth.md:
+  - backend/core/api/app/routes/auth.py
+  - frontend/packages/ui/src/components/signup/**/*.svelte
+  - frontend/packages/ui/src/stores/signupStore.ts
+  - frontend/packages/ui/src/stores/signupState.ts
+
+core/zero-knowledge-storage.md:
+  - frontend/packages/ui/src/services/cryptoService.ts
+  - frontend/packages/ui/src/services/encryption/**/*.ts
+  - backend/core/vault/**/*.py
+
+# === messaging/ ===
+
+messaging/embeds.md:
   - backend/apps/*/skills/*/embed*.py
   - frontend/packages/ui/src/components/embeds/**/*.svelte
   - frontend/packages/ui/src/components/embeds/**/*.ts
@@ -60,125 +60,144 @@ embeds.md:
   - frontend/packages/ui/src/services/embedSenders.ts
   - backend/shared/python_schemas/embed*.py
 
-email-privacy.md:
-  - backend/core/api/app/routes/email.py
-  - backend/core/api/app/routes/email_block.py
-  - frontend/packages/ui/src/services/encryption/**/*.ts
-
-file-upload-pipeline.md:
-  - backend/upload/**/*.py
-  - backend/core/api/app/routes/skills.py
-  - frontend/packages/ui/src/services/presignedUrlService.ts
-  - frontend/packages/ui/src/stores/pendingUploadStore.ts
-
-followup-suggestions.md:
-  - backend/apps/ai/skills/*/skill.py
-  - frontend/packages/ui/src/stores/suggestionTracker.ts
-
-hallucination-mitigation.md:
-  - backend/apps/ai/skills/*/skill.py
-
-health-checks.md:
-  - backend/core/api/app/routes/internal_api.py
-  - frontend/packages/ui/src/stores/appHealthStore.ts
-  - frontend/packages/ui/src/stores/serverStatusStore.ts
-
-logging.md:
-  - backend/shared/python_utils/logging*.py
-  - backend/core/monitoring/**/*.py
-
-mates.md:
-  - backend/apps/ai/**/*.py
-  - frontend/packages/ui/src/stores/teamStore.ts
-
-message-input-field.md:
+messaging/message-input-field.md:
   - frontend/packages/ui/src/components/enter_message/**/*.svelte
   - frontend/packages/ui/src/components/enter_message/**/*.ts
 
-message-parsing.md:
+messaging/message-parsing.md:
   - frontend/packages/ui/src/components/chats/**/*.svelte
   - frontend/packages/ui/src/components/chats/**/*.ts
 
-message-previews-grouping.md:
+messaging/message-previews-grouping.md:
   - frontend/packages/ui/src/components/embeds/**/*.ts
   - frontend/packages/ui/src/services/embedPreviewRegistry.ts
 
-message-processing.md:
+messaging/message-processing.md:
   - backend/core/api/app/routes/websockets.py
   - backend/apps/ai/skills/*/skill.py
   - backend/apps/base_skill.py
 
-passkeys.md:
-  - backend/core/api/app/routes/auth.py
-  - frontend/packages/ui/src/components/signup/**/*.svelte
-  - frontend/packages/ui/src/stores/authStore.ts
+# === ai/ ===
 
-payment-processing.md:
-  - backend/core/api/app/routes/payments.py
-  - backend/core/api/app/routes/invoice.py
-  - backend/core/api/app/routes/credit_note.py
-  - frontend/packages/ui/src/components/payment/**/*.svelte
+ai/ai-model-selection.md:
+  - backend/apps/ai/skills/*/skill.py
+  - backend/shared/config/**/*.py
+  - backend/shared/providers/**/*.py
 
-pii-protection.md:
+ai/followup-suggestions.md:
+  - backend/apps/ai/skills/*/skill.py
+  - frontend/packages/ui/src/stores/suggestionTracker.ts
+
+ai/hallucination-mitigation.md:
+  - backend/apps/ai/skills/*/skill.py
+
+ai/mates.md:
+  - backend/apps/ai/**/*.py
+  - frontend/packages/ui/src/stores/teamStore.ts
+
+ai/thinking-models.md:
+  - backend/shared/providers/**/*.py
+  - backend/apps/ai/skills/*/skill.py
+
+# === privacy/ ===
+
+privacy/email-privacy.md:
+  - backend/core/api/app/routes/email.py
+  - backend/core/api/app/routes/email_block.py
+  - frontend/packages/ui/src/services/encryption/**/*.ts
+
+privacy/pii-protection.md:
   - frontend/packages/ui/src/stores/embedPIIStore.ts
   - frontend/packages/ui/src/stores/piiVisibilityStore.ts
 
-prompt-injection.md:
+privacy/prompt-injection.md:
   - backend/apps/ai/skills/*/skill.py
   - backend/shared/python_utils/security*.py
 
-rest-api.md:
-  - backend/core/api/app/routes/apps_api.py
-  - backend/core/api/app/routes/embeds_api.py
-  - backend/core/api/app/routes/tasks_api.py
-
-security.md:
-  - backend/core/vault/**/*.py
-  - backend/shared/python_utils/encryption*.py
-  - frontend/packages/ui/src/services/cryptoService.ts
-  - frontend/packages/ui/src/services/cryptoKeyStorage.ts
-
-sensitive-data-redaction.md:
+privacy/sensitive-data-redaction.md:
   - backend/apps/ai/skills/*/skill.py
   - backend/shared/python_utils/pii*.py
 
-servers.md:
-  - backend/core/docker-compose.yml
-  - backend/core/docker-compose.override.yml
+# === data/ ===
 
-signup-and-auth.md:
+data/device-sessions.md:
   - backend/core/api/app/routes/auth.py
-  - frontend/packages/ui/src/components/signup/**/*.svelte
-  - frontend/packages/ui/src/stores/signupStore.ts
-  - frontend/packages/ui/src/stores/signupState.ts
+  - frontend/packages/ui/src/stores/authSessionActions.ts
+  - frontend/packages/ui/src/stores/authStore.ts
 
-status-page.md:
-  - backend/status/**/*.py
-
-sync.md:
+data/sync.md:
   - frontend/packages/ui/src/services/chatSyncService*.ts
   - frontend/packages/ui/src/stores/phasedSyncStateStore.ts
   - backend/core/api/app/routes/websockets.py
   - backend/core/api/app/routes/debug_sync.py
 
-thinking-models.md:
-  - backend/shared/providers/**/*.py
-  - backend/apps/ai/skills/*/skill.py
-
-translations.md:
+data/translations.md:
   - scripts/manage_translations.py
   - scripts/auto_translate.py
   - frontend/packages/ui/src/i18n/**/*.yml
 
-vector-personalization.md:
-  - frontend/packages/ui/src/services/searchService.ts
-  - frontend/packages/ui/src/stores/searchStore.ts
+# === payments/ ===
 
-web-app.md:
+payments/payment-processing.md:
+  - backend/core/api/app/routes/payments.py
+  - backend/core/api/app/routes/invoice.py
+  - backend/core/api/app/routes/credit_note.py
+  - frontend/packages/ui/src/components/payment/**/*.svelte
+
+# === apps/ ===
+
+apps/app-skills.md:
+  - backend/apps/base_app.py
+  - backend/apps/base_skill.py
+  - backend/apps/base_main.py
+  - backend/apps/base_app.yml
+
+apps/rest-api.md:
+  - backend/core/api/app/routes/apps_api.py
+  - backend/core/api/app/routes/embeds_api.py
+  - backend/core/api/app/routes/tasks_api.py
+
+# === frontend/ ===
+
+frontend/daily-inspiration.md:
+  - backend/core/api/app/routes/daily_inspirations_api.py
+  - backend/core/api/app/routes/default_inspirations.py
+  - frontend/packages/ui/src/stores/dailyInspirationStore.ts
+  - frontend/packages/ui/src/services/dailyInspirationDB.ts
+
+frontend/web-app.md:
   - frontend/apps/web_app/src/**/*.ts
   - frontend/apps/web_app/src/**/*.svelte
 
-zero-knowledge-storage.md:
-  - frontend/packages/ui/src/services/cryptoService.ts
-  - frontend/packages/ui/src/services/encryption/**/*.ts
-  - backend/core/vault/**/*.py
+# === infrastructure/ ===
+
+infrastructure/admin-console-log-forwarding.md:
+  - backend/core/api/app/routes/admin_client_logs.py
+  - frontend/packages/ui/src/services/clientLogForwarder.ts
+  - frontend/packages/ui/src/services/logCollector.ts
+
+infrastructure/developer-settings.md:
+  - backend/core/api/app/routes/settings.py
+  - frontend/packages/ui/src/components/settings/**/*.svelte
+
+infrastructure/file-upload-pipeline.md:
+  - backend/upload/**/*.py
+  - backend/core/api/app/routes/skills.py
+  - frontend/packages/ui/src/services/presignedUrlService.ts
+  - frontend/packages/ui/src/stores/pendingUploadStore.ts
+
+infrastructure/health-checks.md:
+  - backend/core/api/app/routes/internal_api.py
+  - frontend/packages/ui/src/stores/appHealthStore.ts
+  - frontend/packages/ui/src/stores/serverStatusStore.ts
+
+infrastructure/logging.md:
+  - backend/shared/python_utils/logging*.py
+  - backend/core/monitoring/**/*.py
+
+infrastructure/status-page.md:
+  - backend/status/**/*.py
+
+infrastructure/vector-personalization.md:
+  - frontend/packages/ui/src/services/searchService.ts
+  - frontend/packages/ui/src/stores/searchStore.ts

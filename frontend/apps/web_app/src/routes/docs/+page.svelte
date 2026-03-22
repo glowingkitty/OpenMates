@@ -10,7 +10,7 @@
 	import { text, getCategoryGradientColors, getLucideIcon } from '@repo/ui';
 	import docsData from '$lib/generated/docs-data.json';
 	import type { DocFolder } from '$lib/types/docs';
-	import { DOCS_FOLDER_CATEGORY, DOCS_FOLDER_ICON } from '$lib/utils/docsCategoryMap';
+	import { DOCS_FOLDER_CATEGORY, DOCS_FOLDER_ICON, DOCS_FOLDER_ORDER } from '$lib/utils/docsCategoryMap';
 
 	const { structure } = docsData;
 
@@ -62,7 +62,7 @@
 		</a>
 
 		<!-- Folder section cards -->
-		{#each structure.folders as folder (folder.path)}
+		{#each structure.folders.toSorted((a, b) => (DOCS_FOLDER_ORDER[a.path] ?? 99) - (DOCS_FOLDER_ORDER[b.path] ?? 99)) as folder (folder.path)}
 			{@const category = DOCS_FOLDER_CATEGORY[folder.path] || 'general_knowledge'}
 			{@const folderIconName = DOCS_FOLDER_ICON[folder.path] || 'folder'}
 			{@const gradColors = getCategoryGradientColors(category)}

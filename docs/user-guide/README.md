@@ -4,6 +4,7 @@ Everything you need to know about using OpenMates as an end user.
 
 ## Getting Started
 
+- [Getting Started](getting-started.md) - Overview and quick links
 - [Onboarding](onboarding.md) - Your first steps with OpenMates
 - [Demo Chats](demo-chats.md) - Try OpenMates without signing up
 - [Keyboard Shortcuts](keyboard-shortcuts.md) - Speed up your workflow
@@ -31,6 +32,12 @@ Everything you need to know about using OpenMates as an end user.
 - [Gift Cards](gift-cards.md) - Redeem gift cards for credits
 - [Export Account](export-account.md) - Download all your data (GDPR)
 - [Creators Program](creators-program.md) - Revenue sharing for content creators
+
+## Apps
+
+Explore the built-in apps and skills that power your digital team mates.
+
+- [Apps Overview](apps/README.md) - Browse all available apps and skills
 
 ## Help
 

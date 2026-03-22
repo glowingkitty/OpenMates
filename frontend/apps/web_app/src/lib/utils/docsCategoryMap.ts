@@ -8,28 +8,32 @@
 
 /** Maps a docs folder path to a chat category string for ChatHeader gradients */
 export const DOCS_FOLDER_CATEGORY: Record<string, string> = {
-	'apis': 'software_development',
-	'apps': 'maker_prototyping',
-	'architecture': 'electrical_engineering',
-	'contributing': 'activism',
-	'design-guide': 'design',
-	'getting-started': 'onboarding_support',
-	'self-hosting': 'software_development',
 	'user-guide': 'general_knowledge',
+	'self-hosting': 'software_development',
+	'design-guide': 'design',
+	'architecture': 'electrical_engineering',
+	'cli': 'software_development',
 	'api': 'software_development',
 };
 
 /** Maps a docs folder path to a Lucide icon name */
 export const DOCS_FOLDER_ICON: Record<string, string> = {
-	'apis': 'plug',
-	'apps': 'layout-grid',
-	'architecture': 'building-2',
-	'contributing': 'git-pull-request',
-	'design-guide': 'palette',
-	'getting-started': 'rocket',
-	'self-hosting': 'server',
 	'user-guide': 'book-open',
+	'self-hosting': 'server',
+	'design-guide': 'palette',
+	'architecture': 'building-2',
+	'cli': 'terminal',
 	'api': 'file-code',
+};
+
+/** Controls display order of docs categories on the landing page */
+export const DOCS_FOLDER_ORDER: Record<string, number> = {
+	'user-guide': 1,
+	'self-hosting': 2,
+	'design-guide': 3,
+	'architecture': 4,
+	'cli': 5,
+	'api': 6,
 };
 
 /**

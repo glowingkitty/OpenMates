@@ -24,7 +24,7 @@ OpenMates aims to be the most user-friendly, privacy-focused and provider-indepe
 
 Apps are one of the core components of OpenMates. They allow your digital team mates to use various external providers to fullfill your requests - from searching the web, finding meetups, finding restaurants, generating images, transcribing videos, and much more.
 
-[Click here to learn more](./docs/apps/README.md)
+[Click here to learn more](./docs/user-guide/apps/README.md)
 
 ### Completed
 
@@ -59,7 +59,7 @@ While many core features are implemented, we are continuously improving OpenMate
 
 You can help by testing the web app and providing feedback. You can also help by contributing to the code.
 
-[Click here to learn how to contribute](./docs/contributing/contributing.md)
+[Click here to learn how to contribute](./docs/architecture/contributing/contributing.md)
 
 ## Cloud web app
 
