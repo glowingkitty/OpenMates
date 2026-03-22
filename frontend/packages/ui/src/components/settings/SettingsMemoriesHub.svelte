@@ -16,6 +16,7 @@
     import { authStore } from '../../stores/authStore';
     import { appSettingsMemoriesStore } from '../../stores/appSettingsMemoriesStore';
     import SettingsItem from '../SettingsItem.svelte';
+    import AppStoreCard from './AppStoreCard.svelte';
     import type { AppMetadata, MemoryFieldMetadata } from '../../types/apps';
     import { text } from '@repo/ui';
     import { allAppsInitialFilter } from '../../stores/allAppsFilterStore';
@@ -198,23 +199,32 @@
                     title={section.app.name_translation_key ? $text(section.app.name_translation_key) : section.app.id}
                 />
 
-                <!-- Category rows for this app -->
-                {#each section.categories as entry (entry.category.id)}
-                    {@const categoryName = entry.category.name_translation_key
-                        ? $text(entry.category.name_translation_key)
-                        : entry.category.id}
-                    {@const countText = $text('settings.app_store.settings_memories.entry_count', {
-                        values: { count: entry.entryCount }
-                    })}
-                    <SettingsItem
-                        type="submenu"
-                        icon={getCategoryIconName(entry.category.icon_image, entry.category.id)}
-                        iconColor="var(--icon-memory-background)"
-                        title={categoryName}
-                        subtitleBottom={countText}
-                        onClick={() => openCategory(entry.app, entry.category.id, categoryName)}
-                    />
-                {/each}
+                <!-- Category cards for this app -->
+                <div class="items-scroll-container">
+                    <div class="items-scroll">
+                        {#each section.categories as entry (entry.category.id)}
+                            {@const categoryName = entry.category.name_translation_key
+                                ? $text(entry.category.name_translation_key)
+                                : entry.category.id}
+                            {@const categoryApp: AppMetadata = {
+                                id: entry.app.id,
+                                name_translation_key: entry.category.name_translation_key,
+                                description_translation_key: entry.category.description_translation_key,
+                                icon_image: entry.category.icon_image || entry.app.icon_image,
+                                icon_colorgradient: entry.app.icon_colorgradient,
+                                providers: [],
+                                skills: [],
+                                focus_modes: [],
+                                settings_and_memories: []
+                            }}
+                            <AppStoreCard
+                                app={categoryApp}
+                                cardIconType="memory"
+                                onSelect={() => openCategory(entry.app, entry.category.id, categoryName)}
+                            />
+                        {/each}
+                    </div>
+                </div>
             </div>
         {/each}
     {/if}
@@ -254,6 +264,24 @@
         font-size: 0.9rem;
     }
 
+
+    .items-scroll-container {
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        margin-top: 0.5rem;
+    }
+
+    .items-scroll-container::-webkit-scrollbar {
+        display: none;
+    }
+
+    .items-scroll {
+        display: flex;
+        gap: 12px;
+        padding: 4px 0;
+    }
 
     .app-section.section-gap {
         margin-top: 1.5rem;
