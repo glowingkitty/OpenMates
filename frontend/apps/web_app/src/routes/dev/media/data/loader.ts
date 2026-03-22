@@ -1,39 +1,25 @@
 /**
- * YAML-based scenario loader for media generation templates.
+ * YAML config loader for media generation templates.
  *
- * Loads chat scenarios, template configs, and brand assets from YAML files
- * stored alongside the media routes. Uses Vite's import.meta.glob for
- * automatic discovery of all .yml files.
+ * Loads template configs from YAML files stored alongside the media routes.
+ * Uses Vite's import.meta.glob for automatic discovery of all .yml files.
+ *
+ * Device screens now load the real app via iframes (?media=1), so the old
+ * YAML scenario system (cuttlefish-chat, etc.) has been removed. Chat content
+ * comes from the live app and the media test account.
  *
  * Usage:
- *   const scenario = await loadScenario('cuttlefish-chat');
- *   const config = await loadTemplateConfig('og-github');
+ *   const config = loadTemplateConfig('og-github');
  *
  * Architecture: docs/media-generation.md
  */
 
 import { parse as parseYaml } from 'yaml';
-import type { MediaScenario, MediaTemplateConfig } from './types';
+import type { MediaTemplateConfig } from './types';
 
-// Vite glob import: discovers all YAML files in the scenarios/ and templates/ dirs
-// at build time. The ?raw suffix imports them as plain strings.
-const scenarioModules = import.meta.glob('../scenarios/*.yml', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+// Vite glob import: discovers all YAML files in templates/ at build time.
+// The ?raw suffix imports them as plain strings.
 const templateModules = import.meta.glob('../templates/*/*.yml', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
-
-/**
- * Parse and return a scenario YAML by its ID (filename without extension).
- * Example: loadScenario('cuttlefish-chat') loads ../scenarios/cuttlefish-chat.yml
- */
-export function loadScenario(id: string): MediaScenario {
-	const key = Object.keys(scenarioModules).find(k => k.includes(`/${id}.yml`));
-	if (!key) {
-		throw new Error(`Scenario not found: ${id}. Available: ${Object.keys(scenarioModules).map(k => k.split('/').pop()?.replace('.yml', '')).join(', ')}`);
-	}
-	const raw = scenarioModules[key];
-	const parsed = parseYaml(raw) as MediaScenario;
-	parsed.id = id;
-	return parsed;
-}
 
 /**
  * Parse and return a template config YAML.
@@ -46,16 +32,6 @@ export function loadTemplateConfig(templateId: string): MediaTemplateConfig {
 	}
 	const raw = templateModules[key];
 	return parseYaml(raw) as MediaTemplateConfig;
-}
-
-/**
- * List all available scenario IDs.
- */
-export function listScenarios(): string[] {
-	return Object.keys(scenarioModules).map(k => {
-		const filename = k.split('/').pop() || '';
-		return filename.replace('.yml', '');
-	});
 }
 
 /**

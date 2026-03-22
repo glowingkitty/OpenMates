@@ -1,11 +1,47 @@
 # Media Generation System
 
-Deterministic, YAML-driven system for generating OG images, social media graphics,
-Instagram carousels/stories, and (future) video/animation captures.
+System for generating OG images, social media graphics, Instagram carousels/stories,
+and marketing materials using real app screenshots.
 
 **Location:** `frontend/apps/web_app/src/routes/dev/media/`
 **Access:** Dev environments only (`/dev/` routes are gated by hostname check)
-**Technology:** SvelteKit routes + Playwright screenshots
+**Technology:** SvelteKit routes + real app iframes + Playwright screenshots
+
+---
+
+## How It Works
+
+Device frames (phone, laptop) contain **iframes that load the real app** in media
+mode (`?media=1`). This ensures screenshots always match the actual UI — no more
+hand-maintained mock components that drift from the real app.
+
+### Media Mode (`?media=1`)
+
+When the main app detects `?media=1` in the URL, it:
+
+1. Adds `body.media-mode` CSS class — hides notifications, cookie banner, login
+   overlay, footer, dev console, keyboard hints
+2. Waits for all fonts to load
+3. Adds `.media-app-ready` class to `document.body` — signals the parent iframe
+   that the app is ready for screenshot
+
+### URL Parameters
+
+All parameters are only active when `?media=1` is set:
+
+| Parameter | Values | Effect |
+|-----------|--------|--------|
+| `media` | `1` | Enable media mode (required) |
+| `seed` | Any integer | Seeded PRNG for deterministic suggestion card order |
+| `sidebar` | `open` \| `closed` | Force sidebar state regardless of viewport |
+| `inspirations` | `none` \| `fixed` | Hide or show fixed daily inspiration banner |
+| `#chat-id` | Chat UUID | Open a specific chat (existing deep link) |
+
+**Example URLs:**
+```
+/?media=1&seed=42&sidebar=closed&inspirations=fixed     # New chat view
+/?media=1&seed=42&sidebar=open#chat-id={uuid}           # Chat with sidebar
+```
 
 ---
 
@@ -13,40 +49,32 @@ Instagram carousels/stories, and (future) video/animation captures.
 
 ### 1. Browse templates
 
-Open the gallery in your browser:
 ```
 https://app.dev.openmates.org/dev/media
 ```
 
-### 2. Capture a single template
+### 2. Capture screenshots
 
 ```bash
-# From the web_app directory:
 cd frontend/apps/web_app
 
-# Capture all templates at once:
+# Capture all templates:
 npx playwright test src/routes/dev/media/scripts/capture.spec.ts
 
 # Capture a specific template:
 npx playwright test --grep "og-github" src/routes/dev/media/scripts/capture.spec.ts
 
-# Output to a custom directory:
+# Custom output directory:
 OUTPUT_DIR=./marketing npx playwright test src/routes/dev/media/scripts/capture.spec.ts
 
-# Use a different chat scenario:
-SCENARIO=code-review-chat npx playwright test --grep "og-github" src/routes/dev/media/scripts/capture.spec.ts
+# Custom base URL (local dev):
+MEDIA_BASE_URL=http://localhost:5173 npx playwright test src/routes/dev/media/scripts/capture.spec.ts
 
-# Record video (for animated templates):
+# Record video:
 RECORD_VIDEO=1 npx playwright test --grep "instagram-story" src/routes/dev/media/scripts/capture.spec.ts
 ```
 
 Output goes to `media-output/` by default.
-
-### 3. Use a custom base URL
-
-```bash
-MEDIA_BASE_URL=http://localhost:5173 npx playwright test src/routes/dev/media/scripts/capture.spec.ts
-```
 
 ---
 
@@ -59,21 +87,15 @@ src/routes/dev/media/
 │
 ├── components/             # Reusable media components
 │   ├── MediaCanvas.svelte          # Wrapper: exact pixel dimensions + .media-ready sentinel
-│   ├── ThemeScope.svelte           # Forces dark/light CSS variables in a scoped container
+│   ├── DeviceIframe.svelte         # Iframe wrapper: loads real app, detects .media-app-ready
+│   ├── ThemeScope.svelte           # Forces dark/light CSS variables in scoped container
 │   ├── DevicePhone.svelte          # Phone frame with screen content slot
 │   ├── DeviceLaptop.svelte         # Laptop frame with browser chrome + screen slot
-│   ├── MockChatFeed.svelte         # Renders ChatMessageStatic list at a given scale
-│   ├── ChatMessageStatic.svelte    # Lightweight message renderer (zero store deps)
 │   └── BrandHeader.svelte          # Logo + headline + feature bullet points
 │
 ├── data/                   # Data loading and types
-│   ├── types.ts                    # TypeScript interfaces for scenarios, configs
-│   └── loader.ts                   # YAML loader (Vite glob import)
-│
-├── scenarios/              # YAML chat scenarios (the "content")
-│   ├── cuttlefish-chat.yml
-│   ├── code-review-chat.yml
-│   └── cooking-chat.yml
+│   ├── types.ts                    # TypeScript interfaces for configs
+│   └── loader.ts                   # YAML config loader (Vite glob import)
 │
 ├── templates/              # Individual template routes
 │   ├── og-github/                  # 1200×630 GitHub OG image
@@ -98,88 +120,13 @@ src/routes/dev/media/
 
 ---
 
-## YAML Scenario Files
-
-Scenarios define the chat content shown in device mockups. They are loaded at
-runtime from `scenarios/*.yml` using Vite's `import.meta.glob`.
-
-### Format
-
-```yaml
-# scenarios/my-scenario.yml
-name: My Scenario
-description: A description of what this shows
-
-messages:
-  - role: user
-    content: "User's question here"
-
-  - role: assistant
-    category: general_knowledge    # Determines the mate profile image
-    mate_name: George              # Optional: override display name
-    content: |
-      Assistant response with **markdown** support.
-
-      - Bullet points work
-      - **Bold** and *italic* too
-      - `code` and ```code blocks```
-
-embeds:                            # Optional: for future embed card support
-  - type: web
-    title: "Example"
-    url: "https://example.com"
-```
-
-### Available categories (mate profile images)
-
-Each `category` maps to a mate profile avatar image:
-
-| Category | Mate Name |
-|----------|-----------|
-| `general_knowledge` | George |
-| `software_development` | Dev |
-| `cooking_food` | Chef |
-| `science` | Sci |
-| `design` | Design |
-| `finance` | Fin |
-| `legal_law` | Legal |
-| `medical_health` | Med |
-| `life_coach_psychology` | Coach |
-| `history` | History |
-| `marketing_sales` | Marketing |
-| `business_development` | Biz |
-| `movies_tv` | Movies |
-| `maker_prototyping` | Maker |
-| `activism` | Activist |
-| `electrical_engineering` | EE |
-| `onboarding_support` | Support |
-
-### Overriding scenarios at capture time
-
-Use query parameters or environment variables:
-
-```bash
-# Via query parameter (in browser):
-/dev/media/templates/og-github?scenario=code-review-chat
-
-# Via environment variable (Playwright):
-SCENARIO=code-review-chat npx playwright test --grep "og-github" ...
-
-# Different scenarios for phone and laptop (og-social template):
-/dev/media/templates/og-social?phone-scenario=cooking-chat&laptop-scenario=code-review-chat
-```
-
----
-
 ## Template Config YAML
 
-Each template has a `config.yml` that defines its dimensions, layout, and which
-scenarios to use:
+Each template has a `config.yml` that defines dimensions, brand info, and iframe URLs:
 
 ```yaml
-# templates/og-github/config.yml
 template: og-github
-format: og                    # Matches FORMAT_DIMENSIONS in types.ts
+format: og
 width: 1200
 height: 630
 
@@ -191,13 +138,13 @@ brand:
     - "Privacy focus"
 
 phone:
-  scenario: cuttlefish-chat   # References scenarios/cuttlefish-chat.yml
+  iframe_src: "/?media=1&seed=42&sidebar=closed&inspirations=fixed"
   screen_width: 220
   screen_height: 430
-  scale: 0.52                 # CSS transform scale for chat messages
+  scale: 0.52
 
 laptop:
-  scenario: cuttlefish-chat
+  iframe_src: "/?media=1&seed=42&sidebar=open&inspirations=none"
   screen_width: 560
   screen_height: 340
   scale: 0.58
@@ -205,31 +152,76 @@ laptop:
 
 ### Instagram Carousel Config
 
-Carousels define multiple slides, each with its own type and content:
+Carousels define multiple slides. Device slides use `iframe_src`:
 
 ```yaml
 slides:
-  - type: hero               # Logo + headline + device mockup
+  - type: hero
     headline: "Meet your digital team mates"
     subtitle: "AI for everyone."
-    scenario: cuttlefish-chat
+    iframe_src: "/?media=1&seed=42&sidebar=closed&inspirations=fixed"
     device: phone
 
-  - type: chat               # Full-screen device showing chat
+  - type: chat
     headline: "Ask anything"
-    scenario: cuttlefish-chat
+    iframe_src: "/?media=1&seed=42&sidebar=closed"
     device: phone
 
-  - type: feature             # Feature bullet points (no device)
+  - type: feature            # No device — static content
     headline: "Built different"
     features:
       - "No subscription"
       - "Privacy focus"
 
-  - type: cta                 # Call-to-action with logo and button
+  - type: cta
     headline: "Try it free"
     subtitle: "openmates.org"
     cta_text: "Get Started"
+```
+
+---
+
+## Reusable Components
+
+### DeviceIframe
+
+Loads the real app inside an iframe at a given URL, scaled via CSS transform.
+Watches for `.media-app-ready` class on the iframe's body via MutationObserver
+(same-origin) and calls `onready()` when detected.
+
+```svelte
+<DeviceIframe
+  src="/?media=1&seed=42&sidebar=closed"
+  width={220}
+  height={430}
+  scale={0.52}
+  onready={() => { phoneReady = true; }}
+/>
+```
+
+### MediaCanvas
+
+Universal wrapper that provides exact pixel dimensions, `.media-ready` sentinel
+for Playwright, dark gradient background, and center alignment.
+
+```svelte
+<MediaCanvas width={1200} height={630} ready={allIframesReady} borderRadius={16}>
+  {#snippet content()}
+    ...
+  {/snippet}
+</MediaCanvas>
+```
+
+### DevicePhone / DeviceLaptop
+
+CSS-only device frames with content slots:
+
+```svelte
+<DevicePhone screenWidth={220} screenHeight={430}>
+  {#snippet screen()}
+    <DeviceIframe src="/?media=1&seed=42" width={220} height={430} scale={0.52} />
+  {/snippet}
+</DevicePhone>
 ```
 
 ---
@@ -246,36 +238,45 @@ mkdir -p src/routes/dev/media/templates/my-template
 
 ```yaml
 template: my-template
-format: og                    # Use a predefined format or custom width/height
+format: og
 width: 1200
 height: 630
-# ... template-specific config
+
+phone:
+  iframe_src: "/?media=1&seed=42&sidebar=closed"
+  screen_width: 220
+  screen_height: 430
+  scale: 0.52
 ```
 
 ### 3. Add +page.svelte
 
 ```svelte
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { browser } from '$app/environment';
   import MediaCanvas from '../../components/MediaCanvas.svelte';
-  import { loadScenario, loadTemplateConfig } from '../../data/loader';
-  import type { MediaMessage } from '../../data/types';
+  import DevicePhone from '../../components/DevicePhone.svelte';
+  import DeviceIframe from '../../components/DeviceIframe.svelte';
+  import { loadTemplateConfig } from '../../data/loader';
 
   const config = loadTemplateConfig('my-template');
-  let messages = $state<MediaMessage[]>([]);
-  let ready = $state(false);
+  const phoneConfig = config.phone!;
 
-  onMount(() => {
-    if (!browser) return;
-    messages = loadScenario('cuttlefish-chat').messages;
-    ready = true;
-  });
+  let phoneReady = $state(false);
 </script>
 
-<MediaCanvas width={config.width} height={config.height} {ready}>
+<MediaCanvas width={config.width} height={config.height} ready={phoneReady}>
   {#snippet content()}
-    <!-- Your template layout here -->
+    <DevicePhone screenWidth={phoneConfig.screen_width} screenHeight={phoneConfig.screen_height}>
+      {#snippet screen()}
+        <DeviceIframe
+          src={phoneConfig.iframe_src || '/?media=1&seed=42'}
+          width={phoneConfig.screen_width ?? 220}
+          height={phoneConfig.screen_height ?? 430}
+          scale={phoneConfig.scale ?? 0.52}
+          onready={() => { phoneReady = true; }}
+        />
+      {/snippet}
+    </DevicePhone>
   {/snippet}
 </MediaCanvas>
 ```
@@ -288,157 +289,44 @@ Add your template to the `TEMPLATES` array in `scripts/capture.spec.ts`:
 { id: 'my-template', width: 1200, height: 630 },
 ```
 
-### 5. Create a new scenario (optional)
-
-```yaml
-# scenarios/my-scenario.yml
-name: My Scenario
-description: What this scenario shows
-messages:
-  - role: user
-    content: "..."
-  - role: assistant
-    category: general_knowledge
-    content: "..."
-```
-
 ---
 
-## Creating New Scenarios
+## Media Test Account
 
-Scenarios are pure data — no code changes needed. Just add a `.yml` file to
-`scenarios/` and it's immediately available:
+For screenshots showing a logged-in user (sidebar with real chats), a dedicated
+media test account is used. Playwright logs in before capturing, and iframes
+inherit the session cookie.
 
-1. Create `scenarios/my-scenario.yml` following the format above
-2. Reference it in a template config: `scenario: my-scenario`
-3. Or override at capture time: `SCENARIO=my-scenario npx playwright test ...`
-
----
-
-## Reusable Components
-
-### MediaCanvas
-
-Universal wrapper that provides:
-- Exact pixel dimensions
-- `.media-ready` CSS sentinel for Playwright
-- Dark gradient background with decorative glows
-- Center-aligned in viewport for browser preview
-
-```svelte
-<MediaCanvas width={1200} height={630} ready={isLoaded} borderRadius={16}>
-  {#snippet content()}
-    ...
-  {/snippet}
-</MediaCanvas>
-```
-
-### ThemeScope
-
-Forces dark or light CSS variable values in a scoped container. Solves the
-problem of child components inheriting the wrong theme from the page:
-
-```svelte
-<ThemeScope theme="dark">
-  <!-- All var(--color-*) resolve to dark theme values here -->
-  <ChatMessageStatic ... />
-</ThemeScope>
-```
-
-### DevicePhone / DeviceLaptop
-
-CSS-only device frames with content slots:
-
-```svelte
-<DevicePhone screenWidth={220} screenHeight={430}>
-  {#snippet screen()}
-    <MockChatFeed messages={data} scale={0.52} containerWidth={220} />
-  {/snippet}
-</DevicePhone>
-
-<DeviceLaptop screenWidth={560} screenHeight={340} addressUrl="openmates.org">
-  {#snippet screen()}
-    <MockChatFeed messages={data} scale={0.58} containerWidth={560} />
-  {/snippet}
-</DeviceLaptop>
-```
-
-### ChatMessageStatic
-
-Lightweight chat message bubble that renders markdown via `markdown-it`.
-Zero store dependencies — safe to use outside the app context:
-
-```svelte
-<ChatMessageStatic
-  role="assistant"
-  content="Response with **markdown**"
-  category="general_knowledge"
-  containerWidth={400}
-/>
-```
-
-### MockChatFeed
-
-Renders a list of messages at a given CSS scale, wrapped in ThemeScope:
-
-```svelte
-<MockChatFeed messages={scenarioMessages} scale={0.52} containerWidth={220} theme="dark" />
-```
-
----
-
-## Video / Animation Capture
-
-### CSS Animation Approach (Current)
-
-For simple animated templates (typing effects, reveal transitions):
-
-1. Use CSS animations or Svelte transitions in your template
-2. Capture with Playwright video recording:
+### Setup
 
 ```bash
-RECORD_VIDEO=1 npx playwright test --grep "instagram-story" src/routes/dev/media/scripts/capture.spec.ts
+# Create account (slot 20):
+docker exec api python /app/scripts/ci/create_test_accounts.py --start 20 --end 20
+
+# Seed with realistic chats:
+docker exec api python /app/scripts/ci/seed_media_chats.py
+
+# Set env vars:
+export OPENMATES_MEDIA_ACCOUNT_EMAIL=testacct20@test.openmates.org
+export OPENMATES_MEDIA_ACCOUNT_PASSWORD=TestAcct!2026pw20
+export OPENMATES_MEDIA_ACCOUNT_OTP_KEY=<base32-secret>
 ```
 
-Playwright records a WebM video of the page during the test execution.
+---
 
-### Animated Template Pattern
+## Screenshot Ready Signal Flow
 
-```svelte
-<script>
-  let showMessage1 = $state(false);
-  let showMessage2 = $state(false);
+1. Playwright navigates to `/dev/media/templates/og-github`
+2. Template creates `DeviceIframe` components with `/?media=1...` URLs
+3. Each iframe loads the real app in media mode
+4. App initializes, loads translations, processes deep links, renders content
+5. App waits for `document.fonts.ready`, then adds `.media-app-ready` to body
+6. `DeviceIframe` detects via `MutationObserver`, calls `onready()`
+7. When ALL iframes report ready, template sets `ready=true` on `MediaCanvas`
+8. `MediaCanvas` adds `.media-ready` CSS class
+9. Playwright detects `.media-ready`, captures screenshot
 
-  onMount(() => {
-    setTimeout(() => showMessage1 = true, 500);
-    setTimeout(() => showMessage2 = true, 2000);
-    // Signal animation complete for Playwright
-    setTimeout(() => animationComplete = true, 4000);
-  });
-</script>
-
-{#if showMessage1}
-  <div class="animate-in">
-    <ChatMessageStatic ... />
-  </div>
-{/if}
-
-<style>
-  .animate-in {
-    animation: slideIn 0.4s ease-out;
-  }
-  @keyframes slideIn {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-</style>
-```
-
-### Future: Remotion Integration
-
-For complex multi-scene videos with cuts, music, and sophisticated transitions,
-a Remotion-based setup would live as a separate tool (React-based, not SvelteKit).
-The device frame components could be ported to React components for Remotion use.
+**Timeout:** 30 seconds (configurable in `capture.spec.ts`).
 
 ---
 
@@ -458,40 +346,41 @@ The device frame components could be ported to React components for Remotion use
 
 ## Troubleshooting
 
-### Chat messages show as blank/invisible in device mockups
+### Iframe shows login screen instead of app content
 
-**Cause:** Theme mismatch — the page is in light mode but device backgrounds
-are dark. Chat message text renders as black on dark background.
+**Cause:** No authenticated session. The media test account isn't logged in.
 
-**Fix:** Ensure `ThemeScope` wraps all chat content with `theme="dark"`,
-or force `document.documentElement.setAttribute('data-theme', 'dark')` in `onMount`.
-
-### Mate profile images not loading
-
-**Cause:** The `@openmates/ui/static/images/mates/` path must be resolvable by Vite.
-
-**Fix:** Ensure the `category` prop matches a valid category name (see table above).
+**Fix:** Run the Playwright capture script which logs in via `beforeAll`, or
+log in manually in the same browser before visiting the template.
 
 ### Playwright capture times out
 
-**Cause:** The `.media-ready` sentinel is never set.
+**Cause:** `.media-ready` sentinel never set — one or more iframes didn't report ready.
 
-**Fix:** Check that `ready` is set to `true` in your template's `onMount`.
-Ensure the template loads scenarios without errors.
+**Fix:** Check browser console for errors in the iframe. Ensure the `?media=1`
+URL is valid. Try increasing `WAIT_TIMEOUT` in `capture.spec.ts`.
 
-### YAML scenario not found
+### Suggestion cards show different content each capture
 
-**Cause:** The scenario ID doesn't match any file in `scenarios/`.
+**Cause:** Missing or different `seed` parameter.
 
-**Fix:** Check available scenarios: `listScenarios()` or browse `/dev/media`.
+**Fix:** Ensure all iframe URLs include `&seed=N` with the same value for
+consistent output across captures.
+
+### Sidebar won't open in iframe
+
+**Cause:** Missing `&sidebar=open` parameter, or viewport too small.
+
+**Fix:** Add `&sidebar=open` to the iframe URL. The media mode sidebar
+override ignores viewport width.
 
 ---
 
 ## Design Principles
 
-1. **Deterministic output** — Same YAML input = same visual output, every time
-2. **Zero app dependencies** — Templates never import stores, services, or DB modules
-3. **YAML-driven content** — All text, messages, and config lives in version-controlled YAML
-4. **Component reuse** — DevicePhone, DeviceLaptop, BrandHeader are shared across templates
-5. **Easy extension** — Add a new template by creating a directory with config.yml + page.svelte
-6. **Video-ready** — Templates can include CSS animations; Playwright records video natively
+1. **Pixel-accurate** — Device frames show the actual app, not replicas
+2. **Deterministic** — Same URL params = same visual output (seeded PRNG)
+3. **Zero maintenance** — UI changes automatically reflected in screenshots
+4. **YAML-driven config** — Template dimensions, brand text, iframe URLs in version-controlled YAML
+5. **Component reuse** — DevicePhone, DeviceLaptop, BrandHeader shared across templates
+6. **Easy extension** — New template = directory with config.yml + page.svelte

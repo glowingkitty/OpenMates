@@ -1,39 +1,12 @@
 /**
- * Type definitions for the media generation data system.
+ * Type definitions for the media generation system.
  *
- * All media templates load their content from YAML scenario files,
- * parsed at runtime into these types. This ensures deterministic,
- * reproducible media output.
+ * Templates load their configuration from YAML config files. Device screens
+ * render the real app via iframes in media mode (?media=1), so chat content
+ * comes from the live app rather than static YAML scenarios.
  *
  * Architecture: docs/media-generation.md
  */
-
-/** A single chat message in a media scenario */
-export interface MediaMessage {
-	role: 'user' | 'assistant';
-	content: string;
-	category?: string;
-	mate_name?: string;
-}
-
-/** An embed card to display in a media scenario */
-export interface MediaEmbed {
-	type: string;
-	title: string;
-	description?: string;
-	url?: string;
-	image_url?: string;
-}
-
-/** A complete scenario loaded from YAML */
-export interface MediaScenario {
-	id: string;
-	name: string;
-	description?: string;
-	messages: MediaMessage[];
-	embeds?: MediaEmbed[];
-	theme?: 'dark' | 'light';
-}
 
 /** Brand configuration for templates */
 export interface BrandConfig {
@@ -54,25 +27,15 @@ export interface MediaTemplateConfig {
 	brand?: BrandConfig;
 	phone?: {
 		iframe_src?: string;
-		scenario?: string;
-		screen?: 'new-chat' | 'chat';
 		screen_width?: number;
 		screen_height?: number;
 		scale?: number;
-		show_sidebar?: boolean;
-		chat_title?: string;
-		chat_category?: string;
 	};
 	laptop?: {
 		iframe_src?: string;
-		scenario?: string;
-		screen?: 'new-chat' | 'chat';
 		screen_width?: number;
 		screen_height?: number;
 		scale?: number;
-		show_sidebar?: boolean;
-		chat_title?: string;
-		chat_category?: string;
 	};
 	slides?: SlideConfig[];
 }
@@ -82,7 +45,6 @@ export interface SlideConfig {
 	type: 'hero' | 'chat' | 'feature' | 'cta';
 	headline?: string;
 	subtitle?: string;
-	scenario?: string;
 	iframe_src?: string;
 	device?: 'phone' | 'laptop';
 	features?: string[];

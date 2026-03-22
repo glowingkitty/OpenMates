@@ -9,8 +9,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
-	import { listTemplates, listScenarios } from './data/loader';
-	import { FORMAT_DIMENSIONS } from './data/types';
+	import { listTemplates } from './data/loader';
 
 	interface TemplateInfo {
 		id: string;
@@ -19,7 +18,6 @@
 	}
 
 	let templates = $state<TemplateInfo[]>([]);
-	let scenarios = $state<string[]>([]);
 	let ready = $state(false);
 
 	const TEMPLATE_DESCRIPTIONS: Record<string, string> = {
@@ -40,8 +38,6 @@
 				path: `/dev/media/templates/${id}`,
 				dimensions: TEMPLATE_DESCRIPTIONS[id] || id
 			}));
-
-			scenarios = listScenarios();
 		} catch (e) {
 			console.error('Failed to load media index:', e);
 		}
@@ -54,7 +50,8 @@
 	<h1 class="gallery-title">Media Generation</h1>
 	<p class="gallery-subtitle">
 		Templates for OG images, social media graphics, and marketing materials.
-		Edit YAML scenario files to change content. Capture with Playwright.
+		Device screens load the real app via iframes in media mode (?media=1).
+		Capture with Playwright.
 	</p>
 
 	{#if ready}
@@ -76,12 +73,14 @@
 		</section>
 
 		<section class="gallery-section">
-			<h2>Scenarios</h2>
-			<p class="section-desc">Chat scenarios loaded from YAML files. Use ?scenario=name to override.</p>
-			<div class="scenario-list">
-				{#each scenarios as scenario}
-					<span class="scenario-tag">{scenario}</span>
-				{/each}
+			<h2>Media Mode Parameters</h2>
+			<p class="section-desc">Control iframe content via query parameters on the main app URL:</p>
+			<div class="param-list">
+				<span class="param-tag"><code>?media=1</code> — enable media mode (hides UI chrome)</span>
+				<span class="param-tag"><code>&seed=N</code> — deterministic suggestion card order</span>
+				<span class="param-tag"><code>&sidebar=open|closed</code> — force sidebar state</span>
+				<span class="param-tag"><code>&inspirations=none|fixed</code> — control daily inspiration banner</span>
+				<span class="param-tag"><code>#chat-id=UUID</code> — open specific chat</span>
 			</div>
 		</section>
 
@@ -197,19 +196,23 @@
 		margin: 0;
 	}
 
-	.scenario-list {
+	.param-list {
 		display: flex;
-		flex-wrap: wrap;
-		gap: 8px;
+		flex-direction: column;
+		gap: 6px;
 	}
 
-	.scenario-tag {
-		background: #252525;
+	.param-tag {
 		color: #ccc;
-		padding: 4px 12px;
-		border-radius: 6px;
-		font-size: 0.8125rem;
+		font-size: 0.875rem;
+	}
+
+	.param-tag code {
+		background: #252525;
+		padding: 2px 8px;
+		border-radius: 4px;
 		font-family: monospace;
+		color: #7a9bf0;
 	}
 
 	.capture-cmd {
