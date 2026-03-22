@@ -254,11 +254,20 @@ def _merge_playwright(paths: list) -> dict:
         except Exception as e:
             print(f"WARNING: Failed to parse Playwright results from {path}: {e}", file=sys.stderr)
 
-    if not all_tests:
+    # Deduplicate retries: when retries > 0, Playwright produces multiple results
+    # per test. Keep only the last result per (file, name) — the retry outcome is
+    # authoritative (retry comes after initial attempt in execution order).
+    seen = {}
+    for t in all_tests:
+        key = (t["file"], t["name"])
+        seen[key] = t
+    deduped = list(seen.values())
+
+    if not deduped:
         status = "error"
     else:
-        status = "passed" if all(t["status"] == "passed" for t in all_tests) else "failed"
-    return {"status": status, "tests": all_tests, "duration_seconds": 0}
+        status = "passed" if all(t["status"] == "passed" for t in deduped) else "failed"
+    return {"status": status, "tests": deduped, "duration_seconds": 0}
 
 
 if __name__ == "__main__":
