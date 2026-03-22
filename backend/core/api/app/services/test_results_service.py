@@ -215,3 +215,198 @@ def get_flaky_tests() -> List[Dict[str, Any]]:
 
     _set_cached("flaky_tests", flaky_list)
     return flaky_list
+
+
+def get_per_test_history(days: int = 30) -> Dict[str, List[Dict[str, Any]]]:
+    """
+    Build per-test pass/fail history across daily run files.
+    Returns dict keyed by test name, value is list of {date, status} sorted oldest-first.
+    Used for the 30-day colored timeline per test.
+    """
+    cached = _get_cached(f"per_test_history:{days}")
+    if cached is not None:
+        return cached
+
+    pattern = os.path.join(TEST_RESULTS_DIR, "daily-run-*.json")
+    files = sorted(glob(pattern), reverse=True)[:days]
+
+    # test_name -> [{date, status}]
+    history: Dict[str, List[Dict[str, Any]]] = {}
+
+    for filepath in files:
+        data = _read_json_file(filepath)
+        if not data:
+            continue
+
+        filename = Path(filepath).stem
+        date_str = filename.replace("daily-run-", "")
+
+        for suite_name, suite_data in data.get("suites", {}).items():
+            for test in suite_data.get("tests", []):
+                # Use file name as key for Playwright (name is often None),
+                # fall back to name for vitest/pytest
+                test_key = test.get("file") or test.get("name", "")
+                if not test_key:
+                    continue
+                if test_key not in history:
+                    history[test_key] = []
+                history[test_key].append({
+                    "date": date_str,
+                    "status": test.get("status", "unknown"),
+                })
+
+    # Sort each test's history oldest-first
+    for test_name in history:
+        history[test_name].sort(key=lambda x: x["date"])
+
+    _set_cached(f"per_test_history:{days}", history)
+    return history
+
+
+# Test categories based on spec naming conventions
+TEST_CATEGORIES = {
+    "Auth & Signup": ["account-recovery", "backup-code", "multi-session", "recovery-key", "signup", "session-revoke"],
+    "Chat": ["chat-flow", "chat-management", "chat-scroll", "chat-search", "daily-inspiration-chat", "fork-conversation", "hidden-chats", "import-chats", "message-sync", "background-chat"],
+    "Payment": ["buy-credits", "saved-payment", "settings-buy-credits"],
+    "Search & AI": ["code-generation", "focus-mode", "follow-up-suggestions"],
+    "Media & Embeds": ["audio-recording", "embed-", "file-attachment", "pdf-flow"],
+    "Settings & Security": ["api-keys", "incognito", "language-settings", "location-security", "mention-dropdown", "model-override", "pii-detection"],
+    "Infrastructure": ["app-load", "connection-resilience", "dev-preview", "preview-error", "seo-demo", "shared-chat"],
+    "Reminders": ["reminder-"],
+    "Skills": ["skill-"],
+    "Accessibility": ["a11y-"],
+}
+
+
+def categorize_test(test_name: str) -> str:
+    """Determine which category a test belongs to based on its name."""
+    name_lower = test_name.lower()
+    for category, prefixes in TEST_CATEGORIES.items():
+        for prefix in prefixes:
+            if prefix.lower() in name_lower:
+                return category
+    return "Other"
+
+
+def get_categorized_test_summary(is_admin: bool = False) -> Dict[str, Any]:
+    """
+    Get test results organized by category.
+    Non-admin: category-level counts only.
+    Admin: includes individual test names.
+    """
+    cached_key = f"categorized_tests:{is_admin}"
+    cached = _get_cached(cached_key)
+    if cached is not None:
+        return cached
+
+    data = _read_json_file(os.path.join(TEST_RESULTS_DIR, "last-run.json"))
+    if not data:
+        return {"categories": {}, "suites": {}}
+
+    per_test_hist = get_per_test_history(days=30)
+
+    categories: Dict[str, Dict[str, Any]] = {}
+    suites_info: Dict[str, Dict[str, Any]] = {}
+
+    for suite_name, suite_data in data.get("suites", {}).items():
+        tests = suite_data.get("tests", [])
+        suite_passed = sum(1 for t in tests if t.get("status") == "passed")
+        suite_failed = sum(1 for t in tests if t.get("status") == "failed")
+        suite_total = len(tests)
+
+        suites_info[suite_name] = {
+            "total": suite_total,
+            "passed": suite_passed,
+            "failed": suite_failed,
+            "status": "failing" if suite_failed > 0 else "passing",
+        }
+
+        for test in tests:
+            # Use file as canonical name for Playwright, name for others
+            test_key = test.get("file") or test.get("name", "")
+            display_name = test.get("name") or test.get("file", "")
+            category = categorize_test(test_key)
+            status = test.get("status", "unknown")
+
+            if category not in categories:
+                categories[category] = {
+                    "total": 0, "passed": 0, "failed": 0, "skipped": 0,
+                    "tests": [] if is_admin else None,
+                    "history": [],  # 30-day pass rate per day
+                }
+
+            cat = categories[category]
+            cat["total"] += 1
+            if status == "passed":
+                cat["passed"] += 1
+            elif status == "failed":
+                cat["failed"] += 1
+            else:
+                cat["skipped"] += 1
+
+            if is_admin:
+                test_entry = {
+                    "name": display_name,
+                    "file": test_key,
+                    "suite": suite_name,
+                    "status": status,
+                    "error": test.get("error"),
+                    "last_run": data.get("run_id", ""),
+                    "history_30d": per_test_hist.get(test_key, []),
+                }
+                cat["tests"].append(test_entry)
+
+    # Compute per-category 30-day pass rate history
+    for cat_name, cat_data in categories.items():
+        # Collect all test keys in this category
+        cat_test_names = []
+        for suite_name, suite_data in data.get("suites", {}).items():
+            for test in suite_data.get("tests", []):
+                test_key = test.get("file") or test.get("name", "")
+                if categorize_test(test_key) == cat_name:
+                    cat_test_names.append(test_key)
+
+        # Build per-day pass rate
+        day_stats: Dict[str, Dict[str, int]] = {}
+        for tname in cat_test_names:
+            for entry in per_test_hist.get(tname, []):
+                d = entry["date"]
+                if d not in day_stats:
+                    day_stats[d] = {"passed": 0, "failed": 0, "total": 0}
+                day_stats[d]["total"] += 1
+                if entry["status"] == "passed":
+                    day_stats[d]["passed"] += 1
+                elif entry["status"] == "failed":
+                    day_stats[d]["failed"] += 1
+
+        cat_data["history"] = [
+            {
+                "date": d,
+                "pass_rate": round(s["passed"] / s["total"] * 100) if s["total"] > 0 else 0,
+                "total": s["total"],
+                "passed": s["passed"],
+                "failed": s["failed"],
+            }
+            for d, s in sorted(day_stats.items())
+        ]
+
+        # Compute overall pass_rate for color
+        if cat_data["total"] > 0:
+            cat_data["pass_rate"] = round(cat_data["passed"] / cat_data["total"] * 100)
+        else:
+            cat_data["pass_rate"] = 0
+
+        # Remove tests list for non-admin
+        if not is_admin:
+            cat_data.pop("tests", None)
+
+    result = {
+        "categories": categories,
+        "suites": suites_info,
+        "run_id": data.get("run_id", ""),
+        "timestamp": data.get("run_id", ""),
+        "git_sha": data.get("git_sha", ""),
+    }
+
+    _set_cached(cached_key, result)
+    return result

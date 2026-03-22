@@ -1,14 +1,29 @@
 <!--
     Minimal layout for the /status page.
     No navigation chrome, no auth — just the status dashboard.
-    Imports only the base theme CSS needed for styling.
+    Imports base theme CSS and initializes dark mode detection.
 -->
 <script lang="ts">
     import '@repo/ui/src/styles/theme.css';
     import '@repo/ui/src/styles/fonts.css';
+    import { onMount } from 'svelte';
+    import { browser } from '$app/environment';
+    import { initializeTheme, theme } from '@repo/ui';
     import type { Snippet } from 'svelte';
 
     let { children }: { children: Snippet } = $props();
+
+    onMount(() => {
+        if (browser) {
+            initializeTheme();
+            // Apply theme to documentElement so CSS variables from theme.css work
+            // (theme.css uses [data-theme="dark"] on :root / html)
+            const unsub = theme.subscribe((t) => {
+                document.documentElement.setAttribute('data-theme', t);
+            });
+            return unsub;
+        }
+    });
 </script>
 
 <div class="status-layout">

@@ -28,6 +28,7 @@ from backend.core.api.app.services.status_aggregator import (
     strip_admin_fields_from_tests,
 )
 from backend.core.api.app.services.test_results_service import (
+    get_categorized_test_summary,
     get_daily_trend,
     get_flaky_tests,
     get_latest_run_detail,
@@ -130,31 +131,38 @@ async def get_status(
             directus = DirectusService(cache_service=CacheService())
             try:
                 response["timeline"] = {
-                    "period_days": 90,
-                    "buckets": await build_timeline_buckets(directus, period_days=90),
+                    "period_days": 30,
+                    "buckets": await build_timeline_buckets(directus, period_days=30),
                 }
             finally:
                 await directus.close()
         except Exception as e:
             logger.error(f"[STATUS] Error building timeline: {e}", exc_info=True)
-            response["timeline"] = {"period_days": 90, "buckets": []}
+            response["timeline"] = {"period_days": 30, "buckets": []}
 
     # Tests
     if "tests" in sections:
         test_summary = get_latest_run_summary()
         if test_summary:
             test_section = dict(test_summary)
-            test_section["trend"] = get_daily_trend(days=14)
+            test_section["trend"] = get_daily_trend(days=30)
+            # Add categorized breakdown
+            categorized = get_categorized_test_summary(is_admin=is_admin)
+            test_section["categories"] = categorized.get("categories", {})
             response["tests"] = test_section
         else:
-            response["tests"] = {"overall_status": "unknown", "latest_run": None, "suites": [], "trend": []}
+            response["tests"] = {"overall_status": "unknown", "latest_run": None, "suites": [], "trend": [], "categories": {}}
 
-    # Incidents
+    # Incidents — use 30-day window
     if "incidents" in sections:
         try:
+            from datetime import timedelta as _td
+            since_30d = int((datetime.now(timezone.utc) - _td(days=30)).timestamp())
             directus = DirectusService(cache_service=CacheService())
             try:
-                incident_summary = await directus.health_event.get_incident_summary()
+                incident_summary = await directus.health_event.get_incident_summary(
+                    since_timestamp=since_30d,
+                )
                 response["incidents"] = {
                     "total_last_30d": incident_summary.get("total_incidents", 0),
                 }
