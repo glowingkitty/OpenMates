@@ -60,7 +60,8 @@ skills:
       Schedule, create, or set up reminders for the user. Handles one-time and recurring reminders (e.g., "every morning", "daily at 9am", "weekly", "monthly"). Use when user wants to be reminded, notified, or alerted about something at a specific time or on a recurring schedule. Also use for automating tasks like "get news every day" or "summarize updates weekly".
     stage: production
     providers:
-      - OpenMates
+      - name: OpenMates
+        no_api_key: true
     class_path: backend.apps.reminder.skills.set_reminder_skill.SetReminderSkill
     tool_schema:
       type: object
@@ -176,7 +177,8 @@ skills:
       Show the user's existing scheduled reminders.
     stage: production
     providers:
-      - OpenMates
+      - name: OpenMates
+        no_api_key: true
     class_path: backend.apps.reminder.skills.list_reminders_skill.ListRemindersSkill
     tool_schema:
       type: object
@@ -197,7 +199,8 @@ skills:
       Cancel or delete an existing reminder.
     stage: production
     providers:
-      - OpenMates
+      - name: OpenMates
+        no_api_key: true
     class_path: backend.apps.reminder.skills.cancel_reminder_skill.CancelReminderSkill
     tool_schema:
       type: object

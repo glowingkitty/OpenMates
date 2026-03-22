@@ -28,7 +28,8 @@ skills:
       NEVER call this without clear user consent.
     stage: production
     providers:
-      - OpenMates
+      - name: OpenMates
+        no_api_key: true
     class_path: backend.apps.openmates.skills.share_usecase_skill.ShareUsecaseSkill
     # REST API configuration: POST-only (no GET metadata endpoint).
     # This is a write-only anonymous data collection skill — there is no data to retrieve.

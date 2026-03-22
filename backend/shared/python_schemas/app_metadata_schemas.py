@@ -32,6 +32,19 @@ class AppSkillApiConfig(BaseModel):
     expose_post: bool = Field(default=True, description="Whether to expose a POST endpoint for skill execution. Set to false for skills that require client-side encryption flows (e.g., image generation) and cannot be executed via a stateless REST API call. The GET metadata endpoint remains visible so developers know the skill exists.")
 
 
+class ProviderRef(BaseModel):
+    """
+    A provider reference in a skill definition.
+
+    Providers can be declared as either a plain string (provider name) or an object
+    with additional metadata. When a provider uses web scraping or other methods
+    that don't require an API key, set no_api_key=True so the skill isn't filtered
+    out by is_skill_available().
+    """
+    name: str
+    no_api_key: bool = Field(default=False, description="If true, this provider does not require an API key (e.g., web scrapers). The skill will be considered available without checking for credentials.")
+
+
 class AppSkillDefinition(BaseModel):
     """Defines the structure for a skill within an app's metadata."""
     id: str
@@ -40,7 +53,26 @@ class AppSkillDefinition(BaseModel):
     class_path: Optional[str] = None  # e.g., "apps.ai.skills.ask_skill.AskSkill" - optional for planning stage skills
     stage: Optional[str] = Field(default="development", description="Stage of the skill: 'planning', 'development', or 'production'. Components with stage='planning' are excluded from API responses.")
     pricing: Optional[AppPricing] = None
-    providers: Optional[List[str]] = None  # Optional list of provider names (e.g., ["Brave"]) - used for provider-level pricing lookup
+    providers: Optional[List[ProviderRef]] = None  # Optional list of provider references — used for provider-level pricing lookup and availability checks
+
+    @field_validator('providers', mode='before')
+    @classmethod
+    def normalize_providers(cls, v):
+        """Accept both plain strings and dicts for provider entries in app.yml.
+
+        Plain string:  "Brave"  → ProviderRef(name="Brave", no_api_key=False)
+        Dict object:   {name: "Doctolib", no_api_key: true} → ProviderRef as-is
+        """
+        if v is None:
+            return v
+        normalized = []
+        for item in v:
+            if isinstance(item, str):
+                normalized.append({"name": item})
+            else:
+                normalized.append(item)
+        return normalized
+
     full_model_reference: Optional[str] = Field(default=None, description="Optional full model reference (e.g., 'google/gemini-3-pro-image-preview') used for model-specific pricing.")
     default_config: Optional[Dict[str, Any]] = Field(default=None, alias="skill_config")
     tool_schema: Optional[Dict[str, Any]] = None  # Optional: Tool schema in JSON Schema format for function calling (required for skills used as tools, optional for entry-point skills like ai.ask)

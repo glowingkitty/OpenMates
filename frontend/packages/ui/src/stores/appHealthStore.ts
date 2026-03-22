@@ -107,7 +107,7 @@ const getAppHealth = derived(
 /**
  * Check if an app's API is healthy (api.status === "healthy").
  * Returns false if app health status is not available (safe default - hide app if health unknown).
- * 
+ *
  * Note: We check the API status, not the overall app status, because an app can be "degraded"
  * (e.g., worker is unhealthy) but still have a healthy API that can serve requests.
  */
@@ -123,6 +123,33 @@ export const isAppHealthy = derived(
         // Check if the API is healthy (not the overall app status)
         // An app can be "degraded" (e.g., worker unhealthy) but still have a healthy API
         return health.api?.status === 'healthy';
+    }
+);
+
+/**
+ * Get the health status for an app as a typed enum value.
+ * Unlike isAppHealthy (boolean), this returns the specific status so the UI can
+ * show greyed-out cards with status badges instead of silently hiding apps.
+ *
+ * Returns:
+ *  - 'healthy': API is up and serving requests
+ *  - 'degraded': API is up but worker is unhealthy
+ *  - 'unhealthy': API is down
+ *  - 'unknown': App not in health response (container may not be running or not discovered)
+ */
+export type AppHealthStatusValue = 'healthy' | 'degraded' | 'unhealthy' | 'unknown';
+
+export const getAppHealthStatus = derived(
+    appHealthStore,
+    ($state) => (appId: string): AppHealthStatusValue => {
+        const health = $state.appHealth[appId];
+        if (!health) return 'unknown';
+        if (health.api?.status === 'healthy') {
+            return health.worker?.status === 'healthy' || health.worker?.status === 'not_applicable'
+                ? 'healthy'
+                : 'degraded';
+        }
+        return 'unhealthy';
     }
 );
 

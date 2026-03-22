@@ -215,8 +215,10 @@ skills:
         credits: 10
         unit_name: request
     providers:
-      - Doctolib
-      - Jameda
+      - name: Doctolib
+        no_api_key: true
+      - name: Jameda
+        no_api_key: true
     exclude_fields_for_llm:
       - type
       - hash

@@ -53,6 +53,31 @@ Skills support individual cancellation, allowing users to cancel a specific skil
 | AI Continues      | Yes, with "cancelled" result | No, response stops         |
 | Use Case          | Skip slow/unwanted skill     | Stop entire generation     |
 
+## Provider Availability & `no_api_key` Flag
+
+Skills declare their providers in `app.yml`. The API filters out skills whose providers have no configured API key (checked via Vault and env vars in `apps.py:is_skill_available()`).
+
+For providers that use **web scraping** or **internal services** (no API key needed), declare them with `no_api_key: true`:
+
+```yaml
+# Plain string — requires API key lookup
+providers:
+  - Brave
+
+# Object with no_api_key — always available
+providers:
+  - name: Doctolib
+    no_api_key: true
+  - name: Jameda
+    no_api_key: true
+```
+
+Both formats are supported. The Pydantic schema (`ProviderRef` in `app_metadata_schemas.py`) normalizes strings to `ProviderRef(name=..., no_api_key=False)`.
+
+**When to use `no_api_key: true`**: Providers that use web scraping (Doctolib, Jameda, Meetup, Luma, Flightradar24, REWE), proxy-based access (Webshare), or internal services (OpenMates).
+
+**Key files**: `backend/shared/python_schemas/app_metadata_schemas.py:ProviderRef`, `backend/core/api/app/routes/apps.py:is_skill_available()`
+
 ## Input fields
 
 - needs to consider implementation of Rest api / docs generation (using Pydantic models)

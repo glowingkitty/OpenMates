@@ -14,21 +14,22 @@ Full reference: `sessions.py context --doc debugging`
 - **R7** UI bugs: ask for share link first, open in Firecrawl
 - **R8** Endpoint not receiving: check Caddyfile first
 - **R10** Embed resolution failures: check `resolve_embed_references_in_content()` in embed_service.py
-- **R11** App missing from store: check `/v1/health`, restart api if absent
+- **R11** App/skill missing from store: Two filtering layers — (1) Health: check `/v1/health` (app container down?), restart api if absent. (2) Skill availability: check `/v1/apps/metadata` vs `?include_unavailable=true` — if skills appear with the flag, the issue is provider API key filtering in `apps.py:is_skill_available()`. Check `no_api_key` flags in `app.yml` and Vault keys.
 - **R12** Vercel failures: `debug.py vercel` (never `vercel logs`)
 - **R13** If `debug.py issue <id>` returns "NOT FOUND" but session start's ISSUES section showed that issue as recent, the failure is a Directus 500 — not a missing record. Run `debug.py logs --o2 --since 5 --search 'directus'` to verify. A Directus query error is a blocking infrastructure problem — report it before continuing
 
 ## Where to Look First
 
-| Problem         | Check First                               | Then                |
-| --------------- | ----------------------------------------- | ------------------- |
-| AI response     | `task-worker`, `app-ai-worker`            | `api` (WebSocket)   |
-| Login/auth      | `api`                                     | `cms` (Directus)    |
-| Payment         | `api`                                     | `task-worker`       |
-| Sync/cache      | `api` (PHASE1, SYNC_CACHE)                | `cache` (Dragonfly) |
-| Frontend        | OpenObserve `job='client-console'`        | Browser console     |
-| Scheduled tasks | `task-scheduler`                          | `task-worker`       |
-| Mobile/iPhone   | `debug.py logs --browser --device iphone` | `--level error`     |
+| Problem           | Check First                               | Then                |
+| ----------------- | ----------------------------------------- | ------------------- |
+| AI response       | `task-worker`, `app-ai-worker`            | `api` (WebSocket)   |
+| Login/auth        | `api`                                     | `cms` (Directus)    |
+| Payment           | `api`                                     | `task-worker`       |
+| Sync/cache        | `api` (PHASE1, SYNC_CACHE)                | `cache` (Dragonfly) |
+| Frontend          | OpenObserve `job='client-console'`        | Browser console     |
+| Scheduled tasks   | `task-scheduler`                          | `task-worker`       |
+| Mobile/iPhone     | `debug.py logs --browser --device iphone` | `--level error`     |
+| Missing app/skill | `/v1/health` + `/v1/apps/metadata`        | app.yml providers, Vault keys |
 
 ## Key Commands
 

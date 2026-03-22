@@ -24,7 +24,8 @@
 
 import { appsMetadata } from '../data/appsMetadata';
 import type { AppMetadata } from '../types/apps';
-import { appHealthStore, isAppHealthy } from './appHealthStore';
+import { appHealthStore, isAppHealthy, getAppHealthStatus } from './appHealthStore';
+import type { AppHealthStatusValue } from './appHealthStore';
 import { get, writable } from 'svelte/store';
 
 // --- User-Specific Skill Availability Store ---
@@ -143,37 +144,27 @@ class AppSkillsStore {
      * provider icons for restricted skills are not shown to unauthorized users.
      */
     getState(): AppSkillsState {
-        // Filter apps based on health status
-        // Only include apps that are healthy (or if health status is not available yet, include all)
+        // Include ALL apps but annotate with health status so the UI can show
+        // unavailable apps greyed out with a status badge instead of hiding them.
         const healthState = get(appHealthStore);
-        const isHealthy = get(isAppHealthy);
+        const healthStatus = get(getAppHealthStatus);
 
-        // CRITICAL: Only filter if health data was SUCCESSFULLY fetched
-        // If the request failed (e.g., CORS error) or is still in progress, return all apps
-        // This ensures apps don't disappear if the health endpoint is unreachable
-        if (!healthState.dataAvailable) {
-            return this.state;
-        }
-
-        // Filter apps based on health status
-        const filteredApps: Record<string, AppMetadata> = {};
+        const annotatedApps: Record<string, AppMetadata> = {};
         for (const [appId, appMetadata] of Object.entries(this.state.apps)) {
-            // Apps without skills don't need a Docker container and therefore have no
-            // health status in the /v1/health endpoint. These apps only provide
-            // settings/memories and/or focus modes, which don't require a running service.
-            // Always include them in the app store.
             const hasSkills = appMetadata.skills && appMetadata.skills.length > 0;
-            if (!hasSkills) {
-                filteredApps[appId] = appMetadata;
-                continue;
-            }
 
-            // For apps with skills, only include them if their API is healthy
-            if (isHealthy(appId)) {
-                filteredApps[appId] = appMetadata;
-            } else {
-                console.debug(`[AppSkillsStore] Filtering out app '${appId}' - not healthy`);
+            // Determine health status for this app
+            let status: AppHealthStatusValue | undefined;
+            if (healthState.dataAvailable && hasSkills) {
+                status = healthStatus(appId);
             }
+            // Apps without skills bypass health checks (no container needed)
+            // Apps when health data unavailable: no status annotation (fail-open)
+
+            annotatedApps[appId] = {
+                ...appMetadata,
+                healthStatus: status === 'healthy' ? undefined : status,
+            };
         }
 
         // Apply user-specific skill filtering using data from /v1/apps/metadata.
@@ -182,7 +173,7 @@ class AppSkillsStore {
         const userSkillsState = get(userAvailableSkillsStore);
         if (userSkillsState.initialized && userSkillsState.skillsByApp !== null) {
             const userFilteredApps: Record<string, AppMetadata> = {};
-            for (const [appId, appMetadata] of Object.entries(filteredApps)) {
+            for (const [appId, appMetadata] of Object.entries(annotatedApps)) {
                 const availableSkillIds = userSkillsState.skillsByApp[appId];
                 if (availableSkillIds === undefined) {
                     // App not returned by backend (e.g. container not running) — include as-is
@@ -212,7 +203,7 @@ class AppSkillsStore {
         }
 
         return {
-            apps: filteredApps
+            apps: annotatedApps
         };
     }
 

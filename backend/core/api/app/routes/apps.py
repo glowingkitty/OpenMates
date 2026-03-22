@@ -73,6 +73,7 @@ def get_provider_api_key_env_vars(provider_id: str) -> List[str]:
         "youtube": ["SECRET__YOUTUBE__API_KEY", "SECRET__YOUTUBE__API_KEY"],
         "google_maps": ["SECRET__GOOGLE_MAPS__API_KEY"],
         "protonmail": ["SECRET__PROTONMAIL__BRIDGE_PASSWORD"],
+        "serpapi": ["SECRET__SERPAPI__API_KEY"],
     }
     
     # Return mapped env vars or default pattern
@@ -132,31 +133,37 @@ async def check_provider_api_key_available(provider_id: str, secrets_manager: Se
 async def is_skill_available(skill: AppSkillDefinition, app_id: str, secrets_manager: SecretsManager) -> bool:
     """
     Check if a skill is available based on API key availability for its providers.
-    
-    A skill is considered available if at least one of its providers has a configured API key.
+
+    A skill is considered available if at least one of its providers has a configured API key
+    OR is marked with no_api_key=True (e.g., web scrapers that don't need credentials).
     If a skill has no providers, it's considered available (no API key required).
-    
+
     Args:
         skill: The skill definition
         app_id: The app ID for provider name mapping
         secrets_manager: SecretsManager instance for checking API keys
-        
+
     Returns:
-        True if the skill is available (at least one provider has API key), False otherwise
+        True if the skill is available (at least one provider has API key or no_api_key), False otherwise
     """
     # If skill has no providers, it's available (no API key required)
     if not skill.providers or len(skill.providers) == 0:
         logger.debug(f"Skill '{skill.id}' has no providers, considering it available")
         return True
-    
-    # Check if at least one provider has an available API key
-    for provider_name in skill.providers:
-        provider_id = map_provider_name_to_id(provider_name, app_id)
+
+    # Check if at least one provider has an available API key or doesn't need one
+    for provider_ref in skill.providers:
+        # Providers marked with no_api_key=True (e.g., web scrapers) are always available
+        if provider_ref.no_api_key:
+            logger.debug(f"Skill '{skill.id}' is available - provider '{provider_ref.name}' does not require an API key")
+            return True
+
+        provider_id = map_provider_name_to_id(provider_ref.name, app_id)
         is_available = await check_provider_api_key_available(provider_id, secrets_manager)
         if is_available:
             logger.debug(f"Skill '{skill.id}' is available - provider '{provider_id}' has API key configured")
             return True
-    
+
     # No providers have API keys configured
     logger.debug(f"Skill '{skill.id}' is not available - no providers have API keys configured")
     return False

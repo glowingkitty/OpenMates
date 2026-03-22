@@ -464,8 +464,12 @@ function parseAppYaml(appId, filePath) {
 
         if (Array.isArray(skill.providers) && skill.providers.length > 0) {
           // Use explicitly defined providers if present
+          // Providers can be plain strings ("Brave") or objects ({name: "Doctolib", no_api_key: true})
           skillProviders = skill.providers
-            .map((p) => (p || "").trim())
+            .map((p) => {
+              if (typeof p === "object" && p !== null && p.name) return p.name.trim();
+              return (p || "").trim();
+            })
             .filter((p) => p.length > 0);
         } else {
           // Auto-discover providers from provider YAML files
@@ -526,7 +530,8 @@ function parseAppYaml(appId, filePath) {
 
         // If still no pricing, try provider-level pricing from skill providers
         if (!pricing && skill.providers && skill.providers.length > 0) {
-          const providerName = skill.providers[0];
+          const rawProvider = skill.providers[0];
+          const providerName = typeof rawProvider === "object" && rawProvider !== null ? rawProvider.name : rawProvider;
           const providerId = mapProviderNameToId(providerName, appId);
 
           // Extract provider-level pricing for all skills with providers

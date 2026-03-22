@@ -405,15 +405,18 @@ def _validate_skill_provider(
     if not app_metadata:
         return provider
 
-    skill_providers: Optional[List[str]] = None
+    skill_provider_refs = None
     for skill_def in (app_metadata.skills or []):
         if skill_def.id == skill_id:
-            skill_providers = skill_def.providers
+            skill_provider_refs = skill_def.providers
             break
 
-    if not skill_providers:
+    if not skill_provider_refs:
         # No providers list in app.yml — cannot validate, return as-is
         return provider
+
+    # Extract provider names from ProviderRef objects for comparison
+    skill_providers = [ref.name for ref in skill_provider_refs]
 
     if provider in skill_providers:
         return provider
@@ -505,7 +508,7 @@ async def _charge_skill_credits(
         if not pricing_config and skill_def.providers and len(skill_def.providers) > 0:
             # Skill doesn't have explicit pricing, but has providers - try to get provider-level pricing
             # Use the first provider (most skills will have one primary provider)
-            provider_name = skill_def.providers[0]
+            provider_name = skill_def.providers[0].name
             # Normalize provider name to lowercase (provider IDs in YAML are lowercase, e.g., "brave")
             provider_id = provider_name.lower()
             
@@ -635,7 +638,7 @@ async def _charge_skill_credits(
             info_provider_id = skill_def.full_model_reference.split("/", 1)[0]
         elif skill_def.providers and len(skill_def.providers) > 0:
             # Re-use the same name-to-ID mapping as the pricing lookup
-            pname = skill_def.providers[0]
+            pname = skill_def.providers[0].name
             info_provider_id = pname.lower()
             if pname == "Google" and app_id == "maps":
                 info_provider_id = "google_maps"

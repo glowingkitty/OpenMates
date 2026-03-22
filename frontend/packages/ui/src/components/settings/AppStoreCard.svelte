@@ -44,6 +44,11 @@
     }
     
     let { app, onSelect, skillProviders, cardIconType = 'app' }: Props = $props();
+
+    /** Whether this app is unavailable (unhealthy, degraded, or unknown health status) */
+    let isUnavailable = $derived(
+        app.healthStatus === 'unhealthy' || app.healthStatus === 'unknown'
+    );
     
     // Reference to the app icon container for checking icon existence
     let appIconContainer: HTMLDivElement | null = $state(null);
@@ -295,6 +300,7 @@
 
 <div
     class="app-store-card"
+    class:app-unavailable={isUnavailable}
     role="button"
     tabindex="0"
     aria-label={app.name}
@@ -302,6 +308,12 @@
     onkeydown={handleInteraction}
     style={`background: ${getAppGradient(app.id)}`}
 >
+    <!-- Unavailable status badge -->
+    {#if isUnavailable}
+        <div class="unavailable-badge" title="Service temporarily unavailable">
+            <span class="unavailable-dot"></span>
+        </div>
+    {/if}
     <!-- App icon and name side by side -->
     <div class="app-header-row">
         <!-- App icon container - 38px x 38px with provider icons behind it -->
@@ -415,6 +427,34 @@
         margin-top: 0px; /* Move up to create space below for provider icons */
     }
     
+    /* Greyed-out state for unavailable apps (unhealthy/unknown health status) */
+    .app-store-card.app-unavailable {
+        filter: grayscale(0.7) brightness(0.8);
+        opacity: 0.65;
+    }
+
+    .app-store-card.app-unavailable:hover {
+        filter: grayscale(0.5) brightness(0.85);
+        opacity: 0.75;
+    }
+
+    /* Small red dot badge in top-right corner for unavailable apps */
+    .unavailable-badge {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        z-index: 10;
+    }
+
+    .unavailable-dot {
+        display: block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background-color: rgba(255, 80, 80, 0.9);
+        box-shadow: 0 0 4px rgba(255, 80, 80, 0.5);
+    }
+
     .app-store-card:focus {
         outline: 2px solid rgba(255, 255, 255, 0.8);
         outline-offset: 2px;
