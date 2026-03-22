@@ -12,6 +12,10 @@ encryption_keys:
     encrypted_key:
       type: text
       note: "The user's master key, encrypted with a key derived from their login method"
+    key_iv:
+      type: string
+      length: 255
+      note: "The IV (Initialization Vector) used for AES-GCM encryption of the master key (Web Crypto API)"
     salt:
       type: string
       length: 255

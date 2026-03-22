@@ -1,0 +1,1000 @@
+# backend/apps/images/tasks/generate_task.py
+#
+# Celery task for image generation.
+# Handles provider API calls, image processing, encryption, S3 upload, and embed creation.
+#
+# Architecture:
+# - Every generated image is stored as an embed (see docs/architecture/apps/images.md)
+# - Embed content contains S3 references, Vault-wrapped AES key, and metadata
+# - Download via GET /v1/embeds/{embed_id}/file?format=preview|full|original
+# - Server decrypts using Vault and streams plaintext image to client
+
+import logging
+import asyncio
+import uuid
+import json
+import hashlib
+import base64
+import os
+from datetime import datetime, timezone
+from typing import Dict, Any, List, Tuple, Optional
+from io import BytesIO
+
+import httpx
+from PIL import Image
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+from backend.core.api.app.tasks.celery_config import app
+from backend.core.api.app.tasks.base_task import BaseServiceTask
+from backend.core.api.app.utils.image_processing import (
+    process_image_for_storage,
+    process_svg_for_storage,
+)
+from backend.shared.providers.google.gemini_image import generate_image_google
+from backend.shared.providers.fal.flux import generate_image_fal_flux
+from backend.shared.providers.recraft.recraft import (
+    generate_vector_recraft,
+    generate_raster_recraft,
+    RECRAFT_MODEL_DEFAULT,
+    RECRAFT_MODEL_MAX,
+    RECRAFT_RASTER_MODEL_DEFAULT,
+    RECRAFT_RASTER_MODEL_MAX,
+)
+from backend.core.api.app.services.s3.config import get_bucket_name
+from backend.shared.python_utils.billing_utils import calculate_total_credits, MINIMUM_CREDITS_CHARGED
+
+logger = logging.getLogger(__name__)
+
+# Internal API configuration for billing calls
+INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
+INTERNAL_API_SHARED_TOKEN = os.getenv("INTERNAL_API_SHARED_TOKEN")
+
+
+async def _charge_image_generation_credits(
+    user_id: str,
+    user_id_hash: str,
+    app_id: str,
+    skill_id: str,
+    model_ref: Optional[str],
+    chat_id: Optional[str],
+    message_id: Optional[str],
+    log_prefix: str
+) -> None:
+    """
+    Charge a flat per-image credit fee for a successful image generation.
+    
+    Fetches the provider pricing config via internal API and charges 1 unit
+    (= 1 image). Pricing is defined in provider YAML files:
+    - generate_draft (bfl/flux-2-klein): 15 credits per image
+    - generate (google/gemini-3-pro-image-preview): 200 credits per image
+    
+    Billing is non-blocking: failures are logged but don't break image delivery.
+    """
+    try:
+        headers = {"Content-Type": "application/json"}
+        if INTERNAL_API_SHARED_TOKEN:
+            headers["X-Internal-Service-Token"] = INTERNAL_API_SHARED_TOKEN
+
+        # Fetch provider model pricing via internal API
+        pricing_config = None
+        if model_ref and "/" in model_ref:
+            provider_id, model_suffix = model_ref.split("/", 1)
+            endpoint = f"{INTERNAL_API_BASE_URL}/internal/config/provider_model_pricing/{provider_id}/{model_suffix}"
+            
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(endpoint, headers=headers)
+                if response.status_code == 200:
+                    pricing_config = response.json()
+                    logger.info(f"{log_prefix} Fetched pricing config for '{model_ref}': {pricing_config}")
+                else:
+                    logger.warning(f"{log_prefix} Failed to fetch pricing for '{model_ref}': {response.status_code}")
+
+        # Calculate credits: flat fee per image (1 unit = 1 image)
+        if pricing_config:
+            credits_charged = calculate_total_credits(
+                pricing_config=pricing_config,
+                units_processed=1
+            )
+        else:
+            credits_charged = MINIMUM_CREDITS_CHARGED
+            logger.warning(f"{log_prefix} No pricing config for '{model_ref}', using minimum charge: {credits_charged}")
+
+        if credits_charged <= 0:
+            logger.debug(f"{log_prefix} Calculated credits is 0, skipping billing.")
+            return
+
+        # Resolve provider info (name + region) for usage tracking
+        resolved_provider_name = None
+        resolved_region = None
+        if model_ref and "/" in model_ref:
+            try:
+                info_provider_id = model_ref.split("/", 1)[0]
+                model_ref_param = f"?model_ref={model_ref}"
+                info_url = f"{INTERNAL_API_BASE_URL}/internal/config/provider_info/{info_provider_id}{model_ref_param}"
+                async with httpx.AsyncClient(timeout=10.0) as info_client:
+                    info_resp = await info_client.get(info_url, headers=headers)
+                    if info_resp.status_code == 200:
+                        provider_info = info_resp.json()
+                        resolved_provider_name = provider_info.get("name")
+                        resolved_region = provider_info.get("region")
+                        logger.debug(f"{log_prefix} Resolved provider info: name={resolved_provider_name}, region={resolved_region}")
+            except Exception as e:
+                logger.warning(f"{log_prefix} Failed to fetch provider info for model '{model_ref}': {e}")
+
+        charge_payload = {
+            "user_id": user_id,
+            "user_id_hash": user_id_hash,
+            "credits": credits_charged,
+            "skill_id": skill_id,
+            "app_id": app_id,
+            "usage_details": {
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "units_processed": 1,
+                "model_used": model_ref,  # Full model reference (e.g., "bfl/flux-2-klein")
+                "server_provider": resolved_provider_name,  # Provider display name (e.g., "BFL", "Google")
+                "server_region": resolved_region,  # Server region (e.g., "US")
+            }
+        }
+
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            url = f"{INTERNAL_API_BASE_URL}/internal/billing/charge"
+            logger.info(f"{log_prefix} Charging {credits_charged} credits for '{app_id}.{skill_id}' (model: {model_ref})")
+            response = await client.post(url, json=charge_payload, headers=headers)
+            response.raise_for_status()
+            logger.info(f"{log_prefix} Successfully charged {credits_charged} credits for '{app_id}.{skill_id}'")
+
+    except httpx.HTTPStatusError as e:
+        logger.error(
+            f"{log_prefix} HTTP error charging credits for '{app_id}.{skill_id}': "
+            f"{e.response.status_code} - {e.response.text}", exc_info=True
+        )
+        # Don't raise - billing failure shouldn't break image delivery
+    except Exception as e:
+        logger.error(f"{log_prefix} Error charging credits for '{app_id}.{skill_id}': {e}", exc_info=True)
+        # Don't raise - billing failure shouldn't break image delivery
+
+
+def _get_image_dimensions(image_bytes: bytes) -> Tuple[int, int]:
+    """Extract width and height from image bytes using PIL."""
+    try:
+        img = Image.open(BytesIO(image_bytes))
+        return img.size  # Returns (width, height)
+    except Exception as e:
+        logger.warning(f"Failed to get image dimensions: {e}")
+        return (0, 0)
+
+
+def _hash_value(value: str) -> str:
+    """Create SHA256 hash of a value for privacy protection."""
+    return hashlib.sha256(value.encode('utf-8')).hexdigest()
+
+
+async def _decrypt_reference_images(
+    embed_ids: List[str],
+    user_vault_key_id: str,
+    log_prefix: str,
+) -> Tuple[List[bytes], List[str]]:
+    """
+    Fetch and decrypt reference images from the Redis embed cache for use as
+    generation inputs in image-to-image requests.
+
+    Replicates the same decryption pipeline used by view_skill.py:
+      1. Look up embed JSON from Redis at key ``embed:{embed_id}``
+      2. Decrypt ``encrypted_content`` via Vault Transit (derived key with context)
+      3. Decode TOON to get content dict (contains aes_key, aes_nonce, s3_base_url, files)
+      4. Download encrypted "preview" variant from S3
+      5. AES-256-GCM decrypt → raw image bytes
+
+    Uses the "preview" variant (webp, smaller) for efficiency when used as reference
+    inputs; full resolution is rarely needed for style/reference guidance.
+
+    Args:
+        embed_ids: List of embed UUIDs to fetch and decrypt (already resolved from
+                   embed_refs via file_path_index in the skill layer).
+        user_vault_key_id: The user's Vault Transit key ID for decryption.
+        log_prefix: Log prefix for contextual logging.
+
+    Returns:
+        Tuple of (image_bytes_list, mime_types_list). Failed embeds are silently
+        skipped with a warning so a single missing embed doesn't abort generation.
+    """
+    from urllib.parse import quote as url_quote
+    from toon_format import decode as toon_decode
+    import redis.asyncio as aioredis
+
+    image_bytes_list: List[bytes] = []
+    mime_types_list: List[str] = []
+
+    vault_url = os.environ.get("VAULT_URL", "http://vault:8200")
+    vault_token_path = "/vault-data/api.token"
+    try:
+        with open(vault_token_path, "r") as f:
+            vault_token = f.read().strip()
+    except Exception as e:
+        logger.error(f"{log_prefix} Failed to read Vault token: {e}", exc_info=True)
+        return [], []
+
+    redis_password = os.environ.get("DRAGONFLY_PASSWORD", "")
+    redis_url = f"redis://default:{url_quote(redis_password, safe='')}@cache:6379/0"
+    redis_client = aioredis.from_url(redis_url, decode_responses=True)
+
+    try:
+        for embed_id in embed_ids:
+            embed_log = f"{log_prefix} [ref_embed:{embed_id[:8]}...]"
+            try:
+                # Step 1: Fetch embed JSON from Redis
+                embed_json = await redis_client.get(f"embed:{embed_id}")
+                if not embed_json:
+                    logger.warning(
+                        f"{embed_log} Reference embed not found in cache — "
+                        "it may have expired (24h TTL). Skipping."
+                    )
+                    continue
+
+                embed_data = json.loads(embed_json)
+                encrypted_content = embed_data.get("encrypted_content")
+                if not encrypted_content:
+                    logger.warning(f"{embed_log} Reference embed has no encrypted_content. Skipping.")
+                    continue
+
+                # Step 2: Decrypt embed content via Vault Transit
+                context = base64.b64encode(user_vault_key_id.encode()).decode("utf-8")
+                decrypt_url = f"{vault_url}/v1/transit/decrypt/{user_vault_key_id}"
+                payload = {"ciphertext": encrypted_content, "context": context}
+
+                async with httpx.AsyncClient(timeout=15) as client:
+                    resp = await client.post(
+                        decrypt_url,
+                        json=payload,
+                        headers={"X-Vault-Token": vault_token},
+                    )
+
+                if resp.status_code != 200:
+                    logger.warning(
+                        f"{embed_log} Vault decrypt failed for embed content: "
+                        f"HTTP {resp.status_code}. Skipping."
+                    )
+                    continue
+
+                plaintext_b64 = resp.json()["data"]["plaintext"]
+                plaintext_toon = base64.b64decode(plaintext_b64).decode("utf-8")
+
+                # Step 3: Decode TOON → content dict
+                content = toon_decode(plaintext_toon)
+                if not isinstance(content, dict):
+                    logger.warning(f"{embed_log} TOON decoded to unexpected type. Skipping.")
+                    continue
+
+                vault_wrapped_aes_key = content.get("vault_wrapped_aes_key")
+                s3_base_url = content.get("s3_base_url")
+                aes_nonce_b64 = content.get("aes_nonce")
+                files = content.get("files", {})
+
+                if not vault_wrapped_aes_key or not s3_base_url or not aes_nonce_b64:
+                    logger.warning(
+                        f"{embed_log} Reference embed missing required fields "
+                        f"(vault_wrapped_aes_key/s3_base_url/aes_nonce). Skipping."
+                    )
+                    continue
+
+                # Step 3b: Unwrap AES key via Vault Transit (double-decode like view_skill.py)
+                unwrap_payload = {
+                    "ciphertext": vault_wrapped_aes_key,
+                    "context": context,
+                }
+                async with httpx.AsyncClient(timeout=15) as client:
+                    unwrap_resp = await client.post(
+                        decrypt_url,
+                        json=unwrap_payload,
+                        headers={"X-Vault-Token": vault_token},
+                    )
+
+                if unwrap_resp.status_code != 200:
+                    logger.warning(
+                        f"{embed_log} Vault AES key unwrap failed: "
+                        f"HTTP {unwrap_resp.status_code}. Skipping."
+                    )
+                    continue
+
+                # Double-decode: Vault plaintext = base64(aes_key_b64), so:
+                #   base64.decode(vault_plaintext) → aes_key_b64 as bytes
+                #   .decode('utf-8') → aes_key_b64 string
+                #   base64.decode(aes_key_b64) → raw 32-byte AES key
+                aes_key_b64 = base64.b64decode(
+                    unwrap_resp.json()["data"]["plaintext"]
+                ).decode("utf-8")
+                aes_key_bytes = base64.b64decode(aes_key_b64)
+
+                # Step 4: Select "preview" variant (efficient for reference input)
+                # Fall back through full → original if preview isn't available.
+                s3_key = None
+                detected_format = "webp"
+                for variant_name in ("preview", "full", "original"):
+                    variant = files.get(variant_name)
+                    if variant and variant.get("s3_key"):
+                        s3_key = variant["s3_key"]
+                        detected_format = variant.get("format", "webp")
+                        logger.info(
+                            f"{embed_log} Using '{variant_name}' variant for reference: {s3_key}"
+                        )
+                        break
+
+                if not s3_key:
+                    logger.warning(
+                        f"{embed_log} No file variant found for reference embed. Skipping."
+                    )
+                    continue
+
+                # Step 4b: Download encrypted image from S3 via internal API.
+                # The chatfiles bucket is private — direct HTTP GET returns 403.
+                # Must use the internal S3 download endpoint with the shared service token.
+                internal_api_base = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
+                shared_token = os.getenv("INTERNAL_API_SHARED_TOKEN", "")
+                download_url = f"{internal_api_base}/internal/s3/download"
+                async with httpx.AsyncClient(timeout=60) as client:
+                    s3_resp = await client.get(
+                        download_url,
+                        params={"bucket_key": "chatfiles", "s3_key": s3_key},
+                        headers={"X-Internal-Service-Token": shared_token},
+                    )
+
+                if s3_resp.status_code != 200:
+                    logger.warning(
+                        f"{embed_log} S3 download failed: HTTP {s3_resp.status_code}. Skipping."
+                    )
+                    continue
+
+                # Step 5: AES-256-GCM decrypt
+                nonce_bytes = base64.b64decode(aes_nonce_b64)
+                aesgcm = AESGCM(aes_key_bytes)
+                plaintext_bytes = aesgcm.decrypt(nonce_bytes, s3_resp.content, None)
+
+                mime_type = f"image/{detected_format}" if detected_format != "jpg" else "image/jpeg"
+                image_bytes_list.append(plaintext_bytes)
+                mime_types_list.append(mime_type)
+                logger.info(
+                    f"{embed_log} Decrypted reference image: {len(plaintext_bytes)} bytes "
+                    f"(MIME: {mime_type})"
+                )
+
+            except Exception as e:
+                logger.error(
+                    f"{embed_log} Failed to decrypt reference image: {e}. Skipping.",
+                    exc_info=True,
+                )
+                continue
+
+    finally:
+        await redis_client.aclose()
+
+    logger.info(
+        f"{log_prefix} Decrypted {len(image_bytes_list)}/{len(embed_ids)} reference images"
+    )
+    return image_bytes_list, mime_types_list
+
+
+@app.task(
+    bind=True,
+    name="apps.images.tasks.skill_generate",
+    base=BaseServiceTask,
+    queue="app_images",
+    soft_time_limit=180,
+    time_limit=210
+)
+def generate_image_task(self, app_id: str, skill_id: str, arguments: Dict[str, Any]):
+    """
+    Celery task for high-end image generation.
+    """
+    return asyncio.run(_async_generate_image(self, app_id, skill_id, arguments))
+
+
+@app.task(
+    bind=True,
+    name="apps.images.tasks.skill_generate_draft",
+    base=BaseServiceTask,
+    queue="app_images",
+    soft_time_limit=180,
+    time_limit=210
+)
+def generate_image_draft_task(self, app_id: str, skill_id: str, arguments: Dict[str, Any]):
+    """
+    Celery task for draft image generation.
+    """
+    return asyncio.run(_async_generate_image(self, app_id, skill_id, arguments))
+
+
+async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: str, arguments: Dict[str, Any]):
+    task_id = task.request.id
+    log_prefix = f"[Task ID: {task_id}]"
+    logger.info(f"{log_prefix} Starting image generation task for {app_id}/{skill_id}")
+    
+    try:
+        # 1. Initialize services (S3, Secrets, Encryption, Directus)
+        await task.initialize_services()
+        
+        # 2. Extract arguments
+        prompt = arguments.get("prompt")
+        user_id = arguments.get("user_id")
+        chat_id = arguments.get("chat_id")
+        message_id = arguments.get("message_id")
+        aspect_ratio = arguments.get("aspect_ratio", "1:1")
+        model_ref = arguments.get("full_model_reference")
+        # output_filetype: "png", "jpg", or "svg" (defaults to "png" for backward compat)
+        output_filetype = str(arguments.get("output_filetype", "png")).lower()
+        # quality: "default" or "max" — only used when output_filetype="svg"
+        quality = str(arguments.get("quality", "default")).lower()
+        # Reference images for image-to-image generation (resolved embed IDs from skill layer)
+        reference_image_embed_ids: List[str] = arguments.get("reference_image_embed_ids") or []
+        user_vault_key_id: Optional[str] = arguments.get("user_vault_key_id")
+
+        if not prompt or not user_id:
+            raise ValueError(f"Missing required arguments: prompt={bool(prompt)}, user_id={bool(user_id)}")
+
+        # 3. Get embed_id from arguments (passed by the skill) or generate new one
+        embed_id = arguments.get("embed_id") or str(uuid.uuid4())
+        logger.info(f"{log_prefix} Using embed_id: {embed_id}")
+
+        # 3b. Decrypt reference images (for image-to-image generation).
+        # Reference image embed IDs were resolved by the skill layer (embed_ref → embed_id).
+        # We fetch and decrypt them here in the task so that image bytes are never stored
+        # in the Celery message queue (avoids size limits on large images).
+        reference_image_bytes_list: List[bytes] = []
+        reference_image_mime_types: List[str] = []
+        if reference_image_embed_ids:
+            if not user_vault_key_id:
+                logger.warning(
+                    f"{log_prefix} reference_image_embed_ids provided but user_vault_key_id "
+                    "is missing — cannot decrypt reference images. Proceeding without them."
+                )
+            else:
+                logger.info(
+                    f"{log_prefix} Decrypting {len(reference_image_embed_ids)} reference image(s)..."
+                )
+                reference_image_bytes_list, reference_image_mime_types = (
+                    await _decrypt_reference_images(
+                        embed_ids=reference_image_embed_ids,
+                        user_vault_key_id=user_vault_key_id,
+                        log_prefix=log_prefix,
+                    )
+                )
+                logger.info(
+                    f"{log_prefix} Ready to use {len(reference_image_bytes_list)} reference image(s) "
+                    "for image-to-image generation"
+                )
+
+        # 4. Call Provider API
+        #
+        # Routing logic:
+        #   output_filetype == "svg"  → Recraft V4 Vector (returns SVG bytes)
+        #     quality == "default"    → recraftv4_vector     ( 80 credits, $0.08)
+        #     quality == "max"        → recraftv4_pro_vector (300 credits, $0.30)
+        #   output_filetype == "png"/"jpg" and "recraft" in model_ref → Recraft V4 Raster
+        #     quality == "default"    → recraftv4     ( 40 credits, $0.04, 1024×1024)
+        #     quality == "max"        → recraftv4_pro (250 credits, $0.25, 2048×2048)
+        #   output_filetype == "png"/"jpg" and "google" in model_ref → Google Gemini (default)
+        #   output_filetype == "png"/"jpg" and "bfl"/"flux" in model_ref → fal.ai FLUX
+        #
+        # actual_model:    full provider reference for logging and XMP metadata
+        # display_model_id: short model ID for embed content (matches frontend modelsMetadata)
+        logger.info(
+            f"{log_prefix} Calling provider for model: {model_ref}, "
+            f"output_filetype={output_filetype}, quality={quality}"
+        )
+        image_bytes: Optional[bytes] = None
+        svg_bytes: Optional[bytes] = None
+        actual_model = model_ref or "Unknown AI"
+        display_model_id = (
+            model_ref.split("/")[-1]
+            if model_ref and "/" in model_ref
+            else (model_ref or "Unknown")
+        )
+
+        if output_filetype == "svg":
+            # --- SVG branch: Recraft V4 Vector ---
+            # Both "default" and "max" use the same generate skill;
+            # quality selects between the two Recraft model tiers.
+            recraft_model_id = RECRAFT_MODEL_MAX if quality == "max" else RECRAFT_MODEL_DEFAULT
+            svg_bytes = await generate_vector_recraft(
+                prompt=prompt,
+                secrets_manager=task._secrets_manager,
+                model_id=recraft_model_id,
+                size=aspect_ratio,  # Recraft accepts "w:h" format natively
+            )
+            actual_model = f"Recraft {recraft_model_id}"
+            display_model_id = recraft_model_id
+            # Override model_ref for billing so pricing is looked up from recraft.yml
+            model_ref = f"recraft/{recraft_model_id}"
+
+        elif model_ref and "recraft" in model_ref:
+            # --- Raster branch: Recraft V4 PNG/JPG ---
+            # Recraft V4 also supports high-quality raster generation.
+            # quality selects between the two Recraft raster model tiers:
+            #   "default" → recraftv4     ( 40 credits, $0.04, 1024×1024)
+            #   "max"     → recraftv4_pro (250 credits, $0.25, 2048×2048)
+            recraft_raster_model_id = (
+                RECRAFT_RASTER_MODEL_MAX if quality == "max" else RECRAFT_RASTER_MODEL_DEFAULT
+            )
+            image_bytes = await generate_raster_recraft(
+                prompt=prompt,
+                secrets_manager=task._secrets_manager,
+                model_id=recraft_raster_model_id,
+                size=aspect_ratio,  # Recraft accepts "w:h" format natively
+            )
+            actual_model = f"Recraft {recraft_raster_model_id}"
+            display_model_id = recraft_raster_model_id
+            # Override model_ref for billing so pricing is looked up from recraft.yml
+            model_ref = f"recraft/{recraft_raster_model_id}"
+
+        elif model_ref and "google" in model_ref:
+            # --- Raster branch: Google Gemini image generation ---
+            # Supports both text-to-image and image-to-image via the same endpoint.
+            # Reference images are passed as inline_data Parts alongside the text prompt.
+            # Pricing stays at flat 200 credits even with reference images (input cost negligible).
+            #
+            # Server fallback chain:
+            #   1. Google AI Studio (API key, known US region) — primary
+            #   2. Google Vertex AI (service account, global endpoint) — fallback
+            model_id = model_ref.split("/")[-1] if "/" in model_ref else model_ref
+            try:
+                image_bytes = await generate_image_google(
+                    prompt=prompt,
+                    secrets_manager=task._secrets_manager,
+                    aspect_ratio=aspect_ratio,
+                    model_id=model_id,
+                    reference_image_bytes_list=reference_image_bytes_list or None,
+                    reference_image_mime_types=reference_image_mime_types or None,
+                    use_vertex=False,  # Primary: AI Studio (known US location)
+                )
+            except Exception as ai_studio_err:
+                logger.warning(
+                    f"{log_prefix} AI Studio failed for Gemini image generation "
+                    f"({type(ai_studio_err).__name__}: {ai_studio_err}). "
+                    "Retrying with Vertex AI (global endpoint) as fallback..."
+                )
+                image_bytes = await generate_image_google(
+                    prompt=prompt,
+                    secrets_manager=task._secrets_manager,
+                    aspect_ratio=aspect_ratio,
+                    model_id=model_id,
+                    reference_image_bytes_list=reference_image_bytes_list or None,
+                    reference_image_mime_types=reference_image_mime_types or None,
+                    use_vertex=True,  # Fallback: Vertex AI (global endpoint)
+                )
+            actual_model = f"Google {model_id}"
+            display_model_id = model_id
+
+        elif model_ref and ("bfl" in model_ref or "flux" in model_ref):
+            # --- Raster branch: fal.ai FLUX ---
+            # Text-to-image: bfl/flux-2-klein → fal-ai/flux-2/klein/9b/base (15 credits)
+            # Image-to-image: auto-switches to fal-ai/flux-2/klein/4b/base/edit (27 credits)
+            #   via generate_image_fal_flux — the provider function handles the routing.
+            #   We update model_ref here for billing to use the correct pricing config.
+            fal_model_id = "fal-ai/flux-2/klein/9b/base"
+            if "pro" in model_ref:
+                fal_model_id = "fal-ai/flux-pro/v1.1"
+            image_bytes = await generate_image_fal_flux(
+                prompt=prompt,
+                secrets_manager=task._secrets_manager,
+                model_id=fal_model_id,
+                reference_image_bytes_list=reference_image_bytes_list or None,
+                reference_image_mime_types=reference_image_mime_types or None,
+            )
+            if reference_image_bytes_list:
+                # Image-to-image was used — update billing to the 4B edit model (27 credits)
+                actual_model = "fal.ai fal-ai/flux-2/klein/4b/base/edit"
+                model_ref = "bfl/flux-2-klein-edit"
+                display_model_id = "flux-2-klein-edit"
+            else:
+                actual_model = f"fal.ai {fal_model_id}"
+                # display_model_id already set from model_ref split (e.g., "flux-2-klein")
+
+        else:
+            # --- Fallback: FLUX.2 [klein] 9B if model ref is unknown/missing ---
+            # No reference image support in fallback path (model_ref required for routing).
+            logger.warning(
+                f"{log_prefix} Unknown or missing model reference '{model_ref}', "
+                "falling back to FLUX.2 [klein] 9B"
+            )
+            fal_model_id = "fal-ai/flux-2/klein/9b/base"
+            image_bytes = await generate_image_fal_flux(
+                prompt=prompt,
+                secrets_manager=task._secrets_manager,
+                model_id=fal_model_id,
+            )
+            actual_model = f"fal.ai {fal_model_id} (fallback)"
+            display_model_id = "flux-2-klein"
+
+        # Validate that the provider returned data
+        if output_filetype == "svg" and not svg_bytes:
+            raise Exception("Recraft provider returned empty SVG data")
+        if output_filetype != "svg" and not image_bytes:
+            raise Exception("Provider returned empty image data")
+
+        # Log actual provider model used; display_model_id is stored in embed content
+        logger.info(
+            f"{log_prefix} Provider model: {actual_model}, display ID: {display_model_id}"
+        )
+
+        # 5. Get original dimensions (raster only; SVG is resolution-independent)
+        original_width, original_height = 0, 0
+        if output_filetype != "svg" and image_bytes:
+            original_width, original_height = _get_image_dimensions(image_bytes)
+            logger.info(
+                f"{log_prefix} Original image dimensions: {original_width}x{original_height}"
+            )
+        else:
+            logger.info(f"{log_prefix} SVG output — dimensions are resolution-independent")
+
+        # 5b. Charge credits for the image generation (flat per-image fee).
+        # Done after successful generation so we only charge for images that
+        # were actually produced by the provider.
+        # For SVG: model_ref was updated in step 4 to "recraft/{model_id}" so billing
+        # will look up the correct Recraft pricing from recraft.yml.
+        hashed_user_id = _hash_value(user_id)
+        await _charge_image_generation_credits(
+            user_id=user_id,
+            user_id_hash=hashed_user_id,
+            app_id=app_id,
+            skill_id=skill_id,
+            model_ref=model_ref,  # Updated to recraft/... for SVG requests
+            chat_id=chat_id,
+            message_id=message_id,
+            log_prefix=log_prefix,
+        )
+
+        # 6. Process image into storage formats.
+        # Prepare provenance metadata for XMP/C2PA labeling (raster only).
+        # Uses actual_model (full provider reference) for accurate provenance tracking.
+        labeling_metadata = {
+            "prompt": prompt,
+            "model": actual_model,
+            "software": "OpenMates",
+            "source": "OpenMates AI",
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+        if output_filetype == "svg":
+            # SVG pipeline: store raw SVG as "original" + rasterized WEBP as "preview_webp".
+            # No full_webp variant — the SVG is already infinitely scalable.
+            logger.info(f"{log_prefix} Processing SVG for storage (original + preview_webp)...")
+            processed_images = process_svg_for_storage(svg_bytes, metadata=labeling_metadata)  # type: ignore[arg-type]
+        else:
+            # Raster pipeline: Original PNG + Full WEBP + Preview WEBP
+            logger.info(f"{log_prefix} Processing raster image into multiple formats...")
+            processed_images = process_image_for_storage(image_bytes, metadata=labeling_metadata)  # type: ignore[arg-type]
+        
+        # 7. Hybrid Encryption Setup
+        # Fetch user profile to get vault_key_id
+        # get_user_profile returns (success, data, error_msg)
+        result = await task._directus_service.get_user_profile(user_id)
+        
+        # Robust unpacking of (success, data, error_msg)
+        success = False
+        user_profile = None
+        error_msg = "Unknown error"
+        
+        if isinstance(result, tuple):
+            if len(result) >= 2:
+                success = result[0]
+                user_profile = result[1]
+            if len(result) >= 3:
+                error_msg = result[2]
+        else:
+            # Fallback if it somehow returned just the profile
+            success = True
+            user_profile = result
+            
+        if not success or not user_profile or not isinstance(user_profile, dict):
+            raise Exception(f"User profile not found or invalid for {user_id}: {error_msg}")
+            
+        vault_key_id = user_profile.get("vault_key_id")
+        if not vault_key_id:
+            raise Exception(f"Vault key ID not found for user {user_id}")
+            
+        # Generate local symmetric key for this set of images
+        aes_key = os.urandom(32)  # AES-256
+        nonce = os.urandom(12)    # GCM nonce
+        aesgcm = AESGCM(aes_key)
+        
+        # Wrap the local AES key using Vault
+        aes_key_b64 = base64.b64encode(aes_key).decode('utf-8')
+        encrypted_aes_key_vault, _ = await task._encryption_service.encrypt_with_user_key(
+            aes_key_b64, vault_key_id
+        )
+        if not encrypted_aes_key_vault:
+            raise Exception("Failed to wrap AES key with Vault")
+            
+        nonce_b64 = base64.b64encode(nonce).decode('utf-8')
+        
+        # 8. Encrypt and Upload each version to S3, collect file metadata
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        unique_id = uuid.uuid4().hex[:8]
+        files_metadata = {}
+
+        # Map internal format keys to public format names
+        format_mapping = {
+            "original": "original",
+            "full_webp": "full",
+            "preview_webp": "preview",
+        }
+
+        for format_key, content in processed_images.items():
+            # Encrypt content locally using the same key/nonce for all versions
+            encrypted_payload = aesgcm.encrypt(nonce, content, None)
+
+            # Determine file extension:
+            #   SVG originals  → .svg
+            #   PNG originals  → .png  (raster pipeline)
+            #   WEBP variants  → .webp (full/preview)
+            if format_key == "original":
+                ext = output_filetype if output_filetype in ("svg", "jpg") else "png"
+            else:
+                ext = "webp"
+            file_key = f"{user_id}/{timestamp}_{unique_id}_{format_key}.{ext}"
+            
+            logger.info(f"{log_prefix} Uploading {format_key} version to S3 (chatfiles): {file_key}")
+            
+            # Upload to 'chatfiles' bucket
+            upload_result = await task._s3_service.upload_file(
+                bucket_key='chatfiles',
+                file_key=file_key,
+                content=encrypted_payload,
+                content_type='application/octet-stream'
+            )
+            
+            if not upload_result.get('url'):
+                raise Exception(f"Failed to upload {format_key} image to S3")
+            
+            # Get dimensions for this format
+            width, height = _get_image_dimensions(content)
+            
+            # Store file metadata with public format name.
+            # "format" records the actual file type for the download endpoint to use
+            # when setting Content-Type and the filename extension.
+            public_format = format_mapping.get(format_key, format_key)
+            if format_key == "original":
+                stored_format = output_filetype if output_filetype in ("svg", "jpg") else "png"
+            else:
+                stored_format = "webp"
+            files_metadata[public_format] = {
+                "s3_key": file_key,
+                "width": width,
+                "height": height,
+                "size_bytes": len(content),
+                "format": stored_format,
+            }
+
+        # 9. Prepare embed content for client-side storage
+        # 
+        # HYBRID ENCRYPTION MODEL:
+        # - The embed CONTENT (below) is sent as PLAINTEXT TOON via WebSocket.
+        #   The client encrypts it with the chat's master key before storing (standard flow).
+        # - The AES key for S3 image decryption is included IN the embed content (plaintext).
+        #   Since embed content is client-encrypted, the AES key is protected at rest.
+        # - The Vault-wrapped AES key is stored separately for server-side LLM vision inference.
+        #   The server can unwrap it via Vault to decrypt images when needed for vision LLMs.
+        #
+        # CLIENT FLOW:
+        # 1. Client receives send_embed_data with plaintext TOON content
+        # 2. Client encrypts content with chat master key and stores in IndexedDB
+        # 3. To render image: client decodes TOON → extracts aes_key + s3_key →
+        #    fetches encrypted blob from S3 → decrypts with AES-256-GCM → renders
+        generated_at = datetime.now(timezone.utc).isoformat()
+        
+        # Build S3 base URL for the chatfiles bucket so the frontend can construct full URLs
+        # Format: https://{bucket_name}.{region}.your-objectstorage.com
+        chatfiles_bucket = get_bucket_name('chatfiles')
+        s3_base_url = f"https://{chatfiles_bucket}.{task._s3_service.base_domain}"
+        
+        embed_content = {
+            "app_id": "images",
+            "skill_id": skill_id,
+            "type": "image",
+            "status": "finished",
+            "files": files_metadata,
+            "s3_base_url": s3_base_url,                         # Base URL for constructing full S3 file URLs
+            "aes_key": aes_key_b64,                             # Plaintext AES key for client-side S3 decryption
+            "aes_nonce": nonce_b64,                             # GCM nonce shared across all image formats
+            "vault_wrapped_aes_key": encrypted_aes_key_vault,  # For server-side LLM vision access
+            "prompt": prompt,
+            "model": display_model_id,
+            "aspect_ratio": aspect_ratio,
+            "output_filetype": output_filetype,                 # "png", "jpg", or "svg"
+            "generated_at": generated_at,
+            # Input reference image embed IDs (non-empty only for image-to-image generation).
+            # Used by the frontend to display thumbnails of the source images above the prompt.
+            "input_embed_ids": reference_image_embed_ids or [],
+        }
+        
+        # 9b. Cache S3 file keys for server-side cleanup (S3 deletion on chat/embed deletion)
+        # Since embed content is client-encrypted (zero-knowledge), the server can't extract
+        # S3 keys from encrypted_content. We cache them here so that store_embed_handler
+        # can persist them as server-accessible metadata on the Directus embed record.
+        s3_file_keys = [
+            {"bucket": "chatfiles", "key": meta["s3_key"]}
+            for meta in files_metadata.values()
+        ]
+        
+        try:
+            client = await task._cache_service.client
+            if client:
+                s3_keys_cache_key = f"embed:{embed_id}:s3_file_keys"
+                await client.set(s3_keys_cache_key, json.dumps(s3_file_keys), ex=3600)  # 1 hour TTL
+                logger.info(f"{log_prefix} Cached {len(s3_file_keys)} S3 file keys for embed {embed_id}")
+        except Exception as e:
+            logger.warning(f"{log_prefix} Failed to cache S3 file keys for embed {embed_id}: {e}")
+        
+        # 10. Encode embed content as TOON for WebSocket delivery
+        # TOON is the standard format used by the embed system for efficient encoding
+        from toon_format import encode as toon_encode
+        content_toon = toon_encode(embed_content)
+        logger.info(f"{log_prefix} TOON-encoded embed content: {len(content_toon)} chars")
+        
+        # 11. Send embed data to client via WebSocket (standard client-encryption flow)
+        # The client will:
+        # 1. Receive plaintext TOON content
+        # 2. Encrypt with chat master key (AES-256-GCM)
+        # 3. Store encrypted in IndexedDB
+        # 4. Send encrypted version back to server for Directus persistence
+        now_ts = int(datetime.now(timezone.utc).timestamp())
+        # hashed_user_id already computed in step 5b (billing)
+        
+        # Use EmbedService.send_embed_data_to_client for standard WebSocket delivery
+        from backend.core.api.app.services.embed_service import EmbedService
+        embed_service = EmbedService(
+            cache_service=task._cache_service,
+            directus_service=task._directus_service,
+            encryption_service=task._encryption_service
+        )
+        
+        await embed_service.send_embed_data_to_client(
+            embed_id=embed_id,
+            embed_type="app_skill_use",  # Standard embed type for skill results
+            content_toon=content_toon,
+            chat_id=chat_id,
+            message_id=message_id,
+            user_id=user_id,
+            user_id_hash=hashed_user_id,
+            status="finished",
+            encryption_mode="client",  # Client-side encryption (standard flow)
+            created_at=now_ts,
+            updated_at=now_ts,
+            log_prefix=log_prefix,
+            check_cache_status=False  # Skip dedup check - we know this is the first "finished" event
+        )
+        
+        # 12. NOTE: embed_update event is NO LONGER published here.
+        # The send_embed_data_to_client() call above (step 11) already delivers all content
+        # the frontend needs (plaintext TOON for client-side encryption, status, metadata).
+        # Publishing an additional embed_update causes the frontend to process the same embed
+        # twice, resulting in "DUPLICATE DETECTED" warnings and redundant work.
+        # The frontend's handleSendEmbedDataImpl handles the processing -> finished transition.
+
+        # 13. Prepare result for API response
+        # This is what gets returned via task polling and REST API
+        result_data = {
+            "embed_id": embed_id,
+            "type": "image",
+            "status": "finished",
+            "files": {
+                # Return file metadata without S3 keys (clients use embed_id to download)
+                format_name: {
+                    "width": meta["width"],
+                    "height": meta["height"],
+                    "size_bytes": meta["size_bytes"],
+                    "format": meta["format"],
+                }
+                for format_name, meta in files_metadata.items()
+            },
+            "prompt": prompt,
+            "model": display_model_id,
+            "aspect_ratio": aspect_ratio,
+            "output_filetype": output_filetype,
+            "generated_at": generated_at,
+        }
+        
+        logger.info(f"{log_prefix} Image generation task completed successfully. Embed ID: {embed_id}")
+        return result_data
+
+    except Exception as e:
+        logger.error(f"{log_prefix} Image generation task failed: {e}", exc_info=True)
+        
+        # Update the embed status to "error" so the frontend gets notified
+        # and the user sees a failure message instead of a perpetual loading state.
+        # We need embed_id, user_id, chat_id, message_id from the arguments (extracted in step 2-3).
+        try:
+            _embed_id = arguments.get("embed_id")
+            _user_id = arguments.get("user_id")
+            _chat_id = arguments.get("chat_id")
+            _message_id = arguments.get("message_id")
+            
+            if _embed_id and _user_id and _chat_id and _message_id:
+                from toon_format import encode as toon_encode
+                from backend.core.api.app.services.embed_service import EmbedService
+                
+                _hashed_user_id = _hash_value(_user_id)
+                
+                # Build a concise, user-facing error message
+                error_str = str(e)
+                if "500 INTERNAL" in error_str or "ServerError" in error_str:
+                    user_error_message = "The image generation provider is temporarily unavailable. Please try again."
+                elif "overloaded" in error_str.lower() or "429" in error_str or "rate" in error_str.lower():
+                    user_error_message = "The image generation service is currently overloaded. Please try again in a moment."
+                elif "timeout" in error_str.lower() or "timed out" in error_str.lower():
+                    user_error_message = "Image generation timed out. Please try again."
+                else:
+                    user_error_message = "Image generation failed. Please try again."
+                
+                error_content = {
+                    "app_id": app_id,
+                    "skill_id": skill_id,
+                    "type": "image",
+                    "status": "error",
+                    "error": user_error_message,
+                    "prompt": arguments.get("prompt", ""),
+                    "model": arguments.get("full_model_reference", "unknown"),
+                }
+                
+                content_toon = toon_encode(error_content)
+                now_ts = int(datetime.now(timezone.utc).timestamp())
+                
+                # Ensure services are initialized (they may already be from the try block)
+                try:
+                    await task.initialize_services()
+                except Exception:
+                    pass  # Services may already be initialized
+                
+                embed_service = EmbedService(
+                    cache_service=task._cache_service,  # type: ignore[arg-type]
+                    directus_service=task._directus_service,  # type: ignore[arg-type]
+                    encryption_service=task._encryption_service  # type: ignore[arg-type]
+                )
+                
+                await embed_service.send_embed_data_to_client(
+                    embed_id=_embed_id,
+                    embed_type="app_skill_use",
+                    content_toon=content_toon,
+                    chat_id=str(_chat_id),
+                    message_id=str(_message_id),
+                    user_id=_user_id,
+                    user_id_hash=_hashed_user_id,
+                    status="error",
+                    encryption_mode="client",
+                    created_at=now_ts,
+                    updated_at=now_ts,
+                    log_prefix=f"{log_prefix} [ERROR_EMBED]",
+                    check_cache_status=False
+                )
+                
+                logger.info(f"{log_prefix} Sent error embed status for embed {_embed_id}: {user_error_message}")
+            else:
+                logger.warning(
+                    f"{log_prefix} Cannot send error embed status - missing required arguments: "
+                    f"embed_id={bool(_embed_id)}, user_id={bool(_user_id)}, "
+                    f"chat_id={bool(_chat_id)}, message_id={bool(_message_id)}"
+                )
+        except Exception as embed_error:
+            # Error notification is best-effort - don't mask the original exception
+            logger.error(f"{log_prefix} Failed to send error embed status: {embed_error}", exc_info=True)
+        
+        # Re-raising allows Celery to mark the task as FAILED
+        raise
+    finally:
+        # CRITICAL: Always cleanup services to close httpx client and prevent event loop issues
+        await task.cleanup_services()
+
+
+async def _encrypt_type_with_vault(task: BaseServiceTask, embed_type: str, vault_key_id: str) -> str:
+    """
+    Encrypt the embed type using Vault.
+    
+    For server-generated embeds, the type is Vault-encrypted rather than client-encrypted.
+    The download endpoint knows to decrypt with Vault for these embeds.
+    """
+    encrypted_type, _ = await task._encryption_service.encrypt_with_user_key(
+        embed_type, vault_key_id
+    )
+    if not encrypted_type:
+        raise Exception("Failed to encrypt embed type with Vault")
+    return encrypted_type

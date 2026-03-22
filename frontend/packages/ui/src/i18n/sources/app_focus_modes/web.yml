@@ -1,0 +1,280 @@
+check_reputation:
+  context: Focus mode name for checking business reputation
+  en: Check reputation
+  de: Reputation prüfen
+  zh: 检查声誉
+  es: Verificar reputación
+  fr: Vérifier la réputation
+  pt: Verificar reputação
+  ru: Проверить репутацию
+  ja: 評判を確認
+  ko: 평판 확인
+  it: Verifica reputazione
+  tr: İtibar kontrolü
+  vi: Kiểm tra danh tiếng
+  id: Periksa reputasi
+  pl: Sprawdź reputację
+  nl: Controleer reputatie
+  ar: تحقق من السمعة
+  hi: प्रतिष्ठा जांचें
+  th: ตรวจสอบชื่อเสียง
+  cs: Zkontrolovat pověst
+  sv: Kontrollera rykte
+  he: בדיקת מוניטין
+  verified_by_human:
+    - en
+    - de
+check_reputation.description:
+  context: Description for check reputation focus mode
+  en: Check if a business is legit and reliable.
+  de: Prüfe, ob ein Unternehmen seriös und zuverlässig ist.
+  zh: 检查企业是否合法可靠。
+  es: Verifica si un negocio es legítimo y confiable.
+  fr: Vérifiez si une entreprise est légitime et fiable.
+  pt: Verifique se uma empresa é legítima e confiável.
+  ru: Проверьте, является ли бизнес законным и надежным.
+  ja: ビジネスが正当で信頼できるかどうかを確認する。
+  ko: 비즈니스가 합법적이고 신뢰할 수 있는지 확인하세요.
+  it: Verifica se un'azienda è legittima e affidabile.
+  tr: Bir işletmenin güvenilir olup olmadığını kontrol edin.
+  vi: Kiểm tra doanh nghiệp có hợp pháp và đáng tin không.
+  id: Periksa apakah bisnis sah dan dapat diandalkan.
+  pl: Sprawdź, czy firma jest legalna i niezawodna.
+  nl: Controleer of een bedrijf legitiem en betrouwbaar is.
+  ar: تحقق مما إذا كان العمل شرعيًا وموثوقًا.
+  hi: जांचें कि क्या कोई व्यवसाय वैध और विश्वसनीय है।
+  th: ตรวจสอบว่าธุรกิจถูกต้องตามกฎหมายและน่าเชื่อถือหรือไม่
+  cs: Zkontrolujte, zda je podnik legitimní a spolehlivý.
+  sv: Kontrollera om ett företag är legitimt och pålitligt.
+  he: בדוק אם עסק הוא לגיטימי ואמין.
+  verified_by_human:
+    - en
+    - de
+analyze_privacy:
+  context: Focus mode name for analyzing privacy
+  en: Analyze privacy
+  de: Datenschutz analysieren
+  zh: 分析隐私
+  es: Analizar privacidad
+  fr: Analyser la confidentialité
+  pt: Analisar privacidade
+  ru: Анализировать конфиденциальность
+  ja: プライバシーを分析
+  ko: 개인정보 보호 분석
+  it: Analizza privacy
+  tr: Gizlilik analizi
+  vi: Phân tích quyền riêng tư
+  id: Analisis privasi
+  pl: Analizuj prywatność
+  nl: Privacy analyseren
+  ar: تحليل الخصوصية
+  hi: गोपनीयता का विश्लेषण करें
+  th: วิเคราะห์ความเป็นส่วนตัว
+  cs: Analyzovat soukromí
+  sv: Analysera integritet
+  he: ניתוח פרטיות
+  verified_by_human:
+    - en
+    - de
+analyze_privacy.description:
+  context: Description for analyze privacy focus mode
+  en: Analyze a website's privacy based on its terms.
+  de: Datenschutz einer Website anhand der AGB analysieren.
+  zh: 根据条款分析网站的隐私政策。
+  es: Analiza la privacidad de un sitio según sus términos.
+  fr: Analysez la confidentialité d'un site via ses CGU.
+  pt: Analise a privacidade de um site pelos seus termos.
+  ru: Анализ конфиденциальности сайта по его условиям.
+  ja: 利用規約に基づきサイトのプライバシーを分析。
+  ko: 약관 기반으로 웹사이트 개인정보 보호를 분석하세요.
+  it: Analizza la privacy di un sito dai suoi termini.
+  tr: Şartlarına göre site gizliliğini analiz edin.
+  vi: Phân tích quyền riêng tư trang web qua điều khoản.
+  id: Analisis privasi situs web berdasarkan ketentuannya.
+  pl: Analizuj prywatność strony na podstawie regulaminu.
+  nl: Analyseer privacy van een site via de voorwaarden.
+  ar: حلل خصوصية موقع ويب بناءً على شروطه القانونية.
+  hi: शर्तों के आधार पर साइट गोपनीयता का विश्लेषण करें।
+  th: วิเคราะห์ความเป็นส่วนตัวของเว็บไซต์ตามเงื่อนไข
+  cs: Analyzujte soukromí webu na základě jeho podmínek.
+  sv: Analysera en webbplats integritet baserat på villkor.
+  he: נתח את רמת הפרטיות של אתר על סמך תנאי השימוש שלו.
+  verified_by_human:
+    - en
+    - de
+research:
+  context: Focus mode name for research
+  en: Research
+  de: Recherche
+  zh: 研究
+  es: Investigación
+  fr: Recherche
+  pt: Pesquisa
+  ru: Исследование
+  ja: 研究
+  ko: 연구
+  it: Ricerca
+  tr: Araştırma
+  vi: Nghiên cứu
+  id: Penelitian
+  pl: Badania
+  nl: Onderzoek
+  ar: بحث
+  hi: अनुसंधान
+  th: การวิจัย
+  cs: Výzkum
+  sv: Forskning
+  he: מחקר
+  verified_by_human:
+    - en
+    - de
+research.description:
+  context: Description for research focus mode (max 55 chars for 2-line card display)
+  en: Research a topic from multiple angles.
+  de: Ein Thema aus mehreren Blickwinkeln recherchieren.
+  zh: 从多个角度研究一个主题。
+  es: Investiga un tema desde múltiples ángulos.
+  fr: Rechercher un sujet sous plusieurs angles.
+  pt: Pesquisar um tema de múltiplos ângulos.
+  ru: Исследовать тему с разных сторон.
+  ja: 複数の角度からトピックを調査する。
+  ko: 여러 각도에서 주제를 조사합니다.
+  it: Ricerca un argomento da più angolazioni.
+  tr: Bir konuyu birden fazla açıdan araştırın.
+  vi: Nghiên cứu một chủ đề từ nhiều góc độ.
+  id: Teliti topik dari berbagai sudut pandang.
+  pl: Zbadaj temat z wielu perspektyw.
+  nl: Onderzoek een onderwerp vanuit meerdere hoeken.
+  ar: ابحث في موضوع من زوايا متعددة.
+  hi: किसी विषय को कई दृष्टिकोणों से शोध करें।
+  th: วิจัยหัวข้อจากหลายมุมมอง
+  cs: Prozkoumejte téma z více úhlů pohledu.
+  sv: Undersök ett ämne från flera vinklar.
+  he: חקור נושא ממספר זוויות.
+  verified_by_human:
+    - en
+    - de
+research.how_to_use.1:
+  context: "How-to-use example 1 for the Web Research focus mode. Use **word** to highlight key trigger words."
+  en: "Research **climate change** and its economic impact on coastal cities by 2050"
+  de: "Recherchiere **Klimawandel** und seine wirtschaftlichen Folgen für Küstenstädte bis 2050"
+  zh: "研究**气候变化**及其到2050年对沿海城市的经济影响"
+  es: "Investiga el **cambio climático** y su impacto económico en ciudades costeras para 2050"
+  fr: "Recherche le **changement climatique** et son impact économique sur les villes côtières d'ici 2050"
+  pt: "Pesquise a **mudança climática** e seu impacto econômico nas cidades costeiras até 2050"
+  ru: "Исследуй **изменение климата** и его экономическое влияние на прибрежные города к 2050 году"
+  ja: "**気候変動**と2050年までの沿岸都市への経済的影響を調査して"
+  ko: "**기후 변화**가 2050년까지 해안 도시에 미치는 경제적 영향을 조사해줘"
+  it: "Ricerca il **cambiamento climatico** e il suo impatto economico sulle città costiere entro il 2050"
+  tr: "**İklim değişikliği** ve 2050'ye kadar kıyı şehirleri üzerindeki ekonomik etkisini araştır"
+  vi: "Nghiên cứu **biến đổi khí hậu** và tác động kinh tế lên các thành phố ven biển vào năm 2050"
+  id: "Teliti **perubahan iklim** dan dampak ekonominya pada kota pesisir pada 2050"
+  pl: "Zbadaj **zmiany klimatyczne** i ich ekonomiczny wpływ na nadmorskie miasta do 2050 roku"
+  nl: "Onderzoek **klimaatverandering** en de economische impact op kuststeden in 2050"
+  ar: "ابحث في **تغير المناخ** وتأثيره الاقتصادي على المدن الساحلية بحلول 2050"
+  hi: "**जलवायु परिवर्तन** और 2050 तक तटीय शहरों पर इसके आर्थिक प्रभाव पर शोध करें"
+  th: "วิจัย**การเปลี่ยนแปลงสภาพภูมิอากาศ**และผลกระทบทางเศรษฐกิจต่อเมืองชายฝั่งภายในปี 2050"
+  cs: "Prozkoumej **změny klimatu** a jejich ekonomický dopad na pobřežní města do roku 2050"
+  sv: "Undersök **klimatförändringen** och dess ekonomiska påverkan på kuststäder till 2050"
+  he: "חקור את **שינוי האקלים** והשפעתו הכלכלית על ערי חוף עד 2050"
+  verified_by_human: []
+research.how_to_use.2:
+  context: "How-to-use example 2 for the Web Research focus mode. Use **word** to highlight key trigger words."
+  en: "What are the **pros and cons** of universal basic income? Show me different perspectives"
+  de: "Was sind die **Vor- und Nachteile** des bedingungslosen Grundeinkommens? Zeig mir verschiedene Perspektiven"
+  zh: "全民基本收入的**优缺点**是什么？给我展示不同角度"
+  es: "¿Cuáles son los **pros y contras** del ingreso básico universal? Muéstrame diferentes perspectivas"
+  fr: "Quels sont les **avantages et inconvénients** du revenu universel de base ? Montre-moi différentes perspectives"
+  pt: "Quais são os **prós e contras** da renda básica universal? Mostre-me diferentes perspectivas"
+  ru: "Каковы **плюсы и минусы** безусловного базового дохода? Покажи разные точки зрения"
+  ja: "ベーシックインカムの**メリットとデメリット**は何か？様々な視点を教えて"
+  ko: "기본소득의 **장단점**은 무엇인가? 다양한 관점을 보여줘"
+  it: "Quali sono i **pro e contro** del reddito di base universale? Mostrami diverse prospettive"
+  tr: "Evrensel temel gelirin **artıları ve eksileri** nelerdir? Farklı perspektifler göster"
+  vi: "Ưu và nhược điểm của thu nhập cơ bản toàn cầu là gì? Cho tôi xem các góc nhìn khác nhau"
+  id: "Apa **pro dan kontra** pendapatan dasar universal? Tunjukkan berbagai perspektif"
+  pl: "Jakie są **zalety i wady** powszechnego dochodu podstawowego? Pokaż mi różne perspektywy"
+  nl: "Wat zijn de **voor- en nadelen** van een universeel basisinkomen? Toon me verschillende perspectieven"
+  ar: "ما هي **مزايا وعيوب** الدخل الأساسي الشامل؟ أرني وجهات نظر مختلفة"
+  hi: "सार्वभौमिक बुनियादी आय के **फायदे और नुकसान** क्या हैं? मुझे अलग-अलग दृष्टिकोण दिखाएं"
+  th: "ข้อดีและข้อเสียของรายได้พื้นฐานถ้วนหน้าคืออะไร? แสดงมุมมองต่างๆ ให้ดูหน่อย"
+  cs: "Jaké jsou **klady a zápory** univerzálního základního příjmu? Ukáže mi různé perspektivy"
+  sv: "Vilka är **för- och nackdelarna** med universell basinkomst? Visa mig olika perspektiv"
+  he: "מהם **היתרונות והחסרונות** של הכנסה בסיסית אוניברסלית? הראה לי נקודות מבט שונות"
+  verified_by_human: []
+research.how_to_use.3:
+  context: "How-to-use example 3 for the Web Research focus mode. Use **word** to highlight key trigger words."
+  en: "Investigate the **causes** behind the rise of fast fashion and its environmental consequences"
+  de: "Untersuche die **Ursachen** des Aufstiegs der Fast Fashion und deren Umweltfolgen"
+  zh: "调查快时尚兴起的**原因**及其对环境的影响"
+  es: "Investiga las **causas** detrás del auge de la moda rápida y sus consecuencias ambientales"
+  fr: "Enquête sur les **causes** de l'essor de la fast fashion et ses conséquences environnementales"
+  pt: "Investigue as **causas** por trás do crescimento da moda rápida e suas consequências ambientais"
+  ru: "Исследуй **причины** роста быстрой моды и её экологические последствия"
+  ja: "ファストファッション台頭の**原因**とその環境への影響を調査して"
+  ko: "패스트패션 부상의 **원인**과 환경적 결과를 조사해줘"
+  it: "Indaga le **cause** del boom del fast fashion e le sue conseguenze ambientali"
+  tr: "Hızlı modanın yükselişinin **nedenlerini** ve çevresel sonuçlarını araştır"
+  vi: "Điều tra **nguyên nhân** của sự trỗi dậy của thời trang nhanh và hậu quả môi trường"
+  id: "Selidiki **penyebab** kebangkitan fast fashion dan dampak lingkungannya"
+  pl: "Zbadaj **przyczyny** wzrostu popularności fast fashion i jej konsekwencje środowiskowe"
+  nl: "Onderzoek de **oorzaken** achter de opkomst van fast fashion en de milieugevolgen"
+  ar: "التحقيق في **أسباب** صعود الموضة السريعة وعواقبها البيئية"
+  hi: "फास्ट फैशन के उदय के **कारणों** और इसके पर्यावरणीय परिणामों की जांच करें"
+  th: "สืบสวน**สาเหตุ**ของการเติบโตของแฟชั่นด่วนและผลกระทบต่อสิ่งแวดล้อม"
+  cs: "Prozkoumej **příčiny** vzestupu rychlé módy a její environmentální důsledky"
+  sv: "Undersök **orsakerna** till snabbmodets framväxt och dess miljökonsekvenser"
+  he: "בדוק את **הסיבות** לעלייתה של מהר-אופנה ואת ההשלכות הסביבתיות שלה"
+  verified_by_human: []
+deep_web_research:
+  context: Focus mode name for deep web research
+  en: Deep web research
+  de: Tiefe Web-Recherche
+  zh: 深度网络研究
+  es: Investigación web profunda
+  fr: Recherche web approfondie
+  pt: Pesquisa web profunda
+  ru: Глубокое веб-исследование
+  ja: 深いウェブリサーチ
+  ko: 심층 웹 연구
+  it: Ricerca web approfondita
+  tr: Derin web araştırması
+  vi: Nghiên cứu web sâu
+  id: Penelitian web mendalam
+  pl: Głębokie badania internetowe
+  nl: Diepgaand webonderzoek
+  ar: بحث ويب عميق
+  hi: गहरी वेब अनुसंधान
+  th: การวิจัยเว็บเชิงลึก
+  cs: Hluboký webový výzkum
+  sv: Djup webbforskning
+  he: מחקר ברשת העמוקה
+  verified_by_human:
+    - en
+    - de
+deep_web_research.description:
+  context: Description for deep web research focus mode
+  en: Plan and conduct deep web research for a report.
+  de: Tiefe Web-Recherche planen und durchführen.
+  zh: 规划并进行深度网络研究以生成报告。
+  es: Investiga a fondo en la web para un informe.
+  fr: Planifiez et menez une recherche web approfondie.
+  pt: Pesquisa web profunda para gerar um relatório.
+  ru: Спланируйте и проведите глубокое веб-исследование.
+  ja: 計画を立て、深いウェブ調査を行いレポートを作成。
+  ko: 심층 웹 조사를 계획하고 보고서를 작성하세요.
+  it: Pianifica e conduci una ricerca web approfondita.
+  tr: Rapor için derin web araştırması planlayın ve yapın.
+  vi: Lập kế hoạch và nghiên cứu web sâu cho báo cáo.
+  id: Rencanakan dan lakukan riset web mendalam.
+  pl: Zaplanuj i przeprowadź głębokie badanie web.
+  nl: Plan en voer diepgaand webonderzoek uit.
+  ar: خطط وأجرِ بحثًا عميقًا على الويب لتقرير.
+  hi: रिपोर्ट के लिए गहन वेब शोध की योजना बनाएं।
+  th: วางแผนและวิจัยเว็บเชิงลึกเพื่อสร้างรายงาน
+  cs: Naplánujte a proveďte hloubkový webový výzkum.
+  sv: Planera och genomför djup webbforskning.
+  he: תכנן ובצע מחקר ברשת העמוקה עבור דוח.
+  verified_by_human:
+    - en
+    - de

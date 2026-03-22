@@ -169,6 +169,7 @@ secrets.json
 
 .DS_Store
 log/
+logs/
 processed_websites/
 temp_data
 
@@ -190,6 +191,14 @@ _backup
 .vercel
 .env*.local
 
+# Deployment configuration
+# Allow template/example files, but ignore environment-specific overrides
+deployment/dev_server
+deployment/prod_server
+
+# Preview server Caddyfile (keep Caddyfile.example, ignore actual config)
+backend/preview/Caddyfile
+# Legacy .deployment directory (kept for backward compatibility, but gitignored)
 .deployment
 
 # Private context files (anywhere within .context)
@@ -202,5 +211,54 @@ _backup
 .roo*
 .turbo
 
+# Claude Code — ignore runtime state, allow config/hooks/skills
+.claude/sessions.json
+.claude/sessions.json.tmp
+.claude/sessions.lock
+.claude/sessions.md
+.claude/project-index.json
+.claude/settings.local.json
 .cursor
 .svelte-kit
+
+# Generated translation JSON files (built from YAML sources)
+frontend/packages/ui/src/i18n/locales/*.json
+
+# Generated app metadata (built from backend app.yml files)
+frontend/packages/ui/src/data/appsMetadata.ts
+frontend/packages/ui/src/data/embedRegistry.generated.ts
+frontend/packages/ui/src/data/modelsMetadata.ts
+frontend/packages/ui/src/data/providersMetadata.ts
+backend/core/api/logs/*.log.*
+
+# Test results (JSON files for manual inspection)
+test_results/
+test-results/
+*.test_results.json
+
+# Domain security configuration files
+restricted_domains.txt
+**/restricted_domains.txt
+allowed_domain.txt
+**/allowed_domain.txt
+suspicious_patterns.txt
+**/suspicious_patterns.txt
+scripts/encrypt_domain_security.py
+
+.pnpm-store/
+
+.venv*
+playwright-artifacts*
+backend/scripts/debug_output*
+frontend/apps/web_app/test-results*
+
+# Personal/local data
+personaldata/
+rankings.json
+
+# Local debug and cache artifacts
+debug_output*.yml
+shared/cache/web_analytics_backup.json
+
+# OpenCode AI editor local state
+.opencode/

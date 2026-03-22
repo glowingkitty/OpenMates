@@ -4,16 +4,14 @@
     import { externalLinks, routes, getWebsiteUrl } from '../config/links';
     import { isPageVisible } from '../config/pages';
     import { text } from '@repo/ui';
-    import { locale, locales } from 'svelte-i18n';
+    import { locale } from 'svelte-i18n';
     import { browser } from '$app/environment';
     import { waitLocale } from 'svelte-i18n';
     import { loadMetaTags, getMetaTags } from '../config/meta';
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
-    import { panelState } from '../stores/panelStateStore';
-    import { settingsMenuVisible } from './Settings.svelte';
 
     // Type definition for footer links
-    type FooterLink = {
+    type _FooterLink = {
         href: string;
         text: string;
         translation_key: string;
@@ -186,7 +184,7 @@
     initializeLocale();
 
     // Handle language change
-    const handleLanguageChange = async (event: Event) => {
+    const _handleLanguageChange = async (event: Event) => {
         if (!browser) return;
         
         const select = event.target as HTMLSelectElement;
@@ -292,7 +290,7 @@
                     </a>
                 </div>
                 <div class="tagline mobile-order-1">
-                    {@html $text('footer.tagline.text')}
+                    {@html $text('footer.tagline')}
                 </div>
                 <div class="logo invisible mobile-order-3"></div>
             </div>
@@ -302,7 +300,7 @@
         <div class="footer-nav">
             {#each processedFooterSections as section}
                 <div class="footer-section">
-                    <h3>{@html $text(section.title_key + '.text')}</h3>
+                    <h3>{@html $text(section.title_key)}</h3>
                     <ul>
                         {#each section.links as link}
                             <li>
@@ -312,7 +310,7 @@
                                     onclick={(e) => handleClick(e, link.href, link.external)}
                                     {...link.external ? { target: '_blank', rel: 'noopener noreferrer' } : {}}
                                 >
-                                    {$text(link.translation_key + '.text')}
+                                    {$text(link.translation_key)}
                                 </a>
                             </li>
                         {/each}
@@ -323,7 +321,7 @@
 
         <!-- Social Media Icons Section (split into two groups) -->
         <div class="social-media-section">
-            <h3 class="social-title">{@html $text('footer.sections.for_everyone.text')}</h3>
+            <h3 class="social-title">{@html $text('footer.sections.for_everyone')}</h3>
             <div class="social-icons">
                 <a href={externalLinks.instagram} target="_blank" rel="me" aria-label="Instagram">
                     <div class="social-icon icon_instagram"></div>
@@ -342,7 +340,7 @@
                 </a>
             </div>
 
-            <h3 class="social-title developers">{@html $text('footer.sections.for_developers.text')}</h3>
+            <h3 class="social-title developers">{@html $text('footer.sections.for_developers')}</h3>
             <div class="social-icons">
                 <a href={externalLinks.github} target="_blank" rel="me" aria-label="GitHub">
                     <div class="social-icon icon_github"></div>
@@ -358,7 +356,7 @@
             <button
                 class="language-button"
                 onclick={handleLanguageClick}
-                aria-label={$text('footer.language_selector.label.text')}
+                aria-label={$text('footer.language_selector.label')}
             >
                 <span class="language-text">{currentLanguageName}</span>
                 <div class="social-icon icon_language"></div>
@@ -367,7 +365,7 @@
 
         <!-- Made in EU Section -->
         <div class="footer-bottom">
-            <p>{@html $text('footer.made_in_eu.text')}</p>
+            <p>{@html $text('footer.made_in_eu')}</p>
             <div class="flag icon_eu"></div>
         </div>
     </div>

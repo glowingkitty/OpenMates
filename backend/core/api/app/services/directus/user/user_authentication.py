@@ -3,7 +3,114 @@ import logging
 from typing import Dict, Any, Optional, Tuple
 import json
 
+from backend.core.api.app.services.directus.user.user_lookup import hash_username
+
 logger = logging.getLogger(__name__)
+
+# Maximum number of suffixes to try when resolving a username collision
+# during hashed_username backfill (e.g. "alice1", "alice2", ... "alice99")
+MAX_USERNAME_COLLISION_RETRIES = 99
+
+
+async def _backfill_hashed_username(
+    self,
+    user_id: str,
+    plaintext_username: str,
+    vault_key_id: str,
+    user_data: Dict[str, Any],
+) -> None:
+    """
+    One-time backfill for legacy users who have no hashed_username yet.
+
+    Called during login after the encrypted username has been decrypted.
+    If the computed hash already belongs to a different user (collision),
+    we append an incrementing numeric suffix ("alice1", "alice2", ...)
+    until an available username is found, then update both
+    encrypted_username and hashed_username in Directus.
+
+    This function is fire-and-forget: failures are logged but never
+    block the login flow.
+
+    Args:
+        self: DirectusService instance (bound method pattern)
+        user_id: The ID of the user being logged in
+        plaintext_username: The decrypted username
+        vault_key_id: The user's Vault transit key ID (for re-encryption)
+        user_data: Mutable login response dict — updated in-place if the
+                   username is changed due to a collision
+    """
+    try:
+        hashed = hash_username(plaintext_username)
+
+        # Check if the hash is already claimed by a different user
+        existing = await self.get_user_by_hashed_username(
+            hashed, exclude_user_id=user_id
+        )
+
+        if not existing:
+            # No collision — just store the hash
+            await self.update_user(user_id, {"hashed_username": hashed})
+            logger.info(
+                f"Backfilled hashed_username for user {user_id}"
+            )
+            return
+
+        # ── Collision: try username + numeric suffix ──────────────
+        logger.warning(
+            f"Username collision during backfill for user {user_id}; "
+            f"attempting auto-rename"
+        )
+
+        for suffix in range(1, MAX_USERNAME_COLLISION_RETRIES + 1):
+            candidate = f"{plaintext_username}{suffix}"
+
+            # Candidate must still pass format rules (max 20 chars)
+            if len(candidate) > 20:
+                logger.error(
+                    f"Cannot resolve username collision for user {user_id}: "
+                    f"all suffix candidates exceed 20-char limit"
+                )
+                return
+
+            candidate_hash = hash_username(candidate)
+            conflict = await self.get_user_by_hashed_username(
+                candidate_hash, exclude_user_id=user_id
+            )
+
+            if not conflict:
+                # Found an available candidate — re-encrypt and persist
+                encrypted_candidate, _ = (
+                    await self.encryption_service.encrypt_with_user_key(
+                        candidate, vault_key_id
+                    )
+                )
+                await self.update_user(user_id, {
+                    "encrypted_username": encrypted_candidate,
+                    "hashed_username": candidate_hash,
+                })
+
+                # Update the in-flight login response so the frontend
+                # sees the new username immediately
+                user_data["username"] = candidate
+
+                logger.info(
+                    f"Resolved username collision for user {user_id}: "
+                    f"auto-renamed to '{candidate}'"
+                )
+                return
+
+        # Exhausted all suffix attempts
+        logger.error(
+            f"Could not resolve username collision for user {user_id} "
+            f"after {MAX_USERNAME_COLLISION_RETRIES} attempts"
+        )
+
+    except Exception as e:
+        # Never block login because of a backfill failure
+        logger.error(
+            f"hashed_username backfill failed for user {user_id}: {e}",
+            exc_info=True,
+        )
 
 async def login_user(self, email: str, password: str) -> Tuple[bool, Optional[Dict[str, Any]], str]:
     """
@@ -69,6 +176,17 @@ async def login_user(self, email: str, password: str) -> Tuple[bool, Optional[Di
                         )
                         if decrypted_username:
                             user_data["username"] = decrypted_username
+
+                            # Backfill hashed_username for legacy users
+                            # who signed up before the uniqueness feature
+                            if not user_data.get("hashed_username"):
+                                await _backfill_hashed_username(
+                                    self,
+                                    user_id=user_data.get("id", ""),
+                                    plaintext_username=decrypted_username,
+                                    vault_key_id=vault_key_id,
+                                    user_data=user_data,
+                                )
                         else:
                             # Log error, but don't set default. Let it propagate.
                             logger.error("Username decryption failed!")
@@ -215,28 +333,53 @@ async def logout_user(self, refresh_token: str = None) -> Tuple[bool, str]:
 
 async def logout_all_sessions(self, user_id: str) -> Tuple[bool, str]:
     """
-    Log out all sessions for a user
+    Log out all sessions for a user by deleting all sessions from directus_sessions collection.
+    
+    Directus doesn't have a native /auth/logout/all endpoint, so we need to:
+    1. Query all sessions for the user from directus_sessions collection
+    2. Delete all those sessions using bulk delete
+    
     - Returns (success, message)
     """
     try:
-        # Get token first
-        token = await self.ensure_auth_token()
+        # Ensure we have admin token for accessing directus_sessions collection
+        token = await self.ensure_auth_token(admin_required=True)
         if not token:
             return False, "Failed to get admin token"
         
-        # Make request to Directus logout-all endpoint
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{self.base_url}/auth/logout/all",
-                headers={"Authorization": f"Bearer {token}"},
-                json={"user": user_id}
-            )
+        logger.info(f"Logging out all sessions for user {user_id}")
         
-        if response.status_code == 200:
-            logger.info(f"All sessions logged out for user {user_id}")
-            return True, "All sessions logged out"
+        # Query all sessions for this user from directus_sessions collection
+        # The 'user' field in directus_sessions references the user ID (relation to directus_users)
+        session_params = {
+            "filter[user][_eq]": user_id,
+            "fields": "id",
+            "limit": -1  # Get all sessions
+        }
+        
+        sessions = await self.get_items("directus_sessions", params=session_params)
+        
+        if not sessions:
+            logger.info(f"No active sessions found for user {user_id}")
+            return True, "No active sessions to logout"
+        
+        # Extract session IDs
+        session_ids = [session.get("id") for session in sessions if session.get("id")]
+        
+        if not session_ids:
+            logger.warning(f"Found {len(sessions)} sessions but none had valid IDs for user {user_id}")
+            return False, "Failed to extract session IDs"
+        
+        logger.info(f"Found {len(session_ids)} active sessions to delete for user {user_id}")
+        
+        # Delete all sessions using bulk delete
+        success = await self.bulk_delete_items("directus_sessions", session_ids)
+        
+        if success:
+            logger.info(f"Successfully logged out all {len(session_ids)} sessions for user {user_id}")
+            return True, f"All {len(session_ids)} sessions logged out"
         else:
-            error_msg = f"Logout all failed: {response.status_code}: {response.text}"
+            error_msg = f"Failed to delete sessions for user {user_id}"
             logger.warning(error_msg)
             return False, error_msg
             
@@ -247,8 +390,9 @@ async def logout_all_sessions(self, user_id: str) -> Tuple[bool, str]:
 
 async def refresh_token(self, refresh_token: str) -> Tuple[bool, Optional[Dict[str, Any]], str]:
     """
-    Only refreshes the token with Directus - does not fetch user data
-    Returns (success, {"cookies": {...}}, message)
+    Refreshes the token with Directus and returns both cookies and response data.
+    Returns (success, {"cookies": {...}, "data": {...}}, message)
+    The response data may contain access_token in the JSON body.
     """
     try:
         async with httpx.AsyncClient(timeout=2.0) as client:
@@ -260,9 +404,21 @@ async def refresh_token(self, refresh_token: str) -> Tuple[bool, Optional[Dict[s
             
             if response.status_code == 200:
                 logger.info("Token refresh successful")
-                # Only return the new cookies - no user data needed
+                # Parse JSON response body (may contain access_token)
+                response_data = {}
+                try:
+                    json_data = response.json()
+                    if "data" in json_data:
+                        response_data = json_data["data"]
+                    else:
+                        response_data = json_data
+                except Exception as e:
+                    logger.debug(f"Could not parse JSON response body: {e}")
+                
+                # Return both cookies and response data
                 return True, {
-                    "cookies": dict(response.cookies)
+                    "cookies": dict(response.cookies),
+                    "data": response_data
                 }, "Token refreshed"
                 
             logger.error(f"Token refresh failed: {response.status_code}")
@@ -281,8 +437,12 @@ async def login_user_with_lookup_hash(self, hashed_email: str, lookup_hash: str)
     """
     try:
         # First, verify the lookup_hash is valid for the user
+        # IMPORTANT: must request lookup_hashes explicitly — it's a custom field not in Directus defaults
         url = f"{self.base_url}/users"
-        params = {"filter": json.dumps({"hashed_email": {"_eq": hashed_email}})}
+        params = {
+            "filter": json.dumps({"hashed_email": {"_eq": hashed_email}}),
+            "fields": "id,lookup_hashes",
+        }
         
         response = await self._make_api_request("GET", url, params=params)
         
@@ -296,7 +456,7 @@ async def login_user_with_lookup_hash(self, hashed_email: str, lookup_hash: str)
         
         if not users or len(users) == 0:
             logger.info(f"No user found with matching hashed email")
-            return False, None, "login.email_or_password_wrong.text"
+            return False, None, "login.email_or_password_wrong"
             
         user = users[0]
 
@@ -306,7 +466,7 @@ async def login_user_with_lookup_hash(self, hashed_email: str, lookup_hash: str)
         # Check if the provided lookup_hash is in the user's lookup_hashes array
         if lookup_hash not in lookup_hashes:
             logger.warning(f"Invalid lookup hash for user {user_id}")
-            return False, None, "login.email_or_password_wrong.text"
+            return False, None, "login.email_or_password_wrong"
             
         logger.info(f"Lookup hash verified for user {user_id}")
         
@@ -364,6 +524,17 @@ async def login_user_with_lookup_hash(self, hashed_email: str, lookup_hash: str)
                             )
                             if decrypted_username:
                                 user_data["username"] = decrypted_username
+
+                                # Backfill hashed_username for legacy users
+                                # who signed up before the uniqueness feature
+                                if not user_data.get("hashed_username"):
+                                    await _backfill_hashed_username(
+                                        self,
+                                        user_id=user_data.get("id", ""),
+                                        plaintext_username=decrypted_username,
+                                        vault_key_id=vault_key_id,
+                                        user_data=user_data,
+                                    )
                             else:
                                 logger.error("Username decryption failed!")
 

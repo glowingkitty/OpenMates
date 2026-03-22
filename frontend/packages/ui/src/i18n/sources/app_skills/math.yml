@@ -1,0 +1,54 @@
+# app_skills/math.yml
+# Translation keys for the Math app's skills.
+# Keys here live in the "app_skills.math" namespace.
+# The generate-apps-metadata.js script auto-prepends "app_skills." to skill
+# translation keys, so app.yml uses "math.calculate" → resolves to "app_skills.math.calculate".
+
+calculate:
+  context: Skill name for calculate in Math app
+  en: Calculate
+  de: Berechnen
+  zh: 计算
+  es: Calcular
+  fr: Calculer
+  pt: Calcular
+  ru: Вычислить
+  ja: 計算する
+  ko: 계산하기
+  it: Calcola
+  tr: Hesapla
+  vi: Tính toán
+  id: Hitung
+  pl: Oblicz
+  nl: Berekenen
+  ar: احسب
+  hi: गणना करें
+  th: คำนวณ
+  cs: Vypočítat
+  sv: Beräkna
+  he: חשב
+  verified_by_human: []
+calculate.description:
+  context: Description for the calculate skill in Math app
+  en: Solve equations and compute derivatives or integrals.
+  de: Gleichungen lösen, Ableitungen und Integrale berechnen.
+  zh: 解方程，计算导数和积分。
+  es: Resuelve ecuaciones y calcula derivadas o integrales.
+  fr: Résolvez des équations, dérivées et intégrales.
+  pt: Resolva equações e calcule derivadas ou integrais.
+  ru: Решайте уравнения, производные и интегралы.
+  ja: 方程式を解き、導関数や積分を計算する。
+  ko: 방정식을 풀고 미분 또는 적분을 계산하세요.
+  it: Risolvi equazioni e calcola derivate o integrali.
+  tr: Denklemleri çözün, türev ve integralleri hesaplayın.
+  vi: Giải phương trình và tính đạo hàm hoặc tích phân.
+  id: Selesaikan persamaan dan hitung turunan atau integral.
+  pl: Rozwiązuj równania i obliczaj pochodne lub całki.
+  nl: Los vergelijkingen op en bereken afgeleiden/integralen.
+  ar: حل المعادلات واحسب المشتقات أو التكاملات.
+  hi: समीकरण हल करें और अवकलज या समाकल की गणना करें।
+  th: แก้สมการและคำนวณอนุพันธ์หรืออินทิกรัล
+  cs: Řešte rovnice a počítejte derivace nebo integrály.
+  sv: Lös ekvationer och beräkna derivator eller integraler.
+  he: פתור משוואות וחשב נגזרות או אינטגרלים.
+  verified_by_human: []

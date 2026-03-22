@@ -1,14 +1,12 @@
 import io
 from reportlab.lib.pagesizes import A4
-from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.graphics.shapes import Drawing
 from reportlab.graphics.barcode.qr import QrCodeWidget
 import re
 
 from backend.core.api.app.services.pdf.base import BasePDFTemplateService
-from backend.core.api.app.services.pdf.utils import (sanitize_html_for_reportlab, replace_placeholders_safely,
-                                   format_date_for_locale, format_credits)
+from backend.core.api.app.services.pdf.utils import (sanitize_html_for_reportlab, format_date_for_locale, format_credits)
 
 class CreditNoteTemplateService(BasePDFTemplateService):
     def __init__(self, secrets_manager=None):
@@ -21,8 +19,17 @@ class CreditNoteTemplateService(BasePDFTemplateService):
         """Get the credit note translation disclaimer text"""
         return self.t["invoices_and_credit_notes"]["this_credit_note_is_a_translation"]["text"]
         
-    def generate_credit_note(self, credit_note_data, lang="en", currency="eur"):
-        """Generate a credit note PDF with the specified language and currency"""
+    def generate_credit_note(self, credit_note_data, lang="en", currency="eur", document_type="credit_note"):
+        """
+        Generate a credit note / refund confirmation PDF.
+
+        Args:
+            credit_note_data: Dictionary with credit note data (amounts, numbers, etc.)
+            lang: Language code for translations
+            currency: Currency code (e.g. 'eur', 'usd')
+            document_type: 'credit_note' for Stripe/Revolut (OpenMates is seller),
+                          'refund_confirmation' for Polar (Polar is MoR, we only confirm).
+        """
         # Create a buffer for the PDF
         buffer = io.BytesIO()
         
@@ -79,8 +86,14 @@ class CreditNoteTemplateService(BasePDFTemplateService):
         # Reduce the initial spacer to move content up
         elements.append(Spacer(1, 5))  # Reduced from 20 to 5
         
-        # Create header with Credit Note and OpenMates side by side - no extra padding
-        credit_note_text = Paragraph(sanitize_html_for_reportlab(self.t["invoices_and_credit_notes"]["credit_note"]["text"]), self.styles['Heading1'])
+        # Create header with Credit Note / Refund Confirmation and OpenMates side by side
+        # For Polar refunds: use "Refund Confirmation" because Polar is MoR and issues the
+        # official credit note. For Stripe/Revolut: use "Credit Note" (we are the seller).
+        if document_type == "refund_confirmation":
+            title_key = "refund_confirmation_title"
+        else:
+            title_key = "credit_note"
+        credit_note_text = Paragraph(sanitize_html_for_reportlab(self.t["invoices_and_credit_notes"][title_key]["text"]), self.styles['Heading1'])
         
         # Create a custom paragraph with two differently colored parts for "OpenMates"
         open_text = '<font color="#4867CD">Open</font><font color="black">Mates</font>'
@@ -128,9 +141,26 @@ class CreditNoteTemplateService(BasePDFTemplateService):
         elements.append(credit_note_table)
         elements.append(Spacer(1, 24))
         
-        # Create sender details string using environment variables and translated country
-        translated_sender_country = self._get_translated_country_name(self.sender_country)
-        sender_details_str = f"{self.sender_addressline1}<br/>{self.sender_addressline2}<br/>{self.sender_addressline3}<br/>{translated_sender_country}<br/>{self.sender_email}<br/>{self.t['invoices_and_credit_notes']['vat']['text']}: {self.sender_vat}"
+        # Create sender details string, preferring values from credit_note_data with fallbacks
+        sender_addressline1 = credit_note_data.get('sender_addressline1', self.sender_addressline1)
+        sender_addressline2 = credit_note_data.get('sender_addressline2', self.sender_addressline2)
+        sender_addressline3 = credit_note_data.get('sender_addressline3', self.sender_addressline3)
+        sender_country_val = credit_note_data.get('sender_country', self.sender_country)
+        translated_sender_country = self._get_translated_country_name(sender_country_val)
+        sender_email_val = credit_note_data.get('sender_email', self.sender_email)
+        sender_vat_val = credit_note_data.get('sender_vat', self.sender_vat)
+        # Build sender details string.
+        # For Polar (refund_confirmation): omit our VAT number because Polar as MoR is the
+        # seller — our VAT number is irrelevant and would be misleading on this document.
+        # For Stripe/Revolut (credit_note): include VAT number as we are the direct seller.
+        sender_details_str = (
+            f"{sender_addressline1}<br/>{sender_addressline2}<br/>{sender_addressline3}"
+            f"<br/>{translated_sender_country}<br/>{sender_email_val}"
+        )
+        if document_type != "refund_confirmation":
+            sender_details_str += (
+                f"<br/>{self.t['invoices_and_credit_notes']['vat']['text']}: {sender_vat_val}"
+            )
         
         # Create three-column layout without extra padding
         sender_title = Paragraph("<b>OpenMates</b>", self.styles['Bold'])
@@ -145,6 +175,10 @@ class CreditNoteTemplateService(BasePDFTemplateService):
         
         # Build receiver details with only non-empty fields
         receiver_fields = []
+        
+        # Show account ID instead of email for privacy and professionalism
+        if credit_note_data.get('receiver_account_id'):
+            receiver_fields.append(f"Account ID: {credit_note_data['receiver_account_id']}")
         
         # Add name if present
         if credit_note_data.get('receiver_name'):
@@ -176,8 +210,11 @@ class CreditNoteTemplateService(BasePDFTemplateService):
         
         usage_title = Paragraph(f"<b>{self.t['invoices_and_credit_notes']['view_usage']['text']}:</b>", self.styles['Bold'])
         
+        # Get webapp URL from config and construct usage URL
+        webapp_url = self._get_webapp_url()
+        url = f"{webapp_url}/#settings/usage"
+        
         # Format URL properly with line break while maintaining a single clickable link
-        url = credit_note_data['qr_code_url']
         # Find a good spot to split the URL - after the domain
         split_index = url.find('/', 8)  # Find first '/' after http(s)://
         if (split_index != -1):
@@ -188,7 +225,7 @@ class CreditNoteTemplateService(BasePDFTemplateService):
         usage_url = Paragraph(formatted_url, self.styles['Normal'])
         
         # Generate QR code
-        qr_code = QrCodeWidget(credit_note_data['qr_code_url'])
+        qr_code = QrCodeWidget(url)
         bounds = qr_code.getBounds()
         width = bounds[2] - bounds[0]
         height = bounds[3] - bounds[1]
@@ -259,20 +296,64 @@ class CreditNoteTemplateService(BasePDFTemplateService):
                 .replace("{amount_total_credits}", formatted_total_credits)
         )
         
-        # Get the appropriate currency symbol based on the currency
+        # Map of currency codes to their display symbols.
+        # For currencies not in this map, the ISO code is used as the symbol (e.g. "CAD ").
+        # Polar acts as Merchant of Record and may charge buyers in their local currency
+        # (CAD, AUD, KRW, SGD, etc.), so we must handle arbitrary currencies gracefully.
         currency_symbols = {
             'eur': '€',
             'usd': '$',
+            'gbp': '£',
+            'cad': 'CA$',
+            'aud': 'A$',
+            'chf': 'CHF ',
+            'sek': 'kr ',
+            'nok': 'kr ',
+            'dkk': 'kr ',
+            'nzd': 'NZ$',
+            'sgd': 'S$',
+            'hkd': 'HK$',
+            'mxn': 'MX$',
+            'brl': 'R$',
+            'inr': '₹',
+            'krw': '₩',
             'jpy': '¥',
-            # Add more currencies as needed
+            'cny': '¥',
+            'twd': 'NT$',
+            'thb': '฿',
+            'myr': 'RM ',
+            'idr': 'Rp ',
+            'php': '₱',
+            'pln': 'zł ',
+            'czk': 'Kč ',
+            'huf': 'Ft ',
+            'ron': 'lei ',
+            'bgn': 'лв ',
+            'hrk': 'kn ',
+            'try': '₺',
+            'ils': '₪',
+            'aed': 'د.إ ',
+            'sar': '﷼ ',
+            'zar': 'R ',
         }
-        currency_symbol = currency_symbols.get(currency.lower(), '€')  # Default to Euro symbol
-        
+        currency_lower = currency.lower()
+        # Fall back to the uppercased ISO code followed by a space for unknown currencies
+        # (never fall back to € which would incorrectly imply Euro)
+        currency_symbol = currency_symbols.get(currency_lower, f"{currency.upper()} ")
+
+        # Zero-decimal currencies have no fractional units (e.g. ¥1800, not ¥1800.00).
+        # For all other currencies we format to 2 decimal places.
+        ZERO_DECIMAL_CURRENCIES = {"jpy", "krw", "vnd", "clp", "gnf", "mga", "pyg", "rwf", "ugx", "xaf", "xof"}
+        price_fmt = "{:.0f}" if currency_lower in ZERO_DECIMAL_CURRENCIES else "{:.2f}"
+
+        def fmt_price(amount: float) -> str:
+            return f"{currency_symbol}{price_fmt.format(amount)}"
+
         data_row = [
             Paragraph(refunded_credits_text, self.styles['Normal']),
             Paragraph("1x", self.styles['Normal']),
-            Paragraph(f"{currency_symbol}{credit_note_data['refund_amount']:.2f}", self.styles['Normal']),
-            Paragraph(f"{currency_symbol}{credit_note_data['refund_amount']:.2f}", self.styles['Normal'])
+            Paragraph(fmt_price(credit_note_data['refund_amount']), self.styles['Normal']),
+            Paragraph(fmt_price(credit_note_data['refund_amount']), self.styles['Normal'])
         ]
         
         # Create table with proper indent
@@ -306,15 +387,48 @@ class CreditNoteTemplateService(BasePDFTemplateService):
         total_start_position = doc.width * 0.45
         left_space = total_start_position - self.left_indent
         
-        # Create data for totals table - remove bold from first two rows
-        totals_data = [
-            [Paragraph(self.t['invoices_and_credit_notes']['total_excl_tax']['text'], self.styles['Normal']), 
-             Paragraph(f"{currency_symbol}{credit_note_data['refund_amount']:.2f}", self.styles['Normal'])],
-            [Paragraph(self.t["invoices_and_credit_notes"]["vat_rate"]["text"] + " *", self.styles['Normal']), 
-             Paragraph(f"{currency_symbol}0.00", self.styles['Normal'])],
-            [Paragraph(f"<b>{self.t['invoices_and_credit_notes']['total_refunded']['text']}</b>", self.styles['Bold']), 
-             Paragraph(f"<b>{currency_symbol}{credit_note_data['refund_amount']:.2f}</b>", self.styles['Bold'])]
-        ]
+        # Create data for totals table.
+        # For Polar (refund_confirmation): show actual tax amount from Polar as MoR.
+        #   - If tax > 0: derive tax rate, show "Tax ({rate}%)" with actual tax amount.
+        #   - If tax == 0: show "Tax (0%)" without asterisk (§19 UStG does not apply when Polar is MoR).
+        # For Stripe/Revolut (credit_note): keep "VAT (0%) *" with asterisk referencing §19 UStG.
+        actual_tax_amount = credit_note_data.get('actual_tax_amount')
+        actual_net_amount = credit_note_data.get('actual_net_amount')
+
+        if document_type == "refund_confirmation" and actual_tax_amount is not None:
+            # Polar: use actual tax data from Polar as MoR
+            tax_display_amount = actual_tax_amount
+            total_refund_amount = credit_note_data['refund_amount']
+
+            # Use net amount for the subtotal (excl. tax) if available
+            subtotal_amount = actual_net_amount if actual_net_amount is not None else (total_refund_amount - tax_display_amount)
+
+            # Derive tax rate percentage: (tax / net) * 100
+            if subtotal_amount > 0 and tax_display_amount > 0:
+                tax_rate_pct = (tax_display_amount / subtotal_amount) * 100
+                tax_rate_str = f"{tax_rate_pct:.0f}"
+            else:
+                tax_rate_str = "0"
+
+            tax_label = f"Tax ({tax_rate_str}%)"
+            totals_data = [
+                [Paragraph(self.t['invoices_and_credit_notes']['total_excl_tax']['text'], self.styles['Normal']),
+                 Paragraph(fmt_price(subtotal_amount), self.styles['Normal'])],
+                [Paragraph(tax_label, self.styles['Normal']),
+                 Paragraph(fmt_price(tax_display_amount), self.styles['Normal'])],
+                [Paragraph(f"<b>{self.t['invoices_and_credit_notes']['total_refunded']['text']}</b>", self.styles['Bold']),
+                 Paragraph(f"<b>{fmt_price(total_refund_amount)}</b>", self.styles['Bold'])]
+            ]
+        else:
+            # Stripe/Revolut: §19 UStG Kleinunternehmer — 0% VAT with asterisk
+            totals_data = [
+                [Paragraph(self.t['invoices_and_credit_notes']['total_excl_tax']['text'], self.styles['Normal']),
+                 Paragraph(fmt_price(credit_note_data['refund_amount']), self.styles['Normal'])],
+                [Paragraph(self.t["invoices_and_credit_notes"]["vat_rate"]["text"] + " *", self.styles['Normal']),
+                 Paragraph(fmt_price(0), self.styles['Normal'])],
+                [Paragraph(f"<b>{self.t['invoices_and_credit_notes']['total_refunded']['text']}</b>", self.styles['Bold']),
+                 Paragraph(f"<b>{fmt_price(credit_note_data['refund_amount'])}</b>", self.styles['Bold'])]
+            ]
         
         # Calculate column widths for the totals table
         totals_width = doc.width - total_start_position
@@ -351,32 +465,53 @@ class CreditNoteTemplateService(BasePDFTemplateService):
         elements.append(totals_table)
         elements.append(Spacer(1, 24))  # Increased from 10 to 24
         
-        # Add refund details with translation - fix <br> tags
-        # Special handling for the refunded_to text that might contain unclosed br tags
-        refunded_to_text = self.t["invoices_and_credit_notes"]["refunded_to"]["text"]
-        
-        # First fix any potential HTML issues
-        if "<br{" in refunded_to_text:
-            refunded_to_text = refunded_to_text.replace("<br{", "<br/>{") 
-        
-        # Now replace variables
-        refunded_to_text = refunded_to_text.replace("{card_provider}", credit_note_data["card_name"])
-        refunded_to_text = refunded_to_text.replace("{last_four_digits}", credit_note_data["card_last4"])
-        
-        # Finally sanitize the HTML
-        refunded_to_text = sanitize_html_for_reportlab(refunded_to_text)
-        
-        try:
-            # Create paragraph with error catching
+        # Add refund details with translation.
+        # For Polar (refund_confirmation): Polar as MoR does not expose card details —
+        # use "Refunded via {provider}" instead of "Refunded to {card_provider} card ending in ****".
+        # For Stripe/Revolut (credit_note): show full card-based refund text.
+        if document_type == "refund_confirmation":
+            # Polar: use polar_refunded_via i18n key, fall back to a hardcoded string
+            polar_refunded_via = (
+                self.t.get("invoices_and_credit_notes", {})
+                .get("polar_refunded_via", {})
+                .get("text")
+            )
+            provider_name = credit_note_data.get("card_name") or "Polar"
+            if polar_refunded_via:
+                refunded_to_text = polar_refunded_via.replace("{provider}", provider_name)
+            else:
+                refunded_to_text = f"Refunded via {provider_name}"
+            refunded_to_text = sanitize_html_for_reportlab(refunded_to_text)
             refunded_to_paragraph = Paragraph(refunded_to_text, self.styles['Normal'])
-            payment_table = Table([[Spacer(self.left_indent, 0), refunded_to_paragraph]], 
-                                 colWidths=[self.left_indent, doc.width-self.left_indent])
-        except Exception as e:
-            # Fallback to plain text if HTML parsing fails
-            fallback_text = f"Refunded to: {credit_note_data['card_name']} card ending in {credit_note_data['card_last4']}"
-            payment_table = Table([[Spacer(self.left_indent, 0), 
-                                  Paragraph(fallback_text, self.styles['Normal'])]], 
-                                  colWidths=[self.left_indent, doc.width-self.left_indent])
+            payment_table = Table([[Spacer(self.left_indent, 0), refunded_to_paragraph]],
+                                  colWidths=[self.left_indent, doc.width - self.left_indent])
+        else:
+            # Stripe/Revolut: show card-based refund text - fix <br> tags
+            # Special handling for the refunded_to text that might contain unclosed br tags
+            refunded_to_text = self.t["invoices_and_credit_notes"]["refunded_to"]["text"]
+
+            # First fix any potential HTML issues
+            if "<br{" in refunded_to_text:
+                refunded_to_text = refunded_to_text.replace("<br{", "<br/>{")
+
+            # Now replace variables
+            refunded_to_text = refunded_to_text.replace("{card_provider}", credit_note_data["card_name"])
+            refunded_to_text = refunded_to_text.replace("{last_four_digits}", credit_note_data["card_last4"])
+
+            # Finally sanitize the HTML
+            refunded_to_text = sanitize_html_for_reportlab(refunded_to_text)
+
+            try:
+                # Create paragraph with error catching
+                refunded_to_paragraph = Paragraph(refunded_to_text, self.styles['Normal'])
+                payment_table = Table([[Spacer(self.left_indent, 0), refunded_to_paragraph]],
+                                      colWidths=[self.left_indent, doc.width - self.left_indent])
+            except Exception:
+                # Fallback to plain text if HTML parsing fails
+                fallback_text = f"Refunded to: {credit_note_data['card_name']} card ending in {credit_note_data['card_last4']}"
+                payment_table = Table([[Spacer(self.left_indent, 0),
+                                        Paragraph(fallback_text, self.styles['Normal'])]],
+                                      colWidths=[self.left_indent, doc.width - self.left_indent])
         
         payment_table.setStyle(TableStyle([
             ('LEFTPADDING', (0, 0), (-1, -1), 0),
@@ -401,18 +536,42 @@ class CreditNoteTemplateService(BasePDFTemplateService):
         ]))
         elements.append(footer_table)
         
-        # Add VAT disclaimer
-        elements.append(Spacer(1, 10))
-        vat_disclaimer = sanitize_html_for_reportlab(self.t['invoices_and_credit_notes']['vat_disclaimer']['text'])
-        vat_disclaimer_table = Table([[Spacer(self.left_indent, 0),
-                                     Paragraph("* " + vat_disclaimer, self.styles['Normal'])]], # Changed from 'FooterText' to 'Normal'
-                                     colWidths=[self.left_indent, doc.width-self.left_indent])
-        vat_disclaimer_table.setStyle(TableStyle([
-            ('LEFTPADDING', (0, 0), (-1, -1), 0),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-        ]))
-        elements.append(vat_disclaimer_table)
-        
+        # Add VAT disclaimer — only for Stripe/Revolut credit notes where OpenMates is the
+        # direct seller and the §19 UStG Kleinunternehmer rule applies.
+        # For Polar (refund_confirmation): Polar is the MoR and handles tax, so the
+        # §19 UStG disclaimer does not apply and would be legally incorrect.
+        if document_type != "refund_confirmation":
+            elements.append(Spacer(1, 10))
+            vat_disclaimer = sanitize_html_for_reportlab(self.t['invoices_and_credit_notes']['vat_disclaimer']['text'])
+            vat_disclaimer_table = Table([[Spacer(self.left_indent, 0),
+                                          Paragraph("* " + vat_disclaimer, self.styles['Normal'])]],
+                                         colWidths=[self.left_indent, doc.width - self.left_indent])
+            vat_disclaimer_table.setStyle(TableStyle([
+                ('LEFTPADDING', (0, 0), (-1, -1), 0),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ]))
+            elements.append(vat_disclaimer_table)
+
+        # For Polar: add Merchant of Record note explaining that Polar issued the official
+        # credit note. This is legally required because Polar (not OpenMates) issued the
+        # buyer's official credit note / VAT credit document.
+        if document_type == "refund_confirmation":
+            polar_mor_note = (
+                self.t.get("invoices_and_credit_notes", {})
+                .get("polar_mor_note_refund", {})
+                .get("text",
+                     "Your official credit note was issued by Polar (polar.sh) as Merchant of Record.")
+            )
+            polar_mor_note_sanitized = sanitize_html_for_reportlab(polar_mor_note)
+            polar_mor_table = Table([[Spacer(self.left_indent, 0),
+                                      Paragraph(polar_mor_note_sanitized, self.styles['Normal'])]],
+                                    colWidths=[self.left_indent, doc.width - self.left_indent])
+            polar_mor_table.setStyle(TableStyle([
+                ('LEFTPADDING', (0, 0), (-1, -1), 0),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ]))
+            elements.append(polar_mor_table)
+
         # Add larger spacer before questions helper
         elements.append(Spacer(1, 40))
         

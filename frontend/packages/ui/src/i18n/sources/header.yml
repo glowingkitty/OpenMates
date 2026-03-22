@@ -1,0 +1,144 @@
+toggle_menu:
+  context: Button text for toggling the main menu
+  en: Toggle menu
+  de: Menü umschalten
+  zh: 切换菜单
+  es: Alternar menú
+  fr: Basculer le menu
+  pt: Alternar menu
+  ru: Переключить меню
+  ja: メニュー切り替え
+  ko: 메뉴 전환
+  it: Attiva/disattiva menu
+  tr: Menüyü değiştir
+  vi: Chuyển đổi menu
+  id: Toggle menu
+  pl: Przełącz menu
+  nl: Menu wisselen
+  ar: تبديل القائمة
+  hi: मेनू टॉगल करें
+  th: สลับเมนู
+  cs: Přepnout menu
+  sv: ''
+  he: החלפת מצב תפריט
+  verified_by_human: []
+login_signup:
+  context: Button text for login/signup button in header (kept for backwards compatibility)
+  en: Login / Signup
+  de: Einloggen / Registrieren
+  zh: 登录 / 注册
+  es: Entrar / Registrarse
+  fr: Connexion / Inscription
+  pt: Entrar / Cadastrar
+  ru: Вход / Регистрация
+  ja: ログイン / 登録
+  ko: 로그인 / 가입
+  it: Accedi / Registrati
+  tr: Giriş / Kayıt
+  vi: Đăng nhập / Đăng ký
+  id: Masuk / Daftar
+  pl: Zaloguj / Zarejestruj
+  nl: Inloggen / Registreren
+  ar: تسجيل الدخول / التسجيل
+  hi: लॉगिन / साइनअप
+  th: เข้าสู่ระบบ / สมัครสมาชิก
+  cs: Přihlásit / Registrovat
+  sv: ''
+  he: התחברות / הרשמה
+  verified_by_human: []
+login:
+  context: Button text for sign in button in header (opens interface with both login and signup options)
+  en: Sign In
+  de: Einloggen
+  zh: 登录
+  es: Entrar
+  fr: Se connecter
+  pt: Entrar
+  ru: Войти
+  ja: サインイン
+  ko: 로그인
+  it: Accedi
+  tr: Giriş yap
+  vi: Đăng nhập
+  id: Masuk
+  pl: Zaloguj się
+  nl: Inloggen
+  ar: تسجيل الدخول
+  hi: साइन इन करें
+  th: เข้าสู่ระบบ
+  cs: Přihlásit se
+  sv: ''
+  he: התחברות
+  verified_by_human: []
+self_hosting_edition:
+  context: Text displayed under the logo when server is in self-hosting edition mode
+  en: Self Hosting Edition
+  de: Self-Hosting-Edition
+  zh: 自托管版本
+  es: Edición de autoalojamiento
+  fr: Édition auto-hébergée
+  pt: Edição de auto-hospedagem
+  ru: Издание для самостоятельного размещения
+  ja: セルフホスティング版
+  ko: 셀프 호스팅 에디션
+  it: Edizione self-hosting
+  tr: Kendi barındırma sürümü
+  vi: Phiên bản tự lưu trữ
+  id: Edisi self-hosting
+  pl: Edycja self-hosting
+  nl: Self-hosting editie
+  ar: إصدار الاستضافة الذاتية
+  hi: सेल्फ होस्टिंग संस्करण
+  th: รุ่นโฮสต์เอง
+  cs: Edice vlastního hostování
+  sv: ''
+  he: מהדורת אירוח עצמי
+  verified_by_human: []
+development_server:
+  context: Text displayed under the logo when server is in development mode
+  en: Development Server
+  de: Entwicklungsserver
+  zh: 开发服务器
+  es: Servidor de desarrollo
+  fr: Serveur de développement
+  pt: Servidor de desenvolvimento
+  ru: Сервер разработки
+  ja: 開発サーバー
+  ko: 개발 서버
+  it: Server di sviluppo
+  tr: Geliştirme sunucusu
+  vi: Máy chủ phát triển
+  id: Server pengembangan
+  pl: Serwer deweloperski
+  nl: Ontwikkelserver
+  ar: خادم التطوير
+  hi: विकास सर्वर
+  th: เซิร์ฟเวอร์พัฒนา
+  cs: Vývojový server
+  sv: ''
+  he: שרת פיתוח
+  verified_by_human: []
+report_issue:
+  context: Tooltip and aria-label for the report issue bug icon in header
+  en: Report Issue
+  de: Problem melden
+  zh: 报告问题
+  es: Reportar problema
+  fr: Signaler un problème
+  pt: Reportar problema
+  ru: Сообщить о проблеме
+  ja: 問題を報告
+  ko: 문제 신고
+  it: Segnala problema
+  tr: Sorun bildir
+  vi: Báo cáo sự cố
+  id: Laporkan masalah
+  pl: Zgłoś problem
+  nl: Probleem melden
+  ar: الإبلاغ عن مشكلة
+  hi: समस्या रिपोर्ट करें
+  th: รายงานปัญหา
+  cs: Nahlásit problém
+  sv: Rapportera problem
+  he: דיווח על תקלה
+  verified_by_human: []

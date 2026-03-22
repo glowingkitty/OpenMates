@@ -4,12 +4,24 @@ import logging
 import asyncio # Add asyncio for CancelledError
 import redis.asyncio as redis
 from redis import exceptions as redis_exceptions # Import exceptions from the main redis library
-from typing import Any, Optional
+from typing import Any, Optional, List
 
 # Import constants from the new config file
 from . import cache_config
 
 logger = logging.getLogger(__name__)
+
+
+def _safe_cache_payload_summary(payload: object) -> str:
+    """Return metadata-only payload summary for cache logging."""
+    if isinstance(payload, dict):
+        keys = sorted(payload.keys())
+        return f"keys={keys}, key_count={len(keys)}"
+    if isinstance(payload, list):
+        return f"list_len={len(payload)}"
+    if isinstance(payload, str):
+        return f"str_len={len(payload)}"
+    return f"type={type(payload).__name__}"
 # logger.setLevel(logging.DEBUG)  # Set to DEBUG for detailed logging, adjust as needed
 
 class CacheServiceBase:
@@ -89,6 +101,21 @@ class CacheServiceBase:
                 self._client = None
         return self._client
 
+    async def get_key_ttl(self, key: str) -> int:
+        """
+        Get the remaining TTL (in seconds) for a cache key.
+        Returns -2 if the key does not exist, -1 if the key has no expiry,
+        or the remaining seconds otherwise.
+        """
+        try:
+            client = await self.client
+            if not client:
+                return -2
+            return await client.ttl(key)
+        except Exception as e:
+            logger.error(f"Cache TTL error for key '{key}': {str(e)}")
+            return -2
+
     async def get(self, key: str) -> Any:
         """Get a value from cache"""
         try:
@@ -103,7 +130,7 @@ class CacheServiceBase:
                 logger.debug(f"Cache HIT for key: '{key}'")
                 try:
                     return json.loads(value)
-                except:
+                except (json.JSONDecodeError, TypeError, ValueError):
                     return value.decode('utf-8') if isinstance(value, bytes) else value
             logger.debug(f"Cache MISS for key: '{key}'")
             return None
@@ -140,6 +167,32 @@ class CacheServiceBase:
         except Exception as e:
             logger.error(f"Cache SET error for key '{key}': {str(e)}")
             return False
+
+    async def close(self) -> None:
+        """
+        Close the Redis client connection.
+        
+        CRITICAL: Call this method before the event loop closes (e.g., at the end of 
+        asyncio.run() in Celery tasks). The async Redis client maintains connections
+        that are bound to a specific event loop. If not properly closed, subsequent
+        tasks using asyncio.run() will fail with "Event loop is closed" errors because
+        the cached client references a closed event loop.
+        
+        This method:
+        1. Gracefully closes the Redis connection pool
+        2. Resets the client reference so a new client can be created for the next event loop
+        """
+        if self._client is not None:
+            try:
+                await self._client.aclose()
+                logger.debug("Redis client connection closed successfully")
+            except Exception as e:
+                logger.warning(f"Error closing Redis client: {e}")
+            finally:
+                # Reset client reference so next task creates a fresh client
+                # bound to its own event loop
+                self._client = None
+                self._connection_error = False
 
     async def delete(self, key: str) -> bool:
         """Delete a value from cache"""
@@ -180,7 +233,7 @@ class CacheServiceBase:
         try:
             client = await self.client
             if not client:
-                logger.debug(f"Cache CLEAR skipped: client not connected.")
+                logger.debug("Cache CLEAR skipped: client not connected.")
                 return False
 
             if prefix:
@@ -213,7 +266,10 @@ class CacheServiceBase:
                 return False
             
             message = json.dumps(event_data)
-            logger.debug(f"Publishing to channel '{channel}': {message}")
+            logger.debug(
+                f"Publishing to channel '{channel}' "
+                f"(event_summary={_safe_cache_payload_summary(event_data)})"
+            )
             await client.publish(channel, message)
             return True
         except Exception as e:
@@ -233,9 +289,16 @@ class CacheServiceBase:
         
         try:
             while True:
-                # Listen for messages with a timeout to allow periodic checks or graceful shutdown
-                message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
-                if message and message.get("type") == "pmessage": # pmessage for psubscribe
+                # CRITICAL: Use shorter timeout (0.1s) for faster message processing
+                # This ensures chunks are forwarded immediately without delay
+                # The timeout is only for periodic checks, messages return immediately when available
+                message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=0.1)
+                if message:
+                    logger.debug(
+                        "DEBUG: Received message from Redis "
+                        f"(summary={_safe_cache_payload_summary(message)})"
+                    )
+                if message and message.get("type") in ["pmessage", "message"]: 
                     channel = message.get("channel")
                     if isinstance(channel, bytes):
                         channel = channel.decode('utf-8')
@@ -244,18 +307,28 @@ class CacheServiceBase:
                     if isinstance(data, bytes):
                         data = data.decode('utf-8')
                     
-                    logger.debug(f"Received message from Redis channel '{channel}': {data}")
+                    logger.debug(
+                        f"Received message from Redis channel '{channel}' "
+                        f"(data_summary={_safe_cache_payload_summary(data)})"
+                    )
                     try:
                         parsed_data = json.loads(data)
                         payload_to_yield = {"channel": channel, "data": parsed_data}
                         yield payload_to_yield
                     except json.JSONDecodeError as e_json:
-                        logger.error(f"Failed to parse JSON from message on channel '{channel}': {data}. Error: {e_json}", exc_info=True)
+                        logger.error(
+                            f"Failed to parse JSON from message on channel '{channel}' "
+                            f"(data_summary={_safe_cache_payload_summary(data)}). Error: {e_json}",
+                            exc_info=True,
+                        )
                         # Optionally yield an error message
                         yield {"channel": channel, "data": data, "error": "json_decode_error"}
                         
                 elif message:
-                    logger.debug(f"Received other type of message on pubsub: {message}")
+                    logger.debug(
+                        "Received other type of message on pubsub "
+                        f"(summary={_safe_cache_payload_summary(message)})"
+                    )
         except asyncio.CancelledError:
             logger.debug(f"Redis PubSub listener for pattern '{channel_pattern}' was cancelled.")
             raise # Re-raise for the main lifespan handler to catch
@@ -272,3 +345,87 @@ class CacheServiceBase:
                     await pubsub.close() # Ensure the pubsub connection is closed
                 except Exception as e_close:
                     logger.error(f"Error during pubsub close/unsubscribe for '{channel_pattern}': {e_close}")
+
+    async def execute_pipeline_operations(self, operations: List[tuple]) -> bool:
+        """
+        Execute multiple cache operations in a Redis pipeline for better performance.
+
+        Args:
+            operations: List of tuples (method_name, *args) representing cache operations
+
+        Returns:
+            bool: True if all operations succeeded, False otherwise
+        """
+        try:
+            client = await self.client
+            if not client:
+                logger.warning("Redis pipeline skipped: client not connected")
+                return False
+
+            # Create a pipeline
+            pipe = client.pipeline()
+
+            logger.debug(f"Executing {len(operations)} operations in Redis pipeline")
+
+            for operation in operations:
+                method_name = operation[0]
+                args = operation[1:]
+
+                # Map operation names to Redis commands based on cache service methods
+                if method_name == 'add_chat_to_ids_versions':
+                    # This is a sorted set operation: ZADD
+                    user_id, chat_id, timestamp = args
+                    key = f"{self.USER_CHATS_SET_PREFIX}:{user_id}"
+                    pipe.zadd(key, {chat_id: timestamp})
+
+                elif method_name == 'set_chat_versions':
+                    # This stores JSON data: HSET
+                    user_id, chat_id, versions = args
+                    key = f"chat_versions:{user_id}:{chat_id}"
+                    pipe.hset(key, mapping={
+                        "messages_v": versions.messages_v,
+                        "title_v": versions.title_v
+                    })
+
+                elif method_name == 'set_chat_version_component':
+                    # This stores a single field: HSET
+                    user_id, chat_id, component_key, version = args
+                    key = f"chat_versions:{user_id}:{chat_id}"
+                    pipe.hset(key, component_key, version)
+
+                elif method_name == 'set_chat_list_item' or method_name == 'set_chat_list_item_data':
+                    # This stores JSON data: SET
+                    user_id, chat_id, list_item = args
+                    key = f"chat_list:{user_id}:{chat_id}"
+                    pipe.set(key, json.dumps(list_item.model_dump()) if hasattr(list_item, 'model_dump') else json.dumps(list_item.__dict__))
+
+                elif method_name == 'update_user_draft_in_cache':
+                    # This stores draft data: HSET
+                    user_id, chat_id, content, version = args
+                    key = f"user_draft:{user_id}:{chat_id}"
+                    pipe.hset(key, mapping={
+                        "content": content or "",
+                        "version": version
+                    })
+
+                else:
+                    logger.warning(f"Unknown pipeline operation: {method_name}")
+                    continue
+
+            # Execute the pipeline
+            results = await pipe.execute()
+
+            # Check if all operations succeeded
+            success_count = sum(1 for result in results if result)
+            total_operations = len(operations)
+
+            if success_count == total_operations:
+                logger.debug(f"Redis pipeline completed successfully: {success_count}/{total_operations} operations")
+                return True
+            else:
+                logger.warning(f"Redis pipeline partial success: {success_count}/{total_operations} operations succeeded")
+                return False
+
+        except Exception as e:
+            logger.error(f"Redis pipeline execution error: {str(e)}", exc_info=True)
+            return False

@@ -1,0 +1,129 @@
+name_translation_key: events
+description_translation_key: events.description
+icon_image: |
+  events.svg
+category: personal
+last_updated: "2026-03-08"
+settings_and_memories: []
+instructions: []
+# Embed type definitions — single source of truth for frontend embed routing.
+embed_types:
+  - id: search
+    category: app-skill-use
+    skill_id: search
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: true
+    child_type: event
+    child_frontend_type: events-event
+    groupable: false
+    preview_component: events/EventsSearchEmbedPreview.svelte
+    fullscreen_component: events/EventsSearchEmbedFullscreen.svelte
+    child_preview_component: events/EventEmbedPreview.svelte
+    child_fullscreen_component: events/EventEmbedFullscreen.svelte
+    icon: search
+    gradient_var: "--color-app-events"
+    i18n_namespace: embeds.events.search
+skills:
+  - id: search
+    name_translation_key: events.search
+    description_translation_key: events.search.description
+    icon_image: search.svg
+    preprocessor_hint: >
+      Search for local or online events, meetups, hackathons, conferences, workshops,
+      networking events, or any community gathering. Use ONLY this skill for event searches
+      — do NOT additionally call web.search or any other search skill for the same query.
+      Use when user asks about events in a specific city, mentions wanting to attend a meetup,
+      or asks what is happening nearby on specific dates.
+      When the user mentions a city or location, default to PHYSICAL (in-person) events.
+      When the user explicitly asks for online or virtual events, use ONLINE filter.
+      Always limit results to 10 (default) unless the user explicitly requests more.
+      Do NOT retry with broader or alternative queries if results are empty or if there is a provider error.
+      Do NOT fall back to web.search after this skill returns an error — report the
+      error to the user instead.
+    stage: production
+    class_path: |
+      backend.apps.events.skills.search_skill.SearchSkill
+    pricing:
+      per_unit:
+        credits: 5
+    providers:
+      - Meetup
+      - Luma
+    # Follow-up suggestions shown to users after search results
+    suggestions_follow_up_requests:
+      - "Find more events this week"
+      - "Search events in another city"
+      - "Find online events"
+    # Fields to exclude from LLM inference (but keep in full results for UI rendering)
+    # Description can be long (1-5 KB) - exclude from LLM context to save tokens
+    exclude_fields_for_llm:
+      - "type"
+      - "hash"
+      - "description"
+      - "image_url"
+    tool_schema:
+      type: object
+      properties:
+        provider:
+          type: string
+          description: "The event provider to use. 'auto' (default) queries both Meetup and Luma in parallel for the best coverage."
+          enum:
+            - "auto"
+            - "Meetup"
+            - "Luma"
+        requests:
+          type: array
+          description: |
+            REQUIRED: Array of event search request objects for parallel processing.
+            This parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single search.
+            Example for single search: {"requests": [{"query": "AI", "location": "Berlin, Germany"}]}
+            Example for multiple searches: {"requests": [{"query": "AI", "location": "Berlin"}, {"query": "Python", "location": "Munich"}]}
+            Each object must contain 'query' and 'location' (or lat/lon). All other parameters are optional.
+            Note: The 'id' field is auto-generated if not provided.
+          items:
+            type: object
+            properties:
+              query:
+                type: string
+                description: >
+                  Topic or theme of events to search for (e.g. 'AI', 'Python', 'hackathon',
+                  'startup', 'networking'). Do NOT include platform or app names such as
+                  'meetup', 'luma', or 'eventbrite' — these are stripped automatically
+                  and reduce result quality.
+              location:
+                type: string
+                description: "City name or 'city, country' string (e.g. 'Berlin, Germany', 'New York', 'Paris'). Used if lat/lon are not provided."
+              lat:
+                type: number
+                description: "Latitude of search center (decimal degrees). Overrides location string if provided."
+              lon:
+                type: number
+                description: "Longitude of search center (decimal degrees). Overrides location string if provided."
+              start_date:
+                type: string
+                description: "Start of date range in ISO 8601 format. Include timezone if known (e.g. '2026-03-01T00:00:00+01:00[Europe/Berlin]'). If omitted, defaults to now."
+              end_date:
+                type: string
+                description: "End of date range in ISO 8601 format (same format as start_date). If omitted, no upper bound is applied."
+              event_type:
+                type: string
+                description: "Filter by event type. Use 'PHYSICAL' when user searches for events in a city (default for location-based searches). Use 'ONLINE' when user explicitly asks for virtual/online/remote events. Omit only when user wants both types."
+                enum:
+                  - "PHYSICAL"
+                  - "ONLINE"
+              radius_miles:
+                type: number
+                description: "Search radius in miles from the center coordinates (default: 25, ~40 km). Only applies to PHYSICAL events."
+                default: 25
+              count:
+                type: integer
+                description: "Maximum number of events to return (default: 10, max: 50). Use 10 unless the user asks for more results."
+                minimum: 1
+                maximum: 50
+                default: 10
+            required:
+              - query
+              - location
+      required:
+        - requests

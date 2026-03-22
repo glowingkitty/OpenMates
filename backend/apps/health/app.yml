@@ -1,103 +1,322 @@
-name: |
-  Health
-description: |
-  Everything to improve your health and well being.
+name_translation_key: health
+description_translation_key: health.description
 icon_image: |
   heart.svg
-icon_colorgradient:
-  start: |
-    #FD50A0
-  end: |
-    #F42C2D
-
-# IMPORTANT NOTE: only start implementing app user settings & memories for health app once end to end encryption is implemented for storing
-# settings_and_memories:
-#   - id: |
-#       recent_doctor_visits
-#     name: |
-#       Recent doctor visits
-#     description: |
-#       Details about your recent doctor visits.
-#     type: list
-#     schema:
-#       type: object
-#       properties:
-#         doctor_name: { type: string, description: "Name of the doctor" }
-#         visit_date: { type: string, format: date, description: "YYYY-MM-DD" }
-#         notes: { type: string, description: "Additional notes from the visit" }
-#       required: [doctor_name, visit_date]
-#   - id: |
-#      upcoming_appointments
-#   - id: |
-#      syptoms_history
-
+category: personal
+last_updated: "2025-11-12"
+# Embed type definitions — single source of truth for frontend embed routing.
+embed_types:
+  - id: search_appointments
+    category: app-skill-use
+    skill_id: search_appointments
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    preview_component: health/HealthSearchEmbedPreview.svelte
+    fullscreen_component: health/HealthSearchEmbedFullscreen.svelte
+    icon: heart
+    gradient_var: "--color-app-health"
+    i18n_namespace: embeds.health.search_appointments
+settings_and_memories:
+  - id: appointments
+    name_translation_key: health.appointments
+    description_translation_key: health.appointments.description
+    icon_image: calendar.svg
+    type: list
+    stage: production
+    example_translation_keys:
+      - "health.appointments.example_1"
+      - "health.appointments.example_2"
+    example_entries:
+      - appointment_type: "doctor_visit"
+        where: "health.appointments.example_1.where"
+        date: "2025-04-15"
+        notes: "health.appointments.example_1.notes"
+      - appointment_type: "dental"
+        where: "health.appointments.example_2.where"
+        date: "2025-05-20"
+        notes: "health.appointments.example_2.notes"
+    schema:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Auto-generated from type, where, and date
+          is_title: true
+          auto_generated: true
+        appointment_type:
+          type: string
+          enum:
+            - doctor_visit
+            - operation
+            - specialist
+            - dental
+            - eye_care
+            - therapy
+            - vaccination
+            - other
+          description: Type of appointment
+        where:
+          type: string
+          description: Doctor or clinic name
+        date:
+          type: string
+          format: date
+          description: YYYY-MM-DD
+        notes:
+          type: string
+          description: Optional notes (reason, location, contact, etc.)
+          multiline: true
+      required:
+        - appointment_type
+        - date
+  - id: medical_history
+    name_translation_key: health.medical_history
+    description_translation_key: health.medical_history.description
+    icon_image: heart.svg
+    type: list
+    stage: production
+    example_translation_keys:
+      - "health.medical_history.example_1"
+      - "health.medical_history.example_2"
+    example_entries:
+      - condition_type: "allergy"
+        name: "health.medical_history.example_1.name"
+        date: "2020-06-01"
+        details: "health.medical_history.example_1.details"
+      - condition_type: "vaccination"
+        name: "health.medical_history.example_2.name"
+        date: "2024-01-15"
+        details: "health.medical_history.example_2.details"
+    schema:
+      type: object
+      properties:
+        condition_type:
+          type: string
+          enum:
+            - surgery
+            - chronic_condition
+            - allergy
+            - medication
+            - vaccination
+            - injury
+            - other
+          description: Type of medical event
+        name:
+          type: string
+          description: Name of condition, medication, or surgery
+          is_title: true
+        date:
+          type: string
+          format: date
+          description: YYYY-MM-DD when it occurred or started
+        details:
+          type: string
+          description: Optional details (status, doctor, treatment notes)
+          multiline: true
+      required:
+        - condition_type
+        - name
+        - date
+  - id: symptoms_log
+    name_translation_key: health.symptoms_log
+    description_translation_key: health.symptoms_log.description
+    type: list
+    stage: planning
+    schema:
+      type: object
+      properties:
+        symptom:
+          type: string
+          description: Name of the symptom
+        date_onset:
+          type: string
+          format: date
+          description: YYYY-MM-DD when symptom started
+        severity:
+          type: string
+          enum:
+            - mild
+            - moderate
+            - severe
+          description: Severity level
+        frequency:
+          type: string
+          enum:
+            - occasional
+            - intermittent
+            - constant
+          description: How often it occurs
+        notes:
+          type: string
+          description: Additional details about the symptom
+          multiline: true
+      required:
+        - symptom
+        - date_onset
+  - id: sleep_diary
+    name_translation_key: health.sleep_diary
+    description_translation_key: health.sleep_diary.description
+    type: list
+    stage: planning
+    schema:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+          description: YYYY-MM-DD date of the sleep period (typically when sleep started)
+        bedtime:
+          type: string
+          format: time
+          description: HH:MM time when user went to bed in 24-hour format
+        wake_time:
+          type: string
+          format: time
+          description: HH:MM time when user woke up in 24-hour format
+        sleep_duration_hours:
+          type: number
+          description:
+            Total hours of sleep (can be calculated from bedtime/wake_time
+            or manually entered)
+        sleep_quality:
+          type: string
+          enum:
+            - poor
+            - fair
+            - good
+            - excellent
+          description: Overall sleep quality rating
+        notes:
+          type: string
+          description:
+            Additional notes about the sleep period (dreams, restlessness,
+            specific disturbances, etc.)
+          multiline: true
+      required:
+        - date
 skills:
-
-  # NOTE: Tested getting appointments with Doctolib, but reverse engineering the API is not easy.
-  # Website returns complex html document, no simple fetch requests.
-  # Also tested using director.ai (and of course since Doctolib's UI is so terrible, the AI takes ages to figure our how to search and also then doesn't )
-  # Idea: combine firecrawl, their API and director.ai / stagehand to get next available appointments and return those to user.
-
-  # Jameda: also not perfect, but at least with workaround should be possible to combine firecrawl + their API endpoints for finding available appointments.
-  - id: |
-      search_appointments
-    name: |
-      Search appointments
-    description: |
-      Searches for available doctor appointments based on your requirements.
-    stage: |
-      planning
-    class_path: |
-      skills.search_appointments.SearchAppointmentsSkill
+  - id: search_appointments
+    name_translation_key: app_skills.health.search_appointments
+    description_translation_key: app_skills.health.search_appointments.description
+    icon_image: calendar.svg
+    preprocessor_hint: >
+      Search for available doctor/specialist appointments by speciality and city.
+       Returns real-time availability with direct booking links. Costs 10 credits per search.
+    stage: production
+    class_path: backend.apps.health.skills.search_appointments_skill.SearchAppointmentsSkill
+    pricing:
+      per_unit:
+        credits: 10
+        unit_name: request
     providers:
-      - Jameda
       - Doctolib
+    exclude_fields_for_llm:
+      - type
+      - hash
+      - visit_motive_id
+      - agenda_id
+      - practice_id
+    suggestions_follow_up_requests:
+      - Filter for telehealth appointments only
+      - Search for private insurance options
+      - Find an earlier appointment
+      - Show doctors who speak English
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          description: >
+            Array of appointment search requests. Each request searches for
+            available doctor appointments for a given speciality and city.
+          items:
+            type: object
+            properties:
+              speciality:
+                type: string
+                description: >
+                  Doctor speciality or type. Supports German and English names.
+                  Examples: "augenarzt", "hautarzt", "allgemeinmedizin", "zahnarzt",
+                  "gynäkologie", "kardiologie", "orthopädie", "neurologie",
+                  "kinderarzt", "hno", "physiotherapie", "urologie",
+                  "ophthalmologist", "dermatologist", "general_practitioner",
+                  "dentist", "cardiologist", "neurologist", "pediatrician".
+              city:
+                type: string
+                description: >
+                  City where to search for appointments. Supports German and English
+                  city names. Examples: "Berlin", "München", "Munich", "Hamburg",
+                  "Köln", "Frankfurt", "Stuttgart", "Düsseldorf", "Dresden",
+                  "Leipzig", "Hannover", "Nürnberg", "Bonn", "Heidelberg".
+              provider_platform:
+                type: string
+                description: >
+                  Booking platform to search. Currently supported: "doctolib_de"
+                  (Doctolib Germany). Future: "jameda", "doctolib_fr", "zocdoc".
+                enum:
+                  - doctolib_de
+                default: doctolib_de
+              insurance_sector:
+                type: string
+                description: >
+                  Insurance type filter. "public" for gesetzliche Krankenversicherung
+                  (GKV), "private" for private Krankenversicherung (PKV).
+                  Omit to show results for all insurance types.
+                enum:
+                  - public
+                  - private
+              telehealth:
+                type: boolean
+                description: >
+                  If true, only return doctors offering telehealth (video consultation)
+                  appointments. Defaults to false.
+                default: false
+              language:
+                type: string
+                description: >
+                  Filter for doctors who speak a specific language.
+                  Language codes: "de" (German), "gb" (English), "ru" (Russian),
+                  "tr" (Turkish), "ar" (Arabic), "fr" (French), "es" (Spanish),
+                  "it" (Italian), "pl" (Polish), "ro" (Romanian), "zh" (Chinese).
+              days_ahead:
+                type: integer
+                description: >
+                  How many days ahead to search for appointments. Must be one of
+                  1, 3, 7, or 14 (Doctolib API constraint). Defaults to 7.
+                enum:
+                  - 1
+                  - 3
+                  - 7
+                  - 14
+                default: 7
+              max_doctors:
+                type: integer
+                description: >
+                  Maximum number of doctors to check for availability. Higher values
+                  return more results but take longer. Defaults to 10.
+                default: 10
+            required:
+              - speciality
+              - city
+      required:
+        - requests
 
-  - id: |
-      create_report
-    name: |
-      Create report
-    description: |
-      Create a report for the next doctor visit.
+  - id: create_report
+    name_translation_key: health.create_report
+    description_translation_key: health.create_report.description
+    stage: planning
 
 focuses:
-
-  - id: |
-      prepare_doctor_report
-    name: |
-      Prepare doctor report
-    description: |
-      Asks clearifying questions to then create a report for the next doctor appointment.
-      Including symptoms overview, previous doctor visits, previous tests and results 
-      (including links or QR codes and access instructions to access them) and data 
-      from health tracking / fitness tracking devices (Apple Watch for example).
-
-  - id: |
-      health_insights
-    name: |
-      Health insights
-    description: |
-      Get general health insights tailored to your questions, using multiple rounds
-      of questions. Will also help you to find out which doctor to consult for advice
-    stage: |
-      planning
-    process:
-      - ""
-    # systemprompt just an early placeholder. Nowhere near complete.
-    systemprompt: |
-      You are a health expert.
-
-  - id: |
-      prepare_doctor_appointment
-    name: |
-      Prepare doctor appointment
-    description: |
-      Prepare your next appointment, by discussing what symptoms & tests you should ask your doctor about and what previous test results to bring.
-    stage: |
-      planning
-    process:
-      - "discusses what symptoms one had in recent weeks and months, even if one doesn’t see connections between them"
-      - "discusses what test results / documents one should collect before the next appointment"
-    # systemprompt just an early placeholder. Nowhere near complete.
-    systemprompt: |
-      You are a health expert.
+  - id: prepare_doctor_report
+    name_translation_key: health.prepare_doctor_report
+    description_translation_key: health.prepare_doctor_report.description
+    stage: planning
+  - id: health_insights
+    name_translation_key: health.health_insights
+    description_translation_key: health.health_insights.description
+    stage: planning
+  - id: prepare_doctor_appointment
+    name_translation_key: health.prepare_doctor_appointment
+    description_translation_key: health.prepare_doctor_appointment.description
+    stage: planning

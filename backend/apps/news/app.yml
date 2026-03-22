@@ -1,0 +1,186 @@
+name_translation_key: news
+description_translation_key: news.description
+icon_image: |
+  news.svg
+category: personal
+last_updated: "2025-11-26"
+settings_and_memories: []
+instructions: []
+# Embed type definitions — single source of truth for frontend embed routing.
+embed_types:
+  - id: search
+    category: app-skill-use
+    skill_id: search
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: true
+    child_type: website
+    child_frontend_type: web-website
+    groupable: true
+    preview_component: news/NewsSearchEmbedPreview.svelte
+    fullscreen_component: news/NewsSearchEmbedFullscreen.svelte
+    child_preview_component: news/NewsEmbedPreview.svelte
+    child_fullscreen_component: news/NewsEmbedFullscreen.svelte
+    icon: search
+    gradient_var: "--color-app-news"
+    i18n_namespace: embeds.news.search
+skills:
+  - id: search
+    name_translation_key: news.search
+    description_translation_key: news.search.description
+    icon_image: search.svg
+    preprocessor_hint: >
+      Search for news articles, current events, headlines, announcements.
+    stage: production
+    class_path: |
+      backend.apps.news.skills.search_skill.SearchSkill
+    providers:
+      - Brave
+    # Follow-up suggestions shown to users after search results
+    suggestions_follow_up_requests:
+      - "Get more recent news"
+      - "Read full article"
+      - "Search related topics"
+    # Fields to exclude from LLM inference (but keep in full results for UI rendering)
+    # These fields are removed before adding to message history for LLM processing
+    # but remain in the full response stored in chat history for proper UI rendering
+    exclude_fields_for_llm:
+      - "type"
+      - "hash"
+      - "meta_url.favicon"
+      - "thumbnail.original"
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          description: |
+            REQUIRED: Array of search request objects for parallel processing (up to 5 requests). 
+            This parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single search.
+            Example for single search: {"requests": [{"query": "iPhone news"}]}
+            Example for multiple searches: {"requests": [{"query": "iPhone news"}, {"query": "MacBook news"}]}
+            Each object must contain 'query' (search query string), and can include optional parameters (count, country, search_lang, safesearch, freshness).
+            Note: The 'id' field is auto-generated if not provided - you don't need to include it.
+          items:
+            type: object
+            properties:
+              query:
+                type: string
+                description: Search query string
+              count:
+                type: integer
+                description: Number of results for this request (max 20)
+                minimum: 1
+                maximum: 20
+                default: 10
+              country:
+                type: string
+                description: "Country code for localized results. Must be one of: AR, AU, AT, BE, BR, CA, CL, DK, FI, FR, DE, GR, HK, IN, ID, IT, JP, KR, MY, MX, NL, NZ, NO, CN, PL, PT, PH, RU, SA, ZA, ES, SE, CH, TW, TR, GB, US, or ALL (case-insensitive). Defaults to 'us' if invalid."
+                enum:
+                  [
+                    "AR",
+                    "AU",
+                    "AT",
+                    "BE",
+                    "BR",
+                    "CA",
+                    "CL",
+                    "DK",
+                    "FI",
+                    "FR",
+                    "DE",
+                    "GR",
+                    "HK",
+                    "IN",
+                    "ID",
+                    "IT",
+                    "JP",
+                    "KR",
+                    "MY",
+                    "MX",
+                    "NL",
+                    "NZ",
+                    "NO",
+                    "CN",
+                    "PL",
+                    "PT",
+                    "PH",
+                    "RU",
+                    "SA",
+                    "ZA",
+                    "ES",
+                    "SE",
+                    "CH",
+                    "TW",
+                    "TR",
+                    "GB",
+                    "US",
+                    "ALL",
+                    "ar",
+                    "au",
+                    "at",
+                    "be",
+                    "br",
+                    "ca",
+                    "cl",
+                    "dk",
+                    "fi",
+                    "fr",
+                    "de",
+                    "gr",
+                    "hk",
+                    "in",
+                    "id",
+                    "it",
+                    "jp",
+                    "kr",
+                    "my",
+                    "mx",
+                    "nl",
+                    "nz",
+                    "no",
+                    "cn",
+                    "pl",
+                    "pt",
+                    "ph",
+                    "ru",
+                    "sa",
+                    "za",
+                    "es",
+                    "se",
+                    "ch",
+                    "tw",
+                    "tr",
+                    "gb",
+                    "us",
+                    "all",
+                  ]
+                default: "us"
+              search_lang:
+                type: string
+                description: Language code for search (ISO 639-1, e.g., 'en', 'es', 'fr')
+                default: "en"
+              safesearch:
+                type: string
+                description: Safe search level
+                enum: ["off", "moderate", "strict"]
+                default: "moderate"
+              freshness:
+                type: string
+                description: Filter by freshness - "pd" (past 24 hours), "pw" (past week), "pm" (past month), "py" (past year). Defaults to "pw" (past week) to prioritize recent news content.
+                enum: ["pd", "pw", "pm", "py"]
+                default: "pw"
+              filter_tabloids:
+                type: boolean
+                description: "Filter out tabloid/boulevard media sources (e.g., BILD, Daily Mail, TMZ, The Sun) from results. Enabled by default for quality news. Set to false ONLY if the user explicitly asks for tabloid sources."
+                default: true
+            required:
+              - query
+      required:
+        - requests
+focuses:
+  - id: understand_the_news
+    name_translation_key: news.understand_the_news
+    description_translation_key: news.understand_the_news.description
+    stage: planning
+      You are an expert news analyst. Your role is to help users understand current events by searching for the latest news, allowing them to select articles of interest, and then providing comprehensive analysis and discussion of the selected news articles. Your goal is for the user to have a broad understanding of the topic.

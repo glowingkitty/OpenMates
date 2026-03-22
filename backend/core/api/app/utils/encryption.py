@@ -5,16 +5,31 @@ import logging
 import uuid
 import time
 import hmac
-from typing import Tuple, Optional, Dict, Any, Union
-
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.backends import default_backend
-from cryptography.exceptions import InvalidTag
+from typing import Tuple, Optional, Dict, Any
 
 logger = logging.getLogger(__name__)
 
 # Vault transit key name for email HMAC
 EMAIL_HMAC_KEY_NAME = "email-hmac-key"
+# Vault transit key name for creator income encryption
+# This is a system-level key used to encrypt creator income credit amounts
+CREATOR_INCOME_ENCRYPTION_KEY = "creator_income"
+# Vault transit key name for newsletter email encryption
+# This is a system-level key used to encrypt newsletter subscriber email addresses
+NEWSLETTER_ENCRYPTION_KEY = "newsletter_emails"
+# Vault transit key name for support payment receipt encryption
+# This is a system-level key used to wrap support receipt AES keys for archival in S3.
+SUPPORT_PAYMENTS_ENCRYPTION_KEY = "support_payments"
+# Vault transit key name for issue report email encryption
+# This is a system-level key used to encrypt issue report contact email addresses
+ISSUE_REPORT_ENCRYPTION_KEY = "issue_report_emails"
+# Vault transit key name for debug request data encryption
+# This is a system-level key used to encrypt AI request debug data (last 10 requests)
+# for debugging purposes. Data auto-expires after 30 minutes.
+DEBUG_REQUESTS_ENCRYPTION_KEY = "debug_requests"
+# Vault transit key name for demo chat encryption
+# This is a system-level key used to encrypt approved demo chats for all users.
+DEMO_CHATS_ENCRYPTION_KEY = "demo_chats"
 # Note: All chat and draft encryption now happens client-side
 # Server-side encryption methods removed for zero-knowledge architecture
 
@@ -59,6 +74,16 @@ class EncryptionService:
                 logger.debug(f"EncryptionService.__init__: Loaded token from VAULT_TOKEN env var: {self.vault_token[:4]}...{self.vault_token[-4:] if len(self.vault_token) >=8 else '****'}")
             else:
                 logger.error("EncryptionService.__init__: CRITICAL - NO VAULT TOKEN LOADED from file or VAULT_TOKEN env var.")
+    
+    def _clear_token_cache(self):
+        """Clear the cached token to force re-reading from file.
+        
+        This should be called when the current token is invalid (expired or revoked)
+        to ensure we read the latest token from disk that vault-setup may have regenerated.
+        """
+        if hasattr(self, '_cached_file_token'):
+            self._cached_file_token = None
+            logger.debug("_clear_token_cache: Cleared cached file token")
     
     def _get_token_from_file(self):
         """Try to read the token from the file created by vault-setup"""
@@ -128,7 +153,10 @@ class EncryptionService:
             logger.warning(f"_validate_token: Current token {current_token_display} validation failed: {response.status_code} - {response.text}")
             
             # If the current token failed, try to get a fresh one from the file
+            # CRITICAL: Clear the token cache first so we actually re-read from disk
+            # vault-setup may have regenerated a new token after the old one expired
             logger.debug("_validate_token: Attempting to refresh token from file.")
+            self._clear_token_cache()  # Force re-read from file
             file_token = self._get_token_from_file() # This will log if it finds a token
             if file_token and file_token != self.vault_token:
                 logger.debug(f"_validate_token: Found different token in file. Old: {current_token_display}, New from file: {file_token[:4]}...{file_token[-4:] if len(file_token) >= 8 else '****'}. Updating and retrying validation.")
@@ -188,7 +216,14 @@ class EncryptionService:
         return False
     
     async def _vault_request(self, method: str, path: str, data: Dict[str, Any] = None) -> Dict[str, Any]:
-        """Make a request to the Vault API with enhanced error handling and retry logic"""
+        """Make a request to the Vault API with enhanced error handling and retry logic.
+        
+        On 401/403 errors (token expired or revoked), automatically attempts to refresh
+        the token from the file on disk (which vault-setup may have regenerated) and
+        retries the request once. This handles the scenario where vault-setup creates
+        a new token after the old one expires, but the API is still using the old one
+        in memory.
+        """
         url = f"{self.vault_url}/v1/{path}"
         
         # Only do full validation if we don't have a cached result
@@ -201,39 +236,79 @@ class EncryptionService:
         
         active_token_display = f"{self.vault_token[:4]}...{self.vault_token[-4:]}" if self.vault_token and len(self.vault_token) >= 8 else "****"
         logger.debug(f"_vault_request: Making {method.upper()} request to {path} using token {active_token_display}")
-        headers = {"X-Vault-Token": self.vault_token}
         
-        try:
-            # Make the request using a context manager
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                if method.lower() == "get":
-                    response = await client.get(url, headers=headers)
-                else:  # POST
-                    response = await client.post(url, headers=headers, json=data)
+        # Attempt the request, with one automatic retry on auth failure (token expired/revoked)
+        for attempt in range(2):
+            headers = {"X-Vault-Token": self.vault_token}
+            response = None  # Initialize so except block can safely check it
             
-            # Check for common error statuses
-            if response.status_code == 403:
-                logger.error(f"Vault permission denied for {method.upper()} on {path}. Response: {response.text}")
-                # Reset token validation cache on permission error
-                self._token_valid_until = 0
-                raise Exception(f"Permission denied in Vault for {method.upper()} on {path}")
-            elif response.status_code == 404:
-                # Not necessarily an error if checking if something exists
-                logger.debug(f"Vault resource not found: {path}")
-                return {"data": {}}
-            elif response.status_code == 401:
-                logger.warning(f"Vault token expired or invalid")
-                # Reset token validation cache
-                self._token_valid_until = 0
-                raise Exception(f"Vault token is expired or invalid")
-            elif response.status_code != 200:
-                logger.error(f"Vault request failed: {response.status_code}")
-                raise Exception(f"Vault request failed with status {response.status_code}")
-            
-            return response.json()
-        except Exception as e:
-            logger.error(f"Error in Vault request: {str(e)}")
-            raise
+            try:
+                # Make the request using a context manager
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    if method.lower() == "get":
+                        response = await client.get(url, headers=headers)
+                    else:  # POST
+                        response = await client.post(url, headers=headers, json=data)
+                
+                # Check for common error statuses
+                if response.status_code in (401, 403):
+                    # Token expired or revoked — try to refresh from file and retry once
+                    if attempt == 0:
+                        logger.warning(
+                            f"Vault {response.status_code} for {method.upper()} on {path} "
+                            f"(token {active_token_display}). Attempting token refresh from file..."
+                        )
+                        # Reset validation cache and clear cached file token to force re-read from disk
+                        self._token_valid_until = 0
+                        self._clear_token_cache()
+                        
+                        # Re-validate will re-read the token file from disk
+                        if await self._validate_token():
+                            new_token_display = f"{self.vault_token[:4]}...{self.vault_token[-4:]}" if self.vault_token and len(self.vault_token) >= 8 else "****"
+                            logger.info(
+                                f"Token refreshed from file ({active_token_display} -> {new_token_display}). "
+                                f"Retrying {method.upper()} on {path}..."
+                            )
+                            active_token_display = new_token_display
+                            continue  # Retry with the new token
+                        else:
+                            logger.error(
+                                "Token refresh failed — file token is also invalid. "
+                                "Vault-setup may need to regenerate the API token."
+                            )
+                    
+                    # Second attempt also failed, or token refresh itself failed
+                    if response.status_code == 403:
+                        logger.error(f"Vault permission denied for {method.upper()} on {path}. Response: {response.text}")
+                        raise Exception(f"Permission denied in Vault for {method.upper()} on {path}")
+                    else:
+                        logger.error(f"Vault token expired or invalid for {method.upper()} on {path}")
+                        raise Exception("Vault token is expired or invalid")
+                    
+                elif response.status_code == 404:
+                    # Not necessarily an error if checking if something exists
+                    logger.debug(f"Vault resource not found: {path}")
+                    return {"data": {}}
+                elif response.status_code != 200:
+                    logger.error(
+                        f"Vault request failed: {response.status_code} for {method.upper()} {path}. Response: {response.text}"
+                    )
+                    raise Exception(f"Vault request failed with status {response.status_code}")
+                
+                return response.json()
+            except Exception as e:
+                # Only re-raise if this is the last attempt or not an auth error
+                if attempt == 1 or "Permission denied" in str(e) or "expired" in str(e):
+                    logger.error(f"Error in Vault request ({method.upper()} {path}): {str(e)}")
+                    raise
+                # For non-auth errors on first attempt, also raise immediately.
+                # If response was never assigned (e.g., connection error), raise immediately
+                # since there's no auth status to retry on.
+                if response is None or response.status_code not in (401, 403):
+                    raise
+        
+        # Should not reach here, but just in case
+        raise Exception(f"Vault request failed after retries for {method.upper()} on {path}")
     
     # Initialize token specifically at startup
     async def initialize(self):
@@ -252,7 +327,61 @@ class EncryptionService:
         else:
             logger.warning("Failed to initialize encryption service with valid token")
             return False
-    
+
+    async def renew_token(self) -> bool:
+        """Renew the current Vault token using auth/token/renew-self.
+
+        Vault tokens created with `renewable: true` can be renewed before they expire.
+        This extends the token TTL by the original TTL (up to the max TTL configured in Vault).
+        Requires the api-service policy to grant 'update' on 'auth/token/renew-self'.
+
+        Returns:
+            True if renewal succeeded, False otherwise.
+        """
+        try:
+            masked = f"{self.vault_token[:4]}...{self.vault_token[-4:]}" if self.vault_token and len(self.vault_token) >= 8 else "****"
+            logger.info(f"Attempting to renew Vault token {masked}...")
+            result = await self._vault_request("post", "auth/token/renew-self", {})
+            new_ttl = result.get("auth", {}).get("lease_duration", 0)
+            new_days = new_ttl / 86400
+            logger.info(f"Vault token renewed successfully. New TTL: {new_days:.1f} days")
+            # Clear the validation cache so the next validation picks up the refreshed TTL
+            self._token_valid_until = 0
+            return True
+        except Exception as e:
+            logger.error(f"Vault token renewal failed: {e}. Token will expire at its original TTL.")
+            return False
+
+    async def token_renewal_loop(self, renewal_interval_days: float = 7.0):
+        """Background loop that proactively renews the Vault token every N days.
+
+        This prevents the 1-year token from silently expiring while the API is running.
+        If renewal fails (e.g., Vault is temporarily unreachable), it logs an error and
+        retries on the next interval — it does NOT crash the service.
+
+        The loop runs forever and is designed to be launched as an asyncio background task
+        at API startup via: asyncio.create_task(encryption_service.token_renewal_loop())
+
+        Args:
+            renewal_interval_days: How often to renew. Default 7 days — well within the
+                                   1-year token TTL, so there is no risk of expiry between renewals.
+        """
+        import asyncio as _asyncio
+        renewal_interval_seconds = renewal_interval_days * 86400
+        logger.info(
+            f"Starting Vault token auto-renewal loop. "
+            f"Will renew every {renewal_interval_days:.0f} days."
+        )
+        while True:
+            await _asyncio.sleep(renewal_interval_seconds)
+            success = await self.renew_token()
+            if not success:
+                logger.warning(
+                    "Vault token renewal failed. Will retry in "
+                    f"{renewal_interval_days:.0f} days. "
+                    "If this keeps failing, logins will break when the token expires."
+                )
+
     async def ensure_keys_exist(self):
         """Ensure encryption engine is enabled in Vault with improved error handling"""
         # Check if the transit engine is enabled
@@ -274,11 +403,11 @@ class EncryptionService:
                         "type": "transit",
                         "description": "Encryption as a service for OpenMates"
                     })
-                    logger.debug(f"Successfully enabled transit engine")
+                    logger.debug("Successfully enabled transit engine")
                 except Exception as mount_error:
                     # Check if it's already mounted (race condition)
                     if "already in use" in str(mount_error).lower():
-                        logger.debug(f"Transit engine was already mounted by another process")
+                        logger.debug("Transit engine was already mounted by another process")
                     else:
                         raise
         except Exception as e:
@@ -326,6 +455,314 @@ class EncryptionService:
         except Exception as e:
             logger.error(f"Failed to ensure email HMAC key exists: {str(e)}")
             raise Exception(f"Failed to initialize email HMAC key: {str(e)}")
+
+        # --- Ensure SHARED_CONTENT_METADATA_KEY exists in transit engine ---
+        # This key is used for encrypting shared chat/embed metadata for OG tag generation
+        SHARED_CONTENT_METADATA_KEY_NAME = "shared-content-metadata"
+        try:
+            logger.debug(f"Checking for shared content metadata key '{SHARED_CONTENT_METADATA_KEY_NAME}' in transit engine...")
+            key_exists = False
+            try:
+                # Check if key exists by attempting to read its configuration
+                response = await self._vault_request("get", f"{self.transit_mount}/keys/{SHARED_CONTENT_METADATA_KEY_NAME}")
+                # If the response has data (not just the default {"data": {}} from 404 handling), the key exists.
+                if response and response.get("data") and response["data"].get("name") == SHARED_CONTENT_METADATA_KEY_NAME:
+                    key_exists = True
+                    logger.debug(f"Shared content metadata key '{SHARED_CONTENT_METADATA_KEY_NAME}' already exists.")
+                else:
+                    # This case handles 404 or unexpected empty data
+                    logger.debug(f"Shared content metadata key '{SHARED_CONTENT_METADATA_KEY_NAME}' not found.")
+            except Exception as e:
+                 # Log error during check, but proceed assuming key might not exist
+                 logger.warning(f"Error checking for shared content metadata key '{SHARED_CONTENT_METADATA_KEY_NAME}': {str(e)}. Assuming it might not exist.")
+                 key_exists = False # Ensure we try to create if check failed
+
+            # If key does not exist, create it
+            if not key_exists:
+                 logger.debug(f"Attempting to create shared content metadata key '{SHARED_CONTENT_METADATA_KEY_NAME}'...")
+                 try:
+                     # Create the key (non-derived, since it's shared across all users)
+                     await self._vault_request("post", f"{self.transit_mount}/keys/{SHARED_CONTENT_METADATA_KEY_NAME}", {
+                         "type": "aes256-gcm96", # AES with GCM mode for authenticated encryption
+                         "allow_plaintext_backup": False # Good practice
+                     })
+                     logger.debug(f"Successfully created shared content metadata key '{SHARED_CONTENT_METADATA_KEY_NAME}'.")
+                 except Exception as create_error:
+                     # Handle potential race condition if another instance created it
+                     if "already exists" in str(create_error).lower():
+                         logger.debug(f"Shared content metadata key '{SHARED_CONTENT_METADATA_KEY_NAME}' was created by another process.")
+                     else:
+                         logger.error(f"Failed to create shared content metadata key '{SHARED_CONTENT_METADATA_KEY_NAME}': {str(create_error)}")
+                         raise Exception(f"Failed to initialize shared content metadata key: {str(create_error)}")
+
+        except Exception as e:
+            logger.error(f"Failed to ensure shared content metadata key exists: {str(e)}")
+            raise Exception(f"Failed to initialize shared content metadata key: {str(e)}")
+
+        # --- Ensure CREATOR_INCOME_ENCRYPTION_KEY exists in transit engine ---
+        # This key is used for encrypting creator income credit amounts for privacy
+        try:
+            logger.debug(f"Checking for creator income encryption key '{CREATOR_INCOME_ENCRYPTION_KEY}' in transit engine...")
+            key_exists = False
+            try:
+                # Check if key exists by attempting to read its configuration
+                response = await self._vault_request("get", f"{self.transit_mount}/keys/{CREATOR_INCOME_ENCRYPTION_KEY}")
+                # If the response has data (not just the default {"data": {}} from 404 handling), the key exists.
+                if response and response.get("data") and response["data"].get("name") == CREATOR_INCOME_ENCRYPTION_KEY:
+                    key_exists = True
+                    logger.debug(f"Creator income encryption key '{CREATOR_INCOME_ENCRYPTION_KEY}' already exists.")
+                else:
+                    # This case handles 404 or unexpected empty data
+                    logger.debug(f"Creator income encryption key '{CREATOR_INCOME_ENCRYPTION_KEY}' not found.")
+            except Exception as e:
+                 # Log error during check, but proceed assuming key might not exist
+                 logger.warning(f"Error checking for creator income encryption key '{CREATOR_INCOME_ENCRYPTION_KEY}': {str(e)}. Assuming it might not exist.")
+                 key_exists = False # Ensure we try to create if check failed
+
+            # If key does not exist, create it
+            if not key_exists:
+                 logger.debug(f"Attempting to create creator income encryption key '{CREATOR_INCOME_ENCRYPTION_KEY}'...")
+                 try:
+                     # Create the key (non-derived, since it's a system-level key for all creator income)
+                     await self._vault_request("post", f"{self.transit_mount}/keys/{CREATOR_INCOME_ENCRYPTION_KEY}", {
+                         "type": "aes256-gcm96", # AES with GCM mode for authenticated encryption
+                         "allow_plaintext_backup": False # Good practice
+                     })
+                     logger.debug(f"Successfully created creator income encryption key '{CREATOR_INCOME_ENCRYPTION_KEY}'.")
+                 except Exception as create_error:
+                     # Handle potential race condition if another instance created it
+                     if "already exists" in str(create_error).lower():
+                         logger.debug(f"Creator income encryption key '{CREATOR_INCOME_ENCRYPTION_KEY}' was created by another process.")
+                     else:
+                         logger.error(f"Failed to create creator income encryption key '{CREATOR_INCOME_ENCRYPTION_KEY}': {str(create_error)}")
+                         raise Exception(f"Failed to initialize creator income encryption key: {str(create_error)}")
+
+        except Exception as e:
+            logger.error(f"Failed to ensure creator income encryption key exists: {str(e)}")
+            raise Exception(f"Failed to initialize creator income encryption key: {str(e)}")
+
+        # --- Ensure NEWSLETTER_ENCRYPTION_KEY exists in transit engine ---
+        # This key is used for encrypting newsletter subscriber email addresses for privacy
+        try:
+            logger.debug(f"Checking for newsletter encryption key '{NEWSLETTER_ENCRYPTION_KEY}' in transit engine...")
+            key_exists = False
+            try:
+                # Check if key exists by attempting to read its configuration
+                response = await self._vault_request("get", f"{self.transit_mount}/keys/{NEWSLETTER_ENCRYPTION_KEY}")
+                # If the response has data (not just the default {"data": {}} from 404 handling), the key exists.
+                if response and response.get("data") and response["data"].get("name") == NEWSLETTER_ENCRYPTION_KEY:
+                    key_exists = True
+                    logger.debug(f"Newsletter encryption key '{NEWSLETTER_ENCRYPTION_KEY}' already exists.")
+                else:
+                    # This case handles 404 or unexpected empty data
+                    logger.debug(f"Newsletter encryption key '{NEWSLETTER_ENCRYPTION_KEY}' not found.")
+            except Exception as e:
+                 # Log error during check, but proceed assuming key might not exist
+                 logger.warning(f"Error checking for newsletter encryption key '{NEWSLETTER_ENCRYPTION_KEY}': {str(e)}. Assuming it might not exist.")
+                 key_exists = False # Ensure we try to create if check failed
+
+            # If key does not exist, create it
+            if not key_exists:
+                 logger.debug(f"Attempting to create newsletter encryption key '{NEWSLETTER_ENCRYPTION_KEY}'...")
+                 try:
+                     # Create the key (non-derived, since it's a system-level key for all newsletter emails)
+                     await self._vault_request("post", f"{self.transit_mount}/keys/{NEWSLETTER_ENCRYPTION_KEY}", {
+                         "type": "aes256-gcm96", # AES with GCM mode for authenticated encryption
+                         "allow_plaintext_backup": False # Good practice
+                     })
+                     logger.debug(f"Successfully created newsletter encryption key '{NEWSLETTER_ENCRYPTION_KEY}'.")
+                 except Exception as create_error:
+                     # Handle potential race condition if another instance created it
+                     if "already exists" in str(create_error).lower():
+                         logger.debug(f"Newsletter encryption key '{NEWSLETTER_ENCRYPTION_KEY}' was created by another process.")
+                     else:
+                         logger.error(f"Failed to create newsletter encryption key '{NEWSLETTER_ENCRYPTION_KEY}': {str(create_error)}")
+                         raise Exception(f"Failed to initialize newsletter encryption key: {str(create_error)}")
+
+        except Exception as e:
+            logger.error(f"Failed to ensure newsletter encryption key exists: {str(e)}")
+            raise Exception(f"Failed to initialize newsletter encryption key: {str(e)}")
+
+        # --- Ensure SUPPORT_PAYMENTS_ENCRYPTION_KEY exists in transit engine ---
+        # This key is used for encrypting support payment receipt archive keys (system-level, not user-specific).
+        try:
+            logger.debug(f"Checking for support payments encryption key '{SUPPORT_PAYMENTS_ENCRYPTION_KEY}' in transit engine...")
+            key_exists = False
+            try:
+                response = await self._vault_request("get", f"{self.transit_mount}/keys/{SUPPORT_PAYMENTS_ENCRYPTION_KEY}")
+                if response and response.get("data") and response["data"].get("name") == SUPPORT_PAYMENTS_ENCRYPTION_KEY:
+                    key_exists = True
+                    logger.debug(f"Support payments encryption key '{SUPPORT_PAYMENTS_ENCRYPTION_KEY}' already exists.")
+                else:
+                    logger.debug(f"Support payments encryption key '{SUPPORT_PAYMENTS_ENCRYPTION_KEY}' not found.")
+            except Exception as e:
+                logger.warning(
+                    f"Error checking for support payments encryption key '{SUPPORT_PAYMENTS_ENCRYPTION_KEY}': {str(e)}. "
+                    f"Assuming it might not exist."
+                )
+                key_exists = False
+
+            if not key_exists:
+                logger.debug(f"Attempting to create support payments encryption key '{SUPPORT_PAYMENTS_ENCRYPTION_KEY}'...")
+                try:
+                    await self._vault_request(
+                        "post",
+                        f"{self.transit_mount}/keys/{SUPPORT_PAYMENTS_ENCRYPTION_KEY}",
+                        {
+                            "type": "aes256-gcm96",
+                            "allow_plaintext_backup": False,
+                        },
+                    )
+                    logger.debug(f"Successfully created support payments encryption key '{SUPPORT_PAYMENTS_ENCRYPTION_KEY}'.")
+                except Exception as create_error:
+                    if "already exists" in str(create_error).lower():
+                        logger.debug(
+                            f"Support payments encryption key '{SUPPORT_PAYMENTS_ENCRYPTION_KEY}' was created by another process."
+                        )
+                    else:
+                        logger.error(
+                            f"Failed to create support payments encryption key '{SUPPORT_PAYMENTS_ENCRYPTION_KEY}': {str(create_error)}"
+                        )
+                        raise Exception(f"Failed to initialize support payments encryption key: {str(create_error)}")
+        except Exception as e:
+            logger.error(f"Failed to ensure support payments encryption key exists: {str(e)}")
+            raise Exception(f"Failed to initialize support payments encryption key: {str(e)}")
+
+        # --- Ensure ISSUE_REPORT_ENCRYPTION_KEY exists in transit engine ---
+        # This key is used for encrypting issue report contact email addresses (system-level, not user-specific).
+        try:
+            logger.debug(f"Checking for issue report encryption key '{ISSUE_REPORT_ENCRYPTION_KEY}' in transit engine...")
+            key_exists = False
+            try:
+                response = await self._vault_request("get", f"{self.transit_mount}/keys/{ISSUE_REPORT_ENCRYPTION_KEY}")
+                if response and response.get("data") and response["data"].get("name") == ISSUE_REPORT_ENCRYPTION_KEY:
+                    key_exists = True
+                    logger.debug(f"Issue report encryption key '{ISSUE_REPORT_ENCRYPTION_KEY}' already exists.")
+                else:
+                    logger.debug(f"Issue report encryption key '{ISSUE_REPORT_ENCRYPTION_KEY}' not found.")
+            except Exception as e:
+                logger.warning(
+                    f"Error checking for issue report encryption key '{ISSUE_REPORT_ENCRYPTION_KEY}': {str(e)}. "
+                    f"Assuming it might not exist."
+                )
+                key_exists = False
+
+            if not key_exists:
+                logger.debug(f"Attempting to create issue report encryption key '{ISSUE_REPORT_ENCRYPTION_KEY}'...")
+                try:
+                    await self._vault_request(
+                        "post",
+                        f"{self.transit_mount}/keys/{ISSUE_REPORT_ENCRYPTION_KEY}",
+                        {
+                            "type": "aes256-gcm96",
+                            "allow_plaintext_backup": False,
+                        },
+                    )
+                    logger.debug(f"Successfully created issue report encryption key '{ISSUE_REPORT_ENCRYPTION_KEY}'.")
+                except Exception as create_error:
+                    if "already exists" in str(create_error).lower():
+                        logger.debug(
+                            f"Issue report encryption key '{ISSUE_REPORT_ENCRYPTION_KEY}' was created by another process."
+                        )
+                    else:
+                        logger.error(
+                            f"Failed to create issue report encryption key '{ISSUE_REPORT_ENCRYPTION_KEY}': {str(create_error)}"
+                        )
+                        raise Exception(f"Failed to initialize issue report encryption key: {str(create_error)}")
+        except Exception as e:
+            logger.error(f"Failed to ensure issue report encryption key exists: {str(e)}")
+            raise Exception(f"Failed to initialize issue report encryption key: {str(e)}")
+
+        # --- Ensure DEBUG_REQUESTS_ENCRYPTION_KEY exists in transit engine ---
+        # This key is used for encrypting AI request debug data (preprocessor/main/postprocessor
+        # input/output) for debugging purposes. Data auto-expires after 30 minutes.
+        try:
+            logger.debug(f"Checking for debug requests encryption key '{DEBUG_REQUESTS_ENCRYPTION_KEY}' in transit engine...")
+            key_exists = False
+            try:
+                response = await self._vault_request("get", f"{self.transit_mount}/keys/{DEBUG_REQUESTS_ENCRYPTION_KEY}")
+                if response and response.get("data") and response["data"].get("name") == DEBUG_REQUESTS_ENCRYPTION_KEY:
+                    key_exists = True
+                    logger.debug(f"Debug requests encryption key '{DEBUG_REQUESTS_ENCRYPTION_KEY}' already exists.")
+                else:
+                    logger.debug(f"Debug requests encryption key '{DEBUG_REQUESTS_ENCRYPTION_KEY}' not found.")
+            except Exception as e:
+                logger.warning(
+                    f"Error checking for debug requests encryption key '{DEBUG_REQUESTS_ENCRYPTION_KEY}': {str(e)}. "
+                    f"Assuming it might not exist."
+                )
+                key_exists = False
+
+            if not key_exists:
+                logger.debug(f"Attempting to create debug requests encryption key '{DEBUG_REQUESTS_ENCRYPTION_KEY}'...")
+                try:
+                    await self._vault_request(
+                        "post",
+                        f"{self.transit_mount}/keys/{DEBUG_REQUESTS_ENCRYPTION_KEY}",
+                        {
+                            "type": "aes256-gcm96",
+                            "allow_plaintext_backup": False,
+                        },
+                    )
+                    logger.debug(f"Successfully created debug requests encryption key '{DEBUG_REQUESTS_ENCRYPTION_KEY}'.")
+                except Exception as create_error:
+                    if "already exists" in str(create_error).lower():
+                        logger.debug(
+                            f"Debug requests encryption key '{DEBUG_REQUESTS_ENCRYPTION_KEY}' was created by another process."
+                        )
+                    else:
+                        logger.error(
+                            f"Failed to create debug requests encryption key '{DEBUG_REQUESTS_ENCRYPTION_KEY}': {str(create_error)}"
+                        )
+                        raise Exception(f"Failed to initialize debug requests encryption key: {str(create_error)}")
+        except Exception as e:
+            logger.error(f"Failed to ensure debug requests encryption key exists: {str(e)}")
+            raise Exception(f"Failed to initialize debug requests encryption key: {str(e)}")
+
+        # --- Ensure DEMO_CHATS_ENCRYPTION_KEY exists in transit engine ---
+        # This key is used for encrypting translated demo chats (system-level).
+        try:
+            logger.debug(f"Checking for demo chats encryption key '{DEMO_CHATS_ENCRYPTION_KEY}' in transit engine...")
+            key_exists = False
+            try:
+                response = await self._vault_request("get", f"{self.transit_mount}/keys/{DEMO_CHATS_ENCRYPTION_KEY}")
+                if response and response.get("data") and response["data"].get("name") == DEMO_CHATS_ENCRYPTION_KEY:
+                    key_exists = True
+                    logger.debug(f"Demo chats encryption key '{DEMO_CHATS_ENCRYPTION_KEY}' already exists.")
+                else:
+                    logger.debug(f"Demo chats encryption key '{DEMO_CHATS_ENCRYPTION_KEY}' not found.")
+            except Exception as e:
+                logger.warning(
+                    f"Error checking for demo chats encryption key '{DEMO_CHATS_ENCRYPTION_KEY}': {str(e)}. "
+                    f"Assuming it might not exist."
+                )
+                key_exists = False
+
+            if not key_exists:
+                logger.debug(f"Attempting to create demo chats encryption key '{DEMO_CHATS_ENCRYPTION_KEY}'...")
+                try:
+                    await self._vault_request(
+                        "post",
+                        f"{self.transit_mount}/keys/{DEMO_CHATS_ENCRYPTION_KEY}",
+                        {
+                            "type": "aes256-gcm96",
+                            "allow_plaintext_backup": False,
+                        },
+                    )
+                    logger.debug(f"Successfully created demo chats encryption key '{DEMO_CHATS_ENCRYPTION_KEY}'.")
+                except Exception as create_error:
+                    if "already exists" in str(create_error).lower():
+                        logger.debug(
+                            f"Demo chats encryption key '{DEMO_CHATS_ENCRYPTION_KEY}' was created by another process."
+                        )
+                    else:
+                        logger.error(
+                            f"Failed to create demo chats encryption key '{DEMO_CHATS_ENCRYPTION_KEY}': {str(create_error)}"
+                        )
+                        raise Exception(f"Failed to initialize demo chats encryption key: {str(create_error)}")
+        except Exception as e:
+            logger.error(f"Failed to ensure demo chats encryption key exists: {str(e)}")
+            raise Exception(f"Failed to initialize demo chats encryption key: {str(e)}")
 
     # Removed get_email_hash_key method
 
@@ -381,6 +818,169 @@ class EncryptionService:
         # Use the user's specific key for decryption with context
         return await self.decrypt(ciphertext, key_name=key_id, context=context)
     
+    async def encrypt_newsletter_email(self, email: str) -> str:
+        """
+        Encrypt newsletter subscriber email using the system-level newsletter encryption key.
+        
+        Args:
+            email: Plaintext email address
+            
+        Returns:
+            Encrypted email address (ciphertext)
+        """
+        if not email:
+            return ""
+        
+        ciphertext, _ = await self.encrypt(email, key_name=NEWSLETTER_ENCRYPTION_KEY)
+        return ciphertext
+    
+    async def decrypt_newsletter_email(self, encrypted_email: str) -> Optional[str]:
+        """
+        Decrypt newsletter subscriber email using the system-level newsletter encryption key.
+        
+        Args:
+            encrypted_email: Encrypted email address (ciphertext)
+            
+        Returns:
+            Decrypted email address or None if decryption fails
+        """
+        if not encrypted_email:
+            return None
+        
+        return await self.decrypt(encrypted_email, key_name=NEWSLETTER_ENCRYPTION_KEY)
+    
+    async def encrypt_newsletter_token(self, token: str) -> str:
+        """
+        Encrypt a newsletter unsubscribe token using server-side encryption.
+        
+        This uses the same encryption key as newsletter emails (NEWSLETTER_ENCRYPTION_KEY)
+        to ensure consistent security for all newsletter-related data.
+        
+        Args:
+            token: Plaintext unsubscribe token
+            
+        Returns:
+            Encrypted token (base64-encoded ciphertext with vault:v1: prefix)
+        """
+        if not token:
+            return ""
+        
+        ciphertext, _ = await self.encrypt(token, key_name=NEWSLETTER_ENCRYPTION_KEY)
+        return ciphertext
+    
+    async def decrypt_newsletter_token(self, encrypted_token: str) -> Optional[str]:
+        """
+        Decrypt a newsletter unsubscribe token.
+        
+        Args:
+            encrypted_token: Encrypted unsubscribe token (base64-encoded ciphertext)
+            
+        Returns:
+            Decrypted token (plaintext) or None if decryption fails
+        """
+        if not encrypted_token:
+            return None
+        
+        return await self.decrypt(encrypted_token, key_name=NEWSLETTER_ENCRYPTION_KEY)
+    
+    async def encrypt_issue_report_email(self, email: str) -> str:
+        """
+        Encrypt issue report contact email using the system-level issue report encryption key.
+        
+        Args:
+            email: Plaintext email address
+            
+        Returns:
+            Encrypted email address (ciphertext)
+        """
+        if not email:
+            return ""
+        
+        ciphertext, _ = await self.encrypt(email, key_name=ISSUE_REPORT_ENCRYPTION_KEY)
+        return ciphertext
+    
+    async def decrypt_issue_report_email(self, encrypted_email: str) -> Optional[str]:
+        """
+        Decrypt issue report contact email using the system-level issue report encryption key.
+        
+        Args:
+            encrypted_email: Encrypted email address (ciphertext)
+            
+        Returns:
+            Decrypted email address or None if decryption fails
+        """
+        if not encrypted_email:
+            return None
+        
+        return await self.decrypt(encrypted_email, key_name=ISSUE_REPORT_ENCRYPTION_KEY)
+    
+    async def encrypt_issue_report_data(self, data: str) -> str:
+        """
+        Encrypt issue report data (email, URL, location, device info, etc.) using the system-level issue report encryption key.
+        
+        Args:
+            data: Plaintext data to encrypt
+            
+        Returns:
+            Encrypted data (ciphertext)
+        """
+        if not data:
+            return ""
+        
+        ciphertext, _ = await self.encrypt(data, key_name=ISSUE_REPORT_ENCRYPTION_KEY)
+        return ciphertext
+    
+    async def decrypt_issue_report_data(self, encrypted_data: str) -> Optional[str]:
+        """
+        Decrypt issue report data using the system-level issue report encryption key.
+        
+        Args:
+            encrypted_data: Encrypted data (ciphertext)
+            
+        Returns:
+            Decrypted data or None if decryption fails
+        """
+        if not encrypted_data:
+            return None
+        
+        return await self.decrypt(encrypted_data, key_name=ISSUE_REPORT_ENCRYPTION_KEY)
+    
+    async def encrypt_debug_request_data(self, data: str) -> str:
+        """
+        Encrypt debug request data (AI processor inputs/outputs) using the
+        system-level debug requests encryption key.
+        
+        This is used to cache the last 10 AI requests for debugging purposes.
+        The data includes complete input/output for preprocessor, main processor,
+        and postprocessor stages.
+        
+        Args:
+            data: JSON string containing debug request data
+            
+        Returns:
+            Encrypted data (ciphertext)
+        """
+        if not data:
+            return ""
+        
+        ciphertext, _ = await self.encrypt(data, key_name=DEBUG_REQUESTS_ENCRYPTION_KEY)
+        return ciphertext
+    
+    async def decrypt_debug_request_data(self, encrypted_data: str) -> Optional[str]:
+        """
+        Decrypt debug request data using the system-level debug requests encryption key.
+        
+        Args:
+            encrypted_data: Encrypted data (ciphertext)
+            
+        Returns:
+            Decrypted data (JSON string) or None if decryption fails
+        """
+        if not encrypted_data:
+            return None
+        
+        return await self.decrypt(encrypted_data, key_name=DEBUG_REQUESTS_ENCRYPTION_KEY)
+    
     async def encrypt(self, plaintext: str, key_name: str = "user_data", context: str = None) -> Tuple[str, str]:
         """
         Encrypt plaintext using Vault's transit engine
@@ -420,6 +1020,13 @@ class EncryptionService:
         If the key is a derived key, context must be provided
         """
         if not ciphertext:
+            return None
+
+        # Vault transit ciphertexts always have the `vault:` prefix (e.g. `vault:v1:...`).
+        # If we don't see it, this is likely client-side encrypted data; avoid sending it to Vault
+        # (which would return 400) and let callers fall back to the appropriate decryptor.
+        if not isinstance(ciphertext, str) or not ciphertext.startswith("vault:"):
+            logger.warning("decrypt: Ciphertext is not a Vault transit value (missing `vault:` prefix).")
             return None
             
         # Send to Vault for decryption

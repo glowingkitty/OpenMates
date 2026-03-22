@@ -16,10 +16,11 @@
     borderColor = undefined,
     onClick = undefined,
     className = '',
-    noMargin = false
+    noMargin = false,
+    noAnimation = false
   }: {
     name?: string;
-    type?: 'default' | 'app' | 'skill' | 'provider' | 'focus' | 'clickable' | 'subsetting' | 'placeholder';
+    type?: 'default' | 'app' | 'skill' | 'provider' | 'focus' | 'memory' | 'clickable' | 'subsetting' | 'placeholder';
     inline?: boolean;
     poweredByAI?: boolean;
     size?: string | undefined;
@@ -30,6 +31,7 @@
     onClick?: (() => void) | undefined;
     className?: string;
     noMargin?: boolean;
+    noAnimation?: boolean;
   } = $props();
 
   // Create a reactive variable for the lowercase name using $derived (Svelte 5 runes mode)
@@ -46,7 +48,6 @@
   const iconMappings: Record<string, string> = {
     'health': 'heart',
     'plants': 'plant',
-    'jobs': 'job',
     'events': 'event',
     'photos': 'image',
     'books': 'book',
@@ -87,8 +88,28 @@
   // Get the actual icon URL variable name based on the input name using $derived (Svelte 5 runes mode)
   let iconUrlName = $derived(getIconUrlName(lowerCaseName));
 
-  // Special handling for mates icon only using $derived (Svelte 5 runes mode)
-  let isSpecialIcon = $derived(lowerCaseName === 'mates');
+  /**
+   * Map icon names to app IDs for CSS variable construction.
+   * This handles cases where the icon name differs from the app ID.
+   * For example: icon name "image" maps to app ID "images" for --color-app-images CSS variable.
+   * 
+   * @param iconName - The lowercase icon name
+   * @returns The app ID to use for CSS variable construction
+   */
+  function getAppIdForCssVariable(iconName: string): string {
+    // Map icon names to their corresponding app IDs
+    if (iconName === 'image') {
+      return 'images'; // Icon name "image" maps to app ID "images"
+    }
+    if (iconName === 'book') {
+      return 'books'; // Icon name "book" maps to app ID "books"
+    }
+    if (iconName === 'heart') {
+      return 'health'; // Icon name "heart" maps to app ID "health" (icon file is heart.svg)
+    }
+    // For all other cases, use the icon name as-is
+    return iconName;
+  }
 
   // Compute the final class name using $derived (Svelte 5 runes mode)
   let computedClassName = $derived([
@@ -99,9 +120,11 @@
     // Add subsetting_icon for subsetting type
     type === 'subsetting' ? 'subsetting_icon' : '',
     // Add specific icon class for subsetting type
-    type === 'subsetting' ? `subsetting_icon_${lowerCaseName}` : '',
+    type === 'subsetting' ? lowerCaseName : '',
     // Add placeholder class
     type === 'placeholder' ? 'placeholder-icon' : '',
+    // Add no-animation class to disable fade-in animation
+    noAnimation ? 'no-animation' : '',
     // The rest remains unchanged
     in_header ? 'in_header' : '',
     inline ? 'inline' : '',
@@ -110,6 +133,7 @@
       (type === 'default' ? lowerCaseName : (type === 'clickable') ? lowerCaseName : type === 'subsetting' ? '' : type === 'placeholder' ? '' : `${type}-${lowerCaseName}`),
     type === 'skill' ? 'skill-icon' : '',
     type === 'focus' ? 'focus-icon' : '',
+    type === 'memory' ? 'memory-icon' : '',
     poweredByAI ? 'powered_by_ai' : '',
     type === 'clickable' ? `icon_${lowerCaseName}` : '',
     className // Add any custom classes
@@ -209,19 +233,14 @@
       `--icon-name: ${lowerCaseName};`,
       `--icon-url: var(--icon-url-${iconUrlName});`,
       type === 'clickable' ? `--icon-mask-image: var(--icon-url-${iconUrlName});` : '',
-      type === 'app' ? `--icon-background: var(--color-app-${lowerCaseName});` : '',
+      type === 'app' ? `--icon-background: var(--color-app-${getAppIdForCssVariable(lowerCaseName)});` : '',
       type === 'focus' ? `--icon-background: var(--icon-focus-background);` : '',
+      type === 'skill' ? `--icon-background: var(--icon-skill-background);` : '',
+      type === 'memory' ? `--icon-background: var(--icon-memory-background);` : '',
     ].filter(Boolean).join(' ') : '',
   ].filter(Boolean).join(' '));
 
-  // Handle keyboard events for accessibility (keeping for potential future use)
-  function handleKeyDown(event: KeyboardEvent) {
-    // Trigger click on Enter or Space key
-    if (onClick && (event.key === 'Enter' || event.key === ' ')) {
-      event.preventDefault();
-      onClick();
-    }
-  }
+
 </script>
 
 {#if actualElement === 'div'}
@@ -257,6 +276,8 @@
     --icon-url-3dmodels: url('@openmates/ui/static/icons/3dmodels.svg');
     --icon-url-activism: url('@openmates/ui/static/icons/activism.svg');
     --icon-url-ai: url('@openmates/ui/static/icons/ai.svg');
+    --icon-url-alibaba: url('@openmates/ui/static/icons/alibaba.svg');
+    --icon-url-anthropic: url('@openmates/ui/static/icons/anthropic.svg');
     --icon-url-announcement: url('@openmates/ui/static/icons/announcement.svg');
     --icon-url-anonym: url('@openmates/ui/static/icons/anonym.svg');
     --icon-url-app: url('@openmates/ui/static/icons/app.svg');
@@ -268,10 +289,13 @@
     --icon-url-bias: url('@openmates/ui/static/icons/bias.svg');
     --icon-url-billing: url('@openmates/ui/static/icons/billing.svg');
     --icon-url-book: url('@openmates/ui/static/icons/book.svg');
+    --icon-url-bfl: url('@openmates/ui/static/icons/blackforestlabs.svg');
+    --icon-url-brave: url('@openmates/ui/static/icons/brave.svg');
     --icon-url-business: url('@openmates/ui/static/icons/business.svg');
     --icon-url-calculator: url('@openmates/ui/static/icons/calculator.svg');
     --icon-url-calendar: url('@openmates/ui/static/icons/calendar.svg');
     --icon-url-camera: url('@openmates/ui/static/icons/camera.svg');
+    --icon-url-cerebras: url('@openmates/ui/static/icons/cerebras.svg');
     --icon-url-chat: url('@openmates/ui/static/icons/chat.svg');
     --icon-url-check: url('@openmates/ui/static/icons/check.svg');
     --icon-url-claude: url('@openmates/ui/static/icons/claude.svg');
@@ -289,6 +313,7 @@
     --icon-url-desktop: url('@openmates/ui/static/icons/desktop.svg');
     --icon-url-diagram: url('@openmates/ui/static/icons/diagram.svg');
     --icon-url-discord: url('@openmates/ui/static/icons/discord.svg');
+    --icon-url-doctolib: url('@openmates/ui/static/icons/doctolib.svg');
     --icon-url-docs: url('@openmates/ui/static/icons/docs.svg');
     --icon-url-down: url('@openmates/ui/static/icons/down.svg');
     --icon-url-download: url('@openmates/ui/static/icons/download.svg');
@@ -300,11 +325,14 @@
     --icon-url-fashion: url('@openmates/ui/static/icons/fashion.svg');
     --icon-url-files: url('@openmates/ui/static/icons/files.svg');
     --icon-url-filter: url('@openmates/ui/static/icons/filter.svg');
+    --icon-url-firecrawl: url('@openmates/ui/static/icons/firecrawl.svg');
     --icon-url-fitness: url('@openmates/ui/static/icons/fitness.svg');
     --icon-url-fullscreen: url('@openmates/ui/static/icons/fullscreen.svg');
     --icon-url-games: url('@openmates/ui/static/icons/games.svg');
+    --icon-url-gift: url('@openmates/ui/static/icons/gift.svg');
     --icon-url-github: url('@openmates/ui/static/icons/github.svg');
     --icon-url-good: url('@openmates/ui/static/icons/good.svg');
+    --icon-url-google: url('@openmates/ui/static/icons/google.svg');
     --icon-url-google-authenticator: url('@openmates/ui/static/icons/google-authenticator.svg');
     --icon-url-guest: url('@openmates/ui/static/icons/guest.svg');
     --icon-url-heart: url('@openmates/ui/static/icons/heart.svg');
@@ -312,7 +340,7 @@
     --icon-url-image: url('@openmates/ui/static/icons/image.svg');
     --icon-url-insight: url('@openmates/ui/static/icons/insight.svg');
     --icon-url-introduction: url('@openmates/ui/static/icons/introduction.svg');
-    --icon-url-job: url('@openmates/ui/static/icons/job.svg');
+    --icon-url-jobs: url('@openmates/ui/static/icons/jobs.svg');
     --icon-url-language: url('@openmates/ui/static/icons/language.svg');
     --icon-url-laptop: url('@openmates/ui/static/icons/laptop.svg');
     --icon-url-legal: url('@openmates/ui/static/icons/legal.svg');
@@ -320,16 +348,20 @@
     --icon-url-lifecoaching: url('@openmates/ui/static/icons/lifecoaching.svg');
     --icon-url-lock: url('@openmates/ui/static/icons/lock.svg');
     --icon-url-log: url('@openmates/ui/static/icons/log.svg');
-    --icon-url-logout: url('@openmates/ui/static/icons/logout.svg');
-    --icon-url-mail: url('@openmates/ui/static/icons/mail.svg');
+     --icon-url-logout: url('@openmates/ui/static/icons/logout.svg');
+     --icon-url-luma: url('@openmates/ui/static/icons/luma.svg');
+     --icon-url-mail: url('@openmates/ui/static/icons/mail.svg');
     --icon-url-maps: url('@openmates/ui/static/icons/maps.svg');
+    --icon-url-math: url('@openmates/ui/static/icons/math.svg');
     --icon-url-mattermost: url('@openmates/ui/static/icons/mattermost.svg');
+    --icon-url-meetup: url('@openmates/ui/static/icons/meetup.svg');
     --icon-url-menu: url('@openmates/ui/static/icons/menu.svg');
     --icon-url-meta: url('@openmates/ui/static/icons/meta.svg');
     --icon-url-microsoft-authenticator: url('@openmates/ui/static/icons/microsoft-authenticator.svg');
     --icon-url-proton-authenticator: url('@openmates/ui/static/icons/proton-authenticator.svg');
     --icon-url-minus: url('@openmates/ui/static/icons/minus.svg');
     --icon-url-mistral: url('@openmates/ui/static/icons/mistral.svg');
+    --icon-url-mistral_ai: url('@openmates/ui/static/icons/mistral.svg');
     --icon-url-modify: url('@openmates/ui/static/icons/create.svg');
     --icon-url-money: url('@openmates/ui/static/icons/money.svg');
     --icon-url-movies: url('@openmates/ui/static/icons/movies.svg');
@@ -339,6 +371,8 @@
     --icon-url-offline: url('@openmates/ui/static/icons/offline.svg');
     --icon-url-open: url('@openmates/ui/static/icons/open.svg');
     --icon-url-openai: url('@openmates/ui/static/icons/openai.svg');
+    --icon-url-openmates: url('@openmates/ui/static/icons/mate.svg');
+    --icon-url-openrouter: url('@openmates/ui/static/icons/openrouter.svg');
     --icon-url-opencollective: url('@openmates/ui/static/icons/opencollective.svg');
     --icon-url-opensource: url('@openmates/ui/static/icons/opensource.svg');
     --icon-url-otp-auth: url('@openmates/ui/static/icons/otp-auth.svg');
@@ -357,11 +391,13 @@
     --icon-url-publishing: url('@openmates/ui/static/icons/publishing.svg');
     --icon-url-question: url('@openmates/ui/static/icons/question.svg');
     --icon-url-rating: url('@openmates/ui/static/icons/rating.svg');
+    --icon-url-recraft: url('@openmates/ui/static/icons/recraft.svg');
     --icon-url-reasoning: url('@openmates/ui/static/icons/reasoning.svg');
     --icon-url-record_video: url('@openmates/ui/static/icons/record_video.svg');
     --icon-url-recordaudio: url('@openmates/ui/static/icons/recordaudio.svg');
     --icon-url-reminder: url('@openmates/ui/static/icons/reminder.svg');
     --icon-url-restore: url('@openmates/ui/static/icons/restore.svg');
+    --icon-url-rewe: url('@openmates/ui/static/icons/rewe.svg');
     --icon-url-safety: url('@openmates/ui/static/icons/safety.svg');
     --icon-url-search: url('@openmates/ui/static/icons/search.svg');
     --icon-url-secret: url('@openmates/ui/static/icons/secret.svg');
@@ -382,8 +418,10 @@
     --icon-url-take_photo: url('@openmates/ui/static/icons/take_photo.svg');
     --icon-url-task: url('@openmates/ui/static/icons/task.svg');
     --icon-url-team: url('@openmates/ui/static/icons/team.svg');
+    --icon-url-text: url('@openmates/ui/static/icons/text.svg');
     --icon-url-tfas: url('@openmates/ui/static/icons/tfas.svg');
     --icon-url-time: url('@openmates/ui/static/icons/time.svg');
+    --icon-url-transcript: url('@openmates/ui/static/icons/transcript.svg');
     --icon-url-travel: url('@openmates/ui/static/icons/travel.svg');
     --icon-url-tv: url('@openmates/ui/static/icons/tv.svg');
     --icon-url-up: url('@openmates/ui/static/icons/up.svg');
@@ -397,6 +435,9 @@
     --icon-url-web: url('@openmates/ui/static/icons/web.svg');
     --icon-url-whiteboard: url('@openmates/ui/static/icons/whiteboard.svg');
     --icon-url-workflow: url('@openmates/ui/static/icons/workflow.svg');
+    --icon-url-youtube: url('@openmates/ui/static/icons/youtube.svg');
+    --icon-url-zai: url('@openmates/ui/static/icons/zai.svg');
+    --icon-url-context7: url('@openmates/ui/static/icons/context7.svg');
   }
 
   /* Base icon container with common styles */
@@ -543,6 +584,15 @@
     border-color: var(--icon-border-color, var(--color-focus-border));
   }
 
+  /* Memory / settings icons — pink gradient background, white icon tint */
+  .icon.memory-icon {
+    border-color: var(--icon-border-color, transparent);
+    /* Tint the icon white so it's visible on the pink background */
+    &::before {
+      filter: brightness(0) invert(1);
+    }
+  }
+
   /* Powered by AI indicator */
   .icon.powered_by_ai::after {
     content: '';
@@ -568,12 +618,16 @@
     margin: 0 5px;
   }
 
-  /* Header icon style */
+  /* Header icon style - smooth opacity transition without delay */
   .icon.in_header {
     width: 67.98px;
     height: 67.98px;
     border-radius: 10px; /* Keep your existing border radius */
     border-width: 1.4px; /* 3.2% of 44px = ~1.4px */
+    /* Use fade-in animation but start immediately (no delay) */
+    opacity: 0;
+    animation: fadeInIcon 0.3s ease-in forwards;
+    animation-delay: 0;
   }
 
   /* Add a style to remove margins when needed */
@@ -594,5 +648,12 @@
   
   .icon.placeholder-icon::before {
     background-image: none;
+  }
+
+  /* No animation - icon is immediately visible without fade-in */
+  .icon.no-animation {
+    opacity: 1 !important;
+    animation: none !important;
+    animation-delay: 0 !important;
   }
 </style>

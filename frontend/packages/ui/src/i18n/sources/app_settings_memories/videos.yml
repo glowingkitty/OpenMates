@@ -1,0 +1,315 @@
+to_watch_list:
+  context: Settings/memory name for video to watch list
+  en: To Watch List
+  de: Zu schauen Liste
+  zh: 待看清单
+  es: Lista para ver
+  fr: Liste à regarder
+  pt: Lista para assistir
+  ru: Список к просмотру
+  ja: 視聴リスト
+  ko: 시청 목록
+  it: Lista da guardare
+  tr: İzlenecekler listesi
+  vi: Danh sách xem
+  id: Daftar tontonan
+  pl: Lista do obejrzenia
+  nl: Te bekijken lijst
+  ar: قائمة المشاهدة
+  hi: देखने की सूची
+  th: รายการที่ต้องดู
+  cs: Seznam k sledování
+  sv: Att-se-lista
+  he: רשימת צפייה
+  verified_by_human:
+    - en
+    - de
+to_watch_list.description:
+  context: Description for video to watch list settings/memory
+  en: Videos you want to watch
+  de: Videos, die du sehen möchtest
+  zh: 你想看的视频
+  es: Videos que quieres ver
+  fr: Vidéos que vous souhaitez regarder
+  pt: Vídeos que você quer assistir
+  ru: Видео, которые вы хотите посмотреть
+  ja: 見たい動画
+  ko: 보고 싶은 비디오
+  it: Video che vuoi guardare
+  tr: İzlemek istediğiniz videolar
+  vi: Video bạn muốn xem
+  id: Video yang ingin Anda tonton
+  pl: Filmy, które chcesz obejrzeć
+  nl: Video's die je wilt bekijken
+  ar: مقاطع الفيديو التي تريد مشاهدتها
+  hi: आप जिन वीडियो को देखना चाहते हैं
+  th: วิดีโอที่คุณต้องการดู
+  cs: Videa, která chcete sledovat
+  sv: Videor du vill titta på
+  he: סרטונים שברצונך לראות
+  verified_by_human:
+    - en
+    - de
+subscribed_channels:
+  context: Settings/memory name for subscribed channels
+  en: Subscribed Channels
+  de: Abonnierte Kanäle
+  zh: 订阅频道
+  es: Canales suscritos
+  fr: Chaînes abonnées
+  pt: Canais inscritos
+  ru: Подписанные каналы
+  ja: 登録済みチャンネル
+  ko: 구독한 채널
+  it: Canali iscritti
+  tr: Abone olunan kanallar
+  vi: Kênh đã đăng ký
+  id: Saluran yang berlangganan
+  pl: Subskrybowane kanały
+  nl: Geabonneerde kanalen
+  ar: القنوات المشتركة
+  hi: सदस्यता प्राप्त चैनल
+  th: ช่องที่สมัครสมาชิก
+  cs: Odebírané kanály
+  sv: Prenumererade kanaler
+  he: ערוצים רשומים
+  verified_by_human:
+    - en
+    - de
+subscribed_channels.description:
+  context: Description for subscribed channels settings/memory
+  en: YouTube channels you are subscribed to
+  de: YouTube-Kanäle, denen du folgst
+  zh: 你订阅的YouTube频道
+  es: Canales de YouTube a los que estás suscrito
+  fr: Chaînes YouTube auxquelles vous êtes abonné
+  pt: Canais do YouTube aos quais você está inscrito
+  ru: YouTube-каналы, на которые вы подписаны
+  ja: 登録しているYouTubeチャンネル
+  ko: 구독 중인 YouTube 채널
+  it: Canali YouTube a cui sei iscritto
+  tr: Abone olduğunuz YouTube kanalları
+  vi: Các kênh YouTube bạn đã đăng ký
+  id: Saluran YouTube yang Anda berlangganan
+  pl: Kanały YouTube, na które jesteś subskrybowany
+  nl: YouTube-kanalen waarop je bent geabonneerd
+  ar: قنوات YouTube التي تشترك فيها
+  hi: YouTube चैनल जिनकी आपने सदस्यता ली है
+  th: ช่อง YouTube ที่คุณสมัครสมาชิก
+  cs: YouTube kanály, na které jste přihlášeni
+  sv: YouTube-kanaler du prenumererar på
+  he: ערוצי YouTube שאליהם נרשמת
+  verified_by_human:
+    - en
+    - de
+
+# Example entries shown to non-authenticated users to illustrate what each category stores
+
+to_watch_list.example_1:
+  context: Example entry for to watch list (a type of video)
+  en: Tech conference keynote
+  de: Tech-Konferenz Keynote
+  zh: 科技大会主题演讲
+  es: Conferencia tecnológica
+  fr: Keynote de conférence tech
+  pt: Palestra de conferência tech
+  ru: Доклад на IT-конференции
+  ja: テックカンファレンス基調講演
+  ko: 기술 컨퍼런스 기조연설
+  it: Keynote conferenza tech
+  tr: Teknoloji konferansı sunumu
+  vi: Bài phát biểu hội nghị công nghệ
+  id: Keynote konferensi teknologi
+  pl: Wykład na konferencji tech
+  nl: Tech-conferentie keynote
+  ar: كلمة رئيسية في مؤتمر تقني
+  hi: टेक कॉन्फ्रेंस मुख्य भाषण
+  th: คำปราศรัยหลักงานเทคโนโลยี
+  cs: Hlavní přednáška tech konference
+  sv: Teknikkonferens keynote
+  he: הרצאה מרכזית בכנס טכנולוגיה
+  verified_by_human:
+    - en
+    - de
+to_watch_list.example_2:
+  context: Example entry for to watch list (a type of tutorial)
+  en: Cooking tutorial
+  de: Koch-Tutorial
+  zh: 烹饪教程
+  es: Tutorial de cocina
+  fr: Tutoriel de cuisine
+  pt: Tutorial de culinária
+  ru: Кулинарный урок
+  ja: 料理チュートリアル
+  ko: 요리 튜토리얼
+  it: Tutorial di cucina
+  tr: Yemek yapma eğitimi
+  vi: Hướng dẫn nấu ăn
+  id: Tutorial memasak
+  pl: Samouczek gotowania
+  nl: Kookhandleiding
+  ar: درس طبخ
+  hi: खाना पकाने का ट्यूटोरियल
+  th: สอนทำอาหาร
+  cs: Kuchařský tutoriál
+  sv: Matlagningsguide
+  he: מדריך בישול
+  verified_by_human:
+    - en
+    - de
+to_watch_list.example_3:
+  context: Example entry for to watch list (a type of vlog)
+  en: Travel vlog
+  de: Reise-Vlog
+  zh: 旅行视频博客
+  es: Vlog de viajes
+  fr: Vlog de voyage
+  pt: Vlog de viagem
+  ru: Тревел-влог
+  ja: 旅行Vlog
+  ko: 여행 브이로그
+  it: Vlog di viaggio
+  tr: Seyahat vlogu
+  vi: Vlog du lịch
+  id: Vlog perjalanan
+  pl: Vlog podróżniczy
+  nl: Reisvlog
+  ar: مدونة فيديو سفر
+  hi: ट्रैवल व्लॉग
+  th: วิดีโอท่องเที่ยว
+  cs: Cestovatelský vlog
+  sv: Resevlogg
+  he: ולוג טיולים
+  verified_by_human:
+    - en
+    - de
+subscribed_channels.example_1:
+  context: Example entry for subscribed channels (a tech YouTube channel)
+  en: Fireship
+  de: Fireship
+  zh: Fireship
+  es: Fireship
+  fr: Fireship
+  pt: Fireship
+  ru: Fireship
+  ja: Fireship
+  ko: Fireship
+  it: Fireship
+  tr: Fireship
+  vi: Fireship
+  id: Fireship
+  pl: Fireship
+  nl: Fireship
+  ar: Fireship
+  hi: Fireship
+  th: Fireship
+  cs: Fireship
+  sv: Fireship
+  he: Fireship
+  verified_by_human:
+    - en
+    - de
+subscribed_channels.example_2:
+  context: Example entry for subscribed channels (a science YouTube channel)
+  en: Kurzgesagt
+  de: Kurzgesagt
+  zh: Kurzgesagt
+  es: Kurzgesagt
+  fr: Kurzgesagt
+  pt: Kurzgesagt
+  ru: Kurzgesagt
+  ja: Kurzgesagt
+  ko: Kurzgesagt
+  it: Kurzgesagt
+  tr: Kurzgesagt
+  vi: Kurzgesagt
+  id: Kurzgesagt
+  pl: Kurzgesagt
+  nl: Kurzgesagt
+  ar: Kurzgesagt
+  hi: Kurzgesagt
+  th: Kurzgesagt
+  cs: Kurzgesagt
+  sv: Kurzgesagt
+  he: Kurzgesagt
+  verified_by_human:
+    - en
+    - de
+subscribed_channels.example_3:
+  context: Example entry for subscribed channels (a science YouTube channel)
+  en: Veritasium
+  de: Veritasium
+  zh: Veritasium
+  es: Veritasium
+  fr: Veritasium
+  pt: Veritasium
+  ru: Veritasium
+  ja: Veritasium
+  ko: Veritasium
+  it: Veritasium
+  tr: Veritasium
+  vi: Veritasium
+  id: Veritasium
+  pl: Veritasium
+  nl: Veritasium
+  ar: Veritasium
+  hi: Veritasium
+  th: Veritasium
+  cs: Veritasium
+  sv: Veritasium
+  he: Veritasium
+  verified_by_human:
+    - en
+    - de
+
+# example_entries translation keys for to_watch_list
+
+to_watch_list.example_1.name:
+  context: Example video name for to watch list
+  en: How Computers Work
+  de: Wie Computer funktionieren
+  zh: 计算机工作原理
+  es: Cómo funcionan las computadoras
+  fr: Comment fonctionnent les ordinateurs
+  pt: Como os computadores funcionam
+  ru: Как работают компьютеры
+  ja: コンピュータの仕組み
+  ko: 컴퓨터의 작동 원리
+  it: Come funzionano i computer
+  tr: Bilgisayarlar nasıl çalışır
+  vi: Máy tính hoạt động như thế nào
+  id: Bagaimana komputer bekerja
+  pl: Jak działają komputery
+  nl: Hoe computers werken
+  ar: كيف تعمل أجهزة الكمبيوتر
+  hi: कंप्यूटर कैसे काम करते हैं
+  th: คอมพิวเตอร์ทำงานอย่างไร
+  cs: Jak fungují počítače
+  sv: Hur datorer fungerar
+  he: איך מחשבים עובדים
+  verified_by_human: []
+
+to_watch_list.example_2.name:
+  context: Example video name for to watch list
+  en: Advanced TypeScript
+  de: Fortgeschrittenes TypeScript
+  zh: 高级TypeScript
+  es: TypeScript avanzado
+  fr: TypeScript avancé
+  pt: TypeScript avançado
+  ru: Продвинутый TypeScript
+  ja: 上級TypeScript
+  ko: 고급 TypeScript
+  it: TypeScript avanzato
+  tr: İleri düzey TypeScript
+  vi: TypeScript nâng cao
+  id: TypeScript tingkat lanjut
+  pl: Zaawansowany TypeScript
+  nl: Geavanceerd TypeScript
+  ar: TypeScript متقدم
+  hi: उन्नत TypeScript
+  th: TypeScript ขั้นสูง
+  cs: Pokročilý TypeScript
+  sv: Avancerad TypeScript
+  he: TypeScript מתקדם
+  verified_by_human: []

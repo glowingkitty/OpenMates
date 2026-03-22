@@ -4,13 +4,13 @@ import { isContentEmptyExceptMention } from '../utils/editorHelpers';
 import type { Editor } from '@tiptap/core';
 import type { PlaceholderOptions } from '@tiptap/extension-placeholder';
 import { get } from 'svelte/store';
-import { _ } from 'svelte-i18n';
+import { text } from '@repo/ui'; // Use text store from @repo/ui for reactive translations
 
 // Helper function to detect touch device
 const isTouchDevice = () => {
     return (('ontouchstart' in window) ||
             (navigator.maxTouchPoints > 0) ||
-            // @ts-ignore - MS specific property
+            // @ts-expect-error -- msMaxTouchPoints is a non-standard MS property
             (navigator.msMaxTouchPoints > 0));
 };
 
@@ -22,10 +22,13 @@ export const CustomPlaceholder = Placeholder.extend<PlaceholderOptions>({
                 // Only show placeholder when empty or just has mention and not focused
                 if ((editor.isEmpty || isContentEmptyExceptMention(editor)) && !editor.isFocused) {
                     // Get appropriate translation based on device type
+                    // Use text store from @repo/ui which is reactive to language changes
                     const key = isTouchDevice() ? 
-                        'enter_message.placeholder.touch.text' : 
-                        'enter_message.placeholder.desktop.text';
-                    return get(_)(key);
+                        'enter_message.placeholder.touch' : 
+                        'enter_message.placeholder.desktop';
+                    // Get the current value from the text store (reactive to language changes)
+                    const translateFn = get(text);
+                    return translateFn(key);
                 }
                 return '';
             },

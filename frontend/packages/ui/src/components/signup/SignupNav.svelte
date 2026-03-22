@@ -1,19 +1,23 @@
 <script lang="ts">
-    import { createEventDispatcher } from 'svelte';
-    import { _ } from 'svelte-i18n';
+    /* eslint-disable @typescript-eslint/no-unused-vars */
+    import { text } from '../../i18n/translations';
     import { userProfile } from '../../stores/userProfile'; // Import userProfile store
     import { getWebsiteUrl, routes } from '../../config/links';
     // Import current step store and gift check stores
-    import { currentSignupStep, isLoadingGiftCheck, hasGiftForSignup } from '../../stores/signupState'; 
-    
+    import { currentSignupStep, isLoadingGiftCheck, hasGiftForSignup } from '../../stores/signupState';
+    // Import signupStore to check loginMethod for passkey flow
+    import { signupStore } from '../../stores/signupStore';
+    import { get } from 'svelte/store';
+
     // Step name constants - must match those in Signup.svelte
     const STEP_ALPHA_DISCLAIMER = 'alpha_disclaimer';
     const STEP_BASICS = 'basics';
     const STEP_CONFIRM_EMAIL = 'confirm_email';
     const STEP_SECURE_ACCOUNT = 'secure_account';
     const STEP_PASSWORD = 'password';
-    const STEP_PROFILE_PICTURE = 'profile_picture';
+    // const STEP_PROFILE_PICTURE = 'profile_picture'; // Moved to settings
     const STEP_ONE_TIME_CODES = 'one_time_codes';
+    const STEP_SKIP_2FA_CONSENT = 'skip_2fa_consent';
     const STEP_BACKUP_CODES = 'backup_codes';
     const STEP_RECOVERY_KEY = 'recovery_key';
     const STEP_TFA_APP_REMINDER = 'tfa_app_reminder';
@@ -21,65 +25,123 @@
     const STEP_MATE_SETTINGS = 'mate_settings';
     const STEP_CREDITS = 'credits';
     const STEP_PAYMENT = 'payment';
+    const STEP_AUTO_TOP_UP = 'auto_top_up';
     const STEP_COMPLETION = 'completion';
 
-    const stepSequence = [
+    // Full step sequence for password signup flow
+    // Note: STEP_COMPLETION is not included as it's not a visible step - users go directly to the app after auto top-up
+    const fullStepSequence = [
         STEP_ALPHA_DISCLAIMER, STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_PASSWORD,
-        STEP_ONE_TIME_CODES, STEP_TFA_APP_REMINDER, STEP_BACKUP_CODES, STEP_RECOVERY_KEY, STEP_PROFILE_PICTURE,
-        STEP_CREDITS, STEP_PAYMENT, STEP_COMPLETION
+        STEP_ONE_TIME_CODES, STEP_SKIP_2FA_CONSENT, STEP_TFA_APP_REMINDER, STEP_BACKUP_CODES, STEP_RECOVERY_KEY,
+        STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP
     ];
-    
-    const dispatch = createEventDispatcher();
 
-    // Props using Svelte 5 runes mode
-    let { 
+    // Passkey step sequence (skips password, one_time_codes, tfa_app_reminder, backup_codes)
+    const passkeyStepSequence = [
+        STEP_ALPHA_DISCLAIMER, STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_RECOVERY_KEY,
+        STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP
+    ];
+
+    // Dynamic step sequence based on login method (matches Signup.svelte logic)
+    // Default to passkey sequence (assume passkey by default)
+    // Only use full sequence when user explicitly selects password + 2FA OTP
+    // Use $signupStore to reactively access the store value (Svelte 5 reactive store syntax)
+    let stepSequence = $derived(
+        $signupStore.loginMethod === 'password' ? fullStepSequence : passkeyStepSequence
+    );
+
+    // Props using Svelte 5 runes mode with callback props
+    let {
+        mode = 'signup', // 'login' | 'signup' - determines which navigation to show
         showSkip = false,
         currentStep = STEP_BASICS,
         selectedAppName = null,
         showAdminButton = false,
-        isAppSaved = false
+        isAppSaved = false,
+        onback = () => {},
+        onstep = (event: { step: string }) => {},
+        onskip = () => {},
+        onlogout = () => {},
+        onDemoClick = () => {} // Handler for login mode "Demo" button
     }: {
+        mode?: 'login' | 'signup',
         showSkip?: boolean,
         currentStep?: string,
         selectedAppName?: string | null,
         showAdminButton?: boolean,
-        isAppSaved?: boolean
+        isAppSaved?: boolean,
+        onback?: () => void,
+        onstep?: (event: { step: string }) => void,
+        onskip?: () => void,
+        onlogout?: () => void,
+        onDemoClick?: () => void
     } = $props();
 
+    /**
+     * Handle back button click - behavior differs based on mode
+     * Login mode: calls onDemoClick to return to demo
+     * Signup mode: handles step navigation based on current step
+     */
     function handleBackClick() {
+        // Login mode: always call demo click handler
+        if (mode === 'login') {
+            console.log('[SignupNav] Login mode - calling onDemoClick');
+            onDemoClick();
+            return;
+        }
+        
+        // Signup mode: handle step-based navigation
+        console.log('[SignupNav] handleBackClick called, currentStep:', currentStep);
         if (currentStep === STEP_BASICS || currentStep === STEP_ALPHA_DISCLAIMER) {
-            dispatch('back');
-        } else if (currentStep === STEP_ONE_TIME_CODES || currentStep === STEP_PROFILE_PICTURE) {
-            dispatch('logout');
+            console.log('[SignupNav] Calling onback()');
+            onback();
+        } else if (currentStep === STEP_ONE_TIME_CODES) {
+            onlogout();
+        } else if (currentStep === STEP_SKIP_2FA_CONSENT) {
+            onstep({ step: STEP_ONE_TIME_CODES });
+        } else if (currentStep === STEP_RECOVERY_KEY && $signupStore.loginMethod === 'passkey') {
+            // CRITICAL: For passkey signup, recovery_key step should trigger logout (not go back to backup_codes)
+            // Passkey signup doesn't have backup_codes step, so going back from recovery_key should logout
+            console.log('[SignupNav] Passkey signup - triggering logout from recovery_key step');
+            onlogout();
+        } else if (currentStep === STEP_RECOVERY_KEY && $signupStore.loginMethod === 'password' && !$userProfile.tfa_enabled) {
+            // Password signup with skipped 2FA: return to warning step, not backup codes.
+            onstep({ step: STEP_SKIP_2FA_CONSENT });
+        } else if (currentStep === STEP_AUTO_TOP_UP) {
+            // Auto top-up step should trigger logout when back button is clicked
+            console.log('[SignupNav] Auto top-up step - triggering logout');
+            onlogout();
         } else if (currentStep === STEP_SECURE_ACCOUNT) {
             // Special case: Go back from Secure Account to Basics (skipping confirm email)
-            dispatch('step', { step: STEP_BASICS });
+            onstep({ step: STEP_BASICS });
         } else {
             const currentIndex = stepSequence.indexOf(currentStep);
             if (currentIndex > 0) {
-                dispatch('step', { step: stepSequence[currentIndex - 1] });
+                onstep({ step: stepSequence[currentIndex - 1] });
             }
         }
     }
 
     function handleSkipClick() {
-        if (currentStep === STEP_PROFILE_PICTURE) {
-            dispatch('step', { step: STEP_CREDITS });
+        // Profile picture step removed
+        if (currentStep === STEP_ONE_TIME_CODES && !$userProfile.tfa_enabled) {
+            // User wants to skip 2FA setup — navigate to the warning/consent screen
+            onstep({ step: STEP_SKIP_2FA_CONSENT });
         } else if (currentStep === STEP_ONE_TIME_CODES && $userProfile.tfa_enabled) {
-            dispatch('step', { step: STEP_TFA_APP_REMINDER });
+            onstep({ step: STEP_TFA_APP_REMINDER });
     } else if (currentStep === STEP_TFA_APP_REMINDER) {
          // Always go to backup codes step next, regardless of whether an app is selected
-         dispatch('step', { step: STEP_BACKUP_CODES });
+         onstep({ step: STEP_BACKUP_CODES });
         } else if (currentStep === STEP_SETTINGS && $userProfile.consent_privacy_and_apps_default_settings) {
-            dispatch('step', { step: STEP_MATE_SETTINGS });
+            onstep({ step: STEP_MATE_SETTINGS });
         } else if (currentStep === STEP_MATE_SETTINGS && $userProfile.consent_mates_default_settings) {
-            dispatch('step', { step: STEP_CREDITS });
+            onstep({ step: STEP_CREDITS });
         } else if (currentStep === STEP_CREDITS) {
             console.debug('Skip and show demo first');
             // Custom action for credits step - will be replaced later with real action
         } else {
             // Default skip action
-            dispatch('skip');
+            onskip();
         }
     }
 
@@ -88,39 +150,63 @@
         window.open(docsUrl, '_blank');
     }
 
+    /**
+     * Get navigation text based on mode and step
+     * Login mode: always returns "Demo"
+     * Signup mode: returns step-specific text
+     */
     function getNavText(step: string) {
-        if (step === STEP_ALPHA_DISCLAIMER) return $_('login.login_button.text');
-        if (step === STEP_BASICS) return $_('login.login_button.text');
-        if (step === STEP_CONFIRM_EMAIL) return $_('signup.sign_up.text');
-        if (step === STEP_SECURE_ACCOUNT) return $_('signup.sign_up.text');
-        if (step === STEP_PASSWORD) return $_('signup.secure_your_account.text');
-        if (step === STEP_ONE_TIME_CODES) return $_('settings.logout.text');
-        if (step === STEP_TFA_APP_REMINDER) return $_('signup.connect_2fa_app.text');
-        if (step === STEP_BACKUP_CODES) return $_('signup.2fa_app_reminder.text');
-        if (step === STEP_RECOVERY_KEY) return $_('signup.backup_codes.text');
-        if (step === STEP_PROFILE_PICTURE) return $_('settings.logout.text');
-        if (step === STEP_SETTINGS) return $_('signup.upload_profile_picture.text');
-        if (step === STEP_MATE_SETTINGS) return $_('signup.settings.text');
-        if (step === STEP_CREDITS) return $_('signup.upload_profile_picture.text');
-        if (step === STEP_PAYMENT) return $_('signup.select_credits.text');
-        return $_('signup.sign_up.text');
+        // Login mode: always show "Demo"
+        if (mode === 'login') {
+            return $text('login.demo');
+        }
+        
+        // Signup mode: show step-specific text
+        // Show "Demo" for first two steps since we now have Login/Signup tabs at the top
+        if (step === STEP_ALPHA_DISCLAIMER) return $text('login.demo');
+        if (step === STEP_BASICS) return $text('login.demo');
+        if (step === STEP_CONFIRM_EMAIL) return $text('signup.sign_up');
+        if (step === STEP_SECURE_ACCOUNT) return $text('signup.sign_up');
+        if (step === STEP_PASSWORD) return $text('signup.secure_your_account');
+        if (step === STEP_ONE_TIME_CODES) return $text('settings.logout');
+        if (step === STEP_SKIP_2FA_CONSENT) return $text('signup.one_time_codes');
+        if (step === STEP_TFA_APP_REMINDER) return $text('signup.connect_2fa_app');
+        if (step === STEP_BACKUP_CODES) return $text('signup.2fa_app_reminder.text');
+        // CRITICAL: For passkey signup, recovery_key step should show "Logout" (triggers logout)
+        // For password signup, it should show "Backup codes" (goes back to backup_codes step)
+        if (step === STEP_RECOVERY_KEY) {
+            if ($signupStore.loginMethod === 'password' && !$userProfile.tfa_enabled) {
+                return $text('signup.one_time_codes');
+            }
+            return $signupStore.loginMethod === 'passkey' 
+                ? $text('settings.logout') 
+                : $text('signup.backup_codes');
+        }
+        // if (step === STEP_PROFILE_PICTURE) return $text('settings.logout'); // Removed
+        if (step === STEP_SETTINGS) return $text('signup.upload_profile_picture');
+        if (step === STEP_MATE_SETTINGS) return $text('signup.settings');
+        // Credits step: show previous step text (recovery_key for both passkey and password flows)
+        if (step === STEP_CREDITS) return $text('signup.recovery_key');
+        if (step === STEP_PAYMENT) return $text('signup.select_credits');
+        if (step === STEP_AUTO_TOP_UP) return $text('settings.logout');
+        return $text('signup.sign_up');
     }
 
 // Update the reactive skipButtonText for different steps and states using Svelte 5 runes
 let skipButtonText = $derived(
-    // Use userProfile.profile_image_url for profile picture step logic
-    (currentStep === STEP_PROFILE_PICTURE && $userProfile.profile_image_url) ? $_('signup.next.text') :
-    (currentStep === STEP_ONE_TIME_CODES && $userProfile.tfa_enabled) ? $_('signup.next.text') :
+    (currentStep === STEP_ONE_TIME_CODES && !$userProfile.tfa_enabled) ? $text('signup.skip_for_now') :
+    (currentStep === STEP_ONE_TIME_CODES && $userProfile.tfa_enabled) ? $text('signup.next') :
     // Only show "Next" for TFA app reminder if an app has been selected AND saved
-    (currentStep === STEP_TFA_APP_REMINDER && selectedAppName && selectedAppName.trim() !== '' && isAppSaved) ? $_('signup.next.text') :
-    (currentStep === STEP_SETTINGS && $userProfile.consent_privacy_and_apps_default_settings) ? $_('signup.next.text') :
-    (currentStep === STEP_MATE_SETTINGS && $userProfile.consent_mates_default_settings) ? $_('signup.next.text') :
-    // (currentStep === STEP_CREDITS) ? $_('signup.skip_and_show_demo_first.text') : // Credits step skip demo # TODO implement this later
-    $_('signup.skip.text') // Default skip text
+    (currentStep === STEP_TFA_APP_REMINDER && selectedAppName && selectedAppName.trim() !== '' && isAppSaved) ? $text('signup.next') :
+    (currentStep === STEP_SETTINGS && $userProfile.consent_privacy_and_apps_default_settings) ? $text('signup.next') :
+    (currentStep === STEP_MATE_SETTINGS && $userProfile.consent_mates_default_settings) ? $text('signup.next') :
+    // (currentStep === STEP_CREDITS) ? $text('signup.skip_and_show_demo_first') : // Credits step skip demo # TODO implement this later
+    $text('signup.skip') // Default skip text
 );
 
     // Determine if the skip/next button should be shown using Svelte 5 runes
-    // Show if:
+    // Login mode: never show skip button
+    // Signup mode: Show if:
     // - One Time Codes step AND TFA is already enabled OR
     // - TFA App Reminder step AND (no app selected OR app selected and saved) OR
     // - Settings step AND consent_privacy_and_apps_default_settings is true OR
@@ -128,31 +214,33 @@ let skipButtonText = $derived(
     // - Credits step AND gift check is done AND NO gift is available OR
     // - showSkip prop is true AND it's not one of the special steps
     let showActualSkipButton = $derived(
-        (currentStep === STEP_ONE_TIME_CODES && $userProfile.tfa_enabled) ||
-        (currentStep === STEP_TFA_APP_REMINDER && (!selectedAppName || selectedAppName.trim() === '' || isAppSaved)) ||
-        (currentStep === STEP_SETTINGS && $userProfile.consent_privacy_and_apps_default_settings) ||
-        (currentStep === STEP_MATE_SETTINGS && $userProfile.consent_mates_default_settings) ||
-        // (currentStep === STEP_CREDITS && !$isLoadingGiftCheck && !$hasGiftForSignup) || // Show skip/demo only if NO gift available # TODO implement this later
-        (showSkip && ![STEP_ONE_TIME_CODES, STEP_TFA_APP_REMINDER, STEP_SETTINGS, STEP_MATE_SETTINGS, STEP_CREDITS].includes(currentStep))
+        mode === 'login' ? false : (
+            (currentStep === STEP_ONE_TIME_CODES) ||
+            (currentStep === STEP_TFA_APP_REMINDER && (!selectedAppName || selectedAppName.trim() === '' || isAppSaved)) ||
+            (currentStep === STEP_SETTINGS && $userProfile.consent_privacy_and_apps_default_settings) ||
+            (currentStep === STEP_MATE_SETTINGS && $userProfile.consent_mates_default_settings) ||
+            // (currentStep === STEP_CREDITS && !$isLoadingGiftCheck && !$hasGiftForSignup) || // Show skip/demo only if NO gift available # TODO implement this later
+            (showSkip && ![STEP_ONE_TIME_CODES, STEP_TFA_APP_REMINDER, STEP_SETTINGS, STEP_MATE_SETTINGS, STEP_CREDITS].includes(currentStep))
+        )
     );
 </script>
 
 <div class="nav-area">
-    <button class="nav-button" onclick={handleBackClick}>
+    <button class="nav-button" onclick={handleBackClick} aria-label={mode === 'login' ? $text('login.demo') : getNavText(currentStep)}>
         <div class="clickable-icon icon_back"></div>
         {getNavText(currentStep)}
     </button>
     
-    {#if showAdminButton}
+    {#if mode === 'signup' && showAdminButton}
         <button class="admin-button" onclick={openSelfHostedDocs}>
             <div class="clickable-icon icon_server admin-icon"></div>
-            <span class="admin-text">{$_('signup.server_admin.text')}</span>
+            <span class="admin-text">{$text('signup.server_admin')}</span>
             <div class="clickable-icon icon_question question-icon"></div>
         </button>
     {/if}
     
     {#if showActualSkipButton}
-        <button class="nav-button" onclick={handleSkipClick}>
+        <button id="signup-nav-skip" class="nav-button" onclick={handleSkipClick}>
             {skipButtonText}
             <div class="clickable-icon icon_back icon-mirrored"></div>
         </button>
@@ -161,7 +249,6 @@ let skipButtonText = $derived(
 
 <style>
     .nav-area {
-        position: absolute;
         top: 0;
         left: 0;
         right: 0;
@@ -169,6 +256,22 @@ let skipButtonText = $derived(
         z-index: 1;
         display: flex;
         justify-content: space-between;
+    }
+    
+    /* Ensure consistent positioning on mobile - match global nav-area styles */
+    @media (max-width: 600px) {
+        .nav-area {
+            top: 0;
+            left: 0; /* Ensure left alignment is consistent */
+            right: 0; /* Ensure right alignment is consistent */
+            background-color: transparent;
+            z-index: 10;
+            padding: 10px;
+            margin: -10px -10px 0 -10px; /* Offset padding to maintain full width */
+            margin-top: 0; /* Ensure it sticks to the very top */
+            width: 100%; /* Ensure full width */
+            box-sizing: border-box; /* Include padding in width calculation */
+        }
     }
 
     .nav-button {

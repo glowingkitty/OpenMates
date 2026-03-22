@@ -9,7 +9,7 @@ changes to the documentation (to keep the documentation up to date).
 step_7_bottom_content_svelte:
     confirm_settings_toggle:
         type: 'toggle'
-        text: $text('signup.accept_settings.text')
+        text: $text('signup.accept_settings')
         purpose:
             - 'User needs to confirm that they accept the settings before completing the signup process'
         processing:
@@ -26,7 +26,7 @@ step_7_bottom_content_svelte:
             - '/signup/settings'
     click_toggle_to_continue_text:
         type: 'text'
-        text: $text('signup.click_toggle_to_continue.text')
+        text: $text('signup.click_toggle_to_continue')
         purpose:
             - 'Inform the user that they need to click the toggle to continue to the next signup step'
         bigger_context:
@@ -112,11 +112,11 @@ step_7_bottom_content_svelte:
             disabled={isLoading || $userProfile.consent_privacy_and_apps_default_settings} 
         />
         <label for="confirm-settings-toggle-step7" class="confirmation-text">
-            {$text('signup.accept_settings.text')}
+            {$text('signup.accept_settings')}
         </label>
     </div>
     <div class="click-toggle-text">
-        {$text('signup.click_toggle_to_continue.text')}
+        {$text('signup.click_toggle_to_continue')}
     </div>
 </div>
 

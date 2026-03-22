@@ -10,8 +10,8 @@ step_6_top_content_svelte:
     tfa_app_reminder_explainer:
         type: 'text + visual'
         text:
-            - $text('signup.2fa_app_reminder.text')
-            - $text('signup.in_case_you_forget.text')
+            - $text('signup.2fa_app_reminder')
+            - $text('signup.in_case_you_forget')
         visuals:
             - 'none interactive preview of 'login_2fa_svelte' 2FA interface during login, where user would usually enter 2FA code.'
         purpose:
@@ -36,34 +36,45 @@ step_6_top_content_svelte:
     // Props using Svelte 5 runes mode
     let { selectedAppName = null }: { selectedAppName?: string | null } = $props();
     
-    // Get email from encrypted storage or signup store using Svelte 5 runes
-    // After password setup, email is encrypted and stored, so we need to decrypt it
-    let email = $derived.by(() => {
-        // First try to get from signup store (for early steps)
+    // Email state - initialized from store, then updated from encrypted storage if needed
+    // After password setup, email is encrypted and stored, so we need to decrypt it asynchronously
+    let email = $state<string>('');
+    
+    // Load email asynchronously using $effect
+    // This handles the async nature of getEmailDecryptedWithMasterKey()
+    $effect(() => {
+        // First try to get from signup store (for early steps before password setup)
         const storeEmail = get(signupStore)?.email;
         if (storeEmail) {
-            return storeEmail;
+            email = storeEmail;
+            return;
         }
         
-        // If not in store, try to decrypt from encrypted storage
-        const decryptedEmail = cryptoService.getEmailDecryptedWithMasterKey();
-        if (decryptedEmail) {
-            return decryptedEmail;
-        }
-        
-        // Fallback to example email
-        return 'example@openmates.org';
+        // If not in store, try to decrypt from encrypted storage asynchronously
+        // This is needed after password setup when email is encrypted
+        cryptoService.getEmailDecryptedWithMasterKey().then((decryptedEmail) => {
+            if (decryptedEmail) {
+                email = decryptedEmail;
+            } else {
+                // Fallback to example email if decryption fails
+                email = 'example@openmates.org';
+            }
+        }).catch((error) => {
+            console.error('[TfaAppReminder] Error retrieving email from encrypted storage:', error);
+            // Fallback to example email on error
+            email = 'example@openmates.org';
+        });
     });
 </script>
 
 <div class="content">
     <div class="signup-header">
         <div class="icon header_size reminder"></div>
-        <h2 class="signup-menu-title">{@html $text('signup.2fa_app_reminder.text')}</h2>
+        <h2 class="signup-menu-title">{@html $text('signup.2fa_app_reminder')}</h2>
     </div>
 
     <div class="text-block">
-        {@html $text('signup.in_case_you_forget.text')}
+        {@html $text('signup.in_case_you_forget')}
     </div>
 
     <div class="preview-container">
@@ -74,6 +85,7 @@ step_6_top_content_svelte:
                 previewTfaAppName="Google Authenticator"
                 highlight={['check-2fa', 'app-name']}
                 tfaAppName={selectedAppName}
+                tfa_required={true}
             />
         </div>
     </div>

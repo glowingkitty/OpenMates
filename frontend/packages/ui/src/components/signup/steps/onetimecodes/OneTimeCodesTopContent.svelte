@@ -10,11 +10,11 @@ step_4_top_content_svelte:
     tfa_explainer:
         type: 'text + visuals'
         text:
-            - $text('signup.secure_your_account.text')
-            - $text('signup.prevent_access.text')
-            - $text('signup.free.text')
-            - $text('signup.fast_to_setup.text')
-            - $text('signup.max_security.text')
+            - $text('signup.secure_your_account')
+            - $text('signup.prevent_access')
+            - $text('signup.free')
+            - $text('signup.fast_to_setup')
+            - $text('signup.max_security')
         visuals:
             - 'Three checkmark icons. One for each of the three features (free, fast to setup, max security)'
         purpose:
@@ -29,7 +29,7 @@ step_4_top_content_svelte:
             - '/signup/2fa'
     add_to_2fa_app_button:
         type: 'button'
-        text: $text('signup.add_to_2fa_app.text')
+        text: $text('signup.add_to_2fa_app')
         purpose:
             - 'Uses deep linking to open the 2FA app on the user device and add the user account to the 2FA app'
         processing:
@@ -45,7 +45,7 @@ step_4_top_content_svelte:
             - '/signup/2fa'
     scan_via_2fa_app_button:
         type: 'button'
-        text: $text('signup.scan_via_2fa_app.text')
+        text: $text('signup.scan_via_2fa_app')
         purpose:
             - 'Opens the QR code for the user to scan with their 2FA app, to add the user account to the 2FA app'
         processing:
@@ -64,7 +64,7 @@ step_4_top_content_svelte:
             - '/signup/2fa'
     copy_secret_button:
         type: 'button'
-        text: $text('signup.copy_secret.text')
+        text: $text('signup.copy_secret')
         purpose:
             - 'Copies the secret key to the user clipboard, to manually add the user account to the 2FA app'
         processing:
@@ -81,8 +81,9 @@ step_4_top_content_svelte:
         connected_documentation:
             - '/signup/2fa'
 -->
-
 <script lang="ts">
+    /* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any */
+    /* eslint-disable svelte/no-at-html-tags */
     /**
      * One Time Codes Top Content Component
      *
@@ -117,10 +118,12 @@ step_4_top_content_svelte:
     import QRCode from 'qrcode-svg';
     import { signupStore } from '../../../../stores/signupStore'; // Import signupStore for email
     import * as cryptoService from '../../../../services/cryptoService'; // Import cryptoService for email encryption
+    import { copyToClipboard } from '../../../../utils/clipboardUtils'; // Safari-compatible clipboard
 
     // State variables using Svelte 5 runes
     let showQrCode = $state(false);
     let showCopiedText = $state(false);
+    let showSecretCode = $state(false);  // Shows the secret code for manual copying
     let loading = $state(true);
     let error = $state(false);
     let errorMessage = $state('');
@@ -182,7 +185,8 @@ step_4_top_content_svelte:
         
         try {
             // Get email from encrypted storage (always decrypt on demand)
-            const email = cryptoService.getEmailDecryptedWithMasterKey();
+            // CRITICAL: Must await since getEmailDecryptedWithMasterKey is async
+            const email = await cryptoService.getEmailDecryptedWithMasterKey();
             
             // If we can't get the email, we can't proceed
             if (!email) {
@@ -197,11 +201,18 @@ step_4_top_content_svelte:
             const requestBody: any = {};
             
             // Get the email encryption key from storage
+            // This key was saved during password setup and is needed for the backend to decrypt the email
             const emailEncryptionKeyBase64 = cryptoService.getEmailEncryptionKeyForApi();
             
             // Add email encryption key if available
             if (emailEncryptionKeyBase64) {
                 requestBody.email_encryption_key = emailEncryptionKeyBase64;
+            } else {
+                console.error('Email encryption key not found in storage - cannot send to backend for email decryption');
+                error = true;
+                errorMessage = 'Could not retrieve encryption key';
+                loading = false;
+                return;
             }
             
             const response = await fetch(getApiEndpoint(apiEndpoints.auth.setup_2fa), {
@@ -248,20 +259,47 @@ step_4_top_content_svelte:
 
     function toggleQrCode() {
         showQrCode = !showQrCode;
+        // Hide secret code when showing QR code (mutually exclusive to avoid overlap)
+        if (showQrCode) {
+            showSecretCode = false;
+        }
         dispatch('actionClicked'); // Dispatch event
     }
 
+    /**
+     * Copy the 2FA secret to clipboard.
+     * Uses Safari-compatible clipboard utility with fallback for older browsers.
+     * Always shows the secret code in the UI so user can manually select/copy if needed.
+     */
     async function copySecret() {
         if (!secret) return;
         
-        await navigator.clipboard.writeText(secret);
-        showCopiedText = true;
+        // Hide QR code when showing secret code (mutually exclusive to avoid overlap)
+        showQrCode = false;
+        // Always show the secret code so user can manually copy if needed
+        showSecretCode = true;
         dispatch('actionClicked'); // Dispatch event
+        
+        const result = await copyToClipboard(secret);
+        
+        if (result.success) {
+            showCopiedText = true;
 
-        // Reset copied text after 2 seconds
-        setTimeout(() => {
-            showCopiedText = false;
-        }, 2000);
+            // Reset copied text after 2 seconds (but keep secret visible)
+            setTimeout(() => {
+                showCopiedText = false;
+            }, 2000);
+        } else {
+            // Clipboard failed - secret is still visible for manual copying
+            console.warn('[OneTimeCodesTopContent] Clipboard copy failed, secret displayed for manual copy');
+        }
+    }
+    
+    /**
+     * Toggle visibility of the secret code display.
+     */
+    function toggleSecretCode() {
+        showSecretCode = !showSecretCode;
     }
 
     function retrySetup() {
@@ -279,46 +317,50 @@ step_4_top_content_svelte:
 <div class="content">
     <div class="signup-header">
         <div class="icon header_size tfa"></div>
-        <h2 class="signup-menu-title">{@html $text('signup.one_time_codes.text')}</h2>
+        <h2 class="signup-menu-title">{@html $text('signup.one_time_codes')}</h2>
     </div>
     
     {#if !setupComplete}
-    <div class="prevent-access-text">
-        {$text('signup.prevent_access.text')}
+    <!-- Hide prevent-access-text when showing secret code so user can see the key for manual copying -->
+    <div class="prevent-access-text" class:fade-out={showSecretCode}>
+        {$text('signup.prevent_access')}
     </div>
     
-    <div class="features">
+    <!-- Hide features when showing secret code so user can see the key for manual copying -->
+    <div class="features" class:fade-out={showSecretCode}>
         <div class="feature">
             <div class="check-icon"></div>
-            <span>{@html $text('signup.free.text')}</span>
+            <span>{@html $text('signup.free')}</span>
         </div>
         <div class="feature">
             <div class="check-icon"></div>
-            <span>{@html $text('signup.fast_to_setup.text')}</span>
+            <span>{@html $text('signup.fast_to_setup')}</span>
         </div>
         <div class="feature">
             <div class="check-icon"></div>
-            <span>{@html $text('signup.max_security.text')}</span>
+            <span>{@html $text('signup.max_security')}</span>
         </div>
     </div>
     {:else} 
     <!-- This block executes when setup IS complete -->
-    <div class="prevent-access-text" class:fade-out={showQrCode && !$userProfile.tfa_enabled}>
-        {$text('signup.prevent_access.text')}
+    <!-- Hide prevent-access-text when showing QR code OR secret code so user can see the relevant content -->
+    <div class="prevent-access-text" class:fade-out={(showQrCode || showSecretCode) && !$userProfile.tfa_enabled}>
+        {$text('signup.prevent_access')}
     </div>
     
-    <div class="features" class:fade-out={showQrCode && !$userProfile.tfa_enabled}>
+    <!-- Hide features when showing QR code OR secret code so user can see the relevant content -->
+    <div class="features" class:fade-out={(showQrCode || showSecretCode) && !$userProfile.tfa_enabled}>
         <div class="feature">
             <div class="check-icon"></div>
-            <span>{@html $text('signup.free.text')}</span>
+            <span>{@html $text('signup.free')}</span>
         </div>
         <div class="feature">
             <div class="check-icon"></div>
-            <span>{@html $text('signup.fast_to_setup.text')}</span>
+            <span>{@html $text('signup.fast_to_setup')}</span>
         </div>
         <div class="feature">
             <div class="check-icon"></div>
-            <span>{@html $text('signup.max_security.text')}</span>
+            <span>{@html $text('signup.max_security')}</span>
         </div>
     </div>
     {/if} <!-- End of {#if !setupComplete}{:else} block -->
@@ -330,7 +372,7 @@ step_4_top_content_svelte:
              <div class="button-row">
                  <button class="text-button with-icon" onclick={handleResetTFA}>
                     <span class="button-icon restore-icon"></span> <!-- Assuming a restore/reset icon exists -->
-                    <span>{@html $text('signup.reset_tfa.text')}</span>
+                    <span>{@html $text('signup.reset_tfa')}</span>
                 </button>
              </div>
         </div>
@@ -349,31 +391,50 @@ step_4_top_content_svelte:
             <div class="button-row" class:move-up={showQrCode}>
                 <button class="text-button with-icon" onclick={handleDeepLink} disabled={!otpauthUrl}>
                     <span class="button-icon open-icon"></span>
-                    <span>{@html $text('signup.add_to_2fa_app.text')}</span>
+                    <span>{@html $text('signup.add_to_2fa_app')}</span>
                 </button>
             </div>
             
             <div class="button-row" class:move-up={showQrCode}>
-                <span class="or-text">{@html $text('signup.or.text')}</span>
-                <button class="text-button with-icon" onclick={toggleQrCode} disabled={!qrCodeSvg}>
+                <span class="or-text">{@html $text('signup.or')}</span>
+                <button id="signup-2fa-scan-qr" class="text-button with-icon" onclick={toggleQrCode} disabled={!qrCodeSvg}>
                     <span class="button-icon camera-icon"></span>
-                    <span>{@html $text('signup.scan_via_2fa_app.text')}</span>
+                    <span>{@html $text('signup.scan_via_2fa_app')}</span>
                 </button>
             </div>
 
             <div class="button-row">
-                <span class="or-text">{@html $text('signup.or.text')}</span>
-                <button class="text-button with-icon" onclick={copySecret} disabled={!secret}>
+                <span class="or-text">{@html $text('signup.or')}</span>
+                <button id="signup-2fa-copy-secret" class="text-button with-icon" onclick={copySecret} disabled={!secret}>
                     <span class="button-icon copy-icon"></span>
                     <span>
                         {#if showCopiedText}
-                            {$text('enter_message.press_and_hold_menu.copied_to_clipboard.text')}
+                            {$text('enter_message.press_and_hold_menu.copied_to_clipboard')}
                         {:else}
-                            {$text('signup.copy_secret.text')}
+                            {$text('signup.copy_secret')}
                         {/if}
                     </span>
                 </button>
             </div>
+            
+            <!-- Secret code display - shown when user clicks copy for manual selection -->
+            {#if showSecretCode && secret}
+            <div class="secret-code-container" transition:fade>
+                <div class="secret-code-label">{$text('signup.your_secret_key')}</div>
+                <input 
+                    type="text" 
+                    class="secret-code-input" 
+                    value={secret} 
+                    readonly 
+                    onclick={(e) => e.currentTarget.select()}
+                    aria-label="2FA Secret Key"
+                />
+                <button class="hide-secret-button" onclick={toggleSecretCode}>
+                    {$text('signup.hide_secret')}
+                </button>
+            </div>
+            {/if}
+
         </div>
     {/if} <!-- End of outer {:else if setupComplete} -->
 </div>
@@ -385,7 +446,8 @@ step_4_top_content_svelte:
 
     .content {
         padding: 24px;
-        height: 100%;
+        height: auto;
+        min-height: 0;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -401,12 +463,20 @@ step_4_top_content_svelte:
     .prevent-access-text {
         margin: 20px 0 20px 0;
         text-align: center;
-        transition: opacity 0.3s ease;
+        /* Transition all properties for smooth collapse animation */
+        transition: opacity 0.3s ease, max-height 0.3s ease, margin 0.3s ease;
+        max-height: 100px; /* Enough height for the text */
+        overflow: hidden;
     }
 
     .fade-out {
         opacity: 0;
         pointer-events: none;
+        /* Collapse the element so content below moves up */
+        max-height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden;
     }
 
     .features {
@@ -414,7 +484,10 @@ step_4_top_content_svelte:
         gap: 32px;
         justify-content: center;
         align-items: flex-start;
-        transition: opacity 0.3s ease;
+        /* Transition all properties for smooth collapse animation */
+        transition: opacity 0.3s ease, max-height 0.3s ease, margin 0.3s ease, gap 0.3s ease;
+        max-height: 200px; /* Enough height for the features */
+        overflow: hidden;
     }
 
     .feature {
@@ -503,9 +576,7 @@ step_4_top_content_svelte:
     .qr-code {
         width: var(--qr-code-size);
         height: var(--qr-code-size);
-        position: absolute;
-        top: 50%;
-        transform: translateY(-20px);
+        transform: translateY(calc(var(--qr-code-size) * 0.53));
         z-index: 1;
         display: flex;
         justify-content: center;
@@ -546,4 +617,62 @@ step_4_top_content_svelte:
         opacity: 0.5;
         cursor: not-allowed;
     }
+
+    /* Secret code display for manual copying */
+    .secret-code-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        margin-top: 16px;
+        padding: 16px;
+        border-radius: 8px;
+        width: 100%;
+        max-width: 320px;
+    }
+
+    .secret-code-label {
+        font-size: 12px;
+        color: var(--color-text-secondary, #666);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .secret-code-input {
+        width: 100%;
+        padding: 12px;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 14px;
+        font-weight: bold;
+        letter-spacing: 1px;
+        text-align: center;
+        background: var(--color-grey-10);
+        border: 2px dashed var(--color-grey-50, #ccc);
+        border-radius: 6px;
+        color: var(--color-grey-100);
+        cursor: text;
+        /* Allow text selection for manual copying */
+        user-select: all;
+        -webkit-user-select: all;
+    }
+
+    .secret-code-input:focus {
+        outline: none;
+        border-color: var(--color-primary, #007bff);
+    }
+
+    .hide-secret-button {
+        padding: 6px 12px;
+        font-size: 12px;
+        color: var(--color-text-secondary, #666);
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        text-decoration: underline;
+    }
+
+    .hide-secret-button:hover {
+        color: var(--color-text-primary, #333);
+    }
+
 </style>

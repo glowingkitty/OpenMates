@@ -1,10 +1,69 @@
 // Unified Embed extension for the new message parsing architecture
 // Replaces individual embed extensions with a single, type-agnostic embed node
 
-import { Node, mergeAttributes } from '@tiptap/core';
-import { EmbedNodeAttributes, EmbedType } from '../../../message_parsing/types';
-import { getEmbedRenderer, embedRenderers } from './embed_renderers';
-import { groupHandlerRegistry } from '../../../message_parsing/groupHandlers';
+import { Node, mergeAttributes } from "@tiptap/core";
+import { EmbedNodeAttributes } from "../../../message_parsing/types";
+import { getEmbedRenderer, embedRenderers } from "./embed_renderers";
+import { groupHandlerRegistry } from "../../../message_parsing/groupHandlers";
+import { cancelUpload, deleteDraftEmbed } from "../embedHandlers";
+
+/**
+ * Extract the embed_id from a contentRef string.
+ * Only returns a value for "embed:{embed_id}" format (real embeds stored in EmbedStore).
+ * Returns null for preview: or stream: refs which are not stored in EmbedStore.
+ */
+function extractEmbedIdFromContentRef(
+  contentRef: string | null | undefined,
+): string | null {
+  if (!contentRef) return null;
+  if (contentRef.startsWith("embed:")) {
+    return contentRef.slice("embed:".length);
+  }
+  return null;
+}
+
+/**
+ * Clean up embed data from EmbedStore when an embed node is removed from the editor.
+ * This prevents orphaned embeds from accumulating in IndexedDB when the user
+ * deletes draft-stage embeds (code pastes, URL embeds) before sending.
+ *
+ * Uses dynamic import to avoid adding embedStore as a top-level dependency.
+ * Runs asynchronously and never blocks the editor operation — failures are logged but not thrown.
+ */
+function cleanupRemovedEmbed(contentRef: string | null | undefined): void {
+  const embedId = extractEmbedIdFromContentRef(contentRef);
+  if (!embedId) return;
+
+  // Fire-and-forget: delete from EmbedStore asynchronously
+  import("../../../services/embedStore")
+    .then(({ embedStore }) => {
+      embedStore.deleteEmbed(embedId).then(() => {
+        console.debug(
+          "[Embed] Cleaned up removed embed from EmbedStore:",
+          embedId,
+        );
+      });
+    })
+    .catch((error) => {
+      console.error(
+        "[Embed] Failed to clean up removed embed:",
+        embedId,
+        error,
+      );
+    });
+}
+
+/**
+ * Clean up all embeds in a group node from EmbedStore.
+ * Iterates through groupedItems and deletes each stored embed.
+ */
+function cleanupRemovedGroupEmbeds(attrs: EmbedNodeAttributes): void {
+  if (!attrs.groupedItems || attrs.groupedItems.length === 0) return;
+
+  for (const item of attrs.groupedItems) {
+    cleanupRemovedEmbed(item.contentRef);
+  }
+}
 
 export interface EmbedOptions {
   // Configuration options for the unified embed extension
@@ -12,13 +71,16 @@ export interface EmbedOptions {
   group?: string;
 }
 
-declare module '@tiptap/core' {
+declare module "@tiptap/core" {
   interface Commands<ReturnType> {
     embed: {
       setEmbed: (attributes: EmbedNodeAttributes) => ReturnType;
-      updateEmbed: (id: string, attributes: Partial<EmbedNodeAttributes>) => ReturnType;
+      updateEmbed: (
+        id: string,
+        attributes: Partial<EmbedNodeAttributes>,
+      ) => ReturnType;
       removeEmbed: (id: string) => ReturnType;
-    }
+    };
   }
 }
 
@@ -27,8 +89,8 @@ declare module '@tiptap/core' {
  * Uses the new unified embed node attributes defined in the architecture
  */
 export const Embed = Node.create<EmbedOptions>({
-  name: 'embed',
-  group: 'inline',
+  name: "embed",
+  group: "inline",
   inline: true,
   selectable: true,
   draggable: true,
@@ -36,7 +98,7 @@ export const Embed = Node.create<EmbedOptions>({
   addOptions() {
     return {
       inline: true,
-      group: 'inline',
+      group: "inline",
     };
   },
 
@@ -45,223 +107,431 @@ export const Embed = Node.create<EmbedOptions>({
       // Core unified attributes per the new architecture
       id: {
         default: null,
-        parseHTML: element => element.getAttribute('data-id'),
-        renderHTML: attributes => {
+        parseHTML: (element) => element.getAttribute("data-id"),
+        renderHTML: (attributes) => {
           if (!attributes.id) {
             return {};
           }
-          return { 'data-id': attributes.id };
+          return { "data-id": attributes.id };
         },
       },
       type: {
-        default: 'text',
-        parseHTML: element => element.getAttribute('data-type'),
-        renderHTML: attributes => {
+        default: "text",
+        parseHTML: (element) => element.getAttribute("data-type"),
+        renderHTML: (attributes) => {
           if (!attributes.type) {
             return {};
           }
-          return { 'data-type': attributes.type };
+          return { "data-type": attributes.type };
         },
       },
       status: {
-        default: 'finished',
-        parseHTML: element => element.getAttribute('data-status'),
-        renderHTML: attributes => {
+        default: "finished",
+        parseHTML: (element) => element.getAttribute("data-status"),
+        renderHTML: (attributes) => {
           if (!attributes.status) {
             return {};
           }
-          return { 'data-status': attributes.status };
+          return { "data-status": attributes.status };
         },
       },
       contentRef: {
         default: null,
-        parseHTML: element => element.getAttribute('data-content-ref'),
-        renderHTML: attributes => {
+        parseHTML: (element) => element.getAttribute("data-content-ref"),
+        renderHTML: (attributes) => {
           if (!attributes.contentRef) {
             return {};
           }
-          return { 'data-content-ref': attributes.contentRef };
+          return { "data-content-ref": attributes.contentRef };
         },
       },
       contentHash: {
         default: null,
-        parseHTML: element => element.getAttribute('data-content-hash'),
-        renderHTML: attributes => {
+        parseHTML: (element) => element.getAttribute("data-content-hash"),
+        renderHTML: (attributes) => {
           if (!attributes.contentHash) {
             return {};
           }
-          return { 'data-content-hash': attributes.contentHash };
+          return { "data-content-hash": attributes.contentHash };
         },
       },
       // Optional metadata attributes
       language: {
         default: null,
-        parseHTML: element => element.getAttribute('data-language'),
-        renderHTML: attributes => {
+        parseHTML: (element) => element.getAttribute("data-language"),
+        renderHTML: (attributes) => {
           if (!attributes.language) {
             return {};
           }
-          return { 'data-language': attributes.language };
+          return { "data-language": attributes.language };
         },
       },
       filename: {
         default: null,
-        parseHTML: element => element.getAttribute('data-filename'),
-        renderHTML: attributes => {
+        parseHTML: (element) => element.getAttribute("data-filename"),
+        renderHTML: (attributes) => {
           if (!attributes.filename) {
             return {};
           }
-          return { 'data-filename': attributes.filename };
+          return { "data-filename": attributes.filename };
         },
       },
       title: {
         default: null,
-        parseHTML: element => element.getAttribute('data-title'),
-        renderHTML: attributes => {
+        parseHTML: (element) => element.getAttribute("data-title"),
+        renderHTML: (attributes) => {
           if (!attributes.title) {
             return {};
           }
-          return { 'data-title': attributes.title };
+          return { "data-title": attributes.title };
         },
       },
       url: {
         default: null,
-        parseHTML: element => element.getAttribute('data-url'),
-        renderHTML: attributes => {
+        parseHTML: (element) => element.getAttribute("data-url"),
+        renderHTML: (attributes) => {
           if (!attributes.url) {
             return {};
           }
-          return { 'data-url': attributes.url };
+          return { "data-url": attributes.url };
         },
       },
       // Count metadata
       lineCount: {
         default: null,
-        parseHTML: element => {
-          const value = element.getAttribute('data-line-count');
+        parseHTML: (element) => {
+          const value = element.getAttribute("data-line-count");
           return value ? parseInt(value, 10) : null;
         },
-        renderHTML: attributes => {
+        renderHTML: (attributes) => {
           if (!attributes.lineCount) {
             return {};
           }
-          return { 'data-line-count': attributes.lineCount.toString() };
+          return { "data-line-count": attributes.lineCount.toString() };
+        },
+      },
+      // Temporary field for preview code embeds (stores code content inline)
+      // This is only used for preview embeds in write mode, not persisted
+      code: {
+        default: null,
+        parseHTML: (element) => element.getAttribute("data-code"),
+        renderHTML: (attributes) => {
+          if (!attributes.code) {
+            return {};
+          }
+          return { "data-code": attributes.code };
         },
       },
       wordCount: {
         default: null,
-        parseHTML: element => {
-          const value = element.getAttribute('data-word-count');
+        parseHTML: (element) => {
+          const value = element.getAttribute("data-word-count");
           return value ? parseInt(value, 10) : null;
         },
-        renderHTML: attributes => {
+        renderHTML: (attributes) => {
           if (!attributes.wordCount) {
             return {};
           }
-          return { 'data-word-count': attributes.wordCount.toString() };
+          return { "data-word-count": attributes.wordCount.toString() };
         },
       },
       cellCount: {
         default: null,
-        parseHTML: element => {
-          const value = element.getAttribute('data-cell-count');
+        parseHTML: (element) => {
+          const value = element.getAttribute("data-cell-count");
           return value ? parseInt(value, 10) : null;
         },
-        renderHTML: attributes => {
+        renderHTML: (attributes) => {
           if (!attributes.cellCount) {
             return {};
           }
-          return { 'data-cell-count': attributes.cellCount.toString() };
+          return { "data-cell-count": attributes.cellCount.toString() };
         },
       },
       rows: {
         default: null,
-        parseHTML: element => {
-          const value = element.getAttribute('data-rows');
+        parseHTML: (element) => {
+          const value = element.getAttribute("data-rows");
           return value ? parseInt(value, 10) : null;
         },
-        renderHTML: attributes => {
+        renderHTML: (attributes) => {
           if (!attributes.rows) {
             return {};
           }
-          return { 'data-rows': attributes.rows.toString() };
+          return { "data-rows": attributes.rows.toString() };
         },
       },
       cols: {
         default: null,
-        parseHTML: element => {
-          const value = element.getAttribute('data-cols');
+        parseHTML: (element) => {
+          const value = element.getAttribute("data-cols");
           return value ? parseInt(value, 10) : null;
         },
-        renderHTML: attributes => {
+        renderHTML: (attributes) => {
           if (!attributes.cols) {
             return {};
           }
-          return { 'data-cols': attributes.cols.toString() };
+          return { "data-cols": attributes.cols.toString() };
         },
       },
       // Website-specific metadata attributes
       description: {
         default: null,
-        parseHTML: element => element.getAttribute('data-description'),
-        renderHTML: attributes => {
+        parseHTML: (element) => element.getAttribute("data-description"),
+        renderHTML: (attributes) => {
           if (!attributes.description) {
             return {};
           }
-          return { 'data-description': attributes.description };
+          return { "data-description": attributes.description };
         },
       },
       favicon: {
         default: null,
-        parseHTML: element => element.getAttribute('data-favicon'),
-        renderHTML: attributes => {
+        parseHTML: (element) => element.getAttribute("data-favicon"),
+        renderHTML: (attributes) => {
           if (!attributes.favicon) {
             return {};
           }
-          return { 'data-favicon': attributes.favicon };
+          return { "data-favicon": attributes.favicon };
         },
       },
       image: {
         default: null,
-        parseHTML: element => element.getAttribute('data-image'),
-        renderHTML: attributes => {
+        parseHTML: (element) => element.getAttribute("data-image"),
+        renderHTML: (attributes) => {
           if (!attributes.image) {
             return {};
           }
-          return { 'data-image': attributes.image };
+          return { "data-image": attributes.image };
+        },
+      },
+      // App skill metadata attributes
+      // CRITICAL: These must be registered as TipTap attributes so they survive setContent()
+      // during streaming. Without these, app_id/skill_id get stripped by TipTap, preventing
+      // the grouping pipeline from correctly grouping app-skill-use embeds.
+      app_id: {
+        default: null,
+        parseHTML: (element) => element.getAttribute("data-app-id"),
+        renderHTML: (attributes) => {
+          if (!attributes.app_id) {
+            return {};
+          }
+          return { "data-app-id": attributes.app_id };
+        },
+      },
+      skill_id: {
+        default: null,
+        parseHTML: (element) => element.getAttribute("data-skill-id"),
+        renderHTML: (attributes) => {
+          if (!attributes.skill_id) {
+            return {};
+          }
+          return { "data-skill-id": attributes.skill_id };
+        },
+      },
+      query: {
+        default: null,
+        parseHTML: (element) => element.getAttribute("data-query"),
+        renderHTML: (attributes) => {
+          if (!attributes.query) {
+            return {};
+          }
+          return { "data-query": attributes.query };
+        },
+      },
+      provider: {
+        default: null,
+        parseHTML: (element) => element.getAttribute("data-provider"),
+        renderHTML: (attributes) => {
+          if (!attributes.provider) {
+            return {};
+          }
+          return { "data-provider": attributes.provider };
+        },
+      },
+      // -----------------------------------------------------------------------
+      // Maps location embed attributes
+      // Stored as data-* attributes so they survive TipTap DOM round-trips.
+      // preciseLat/preciseLon are used for the in-editor Leaflet pin preview.
+      // zoom is used to set the initial zoom level of the Leaflet map.
+      // name is the short display label for the location.
+      // -----------------------------------------------------------------------
+      // name: short display label for the location (e.g. "Berlin Hauptbahnhof").
+      // Must be registered as a TipTap attr — unregistered attrs are silently dropped.
+      name: {
+        default: null,
+        parseHTML: (element) => element.getAttribute("data-name") ?? null,
+        renderHTML: (attributes) => {
+          if (!attributes.name) return {};
+          return { "data-name": attributes.name };
+        },
+      },
+      preciseLat: {
+        default: null,
+        parseHTML: (element) => {
+          const value = element.getAttribute("data-precise-lat");
+          return value ? parseFloat(value) : null;
+        },
+        renderHTML: (attributes) => {
+          if (attributes.preciseLat == null) return {};
+          return { "data-precise-lat": String(attributes.preciseLat) };
+        },
+      },
+      preciseLon: {
+        default: null,
+        parseHTML: (element) => {
+          const value = element.getAttribute("data-precise-lon");
+          return value ? parseFloat(value) : null;
+        },
+        renderHTML: (attributes) => {
+          if (attributes.preciseLon == null) return {};
+          return { "data-precise-lon": String(attributes.preciseLon) };
+        },
+      },
+      zoom: {
+        default: null,
+        parseHTML: (element) => {
+          const value = element.getAttribute("data-zoom");
+          return value ? parseInt(value, 10) : null;
+        },
+        renderHTML: (attributes) => {
+          if (attributes.zoom == null) return {};
+          return { "data-zoom": String(attributes.zoom) };
+        },
+      },
+      // address: resolved human-readable street address for the embed card secondary line.
+      // Stored as a data-* attribute so it survives TipTap DOM round-trips.
+      address: {
+        default: null,
+        parseHTML: (element) => element.getAttribute("data-address") ?? null,
+        renderHTML: (attributes) => {
+          if (!attributes.address) return {};
+          return { "data-address": attributes.address };
+        },
+      },
+      // locationType: "precise_location" | "area" — set by MapsView when the user confirms.
+      // "area" means the user had imprecise/privacy mode on; used to show the "Nearby:" label.
+      locationType: {
+        default: null,
+        parseHTML: (element) =>
+          element.getAttribute("data-location-type") ?? null,
+        renderHTML: (attributes) => {
+          if (!attributes.locationType) return {};
+          return { "data-location-type": attributes.locationType };
+        },
+      },
+      // placeType: category label for search results (e.g. "Railway", "Airport", "Hotel").
+      // Empty string for manual/current-location pins. Shown as a muted secondary line
+      // in the embed card beneath the place name.
+      placeType: {
+        default: null,
+        parseHTML: (element) => element.getAttribute("data-place-type") ?? null,
+        renderHTML: (attributes) => {
+          if (!attributes.placeType) return {};
+          return { "data-place-type": attributes.placeType };
+        },
+      },
+      // Focus mode metadata
+      focus_id: {
+        default: null,
+        parseHTML: (element) => element.getAttribute("data-focus-id"),
+        renderHTML: (attributes) => {
+          if (!attributes.focus_id) {
+            return {};
+          }
+          return { "data-focus-id": attributes.focus_id };
+        },
+      },
+      focus_mode_name: {
+        default: null,
+        parseHTML: (element) => element.getAttribute("data-focus-mode-name"),
+        renderHTML: (attributes) => {
+          if (!attributes.focus_mode_name) {
+            return {};
+          }
+          return { "data-focus-mode-name": attributes.focus_mode_name };
         },
       },
       // Website group attributes
       groupedItems: {
         default: null,
-        parseHTML: element => {
-          const value = element.getAttribute('data-grouped-items');
+        parseHTML: (element) => {
+          const value = element.getAttribute("data-grouped-items");
           try {
             return value ? JSON.parse(value) : null;
           } catch {
             return null;
           }
         },
-        renderHTML: attributes => {
+        renderHTML: (attributes) => {
           if (!attributes.groupedItems) {
             return {};
           }
-          return { 'data-grouped-items': JSON.stringify(attributes.groupedItems) };
+          return {
+            "data-grouped-items": JSON.stringify(attributes.groupedItems),
+          };
         },
       },
       groupCount: {
         default: null,
-        parseHTML: element => {
-          const value = element.getAttribute('data-group-count');
+        parseHTML: (element) => {
+          const value = element.getAttribute("data-group-count");
           return value ? parseInt(value, 10) : null;
         },
-        renderHTML: attributes => {
+        renderHTML: (attributes) => {
           if (!attributes.groupCount) {
             return {};
           }
-          return { 'data-group-count': attributes.groupCount.toString() };
+          return { "data-group-count": attributes.groupCount.toString() };
         },
       },
+      // -----------------------------------------------------------------------
+      // Image upload ephemeral attributes — in-memory only, NOT persisted to DOM.
+      // These are set by insertImage() and _performUpload() in embedHandlers.ts.
+      // rendered: false means TipTap keeps them in the ProseMirror document but
+      // never writes them to the HTML (no parseHTML / renderHTML needed).
+      // -----------------------------------------------------------------------
+      /** Local blob URL for instant preview while uploading. Only valid for the
+       *  duration of the upload session — not serialized to HTML. */
+      src: { default: null, rendered: false },
+      /** Original object URL before any processing (unused currently, reserved) */
+      originalUrl: { default: null, rendered: false },
+      /** S3 file variant metadata returned by the upload server.
+       *  Shape: { preview, full, original } each with s3_key, width, height, etc. */
+      s3Files: { default: null, rendered: false },
+      /** S3 base URL for constructing full image fetch URLs */
+      s3BaseUrl: { default: null, rendered: false },
+      /** Plaintext AES-256 key (base64) for client-side image decryption */
+      aesKey: { default: null, rendered: false },
+      /** AES-GCM nonce (base64) shared across all encrypted image variants */
+      aesNonce: { default: null, rendered: false },
+      /** Vault-wrapped AES key (base64) for server-side key storage */
+      vaultWrappedAesKey: { default: null, rendered: false },
+      /** Error message set by _performUpload() when the upload fails */
+      uploadError: { default: null, rendered: false },
+      /** Unique upload correlation ID set by insertImage() */
+      uploadEmbedId: { default: null, rendered: false },
+      /** AI detection/moderation result returned by the upload server */
+      aiDetection: { default: null, rendered: false },
+      /** The original File object (only in editor session, not serialized) */
+      originalFile: { default: null, rendered: false },
+      /** Number of pages in an uploaded PDF (set by insertPDF after upload completes) */
+      pageCount: { default: null, rendered: false },
+
+      // -----------------------------------------------------------------------
+      // Recording-specific attributes
+      // Set by insertRecording() and _performRecordingUpload() in embedHandlers.ts.
+      // Used by RecordingRenderer.ts → RecordingEmbedPreview.svelte.
+      // rendered: false — ephemeral editor-session data, not serialized to HTML.
+      // -----------------------------------------------------------------------
+      /** Local blob URL for instant audio playback while uploading (editor context only) */
+      blobUrl: { default: null, rendered: false },
+      /** Transcribed text returned by Mistral Voxtral */
+      transcript: { default: null, rendered: false },
+      /** Formatted duration string (e.g. "0:42") */
+      duration: { default: null, rendered: false },
+      /** MIME type of the original recording (e.g. 'audio/webm') */
+      mimeType: { default: null, rendered: false },
     };
   },
 
@@ -275,124 +545,583 @@ export const Embed = Node.create<EmbedOptions>({
 
   renderHTML({ HTMLAttributes }) {
     const attrs = mergeAttributes(HTMLAttributes, {
-      'data-embed-unified': 'true',
-      class: `embed-unified embed-${HTMLAttributes['data-type'] || 'text'} embed-status-${HTMLAttributes['data-status'] || 'finished'}`,
+      "data-embed-unified": "true",
+      class: `embed-unified embed-${HTMLAttributes["data-type"] || "text"} embed-status-${HTMLAttributes["data-status"] || "finished"}`,
     });
 
-    return ['div', attrs];
+    return ["div", attrs];
   },
 
   addNodeView() {
     return ({ node, getPos, editor }) => {
-      const attrs = node.attrs as EmbedNodeAttributes;
-      
-      // Create full-width wrapper to prevent cursor positioning after embed
-      const wrapper = document.createElement('div');
-      wrapper.classList.add('embed-full-width-wrapper');
-      wrapper.style.width = '100%';
-      wrapper.style.display = 'block';
-      
-      // Create container element for the actual embed content
-      const container = document.createElement('div');
-      
-      // Use different class for group containers vs individual embeds
-      if (attrs.type && attrs.type.endsWith('-group')) {
-        container.classList.add('embed-group-container');
-      } else {
-        container.classList.add('embed-unified-container');
-      }
-      
-      container.setAttribute('data-embed-type', attrs.type);
-      container.setAttribute('data-embed-status', attrs.status);
-      
-      // Add processing/finished visual indicators
-      if (attrs.status === 'processing') {
-        container.classList.add('embed-processing');
-      } else {
-        container.classList.add('embed-finished');
-      }
-      
-      // Add container to wrapper
-      wrapper.appendChild(container);
+      let currentAttrs = node.attrs as EmbedNodeAttributes;
 
-      // Create a placeholder content element
-      const content = document.createElement('div');
-      content.classList.add('embed-content');
-      
+      // Create full-width wrapper to prevent cursor positioning after embed
+      const wrapper = document.createElement("div");
+      wrapper.classList.add("embed-full-width-wrapper");
+      wrapper.style.width = "100%";
+      wrapper.style.display = "block";
+
+      // For image embeds (legal SVGs), minimize spacing
+      if (currentAttrs.type === "image") {
+        wrapper.style.margin = "0";
+        wrapper.style.marginBottom = "8px";
+      }
+
+      // For embed types that render Svelte components with their own UnifiedEmbedPreview,
+      // mount directly into wrapper (no intermediate container)
+      // These types already have their own container styling (background, border-radius, box-shadow, tilt effect)
+      // Adding an extra embed-unified-container would cause visual artifacts during 3D transforms
+      let container: HTMLElement;
+      let mountTarget: HTMLElement;
+
+      // Embed types that use Svelte components with UnifiedEmbedPreview - no wrapper needed.
+      // These mount directly into the wrapper; the Svelte component provides its own
+      // container styling (background, border-radius, box-shadow, etc.).
+      const svelteComponentEmbedTypes = [
+        "app-skill-use",
+        "code-code", // CodeEmbedPreview uses UnifiedEmbedPreview
+        "web-website", // WebsiteEmbedPreview uses UnifiedEmbedPreview
+        "videos-video", // VideoEmbedPreview uses UnifiedEmbedPreview
+        "image", // ImageEmbedPreview uses UnifiedEmbedPreview (uploaded images)
+        "maps", // MapLocationEmbedPreview renders Leaflet map inline
+        "pdf", // PDFEmbedPreview renders the PDF upload status card
+        "recording", // RecordingEmbedPreview uses UnifiedEmbedPreview — must be here so
+        // renderer.update() is called on status transitions (uploading→transcribing→finished).
+        // Without this, the embed stays stuck on "Processing..." forever because the else
+        // branch in update() does not call renderer.update().
+      ];
+
+      if (svelteComponentEmbedTypes.includes(currentAttrs.type)) {
+        // Mount directly into wrapper - Svelte component creates its own unified-embed-preview
+        // NO intermediate container - wrapper is used directly
+        container = wrapper;
+        mountTarget = wrapper;
+        // Ensure wrapper does NOT have embed-unified-container class
+        wrapper.classList.remove("embed-unified-container");
+      } else {
+        // Create container element for other embed types
+        container = document.createElement("div");
+
+        // Use different class for group containers vs individual embeds
+        if (currentAttrs.type && currentAttrs.type.endsWith("-group")) {
+          container.classList.add("embed-group-container");
+        } else {
+          container.classList.add("embed-unified-container");
+          container.setAttribute("data-embed-type", currentAttrs.type);
+          container.setAttribute("data-embed-status", currentAttrs.status);
+        }
+
+        // For image embeds, add a special class to identify them
+        if (currentAttrs.type === "image") {
+          container.classList.add("embed-image-non-interactive");
+        }
+
+        // Add processing/finished visual indicators
+        if (currentAttrs.status === "processing") {
+          container.classList.add("embed-processing");
+        } else {
+          container.classList.add("embed-finished");
+        }
+
+        // Add container to wrapper
+        wrapper.appendChild(container);
+        mountTarget = container;
+      }
+
       // Check if we have a specific renderer for this embed type
-      const renderer = getEmbedRenderer(attrs.type);
-      
-      console.log('[Embed] Looking for renderer for type:', attrs.type, 'found:', !!renderer);
-      console.log('[Embed] Renderer object:', renderer);
-      console.log('[Embed] Available renderers:', Object.keys(embedRenderers));
-      
+      const renderer = getEmbedRenderer(currentAttrs.type);
+
+      console.debug(
+        "[Embed] Looking for renderer for type:",
+        currentAttrs.type,
+        "found:",
+        !!renderer,
+      );
+      console.debug("[Embed] Renderer object:", renderer);
+      console.debug(
+        "[Embed] Available renderers:",
+        Object.keys(embedRenderers),
+      );
+
       if (renderer) {
         // Use the dedicated renderer
-        console.log('[Embed] Using renderer for type:', attrs.type);
-        renderer.render({ attrs, container, content });
-      } else {
-        // No renderer found - this should not happen for properly configured embed types
-        console.error('[Embed] No renderer found for embed type:', attrs.type);
-        throw new Error(`No renderer found for embed type: ${attrs.type}. This indicates a missing renderer registration.`);
-      }
-      
-      container.appendChild(content);
-      
-      // Make the node selectable and add basic interaction
-      container.addEventListener('click', () => {
-        if (typeof getPos === 'function') {
-          const pos = getPos();
-          editor.commands.setNodeSelection(pos);
+        // For app-skill-use: mount directly into wrapper (Svelte component creates unified-embed-preview)
+        // For other types: mount into container (renderers create their own content structure)
+        console.debug("[Embed] Using renderer for type:", currentAttrs.type);
+
+        // If renderer.render is async (returns Promise), handle it
+        const renderResult = renderer.render({
+          attrs: currentAttrs,
+          container,
+          content: mountTarget,
+        });
+
+        if (renderResult instanceof Promise) {
+          // Handle async rendering (e.g., loading from EmbedStore)
+          renderResult.catch((error) => {
+            console.error("[Embed] Error during async render:", error);
+            mountTarget.innerHTML = `<div class="embed-error">Error loading embed: ${error.message}</div>`;
+          });
         }
-      });
+
+        // Auto-upgrade preview: embeds to real EmbedStore entries for authenticated users.
+        // preview:code: and preview:docs-doc: nodes are created when the user pastes a code
+        // block or document block in write mode. They hold the content inline in attrs.code.
+        // By immediately creating a real embed entry, we give the embed a stable embed_id so
+        // it can be deep-linked and opened in fullscreen even before the message is sent.
+        if (
+          currentAttrs.contentRef?.startsWith("preview:code:") &&
+          currentAttrs.code != null &&
+          typeof getPos === "function"
+        ) {
+          // Fire-and-forget: upgrade preview code embed to real embed
+          (async () => {
+            try {
+              const { createCodeEmbed } =
+                await import("../services/codeEmbedService");
+              const result = await createCodeEmbed(
+                currentAttrs.code!,
+                currentAttrs.language || "text",
+                currentAttrs.filename || undefined,
+              );
+              // Update the node's contentRef to point to the real embed
+              if (typeof getPos === "function") {
+                const pos = getPos();
+                const { state } = editor.view;
+                const nodeAtPos = state.doc.nodeAt(pos);
+                if (
+                  nodeAtPos &&
+                  nodeAtPos.type.name === "embed" &&
+                  nodeAtPos.attrs.contentRef === currentAttrs.contentRef
+                ) {
+                  const tr = state.tr.setNodeMarkup(pos, undefined, {
+                    ...nodeAtPos.attrs,
+                    contentRef: `embed:${result.embed_id}`,
+                  });
+                  editor.view.dispatch(tr);
+                  console.debug(
+                    "[Embed] Upgraded preview code embed to real embed:",
+                    result.embed_id,
+                  );
+                }
+              }
+            } catch (error) {
+              // Non-fatal: preview embed still works inline; real embed creation failed
+              console.error(
+                "[Embed] Failed to upgrade preview code embed to real embed:",
+                error,
+              );
+            }
+          })();
+        } else if (
+          currentAttrs.contentRef?.startsWith("preview:docs-doc:") &&
+          currentAttrs.code != null &&
+          typeof getPos === "function"
+        ) {
+          // Fire-and-forget: upgrade preview docs-doc embed to real embed
+          (async () => {
+            try {
+              const { createDocEmbed } =
+                await import("../services/codeEmbedService");
+              const result = await createDocEmbed(
+                currentAttrs.code!,
+                currentAttrs.title || undefined,
+                currentAttrs.filename || undefined,
+              );
+              if (typeof getPos === "function") {
+                const pos = getPos();
+                const { state } = editor.view;
+                const nodeAtPos = state.doc.nodeAt(pos);
+                if (
+                  nodeAtPos &&
+                  nodeAtPos.type.name === "embed" &&
+                  nodeAtPos.attrs.contentRef === currentAttrs.contentRef
+                ) {
+                  const tr = state.tr.setNodeMarkup(pos, undefined, {
+                    ...nodeAtPos.attrs,
+                    contentRef: `embed:${result.embed_id}`,
+                  });
+                  editor.view.dispatch(tr);
+                  console.debug(
+                    "[Embed] Upgraded preview docs-doc embed to real embed:",
+                    result.embed_id,
+                  );
+                }
+              }
+            } catch (error) {
+              console.error(
+                "[Embed] Failed to upgrade preview docs-doc embed to real embed:",
+                error,
+              );
+            }
+          })();
+        }
+      } else {
+        // No renderer found - show a graceful error instead of throwing.
+        // Throwing here would crash the entire TipTap editor creation (new Editor())
+        // and make the whole message invisible. A missing renderer for one embed
+        // should not prevent the rest of the message from rendering.
+        console.error(
+          "[Embed] No renderer found for embed type:",
+          currentAttrs.type,
+          "— rendering fallback. Available renderers:",
+          Object.keys(embedRenderers),
+        );
+        mountTarget.innerHTML = `<div class="embed-error" style="padding:8px;font-size:12px;color:var(--color-grey-50);opacity:0.7">Embed unavailable</div>`;
+      }
+
+      // For image embeds: listen for the 'cancelimageupload' event fired by the
+      // Stop button in ImageEmbedPreview. Cancel the in-flight upload and delete
+      // the node from the document.
+      if (currentAttrs.type === "image") {
+        wrapper.addEventListener("cancelimageupload", (e) => {
+          const embedId = (e as CustomEvent<{ embedId: string }>).detail
+            ?.embedId;
+          if (embedId) {
+            cancelUpload(embedId);
+            // If upload already completed (cancelUpload was a no-op), delete the
+            // server-side upload_files record + S3 variants + update storage counter.
+            // If still uploading, cancelUpload aborted the fetch — server never created
+            // the record, so deleteDraftEmbed is effectively a no-op server-side too.
+            // IMPORTANT: The server's upload_files table stores records by the
+            // server-assigned embed_id (attrs.uploadEmbedId), NOT the local UUID
+            // (attrs.id). Use uploadEmbedId when available so the server can find and
+            // delete the record. Fall back to the local id only if upload hasn't
+            // completed yet (uploadEmbedId is null in that case).
+            const serverEmbedId =
+              (currentAttrs.uploadEmbedId as string | null | undefined) ??
+              embedId;
+            deleteDraftEmbed(serverEmbedId);
+          }
+          if (typeof getPos === "function") {
+            const pos = getPos();
+            const nodeSize = editor.state.doc.nodeAt(pos)?.nodeSize ?? 1;
+            const to = pos + nodeSize;
+            const hardBreakAfter = editor.state.doc.nodeAt(to);
+            const deleteTo =
+              hardBreakAfter?.type.name === "hardBreak" ? to + 1 : to;
+            editor
+              .chain()
+              .focus()
+              .deleteRange({ from: pos, to: deleteTo })
+              .run();
+          }
+          console.debug(
+            "[Embed] Stop button: cancelled upload and deleted image embed:",
+            embedId,
+          );
+          // Notify MessageInput that an embed was removed via the stop button.
+          // This bypasses the text-change guard in handleEditorUpdate (which skips
+          // draft saves when getText() hasn't changed — e.g. image-only editor).
+          // The event bubbles up to the editor's DOM view where MessageInput listens.
+          editor.view.dom.dispatchEvent(
+            new CustomEvent("embed-upload-cancelled", {
+              bubbles: true,
+              detail: { embedId },
+            }),
+          );
+        });
+      }
+
+      // For PDF embeds: listen for 'cancelpdfupload' fired by PDFEmbedPreview Stop button.
+      // Handles two cases:
+      //   1. status='uploading'  — abort the in-flight HTTP upload (cancelUpload) then
+      //                            delete the draft record.
+      //   2. status='processing' — upload is done but OCR is running on the server.
+      //                            Send cancel_pdf_processing via WebSocket to revoke the
+      //                            Celery task; also call deleteDraftEmbed for S3/DB cleanup.
+      if (currentAttrs.type === "pdf") {
+        wrapper.addEventListener("cancelpdfupload", (e) => {
+          const embedId = (e as CustomEvent<{ embedId: string }>).detail
+            ?.embedId;
+
+          // embedId here is the local attrs.id (pre-upload UUID).
+          // uploadEmbedId is the server-assigned UUID (set after upload completes).
+          const uploadEmbedId = currentAttrs.uploadEmbedId as string | null;
+
+          if (embedId) {
+            // Always attempt to abort an in-flight upload (no-op if already completed).
+            cancelUpload(embedId);
+
+            // If the embed is in 'processing' state and we have the server-assigned
+            // upload embed ID, send the cancel_pdf_processing WebSocket message so
+            // the server can revoke the Celery OCR task.
+            if (currentAttrs.status === "processing" && uploadEmbedId) {
+              import("../../../services/chatSyncService")
+                .then(({ chatSyncService }) => {
+                  chatSyncService
+                    .sendCancelPdfProcessing(uploadEmbedId)
+                    .catch((err) => {
+                      console.error(
+                        "[Embed] Failed to send cancel_pdf_processing for embed:",
+                        uploadEmbedId,
+                        err,
+                      );
+                    });
+                })
+                .catch((err) => {
+                  console.error(
+                    "[Embed] Failed to import chatSyncService for PDF cancel:",
+                    err,
+                  );
+                });
+            } else {
+              // Upload phase (or processing without uploadEmbedId) — standard delete.
+              // deleteDraftEmbed uses the local embedId as sent to the server during upload.
+              deleteDraftEmbed(uploadEmbedId ?? embedId);
+            }
+          }
+
+          if (typeof getPos === "function") {
+            const pos = getPos();
+            const nodeSize = editor.state.doc.nodeAt(pos)?.nodeSize ?? 1;
+            const to = pos + nodeSize;
+            const hardBreakAfter = editor.state.doc.nodeAt(to);
+            const deleteTo =
+              hardBreakAfter?.type.name === "hardBreak" ? to + 1 : to;
+            editor
+              .chain()
+              .focus()
+              .deleteRange({ from: pos, to: deleteTo })
+              .run();
+          }
+          console.debug(
+            "[Embed] Stop button: cancelled PDF embed (status was",
+            currentAttrs.status,
+            ") embedId:",
+            embedId,
+            "uploadEmbedId:",
+            uploadEmbedId,
+          );
+          editor.view.dom.dispatchEvent(
+            new CustomEvent("embed-upload-cancelled", {
+              bubbles: true,
+              detail: { embedId },
+            }),
+          );
+        });
+      }
+
+      // For recording embeds: listen for 'cancelrecordingupload' fired by the Stop button
+      // in RecordingEmbedPreview (via RecordingRenderer). Cancel the in-flight upload and
+      // delete the node from the document. Same pattern as cancelimageupload/cancelpdfupload.
+      if (currentAttrs.type === "recording") {
+        wrapper.addEventListener("cancelrecordingupload", (e) => {
+          const embedId = (e as CustomEvent<{ embedId: string }>).detail
+            ?.embedId;
+          if (embedId) {
+            cancelUpload(embedId);
+            // Delete server-side upload_files record + S3 variants for completed uploads.
+            // Safe to call even if still uploading/transcribing — server handles gracefully.
+            // IMPORTANT: The server's upload_files table stores records by the
+            // server-assigned embed_id (currentAttrs.uploadEmbedId), NOT the local UUID
+            // (attrs.id / embedId from the event). Use uploadEmbedId when available so the
+            // server can find and delete the record. Fall back to the local id only if the
+            // upload hasn't completed yet (uploadEmbedId is null in that case).
+            const serverEmbedId =
+              (currentAttrs.uploadEmbedId as string | null | undefined) ??
+              embedId;
+            deleteDraftEmbed(serverEmbedId);
+          }
+          if (typeof getPos === "function") {
+            const pos = getPos();
+            const nodeSize = editor.state.doc.nodeAt(pos)?.nodeSize ?? 1;
+            const to = pos + nodeSize;
+            const hardBreakAfter = editor.state.doc.nodeAt(to);
+            const deleteTo =
+              hardBreakAfter?.type.name === "hardBreak" ? to + 1 : to;
+            editor
+              .chain()
+              .focus()
+              .deleteRange({ from: pos, to: deleteTo })
+              .run();
+          }
+          console.debug(
+            "[Embed] Stop button: cancelled upload and deleted recording embed:",
+            embedId,
+          );
+          editor.view.dom.dispatchEvent(
+            new CustomEvent("embed-upload-cancelled", {
+              bubbles: true,
+              detail: { embedId },
+            }),
+          );
+        });
+      }
+
+      // Make the node selectable and add basic interaction
+      // BUT: Skip click handlers for image embeds (they should not be clickable)
+      // For Svelte component embeds, they handle their own click events.
+      // focus-mode-activation also handles its own clicks (reject during countdown,
+      // context menu after activation) — ProseMirror click/mousedown handlers interfere.
+      const skipClickHandler =
+        currentAttrs.type === "image" ||
+        currentAttrs.type === "focus-mode-activation" ||
+        svelteComponentEmbedTypes.includes(currentAttrs.type);
+      if (!skipClickHandler) {
+        container.addEventListener("click", () => {
+          if (typeof getPos === "function") {
+            const pos = getPos();
+            editor.commands.setNodeSelection(pos);
+          }
+        });
+      }
 
       // Prevent cursor from being positioned before the embed
-      container.addEventListener('mousedown', (event) => {
-        // If clicking at the start of the embed, move cursor to after it
-        const rect = container.getBoundingClientRect();
-        const clickX = event.clientX;
-        const isClickingAtStart = clickX < rect.left + rect.width * 0.3; // First 30% of embed
-        
-        console.debug('[Embed] Mouse down on embed:', {
-          clickX,
-          rectLeft: rect.left,
-          rectWidth: rect.width,
-          isClickingAtStart,
-          embedType: attrs.type
+      // BUT: Skip this for image embeds (they should not be interactive)
+      // For Svelte component embeds, they handle their own interactions
+      if (!skipClickHandler) {
+        container.addEventListener("mousedown", (event) => {
+          // If clicking at the start of the embed, move cursor to after it
+          const rect = container.getBoundingClientRect();
+          const clickX = event.clientX;
+          const isClickingAtStart = clickX < rect.left + rect.width * 0.3; // First 30% of embed
+
+          console.debug("[Embed] Mouse down on embed:", {
+            clickX,
+            rectLeft: rect.left,
+            rectWidth: rect.width,
+            isClickingAtStart,
+            embedType: currentAttrs.type,
+          });
+
+          if (isClickingAtStart && typeof getPos === "function") {
+            event.preventDefault();
+            const pos = getPos();
+            // Move cursor to after the embed
+            editor.commands.setTextSelection(
+              pos + container.textContent.length,
+            );
+            console.debug(
+              "[Embed] Prevented cursor positioning before embed, moved to after",
+            );
+          }
         });
-        
-        if (isClickingAtStart && typeof getPos === 'function') {
-          event.preventDefault();
-          const pos = getPos();
-          // Move cursor to after the embed
-          editor.commands.setTextSelection(pos + container.textContent.length);
-          console.debug('[Embed] Prevented cursor positioning before embed, moved to after');
-        }
-      });
-      
+      }
+
       return {
         dom: wrapper,
         update: (updatedNode) => {
           // Update the node view when attributes change
-          if (updatedNode.type.name !== 'embed') return false;
-          
+          if (updatedNode.type.name !== "embed") return false;
+
           const newAttrs = updatedNode.attrs as EmbedNodeAttributes;
-          container.setAttribute('data-embed-type', newAttrs.type);
-          container.setAttribute('data-embed-status', newAttrs.status);
-          
-          // Update classes - use different class for group containers vs individual embeds
-          if (newAttrs.type && newAttrs.type.endsWith('-group')) {
-            container.className = 'embed-group-container';
-          } else {
-            container.className = 'embed-unified-container';
+
+          // CRITICAL FIX: When the embed TYPE changes (e.g., app-skill-use -> app-skill-use-group),
+          // the DOM structure is fundamentally different:
+          // - Individual app-skill-use: container = wrapper (Svelte component path, no intermediate div)
+          // - Group app-skill-use-group: uses embed-group-container div inside wrapper
+          // Returning false forces TipTap to destroy this NodeView and create a new one
+          // with the correct DOM structure for the new type.
+          if (newAttrs.type !== currentAttrs.type) {
+            console.debug(
+              "[Embed] Type changed from",
+              currentAttrs.type,
+              "to",
+              newAttrs.type,
+              "- forcing NodeView recreation",
+            );
+            return false;
           }
-          
-          if (newAttrs.status === 'processing') {
-            container.classList.add('embed-processing');
-          } else {
-            container.classList.add('embed-finished');
+
+          // CRITICAL FIX: For group embeds, detect when groupedItems has changed
+          // and re-render the entire group to show new items during streaming.
+          // Without this, only the first item would show during streaming.
+          if (
+            newAttrs.type &&
+            newAttrs.type.endsWith("-group") &&
+            newAttrs.groupedItems
+          ) {
+            const oldGroupedItems = currentAttrs.groupedItems || [];
+            const newGroupedItems = newAttrs.groupedItems || [];
+
+            // Check if group items have changed (length or IDs)
+            const hasGroupChanged =
+              oldGroupedItems.length !== newGroupedItems.length ||
+              oldGroupedItems.some(
+                (item: EmbedNodeAttributes, idx: number) =>
+                  item.id !== newGroupedItems[idx]?.id,
+              );
+
+            if (hasGroupChanged) {
+              console.debug("[Embed] Group items changed, updating group:", {
+                oldCount: oldGroupedItems.length,
+                newCount: newGroupedItems.length,
+                type: newAttrs.type,
+              });
+
+              // Update current attrs before re-rendering
+              currentAttrs = newAttrs;
+
+              // Re-render the group with new items.
+              // GroupRenderer.render() will try an incremental DOM update first
+              // (only appending new items) before falling back to a full re-render.
+              // This avoids the visible "flash" caused by destroying and re-mounting
+              // every Svelte component on each streaming update.
+              const groupRenderer = getEmbedRenderer(newAttrs.type);
+              if (groupRenderer) {
+                const renderResult = groupRenderer.render({
+                  attrs: newAttrs,
+                  container,
+                  content: mountTarget,
+                });
+
+                if (renderResult instanceof Promise) {
+                  renderResult.catch((error) => {
+                    console.error("[Embed] Error re-rendering group:", error);
+                  });
+                }
+              }
+
+              return true;
+            }
           }
-          
+
+          // Update current attrs
+          currentAttrs = newAttrs;
+
+          // For Svelte component embeds, the wrapper is the container (no intermediate container)
+          // For other types, update the container classes
+          if (svelteComponentEmbedTypes.includes(newAttrs.type)) {
+            // No container to update - Svelte component handles its own structure
+            // Just update wrapper attributes if needed
+            wrapper.setAttribute("data-embed-type", newAttrs.type);
+            wrapper.setAttribute("data-embed-status", newAttrs.status);
+            // CRITICAL: Ensure wrapper never has embed-unified-container class
+            wrapper.classList.remove("embed-unified-container");
+            wrapper.classList.remove("embed-processing");
+            wrapper.classList.remove("embed-finished");
+
+            // CRITICAL: Forward the attr update to the renderer so the Svelte
+            // component's props are updated (e.g. status: 'uploading' → 'finished').
+            // Without this call the mounted Svelte component never sees the new
+            // attrs and stays permanently in its initial state (e.g. "uploading").
+            if (renderer?.update) {
+              renderer.update({
+                attrs: newAttrs,
+                container,
+                content: mountTarget,
+              });
+            }
+          } else {
+            // Update classes for non-Svelte component embeds
+            if (newAttrs.type && newAttrs.type.endsWith("-group")) {
+              container.className = "embed-group-container";
+            } else {
+              container.className = "embed-unified-container";
+              container.setAttribute("data-embed-type", newAttrs.type);
+              container.setAttribute("data-embed-status", newAttrs.status);
+            }
+
+            // Add processing/finished visual indicators
+            if (newAttrs.status === "processing") {
+              container.classList.add("embed-processing");
+            } else {
+              container.classList.add("embed-finished");
+            }
+          }
+
           return true;
         },
         destroy: () => {
@@ -412,7 +1141,7 @@ export const Embed = Node.create<EmbedOptions>({
             attrs: attributes,
           });
         },
-      
+
       updateEmbed:
         (id: string, attributes: Partial<EmbedNodeAttributes>) =>
         ({ tr, state }) => {
@@ -430,7 +1159,7 @@ export const Embed = Node.create<EmbedOptions>({
 
           return updated;
         },
-      
+
       removeEmbed:
         (id: string) =>
         ({ tr, state }) => {
@@ -449,7 +1178,7 @@ export const Embed = Node.create<EmbedOptions>({
         },
     };
   },
-  
+
   addKeyboardShortcuts() {
     return {
       // Prevent cursor from being positioned before an embed in the same paragraph
@@ -460,11 +1189,16 @@ export const Embed = Node.create<EmbedOptions>({
         const pos = $anchor.pos;
         const node = editor.state.doc.nodeAt(pos);
 
-        console.debug('[Embed] ArrowLeft at position:', pos, 'node type:', node?.type.name);
+        console.debug(
+          "[Embed] ArrowLeft at position:",
+          pos,
+          "node type:",
+          node?.type.name,
+        );
 
         // If we're at the start of an embed, prevent moving left
         if (node?.type.name === this.name) {
-          console.debug('[Embed] Prevented arrow left into embed');
+          console.debug("[Embed] Prevented arrow left into embed");
           return true; // Prevent default behavior
         }
 
@@ -479,11 +1213,16 @@ export const Embed = Node.create<EmbedOptions>({
         const pos = $anchor.pos;
         const node = editor.state.doc.nodeAt(pos - 1);
 
-        console.debug('[Embed] ArrowRight at position:', pos, 'node before:', node?.type.name);
+        console.debug(
+          "[Embed] ArrowRight at position:",
+          pos,
+          "node before:",
+          node?.type.name,
+        );
 
         // If we're right after an embed, prevent moving right into it
         if (node?.type.name === this.name) {
-          console.debug('[Embed] Prevented arrow right into embed');
+          console.debug("[Embed] Prevented arrow right into embed");
           return true; // Prevent default behavior
         }
 
@@ -495,32 +1234,41 @@ export const Embed = Node.create<EmbedOptions>({
         if (!empty) return false;
 
         const pos = $anchor.pos;
-        
-        console.debug('[Embed] Backspace triggered at position:', pos);
-        
+
+        console.debug("[Embed] Backspace triggered at position:", pos);
+
         // Check if we're positioned right after an embed node
-        // Look for embed nodes in the range before the cursor
+        // ONLY delete when cursor is directly adjacent to the embed:
+        //   Case 1: Node at pos-1 is an embed (cursor immediately after embed inline)
+        //   Case 2: Node at pos-1 is a hardBreak and the node before the hardBreak is
+        //           an embed (cursor at start of line immediately after embed + line break)
         let embedNode = null;
         let embedPos = -1;
-        
-        // Check the node immediately before the cursor
+
+        // Case 1: Check the node immediately before the cursor
         const nodeBefore = editor.state.doc.nodeAt(pos - 1);
-        console.debug('[Embed] Node before cursor:', nodeBefore?.type.name, nodeBefore);
-        
+        console.debug(
+          "[Embed] Node before cursor:",
+          nodeBefore?.type.name,
+          nodeBefore,
+        );
+
         if (nodeBefore?.type.name === this.name) {
           embedNode = nodeBefore;
           embedPos = pos - 1;
-          console.debug('[Embed] Found embed node immediately before cursor');
-        } else {
-          // If not immediately before, check if we're at the start of a hard break after an embed
-          // Look backwards through the document to find the nearest embed
-          editor.state.doc.nodesBetween(Math.max(0, pos - 10), pos, (node, nodePos) => {
-            if (node.type.name === this.name && nodePos < pos) {
-              embedNode = node;
-              embedPos = nodePos;
-              console.debug('[Embed] Found embed node in range before cursor at position:', nodePos);
-            }
-          });
+          console.debug("[Embed] Found embed node immediately before cursor");
+        } else if (nodeBefore?.type.name === "hardBreak" && pos >= 2) {
+          // Case 2: Cursor is right after a hardBreak — check if the node before the
+          // hardBreak is an embed. This handles the pattern: [embed][hardBreak]|cursor
+          const nodeBeforeHardBreak = editor.state.doc.nodeAt(pos - 2);
+          if (nodeBeforeHardBreak?.type.name === this.name) {
+            embedNode = nodeBeforeHardBreak;
+            embedPos = pos - 2;
+            console.debug(
+              "[Embed] Found embed node before hardBreak at position:",
+              embedPos,
+            );
+          }
         }
 
         if (embedNode && embedPos !== -1) {
@@ -528,133 +1276,367 @@ export const Embed = Node.create<EmbedOptions>({
           const from = embedPos;
           const to = embedPos + embedNode.nodeSize;
 
-          console.debug('[Embed] Processing backspace for embed:', {
+          console.debug("[Embed] Processing backspace for embed:", {
             type: attrs.type,
             url: attrs.url,
             from,
             to,
-            nodeSize: embedNode.nodeSize
+            nodeSize: embedNode.nodeSize,
           });
 
           // Special handling for group nodes (website-group, code-group, doc-group, etc.)
-          if (attrs.type.endsWith('-group')) {
-            const backspaceResult = groupHandlerRegistry.handleGroupBackspace(attrs);
-            
+          if (attrs.type.endsWith("-group")) {
+            const backspaceResult =
+              groupHandlerRegistry.handleGroupBackspace(attrs);
+
             if (backspaceResult) {
+              const groupedItems = attrs.groupedItems || [];
+
               switch (backspaceResult.action) {
-                case 'split-group':
+                case "split-group":
                   if (backspaceResult.replacementContent) {
                     // Notify that we're performing a backspace operation to prevent immediate re-grouping
-                    document.dispatchEvent(new CustomEvent('embed-group-backspace', { 
-                      detail: { action: 'split-group' } 
-                    }));
-                    
+                    document.dispatchEvent(
+                      new CustomEvent("embed-group-backspace", {
+                        detail: { action: "split-group" },
+                      }),
+                    );
+
                     // Replace the group with individual embeds + editable content
                     // Also remove any hard break that follows the group
                     const hardBreakAfter = editor.state.doc.nodeAt(to);
-                    const deleteTo = (hardBreakAfter?.type.name === 'hardBreak') ? to + 1 : to;
-                    
+                    const deleteTo =
+                      hardBreakAfter?.type.name === "hardBreak" ? to + 1 : to;
+
                     editor
                       .chain()
                       .focus()
                       .deleteRange({ from, to: deleteTo })
                       .insertContent(backspaceResult.replacementContent)
                       .run();
+
+                    // Clean up the last item's embed (the one removed from the group and converted to text)
+                    if (groupedItems.length > 0) {
+                      const removedItem = groupedItems[groupedItems.length - 1];
+                      cleanupRemovedEmbed(removedItem.contentRef);
+                    }
                   }
                   return true;
-                  
-                case 'convert-to-text':
+
+                case "convert-to-text":
                   if (backspaceResult.replacementText) {
                     // Convert to plain text for editing
                     // Also remove any hard break that follows the group
                     const hardBreakAfter = editor.state.doc.nodeAt(to);
-                    const deleteTo = (hardBreakAfter?.type.name === 'hardBreak') ? to + 1 : to;
-                    
+                    const deleteTo =
+                      hardBreakAfter?.type.name === "hardBreak" ? to + 1 : to;
+
                     editor
                       .chain()
                       .focus()
                       .deleteRange({ from, to: deleteTo })
                       .insertContent(backspaceResult.replacementText)
                       .run();
+
+                    // Clean up all embeds in the group since the entire group is converted to text
+                    cleanupRemovedGroupEmbeds(attrs);
                   }
                   return true;
-                  
-                case 'delete-group':
+
+                case "delete-group": {
                   // Just delete the group and any following hard break
-                  const hardBreakAfter = editor.state.doc.nodeAt(to);
-                  const deleteTo = (hardBreakAfter?.type.name === 'hardBreak') ? to + 1 : to;
-                  
+                  const hardBreakAfterGroup = editor.state.doc.nodeAt(to);
+                  const deleteToGroup =
+                    hardBreakAfterGroup?.type.name === "hardBreak"
+                      ? to + 1
+                      : to;
+
                   editor
                     .chain()
                     .focus()
-                    .deleteRange({ from, to: deleteTo })
+                    .deleteRange({ from, to: deleteToGroup })
                     .run();
+
+                  // Clean up all embeds in the group since the entire group is deleted
+                  cleanupRemovedGroupEmbeds(attrs);
+                  // Force draft update — getText() may stay '' when the editor only had
+                  // this group, causing handleEditorUpdate's textActuallyChanged guard to
+                  // skip triggerSaveDraft.
+                  editor.view.dom.dispatchEvent(
+                    new CustomEvent("embed-upload-cancelled", {
+                      bubbles: true,
+                      detail: { embedId: attrs.id },
+                    }),
+                  );
                   return true;
+                }
               }
             }
-            
+
             // Fallback: just delete the group if no handler found
-            console.warn('[Embed] No group handler found for group type:', attrs.type);
+            console.warn(
+              "[Embed] No group handler found for group type:",
+              attrs.type,
+            );
             const hardBreakAfter = editor.state.doc.nodeAt(to);
-            const deleteTo = (hardBreakAfter?.type.name === 'hardBreak') ? to + 1 : to;
-            
-            editor
-              .chain()
-              .focus()
-              .deleteRange({ from, to: deleteTo })
-              .run();
+            const deleteTo =
+              hardBreakAfter?.type.name === "hardBreak" ? to + 1 : to;
+
+            editor.chain().focus().deleteRange({ from, to: deleteTo }).run();
+
+            // Clean up all embeds in the group on fallback deletion too
+            cleanupRemovedGroupEmbeds(attrs);
+            // Force draft update — same reason as delete-group above.
+            editor.view.dom.dispatchEvent(
+              new CustomEvent("embed-upload-cancelled", {
+                bubbles: true,
+                detail: { embedId: attrs.id },
+              }),
+            );
             return true;
           }
 
           // Convert back to canonical markdown based on embed type for non-group embeds
-          let markdown = '';
-          
+          let markdown = "";
+
           // For individual embeds (not groups), handle conversion directly
           // Don't use renderer.toMarkdown for individual embeds as it's designed for groups
           switch (attrs.type) {
-            case 'web-website':
+            case "web-website":
               // For website embeds, restore the original URL
-              markdown = attrs.url || '';
-              console.debug('[Embed] Converting web-website to URL:', markdown);
+              markdown = attrs.url || "";
+              console.debug("[Embed] Converting web-website to URL:", markdown);
               break;
-            case 'videos-video':
+            case "videos-video":
               // For video embeds, restore the original URL
-              markdown = attrs.url || '';
-              console.debug('[Embed] Converting videos-video to URL:', markdown);
+              markdown = attrs.url || "";
+              console.debug(
+                "[Embed] Converting videos-video to URL:",
+                markdown,
+              );
               break;
-            case 'code-code':
-              const language = attrs.language || '';
-              const filename = attrs.filename ? `:${attrs.filename}` : '';
-              markdown = `\`\`\`${language}${filename}\n\`\`\``;
-              console.debug('[Embed] Converting code-code to markdown:', markdown);
+            case "code-code": {
+              const language = attrs.language || "";
+              const filename = attrs.filename ? `:${attrs.filename}` : "";
+
+              // For preview embeds (contentRef starts with 'preview:'), restore code block WITHOUT closing fence
+              // This allows the user to continue editing the code block
+              // For real embeds, just restore the fence (content is in EmbedStore)
+              if (attrs.contentRef?.startsWith("preview:")) {
+                const codeContent = attrs.code || "";
+                // Remove closing fence to allow continued editing
+                markdown = `\`\`\`${language}${filename}\n${codeContent}`;
+                console.debug(
+                  "[Embed] Converting preview code-code to edit mode (no closing fence)",
+                );
+              } else {
+                markdown = `\`\`\`${language}${filename}\n\`\`\``;
+                console.debug(
+                  "[Embed] Converting code-code to markdown fence only",
+                );
+              }
               break;
-            case 'docs-doc':
-              const title = attrs.title ? `<!-- title: "${attrs.title}" -->\n` : '';
-              markdown = `\`\`\`document_html\n${title}\`\`\``;
-              console.debug('[Embed] Converting docs-doc to markdown:', markdown);
+            }
+            case "docs-doc":
+              // For preview embeds, restore content WITHOUT closing fence for continued editing
+              // For real embeds, just restore the fence
+              if (attrs.contentRef?.startsWith("preview:")) {
+                const docContent = attrs.code || "";
+                const title = attrs.title
+                  ? `<!-- title: "${attrs.title}" -->\n`
+                  : "";
+                // Remove closing fence to allow continued editing
+                markdown = `\`\`\`doc\n${title}${docContent}`;
+                console.debug(
+                  "[Embed] Converting preview docs-doc to edit mode (no closing fence)",
+                );
+              } else {
+                const title = attrs.title
+                  ? `<!-- title: "${attrs.title}" -->\n`
+                  : "";
+                markdown = `\`\`\`document_html\n${title}\`\`\``;
+                console.debug(
+                  "[Embed] Converting docs-doc to markdown fence only",
+                );
+              }
               break;
-            case 'sheets-sheet':
-              const sheetTitle = attrs.title ? `<!-- title: "${attrs.title}" -->\n` : '';
-              markdown = `${sheetTitle}| Column 1 | Column 2 |\n|----------|----------|\n| Data 1   | Data 2   |`;
-              console.debug('[Embed] Converting sheets-sheet to markdown:', markdown);
+            case "sheets-sheet":
+              // For preview embeds, restore full table content
+              // For real embeds, restore a placeholder table
+              if (attrs.contentRef?.startsWith("preview:")) {
+                const tableContent = attrs.code || "";
+                const title = attrs.title
+                  ? `<!-- title: "${attrs.title}" -->\n`
+                  : "";
+                markdown = `${title}${tableContent}`;
+                console.debug(
+                  "[Embed] Converting preview sheets-sheet to full markdown with content",
+                );
+              } else {
+                const sheetTitle = attrs.title
+                  ? `<!-- title: "${attrs.title}" -->\n`
+                  : "";
+                markdown = `${sheetTitle}| Column 1 | Column 2 |\n|----------|----------|\n| Data 1   | Data 2   |`;
+                console.debug(
+                  "[Embed] Converting sheets-sheet to markdown placeholder",
+                );
+              }
               break;
+            case "image":
+              // Image embeds are not converted to markdown on Backspace.
+              // Instead we delete the node entirely and cancel any in-flight upload.
+              // The embed ID is in attrs.id (set by insertImage).
+              if (attrs.id) {
+                cancelUpload(attrs.id);
+                // If upload already completed (cancelUpload was a no-op), notify the
+                // server to delete the upload_files record + S3 variants + decrement
+                // storage_used_bytes. Safe to call unconditionally — server handles
+                // missing records gracefully.
+                // IMPORTANT: The server's upload_files table indexes records by the
+                // server-assigned UUID (attrs.uploadEmbedId), NOT the local client UUID
+                // (attrs.id). Use uploadEmbedId when available so the server can find and
+                // delete the record. Fall back to the local id only if upload hasn't
+                // completed yet (uploadEmbedId is null in that case).
+                deleteDraftEmbed(attrs.uploadEmbedId ?? attrs.id);
+              }
+              {
+                const hardBreakAfterImg = editor.state.doc.nodeAt(to);
+                const deleteToImg =
+                  hardBreakAfterImg?.type.name === "hardBreak" ? to + 1 : to;
+                editor
+                  .chain()
+                  .focus()
+                  .deleteRange({ from, to: deleteToImg })
+                  .run();
+              }
+              console.debug(
+                "[Embed] Deleted image embed and cancelled upload:",
+                attrs.id,
+              );
+              // Notify MessageInput to rebuild originalMarkdown and force a draft save.
+              // The textActuallyChanged guard in handleEditorUpdate skips triggerSaveDraft
+              // when getText() stays '' (image-only editor), so we dispatch the same event
+              // the Stop button uses to bypass the guard.
+              editor.view.dom.dispatchEvent(
+                new CustomEvent("embed-upload-cancelled", {
+                  bubbles: true,
+                  detail: { embedId: attrs.id },
+                }),
+              );
+              return true;
+
+            case "pdf":
+              // PDF embeds are deleted entirely on Backspace — cancel any in-flight upload
+              // and remove the node (same pattern as image embeds).
+              if (attrs.id) {
+                cancelUpload(attrs.id);
+                // Notify server to delete upload_files record + S3 variants + decrement storage.
+                // IMPORTANT: Use the server-assigned uploadEmbedId (not the local attrs.id)
+                // so the server can find the upload_files record by its embed_id field.
+                deleteDraftEmbed(attrs.uploadEmbedId ?? attrs.id);
+              }
+              {
+                const hardBreakAfterPdf = editor.state.doc.nodeAt(to);
+                const deleteToPdf =
+                  hardBreakAfterPdf?.type.name === "hardBreak" ? to + 1 : to;
+                editor
+                  .chain()
+                  .focus()
+                  .deleteRange({ from, to: deleteToPdf })
+                  .run();
+              }
+              console.debug(
+                "[Embed] Deleted PDF embed and cancelled upload:",
+                attrs.id,
+              );
+              // Force draft update — same reason as image case above.
+              editor.view.dom.dispatchEvent(
+                new CustomEvent("embed-upload-cancelled", {
+                  bubbles: true,
+                  detail: { embedId: attrs.id },
+                }),
+              );
+              return true;
+
+            case "recording":
+              // Recording embeds are deleted entirely on Backspace — cancel any
+              // in-flight upload and remove the node (same pattern as image/PDF).
+              if (attrs.id) {
+                cancelUpload(attrs.id);
+                // Notify server to delete upload_files record + S3 variants + decrement storage.
+                // IMPORTANT: Use the server-assigned uploadEmbedId (not the local attrs.id)
+                // so the server can find the upload_files record by its embed_id field.
+                deleteDraftEmbed(attrs.uploadEmbedId ?? attrs.id);
+              }
+              {
+                const hardBreakAfterRec = editor.state.doc.nodeAt(to);
+                const deleteToRec =
+                  hardBreakAfterRec?.type.name === "hardBreak" ? to + 1 : to;
+                editor
+                  .chain()
+                  .focus()
+                  .deleteRange({ from, to: deleteToRec })
+                  .run();
+              }
+              console.debug(
+                "[Embed] Deleted recording embed and cancelled upload:",
+                attrs.id,
+              );
+              // Force draft update — same reason as image case above.
+              editor.view.dom.dispatchEvent(
+                new CustomEvent("embed-upload-cancelled", {
+                  bubbles: true,
+                  detail: { embedId: attrs.id },
+                }),
+              );
+              return true;
+
+            case "maps":
+              // Maps location embeds are deleted entirely on Backspace
+              // (same pattern as image embeds — no meaningful markdown representation).
+              {
+                const hardBreakAfterMap = editor.state.doc.nodeAt(to);
+                const deleteToMap =
+                  hardBreakAfterMap?.type.name === "hardBreak" ? to + 1 : to;
+                editor
+                  .chain()
+                  .focus()
+                  .deleteRange({ from, to: deleteToMap })
+                  .run();
+              }
+              // Clean up the embed from EmbedStore (contentRef: "embed:{id}")
+              cleanupRemovedEmbed(attrs.contentRef);
+              console.debug("[Embed] Deleted maps embed:", attrs.id);
+              // Force draft update — same reason as image case above.
+              editor.view.dom.dispatchEvent(
+                new CustomEvent("embed-upload-cancelled", {
+                  bubbles: true,
+                  detail: { embedId: attrs.id },
+                }),
+              );
+              return true;
+
             default:
               markdown = `[${attrs.type} content]`;
-              console.debug('[Embed] Using default fallback markdown:', markdown);
+              console.debug(
+                "[Embed] Using default fallback markdown:",
+                markdown,
+              );
           }
 
           // Replace the embed node with the original markdown text
           // Also remove any hard break that follows the embed
           const hardBreakAfter = editor.state.doc.nodeAt(to);
-          const deleteTo = (hardBreakAfter?.type.name === 'hardBreak') ? to + 1 : to;
-          
-          console.debug('[Embed] Replacing embed with markdown:', {
+          const deleteTo =
+            hardBreakAfter?.type.name === "hardBreak" ? to + 1 : to;
+
+          console.debug("[Embed] Replacing embed with markdown:", {
             markdown,
             from,
             deleteTo,
-            hasHardBreakAfter: hardBreakAfter?.type.name === 'hardBreak'
+            hasHardBreakAfter: hardBreakAfter?.type.name === "hardBreak",
           });
-          
+
           editor
             .chain()
             .focus()
@@ -662,10 +1644,14 @@ export const Embed = Node.create<EmbedOptions>({
             .insertContent(markdown)
             .run();
 
+          // Clean up the embed from EmbedStore if it was a stored embed (contentRef: "embed:{id}")
+          // This prevents orphaned embeds in IndexedDB when users delete draft-stage embeds
+          cleanupRemovedEmbed(attrs.contentRef);
+
           return true;
         }
         return false;
-      }
+      },
     };
   },
 });

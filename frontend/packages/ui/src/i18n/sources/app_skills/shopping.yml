@@ -1,0 +1,123 @@
+search_products:
+  context: Skill name for shopping search products
+  en: Search
+  de: Suchen
+  zh: 搜索
+  es: Buscar
+  fr: Rechercher
+  pt: Pesquisar
+  ru: Поиск
+  ja: 検索
+  ko: 검색
+  it: Cerca
+  tr: Ara
+  vi: Tìm kiếm
+  id: Cari
+  pl: Szukaj
+  nl: Zoeken
+  ar: بحث
+  hi: खोजें
+  th: ค้นหา
+  cs: Hledat
+  sv: Sök
+  he: חיפוש
+  verified_by_human: [en, de]
+search_products.description:
+  context: Description for shopping search products skill
+  en: Search for products in online shops & online supermarkets.
+  de: Produkte in Online-Shops und Online-Supermärkten suchen.
+  zh: 在网上商店和网上超市中搜索产品。
+  es: Busca productos en tiendas en línea y supermercados en línea.
+  fr: Recherchez des produits dans les boutiques en ligne et les supermarchés en ligne.
+  pt: Pesquise produtos em lojas online e supermercados online.
+  ru: Ищите товары в интернет-магазинах и онлайн-супермаркетах.
+  ja: オンラインショップとオンラインスーパーマーケットで商品を検索する。
+  ko: 온라인 쇼핑몰 및 온라인 슈퍼마켓에서 제품을 검색하세요.
+  it: Cerca prodotti nei negozi online e nei supermercati online.
+  tr: Online mağazalarda ve online süpermarketlerde ürün arayın.
+  vi: Tìm kiếm sản phẩm trong các cửa hàng trực tuyến và siêu thị trực tuyến.
+  id: Cari produk di toko online dan supermarket online.
+  pl: Szukaj produktów w sklepach internetowych i internetowych supermarketach.
+  nl: Zoek producten in online winkels en online supermarkten.
+  ar: ابحث عن المنتجات في المتاجر الإلكترونية والسوبرماركت الإلكتروني.
+  hi: ऑनलाइन दुकानों और ऑनलाइन सुपरमार्केट में उत्पाद खोजें।
+  th: ค้นหาสินค้าในร้านค้าออนไลน์และซุปเปอร์มาร์เก็ตออนไลน์
+  cs: Hledejte produkty v online obchodech a online supermarketech.
+  sv: Sök efter produkter i onlinebutiker och onlinesupermarkets.
+  he: חפש מוצרים בחנויות מקוונות וסופרמרקטים מקוונים.
+  verified_by_human: []
+
+search_products.how_to_use.1:
+  context: Example instruction for shopping search products skill - organic milk
+  en: "**Find** organic whole milk at REWE"
+  de: Bio-Vollmilch bei REWE finden
+  zh: 在REWE查找有机全脂牛奶
+  es: Buscar leche entera ecológica en REWE
+  fr: Trouver du lait entier bio chez REWE
+  pt: Encontrar leite integral orgânico na REWE
+  ru: Найти органическое цельное молоко в REWE
+  ja: REWEでオーガニック全脂牛乳を検索
+  ko: REWE에서 유기농 전유 찾기
+  it: Trova latte intero biologico da REWE
+  tr: REWE'de organik tam yağlı süt bul
+  vi: Tìm sữa nguyên kem hữu cơ tại REWE
+  id: Temukan susu full cream organik di REWE
+  pl: Znajdź ekologiczne pełne mleko w REWE
+  nl: Biologische volle melk vinden bij REWE
+  ar: ابحث عن الحليب كامل الدسم العضوي في REWE
+  hi: REWE पर ऑर्गेनिक पूरा दूध खोजें
+  th: ค้นหานมสดออร์แกนิกที่ REWE
+  cs: Najděte bio plnotučné mléko v REWE
+  sv: Hitta ekologisk helmjölk på REWE
+  he: "**מצא** חלב אורגני מלא ב-REWE"
+  verified_by_human: [en, de]
+
+search_products.how_to_use.2:
+  context: Example instruction for shopping search products skill - pasta comparison
+  en: "**Compare prices** for spaghetti on REWE and Amazon"
+  de: Spaghetti-Preise bei REWE und Amazon vergleichen
+  zh: 比较不同超市的意大利面价格
+  es: Comparar precios de espaguetis en diferentes supermercados
+  fr: Comparer les prix des spaghettis dans différents supermarchés
+  pt: Comparar preços de espaguete em diferentes supermercados
+  ru: Сравнить цены на спагетти в разных супермаркетах
+  ja: 異なるスーパーマーケットでスパゲッティの価格を比較
+  ko: 여러 슈퍼마켓에서 스파게티 가격 비교
+  it: Confronta i prezzi degli spaghetti nei diversi supermercati
+  tr: Farklı süpermarketlerde spagetti fiyatlarını karşılaştır
+  vi: So sánh giá mì spaghetti tại các siêu thị khác nhau
+  id: Bandingkan harga spaghetti di berbagai supermarket
+  pl: Porównaj ceny spaghetti w różnych supermarketach
+  nl: Spaghettiprijzen vergelijken bij verschillende supermarkten
+  ar: قارن أسعار السباغيتي في محلات السوبر ماركت المختلفة
+  hi: विभिन्न सुपरमार्केट में स्पेगेटी की कीमतें तुलना करें
+  th: เปรียบเทียบราคาสปาเก็ตตี้ในซุปเปอร์มาร์เก็ตต่างๆ
+  cs: Porovnejte ceny špaget v různých supermarketech
+  sv: Jämför priser på spagetti i olika supermarkets
+  he: "**השווה מחירים** לספגטי בסופרמרקטים שונים"
+  verified_by_human: [en, de]
+
+search_products.how_to_use.3:
+  context: Example instruction for shopping search products skill - vegan products
+  en: What **vegan cheese** options are available at REWE?
+  de: Welche veganen Käse-Alternativen gibt es bei REWE?
+  zh: REWE有哪些纯素奶酪选择？
+  es: ¿Qué opciones de queso vegano hay en REWE?
+  fr: Quelles options de fromage vegan sont disponibles chez REWE ?
+  pt: Quais opções de queijo vegano estão disponíveis na REWE?
+  ru: Какие веганские сырные альтернативы есть в REWE?
+  ja: REWEではどんなビーガンチーズが手に入りますか？
+  ko: REWE에서 이용 가능한 비건 치즈 옵션은?
+  it: Quali opzioni di formaggio vegano sono disponibili da REWE?
+  tr: REWE'de hangi vegan peynir seçenekleri mevcut?
+  vi: Tùy chọn phô mai thuần chay nào có sẵn tại REWE?
+  id: Pilihan keju vegan apa yang tersedia di REWE?
+  pl: Jakie opcje wegańskiego sera są dostępne w REWE?
+  nl: Welke veganistische kaasopties zijn beschikbaar bij REWE?
+  ar: ما هي خيارات الجبن النباتي المتاحة في REWE؟
+  hi: REWE पर कौन से वीगन चीज़ विकल्प उपलब्ध हैं?
+  th: มีตัวเลือกชีสวีแกนอะไรบ้างที่ REWE?
+  cs: Jaké veganské sýrové alternativy jsou dostupné v REWE?
+  sv: Vilka veganska ostalternativ finns på REWE?
+  he: "אילו אפשרויות ל**גבינה טבעונית** קיימות ב-REWE?"
+  verified_by_human: [en, de]

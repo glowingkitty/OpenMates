@@ -21,17 +21,75 @@
     import { text } from '@repo/ui';
     import { fade } from 'svelte/transition';
     import { createEventDispatcher } from 'svelte';
-    import { getWebsiteUrl, routes } from '../../../../config/links';
     import { getApiEndpoint, apiEndpoints } from '../../../../config/api';
     import { signupStore } from '../../../../stores/signupStore';
     import { requireInviteCode } from '../../../../stores/signupRequirements';
     import * as cryptoService from '../../../../services/cryptoService';
     import { get } from 'svelte/store';
-    import { replace } from 'lodash-es';
+    import { checkAuth, authStore } from '../../../../stores/authStore';
+    import { userProfile } from '../../../../stores/userProfile';
+    import { notificationStore } from '../../../../stores/notificationStore';
+    import { 
+        isChunkLoadError, 
+        logChunkLoadError, 
+        CHUNK_ERROR_MESSAGE, 
+        CHUNK_ERROR_NOTIFICATION_DURATION 
+    } from '../../../../utils/chunkErrorHandler';
     
     const dispatch = createEventDispatcher();
     
+    /**
+     * Poll to verify user is authenticated and user data is loaded.
+     * Retries with exponential backoff until auth state is confirmed or max attempts reached.
+     * @param maxAttempts Maximum number of polling attempts
+     * @param maxTimeoutMs Maximum total time to wait in milliseconds
+     * @returns true if user is authenticated and data is loaded, false otherwise
+     */
+    async function pollAuthState(maxAttempts: number = 5, maxTimeoutMs: number = 2000): Promise<boolean> {
+        const startTime = Date.now();
+        const delayBetweenAttempts = Math.min(200, maxTimeoutMs / maxAttempts); // Adaptive delay
+        
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            // Check if we've exceeded max timeout
+            if (Date.now() - startTime > maxTimeoutMs) {
+                console.warn(`[PasswordBottomContent] Auth state polling timeout after ${maxTimeoutMs}ms`);
+                return false;
+            }
+            
+            try {
+                // Force auth check to ensure we get fresh data
+                const authSuccess = await checkAuth(undefined, true);
+                
+                if (authSuccess) {
+                    // Verify user data is actually loaded (check if username exists)
+                    const currentAuth = get(authStore);
+                    const currentProfile = get(userProfile);
+                    
+                    if (currentAuth.isAuthenticated && currentProfile.username) {
+                        console.debug(`[PasswordBottomContent] Auth state confirmed after ${attempt} attempt(s)`);
+                        return true;
+                    }
+                }
+                
+                // If not authenticated yet, wait before next attempt (except on last attempt)
+                if (attempt < maxAttempts) {
+                    await new Promise(resolve => setTimeout(resolve, delayBetweenAttempts));
+                }
+            } catch (error) {
+                console.warn(`[PasswordBottomContent] Error checking auth state (attempt ${attempt}/${maxAttempts}):`, error);
+                // Wait before retrying (except on last attempt)
+                if (attempt < maxAttempts) {
+                    await new Promise(resolve => setTimeout(resolve, delayBetweenAttempts));
+                }
+            }
+        }
+        
+        console.warn(`[PasswordBottomContent] Auth state not confirmed after ${maxAttempts} attempts`);
+        return false;
+    }
+    
     // Get password data from parent component using Svelte 5 runes
+    /* eslint-disable @typescript-eslint/no-unused-vars -- props used in Svelte template */
     let { 
         password = '',
         passwordRepeat = '',
@@ -41,6 +99,7 @@
         passwordRepeat?: string,
         isFormValid?: boolean
     } = $props();
+    /* eslint-enable @typescript-eslint/no-unused-vars */
     
     // Create a local variable to track form validity
     // Update local variable when props change using Svelte 5 runes
@@ -62,24 +121,23 @@
             // Only check for inviteCode if it's required
             if (!storeData.email || !storeData.username || (requireInviteCodeValue && !storeData.inviteCode)) {
                 console.error('Missing required signup data');
+                notificationStore.error('Missing required signup information. Please go back and try again.', 8000);
                 return;
             }
             
-            // Generate master key and salt
-            const masterKey = cryptoService.generateUserMasterKey();
+            // Generate extractable master key for wrapping (Web Crypto API)
+            const masterKey = await cryptoService.generateExtractableMasterKey();
             const salt = cryptoService.generateSalt();
-            
-            // Get stayLoggedIn value from the store
-            const stayLoggedIn = storeData.stayLoggedIn || false;
-            
-            // Save the master key to session
-            cryptoService.saveKeyToSession(masterKey, stayLoggedIn);
-            
+
             // Derive wrapping key from password
             const wrappingKey = await cryptoService.deriveKeyFromPassword(password, salt);
-            
-            // Encrypt (wrap) the master key
-            const encryptedMasterKey = cryptoService.encryptKey(masterKey, wrappingKey);
+
+            // Wrap the master key for server storage
+            const { wrapped: encryptedMasterKey, iv: keyIv } = await cryptoService.encryptKey(masterKey, wrappingKey);
+
+            // Save master key (respect "stay logged in" choice)
+            // Extractable keys allow wrapping for recovery keys while still using Web Crypto API
+            await cryptoService.saveKeyToSession(masterKey, storeData.stayLoggedIn);
             
             // Convert salt to base64 for storage
             let saltBinary = '';
@@ -89,68 +147,98 @@
             }
             const saltB64 = window.btoa(saltBinary);
             
+            console.debug('[PasswordBottomContent] Starting email crypto operations...');
+            
             // Generate hashed email for lookup
             const hashedEmail = await cryptoService.hashEmail(storeData.email);
+            console.debug('[PasswordBottomContent] Email hashed successfully');
             
             // Generate email salt and derive email encryption key
             const emailSalt = cryptoService.generateEmailSalt();
             const emailSaltB64 = cryptoService.uint8ArrayToBase64(emailSalt);
+            console.debug('[PasswordBottomContent] Email salt generated');
             
             // Generate lookup hash from password using user_email_salt instead of a random salt
             // This makes authentication more efficient as we don't need to query encryption_keys
             const lookupHash = await cryptoService.hashKey(password, emailSalt);
+            console.debug('[PasswordBottomContent] Lookup hash generated');
             
             // Derive email encryption key (for server use)
             const emailEncryptionKey = await cryptoService.deriveEmailEncryptionKey(storeData.email, emailSalt);
+            console.debug('[PasswordBottomContent] Email encryption key derived');
             
             // Store the email encryption key on the client (for future server communication)
-            cryptoService.saveEmailEncryptionKey(emailEncryptionKey, stayLoggedIn);
+            cryptoService.saveEmailEncryptionKey(emailEncryptionKey, storeData.stayLoggedIn);
+            console.debug('[PasswordBottomContent] Email encryption key saved');
             
             // Store the email salt on the client (for recovery key and other authentication methods)
-            cryptoService.saveEmailSalt(emailSalt, stayLoggedIn);
+            cryptoService.saveEmailSalt(emailSalt, storeData.stayLoggedIn);
+            console.debug('[PasswordBottomContent] Email salt saved');
             
             // Encrypt the email with the email encryption key (for server storage)
-            const encryptedEmailForServer = cryptoService.encryptEmail(storeData.email, emailEncryptionKey);
+            const encryptedEmailForServer = await cryptoService.encryptEmail(storeData.email, emailEncryptionKey);
+            console.debug('[PasswordBottomContent] Email encrypted for server');
             
             // Encrypt the email with the master key (for client storage)
-            const emailStoredSuccessfully = cryptoService.saveEmailEncryptedWithMasterKey(storeData.email, stayLoggedIn);
+            // CRITICAL: Must await this async function to ensure email is encrypted before proceeding
+            const emailStoredSuccessfully = await cryptoService.saveEmailEncryptedWithMasterKey(storeData.email, storeData.stayLoggedIn);
+            console.debug(`[PasswordBottomContent] Email stored with master key: ${emailStoredSuccessfully}`);
             
             if (!emailStoredSuccessfully) {
                 console.error('Failed to encrypt and store email with master key');
+                notificationStore.error('Failed to store encrypted data. Please try again.', 8000);
                 return;
             }
             
             // Make API call to setup password and create user account
-            const response = await fetch(getApiEndpoint(apiEndpoints.auth.setup_password), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    hashed_email: hashedEmail, // Hashed email for lookup
-                    encrypted_email: encryptedEmailForServer, // Client-side encrypted email
-                    user_email_salt: emailSaltB64, // Salt for email encryption
-                    username: storeData.username,
-                    invite_code: requireInviteCodeValue ? storeData.inviteCode : "",
-                    encrypted_master_key: encryptedMasterKey,
-                    salt: saltB64,
-                    lookup_hash: lookupHash, // Hash of email + password
-                    language: storeData.language || 'en',
-                    darkmode: storeData.darkmode || false
-                }),
-                credentials: 'include'
-            });
+            const apiUrl = getApiEndpoint(apiEndpoints.auth.setup_password);
+            console.debug(`[PasswordBottomContent] Making API call to: ${apiUrl}`);
+            
+            let response: Response;
+            try {
+                response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        hashed_email: hashedEmail, // Hashed email for lookup
+                        encrypted_email: encryptedEmailForServer, // Client-side encrypted email
+                        user_email_salt: emailSaltB64, // Salt for email encryption
+                        username: storeData.username,
+                        invite_code: requireInviteCodeValue ? storeData.inviteCode : "",
+                        encrypted_master_key: encryptedMasterKey,
+                        key_iv: keyIv, // IV for master key encryption (Web Crypto API)
+                        salt: saltB64,
+                        lookup_hash: lookupHash, // Hash of email + password
+                        language: storeData.language || 'en',
+                        darkmode: storeData.darkmode || false
+                    }),
+                    credentials: 'include'
+                });
+                console.debug(`[PasswordBottomContent] API response status: ${response.status}`);
+            } catch (fetchError) {
+                // Log specific fetch error details (without sensitive data)
+                const errorName = fetchError instanceof Error ? fetchError.name : 'Unknown';
+                const errorMsg = fetchError instanceof Error ? fetchError.message : String(fetchError);
+                console.error(`[PasswordBottomContent] Fetch failed - Type: ${errorName}, Message: ${errorMsg}`);
+                throw fetchError; // Re-throw to be caught by outer catch
+            }
             
             if (!response.ok) {
                 const errorData = await response.json();
                 console.error('Password setup failed:', errorData);
-                // Handle specific error cases
+                // Handle specific error cases with user-friendly messages
                 if (response.status === 400) {
                     // Handle validation errors
                     console.error('Validation error:', errorData.message);
+                    notificationStore.error(errorData.message || 'Invalid data provided. Please check your information and try again.', 8000);
                 } else if (response.status === 409) {
                     // Handle conflicts (e.g., email already exists)
                     console.error('Conflict error:', errorData.message);
+                    notificationStore.error(errorData.message || 'This email is already registered. Please try logging in instead.', 8000);
+                } else {
+                    notificationStore.error(errorData.message || 'Failed to create account. Please try again.', 8000);
                 }
                 return;
             }
@@ -158,13 +246,24 @@
             const data = await response.json();
             
             if (data.success) {
+                // CRITICAL: Verify that we received a valid user ID from the server
+                // Without a user ID, the signup cannot continue as we can't establish the user session
+                const newUserId = data.user?.id;
+                if (!newUserId) {
+                    console.error('Password setup succeeded but no user ID returned');
+                    notificationStore.error('Account creation incomplete - please try again or contact support.', 8000);
+                    return;
+                }
+                
+                console.log(`[PasswordBottomContent] Account created successfully, user ID: ${newUserId.substring(0, 8)}...`);
+                
                 // Update the signup store with encrypted data and user info
                 signupStore.update(store => ({
                     ...store,
                     password, // Store temporarily for the signup process
                     encryptedMasterKey: encryptedMasterKey,
                     salt: saltB64,
-                    userId: data.user?.id
+                    userId: newUserId
                 }));
                 
                 // Clear sensitive data from local variables
@@ -180,15 +279,67 @@
                     email: '' // Remove plaintext email from store since it's now encrypted
                 }));
                 
+                // CRITICAL: Update authentication state after account creation
+                // This ensures that when we move to the next step, last_opened will be updated
+                // both client-side and server-side (via WebSocket)
+                // We MUST verify auth state before advancing to prevent "false positive" signups
+                console.debug('[PasswordBottomContent] Verifying auth state after account creation...');
+                try {
+                    // Poll to verify authentication and user data is loaded
+                    const authSuccess = await pollAuthState(10, 4000); // 10 attempts, 4 seconds total
+                    if (authSuccess) {
+                        console.debug('[PasswordBottomContent] Auth state confirmed successfully');
+                    } else {
+                        // Auth state not confirmed - this is a CRITICAL error
+                        // Don't advance to next step as the user might not be properly logged in
+                        console.error('[PasswordBottomContent] Auth state not confirmed after polling - blocking step advancement');
+                        notificationStore.error('Account created but login failed. Please try logging in manually.', 10000);
+                        // User will need to try logging in manually or retry signup
+                        return;
+                    }
+                } catch (error) {
+                    // Auth check failed - this is a CRITICAL error
+                    console.error('[PasswordBottomContent] Failed to verify auth state:', error);
+                    notificationStore.error('Account may have been created but we could not verify login. Please try logging in.', 10000);
+                    return;
+                }
+                
+                // All validations passed - safe to advance to next step
+                console.log('[PasswordBottomContent] All validations passed, advancing to one_time_codes step');
+                
                 // Continue to next step (OTP setup)
+                // The Signup component will update last_opened when this step change is processed
                 dispatch('step', { step: 'one_time_codes' });
             } else {
                 console.error('Password setup failed:', data.message);
+                notificationStore.error(data.message || 'Failed to create account. Please try again.', 8000);
             }
             
         } catch (error) {
+            // Log error details separately to help debugging while keeping sensitive data safe
+            const errorName = error instanceof Error ? error.name : 'Unknown';
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error(`[PasswordBottomContent] Password setup error - Type: ${errorName}, Message: ${errorMessage}`);
+            
+            // Also log the full error for debugging (will be sanitized by logCollector)
             console.error('Error setting up password:', error);
-            // Handle network or other errors appropriately
+            
+            // Check for chunk loading errors (stale cache after deployment)
+            // These happen when dynamic imports fail because old JS references non-existent chunks
+            if (isChunkLoadError(error)) {
+                logChunkLoadError('PasswordBottomContent', error);
+                notificationStore.error(CHUNK_ERROR_MESSAGE, CHUNK_ERROR_NOTIFICATION_DURATION);
+                return;
+            }
+            
+            // Check for network errors (common when connection to API fails)
+            if (error instanceof TypeError && errorMessage.includes('fetch')) {
+                console.error('[PasswordBottomContent] Network error detected - API may be unreachable');
+                notificationStore.error('Unable to connect to the server. Please check your internet connection and try again.', 8000);
+                return;
+            }
+            
+            notificationStore.error('An unexpected error occurred during signup. Please try again.', 8000);
         } finally {
             isLoading = false;
         }
@@ -198,20 +349,21 @@
 <div class="password-bottom-content" in:fade={{ duration: 300 }} out:fade={{ duration: 200 }}>
     <div class="action-button-container">
         <button 
+            id="signup-password-continue"
             class="action-button signup-button" 
             class:loading={isLoading}
             disabled={!localIsFormValid || isLoading}
             onclick={handleContinue}
         >
-            {isLoading ? $text('login.loading.text') : $text('signup.continue.text')}
+            {isLoading ? $text('login.loading') : $text('signup.continue')}
         </button>
     </div>
     
     <div class="password-manager-info">
         <p class="password-manager-text">
-            {$text('signup.dont_have_password_manager_yet.text')}<br>
+            {$text('signup.dont_have_password_manager_yet')}<br>
             <a href="https://search.brave.com/search?q=best+password+manager" target="_blank" rel="noopener noreferrer" style="text-decoration: unset; color: unset;">
-                <mark>{$text('signup.click_here_to_show_password_managers.text')}</mark>
+                <mark>{$text('signup.click_here_to_show_password_managers')}</mark>
             </a>
         </p>
     </div>

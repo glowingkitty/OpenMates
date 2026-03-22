@@ -2,8 +2,9 @@
     import InlinePreviewBase from './InlinePreviewBase.svelte';
     import { onMount } from 'svelte';
     import 'leaflet/dist/leaflet.css';
-    import { _, getLocaleFromNavigator, locale } from 'svelte-i18n';
+    import { getLocaleFromNavigator, locale } from 'svelte-i18n';
     import { get } from 'svelte/store';
+    import { getApiUrl } from '../../../config/api';
 
     // Props using Svelte 5 runes
     let { 
@@ -24,14 +25,14 @@
     // Initialize address with name or a default value
     let address: string = name || 'Loading location...';
     let coordinates: { lat: number; lon: number } | null = null;
-    let L: any;
-    let customIcon: any = null;
+    let L: typeof import('leaflet');
+    let customIcon: import('leaflet').DivIcon | null = null;
     let lastGeocodedLocation: string | null = null;
 
     // Logger for debugging
     const logger = {
-        debug: (...args: any[]) => console.debug('[MapsPreview]', ...args),
-        info: (...args: any[]) => console.info('[MapsPreview]', ...args)
+        debug: (...args: unknown[]) => console.debug('[MapsPreview]', ...args),
+        info: (...args: unknown[]) => console.info('[MapsPreview]', ...args)
     };
 
     // Add function to get current locale
@@ -40,11 +41,11 @@
     }
 
     // Function to format address consistently across components
-    function formatAddress(data: any): string {
+    function formatAddress(data: Record<string, Record<string, string>>): string {
         const locale = getCurrentLocale();
         
         // Helper function to get localized name
-        function getLocalizedName(obj: any, key: string) {
+        function getLocalizedName(obj: Record<string, string> | undefined, key: string) {
             if (!obj) return null;
             
             // Try locale-specific name first
@@ -107,17 +108,13 @@
 
         try {
             const locale = getCurrentLocale();
-            
+            // Route through the backend proxy instead of calling Nominatim directly.
+            // Direct browser→Nominatim calls are unreliable due to inconsistent CORS headers
+            // and TLS 1.3 0-RTT (HTTP 425) on first load.  The backend handles retries.
             const response = await fetch(
-                `https://nominatim.openstreetmap.org/reverse?` +
+                `${getApiUrl()}/v1/geocode/reverse?` +
                 `lat=${lat}&lon=${lon}` +
-                `&format=json` +
-                `&accept-language=${locale}`,
-                {
-                    headers: {
-                        'User-Agent': 'OpenMates/1.0'
-                    }
-                }
+                `&accept-language=${locale}`
             );
             
             if (!response.ok) {

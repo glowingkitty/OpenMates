@@ -1,0 +1,38 @@
+name: openmates-status
+
+services:
+  status:
+    container_name: status
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      PROD_WEB_URL: "https://openmates.org"
+      PROD_API_URL: "https://api.openmates.org"
+      DEV_WEB_URL: "https://dev.openmates.org"
+      DEV_API_URL: "https://api.dev.openmates.org"
+      UPLOAD_URL: "${STATUS_UPLOAD_URL:-}"
+      PREVIEW_URL: "${STATUS_PREVIEW_URL:-}"
+      STATUS_DB_PATH: "/app/data/status.db"
+      STATUS_CHECK_INTERVAL_SECONDS: "60"
+    volumes:
+      - status-data:/app/data
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  status-data:
+    name: openmates-status-data

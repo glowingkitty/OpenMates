@@ -3,8 +3,6 @@
 
 import logging
 from typing import AsyncIterator
-import re
-
 logger = logging.getLogger(__name__)
 # set logger to to DEBUG level for detailed output
 # logger.setLevel(logging.DEBUG)
@@ -44,7 +42,7 @@ async def aggregate_paragraphs(raw_chunk_stream: AsyncIterator) -> AsyncIterator
                 yield chunk
                 continue
 
-            logger.debug(f"Stream chunk received: '{chunk[:200]}{'...' if len(chunk) > 200 else ''}'") # Log a preview of the chunk
+            logger.debug(f"Stream chunk received (length={len(chunk)})")
             buffer += chunk
 
             processed_in_outer_loop = True

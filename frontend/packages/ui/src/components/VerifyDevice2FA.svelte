@@ -9,7 +9,7 @@ changes to the documentation (to keep the documentation up to date).
 login_2fa_svelte:
     check_your_2fa_app_text:
         type: 'text'
-        text: $text('login.check_your_2fa_app.text')
+        text: $text('login.check_your_2fa_app')
         purpose: 'Ask user to check their 2FA app for the one time code'
         bigger_context:
             - 'Login'
@@ -20,7 +20,7 @@ login_2fa_svelte:
             - '/login/2fa'
     enter_2fa_code_input_field:
         type: 'input_field'
-        placeholder: $text('signup.enter_one_time_code.text')
+        placeholder: $text('signup.enter_one_time_code')
         purpose:
             - 'Verifies the 2FA code, to login to the user account.'
         processing:
@@ -35,7 +35,7 @@ login_2fa_svelte:
             - '/login/2fa'
     login_button:
         type: 'button'
-        text: $text('login.login.text')
+        text: $text('login.login')
         purpose:
             - 'User clicks to login to the user account.'
         processing:
@@ -54,13 +54,14 @@ login_2fa_svelte:
 
 <script lang="ts">
     import { text } from '@repo/ui';
-    import { onMount, onDestroy, createEventDispatcher } from 'svelte';
+    import { onMount, createEventDispatcher } from 'svelte';
     import InputWarning from './common/InputWarning.svelte';
     import { getApiEndpoint, apiEndpoints } from '../config/api';
     import { tfaAppIcons } from '../config/tfa';
 
     // Props using Svelte 5 runes
     let { 
+        reason = null,
         previewMode = false,
         previewTfaAppName = 'Google Authenticator',
         tfaAppName = null,
@@ -68,6 +69,7 @@ login_2fa_svelte:
         isLoading = $bindable(false),
         errorMessage = $bindable(null)
     }: {
+        reason?: 'new_device' | 'location_change' | null;
         previewMode?: boolean;
         previewTfaAppName?: string;
         tfaAppName?: string | null;
@@ -87,10 +89,10 @@ login_2fa_svelte:
     let otpInput: HTMLInputElement = $state();
 
     // TFA app display logic
-    let currentAppIndex = 0;
-    let animationInterval: number | null = null;
+    let _currentAppIndex = 0;
+    let _animationInterval: number | null = null;
     let currentDisplayedApp = previewMode ? previewTfaAppName : (tfaAppName || '');
-    const appNames = Object.keys(tfaAppIcons);
+    const _appNames = Object.keys(tfaAppIcons);
 
     // Get the icon class for the app name, or undefined if not found using Svelte 5 runes
     let tfaAppIconClass = $derived(currentDisplayedApp in tfaAppIcons ? tfaAppIcons[currentDisplayedApp] : undefined);
@@ -173,9 +175,16 @@ login_2fa_svelte:
 </script>
 
 <div class="login-2fa" class:preview={previewMode}>
+    {#if reason === 'location_change'}
+        <div class="location-change-notice">
+            <span class="icon icon_shield"></span>
+            <p>{$text('login.verify_device_location_change_notice')}</p>
+        </div>
+    {/if}
+
     <p id="check-2fa" class="check-2fa-text" style={getStyle('check-2fa')}>
         {#if currentDisplayedApp}
-            <span class="app-name-inline">{@html $text('login.check_your_2fa_app.text').replace('{tfa_app}', '')}</span>
+            <span class="app-name-inline">{@html $text('login.check_your_2fa_app').replace('{tfa_app}', '')}</span>
             <span class="app-name-inline">
                 {#if tfaAppIconClass}
                     <span class="icon provider-{tfaAppIconClass} mini-icon {previewMode && !tfaAppName ? 'fade-animation' : ''}"></span>
@@ -183,7 +192,7 @@ login_2fa_svelte:
                 <span class="{previewMode && !tfaAppName ? 'fade-text' : ''}">{currentDisplayedApp}</span>
             </span>
         {:else}
-            {@html $text('login.check_your_2fa_app.text').replace('{tfa_app}', $text('login.your_tfa_app.text'))}
+            {@html $text('login.check_your_2fa_app').replace('{tfa_app}', $text('login.your_tfa_app'))}
         {/if}
     </p>
     
@@ -196,7 +205,7 @@ login_2fa_svelte:
                 pattern="[0-9]*"
                 bind:value={otpCode}
                 oninput={handleInput}
-                placeholder={$text('signup.enter_one_time_code.text')}
+                placeholder={$text('signup.enter_one_time_code')}
                 inputmode="numeric"
                 maxlength="6"
                 autocomplete="one-time-code"
@@ -205,7 +214,6 @@ login_2fa_svelte:
              {#if errorMessage}
                 <InputWarning 
                     message={errorMessage} 
-                    target={otpInput} 
                 />
             {/if}
         </div>
@@ -213,7 +221,7 @@ login_2fa_svelte:
     
    <div class="switch-account">
         <button type="button" onclick={handleSwitchToLogin} class="text-button">
-            {$text('login.login_with_another_account.text')}
+            {$text('login.login_with_another_account')}
         </button>
     </div>
 </div>
@@ -222,6 +230,31 @@ login_2fa_svelte:
     .login-2fa {
         display: flex;
         flex-direction: column;
+    }
+
+    .location-change-notice {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 12px 14px;
+        margin-bottom: 15px;
+        background-color: var(--color-warning-bg, var(--color-grey-10));
+        border-radius: 8px;
+        border-left: 3px solid var(--color-warning, var(--color-primary));
+    }
+
+    .location-change-notice .icon {
+        width: 20px;
+        height: 20px;
+        flex-shrink: 0;
+        margin-top: 2px;
+    }
+
+    .location-change-notice p {
+        margin: 0;
+        font-size: 14px;
+        line-height: 1.4;
+        color: var(--color-grey-70);
     }
 
     .check-2fa-text {

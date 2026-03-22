@@ -1,1 +1,3258 @@
-Coming soon - the usage settings will be available here.
+<!--
+Usage Settings - View usage statistics and export usage data
+-->
+
+<script lang="ts">
+    import { onMount, createEventDispatcher } from 'svelte';
+    import { text } from '@repo/ui';
+    import { apiEndpoints, getApiEndpoint } from '../../config/api';
+    import SettingsItem from '../SettingsItem.svelte';
+    import { notificationStore } from '../../stores/notificationStore';
+    import { chatDB } from '../../services/db';
+    import { chatMetadataCache, type DecryptedChatMetadata } from '../../services/chatMetadataCache';
+    import type { Chat } from '../../types/chat';
+    import * as LucideIcons from '@lucide/svelte';
+    import Icon from '../Icon.svelte';
+    import { decryptWithMasterKey, getKeyFromStorage, decryptChatKeyWithMasterKey, decryptWithChatKey } from '../../services/cryptoService';
+    import { appsMetadata } from '../../data/appsMetadata';
+    import { getAllDraftAudioChatIds } from '../../stores/draftAudioChatStore';
+    import { embedStore } from '../../services/embedStore';
+    import { messageHighlightStore } from '../../stores/messageHighlightStore';
+    import { activeChatStore } from '../../stores/activeChatStore';
+    import { computeSHA256 } from '../../message_parsing/utils';
+
+    const dispatch = createEventDispatcher<{
+        chatSelected: { chat: Chat };
+        closeSettings: void;
+    }>();
+
+    // Usage entry interface
+    interface UsageEntry {
+        id: string;
+        type: string;
+        source?: string; // "chat", "api_key", or "direct"
+        app_id?: string; // Cleartext - always available for new entries
+        skill_id?: string; // Cleartext - always available for new entries
+        model_used?: string;
+        credits?: number; // Optional since it might be missing for some entries
+        input_tokens?: number;
+        output_tokens?: number;
+        user_input_tokens?: number; // User query input tokens (only for AI Ask)
+        system_prompt_tokens?: number; // System prompt + history tokens (only for AI Ask)
+        credits_system_prompt?: number; // Credit cost for system prompt tokens
+        credits_history?: number; // Credit cost for chat history tokens
+        credits_response?: number; // Credit cost for response tokens
+        server_provider?: string; // Server provider display name (e.g., "AWS Bedrock")
+        server_region?: string; // Server region (e.g., "EU", "US")
+        tool_inference_iterations?: number | null; // Extra LLM calls from tool use (0 = no tools). Cleartext.
+        chat_id?: string | null; // Cleartext - for matching with IndexedDB
+        message_id?: string | null; // Cleartext - for matching with IndexedDB
+        api_key_hash?: string | null; // SHA-256 hash of the API key that created this usage entry
+        created_at: number;
+        updated_at: number;
+    }
+
+    // Chat usage summary interface
+    interface ChatUsageSummary {
+        chat_id: string;
+        month: string;
+        totalCredits: number;
+        chat?: Chat | null;
+        metadata?: DecryptedChatMetadata | null;
+    }
+
+    // App usage summary interface
+    interface AppUsageSummary {
+        app_id: string;
+        month: string;
+        totalCredits: number;
+    }
+
+    // API key interface
+    interface ApiKey {
+        id: string;
+        key_hash: string;
+        name: string;
+        key_prefix: string;
+        created_at: string;
+        last_used_at?: string | null;
+    }
+
+    // API key usage summary interface
+    interface ApiKeyUsageSummary {
+        api_key_hash: string;
+        month: string;
+        totalCredits: number;
+        apiKey?: ApiKey | null;
+        encrypted_name?: string; // Encrypted API key name from backend (client decrypts)
+        encrypted_key_prefix?: string; // Encrypted API key prefix from backend (client decrypts)
+    }
+
+    // Tab types
+    type UsageTab = 'overview' | 'chats' | 'apps' | 'api';
+    type TimeGrouping = 'month' | 'day';
+    type SortOption = 'last_edited' | 'most_expensive';
+
+    // Daily overview item interface (returned from API)
+    interface DailyOverviewItem {
+        type: 'chat' | 'api_key';
+        chat_id: string | null;
+        api_key_hash: string | null;
+        total_credits: number;
+        entry_count: number;
+        updated_at: string | null;
+        // Chat metadata enrichment from backend (encrypted, client decrypts)
+        encrypted_title?: string | null;
+        encrypted_category?: string | null;
+        encrypted_icon?: string | null;
+        encrypted_chat_key?: string | null;
+        is_deleted?: boolean;
+    }
+
+    // Daily overview day structure (returned from API)
+    interface DailyOverviewDay {
+        date: string; // YYYY-MM-DD
+        total_credits: number;
+        items: DailyOverviewItem[];
+    }
+
+    let isLoading = $state(false);
+    let errorMessage: string | null = $state(null);
+    let usageEntries: UsageEntry[] = $state([]);
+    
+    // Summary state (new architecture)
+    let loadedMonths = $state(3); // Number of months loaded so far
+    let isLoadingSummaries = $state(false);
+    let isLoadingDetails = $state(false);
+    
+    // Daily overview state
+    let dailyOverview: DailyOverviewDay[] = $state([]);
+    let isLoadingDailyOverview = $state(false);
+    let loadedDays = $state(7);
+    let hasMoreDays = $state(false);
+    
+    // UI state
+    let activeTab: UsageTab = $state('overview');
+    let timeGrouping: TimeGrouping = $state('month');
+    let sortOption: SortOption = $state('last_edited');
+    let selectedChatId: string | null = $state(null); // Changed from selectedChatHash to selectedChatId
+    let selectedAppId: string | null = $state(null); // Selected app for detail view
+    let selectedAppMonth: string | null = $state(null); // Selected app's month for detail view
+    let selectedApiKeyHash: string | null = $state(null); // Selected API key hash for detail view
+    let selectedApiKeyMonth: string | null = $state(null); // Selected API key's month for detail view
+    
+    // Overview detail view state (drill-down from daily overview)
+    let overviewSelectedChatId: string | null = $state(null); // Selected chat from overview tab
+    let overviewChatEntries: UsageEntry[] = $state([]); // All entries for the selected chat
+    let isLoadingOverviewEntries = $state(false);
+    let overviewSelectedEntry: UsageEntry | null = $state(null); // Selected entry for detail view (level 2)
+
+    // "Open message" / "Open embed" button state for level-2 detail view.
+    // Populated by a $effect that runs when overviewSelectedEntry changes.
+    // null = still checking or no navigable target found (button is hidden).
+    interface OpenMessageTarget { type: 'message'; chat: Chat; }
+    interface OpenEmbedTarget { type: 'embed'; embedId: string; embedType: string; }
+    type OpenTarget = OpenMessageTarget | OpenEmbedTarget;
+    let openTarget: OpenTarget | null = $state(null);
+
+    // Chat metadata cache for usage display
+    let chatMetadataMap = $state<Map<string, { chat: Chat | null; metadata: DecryptedChatMetadata | null; isDeleted?: boolean }>>(new Map());
+    
+    // Backend-provided encrypted metadata for chats not in IndexedDB
+    // Keyed by chat_id, stores the encrypted fields from the daily overview API
+    let backendChatMetadata = $state<Map<string, { encrypted_title?: string | null; encrypted_category?: string | null; encrypted_icon?: string | null; encrypted_chat_key?: string | null; is_deleted?: boolean }>>(new Map());
+    
+    // API keys cache
+    let apiKeys = $state<ApiKey[]>([]);
+    let isLoadingApiKeys = $state(false);
+    // Track if we've attempted to load API keys (to prevent infinite retries on failure)
+    let hasAttemptedApiKeysLoad = $state(false);
+    
+    // Track if we've done initial load to prevent duplicate requests
+    let hasInitialized = $state(false);
+    
+    // Track if hidden chats are unlocked (reactive state)
+    let hiddenChatsUnlocked = $state(false);
+
+    // Set of chat_ids that were pre-allocated for audio recordings in new (not yet sent) chats.
+    // Populated from localStorage on mount. Used to distinguish "Unsent draft" from "Deleted chat"
+    // when a usage entry's chat_id is not found in the Directus chats collection (is_deleted=true).
+    let draftAudioChatIds = $state<Set<string>>(new Set());
+
+    // Format credits with dots as thousand separators
+    function formatCredits(credits: number): string {
+        return credits.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    }
+
+    // Format timestamp to date string
+    function formatDate(timestamp: number): string {
+        try {
+            const date = new Date(timestamp * 1000); // Convert from seconds to milliseconds
+            return date.toLocaleDateString(undefined, {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        } catch {
+            return new Date(timestamp * 1000).toISOString();
+        }
+    }
+
+    // Format timestamp to relative time (e.g., "2 minutes ago")
+    function formatRelativeTime(timestamp: number): string {
+        try {
+            const date = new Date(timestamp * 1000);
+            const now = new Date();
+            const diffMs = now.getTime() - date.getTime();
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+
+            if (diffMins < 1) return $text('settings.usage.just_now');
+            if (diffMins < 60) return `${diffMins} ${$text('settings.usage.minutes_ago')}`;
+            if (diffHours < 24) return `${diffHours} ${$text('settings.usage.hours_ago')}`;
+            if (diffDays < 30) return `${diffDays} ${$text('settings.usage.days_ago')}`;
+            
+            return formatDate(timestamp);
+        } catch {
+            return formatDate(timestamp);
+        }
+    }
+
+    // Get month/year string from timestamp
+    function getMonthYear(timestamp: number): string {
+        try {
+            const date = new Date(timestamp * 1000);
+            return date.toLocaleDateString(undefined, {
+                year: 'numeric',
+                month: 'long'
+            });
+        } catch {
+            return 'Unknown';
+        }
+    }
+
+    // Get day string from timestamp
+    function getDayString(timestamp: number): string {
+        try {
+            const date = new Date(timestamp * 1000);
+            return date.toLocaleDateString(undefined, {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        } catch {
+            return 'Unknown';
+        }
+    }
+
+    // Filter usage entries by tab
+    function filterByTab(entries: UsageEntry[]): UsageEntry[] {
+        switch (activeTab) {
+            case 'chats':
+                // Entries with chat_id (chat-related usage) or source='chat'
+                return entries.filter(e => e.chat_id || e.source === 'chat');
+            case 'apps':
+                // Entries with app_id and skill_id (app usage)
+                return entries.filter(e => e.app_id && e.skill_id);
+            case 'api':
+                // Entries with source='api_key' or 'direct', or entries without chat_id
+                return entries.filter(e => 
+                    e.source === 'api_key' || 
+                    e.source === 'direct' ||
+                    (!e.chat_id && e.source !== 'chat')
+                );
+            default:
+                return entries;
+        }
+    }
+
+    // Group usage entries by time period
+    function groupByTime(entries: UsageEntry[]): Record<string, UsageEntry[]> {
+        const groups: Record<string, UsageEntry[]> = {};
+        
+        entries.forEach(entry => {
+            const key = timeGrouping === 'month' 
+                ? getMonthYear(entry.created_at)
+                : getDayString(entry.created_at);
+            
+            if (!groups[key]) {
+                groups[key] = [];
+            }
+            groups[key].push(entry);
+        });
+        
+        return groups;
+    }
+
+    // Sort usage entries
+    function sortEntries(entries: UsageEntry[]): UsageEntry[] {
+        const sorted = [...entries];
+        
+        if (sortOption === 'last_edited') {
+            sorted.sort((a, b) => b.updated_at - a.updated_at);
+        } else if (sortOption === 'most_expensive') {
+            // Handle undefined credits by treating them as 0
+            sorted.sort((a, b) => (b.credits ?? 0) - (a.credits ?? 0));
+        }
+        
+        return sorted;
+    }
+
+    // Group entries by chat ID
+    function _groupByChat(entries: UsageEntry[]): Record<string, UsageEntry[]> {
+        const groups: Record<string, UsageEntry[]> = {};
+        
+        entries.forEach(entry => {
+            const chatId = entry.chat_id || 'other';
+            if (!groups[chatId]) {
+                groups[chatId] = [];
+            }
+            groups[chatId].push(entry);
+        });
+        
+        return groups;
+    }
+
+    // Calculate total credits for entries
+    function calculateTotalCredits(entries: UsageEntry[]): number {
+        return entries.reduce((sum, entry) => sum + (entry.credits ?? 0), 0);
+    }
+
+    // Look up the skill's name_translation_key from static app metadata.
+    // Returns the correct key (e.g. "app_skills.travel.search_connections") or null if not found.
+    function getSkillTranslationKey(appId: string, skillId: string): string | null {
+        const app = appsMetadata[appId];
+        if (!app?.skills) return null;
+        const skill = app.skills.find(s => s.id === skillId);
+        return skill?.name_translation_key ?? null;
+    }
+
+    // Get display name for usage entry
+    function getEntryDisplayName(entry: UsageEntry): string {
+        if (entry.app_id && entry.skill_id) {
+            // Look up skill translation key from app metadata (correct approach)
+            const appKey = `apps.${entry.app_id}`;
+            const skillTranslationKey = getSkillTranslationKey(entry.app_id, entry.skill_id);
+            try {
+                const appName = $text(appKey);
+                const skillName = skillTranslationKey ? $text(skillTranslationKey) : entry.skill_id;
+                return `${appName} - ${skillName}`;
+            } catch {
+                return `${entry.app_id} - ${entry.skill_id}`;
+            }
+        }
+        if (entry.type) {
+            return entry.type;
+        }
+        return $text('settings.usage.unknown_activity');
+    }
+
+    // Get icon for usage entry
+    function getEntryIcon(entry: UsageEntry): string {
+        // If it's an app usage, try to use the app icon
+        if (entry.app_id) {
+            // Common app icons that exist in the icon system
+            const appIconMap: Record<string, string> = {
+                'web': 'web',
+                'ai': 'ai',
+                'news': 'news',
+                'videos': 'videos',
+                'maps': 'maps',
+                'code': 'code'
+            };
+            return appIconMap[entry.app_id] || 'app_store';
+        }
+        // For API calls
+        if (entry.type?.includes('api') || activeTab === 'api') {
+            return 'code';
+        }
+        // Default to chat icon
+        return 'chat';
+    }
+    
+    // Check if a chat exists in local IndexedDB (for clickable usage entries)
+    async function _checkChatExists(chatId: string | null | undefined): Promise<boolean> {
+        if (!chatId) return false;
+        try {
+            const chat = await chatDB.getChat(chatId);
+            return !!chat;
+        } catch {
+            return false;
+        }
+    }
+
+    // Fetch usage summaries from API (new architecture)
+    async function fetchUsageSummaries(type: UsageTab, months: number = loadedMonths) {
+        isLoadingSummaries = true;
+        errorMessage = null;
+
+        try {
+            // Optionally load API keys as fallback (backend now provides encrypted data in summaries)
+            // This is kept for backward compatibility if encrypted data is missing
+            // Only attempt if we haven't attempted before (prevents infinite retry loops)
+            if (type === 'api' && !hasAttemptedApiKeysLoad && !isLoadingApiKeys) {
+                // Load in background, don't wait for it
+                loadApiKeys().catch(err => console.warn('[SettingsUsage] Failed to load API keys:', err));
+            }
+
+            // Map tab type to API type (overview is handled separately, not via summaries)
+            const apiTypeMap: Record<string, string> = {
+                'chats': 'chats',
+                'apps': 'apps',
+                'api': 'api_keys'
+            };
+            
+            const apiType = apiTypeMap[type];
+            if (!apiType) {
+                console.warn(`[SettingsUsage] No API type mapping for tab '${type}', skipping summary fetch`);
+                return;
+            }
+            const endpoint = `${getApiEndpoint(apiEndpoints.usage.getSummaries)}?type=${apiType}&months=${months}`;
+            console.log('Fetching usage summaries from:', endpoint);
+            
+            const response = await fetch(endpoint, {
+                credentials: 'include'
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                const errorDetail = errorData.detail || errorData.message || '';
+                throw new Error(`Failed to fetch usage summaries: ${response.status} ${response.statusText}${errorDetail ? ` - ${errorDetail}` : ''}`);
+            }
+
+            const data = await response.json();
+            console.log('Received usage summaries:', data);
+            
+            if (!data || typeof data !== 'object' || !Array.isArray(data.summaries)) {
+                throw new Error('Invalid response format: expected summaries array');
+            }
+
+            // Determine if more months exist based on API-provided count (total available months).
+            const totalAvailableMonths = typeof data.count === 'number' ? data.count : data.summaries.length;
+            hasMoreMonths = totalAvailableMonths > months;
+            
+            // Update summaries based on type
+            if (type === 'chats') {
+                await updateChatSummariesFromAPI(data.summaries);
+            } else if (type === 'apps') {
+                await updateAppSummariesFromAPI(data.summaries);
+            } else if (type === 'api') {
+                await updateApiKeySummariesFromAPI(data.summaries);
+            }
+            
+            console.log(`Loaded ${data.summaries.length} ${type} summaries for ${months} months`);
+        } catch (error) {
+            console.error('Error fetching usage summaries:', error);
+            if (error instanceof Error) {
+                errorMessage = error.message;
+            } else {
+                errorMessage = $text('settings.usage.error_loading');
+            }
+            hasMoreMonths = false;
+        } finally {
+            isLoadingSummaries = false;
+        }
+    }
+    
+    // Fetch usage details for a specific summary item
+    async function fetchUsageDetails(type: UsageTab, identifier: string, yearMonth: string) {
+        isLoadingDetails = true;
+        errorMessage = null;
+
+        try {
+            // Map tab type to API type for details
+            const apiTypeMap: Record<string, string> = {
+                'chats': 'chat',
+                'apps': 'app',
+                'api': 'api_key'
+            };
+            
+            const apiType = apiTypeMap[type];
+            if (!apiType) {
+                console.warn(`[SettingsUsage] No API type mapping for tab '${type}', skipping detail fetch`);
+                return;
+            }
+            const endpoint = `${getApiEndpoint(apiEndpoints.usage.getDetails)}?type=${apiType}&identifier=${encodeURIComponent(identifier)}&year_month=${yearMonth}`;
+            console.log('Fetching usage details from:', endpoint);
+            
+            const response = await fetch(endpoint, {
+                credentials: 'include'
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                const errorDetail = errorData.detail || errorData.message || '';
+                throw new Error(`Failed to fetch usage details: ${response.status} ${response.statusText}${errorDetail ? ` - ${errorDetail}` : ''}`);
+            }
+
+            const data = await response.json();
+            console.log('Received usage details:', data);
+            
+            if (!data || typeof data !== 'object' || !Array.isArray(data.entries)) {
+                throw new Error('Invalid response format: expected entries array');
+            }
+            
+            // Update usageEntries with the details
+            usageEntries = data.entries;
+            console.log(`Loaded ${data.entries.length} usage entries for ${type} '${identifier}', month '${yearMonth}'`);
+        } catch (error) {
+            console.error('Error fetching usage details:', error);
+            if (error instanceof Error) {
+                errorMessage = error.message;
+            } else {
+                errorMessage = $text('settings.usage.error_loading');
+            }
+            usageEntries = [];
+        } finally {
+            isLoadingDetails = false;
+        }
+    }
+    
+    // Fetch daily overview data (all types combined, grouped by day)
+    async function fetchDailyOverview(days: number = loadedDays) {
+        isLoadingDailyOverview = true;
+        errorMessage = null;
+
+        try {
+            const endpoint = `${getApiEndpoint(apiEndpoints.usage.getDailyOverview)}?days=${days}`;
+            console.log('Fetching daily overview from:', endpoint);
+            
+            const response = await fetch(endpoint, {
+                credentials: 'include'
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                const errorDetail = errorData.detail || errorData.message || '';
+                throw new Error(`Failed to fetch daily overview: ${response.status} ${response.statusText}${errorDetail ? ` - ${errorDetail}` : ''}`);
+            }
+
+            const data = await response.json();
+            console.log('Received daily overview:', data);
+            
+            if (!data || typeof data !== 'object' || !Array.isArray(data.days)) {
+                throw new Error('Invalid response format: expected days array');
+            }
+
+            dailyOverview = data.days;
+            hasMoreDays = data.has_more_days === true;
+            
+            // Store backend-provided encrypted metadata for chats
+            // This is used as a fallback when chats are not in IndexedDB (not synced or beyond 100-chat limit)
+            for (const day of dailyOverview) {
+                for (const item of day.items) {
+                    if (item.type === 'chat' && item.chat_id) {
+                        if (item.encrypted_chat_key || item.is_deleted) {
+                            backendChatMetadata.set(item.chat_id, {
+                                encrypted_title: item.encrypted_title,
+                                encrypted_category: item.encrypted_category,
+                                encrypted_icon: item.encrypted_icon,
+                                encrypted_chat_key: item.encrypted_chat_key,
+                                is_deleted: item.is_deleted,
+                            });
+                        }
+                    }
+                }
+            }
+            
+            // Load chat metadata for any chat items in the overview
+            // Collect all promises and await them so we can trigger a reactive update
+            const metadataPromises: Promise<void>[] = [];
+            for (const day of dailyOverview) {
+                for (const item of day.items) {
+                    if (item.type === 'chat' && item.chat_id) {
+                        metadataPromises.push(
+                            loadChatMetadata(item.chat_id).then(() => {}).catch(err => 
+                                console.warn('[SettingsUsage] Failed to load metadata for chat:', item.chat_id, err)
+                            )
+                        );
+                    }
+                }
+            }
+            // Wait for all metadata to load, then reassign the map to trigger Svelte reactivity
+            // (Map.set() mutates in-place which Svelte 5 $state doesn't detect)
+            if (metadataPromises.length > 0) {
+                await Promise.all(metadataPromises);
+                chatMetadataMap = new Map(chatMetadataMap);
+            }
+            
+            console.log(`Loaded daily overview: ${data.days.length} days`);
+        } catch (error) {
+            console.error('Error fetching daily overview:', error);
+            if (error instanceof Error) {
+                errorMessage = error.message;
+            } else {
+                errorMessage = $text('settings.usage.error_loading');
+            }
+            dailyOverview = [];
+            hasMoreDays = false;
+        } finally {
+            isLoadingDailyOverview = false;
+        }
+    }
+
+    // Load more days for the daily overview
+    async function loadMoreDays() {
+        loadedDays += 7;
+        await fetchDailyOverview(loadedDays);
+    }
+
+    // Fetch all usage entries for a specific chat (no month filter)
+    // Used when clicking a chat in the overview tab to see all skill uses
+    async function fetchChatEntries(chatId: string) {
+        isLoadingOverviewEntries = true;
+        overviewChatEntries = [];
+        
+        try {
+            const endpoint = `${getApiEndpoint(apiEndpoints.usage.getChatEntries)}?chat_id=${encodeURIComponent(chatId)}`;
+            console.log('Fetching chat entries from:', endpoint);
+            
+            const response = await fetch(endpoint, { credentials: 'include' });
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(`Failed to fetch chat entries: ${response.status} ${errorData.detail || ''}`);
+            }
+            
+            const data = await response.json();
+            
+            if (!data || !Array.isArray(data.entries)) {
+                throw new Error('Invalid response format: expected entries array');
+            }
+            
+            overviewChatEntries = data.entries;
+            console.log(`Loaded ${data.entries.length} entries for chat '${chatId}'`);
+        } catch (error) {
+            console.error('Error fetching chat entries:', error);
+            overviewChatEntries = [];
+        } finally {
+            isLoadingOverviewEntries = false;
+        }
+    }
+
+    /**
+     * Get a human-readable label for a day in the daily overview.
+     * Returns "Today", "Yesterday", or a formatted date string.
+     */
+    function getDayLabel(dateStr: string): string {
+        try {
+            // Parse the YYYY-MM-DD date string
+            const [year, month, day] = dateStr.split('-').map(Number);
+            const date = new Date(year, month - 1, day);
+            
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+            
+            if (date.getTime() === today.getTime()) {
+                return $text('settings.usage.today');
+            }
+            if (date.getTime() === yesterday.getTime()) {
+                return $text('settings.usage.yesterday');
+            }
+            
+            // Format as localized date
+            return date.toLocaleDateString(undefined, {
+                weekday: 'short',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        } catch {
+            return dateStr;
+        }
+    }
+
+    // Update chat summaries from API response
+    async function updateChatSummariesFromAPI(summaries: any[]) {
+        // Clear existing data and rebuild (or merge if we want to support incremental loading)
+        const groupedByMonth = new Map<string, ChatUsageSummary[]>();
+        
+        for (const summary of summaries) {
+            const month = summary.year_month;
+            if (!groupedByMonth.has(month)) {
+                groupedByMonth.set(month, []);
+            }
+            
+            // Load chat metadata
+            const { chat, metadata } = await loadChatMetadata(summary.chat_id);
+            
+            groupedByMonth.get(month)!.push({
+                chat_id: summary.chat_id,
+                month: summary.year_month,
+                totalCredits: summary.total_credits || 0,
+                chat: chat,
+                metadata: metadata
+            });
+        }
+        
+        // Sort summaries within each month by total credits (descending)
+        groupedByMonth.forEach((summaries, _month) => {
+            summaries.sort((a, b) => b.totalCredits - a.totalCredits);
+        });
+        
+        // Update state - create new Map instance to trigger reactivity in Svelte 5
+        chatsByMonth = new Map(groupedByMonth);
+        console.log('Updated chatsByMonth:', chatsByMonth.size, 'months, entries:', Array.from(chatsByMonth.entries()));
+    }
+    
+    // Check if hidden chats are unlocked
+    async function checkHiddenChatsUnlocked() {
+        try {
+            const { hiddenChatService } = await import('../../services/hiddenChatService');
+            hiddenChatsUnlocked = hiddenChatService.isUnlocked();
+        } catch {
+            hiddenChatsUnlocked = false;
+        }
+    }
+    
+    // Handle hidden chats locked/unlocked events
+    async function handleHiddenChatsLocked() {
+        hiddenChatsUnlocked = false;
+        // Clear chat metadata cache when hidden chats are locked
+        // This ensures hidden chat details are hidden immediately
+        chatMetadataMap.clear();
+        // Re-process existing summaries to update display (hide details for hidden chats)
+        if (activeTab === 'chats' && chatsByMonth.size > 0) {
+            // Re-load summaries to refresh metadata with new unlock status
+            await fetchUsageSummaries('chats', loadedMonths);
+        }
+    }
+    
+    async function handleHiddenChatsUnlocked() {
+        hiddenChatsUnlocked = true;
+        // Clear chat metadata cache when hidden chats are unlocked
+        // This ensures hidden chat details become visible immediately
+        chatMetadataMap.clear();
+        // Re-process existing summaries to update display (show details for now-unlocked hidden chats)
+        if (activeTab === 'chats' && chatsByMonth.size > 0) {
+            // Re-load summaries to refresh metadata with new unlock status
+            await fetchUsageSummaries('chats', loadedMonths);
+        }
+    }
+    
+    // Update app summaries from API response
+    function updateAppSummariesFromAPI(summaries: any[]) {
+        const groupedByMonth = new Map<string, AppUsageSummary[]>();
+        
+        for (const summary of summaries) {
+            const month = summary.year_month;
+            if (!groupedByMonth.has(month)) {
+                groupedByMonth.set(month, []);
+            }
+            
+            groupedByMonth.get(month)!.push({
+                app_id: summary.app_id,
+                month: summary.year_month,
+                totalCredits: summary.total_credits || 0
+            });
+        }
+        
+        // Sort summaries within each month by total credits (descending)
+        groupedByMonth.forEach((summaries, _month) => {
+            summaries.sort((a, b) => b.totalCredits - a.totalCredits);
+        });
+        
+        // Update state - replace entire Map to trigger reactivity
+        appsByMonth = new Map(groupedByMonth);
+        console.log('Updated appsByMonth:', appsByMonth.size, 'months');
+    }
+    
+    // Update API key summaries from API response
+    // Backend now includes encrypted_name and encrypted_key_prefix in summaries
+    async function updateApiKeySummariesFromAPI(summaries: any[]) {
+        const groupedByMonth = new Map<string, ApiKeyUsageSummary[]>();
+        const labelsMap = new Map<string, { title: string; subtitle: string }>();
+        
+        for (const summary of summaries) {
+            const month = summary.year_month;
+            if (!groupedByMonth.has(month)) {
+                groupedByMonth.set(month, []);
+            }
+            
+            // Use encrypted data from backend (client will decrypt)
+            // Fallback to apiKeys array lookup if encrypted data not available (backward compatibility)
+            let apiKey: ApiKey | null = null;
+            let encryptedName = summary.encrypted_name || '';
+            let encryptedPrefix = summary.encrypted_key_prefix || '';
+            
+            // If encrypted data not provided, try to find in apiKeys array (backward compatibility)
+            if (!encryptedName && !encryptedPrefix) {
+                apiKey = apiKeys.find(k => k.key_hash === summary.api_key_hash) || null;
+                if (apiKey) {
+                    encryptedName = apiKey.name || '';
+                    encryptedPrefix = apiKey.key_prefix || '';
+                }
+            }
+            
+            const summaryObj: ApiKeyUsageSummary = {
+                api_key_hash: summary.api_key_hash,
+                month: summary.year_month,
+                totalCredits: summary.total_credits || 0,
+                apiKey: apiKey,
+                encrypted_name: encryptedName,
+                encrypted_key_prefix: encryptedPrefix
+            };
+            
+            groupedByMonth.get(month)!.push(summaryObj);
+            
+            // Decrypt and cache label for this summary
+            const labelKey = `${summary.api_key_hash}:${month}`;
+            const label = await getApiKeyLabel(summaryObj);
+            labelsMap.set(labelKey, label);
+        }
+        
+        // Sort summaries within each month by total credits (descending)
+        groupedByMonth.forEach((summaries, _month) => {
+            summaries.sort((a, b) => b.totalCredits - a.totalCredits);
+        });
+        
+        // Update state - replace entire Map to trigger reactivity
+        apiKeysByMonth = new Map(groupedByMonth);
+        apiKeyLabels = new Map(labelsMap);
+        console.log('Updated apiKeysByMonth:', apiKeysByMonth.size, 'months');
+    }
+    
+    // Show more months
+    async function showMoreMonths() {
+        loadedMonths += 3;
+        await fetchUsageSummaries(activeTab, loadedMonths);
+    }
+    
+    // Whether additional months are available based on server-provided total count.
+    let hasMoreMonths = $state(false);
+
+    // Export usage data as CSV (backend generates the file)
+    // Exports ALL usage entries for the current time frame (chats, apps, and API keys)
+    async function exportToCSV() {
+        try {
+            notificationStore.info($text('settings.usage.exporting'));
+            
+            // Build export URL with current time frame (no type filter - exports everything)
+            const params = new URLSearchParams({
+                months: loadedMonths.toString()
+            });
+            
+            const endpoint = `${getApiEndpoint(apiEndpoints.usage.export)}?${params.toString()}`;
+            console.log('Exporting ALL usage data from:', endpoint);
+            
+            // Fetch CSV from backend
+            const response = await fetch(endpoint, {
+                credentials: 'include'
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                const errorDetail = errorData.detail || errorData.message || '';
+                throw new Error(`Failed to export usage data: ${response.status} ${response.statusText}${errorDetail ? ` - ${errorDetail}` : ''}`);
+            }
+            
+            // Get filename from Content-Disposition header or use default
+            const contentDisposition = response.headers.get('Content-Disposition');
+            let filename = `usage-export-${new Date().toISOString().split('T')[0]}.csv`;
+            if (contentDisposition) {
+                const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+                if (filenameMatch) {
+                    filename = filenameMatch[1];
+                }
+            }
+            
+            // Download the CSV file
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            notificationStore.success($text('settings.usage.export_success'));
+        } catch (error) {
+            console.error('Error exporting usage:', error);
+            if (error instanceof Error) {
+                notificationStore.error(error.message);
+            } else {
+                notificationStore.error($text('settings.usage.export_error'));
+            }
+        }
+    }
+
+    // Export usage data as PDF (placeholder - would need PDF library)
+    async function _exportToPDF() {
+        notificationStore.info($text('settings.usage.pdf_coming_soon'));
+        // TODO: Implement PDF export using a library like jsPDF
+    }
+
+    // Usage entries are now loaded directly via fetchUsageDetails, no need for derived values
+
+    /**
+     * Get gradient colors for a category based on mate configuration
+     * (Same as Chat.svelte)
+     */
+    function getCategoryGradientColors(category: string): { start: string; end: string } | null {
+        const categoryGradients: Record<string, { start: string; end: string }> = {
+            'software_development': { start: '#155D91', end: '#42ABF4' },
+            'business_development': { start: '#004040', end: '#008080' },
+            'medical_health': { start: '#FD50A0', end: '#F42C2D' },
+            'legal_law': { start: '#239CFF', end: '#005BA5' },
+            'openmates_official': { start: '#6366f1', end: '#4f46e5' },
+            'maker_prototyping': { start: '#EA7600', end: '#FBAB59' },
+            'marketing_sales': { start: '#FF8C00', end: '#F4B400' },
+            'finance': { start: '#119106', end: '#15780D' },
+            'design': { start: '#101010', end: '#2E2E2E' },
+            'electrical_engineering': { start: '#233888', end: '#2E4EC8' },
+            'movies_tv': { start: '#00C2C5', end: '#3170DC' },
+            'history': { start: '#4989F2', end: '#2F44BF' },
+            'science': { start: '#FF7300', end: '#D5320' },
+            'life_coach_psychology': { start: '#FDB250', end: '#F42C2D' },
+            'cooking_food': { start: '#FD8450', end: '#F42C2D' },
+            'activism': { start: '#F53D00', end: '#F56200' },
+            'general_knowledge': { start: '#DE1E66', end: '#FF763B' }
+        };
+        return categoryGradients[category] || null;
+    }
+
+    /**
+     * Get fallback icon for a category when no icon names are provided
+     * (Same as Chat.svelte)
+     */
+    function getFallbackIconForCategory(category: string): string {
+        const categoryIcons: Record<string, string> = {
+            'software_development': 'code',
+            'business_development': 'briefcase',
+            'medical_health': 'heart',
+            'legal_law': 'gavel',
+            'openmates_official': 'shield-check',
+            'maker_prototyping': 'wrench',
+            'marketing_sales': 'megaphone',
+            'finance': 'dollar-sign',
+            'design': 'palette',
+            'electrical_engineering': 'zap',
+            'movies_tv': 'tv',
+            'history': 'clock',
+            'science': 'microscope',
+            'life_coach_psychology': 'users',
+            'cooking_food': 'utensils',
+            'activism': 'trending-up',
+            'general_knowledge': 'help-circle'
+        };
+        return categoryIcons[category] || 'help-circle';
+    }
+
+    /**
+     * Get the Lucide icon component by name
+     * (Same as Chat.svelte)
+     */
+    function getLucideIcon(iconName: string) {
+        const pascalCaseName = iconName
+            .split('-')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join('');
+        return LucideIcons[pascalCaseName] || LucideIcons.HelpCircle;
+    }
+
+    /**
+     * Decrypt chat metadata from backend-provided encrypted fields.
+     * Used when a chat is not in IndexedDB (not synced or beyond sync limit).
+     * Decrypts encrypted_chat_key with master key, then decrypts title/category/icon with chat key.
+     */
+    async function decryptBackendChatMetadata(chatId: string, backendMeta: { encrypted_title?: string | null; encrypted_category?: string | null; encrypted_icon?: string | null; encrypted_chat_key?: string | null }): Promise<DecryptedChatMetadata | null> {
+        try {
+            if (!backendMeta.encrypted_chat_key) return null;
+            
+            // Decrypt the chat key using the master key
+            const chatKey = await decryptChatKeyWithMasterKey(backendMeta.encrypted_chat_key);
+            if (!chatKey) return null;
+            
+            // Decrypt individual fields with the chat key
+            const [title, category, icon] = await Promise.all([
+                backendMeta.encrypted_title ? decryptWithChatKey(backendMeta.encrypted_title, chatKey) : null,
+                backendMeta.encrypted_category ? decryptWithChatKey(backendMeta.encrypted_category, chatKey) : null,
+                backendMeta.encrypted_icon ? decryptWithChatKey(backendMeta.encrypted_icon, chatKey) : null,
+            ]);
+            
+            return {
+                chat_id: chatId,
+                title: title || null,
+                category: category || null,
+                icon: icon || null,
+                summary: null,
+                draftPreview: null,
+                activeFocusId: null,
+                lastDecrypted: Date.now(),
+            };
+        } catch (error) {
+            console.warn(`[SettingsUsage] Failed to decrypt backend chat metadata:`, error);
+            return null;
+        }
+    }
+
+    /**
+     * Load chat metadata for a chat_id
+     * Fetches from IndexedDB and decrypts metadata.
+     * Falls back to backend-provided encrypted metadata when chat is not in IndexedDB
+     * (e.g., chat not synced, beyond 100-chat sync limit, or deleted).
+     * Note: For hidden chats, metadata can only be decrypted when hidden chats are unlocked
+     */
+    async function loadChatMetadata(chatId: string): Promise<{ chat: Chat | null; metadata: DecryptedChatMetadata | null; isDeleted?: boolean }> {
+        // Check cache first, but invalidate if unlock status changed
+        // (We check unlock status on each load to handle dynamic unlock/lock)
+        const cached = chatMetadataMap.get(chatId);
+        if (cached) {
+            // If chat is hidden and unlock status changed, invalidate cache
+            const chat = cached.chat;
+            if (chat && ((chat as any).is_hidden_candidate || (chat as any).is_hidden)) {
+                // Re-check unlock status - if it changed, reload
+                const wasUnlocked = hiddenChatsUnlocked;
+                await checkHiddenChatsUnlocked();
+                if (wasUnlocked !== hiddenChatsUnlocked) {
+                    // Unlock status changed, clear cache for this chat and reload
+                    chatMetadataMap.delete(chatId);
+                } else {
+                    // Unlock status unchanged, return cached (but check if we can show details)
+                    return cached;
+                }
+            } else {
+                // Not a hidden chat, return cached
+                return cached;
+            }
+        }
+
+        // For non-UUID chat IDs (like "demo-for-everyone"), return null immediately
+        // These are demo/placeholder chats not stored in IndexedDB
+        const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (!uuidPattern.test(chatId)) {
+            console.debug(`[SettingsUsage] Skipping metadata load for non-UUID chat_id: ${chatId} (likely a demo/placeholder chat)`);
+            const result = { chat: null, metadata: null };
+            chatMetadataMap.set(chatId, result);
+            return result;
+        }
+
+        try {
+            // Fetch chat from IndexedDB
+            const chat = await chatDB.getChat(chatId);
+            
+            if (!chat) {
+                // Chat not in IndexedDB - try backend-provided metadata
+                const backendMeta = backendChatMetadata.get(chatId);
+                if (backendMeta) {
+                    if (backendMeta.is_deleted) {
+                        // Chat was deleted from Directus - mark as deleted
+                        const result = { chat: null, metadata: null, isDeleted: true };
+                        chatMetadataMap.set(chatId, result);
+                        return result;
+                    }
+                    // Decrypt backend-provided encrypted metadata
+                    const metadata = await decryptBackendChatMetadata(chatId, backendMeta);
+                    const result = { chat: null, metadata, isDeleted: false };
+                    chatMetadataMap.set(chatId, result);
+                    return result;
+                }
+                const result = { chat: null, metadata: null };
+                chatMetadataMap.set(chatId, result);
+                return result;
+            }
+
+            // For hidden chats, ensure they're decrypted if hidden chats are unlocked
+            // This is necessary because getChat() doesn't automatically decrypt hidden chats
+            // We need to decrypt the chat key so metadata can be decrypted
+            if (chat.encrypted_chat_key) {
+                const { hiddenChatService } = await import('../../services/hiddenChatService');
+                
+                // Use tryDecryptChatKey which handles both normal and hidden chat decryption
+                const decryptResult = await hiddenChatService.tryDecryptChatKey(chat.encrypted_chat_key);
+                
+                if (decryptResult.chatKey) {
+                    // Cache the decrypted key so metadata can be decrypted
+                    chatDB.setChatKey(chatId, decryptResult.chatKey);
+                    // Mark chat flags for UI filtering
+                    (chat as any).is_hidden = decryptResult.isHidden;
+                    (chat as any).is_hidden_candidate = decryptResult.isHiddenCandidate;
+                } else {
+                    // Both decryption paths failed - mark as hidden candidate
+                    (chat as any).is_hidden_candidate = true;
+                    (chat as any).is_hidden = false;
+                }
+            }
+
+            // Get decrypted metadata (now that chat key is cached if available)
+            const metadata = await chatMetadataCache.getDecryptedMetadata(chat);
+            const result = { chat, metadata };
+            chatMetadataMap.set(chatId, result);
+            return result;
+        } catch (error) {
+            console.error(`[SettingsUsage] Error loading chat metadata for ${chatId}:`, error);
+            const result = { chat: null, metadata: null };
+            chatMetadataMap.set(chatId, result);
+            return result;
+        }
+    }
+
+    // Chat usage summaries grouped by month
+    // Use a reactive object wrapper to ensure Svelte 5 detects changes
+    let chatsByMonth = $state<Map<string, ChatUsageSummary[]>>(new Map());
+    
+    // Derived value to check if we have any chat summaries
+    const hasChatSummaries = $derived(chatsByMonth.size > 0 && Array.from(chatsByMonth.values()).some(arr => arr.length > 0));
+    let _isLoadingChatMetadata = $state(false);
+
+    // Chat summaries are now loaded from API, not computed from usageEntries
+
+    // App usage summaries grouped by month
+    let appsByMonth = $state<Map<string, AppUsageSummary[]>>(new Map());
+
+    /**
+     * Load API keys from the API endpoint
+     * Sets hasAttemptedApiKeysLoad to true after attempting to load (success or failure)
+     * to prevent infinite retry loops when there are no API keys or when the request fails
+     */
+    async function loadApiKeys() {
+        // Prevent multiple simultaneous loads
+        if (isLoadingApiKeys) {
+            return;
+        }
+        
+        isLoadingApiKeys = true;
+        hasAttemptedApiKeysLoad = true; // Mark that we've attempted to load
+        
+        try {
+            const response = await fetch(getApiEndpoint('/v1/settings/api-keys'), {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                credentials: 'include'
+            });
+
+            if (!response.ok) {
+                // Handle 429 (Too Many Requests) and other errors gracefully
+                if (response.status === 429) {
+                    console.warn('[SettingsUsage] Rate limited when loading API keys, will not retry automatically');
+                    apiKeys = [];
+                    return;
+                }
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.detail || 'Failed to load API keys');
+            }
+
+            const data = await response.json();
+            const rawKeys = data.api_keys || [];
+            
+            // Decrypt encrypted_name and encrypted_key_prefix for each key
+            const masterKey = await getKeyFromStorage();
+            if (!masterKey) {
+                console.warn('[SettingsUsage] Master key not found, cannot decrypt API key names');
+                apiKeys = [];
+                return;
+            }
+
+            apiKeys = await Promise.all(
+                rawKeys.map(async (key: any) => {
+                    let decryptedName = key.encrypted_name || '';
+                    let decryptedPrefix = key.encrypted_key_prefix || '';
+                    
+                    try {
+                        if (key.encrypted_name) {
+                            const decrypted = await decryptWithMasterKey(key.encrypted_name);
+                            if (decrypted) {
+                                decryptedName = decrypted;
+                            }
+                        }
+                        if (key.encrypted_key_prefix) {
+                            const decrypted = await decryptWithMasterKey(key.encrypted_key_prefix);
+                            if (decrypted) {
+                                decryptedPrefix = decrypted;
+                            }
+                        }
+                    } catch (err) {
+                        console.error('[SettingsUsage] Error decrypting API key fields:', err);
+                    }
+
+                    return {
+                        id: key.id,
+                        key_hash: key.key_hash || '',
+                        name: decryptedName,
+                        key_prefix: decryptedPrefix,
+                        created_at: key.created_at || '',
+                        last_used_at: key.last_used_at || null
+                    };
+                })
+            );
+        } catch (err: any) {
+            console.error('[SettingsUsage] Error loading API keys:', err);
+            // Set empty array on error - this is a valid state (user may have no API keys)
+            apiKeys = [];
+        } finally {
+            isLoadingApiKeys = false;
+        }
+    }
+
+    // API key usage summaries grouped by month
+    let apiKeysByMonth = $state<Map<string, ApiKeyUsageSummary[]>>(new Map());
+    
+    // Map of (api_key_hash + month) -> decrypted label for API keys
+    let apiKeyLabels = $state<Map<string, { title: string; subtitle: string }>>(new Map());
+
+    // API key summaries are now loaded from API, not computed from usageEntries
+
+    // App summaries are now loaded from API, not computed from usageEntries
+
+    /**
+     * Get icon name from app_id
+     * Maps app_id to icon name for Icon component
+     */
+    function getAppIconName(appId: string): string {
+        // App IDs typically match icon names (e.g., "ai", "web", "videos")
+        // Handle special cases if needed
+        return appId.toLowerCase();
+    }
+
+    /**
+     * Get app name from app_id using translation
+     */
+    function getAppName(appId: string): string {
+        try {
+            return $text(`apps.${appId}`);
+        } catch {
+            return appId;
+        }
+    }
+
+    /**
+     * Shorten a decrypted API key prefix for display so users can identify keys without leaking full values.
+     */
+    function _shortenKeyPrefix(prefix: string | null | undefined): string {
+        if (!prefix) {
+            return '';
+        }
+        if (prefix.length <= 8) {
+            return prefix;
+        }
+        return `${prefix.slice(0, 4)}…${prefix.slice(-2)}`;
+    }
+
+    /**
+     * Build a friendly label for an API key summary.
+     * Decrypts encrypted_name and encrypted_key_prefix from the summary.
+     * Falls back to apiKey object if encrypted data not available (backward compatibility).
+     */
+    async function getApiKeyLabel(summary: ApiKeyUsageSummary): Promise<{ title: string; subtitle: string }> {
+        let name = '';
+        let prefix = '';
+        let _prefixFromBackend = false; // Track if prefix came from backend encrypted field
+        
+        // Try to decrypt encrypted fields from summary (preferred method)
+        if (summary.encrypted_name || summary.encrypted_key_prefix) {
+            try {
+                if (summary.encrypted_name) {
+                    const decrypted = await decryptWithMasterKey(summary.encrypted_name);
+                    if (decrypted) {
+                        name = decrypted.trim();
+                    }
+                }
+                if (summary.encrypted_key_prefix) {
+                    const decrypted = await decryptWithMasterKey(summary.encrypted_key_prefix);
+                    if (decrypted) {
+                        prefix = decrypted.trim();
+                        _prefixFromBackend = true; // Prefix came from backend (already shortened)
+                    }
+                }
+            } catch (err) {
+                console.error('[SettingsUsage] Error decrypting API key fields:', err);
+            }
+        }
+        
+        // Fallback to apiKey object if encrypted data not available or decryption failed
+        if (!name && !prefix && summary.apiKey) {
+            name = summary.apiKey.name?.trim() || '';
+            prefix = summary.apiKey.key_prefix || '';
+            // prefixFromBackend remains false - this is from fallback, so we'll shorten it
+        }
+        
+        const title = name && name.length > 0 ? name : $text('settings.usage.api_key_details');
+        // Backend always provides a shortened prefix, so display it as-is without further shortening
+        // If no prefix available, show empty subtitle (title will be "API key")
+        const subtitle = prefix || '';
+        
+        return { title, subtitle };
+    }
+
+    /**
+     * Navigate to the message or embed identified by openTarget.
+     * - "message": opens the chat via chatSelected event chain + globalChatSelected, then
+     *              scrolls to the message via messageHighlightStore. Closes settings.
+     * - "embed": dispatches an embedfullscreen event (ActiveChat handles loading the data).
+     *            Closes settings so the embed is visible.
+     */
+    function handleOpenTarget(): void {
+        if (!openTarget) return;
+
+        if (openTarget.type === 'message') {
+            const { chat } = openTarget;
+            const messageId = overviewSelectedEntry?.message_id;
+            if (!messageId) return;
+
+            // Update the active chat store (updates URL hash, sidebar highlight)
+            activeChatStore.setActiveChat(chat.chat_id);
+
+            // Dispatch Svelte event upward so +page.svelte calls activeChat.loadChat()
+            // (mirrors the SettingsFooter.svelte navigation pattern)
+            dispatch('chatSelected', { chat });
+
+            // Dispatch global window event so Chats.svelte marks the chat active in sidebar
+            window.dispatchEvent(new CustomEvent('globalChatSelected', { detail: { chat } }));
+
+            // Close the settings panel so the chat is visible
+            dispatch('closeSettings');
+
+            // Scroll to and highlight the specific message after the chat has had time to load
+            setTimeout(() => {
+                messageHighlightStore.set(messageId);
+            }, 300);
+
+        } else if (openTarget.type === 'embed') {
+            const { embedId, embedType } = openTarget;
+
+            // Close settings so the embed fullscreen is visible
+            dispatch('closeSettings');
+
+            // ActiveChat listens on document for 'embedfullscreen' and loads fresh data itself.
+            // Small delay so the settings panel starts closing before the embed opens.
+            setTimeout(() => {
+                document.dispatchEvent(new CustomEvent('embedfullscreen', {
+                    bubbles: true,
+                    cancelable: true,
+                    detail: {
+                        embedId,
+                        embedType,
+                        attrs: {},
+                        embedData: null,
+                        decodedContent: null,
+                    },
+                }));
+            }, 50);
+        }
+    }
+
+    // Fetch summaries when the active tab actually changes after the initial load.
+    // We explicitly track the last tab to avoid double-fetching when hasInitialized flips to true.
+    let lastFetchedTab = $state<UsageTab | null>(null);
+    $effect(() => {
+        // Capture current activeTab value inside the effect to ensure reactivity
+        const currentTab = activeTab;
+        if (!hasInitialized) {
+            // Initial mount handled separately.
+            lastFetchedTab = currentTab;
+            return;
+        }
+        if (currentTab === lastFetchedTab) {
+            return;
+        }
+        lastFetchedTab = currentTab;
+        
+        // Reset overview drill-down state when switching tabs
+        overviewSelectedChatId = null;
+        overviewSelectedEntry = null;
+        overviewChatEntries = [];
+        
+        // Overview tab uses a different API endpoint
+        if (currentTab === 'overview') {
+            fetchDailyOverview(loadedDays);
+        } else {
+            fetchUsageSummaries(currentTab, loadedMonths);
+        }
+    });
+
+    // Load API keys when API tab is active
+    // Only attempt to load if we haven't attempted before (prevents infinite retry loops)
+    // Empty array is a valid state (user may have no API keys), so we don't retry on empty
+    $effect(() => {
+        if (activeTab === 'api' && !hasAttemptedApiKeysLoad && !isLoadingApiKeys) {
+            loadApiKeys();
+        }
+    });
+
+    // Load metadata for selected chat when it changes
+    $effect(() => {
+        if (selectedChatId) {
+            loadChatMetadata(selectedChatId);
+        }
+    });
+
+    // Resolve "Open message" / "Open embed" target when the level-2 detail entry changes.
+    // We check IndexedDB so the button is only shown when the data is actually accessible.
+    // The check is async so openTarget is reset to null immediately on entry change.
+    $effect(() => {
+        const entry = overviewSelectedEntry;
+        // Reset immediately so the button disappears while checking
+        openTarget = null;
+
+        if (!entry || !entry.message_id) return;
+
+        const messageId = entry.message_id;
+        const isAiAsk = entry.app_id === 'ai' && entry.skill_id === 'ask';
+
+        if (isAiAsk) {
+            // For AI Ask: check if the source message exists in IndexedDB
+            chatDB.getMessage(messageId).then((msg) => {
+                // Only update if the user hasn't navigated away to a different entry
+                if (overviewSelectedEntry?.message_id !== messageId) return;
+                if (!msg) return;
+
+                // Fetch the chat object so we can dispatch globalChatSelected
+                const chatId = entry.chat_id;
+                if (!chatId) return;
+
+                chatDB.getChat(chatId).then((chat) => {
+                    if (overviewSelectedEntry?.message_id !== messageId) return;
+                    if (!chat) return;
+                    openTarget = { type: 'message', chat };
+                }).catch(() => { /* chat not in local DB — button stays hidden */ });
+            }).catch(() => { /* message not found — button stays hidden */ });
+        } else if (entry.app_id && entry.skill_id) {
+            // For app skills: look for an embed with matching hashed_message_id
+            const appId = entry.app_id;
+            const skillId = entry.skill_id;
+
+            computeSHA256(messageId).then((hashedMsgId) => {
+                return embedStore.getEmbedsByAppAndSkill(appId, skillId).then((embeds) => {
+                    if (overviewSelectedEntry?.message_id !== messageId) return;
+                    const match = embeds.find((e) => e.hashed_message_id === hashedMsgId);
+                    if (!match) return;
+
+                    // embedId is the contentRef (e.g. "embed:abc123"), strip the prefix for the event
+                    const embedId = match.contentRef.startsWith('embed:')
+                        ? match.contentRef.slice('embed:'.length)
+                        : match.contentRef;
+                    // Use app_id+skill_id to build a recognisable embed type string
+                    const embedType = `${appId}-${skillId}`;
+                    openTarget = { type: 'embed', embedId, embedType };
+                });
+            }).catch(() => { /* hash or embed lookup failed — button stays hidden */ });
+        }
+    });
+
+    // Process and group usage data for display
+    const processedUsage = $derived.by(() => {
+        const filtered = filterByTab(usageEntries);
+        const sorted = sortEntries(filtered);
+        const grouped = groupByTime(sorted);
+        
+        // Calculate totals for each group
+        const groupsWithTotals: Record<string, { entries: UsageEntry[], total: number }> = {};
+        Object.entries(grouped).forEach(([key, entries]) => {
+            groupsWithTotals[key] = {
+                entries: entries,
+                total: calculateTotalCredits(entries)
+            };
+        });
+        
+        console.log('Final processedUsage:', groupsWithTotals);
+        return groupsWithTotals;
+    });
+
+    onMount(() => {
+        // Load draft audio chat IDs from localStorage so we can display "Unsent draft" instead of
+        // "Deleted chat" for usage entries linked to recordings that were never sent.
+        draftAudioChatIds = getAllDraftAudioChatIds();
+
+        // Load initial data based on default tab (overview)
+        const initialLoad = activeTab === 'overview' 
+            ? fetchDailyOverview(loadedDays)
+            : fetchUsageSummaries(activeTab, loadedMonths);
+        initialLoad.then(() => {
+            hasInitialized = true;
+        });
+        
+        // Check hidden chats unlock status on mount
+        checkHiddenChatsUnlocked();
+        
+        // Listen to hidden chats lock/unlock events for efficient updates
+        window.addEventListener('hiddenChatsLocked', handleHiddenChatsLocked);
+        window.addEventListener('hiddenChatsUnlocked', handleHiddenChatsUnlocked);
+        
+        return () => {
+            window.removeEventListener('hiddenChatsLocked', handleHiddenChatsLocked);
+            window.removeEventListener('hiddenChatsUnlocked', handleHiddenChatsUnlocked);
+        };
+    });
+</script>
+
+<!-- Header with Export button -->
+<div class="usage-header">
+    <div class="header-content">
+        <h2 class="header-title">{$text('settings.usage.title')}</h2>
+        <button 
+            class="export-button"
+            onclick={exportToCSV}
+            title={$text('settings.usage.export')}
+        >
+            {$text('settings.usage.export')}
+        </button>
+    </div>
+</div>
+
+<!-- Category tabs - simple clickable icons -->
+<div class="usage-tabs">
+    <button
+        class="tab-icon-button"
+        class:active={activeTab === 'overview'}
+        onclick={() => activeTab = 'overview'}
+        title={$text('settings.usage.tab_overview')}
+        aria-label={$text('settings.usage.tab_overview')}
+    >
+        <Icon name="usage" type="default" size="24px" />
+    </button>
+    <button
+        class="tab-icon-button"
+        class:active={activeTab === 'chats'}
+        onclick={() => activeTab = 'chats'}
+        title={$text('settings.usage.tab_chats')}
+        aria-label={$text('settings.usage.tab_chats')}
+    >
+        <Icon name="chat" type="default" size="24px" />
+    </button>
+    <button
+        class="tab-icon-button"
+        class:active={activeTab === 'apps'}
+        onclick={() => activeTab = 'apps'}
+        title={$text('settings.usage.tab_apps')}
+        aria-label={$text('settings.usage.tab_apps')}
+    >
+        <Icon name="app" type="default" size="24px" />
+    </button>
+    <button
+        class="tab-icon-button"
+        class:active={activeTab === 'api'}
+        onclick={() => activeTab = 'api'}
+        title={$text('settings.usage.tab_api')}
+        aria-label={$text('settings.usage.tab_api')}
+    >
+        <Icon name="coding" type="default" size="24px" />
+    </button>
+</div>
+
+{#if isLoading}
+    <div class="loading-state">
+        <div class="loading-spinner"></div>
+        <span>{$text('settings.usage.loading')}</span>
+    </div>
+{:else if errorMessage}
+    <div class="error-message">{errorMessage}</div>
+        <SettingsItem
+            type="quickaction"
+            icon="subsetting_icon reload"
+            title={$text('login.retry')}
+            onClick={() => fetchUsageSummaries(activeTab, loadedMonths)}
+        />
+{:else if activeTab === 'overview'}
+    <!-- Overview tab: 3-level drill-down -->
+    
+    {#if overviewSelectedEntry}
+        <!-- LEVEL 2: Single entry detail view (model, tokens, credits breakdown) -->
+        {#each [overviewSelectedEntry] as selEntry}
+            {@const entryAppName = selEntry.app_id ? (() => {
+                try { return $text(`apps.${selEntry.app_id}`); }
+                catch { return selEntry.app_id; }
+            })() : null}
+            {@const entrySkillName = selEntry.skill_id && selEntry.app_id ? (() => {
+                const key = getSkillTranslationKey(selEntry.app_id!, selEntry.skill_id!);
+                if (key) { try { return $text(key); } catch { return selEntry.skill_id; } }
+                return selEntry.skill_id;
+            })() : null}
+            {@const entryDisplayName = entryAppName && entrySkillName 
+                ? `${entryAppName} - ${entrySkillName}` 
+                : entryAppName || selEntry.type || $text('settings.usage.unknown_activity')}
+            {@const entryIconName = getEntryIcon(selEntry)}
+            
+            <div class="usage-detail-view">
+                <button 
+                    class="back-button"
+                    onclick={() => overviewSelectedEntry = null}
+                >
+                    <div class="clickable-icon icon_back"></div>
+                    <span>{$text('settings.usage.back')}</span>
+                </button>
+                
+                <div class="detail-header">
+                    <div class="detail-icon-wrapper">
+                        <div class="entry-icon icon icon_{entryIconName}" style="width: 32px; height: 32px;"></div>
+                    </div>
+                    <div class="detail-title-wrapper">
+                        <h3 class="detail-title">{entryDisplayName}</h3>
+                        <p class="detail-subtitle">{formatRelativeTime(selEntry.created_at)}</p>
+                    </div>
+                </div>
+                
+                <div class="entry-detail-fields">
+                    <!-- Total credits with breakdown -->
+                    {#if selEntry.credits}
+                        <div class="entry-detail-row">
+                            <span class="entry-detail-label">{$text('settings.usage.total_credits_label')}</span>
+                            <span class="entry-detail-value">
+                                <span class="credits-amount">{formatCredits(selEntry.credits)}</span>
+                                <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
+                            </span>
+                        </div>
+                    {/if}
+                    <!-- Credit breakdown (system prompt / history / response) - only for AI Ask -->
+                    {#if selEntry.credits_system_prompt || selEntry.credits_history || selEntry.credits_response}
+                        <div class="entry-detail-row entry-detail-sub">
+                            <span class="entry-detail-label">{$text('settings.usage.credits_breakdown_label')}</span>
+                            <span class="entry-detail-value entry-detail-breakdown">
+                                {#if selEntry.credits_system_prompt}
+                                    <span class="breakdown-item">{$text('settings.usage.credits_system_prompt_label')}: {formatCredits(selEntry.credits_system_prompt)}</span>
+                                {/if}
+                                {#if selEntry.credits_history}
+                                    <span class="breakdown-item">{$text('settings.usage.credits_history_label')}: {formatCredits(selEntry.credits_history)}</span>
+                                {/if}
+                                {#if selEntry.credits_response}
+                                    <span class="breakdown-item">{$text('settings.usage.credits_response_label')}: {formatCredits(selEntry.credits_response)}</span>
+                                {/if}
+                            </span>
+                        </div>
+                    {/if}
+                    <!-- Provider (derived from model_used string) -->
+                    {#if selEntry.model_used}
+                        {#each [selEntry.model_used.includes('/') ? selEntry.model_used.split('/')[0] : null] as providerPrefix}
+                            {#if providerPrefix}
+                                <div class="entry-detail-row">
+                                    <span class="entry-detail-label">{$text('settings.usage.provider_label')}</span>
+                                    <span class="entry-detail-value">{providerPrefix.charAt(0).toUpperCase() + providerPrefix.slice(1)}</span>
+                                </div>
+                            {/if}
+                        {/each}
+                    {/if}
+                    <!-- Model name (after the slash) -->
+                    {#if selEntry.model_used}
+                        <div class="entry-detail-row">
+                            <span class="entry-detail-label">{$text('settings.usage.model_label')}</span>
+                            <span class="entry-detail-value">{selEntry.model_used.includes('/') ? selEntry.model_used.split('/')[1] : selEntry.model_used}</span>
+                        </div>
+                    {/if}
+                    <!-- Server provider (e.g., "AWS Bedrock", "Anthropic API") -->
+                    {#if selEntry.server_provider}
+                        <div class="entry-detail-row">
+                            <span class="entry-detail-label">{$text('settings.usage.server_provider_label')}</span>
+                            <span class="entry-detail-value">{selEntry.server_provider}</span>
+                        </div>
+                    {/if}
+                    <!-- Server region (e.g., "EU", "US") -->
+                    {#if selEntry.server_region}
+                        <div class="entry-detail-row">
+                            <span class="entry-detail-label">{$text('settings.usage.server_region_label')}</span>
+                            <span class="entry-detail-value">{selEntry.server_region}</span>
+                        </div>
+                    {/if}
+                    <!-- Token breakdown - only for AI Ask entries -->
+                    {#if selEntry.system_prompt_tokens}
+                        <div class="entry-detail-row">
+                            <span class="entry-detail-label">{$text('settings.usage.system_prompt_tokens_label')}</span>
+                            <span class="entry-detail-value">{selEntry.system_prompt_tokens.toLocaleString()}</span>
+                        </div>
+                    {/if}
+                    {#if selEntry.user_input_tokens}
+                        <div class="entry-detail-row">
+                            <span class="entry-detail-label">{$text('settings.usage.user_input_tokens_label')}</span>
+                            <span class="entry-detail-value">{selEntry.user_input_tokens.toLocaleString()}</span>
+                        </div>
+                    {/if}
+                    {#if selEntry.input_tokens}
+                        <div class="entry-detail-row">
+                            <span class="entry-detail-label">{$text('settings.usage.input_tokens_label')}</span>
+                            <span class="entry-detail-value">{selEntry.input_tokens.toLocaleString()}</span>
+                        </div>
+                    {/if}
+                    {#if selEntry.output_tokens}
+                        <div class="entry-detail-row">
+                            <span class="entry-detail-label">{$text('settings.usage.output_tokens_label')}</span>
+                            <span class="entry-detail-value">{selEntry.output_tokens.toLocaleString()}</span>
+                        </div>
+                    {/if}
+                    <!-- Tool inference iterations hint (only shown when tool use occurred, i.e. > 0) -->
+                    <!-- This tells the user why their token count is higher than expected:        -->
+                    <!-- the AI called one or more app skills and re-processed the full context    -->
+                    <!-- after receiving each result, adding an extra LLM call per skill round.   -->
+                    <!-- FAQ: https://openmates.app/faq#tool-inference (do NOT show URL in UI)   -->
+                    {#if selEntry.tool_inference_iterations != null && selEntry.tool_inference_iterations > 0}
+                        <div class="entry-detail-row">
+                            <span class="entry-detail-label">{$text('settings.usage.tool_iterations_label')}</span>
+                            <span class="entry-detail-value entry-detail-value--hint">
+                                {selEntry.tool_inference_iterations}
+                                <span class="entry-detail-hint">{$text('settings.usage.tool_iterations_hint')}</span>
+                            </span>
+                        </div>
+                    {/if}
+                </div>
+
+                <!-- "Open message" / "Open result" button — only shown when the target exists in IndexedDB -->
+                {#if openTarget}
+                    <button onclick={handleOpenTarget}>
+                        <div class="clickable-icon icon_{openTarget.type === 'message' ? 'message-circle' : 'external-link'}"></div>
+                        <span>
+                            {openTarget.type === 'message'
+                                ? $text('settings.usage.open_message')
+                                : $text('settings.usage.open_embed')}
+                        </span>
+                    </button>
+                {/if}
+            </div>
+        {/each}
+    {:else if overviewSelectedChatId}
+        <!-- LEVEL 1: Chat entries list (all skill uses for this chat) -->
+        {@const isOverviewIncognito = overviewSelectedChatId === 'incognito'}
+        {@const chatCached = chatMetadataMap.get(overviewSelectedChatId)}
+        {@const chatMeta = chatCached?.metadata}
+        {@const chatObj = chatCached?.chat}
+        {@const chatIsHidden = chatObj ? ((chatObj as any).is_hidden_candidate || (chatObj as any).is_hidden) : false}
+        {@const chatCanShow = !isOverviewIncognito && (!chatIsHidden || (chatIsHidden && hiddenChatsUnlocked))}
+        {@const chatCategory = chatCanShow ? (chatMeta?.category || null) : null}
+        {@const chatIconName = isOverviewIncognito ? 'incognito' : (chatCanShow ? (chatMeta?.icon || (chatCategory ? getFallbackIconForCategory(chatCategory) : 'help-circle')) : 'help-circle')}
+        {@const chatGradient = chatCanShow && chatCategory ? getCategoryGradientColors(chatCategory) : null}
+        {@const ChatIcon = isOverviewIncognito ? null : getLucideIcon(chatIconName)}
+        {@const chatTitle = isOverviewIncognito ? $text('settings.usage.incognito_chat') : (chatCanShow ? (chatMeta?.title || chatObj?.title || 'Chat') : 'Chat')}
+        
+        <div class="usage-detail-view">
+            <button 
+                class="back-button"
+                onclick={() => {
+                    overviewSelectedChatId = null;
+                    overviewChatEntries = [];
+                }}
+            >
+                <div class="clickable-icon icon_back"></div>
+                <span>{$text('settings.usage.back')}</span>
+            </button>
+            
+            <div class="detail-header">
+                <div class="detail-icon-wrapper">
+                    {#if isOverviewIncognito}
+                        <div class="chat-usage-icon-circle" style="background: #555555;">
+                            <div class="chat-usage-icon">
+                                <div class="icon icon_incognito" style="width: 16px; height: 16px; filter: brightness(0) invert(1);"></div>
+                            </div>
+                        </div>
+                    {:else}
+                        <div 
+                            class="chat-usage-icon-circle" 
+                            style={chatGradient ? `background: linear-gradient(135deg, ${chatGradient.start}, ${chatGradient.end})` : 'background: #cccccc'}
+                        >
+                            <div class="chat-usage-icon">
+                                {#if ChatIcon}
+                                    <ChatIcon size={16} color="white" />
+                                {/if}
+                            </div>
+                        </div>
+                    {/if}
+                </div>
+                <div class="detail-title-wrapper">
+                    <h3 class="detail-title">{chatTitle}</h3>
+                </div>
+            </div>
+            
+            {#if isLoadingOverviewEntries}
+                <div class="loading-state">
+                    <div class="loading-spinner"></div>
+                    <span>{$text('settings.usage.loading')}</span>
+                </div>
+            {:else if overviewChatEntries.length === 0}
+                <div class="empty-state">
+                    <div class="empty-icon"></div>
+                    <h4>{$text('settings.usage.no_usage_title')}</h4>
+                </div>
+            {:else}
+                {#each overviewChatEntries as entry}
+                    {@const oAppName = entry.app_id ? (() => {
+                        try { return $text(`apps.${entry.app_id}`); }
+                        catch { return entry.app_id; }
+                    })() : null}
+                    {@const oSkillName = entry.skill_id && entry.app_id ? (() => {
+                        const key = getSkillTranslationKey(entry.app_id!, entry.skill_id!);
+                        if (key) { try { return $text(key); } catch { return entry.skill_id; } }
+                        return entry.skill_id;
+                    })() : null}
+                    {@const oDisplayName = oAppName && oSkillName 
+                        ? `${oAppName} - ${oSkillName}` 
+                        : oAppName || entry.type || $text('settings.usage.unknown_activity')}
+                    {@const oEntryIcon = getEntryIcon(entry)}
+                    
+                    <button
+                        type="button"
+                        class="detail-entry clickable"
+                        onclick={() => overviewSelectedEntry = entry}
+                    >
+                        <div class="entry-time">{formatRelativeTime(entry.created_at)}</div>
+                        <div class="entry-content">
+                            <div class="entry-icon icon icon_{oEntryIcon}"></div>
+                            <div class="entry-info">
+                                <div class="entry-label">{oDisplayName}</div>
+                                {#if entry.model_used}
+                                    <div class="entry-sublabel">{entry.model_used}</div>
+                                {/if}
+                            </div>
+                            <div class="entry-credits">
+                                <span class="credits-amount">{formatCredits(entry.credits || 0)}</span>
+                                <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
+                            </div>
+                        </div>
+                    </button>
+                {/each}
+            {/if}
+        </div>
+    {:else}
+        <!-- LEVEL 0: Daily overview (days with items) -->
+        {#if isLoadingDailyOverview}
+            <div class="loading-state">
+                <div class="loading-spinner"></div>
+                <span>{$text('settings.usage.loading')}</span>
+            </div>
+        {:else if dailyOverview.length === 0}
+            <div class="empty-state">
+                <div class="empty-icon"></div>
+                <h4>{$text('settings.usage.no_usage_title')}</h4>
+                <p>{$text('settings.usage.no_usage_on_day')}</p>
+            </div>
+        {:else}
+            {#each dailyOverview as day}
+                <div class="time-group">
+                    <div class="time-header">
+                        <h4 class="time-title">{getDayLabel(day.date)}</h4>
+                        <div class="time-total">
+                            <span class="credits-amount">{formatCredits(day.total_credits)}</span>
+                            <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
+                        </div>
+                    </div>
+                    
+                    {#if day.items.length === 0}
+                        <div class="overview-empty-day">
+                            <span class="overview-empty-text">{$text('settings.usage.no_usage_on_day')}</span>
+                        </div>
+                    {:else}
+                        {#each day.items as item}
+                            {#if item.type === 'chat' && item.chat_id}
+                                <!-- Chat item - clickable to drill down -->
+                                {@const cached = chatMetadataMap.get(item.chat_id)}
+                                {@const metadata = cached?.metadata}
+                                {@const chat = cached?.chat}
+                                {@const isIncognitoChat = item.chat_id === 'incognito'}
+                                {@const isDeletedChat = cached?.isDeleted === true || item.is_deleted === true}
+                                {@const isUnsentDraft = isDeletedChat && item.chat_id != null && draftAudioChatIds.has(item.chat_id)}
+                                {@const isHiddenChat = chat ? ((chat as any).is_hidden_candidate || (chat as any).is_hidden) : false}
+                                {@const canShowDetails = !isIncognitoChat && !isDeletedChat && (!isHiddenChat || (isHiddenChat && hiddenChatsUnlocked))}
+                                {@const category = canShowDetails ? (metadata?.category || null) : null}
+                                {@const iconName = isIncognitoChat ? 'incognito' : (canShowDetails ? (metadata?.icon || (category ? getFallbackIconForCategory(category) : 'help-circle')) : (isDeletedChat ? 'trash-2' : 'help-circle'))}
+                                {@const gradientColors = canShowDetails && category ? getCategoryGradientColors(category) : null}
+                                {@const IconComponent = (isDeletedChat || isIncognitoChat) ? null : getLucideIcon(iconName)}
+                                {@const title = isIncognitoChat ? $text('settings.usage.incognito_chat') : (isUnsentDraft ? $text('settings.usage.unsent_draft') : (isDeletedChat ? $text('settings.usage.deleted_chat') : (canShowDetails ? (metadata?.title || chat?.title || 'Chat') : 'Chat')))}
+                                
+                                <button
+                                    type="button"
+                                    class="overview-usage-item clickable"
+                                    class:deleted={isDeletedChat}
+                                    onclick={async () => {
+                                        overviewSelectedChatId = item.chat_id;
+                                        await fetchChatEntries(item.chat_id!);
+                                    }}
+                                >
+                                    <div class="chat-usage-icon-wrapper">
+                                        {#if isIncognitoChat}
+                                            <div class="chat-usage-icon-circle" style="background: #555555;">
+                                                <div class="chat-usage-icon">
+                                                    <div class="icon icon_incognito" style="width: 14px; height: 14px; filter: brightness(0) invert(1);"></div>
+                                                </div>
+                                            </div>
+                                        {:else if isUnsentDraft}
+                                            <!-- Unsent draft: mic icon, purple gradient background -->
+                                            <div class="chat-usage-icon-circle" style="background: linear-gradient(135deg, #6B8DD6, #8E37D7);">
+                                                <div class="chat-usage-icon">
+                                                    <div class="clickable-icon icon_recordaudio" style="width: 14px; height: 14px; background: white;"></div>
+                                                </div>
+                                            </div>
+                                        {:else if isDeletedChat}
+                                            <div class="chat-usage-icon-circle deleted-icon-circle">
+                                                <div class="chat-usage-icon">
+                                                    <div class="clickable-icon icon_delete" style="width: 14px; height: 14px;"></div>
+                                                </div>
+                                            </div>
+                                        {:else}
+                                            <div 
+                                                class="chat-usage-icon-circle" 
+                                                style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: #cccccc'}
+                                            >
+                                                <div class="chat-usage-icon">
+                                                    {#if IconComponent}
+                                                        <IconComponent size={16} color="white" />
+                                                    {/if}
+                                                </div>
+                                            </div>
+                                        {/if}
+                                    </div>
+                                    <div class="overview-item-content">
+                                        <div class="overview-item-title" class:deleted-text={isDeletedChat && !isUnsentDraft}>{title}</div>
+                                        <div class="overview-item-subtitle">{item.entry_count} {item.entry_count === 1 ? 'request' : 'requests'}</div>
+                                    </div>
+                                    <div class="overview-item-credits">
+                                        <span class="credits-amount">{formatCredits(item.total_credits)}</span>
+                                        <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
+                                    </div>
+                                </button>
+                            {:else if item.type === 'api_key'}
+                                <!-- API key item -->
+                                <div class="overview-usage-item">
+                                    <div class="app-usage-icon-wrapper">
+                                        <Icon 
+                                            name="code"
+                                            type="default"
+                                            size="28px"
+                                        />
+                                    </div>
+                                    <div class="overview-item-content">
+                                        <div class="overview-item-title">{$text('settings.usage.api_key_label')}</div>
+                                        <div class="overview-item-subtitle">{item.entry_count} {item.entry_count === 1 ? 'request' : 'requests'}</div>
+                                    </div>
+                                    <div class="overview-item-credits">
+                                        <span class="credits-amount">{formatCredits(item.total_credits)}</span>
+                                        <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
+                                    </div>
+                                </div>
+                            {/if}
+                        {/each}
+                    {/if}
+                </div>
+            {/each}
+            
+            <!-- Load more days button -->
+            {#if hasMoreDays && !isLoadingDailyOverview}
+                <div class="show-more-container">
+                    <button
+                        class="show-more-button"
+                        onclick={loadMoreDays}
+                        aria-label={$text('settings.usage.load_more_days')}
+                    >
+                        {$text('settings.usage.load_more_days')}
+                    </button>
+                </div>
+            {/if}
+        {/if}
+    {/if}
+{:else if selectedChatId && usageEntries.length > 0}
+    <!-- Detail view for selected chat -->
+    <div class="usage-detail-view">
+        <button 
+            class="back-button"
+            onclick={() => selectedChatId = null}
+        >
+            <div class="clickable-icon icon_back"></div>
+            <span>{$text('settings.usage.back')}</span>
+        </button>
+        
+        {#if selectedChatId}
+            {@const isSelectedIncognito = selectedChatId === 'incognito'}
+            {@const selectedChatMetadata = chatMetadataMap.get(selectedChatId)}
+            {@const selectedChat = selectedChatMetadata?.chat}
+            {@const selectedMetadata = selectedChatMetadata?.metadata}
+            {@const selectedIsHiddenChat = selectedChat ? ((selectedChat as any).is_hidden_candidate || (selectedChat as any).is_hidden) : false}
+            {@const selectedCanShowDetails = !isSelectedIncognito && (!selectedIsHiddenChat || (selectedIsHiddenChat && hiddenChatsUnlocked))}
+            {@const selectedCategory = selectedCanShowDetails ? (selectedMetadata?.category || null) : null}
+            {@const selectedIconName = isSelectedIncognito ? 'incognito' : (selectedCanShowDetails ? (selectedMetadata?.icon || (selectedCategory ? getFallbackIconForCategory(selectedCategory) : 'help-circle')) : 'help-circle')}
+            {@const selectedGradientColors = selectedCanShowDetails && selectedCategory ? getCategoryGradientColors(selectedCategory) : null}
+            {@const SelectedIconComponent = isSelectedIncognito ? null : getLucideIcon(selectedIconName)}
+            {@const selectedTitle = isSelectedIncognito ? $text('settings.usage.incognito_chat') : (selectedCanShowDetails ? (selectedMetadata?.title || selectedChat?.title || 'Chat') : 'Chat')}
+            
+            <div class="detail-header">
+                <div class="detail-icon-wrapper">
+                    {#if isSelectedIncognito}
+                        <div class="detail-icon-circle" style="background: #555555;">
+                            <div class="detail-icon">
+                                <div class="icon icon_incognito" style="width: 20px; height: 20px; filter: brightness(0) invert(1);"></div>
+                            </div>
+                        </div>
+                    {:else}
+                        <div 
+                            class="detail-icon-circle" 
+                            style={selectedGradientColors ? `background: linear-gradient(135deg, ${selectedGradientColors.start}, ${selectedGradientColors.end})` : 'background: #cccccc'}
+                        >
+                            <div class="detail-icon">
+                                {#if SelectedIconComponent}
+                                    <SelectedIconComponent size={20} color="white" />
+                                {/if}
+                            </div>
+                        </div>
+                    {/if}
+                </div>
+                <div class="detail-info">
+                    <h3>{selectedTitle}</h3>
+                    <p>{selectedAppMonth || getMonthYear(usageEntries[0]?.created_at || 0)}</p>
+                </div>
+            </div>
+        {/if}
+        
+        {#if isLoadingDetails}
+            <div class="loading-state">
+                <div class="loading-spinner"></div>
+                <span>{$text('settings.usage.loading')}</span>
+            </div>
+        {:else}
+        <div class="detail-entries">
+            {#each usageEntries as entry}
+                {@const appName = entry.app_id ? (() => {
+                    try {
+                        return $text(`apps.${entry.app_id}`);
+                    } catch {
+                        return entry.app_id;
+                    }
+                })() : null}
+                {@const skillName = entry.skill_id && entry.app_id ? (() => {
+                    const key = getSkillTranslationKey(entry.app_id!, entry.skill_id!);
+                    if (key) { try { return $text(key); } catch { return entry.skill_id; } }
+                    return entry.skill_id;
+                })() : null}
+                {@const displayName = appName && skillName ? `${appName} - ${skillName}` : appName || entry.type || $text('settings.usage.unknown_activity')}
+                {@const entryIcon = getEntryIcon(entry)}
+                
+                <div class="detail-entry">
+                    <div class="entry-time">{formatRelativeTime(entry.created_at)}</div>
+                    <div class="entry-content">
+                        <div class="entry-icon icon icon_{entryIcon}"></div>
+                        <div class="entry-info">
+                            <div class="entry-label">{displayName}</div>
+                            {#if entry.app_id && entry.skill_id}
+                                <div class="entry-sublabel">{skillName || entry.skill_id}</div>
+                            {/if}
+                        </div>
+                        <div class="entry-credits">
+                            <span class="credits-amount">{formatCredits(entry.credits || 0)}</span>
+                            <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
+                        </div>
+                    </div>
+                </div>
+                {/each}
+        </div>
+        {/if}
+        
+        <div class="detail-export">
+            <button class="export-button" onclick={exportToCSV}>
+                {$text('settings.usage.export')}
+            </button>
+        </div>
+    </div>
+{:else}
+    <!-- Main usage view grouped by time -->
+    {#if activeTab === 'api' && selectedApiKeyHash}
+        <!-- Detail view for selected API key -->
+        <div class="usage-detail-view">
+            <button 
+                class="back-button"
+                onclick={() => {
+                    selectedApiKeyHash = null;
+                    selectedApiKeyMonth = null;
+                }}
+            >
+                <div class="clickable-icon icon_back"></div>
+                <span>{$text('settings.usage.back')}</span>
+            </button>
+            
+            {#if selectedApiKeyHash && selectedApiKeyMonth}
+                {@const labelKey = `${selectedApiKeyHash}:${selectedApiKeyMonth}`}
+                {@const apiKeyLabel = apiKeyLabels.get(labelKey) || { title: $text('settings.usage.api_key_details'), subtitle: '' }}
+                
+                <div class="detail-header">
+                    <div class="detail-icon-wrapper">
+                        <Icon 
+                            name="code"
+                            type="default"
+                            size="40px"
+                        />
+                    </div>
+                    <div class="detail-info">
+                        <h3>{apiKeyLabel.title}</h3>
+                        {#if apiKeyLabel.subtitle}
+                            <p>{apiKeyLabel.subtitle}</p>
+                        {:else}
+                            <p>{$text('settings.usage.api_key_details')}</p>
+                        {/if}
+                    </div>
+                </div>
+            {/if}
+            
+            {#if isLoadingDetails}
+                <div class="loading-state">
+                    <div class="loading-spinner"></div>
+                    <span>{$text('settings.usage.loading')}</span>
+                </div>
+            {:else}
+            <div class="detail-entries">
+                {#each usageEntries as entry}
+                    {@const appName = entry.app_id ? (() => {
+                        try {
+                            return $text(`apps.${entry.app_id}`);
+                        } catch {
+                            return entry.app_id;
+                        }
+                    })() : null}
+                    {@const skillName = entry.skill_id && entry.app_id ? (() => {
+                        const key = getSkillTranslationKey(entry.app_id!, entry.skill_id!);
+                        if (key) { try { return $text(key); } catch { return entry.skill_id; } }
+                        return entry.skill_id;
+                    })() : null}
+                    {@const displayName = appName && skillName ? `${appName} - ${skillName}` : appName || entry.type || $text('settings.usage.unknown_activity')}
+                    {@const entryIcon = getEntryIcon(entry)}
+                    
+                    <div class="detail-entry">
+                        <div class="entry-time">{formatRelativeTime(entry.created_at)}</div>
+                        <div class="entry-content">
+                            <div class="entry-icon icon icon_{entryIcon}"></div>
+                            <div class="entry-info">
+                                <div class="entry-label">{displayName}</div>
+                                {#if entry.skill_id}
+                                    <div class="entry-sublabel">{skillName || entry.skill_id}</div>
+                                {/if}
+                            </div>
+                            <div class="entry-credits">
+                                <span class="credits-amount">{formatCredits(entry.credits || 0)}</span>
+                                <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
+                            </div>
+                        </div>
+                    </div>
+                {/each}
+            </div>
+            {/if}
+        </div>
+    {:else if activeTab === 'apps' && selectedAppId && selectedAppMonth}
+        <!-- Detail view for selected app -->
+        <div class="usage-detail-view">
+            <button 
+                class="back-button"
+                onclick={() => {
+                    selectedAppId = null;
+                    selectedAppMonth = null;
+                }}
+            >
+                <div class="clickable-icon icon_back"></div>
+                <span>{$text('settings.usage.back')}</span>
+            </button>
+            
+            {#if selectedAppId}
+                {@const appName = getAppName(selectedAppId)}
+                {@const appIconName = getAppIconName(selectedAppId)}
+                
+                <div class="detail-header">
+                    <div class="detail-icon-wrapper">
+                        <Icon 
+                            name={appIconName}
+                            type="app"
+                            size="40px"
+                        />
+                    </div>
+                    <div class="detail-info">
+                        <h3>{appName}</h3>
+                        <p>{selectedAppMonth}</p>
+                    </div>
+                </div>
+            {/if}
+            
+            {#if isLoadingDetails}
+                <div class="loading-state">
+                    <div class="loading-spinner"></div>
+                    <span>{$text('settings.usage.loading')}</span>
+                </div>
+            {:else}
+            <div class="detail-entries">
+                {#each usageEntries as entry}
+                    {@const skillName = entry.skill_id && entry.app_id ? (() => {
+                        const key = getSkillTranslationKey(entry.app_id!, entry.skill_id!);
+                        if (key) { try { return $text(key); } catch { return entry.skill_id; } }
+                        return entry.skill_id;
+                    })() : null}
+                    {@const displayName = skillName || entry.type || $text('settings.usage.unknown_activity')}
+                    {@const entryIcon = getEntryIcon(entry)}
+                    
+                    <div class="detail-entry">
+                        <div class="entry-time">{formatRelativeTime(entry.created_at)}</div>
+                        <div class="entry-content">
+                            <div class="entry-icon icon icon_{entryIcon}"></div>
+                            <div class="entry-info">
+                                <div class="entry-label">{displayName}</div>
+                                {#if entry.skill_id}
+                                    <div class="entry-sublabel">{skillName || entry.skill_id}</div>
+                                {/if}
+                            </div>
+                            <div class="entry-credits">
+                                <span class="credits-amount">{formatCredits(entry.credits || 0)}</span>
+                                <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
+                            </div>
+                        </div>
+                    </div>
+                {/each}
+            </div>
+            {/if}
+        </div>
+    {:else if activeTab === 'chats'}
+        <!-- Chat view: Show chats grouped by month with total credits -->
+        {#if isLoadingSummaries}
+            <div class="loading-state">
+                <div class="loading-spinner"></div>
+                <span>{$text('settings.usage.loading')}</span>
+            </div>
+        {:else if !hasChatSummaries}
+            <div class="empty-state">
+                <div class="empty-icon"></div>
+                <h4>{$text('settings.usage.no_usage_title')}</h4>
+                <p>No chat usage found. Try switching tabs.</p>
+            </div>
+        {:else}
+            {#each Array.from(chatsByMonth.entries()) as [month, summaries]}
+                {@const monthTotal = summaries.reduce((sum, s) => sum + s.totalCredits, 0)}
+                <div class="time-group">
+                    <div class="time-header">
+                        <h4 class="time-title">{month}</h4>
+                        <div class="time-total">
+                            <span class="credits-amount">{formatCredits(monthTotal)}</span>
+                            <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
+                        </div>
+                    </div>
+                    
+                    {#each summaries as summary}
+                        {@const chat = summary.chat}
+                        {@const metadata = summary.metadata}
+                        {@const cachedEntry = chatMetadataMap.get(summary.chat_id)}
+                        {@const isIncognitoChat = summary.chat_id === 'incognito'}
+                        {@const isDeletedChat = cachedEntry?.isDeleted === true}
+                        {@const isUnsentDraft = isDeletedChat && draftAudioChatIds.has(summary.chat_id)}
+                        {@const isHiddenChat = chat ? ((chat as any).is_hidden_candidate || (chat as any).is_hidden) : false}
+                        {@const canShowDetails = !isIncognitoChat && !isDeletedChat && (!isHiddenChat || (isHiddenChat && hiddenChatsUnlocked))}
+                        {@const category = canShowDetails ? (metadata?.category || null) : null}
+                        {@const iconName = isIncognitoChat ? 'incognito' : (canShowDetails ? (metadata?.icon || (category ? getFallbackIconForCategory(category) : 'help-circle')) : (isDeletedChat ? 'trash-2' : 'help-circle'))}
+                        {@const gradientColors = canShowDetails && category ? getCategoryGradientColors(category) : null}
+                        {@const IconComponent = (isDeletedChat || isIncognitoChat) ? null : getLucideIcon(iconName)}
+                        {@const title = isIncognitoChat ? $text('settings.usage.incognito_chat') : (isUnsentDraft ? $text('settings.usage.unsent_draft') : (isDeletedChat ? $text('settings.usage.deleted_chat') : (canShowDetails ? (metadata?.title || chat?.title || 'Chat') : 'Chat')))}
+                        
+                        <button
+                            type="button"
+                            class="chat-usage-item clickable"
+                            class:deleted={isDeletedChat}
+                            onclick={async () => {
+                                selectedChatId = summary.chat_id;
+                                // Fetch details for this chat and month
+                                await fetchUsageDetails('chats', summary.chat_id, summary.month);
+                            }}
+                            aria-label={$text('settings.usage.view_chat_details')}
+                        >
+                            <div class="chat-usage-icon-wrapper">
+                                {#if isIncognitoChat}
+                                    <div class="chat-usage-icon-circle" style="background: #555555;">
+                                        <div class="chat-usage-icon">
+                                            <div class="icon icon_incognito" style="width: 14px; height: 14px; filter: brightness(0) invert(1);"></div>
+                                        </div>
+                                    </div>
+                                {:else if isUnsentDraft}
+                                    <!-- Unsent draft: mic icon, purple gradient background -->
+                                    <div class="chat-usage-icon-circle" style="background: linear-gradient(135deg, #6B8DD6, #8E37D7);">
+                                        <div class="chat-usage-icon">
+                                            <div class="clickable-icon icon_recordaudio" style="width: 14px; height: 14px; background: white;"></div>
+                                        </div>
+                                    </div>
+                                {:else if isDeletedChat}
+                                    <div class="chat-usage-icon-circle deleted-icon-circle">
+                                        <div class="chat-usage-icon">
+                                            <div class="clickable-icon icon_delete" style="width: 14px; height: 14px;"></div>
+                                        </div>
+                                    </div>
+                                {:else}
+                                    <div 
+                                        class="chat-usage-icon-circle" 
+                                        style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: #cccccc'}
+                                    >
+                                        <div class="chat-usage-icon">
+                                            {#if IconComponent}
+                                                <IconComponent size={16} color="white" />
+                                            {/if}
+                                        </div>
+                                    </div>
+                                {/if}
+                            </div>
+                            <div class="chat-usage-content">
+                                <div class="chat-usage-title" class:deleted-text={isDeletedChat && !isUnsentDraft}>{title}</div>
+                            </div>
+                            <div class="chat-usage-credits">
+                                <span class="credits-amount">{formatCredits(summary.totalCredits)}</span>
+                                <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
+                            </div>
+                        </button>
+                    {/each}
+                </div>
+            {/each}
+        {/if}
+    {:else if activeTab === 'apps'}
+        <!-- Apps view: Show apps grouped by month with total credits -->
+        {#if appsByMonth.size === 0}
+            <div class="empty-state">
+                <div class="empty-icon"></div>
+                <h4>{$text('settings.usage.no_usage_title')}</h4>
+                <p>No app usage found. Try switching tabs.</p>
+            </div>
+        {:else}
+            {#each Array.from(appsByMonth.entries()) as [month, summaries]}
+                {@const monthTotal = summaries.reduce((sum, s) => sum + s.totalCredits, 0)}
+                <div class="time-group">
+                    <div class="time-header">
+                        <h4 class="time-title">{month}</h4>
+                        <div class="time-total">
+                            <span class="credits-amount">{formatCredits(monthTotal)}</span>
+                            <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
+                        </div>
+                    </div>
+                    
+                    {#each summaries as summary}
+                        {@const appName = getAppName(summary.app_id)}
+                        {@const appIconName = getAppIconName(summary.app_id)}
+                        
+                        <button
+                            type="button"
+                            class="app-usage-item clickable"
+                            onclick={async () => {
+                                selectedAppId = summary.app_id;
+                                selectedAppMonth = summary.month;
+                                // Fetch details for this app and month
+                                await fetchUsageDetails('apps', summary.app_id, summary.month);
+                            }}
+                            aria-label={$text('settings.usage.view_app_details')}
+                        >
+                            <div class="app-usage-icon-wrapper">
+                                <Icon 
+                                    name={appIconName}
+                                    type="app"
+                                    size="28px"
+                                />
+                            </div>
+                            <div class="app-usage-content">
+                                <div class="app-usage-title">{appName}</div>
+                            </div>
+                            <div class="app-usage-credits">
+                                <span class="credits-amount">{formatCredits(summary.totalCredits)}</span>
+                                <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
+                            </div>
+                        </button>
+                    {/each}
+                </div>
+            {/each}
+        {/if}
+    {:else if activeTab === 'api'}
+        <!-- API keys view: Show API keys grouped by month with total credits -->
+        {#if isLoadingApiKeys || isLoadingSummaries}
+            <div class="loading-state">
+                <div class="loading-spinner"></div>
+                <span>{$text('settings.usage.loading')}</span>
+            </div>
+        {:else if apiKeysByMonth.size === 0}
+            <div class="empty-state">
+                <div class="empty-icon"></div>
+                <h4>{$text('settings.usage.no_usage_title')}</h4>
+                <p>No API key usage found. Try switching tabs.</p>
+            </div>
+        {:else}
+            {#each Array.from(apiKeysByMonth.entries()) as [month, summaries]}
+                {@const monthTotal = summaries.reduce((sum, s) => sum + s.totalCredits, 0)}
+                <div class="time-group">
+                    <div class="time-header">
+                        <h4 class="time-title">{month}</h4>
+                        <div class="time-total">
+                            <span class="credits-amount">{formatCredits(monthTotal)}</span>
+                            <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
+                        </div>
+                    </div>
+                    
+                    {#each summaries as summary}
+                        {@const labelKey = `${summary.api_key_hash}:${summary.month}`}
+                        {@const apiKeyLabel = apiKeyLabels.get(labelKey) || { title: $text('settings.usage.api_key_details'), subtitle: '' }}
+                        
+                        <button
+                            type="button"
+                            class="api-key-usage-item clickable"
+                            onclick={async () => {
+                                selectedApiKeyHash = summary.api_key_hash;
+                                selectedApiKeyMonth = summary.month;
+                                // Fetch details for this API key and month
+                                await fetchUsageDetails('api', summary.api_key_hash, summary.month);
+                            }}
+                            aria-label={$text('settings.usage.view_api_key_details')}
+                        >
+                            <div class="api-key-usage-icon-wrapper">
+                                <Icon 
+                                    name="code"
+                                    type="default"
+                                    size="28px"
+                                />
+                            </div>
+                            <div class="api-key-usage-content">
+                                <div class="api-key-usage-title">{apiKeyLabel.title}</div>
+                                {#if apiKeyLabel.subtitle}
+                                    <div class="api-key-usage-prefix">{apiKeyLabel.subtitle}</div>
+                                {/if}
+                            </div>
+                            <div class="api-key-usage-credits">
+                                <span class="credits-amount">{formatCredits(summary.totalCredits)}</span>
+                                <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
+                            </div>
+                        </button>
+                    {/each}
+                </div>
+            {/each}
+        {/if}
+    {:else}
+        <!-- Non-chat/app/api view: Show entries grouped by time -->
+        {@const processedEntries = Object.entries(processedUsage)}
+        {#if processedEntries.length === 0 && usageEntries.length > 0}
+            <div class="empty-state">
+                <div class="empty-icon"></div>
+                <h4>{$text('settings.usage.no_usage_title')}</h4>
+                <p>No entries match the current filter. Try switching tabs.</p>
+            </div>
+        {:else}
+            {#each processedEntries as [timePeriod, { entries, total }]}
+            <div class="time-group">
+                <div class="time-header">
+                    <h4 class="time-title">{timePeriod}</h4>
+                    <div class="time-total">
+                        <span class="credits-amount">{formatCredits(total)}</span>
+                        <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
+                    </div>
+                </div>
+                
+                {#each entries as entry}
+                    <!-- Non-chat entry or entry without chat_id -->
+                    <div class="usage-item">
+                        <div class="item-icon icon icon_{getEntryIcon(entry)}"></div>
+                        <div class="item-content">
+                            <div class="item-title">{getEntryDisplayName(entry)}</div>
+                        </div>
+                        <div class="item-credits">
+                            <span class="credits-amount">{formatCredits(entry.credits || 0)}</span>
+                            <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
+                        </div>
+                    </div>
+                {/each}
+            </div>
+            {/each}
+        {/if}
+    {/if}
+    
+    <!-- Show more months button (only for non-overview tabs - overview is handled in its own branch above) -->
+    {#if hasMoreMonths && !isLoadingSummaries}
+        <div class="show-more-container">
+            <button
+                class="show-more-button"
+                onclick={showMoreMonths}
+                aria-label={$text('settings.usage.show_more')}
+            >
+                {$text('settings.usage.show_more')}
+            </button>
+        </div>
+    {/if}
+{/if}
+
+<style>
+    .usage-header {
+        padding: 10px;
+        margin-bottom: 16px;
+    }
+
+    .header-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+
+    .header-title {
+        margin: 0;
+        color: var(--color-grey-100);
+        font-size: 18px;
+        font-weight: 600;
+    }
+
+    .export-button {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        background: var(--color-accent);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .export-button:hover {
+        background: var(--color-accent-hover);
+        transform: translateY(-1px);
+    }
+
+    .header-description {
+        margin: 0;
+        color: var(--color-grey-60);
+        font-size: 14px;
+        line-height: 1.4;
+    }
+
+    .usage-tabs {
+        display: flex;
+        gap: 16px;
+        padding: 10px;
+        margin-bottom: 16px;
+        border-bottom: 1px solid var(--color-grey-20);
+        justify-content: flex-start;
+        align-items: center;
+    }
+
+    .tab-icon-button {
+        /* Reset all global button styles that make tabs too wide */
+        background: none;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 6px;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        flex-shrink: 0;
+        opacity: 0.5;
+        /* Override global button.css values */
+        min-width: unset;
+        height: unset;
+        filter: none;
+        margin-right: 0;
+    }
+
+    .tab-icon-button:hover {
+        opacity: 0.8;
+        background: var(--color-grey-10);
+    }
+
+    .tab-icon-button.active {
+        opacity: 1;
+    }
+
+    .loading-state {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        padding: 40px;
+        color: var(--color-grey-60);
+    }
+
+    .loading-spinner {
+        width: 20px;
+        height: 20px;
+        border: 2px solid var(--color-grey-20);
+        border-top: 2px solid var(--color-accent);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .error-message {
+        background: rgba(223, 27, 65, 0.1);
+        color: #df1b41;
+        padding: 12px;
+        border-radius: 8px;
+        font-size: 13px;
+        border: 1px solid rgba(223, 27, 65, 0.3);
+        margin: 16px 10px;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+    }
+
+    .empty-icon {
+        width: 48px;
+        height: 48px;
+        margin: 0 auto 16px;
+        background-image: url('@openmates/ui/static/icons/usage.svg');
+        background-size: contain;
+        background-repeat: no-repeat;
+        opacity: 0.3;
+        filter: invert(1);
+    }
+
+    .empty-state h4 {
+        margin: 0 0 8px 0;
+        color: var(--color-grey-100);
+        font-size: 16px;
+        font-weight: 600;
+    }
+
+    .empty-state p {
+        margin: 0;
+        color: var(--color-grey-60);
+        font-size: 14px;
+        line-height: 1.4;
+    }
+
+    .time-group {
+        margin-bottom: 24px;
+    }
+
+    .time-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0 10px 12px;
+        margin-bottom: 12px;
+        border-bottom: 1px solid var(--color-grey-20);
+    }
+
+    .time-title {
+        color: var(--color-grey-80);
+        font-size: 16px;
+        font-weight: 600;
+        margin: 0;
+    }
+
+    .time-total {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .credits-amount {
+        color: var(--color-grey-80);
+        font-size: 14px;
+        font-weight: 600;
+    }
+
+    .credits-icon {
+        width: 16px;
+        height: 16px;
+        background-image: url('@openmates/ui/static/icons/coins.svg');
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        opacity: 0.6;
+    }
+
+    .credits-icon-img {
+        width: 16px;
+        height: 16px;
+        opacity: 0.6;
+        flex-shrink: 0;
+    }
+
+    .usage-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        margin-bottom: 8px;
+        background: var(--color-grey-10);
+        border-radius: 12px;
+        border: 1px solid var(--color-grey-20);
+        transition: all 0.2s ease;
+        width: 100%;
+        text-align: left;
+    }
+
+    .usage-item:hover {
+        background: var(--color-grey-15);
+        border-color: var(--color-grey-30);
+    }
+
+    .usage-item.clickable {
+        cursor: pointer;
+    }
+
+    .item-icon {
+        width: 24px;
+        height: 24px;
+        flex-shrink: 0;
+    }
+
+    .item-content {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .item-title {
+        color: var(--color-grey-100);
+        font-size: 14px;
+        font-weight: 500;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .item-credits {
+        color: var(--color-grey-80);
+        font-size: 14px;
+        font-weight: 600;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    /* Chat usage item styles (matching Chat.svelte) */
+    .chat-usage-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        margin-bottom: 8px;
+        background: var(--color-grey-10);
+        border-radius: 12px;
+        border: 1px solid var(--color-grey-20);
+        transition: all 0.2s ease;
+        width: 100%;
+        text-align: left;
+        cursor: pointer;
+    }
+
+    .chat-usage-item:hover {
+        background: var(--color-grey-15);
+        border-color: var(--color-grey-30);
+    }
+
+    .chat-usage-icon-wrapper {
+        flex: 0 0 28px;
+        position: relative;
+        height: 28px;
+    }
+
+    .chat-usage-icon-circle {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+        border: 2px solid var(--color-background);
+        transition: all 0.2s ease;
+    }
+
+    .chat-usage-icon {
+        width: 16px;
+        height: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .chat-usage-content {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .chat-usage-title {
+        color: var(--color-grey-100);
+        font-size: 14px;
+        font-weight: 500;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .chat-usage-credits {
+        color: var(--color-grey-80);
+        font-size: 14px;
+        font-weight: 600;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    /* App usage item styles (similar to chat usage) */
+    .app-usage-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        margin-bottom: 8px;
+        background: var(--color-grey-10);
+        border-radius: 12px;
+        border: 1px solid var(--color-grey-20);
+        transition: all 0.2s ease;
+        width: 100%;
+        text-align: left;
+        cursor: pointer;
+    }
+
+    .app-usage-item:hover {
+        background: var(--color-grey-15);
+        border-color: var(--color-grey-30);
+    }
+
+    .app-usage-icon-wrapper {
+        flex: 0 0 28px;
+        position: relative;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .app-usage-content {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .app-usage-title {
+        color: var(--color-grey-100);
+        font-size: 14px;
+        font-weight: 500;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .app-usage-credits {
+        color: var(--color-grey-80);
+        font-size: 14px;
+        font-weight: 600;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    /* API key usage item styles (similar to app usage) */
+    .api-key-usage-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        margin-bottom: 8px;
+        background: var(--color-grey-10);
+        border-radius: 12px;
+        border: 1px solid var(--color-grey-20);
+        transition: all 0.2s ease;
+        width: 100%;
+        text-align: left;
+        cursor: pointer;
+    }
+
+    .api-key-usage-item:hover {
+        background: var(--color-grey-15);
+        border-color: var(--color-grey-30);
+    }
+
+    .api-key-usage-icon-wrapper {
+        flex: 0 0 28px;
+        position: relative;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .api-key-usage-content {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .api-key-usage-title {
+        color: var(--color-grey-100);
+        font-size: 14px;
+        font-weight: 500;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .api-key-usage-prefix {
+        color: var(--color-grey-60);
+        font-size: 12px;
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        margin-top: 2px;
+    }
+
+    .api-key-usage-credits {
+        color: var(--color-grey-80);
+        font-size: 14px;
+        font-weight: 600;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .usage-detail-view {
+        padding: 10px;
+    }
+
+    .back-button {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 0;
+        background: none;
+        border: none;
+        color: var(--color-grey-60);
+        font-size: 14px;
+        cursor: pointer;
+        margin-bottom: 16px;
+    }
+
+    .back-button:hover {
+        color: var(--color-grey-80);
+    }
+
+
+    .detail-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--color-grey-20);
+    }
+
+    .detail-icon-wrapper {
+        flex: 0 0 40px;
+        position: relative;
+        height: 40px;
+    }
+
+    .detail-icon-circle {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+        border: 2px solid var(--color-background);
+    }
+
+    .detail-icon {
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .detail-info h3 {
+        margin: 0 0 4px 0;
+        color: var(--color-grey-100);
+        font-size: 16px;
+        font-weight: 600;
+    }
+
+    .detail-info p {
+        margin: 0;
+        color: var(--color-grey-60);
+        font-size: 14px;
+    }
+
+    .detail-entries {
+        margin-bottom: 24px;
+    }
+
+    .detail-entry {
+        margin-bottom: 16px;
+        background: none;
+        border: none;
+        padding: 0;
+        width: 100%;
+        text-align: left;
+        font: inherit;
+        color: inherit;
+    }
+
+    .detail-entry.clickable {
+        cursor: pointer;
+    }
+
+    .detail-entry.clickable .entry-content:hover {
+        background: var(--color-grey-15);
+        border-color: var(--color-grey-30);
+    }
+
+    .entry-time {
+        color: var(--color-grey-60);
+        font-size: 12px;
+        margin-bottom: 8px;
+    }
+
+    .entry-content {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px;
+        background: var(--color-grey-10);
+        border-radius: 8px;
+    }
+
+    .entry-icon {
+        width: 24px;
+        height: 24px;
+        background-size: contain;
+        background-repeat: no-repeat;
+        flex-shrink: 0;
+    }
+
+    .entry-info {
+        flex: 1;
+    }
+
+    .entry-label {
+        color: var(--color-grey-100);
+        font-size: 14px;
+        font-weight: 500;
+    }
+
+    .entry-sublabel {
+        color: var(--color-grey-60);
+        font-size: 12px;
+    }
+
+    .entry-credits {
+        color: var(--color-grey-80);
+        font-size: 14px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .detail-export {
+        text-align: center;
+        padding-top: 16px;
+        border-top: 1px solid var(--color-grey-20);
+    }
+
+    .pagination {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        padding: 20px 10px;
+        margin-top: 24px;
+        border-top: 1px solid var(--color-grey-20);
+    }
+
+    .pagination-button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border: 1px solid var(--color-grey-30);
+        background: var(--color-grey-10);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .pagination-button:hover:not(:disabled) {
+        background: var(--color-grey-15);
+        border-color: var(--color-grey-40);
+    }
+
+    .pagination-button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .pagination-info {
+        color: var(--color-grey-80);
+        font-size: 14px;
+        font-weight: 500;
+    }
+
+    .show-more-container {
+        display: flex;
+        justify-content: center;
+        padding: 20px 10px;
+        margin-top: 24px;
+        border-top: 1px solid var(--color-grey-20);
+    }
+
+    .show-more-button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 12px 24px;
+        background: var(--color-grey-10);
+        border: 1px solid var(--color-grey-30);
+        border-radius: 8px;
+        color: var(--color-grey-80);
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .show-more-button:hover {
+        background: var(--color-grey-15);
+        border-color: var(--color-grey-40);
+    }
+
+    /* Daily overview styles */
+    .overview-usage-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        margin-bottom: 8px;
+        background: var(--color-grey-10);
+        border-radius: 12px;
+        border: 1px solid var(--color-grey-20);
+        transition: all 0.2s ease;
+        width: 100%;
+        text-align: left;
+        font: inherit;
+        color: inherit;
+    }
+
+    .overview-usage-item.clickable {
+        cursor: pointer;
+    }
+
+    .overview-usage-item:hover {
+        background: var(--color-grey-15);
+        border-color: var(--color-grey-30);
+    }
+
+    .overview-item-content {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .overview-item-title {
+        color: var(--color-grey-100);
+        font-size: 14px;
+        font-weight: 500;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .overview-item-subtitle {
+        color: var(--color-grey-50);
+        font-size: 12px;
+        margin-top: 2px;
+    }
+
+    .overview-item-credits {
+        color: var(--color-grey-80);
+        font-size: 14px;
+        font-weight: 600;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .overview-empty-day {
+        padding: 16px;
+        text-align: center;
+    }
+
+    .overview-empty-text {
+        color: var(--color-grey-50);
+        font-size: 13px;
+    }
+
+    /* Entry detail fields (Level 2 - model, tokens, credits) */
+    .entry-detail-fields {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        padding: 0 10px;
+    }
+
+    .entry-detail-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 0;
+        border-bottom: 1px solid var(--color-grey-15);
+    }
+
+    .entry-detail-row:last-child {
+        border-bottom: none;
+    }
+
+    .entry-detail-label {
+        color: var(--color-grey-60);
+        font-size: 14px;
+    }
+
+    .entry-detail-value {
+        color: var(--color-text);
+        font-size: 14px;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    /* Sub-row for credit breakdown (indented, smaller) */
+    .entry-detail-sub {
+        padding: 8px 0 14px 0;
+    }
+
+    .entry-detail-sub .entry-detail-label {
+        font-size: 13px;
+    }
+
+    .entry-detail-breakdown {
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 2px;
+    }
+
+    .breakdown-item {
+        font-size: 12px;
+        color: var(--color-grey-50);
+        font-weight: 400;
+    }
+
+    /* Tool iteration hint: subtle secondary text shown after the iteration count */
+    .entry-detail-value--hint {
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 6px;
+    }
+
+    .entry-detail-hint {
+        font-size: 12px;
+        font-weight: 400;
+        color: var(--color-grey-50);
+    }
+
+    /* Deleted chat styles */
+    .deleted-icon-circle {
+        background: var(--color-grey-25, #3a3a3a);
+    }
+
+    .deleted-text {
+        color: var(--color-grey-50);
+        font-style: italic;
+    }
+
+    .overview-usage-item.deleted,
+    .chat-usage-item.deleted {
+        opacity: 0.7;
+    }
+</style>

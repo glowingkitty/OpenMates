@@ -1,8 +1,6 @@
 # backend/core/api/app/routes/handlers/websocket_handlers/ai_response_completed_handler.py
 import logging
-import json
 from typing import Dict, Any
-from datetime import datetime, timezone
 
 from fastapi import WebSocket
 
@@ -40,7 +38,19 @@ async def handle_ai_response_completed(
         versions = payload.get("versions")  # Get version info for multi-device sync
 
         if not chat_id or not message_payload_from_client or not isinstance(message_payload_from_client, dict):
-            logger.error(f"Invalid AI response payload structure from {user_id}/{device_fingerprint_hash}: {payload}")
+            payload_keys = sorted(payload.keys()) if isinstance(payload, dict) else []
+            message_keys = (
+                sorted(message_payload_from_client.keys())
+                if isinstance(message_payload_from_client, dict)
+                else []
+            )
+            logger.error(
+                "Invalid AI response payload structure from "
+                f"{user_id}/{device_fingerprint_hash}: "
+                f"chat_id_present={bool(chat_id)}, "
+                f"message_is_dict={isinstance(message_payload_from_client, dict)}, "
+                f"payload_keys={payload_keys}, message_keys={message_keys}"
+            )
             await manager.send_personal_message(
                 {"type": "error", "payload": {"message": "Invalid AI response payload structure"}},
                 user_id,
@@ -54,12 +64,24 @@ async def handle_ai_response_completed(
         encrypted_content = message_payload_from_client.get("encrypted_content")
         encrypted_sender_name = message_payload_from_client.get("encrypted_sender_name")
         encrypted_category = message_payload_from_client.get("encrypted_category")
+        encrypted_model_name = message_payload_from_client.get("encrypted_model_name")
+        encrypted_thinking_content = message_payload_from_client.get("encrypted_thinking_content")
+        encrypted_thinking_signature = message_payload_from_client.get("encrypted_thinking_signature")
+        has_thinking = message_payload_from_client.get("has_thinking")
+        thinking_token_count = message_payload_from_client.get("thinking_token_count")
         created_at = message_payload_from_client.get("created_at")
         user_message_id = message_payload_from_client.get("user_message_id")
 
         # Validate required fields
         if not all([message_id, role, encrypted_content, created_at]):
-            logger.error(f"Missing required fields in AI response from {user_id}/{device_fingerprint_hash}: {message_payload_from_client}")
+            message_keys = sorted(message_payload_from_client.keys()) if isinstance(message_payload_from_client, dict) else []
+            logger.error(
+                "Missing required fields in AI response from "
+                f"{user_id}/{device_fingerprint_hash}: "
+                f"has_message_id={bool(message_id)}, has_role={bool(role)}, "
+                f"has_encrypted_content={bool(encrypted_content)}, has_created_at={bool(created_at)}, "
+                f"message_keys={message_keys}"
+            )
             await manager.send_personal_message(
                 {"type": "error", "payload": {"message": "Missing required fields in AI response"}},
                 user_id,
@@ -85,6 +107,39 @@ async def handle_ai_response_completed(
 
         logger.info(f"Received completed AI response for storage: chat_id={chat_id}, message_id={message_id}, user_id={user_id}")
 
+        # Verify chat ownership
+        is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
+        if not is_owner:
+            logger.warning(f"User {user_id} attempted to store AI response for chat {chat_id} they don't own. Rejecting.")
+            await manager.send_personal_message(
+                {"type": "error", "payload": {"message": "You do not have permission to modify this chat."}},
+                user_id,
+                device_fingerprint_hash
+            )
+            return
+
+        # CRITICAL: Check if this specific response ID was already processed or is being processed
+        # This prevents duplicate confirmations and redundant Celery tasks
+        lock_key = f"lock:ai_response_processed:{message_id}"
+        is_already_processed = await cache_service.get(lock_key)
+        if is_already_processed:
+            logger.info(f"⏭️ AI response {message_id} already being/was processed by another device or task, skipping duplicate handling.")
+            
+            # Still send confirmation to this device so it knows it's "synced"
+            await manager.send_personal_message(
+                {
+                    "type": "ai_response_storage_confirmed",
+                    "payload": {
+                        "message_id": message_id,
+                        "chat_id": chat_id,
+                        "task_id": "already_processed"
+                    }
+                },
+                user_id,
+                device_fingerprint_hash
+            )
+            return
+
         # Create message data for Directus storage (encrypted only)
         message_data_for_directus = {
             "message_id": message_id,
@@ -100,6 +155,16 @@ async def handle_ai_response_completed(
             message_data_for_directus["encrypted_sender_name"] = encrypted_sender_name
         if encrypted_category:
             message_data_for_directus["encrypted_category"] = encrypted_category
+        if encrypted_model_name:
+            message_data_for_directus["encrypted_model_name"] = encrypted_model_name
+        if encrypted_thinking_content:
+            message_data_for_directus["encrypted_thinking_content"] = encrypted_thinking_content
+        if encrypted_thinking_signature:
+            message_data_for_directus["encrypted_thinking_signature"] = encrypted_thinking_signature
+        if has_thinking is not None:
+            message_data_for_directus["has_thinking"] = bool(has_thinking)
+        if thinking_token_count is not None:
+            message_data_for_directus["thinking_token_count"] = thinking_token_count
         if user_message_id:
             message_data_for_directus["user_message_id"] = user_message_id
 

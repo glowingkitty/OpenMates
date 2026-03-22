@@ -1,16 +1,29 @@
 global:
-  scrape_interval: 5s
-  scrape_timeout: 4s
-  evaluation_interval: 5s
+  scrape_interval: 30s
+  scrape_timeout: 10s
+  evaluation_interval: 30s
 
 alerting:
   alertmanagers:
     - static_configs:
-        - targets: []
+        - targets: ["alertmanager:9093"]
       scheme: http
       timeout: 10s
 
-rule_files: []
+rule_files:
+  - "/etc/prometheus/alert_rules.yml"
+
+# Forward all scraped metrics to OpenObserve for unified storage and dashboards.
+# OpenObserve accepts Prometheus remote_write at this endpoint and supports
+# both SQL and PromQL for querying.
+# See docs/architecture/logging-and-monitoring.md
+remote_write:
+  - url: "http://openobserve:5080/api/default/prometheus/api/v1/write"
+    basic_auth:
+      username_file: /etc/prometheus/openobserve_user
+      password_file: /etc/prometheus/openobserve_pass
+    queue_config:
+      max_samples_per_send: 10000
 
 scrape_configs:
   - job_name: "prometheus"
@@ -21,8 +34,33 @@ scrape_configs:
     metrics_path: /metrics
     static_configs:
       - targets: ["api:8000"]
-      
+
   - job_name: "cadvisor"
-    scrape_interval: 5s
+    scrape_interval: 60s
+    scrape_timeout: 10s
     static_configs:
       - targets: ["cadvisor:8080"]
+
+  # Celery worker Prometheus metrics servers.
+  # Each worker starts a prometheus_client HTTP server on CELERY_METRICS_PORT
+  # via the worker_process_init signal in celery_config.py.
+  # Port assignments (must match CELERY_METRICS_PORT in docker-compose.yml):
+  #   task-worker:        9101
+  #   app-ai-worker:      9102
+  #   app-images-worker:  9103
+  #   app-pdf-worker:     9104
+  - job_name: "celery-task-worker"
+    static_configs:
+      - targets: ["task-worker:9101"]
+
+  - job_name: "celery-app-ai-worker"
+    static_configs:
+      - targets: ["app-ai-worker:9102"]
+
+  - job_name: "celery-app-images-worker"
+    static_configs:
+      - targets: ["app-images-worker:9103"]
+
+  - job_name: "celery-app-pdf-worker"
+    static_configs:
+      - targets: ["app-pdf-worker:9104"]

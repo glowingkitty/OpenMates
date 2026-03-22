@@ -40,6 +40,14 @@ button:active {
 }
 
 /* Disabled state for all buttons */
+/* Focus outline for default (orange) buttons.
+   Uses brand blue so the ring is visible against the orange background.
+   :focus-visible only shows for keyboard/programmatic focus, not mouse clicks. */
+button:focus-visible {
+    outline: 3px solid #4867cd;
+    outline-offset: 3px;
+}
+
 button:disabled {
     opacity: 0.6;
     cursor: not-allowed;

@@ -8,39 +8,60 @@ description: "AI models and services from OpenAI."
 logo_svg: "logos/openai.svg" # Path for UI, relative to a common logos directory
 
 models:
-  - id: "gpt-5" # Model ID without provider prefix
-    name: "GPT-5"
-    description: "The best model for coding and agentic tasks across domains"
+  - id: "gpt-5.4" # Model ID without provider prefix
+    name: "GPT-5.4"
+    description: "OpenAI's latest flagship model optimized for professional work, coding, and agentic tool use."
+    country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
+    for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
+    release_date: "2026-03-05" # Model release date (GPT-5.4 released March 2026)
+    allow_auto_select: true
+    external_ids: # Mapping to external leaderboard IDs for cross-referencing
+      lmarena: "gpt-5.4"
+      openrouter: "openai/gpt-5.4"
     input_types:
       - text
       - image
     output_types:
       - text
-    # Using GPT-5 via openai api
+    default_server: "openai"
+    servers:
+      - id: "openai"
+        name: "OpenAI API"
+        region: "US" # Server region for UI display
+      # OpenRouter removed — OpenAI models should only use OpenAI's own infrastructure.
+      # If OpenAI API fails, model fallback in main_processor handles it.
     pricing: # Model-specific base pricing
-      tokens: 
+      tokens:
         input:
-          per_credit_unit: 300 # 1 credit per 300 input tokens
+          per_credit_unit: 130
         output:
-          per_credit_unit: 30 # 1 credit per 30 output tokens
+          per_credit_unit: 20
     costs:
       input_per_million_token:
-        price: 1.25
+        price: 2.50
         currency: USD
-        max_context: 400000 # Max context window for GPT-5
+        max_context: 1000000
       output_per_million_token:
-        price: 10.00
+        price: 15.00
         currency: USD
-        max_context: 400000
+        max_context: 1000000
     features:
       max_output_tokens: 128000
-      knowledge_cutoff: "2024-10-01"
+      knowledge_cutoff: "2025-01-01"
       reasoning_token_support: true
-  
-        
+      tool_use: true
+      streaming: true
+
   - id: "gpt-oss-120b" # Model ID without provider prefix
     name: "GPT-OSS-120b"
     description: "Open-source large language model with 120B parameters, served via Cerebras through OpenRouter."
+    country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
+    for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
+    release_date: "2025-08-01" # Model release date (based on Llama 3.1 release)
+    allow_auto_select: true
+    external_ids: # Mapping to external leaderboard IDs for cross-referencing
+      lmarena: "llama-3.1-405b-instruct"
+      openrouter: "openai/gpt-oss-120b"
     input_types:
       - text
     output_types:
@@ -49,17 +70,18 @@ models:
     servers:
       - id: "openrouter"
         name: "OpenRouter API"
+        region: "US" # Server region for UI display
     # Provider overrides to force Cerebras as the provider
     provider_overrides:
-      order: ["cerebras"]   # try Cerebras first (and only)
+      order: ["cerebras"] # try Cerebras first (and only)
       allow_fallbacks: true # fail fast if Cerebras is down
     # Full reference for API calls would be "openrouter/openai/gpt-oss-120b"
     pricing: # Model-specific base pricing
       tokens:
         input:
-          per_credit_unit: 1500 # 1 credit per 1500 input tokens (0.25 USD per 1M tokens)
+          per_credit_unit: 1300 # 1 credit per 1300 input tokens (0.25 USD per 1M tokens)
         output:
-          per_credit_unit: 500  # 1 credit per 500 output tokens (0.69 USD per 1M tokens)
+          per_credit_unit: 500 # 1 credit per 500 output tokens (0.69 USD per 1M tokens)
     costs:
       input_per_million_token:
         price: 0.25
@@ -74,10 +96,86 @@ models:
       - "fast responses"
       - "has a very strong tendency to always include tables in the response"
 
+  - id: "gpt-oss-safeguard-20b-openrouter" # OpenRouter-primary alias for bulk/import scanning (avoids Groq daily cap)
+    name: "GPT-OSS-Safeguard-20b (OpenRouter)"
+    description: "Open-source safety model with 20B parameters, served via OpenRouter. Used for chat import safety scanning to avoid Groq daily token cap."
+    country_origin: "US"
+    for_app_skill: "ai.safety_check"
+    release_date: "2025-04-01"
+    allow_auto_select: false
+    external_ids:
+      lmarena: "llama-guard-3-8b"
+      openrouter: "openai/gpt-oss-safeguard-20b"
+    input_types:
+      - text
+    output_types:
+      - text
+    default_server: "openrouter" # Default server for this alias — OpenRouter, not Groq
+    servers:
+      - id: "openrouter"
+        name: "OpenRouter API"
+        model_id: "openai/gpt-oss-safeguard-20b"
+        region: "US"
+    pricing:
+      tokens:
+        input:
+          per_credit_unit: 4400 # 1 credit per 4400 input tokens (0.075 USD per 1M tokens)
+        output:
+          per_credit_unit: 1100 # 1 credit per 1100 output tokens (0.30 USD per 1M tokens)
+    costs:
+      input_per_million_token:
+        price: 0.075
+        currency: USD
+        max_context: 131000
+      output_per_million_token:
+        price: 0.30
+        currency: USD
+        max_context: 131000
+
+  - id: "gpt-oss-safeguard-20b" # Model ID without provider prefix
+    name: "GPT-OSS-Safeguard-20b"
+    description: "Open-source safety model with 20B parameters, served via Groq API for ultra-fast inference."
+    country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
+    for_app_skill: "ai.safety_check" # This model is exclusively for safety checks, not regular inference
+    release_date: "2025-04-01" # Model release date (based on Llama Guard 3 release)
+    allow_auto_select: false # Safety model - not for main processing auto-selection
+    external_ids: # Mapping to external leaderboard IDs for cross-referencing
+      lmarena: "llama-guard-3-8b"
+      openrouter: "openai/gpt-oss-safeguard-20b"
+    input_types:
+      - text
+    output_types:
+      - text
+    default_server: "groq" # Default server for this model - direct Groq API
+    servers:
+      - id: "groq"
+        name: "Groq API"
+        model_id: "openai/gpt-oss-safeguard-20b" # Groq API model identifier
+        region: "US" # Server region for UI display
+      - id: "openrouter"
+        name: "OpenRouter API"
+        model_id: "openai/gpt-oss-safeguard-20b" # OpenRouter model identifier
+        region: "US" # Server region for UI display
+    pricing: # Model-specific base pricing
+      tokens:
+        input:
+          per_credit_unit: 4400 # 1 credit per 4400 input tokens (0.075 USD per 1M tokens)
+        output:
+          per_credit_unit: 1100 # 1 credit per 1100 output tokens (0.30 USD per 1M tokens)
+    costs:
+      input_per_million_token:
+        price: 0.075
+        currency: USD
+        max_context: 131000 # Max context window
+      output_per_million_token:
+        price: 0.30
+        currency: USD
+        max_context: 131000
+
 # Pricing Formula:
 # 1. Cost per token = (your_cost_usd_per_million * markup) / 1,000,000
 # 2. Tokens per credit = credit_value_usd / cost_per_token
-# 
+#
 # Where:
 # - credit_value_usd = 0.001 (110 USD / 110,000 credits)
 # - markup = 3 (3x your cost)

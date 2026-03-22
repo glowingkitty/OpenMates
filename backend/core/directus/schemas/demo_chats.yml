@@ -1,0 +1,63 @@
+demo_chats:
+  type: collection
+  fields:
+    original_chat_id:
+      type: string
+      length: 64
+      note: "The original chat identifier (for reference only, not used for decryption)"
+      required: true
+    slug:
+      type: string
+      length: 200
+      nullable: true
+      note: "URL-friendly identifier used in SEO URLs like /demo/chat/planning-a-trip-to-japan. Must include the 'demo-' prefix (e.g. 'demo-planning-a-trip'). Auto-generated from English title on creation, manually editable before publishing. Unique across all demo chats."
+    category:
+      type: textfield
+      note: "Category for grouping demo chats (cleartext) - the mate/topic category (e.g., travel, cooking)"
+    demo_chat_category:
+      type: string
+      length: 20
+      default: "for_everyone"
+      note: "Target audience / content category: 'for_everyone' (shown in For Everyone intro chat), 'for_developers' (shown in For Developers intro chat), 'news' (announcements and release notes), 'learn' (AI, privacy, encryption explainers), 'features' (OpenMates functionality walkthroughs), 'example_chats' (complex multi-turn capability showcases). Set by admin during approval."
+    title:
+      type: textfield
+      note: "Title of the chat (cleartext)"
+    summary:
+      type: textfield
+      note: "Summary of the chat (cleartext)"
+    icon:
+      type: textfield
+      note: "Icon name for the chat (cleartext)"
+    follow_up_suggestions:
+      type: textfield
+      note: "Follow-up suggestions (JSON array, cleartext)"
+    status:
+      type: string
+      length: 50
+      default: "pending_approval"
+      note: "Status: 'pending_approval' | 'translating' | 'published' | 'translation_failed'. pending_approval = waiting for admin, translating = being translated, published = ready for display, translation_failed = translation error"
+    approved_by_admin:
+      type: uuid
+      note: "UUID of the admin user who approved this chat"
+    approved_at:
+      type: timestamp
+      note: "When the chat was approved by admin"
+    content_hash:
+      type: string
+      length: 64
+      note: "SHA256 hash of all demo content (messages + embeds) for change detection"
+    is_active:
+      type: boolean
+      default: true
+      note: "Whether this demo chat is active (soft delete)"
+    deactivated_at:
+      type: timestamp
+      note: "When the chat was deactivated"
+    created_at:
+      type: timestamp
+      note: "When the demo chat entry was created (used for ordering - newest first)"
+      required: true
+    updated_at:
+      type: timestamp
+      note: "When the demo chat was last updated"
+  note: "Demo chats are ordered by created_at DESC. Each demo chat has a stable slug (e.g. 'demo-planning-a-trip') stored in the slug field — this replaces the old positional demo-1/demo-2 IDs. The slug is used as the chat_id in the frontend and as the URL path for SEO pages (/demo/chat/{slug}). demo_chat_category determines which intro chat shows them (for_everyone/for_developers) or their content category (news/learn/features/example_chats)."

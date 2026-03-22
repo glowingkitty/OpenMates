@@ -5,7 +5,7 @@ import hashlib
 import base64
 import json
 import pyotp # Added for 2FA verification
-import os # For generating random bytes
+import os # For generating random bytes and environment detection
 from backend.core.api.app.schemas.auth import LoginRequest, LoginResponse, UserLookupRequest, UserLookupResponse
 from backend.core.api.app.schemas.user import UserResponse # Added for constructing partial user response
 from backend.core.api.app.services.directus import DirectusService
@@ -15,19 +15,19 @@ from backend.core.api.app.services.metrics import MetricsService
 from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.limiter import limiter
 from typing import Optional
-from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip, get_geo_data_from_ip, parse_user_agent # Updated imports
+from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip, get_geo_data_from_ip, parse_user_agent, truncate_ip, derive_device_name # Updated imports
 from backend.core.api.app.routes.auth_routes.auth_dependencies import (
     get_directus_service, get_cache_service, get_metrics_service,
     get_compliance_service, get_encryption_service
 )
-from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin
+from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin, get_cookie_domain
+from backend.core.api.app.services.cache_config import ACCESS_TOKEN_TTL_SECONDS
+from backend.core.api.app.utils.newsletter_utils import update_newsletter_registration_status
 # Import backup code verification and hashing utilities
 # Use sha_hash for cache, hash_backup_code (Argon2) for storage, verify_backup_code (Argon2) for verification
 from backend.core.api.app.routes.auth_routes.auth_2fa_utils import verify_backup_code, sha_hash_backup_code
 # Import Celery app instance and specific task
 from backend.core.api.app.tasks.celery_config import app # General Celery app
-# Import recovery key email task
-from backend.core.api.app.tasks.email_tasks.recovery_key_email_task import send_recovery_key_used_email
 
 """
 Zero-Knowledge Authentication System
@@ -63,7 +63,7 @@ async def login(
     Authenticate a user, handle 2FA if enabled, and create a session.
     Accepts optional tfa_code for the second step of 2FA login.
     """
-    logger.info(f"Processing POST /login")
+    logger.info("Processing POST /login")
     
     try:
         # Step 1: Check if hashed_email and lookup_hash are provided
@@ -80,12 +80,28 @@ async def login(
         # Check if this is a recovery key login
         is_recovery_key_login = login_data.login_method == "recovery_key"
         if is_recovery_key_login:
-            logger.info(f"Recovery key login detected from request")
+            logger.info("Recovery key login detected from request")
         
         metrics_service.track_login_attempt(auth_success)
         
         if not auth_success or not auth_data:
-            # Log failed authentication attempt
+            # SECURITY: Prevent email enumeration by always pretending account exists
+            # This prevents attackers from determining which email addresses have accounts
+            
+            # SECURITY: For recovery key login, always return the same response regardless of account existence
+            # This ensures attackers cannot distinguish between non-existent accounts and wrong recovery keys
+            # We do NOT check for user existence here to avoid timing differences that could leak information
+            if is_recovery_key_login:
+                logger.info("Recovery key authentication failed - returning generic error to prevent enumeration")
+                # Return the exact same error response as if account exists but key was wrong
+                # This must be identical in all aspects (message, timing, structure) to prevent enumeration
+                return LoginResponse(
+                    success=False, 
+                    message="login.recovery_key_wrong"  # Same message for both non-existent and wrong key
+                )
+            
+            # For password login, we can still log failed attempts (but only after checking if it's recovery key)
+            # Log failed authentication attempt (but don't reveal account existence to client)
             temp_client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
             temp_user_agent = request.headers.get("User-Agent", "unknown")
             _, _, temp_os_name, _, _ = parse_user_agent(temp_user_agent)
@@ -95,7 +111,7 @@ async def login(
             temp_stable_hash = hashlib.sha256(temp_fingerprint_string.encode()).hexdigest()
             temp_device_location_str = f"{temp_geo_data.get('city')}, {temp_geo_data.get('country_code')}" if temp_geo_data.get('city') and temp_geo_data.get('country_code') else temp_geo_data.get('country_code') or "Unknown"
 
-            # Try to get user ID for logging if possible using hashed_email
+            # Try to get user ID for logging if possible using hashed_email (only for password login)
             exists_result, user_data_for_log, _ = await directus_service.get_user_by_hashed_email(login_data.hashed_email)
             if exists_result and user_data_for_log:
                 compliance_service.log_auth_event(
@@ -110,7 +126,43 @@ async def login(
                         "location": temp_device_location_str
                     }
                 )
-            return LoginResponse(success=False, message=message or "login.email_or_password_wrong.text")
+            
+            # SECURITY: For password login, always return tfa_required=True to prevent email enumeration
+            # This makes the frontend show the 2FA input, regardless of whether account exists
+            # If no 2FA code is provided, return the 2FA required response
+            # Check for both None and empty string to handle edge cases
+            # CRITICAL: Return tfa_enabled=False in anti-enumeration response so frontend knows
+            # 2FA is not actually configured and can redirect to signup if needed
+            if not login_data.tfa_code or login_data.tfa_code.strip() == "":
+                logger.info("Authentication failed - returning tfa_required=True to prevent email enumeration")
+                minimal_user_info = UserResponse(
+                    id=None,
+                    username="",  # Default empty string
+                    is_admin=False, # Default False
+                    credits=0,      # Default 0
+                    profile_image_url=None, # Optional field
+                    tfa_app_name=None, # No specific app name (generic 2FA setup)
+                    last_opened=None, # Don't reveal last_opened for non-existent accounts
+                    tfa_enabled=False # Return False so frontend knows 2FA is not actually configured
+                )
+                response = LoginResponse(
+                    success=True,
+                    message="2FA required", 
+                    tfa_required=True,
+                    user=minimal_user_info
+                )
+                logger.debug(f"Returning LoginResponse: success={response.success}, tfa_required={response.tfa_required}, tfa_enabled={response.user.tfa_enabled}, message={response.message}")
+                return response
+            
+            # If 2FA code was provided but authentication failed, return generic error
+            # This handles the case where attacker tries to brute force 2FA codes
+            # We don't reveal whether the account exists or not
+            logger.info("Authentication failed with 2FA code provided - returning generic error to prevent enumeration")
+            return LoginResponse(
+                success=False, 
+                message="login.code_wrong", 
+                tfa_required=True  # Keep them on 2FA screen
+            )
             
         # Authentication successful
         # Get user data from auth_data
@@ -120,8 +172,18 @@ async def login(
             logger.error("User ID missing after successful password validation.")
             return LoginResponse(success=False, message="Internal server error: User ID missing.")
 
-        # Generate simplified device fingerprint hash and detailed geo data
-        device_hash, os_name, country_code, city, region, latitude, longitude = generate_device_fingerprint_hash(request, user_id)
+        # Generate device fingerprint hashes
+        # - device_hash: For device detection and "new device" emails (without sessionId)
+        # - connection_hash: For WebSocket connection management (with sessionId)
+        session_id = login_data.session_id
+        if not session_id:
+            logger.warning(f"Login attempt without session_id for user {user_id[:6]}...")
+            return LoginResponse(success=False, message="Session ID required for login")
+        logger.debug(f"Login: SessionId: {session_id[:8]}... for user {user_id[:6]}...")
+
+        device_hash, connection_hash, os_name, country_code, city, region, latitude, longitude = generate_device_fingerprint_hash(request, user_id, session_id)
+        # Store device_hash (without sessionId) in Directus for "new device" detection
+        # This prevents spam emails on every login from the same physical device
         client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
         device_location_str = f"{city}, {country_code}" if city and country_code else country_code or "Unknown" # More detailed location string
 
@@ -140,20 +202,57 @@ async def login(
         # tfa_enabled is now included directly in the profile from get_user_profile
         tfa_enabled = user_profile.get("tfa_enabled", False)
         
+        # CRITICAL: Verify that encrypted_tfa_secret actually exists before requiring 2FA
+        # This prevents requiring 2FA when user hasn't completed setup during signup
+        # The profile might have stale cache data, so we double-check the actual secret existence
+        if tfa_enabled:
+            # Verify encrypted_tfa_secret exists by checking if it's in the cached TFA data or fetching directly
+            # This ensures we don't require 2FA if the secret was never created
+            tfa_cache_key = f"user_tfa_data:{user_id}"
+            cached_tfa_data = await cache_service.get(tfa_cache_key)
+            encrypted_tfa_secret_exists = False
+            
+            if cached_tfa_data and cached_tfa_data.get("encrypted_tfa_secret"):
+                encrypted_tfa_secret_exists = True
+                logger.debug(f"User {user_id[:6]}... Found encrypted_tfa_secret in TFA cache")
+            else:
+                # Fallback: fetch directly from Directus to verify
+                try:
+                    user_fields = await directus_service.get_user_fields_direct(user_id, ["encrypted_tfa_secret"])
+                    encrypted_tfa_secret_exists = bool(user_fields and user_fields.get("encrypted_tfa_secret"))
+                    logger.debug(f"User {user_id[:6]}... Fetched encrypted_tfa_secret from Directus: {encrypted_tfa_secret_exists}")
+                except Exception as e:
+                    logger.warning(f"User {user_id[:6]}... Error verifying encrypted_tfa_secret: {e}")
+                    # If we can't verify, err on the side of caution and disable 2FA requirement
+                    encrypted_tfa_secret_exists = False
+            
+            if not encrypted_tfa_secret_exists:
+                logger.warning(f"User {user_id[:6]}... Profile says tfa_enabled=True but encrypted_tfa_secret doesn't exist. Disabling 2FA requirement.")
+                tfa_enabled = False
+        
         logger.info(f"User {user_id[:6]}... Correctly read 2FA enabled status: {tfa_enabled}")
 
         user_profile["consent_privacy_and_apps_default_settings"] = bool(user_profile.get("consent_privacy_and_apps_default_settings"))
         user_profile["consent_mates_default_settings"] = bool(user_profile.get("consent_mates_default_settings"))
 
-        # --- Scenario 1: 2FA Not Enabled OR Recovery Key Login ---
-        # Recovery keys bypass 2FA as they are standalone authentication methods
-        if not tfa_enabled or is_recovery_key_login:
+        # --- Scenario 1: 2FA Not Enabled OR Recovery Key / Passkey / Pair Login ---
+        # Recovery keys, passkeys, and pair logins bypass 2FA — all are standalone strong
+        # authentication methods. Pair login: both devices explicitly approved the session
+        # and the credentials bundle was ZK-encrypted; 2FA on top is redundant and breaks the flow.
+        is_passkey_login = login_data.login_method == "passkey"
+        is_pair_login = login_data.login_method == "pair"
+        
+        if not tfa_enabled or is_recovery_key_login or is_passkey_login or is_pair_login:
             if is_recovery_key_login:
                 logger.info("Recovery key login detected - bypassing 2FA and proceeding with login finalization.")
+            elif is_passkey_login:
+                logger.info("Passkey login detected - bypassing 2FA and proceeding with login finalization.")
+            elif is_pair_login:
+                logger.info("Pair login detected - bypassing 2FA and proceeding with login finalization.")
             else:
                 logger.info("2FA not enabled, proceeding with standard login finalization.")
             # Finalize login (set cookies, cache user, etc.)
-            await finalize_login_session(
+            refresh_token = await finalize_login_session(
                     request=request,
                     response=response,
                     user=user,
@@ -167,9 +266,13 @@ async def login(
                     device_location_str=device_location_str, # Pass location string
                     latitude=latitude, # Pass latitude
                     longitude=longitude, # Pass longitude
-                    login_data=login_data # Pass login_data for email_encryption_key
+                    login_data=login_data, # Pass login_data for email_encryption_key
+                    country_code=country_code # Pass country code for session-level location tracking
                 )
-                
+            if refresh_token:
+                token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
+                logger.debug(f"[WS_TOKEN_DEBUG] finalize_login_session returned refresh_token (no 2FA path): hash={token_hash[:16]}...")
+
             # Send recovery key used notification if this was a recovery key login
             if is_recovery_key_login:
                 try:
@@ -227,43 +330,193 @@ async def login(
             
             # Get encryption key - use appropriate login method
             hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
-            login_method_for_key = "recovery_key" if is_recovery_key_login else "password"
-            encryption_key_data = await directus_service.get_encryption_key(hashed_user_id, login_method_for_key)
+            # Use the login_method from the request if provided, otherwise default based on recovery_key flag.
+            # Pair login: the client already has the master key from the ZK-encrypted bundle,
+            # so we look up the "password" encryption key (the original one) for the response.
+            # There is no separate "pair" encryption key stored in the DB.
+            if is_pair_login:
+                login_method_for_key = "password"
+            elif login_data.login_method and login_data.login_method != "pair":
+                login_method_for_key = login_data.login_method
+            elif is_recovery_key_login:
+                login_method_for_key = "recovery_key"
+            elif is_passkey_login:
+                # For passkey login, we need to find the specific encryption key for this passkey
+                # The login_method format is "passkey_{credential_id_hash}"
+                # However, we don't have the credential_id here easily available in login_data
+                # But for passkey login, the client already has the decrypted master key from the assertion verification step
+                # So we might not strictly need to fetch it here if the client already has it
+                # BUT, finalize_login_session might expect it in user_profile
+                
+                # Strategy: If it's passkey login, we try to find ANY valid passkey encryption key for this user
+                # OR we rely on the fact that the client already has the key
+                
+                # Actually, for passkey login, the client sends the lookup_hash which is derived from the specific passkey
+                # We can use this lookup_hash to find the correct encryption key if we stored it
+                # But currently encryption_keys table doesn't store lookup_hash directly
+                
+                # Let's use a special handling for passkey:
+                # If login_method is "passkey", we might need to fetch all encryption keys for this user
+                # and find the one that matches? No, that's inefficient.
+                
+                # Better approach: The client should send the specific login_method string (e.g. "passkey_...")
+                # if it knows it. But currently it sends just "passkey".
+                
+                # Wait, in auth_passkey.py:passkey_assertion_verify, we return the encrypted key to the client.
+                # The client decrypts it.
+                # Then the client calls /login.
+                # Does the client need the encrypted key again in the /login response?
+                # Yes, finalize_login_session puts it in the response.
+                
+                # If we can't easily find the specific key, maybe we can skip this check for passkey login
+                # since the client already proved possession of the key by sending the correct lookup_hash?
+                # The lookup_hash proves they derived the correct key.
+                
+                # Let's try to fetch the key using the generic "passkey" method first (backward compatibility)
+                # If that fails, we might need to look up by other means or skip.
+                # But wait, get_encryption_key filters by login_method.
+                
+                # If we skip fetching encryption_key_data for passkey login, user_profile won't have
+                # encrypted_key, key_iv, salt.
+                # The client might need these if it didn't cache them?
+                # But for passkey flow, client gets them from /verify endpoint.
+                
+                # Let's assume for now that for "passkey" login method, we might not find a single unique key
+                # if we just search for "passkey".
+                # However, we can try to find *an* encryption key if we really need to return one.
+                
+                # Ideally, we should update get_encryption_key to handle "passkey" by returning *any* valid passkey key
+                # or the one matching the current session if possible.
+                
+                # For now, let's set login_method_for_key to "passkey" but handle the case where it returns nothing gracefully
+                login_method_for_key = "passkey"
+            else:
+                login_method_for_key = "password"
+            
+            logger.debug(f"Using login_method '{login_method_for_key}' for encryption key lookup (requested: {login_data.login_method})")
+            
+            # Special handling for passkey: if generic "passkey" lookup fails, it might be because
+            # keys are stored as "passkey_{hash}". We'll handle this in get_encryption_key or here.
+            
+            # If credential_id is provided (for passkey login), use it to find the specific key
+            if is_passkey_login and login_data.credential_id:
+                credential_id_hash = hashlib.sha256(login_data.credential_id.encode()).hexdigest()
+                specific_login_method = f"passkey_{credential_id_hash}"
+                logger.debug(f"Looking up specific encryption key for passkey: {specific_login_method}")
+                encryption_key_data = await directus_service.get_encryption_key(hashed_user_id, specific_login_method)
+            else:
+                encryption_key_data = await directus_service.get_encryption_key(hashed_user_id, login_method_for_key)
+            
+            # If not found and it's a passkey login, try to find ANY passkey encryption key
+            # This is a fallback to ensure we return *some* valid key data, though strictly speaking
+            # the client already has the key from the verify step.
+            if not encryption_key_data and is_passkey_login:
+                logger.info(f"Specific passkey key not found, looking for any passkey keys for user {user_id}")
+                # We need a new method in directus service to find any passkey encryption key
+                # or we can just skip this if we decide it's not critical for /login response in passkey flow
+                encryption_key_data = await directus_service.get_any_passkey_encryption_key(hashed_user_id)
+            
             if not encryption_key_data:
-                logger.error(f"Encryption key not found for user {user_id} with login method {login_method_for_key}. Login failed.")
-                return LoginResponse(success=False, message="Login failed. Please try again later.")
-            user_profile.update(encryption_key_data)
+                if is_passkey_login or is_pair_login:
+                    logger.warning(f"Encryption key not found for user {user_id} with login method {login_method_for_key}. Continuing anyway as client already has key from {'verify step' if is_passkey_login else 'pair bundle'}.")
+                    # Don't fail login for passkey/pair if key not found here, as client already has it.
+                    # Pair login bundles include the exported master key directly — no DB encryption key needed.
+                else:
+                    logger.error(f"Encryption key not found for user {user_id} with login method {login_method_for_key}. Login failed.")
+                    return LoginResponse(success=False, message="Login failed. Please try again later.")
+            
+            if encryption_key_data:
+                user_profile.update(encryption_key_data)
             
             # Dispatch warm_user_cache task if not already primed (fallback - should have started in /lookup)
             last_opened_path = user_profile.get("last_opened") # This is last_opened_path_from_user_model
+            
+            # CRITICAL FIX: If last_opened is an EARLY signup path, reset it to demo-for-everyone
+            # This prevents users from getting stuck in signup flow after login when
+            # signupStore data (email, username) is no longer available.
+            # 
+            # IMPORTANT: Only reset for early steps that REQUIRE signupStore data:
+            # - basics, confirm-email, secure-account, password
+            # 
+            # DO NOT reset for later steps (one-time-codes, backup-codes, recovery-key,
+            # credits, payment, auto-top-up) as users may legitimately need to complete them.
+            early_signup_steps = [
+                "/signup/basics", "#signup/basics",
+                "/signup/confirm-email", "#signup/confirm-email",
+                "/signup/secure-account", "#signup/secure-account",
+                "/signup/password", "#signup/password",
+            ]
+            if last_opened_path and any(last_opened_path.startswith(step) for step in early_signup_steps):
+                logger.info(f"User {user_id[:6]}... has last_opened={last_opened_path} (early signup path). Resetting to 'demo-for-everyone' after login.")
+                last_opened_path = "demo-for-everyone"
+                # Update Directus and cache with the new last_opened value and signup_completed flag
+                try:
+                    update_success = await directus_service.update_user(user_id, {
+                        "last_opened": last_opened_path,
+                        "signup_completed": True
+                    })
+                    if update_success:
+                        await cache_service.update_user(user_id, {
+                            "last_opened": last_opened_path,
+                            "signup_completed": True
+                        })
+                        user_profile["last_opened"] = last_opened_path
+                        logger.info(f"Successfully reset last_opened to 'demo-for-everyone' for user {user_id[:6]}...")
+                    else:
+                        logger.warning(f"Failed to update last_opened in Directus for user {user_id[:6]}... - user may still see signup flow")
+                except Exception as e:
+                    logger.error(f"Error resetting last_opened for user {user_id[:6]}...: {e}", exc_info=True)
+                    # Don't fail the login - just log the error
+
+                # Update newsletter subscriber status to "signup_complete" if applicable.
+                # hashed_email is available on user_profile — same SHA-256/base64 hash used for lookup.
+                try:
+                    hashed_email_for_newsletter = user_profile.get("hashed_email")
+                    if hashed_email_for_newsletter:
+                        await update_newsletter_registration_status(
+                            hashed_email=hashed_email_for_newsletter,
+                            status="signup_complete",
+                            directus_service=directus_service,
+                        )
+                except Exception as newsletter_err:
+                    # Non-critical — do not block login
+                    logger.error(
+                        f"Failed to update newsletter signup_complete status for user {user_id[:6]}...: {newsletter_err}",
+                        exc_info=True,
+                    )
+            
             if user_id:
                 cache_primed = await cache_service.is_user_cache_primed(user_id)
                 if not cache_primed:
-                    logger.info(f"[FALLBACK] User cache not primed for {user_id} (should have been started in /lookup). Dispatching warm_user_cache task.")
+                    logger.info(f"[FALLBACK] User cache not primed for {user_id[:6]}... (should have been started in /lookup). Dispatching warm_user_cache task.")
                     if app.conf.task_always_eager is False: # Check if not running eagerly for tests
-                        logger.info(f"Dispatching warm_user_cache task for user {user_id} with last_opened_path: {last_opened_path}")
+                        logger.info(f"Dispatching warm_user_cache task for user {user_id[:6]}... with last_opened_path: {last_opened_path}")
                         app.send_task(
                             name='app.tasks.user_cache_tasks.warm_user_cache', # Full path to the task
                             kwargs={'user_id': user_id, 'last_opened_path_from_user_model': last_opened_path},
                             queue='user_init' # Optional: specify a queue
                         )
-                        # Don't set primed flag here - let the cache warming task set it when complete
+                        # CRITICAL: Don't set primed flag here - let the cache warming task set it when complete!
                     elif app.conf.task_always_eager:
-                        logger.info(f"Celery is in eager mode. warm_user_cache for user {user_id} would run synchronously. Setting primed flag.")
+                        logger.info(f"Celery is in eager mode. warm_user_cache for user {user_id[:6]}... would run synchronously. Setting primed flag.")
                         # In eager mode, the task would run here. We can set the flag.
                         await cache_service.set_user_cache_primed_flag(user_id)
                     else: # Should not happen if user_id is present, but defensive
-                        logger.error(f"Cannot dispatch warm_user_cache task: user_id is missing, though it was checked.")
+                        logger.error("Cannot dispatch warm_user_cache task: user_id is missing, though it was checked.")
                 else:
                     logger.info(f"User cache already primed/warming for {user_id[:6]}... ✅")
             else:
-                logger.error(f"Cannot dispatch warm_user_cache task or check primed status: user_id is missing.")
+                logger.error("Cannot dispatch warm_user_cache task or check primed status: user_id is missing.")
 
 
+            if refresh_token:
+                token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
+                logger.debug(f"[WS_TOKEN_DEBUG] Returning login response (no 2FA path) with ws_token: hash={token_hash[:16]}...")
             return LoginResponse(
                 success=True,
                 message="Login successful",
                 user=UserResponse(
+                    id=user_id,
                     username=user_profile.get("username"),
                     is_admin=user_profile.get("is_admin", False),
                     credits=user_profile.get("credits", 0),
@@ -276,10 +529,23 @@ async def login(
                     language=user_profile.get("language", 'en'),
                     darkmode=user_profile.get("darkmode", False),
                     encrypted_key=user_profile.get("encrypted_key"),
+                    key_iv=user_profile.get("key_iv"),
                     salt=user_profile.get("salt"),
-                    user_email_salt=user_profile.get("user_email_salt")
+                    user_email_salt=user_profile.get("user_email_salt"),
+                    # Low balance auto top-up fields
+                    # Use bool() to convert None to False, as .get() only uses default when key doesn't exist, not when value is None
+                        auto_topup_low_balance_enabled=bool(user_profile.get("auto_topup_low_balance_enabled", False)),
+                        auto_topup_low_balance_threshold=user_profile.get("auto_topup_low_balance_threshold"),
+                        auto_topup_low_balance_amount=user_profile.get("auto_topup_low_balance_amount"),
+                        auto_topup_low_balance_currency=user_profile.get("auto_topup_low_balance_currency"),
+                        has_accepted_refund_policy=bool(user_profile.get("consent_withdrawal_waiver_timestamp")),
+                        push_notification_enabled=bool(user_profile.get("push_notification_enabled", False)),
+                        push_notification_subscription=user_profile.get("push_notification_subscription"),
+                        push_notification_preferences=user_profile.get("push_notification_preferences", {}),
+                        push_notification_banner_shown=bool(user_profile.get("push_notification_banner_shown", False)),
+                    ),
+                    ws_token=refresh_token  # Return token for WebSocket auth (Safari iOS compatibility)
                 )
-            )
 
         # --- 2FA IS Enabled ---
         
@@ -287,13 +553,15 @@ async def login(
         if not login_data.tfa_code:
             logger.info("2FA enabled, code not provided. Returning tfa_required=True.")
             # Return minimal user info needed for the 2FA screen, using valid defaults for required fields
+            # Include last_opened so frontend can redirect to signup if 2FA isn't actually configured
             minimal_user_info = UserResponse(
+                id=user_id,
                 username="",  # Default empty string
                 is_admin=False, # Default False
                 credits=0,      # Default 0
                 profile_image_url=None, # Optional field
                 tfa_app_name=user_profile.get("tfa_app_name"), # Send app name if available
-                last_opened=None, # Optional field
+                last_opened=user_profile.get("last_opened"), # Include last_opened for signup flow detection
                 tfa_enabled=True # Explicitly set required field
             )
             return LoginResponse(
@@ -309,7 +577,7 @@ async def login(
         # Ensure tfa_code is provided if we reach this stage
         if not login_data.tfa_code:
              logger.warning(f"2FA code missing in request for user {user_id} despite tfa_required being implied.")
-             return LoginResponse(success=False, message="login.code_required.text", tfa_required=True)
+             return LoginResponse(success=False, message="login.code_required", tfa_required=True)
 
         try:
             # --- Sub-Scenario 3a: Verify using OTP Code ---
@@ -343,7 +611,7 @@ async def login(
 
                 if not encrypted_tfa_secret or not vault_key_id:
                     logger.error(f"Missing encrypted_tfa_secret or vault_key_id for user {user_id} during OTP verification.")
-                    return LoginResponse(success=False, message="login.code_verification_error.text", tfa_required=True)
+                    return LoginResponse(success=False, message="login.code_verification_error", tfa_required=True)
 
                 # Decrypt the TFA secret
                 try:
@@ -358,7 +626,7 @@ async def login(
                     # Handle cases where secret isn't found or decryption failed
                     logger.error(f"Could not retrieve or decrypt TFA secret for user {user_id} during OTP verification.")
                     # Don't reveal specific error, keep user on 2FA screen
-                    return LoginResponse(success=False, message="login.code_verification_error.text", tfa_required=True)
+                    return LoginResponse(success=False, message="login.code_verification_error", tfa_required=True)
 
                 # Verify the code using the directly fetched secret
                 totp = pyotp.TOTP(decrypted_secret)
@@ -374,11 +642,11 @@ async def login(
                             "location": device_location_str
                         }
                     )
-                    return LoginResponse(success=False, message="login.code_wrong.text", tfa_required=True)
+                    return LoginResponse(success=False, message="login.code_wrong", tfa_required=True)
                 
                 # OTP Code is valid! Finalize the login.
                 logger.info("OTP code verified successfully. Finalizing login.")
-                await finalize_login_session(
+                refresh_token = await finalize_login_session(
                     request=request,
                     response=response,
                     user=user,
@@ -392,8 +660,12 @@ async def login(
                     device_location_str=device_location_str, # Pass location string
                     latitude=latitude, # Pass latitude
                     longitude=longitude, # Pass longitude
-                    login_data=login_data # Pass login_data for email_encryption_key
+                    login_data=login_data, # Pass login_data for email_encryption_key
+                    country_code=country_code # Pass country code for session-level location tracking
                 )
+                if refresh_token:
+                    token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
+                    logger.debug(f"[WS_TOKEN_DEBUG] finalize_login_session returned refresh_token (OTP): hash={token_hash[:16]}...")
 
                 # Get encryption key
                 hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
@@ -405,31 +677,73 @@ async def login(
 
                 # Dispatch warm_user_cache task if not already primed (fallback - should have started in /lookup)
                 last_opened_path_otp = user_profile.get("last_opened")
+                
+                # CRITICAL FIX: If last_opened is an EARLY signup path, reset it to demo-for-everyone
+                # This prevents users from getting stuck in signup flow after OTP login when
+                # signupStore data (email, username) is no longer available.
+                # 
+                # IMPORTANT: Only reset for early steps that REQUIRE signupStore data:
+                # - basics, confirm-email, secure-account, password
+                # 
+                # DO NOT reset for later steps (one-time-codes, backup-codes, recovery-key,
+                # credits, payment, auto-top-up) as users may legitimately need to complete them.
+                early_signup_steps = [
+                    "/signup/basics", "#signup/basics",
+                    "/signup/confirm-email", "#signup/confirm-email",
+                    "/signup/secure-account", "#signup/secure-account",
+                    "/signup/password", "#signup/password",
+                ]
+                if last_opened_path_otp and any(last_opened_path_otp.startswith(step) for step in early_signup_steps):
+                    logger.info(f"User {user_id[:6]}... has last_opened={last_opened_path_otp} (early signup path). Resetting to 'demo-for-everyone' after OTP login.")
+                    last_opened_path_otp = "demo-for-everyone"
+                    # Update Directus and cache with the new last_opened value and signup_completed flag
+                    try:
+                        update_success = await directus_service.update_user(user_id, {
+                            "last_opened": last_opened_path_otp,
+                            "signup_completed": True
+                        })
+                        if update_success:
+                            await cache_service.update_user(user_id, {
+                                "last_opened": last_opened_path_otp,
+                                "signup_completed": True
+                            })
+                            user_profile["last_opened"] = last_opened_path_otp
+                            logger.info(f"Successfully reset last_opened to 'demo-for-everyone' for user {user_id[:6]}...")
+                        else:
+                            logger.warning(f"Failed to update last_opened in Directus for user {user_id[:6]}... - user may still see signup flow")
+                    except Exception as e:
+                        logger.error(f"Error resetting last_opened for user {user_id[:6]}...: {e}", exc_info=True)
+                        # Don't fail the login - just log the error
+                
                 if user_id:
                     cache_primed_otp = await cache_service.is_user_cache_primed(user_id)
                     if not cache_primed_otp:
-                        logger.info(f"[FALLBACK] User cache not primed for {user_id} (OTP login - should have been started in /lookup). Dispatching warm_user_cache task.")
+                        logger.info(f"[FALLBACK] User cache not primed for {user_id[:6]}... (OTP login - should have been started in /lookup). Dispatching warm_user_cache task.")
                         if app.conf.task_always_eager is False:
-                            logger.info(f"Dispatching warm_user_cache task for user {user_id} (OTP login) with last_opened_path: {last_opened_path_otp}")
+                            logger.info(f"Dispatching warm_user_cache task for user {user_id[:6]}... (OTP login) with last_opened_path: {last_opened_path_otp}")
                             app.send_task(
                                 name='app.tasks.user_cache_tasks.warm_user_cache',
                                 kwargs={'user_id': user_id, 'last_opened_path_from_user_model': last_opened_path_otp},
                                 queue='user_init'
                             )
-                            await cache_service.set_user_cache_primed_flag(user_id) # Set flag after dispatch
+                            # CRITICAL: Don't set primed flag here - let the cache warming task set it when complete!
                         elif app.conf.task_always_eager:
-                            logger.info(f"Celery is in eager mode. warm_user_cache for user {user_id} (OTP login) would run synchronously. Setting primed flag.")
+                            logger.info(f"Celery is in eager mode. warm_user_cache for user {user_id[:6]}... (OTP login) would run synchronously. Setting primed flag.")
                             await cache_service.set_user_cache_primed_flag(user_id)
-                        else: # Should not happen
-                            logger.error(f"Cannot dispatch warm_user_cache task (OTP login): user_id is missing, though it was checked.")
+                        else: # Should not happen if user_id is present, but defensive
+                            logger.error("Cannot dispatch warm_user_cache task (OTP login): user_id is missing, though it was checked.")
                     else:
                         logger.info(f"User cache already primed/warming for {user_id[:6]}... (OTP login) ✅")
                 else:
-                    logger.error(f"Cannot dispatch warm_user_cache task or check primed status (OTP login): user_id is missing.")
+                    logger.error("Cannot dispatch warm_user_cache task or check primed status (OTP login): user_id is missing.")
 
+                if refresh_token:
+                    token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
+                    logger.debug(f"[WS_TOKEN_DEBUG] Returning login response (OTP) with ws_token: hash={token_hash[:16]}...")
                 return LoginResponse(
                     success=True, message="Login successful",
                     user=UserResponse(
+                        id=user_id,
                         username=user_profile.get("username"),
                         is_admin=user_profile.get("is_admin", False),
                         credits=user_profile.get("credits", 0),
@@ -442,9 +756,22 @@ async def login(
                         language=user_profile.get("language", 'en'),
                         darkmode=user_profile.get("darkmode", False),
                         encrypted_key=user_profile.get("encrypted_key"), # Pass encrypted_key
+                        key_iv=user_profile.get("key_iv"), # Pass key_iv for Web Crypto API
                         salt=user_profile.get("salt"), # Pass salt
-                        user_email_salt=user_profile.get("user_email_salt") # Pass user_email_salt
-                    )
+                        user_email_salt=user_profile.get("user_email_salt"), # Pass user_email_salt
+                        # Low balance auto top-up fields
+                        # Use bool() to convert None to False, as .get() only uses default when key doesn't exist, not when value is None
+                        auto_topup_low_balance_enabled=bool(user_profile.get("auto_topup_low_balance_enabled", False)),
+                        auto_topup_low_balance_threshold=user_profile.get("auto_topup_low_balance_threshold"),
+                        auto_topup_low_balance_amount=user_profile.get("auto_topup_low_balance_amount"),
+                        auto_topup_low_balance_currency=user_profile.get("auto_topup_low_balance_currency"),
+                        has_accepted_refund_policy=bool(user_profile.get("consent_withdrawal_waiver_timestamp")),
+                        push_notification_enabled=bool(user_profile.get("push_notification_enabled", False)),
+                        push_notification_subscription=user_profile.get("push_notification_subscription"),
+                        push_notification_preferences=user_profile.get("push_notification_preferences", {}),
+                        push_notification_banner_shown=bool(user_profile.get("push_notification_banner_shown", False)),
+                    ),
+                    ws_token=refresh_token  # Return token for WebSocket auth (Safari iOS compatibility)
                 )
 
             # --- Sub-Scenario 3b: Verify using Backup Code ---
@@ -457,11 +784,11 @@ async def login(
                 except Exception as e:
                     logger.error(f"Error SHA hashing provided backup code for user {user_id}: {e}", exc_info=True)
                     # Treat as invalid code if hashing fails
-                    return LoginResponse(success=False, message="login.code_processing_error.text", tfa_required=True)
+                    return LoginResponse(success=False, message="login.code_processing_error", tfa_required=True)
 
                 # Step 2: Check cache for recently used backup code SHA hash (user-specific)
                 used_code_cache_key = f"used_backup_code:{user_id}:{provided_code_sha_hash}"
-                logger.info(f"Checking recently used backup code SHA hash...")
+                logger.info("Checking recently used backup code SHA hash...")
                 recently_used = await cache_service.get(used_code_cache_key)
 
                 if recently_used is not None:
@@ -476,7 +803,7 @@ async def login(
                             "location": device_location_str
                         }
                     )
-                    return LoginResponse(success=False, message="login.code_wrong.text", tfa_required=True)
+                    return LoginResponse(success=False, message="login.code_wrong", tfa_required=True)
                 
                 logger.info(f"Provided backup code's SHA hash not found in recently used cache for user {user_id}.")
 
@@ -486,7 +813,7 @@ async def login(
                 # Handle cases where hashes couldn't be fetched or parsed
                 if hashed_codes_from_directus is None:
                      logger.error(f"Could not retrieve or parse backup code hashes from Directus for user {user_id}.")
-                     return LoginResponse(success=False, message="login.code_verification_error.text", tfa_required=True)
+                     return LoginResponse(success=False, message="login.code_verification_error", tfa_required=True)
                     
                 # Check if list is empty (no codes configured or all used)
                 if not hashed_codes_from_directus:
@@ -501,7 +828,7 @@ async def login(
                             "location": device_location_str
                         }
                     )
-                    return LoginResponse(success=False, message="login.no_backup_codes_remaining.text", tfa_required=True)
+                    return LoginResponse(success=False, message="login.no_backup_codes_remaining", tfa_required=True)
 
                 # Step 4: Verify the plain text code against Directus Argon2 hashes
                 logger.info(f"Attempting to verify plain text backup code against Directus Argon2 hashes. Provided code: '{login_data.tfa_code[:1]}***'") # Log only first char
@@ -520,7 +847,7 @@ async def login(
                             "location": device_location_str
                         }
                     )
-                    return LoginResponse(success=False, message="login.code_wrong.text", tfa_required=True)
+                    return LoginResponse(success=False, message="login.code_wrong", tfa_required=True)
 
                 # Step 5: Backup Code is valid! Add its SHA hash to Cache, Remove Argon2 hash from Directus, Finalize login.
                 logger.info(f"Backup code verified successfully against Directus Argon2 hashes for user {user_id}. Processing...")
@@ -542,7 +869,7 @@ async def login(
                      # Return an error, preventing the code from being removed from Directus
                      return LoginResponse(
                          success=False,
-                         message="login.security_state_update_failed.text",
+                         message="login.security_state_update_failed",
                          tfa_required=True
                      )
                 else:
@@ -566,7 +893,7 @@ async def login(
                     # Return an error and keep the user on the 2FA screen
                     return LoginResponse(
                         success=False,
-                        message="login.backup_code_processing_failed.text",
+                        message="login.backup_code_processing_failed",
                         tfa_required=True
                     )
                 
@@ -637,7 +964,7 @@ async def login(
                 )
 
                 # Step 5f: Finalize the login session
-                await finalize_login_session(
+                refresh_token = await finalize_login_session(
                     request=request,
                     response=response,
                     user=user,
@@ -651,8 +978,12 @@ async def login(
                     device_location_str=device_location_str, # Pass location string
                     latitude=latitude, # Pass latitude
                     longitude=longitude, # Pass longitude
-                    login_data=login_data # Pass login_data for email_encryption_key
+                    login_data=login_data, # Pass login_data for email_encryption_key
+                    country_code=country_code # Pass country code for session-level location tracking
                 )
+                if refresh_token:
+                    token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
+                    logger.debug(f"[WS_TOKEN_DEBUG] finalize_login_session returned refresh_token (backup code): hash={token_hash[:16]}...")
 
                 # Get encryption key
                 hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
@@ -664,31 +995,73 @@ async def login(
                 
                 # Dispatch warm_user_cache task if not already primed (fallback - should have started in /lookup)
                 last_opened_path_backup = user_profile.get("last_opened")
+                
+                # CRITICAL FIX: If last_opened is an EARLY signup path, reset it to demo-for-everyone
+                # This prevents users from getting stuck in signup flow after backup code login when
+                # signupStore data (email, username) is no longer available.
+                # 
+                # IMPORTANT: Only reset for early steps that REQUIRE signupStore data:
+                # - basics, confirm-email, secure-account, password
+                # 
+                # DO NOT reset for later steps (one-time-codes, backup-codes, recovery-key,
+                # credits, payment, auto-top-up) as users may legitimately need to complete them.
+                early_signup_steps = [
+                    "/signup/basics", "#signup/basics",
+                    "/signup/confirm-email", "#signup/confirm-email",
+                    "/signup/secure-account", "#signup/secure-account",
+                    "/signup/password", "#signup/password",
+                ]
+                if last_opened_path_backup and any(last_opened_path_backup.startswith(step) for step in early_signup_steps):
+                    logger.info(f"User {user_id[:6]}... has last_opened={last_opened_path_backup} (early signup path). Resetting to 'demo-for-everyone' after backup code login.")
+                    last_opened_path_backup = "demo-for-everyone"
+                    # Update Directus and cache with the new last_opened value and signup_completed flag
+                    try:
+                        update_success = await directus_service.update_user(user_id, {
+                            "last_opened": last_opened_path_backup,
+                            "signup_completed": True
+                        })
+                        if update_success:
+                            await cache_service.update_user(user_id, {
+                                "last_opened": last_opened_path_backup,
+                                "signup_completed": True
+                            })
+                            user_profile["last_opened"] = last_opened_path_backup
+                            logger.info(f"Successfully reset last_opened to 'demo-for-everyone' for user {user_id[:6]}...")
+                        else:
+                            logger.warning(f"Failed to update last_opened in Directus for user {user_id[:6]}... - user may still see signup flow")
+                    except Exception as e:
+                        logger.error(f"Error resetting last_opened for user {user_id[:6]}...: {e}", exc_info=True)
+                        # Don't fail the login - just log the error
+                
                 if user_id:
                     cache_primed_backup = await cache_service.is_user_cache_primed(user_id)
                     if not cache_primed_backup:
-                        logger.info(f"[FALLBACK] User cache not primed for {user_id} (Backup code login - should have been started in /lookup). Dispatching warm_user_cache task.")
+                        logger.info(f"[FALLBACK] User cache not primed for {user_id[:6]}... (Backup code login - should have been started in /lookup). Dispatching warm_user_cache task.")
                         if app.conf.task_always_eager is False:
-                            logger.info(f"Dispatching warm_user_cache task for user {user_id} (Backup code login) with last_opened_path: {last_opened_path_backup}")
+                            logger.info(f"Dispatching warm_user_cache task for user {user_id[:6]}... (Backup code login) with last_opened_path: {last_opened_path_backup}")
                             app.send_task(
                                 name='app.tasks.user_cache_tasks.warm_user_cache',
                                 kwargs={'user_id': user_id, 'last_opened_path_from_user_model': last_opened_path_backup},
                                 queue='user_init'
                             )
-                            await cache_service.set_user_cache_primed_flag(user_id) # Set flag after dispatch
+                            # CRITICAL: Don't set primed flag here - let the cache warming task set it when complete!
                         elif app.conf.task_always_eager:
-                            logger.info(f"Celery is in eager mode. warm_user_cache for user {user_id} (Backup code login) would run synchronously. Setting primed flag.")
+                            logger.info(f"Celery is in eager mode. warm_user_cache for user {user_id[:6]}... (Backup code login) would run synchronously. Setting primed flag.")
                             await cache_service.set_user_cache_primed_flag(user_id)
                         else: # Should not happen
-                            logger.error(f"Cannot dispatch warm_user_cache task or check primed status (Backup code login): user_id is missing, though it was checked.")
+                            logger.error("Cannot dispatch warm_user_cache task or check primed status (Backup code login): user_id is missing, though it was checked.")
                     else:
                         logger.info(f"User cache already primed/warming for {user_id[:6]}... (Backup code login) ✅")
                 else:
-                    logger.error(f"Cannot dispatch warm_user_cache task or check primed status (Backup code login): user_id is missing.")
+                    logger.error("Cannot dispatch warm_user_cache task or check primed status (Backup code login): user_id is missing.")
 
+                if refresh_token:
+                    token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
+                    logger.debug(f"[WS_TOKEN_DEBUG] Returning login response (backup code) with ws_token: hash={token_hash[:16]}...")
                 return LoginResponse(
                     success=True, message="Login successful using backup code",
                     user=UserResponse(
+                        id=user_id,
                         username=user_profile.get("username"),
                         is_admin=user_profile.get("is_admin", False),
                         credits=user_profile.get("credits", 0),
@@ -701,11 +1074,24 @@ async def login(
                         language=user_profile.get("language", 'en'),
                         darkmode=user_profile.get("darkmode", False),
                         encrypted_key=user_profile.get("encrypted_key"), # Pass encrypted_key
+                        key_iv=user_profile.get("key_iv"), # Pass key_iv for Web Crypto API
                         salt=user_profile.get("salt"), # Pass salt
-                        user_email_salt=user_profile.get("user_email_salt") # Pass user_email_salt
-                    )
+                        user_email_salt=user_profile.get("user_email_salt"), # Pass user_email_salt
+                        # Low balance auto top-up fields
+                        # Use bool() to convert None to False, as .get() only uses default when key doesn't exist, not when value is None
+                        auto_topup_low_balance_enabled=bool(user_profile.get("auto_topup_low_balance_enabled", False)),
+                        auto_topup_low_balance_threshold=user_profile.get("auto_topup_low_balance_threshold"),
+                        auto_topup_low_balance_amount=user_profile.get("auto_topup_low_balance_amount"),
+                        auto_topup_low_balance_currency=user_profile.get("auto_topup_low_balance_currency"),
+                        has_accepted_refund_policy=bool(user_profile.get("consent_withdrawal_waiver_timestamp")),
+                        push_notification_enabled=bool(user_profile.get("push_notification_enabled", False)),
+                        push_notification_subscription=user_profile.get("push_notification_subscription"),
+                        push_notification_preferences=user_profile.get("push_notification_preferences", {}),
+                        push_notification_banner_shown=bool(user_profile.get("push_notification_banner_shown", False)),
+                    ),
+                    ws_token=refresh_token  # Return token for WebSocket auth (Safari iOS compatibility)
                 )
-            
+
             # --- Sub-Scenario 3c: Invalid Code Type ---
             else:
                 logger.warning(f"Invalid code_type '{login_data.code_type}' received for user {user_id}")
@@ -738,16 +1124,42 @@ async def finalize_login_session(
     device_location_str: str, # Added location string
     latitude: Optional[float], # Added latitude
     longitude: Optional[float], # Added longitude
-    login_data: LoginRequest # Added login_data parameter for email_encryption_key
+    login_data: LoginRequest, # Added login_data parameter for email_encryption_key
+    country_code: Optional[str] = None # Country code from geo-IP lookup, stored for session-level location change detection
 ):
     """
     Helper function to perform common session finalization tasks:
     - Set cookies
     - Handle device tracking/logging
     - Cache user data
+    
+    Cookie expiration logic:
+    - stay_logged_in=False: 24 hours (SESSION_TTL)
+    - stay_logged_in=True: 30 days (for Safari iOS and mobile compatibility)
     """
-    logger.info(f"Finalizing login session for user {user.get('id')[:6]}...")
+    logger.info(f"Finalizing login session for user {user.get('id')[:6]}... (stay_logged_in={login_data.stay_logged_in})")
     refresh_token = None
+    
+    # Calculate cookie max_age based on stay_logged_in preference
+    # 30 days = 2592000 seconds (for mobile Safari compatibility)
+    # 24 hours = 86400 seconds (default SESSION_TTL)
+    cookie_max_age = 2592000 if login_data.stay_logged_in else cache_service.SESSION_TTL
+    logger.info(f"Setting cookies with max_age={cookie_max_age} seconds ({'30 days' if login_data.stay_logged_in else '24 hours'})")
+    
+    # Determine cookie domain for cross-subdomain authentication
+    # Returns None for localhost (development), ".domain.com" for production subdomains
+    cookie_domain = get_cookie_domain(request)
+    if cookie_domain:
+        logger.info(f"Setting cookies with domain={cookie_domain} for cross-subdomain authentication")
+    
+    # Determine if we should use secure cookies based on environment
+    # Safari iOS strictly enforces that Secure=True cookies can ONLY be set over HTTPS
+    # In development (localhost), we must set Secure=False to allow HTTP cookies
+    is_dev = os.getenv("SERVER_ENVIRONMENT", "development").lower() == "development"
+    use_secure_cookies = not is_dev  # Only use Secure=True in production (HTTPS)
+    
+    if is_dev:
+        logger.info("Development environment detected - using non-secure cookies for Safari iOS compatibility")
     
     # Set authentication cookies
     if "cookies" in auth_data:
@@ -758,11 +1170,29 @@ async def finalize_login_session(
             cookie_name = name
             if name.startswith("directus_"):
                 cookie_name = "auth_" + name[9:]
-                
-            response.set_cookie(
-                key=cookie_name, value=value, httponly=True, secure=True, 
-                samesite="strict", max_age=cache_service.SESSION_TTL # Use TTL from cache service
-            )
+            
+            # Build cookie parameters
+            # Safari/iOS cookie requirements:
+            # - SameSite=Lax works for same-site subdomains (app.domain.com <-> api.domain.com)
+            # - Secure=True ONLY on HTTPS (Safari strictly enforces this)
+            # - Secure=False on HTTP/localhost (development mode)
+            # - Path=/ ensures cookie is available to all endpoints
+            cookie_params = {
+                "key": cookie_name,
+                "value": value,
+                "httponly": True,
+                "secure": use_secure_cookies,  # False in dev (HTTP), True in prod (HTTPS)
+                "samesite": "lax",  # Lax works for same-site subdomains (Safari compatible)
+                "max_age": cookie_max_age,
+                "path": "/"
+            }
+
+            # Only set domain parameter for cross-subdomain scenarios
+            # This enables cookie sharing between app.domain.com and api.domain.com
+            if cookie_domain:
+                cookie_params["domain"] = cookie_domain
+
+            response.set_cookie(**cookie_params)
 
     user_id = user.get("id")
     if user_id:
@@ -842,31 +1272,133 @@ async def finalize_login_session(
                 logger.error(f"Failed to dispatch new device email task for user {user_id[:6]}: {task_exc}", exc_info=True)
         # --- End New Device Hash Handling ---
 
+        else:
+            # Known device — log successful login for compliance audit trail.
+            # Uses log_auth_event_safe (no IP stored) per privacy policy.
+            compliance_service.log_auth_event_safe(
+                event_type="login_known_device",
+                user_id=user_id,
+                device_fingerprint=current_device_hash,
+                location=device_location_str,
+                status="success",
+                details={}
+            )
+
         # Update last online timestamp in Directus
         current_time = int(time.time()) # Define current_time here
         await directus_service.update_user(user_id, {"last_online_timestamp": str(current_time)})
 
         # Update cached user data with session info and manage tokens
         if refresh_token:
+            # Use extended TTL for cache when stay_logged_in is True
+            # This ensures the cache stays valid as long as the cookies
+            cache_ttl = cookie_max_age if login_data.stay_logged_in else cache_service.SESSION_TTL
+            
             # Get existing cached user data and update it with session info
             cached_user_data = await cache_service.get_user_by_id(user_id)
             if cached_user_data:
-                # Update last_online_timestamp in cached data
-                cached_user_data["last_online_timestamp"] = current_time
-                # Update with any additional session data that might be needed
-                await cache_service.set_user(cached_user_data, refresh_token=refresh_token)
+                # CRITICAL: Validate that required fields are present before updating cache
+                # If username or vault_key_id are missing, this indicates a data integrity issue
+                if not cached_user_data.get("username"):
+                    logger.error(f"CRITICAL: Cannot update cache for user {user_id} - username is missing from cached data. This indicates a data integrity issue.")
+                    # Clear the corrupt cache entry so a fresh fetch can happen
+                    logger.info(f"Clearing corrupt cache entry for user {user_id} (missing username)")
+                    await cache_service.delete_user_cache(user_id)
+                    cached_user_data = None  # Force re-fetch below
+                elif not cached_user_data.get("vault_key_id"):
+                    logger.error(f"CRITICAL: Cannot update cache for user {user_id} - vault_key_id is missing from cached data. This indicates a data integrity issue.")
+                    # Clear the corrupt cache entry so a fresh fetch can happen
+                    logger.info(f"Clearing corrupt cache entry for user {user_id} (missing vault_key_id)")
+                    await cache_service.delete_user_cache(user_id)
+                    cached_user_data = None  # Force re-fetch below
+                
+            if cached_user_data:
+                    # Ensure user_id is always present in cached data (required for WebSocket auth)
+                    if "user_id" not in cached_user_data:
+                        cached_user_data["user_id"] = user_id
+                    # Also ensure "id" is present for compatibility
+                    if "id" not in cached_user_data:
+                        cached_user_data["id"] = user_id
+                    # Update last_online_timestamp in cached data
+                    cached_user_data["last_online_timestamp"] = current_time
+                    # Store stay_logged_in preference for session endpoint to use
+                    cached_user_data["stay_logged_in"] = login_data.stay_logged_in
+                    # Store country code for session-level location change detection
+                    # This enables the session endpoint to detect suspicious country changes mid-session
+                    if country_code and country_code not in ("Local", "Unknown", None):
+                        cached_user_data["last_session_country"] = country_code
+                    # Set token_expiry so the /session endpoint knows when to refresh the access token.
+                    # Without this, token_expiry defaults to 0 → expires_soon is always True → every
+                    # /session call rotates the refresh token, causing race-condition logouts.
+                    cached_user_data["token_expiry"] = current_time + ACCESS_TOKEN_TTL_SECONDS
+                    # CRITICAL: Preserve username and vault_key_id - don't overwrite with incomplete data from user parameter
+                    # The user parameter might come from login_user_with_lookup_hash which could have incomplete data
+                    # Update with any additional session data that might be needed
+                    # Pass custom TTL to match cookie expiration
+                    await cache_service.set_user(cached_user_data, refresh_token=refresh_token, ttl=cache_ttl)
+                    logger.info(f"Updated cached user data with stay_logged_in={login_data.stay_logged_in}, token_expiry={cached_user_data['token_expiry']} for user {user_id[:6]}...")
             else:
-                logger.warning(f"No cached user data found for user {user_id} during session finalization")
+                # Cache entry doesn't exist - fetch user profile and create cache entry with stay_logged_in
+                logger.warning(f"No cached user data found for user {user_id} during session finalization. Fetching profile to create cache entry.")
+                profile_success, user_profile, profile_message = await directus_service.get_user_profile(user_id)
+                if profile_success and user_profile:
+                    # CRITICAL: Validate that required fields are present before caching
+                    # If username or vault_key_id are missing, this indicates a data integrity issue
+                    if not user_profile.get("username"):
+                        logger.error(f"CRITICAL: Cannot cache user profile for user {user_id} - username is missing from profile. This indicates a data integrity issue.")
+                        logger.error(f"Profile message: {profile_message}")
+                        # Don't cache incomplete data - let get_current_user handle the error
+                    elif not user_profile.get("vault_key_id"):
+                        logger.error(f"CRITICAL: Cannot cache user profile for user {user_id} - vault_key_id is missing from profile. This indicates a data integrity issue.")
+                        # Don't cache incomplete data - let get_current_user handle the error
+                    else:
+                        # Ensure stay_logged_in is set in the profile data
+                        user_profile["stay_logged_in"] = login_data.stay_logged_in
+                        user_profile["last_online_timestamp"] = current_time
+                        # Set token_expiry so /session knows when the access token needs refreshing.
+                        user_profile["token_expiry"] = current_time + ACCESS_TOKEN_TTL_SECONDS
+                        # Store country code for session-level location change detection
+                        if country_code and country_code not in ("Local", "Unknown", None):
+                            user_profile["last_session_country"] = country_code
+                        # Ensure user_id is in the profile for set_user to work
+                        if "user_id" not in user_profile and "id" in user_profile:
+                            user_profile["user_id"] = user_profile["id"]
+                        await cache_service.set_user(user_profile, refresh_token=refresh_token, ttl=cache_ttl)
+                        logger.info(f"Created cache entry with stay_logged_in={login_data.stay_logged_in}, token_expiry={user_profile['token_expiry']} for user {user_id[:6]}...")
+                else:
+                    logger.error(f"Failed to fetch user profile for user {user_id} during session finalization: {profile_message}. stay_logged_in preference may be lost.")
 
-            # Manage refresh tokens
+            # Manage refresh tokens with extended TTL
             token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
             user_tokens_key = f"user_tokens:{user_id}"
             current_tokens = await cache_service.get(user_tokens_key) or {}
-            current_tokens[token_hash] = int(time.time())
-            await cache_service.set(user_tokens_key, current_tokens, ttl=cache_service.SESSION_TTL * 7)
+            # Store rich session metadata for the Active Sessions feature.
+            # Sensitive fields (device_name, ip_truncated, city, country_code) are
+            # replaced by client-encrypted blobs after the client calls
+            # POST /v1/auth/sessions/register-meta.  Until then the plaintext
+            # fields serve as server-side fallback for listing sessions.
+            user_agent = request.headers.get("User-Agent", "unknown")
+            current_tokens[token_hash] = {
+                "created_at": int(time.time()),
+                "device_hash": current_device_hash,
+                "stay_logged_in": login_data.stay_logged_in,
+                "device_name": derive_device_name(user_agent),
+                "ip_truncated": truncate_ip(client_ip),
+                "country_code": country_code or "Unknown",
+                "city": device_location_str.split(",")[0].strip() if device_location_str else None,
+                "encrypted_meta": None,
+                "encrypted_meta_iv": None,
+            }
+            # Token list TTL should be longer than individual session TTL
+            token_list_ttl = cache_ttl * 7 if login_data.stay_logged_in else cache_service.SESSION_TTL * 7
+            await cache_service.set(user_tokens_key, current_tokens, ttl=token_list_ttl)
             logger.info(f"Updated token list for user {user_id[:6]}... ({len(current_tokens)} active)")
-    
+
     logger.info("Login session finalization complete.")
+    if refresh_token:
+        token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
+        logger.debug(f"[WS_TOKEN_DEBUG] About to return refresh_token from finalize_login_session: hash={token_hash[:16]}...")
+    return refresh_token  # Return refresh token for WebSocket auth (Safari iOS compatibility)
 
 
 @router.post("/lookup", response_model=UserLookupResponse, dependencies=[Depends(verify_allowed_origin)])
@@ -883,7 +1415,7 @@ async def lookup_user(
     Look up a user by hashed email and return available login methods.
     This is the first step in the new multi-step login flow.
     """
-    logger.info(f"Processing POST /lookup")
+    logger.info("Processing POST /lookup")
     
     try:
         # Step 1: Check if hashed_email is provided
@@ -910,7 +1442,8 @@ async def lookup_user(
             return UserLookupResponse(
                 login_method="password",
                 available_login_methods=["password","recovery_key"],
-                user_email_salt=random_salt
+                user_email_salt=random_salt,
+                stay_logged_in=lookup_data.stay_logged_in  # Echo back the preference even for non-existent users
             )
         
         # Step 4: Get user profile to access tfa_app_name (leverages existing cache)
@@ -972,25 +1505,50 @@ async def lookup_user(
                     login_methods = []
             
             if login_methods:
-                # Check for passkey
-                has_passkey = any(method.startswith("passkey") for method in login_methods)
-                if has_passkey:
-                    available_methods.append("passkey")
-                    preferred_method = "passkey"  # Prefer passkey over other methods
+                # Initialize flags
+                has_password = False
+                has_passkey = False
+                has_security_key = False
+                has_recovery_key = False
+
+                # Check for password first - prefer password over passkey for better UX
+                # Users expect to enter password after email, not be forced into passkey
+                has_password = any(method == "password" for method in login_methods)
+                if has_password:
+                    available_methods.append("password")
+                    preferred_method = "password"  # Prefer password as default
+                
+                # Check for passkey - verify that actual passkeys exist in user_passkeys table
+                # CRITICAL: Only add passkey to available methods if there are actual passkeys registered
+                # This prevents showing passkey login when encryption key exists but passkey was deleted
+                has_passkey_encryption_key = any(method.startswith("passkey") for method in login_methods)
+                if has_passkey_encryption_key:
+                    # Verify that there are actual passkeys in the user_passkeys table
+                    try:
+                        actual_passkeys = await directus_service.get_user_passkeys_by_user_id(user_id)
+                        has_passkey = len(actual_passkeys) > 0
+                        
+                        if has_passkey:
+                            # available_methods.append("passkey") # Removed as per user request - frontend handles passkey availability
+                            # Only set as preferred if password is not available
+                            if not has_password:
+                                preferred_method = "passkey"
+                            logger.info(f"User {user_id} has {len(actual_passkeys)} passkey(s) - passkey login available")
+                        else:
+                            logger.info(f"User {user_id} has passkey encryption key but no actual passkeys - passkey login not available")
+                    except Exception as e:
+                        logger.error(f"Error checking passkeys for user {user_id}: {e}", exc_info=True)
+                        # If we can't verify, don't add passkey to avoid showing unavailable option
                 
                 # Check for security_key
                 has_security_key = any(method.startswith("security_key") for method in login_methods)
                 if has_security_key:
                     available_methods.append("security_key")
-                    if preferred_method == "password":  # Only override if not already set to passkey
+                    # Only set as preferred if password and passkey are not available
+                    if not has_password and not has_passkey:
                         preferred_method = "security_key"
                 
-                # Check for password
-                has_password = any(method == "password" for method in login_methods)
-                if has_password:
-                    available_methods.append("password")
-                
-                # Check for recovery_key
+                # Check for recovery_key (always available as fallback, but not preferred)
                 has_recovery_key = any(method == "recovery_key" for method in login_methods)
                 if has_recovery_key:
                     available_methods.append("recovery_key")
@@ -1044,8 +1602,31 @@ async def lookup_user(
                             "invoice_counter": user_profile.get("invoice_counter"),
                             "lookup_hashes": user_profile.get("lookup_hashes", []),
                             "account_id": user_data.get("account_id"),  # From the original user_data
-                            "user_email_salt": user_email_salt  # Include the salt we just fetched
-                        }
+                            "user_email_salt": user_email_salt,  # Include the salt we just fetched
+                            # Monthly subscription fields (cleartext fields, not sensitive)
+                            "stripe_customer_id": user_profile.get("stripe_customer_id"),
+                            "stripe_subscription_id": user_profile.get("stripe_subscription_id"),
+                            "subscription_status": user_profile.get("subscription_status"),
+                            "subscription_credits": user_profile.get("subscription_credits"),
+                            "subscription_currency": user_profile.get("subscription_currency"),
+                            "next_billing_date": user_profile.get("next_billing_date"),
+                            # Keep encrypted payment method ID encrypted
+                            "encrypted_payment_method_id": user_profile.get("encrypted_payment_method_id"),
+                            # Low balance auto top-up fields (cleartext configuration fields)
+                            "auto_topup_low_balance_enabled": user_profile.get("auto_topup_low_balance_enabled", False),
+                            "auto_topup_low_balance_threshold": user_profile.get("auto_topup_low_balance_threshold"),
+                            "auto_topup_low_balance_amount": user_profile.get("auto_topup_low_balance_amount"),
+                            "auto_topup_low_balance_currency": user_profile.get("auto_topup_low_balance_currency"),
+                             # Email notification fields (encrypted_notification_email is vault-encrypted)
+                             "email_notifications_enabled": user_profile.get("email_notifications_enabled", False),
+                             "email_notification_preferences": user_profile.get("email_notification_preferences", {}),
+                             "encrypted_notification_email": user_profile.get("encrypted_notification_email"),
+                             # Push notification fields
+                             "push_notification_enabled": user_profile.get("push_notification_enabled", False),
+                             "push_notification_subscription": user_profile.get("push_notification_subscription"),
+                             "push_notification_preferences": user_profile.get("push_notification_preferences", {}),
+                             "push_notification_banner_shown": user_profile.get("push_notification_banner_shown", False),
+                         }
                         
                         # CACHE TFA DATA: Cache encrypted TFA secret for faster login
                         if user_profile.get("tfa_enabled", False):
@@ -1070,9 +1651,18 @@ async def lookup_user(
                         if not user_data_to_cache.get("gifted_credits_for_signup"):
                             user_data_to_cache.pop("gifted_credits_for_signup", None)
                         
-                        # Cache the user data (without refresh_token since this is just lookup)
-                        await cache_service.set_user(user_data_to_cache)
-                        logger.info(f"Cached complete user profile for user {user_id} during lookup")
+                        # CRITICAL: Validate required fields before caching to prevent broken login state
+                        # If username is missing, don't cache incomplete data - let get_current_user handle it
+                        if not user_data_to_cache.get("username"):
+                            logger.error(f"CRITICAL: Cannot cache user profile for user {user_id} during lookup - username is missing. This indicates a data integrity issue (encrypted_username may not have decrypted correctly).")
+                            # Don't cache incomplete data
+                        elif not user_data_to_cache.get("vault_key_id"):
+                            logger.error(f"CRITICAL: Cannot cache user profile for user {user_id} during lookup - vault_key_id is missing.")
+                            # Don't cache incomplete data
+                        else:
+                            # Cache the user data (without refresh_token since this is just lookup)
+                            await cache_service.set_user(user_data_to_cache)
+                            logger.info(f"Cached complete user profile for user {user_id} during lookup")
                         
                         # Predictively warm user cache for instant login UX
                         # This loads phases 1-3 (last opened chat, recent chats, full sync) from Directus to Redis
@@ -1116,33 +1706,46 @@ async def lookup_user(
             )
         
         # Get tfa_enabled status from cached profile or compute it
-        tfa_enabled = True  # Default to True for security (anti-enumeration)
+        # CRITICAL: For existing users, compute actual tfa_enabled based on encrypted_tfa_secret existence
+        # Only default to True for non-existent users (anti-enumeration)
+        tfa_enabled = True  # Default to True for security (anti-enumeration for non-existent users)
         if user_id:
+            # CRITICAL: Always verify encrypted_tfa_secret exists, even if cached profile says tfa_enabled=True
+            # This prevents stale cache data from causing 2FA to be required when it's not actually set up
+            encrypted_tfa_secret_exists = bool(user_data.get("encrypted_tfa_secret"))
+            
             # Try to get from cached profile first (should be available now after caching above)
             current_cached_profile = await cache_service.get_user_by_id(user_id)
             if current_cached_profile and "tfa_enabled" in current_cached_profile:
-                tfa_enabled = current_cached_profile.get("tfa_enabled", True)
-                logger.info(f"Using cached tfa_enabled for user {user_id}: {tfa_enabled}")
+                cached_tfa_enabled = current_cached_profile.get("tfa_enabled", False)
+                # Use cached value only if encrypted_tfa_secret actually exists
+                # This prevents stale cache from requiring 2FA when it's not set up
+                tfa_enabled = cached_tfa_enabled if encrypted_tfa_secret_exists else False
+                logger.info(f"Using cached tfa_enabled for user {user_id}: {tfa_enabled} (verified: encrypted_tfa_secret exists={encrypted_tfa_secret_exists})")
             else:
                 # Fallback: compute based on encrypted_tfa_secret existence from user_data
-                tfa_enabled = bool(user_data.get("encrypted_tfa_secret"))
+                tfa_enabled = encrypted_tfa_secret_exists
                 logger.info(f"Computed tfa_enabled for user {user_id} based on encrypted_tfa_secret: {tfa_enabled}")
 
-        # Return the response with available login methods, tfa_app_name, user_email_salt, and tfa_enabled
+        # Return the response with available login methods, tfa_app_name, user_email_salt, tfa_enabled, and stay_logged_in
         return UserLookupResponse(
             login_method=preferred_method,
             available_login_methods=available_methods,
             tfa_app_name=tfa_app_name,
             user_email_salt=user_email_salt,
-            tfa_enabled=tfa_enabled
+            tfa_enabled=tfa_enabled,
+            stay_logged_in=lookup_data.stay_logged_in  # Echo back the preference
         )
     
     except Exception as e:
         logger.error(f"Error during user lookup: {str(e)}", exc_info=True)
+        # Generate random salt for error case
+        random_salt_error = base64.b64encode(os.urandom(16)).decode('utf-8')
         # Return default response to prevent email enumeration
         return UserLookupResponse(
             login_method="password",
             available_login_methods=["password", "recovery_key"],
-            user_email_salt=random_salt,
-            tfa_enabled=True
+            user_email_salt=random_salt_error,
+            tfa_enabled=True,
+            stay_logged_in=False  # Default to False for security
         )

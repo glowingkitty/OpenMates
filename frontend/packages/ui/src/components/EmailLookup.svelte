@@ -20,13 +20,25 @@
         email = $bindable(''),
         isLoading = $bindable(false),
         loginFailedWarning = $bindable(false),
-        stayLoggedIn = $bindable(false)
+        stayLoggedIn = $bindable(false),
+        isPasskeyLoading = false,
+        onPasskeyClick = () => {},
+        onCancelPasskey = () => {},
+        onPairLoginClick = undefined
     }: {
         email?: string;
         isLoading?: boolean;
         loginFailedWarning?: boolean;
         stayLoggedIn?: boolean;
+        isPasskeyLoading?: boolean;
+        onPasskeyClick?: () => void;
+        onCancelPasskey?: () => void;
+        onPairLoginClick?: () => void;
     } = $props();
+    
+    // State for showing passkey button (updated after lookup)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
+    let showPasskeyButton = $state(false);
 
     // Form data
     let emailInputValue = $state(''); // Separate variable for the input field value
@@ -64,14 +76,14 @@
         }
 
         if (!email.includes('@')) {
-            emailError = $text('signup.at_missing.text');
+            emailError = $text('signup.at_missing');
             showEmailWarning = true;
             isEmailValidationPending = false;
             return;
         }
 
         if (!email.match(/\.[a-z]{2,}$/i)) {
-            emailError = $text('signup.domain_ending_missing.text');
+            emailError = $text('signup.domain_ending_missing');
             showEmailWarning = true;
             isEmailValidationPending = false;
             return;
@@ -146,7 +158,7 @@
             // Generate hashed email for lookup using cryptoService for consistency
             const hashed_email = await cryptoService.hashEmail(email);
             
-            // Send hashed email to server to get available login methods
+            // Send hashed email and stay_logged_in preference to server to get available login methods
             const response = await fetch(getApiEndpoint(apiEndpoints.auth.lookup), {
                 method: 'POST',
                 headers: {
@@ -154,7 +166,10 @@
                     'Accept': 'application/json',
                     'Origin': window.location.origin
                 },
-                body: JSON.stringify({ hashed_email }),
+                body: JSON.stringify({ 
+                    hashed_email,
+                    stay_logged_in: stayLoggedIn
+                }),
                 credentials: 'include'
             });
             
@@ -195,6 +210,12 @@
                     }
                 }
                 
+                // Check if passkey is available
+                const hasPasskey = (data.available_login_methods || []).includes('passkey');
+                
+                // Update showPasskeyButton state if passkey is available
+                showPasskeyButton = hasPasskey;
+                
                 // Dispatch success event with email and available methods
                 dispatch('lookupSuccess', {
                     email,
@@ -202,7 +223,10 @@
                     preferredLoginMethod: data.login_method || 'password',
                     stayLoggedIn,
                     tfa_app_name: data.tfa_app_name || null,
-                    tfa_enabled: data.tfa_enabled || true // Include tfa_enabled flag from response
+                    // Only set tfa_enabled to true if explicitly true from server
+                    // Default to false to prevent showing 2FA input when not configured
+                    tfa_enabled: data.tfa_enabled === true,
+                    hasPasskey: hasPasskey // Indicate if passkey is available
                 });
                 
                 // Clear only the input field value after successful lookup
@@ -218,7 +242,7 @@
                     preferredLoginMethod: 'password',
                     stayLoggedIn,
                     tfa_app_name: null,
-                    tfa_enabled: true // Default to false if lookup fails
+                    tfa_enabled: false // Default to false if lookup fails - don't show 2FA input
                 });
                 
                 // Clear only the input field value after lookup
@@ -234,7 +258,7 @@
                 preferredLoginMethod: 'password',
                 stayLoggedIn,
                 tfa_app_name: null,
-                tfa_enabled: true // Default to false if lookup fails
+                tfa_enabled: false // Default to false if lookup fails - don't show 2FA input
             });
             
             // Clear only the input field value after lookup
@@ -278,10 +302,61 @@
 <div class="email-lookup" in:fade={{ duration: 300 }}>
     {#if isRateLimited}
         <div class="rate-limit-message" in:fade={{ duration: 200 }}>
-            {$text('signup.too_many_requests.text')}
+            {$text('signup.too_many_requests')}
         </div>
     {:else}
         <form onsubmit={handleEmailLookup}>
+            <!-- Stay logged in toggle - first element -->
+            <div class="input-group toggle-group">
+                <Toggle
+                    id="stayLoggedIn"
+                    name="stayLoggedIn"
+                    bind:checked={stayLoggedIn}
+                    ariaLabel={$text('login.stay_logged_in')}
+                    on:change={handleToggleChange}
+                />
+                <label for="stayLoggedIn" class="agreement-text">{@html $text('login.stay_logged_in')}</label>
+            </div>
+
+            <!-- Passkey login button - second element -->
+            {#if isPasskeyLoading}
+                <button 
+                    type="button"
+                    class="passkey-button" 
+                    onclick={onCancelPasskey}
+                >
+                    <span class="clickable-icon icon_mail"></span>
+                    {$text('login.login_with_email')}
+                </button>
+            {:else}
+                <button 
+                    type="button"
+                    class="passkey-button" 
+                    onclick={onPasskeyClick}
+                >
+                    <span class="clickable-icon icon_passkey"></span>
+                    {$text('login.login_with_passkey')}
+                </button>
+            {/if}
+
+            <!-- Pair login button — sign in via another trusted device (phone/PC) -->
+            {#if onPairLoginClick}
+                <button
+                    type="button"
+                    class="passkey-button pair-login-button"
+                    onclick={onPairLoginClick}
+                >
+                    <span class="clickable-icon icon_phone"></span>
+                    {$text('login.login_with_phone_or_pc')}
+                </button>
+            {/if}
+
+            <!-- Or separator - third element -->
+            <div class="divider">
+                <span>{$text('login.or')}</span>
+            </div>
+
+            <!-- Email field - fourth element -->
             <div class="input-group">
                 <div class="input-wrapper">
                     <span class="clickable-icon icon_mail"></span>
@@ -290,41 +365,28 @@
                         name="username"
                         bind:value={emailInputValue}
                         bind:this={emailInput}
-                        placeholder={$text('login.email_placeholder.text')}
+                        placeholder={$text('login.email_placeholder')}
                         required
-                        autocomplete="username"
+                        autocomplete="username webauthn"
                         class:error={!!emailError || loginFailedWarning || $sessionExpiredWarning}
                     />
                     {#if showEmailWarning && emailError}
                         <InputWarning
                             message={emailError}
-                            target={emailInput}
                         />
                     {:else if loginFailedWarning}
                         <InputWarning
-                            message={$text('login.login_failed.text')}
-                            target={emailInput}
+                            message={$text('login.login_failed')}
                         />
                     {:else if $sessionExpiredWarning}
                         <InputWarning
-                            message={$text('login.session_expired.text')}
-                            target={emailInput}
+                            message={$text('login.session_expired')}
                         />
                     {/if}
                 </div>
             </div>
 
-            <div class="input-group toggle-group">
-                <Toggle
-                    id="stayLoggedIn"
-                    name="stayLoggedIn"
-                    bind:checked={stayLoggedIn}
-                    ariaLabel={$text('login.stay_logged_in.text')}
-                    on:change={handleToggleChange}
-                />
-                <label for="stayLoggedIn" class="agreement-text">{@html $text('login.stay_logged_in.text')}</label>
-            </div>
-
+            <!-- Continue button - fifth element -->
             <button
                 type="submit"
                 class="login-button"
@@ -333,7 +395,7 @@
                 {#if isLoading}
                     <span class="loading-spinner"></span>
                 {:else}
-                    {$text('signup.continue.text')}
+                    {$text('signup.continue')}
                 {/if}
             </button>
         </form>
@@ -385,5 +447,56 @@
         background-color: var(--color-error-light);
         border-radius: 8px;
         margin: 24px 0;
+    }
+    
+    .divider {
+        display: flex;
+        align-items: center;
+        text-align: center;
+        margin: 16px 0;
+        color: var(--color-grey-60);
+        font-size: 14px;
+    }
+    
+    .divider::before,
+    .divider::after {
+        content: '';
+        flex: 1;
+        border-bottom: 1px solid var(--color-grey-30);
+    }
+    
+    .divider::before {
+        margin-right: 12px;
+    }
+    
+    .divider::after {
+        margin-left: 12px;
+    }
+
+    .passkey-button {
+        all: unset;
+        width: 100%;
+        font-size: 16px;
+        font-weight: 500;
+        cursor: pointer;
+        padding: 8px 0px;
+        margin: 16px 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        background: var(--color-primary);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .passkey-button .clickable-icon {
+        margin-right: 0;
+    }
+
+    /* Pair login button sits directly below the passkey button — reduce top margin */
+    .passkey-button.pair-login-button {
+        margin-top: -8px;
     }
 </style>

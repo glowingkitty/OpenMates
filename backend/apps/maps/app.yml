@@ -1,0 +1,181 @@
+name_translation_key: maps
+description_translation_key: maps.description
+icon_image: |
+  maps.svg
+category: personal
+last_updated: "2025-01-27"
+# Embed type definitions — single source of truth for frontend embed routing.
+embed_types:
+  - id: search
+    category: app-skill-use
+    skill_id: search
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: true
+    child_type: place
+    child_frontend_type: maps-place
+    groupable: false
+    preview_component: maps/MapsSearchEmbedPreview.svelte
+    fullscreen_component: maps/MapsSearchEmbedFullscreen.svelte
+    child_preview_component: maps/MapsLocationEmbedPreview.svelte
+    child_fullscreen_component: maps/MapsLocationEmbedFullscreen.svelte
+    icon: search
+    gradient_var: "--color-app-maps"
+    i18n_namespace: embeds.maps.search
+  # User-pinned map location (direct-type, inserted from MapsView picker)
+  - id: location
+    category: direct
+    frontend_type: maps
+    backend_type: location
+    has_children: false
+    preview_component: maps/MapsLocationEmbedPreview.svelte
+    fullscreen_component: maps/MapsLocationEmbedFullscreen.svelte
+    icon: maps
+    gradient_var: "--color-app-maps"
+    i18n_namespace: embeds.maps.location
+settings_and_memories:
+  - id: favorite_places
+    name_translation_key: maps.favorite_places
+    description_translation_key: maps.favorite_places.description
+    type: list
+    stage: development
+    example_translation_keys:
+      - "maps.favorite_places.example_1"
+      - "maps.favorite_places.example_2"
+      - "maps.favorite_places.example_3"
+    example_entries:
+      - name: "maps.favorite_places.example_1.name"
+        address: "maps.favorite_places.example_1.address"
+      - name: "maps.favorite_places.example_2.name"
+        address: "maps.favorite_places.example_2.address"
+    schema:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Place name
+          is_title: true
+        address:
+          type: string
+          description: Formatted address
+        place_id:
+          type: string
+          description: Google Places API place ID (auto-filled when available)
+          auto_generated: true
+        location:
+          type: object
+          description: Geographic coordinates (auto-filled when available)
+          auto_generated: true
+          properties:
+            latitude:
+              type: number
+            longitude:
+              type: number
+      required:
+        - name
+skills:
+  - id: search
+    name_translation_key: maps.search
+    description_translation_key: maps.search.description
+    icon_image: search.svg
+    preprocessor_hint: >
+      Search for places, businesses, restaurants, directions, locations.
+    stage: production
+    class_path: |
+      backend.apps.maps.skills.search_skill.SearchSkill
+    providers:
+      - Google
+    # Follow-up suggestions shown to users after search results
+    suggestions_follow_up_requests:
+      - "Show me more places nearby"
+      - "Filter by rating"
+      - "Get directions to this place"
+    # Fields to exclude from LLM inference (but keep in full results for UI rendering)
+    # These fields are removed before adding to message history for LLM processing
+    # but remain in the full response stored in chat history for proper UI rendering
+    exclude_fields_for_llm:
+      - "type"
+      - "hash"
+      - "place_id"
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          description: |
+            REQUIRED: Array of search request objects for parallel processing (up to 5 requests). 
+            This parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single search.
+            Example for single search: {"requests": [{"query": "restaurants in Berlin"}]}
+            Example for multiple searches: {"requests": [{"query": "restaurants in Berlin"}, {"query": "museums in Berlin"}]}
+            Each object must contain 'query' (search query string), and can include optional parameters (pageSize, languageCode, locationBias, includedType, minRating, openNow, includeReviews).
+            Note: The 'id' field is auto-generated if not provided - you don't need to include it.
+          items:
+            type: object
+            properties:
+              query:
+                type: string
+                description: Text query string to search for places (e.g., "restaurants in Berlin", "museums near Times Square")
+              pageSize:
+                type: integer
+                description: Number of results to return per request (max 20)
+                minimum: 1
+                maximum: 20
+                default: 10
+              languageCode:
+                type: string
+                description: Language code for results (ISO 639-1, e.g., 'en', 'es', 'fr', 'de'). Defaults to 'en' if not specified.
+                default: "en"
+              locationBias:
+                type: object
+                description: Optional location bias to prioritize results near a specific area. Can be a circle (center + radius) or rectangle (viewport).
+                properties:
+                  circle:
+                    type: object
+                    properties:
+                      center:
+                        type: object
+                        properties:
+                          latitude:
+                            type: number
+                          longitude:
+                            type: number
+                      radius:
+                        type: number
+                        description: Radius in meters (0.0 to 50000.0)
+                  rectangle:
+                    type: object
+                    properties:
+                      low:
+                        type: object
+                        properties:
+                          latitude:
+                            type: number
+                          longitude:
+                            type: number
+                      high:
+                        type: object
+                        properties:
+                          latitude:
+                            type: number
+                          longitude:
+                            type: number
+              includedType:
+                type: string
+                description: Optional place type filter (e.g., 'restaurant', 'museum', 'pharmacy'). See Google Places API place types documentation for full list.
+              minRating:
+                type: number
+                description: Minimum rating filter (0.0 to 5.0, increments of 0.5). Only places with rating >= minRating will be returned.
+                minimum: 0.0
+                maximum: 5.0
+              openNow:
+                type: boolean
+                description: If true, return only places that are currently open. Defaults to false.
+                default: false
+              includeReviews:
+                type: boolean
+                description: If true, include user reviews in the response. Defaults to false to keep response size manageable. Reviews significantly increase response size.
+                default: false
+            required:
+              - query
+      required:
+        - requests

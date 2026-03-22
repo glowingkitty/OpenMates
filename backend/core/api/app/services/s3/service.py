@@ -11,8 +11,8 @@ from fastapi import HTTPException
 import os
 from backend.core.api.app.utils.secrets_manager import SecretsManager # Import SecretsManager (though not used directly here, good for context)
 from botocore.config import Config
-# Import ClientError for exception handling
-from botocore.exceptions import ClientError 
+# Import ClientError and timeout exceptions for exception handling
+from botocore.exceptions import ClientError, ReadTimeoutError, ConnectTimeoutError, EndpointConnectionError
 from urllib.parse import urlparse
 from typing import Optional, Dict
 
@@ -105,6 +105,10 @@ class S3UploadService:
             aws_secret_access_key=secret_key,
             config=upload_config
         )
+        
+        # Store credentials so we can create retry clients with longer timeouts
+        self._upload_access_key = access_key
+        self._upload_secret_key = secret_key
         
         logger.info("S3 clients created.")
 
@@ -254,7 +258,14 @@ class S3UploadService:
         """
         return get_bucket_by_name(bucket_name)
 
-    async def upload_file(self, bucket_key: str, file_key: str, content: bytes, content_type: str) -> Dict[str, str]:
+    async def upload_file(
+        self,
+        bucket_key: str,
+        file_key: str,
+        content: bytes,
+        content_type: str,
+        metadata: Optional[Dict[str, str]] = None,
+    ) -> Dict[str, str]:
         """
         Upload a file to S3 using a simple approach with retries.
         
@@ -297,6 +308,9 @@ class S3UploadService:
         
         max_retries = 5
         retry_delay = 1  # Start with 1 second delay
+        # Progressive timeout: start at 15s, double on each timeout retry (15, 30, 60, 120, 120)
+        base_read_timeout = 15
+        max_read_timeout = 120
         
         try:
             # Log basic information
@@ -308,10 +322,23 @@ class S3UploadService:
             # Set ACL based on bucket access configuration
             acl = 'private' if bucket_config['access'] == 'private' else 'public-read'
             
-            # Set cache control
-            cache_control = 'no-cache, no-store, must-revalidate'
+            # Set cache control based on bucket configuration.
+            # Immutable buckets (e.g., chatfiles) contain content-addressed encrypted blobs
+            # that never change — aggressive caching lets browsers skip redundant fetches.
+            # Mutable buckets (e.g., profile_images) need no-cache to ensure fresh content.
+            if bucket_config.get('cache_control'):
+                cache_control = bucket_config['cache_control']
+            else:
+                cache_control = 'no-cache, no-store, must-revalidate'
             
-            # Try uploading with retries and exponential backoff
+            # Track the current upload client — starts with the default (15s timeout).
+            # On timeout errors, we create a new client with a longer timeout.
+            current_upload_client = self.upload_client
+            current_read_timeout = base_read_timeout
+            
+            # Try uploading with retries and exponential backoff.
+            # Catches both S3 ClientError (e.g., 5xx) and transient network errors
+            # (timeouts, connection drops) that previously bypassed the retry loop.
             for attempt in range(max_retries):
                 try:
                     # Configure put_object parameters based on bucket configuration
@@ -324,28 +351,70 @@ class S3UploadService:
                         'ACL': acl
                     }
                     
-                    # Add lifecycle configuration if specified
+                    # Add metadata (merge lifecycle marker + caller-provided metadata)
+                    combined_metadata = {}
                     if bucket_config['lifecycle_policy']:
-                        # Note: This is just metadata, actual lifecycle policies should be configured at the bucket level
-                        put_params['Metadata'] = {
-                            'lifecycle-policy': f"expire-after-{bucket_config['lifecycle_policy']}-days"
-                        }
+                        combined_metadata['lifecycle-policy'] = f"expire-after-{bucket_config['lifecycle_policy']}-days"
+                    if metadata:
+                        # Caller metadata wins on conflicts (except we still keep lifecycle marker if distinct)
+                        combined_metadata.update(metadata)
+                    if combined_metadata:
+                        put_params['Metadata'] = combined_metadata
                     
-                    # Upload the file using the dedicated upload client
-                    self.upload_client.put_object(**put_params)
+                    # Upload the file using the current upload client
+                    current_upload_client.put_object(**put_params)
                     
                     # If successful, break out of the retry loop
                     logger.info(f"Upload successful on attempt {attempt + 1}")
                     break
                 except ClientError as e:
                     error_code = e.response['Error']['Code']
-                    logger.warning(f"Upload attempt {attempt + 1} failed with error: {error_code}")
+                    logger.warning(f"Upload attempt {attempt + 1} failed with ClientError: {error_code}")
                     
                     # If we've reached the maximum number of retries, re-raise the exception
                     if attempt == max_retries - 1:
                         raise
                     
                     # Otherwise, wait and retry with exponential backoff
+                    wait_time = retry_delay * (2 ** attempt)
+                    logger.info(f"Retrying in {wait_time} seconds...")
+                    time.sleep(wait_time)
+                    
+                    # Reset the file position to the beginning for the next attempt
+                    file_obj.seek(0)
+                except (ReadTimeoutError, ConnectTimeoutError, EndpointConnectionError) as e:
+                    # Transient network errors (timeouts, connection drops) are retryable.
+                    # Previously these were NOT caught here and fell through to the outer
+                    # except block, causing immediate failure without any retries.
+                    logger.warning(
+                        f"Upload attempt {attempt + 1} failed with network error "
+                        f"(timeout={current_read_timeout}s): {type(e).__name__}: {e}"
+                    )
+                    
+                    if attempt == max_retries - 1:
+                        raise
+                    
+                    # Create a new client with a longer read timeout for the next attempt.
+                    # This avoids penalizing normal uploads with a large default timeout
+                    # while still allowing retries to succeed for larger files.
+                    current_read_timeout = min(current_read_timeout * 2, max_read_timeout)
+                    logger.info(f"Creating retry client with read_timeout={current_read_timeout}s")
+                    retry_config = Config(
+                        signature_version='s3',
+                        s3={'addressing_style': 'path'},
+                        connect_timeout=15,
+                        read_timeout=current_read_timeout,
+                        retries={'max_attempts': 0}  # We handle retries ourselves
+                    )
+                    current_upload_client = boto3.client(
+                        's3',
+                        region_name=self.region_name,
+                        endpoint_url=self.endpoint_url,
+                        aws_access_key_id=self._upload_access_key,
+                        aws_secret_access_key=self._upload_secret_key,
+                        config=retry_config
+                    )
+                    
                     wait_time = retry_delay * (2 ** attempt)
                     logger.info(f"Retrying in {wait_time} seconds...")
                     time.sleep(wait_time)
@@ -406,3 +475,65 @@ class S3UploadService:
         except Exception as e:
             logger.error(f"Failed to delete from S3: {str(e)}")
             raise HTTPException(status_code=500, detail="Failed to delete file")
+
+    async def get_file(self, bucket_name: str, object_key: str) -> Optional[bytes]:
+        """
+        Download a file from S3 and return its content as bytes.
+        
+        Args:
+            bucket_name: The name of the S3 bucket
+            object_key: The key (path) of the object in the bucket
+            
+        Returns:
+            The file content as bytes, or None if the file doesn't exist or download fails
+            
+        Raises:
+            HTTPException: If the download fails due to service unavailability
+        """
+        # Ensure client is initialized before proceeding
+        if not self.client:
+            logger.error("S3 service not initialized. Cannot download file.")
+            raise HTTPException(status_code=503, detail="S3 service unavailable")
+        
+        try:
+            logger.info(f"Downloading file from S3: bucket={bucket_name}, key={object_key}")
+            
+            # Use get_object to download the file
+            response = self.client.get_object(Bucket=bucket_name, Key=object_key)
+            
+            # Read the file content
+            file_content = response['Body'].read()
+            
+            logger.info(f"Successfully downloaded file from S3: bucket={bucket_name}, key={object_key}, size={len(file_content)} bytes")
+            return file_content
+            
+        except ClientError as e:
+            error_code = e.response.get('Error', {}).get('Code')
+            error_message = e.response.get('Error', {}).get('Message', 'Unknown error')
+            if error_code == 'NoSuchKey' or error_code == '404':
+                logger.warning(f"File not found in S3: bucket={bucket_name}, key={object_key}")
+                return None
+            else:
+                # Log detailed error information for debugging
+                logger.error(
+                    f"Failed to download file from S3: bucket={bucket_name}, key={object_key}, "
+                    f"error_code={error_code}, error_message={error_message}, full_error={str(e)}"
+                )
+                # Raise exception instead of returning None to prevent silent failures
+                # This follows the project rule: "Never implement fallbacks that would make errors fall silently"
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to download file from S3: {error_code} - {error_message}"
+                )
+        except Exception as e:
+            # Log full exception details for debugging
+            logger.error(
+                f"Unexpected error downloading file from S3: bucket={bucket_name}, key={object_key}, "
+                f"error={str(e)}",
+                exc_info=True
+            )
+            # Raise exception instead of returning None to prevent silent failures
+            raise HTTPException(
+                status_code=500,
+                detail=f"Unexpected error downloading file from S3: {str(e)}"
+            )

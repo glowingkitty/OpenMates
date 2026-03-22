@@ -8,19 +8,19 @@
 {:then}
     <div class="community-section">
         <div class="content">
-            <h3>{@html $_('community.heading.text')}</h3>
+            <h3>{@html $_('community.heading')}</h3>
             <!-- Community icon -->
             <div>
                 <div class="main-icon icon_team"></div>
-                <h2><mark>{@html $_('community.join_development_1.text')}</mark> {@html $_('community.join_development_2.text')}</h2>
+                <h2><mark>{@html $_('community.join_development_1')}</mark> {@html $_('community.join_development_2')}</h2>
             </div>
 
             <!-- Community text -->
             <p>
-                {@html $_('community.description.text')}
+                {@html $_('community.description')}
             </p>
             <p class="join-text">
-                {@html $_('community.join_discord.text')}
+                {@html $_('community.join_discord')}
             </p>
 
             <!-- Discord button -->

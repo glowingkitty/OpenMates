@@ -3,24 +3,110 @@ from kombu import Queue
 import os
 import logging
 import sys
+import importlib
 from typing import Optional
 from urllib.parse import quote
 import asyncio
+from datetime import timedelta
+from celery.schedules import crontab
 
 from backend.core.api.app.utils.log_filters import SensitiveDataFilter
 from pythonjsonlogger import jsonlogger  # Import the JSON formatter
 from backend.core.api.app.utils.config_manager import ConfigManager
+from backend.core.api.app.utils.request_context import get_request_id, set_request_id
 from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService
 from backend.core.api.app.services.pdf.invoice import InvoiceTemplateService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.core.api.app.services.cache import CacheService as _CacheService
 
 # Set up logging with a direct approach for Celery
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# Celery Prometheus metrics
+# ---------------------------------------------------------------------------
+# celery_task_failures_total counts task_failure signal fires, keyed by
+# (task_name, queue). This counter is scraped by Prometheus via the HTTP
+# server started in worker_process_init below.
+# The port is configurable via CELERY_METRICS_PORT env var (default: 9101).
+# Each worker process listens on its own port so Prometheus can scrape all.
+# See alert_rules.yml for the alert rule that uses this metric.
+try:
+    from prometheus_client import Counter, start_http_server as _prom_start_http_server
+    _CELERY_TASK_FAILURES_COUNTER = Counter(
+        "celery_task_failures_total",
+        "Total number of Celery task failures",
+        ["task_name", "queue"],
+    )
+    _PROM_CLIENT_AVAILABLE = True
+except ImportError:
+    _CELERY_TASK_FAILURES_COUNTER = None  # type: ignore[assignment]
+    _prom_start_http_server = None  # type: ignore[assignment]
+    _PROM_CLIENT_AVAILABLE = False
+    logger.warning("prometheus_client not available — Celery metrics will not be exported")
+
 # Global variable to hold the ConfigManager instance for the worker process
-config_manager: Optional[ConfigManager] = None
+# Will be initialized lazily on first access via ConfigManager singleton pattern
+# Use a class to make it a lazy property that initializes on first access
+class _LazyConfigManager:
+    """Lazy wrapper for ConfigManager that initializes on first access."""
+    _instance: Optional[ConfigManager] = None
+    
+    def __getattr__(self, name):
+        """Lazy initialization - create ConfigManager on first access."""
+        if self._instance is None:
+            self._instance = ConfigManager()  # Singleton pattern - only creates one instance per process
+            logger.info(f"ConfigManager initialized on first access. Found {len(self._instance.get_provider_configs())} provider configurations.")
+        return getattr(self._instance, name)
+    
+    def __bool__(self):
+        """Support 'if config_manager:' checks."""
+        if self._instance is None:
+            self._instance = ConfigManager()
+            logger.info(f"ConfigManager initialized on first access. Found {len(self._instance.get_provider_configs())} provider configurations.")
+        return bool(self._instance)
+
+# Create lazy config_manager that initializes on first access
+config_manager = _LazyConfigManager()
+
 invoice_ninja_service: Optional[InvoiceNinjaService] = None
 invoice_template_service: Optional[InvoiceTemplateService] = None
+
+
+# ===========================================================================
+# WORKER-LEVEL SERVICE POOL for connection reuse across tasks
+# ===========================================================================
+# PERFORMANCE OPTIMIZATION: Reuse service connections across tasks instead of
+# reinitializing them for every task. This eliminates ~200-500ms of initialization
+# overhead per task.
+#
+# These services are initialized once per worker process and reused across tasks.
+# They are NOT thread-safe, but Celery prefork workers use separate processes.
+
+# Worker-level cache service instance (reused across tasks)
+_worker_cache_service: Optional[_CacheService] = None
+
+
+async def get_worker_cache_service() -> _CacheService:
+    """
+    Get the worker-level CacheService instance, creating it if needed.
+    
+    This provides connection pooling for Redis/Dragonfly across tasks.
+    The connection is established once per worker process and reused.
+    
+    Returns:
+        CacheService: The worker-level cache service instance
+    """
+    global _worker_cache_service
+    
+    if _worker_cache_service is None:
+        logger.info("[PERF] Creating worker-level CacheService (first task in this worker)")
+        _worker_cache_service = _CacheService()
+        # Ensure the client is connected
+        await _worker_cache_service.client
+        logger.info("[PERF] Worker-level CacheService initialized and connected")
+    
+    return _worker_cache_service
 
 
 # --- Centralized Task Configuration ---
@@ -31,9 +117,27 @@ TASK_CONFIG = [
     {'name': 'user_init',   'module': 'backend.core.api.app.tasks.user_cache_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.persistence_tasks'},
     {'name': 'app_ai',      'module': 'backend.apps.ai.tasks'},
-    # Add new task configurations here, e.g.:
-    # {'name': 'new_queue', 'module': 'backend.core.api.app.tasks.new_tasks'}, # Example updated
-]
+    {'name': 'app_web',     'module': 'backend.apps.web.tasks'},  # Web app tasks (to be implemented)
+    {'name': 'health_check', 'module': 'backend.core.api.app.tasks.health_check_tasks'},  # Health check tasks
+    {'name': 'usage',       'module': 'backend.core.api.app.tasks.usage_archive_tasks'},  # Usage archive tasks
+    {'name': 'app_images',  'module': 'backend.apps.images.tasks'},  # Image generation tasks
+    {'name': 'server_stats', 'module': 'backend.core.api.app.tasks.server_stats_tasks'},  # Server stats
+    {'name': 'demo',        'module': 'backend.core.api.app.tasks.demo_tasks'},  # Demo chat tasks
+    {'name': 'leaderboard', 'module': 'backend.core.api.app.tasks.leaderboard_tasks'},  # Leaderboard aggregation tasks
+    {'name': 'e2e_tests',   'module': 'backend.core.api.app.tasks.e2e_test_tasks'},  # E2E test automation tasks
+    {'name': 'reminder',    'module': 'backend.apps.reminder.tasks'},  # Reminder app tasks
+    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.storage_billing_tasks'},  # Storage billing tasks (routed to persistence queue)
+    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.auto_delete_tasks'},  # Auto-delete tasks (routed to persistence queue)
+    {'name': 'app_pdf',     'module': 'backend.apps.pdf.tasks'},  # PDF OCR + screenshot + TOC processing tasks
+    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.daily_inspiration_tasks'},  # Daily Inspiration generation tasks (routed to persistence queue)
+    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.default_inspiration_tasks'},  # Daily defaults selection from pool (replaces old admin-curated pipeline)
+    {'name': 'server_stats', 'module': 'backend.core.api.app.tasks.web_analytics_tasks'},  # Web analytics flush tasks (privacy-preserving aggregate counters)
+    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.app_analytics_tasks'},  # App analytics daily aggregation tasks
+     {'name': 'server_stats', 'module': 'backend.core.api.app.tasks.software_update_tasks'},  # Software update auto-check tasks
+     {'name': 'push',        'module': 'backend.core.api.app.tasks.push_notification_task'},  # Browser Web Push notifications
+     # Add new task configurations here, e.g.:
+     # {'name': 'new_queue', 'module': 'backend.core.api.app.tasks.new_tasks'}, # Example updated
+ ]
 
 
 # Force immediate logger configuration for Celery
@@ -52,7 +156,9 @@ def setup_celery_logging():
     handler.setFormatter(formatter)
     
     # Set log level from environment or default to INFO
-    log_level = os.getenv('LOG_LEVEL', 'INFO')
+    # Convert string log level to logging constant (e.g., 'info' -> logging.INFO)
+    log_level_str = os.getenv('LOG_LEVEL', 'INFO').upper()
+    log_level = getattr(logging, log_level_str, logging.INFO)
     
     # Configure root logger with our handler
     root_logger = logging.getLogger()
@@ -80,6 +186,8 @@ def setup_celery_logging():
         'app.tasks', # General core app tasks
         'backend.core', # Cover all core logs, including ConfigManager
         'backend.apps', # Catch-all for logs from any module under backend.apps.*
+        'httpx', # HTTP client library
+        'httpcore', # HTTP core library (used by httpx)
     ]
     # Add loggers for specific task modules defined in TASK_CONFIG
     # These will get specific handling; other backend.apps.* logs will be caught by 'backend.apps'
@@ -94,6 +202,7 @@ def setup_celery_logging():
         if sensitive_filter not in module_logger.filters:
             module_logger.addFilter(sensitive_filter)
         # Set level (inherit from root or set explicitly)
+        # Use the same log_level constant that was set for root logger
         module_logger.setLevel(log_level) # Match root logger level
         # Prevent duplicate logs by stopping propagation to root
         module_logger.propagate = False
@@ -112,9 +221,14 @@ encoded_password = quote(raw_password) if raw_password else ''
 broker_url = os.getenv('CELERY_BROKER_URL', f'redis://default:{encoded_password}@cache:6379/0')
 result_backend = os.getenv('CELERY_RESULT_BACKEND', f'redis://default:{encoded_password}@cache:6379/0')
 
-# Log the connection information
-logger.info(f"Celery broker URL: {broker_url}")
-logger.info(f"Celery result backend: {result_backend}")
+# Log the connection information (mask password for security)
+def _mask_redis_url(url: str) -> str:
+    """Replace password in Redis URL with '***' for safe logging."""
+    import re
+    return re.sub(r'(://[^:]*:)[^@]+(@)', r'\1***\2', url)
+
+logger.info(f"Celery broker URL: {_mask_redis_url(broker_url)}")
+logger.info(f"Celery result backend: {_mask_redis_url(result_backend)}")
 
 # Explicitly configure Redis backend settings
 broker_connection_retry_on_startup = True
@@ -127,8 +241,36 @@ redis_retry_on_timeout = True
 
 # Dynamically generate configuration values from TASK_CONFIG
 include_modules = [config['module'] for config in TASK_CONFIG]
-task_queues = tuple(Queue(config['name'], exchange=config['name'], routing_key=config['name']) for config in TASK_CONFIG)
 
+# =================================================================
+# WORKER-SPECIFIC QUEUE FILTERING
+# =================================================================
+# When running as a worker, CELERY_QUEUES env var specifies which queues
+# this worker should consume from. We filter task_queues accordingly.
+#
+# This fixes a critical bug where workers were consuming from ALL queues
+# despite --queues flag being set. By filtering at the config level,
+# workers only ever know about their designated queues.
+#
+# For API/scheduler processes, we need ALL queues for routing tasks.
+
+worker_queues_env = os.getenv('CELERY_QUEUES', '')
+if worker_queues_env:
+    # Worker mode: Only include designated queues
+    designated_queue_names = {q.strip() for q in worker_queues_env.split(',')}
+    task_queues = tuple(
+        Queue(config['name'], exchange=config['name'], routing_key=config['name'])
+        for config in TASK_CONFIG
+        if config['name'] in designated_queue_names
+    )
+    logger.info(f"[WORKER_QUEUE_FILTER] Worker mode - filtered queues to: {[q.name for q in task_queues]}")
+else:
+    # API/scheduler mode: Include all queues for routing
+    task_queues = tuple(
+        Queue(config['name'], exchange=config['name'], routing_key=config['name'])
+        for config in TASK_CONFIG
+    )
+    logger.info(f"[WORKER_QUEUE_FILTER] API/scheduler mode - all queues available for routing: {[q.name for q in task_queues]}")
 
 # Create Celery app
 app = Celery(
@@ -138,9 +280,23 @@ app = Celery(
     include=include_modules # Dynamically include task modules
 )
 
+# Explicitly import task modules to ensure tasks are registered
+# This is important for tasks with custom names that might not be auto-discovered
+for module_name in include_modules:
+    try:
+        importlib.import_module(module_name)
+        logger.debug(f"Successfully imported task module: {module_name}")
+    except Exception as e:
+        logger.warning(f"Failed to import task module {module_name}: {e}")
+
 # Configure Celery
 app.conf.update(
     task_queues=task_queues, # Dynamically set queues
+    # CRITICAL: Set task_default_queue to None to prevent fallback to default queue
+    # This ensures tasks only go to explicitly routed queues
+    task_default_queue=None,
+    task_default_exchange=None,
+    task_default_routing_key=None,
     result_expires=3600,  # Results expire after 1 hour
     task_serializer='json',
     accept_content=['json'],
@@ -157,36 +313,471 @@ app.conf.update(
     redis_socket_timeout=redis_socket_timeout,
     redis_socket_connect_timeout=redis_socket_connect_timeout,
     redis_retry_on_timeout=redis_retry_on_timeout,
+    
+    # ===========================================================================
+    # RELIABILITY SETTINGS - Ensures tasks are not lost
+    # ===========================================================================
+    
+    # task_acks_late: Acknowledge tasks AFTER execution completes (not before)
+    # This prevents task loss if worker crashes during execution
+    # The task will be re-queued if the worker dies before acknowledging
+    task_acks_late=True,
+    
+    # task_reject_on_worker_lost: Re-queue tasks if worker process dies abruptly
+    # (e.g., SIGKILL, OOM kill, or container restart)
+    # Combined with task_acks_late, ensures tasks are never lost
+    # WARNING: Can cause message loops for tasks that always fail - ensure proper retry limits
+    task_reject_on_worker_lost=True,
+    
+    # task_acks_on_failure_or_timeout: When True (default), tasks are ACKed even on failure
+    # Set to False to re-queue failed tasks (useful with dead-letter queues)
+    # We keep True because we handle retries explicitly per-task with max_retries
+    task_acks_on_failure_or_timeout=True,
+    
+    # task_track_started: Track when tasks start execution (enables STARTED state)
+    # Useful for monitoring - shows tasks that are currently being executed
+    task_track_started=True,
+    
+    # worker_prefetch_multiplier: Number of messages to prefetch per worker process
+    # Set to 1 for fair task distribution (prevents one worker from hogging tasks)
+    # Important for long-running tasks like AI processing
+    worker_prefetch_multiplier=1,
+    
+    # task_time_limit: Hard time limit in seconds (worker will be killed)
+    # task_soft_time_limit: Soft time limit (raises SoftTimeLimitExceeded exception)
+    # These are set per-task via decorators for more control
+    
+    # task_ignore_result: Whether to store task results
+    # We want results for tracking and debugging
+    task_ignore_result=False,
 )
 
+def _get_worker_queues() -> set:
+    """
+    Get the queues this worker is consuming from environment or command line.
+    Workers are started with --queues argument in docker-compose.
+    """
+    worker_queues_str = os.getenv('CELERY_QUEUES', '')
+    if not worker_queues_str:
+        # Try to get from command line arguments if available
+        for i, arg in enumerate(sys.argv):
+            if arg == '--queues' and i + 1 < len(sys.argv):
+                worker_queues_str = sys.argv[i + 1]
+                break
+    
+    if worker_queues_str:
+        return {q.strip() for q in worker_queues_str.split(',')}
+    return set()
+
+
+def _worker_needs_invoice_services():
+    """
+    Check if this worker needs InvoiceNinjaService and InvoiceTemplateService.
+    These services are only needed for workers that handle email, user_init, or persistence queues.
+    They are NOT needed for app-specific workers (app_ai, app_web, etc.).
+    """
+    worker_queues = _get_worker_queues()
+    
+    if worker_queues:
+        # Invoice services are only needed for these queues
+        queues_needing_invoice_services = {'email', 'user_init', 'persistence'}
+        return bool(worker_queues & queues_needing_invoice_services)
+    
+    # Default: assume invoice services are needed if we can't determine queues
+    # This is safer than skipping initialization
+    logger.warning("Could not determine worker queues, initializing invoice services by default")
+    return True
+
+
+def _worker_needs_ai_services():
+    """
+    Check if this worker needs AI provider services pre-warmed.
+    Only the app-ai-worker (app_ai queue) needs AI services.
+    """
+    worker_queues = _get_worker_queues()
+    return 'app_ai' in worker_queues
+
 async def initialize_services():
-    """Asynchronously initialize all required services for a worker."""
+    """
+    Asynchronously initialize all required services for a worker.
+    
+    Only initializes services that are needed at worker startup.
+    For app workers (app_ai, app_web), services are initialized per-task as needed,
+    which is more memory efficient since SecretsManager is now a singleton per process.
+    """
     global invoice_ninja_service, invoice_template_service
 
-    # Create and initialize a single SecretsManager for this worker
+    # Only initialize services for task-worker that handles email/persistence tasks
+    # App workers (app_ai, app_web) don't need pre-initialization - tasks create their own
+    # SecretsManager instances, which now share the same singleton per process
+    if not _worker_needs_invoice_services():
+        logger.info("Skipping service initialization - app workers initialize services per-task as needed")
+        return
+
+    # Only task-worker needs SecretsManager pre-initialized for invoice services
+    # Since SecretsManager is now a singleton, this will be reused by all tasks
+    logger.info("Initializing SecretsManager for invoice services...")
     secrets_manager = SecretsManager()
-    await secrets_manager.initialize()
+    try:
+        await secrets_manager.initialize()
+        logger.info("SecretsManager initialized successfully.")
 
-    # Now initialize services that depend on it
-    if invoice_ninja_service is None:
-        logger.info("Initializing InvoiceNinjaService for worker process...")
-        try:
-            invoice_ninja_service = await InvoiceNinjaService.create(secrets_manager)
-            logger.info("InvoiceNinjaService initialized successfully.")
-        except Exception as e:
-            logger.exception("Failed to initialize InvoiceNinjaService.")
-    else:
-        logger.info("InvoiceNinjaService already initialized for this worker process.")
+        # Now initialize services that depend on SecretsManager
+        if invoice_ninja_service is None:
+            logger.info("Initializing InvoiceNinjaService for worker process...")
+            try:
+                invoice_ninja_service = await InvoiceNinjaService.create(secrets_manager)
+                logger.info("InvoiceNinjaService initialized successfully.")
+            except Exception:
+                logger.exception("Failed to initialize InvoiceNinjaService.")
+        else:
+            logger.info("InvoiceNinjaService already initialized for this worker process.")
 
-    if invoice_template_service is None:
-        logger.info("Initializing InvoiceTemplateService for worker process...")
+        if invoice_template_service is None:
+            logger.info("Initializing InvoiceTemplateService for worker process...")
+            try:
+                invoice_template_service = await InvoiceTemplateService.create(secrets_manager)
+                logger.info("InvoiceTemplateService initialized successfully.")
+            except Exception:
+                logger.exception("Failed to initialize InvoiceTemplateService.")
+        else:
+            logger.info("InvoiceTemplateService already initialized for this worker process.")
+    finally:
+        # CRITICAL: Close the httpx client after initialization is complete.
+        # This prevents the singleton SecretsManager from holding a stale client
+        # tied to the event loop created by asyncio.run(initialize_services()).
+        # Subsequent tasks will create a new client for their own event loops.
+        await secrets_manager.aclose()
+        logger.info("SecretsManager httpx client closed after worker service initialization.")
+
+
+async def prewarm_ai_services():
+    """
+    PERFORMANCE OPTIMIZATION: Pre-warm AI provider clients at worker startup.
+    
+    This eliminates the cold-start delay on the first AI request after a restart.
+    Without pre-warming, the first request must:
+    1. Initialize SecretsManager and connect to Vault (~100-300ms)
+    2. Fetch API keys for each provider (~50-100ms each)
+    3. Initialize SDK clients (OpenAI, Anthropic, etc.) (~50-100ms each)
+    
+    By pre-warming, subsequent tasks can immediately use the initialized clients.
+    
+    Only runs on app-ai-worker (workers with app_ai queue).
+    """
+    if not _worker_needs_ai_services():
+        logger.info("Skipping AI services pre-warming - not an app-ai-worker")
+        return
+    
+    logger.info("[PERF] Pre-warming AI provider services for app-ai-worker...")
+    start_time = asyncio.get_event_loop().time()
+    secrets_manager = None
+    
+    try:
+        # Initialize SecretsManager to fetch API keys
+        secrets_manager = SecretsManager()
+        await secrets_manager.initialize()
+        logger.info("[PERF] SecretsManager initialized for AI pre-warming")
+        
+        # Import and initialize each AI provider client
+        # These imports are done lazily to avoid circular imports and minimize memory
+        # if this code path is never reached (e.g., on non-AI workers)
+        providers_initialized = []
+        providers_failed = []
+        
+        # OpenAI client
         try:
-            invoice_template_service = await InvoiceTemplateService.create(secrets_manager)
-            logger.info("InvoiceTemplateService initialized successfully.")
+            from backend.apps.ai.llm_providers.openai_client import initialize_openai_client
+            await initialize_openai_client(secrets_manager)
+            providers_initialized.append("openai")
         except Exception as e:
-            logger.exception("Failed to initialize InvoiceTemplateService.")
+            logger.warning(f"[PERF] Failed to pre-warm OpenAI client: {e}")
+            providers_failed.append("openai")
+        
+        # Anthropic client (includes AWS Bedrock setup)
+        try:
+            from backend.apps.ai.llm_providers.anthropic_client import initialize_anthropic_client
+            await initialize_anthropic_client(secrets_manager)
+            providers_initialized.append("anthropic")
+        except Exception as e:
+            logger.warning(f"[PERF] Failed to pre-warm Anthropic client: {e}")
+            providers_failed.append("anthropic")
+        
+        # Google client (Vertex AI)
+        try:
+            from backend.apps.ai.llm_providers.google_client import initialize_google_client
+            await initialize_google_client(secrets_manager)
+            providers_initialized.append("google")
+        except Exception as e:
+            logger.warning(f"[PERF] Failed to pre-warm Google client: {e}")
+            providers_failed.append("google")
+        
+        # Mistral client
+        try:
+            from backend.apps.ai.llm_providers.mistral_client import initialize_mistral_client
+            await initialize_mistral_client(secrets_manager)
+            providers_initialized.append("mistral")
+        except Exception as e:
+            logger.warning(f"[PERF] Failed to pre-warm Mistral client: {e}")
+            providers_failed.append("mistral")
+        
+        # Groq client
+        try:
+            from backend.apps.ai.llm_providers.groq_client import initialize_groq_client
+            await initialize_groq_client(secrets_manager)
+            providers_initialized.append("groq")
+        except Exception as e:
+            logger.warning(f"[PERF] Failed to pre-warm Groq client: {e}")
+            providers_failed.append("groq")
+        
+        elapsed = asyncio.get_event_loop().time() - start_time
+        logger.info(
+            f"[PERF] AI provider pre-warming completed in {elapsed:.3f}s. "
+            f"Initialized: {providers_initialized}. Failed: {providers_failed}"
+        )
+        
+    except Exception as e:
+        logger.error(f"[PERF] AI services pre-warming failed: {e}", exc_info=True)
+    finally:
+        # Close the secrets manager httpx client - tasks will create their own
+        if secrets_manager:
+            await secrets_manager.aclose()
+            logger.info("[PERF] SecretsManager closed after AI pre-warming")
+
+
+# ===========================================================================
+# CELERY SIGNAL HANDLERS - Task lifecycle monitoring for reliability
+# ===========================================================================
+# These signal handlers provide visibility into task processing, ensuring
+# we can detect and debug any issues with task routing or execution.
+#
+# request_id propagation:
+#   1. before_task_publish → injects current request_id into task headers
+#   2. task_prerun → restores request_id from headers into contextvars
+# This allows correlating HTTP requests with their spawned Celery tasks in Loki.
+
+@signals.before_task_publish.connect
+def inject_request_id_header(headers=None, **kwargs):
+    """Propagate the current request_id into Celery task headers."""
+    if headers is not None:
+        request_id = get_request_id()
+        if request_id != "no-request-id":
+            headers["request_id"] = request_id
+
+@signals.task_prerun.connect
+def task_prerun_handler(task_id, task, args, kwargs, **kw):
+    """
+    Called immediately before a task is executed.
+    Restores request_id from task headers into contextvars and logs task start.
+    """
+    # Restore request_id from task headers into contextvars for this worker context
+    request_id = getattr(task.request, 'request_id', None)
+    if request_id:
+        set_request_id(request_id)
+
+    queue = getattr(task.request, 'delivery_info', {}).get('routing_key', 'UNKNOWN_QUEUE')
+    worker = getattr(task.request, 'hostname', 'UNKNOWN_WORKER')
+    logger.info(
+        "[TASK_LIFECYCLE] TASK_STARTED: task_id=%s, task_name=%s, queue=%s, worker=%s",
+        task_id, task.name, queue, worker,
+    )
+
+@signals.task_postrun.connect
+def task_postrun_handler(task_id, task, args, kwargs, retval, state, **kw):
+    """
+    Called after a task has been executed (success or failure).
+    Logs task completion with state for monitoring.
+    """
+    queue = getattr(task.request, 'delivery_info', {}).get('routing_key', 'UNKNOWN_QUEUE')
+    worker = getattr(task.request, 'hostname', 'UNKNOWN_WORKER')
+    logger.info(
+        f"[TASK_LIFECYCLE] TASK_COMPLETED: task_id={task_id}, "
+        f"task_name={task.name}, state={state}, queue={queue}, worker={worker}"
+    )
+
+@signals.task_failure.connect
+def task_failure_handler(task_id, exception, args, kwargs, traceback, einfo, **kw):
+    """
+    Called when a task fails.
+    Logs detailed failure information for debugging and alerting.
+    CRITICAL: This helps identify tasks that are failing without being processed.
+    """
+    sender = kw.get('sender')
+    task_name = sender.name if sender else 'UNKNOWN_TASK'
+    queue = 'UNKNOWN_QUEUE'
+    worker = 'UNKNOWN_WORKER'
+    if sender and hasattr(sender, 'request'):
+        queue = getattr(sender.request, 'delivery_info', {}).get('routing_key', 'UNKNOWN_QUEUE')
+        worker = getattr(sender.request, 'hostname', 'UNKNOWN_WORKER')
+    
+    logger.error(
+        f"[TASK_LIFECYCLE] TASK_FAILED: task_id={task_id}, "
+        f"task_name={task_name}, queue={queue}, worker={worker}, "
+        f"exception_type={type(exception).__name__}, exception_msg={str(exception)[:200]}"
+    )
+
+    # Increment the Prometheus failure counter (no-op if prometheus_client unavailable)
+    if _PROM_CLIENT_AVAILABLE and _CELERY_TASK_FAILURES_COUNTER is not None:
+        try:
+            _CELERY_TASK_FAILURES_COUNTER.labels(
+                task_name=task_name,
+                queue=queue,
+            ).inc()
+        except Exception as metric_err:
+            logger.debug(f"[TASK_LIFECYCLE] Failed to increment celery_task_failures_total: {metric_err}")
+
+@signals.task_success.connect
+def task_success_handler(sender, result, **kwargs):
+    """
+    Called when a task completes successfully.
+    Logs success for monitoring task throughput.
+    """
+    task_name = sender.name if sender else 'UNKNOWN_TASK'
+    task_id = sender.request.id if sender and hasattr(sender, 'request') else 'UNKNOWN'
+    queue = 'UNKNOWN_QUEUE'
+    if sender and hasattr(sender, 'request'):
+        queue = getattr(sender.request, 'delivery_info', {}).get('routing_key', 'UNKNOWN_QUEUE')
+    
+    logger.info(
+        f"[TASK_LIFECYCLE] TASK_SUCCESS: task_id={task_id}, "
+        f"task_name={task_name}, queue={queue}"
+    )
+
+@signals.task_rejected.connect
+def task_rejected_handler(message, exc, **kwargs):
+    """
+    Called when a task is rejected (e.g., unknown task, routing failure).
+    CRITICAL: This catches tasks that could NOT be processed!
+    This is the key signal to detect unrouted or unknown tasks.
+    """
+    logger.error(
+        f"[TASK_LIFECYCLE] TASK_REJECTED: message={message}, "
+        f"exception_type={type(exc).__name__}, exception_msg={str(exc)[:200]}. "
+        f"This task was NOT processed! Check task routing and worker queues."
+    )
+
+@signals.task_revoked.connect
+def task_revoked_handler(request, terminated, signum, expired, **kwargs):
+    """
+    Called when a task is revoked (cancelled).
+    Logs revocation for tracking cancelled tasks.
+    """
+    task_id = request.id if hasattr(request, 'id') else 'UNKNOWN'
+    task_name = request.name if hasattr(request, 'name') else 'UNKNOWN'
+    logger.warning(
+        f"[TASK_LIFECYCLE] TASK_REVOKED: task_id={task_id}, "
+        f"task_name={task_name}, terminated={terminated}, "
+        f"signum={signum}, expired={expired}"
+    )
+
+@signals.task_retry.connect
+def task_retry_handler(request, reason, einfo, **kwargs):
+    """
+    Called when a task is being retried.
+    Logs retry attempts for monitoring retry behavior.
+    """
+    sender = kwargs.get('sender')
+    task_name = sender.name if sender else (request.name if hasattr(request, 'name') else 'UNKNOWN')
+    task_id = request.id if hasattr(request, 'id') else 'UNKNOWN'
+    
+    logger.warning(
+        f"[TASK_LIFECYCLE] TASK_RETRY: task_id={task_id}, "
+        f"task_name={task_name}, reason={str(reason)[:200]}"
+    )
+
+@signals.task_unknown.connect
+def task_unknown_handler(message, exc, name, id, **kwargs):
+    """
+    Called when an unknown task is received.
+    CRITICAL: This means a task was sent but no worker knows how to execute it!
+    This could indicate a misconfiguration or missing task registration.
+    """
+    logger.error(
+        f"[TASK_LIFECYCLE] TASK_UNKNOWN: task_id={id}, "
+        f"task_name={name}, exception={exc}. "
+        f"CRITICAL: No worker can process this task! Check task registration and routing."
+    )
+
+
+# ===========================================================================
+# WORKER QUEUE ENFORCEMENT
+# ===========================================================================
+# This signal handler ensures workers only consume from their designated queues.
+# Despite setting --queues on the command line, Celery workers were consuming from
+# ALL queues defined in task_queues. This caused race conditions where multiple
+# workers would process the same task from the persistence queue.
+#
+# The fix: After the worker is ready, cancel consumers for any queues that the
+# worker should NOT be consuming from (based on CELERY_QUEUES env var or --queues arg).
+
+def _get_designated_queues() -> set:
+    """
+    Get the set of queues this worker should consume from.
+    Checks CELERY_QUEUES environment variable first, then --queues command line arg.
+    """
+    # First check environment variable (set in docker-compose)
+    worker_queues_str = os.getenv('CELERY_QUEUES', '')
+    
+    if not worker_queues_str:
+        # Try to get from command line arguments
+        for i, arg in enumerate(sys.argv):
+            if arg == '--queues' and i + 1 < len(sys.argv):
+                worker_queues_str = sys.argv[i + 1]
+                break
+            elif arg.startswith('--queues='):
+                worker_queues_str = arg.split('=', 1)[1]
+                break
+    
+    if worker_queues_str:
+        return {q.strip() for q in worker_queues_str.split(',')}
+    
+    # If no queues specified, return empty set (will consume from all - original behavior)
+    return set()
+
+
+@signals.celeryd_after_setup.connect
+def enforce_queue_restrictions(sender, instance, **kwargs):
+    """
+    Called after the worker is set up but before it starts processing tasks.
+    Cancels consumers for queues this worker should NOT be consuming from.
+    
+    This fixes a bug where workers with --queues=app_ai were still consuming from
+    ALL queues (email, persistence, etc.) causing race conditions in task processing.
+    """
+    logger.info("[QUEUE_ENFORCEMENT] Signal celeryd_after_setup received")
+    
+    designated_queues = _get_designated_queues()
+    
+    logger.info("[QUEUE_ENFORCEMENT] Designated queues from env/args: %s", designated_queues)
+    
+    if not designated_queues:
+        logger.info("[QUEUE_ENFORCEMENT] No queue restrictions specified, worker will consume from all declared queues")
+        return
+    
+    logger.info(f"[QUEUE_ENFORCEMENT] Worker designated queues: {designated_queues}")
+    
+    # Get the list of all declared queues from task_queues config
+    all_declared_queues = {q.name for q in app.conf.task_queues} if app.conf.task_queues else set()
+    
+    logger.info("[QUEUE_ENFORCEMENT] All declared queues: %s", all_declared_queues)
+    
+    # Find queues to remove (declared but not designated for this worker)
+    queues_to_remove = all_declared_queues - designated_queues
+    
+    if queues_to_remove:
+        logger.info("[QUEUE_ENFORCEMENT] Cancelling consumers for non-designated queues: %s", queues_to_remove)
+        
+        # Cancel consumers for unwanted queues
+        # Use the instance (which is the worker) to cancel consumers
+        for queue_name in queues_to_remove:
+            try:
+                # Cancel consumer for this queue on this worker
+                instance.app.control.cancel_consumer(queue_name, destination=[instance.hostname])
+                logger.info("[QUEUE_ENFORCEMENT] Cancelled consumer for queue '%s'", queue_name)
+            except Exception as e:
+                logger.warning("[QUEUE_ENFORCEMENT] Failed to cancel consumer for queue '%s': %s", queue_name, e)
     else:
-        logger.info("InvoiceTemplateService already initialized for this worker process.")
+        logger.info("[QUEUE_ENFORCEMENT] Worker is already subscribed only to designated queues")
 
 
 # Configure logging on worker start as well
@@ -194,26 +785,437 @@ async def initialize_services():
 def init_worker_process(*args, **kwargs):
     """
     Set up consistent logging and pre-load configurations for Celery worker processes.
+    
+    Uses lazy initialization for ConfigManager - it will be initialized on first access
+    via the singleton pattern. This saves memory if the worker never needs it.
+    
+    PERFORMANCE OPTIMIZATION: For app-ai-worker, pre-warms AI provider clients to eliminate
+    cold-start delay on the first AI request after a restart.
     """
-    global config_manager
     setup_celery_logging()
     logger.info("Worker process initializing...")
 
-    # Initialize ConfigManager once per worker process to cache all provider configs.
-    if config_manager is None:
-        logger.info("Initializing ConfigManager for worker process...")
-        config_manager = ConfigManager()
-        # You can add a check here to confirm configs are loaded, e.g., by logging the number of providers.
-        logger.info(f"ConfigManager initialized successfully. Found {len(config_manager.get_provider_configs())} provider configurations.")
-    else:
-        logger.info("ConfigManager already initialized for this worker process.")
+    # Don't initialize ConfigManager here - use lazy initialization
+    # ConfigManager uses singleton pattern, so first access will initialize it
+    # This saves memory if the worker never needs it (though most workers do)
+    # The lazy wrapper will initialize it on first access
+    logger.info("ConfigManager will be initialized lazily on first access (singleton pattern)")
 
-    # Run all async initializations in a single event loop
+    # Start Prometheus metrics HTTP server for this worker process.
+    # The port is read from CELERY_METRICS_PORT (default 9101).
+    # Each worker container should expose a unique port so Prometheus can scrape all.
+    # See prometheus.yml for the scrape config and alert_rules.yml for alert rules.
+    if _PROM_CLIENT_AVAILABLE and _prom_start_http_server is not None:
+        metrics_port = int(os.getenv("CELERY_METRICS_PORT", "9101"))
+        try:
+            _prom_start_http_server(metrics_port)
+            logger.info(f"[METRICS] Celery Prometheus metrics server started on port {metrics_port}")
+        except OSError as e:
+            # Port already in use (e.g. multiple forked processes on same host) — log and continue
+            logger.warning(f"[METRICS] Could not start Prometheus metrics server on port {metrics_port}: {e}")
+    else:
+        logger.debug("[METRICS] prometheus_client unavailable — metrics server not started")
+
+    # Only initialize services that are needed at worker startup
+    # For app workers, services are initialized per-task as needed
     asyncio.run(initialize_services())
+    
+    # PERFORMANCE OPTIMIZATION: Pre-warm AI provider clients for app-ai-worker
+    # This eliminates the cold-start delay on the first AI request after restart
+    asyncio.run(prewarm_ai_services())
 
     logger.info("Worker process initialized with JSON logging and sensitive data filtering")
 
 # Dynamically generate task routes from TASK_CONFIG
-app.conf.task_routes = {
-    f"{config['module']}.*": {'queue': config['name']} for config in TASK_CONFIG
+# Note: Task names can be explicitly set (e.g., "apps.ai.tasks.skill_ask") which may not match module path patterns
+# So we need both pattern-based routing and explicit task name routing
+# IMPORTANT: Explicit routing must come FIRST to take precedence over pattern-based routing
+task_routes = {
+    # Explicit routing for tasks with custom names that don't match module patterns
+    # These must come first to ensure they take precedence over pattern-based routing
+    "apps.ai.tasks.skill_ask": {'queue': 'app_ai'},
+    "health_check.check_all_providers": {'queue': 'health_check'},  # Explicit routing for health check task
+    "health_check.check_all_apps": {'queue': 'health_check'},  # Explicit routing for app health check task
+    # Email tasks use custom names like "app.tasks.email_tasks.*" instead of full module paths
+    # This pattern ensures all email tasks (verification, cleanup, notifications, etc.) route correctly
+    "app.tasks.email_tasks.*": {'queue': 'email'},
+    # Persistence tasks use custom names like "app.tasks.persistence_tasks.*" instead of full module paths
+    # This pattern ensures all persistence tasks (user messages, chat metadata, AI responses, etc.) route correctly
+    "app.tasks.persistence_tasks.*": {'queue': 'persistence'},
+    # Demo tasks use custom names like "demo.*"
+    "demo.*": {'queue': 'demo'},
+    # Reminder tasks use custom names like "reminder.*"
+    "reminder.*": {'queue': 'reminder'},
+    # Add other explicitly named tasks here as needed
 }
+
+# Add pattern-based routing AFTER explicit routing
+# Pattern-based routing will only apply to tasks that don't have explicit routing
+task_routes.update({
+    f"{config['module']}.*": {'queue': config['name']} for config in TASK_CONFIG
+})
+
+app.conf.task_routes = task_routes
+
+# Configure Celery Beat schedule for periodic tasks
+
+# Health check runs every 5 minutes (for providers without health endpoints)
+# Providers with health endpoints can be checked more frequently (1 minute) in the future
+# IMPORTANT: Explicitly specify queue in Beat schedule to ensure tasks go to task-worker
+# ===========================================================================
+# TASK ROUTING VALIDATION HELPER
+# ===========================================================================
+# Helper function to validate that tasks are sent to the correct queue.
+# This prevents silent failures where tasks are sent but never processed.
+
+# Build a mapping of task name patterns to queues for validation
+_TASK_QUEUE_MAPPING = {}
+for config in TASK_CONFIG:
+    queue_name = config['name']
+    module_prefix = config['module']
+    _TASK_QUEUE_MAPPING[module_prefix] = queue_name
+
+# Add explicit task routes for custom-named tasks
+# This comprehensive list ensures all tasks have known routing
+_EXPLICIT_TASK_ROUTES = {
+    # AI App tasks
+    "apps.ai.tasks.skill_ask": "app_ai",
+    "apps.ai.tasks.rate_limit_followup": "app_ai",
+    "apps.ai.tasks.focus_mode_auto_confirm": "app_ai",
+    
+    # Health check tasks
+    "health_check.check_all_providers": "health_check",
+    "health_check.check_all_apps": "health_check",
+    "health_check.check_external_services": "health_check",
+    
+    # Usage archive tasks
+    "usage.archive_old_entries": "persistence",
+    
+    # Server stats tasks
+    "server_stats.flush_to_directus": "server_stats",
+    
+    # Email tasks (custom names starting with app.tasks.email_tasks.*)
+    "app.tasks.email_tasks.verification_email_task.generate_and_send_verification_email": "email",
+    "app.tasks.email_tasks.account_created_email_task.send_account_created_email": "email",
+    "app.tasks.email_tasks.new_device_email_task.send_new_device_email": "email",
+    "app.tasks.email_tasks.backup_code_email_task.send_backup_code_used_email": "email",
+    "app.tasks.email_tasks.recovery_key_email_task.send_recovery_key_used_email": "email",
+    "app.tasks.email_tasks.recovery_email_task.send_account_recovery_email": "email",
+    "app.tasks.email_tasks.purchase_confirmation_email_task.process_invoice_and_send_email": "email",
+    "app.tasks.email_tasks.credit_note_email_task.process_credit_note_and_send_email": "email",
+    "app.tasks.email_tasks.issue_report_email_task.send_issue_report_email": "email",
+    "app.tasks.email_tasks.issue_report_email_task.retry_issue_report_s3_upload": "email",
+    "app.tasks.email_tasks.support_contribution_email_task.process_guest_support_contribution_receipt_and_send_email": "email",
+    
+    # Persistence tasks (custom names starting with app.tasks.persistence_tasks.*)
+    "app.tasks.persistence_tasks.persist_chat_title": "persistence",
+    "app.tasks.persistence_tasks.persist_chat_pinned": "persistence",
+    "app.tasks.persistence_tasks.persist_user_draft": "persistence",
+    "app.tasks.persistence_tasks.persist_new_chat_message": "persistence",
+    "app.tasks.persistence_tasks.persist_chat_and_draft_on_logout": "persistence",
+    "app.tasks.persistence_tasks.persist_delete_chat": "persistence",
+    "app.tasks.persistence_tasks.persist_delete_message": "persistence",
+    "app.tasks.persistence_tasks.persist_ai_response_to_directus": "persistence",
+    "app.tasks.persistence_tasks.persist_encrypted_chat_metadata": "persistence",
+    "app.tasks.persistence_tasks.persist_new_chat_suggestions": "persistence",
+    "app.tasks.persistence_tasks.persist_embed_fallback": "persistence",
+    "app.tasks.persistence_tasks.process_pending_embeds": "persistence",
+    
+    # User cache tasks
+    "app.tasks.user_cache_tasks.warm_user_cache": "user_init",
+    "delete_user_account": "user_init",
+
+    # Demo tasks
+    "demo.translate_chat": "demo",
+
+    # Leaderboard tasks
+    "leaderboard.update_daily": "leaderboard",
+    "leaderboard.refresh_cache": "leaderboard",
+
+    # Storage billing tasks
+    "app.tasks.storage_billing_tasks.charge_storage_fees": "persistence",
+
+    # Auto-delete tasks
+    "app.tasks.auto_delete_tasks.auto_delete_old_chats": "persistence",
+    "app.tasks.auto_delete_tasks.auto_delete_old_issues": "persistence",
+
+    # PDF processing tasks
+    "apps.pdf.tasks.process_pdf": "app_pdf",
+
+    # Daily Inspiration tasks
+    "daily_inspiration.generate_daily": "persistence",
+
+    # Daily defaults selection from pool (replaces old admin-curated pipeline)
+    "daily_inspiration.select_defaults": "persistence",
+
+    # Web analytics tasks (privacy-preserving first-party analytics)
+    "web_analytics.flush_to_directus": "server_stats",
+
+    # App analytics tasks (daily aggregation of raw app_analytics events)
+    "app_analytics.aggregate_daily": "persistence",
+
+     # Software update auto-check task
+     "software_update.auto_check": "server_stats",
+
+     # Browser Web Push notification task
+     "app.tasks.push_notification_task.send_push_notification": "push",
+ }
+
+def get_expected_queue_for_task(task_name: str) -> Optional[str]:
+    """
+    Determine the expected queue for a task based on its name.
+    
+    Returns the queue name if a route is found, None otherwise.
+    This is used to validate task routing and detect misconfigured tasks.
+    
+    Args:
+        task_name: The full task name (e.g., 'app.tasks.persistence_tasks.persist_chat_title')
+    
+    Returns:
+        Queue name (e.g., 'persistence') or None if no route found
+    """
+    # Check explicit routes first
+    if task_name in _EXPLICIT_TASK_ROUTES:
+        return _EXPLICIT_TASK_ROUTES[task_name]
+    
+    # Check pattern-based routes
+    for route_pattern, route_config in task_routes.items():
+        if route_pattern.endswith('.*'):
+            prefix = route_pattern[:-2]  # Remove '.*'
+            if task_name.startswith(prefix):
+                return route_config['queue']
+        elif route_pattern == task_name:
+            return route_config['queue']
+    
+    return None
+
+
+def send_task_validated(
+    task_name: str,
+    args: Optional[tuple] = None,
+    kwargs: Optional[dict] = None,
+    queue: Optional[str] = None,
+    **options
+):
+    """
+    Send a Celery task with routing validation.
+    
+    This wrapper ensures that:
+    1. Tasks are always sent to a valid queue
+    2. If no queue is specified, the expected queue is determined from routing rules
+    3. A warning is logged if the specified queue doesn't match the expected queue
+    4. An error is logged if no valid queue can be determined
+    
+    This prevents the silent failure mode where tasks are sent but never processed
+    because they end up in a queue that no worker is consuming.
+    
+    Args:
+        task_name: The full task name
+        args: Positional arguments for the task
+        kwargs: Keyword arguments for the task
+        queue: Explicit queue name (optional - will be determined from routes if not provided)
+        **options: Additional options for send_task (e.g., countdown, eta)
+    
+    Returns:
+        AsyncResult from send_task
+    
+    Raises:
+        ValueError: If no valid queue can be determined and none is specified
+    """
+    expected_queue = get_expected_queue_for_task(task_name)
+    
+    if queue is None:
+        # No queue specified - use expected queue from routing
+        if expected_queue is None:
+            # CRITICAL: Task has no valid route!
+            logger.error(
+                f"[TASK_ROUTING] UNROUTED_TASK: task_name={task_name}. "
+                f"No queue specified and no route found! This task will NOT be processed. "
+                f"Add an explicit route in celery_config.py or specify a queue."
+            )
+            raise ValueError(
+                f"Cannot send task '{task_name}': no queue specified and no route found. "
+                f"Either specify queue= parameter or add a route in celery_config.py"
+            )
+        queue = expected_queue
+        logger.debug(f"[TASK_ROUTING] Using expected queue '{queue}' for task '{task_name}'")
+    elif expected_queue is not None and queue != expected_queue:
+        # Queue specified but doesn't match expected - log warning
+        logger.warning(
+            f"[TASK_ROUTING] QUEUE_MISMATCH: task_name={task_name}, "
+            f"specified_queue={queue}, expected_queue={expected_queue}. "
+            f"Using specified queue, but verify this is intentional."
+        )
+    
+    # Log the task dispatch for traceability
+    logger.info(
+        f"[TASK_ROUTING] TASK_DISPATCHED: task_name={task_name}, queue={queue}"
+    )
+    
+    return app.send_task(
+        name=task_name,
+        args=args,
+        kwargs=kwargs,
+        queue=queue,
+        **options
+    )
+
+
+app.conf.beat_schedule = {
+    'health-check-all-providers': {
+        'task': 'health_check.check_all_providers',
+        'schedule': timedelta(seconds=300),  # 5 minutes (300 seconds)
+        'options': {'queue': 'health_check'},  # Explicitly route to health_check queue
+    },
+    'health-check-all-apps': {
+        'task': 'health_check.check_all_apps',
+        'schedule': timedelta(seconds=300),  # 5 minutes (300 seconds)
+        'options': {'queue': 'health_check'},  # Explicitly route to health_check queue
+    },
+    'health-check-external-services': {
+        'task': 'health_check.check_external_services',
+        'schedule': timedelta(seconds=300),  # 5 minutes (300 seconds)
+        'options': {'queue': 'health_check'},  # Explicitly route to health_check queue
+    },
+    'health-events-cleanup': {
+        'task': 'health_check.cleanup_old_events',
+        'schedule': crontab(hour=4, minute=0),  # Daily at 4 AM UTC
+        'options': {'queue': 'health_check'},  # Explicitly route to health_check queue
+        'kwargs': {'retention_days': 90},  # Keep 90 days of history
+    },
+    'archive-old-usage-entries': {
+        'task': 'usage.archive_old_entries',
+        'schedule': crontab(hour=2, minute=0, day_of_month=1),  # 1st of month at 2 AM UTC
+        'options': {'queue': 'persistence'},  # Route to persistence queue
+    },
+    'flush-server-stats': {
+        'task': 'server_stats.flush_to_directus',
+        'schedule': timedelta(seconds=600),  # Every 10 minutes
+        'options': {'queue': 'server_stats'},  # Route to server_stats queue
+    },
+    'update-leaderboard-daily': {
+        'task': 'leaderboard.update_daily',
+        'schedule': crontab(hour=2, minute=0),  # Daily at 2 AM UTC
+        'options': {'queue': 'leaderboard'},  # Route to leaderboard queue
+        # Fetches all categories (overall, coding, math, creative) for Best-of aliases
+    },
+    # Full automated daily test run — shells out to scripts/run-tests-daily.sh
+    # Only active when E2E_DAILY_RUN_ENABLED=true in the environment.
+    # This env var is intentionally NOT set on production, so the Beat scheduler
+    # on production is completely silent — no test tasks ever fire there.
+    # Set E2E_DAILY_RUN_ENABLED=true only on the dev server.
+    #
+    # Skips automatically if no git commits were made in the last 24 hours.
+    # Sends a single summary email: "All tests successful" or "Warning: X of Y tests failed!"
+    # 03:00 UTC = 04:00 CET (avoids the 02:xx UTC maintenance window for other jobs)
+    **({
+        'e2e-tests-daily-full': {
+            'task': 'e2e_tests.run_daily_all_tests',
+            'schedule': crontab(hour=3, minute=0),  # Daily at 03:00 UTC (04:00 CET / Berlin time)
+            'options': {'queue': 'e2e_tests'},
+        },
+    } if os.environ.get('E2E_DAILY_RUN_ENABLED', '').lower() == 'true' else {}),
+    # 'cleanup-uncompleted-signups': {
+    #     'task': 'app.tasks.persistence_tasks.cleanup_uncompleted_signups',
+    #     'schedule': crontab(hour=3, minute=0),  # Every day at 3 AM UTC
+    #     'options': {'queue': 'persistence'},  # Route to persistence queue
+    # },
+    # Reminder processing - checks for due reminders every minute
+    'process-due-reminders': {
+        'task': 'reminder.process_due_reminders',
+        'schedule': timedelta(seconds=60),  # Every 60 seconds
+        'options': {'queue': 'reminder'},  # Route to reminder queue
+    },
+    'password-security-reminders-daily': {
+        'task': 'app.tasks.email_tasks.password_security_reminder_email_task.process_password_security_reminders',
+        'schedule': crontab(hour=8, minute=0),  # Daily at 08:00 UTC
+        'options': {'queue': 'email'},
+    },
+    # Unified daily notification dispatcher — single sweep that dispatches all per-user
+    # notification emails (backup reminders, future: tips & tricks, etc.). Runs at 09:00 UTC
+    # so it does not overlap with the password security reminder at 08:00.
+    'daily-notification-dispatcher': {
+        'task': 'app.tasks.email_tasks.daily_notification_dispatcher.run_daily_notifications',
+        'schedule': crontab(hour=9, minute=0),  # Daily at 09:00 UTC
+        'options': {'queue': 'email'},
+    },
+    # Pending delivery audit - logs users with undelivered messages (reminders + AI responses)
+    # Redis handles TTL-based expiry (60 days); this task provides audit visibility
+    'audit-pending-deliveries': {
+        'task': 'reminder.audit_pending_deliveries',
+        'schedule': crontab(hour='*/6', minute=15),  # Every 6 hours at :15
+        'options': {'queue': 'reminder'},  # Route to reminder queue
+    },
+    # Pending embed encryption safety net - re-delivers pending embeds to connected clients
+    # and refreshes cache TTLs to prevent data loss
+    'process-pending-embeds': {
+        'task': 'app.tasks.persistence_tasks.process_pending_embeds',
+        'schedule': timedelta(seconds=300),  # Every 5 minutes
+        'options': {'queue': 'persistence'},
+    },
+    # Weekly storage billing - charges 3 credits/GB/week for storage above 1 GB free tier.
+    # Runs Sunday at 03:00 UTC so it doesn't overlap with the daily auto-delete at 02:30 UTC.
+    'charge-storage-fees-weekly': {
+        'task': 'app.tasks.storage_billing_tasks.charge_storage_fees',
+        'schedule': crontab(hour=3, minute=0, day_of_week=0),  # Sunday 03:00 UTC
+        'options': {'queue': 'persistence'},
+    },
+    # Daily auto-delete - removes old chats for users who have configured a retention period.
+    # Runs at 02:30 UTC before the weekly billing run so billing only charges for live data.
+    'auto-delete-old-chats-daily': {
+        'task': 'app.tasks.auto_delete_tasks.auto_delete_old_chats',
+        'schedule': crontab(hour=2, minute=30),  # Daily 02:30 UTC
+        'options': {'queue': 'persistence'},
+    },
+    # Daily issue auto-delete — removes all issue reports older than 14 days
+    # (Directus record + S3 YAML report + S3 screenshot PNG).
+    # Runs at 03:00 UTC, 30 minutes after the chat auto-delete to avoid overlap.
+    'auto-delete-old-issues-daily': {
+        'task': 'app.tasks.auto_delete_tasks.auto_delete_old_issues',
+        'schedule': crontab(hour=3, minute=0),  # Daily 03:00 UTC
+        'options': {'queue': 'persistence'},
+    },
+    # Daily Inspiration generation - generates personalized inspirations for active users.
+    # Runs at 06:00 UTC (morning delivery before users start their day in most timezones).
+    # Only generates for users who made a paid request in the last 24 hours and viewed
+    # at least 1 inspiration. Count per user = number of inspirations they viewed (1-3).
+    'generate-daily-inspirations': {
+        'task': 'daily_inspiration.generate_daily',
+        'schedule': crontab(hour=6, minute=0),  # Daily at 06:00 UTC
+        'options': {'queue': 'persistence'},
+    },
+    # Daily Inspiration defaults selection - picks top 3 pool entries per language
+    # based on interaction score (interaction_count / (age_hours + 1)).
+    # Runs at 06:30 UTC (30 min after personalized generation at 06:00), so new
+    # pool entries from that day's generation are available for scoring.
+    # Results are written to daily_inspiration_defaults and served by the
+    # public /v1/default-inspirations endpoint.
+    'select-daily-inspiration-defaults': {
+        'task': 'daily_inspiration.select_defaults',
+        'schedule': crontab(hour=6, minute=30),  # Daily at 06:30 UTC
+        'options': {'queue': 'persistence'},
+    },
+    # Web analytics flush - writes Redis aggregate counters to Directus every 10 minutes.
+    # Privacy-preserving: only aggregate counts, no PII, no raw user data.
+    'flush-web-analytics': {
+        'task': 'web_analytics.flush_to_directus',
+        'schedule': timedelta(seconds=600),  # Every 10 minutes (same as server stats flush)
+        'options': {'queue': 'server_stats'},
+    },
+    # App analytics daily aggregation - rolls up raw app_analytics events into daily summaries.
+    # Runs at 03:00 UTC before the 06:00 inspiration generation to avoid overlap.
+    'aggregate-app-analytics-daily': {
+        'task': 'app_analytics.aggregate_daily',
+        'schedule': crontab(hour=3, minute=0),  # Daily at 03:00 UTC
+        'options': {'queue': 'persistence'},
+    },
+    # Software update auto-check - periodically checks GitHub for new commits.
+    # Runs every hour; the task itself enforces the user-configured interval
+    # (default 6 hours) and skips if not enough time has passed.
+    'software-update-auto-check': {
+        'task': 'software_update.auto_check',
+        'schedule': timedelta(seconds=3600),  # Every 1 hour
+        'options': {'queue': 'server_stats'},
+    },
+}
+app.conf.timezone = 'UTC'

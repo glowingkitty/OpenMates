@@ -3,7 +3,8 @@
 
 import { parse_message, parseEmbedNodes, handleStreamingSemantics } from './parse_message';
 import { tipTapToCanonicalMarkdown, createEmbedClipboardData } from './serializers';
-import { contentStore } from '../services/contentStore';
+import type { TipTapDoc } from './types';
+import { embedStore } from '../services/embedStore';
 
 console.log('🧪 Testing Unified Message Parsing Architecture');
 console.log('================================================');
@@ -126,40 +127,40 @@ try {
     ]
   };
   
-  const markdown = tipTapToCanonicalMarkdown(tiptapDoc);
+  const markdown = tipTapToCanonicalMarkdown(tiptapDoc as TipTapDoc);
   console.log('✅ Serialization works');
   console.log('Generated markdown:', markdown);
 } catch (error) {
   console.error('❌ Serialization failed:', error);
 }
 
-// Test 9: ContentStore basic operations
-console.log('\n💾 Test 9: ContentStore basic operations');
+// Test 9: EmbedStore basic operations
+console.log('\n💾 Test 9: EmbedStore basic operations');
 try {
   // Test put and get
-  const testData = { content: 'Hello from ContentStore!' };
+  const testData = { content: 'Hello from EmbedStore!' };
   const contentRef = 'stream:test-123';
   
-  contentStore.put(contentRef, testData, 'text').then(async () => {
-    console.log('✅ ContentStore put successful');
+  embedStore.put(contentRef, testData, 'text').then(async () => {
+    console.log('✅ EmbedStore put successful');
     
-    const retrievedData = await contentStore.get(contentRef);
-    console.log('✅ ContentStore get successful');
+    const retrievedData = await embedStore.get(contentRef);
+    console.log('✅ EmbedStore get successful');
     console.log('Retrieved data:', retrievedData);
     
     // Test rekeying
     try {
-      const cidRef = await contentStore.rekeyStreamToCid(contentRef);
-      console.log('✅ ContentStore rekey successful');
+      const cidRef = await embedStore.rekeyStreamToCid(contentRef);
+      console.log('✅ EmbedStore rekey successful');
       console.log('New CID ref:', cidRef);
     } catch (rekeyError) {
-      console.error('❌ ContentStore rekey failed:', rekeyError);
+      console.error('❌ EmbedStore rekey failed:', rekeyError);
     }
   }).catch((error) => {
-    console.error('❌ ContentStore operations failed:', error);
+    console.error('❌ EmbedStore operations failed:', error);
   });
 } catch (error) {
-  console.error('❌ ContentStore test setup failed:', error);
+  console.error('❌ EmbedStore test setup failed:', error);
 }
 
 // Test 10: Clipboard data creation
@@ -215,7 +216,7 @@ And a YouTube video: https://www.youtube.com/watch?v=dQw4w9WgXcQ
   console.log('Content items:', result.content?.length || 0);
   
   // Count embed nodes
-  const embedCount = result.content?.filter((item: any) => item.type === 'embed').length || 0;
+  const embedCount = result.content?.filter((item: { type: string }) => item.type === 'embed').length || 0;
   console.log('Embed nodes found:', embedCount);
   
   // Test serialization round-trip

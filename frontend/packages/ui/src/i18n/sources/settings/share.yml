@@ -1,0 +1,1251 @@
+# Share chat settings translations
+# These translations are used for the share chat feature in the settings menu
+
+share:
+  context: Share settings menu item (main entry point for sharing the current chat)
+  en: Share
+  de: Teilen
+  zh: 分享
+  es: Compartir
+  fr: Partager
+  pt: Compartilhar
+  ru: Поделиться
+  ja: 共有
+  ko: 공유
+  it: Condividi
+  tr: Paylaş
+  vi: Chia sẻ
+  id: Bagikan
+  pl: Udostępnij
+  nl: Delen
+  ar: مشاركة
+  hi: साझा करें
+  th: แชร์
+  cs: Sdílet
+  sv: Dela
+  he: שיתוף
+  verified_by_human: []
+
+share_public:
+  context: Button/option to share chat publicly
+  en: Share publicly
+  de: Öffentlich teilen
+  zh: 公开分享
+  es: Compartir públicamente
+  fr: Partager publiquement
+  pt: Compartilhar publicamente
+  ru: Поделиться публично
+  ja: 公開で共有
+  ko: 공개 공유
+  it: Condividi pubblicamente
+  tr: Herkese açık paylaş
+  vi: Chia sẻ công khai
+  id: Bagikan secara publik
+  pl: Udostępnij publicznie
+  nl: Openbaar delen
+  ar: مشاركة عامة
+  hi: सार्वजनिक रूप से साझा करें
+  th: แชร์สาธารณะ
+  cs: Sdílet veřejně
+  sv: Dela offentligt
+  he: שתף באופן ציבורי
+  verified_by_human: []
+
+share_description:
+  context: Description text explaining what sharing does (for chats)
+  en: Create a shareable link to this chat. Anyone with the link can view the conversation.
+  de: Erstelle einen teilbaren Link zu diesem Chat. Jeder mit dem Link kann die Unterhaltung ansehen.
+  zh: 创建此聊天的可分享链接。任何拥有链接的人都可以查看对话。
+  es: Crea un enlace compartible a este chat. Cualquiera con el enlace puede ver la conversación.
+  fr: Créez un lien partageable vers cette conversation. Toute personne disposant du lien peut voir la conversation.
+  pt: Crie um link compartilhável para este chat. Qualquer pessoa com o link pode ver a conversa.
+  ru: Создайте ссылку для обмена этим чатом. Любой, у кого есть ссылка, может просмотреть беседу.
+  ja: このチャットへの共有可能なリンクを作成します。リンクを持っている人は誰でも会話を閲覧できます。
+  ko: 이 채팅의 공유 가능한 링크를 만듭니다. 링크가 있는 사람은 누구나 대화를 볼 수 있습니다.
+  it: Crea un link condivisibile per questa chat. Chiunque abbia il link può visualizzare la conversazione.
+  tr: Bu sohbete paylaşılabilir bir bağlantı oluşturun. Bağlantıya sahip herkes konuşmayı görüntüleyebilir.
+  vi: Tạo liên kết có thể chia sẻ đến cuộc trò chuyện này. Bất kỳ ai có liên kết đều có thể xem cuộc trò chuyện.
+  id: Buat tautan yang dapat dibagikan ke obrolan ini. Siapa pun dengan tautan dapat melihat percakapan.
+  pl: Utwórz link do udostępnienia tego czatu. Każdy z linkiem może zobaczyć rozmowę.
+  nl: Maak een deelbare link naar deze chat. Iedereen met de link kan het gesprek bekijken.
+  ar: إنشاء رابط قابل للمشاركة لهذه المحادثة. يمكن لأي شخص لديه الرابط عرض المحادثة.
+  hi: इस चैट के लिए एक साझा करने योग्य लिंक बनाएं। लिंक वाला कोई भी व्यक्ति बातचीत देख सकता है।
+  th: สร้างลิงก์ที่สามารถแชร์ได้ไปยังแชทนี้ ใครก็ตามที่มีลิงก์สามารถดูการสนทนาได้
+  cs: Vytvořte sdílený odkaz na tento chat. Kdokoli s odkazem si může prohlédnout konverzaci.
+  sv: Skapa en delbar länk till denna chatt. Alla med länken kan se konversationen.
+  he: "צור קישור שניתן לשתף לצ'אט זה. כל מי שיש לו את הקישור יוכל לצפות בשיחה."
+  verified_by_human: []
+
+share_embed_description:
+  context: Description text explaining what sharing does (for embeds)
+  en: Create a shareable link to this embed. Anyone with the link can view the content.
+  de: Erstelle einen teilbaren Link zu diesem Embed. Jeder mit dem Link kann den Inhalt ansehen.
+  zh: 创建此嵌入的可分享链接。任何拥有链接的人都可以查看内容。
+  es: Crea un enlace compartible a este embed. Cualquiera con el enlace puede ver el contenido.
+  fr: Créez un lien partageable vers cet embed. Toute personne disposant du lien peut voir le contenu.
+  pt: Crie um link compartilhável para este embed. Qualquer pessoa com o link pode ver o conteúdo.
+  ru: Создайте ссылку для обмена этим встраиванием. Любой, у кого есть ссылка, может просмотреть содержимое.
+  ja: この埋め込みへの共有可能なリンクを作成します。リンクを持っている人は誰でもコンテンツを閲覧できます。
+  ko: 이 임베드의 공유 가능한 링크를 만듭니다. 링크가 있는 사람은 누구나 콘텐츠를 볼 수 있습니다.
+  it: Crea un link condivisibile per questo embed. Chiunque abbia il link può visualizzare il contenuto.
+  tr: Bu embed için paylaşılabilir bir bağlantı oluşturun. Bağlantıya sahip herkes içeriği görüntüleyebilir.
+  vi: Tạo liên kết có thể chia sẻ đến embed này. Bất kỳ ai có liên kết đều có thể xem nội dung.
+  id: Buat tautan yang dapat dibagikan ke embed ini. Siapa pun dengan tautan dapat melihat konten.
+  pl: Utwórz link do udostępnienia tego embedu. Każdy z linkiem może zobaczyć treść.
+  nl: Maak een deelbare link naar deze embed. Iedereen met de link kan de inhoud bekijken.
+  ar: إنشاء رابط قابل للمشاركة لهذا التضمين. يمكن لأي شخص لديه الرابط عرض المحتوى.
+  hi: इस एम्बेड के लिए एक साझा करने योग्य लिंक बनाएं। लिंक वाला कोई भी व्यक्ति सामग्री देख सकता है।
+  th: สร้างลิงก์ที่สามารถแชร์ได้ไปยัง embed นี้ ใครก็ตามที่มีลิงก์สามารถดูเนื้อหาได้
+  cs: Vytvořte sdílený odkaz na tento embed. Kdokoli s odkazem si může prohlédnout obsah.
+  sv: Skapa en delbar länk till denna embed. Alla med länken kan se innehållet.
+  he: צור קישור שניתן לשתף להטמעה זו. כל מי שיש לו את הקישור יוכל לצפות בתוכן.
+  verified_by_human: []
+
+password_protection:
+  context: Toggle label for password protection option
+  en: Password protection
+  de: Passwortschutz
+  zh: 密码保护
+  es: Protección con contraseña
+  fr: Protection par mot de passe
+  pt: Proteção por senha
+  ru: Защита паролем
+  ja: パスワード保護
+  ko: 비밀번호 보호
+  it: Protezione con password
+  tr: Parola koruması
+  vi: Bảo vệ bằng mật khẩu
+  id: Perlindungan kata sandi
+  pl: Ochrona hasłem
+  nl: Wachtwoordbeveiliging
+  ar: حماية بكلمة مرور
+  hi: पासवर्ड सुरक्षा
+  th: การป้องกันด้วยรหัสผ่าน
+  cs: Ochrana heslem
+  sv: Lösenordsskydd
+  he: הגנה באמצעות סיסמה
+  verified_by_human: []
+
+password_placeholder:
+  context: Placeholder text for password input field
+  en: Enter password (max 10 characters)
+  de: Passwort eingeben (max. 10 Zeichen)
+  zh: 输入密码（最多10个字符）
+  es: Ingrese contraseña (máx. 10 caracteres)
+  fr: Entrez le mot de passe (max 10 caractères)
+  pt: Digite a senha (máx. 10 caracteres)
+  ru: Введите пароль (макс. 10 символов)
+  ja: パスワードを入力（最大10文字）
+  ko: 비밀번호 입력 (최대 10자)
+  it: Inserisci password (max 10 caratteri)
+  tr: Parola girin (maks. 10 karakter)
+  vi: Nhập mật khẩu (tối đa 10 ký tự)
+  id: Masukkan kata sandi (maks. 10 karakter)
+  pl: Wprowadź hasło (maks. 10 znaków)
+  nl: Voer wachtwoord in (max 10 tekens)
+  ar: أدخل كلمة المرور (بحد أقصى 10 أحرف)
+  hi: पासवर्ड दर्ज करें (अधिकतम 10 वर्ण)
+  th: ป้อนรหัสผ่าน (สูงสุด 10 ตัวอักษร)
+  cs: Zadejte heslo (max. 10 znaků)
+  sv: Ange lösenord (max 10 tecken)
+  he: הזן סיסמה (עד 10 תווים)
+  verified_by_human: []
+
+time_limit:
+  context: Label for time limit/expiration option
+  en: Time limit
+  de: Zeitlimit
+  zh: 时间限制
+  es: Límite de tiempo
+  fr: Limite de temps
+  pt: Limite de tempo
+  ru: Ограничение по времени
+  ja: 時間制限
+  ko: 시간 제한
+  it: Limite di tempo
+  tr: Zaman sınırı
+  vi: Giới hạn thời gian
+  id: Batas waktu
+  pl: Limit czasowy
+  nl: Tijdslimiet
+  ar: حد زمني
+  hi: समय सीमा
+  th: จำกัดเวลา
+  cs: Časový limit
+  sv: Tidsgräns
+  he: הגבלת זמן
+  verified_by_human: []
+
+no_expiration:
+  context: Option for link that never expires
+  en: No expiration
+  de: Kein Ablaufdatum
+  zh: 永不过期
+  es: Sin expiración
+  fr: Pas d'expiration
+  pt: Sem expiração
+  ru: Без срока действия
+  ja: 有効期限なし
+  ko: 만료 없음
+  it: Nessuna scadenza
+  tr: Süresiz
+  vi: Không hết hạn
+  id: Tidak kedaluwarsa
+  pl: Bez wygaśnięcia
+  nl: Geen vervaldatum
+  ar: بدون انتهاء صلاحية
+  hi: कोई समाप्ति नहीं
+  th: ไม่มีวันหมดอายุ
+  cs: Bez expirace
+  sv: Ingen utgång
+  he: ללא תפוגה
+  verified_by_human: []
+
+one_minute:
+  context: Option for 1 minute expiration
+  en: 1 minute
+  de: 1 Minute
+  zh: 1 分钟
+  es: 1 minuto
+  fr: 1 minute
+  pt: 1 minuto
+  ru: 1 минута
+  ja: 1分
+  ko: 1분
+  it: 1 minuto
+  tr: 1 dakika
+  vi: 1 phút
+  id: 1 menit
+  pl: 1 minuta
+  nl: 1 minuut
+  ar: دقيقة واحدة
+  hi: 1 मिनट
+  th: 1 นาที
+  cs: 1 minuta
+  sv: 1 minut
+  he: דקה אחת
+  verified_by_human: []
+
+one_hour:
+  context: Option for 1 hour expiration
+  en: 1 hour
+  de: 1 Stunde
+  zh: 1 小时
+  es: 1 hora
+  fr: 1 heure
+  pt: 1 hora
+  ru: 1 час
+  ja: 1時間
+  ko: 1시간
+  it: 1 ora
+  tr: 1 saat
+  vi: 1 giờ
+  id: 1 jam
+  pl: 1 godzina
+  nl: 1 uur
+  ar: ساعة واحدة
+  hi: 1 घंटा
+  th: 1 ชั่วโมง
+  cs: 1 hodina
+  sv: 1 timme
+  he: שעה אחת
+  verified_by_human: []
+
+twenty_four_hours:
+  context: Option for 24 hours expiration
+  en: 24 hours
+  de: 24 Stunden
+  zh: 24 小时
+  es: 24 horas
+  fr: 24 heures
+  pt: 24 horas
+  ru: 24 часа
+  ja: 24時間
+  ko: 24시간
+  it: 24 ore
+  tr: 24 saat
+  vi: 24 giờ
+  id: 24 jam
+  pl: 24 godziny
+  nl: 24 uur
+  ar: 24 ساعة
+  hi: 24 घंटे
+  th: 24 ชั่วโมง
+  cs: 24 hodin
+  sv: 24 timmar
+  he: 24 שעות
+  verified_by_human: []
+
+seven_days:
+  context: Option for 7 days expiration
+  en: 7 days
+  de: 7 Tage
+  zh: 7 天
+  es: 7 días
+  fr: 7 jours
+  pt: 7 dias
+  ru: 7 дней
+  ja: 7日間
+  ko: 7일
+  it: 7 giorni
+  tr: 7 gün
+  vi: 7 ngày
+  id: 7 hari
+  pl: 7 dni
+  nl: 7 dagen
+  ar: 7 أيام
+  hi: 7 दिन
+  th: 7 วัน
+  cs: 7 dní
+  sv: 7 dagar
+  he: 7 ימים
+  verified_by_human: []
+
+fourteen_days:
+  context: Option for 14 days expiration
+  en: 14 days
+  de: 14 Tage
+  zh: 14 天
+  es: 14 días
+  fr: 14 jours
+  pt: 14 dias
+  ru: 14 дней
+  ja: 14日間
+  ko: 14일
+  it: 14 giorni
+  tr: 14 gün
+  vi: 14 ngày
+  id: 14 hari
+  pl: 14 dni
+  nl: 14 dagen
+  ar: 14 يومًا
+  hi: 14 दिन
+  th: 14 วัน
+  cs: 14 dní
+  sv: 14 dagar
+  he: 14 ימים
+  verified_by_human: []
+
+thirty_days:
+  context: Option for 30 days expiration
+  en: 30 days
+  de: 30 Tage
+  zh: 30 天
+  es: 30 días
+  fr: 30 jours
+  pt: 30 dias
+  ru: 30 дней
+  ja: 30日間
+  ko: 30일
+  it: 30 giorni
+  tr: 30 gün
+  vi: 30 ngày
+  id: 30 hari
+  pl: 30 dni
+  nl: 30 dagen
+  ar: 30 يومًا
+  hi: 30 दिन
+  th: 30 วัน
+  cs: 30 dní
+  sv: 30 dagar
+  he: 30 ימים
+  verified_by_human: []
+
+ninety_days:
+  context: Option for 90 days expiration
+  en: 90 days
+  de: 90 Tage
+  zh: 90 天
+  es: 90 días
+  fr: 90 jours
+  pt: 90 dias
+  ru: 90 дней
+  ja: 90日間
+  ko: 90일
+  it: 90 giorni
+  tr: 90 gün
+  vi: 90 ngày
+  id: 90 hari
+  pl: 90 dni
+  nl: 90 dagen
+  ar: 90 يومًا
+  hi: 90 दिन
+  th: 90 วัน
+  cs: 90 dní
+  sv: 90 dagar
+  he: 90 ימים
+  verified_by_human: []
+
+share_chat:
+  context: Button to share the chat after configuring options
+  en: Share chat
+  de: Chat teilen
+  zh: 分享聊天
+  es: Compartir chat
+  fr: Partager le chat
+  pt: Compartilhar chat
+  ru: Поделиться чатом
+  ja: チャットを共有
+  ko: 채팅 공유
+  it: Condividi chat
+  tr: Sohbeti paylaş
+  vi: Chia sẻ trò chuyện
+  id: Bagikan obrolan
+  pl: Udostępnij czat
+  nl: Chat delen
+  ar: مشاركة المحادثة
+  hi: चैट साझा करें
+  th: แชร์แชท
+  cs: Sdílet chat
+  sv: Dela chatt
+  he: "שתף צ'אט"
+  verified_by_human: []
+
+share_embed:
+  context: Button to share the embed after configuring options
+  en: Share embed
+  de: Embed teilen
+  zh: 分享嵌入
+  es: Compartir embed
+  fr: Partager l'embed
+  pt: Compartilhar embed
+  ru: Поделиться встраиванием
+  ja: 埋め込みを共有
+  ko: 임베드 공유
+  it: Condividi embed
+  tr: Embed paylaş
+  vi: Chia sẻ nhúng
+  id: Bagikan embed
+  pl: Udostępnij embed
+  nl: Embed delen
+  ar: مشاركة التضمين
+  hi: एम्बेड साझा करें
+  th: แชร์ embed
+  cs: Sdílet embed
+  sv: Dela embed
+  he: שתף הטמעה
+  verified_by_human: []
+
+expire_time_info:
+  context: Info text explaining that expire time is only for URL access (for chats)
+  en: The expiration time applies only to the share URL. Once someone accesses the chat using the link, they can continue viewing it until you unshare it.
+  de: Die Ablaufzeit gilt nur für die Freigabe-URL. Sobald jemand den Chat über den Link aufruft, kann er ihn weiterhin ansehen, bis du die Freigabe entfernst.
+  zh: 过期时间仅适用于分享链接。一旦有人使用链接访问聊天，他们可以继续查看，直到您取消分享。
+  es: El tiempo de expiración se aplica solo a la URL de compartir. Una vez que alguien accede al chat usando el enlace, puede continuar viéndolo hasta que lo dejes de compartir.
+  fr: Le temps d'expiration s'applique uniquement à l'URL de partage. Une fois que quelqu'un accède au chat en utilisant le lien, il peut continuer à le voir jusqu'à ce que vous arrêtiez de le partager.
+  pt: O tempo de expiração se aplica apenas ao link de compartilhamento. Depois que alguém acessa o chat usando o link, pode continuar visualizando até que você pare de compartilhar.
+  ru: Время истечения применяется только к ссылке для обмена. После того, как кто-то получит доступ к чату по ссылке, он сможет продолжать просматривать его, пока вы не прекратите общий доступ.
+  ja: 有効期限は共有URLにのみ適用されます。誰かがリンクを使用してチャットにアクセスすると、共有を停止するまで引き続き閲覧できます。
+  ko: 만료 시간은 공유 URL에만 적용됩니다. 누군가 링크를 사용하여 채팅에 액세스하면 공유를 중지할 때까지 계속 볼 수 있습니다.
+  it: Il tempo di scadenza si applica solo all'URL di condivisione. Una volta che qualcuno accede alla chat usando il link, può continuare a visualizzarla fino a quando non smetti di condividerla.
+  tr: Son kullanma süresi yalnızca paylaşım URL'si için geçerlidir. Birisi bağlantıyı kullanarak sohbete eriştiğinde, paylaşımı durdurana kadar görüntülemeye devam edebilir.
+  vi: Thời gian hết hạn chỉ áp dụng cho URL chia sẻ. Sau khi ai đó truy cập cuộc trò chuyện bằng liên kết, họ có thể tiếp tục xem cho đến khi bạn ngừng chia sẻ.
+  id: Waktu kedaluwarsa hanya berlaku untuk URL berbagi. Setelah seseorang mengakses obrolan menggunakan tautan, mereka dapat terus melihatnya sampai Anda berhenti membagikannya.
+  pl: Czas wygaśnięcia dotyczy tylko linku udostępniania. Gdy ktoś uzyska dostęp do czatu za pomocą linku, może go nadal przeglądać, dopóki nie przestaniesz go udostępniać.
+  nl: De vervaltijd geldt alleen voor de deel-URL. Zodra iemand de chat opent met de link, kan hij deze blijven bekijken totdat je stopt met delen.
+  ar: ينطبق وقت انتهاء الصلاحية فقط على رابط المشاركة. بمجرد أن يصل شخص ما إلى المحادثة باستخدام الرابط، يمكنه الاستمرار في عرضها حتى تتوقف عن مشاركتها.
+  hi: समाप्ति समय केवल साझा URL पर लागू होता है। एक बार कोई लिंक का उपयोग करके चैट तक पहुंच जाता है, तो वे आपके साझाकरण बंद करने तक इसे देखना जारी रख सकते हैं।
+  th: เวลาหมดอายุใช้กับ URL การแชร์เท่านั้น เมื่อมีคนเข้าถึงแชทโดยใช้ลิงก์แล้ว พวกเขาสามารถดูต่อได้จนกว่าคุณจะหยุดแชร์
+  cs: Doba platnosti se vztahuje pouze na URL pro sdílení. Jakmile někdo přistupuje k chatu pomocí odkazu, může ho nadále zobrazovat, dokud nesdílíte.
+  sv: Utgångstiden gäller endast för delnings-URL:en. När någon har öppnat chatten med länken kan de fortsätta visa den tills du slutar dela den.
+  he: "זמן התפוגה חל רק על כתובת ה-URL של השיתוף. ברגע שמישהו ניגש לצ'אט באמצעות הקישור, הוא יוכל להמשיך לצפות בו עד שתבטל את השיתוף."
+  verified_by_human: []
+
+expire_time_info_embed:
+  context: Info text explaining that expire time is only for URL access (for embeds)
+  en: The expiration time applies only to the share URL. Once someone accesses the embed using the link, they can continue viewing it until you unshare it.
+  de: Die Ablaufzeit gilt nur für die Freigabe-URL. Sobald jemand das Embed über den Link aufruft, kann er es weiterhin ansehen, bis du die Freigabe entfernst.
+  zh: 过期时间仅适用于分享链接。一旦有人使用链接访问嵌入，他们可以继续查看，直到您取消分享。
+  es: El tiempo de expiración se aplica solo a la URL de compartir. Una vez que alguien accede al embed usando el enlace, puede continuar viéndolo hasta que lo dejes de compartir.
+  fr: Le temps d'expiration s'applique uniquement à l'URL de partage. Une fois que quelqu'un accède à l'embed en utilisant le lien, il peut continuer à le voir jusqu'à ce que vous arrêtiez de le partager.
+  pt: O tempo de expiração se aplica apenas ao link de compartilhamento. Depois que alguém acessa o embed usando o link, pode continuar visualizando até que você pare de compartilhar.
+  ru: Время истечения применяется только к ссылке для обмена. После того, как кто-то получит доступ к встраиванию по ссылке, он сможет продолжать просматривать его, пока вы не прекратите общий доступ.
+  ja: 有効期限は共有URLにのみ適用されます。誰かがリンクを使用して埋め込みにアクセスすると、共有を停止するまで引き続き閲覧できます。
+  ko: 만료 시간은 공유 URL에만 적용됩니다. 누군가 링크를 사용하여 임베드에 액세스하면 공유를 중지할 때까지 계속 볼 수 있습니다.
+  it: Il tempo di scadenza si applica solo all'URL di condivisione. Una volta che qualcuno accede all'embed usando il link, può continuare a visualizzarlo fino a quando non smetti di condividerlo.
+  tr: Son kullanma süresi yalnızca paylaşım URL'si için geçerlidir. Birisi bağlantıyı kullanarak embed'e eriştiğinde, paylaşımı durdurana kadar görüntülemeye devam edebilir.
+  vi: Thời gian hết hạn chỉ áp dụng cho URL chia sẻ. Sau khi ai đó truy cập embed bằng liên kết, họ có thể tiếp tục xem cho đến khi bạn ngừng chia sẻ.
+  id: Waktu kedaluwarsa hanya berlaku untuk URL berbagi. Setelah seseorang mengakses embed menggunakan tautan, mereka dapat terus melihatnya sampai Anda berhenti membagikannya.
+  pl: Czas wygaśnięcia dotyczy tylko linku udostępniania. Gdy ktoś uzyska dostęp do embedu za pomocą linku, może go nadal przeglądać, dopóki nie przestaniesz go udostępniać.
+  nl: De vervaltijd geldt alleen voor de deel-URL. Zodra iemand de embed opent met de link, kan hij deze blijven bekijken totdat je stopt met delen.
+  ar: ينطبق وقت انتهاء الصلاحية فقط على رابط المشاركة. بمجرد أن يصل شخص ما إلى التضمين باستخدام الرابط، يمكنه الاستمرار في عرضه حتى تتوقف عن مشاركته.
+  hi: समाप्ति समय केवल साझा URL पर लागू होता है। एक बार कोई लिंक का उपयोग करके एम्बेड तक पहुंच जाता है, तो वे आपके साझाकरण बंद करने तक इसे देखना जारी रख सकते हैं।
+  th: เวลาหมดอายุใช้กับ URL การแชร์เท่านั้น เมื่อมีคนเข้าถึง embed โดยใช้ลิงก์แล้ว พวกเขาสามารถดูต่อได้จนกว่าคุณจะหยุดแชร์
+  cs: Doba platnosti se vztahuje pouze na URL pro sdílení. Jakmile někdo přistupuje k embedu pomocí odkazu, může ho nadále zobrazovat, dokud nesdílíte.
+  sv: Utgångstiden gäller endast för delnings-URL:en. När någon har öppnat embeden med länken kan de fortsätta visa den tills du slutar dela den.
+  he: זמן התפוגה חל רק על כתובת ה-URL של השיתוף. ברגע שמישהו ניגש להטמעה באמצעות הקישור, הוא יוכל להמשיך לצפות בה עד שתבטל את השיתוף.
+  verified_by_human: []
+
+change_settings:
+  context: Button to go back and change share settings
+  en: Change settings
+  de: Einstellungen ändern
+  zh: 更改设置
+  es: Cambiar configuración
+  fr: Modifier les paramètres
+  pt: Alterar configurações
+  ru: Изменить настройки
+  ja: 設定を変更
+  ko: 설정 변경
+  it: Modifica impostazioni
+  tr: Ayarları değiştir
+  vi: Thay đổi cài đặt
+  id: Ubah pengaturan
+  pl: Zmień ustawienia
+  nl: Instellingen wijzigen
+  ar: تغيير الإعدادات
+  hi: सेटिंग्स बदलें
+  th: เปลี่ยนการตั้งค่า
+  cs: Změnit nastavení
+  sv: Ändra inställningar
+  he: שינוי הגדרות
+  verified_by_human: []
+
+# SettingsShared component translations
+not_authenticated:
+  context: Message shown when user is not authenticated
+  en: Please log in to view shared chats
+  de: Bitte melden Sie sich an, um geteilte Chats anzuzeigen
+  zh: 请登录以查看共享的聊天
+  es: Por favor, inicia sesión para ver chats compartidos
+  fr: Veuillez vous connecter pour voir les chats partagés
+  pt: Por favor, faça login para ver chats compartilhados
+  ru: Пожалуйста, войдите в систему, чтобы просмотреть общие чаты
+  ja: 共有チャットを表示するにはログインしてください
+  ko: 공유된 채팅을 보려면 로그인하세요
+  it: Accedi per visualizzare le chat condivise
+  tr: Paylaşılan sohbetleri görmek için lütfen giriş yapın
+  vi: Vui lòng đăng nhập để xem các cuộc trò chuyện được chia sẻ
+  id: Silakan masuk untuk melihat obrolan yang dibagikan
+  pl: Zaloguj się, aby zobaczyć udostępnione czaty
+  nl: Log in om gedeelde chats te bekijken
+  ar: يرجى تسجيل الدخول لعرض المحادثات المشتركة
+  hi: साझा किए गए चैट देखने के लिए कृपया लॉग इन करें
+  th: กรุณาเข้าสู่ระบบเพื่อดูแชทที่แชร์
+  cs: Přihlaste se prosím, abyste viděli sdílené chaty
+  sv: Logga in för att se delade chattar
+  he: "יש להתחבר כדי לצפות בצ'אטים משותפים"
+  verified_by_human: []
+
+loading:
+  context: Loading message while fetching shared chats
+  en: Loading shared chats...
+  de: Geteilte Chats werden geladen...
+  zh: 正在加载共享的聊天...
+  es: Cargando chats compartidos...
+  fr: Chargement des chats partagés...
+  pt: Carregando chats compartilhados...
+  ru: Загрузка общих чатов...
+  ja: 共有チャットを読み込み中...
+  ko: 공유된 채팅 로드 중...
+  it: Caricamento chat condivise...
+  tr: Paylaşılan sohbetler yükleniyor...
+  vi: Đang tải các cuộc trò chuyện được chia sẻ...
+  id: Memuat obrolan yang dibagikan...
+  pl: Ładowanie udostępnionych czatów...
+  nl: Gedeelde chats laden...
+  ar: جاري تحميل المحادثات المشتركة...
+  hi: साझा किए गए चैट लोड हो रहे हैं...
+  th: กำลังโหลดแชทที่แชร์...
+  cs: Načítání sdílených chatů...
+  sv: Laddar delade chattar...
+  he: "טוען צ'אטים משותפים..."
+  verified_by_human: []
+
+shared_section:
+  context: Section title for chats shared by the user
+  en: Shared
+  de: Geteilt
+  zh: 已共享
+  es: Compartido
+  fr: Partagé
+  pt: Compartilhado
+  ru: Поделился
+  ja: 共有済み
+  ko: 공유됨
+  it: Condiviso
+  tr: Paylaşıldı
+  vi: Đã chia sẻ
+  id: Dibagikan
+  pl: Udostępnione
+  nl: Gedeeld
+  ar: تم المشاركة
+  hi: साझा किया गया
+  th: แชร์แล้ว
+  cs: Sdíleno
+  sv: Delat
+  he: שותפו על ידי
+  verified_by_human: []
+
+shared_with_me_section:
+  context: Section title for chats shared with the user by others
+  en: Shared with me
+  de: Mit mir geteilt
+  zh: 与我共享
+  es: Compartido conmigo
+  fr: Partagé avec moi
+  pt: Compartilhado comigo
+  ru: Поделились со мной
+  ja: 私と共有
+  ko: 나와 공유됨
+  it: Condiviso con me
+  tr: Benimle paylaşıldı
+  vi: Được chia sẻ với tôi
+  id: Dibagikan dengan saya
+  pl: Udostępnione ze mną
+  nl: Met mij gedeeld
+  ar: تم المشاركة معي
+  hi: मेरे साथ साझा किया गया
+  th: แชร์กับฉัน
+  cs: Sdíleno se mnou
+  sv: Delat med mig
+  he: שותפו איתי
+  verified_by_human: []
+
+no_shared_chats:
+  context: Message when user has no shared chats
+  en: No shared chats yet
+  de: Noch keine geteilten Chats
+  zh: 还没有共享的聊天
+  es: Aún no hay chats compartidos
+  fr: Aucun chat partagé pour le moment
+  pt: Ainda não há chats compartilhados
+  ru: Пока нет общих чатов
+  ja: 共有チャットはまだありません
+  ko: 아직 공유된 채팅이 없습니다
+  it: Nessuna chat condivisa ancora
+  tr: Henüz paylaşılan sohbet yok
+  vi: Chưa có cuộc trò chuyện nào được chia sẻ
+  id: Belum ada obrolan yang dibagikan
+  pl: Brak udostępnionych czatów
+  nl: Nog geen gedeelde chats
+  ar: لا توجد محادثات مشتركة بعد
+  hi: अभी तक कोई साझा चैट नहीं
+  th: ยังไม่มีแชทที่แชร์
+  cs: Zatím žádné sdílené chaty
+  sv: Inga delade chattar ännu
+  he: "אין עדיין צ'אטים משותפים"
+  verified_by_human: []
+
+no_shared_with_me_chats:
+  context: Message when no one has shared chats with the user
+  en: No chats shared with you yet
+  de: Noch keine Chats mit dir geteilt
+  zh: 还没有人与您共享聊天
+  es: Aún no hay chats compartidos contigo
+  fr: Aucun chat partagé avec vous pour le moment
+  pt: Ainda não há chats compartilhados com você
+  ru: Пока никто не поделился чатами с вами
+  ja: まだあなたと共有されたチャットはありません
+  ko: 아직 당신과 공유된 채팅이 없습니다
+  it: Nessuna chat condivisa con te ancora
+  tr: Henüz seninle paylaşılan sohbet yok
+  vi: Chưa có ai chia sẻ cuộc trò chuyện với bạn
+  id: Belum ada obrolan yang dibagikan dengan Anda
+  pl: Nikt jeszcze nie udostępnił z tobą czatów
+  nl: Nog geen chats met jou gedeeld
+  ar: لا توجد محادثات مشتركة معك بعد
+  hi: अभी तक आपके साथ कोई चैट साझा नहीं की गई
+  th: ยังไม่มีใครแชร์แชทกับคุณ
+  cs: Zatím žádné chaty s vámi nesdíleny
+  sv: Inga chattar delade med dig ännu
+  he: "אין עדיין צ'אטים ששותפו איתך"
+  verified_by_human: []
+
+untitled_chat:
+  context: Default title for chats without a title
+  en: Untitled chat
+  de: Unbenannter Chat
+  zh: 未命名聊天
+  es: Chat sin título
+  fr: Chat sans titre
+  pt: Chat sem título
+  ru: Безымянный чат
+  ja: 無題のチャット
+  ko: 제목 없는 채팅
+  it: Chat senza titolo
+  tr: Başlıksız sohbet
+  vi: Cuộc trò chuyện chưa có tiêu đề
+  id: Obrolan tanpa judul
+  pl: Czat bez tytułu
+  nl: Chat zonder titel
+  ar: محادثة بدون عنوان
+  hi: अनामित चैट
+  th: แชทไม่มีชื่อ
+  cs: Chat bez názvu
+  sv: Chatt utan titel
+  he: "צ'אט ללא כותרת"
+  verified_by_human: []
+
+unshare:
+  context: Button/action to unshare a chat
+  en: Unshare
+  de: Teilen beenden
+  zh: 取消共享
+  es: Dejar de compartir
+  fr: Ne plus partager
+  pt: Parar de compartilhar
+  ru: Прекратить общий доступ
+  ja: 共有を停止
+  ko: 공유 중지
+  it: Smetti di condividere
+  tr: Paylaşmayı durdur
+  vi: Ngừng chia sẻ
+  id: Berhenti berbagi
+  pl: Przestań udostępniać
+  nl: Stoppen met delen
+  ar: إيقاف المشاركة
+  hi: साझाकरण बंद करें
+  th: หยุดแชร์
+  cs: Přestat sdílet
+  sv: Sluta dela
+  he: ביטול שיתוף
+  verified_by_human: []
+
+click_to_copy:
+  context: Button label to copy the share link
+  en: Click to copy link
+  de: Klicken um Link zu kopieren
+  zh: 点击复制链接
+  es: Haz clic para copiar enlace
+  fr: Cliquez pour copier le lien
+  pt: Clique para copiar o link
+  ru: Нажмите, чтобы скопировать ссылку
+  ja: クリックしてリンクをコピー
+  ko: 클릭하여 링크 복사
+  it: Clicca per copiare il link
+  tr: Bağlantıyı kopyalamak için tıklayın
+  vi: Nhấp để sao chép liên kết
+  id: Klik untuk menyalin tautan
+  pl: Kliknij, aby skopiować link
+  nl: Klik om link te kopiëren
+  ar: انقر لنسخ الرابط
+  hi: लिंक कॉपी करने के लिए क्लिक करें
+  th: คลิกเพื่อคัดลอกลิงก์
+  cs: Klikněte pro zkopírování odkazu
+  sv: Klicka för att kopiera länken
+  he: לחץ להעתקת הקישור
+  verified_by_human: []
+
+link_copied:
+  context: Confirmation message when link is copied to clipboard
+  en: Link copied to clipboard!
+  de: Link in Zwischenablage kopiert!
+  zh: 链接已复制到剪贴板！
+  es: ¡Enlace copiado al portapapeles!
+  fr: Lien copié dans le presse-papiers !
+  pt: Link copiado para a área de transferência!
+  ru: Ссылка скопирована в буфер обмена!
+  ja: リンクがクリップボードにコピーされました！
+  ko: 링크가 클립보드에 복사되었습니다!
+  it: Link copiato negli appunti!
+  tr: Bağlantı panoya kopyalandı!
+  vi: Đã sao chép liên kết vào khay nhớ tạm!
+  id: Tautan disalin ke papan klip!
+  pl: Link skopiowany do schowka!
+  nl: Link gekopieerd naar klembord!
+  ar: تم نسخ الرابط إلى الحافظة!
+  hi: लिंक क्लिपबोर्ड पर कॉपी किया गया!
+  th: คัดลอกลิงก์ไปยังคลิปบอร์ดแล้ว!
+  cs: Odkaz zkopírován do schránky!
+  sv: Länken kopierad till urklipp!
+  he: "הקישור הועתק ללוח!"
+  verified_by_human: []
+
+qr_code:
+  context: Label for QR code section
+  en: QR Code
+  de: QR-Code
+  zh: 二维码
+  es: Código QR
+  fr: Code QR
+  pt: Código QR
+  ru: QR-код
+  ja: QRコード
+  ko: QR 코드
+  it: Codice QR
+  tr: QR Kodu
+  vi: Mã QR
+  id: Kode QR
+  pl: Kod QR
+  nl: QR-code
+  ar: رمز QR
+  hi: QR कोड
+  th: คิวอาร์โค้ด
+  cs: QR kód
+  sv: QR-kod
+  he: קוד QR
+  verified_by_human: []
+
+scan_qr_code:
+  context: Instruction text for scanning QR code
+  en: Scan to open shared chat
+  de: Scannen, um geteilten Chat zu öffnen
+  zh: 扫描以打开共享聊天
+  es: Escanea para abrir el chat compartido
+  fr: Scannez pour ouvrir le chat partagé
+  pt: Escaneie para abrir o chat compartilhado
+  ru: Сканируйте, чтобы открыть общий чат
+  ja: スキャンして共有チャットを開く
+  ko: 스캔하여 공유 채팅 열기
+  it: Scansiona per aprire la chat condivisa
+  tr: Paylaşılan sohbeti açmak için tarayın
+  vi: Quét để mở cuộc trò chuyện được chia sẻ
+  id: Pindai untuk membuka obrolan yang dibagikan
+  pl: Zeskanuj, aby otworzyć udostępniony czat
+  nl: Scan om gedeelde chat te openen
+  ar: امسح ضوئياً لفتح المحادثة المشتركة
+  hi: साझा चैट खोलने के लिए स्कैन करें
+  th: สแกนเพื่อเปิดแชทที่แชร์
+  cs: Naskenujte pro otevření sdíleného chatu
+  sv: Skanna för att öppna delad chatt
+  he: "סרוק כדי לפתוח את הצ'אט המשותף"
+  verified_by_human: []
+
+no_chat_selected:
+  context: Message shown when trying to share but no chat is selected
+  en: Please select a chat to share
+  de: Bitte wähle einen Chat zum Teilen aus
+  zh: 请选择要分享的聊天
+  es: Por favor selecciona un chat para compartir
+  fr: Veuillez sélectionner un chat à partager
+  pt: Por favor, selecione um chat para compartilhar
+  ru: Пожалуйста, выберите чат для обмена
+  ja: 共有するチャットを選択してください
+  ko: 공유할 채팅을 선택해주세요
+  it: Per favore seleziona una chat da condividere
+  tr: Lütfen paylaşmak için bir sohbet seçin
+  vi: Vui lòng chọn một cuộc trò chuyện để chia sẻ
+  id: Silakan pilih obrolan untuk dibagikan
+  pl: Proszę wybrać czat do udostępnienia
+  nl: Selecteer een chat om te delen
+  ar: يرجى اختيار محادثة للمشاركة
+  hi: कृपया साझा करने के लिए एक चैट चुनें
+  th: กรุณาเลือกแชทเพื่อแชร์
+  cs: Vyberte prosím chat ke sdílení
+  sv: Välj en chatt att dela
+  he: "יש לבחור צ'אט לשיתוף"
+  verified_by_human: []
+
+share_options:
+  context: Header for share options section
+  en: Share options
+  de: Teilen-Optionen
+  zh: 分享选项
+  es: Opciones de compartir
+  fr: Options de partage
+  pt: Opções de compartilhamento
+  ru: Параметры обмена
+  ja: 共有オプション
+  ko: 공유 옵션
+  it: Opzioni di condivisione
+  tr: Paylaşım seçenekleri
+  vi: Tùy chọn chia sẻ
+  id: Opsi berbagi
+  pl: Opcje udostępniania
+  nl: Deelopties
+  ar: خيارات المشاركة
+  hi: साझा विकल्प
+  th: ตัวเลือกการแชร์
+  cs: Možnosti sdílení
+  sv: Delningsalternativ
+  he: אפשרויות שיתוף
+  verified_by_human: []
+
+link_will_expire_in:
+  context: Text showing when the link will expire (followed by the time)
+  en: Link expires in
+  de: Link läuft ab in
+  zh: 链接过期时间
+  es: El enlace expira en
+  fr: Le lien expire dans
+  pt: O link expira em
+  ru: Ссылка истекает через
+  ja: リンクの有効期限
+  ko: 링크 만료 시간
+  it: Il link scade tra
+  tr: Bağlantı şu sürede sona erer
+  vi: Liên kết hết hạn trong
+  id: Tautan kedaluwarsa dalam
+  pl: Link wygasa za
+  nl: Link verloopt over
+  ar: تنتهي صلاحية الرابط خلال
+  hi: लिंक समाप्त होता है
+  th: ลิงก์หมดอายุใน
+  cs: Odkaz vyprší za
+  sv: Länken upphör om
+  he: הקישור יפוג בעוד
+  verified_by_human: []
+
+password_required_info:
+  context: Info text explaining that recipient will need the password (for chats)
+  en: Recipient will need this password to view the chat
+  de: Der Empfänger benötigt dieses Passwort, um den Chat anzusehen
+  zh: 接收者需要此密码才能查看聊天
+  es: El destinatario necesitará esta contraseña para ver el chat
+  fr: Le destinataire aura besoin de ce mot de passe pour voir le chat
+  pt: O destinatário precisará desta senha para ver o chat
+  ru: Получателю потребуется этот пароль для просмотра чата
+  ja: 受信者がチャットを閲覧するにはこのパスワードが必要です
+  ko: 수신자가 채팅을 보려면 이 비밀번호가 필요합니다
+  it: Il destinatario avrà bisogno di questa password per visualizzare la chat
+  tr: Alıcının sohbeti görüntülemek için bu parolaya ihtiyacı olacak
+  vi: Người nhận sẽ cần mật khẩu này để xem cuộc trò chuyện
+  id: Penerima akan memerlukan kata sandi ini untuk melihat obrolan
+  pl: Odbiorca będzie potrzebował tego hasła, aby zobaczyć czat
+  nl: De ontvanger heeft dit wachtwoord nodig om de chat te bekijken
+  ar: سيحتاج المستلم إلى كلمة المرور هذه لعرض المحادثة
+  hi: प्राप्तकर्ता को चैट देखने के लिए इस पासवर्ड की आवश्यकता होगी
+  th: ผู้รับจะต้องใช้รหัสผ่านนี้เพื่อดูแชท
+  cs: Příjemce bude potřebovat toto heslo k zobrazení chatu
+  sv: Mottagaren behöver detta lösenord för att visa chatten
+  he: "הנמען יזדקק לסיסמה זו כדי לצפות בצ'אט"
+  verified_by_human: []
+
+password_required_info_embed:
+  context: Info text explaining that recipient will need the password (for embeds)
+  en: Recipient will need this password to view the embed
+  de: Der Empfänger benötigt dieses Passwort, um das Embed anzusehen
+  zh: 接收者需要此密码才能查看嵌入
+  es: El destinatario necesitará esta contraseña para ver el embed
+  fr: Le destinataire aura besoin de ce mot de passe pour voir l'embed
+  pt: O destinatário precisará desta senha para ver o embed
+  ru: Получателю потребуется этот пароль для просмотра встраивания
+  ja: 受信者が埋め込みを閲覧するにはこのパスワードが必要です
+  ko: 수신자가 임베드를 보려면 이 비밀번호가 필요합니다
+  it: Il destinatario avrà bisogno di questa password per visualizzare l'embed
+  tr: Alıcının embed'i görüntülemek için bu parolaya ihtiyacı olacak
+  vi: Người nhận sẽ cần mật khẩu này để xem embed
+  id: Penerima akan memerlukan kata sandi ini untuk melihat embed
+  pl: Odbiorca będzie potrzebował tego hasła, aby zobaczyć embed
+  nl: De ontvanger heeft dit wachtwoord nodig om de embed te bekijken
+  ar: سيحتاج المستلم إلى كلمة المرور هذه لعرض التضمين
+  hi: प्राप्तकर्ता को एम्बेड देखने के लिए इस पासवर्ड की आवश्यकता होगी
+  th: ผู้รับจะต้องใช้รหัสผ่านนี้เพื่อดู embed
+  cs: Příjemce bude potřebovat toto heslo k zobrazení embedu
+  sv: Mottagaren behöver detta lösenord för att visa embeden
+  he: הנמען יזדקק לסיסמה זו כדי לצפות בהטמעה
+  verified_by_human: []
+
+encryption_info:
+  context: Info text explaining that the chat remains zero-knowledge encrypted (for chats)
+  en: Only your device can decrypt this chat. The decryption key is included in the link.
+  de: Nur dein Gerät kann diesen Chat entschlüsseln. Der Entschlüsselungsschlüssel ist im Link enthalten.
+  zh: 只有您的设备可以解密此聊天。解密密钥包含在链接中。
+  es: Solo tu dispositivo puede descifrar este chat. La clave de descifrado está incluida en el enlace.
+  fr: Seul votre appareil peut déchiffrer ce chat. La clé de déchiffrement est incluse dans le lien.
+  pt: Somente o seu dispositivo pode descriptografar este chat. A chave de descriptografia está incluída no link.
+  ru: Только ваше устройство может расшифровать этот чат. Ключ расшифровки включён в ссылку.
+  ja: このチャットはあなたのデバイスのみが復号できます。復号キーはリンクに含まれています。
+  ko: 이 채팅은 귀하의 기기만 복호화할 수 있습니다. 복호화 키가 링크에 포함되어 있습니다.
+  it: Solo il tuo dispositivo può decrittare questa chat. La chiave di decrittazione è inclusa nel link.
+  tr: Bu sohbeti yalnızca cihazınız şifresini çözebilir. Şifre çözme anahtarı bağlantıya dahildir.
+  vi: Chỉ thiết bị của bạn mới có thể giải mã cuộc trò chuyện này. Khóa giải mã được bao gồm trong liên kết.
+  id: Hanya perangkat Anda yang dapat mendekripsi obrolan ini. Kunci dekripsi disertakan dalam tautan.
+  pl: Tylko Twoje urządzenie może odszyfrować ten czat. Klucz deszyfrowania jest zawarty w linku.
+  nl: Alleen uw apparaat kan deze chat ontsleutelen. De ontsleutelingssleutel is opgenomen in de link.
+  ar: جهازك فقط يستطيع فك تشفير هذه المحادثة. مفتاح فك التشفير مضمن في الرابط.
+  hi: केवल आपका डिवाइस इस चैट को डिक्रिप्ट कर सकता है। डिक्रिप्शन कुंजी लिंक में शामिल है।
+  th: เฉพาะอุปกรณ์ของคุณเท่านั้นที่สามารถถอดรหัสแชทนี้ได้ คีย์ถอดรหัสรวมอยู่ในลิงก์
+  cs: Tento chat může dešifrovat pouze vaše zařízení. Dešifrovací klíč je součástí odkazu.
+  sv: Endast din enhet kan dekryptera den här chatten. Dekrypteringsnyckeln ingår i länken.
+  he: "רק המכשיר שלך יכול לפענח את הצ'אט הזה. מפתח הפענוח כלול בקישור."
+  verified_by_human: []
+
+encryption_info_embed:
+  context: Info text explaining that the embed remains zero-knowledge encrypted (for embeds)
+  en: Only your device can decrypt this embed. The decryption key is included in the link.
+  de: Nur dein Gerät kann dieses Embed entschlüsseln. Der Entschlüsselungsschlüssel ist im Link enthalten.
+  zh: 只有您的设备可以解密此嵌入内容。解密密钥包含在链接中。
+  es: Solo tu dispositivo puede descifrar este embed. La clave de descifrado está incluida en el enlace.
+  fr: Seul votre appareil peut déchiffrer cet embed. La clé de déchiffrement est incluse dans le lien.
+  pt: Somente o seu dispositivo pode descriptografar este embed. A chave de descriptografia está incluída no link.
+  ru: Только ваше устройство может расшифровать этот элемент. Ключ расшифровки включён в ссылку.
+  ja: この埋め込みはあなたのデバイスのみが復号できます。復号キーはリンクに含まれています。
+  ko: 이 임베드는 귀하의 기기만 복호화할 수 있습니다. 복호화 키가 링크에 포함되어 있습니다.
+  it: Solo il tuo dispositivo può decrittare questo embed. La chiave di decrittazione è inclusa nel link.
+  tr: Bu embed'i yalnızca cihazınız şifresini çözebilir. Şifre çözme anahtarı bağlantıya dahildir.
+  vi: Chỉ thiết bị của bạn mới có thể giải mã embed này. Khóa giải mã được bao gồm trong liên kết.
+  id: Hanya perangkat Anda yang dapat mendekripsi embed ini. Kunci dekripsi disertakan dalam tautan.
+  pl: Tylko Twoje urządzenie może odszyfrować ten embed. Klucz deszyfrowania jest zawarty w linku.
+  nl: Alleen uw apparaat kan dit embed ontsleutelen. De ontsleutelingssleutel is opgenomen in de link.
+  ar: جهازك فقط يستطيع فك تشفير هذا التضمين. مفتاح فك التشفير مضمن في الرابط.
+  hi: केवल आपका डिवाइस इस एम्बेड को डिक्रिप्ट कर सकता है। डिक्रिप्शन कुंजी लिंक में शामिल है।
+  th: เฉพาะอุปกรณ์ของคุณเท่านั้นที่สามารถถอดรหัส embed นี้ได้ คีย์ถอดรหัสรวมอยู่ในลิงก์
+  cs: Tento embed může dešifrovat pouze vaše zařízení. Dešifrovací klíč je součástí odkazu.
+  sv: Endast din enhet kan dekryptera detta embed. Dekrypteringsnyckeln ingår i länken.
+  he: "רק המכשיר שלך יכול לפענח את ההטמעה הזו. מפתח הפענוח כלול בקישור."
+  verified_by_human: []
+
+share_with_community:
+  context: Toggle label for sharing chat with the community (allows chat to be featured as example/demo)
+  en: Share with Community
+  de: Mit der Community teilen
+  zh: 与社区分享
+  es: Compartir con la comunidad
+  fr: Partager avec la communauté
+  pt: Compartilhar com a comunidade
+  ru: Поделиться с сообществом
+  ja: コミュニティで共有
+  ko: 커뮤니티와 공유
+  it: Condividi con la comunità
+  tr: Toplulukla paylaş
+  vi: Chia sẻ với cộng đồng
+  id: Bagikan dengan komunitas
+  pl: Udostępnij społeczności
+  nl: Delen met de gemeenschap
+  ar: مشاركة مع المجتمع
+  hi: समुदाय के साथ साझा करें
+  th: แชร์กับชุมชน
+  cs: Sdílet s komunitou
+  sv: Dela med gemenskapen
+  he: שתף עם הקהילה
+  verified_by_human: []
+
+share_with_community_info:
+  context: Info text explaining what sharing with community means
+  en: 'If you select "Share with Community", your chat might also be selected to be shown to other users on the platform, as well as on social media and at events.'
+  de: 'Wenn Sie "Mit der Community teilen" auswählen, kann Ihr Chat auch ausgewählt werden, um anderen Nutzern auf der Plattform sowie in sozialen Medien und bei Veranstaltungen gezeigt zu werden.'
+  zh: '如果您选择"与社区分享"，您的聊天可能会被选中在平台上向其他用户展示，以及在社交媒体和活动中展示。'
+  es: 'Si selecciona "Compartir con la comunidad", su chat también puede ser seleccionado para mostrarse a otros usuarios en la plataforma, así como en las redes sociales y en eventos.'
+  fr: 'Si vous sélectionnez "Partager avec la communauté", votre chat peut également être sélectionné pour être montré à d''autres utilisateurs sur la plateforme, ainsi que sur les réseaux sociaux et lors d''événements.'
+  pt: 'Se você selecionar "Compartilhar com a comunidade", seu chat também pode ser selecionado para ser mostrado a outros usuários na plataforma, bem como nas redes sociais e em eventos.'
+  ru: 'Если вы выберете "Поделиться с сообществом", ваш чат также может быть выбран для показа другим пользователям на платформе, а также в социальных сетях и на мероприятиях.'
+  ja: "「コミュニティで共有」を選択すると、あなたのチャットはプラットフォーム上の他のユーザー、ソーシャルメディア、イベントで表示される可能性があります。"
+  ko: '"커뮤니티와 공유"를 선택하면 귀하의 채팅이 플랫폼의 다른 사용자, 소셜 미디어 및 이벤트에 표시될 수 있습니다.'
+  it: 'Se selezioni "Condividi con la comunità", la tua chat potrebbe anche essere selezionata per essere mostrata ad altri utenti sulla piattaforma, così come sui social media e agli eventi.'
+  tr: '"Toplulukla paylaş"ı seçerseniz, sohbetiniz platformdaki diğer kullanıcılara, sosyal medyada ve etkinliklerde gösterilmek üzere de seçilebilir.'
+  vi: 'Nếu bạn chọn "Chia sẻ với cộng đồng", cuộc trò chuyện của bạn cũng có thể được chọn để hiển thị cho người dùng khác trên nền tảng, cũng như trên mạng xã hội và tại các sự kiện.'
+  id: 'Jika Anda memilih "Bagikan dengan komunitas", obrolan Anda juga dapat dipilih untuk ditampilkan kepada pengguna lain di platform, serta di media sosial dan acara.'
+  pl: 'Jeśli wybierzesz "Udostępnij społeczności", Twój czat może również zostać wybrany do pokazania innym użytkownikom na platformie, a także w mediach społecznościowych i na wydarzeniach.'
+  nl: 'Als u "Delen met de gemeenschap" selecteert, kan uw chat ook worden geselecteerd om aan andere gebruikers op het platform te worden getoond, evenals op sociale media en bij evenementen.'
+  ar: 'إذا حددت "مشاركة مع المجتمع"، فقد يتم أيضًا اختيار محادثتك لعرضها على مستخدمين آخرين على المنصة، وكذلك على وسائل التواصل الاجتماعي وفي الأحداث.'
+  hi: 'यदि आप "समुदाय के साथ साझा करें" का चयन करते हैं, तो आपकी चैट को प्लेटफ़ॉर्म पर अन्य उपयोगकर्ताओं, सोशल मीडिया और इवेंट में दिखाने के लिए भी चुना जा सकता है।'
+  th: 'หากคุณเลือก "แชร์กับชุมชน" แชทของคุณอาจถูกเลือกให้แสดงแก่ผู้ใช้อื่นบนแพลตฟอร์ม รวมถึงบนโซเชียลมีเดียและในกิจกรรม'
+  cs: 'Pokud vyberete "Sdílet s komunitou", váš chat může být také vybrán k zobrazení jiným uživatelům na platformě, stejně jako na sociálních médiích a na akcích.'
+  sv: 'Om du väljer "Dela med gemenskapen", kan din chatt också väljas för att visas för andra användare på plattformen, samt på sociala medier och vid evenemang.'
+  he: 'אם תבחר ב"שתף עם הקהילה", הצ''אט שלך עשוי להיבחר להצגה למשתמשים אחרים בפלטפורמה, וכן ברשתות חברתיות ובאירועים.'
+  verified_by_human: []
+
+include_sensitive_data:
+  context: Toggle label for including sensitive personal data (emails, phones, etc.) in shared content
+  en: Include sensitive data
+  de: Sensible Daten einschließen
+  zh: 包含敏感数据
+  es: Incluir datos sensibles
+  fr: Inclure les données sensibles
+  pt: Incluir dados sensíveis
+  ru: Включить конфиденциальные данные
+  ja: 機密データを含める
+  ko: 민감한 데이터 포함
+  it: Includi dati sensibili
+  tr: Hassas verileri dahil et
+  vi: Bao gồm dữ liệu nhạy cảm
+  id: Sertakan data sensitif
+  pl: Uwzględnij dane wrażliwe
+  nl: Gevoelige gegevens opnemen
+  ar: تضمين البيانات الحساسة
+  hi: संवेदनशील डेटा शामिल करें
+  th: รวมข้อมูลที่ละเอียดอ่อน
+  cs: Zahrnout citlivá data
+  sv: Inkludera känsliga uppgifter
+  he: כלול נתונים רגישים
+  verified_by_human: []
+
+include_sensitive_data_warning:
+  context: Warning shown when user enables the include sensitive data toggle, explaining that personal info will be visible to recipients
+  en: "Your personal information (emails, phone numbers, etc.) will be included in the shared content. Only enable this if you trust all recipients."
+  de: "Ihre persönlichen Daten (E-Mails, Telefonnummern usw.) werden in den geteilten Inhalten enthalten sein. Aktivieren Sie dies nur, wenn Sie allen Empfängern vertrauen."
+  zh: "你的个人信息（电子邮件、电话号码等）将包含在共享内容中。仅在信任所有接收者时才启用此选项。"
+  es: "Tu información personal (correos electrónicos, números de teléfono, etc.) se incluirá en el contenido compartido. Solo activa esto si confías en todos los destinatarios."
+  fr: "Vos informations personnelles (e-mails, numéros de téléphone, etc.) seront incluses dans le contenu partagé. N'activez cette option que si vous faites confiance à tous les destinataires."
+  pt: "Suas informações pessoais (e-mails, números de telefone, etc.) serão incluídas no conteúdo compartilhado. Ative isso apenas se você confia em todos os destinatários."
+  ru: "Ваша личная информация (электронная почта, номера телефонов и т.д.) будет включена в общий контент. Включайте это только если вы доверяете всем получателям."
+  ja: "あなたの個人情報（メールアドレス、電話番号など）が共有コンテンツに含まれます。すべての受信者を信頼できる場合にのみ有効にしてください。"
+  ko: "개인 정보(이메일, 전화번호 등)가 공유 콘텐츠에 포함됩니다. 모든 수신자를 신뢰하는 경우에만 활성화하세요."
+  it: "Le tue informazioni personali (email, numeri di telefono, ecc.) saranno incluse nel contenuto condiviso. Attiva questa opzione solo se ti fidi di tutti i destinatari."
+  tr: "Kişisel bilgileriniz (e-postalar, telefon numaraları vb.) paylaşılan içeriğe dahil edilecektir. Bunu yalnızca tüm alıcılara güveniyorsanız etkinleştirin."
+  vi: "Thông tin cá nhân của bạn (email, số điện thoại, v.v.) sẽ được bao gồm trong nội dung chia sẻ. Chỉ bật tùy chọn này nếu bạn tin tưởng tất cả người nhận."
+  id: "Informasi pribadi Anda (email, nomor telepon, dll.) akan disertakan dalam konten yang dibagikan. Aktifkan ini hanya jika Anda mempercayai semua penerima."
+  pl: "Twoje dane osobowe (e-maile, numery telefonów itp.) zostaną uwzględnione w udostępnionej treści. Włącz to tylko, jeśli ufasz wszystkim odbiorcom."
+  nl: "Je persoonlijke gegevens (e-mails, telefoonnummers, etc.) worden opgenomen in de gedeelde inhoud. Schakel dit alleen in als je alle ontvangers vertrouwt."
+  ar: "سيتم تضمين معلوماتك الشخصية (البريد الإلكتروني وأرقام الهاتف وما إلى ذلك) في المحتوى المشترك. قم بتفعيل هذا فقط إذا كنت تثق بجميع المستلمين."
+  hi: "आपकी व्यक्तिगत जानकारी (ईमेल, फोन नंबर, आदि) साझा सामग्री में शामिल की जाएगी। इसे केवल तभी सक्षम करें जब आप सभी प्राप्तकर्ताओं पर भरोसा करते हैं।"
+  th: "ข้อมูลส่วนบุคคลของคุณ (อีเมล หมายเลขโทรศัพท์ ฯลฯ) จะถูกรวมอยู่ในเนื้อหาที่แชร์ เปิดใช้งานเฉพาะเมื่อคุณเชื่อถือผู้รับทั้งหมด"
+  cs: "Vaše osobní údaje (e-maily, telefonní čísla atd.) budou zahrnuty ve sdíleném obsahu. Povolte tuto možnost pouze pokud důvěřujete všem příjemcům."
+  sv: "Din personliga information (e-postadresser, telefonnummer, etc.) kommer att inkluderas i det delade innehållet. Aktivera detta bara om du litar på alla mottagare."
+  he: "המידע האישי שלך (אימיילים, מספרי טלפון וכו') ייכלל בתוכן המשותף. הפעל זאת רק אם בטחונך במקבלי הקישור מלא."
+  verified_by_human: []
+
+optional_settings:
+  context: Header for optional share settings section
+  en: Optional Settings
+  de: Optionale Einstellungen
+  zh: 可选设置
+  es: Configuración opcional
+  fr: Paramètres facultatifs
+  pt: Configurações opcionais
+  ru: Дополнительные настройки
+  ja: オプション設定
+  ko: 선택적 설정
+  it: Impostazioni opzionali
+  tr: İsteğe bağlı ayarlar
+  vi: Cài đặt tùy chọn
+  id: Pengaturan opsional
+  pl: Ustawienia opcjonalne
+  nl: Optionele instellingen
+  ar: إعدادات اختيارية
+  hi: वैकल्पिक सेटिंग्स
+  th: การตั้งค่าเสริม
+  cs: Volitelná nastavení
+  sv: Valfria inställningar
+  he: הגדרות אופציונליות
+  verified_by_human: []
+
+sharing_chat:
+  context: Label shown when user is sharing a chat (before "Share" button is clicked)
+  en: Sharing
+  de: Teilen
+  zh: 分享
+  es: Compartiendo
+  fr: Partage
+  pt: Compartilhando
+  ru: Делюсь
+  ja: 共有中
+  ko: 공유 중
+  it: Condivisione
+  tr: Paylaşım
+  vi: Đang chia sẻ
+  id: Berbagi
+  pl: Udostępnianie
+  nl: Delen
+  ar: المشاركة
+  hi: साझा करना
+  th: การแชร์
+  cs: Sdílení
+  sv: Delar
+  he: משתף
+  verified_by_human: []
+
+link_for_chat:
+  context: Label shown for the link that has been generated (after "Share" button is clicked)
+  en: Link for
+  de: Link für
+  zh: 链接
+  es: Enlace para
+  fr: Lien pour
+  pt: Link para
+  ru: Ссылка на
+  ja: リンク
+  ko: 링크
+  it: Link per
+  tr: İçin bağlantı
+  vi: Liên kết cho
+  id: Tautan untuk
+  pl: Link do
+  nl: Link voor
+  ar: رابط ل
+  hi: के लिए लिंक
+  th: ลิงก์สำหรับ
+  cs: Odkaz pro
+  sv: Länk för
+  he: קישור עבור
+  verified_by_human: []
+
+click_to_enlarge_qr:
+  context: Instruction text to click QR code to view it larger
+  en: Click QR code to enlarge
+  de: Klicken Sie auf den QR-Code, um ihn zu vergrößern
+  zh: 点击二维码放大
+  es: Haga clic en el código QR para ampliarlo
+  fr: Cliquez sur le code QR pour l'agrandir
+  pt: Clique no código QR para ampliar
+  ru: Нажмите на QR-код, чтобы увеличить
+  ja: QRコードをクリックして拡大
+  ko: QR 코드를 클릭하여 확대
+  it: Clicca sul codice QR per ingrandirlo
+  tr: Büyütmek için QR koduna tıklayın
+  vi: Nhấp vào mã QR để phóng to
+  id: Klik kode QR untuk memperbesar
+  pl: Kliknij kod QR, aby powiększyć
+  nl: Klik op de QR-code om te vergroten
+  ar: انقر على رمز QR للتكبير
+  hi: बड़ा करने के लिए QR कोड पर क्लिक करें
+  th: คลิกรหัส QR เพื่อขยาย
+  cs: Klikněte na QR kód pro zvětšení
+  sv: Klicka på QR-koden för att förstora
+  he: לחץ על קוד ה-QR להגדלה
+  verified_by_human: []
+sharing_embed:
+  context: Label in embed preview header during share configuration step
+  en: Sharing embed
+  de: Einbettung teilen
+  zh: 分享嵌入
+  es: Compartiendo incrustación
+  fr: Partage de l'intégration
+  pt: Compartilhando incorporação
+  ru: Общий доступ к встраиванию
+  ja: 埋め込みを共有
+  ko: 임베드 공유
+  it: Condivisione incorporamento
+  tr: Gömülü paylaşımı
+  vi: Chia sẻ nhúng
+  id: Berbagi sematan
+  pl: Udostępnianie osadzenia
+  nl: Insluiting delen
+  ar: مشاركة التضمين
+  hi: एम्बेड साझा करना
+  th: แชร์การฝัง
+  cs: Sdílení vložení
+  sv: Dela inbäddning
+  he: משתף הטמעה
+  verified_by_human: []
+link_for_embed:
+  context: Label in embed preview header after share link has been created
+  en: Link for embed
+  de: Link für Einbettung
+  zh: 嵌入链接
+  es: Enlace para incrustación
+  fr: Lien pour l'intégration
+  pt: Link para incorporação
+  ru: Ссылка для встраивания
+  ja: 埋め込みリンク
+  ko: 임베드 링크
+  it: Link per incorporamento
+  tr: Gömülü bağlantısı
+  vi: Liên kết nhúng
+  id: Tautan untuk sematan
+  pl: Link do osadzenia
+  nl: Link voor insluiting
+  ar: رابط التضمين
+  hi: एम्बेड के लिए लिंक
+  th: ลิงก์สำหรับการฝัง
+  cs: Odkaz pro vložení
+  sv: Länk för inbäddning
+  he: קישור להטמעה
+  verified_by_human: []
+
+share_transcript:
+  context: Navigation title when sharing a video transcript
+  en: Share Transcript
+  de: Transkript teilen
+  zh: 分享转录
+  es: Compartir transcripción
+  fr: Partager la transcription
+  pt: Compartilhar transcrição
+  ru: Поделиться транскрипцией
+  ja: トランスクリプトを共有
+  ko: 대본 공유
+  it: Condividi trascrizione
+  tr: Transkripti paylaş
+  vi: Chia sẻ bản ghi
+  id: Bagikan transkrip
+  pl: Udostępnij transkrypcję
+  nl: Transcript delen
+  ar: مشاركة النص
+  hi: ट्रांसक्रिप्ट साझा करें
+  th: แชร์บทถอดเสียง
+  cs: Sdílet přepis
+  sv: Dela transkription
+  he: שיתוף תמליל
+  verified_by_human: []

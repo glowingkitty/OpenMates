@@ -5,7 +5,7 @@
  * and the structure of the user profile data.
  */
 
-import type { UserProfile } from './userProfile'; // Assuming userProfile types are correctly defined here
+import type { UserProfile } from "./userProfile"; // Assuming userProfile types are correctly defined here
 
 // Define the types for the auth store state
 export interface AuthState {
@@ -15,12 +15,16 @@ export interface AuthState {
 
 // Define return type for session check API response
 export interface SessionCheckResult {
-    success: boolean;
-    user?: UserProfile; // Use UserProfile type from userProfile store
-    message?: string;
-    re_auth_required?: '2fa' | null; // Indicates if device verification (2FA) is needed
-    token_refresh_needed?: boolean;
-    require_invite_code?: boolean; // Indicates if invite code is required for signup
+  success: boolean;
+  user?: UserProfile; // Use UserProfile type from userProfile store
+  message?: string;
+  re_auth_required?: "2fa" | "passkey" | null; // Indicates if device verification (2FA or passkey) is needed
+  re_auth_reason?: "new_device" | "location_change" | null; // Explains WHY re-auth is needed (for UI messaging)
+  token_refresh_needed?: boolean;
+  require_invite_code?: boolean; // Indicates if invite code is required for signup
+  ws_token?: string; // WebSocket authentication token (for Safari iOS compatibility)
+  session_device_info?: { device_name: string; ip_truncated: string; country_code: string | null; city: string | null }; // Plaintext session device info for client-side encryption
+  session_meta_registered?: boolean; // Whether encrypted session metadata has been registered
 }
 
 // Define return type for the login API response
@@ -35,15 +39,16 @@ export interface LoginResult {
   remaining_backup_codes?: number; // Number of remaining backup codes after use
   encrypted_key?: string;
   salt?: string;
+  ws_token?: string; // WebSocket authentication token (for Safari iOS compatibility)
 }
 
 // Define the structure for logout callbacks
 export interface LogoutCallbacks {
-    beforeLocalLogout?: () => void | Promise<void>; // Called before local state reset
-    afterLocalLogout?: () => void | Promise<void>;  // Called after local state reset, before async cleanup
-    afterServerCleanup?: () => void | Promise<void>; // Called after server logout & DB clear
-    onError?: (error: any) => void | Promise<void>; // Called on any error during logout
-    skipServerLogout?: boolean; // Option to skip the server API call
-    isPolicyViolation?: boolean; // Flag for special policy violation logout handling
-    isSessionExpiredLogout?: boolean; // New flag for session expired logout handling
+  beforeLocalLogout?: () => void | Promise<void>; // Called before local state reset
+  afterLocalLogout?: () => void | Promise<void>; // Called after local state reset, before async cleanup
+  afterServerCleanup?: () => void | Promise<void>; // Called after server logout & DB clear
+  onError?: (error: any) => void | Promise<void>; // Called on any error during logout
+  skipServerLogout?: boolean; // Option to skip the server API call
+  isPolicyViolation?: boolean; // Flag for special policy violation logout handling
+  isSessionExpiredLogout?: boolean; // New flag for session expired logout handling
 }

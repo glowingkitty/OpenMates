@@ -1,0 +1,52 @@
+# backend/providers/zai.yml
+# Z.ai provider config (GLM models).
+# GLM models are served via Cerebras API.
+---
+provider_id: "zai"
+name: "Z.ai"
+description: "Z.ai - GLM large language models"
+logo_svg: "logos/zai.svg"
+
+models:
+  - id: "zai-glm-4.7"
+    name: "GLM 4.7"
+    # Z.ai GLM 4.7 with 355B params and ultra-fast inference (~1000 tok/s).
+    # Served via Cerebras API. Strong reasoning and general performance.
+    description: "Z.ai GLM 4.7 - 355B params, ~1000 tok/s via Cerebras."
+    country_origin: "CN" # ISO 3166-1 alpha-2 country code for model origin (China)
+    for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
+    release_date: "2025-12-22" # Model release date (GLM 4.7 release from rankings)
+    allow_auto_select: true
+    external_ids: # Mapping to external leaderboard IDs for cross-referencing
+      lmarena: "glm-4.7"
+      openrouter: "z-ai/glm-4.7"
+    input_types:
+      - text
+      - image
+    output_types:
+      - text
+    default_server: "cerebras"
+    servers:
+      - id: "cerebras"
+        name: "Cerebras"
+        model_id: "zai-glm-4.7" # Direct Cerebras model identifier
+        region: "US" # Server region for UI display
+      - id: "openrouter"
+        name: "OpenRouter"
+        model_id: "z-ai/glm-4.7" # OpenRouter fallback
+        region: "US" # Server region for UI display
+    pricing:
+      tokens:
+        input:
+          per_credit_unit: 150
+        output:
+          per_credit_unit: 120
+    costs:
+      input_per_million_token:
+        price: 2.25
+        currency: USD
+        max_context: 131000
+      output_per_million_token:
+        price: 2.75
+        currency: USD
+        max_context: 131000

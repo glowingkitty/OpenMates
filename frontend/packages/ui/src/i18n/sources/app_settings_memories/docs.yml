@@ -1,0 +1,228 @@
+# Translations for docs app settings and memories categories
+# See backend/apps/docs/app.yml for the settings_and_memories definitions
+
+writing_style:
+  context: Settings/memory name for writing style preferences
+  en: Writing Styles
+  de: Schreibstile
+  zh: 写作风格
+  es: Estilos de escritura
+  fr: Styles d'écriture
+  pt: Estilos de escrita
+  ru: Стили письма
+  ja: 文章スタイル
+  ko: 글쓰기 스타일
+  it: Stili di scrittura
+  tr: Yazı stilleri
+  vi: Phong cách viết
+  id: Gaya penulisan
+  pl: Style pisania
+  nl: Schrijfstijlen
+  ar: أساليب الكتابة
+  hi: लेखन शैलियाँ
+  th: รูปแบบการเขียน
+  cs: Styly psaní
+  sv: Skrivstilar
+  he: סגנונות כתיבה
+  verified_by_human: []
+writing_style.description:
+  context: Description for writing style preferences
+  en: Your preferred writing styles for documents.
+  de: Deine bevorzugten Schreibstile für Dokumente.
+  zh: 您首选的文档写作风格。
+  es: Tus estilos de escritura preferidos para documentos.
+  fr: Vos styles d'écriture préférés pour les documents.
+  pt: Seus estilos de escrita preferidos para documentos.
+  ru: Ваши предпочитаемые стили письма для документов.
+  ja: 文書のお好みの文章スタイル。
+  ko: 문서에 대한 선호하는 글쓰기 스타일.
+  it: I tuoi stili di scrittura preferiti per i documenti.
+  tr: Belgeler için tercih ettiğiniz yazı stilleri.
+  vi: Phong cách viết ưa thích của bạn cho tài liệu.
+  id: Gaya penulisan pilihan Anda untuk dokumen.
+  pl: Twoje preferowane style pisania dokumentów.
+  nl: Je voorkeursstijlen voor het schrijven van documenten.
+  ar: أساليب الكتابة المفضلة لديك للمستندات.
+  hi: दस्तावेज़ों के लिए आपकी पसंदीदा लेखन शैलियाँ।
+  th: รูปแบบการเขียนที่คุณชอบสำหรับเอกสาร
+  cs: Vaše preferované styly psaní dokumentů.
+  sv: Dina föredragna skribentstilar för dokument.
+  he: סגנונות הכתיבה המועדפים עליך למסמכים.
+  verified_by_human: []
+
+# Example entries shown to non-authenticated users to illustrate what each category stores
+
+writing_style.example_1:
+  context: Example entry for writing styles (a formal style)
+  en: Formal Business
+  de: Formell geschäftlich
+  zh: 正式商务
+  es: Negocios formal
+  fr: Professionnel formel
+  pt: Negócios formal
+  ru: Формальный деловой
+  ja: フォーマルビジネス
+  ko: 공식 비즈니스
+  it: Business formale
+  tr: Resmi iş
+  vi: Kinh doanh trang trọng
+  id: Bisnis formal
+  pl: Formalny biznesowy
+  nl: Formeel zakelijk
+  ar: أعمال رسمية
+  hi: औपचारिक व्यवसाय
+  th: ธุรกิจเป็นทางการ
+  cs: Formální obchodní
+  sv: Formellt affärsspråk
+  he: עסקי רשמי
+  verified_by_human: []
+writing_style.example_2:
+  context: Example entry for writing styles (an academic style)
+  en: Academic
+  de: Akademisch
+  zh: 学术
+  es: Académico
+  fr: Académique
+  pt: Acadêmico
+  ru: Академический
+  ja: 学術的
+  ko: 학술적
+  it: Accademico
+  tr: Akademik
+  vi: Học thuật
+  id: Akademis
+  pl: Akademicki
+  nl: Academisch
+  ar: أكاديمي
+  hi: शैक्षणिक
+  th: วิชาการ
+  cs: Akademický
+  sv: Akademiskt
+  he: אקדמי
+  verified_by_human: []
+writing_style.example_3:
+  context: Example entry for writing styles (a casual blog style)
+  en: Casual Blog
+  de: Lockerer Blog
+  zh: 随意博客
+  es: Blog informal
+  fr: Blog décontracté
+  pt: Blog casual
+  ru: Неформальный блог
+  ja: カジュアルブログ
+  ko: 캐주얼 블로그
+  it: Blog informale
+  tr: Günlük blog
+  vi: Blog thường ngày
+  id: Blog santai
+  pl: Blog nieformalny
+  nl: Informeel blog
+  ar: مدونة غير رسمية
+  hi: अनौपचारिक ब्लॉग
+  th: บล็อกทั่วไป
+  cs: Neformální blog
+  sv: Avslappnad blogg
+  he: בלוג קליל
+  verified_by_human: []
+
+# Structured example entries for writing_style
+
+writing_style.example_1.name:
+  context: Example value for name in writing_style
+  en: Technical Documentation
+  de: Technische Dokumentation
+  zh: 技术文档
+  es: Documentación técnica
+  fr: Documentation technique
+  pt: Documentação técnica
+  ru: Техническая документация
+  ja: 技術ドキュメント
+  ko: 기술 문서
+  it: Documentazione tecnica
+  tr: Teknik dokümantasyon
+  vi: Tài liệu kỹ thuật
+  id: Dokumentasi teknis
+  pl: Dokumentacja techniczna
+  nl: Technische documentatie
+  ar: التوثيق التقني
+  hi: तकनीकी दस्तावेज़ीकरण
+  th: เอกสารทางเทคนิค
+  cs: Technická dokumentace
+  sv: Teknisk dokumentation
+  he: תיעוד טכני
+  verified_by_human: []
+
+writing_style.example_1.description:
+  context: Example value for description in writing_style
+  en: Clear, structured writing for developer docs and API references
+  de: Klare, strukturierte Texte für Entwicklerdokumentation und API-Referenzen
+  zh: 清晰、结构化的写作，适用于开发者文档和API参考
+  es: Escritura clara y estructurada para documentación de desarrolladores y referencias API
+  fr: Rédaction claire et structurée pour la documentation développeur et les références API
+  pt: Escrita clara e estruturada para documentação de desenvolvedores e referências de API
+  ru: Чёткий, структурированный стиль для документации разработчика и справочников API
+  ja: 開発者ドキュメントやAPIリファレンス向けの明確で構造的な文章
+  ko: 개발자 문서와 API 레퍼런스를 위한 명확하고 구조적인 글쓰기
+  it: Scrittura chiara e strutturata per documentazione sviluppatori e riferimenti API
+  tr: Geliştirici belgeleri ve API referansları için açık, yapılandırılmış yazım
+  vi: Viết rõ ràng, có cấu trúc cho tài liệu lập trình viên và tham chiếu API
+  id: Penulisan yang jelas dan terstruktur untuk dokumentasi pengembang dan referensi API
+  pl: Przejrzyste, uporządkowane pisanie dla dokumentacji deweloperskiej i referencji API
+  nl: Heldere, gestructureerde teksten voor ontwikkelaarsdocumentatie en API-referenties
+  ar: كتابة واضحة ومنظمة لتوثيق المطورين ومراجع واجهات البرمجة
+  hi: डेवलपर डॉक्स और API संदर्भों के लिए स्पष्ट, संरचित लेखन
+  th: การเขียนที่ชัดเจนและเป็นระบบสำหรับเอกสารนักพัฒนาและเอกสารอ้างอิง API
+  cs: Jasné, strukturované psaní pro vývojářskou dokumentaci a API reference
+  sv: Tydligt, strukturerat skrivande för utvecklardokumentation och API-referenser
+  he: כתיבה ברורה ומובנית לתיעוד מפתחים וייחוסי API
+  verified_by_human: []
+
+writing_style.example_2.name:
+  context: Example value for name in writing_style
+  en: Blog Post
+  de: Blogbeitrag
+  zh: 博客文章
+  es: Artículo de blog
+  fr: Article de blog
+  pt: Postagem de blog
+  ru: Статья для блога
+  ja: ブログ記事
+  ko: 블로그 게시물
+  it: Articolo del blog
+  tr: Blog yazısı
+  vi: Bài viết blog
+  id: Postingan blog
+  pl: Wpis na blogu
+  nl: Blogpost
+  ar: مقالة مدونة
+  hi: ब्लॉग पोस्ट
+  th: โพสต์บล็อก
+  cs: Příspěvek na blog
+  sv: Blogginlägg
+  he: פוסט בבלוג
+  verified_by_human: []
+
+writing_style.example_2.description:
+  context: Example value for description in writing_style
+  en: Engaging, conversational tone for blog articles
+  de: Ansprechender, gesprächiger Ton für Blogartikel
+  zh: 引人入胜的对话式语调，适用于博客文章
+  es: Tono atractivo y conversacional para artículos de blog
+  fr: Ton engageant et conversationnel pour les articles de blog
+  pt: Tom envolvente e conversacional para artigos de blog
+  ru: Увлекательный, разговорный тон для статей блога
+  ja: ブログ記事向けの親しみやすく会話的なトーン
+  ko: 블로그 기사를 위한 매력적이고 대화적인 톤
+  it: Tono coinvolgente e colloquiale per articoli di blog
+  tr: Blog makaleleri için ilgi çekici, sohbet tarzı bir üslup
+  vi: Giọng văn hấp dẫn, mang tính trò chuyện cho bài viết blog
+  id: Nada yang menarik dan percakapan untuk artikel blog
+  pl: Angażujący, konwersacyjny ton dla artykułów blogowych
+  nl: Boeiende, conversationele toon voor blogartikelen
+  ar: أسلوب جذاب وحواري لمقالات المدونة
+  hi: ब्लॉग लेखों के लिए आकर्षक, संवादात्मक शैली
+  th: น้ำเสียงที่น่าสนใจและเป็นกันเองสำหรับบทความบล็อก
+  cs: Poutavý, konverzační tón pro blogové články
+  sv: Engagerande, konverserande ton för bloggartiklar
+  he: טון מרתק ושיחתי למאמרי בלוג
+  verified_by_human: []

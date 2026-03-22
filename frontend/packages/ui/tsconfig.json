@@ -2,14 +2,15 @@
   "compilerOptions": {
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "typeRoots": [
-      "./node_modules/@types",
-      "./src/types"
-    ]
+    "typeRoots": ["./node_modules/@types", "./src/types"],
+    "paths": {
+      "$app/navigation": ["./node_modules/@sveltejs/kit/types/index.d.ts"],
+      "$app/stores": ["./node_modules/@sveltejs/kit/types/index.d.ts"],
+      "$app/environment": ["./node_modules/@sveltejs/kit/types/index.d.ts"],
+      "$app/forms": ["./node_modules/@sveltejs/kit/types/index.d.ts"],
+      "$app/paths": ["./node_modules/@sveltejs/kit/types/index.d.ts"],
+      "$app/state": ["./node_modules/@sveltejs/kit/types/index.d.ts"]
+    }
   },
-  "include": [
-    "src/**/*.ts",
-    "src/**/*.tsx",
-    "src/**/*.d.ts"
-  ]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts"]
 }

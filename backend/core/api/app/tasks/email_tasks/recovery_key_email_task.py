@@ -84,9 +84,15 @@ async def _async_send_recovery_key_used_email(
         
     Returns:
         bool: True if email was sent successfully, False otherwise
+        
+    IMPORTANT: Uses try/finally to ensure SecretsManager's httpx client is
+    properly closed before returning. This prevents "Event loop is closed" 
+    errors when the event loop closes in Celery tasks.
     """
+    # Create services outside try block so they're available in finally
+    secrets_manager = SecretsManager()
+    
     try:
-        secrets_manager = SecretsManager()
         await secrets_manager.initialize()
         email_template_service = EmailTemplateService(secrets_manager=secrets_manager)
         translation_service = email_template_service.translation_service
@@ -140,3 +146,7 @@ async def _async_send_recovery_key_used_email(
     except Exception as e:
         logger.error(f"Error in _async_send_recovery_key_used_email task for email {email_address[:2]}...: {str(e)}", exc_info=True)
         return False
+    finally:
+        # CRITICAL: Close the httpx client before the event loop closes
+        # This prevents "Event loop is closed" errors during httpx cleanup
+        await secrets_manager.aclose()

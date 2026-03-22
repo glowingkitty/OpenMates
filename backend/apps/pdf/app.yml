@@ -1,0 +1,150 @@
+# backend/apps/pdf/app.yml
+#
+# App configuration for the PDF processor.
+#
+# Architecture:
+#   PDFs uploaded by the user are processed in background by app-pdf-worker:
+#     - Mistral OCR extracts markdown text + embedded images per page
+#     - pymupdf renders page screenshots at 150 DPI
+#     - Groq gpt-oss-20b detects table of contents (legend detection skipped for <10 pages)
+#
+#   Three skills let the LLM interact with processed PDFs:
+#     - pdf.read  : load raw page markdown (up to 50K tokens)
+#     - pdf.search: text search across all page markdowns
+#     - pdf.view  : vision analysis of page screenshots via the main inference model
+#
+#   Architecture note (embed_ref pattern):
+#     The LLM only ever sees the original filename (embed_ref) from the TOON block.
+#     All cryptographic fields (vault_wrapped_aes_key, aes_nonce, ocr_data_s3_key,
+#     screenshot_s3_keys, s3_base_url) are resolved server-side:
+#       file_path → embed_id (via file_path_index in main_processor.py)
+#       embed_id  → Redis cache key → Vault Transit decrypt → embed content dict
+#     This means the LLM never sees raw UUIDs, AES keys, S3 keys, or Vault ciphertexts.
+#     This mirrors the images.view pattern.
+
+# Embed type definitions — single source of truth for frontend embed routing.
+embed_types:
+  # PDF upload — direct-type, created by file upload flow
+  - id: pdf
+    category: direct
+    frontend_type: pdf
+    backend_type: pdf
+    has_children: false
+    preview_component: pdf/PDFEmbedPreview.svelte
+    fullscreen_component: pdf/PDFEmbedFullscreen.svelte
+    icon: pdf
+    gradient_var: "--color-app-pdf"
+    i18n_namespace: embeds.pdf.view
+
+name_translation_key: pdf
+description_translation_key: pdf.description
+icon_image: |
+  pdf.svg
+category: work
+last_updated: "2026-02-28"
+
+skills:
+  - id: read
+    name_translation_key: pdf.read
+    description_translation_key: pdf.read.description
+    preprocessor_hint: >
+      Load and read the raw text content (markdown) of specific pages from an uploaded
+      PDF document. Use when the user asks what a PDF says, wants you to summarise
+      sections, or requests information that is likely textual (paragraphs, tables,
+      headings). The embed TOON content includes a TOC and per-page token estimates —
+      use them to select the most relevant pages. Limits output to 50 000 tokens; call
+      again for remaining pages if needed. Pass the exact embed_ref (original filename)
+      from the toon block — the server resolves all cryptographic and storage details
+      automatically. Never invent or guess the file_path; use the embed_ref verbatim.
+    stage: production
+    class_path: |
+      backend.apps.pdf.skills.read_skill.ReadSkill
+    api_config:
+      expose_get: false
+    tool_schema:
+      type: object
+      properties:
+        file_path:
+          type: string
+          description: >
+            The original filename of the PDF (e.g. "report.pdf"). Use the exact
+            embed_ref value from the toon block. The server resolves all
+            cryptographic and storage details from this filename automatically.
+        pages:
+          type: array
+          description: "1-indexed page numbers to read (e.g. [1, 2, 3]). If omitted, reads from page 1 onwards up to the token budget."
+          items:
+            type: integer
+      required:
+        - file_path
+
+  - id: search
+    name_translation_key: pdf.search
+    description_translation_key: pdf.search.description
+    preprocessor_hint: >
+      Search for specific text, keywords, or phrases across all pages of an uploaded PDF.
+      Returns matching text blocks with surrounding context and page numbers.
+      Use when the user asks to find where something is mentioned in the document,
+      or when a targeted keyword search is faster than reading entire sections.
+      No LLM call required — pure text search over the OCR data. Pass the exact
+      embed_ref (original filename) from the toon block as file_path.
+    stage: production
+    class_path: |
+      backend.apps.pdf.skills.search_skill.SearchSkill
+    api_config:
+      expose_get: false
+    tool_schema:
+      type: object
+      properties:
+        file_path:
+          type: string
+          description: >
+            The original filename of the PDF. Use the exact embed_ref from the toon block.
+            The server resolves all cryptographic and storage details automatically.
+        query:
+          type: string
+          description: "The search query string (case-insensitive substring match)."
+        context_chars:
+          type: integer
+          description: "Number of characters of surrounding context to include per match (default: 200)."
+      required:
+        - file_path
+        - query
+
+  - id: view
+    name_translation_key: pdf.view.skill_name
+    description_translation_key: pdf.view.skill_description
+    preprocessor_hint: >
+      View one or more page screenshots from an uploaded PDF and return them as
+      multimodal image blocks so the main inference model can see the pages directly.
+      Use when the user asks about the visual layout, diagrams, charts, figures, or
+      images on specific pages. Also useful when text OCR may have been imperfect
+      (e.g. complex tables, mathematical notation, handwriting). Up to 5 pages can
+      be viewed per call. Pass the exact embed_ref (original filename) from the toon
+      block as file_path — the server resolves all cryptographic and storage details
+      automatically.
+    stage: production # Hidden from app store; LLM uses this for visual page analysis
+    class_path: |
+      backend.apps.pdf.skills.view_skill.ViewSkill
+    api_config:
+      expose_get: false
+    tool_schema:
+      type: object
+      properties:
+        file_path:
+          type: string
+          description: >
+            The original filename of the PDF. Use the exact embed_ref from the toon block.
+            The server resolves all cryptographic and storage details automatically.
+        pages:
+          type: array
+          description: "1-indexed page numbers to view (max 5). Example: [1, 2]."
+          items:
+            type: integer
+        query:
+          type: string
+          description: "The user's question or instruction about the page(s)."
+      required:
+        - file_path
+        - pages
+        - query

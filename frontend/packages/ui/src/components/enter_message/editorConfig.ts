@@ -1,57 +1,51 @@
 // frontend/packages/ui/src/components/enter_message/editorConfig.ts
-import StarterKit from '@tiptap/starter-kit';
-import { CustomPlaceholder } from './extensions/Placeholder';
-import { MateNode } from './extensions/MateNode';
+import StarterKit from "@tiptap/starter-kit";
+import { CustomPlaceholder } from "./extensions/Placeholder";
+import { MateNode } from "./extensions/MateNode";
+import { AIModelMentionNode } from "./extensions/AIModelMentionNode";
+import { GenericMentionNode } from "./extensions/GenericMentionNode";
+import { BestModelMentionNode } from "./extensions/BestModelMentionNode";
 // Legacy embed nodes no longer needed with unified architecture
 // import * as EmbedNodes from "./extensions/embeds";
-import { Embed } from './extensions/Embed'; // Import unified Embed extension
-import { createKeyboardHandlingExtension } from './handlers/sendHandlers';
-import { text } from '@repo/ui'; // Import the text store
-import { get } from 'svelte/store'; // Import get for accessing store value
-import { json } from 'svelte-i18n'; // Import the json function
+import { Embed } from "./extensions/Embed"; // Import unified Embed extension
+import { createKeyboardHandlingExtension } from "./handlers/sendHandlers";
 
 export function getEditorExtensions() {
-    // Determine if it's a touch device
-    const isTouchDevice = typeof window !== 'undefined' && (('ontouchstart' in window) || navigator.maxTouchPoints > 0);
+  // Note: We no longer set a static placeholder here.
+  // The CustomPlaceholder extension uses the reactive text store from @repo/ui
+  // which automatically updates when language changes.
+  // This ensures the placeholder text is always in the current language.
 
-    // Get the placeholder object using json()
-    const placeholderObject = get(json)('enter_message.placeholder') as { desktop?: { text: string }, touch?: { text: string } } | undefined;
-
-    // Select the appropriate placeholder text
-    let placeholderText = 'Send message...'; // Default fallback
-    if (placeholderObject) {
-        if (isTouchDevice && placeholderObject.touch?.text) {
-            placeholderText = placeholderObject.touch.text;
-        } else if (!isTouchDevice && placeholderObject.desktop?.text) {
-            placeholderText = placeholderObject.desktop.text;
-        } else if (placeholderObject.desktop?.text) { // Fallback to desktop if specific one not found but desktop exists
-            placeholderText = placeholderObject.desktop.text;
-        }
-    }
-
-    return [
-        StarterKit.configure({
-            hardBreak: { keepMarks: true, HTMLAttributes: {} },
-            // In write mode we only highlight markdown tokens and do NOT render formatting
-            // Disable all markdown-rendering marks/nodes so characters like **, ### remain as plain text
-            bold: false,
-            italic: false,
-            strike: false,
-            code: false,
-            heading: false,
-            blockquote: false,
-            bulletList: false,
-            orderedList: false,
-            listItem: false,
-            horizontalRule: false,
-            // Explicitly disable the default CodeBlock
-            codeBlock: false,
-        }),
-        Embed, // Use unified Embed extension
-        MateNode,
-        CustomPlaceholder.configure({
-            placeholder: () => placeholderText,
-        }),
-        createKeyboardHandlingExtension()
-    ];
+  return [
+    StarterKit.configure({
+      hardBreak: { keepMarks: true, HTMLAttributes: {} },
+      // In write mode we only highlight markdown tokens and do NOT render formatting
+      // Disable all markdown-rendering marks/nodes so characters like **, ### remain as plain text
+      bold: false,
+      italic: false,
+      strike: false,
+      code: false,
+      heading: false,
+      blockquote: false,
+      bulletList: false,
+      orderedList: false,
+      listItem: false,
+      horizontalRule: false,
+      // Explicitly disable the default CodeBlock
+      codeBlock: false,
+      // Disable the Link extension - write mode shows raw text, not rendered links.
+      // URL handling is done via custom streaming detection and embed conversion.
+      // Without this, TipTap auto-links emails and URLs, which conflicts with
+      // PII detection highlighting and makes emails clickable (opens mail app).
+      link: false,
+    }),
+    Embed, // Use unified Embed extension
+    MateNode,
+    AIModelMentionNode, // For @ai-model:id mentions (shows @Claude-4.5-Opus)
+    BestModelMentionNode, // For @best-model:alias mentions (shows @Best, @Fast)
+    GenericMentionNode, // For skills, focus modes, settings/memories mentions
+    // CustomPlaceholder uses reactive text store, no need to override with static text
+    CustomPlaceholder,
+    createKeyboardHandlingExtension(),
+  ];
 }

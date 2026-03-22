@@ -9,7 +9,7 @@ changes to the documentation (to keep the documentation up to date).
 step_5_bottom_content_svelte:
     confirm_save_storage_toggle:
         type: 'toggle'
-        text: $text('signup.i_stored_backup_codes.text')
+        text: $text('signup.i_stored_backup_codes')
         purpose:
             - 'User needs to confirm that they have saved the backup codes safely before continuing to the next signup step'
         processing:
@@ -27,7 +27,7 @@ step_5_bottom_content_svelte:
             - '/signup/backup-codes'
     click_toggle_to_continue_text:
         type: 'text'
-        text: $text('signup.click_toggle_to_continue.text')
+        text: $text('signup.click_toggle_to_continue')
         purpose:
             - 'Inform the user that they need to click the toggle to continue to the next signup step'
         bigger_context:
@@ -48,6 +48,9 @@ step_5_bottom_content_svelte:
     import { getApiEndpoint, apiEndpoints } from '../../../../config/api';
     import { recoveryKeyLoaded, recoveryKeyData } from '../../../../stores/recoveryKeyState';
 
+    // Props using Svelte 5 runes
+    let { paymentEnabled = true }: { paymentEnabled?: boolean } = $props();
+    
     const dispatch = createEventDispatcher();
     let hasConfirmedStorage = $state(false);
     let isSubmitting = $state(false);
@@ -78,6 +81,7 @@ step_5_bottom_content_svelte:
                     confirmed: true,
                     lookup_hash: $recoveryKeyData.lookupHash,
                     wrapped_master_key: $recoveryKeyData.wrappedMasterKey,
+                    key_iv: $recoveryKeyData.keyIv,
                     salt: $recoveryKeyData.salt
                 })
             });
@@ -86,7 +90,9 @@ step_5_bottom_content_svelte:
             
             if (response.ok && data.success) {
                 // Proceed to next step only after successful API response
-                dispatch('step', { step: 'profile_picture' });
+                // Navigate to credits step if payment is enabled, otherwise go to completion (self-hosted mode)
+                const nextStep = paymentEnabled ? 'credits' : 'completion';
+                dispatch('step', { step: nextStep });
             } else {
                 // If API call failed, reset the toggle
                 console.error('Failed to confirm recovery key stored:', data.message);
@@ -106,11 +112,11 @@ step_5_bottom_content_svelte:
         <div class="confirmation-row">
             <Toggle bind:checked={hasConfirmedStorage} id="confirm-storage-toggle-step5" disabled={!$recoveryKeyLoaded} />
             <label for="confirm-storage-toggle-step5" class="confirmation-text">
-                {$text('signup.i_stored_recovery_key.text')}
+                {$text('signup.i_stored_recovery_key')}
             </label>
         </div>
         <div class="click-toggle-text">
-            {$text('signup.click_toggle_to_continue.text')}
+            {$text('signup.click_toggle_to_continue')}
         </div>
     </div>
 </div>

@@ -55,6 +55,28 @@ def is_private_ip(ip_address_str: str) -> bool:
     except ValueError:
         return False
 
+def hash_ip_address(ip_address: str) -> str:
+    """
+    Hash an IP address using SHA-256 for privacy-focused compliance logging.
+    This ensures we don't store full IP addresses in compliance logs.
+    
+    Args:
+        ip_address: The IP address to hash
+        
+    Returns:
+        SHA-256 hash of the IP address (hexdigest), or "unknown" if IP is invalid
+    """
+    if not ip_address or ip_address.lower() == "unknown" or not _is_valid_ip_format(ip_address):
+        return "unknown"
+    
+    try:
+        # Hash the IP address using SHA-256
+        hashed_ip = hashlib.sha256(ip_address.encode('utf-8')).hexdigest()
+        return hashed_ip
+    except Exception as e:
+        logger.error(f"Error hashing IP address '{ip_address}': {e}", exc_info=True)
+        return "unknown"
+
 @lru_cache(maxsize=1024)
 def get_geo_data_from_ip(ip_address: str) -> Dict[str, Any]:
     """
@@ -143,13 +165,33 @@ def parse_user_agent(user_agent: str) -> Tuple[str, str, str, str, str]:
 
 def generate_device_fingerprint_hash(
     request: Request,
-    user_id: str
-) -> Tuple[str, str, str, Optional[str], Optional[str], Optional[float], Optional[float]]:
+    user_id: str,
+    session_id: Optional[str] = None
+) -> Tuple[str, Optional[str], str, str, Optional[str], Optional[str], Optional[float], Optional[float]]:
     """
-    Generate a simplified device fingerprint hash based on OS and Country Code,
-    and return detailed geolocation data.
-    Returns the hash, OS name, country code, city, region, latitude, and longitude.
+    Generate device fingerprint hashes for different purposes:
+
+    1. Device Hash (without sessionId): For device detection and "new device" emails
+       - Formula: SHA256(OS:Country:UserID)
+       - Stays consistent across browser sessions on same device
+       - ALWAYS generated
+
+    2. Connection Hash (with sessionId): For WebSocket connection management
+       - Formula: SHA256(OS:Country:UserID:SessionID)
+       - Unique per browser tab/instance
+       - Only generated if session_id is provided
+
+    Args:
+        request: FastAPI Request or WebSocket object
+        user_id: The user's ID for salt
+        session_id: Optional browser session ID (UUID from sessionStorage).
+                   If not provided, connection_hash will be None.
+
+    Returns:
+        Tuple of (device_hash, connection_hash, os_name, country_code, city, region, latitude, longitude)
+        Note: connection_hash will be None if session_id is not provided
     """
+    
     client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
     user_agent = request.headers.get("User-Agent", "unknown")
 
@@ -164,16 +206,117 @@ def generate_device_fingerprint_hash(
     latitude = geo_data.get("latitude")
     longitude = geo_data.get("longitude")
 
-    # Create the combined string for hashing
-    # Use a consistent format and include user_id as salt for privacy and uniqueness per user
-    fingerprint_string = f"{os_name}:{country_code}:{user_id}"
-    device_hash = hashlib.sha256(fingerprint_string.encode()).hexdigest()
+    # Generate DEVICE HASH (without sessionId) - for device detection and emails
+    device_fingerprint_string = f"{os_name}:{country_code}:{user_id}"
+    device_hash = hashlib.sha256(device_fingerprint_string.encode()).hexdigest()
 
-    logger.debug(f"Generated device hash: {device_hash[:8]}... (OS: {os_name}, Country: {country_code}) for user {user_id[:6]}...")
-    return device_hash, os_name, country_code, city, region, latitude, longitude
+    # Generate CONNECTION HASH (with sessionId) - for WebSocket connection management
+    # Only generate if session_id is provided
+    connection_hash = None
+    if session_id:
+        connection_fingerprint_string = f"{os_name}:{country_code}:{user_id}:{session_id}"
+        connection_hash = hashlib.sha256(connection_fingerprint_string.encode()).hexdigest()
+        logger.debug(f"Generated hashes for user {user_id[:6]}... - Device: {device_hash[:8]}... (OS: {os_name}, Country: {country_code}) | Connection: {connection_hash[:8]}... (Session: {session_id[:8]}...)")
+    else:
+        logger.debug(f"Generated device hash for user {user_id[:6]}... - Device: {device_hash[:8]}... (OS: {os_name}, Country: {country_code}) | No session_id provided, connection_hash is None")
+
+    return device_hash, connection_hash, os_name, country_code, city, region, latitude, longitude
 
 # Removed: DeviceFingerprint Pydantic model
 # Removed: calculate_risk_level function
 # Removed: should_require_2fa function
 # Removed: STORED_FINGERPRINT_FIELDS constant
 # Removed: RISK_THRESHOLD_2FA constant
+
+
+def truncate_ip(ip_address: str) -> str:
+    """
+    Truncate an IP address for privacy: removes the last octet (IPv4) or last group (IPv6).
+    Examples:
+        "192.168.1.100"  -> "192.168.1.x"
+        "2001:0db8:85a3:0000:0000:8a2e:0370:7334" -> "2001:0db8:85a3:0000:0000:8a2e:0370:x"
+        "unknown" -> "unknown"
+    """
+    if not ip_address or ip_address.lower() == "unknown" or not _is_valid_ip_format(ip_address):
+        return "unknown"
+
+    try:
+        parsed = ipaddress.ip_address(ip_address)
+        if isinstance(parsed, ipaddress.IPv4Address):
+            parts = ip_address.split(".")
+            parts[-1] = "x"
+            return ".".join(parts)
+        elif isinstance(parsed, ipaddress.IPv6Address):
+            full_form = parsed.exploded
+            parts = full_form.split(":")
+            parts[-1] = "x"
+            return ":".join(parts)
+    except Exception as e:
+        logger.warning(f"Error truncating IP '{ip_address}': {e}")
+
+    return "unknown"
+
+
+def derive_device_name(user_agent: str) -> str:
+    """
+    Derive a human-friendly device name from User-Agent string.
+    Returns names like "iPhone", "iPad", "Mac", "Windows PC", "Android Phone", etc.
+
+    Args:
+        user_agent: The raw User-Agent header string.
+
+    Returns:
+        A short, human-readable device label.
+    """
+    if not user_agent or user_agent.lower() == "unknown":
+        return "Unknown Device"
+
+    try:
+        from user_agents import parse
+        ua = parse(user_agent)
+
+        os_family = (ua.os.family or "").lower()
+        device_family = (ua.device.family or "").lower()
+
+        # iOS devices: distinguish iPhone vs iPad
+        if "ios" in os_family or "iphone" in device_family:
+            if "ipad" in device_family or ua.is_tablet:
+                return "iPad"
+            return "iPhone"
+
+        # macOS
+        if "mac os" in os_family or "macos" in os_family:
+            return "Mac"
+
+        # Windows
+        if "windows" in os_family:
+            return "Windows PC"
+
+        # Android: distinguish phone vs tablet
+        if "android" in os_family:
+            if ua.is_tablet:
+                return "Android Tablet"
+            return "Android Phone"
+
+        # ChromeOS
+        if "chrome os" in os_family or "chromeos" in os_family:
+            return "Chromebook"
+
+        # Linux
+        if "linux" in os_family:
+            return "Linux"
+
+        # Fallback based on device type flags
+        if ua.is_mobile:
+            return "Mobile Device"
+        if ua.is_tablet:
+            return "Tablet"
+        if ua.is_pc:
+            return "Desktop"
+
+    except ImportError:
+        logger.error("The 'user-agents' library is not installed for derive_device_name.")
+    except Exception as e:
+        logger.error(f"Error deriving device name from user agent: {e}", exc_info=True)
+
+    return "Unknown Device"

@@ -35,8 +35,29 @@ messages:
       note: "[Encrypted] Sender name, encrypted using chat-specific key"
 
     encrypted_category:
-      type: string  
+      type: string
       note: "[Encrypted] Category, encrypted using chat-specific key"
+
+    encrypted_model_name:
+      type: string
+      note: "[Encrypted] Model name used to generate this message, encrypted using chat-specific key. ONLY for assistant messages (indicates which AI model generated the response)"
+
+    encrypted_thinking_content:
+      type: textfield
+      note: "[Encrypted] The thinking content (internal reasoning) of the AI model, encrypted using the chat's key from Vault"
+
+    encrypted_thinking_signature:
+      type: string
+      note: "[Encrypted] Digital signature for the thinking content (if provided by model), encrypted using the chat's key"
+
+    has_thinking:
+      type: boolean
+      default: false
+      note: "Flag indicating if this message contains thinking content"
+
+    thinking_token_count:
+      type: integer
+      note: "Number of tokens used for the thinking process"
 
     # sender_name is removed as it's derived from category via translations in the UI.
 
@@ -47,3 +68,11 @@ messages:
     updated_at:
       type: integer
       note: "Unix timestamp (seconds) when the message was last updated. Crucial for delta syncs."
+
+    encrypted_pii_mappings:
+      type: textfield
+      note: "[Encrypted] JSON mapping of PII placeholders to original values. Used for client-side restoration of anonymized data. Format: [{placeholder: '[EMAIL_1]', original: 'user@example.com', type: 'EMAIL'}, ...]"
+
+    user_message_id:
+      type: string
+      note: "ID (client_message_id) of the user message that triggered this system message. Only set for system role messages (e.g., credits-rejection responses). Enables Device B to display the correct user message preview under 'Credits needed...' in the sidebar."

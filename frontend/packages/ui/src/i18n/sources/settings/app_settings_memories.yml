@@ -1,0 +1,146 @@
+app_settings_memories:
+  context: App settings and memories section title
+  en: Settings & Memories
+  de: Einstellungen & Erinnerungen
+  ar: الإعدادات والذكريات
+  he: הגדרות וזיכרונות
+  verified_by_human: []
+
+item_key_required:
+  context: Validation error when creating a memory entry without a key
+  en: Entry key is required
+  de: Eintragsschlüssel ist erforderlich
+  ar: مفتاح الإدخال مطلوب
+  he: חובה להזין מפתח רשומה
+  verified_by_human: []
+
+item_value_required:
+  context: Validation error when creating a memory entry without a value
+  en: Entry value is required
+  de: Eintragswert ist erforderlich
+  ar: قيمة الإدخال مطلوبة
+  he: חובה להזין ערך רשומה
+  verified_by_human: []
+
+authentication_required:
+  context: Error when unauthenticated user tries to access memory entries
+  en: Authentication required
+  de: Authentifizierung erforderlich
+  ar: المصادقة مطلوبة
+  he: נדרש אימות
+  verified_by_human: []
+
+confirm_delete:
+  context: Confirmation dialog text before deleting a memory entry
+  en: Are you sure you want to delete this entry?
+  de: Bist du sicher, dass du diesen Eintrag löschen möchtest?
+  ar: هل أنت متأكد أنك تريد حذف هذا الإدخال؟
+  he: "האם ברצונך למחוק את הרשומה הזו?"
+  verified_by_human: []
+
+entry_not_found:
+  context: Error when a memory entry doesn't exist
+  en: Entry not found
+  de: Eintrag nicht gefunden
+  ar: الإدخال غير موجود
+  he: הרשומה לא נמצאה
+  verified_by_human: []
+
+back_to_category:
+  context: Back button label on entry detail page
+  en: Back to category
+  de: Zurück zur Kategorie
+  ar: العودة إلى الفئة
+  he: חזרה לקטגוריה
+  verified_by_human: []
+
+deleting:
+  context: Delete button text while deletion is in progress
+  en: Deleting...
+  de: Wird gelöscht...
+  ar: جارٍ الحذف...
+  he: מוחק...
+  verified_by_human: []
+
+saving:
+  context: Save button text while saving is in progress
+  en: Saving...
+  de: Wird gespeichert...
+  ar: جارٍ الحفظ...
+  he: שומר...
+  verified_by_human: []
+
+encrypted_notice:
+  context: Privacy notice shown at the bottom of every settings and memories entry (view, edit, create), explaining that entries are encrypted and private
+  en: "Your settings and memories entries are encrypted, can only be read by your devices and are never sent to OpenMates for processing without your explicit consent."
+  de: "Deine Einstellungen und Erinnerungseinträge sind verschlüsselt, können nur von deinen Geräten gelesen werden und werden niemals ohne deine ausdrückliche Zustimmung zur Verarbeitung an OpenMates gesendet."
+  zh: "您的设置和记忆条目已加密，只有您的设备才能读取，未经您的明确同意，绝不会发送给 OpenMates 进行处理。"
+  es: "Sus entradas de configuración y memorias están cifradas, solo pueden ser leídas por sus dispositivos y nunca se envían a OpenMates para su procesamiento sin su consentimiento explícito."
+  fr: "Vos entrées de paramètres et de souvenirs sont chiffrées, ne peuvent être lues que par vos appareils et ne sont jamais envoyées à OpenMates pour traitement sans votre consentement explicite."
+  pt: "Suas entradas de configurações e memórias são criptografadas, só podem ser lidas pelos seus dispositivos e nunca são enviadas para a OpenMates para processamento sem o seu consentimento explícito."
+  ru: "Ваши записи настроек и воспоминаний зашифрованы, могут быть прочитаны только вашими устройствами и никогда не отправляются в OpenMates для обработки без вашего явного согласия."
+  ja: "設定とメモリのエントリは暗号化されており、あなたのデバイスのみが読み取ることができ、あなたの明示的な同意なしにOpenMatesに処理のために送信されることはありません。"
+  ko: "귀하의 설정 및 메모리 항목은 암호화되어 있으며, 귀하의 기기에서만 읽을 수 있고, 귀하의 명시적인 동의 없이는 처리를 위해 OpenMates로 전송되지 않습니다."
+  it: "Le voci delle impostazioni e delle memorie sono crittografate, possono essere lette solo dai tuoi dispositivi e non vengono mai inviate a OpenMates per l'elaborazione senza il tuo esplicito consenso."
+  tr: "Ayarlarınız ve anı girişleriniz şifrelenmiştir, yalnızca cihazlarınız tarafından okunabilir ve açık onayınız olmadan işleme için hiçbir zaman OpenMates'e gönderilmez."
+  vi: "Các mục cài đặt và ký ức của bạn được mã hóa, chỉ có thể được đọc bởi thiết bị của bạn và không bao giờ được gửi đến OpenMates để xử lý mà không có sự đồng ý rõ ràng của bạn."
+  id: "Entri pengaturan dan memori Anda dienkripsi, hanya dapat dibaca oleh perangkat Anda dan tidak pernah dikirim ke OpenMates untuk diproses tanpa persetujuan eksplisit Anda."
+  pl: "Twoje wpisy ustawień i wspomnień są zaszyfrowane, mogą być odczytane tylko przez Twoje urządzenia i nigdy nie są wysyłane do OpenMates do przetwarzania bez Twojej wyraźnej zgody."
+  nl: "Uw instellingen en geheugenitems zijn versleuteld, kunnen alleen door uw apparaten worden gelezen en worden nooit zonder uw uitdrukkelijke toestemming naar OpenMates verzonden voor verwerking."
+  ar: "إدخالات إعداداتك وذكرياتك مشفرة، ولا يمكن قراءتها إلا بواسطة أجهزتك، ولا يتم إرسالها أبدًا إلى OpenMates للمعالجة دون موافقتك الصريحة."
+  hi: "आपकी सेटिंग्स और यादों की प्रविष्टियाँ एन्क्रिप्टेड हैं, केवल आपके डिवाइस द्वारा पढ़ी जा सकती हैं और आपकी स्पष्ट सहमति के बिना प्रसंस्करण के लिए कभी भी OpenMates को नहीं भेजी जाती हैं।"
+  th: "รายการการตั้งค่าและความทรงจำของคุณได้รับการเข้ารหัส สามารถอ่านได้เฉพาะโดยอุปกรณ์ของคุณเท่านั้น และจะไม่ถูกส่งไปยัง OpenMates เพื่อประมวลผลโดยไม่ได้รับความยินยอมอย่างชัดแจ้งจากคุณ"
+  cs: "Vaše záznamy nastavení a vzpomínek jsou šifrovány, mohou být čteny pouze vašimi zařízeními a nikdy nejsou odesílány k zpracování do OpenMates bez vašeho výslovného souhlasu."
+  sv: "Dina inställningar och minnesposter är krypterade, kan bara läsas av dina enheter och skickas aldrig till OpenMates för bearbetning utan ditt uttryckliga samtycke."
+  he: "הרשומות של ההגדרות והזיכרונות שלך מוצפנות, ניתנות לקריאה רק על ידי המכשירים שלך ולעולם לא נשלחות ל-OpenMates לעיבוד ללא הסכמתך המפורשת."
+  verified_by_human: []
+
+diff_previous_value:
+  context: Label shown next to the old value when AI suggests updating a settings/memories field via deep link
+  en: "Previous:"
+  de: "Vorher:"
+  zh: "之前："
+  es: "Anterior:"
+  fr: "Précédent :"
+  pt: "Anterior:"
+  ru: "Ранее:"
+  ja: "変更前："
+  ko: "이전:"
+  it: "Precedente:"
+  tr: "Önceki:"
+  vi: "Trước đó:"
+  id: "Sebelumnya:"
+  pl: "Poprzednio:"
+  nl: "Vorig:"
+  ar: "السابق:"
+  hi: "पिछला:"
+  th: "ก่อนหน้า:"
+  cs: "Předchozí:"
+  sv: "Föregående:"
+  he: "קודם:"
+  verified_by_human: []
+
+diff_not_set:
+  context: Placeholder shown in diff hint when the previous value of a field was empty/not set
+  en: Not set
+  de: Nicht gesetzt
+  zh: 未设置
+  es: No establecido
+  fr: Non défini
+  pt: Não definido
+  ru: Не задано
+  ja: 未設定
+  ko: 설정되지 않음
+  it: Non impostato
+  tr: Ayarlanmamış
+  vi: Chưa đặt
+  id: Belum diatur
+  pl: Nie ustawiono
+  nl: Niet ingesteld
+  ar: غير محدد
+  hi: सेट नहीं किया गया
+  th: ยังไม่ได้ตั้งค่า
+  cs: Nenastaveno
+  sv: Inte inställt
+  he: לא הוגדר
+  verified_by_human: []

@@ -1,0 +1,17 @@
+chat:
+  title: 'Playwright Import Test Chat 2'
+  exported_at: '2026-03-01T11:00:00.000Z'
+  message_count: 2
+  draft: null
+  summary: 'A test conversation about recipe ideas for import testing.'
+
+messages:
+  - role: 'user'
+    completed_at: '2026-03-01T11:00:05.000Z'
+    content: 'What are some easy pasta recipes I can make for dinner tonight?'
+  - role: 'assistant'
+    completed_at: '2026-03-01T11:00:15.000Z'
+    assistant_category: 'general'
+    content: "Here are three easy pasta recipes you can make tonight:\n\n1. **Spaghetti Aglio e Olio** - Garlic, olive oil, and parsley. Ready in 20 minutes.\n2. **Pasta Pomodoro** - Simple tomato sauce with fresh basil. Quick and delicious.\n3. **Cacio e Pepe** - Just pasta, pecorino cheese, and black pepper. Incredibly satisfying.\n\nAll three use pantry staples and take under 30 minutes!"
+
+embeds: []

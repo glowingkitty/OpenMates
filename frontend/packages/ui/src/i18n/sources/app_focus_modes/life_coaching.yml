@@ -1,0 +1,104 @@
+crisis_support:
+  context: Focus mode name for crisis support
+  en: Crisis support
+  de: Krisenunterstützung
+  zh: 危机支持
+  es: Apoyo en crisis
+  fr: Soutien en cas de crise
+  pt: Suporte em crise
+  ru: Поддержка в кризисе
+  ja: 危機サポート
+  ko: 위기 지원
+  it: Supporto in crisi
+  tr: Kriz desteği
+  vi: Hỗ trợ khủng hoảng
+  id: Dukungan krisis
+  pl: Wsparcie w kryzysie
+  nl: Crisisondersteuning
+  ar: دعم الأزمات
+  hi: संकट सहायता
+  th: การสนับสนุนในยามวิกฤต
+  cs: Podpora v krizi
+  sv: Krisstöd
+  he: תמיכה בעת משבר
+  verified_by_human:
+    - en
+    - de
+crisis_support.description:
+  context: Description for crisis support focus mode
+  en: Get support in difficult times and plan ahead.
+  de: Unterstützung in schwierigen Zeiten und vorausplanen.
+  zh: 在困难时期获得支持并提前规划。
+  es: Obtén apoyo en momentos difíciles y planifica.
+  fr: Obtenez du soutien en temps difficile et planifiez.
+  pt: Apoio em momentos difíceis e planeje seus passos.
+  ru: Поддержка в трудные времена и планирование.
+  ja: 困難な時期にサポートを受け、先を計画する。
+  ko: 어려운 시기에 지원을 받고 계획을 세우세요.
+  it: Supporto nei momenti difficili e pianifica avanti.
+  tr: Zor zamanlarda destek alın ve ileriye planlayın.
+  vi: Nhận hỗ trợ khi khó khăn và lập kế hoạch.
+  id: Dapatkan dukungan saat sulit dan rencanakan.
+  pl: Wsparcie w trudnych chwilach i planowanie.
+  nl: Krijg steun in moeilijke tijden en plan vooruit.
+  ar: احصل على دعم في الأوقات الصعبة وخطط للمستقبل.
+  hi: कठिन समय में सहायता पाएं और योजना बनाएं।
+  th: รับการสนับสนุนในยามยากลำบากและวางแผนล่วงหน้า
+  cs: Podpora v obtížných časech a plánování dalšího.
+  sv: Få stöd i svåra tider och planera framåt.
+  he: קבלת תמיכה בזמנים קשים ותכנון קדימה.
+  verified_by_human:
+    - en
+    - de
+future_speaking:
+  context: Focus mode name for future speaking
+  en: Future speaking
+  de: Zukunftsgespräch
+  zh: 未来对话
+  es: Hablar del futuro
+  fr: Parler du futur
+  pt: Falar sobre o futuro
+  ru: Разговор о будущем
+  ja: 未来について話す
+  ko: 미래 대화
+  it: Parlare del futuro
+  tr: Gelecek konuşması
+  vi: Nói về tương lai
+  id: Berbicara masa depan
+  pl: Rozmowa o przyszłości
+  nl: Toekomstgesprek
+  ar: التحدث عن المستقبل
+  hi: भविष्य की बातचीत
+  th: การพูดคุยเกี่ยวกับอนาคต
+  cs: Rozhovor o budoucnosti
+  sv: Framtidsamtal
+  he: שיח עתידי
+  verified_by_human:
+    - en
+    - de
+future_speaking.description:
+  context: Description for future speaking focus mode
+  en: A powerful life coaching technique.
+  de: Eine kraftvolle Lebensberatungstechnik.
+  zh: 一种强大的生活指导技巧。
+  es: Una poderosa técnica de coaching de vida.
+  fr: Une technique puissante de coaching de vie.
+  pt: Uma técnica poderosa de coaching de vida.
+  ru: Мощная техника коучинга жизни.
+  ja: 強力なライフコーチングテクニック。
+  ko: 강력한 라이프 코칭 기법.
+  it: Una potente tecnica di life coaching.
+  tr: Güçlü bir yaşam koçluğu tekniği.
+  vi: Kỹ thuật huấn luyện cuộc sống mạnh mẽ.
+  id: Teknik bimbingan hidup yang kuat.
+  pl: Potężna technika coachingu życiowego.
+  nl: Een krachtige levenscoachingtechniek.
+  ar: تقنية قوية للتدريب على الحياة.
+  hi: एक शक्तिशाली जीवन कोचिंग तकनीक।
+  th: เทคนิคการโค้ชชีวิตที่ทรงพลัง
+  cs: Mocná technika životního koučinku.
+  sv: En kraftfull livscoachingteknik.
+  he: טכניקת אימון אישי עוצמתית.
+  verified_by_human:
+    - en
+    - de

@@ -1,0 +1,88 @@
+description:
+  context: Introductory text explaining the tipping feature
+  en: Support the creator by sending a tip from your credit balance.
+  de: Unterstütze den Ersteller, indem du ein Trinkgeld aus deinem Guthaben sendest.
+  ar: ادعم المبدع بإرسال إكرامية من رصيد رصيدك.
+  he: תמכו ביוצר על ידי שליחת טיפ מיתרת הקרדיטים שלכם.
+  verified_by_human: []
+
+tip_creator:
+  context: Navigation title for the tip settings page
+  en: Tip Creator
+  de: Ersteller unterstützen
+  zh: 打赏创作者
+  es: Dar propina al creador
+  fr: Soutenir le créateur
+  pt: Gorjeta ao criador
+  ru: Поддержать создателя
+  ja: クリエイターにチップ
+  ko: 크리에이터에게 팁
+  it: Mancia al creatore
+  tr: İçerik üreticisine bahşiş
+  vi: Tip cho người sáng tạo
+  id: Tip Kreator
+  pl: Napiwek dla twórcy
+  nl: Fooi voor maker
+  ar: إكرامية للمبدع
+  hi: रचनाकार को टिप दें
+  th: ให้ทิปผู้สร้าง
+  cs: Příspěvek tvůrci
+  sv: Dricks till skaparen
+  he: טיפ ליוצר
+  verified_by_human: []
+
+amount:
+  context: Section title above tip amount slider
+  en: Amount
+  de: Betrag
+  ar: المبلغ
+  he: סכום
+  verified_by_human: []
+
+credits:
+  context: Label appended after amount values (e.g. "50 credits")
+  en: credits
+  de: Credits
+  ar: رصيد
+  he: קרדיטים
+  verified_by_human: []
+
+current_balance:
+  context: Label preceding the user's credit balance
+  en: Current balance
+  de: Aktuelles Guthaben
+  ar: الرصيد الحالي
+  he: יתרה נוכחית
+  verified_by_human: []
+
+insufficient_balance:
+  context: Warning when credit balance is less than selected tip amount. Uses {needed} interpolation.
+  en: "You need {needed} more credits to send this tip."
+  de: "Du benötigst noch {needed} Credits, um dieses Trinkgeld zu senden."
+  ar: "تحتاج إلى {needed} رصيد إضافي لإرسال هذه الإكرامية."
+  he: "חסרים לך {needed} קרדיטים כדי לשלוח את הטיפ הזה."
+  verified_by_human: []
+
+tipping:
+  context: Button text while tip transaction is processing
+  en: Sending tip...
+  de: Trinkgeld wird gesendet...
+  ar: جاري إرسال الإكرامية...
+  he: שולח טיפ...
+  verified_by_human: []
+
+tip_info:
+  context: Informational text explaining how tips work
+  en: Tips are sent directly from your credit balance to the content creator.
+  de: Trinkgelder werden direkt von deinem Guthaben an den Ersteller gesendet.
+  ar: يتم إرسال الإكراميات مباشرة من رصيدك إلى منشئ المحتوى.
+  he: טיפים נשלחים ישירות מיתרת הקרדיטים שלך ליוצר התוכן.
+  verified_by_human: []
+
+channel_id_required:
+  context: Info message when channel ID is missing for video tipping
+  en: Channel ID is required to tip video creators.
+  de: Die Kanal-ID ist erforderlich, um Video-Ersteller zu unterstützen.
+  ar: معرف القناة مطلوب لإرسال إكرامية لمنشئي الفيديو.
+  he: נדרש מזהה ערוץ כדי לתת טיפ ליוצרי וידאו.
+  verified_by_human: []

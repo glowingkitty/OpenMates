@@ -10,8 +10,10 @@ if False: # TYPE_CHECKING
 logger = logging.getLogger(__name__)
 
 # Define metadata fields to fetch (exclude large content fields)
-CHAT_METADATA_FIELDS = "id,hashed_user_id,encrypted_title,created_at,updated_at,messages_v,title_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_active_focus_id,encrypted_chat_key,encrypted_icon,encrypted_category"
-CHAT_LIST_ITEM_FIELDS = "id,encrypted_title,unread_count,encrypted_chat_summary,encrypted_chat_tags,encrypted_chat_key,encrypted_icon,encrypted_category"
+# NOTE: user_id is NOT included here to avoid permission issues on public share endpoints
+# Use hashed_user_id for ownership verification instead
+CHAT_METADATA_FIELDS = "id,hashed_user_id,encrypted_title,created_at,updated_at,messages_v,title_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_active_focus_id,encrypted_chat_key,encrypted_icon,encrypted_category,is_private,is_shared,shared_encrypted_title,shared_encrypted_summary,pinned"
+CHAT_LIST_ITEM_FIELDS = "id,encrypted_title,unread_count,encrypted_chat_summary,encrypted_chat_tags,encrypted_chat_key,encrypted_icon,encrypted_category,is_shared,is_private,pinned"
 
 # Fallback field sets for when encrypted fields are not accessible due to permissions
 CHAT_METADATA_FIELDS_FALLBACK = "id,hashed_user_id,encrypted_title,created_at,updated_at,messages_v,title_v,last_edited_overall_timestamp,unread_count"
@@ -19,6 +21,8 @@ CHAT_LIST_ITEM_FIELDS_FALLBACK = "id,encrypted_title,unread_count"
 
 
 # Fields required for get_core_chats_for_cache_warming from 'chats' collection
+# NOTE: user_id is NOT stored in Directus (privacy by design - only hashed_user_id exists)
+# The sync handler sets user_id from the authenticated user context since all synced chats belong to them
 CORE_CHAT_FIELDS_FOR_WARMING = (
     "id,"
     "hashed_user_id,"
@@ -34,14 +38,20 @@ CORE_CHAT_FIELDS_FOR_WARMING = (
     "encrypted_follow_up_request_suggestions,"
     "encrypted_icon,"
     "encrypted_category,"
-    "last_edited_overall_timestamp"
+    "last_edited_overall_timestamp,"
+    "pinned,"
+    "is_shared,"  # CRITICAL: Include sharing fields so SettingsShared.svelte can filter shared chats after reload
+    "is_private"  # CRITICAL: Include sharing fields so SettingsShared.svelte can filter shared chats after reload
 )
 
 # Fields required for get_full_chat_details_for_cache_warming from 'chats' collection
+# NOTE: user_id is NOT stored in Directus (privacy by design - only hashed_user_id exists)
+# The sync handler sets user_id from the authenticated user context since all synced chats belong to them
 CHAT_FIELDS_FOR_FULL_WARMING = (
     "id,"
     "hashed_user_id,"
     "encrypted_title,"
+    "encrypted_chat_key,"  # Needed for decryption
     "created_at,"
     "updated_at,"
     "title_v,"
@@ -52,7 +62,10 @@ CHAT_FIELDS_FOR_FULL_WARMING = (
     "encrypted_follow_up_request_suggestions,"
     "encrypted_icon,"
     "encrypted_category,"
-    "last_edited_overall_timestamp"
+    "last_edited_overall_timestamp,"
+    "pinned,"
+    "is_shared,"  # CRITICAL: Include sharing fields so SettingsShared.svelte can filter shared chats after reload
+    "is_private"  # CRITICAL: Include sharing fields so SettingsShared.svelte can filter shared chats after reload
 )
 
 # Fields for the new 'drafts' collection
@@ -74,7 +87,28 @@ MESSAGE_ALL_FIELDS = (
     "role," # Added role
     "encrypted_sender_name," # Added encrypted sender name
     "encrypted_category," # Added encrypted category
+    "encrypted_model_name," # Added encrypted model name
+    "encrypted_thinking_content," # Added encrypted thinking content (assistant only)
+    "encrypted_thinking_signature," # Added encrypted thinking signature (assistant only)
+    "has_thinking," # Added thinking metadata flag
+    "thinking_token_count," # Added thinking token count
+    "encrypted_pii_mappings," # Encrypted PII placeholder-to-original mappings (user messages only)
+    "user_message_id," # ID of the user message that triggered this system message (system messages only)
     # "sender_name," # Removed as per user feedback and to avoid permission issues
+    "created_at"
+)
+
+# Fallback message fields for environments where thinking metadata fields are not permitted.
+# This avoids hard failures during login sync if Directus roles have not been updated yet.
+MESSAGE_FIELDS_NO_THINKING = (
+    "id,"
+    "client_message_id,"
+    "chat_id,"
+    "encrypted_content,"
+    "role,"
+    "encrypted_sender_name,"
+    "encrypted_category,"
+    "encrypted_model_name,"
     "created_at"
 )
 
@@ -116,7 +150,21 @@ class ChatMethods:
     async def get_chat_metadata(self, chat_id: str) -> Optional[Dict[str, Any]]:
         """
         Fetches metadata for a specific chat from Directus, excluding content.
+        
+        Args:
+            chat_id: The chat ID (must be a valid UUID format for Directus queries)
+            
+        Returns:
+            Chat metadata dict if found, None otherwise
         """
+        # Validate chat_id is a UUID format before querying Directus
+        # Non-UUID chat IDs (like "demo-for-everyone") are not stored in Directus
+        import re
+        uuid_pattern = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.IGNORECASE)
+        if not uuid_pattern.match(chat_id):
+            logger.debug(f"Skipping Directus query for non-UUID chat_id: {chat_id} (likely a demo/placeholder chat)")
+            return None
+        
         logger.info(f"Fetching chat metadata for chat_id: {chat_id}")
         params = {
             'filter[id][_eq]': chat_id,
@@ -135,17 +183,71 @@ class ChatMethods:
             logger.error(f"Error fetching chat metadata for {chat_id}: {e}", exc_info=True)
             return None
 
+    async def check_chat_ownership(self, chat_id: str, user_id: str) -> bool:
+        """
+        Checks if a user owns a chat by comparing hashed_user_id.
+        Optimized to use cache first, falling back to Directus only if necessary.
+        
+        Args:
+            chat_id: The chat ID to check
+            user_id: The user ID to verify ownership
+            
+        Returns:
+            True if the user owns the chat, False otherwise
+        """
+        try:
+            # 1. Try cache first (most efficient)
+            # If the chat_id is in the user's sorted set, they definitely own it.
+            cache_exists = await self.directus_service.cache.check_chat_exists_for_user(user_id, chat_id)
+            if cache_exists:
+                logger.debug(f"Ownership check CACHE HIT for chat {chat_id}, user {user_id}: True")
+                return True
+            
+            # 2. If not in cache, check if cache is primed for this user.
+            # If primed and not in cache, the user does NOT own the chat (False).
+            is_primed = await self.directus_service.cache.is_user_cache_primed(user_id)
+            if is_primed:
+                logger.debug(f"Ownership check CACHE HIT (primed but missing) for chat {chat_id}, user {user_id}: False")
+                return False
+            
+            # 3. Cache miss or not primed: Fallback to Directus (DB hit)
+            logger.info(f"Ownership check CACHE MISS for chat {chat_id}, user {user_id}. Falling back to DB.")
+            chat_metadata = await self.get_chat_metadata(chat_id)
+            if not chat_metadata:
+                logger.warning(f"Chat {chat_id} not found when checking ownership for user {user_id}")
+                return False
+            
+            # Get hashed_user_id from chat metadata
+            chat_hashed_user_id = chat_metadata.get('hashed_user_id')
+            if not chat_hashed_user_id:
+                logger.warning(f"Chat {chat_id} has no hashed_user_id field")
+                return False
+            
+            # Hash the provided user_id and compare
+            user_hashed_id = hashlib.sha256(user_id.encode()).hexdigest()
+            is_owner = chat_hashed_user_id == user_hashed_id
+            
+            logger.debug(f"Ownership check (DB fallback) for chat {chat_id}, user {user_id}: {is_owner}")
+            return is_owner
+            
+        except Exception as e:
+            logger.error(f"Error checking chat ownership for chat {chat_id}, user {user_id}: {e}", exc_info=True)
+            return False
+
     async def get_user_chats_metadata(self, user_id: str, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
         """
         Fetches metadata for all chats belonging to a user from Directus, excluding content.
+        Uses hashed_user_id for filtering (privacy by design - raw user_id is never stored in Directus).
         """
         logger.info(f"Fetching chat metadata list for user_id: {user_id}, limit: {limit}, offset: {offset}")
+        # Hash the user_id for privacy-preserving lookup
+        hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
         params = {
-            'filter[user_id][_eq]': user_id, # Assuming 'user_id' field exists in 'chats'
+            'filter[hashed_user_id][_eq]': hashed_user_id,
             'fields': CHAT_METADATA_FIELDS,
             'limit': limit,
             'offset': offset,
-            'sort': '-updated_at'
+            'sort': '-pinned,-updated_at'
         }
         try:
             response = await self.directus_service.get_items('chats', params=params)
@@ -165,7 +267,10 @@ class ChatMethods:
         Requires 'basedOnVersion' in the data payload for optimistic concurrency control.
         Increments the '_version' field on successful update.
         """
-        logger.info(f"Attempting to update chat metadata for chat_id: {chat_id} with data: {data}")
+        logger.info(
+            f"Attempting to update chat metadata for chat_id: {chat_id} "
+            f"with field_keys={sorted(data.keys()) if isinstance(data, dict) else []}"
+        )
         based_on_version = data.pop('basedOnVersion', None)
         if based_on_version is None:
             logger.error(f"Update rejected for chat {chat_id}: 'basedOnVersion' is missing.")
@@ -200,9 +305,21 @@ class ChatMethods:
             logger.error(f"Error updating chat metadata for {chat_id}: {e}", exc_info=True)
             return None
 
-    async def create_chat_in_directus(self, chat_metadata: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    async def create_chat_in_directus(self, chat_metadata: Dict[str, Any]) -> tuple[Optional[Dict[str, Any]], bool]:
         """
-        Create a chat record in Directus.
+        Create a chat record in Directus using an upsert pattern.
+        
+        Tries to INSERT first. On duplicate key (race condition where another task already
+        created the chat), falls back to PATCH with any non-empty fields from the payload.
+        This eliminates the "duplicate key violates unique constraint" errors from the DB logs
+        and ensures metadata from the second task (e.g., encrypted_chat_key) is not lost.
+        
+        Returns:
+            tuple[Optional[Dict], bool]: 
+                - (created_data, False) on success (created)
+                - (updated_data, True) if chat already existed and was updated (upsert fallback)
+                - (None, True) if chat already exists but update was unnecessary
+                - (None, False) on other failures
         """
         try:
             chat_id_val = chat_metadata.get('id')
@@ -210,42 +327,240 @@ class ChatMethods:
             success, result_data = await self.directus_service.create_item('chats', chat_metadata)
             if success and result_data:
                 logger.info(f"Chat created in Directus: {result_data.get('id')}")
-                if chat_id_val: # Check if chat_id_val is not None
+                if chat_id_val:
                     await self.directus_service.cache.delete(f"chat:{chat_id_val}:metadata")
-                return result_data
+                
+                # Update Global Stats (Incremental)
+                try:
+                    await self.directus_service.cache.increment_stat("chats_created")
+                except Exception as stats_err:
+                    logger.error(f"Error updating global stats after chat creation: {stats_err}")
+                    
+                return result_data, False
             else:
-                logger.error(f"Failed to create chat in Directus for {chat_id_val}. Details: {result_data}")
-                return None
+                # Check if this is a duplicate key error (race condition - chat was created by another task)
+                # This happens when two tasks check "chat exists?" -> both get False -> both try to create
+                # Directus may return the error in different formats depending on the DB driver:
+                #   - Directus-wrapped: "RECORD_NOT_UNIQUE" in the error text
+                #   - Raw PostgreSQL: "duplicate key value violates unique constraint" in the error text
+                is_duplicate = False
+                if isinstance(result_data, dict):
+                    error_text = result_data.get('text', '')
+                    if 'RECORD_NOT_UNIQUE' in error_text or 'duplicate key' in error_text.lower():
+                        is_duplicate = True
+                
+                if is_duplicate and chat_id_val:
+                    # UPSERT FALLBACK: Chat already exists — update it with any meaningful fields
+                    # from the payload that the existing record might be missing (e.g., encrypted_chat_key,
+                    # encrypted_title set by a concurrent metadata task).
+                    # Exclude 'id' and 'created_at' since those are immutable.
+                    fields_to_update = {
+                        k: v for k, v in chat_metadata.items()
+                        if k not in ('id', 'created_at') and v is not None and v != '' and v != 0
+                    }
+                    
+                    if fields_to_update:
+                        logger.info(
+                            f"Chat {chat_id_val} already exists (race condition). "
+                            f"Upserting with fields: {list(fields_to_update.keys())}"
+                        )
+                        try:
+                            updated_data = await self.directus_service.update_item(
+                                'chats', chat_id_val, fields_to_update
+                            )
+                            if updated_data:
+                                await self.directus_service.cache.delete(f"chat:{chat_id_val}:metadata")
+                                return updated_data, True
+                        except Exception as update_err:
+                            logger.warning(
+                                f"Upsert fallback update failed for chat {chat_id_val}: {update_err}. "
+                                f"Chat exists, proceeding with message creation."
+                            )
+                    else:
+                        logger.info(
+                            f"Chat {chat_id_val} already exists (race condition). "
+                            f"No additional fields to update. Proceeding with message creation."
+                        )
+                    
+                    return None, True
+                
+                if not is_duplicate:
+                    logger.error(f"Failed to create chat in Directus for {chat_id_val}. Details: {result_data}")
+                
+                return None, is_duplicate
         except Exception as e:
             logger.error(f"Error creating chat in Directus: {e}", exc_info=True)
-            return None
+            return None, False
+
+    async def message_exists_by_client_message_id(self, client_message_id: str) -> bool:
+        """
+        Check if a message with the given client_message_id already exists in Directus.
+        
+        This is used for idempotency checking to prevent duplicate messages from being created
+        due to race conditions (e.g., duplicate requests from cached webapp on mobile devices).
+        
+        Args:
+            client_message_id: The client-generated unique message identifier
+            
+        Returns:
+            True if message already exists, False otherwise
+        """
+        try:
+            # CRITICAL FIX: Use get_items instead of fetch_items (which doesn't exist)
+            # get_items returns a list directly, not a (success, result) tuple
+            result = await self.directus_service.get_items(
+                collection='messages',
+                params={
+                    "filter": {"client_message_id": {"_eq": client_message_id}},
+                    "limit": 1,
+                    "fields": ["id", "client_message_id"]  # Only fetch minimal fields
+                }
+            )
+            
+            if result and len(result) > 0:
+                # Message already exists
+                logger.info(
+                    f"[IDEMPOTENCY_CHECK] Message with client_message_id={client_message_id} "
+                    f"already exists in Directus (id: {result[0].get('id')})"
+                )
+                return True
+            
+            return False
+            
+        except Exception as e:
+            logger.error(
+                f"[IDEMPOTENCY_CHECK] Error checking for existing message {client_message_id}: {e}",
+                exc_info=True
+            )
+            # On error, return False to allow message creation to proceed
+            # (the unique constraint will catch duplicates if this check failed)
+            return False
 
     async def create_message_in_directus(self, message_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
         Create a message record in Directus.
+        Validates that encrypted_content is valid base64 before storing.
+        
+        CRITICAL: This method MUST ONLY accept client-encrypted messages (encrypted with chat-specific key).
+        Vault-encrypted messages should NEVER reach this point - they violate zero-knowledge architecture.
         """
         try:
             chat_id_val = message_data.get('chat_id')
-            logger.info(f"Attempting to create message in Directus for chat: {chat_id_val}")
+            # Check both 'id' and 'message_id' for the client-side ID
+            message_id = message_data.get("id") or message_data.get("message_id")
+            encrypted_content = message_data.get("encrypted_content")
+            role = message_data.get("role", "user")
+            
+            # CRITICAL VALIDATION: Ensure we only store client-encrypted messages
+            if not encrypted_content:
+                logger.error(
+                    f"❌ REJECTING message {message_id} for chat {chat_id_val} (role={role}): "
+                    f"No encrypted_content provided. Messages MUST be encrypted by client before storage."
+                )
+                return None
+            
+            # VALIDATION: Check if encrypted_content is valid
+            # Accept both:
+            # 1. Pure base64 (client-side encrypted data)
+            # 2. Vault transit format "vault:v1:<base64>" (server-side encrypted, e.g., reminders)
+            import base64
+            is_valid_encryption = False
+            
+            # Check for Vault transit format (server-side encryption for system messages like reminders)
+            if encrypted_content.startswith("vault:"):
+                # Vault transit ciphertext format: vault:v<version>:<base64_ciphertext>
+                parts = encrypted_content.split(":", 2)
+                if len(parts) == 3 and parts[1].startswith("v"):
+                    try:
+                        # Validate the base64 portion of the Vault ciphertext
+                        decoded_bytes = base64.b64decode(parts[2], validate=True)
+                        is_valid_encryption = True
+                        logger.debug(
+                            f"✅ Message {message_id} (role={role}): encrypted_content is valid Vault transit format "
+                            f"({len(decoded_bytes)} bytes in ciphertext portion)"
+                        )
+                    except Exception:
+                        pass  # Will be caught by the rejection below
+            else:
+                # Standard base64 validation for client-side encrypted data
+                try:
+                    decoded_bytes = base64.b64decode(encrypted_content, validate=True)
+                    is_valid_encryption = True
+                    logger.debug(
+                        f"✅ Message {message_id} (role={role}): encrypted_content is valid base64 "
+                        f"({len(decoded_bytes)} bytes after decoding)"
+                    )
+                except Exception:
+                    pass  # Will be caught by the rejection below
+            
+            if not is_valid_encryption:
+                logger.error(
+                    f"❌ REJECTING message {message_id} for chat {chat_id_val} (role={role}): "
+                    f"encrypted_content is not valid base64 or Vault transit format. "
+                    f"This indicates incomplete or corrupted encryption. "
+                    f"This is a CRITICAL zero-knowledge architecture violation!"
+                )
+                return None  # Reject the message
+            
+            # IDEMPOTENCY FIX: Generate a deterministic UUID for the Primary Key 'id' field
+            # based on the client_message_id. This ensures that even if the unique constraint 
+            # on client_message_id is missing in the database, the Primary Key constraint 
+            # will prevent duplicate messages.
+            import uuid
+            # Use namespace UUID for deterministic generation
+            NAMESPACE_OPENMATES_MESSAGE = uuid.UUID('6ba7b810-9dad-11d1-80b4-00c04fd430c8') # DNS namespace as base
+            deterministic_id = str(uuid.uuid5(NAMESPACE_OPENMATES_MESSAGE, message_id))
+
+            logger.info(f"Attempting to create message in Directus for chat: {chat_id_val}, role: {role}, id: {deterministic_id}")
             payload_to_directus = {
-                "client_message_id": message_data.get("id"), # This should be message_id from the input
+                "id": deterministic_id, # Deterministic PK to prevent duplicates
+                "client_message_id": message_id,
                 "chat_id": chat_id_val,
                 "hashed_user_id": message_data.get("hashed_user_id"),
-                "role": message_data.get("role"), # Added role
-                "encrypted_sender_name": message_data.get("encrypted_sender_name"), # Encrypted sender name
-                "encrypted_category": message_data.get("encrypted_category"), # Encrypted category
-                "encrypted_content": message_data.get("encrypted_content"),
+                "role": role,
+                "encrypted_sender_name": message_data.get("encrypted_sender_name"),
+                "encrypted_category": message_data.get("encrypted_category"),
+                "encrypted_model_name": message_data.get("encrypted_model_name"),
+                "encrypted_thinking_content": message_data.get("encrypted_thinking_content"),
+                "encrypted_thinking_signature": message_data.get("encrypted_thinking_signature"),
+                "has_thinking": message_data.get("has_thinking"),
+                "thinking_token_count": message_data.get("thinking_token_count"),
+                "encrypted_pii_mappings": message_data.get("encrypted_pii_mappings"),
+                "user_message_id": message_data.get("user_message_id"),  # Links system message to triggering user message
+                "encrypted_content": encrypted_content,
                 "created_at": message_data.get("created_at"),
             }
             payload_to_directus = {k: v for k, v in payload_to_directus.items() if v is not None}
             success, result_data = await self.directus_service.create_item('messages', payload_to_directus)
             
             if success and result_data:
-                logger.info(f"Message created in Directus. Directus ID: {result_data.get('id')}, Client Message ID: {result_data.get('client_message_id')}")
-                if chat_id_val: # Check if chat_id_val is not None
+                logger.info(f"✅ Message created in Directus. Directus ID: {result_data.get('id')}, Client Message ID: {result_data.get('client_message_id')}")
+                if chat_id_val:
                     await self.directus_service.cache.delete(f"chat:{chat_id_val}:messages")
+                
+                # Update Global Stats (Incremental)
+                try:
+                    await self.directus_service.cache.increment_stat("messages_sent")
+                except Exception as stats_err:
+                    logger.error(f"Error updating global stats after message creation: {stats_err}")
+                    
                 return result_data
             else:
+                # Check for duplicate key error (RECORD_NOT_UNIQUE or raw PostgreSQL duplicate key)
+                is_duplicate_msg = False
+                if isinstance(result_data, dict):
+                    error_text = str(result_data.get('text', ''))
+                    if 'RECORD_NOT_UNIQUE' in error_text or 'duplicate key' in error_text.lower():
+                        is_duplicate_msg = True
+                
+                if is_duplicate_msg:
+                    logger.info(
+                        f"Message {message_id} already exists in Directus (duplicate key). "
+                        f"Treating as success for chat {chat_id_val}."
+                    )
+                    # Return a dict with the ID to indicate "success" (already exists)
+                    return {"id": deterministic_id, "client_message_id": message_id}
+                
                 logger.error(f"Failed to create message in Directus for chat {chat_id_val}. Details: {result_data}")
                 return None
         except Exception as e:
@@ -302,6 +617,46 @@ class ChatMethods:
             logger.warning(f"Error checking if messages exist for chat {chat_id}: {e}")
             return False
 
+    async def get_message_count_for_chat(self, chat_id: str) -> Optional[int]:
+        """
+        Get the count of messages for a chat.
+        
+        This is a lightweight query that only requests message IDs to count them,
+        avoiding the overhead of fetching encrypted content.
+        
+        Used for client-side validation to detect data inconsistencies where
+        version numbers match but message counts don't (indicating missing messages).
+        
+        Args:
+            chat_id: The chat ID to count messages for
+            
+        Returns:
+            The number of messages in the chat, or None if an error occurs
+        """
+        try:
+            params = {
+                'filter[chat_id][_eq]': chat_id,
+                'fields': 'id',  # Only request ID field for minimal data transfer
+                'limit': -1  # Get all messages to count them
+            }
+            # CRITICAL: Must use admin_required=True here to match the permissions used in
+            # get_messages_for_chats(). Without this, the count query may return fewer messages
+            # than the fetch query (e.g. thinking metadata fields require elevated permissions),
+            # causing the client to perpetually detect "DATA INCONSISTENCY DETECTED".
+            messages_from_db = await self.directus_service.get_items(
+                'messages',
+                params=params,
+                admin_required=True
+            )
+            if messages_from_db is None:
+                return 0
+            count = len(messages_from_db) if isinstance(messages_from_db, list) else 0
+            logger.debug(f"Message count for chat {chat_id}: {count}")
+            return count
+        except Exception as e:
+            logger.warning(f"Error getting message count for chat {chat_id}: {e}")
+            return None
+
     async def get_messages_for_chats(
         self,
         chat_ids: List[str],
@@ -311,6 +666,9 @@ class ChatMethods:
         Fetches all messages for a given list of chat_ids from Directus.
         Orders messages by creation date.
         Returns a dictionary mapping chat_id to its list of messages.
+        
+        CRITICAL: These messages MUST be encrypted with client chat keys only (zero-knowledge).
+        Vault-encrypted messages should NEVER be in Directus.
         """
         if not chat_ids:
             return {}
@@ -322,7 +680,32 @@ class ChatMethods:
             'limit': -1
         }
         try:
-            messages_from_db = await self.directus_service.get_items('messages', params=params)
+            # First attempt includes thinking metadata fields. If Directus denies those fields,
+            # retry with a reduced field set to unblock login sync.
+            messages_from_db = await self.directus_service.get_items(
+                'messages',
+                params=params,
+                return_none_on_403=True,
+                # Messages include thinking metadata fields that require elevated permissions.
+                # Using admin token here ensures sync has access to the full message payload.
+                admin_required=True
+            )
+            if messages_from_db is None:
+                logger.warning(
+                    "Directus denied message thinking fields (403) even with admin access. "
+                    "Retrying message fetch without thinking metadata to keep sync alive."
+                )
+                fallback_params = {
+                    'filter[chat_id][_in]': ','.join(chat_ids),
+                    'fields': MESSAGE_FIELDS_NO_THINKING,
+                    'sort': 'created_at',
+                    'limit': -1
+                }
+                messages_from_db = await self.directus_service.get_items(
+                    'messages',
+                    params=fallback_params,
+                    admin_required=True
+                )
             if not messages_from_db or not isinstance(messages_from_db, list):
                 logger.info(f"No messages found for chat_ids: {chat_ids}")
                 return {}
@@ -331,8 +714,11 @@ class ChatMethods:
             
             messages_by_chat: Dict[str, List[Dict[str, Any]]] = {chat_id: [] for chat_id in chat_ids}
             for msg in messages_from_db:
-                # Alias 'id' to 'message_id' to match client-side expectations
-                msg['message_id'] = msg.get('id')
+                # CRITICAL: Use 'client_message_id' as 'message_id' to match client-side expectations
+                # The 'client_message_id' is the client-generated ID (format: {chat_id_suffix}-{uuid})
+                # which is used for matching user_message_id in app settings/memories system messages.
+                # Fall back to 'id' (Directus UUID) only if client_message_id is not available.
+                msg['message_id'] = msg.get('client_message_id') or msg.get('id')
                 messages_by_chat[msg['chat_id']].append(msg)
 
             processed_messages_by_chat: Dict[str, List[Union[str, Dict[str, Any]]]] = {}
@@ -346,6 +732,26 @@ class ChatMethods:
                 return processed_messages_by_chat
             else:
                 for chat_id, messages in messages_by_chat.items():
+                    # CRITICAL: Validate that these messages are client-encrypted (not vault-encrypted)
+                    # Vault-encrypted messages would cause decryption failures on the client side
+                    for msg in messages:
+                        encrypted_content = msg.get('encrypted_content', '')
+                        if encrypted_content:
+                            try:
+                                import base64
+                                decoded = base64.b64decode(encrypted_content, validate=True)
+                                # Log first message encryption check per chat for debugging
+                                if msg == messages[0]:
+                                    logger.debug(
+                                        f"[ENCRYPTION_VALIDATION] Chat {chat_id} message {msg['message_id']}: "
+                                        f"encrypted_content is valid base64 ({len(decoded)} bytes decrypted)"
+                                    )
+                            except Exception as e:
+                                logger.error(
+                                    f"[ENCRYPTION_VALIDATION] ❌ CRITICAL: Message {msg['message_id']} in chat {chat_id} "
+                                    f"has invalid base64 encrypted_content! This indicates encryption corruption or vault-encrypted content in Directus. "
+                                    f"Error: {e}"
+                                )
                     processed_messages_by_chat[chat_id] = [json.dumps(msg) for msg in messages]
                 return processed_messages_by_chat
         except Exception as e:
@@ -435,17 +841,19 @@ class ChatMethods:
             return None
 
     async def get_core_chats_and_user_drafts_for_cache_warming(
-        self, user_id: str, limit: int = 1000
+        self, user_id: str, limit: int = 1000, offset: int = 0
     ) -> List[Dict[str, Any]]:
         """
         Fetches core data for multiple chats and all user drafts in a batched manner.
+        Supports pagination via offset parameter for loading older chats on demand.
         """
-        logger.info(f"Fetching core chats and user drafts for cache warming for user_id: {user_id}, limit: {limit}")
+        logger.info(f"Fetching core chats and user drafts for cache warming for user_id: {user_id}, limit: {limit}, offset: {offset}")
         chat_params = {
             'filter[hashed_user_id][_eq]': hashlib.sha256(user_id.encode()).hexdigest(),
             'fields': CORE_CHAT_FIELDS_FOR_WARMING,
-            'sort': '-last_edited_overall_timestamp',
-            'limit': limit
+            'sort': '-pinned,-last_edited_overall_timestamp',
+            'limit': limit,
+            'offset': offset
         }
         results_list = []
         try:
@@ -503,12 +911,16 @@ class ChatMethods:
         """
         Fetches the last N new chat suggestions for a user from 'new_chat_suggestions' collection.
         Returns list ordered by created_at descending (newest first).
+        
+        NOTE: We don't sort by created_at because Directus role permissions may not allow sorting.
+        Instead, we rely on the database index and fetch limit. The client shuffles suggestions
+        to provide variety in display order.
         """
         logger.info(f"Fetching new chat suggestions for user {hashed_user_id}, limit: {limit}")
         params = {
             'filter[hashed_user_id][_eq]': hashed_user_id,
             'fields': 'id,chat_id,encrypted_suggestion,created_at',
-            'sort': '-created_at',
+            # Removed sort to avoid Directus permissions error - client shuffles anyway
             'limit': limit
         }
         try:
@@ -566,10 +978,12 @@ class ChatMethods:
 
     async def delete_all_drafts_for_chat(self, chat_id: str) -> bool:
         """
-        Deletes ALL draft items for a specific chat_id from the 'drafts' collection.
+        Deletes ALL draft items for a specific chat_id from the 'drafts' collection using bulk delete.
+        This is more efficient than deleting items one by one.
         """
         logger.info(f"Attempting to delete all drafts for chat_id: {chat_id} from Directus.")
         try:
+            # Query for all drafts belonging to this chat
             draft_params = {
                 'filter[chat_id][_eq]': chat_id,
                 'fields': 'id',
@@ -580,33 +994,32 @@ class ChatMethods:
                 logger.info(f"No drafts found for chat_id: {chat_id}. Nothing to delete.")
                 return True
 
-            logger.info(f"Found {len(drafts_to_delete_list)} drafts to delete for chat_id: {chat_id}.")
-            all_deleted_successfully = True
-            for draft_item in drafts_to_delete_list:
-                draft_item_id = draft_item.get('id')
-                if not draft_item_id:
-                    logger.error(f"Found draft entry for chat_id: {chat_id} with no 'id'. Cannot delete. Entry: {draft_item}")
-                    all_deleted_successfully = False
-                    continue
-                success = await self.directus_service.delete_item(collection='drafts', item_id=draft_item_id)
-                if success:
-                    logger.info(f"Successfully deleted draft (ID: {draft_item_id}) for chat_id: {chat_id}.")
-                else:
-                    logger.warning(f"Failed to delete draft (ID: {draft_item_id}) for chat_id: {chat_id}.")
-                    all_deleted_successfully = False
+            # Extract draft IDs
+            draft_ids = [draft_item['id'] for draft_item in drafts_to_delete_list if draft_item.get('id')]
             
-            if all_deleted_successfully:
-                logger.info(f"Successfully deleted all found drafts for chat_id: {chat_id}.")
+            if not draft_ids:
+                logger.error(f"Found {len(drafts_to_delete_list)} drafts for chat_id: {chat_id} but none had valid IDs.")
+                return False
+            
+            logger.info(f"Found {len(draft_ids)} drafts to delete for chat_id: {chat_id}. Using bulk delete.")
+            
+            # Use bulk delete for efficiency
+            success = await self.directus_service.bulk_delete_items(collection='drafts', item_ids=draft_ids)
+            
+            if success:
+                logger.info(f"Successfully deleted all {len(draft_ids)} drafts for chat_id: {chat_id}.")
             else:
-                logger.warning(f"One or more drafts could not be deleted for chat_id: {chat_id}.")
-            return all_deleted_successfully
+                logger.warning(f"Bulk delete failed for drafts of chat_id: {chat_id}.")
+            
+            return success
         except Exception as e:
             logger.error(f"Error deleting all drafts for chat_id: {chat_id}: {e}", exc_info=True)
             return False
 
     async def delete_all_messages_for_chat(self, chat_id: str) -> bool:
         """
-        Deletes ALL message items for a specific chat_id from the 'messages' collection.
+        Deletes ALL message items for a specific chat_id from the 'messages' collection using bulk delete.
+        This is more efficient than deleting items one by one.
         """
         logger.info(f"Attempting to delete all messages for chat_id: {chat_id} from Directus.")
         try:
@@ -621,28 +1034,60 @@ class ChatMethods:
                 logger.info(f"No messages found for chat_id: {chat_id}. Nothing to delete.")
                 return True
 
-            logger.info(f"Found {len(messages_to_delete_list)} messages to delete for chat_id: {chat_id}.")
-            all_deleted_successfully = True
-            for message_item in messages_to_delete_list:
-                message_item_id = message_item.get('id')
-                if not message_item_id:
-                    logger.error(f"Found message entry for chat_id: {chat_id} with no 'id'. Cannot delete. Entry: {message_item}")
-                    all_deleted_successfully = False
-                    continue
-                success = await self.directus_service.delete_item(collection='messages', item_id=message_item_id)
-                if success:
-                    logger.debug(f"Successfully deleted message (ID: {message_item_id}) for chat_id: {chat_id}.")
-                else:
-                    logger.warning(f"Failed to delete message (ID: {message_item_id}) for chat_id: {chat_id}.")
-                    all_deleted_successfully = False
+            # Extract message IDs
+            message_ids = [message_item['id'] for message_item in messages_to_delete_list if message_item.get('id')]
             
-            if all_deleted_successfully:
-                logger.info(f"Successfully deleted all {len(messages_to_delete_list)} messages for chat_id: {chat_id}.")
+            if not message_ids:
+                logger.error(f"Found {len(messages_to_delete_list)} messages for chat_id: {chat_id} but none had valid IDs.")
+                return False
+            
+            logger.info(f"Found {len(message_ids)} messages to delete for chat_id: {chat_id}. Using bulk delete.")
+            
+            # Use bulk delete for efficiency
+            success = await self.directus_service.bulk_delete_items(collection='messages', item_ids=message_ids)
+            
+            if success:
+                logger.info(f"Successfully deleted all {len(message_ids)} messages for chat_id: {chat_id}.")
             else:
-                logger.warning(f"One or more messages could not be deleted for chat_id: {chat_id}.")
-            return all_deleted_successfully
+                logger.warning(f"Bulk delete failed for messages of chat_id: {chat_id}.")
+            
+            return success
         except Exception as e:
             logger.error(f"Error deleting all messages for chat_id: {chat_id}: {e}", exc_info=True)
+            return False
+
+    async def delete_message_by_client_id(self, chat_id: str, client_message_id: str) -> bool:
+        """
+        Deletes a single message from the 'messages' collection by its client_message_id.
+        Verifies the message belongs to the specified chat_id for safety.
+        """
+        logger.info(f"Attempting to delete message with client_message_id: {client_message_id} from chat: {chat_id}")
+        try:
+            # Query for the message by client_message_id AND chat_id (safety check)
+            message_params = {
+                'filter[client_message_id][_eq]': client_message_id,
+                'filter[chat_id][_eq]': chat_id,
+                'fields': 'id',
+                'limit': 1
+            }
+            messages = await self.directus_service.get_items('messages', params=message_params)
+            if not messages:
+                logger.info(f"No message found with client_message_id: {client_message_id} in chat: {chat_id}. Nothing to delete.")
+                return True  # Treat as success - message doesn't exist
+
+            directus_id = messages[0].get('id')
+            if not directus_id:
+                logger.error(f"Found message with client_message_id: {client_message_id} but it has no Directus ID.")
+                return False
+
+            success = await self.directus_service.delete_item(collection='messages', item_id=directus_id)
+            if success:
+                logger.info(f"Successfully deleted message {client_message_id} (Directus ID: {directus_id}) from chat {chat_id}.")
+            else:
+                logger.warning(f"Failed to delete message {client_message_id} (Directus ID: {directus_id}) from chat {chat_id}.")
+            return success
+        except Exception as e:
+            logger.error(f"Error deleting message {client_message_id} from chat {chat_id}: {e}", exc_info=True)
             return False
 
     async def persist_delete_chat(self, chat_id: str) -> bool:
@@ -671,11 +1116,13 @@ class ChatMethods:
         """
         logger.info(f"Updating read status for chat {chat_id}: unread_count = {unread_count}")
         try:
-            import time
-            current_timestamp = int(time.time())
+            # INTENTIONALLY not updating updated_at here.
+            # updated_at is used as a fallback tiebreaker in chat sorting — bumping it
+            # when marking a chat as read would cause old chats to silently jump to the
+            # top of the list on the next cache warming / sync cycle.
+            # Read status is a view-tracking concern and must not affect sort order.
             update_data = {
                 "unread_count": unread_count,
-                "updated_at": current_timestamp
             }
             
             success = await self.directus_service.update_item('chats', chat_id, update_data)

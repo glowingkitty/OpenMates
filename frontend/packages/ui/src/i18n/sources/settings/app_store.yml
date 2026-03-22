@@ -1,0 +1,2890 @@
+description:
+  context: Short description shown in the App Store settings page gradient banner header
+  en: Browse & manage the apps your mates can use.
+  de: Apps durchsuchen und verwalten, die deine Mates nutzen können.
+  zh: 浏览和管理你的伙伴可以使用的应用。
+  es: Navega y gestiona las apps que tus compañeros pueden usar.
+  fr: Parcourez et gérez les apps que vos mates peuvent utiliser.
+  pt: Navegue e gerencie os apps que seus mates podem usar.
+  ru: Просматривайте и управляйте приложениями, доступными вашим мейтам.
+  ja: mates が使えるアプリを閲覧・管理する。
+  ko: mates가 사용할 수 있는 앱을 탐색하고 관리하세요.
+  it: Sfoglia e gestisci le app che i tuoi mates possono usare.
+  tr: Mates'in kullanabileceği uygulamaları gözden geçir ve yönet.
+  vi: Duyệt và quản lý các ứng dụng mà mates của bạn có thể sử dụng.
+  id: Jelajahi dan kelola aplikasi yang dapat digunakan oleh mates Anda.
+  pl: Przeglądaj i zarządzaj aplikacjami, z których mogą korzystać twoi mates.
+  nl: Blader door en beheer de apps die jouw mates kunnen gebruiken.
+  ar: تصفح وأدر التطبيقات التي يمكن لمرافقيك استخدامها.
+  hi: उन ऐप्स को ब्राउज़ करें और प्रबंधित करें जिन्हें आपके mates उपयोग कर सकते हैं।
+  th: เรียกดูและจัดการแอปที่ mates ของคุณสามารถใช้งานได้
+  cs: Procházejte a spravujte aplikace, které mohou vaši mates používat.
+  sv: Bläddra bland och hantera de appar dina mates kan använda.
+  he: עיין ונהל את האפליקציות שחבריך יכולים להשתמש בהן.
+  verified_by_human: []
+app_store:
+  context: App Store settings menu item
+  en: App Store
+  de: App Store
+  zh: App Store
+  es: App Store
+  fr: App Store
+  pt: App Store
+  ru: App Store
+  ja: App Store
+  ko: App Store
+  it: App Store
+  tr: App Store
+  vi: App Store
+  id: App Store
+  pl: App Store
+  nl: App Store
+  ar: App Store
+  hi: App Store
+  th: App Store
+  cs: App Store
+  sv: App Store
+  he: App Store
+  verified_by_human: []
+no_apps_available:
+  context: Message shown when no apps are available in the App Store
+  en: No apps available.
+  de: Keine Apps verfügbar.
+  zh: 没有可用的应用。
+  es: No hay aplicaciones disponibles.
+  fr: Aucune application disponible.
+  pt: Nenhum aplicativo disponível.
+  ru: Нет доступных приложений.
+  ja: 利用可能なアプリはありません。
+  ko: 사용 가능한 앱이 없습니다.
+  it: Nessuna app disponibile.
+  tr: Kullanılabilir uygulama yok.
+  vi: Không có ứng dụng nào có sẵn.
+  id: Tidak ada aplikasi yang tersedia.
+  pl: Brak dostępnych aplikacji.
+  nl: Geen apps beschikbaar.
+  ar: لا توجد تطبيقات متاحة.
+  hi: कोई ऐप उपलब्ध नहीं है।
+  th: ไม่มีแอปพลิเคชันที่พร้อมใช้งาน
+  cs: Nejsou k dispozici žádné aplikace.
+  sv: Inga appar tillgängliga.
+  he: אין אפליקציות זמינות.
+  verified_by_human: []
+show_all_apps:
+  context: Button to show all apps in a list view
+  en: Show all apps
+  de: Alle Apps anzeigen
+  zh: 显示所有应用
+  es: Mostrar todas las aplicaciones
+  fr: Afficher toutes les applications
+  pt: Mostrar todos os aplicativos
+  ru: Показать все приложения
+  ja: すべてのアプリを表示
+  ko: 모든 앱 표시
+  it: Mostra tutte le app
+  tr: Tüm uygulamaları göster
+  vi: Hiển thị tất cả ứng dụng
+  id: Tampilkan semua aplikasi
+  pl: Pokaż wszystkie aplikacje
+  nl: Alle apps weergeven
+  ar: عرض جميع التطبيقات
+  hi: सभी ऐप्स दिखाएं
+  th: แสดงแอปพลิเคชันทั้งหมด
+  cs: Zobrazit všechny aplikace
+  sv: Visa alla appar
+  he: הצגת כל האפליקציות
+  verified_by_human: []
+all:
+  context: Title for the "All Apps" page showing all available apps
+  en: All Apps
+  de: Alle Apps
+  zh: 所有应用
+  es: Todas las aplicaciones
+  fr: Toutes les applications
+  pt: Todos os aplicativos
+  ru: Все приложения
+  ja: すべてのアプリ
+  ko: 모든 앱
+  it: Tutte le app
+  tr: Tüm uygulamalar
+  vi: Tất cả ứng dụng
+  id: Semua aplikasi
+  pl: Wszystkie aplikacje
+  nl: Alle apps
+  ar: جميع التطبيقات
+  hi: सभी ऐप्स
+  th: แอปพลิเคชันทั้งหมด
+  cs: Všechny aplikace
+  sv: Alla appar
+  he: כל האפליקציות
+  verified_by_human: []
+all_apps.search_placeholder:
+  context: Placeholder text for the search input on the All Apps page
+  en: Search apps...
+  de: Apps suchen...
+  zh: 搜索应用...
+  es: Buscar aplicaciones...
+  fr: Rechercher des applications...
+  pt: Buscar aplicativos...
+  ru: Поиск приложений...
+  ja: アプリを検索...
+  ko: 앱 검색...
+  it: Cerca app...
+  tr: Uygulamaları ara...
+  vi: Tìm kiếm ứng dụng...
+  id: Cari aplikasi...
+  pl: Szukaj aplikacji...
+  nl: Apps zoeken...
+  ar: ابحث عن التطبيقات...
+  hi: ऐप्स खोजें...
+  th: ค้นหาแอป...
+  cs: Hledat aplikace...
+  sv: Sök appar...
+  he: חיפוש אפליקציות...
+  verified_by_human: []
+all_apps.sort_by_name_asc:
+  context: Sort option — alphabetical A to Z on the All Apps page
+  en: Name (A–Z)
+  de: Name (A–Z)
+  zh: 名称（A–Z）
+  es: Nombre (A–Z)
+  fr: Nom (A–Z)
+  pt: Nome (A–Z)
+  ru: Название (A–Я)
+  ja: 名前（A–Z）
+  ko: 이름 (A–Z)
+  it: Nome (A–Z)
+  tr: Ad (A–Z)
+  vi: Tên (A–Z)
+  id: Nama (A–Z)
+  pl: Nazwa (A–Z)
+  nl: Naam (A–Z)
+  ar: الاسم (أ–ي)
+  hi: नाम (A–Z)
+  th: ชื่อ (A–Z)
+  cs: Název (A–Z)
+  sv: Namn (A–Z)
+  he: שם (א–ת)
+  verified_by_human: []
+all_apps.sort_by_name_desc:
+  context: Sort option — reverse alphabetical Z to A on the All Apps page
+  en: Name (Z–A)
+  de: Name (Z–A)
+  zh: 名称（Z–A）
+  es: Nombre (Z–A)
+  fr: Nom (Z–A)
+  pt: Nome (Z–A)
+  ru: Название (Я–А)
+  ja: 名前（Z–A）
+  ko: 이름 (Z–A)
+  it: Nome (Z–A)
+  tr: Ad (Z–A)
+  vi: Tên (Z–A)
+  id: Nama (Z–A)
+  pl: Nazwa (Z–A)
+  nl: Naam (Z–A)
+  ar: الاسم (ي–أ)
+  hi: नाम (Z–A)
+  th: ชื่อ (Z–A)
+  cs: Název (Z–A)
+  sv: Namn (Z–A)
+  he: שם (ת–א)
+  verified_by_human: []
+all_apps.sort_by_newest:
+  context: Sort option — most recently updated apps first on the All Apps page
+  en: Newest
+  de: Neueste
+  zh: 最新
+  es: Más reciente
+  fr: Plus récent
+  pt: Mais recente
+  ru: Новейшие
+  ja: 最新
+  ko: 최신순
+  it: Più recente
+  tr: En yeni
+  vi: Mới nhất
+  id: Terbaru
+  pl: Najnowsze
+  nl: Nieuwste
+  ar: الأحدث
+  hi: नवीनतम
+  th: ใหม่ล่าสุด
+  cs: Nejnovější
+  sv: Nyaste
+  he: החדשים ביותר
+  verified_by_human: []
+all_apps.no_apps_found:
+  context: Message shown when the search query returns no matching apps on the All Apps page
+  en: No apps found matching your search.
+  de: Keine Apps gefunden, die Ihrer Suche entsprechen.
+  zh: 未找到与您搜索相符的应用。
+  es: No se encontraron aplicaciones que coincidan con tu búsqueda.
+  fr: Aucune application trouvée correspondant à votre recherche.
+  pt: Nenhum aplicativo encontrado para sua pesquisa.
+  ru: Приложений по вашему запросу не найдено.
+  ja: 検索に一致するアプリが見つかりませんでした。
+  ko: 검색과 일치하는 앱을 찾을 수 없습니다.
+  it: Nessuna app trovata per la tua ricerca.
+  tr: Aramanızla eşleşen uygulama bulunamadı.
+  vi: Không tìm thấy ứng dụng nào phù hợp với tìm kiếm của bạn.
+  id: Tidak ada aplikasi yang cocok dengan pencarian Anda.
+  pl: Nie znaleziono aplikacji pasujących do wyszukiwania.
+  nl: Geen apps gevonden die overeenkomen met uw zoekopdracht.
+  ar: لم يتم العثور على تطبيقات تطابق بحثك.
+  hi: आपकी खोज से मेल खाने वाले कोई ऐप नहीं मिले।
+  th: ไม่พบแอปที่ตรงกับการค้นหาของคุณ
+  cs: Nebyly nalezeny žádné aplikace odpovídající vašemu hledání.
+  sv: Inga appar hittades som matchar din sökning.
+  he: לא נמצאו אפליקציות התואמות לחיפוש שלך.
+  verified_by_human: []
+all_apps.filter_all:
+  context: Filter chip label to show all apps (no filtering) on the All Apps page
+  en: All
+  de: Alle
+  zh: 全部
+  es: Todas
+  fr: Toutes
+  pt: Todos
+  ru: Все
+  ja: すべて
+  ko: 전체
+  it: Tutte
+  tr: Tümü
+  vi: Tất cả
+  id: Semua
+  pl: Wszystkie
+  nl: Alle
+  ar: الكل
+  hi: सभी
+  th: ทั้งหมด
+  cs: Vše
+  sv: Alla
+  he: הכל
+  verified_by_human: []
+all_apps.filter_settings_memories:
+  context: Filter chip label to show only apps that have Settings & Memories categories on the All Apps page
+  en: Settings & Memories
+  de: Einstellungen & Erinnerungen
+  zh: 设置和记忆
+  es: Configuración y recuerdos
+  fr: Paramètres et souvenirs
+  pt: Configurações e memórias
+  ru: Настройки и воспоминания
+  ja: 設定と記憶
+  ko: 설정 및 메모리
+  it: Impostazioni e ricordi
+  tr: Ayarlar ve anılar
+  vi: Cài đặt và ký ức
+  id: Pengaturan dan memori
+  pl: Ustawienia i wspomnienia
+  nl: Instellingen en herinneringen
+  ar: الإعدادات والذكريات
+  hi: सेटिंग्स और यादें
+  th: การตั้งค่าและความทรงจำ
+  cs: Nastavení a vzpomínky
+  sv: Inställningar och minnen
+  he: הגדרות וזיכרונות
+  verified_by_human: []
+all_apps.filter_focus_modes:
+  context: Filter chip label to show only apps that have Focus Modes on the All Apps page
+  en: Focus Modes
+  de: Fokusmodi
+  zh: 专注模式
+  es: Modos de enfoque
+  fr: Modes de concentration
+  pt: Modos de foco
+  ru: Режимы фокуса
+  ja: フォーカスモード
+  ko: 포커스 모드
+  it: Modalità di focus
+  tr: Odak modları
+  vi: Chế độ tập trung
+  id: Mode Fokus
+  pl: Tryby skupienia
+  nl: Focusmodi
+  ar: أوضاع التركيز
+  hi: फोकस मोड
+  th: โหมดโฟกัส
+  cs: Režimy zaměření
+  sv: Fokuslägen
+  he: מצבי ריכוז
+  verified_by_human: []
+all_apps.filter_skills:
+  context: Filter chip label to show only apps that have Skills on the All Apps page
+  en: Skills
+  de: Fähigkeiten
+  zh: 技能
+  es: Habilidades
+  fr: Compétences
+  pt: Habilidades
+  ru: Навыки
+  ja: スキル
+  ko: 스킬
+  it: Abilità
+  tr: Beceriler
+  vi: Kỹ năng
+  id: Keterampilan
+  pl: Umiejętności
+  nl: Vaardigheden
+  ar: المهارات
+  hi: कौशल
+  th: ทักษะ
+  cs: Dovednosti
+  sv: Färdigheter
+  he: מיומנויות
+  verified_by_human: []
+categories.top_picks:
+  en: Top picks for you
+  de: Top Empfehlungen für dich
+  zh: 为你精选
+  es: Nuestras recomendaciones para ti
+  fr: Nos recommandations pour vous
+  pt: Nossas recomendações para você
+  ru: Рекомендации для вас
+  ja: あなた向けのおすすめ
+  ko: 당신을 위한 추천
+  it: Consigliati per te
+  tr: Sizin için önerilen
+  vi: Khuyến nghị cho bạn
+  id: Rekomendasi untuk Anda
+  pl: Rekomendacje dla Ciebie
+  nl: Aanbevelingen voor jou
+  ar: التوصيات لك
+  hi: आपके लिए अनुशंसित
+  th: คำแนะนำสำหรับคุณ
+  cs: Doporučeno pro vás
+  sv: Rekommenderat för dig
+  he: הבחירות המובילות עבורך
+  verified_by_human: []
+categories.explore_discover:
+  context: Category name for personalized app recommendations
+  en: Explore & discover
+  de: Entdecken & Erkunden
+  zh: 浏览和发现
+  es: Explorar y descubrir
+  fr: Explorer et découvrir
+  pt: Explorar e descobrir
+  ru: Изучать и открывать
+  ja: 探索して発見
+  ko: 탐색하고 발견
+  it: Esplora e scopri
+  tr: Keşfet ve bulun
+  vi: Khám phá và tìm hiểu
+  id: Jelajahi dan temukan
+  pl: Przeglądaj i odkrywaj
+  nl: Verkennen en ontdekken
+  ar: استكشف واكتشف
+  hi: अन्वेषण करें और खोजें
+  th: สำรวจและค้นพบ
+  cs: Prozkoumejte a objevujte
+  sv: Utforska och upptäck
+  he: סיור וגילוי
+  verified_by_human: []
+categories.new_apps:
+  context: Category name for recently updated apps
+  en: New apps
+  de: Neue Apps
+  zh: 新应用
+  es: Nuevas aplicaciones
+  fr: Nouvelles applications
+  pt: Novos aplicativos
+  ru: Новые приложения
+  ja: 新しいアプリ
+  ko: 새로운 앱
+  it: Nuove app
+  tr: Yeni uygulamalar
+  vi: Ứng dụng mới
+  id: Aplikasi baru
+  pl: Nowe aplikacje
+  nl: Nieuwe apps
+  ar: تطبيقات جديدة
+  hi: नए ऐप्स
+  th: แอปพลิเคชันใหม่
+  cs: Nové aplikace
+  sv: Nya appar
+  he: אפליקציות חדשות
+  verified_by_human: []
+categories.for_work:
+  context: Category name for work-related apps
+  en: For work
+  de: Für die Arbeit
+  zh: 工作用
+  es: Para el trabajo
+  fr: Pour le travail
+  pt: Para o trabalho
+  ru: Для работы
+  ja: 仕事用
+  ko: 업무용
+  it: Per il lavoro
+  tr: İşe yaramak
+  vi: Cho công việc
+  id: Untuk pekerjaan
+  pl: Do pracy
+  nl: Voor werk
+  ar: للعمل
+  hi: काम के लिए
+  th: สำหรับงาน
+  cs: Pro práci
+  sv: För arbete
+  he: לעבודה
+  verified_by_human: []
+categories.for_everyday_life:
+  context: Category name for everyday life apps
+  en: For everyday life
+  de: Für den Alltag
+  zh: 日常生活
+  es: Para la vida cotidiana
+  fr: Pour la vie quotidienne
+  pt: Para a vida cotidiana
+  ru: Для повседневной жизни
+  ja: 日常生活用
+  ko: 일상 생활용
+  it: Per la vita di tutti i giorni
+  tr: Günlük yaşam için
+  vi: Cho cuộc sống hàng ngày
+  id: Untuk kehidupan sehari-hari
+  pl: Do codziennego życia
+  nl: Voor het dagelijks leven
+  ar: للحياة اليومية
+  hi: रोजमर्रा की जिंदगी के लिए
+  th: สำหรับชีวิตประจำวัน
+  cs: Pro každodenní život
+  sv: För vardagen
+  he: לחיי היומיום
+  verified_by_human: []
+categories.most_used:
+  context: Category name for most used apps
+  en: Most used
+  de: Meist genutzt
+  zh: 最常用
+  es: Más utilizado
+  fr: Plus utilisé
+  pt: Mais usado
+  ru: Наиболее используемый
+  ja: 最も使用されている
+  ko: 가장 많이 사용됨
+  it: Più utilizzato
+  tr: En çok kullanılan
+  vi: Được sử dụng nhiều nhất
+  id: Paling banyak digunakan
+  pl: Najczęściej używany
+  nl: Meest gebruikt
+  ar: الأكثر استخداماً
+  hi: सबसे अधिक उपयोग किया गया
+  th: ใช้งานบ่อยที่สุด
+  cs: Nejpoužívanější
+  sv: Mest använd
+  he: הנפוצים ביותר
+  verified_by_human: []
+categories.other:
+  context: Category name for other apps
+  en: Other
+  de: Sonstiges
+  zh: 其他
+  es: Otros
+  fr: Autres
+  pt: Outros
+  ru: Другое
+  ja: その他
+  ko: 기타
+  it: Altro
+  tr: Diğer
+  vi: Khác
+  id: Lainnya
+  pl: Inne
+  nl: Overige
+  ar: أخرى
+  hi: अन्य
+  th: อื่น ๆ
+  cs: Ostatní
+  sv: Övrigt
+  he: אחר
+  verified_by_human: []
+skills.title:
+  context: Section title for skills in app details
+  en: Skills
+  de: Fähigkeiten
+  zh: 技能
+  es: Habilidades
+  fr: Compétences
+  pt: Habilidades
+  ru: Навыки
+  ja: スキル
+  ko: 스킬
+  it: Abilità
+  tr: Beceriler
+  vi: Kỹ năng
+  id: Keterampilan
+  pl: Umiejętności
+  nl: Vaardigheden
+  ar: المهارات
+  hi: कौशल
+  th: ทักษะ
+  cs: Dovednosti
+  sv: Färdigheter
+  he: מיומנויות
+  verified_by_human: []
+skills.section_description:
+  context: Description text shown under the Skills section heading in app details, explaining what skills are
+  en: "Just ask your mates to do any of these things:"
+  de: "Bitte deine Mates einfach, eines dieser Dinge zu tun:"
+  zh: 只需请求你的伙伴执行以下任一操作：
+  es: "Solo pídele a tus compañeros que hagan cualquiera de estas cosas:"
+  fr: "Demandez simplement à vos compagnons de faire l'une de ces choses :"
+  pt: "Apenas peça aos seus companheiros para fazer qualquer uma dessas coisas:"
+  ru: "Просто попросите своих помощников сделать любое из этих действий:"
+  ja: mates に次のことをお願いするだけです：
+  ko: "메이트에게 다음 중 하나를 해달라고 요청하세요:"
+  it: "Chiedi semplicemente ai tuoi compagni di fare una di queste cose:"
+  tr: "Matelerinizden şunlardan herhangi birini yapmasını isteyin:"
+  vi: "Chỉ cần yêu cầu bạn đồng hành của bạn làm bất kỳ điều nào trong số này:"
+  id: "Cukup minta teman-teman Anda melakukan salah satu hal berikut:"
+  pl: "Po prostu poproś swoich towarzyszy, aby zrobili jedno z tych rzeczy:"
+  nl: "Vraag je maatjes gewoon om een van deze dingen te doen:"
+  ar: "فقط اطلب من رفاقك القيام بأي من هذه الأشياء:"
+  hi: "बस अपने साथियों से इनमें से कोई भी काम करने के लिए कहें:"
+  th: "เพียงขอให้เพื่อนของคุณทำสิ่งใดสิ่งหนึ่งเหล่านี้:"
+  cs: "Stačí požádat své spoluhráče, aby udělali jednu z těchto věcí:"
+  sv: "Be bara dina kompisar att göra någon av dessa saker:"
+  he: "פשוט בקש מהחברים שלך לעשות אחד מהדברים האלה:"
+  verified_by_human: []
+skills.how_to_use:
+  context: Section title for how to use examples on skill detail page
+  en: How to use
+  de: So verwendest du es
+  zh: 如何使用
+  es: Cómo usar
+  fr: Comment utiliser
+  pt: Como usar
+  ru: Как использовать
+  ja: 使い方
+  ko: 사용 방법
+  it: Come usare
+  tr: Nasıl kullanılır
+  vi: Cách sử dụng
+  id: Cara menggunakan
+  pl: Jak używać
+  nl: Hoe te gebruiken
+  ar: كيفية الاستخدام
+  hi: कैसे उपयोग करें
+  th: วิธีใช้
+  cs: Jak používat
+  sv: Hur man använder
+  he: אופן השימוש
+  verified_by_human: [en, de]
+skills.how_to_use_prefix:
+  context: Text shown before the how-to-use example cards on a skill detail page, inviting the user to try example prompts
+  en: "Just ask your mates something like:"
+  de: "Frag deine Mates einfach so etwas wie:"
+  zh: 只需向你的伙伴提问，例如：
+  es: "Solo pregúntale a tus compañeros algo como:"
+  fr: "Demandez simplement à vos compagnons quelque chose comme :"
+  pt: "Apenas pergunte aos seus companheiros algo como:"
+  ru: "Просто спросите своих помощников что-нибудь вроде:"
+  ja: mates に次のようなことを聞いてみてください：
+  ko: "메이트에게 이런 식으로 물어보세요:"
+  it: "Chiedi semplicemente ai tuoi compagni qualcosa come:"
+  tr: "Matelerinize şöyle bir şey sorun:"
+  vi: "Chỉ cần hỏi bạn đồng hành của bạn điều gì đó như:"
+  id: "Cukup tanyakan kepada teman-teman Anda sesuatu seperti:"
+  pl: "Po prostu zapytaj swoich towarzyszy o coś takiego:"
+  nl: "Vraag je maatjes gewoon iets als:"
+  ar: "فقط اسأل رفاقك شيئًا مثل:"
+  hi: "बस अपने साथियों से कुछ ऐसा पूछें:"
+  th: "เพียงถามเพื่อนของคุณว่า:"
+  cs: "Stačí se zeptat spoluhráčů na něco takového:"
+  sv: "Fråga bara dina kompisar något liknande:"
+  he: "פשוט שאל את החברים שלך משהו כמו:"
+  verified_by_human: []
+skills.how_to_use_mention:
+  context: Text shown after the how-to-use example cards on a skill detail page, explaining how to explicitly trigger the skill by @-mentioning it. {skillname} is replaced with a button showing the skill's @mention name (e.g., @Audio-GenerateTranscript). Do NOT include @ before {skillname} — the button already renders its own @ prefix.
+  en: "Or mention {skillname}\nin your message to trigger the skill explicitly."
+  de: "Oder erwähne {skillname}\nin deiner Nachricht, um den Skill explizit auszulösen."
+  zh: "或在消息中提及 {skillname}\n以明确触发该技能。"
+  es: "O menciona {skillname}\nen tu mensaje para activar la habilidad explícitamente."
+  fr: "Ou mentionnez {skillname}\ndans votre message pour déclencher explicitement la compétence."
+  pt: "Ou mencione {skillname}\nna sua mensagem para acionar a habilidade explicitamente."
+  ru: "Или упомяните {skillname}\nв своём сообщении, чтобы явно активировать навык."
+  ja: "またはメッセージで {skillname}\nと書いて、スキルを明示的にトリガーしてください。"
+  ko: "또는 메시지에서 {skillname}\n을 언급하여 스킬을 명시적으로 트리거하세요."
+  it: "Oppure menziona {skillname}\nnel tuo messaggio per attivare esplicitamente la competenza."
+  tr: "Veya beceriyi açıkça tetiklemek için mesajınızda {skillname}\nifadesini kullanın."
+  vi: "Hoặc đề cập {skillname}\ntrong tin nhắn của bạn để kích hoạt kỹ năng một cách rõ ràng."
+  id: "Atau sebutkan {skillname}\ndalam pesan Anda untuk memicu keterampilan secara eksplisit."
+  pl: "Lub wspomnij {skillname}\nw swojej wiadomości, aby jawnie uruchomić umiejętność."
+  nl: "Of vermeld {skillname}\nin je bericht om de vaardigheid expliciet te activeren."
+  ar: "أو اذكر {skillname}\nفي رسالتك لتشغيل المهارة صراحةً."
+  hi: "या अपने संदेश में {skillname}\nका उल्लेख करें ताकि स्किल को स्पष्ट रूप से ट्रिगर किया जा सके।"
+  th: "หรือกล่าวถึง {skillname}\nในข้อความของคุณเพื่อเรียกใช้ทักษะอย่างชัดเจน"
+  cs: "Nebo zmíněte {skillname}\nve své zprávě a explicitně spusťte dovednost."
+  sv: "Eller nämn {skillname}\ni ditt meddelande för att utlösa kompetensen explicit."
+  he: "או הזכר {skillname}\nבהודעה שלך כדי להפעיל את המיומנות במפורש."
+  verified_by_human: []
+skills.description:
+  context: Label for skill description
+  en: Description
+  de: Beschreibung
+  zh: 描述
+  es: Descripción
+  fr: Description
+  pt: Descrição
+  ru: Описание
+  ja: 説明
+  ko: 설명
+  it: Descrizione
+  tr: Açıklama
+  vi: Mô tả
+  id: Deskripsi
+  pl: Opis
+  nl: Beschrijving
+  ar: الوصف
+  hi: विवरण
+  th: คำอธิบาย
+  cs: Popis
+  sv: Beskrivning
+  he: תיאור
+  verified_by_human: []
+skills.providers:
+  context: Label for skill providers
+  en: Providers
+  de: Anbieter
+  zh: 提供商
+  es: Proveedores
+  fr: Fournisseurs
+  pt: Provedores
+  ru: Провайдеры
+  ja: プロバイダー
+  ko: 제공업체
+  it: Fornitori
+  tr: Sağlayıcılar
+  vi: Nhà cung cấp
+  id: Penyedia
+  pl: Dostawcy
+  nl: Providers
+  ar: المزودون
+  hi: प्रदाता
+  th: ผู้ให้บริการ
+  cs: Poskytovatelé
+  sv: Leverantörer
+  he: ספקים
+  verified_by_human: []
+skills.pricing:
+  context: Label for skill pricing
+  en: Pricing
+  de: Preisgestaltung
+  zh: 定价
+  es: Precios
+  fr: Tarification
+  pt: Preços
+  ru: Ценообразование
+  ja: 価格設定
+  ko: 가격 책정
+  it: Prezzi
+  tr: Fiyatlandırma
+  vi: Định giá
+  id: Harga
+  pl: Cennik
+  nl: Prijzen
+  ar: التسعير
+  hi: मूल्य निर्धारण
+  th: การกำหนดราคา
+  cs: Ceny
+  sv: Prissättning
+  he: תמחור
+  verified_by_human: []
+skills.pricing.free:
+  context: Free pricing label
+  en: Free
+  de: Kostenlos
+  zh: 免费
+  es: Gratis
+  fr: Gratuit
+  pt: Grátis
+  ru: Бесплатно
+  ja: 無料
+  ko: 무료
+  it: Gratuito
+  tr: Ücretsiz
+  vi: Miễn phí
+  id: Gratis
+  pl: Darmowe
+  nl: Gratis
+  ar: مجاني
+  hi: मुफ्त
+  th: ฟรี
+  cs: Zdarma
+  sv: Gratis
+  he: חינם
+  verified_by_human: []
+skills.pricing.credits:
+  context: Credits currency label
+  en: credits
+  de: Credits
+  zh: 积分
+  es: créditos
+  fr: crédits
+  pt: créditos
+  ru: кредиты
+  ja: クレジット
+  ko: 크레딧
+  it: crediti
+  tr: kredi
+  vi: tín dụng
+  id: kredit
+  pl: kredyty
+  nl: credits
+  ar: رصيد
+  hi: क्रेडिट
+  th: หน่วยเครดิต
+  cs: kredity
+  sv: krediter
+  he: קרדיטים
+  verified_by_human: []
+skills.pricing.unit:
+  context: Generic unit label
+  en: unit
+  de: Einheit
+  zh: 单位
+  es: unidad
+  fr: unité
+  pt: unidade
+  ru: единица
+  ja: 単位
+  ko: 단위
+  it: unità
+  tr: birim
+  vi: đơn vị
+  id: unit
+  pl: jednostka
+  nl: eenheid
+  ar: وحدة
+  hi: इकाई
+  th: หน่วย
+  cs: jednotka
+  sv: enhet
+  he: יחידה
+  verified_by_human: []
+skills.pricing.minute:
+  context: Minute time unit
+  en: minute
+  de: Minute
+  zh: 分钟
+  es: minuto
+  fr: minute
+  pt: minuto
+  ru: минута
+  ja: 分
+  ko: 분
+  it: minuto
+  tr: dakika
+  vi: phút
+  id: menit
+  pl: minuta
+  nl: minuut
+  ar: دقيقة
+  hi: मिनट
+  th: นาที
+  cs: minuta
+  sv: minut
+  he: דקה
+  verified_by_human: []
+skills.pricing.token:
+  context: Token unit for AI pricing
+  en: token
+  de: Token
+  zh: 令牌
+  es: token
+  fr: jeton
+  pt: token
+  ru: токен
+  ja: トークン
+  ko: 토큰
+  it: token
+  tr: token
+  vi: token
+  id: token
+  pl: token
+  nl: token
+  ar: رمز
+  hi: टोकन
+  th: โทเค็น
+  cs: token
+  sv: token
+  he: טוקן
+  verified_by_human: []
+skills.pricing.input:
+  context: Input label for token pricing
+  en: input
+  de: Eingabe
+  zh: 输入
+  es: entrada
+  fr: entrée
+  pt: entrada
+  ru: вход
+  ja: 入力
+  ko: 입력
+  it: ingresso
+  tr: giriş
+  vi: đầu vào
+  id: masukan
+  pl: wejście
+  nl: invoer
+  ar: إدخال
+  hi: इनपुट
+  th: อินพุต
+  cs: vstup
+  sv: inmatning
+  he: קלט
+  verified_by_human: []
+skills.pricing.output:
+  context: Output label for token pricing
+  en: output
+  de: Ausgabe
+  zh: 输出
+  es: salida
+  fr: sortie
+  pt: saída
+  ru: выход
+  ja: 出力
+  ko: 출력
+  it: uscita
+  tr: çıkış
+  vi: đầu ra
+  id: keluaran
+  pl: wyjście
+  nl: uitvoer
+  ar: إخراج
+  hi: आउटपुट
+  th: เอาต์พุต
+  cs: výstup
+  sv: utdata
+  he: פלט
+  verified_by_human: []
+focus_modes.title:
+  context: Section title for focus modes in app details
+  en: Focus Modes
+  de: Fokusmodi
+  zh: 专注模式
+  es: Modos de enfoque
+  fr: Modes de concentration
+  pt: Modos de foco
+  ru: Режимы фокуса
+  ja: フォーカスモード
+  ko: 포커스 모드
+  it: Modalità di focus
+  tr: Odak modları
+  vi: Chế độ tập trung
+  id: Mode Fokus
+  pl: Tryby skupienia
+  nl: Focusmodi
+  ar: أوضاع التركيز
+  hi: फोकस मोड
+  th: โหมดโฟกัส
+  cs: Režimy zaměření
+  sv: Fok lägen
+  he: מצבי ריכוז
+  verified_by_human: []
+focus_modes.section_description:
+  context: Description text shown under the Focus Modes section heading in app details, explaining what focus modes are
+  en: "Ask your mates to have focused conversations to reach a goal:"
+  de: "Bitte deine Mates, fokussierte Gespräche zu führen, um ein Ziel zu erreichen:"
+  zh: 请求你的伙伴进行有针对性的对话以达成目标：
+  es: "Pídele a tus compañeros que tengan conversaciones enfocadas para alcanzar un objetivo:"
+  fr: "Demandez à vos compagnons d'avoir des conversations ciblées pour atteindre un objectif :"
+  pt: "Peça aos seus companheiros para terem conversas focadas para alcançar um objetivo:"
+  ru: "Попросите своих помощников вести целенаправленные беседы для достижения цели:"
+  ja: mates に目標を達成するための集中した会話をお願いしてください：
+  ko: "목표를 달성하기 위해 집중적인 대화를 해달라고 메이트에게 요청하세요:"
+  it: "Chiedi ai tuoi compagni di avere conversazioni mirate per raggiungere un obiettivo:"
+  tr: "Matelerinizden bir hedefe ulaşmak için odaklı konuşmalar yapmalarını isteyin:"
+  vi: "Yêu cầu bạn đồng hành của bạn có những cuộc trò chuyện tập trung để đạt được mục tiêu:"
+  id: "Minta teman-teman Anda untuk berdiskusi secara terfokus guna mencapai tujuan:"
+  pl: "Poproś swoich towarzyszy o prowadzenie skupionych rozmów w celu osiągnięcia celu:"
+  nl: "Vraag je maatjes om gerichte gesprekken te voeren om een doel te bereiken:"
+  ar: "اطلب من رفاقك إجراء محادثات مركزة لتحقيق هدف:"
+  hi: "अपने साथियों से किसी लक्ष्य तक पहुँचने के लिए केंद्रित बातचीत करने के लिए कहें:"
+  th: "ขอให้เพื่อนของคุณสนทนาอย่างมีสมาธิเพื่อบรรลุเป้าหมาย:"
+  cs: "Požádejte své spoluhráče o vedení soustředěných rozhovorů za účelem dosažení cíle:"
+  sv: "Be dina kompisar att ha fokuserade samtal för att nå ett mål:"
+  he: "בקש מהחברים שלך לנהל שיחות ממוקדות כדי להשיג מטרה:"
+  verified_by_human: []
+focus_modes.how_to_use_prefix:
+  context: Text shown before the how-to-use example cards on a focus mode detail page, inviting the user to try example prompts
+  en: "Just ask your mates something like:"
+  de: "Frag deine Mates einfach so etwas wie:"
+  zh: 只需向你的伙伴提问，例如：
+  es: "Solo pregúntale a tus compañeros algo como:"
+  fr: "Demandez simplement à vos compagnons quelque chose comme :"
+  pt: "Apenas pergunte aos seus companheiros algo como:"
+  ru: "Просто спросите своих помощников что-нибудь вроде:"
+  ja: mates に次のようなことを聞いてみてください：
+  ko: "메이트에게 이런 식으로 물어보세요:"
+  it: "Chiedi semplicemente ai tuoi compagni qualcosa come:"
+  tr: "Matelerinize şöyle bir şey sorun:"
+  vi: "Chỉ cần hỏi bạn đồng hành của bạn điều gì đó như:"
+  id: "Cukup tanyakan kepada teman-teman Anda sesuatu seperti:"
+  pl: "Po prostu zapytaj swoich towarzyszy o coś takiego:"
+  nl: "Vraag je maatjes gewoon iets als:"
+  ar: "فقط اسأل رفاقك شيئًا مثل:"
+  hi: "बस अपने साथियों से कुछ ऐसा पूछें:"
+  th: "เพียงถามเพื่อนของคุณว่า:"
+  cs: "Stačí se zeptat spoluhráčů na něco takového:"
+  sv: "Fråga bara dina kompisar något liknande:"
+  he: "פשוט שאל את החברים שלך משהו כמו:"
+  verified_by_human: []
+focus_modes.how_to_use_mention:
+  context: Text shown after the how-to-use example cards on a focus mode detail page, explaining how to explicitly trigger the focus mode by @-mentioning it. {focusname} is replaced with the focus mode's @mention name (e.g., @Jobs-CareerInsights).
+  en: "Or mention @{focusname}\nin your message to trigger the focus mode explicitly."
+  de: "Oder erwähne @{focusname}\nin deiner Nachricht, um den Fokusmodus explizit zu aktivieren."
+  zh: "或在消息中提及 @{focusname}\n以明确触发该专注模式。"
+  es: "O menciona @{focusname}\nen tu mensaje para activar el modo de enfoque explícitamente."
+  fr: "Ou mentionnez @{focusname}\ndans votre message pour déclencher explicitement le mode de concentration."
+  pt: "Ou mencione @{focusname}\nna sua mensagem para ativar o modo de foco explicitamente."
+  ru: "Или упомяните @{focusname}\nв своём сообщении, чтобы явно активировать режим фокуса."
+  ja: "またはメッセージで @{focusname}\nと書いて、フォーカスモードを明示的にトリガーしてください。"
+  ko: "또는 메시지에서 @{focusname}\n을 언급하여 포커스 모드를 명시적으로 트리거하세요."
+  it: "Oppure menziona @{focusname}\nnel tuo messaggio per attivare esplicitamente la modalità di focus."
+  tr: "Veya odak modunu açıkça tetiklemek için mesajınızda @{focusname}\nifadesini kullanın."
+  vi: "Hoặc đề cập @{focusname}\ntrong tin nhắn của bạn để kích hoạt chế độ tập trung một cách rõ ràng."
+  id: "Atau sebutkan @{focusname}\ndalam pesan Anda untuk memicu mode fokus secara eksplisit."
+  pl: "Lub wspomnij @{focusname}\nw swojej wiadomości, aby jawnie uruchomić tryb skupienia."
+  nl: "Of vermeld @{focusname}\nin je bericht om de focusmodus expliciet te activeren."
+  ar: "أو اذكر @{focusname}\nفي رسالتك لتشغيل وضع التركيز صراحةً."
+  hi: "या अपने संदेश में @{focusname}\nका उल्लेख करें ताकि फोकस मोड को स्पष्ट रूप से ट्रिगर किया जा सके।"
+  th: "หรือกล่าวถึง @{focusname}\nในข้อความของคุณเพื่อเรียกใช้โหมดโฟกัสอย่างชัดเจน"
+  cs: "Nebo zmíněte @{focusname}\nve své zprávě a explicitně aktivujte režim zaměření."
+  sv: "Eller nämn @{focusname}\ni ditt meddelande för att utlösa fokusläget explicit."
+  he: "או הזכר @{focusname}\nבהודעה שלך כדי להפעיל את מצב המיקוד במפורש."
+  verified_by_human: []
+focus_modes.instructions_overview:
+  context: Text shown above the bullet-point summary in the Instructions section of a focus mode detail page
+  en: "An overview, over what the focus mode will do:"
+  de: "Eine Übersicht darüber, was der Fokusmodus tun wird:"
+  zh: 关于专注模式将执行的操作概述：
+  es: "Una descripción general de lo que hará el modo de enfoque:"
+  fr: "Un aperçu de ce que fera le mode de concentration :"
+  pt: "Uma visão geral do que o modo de foco fará:"
+  ru: "Обзор того, что сделает режим фокуса:"
+  ja: フォーカスモードが行うことの概要：
+  ko: "포커스 모드가 수행할 작업 개요:"
+  it: "Una panoramica di cosa farà la modalità di focus:"
+  tr: "Odak modunun neler yapacağına genel bir bakış:"
+  vi: "Tổng quan về những gì chế độ tập trung sẽ làm:"
+  id: "Gambaran umum tentang apa yang akan dilakukan mode fokus:"
+  pl: "Przegląd tego, co zrobi tryb skupienia:"
+  nl: "Een overzicht van wat de focusmodus zal doen:"
+  ar: "نظرة عامة على ما سيفعله وضع التركيز:"
+  hi: "फोकस मोड क्या करेगा इसका अवलोकन:"
+  th: "ภาพรวมของสิ่งที่โหมดโฟกัสจะทำ:"
+  cs: "Přehled toho, co bude dělat režim zaměření:"
+  sv: "En översikt över vad fokusläget kommer att göra:"
+  he: "סקירה כללית של מה שמצב המיקוד יעשה:"
+  verified_by_human: []
+focus_modes.description:
+  context: Label for focus mode description
+  en: Description
+  de: Beschreibung
+  zh: 描述
+  es: Descripción
+  fr: Description
+  pt: Descrição
+  ru: Описание
+  ja: 説明
+  ko: 설명
+  it: Descrizione
+  tr: Açıklama
+  vi: Mô tả
+  id: Deskripsi
+  pl: Opis
+  nl: Beschrijving
+  ar: الوصف
+  hi: विवरण
+  th: คำอธิบาย
+  cs: Popis
+  sv: Beskrivning
+  he: תיאור
+  verified_by_human: []
+focus_modes.system_prompt:
+  context: Section title for the instructions the AI follows when this focus mode is active (user-friendly label)
+  en: Instructions
+  de: Anweisungen
+  zh: 说明
+  es: Instrucciones
+  fr: Instructions
+  pt: Instruções
+  ru: Инструкции
+  ja: 指示
+  ko: 지침
+  it: Istruzioni
+  tr: Talimatlar
+  vi: Hướng dẫn
+  id: Instruksi
+  pl: Instrukcje
+  nl: Instructies
+  ar: التعليمات
+  hi: निर्देश
+  th: คำแนะนำ
+  cs: Instrukce
+  sv: Instruktioner
+  he: הוראות
+  verified_by_human: []
+focus_modes.no_system_prompt:
+  context: Message when focus mode has no instructions defined
+  en: No instructions are defined for this focus mode.
+  de: Für diesen Fokusmodus sind keine Anweisungen definiert.
+  zh: 此专注模式未定义说明。
+  es: No hay instrucciones definidas para este modo de enfoque.
+  fr: Aucune instruction définie pour ce mode de concentration.
+  pt: Nenhuma instrução definida para este modo de foco.
+  ru: Для этого режима фокуса не заданы инструкции.
+  ja: このフォーカスモードには指示が定義されていません。
+  ko: 이 포커스 모드에 대한 지침이 정의되어 있지 않습니다.
+  it: Nessuna istruzione definita per questa modalità di focus.
+  tr: Bu odak modu için talimat tanımlanmamış.
+  vi: Không có hướng dẫn nào được xác định cho chế độ tập trung này.
+  id: Tidak ada instruksi yang ditentukan untuk mode fokus ini.
+  pl: Dla tego trybu skupienia nie zdefiniowano instrukcji.
+  nl: Geen instructies gedefinieerd voor deze focusmodus.
+  ar: لم يتم تعريف تعليمات لوضع التركيز هذا.
+  hi: इस फोकस मोड के लिए कोई निर्देश परिभाषित नहीं है।
+  th: ไม่มีการกำหนดคำแนะนำสำหรับโหมดโฟกัสนี้
+  cs: Pro tento režim zaměření nejsou definovány žádné instrukce.
+  sv: Inga instruktioner definierade för detta fok läge.
+  he: לא הוגדרו הוראות למצב מיקוד זה.
+  verified_by_human: []
+focus_modes.show_full_instruction:
+  context: Button to expand collapsed instructions to show full text
+  en: Show full instruction
+  de: Vollständige Anweisung anzeigen
+  zh: 显示完整说明
+  es: Mostrar instrucción completa
+  fr: Afficher l'instruction complète
+  pt: Mostrar instrução completa
+  ru: Показать полную инструкцию
+  ja: 完全な指示を表示
+  ko: 전체 지침 표시
+  it: Mostra istruzione completa
+  tr: Tam talimatı göster
+  vi: Hiển thị hướng dẫn đầy đủ
+  id: Tampilkan instruksi lengkap
+  pl: Pokaż pełną instrukcję
+  nl: Volledige instructie tonen
+  ar: عرض التعليمات الكاملة
+  hi: पूर्ण निर्देश दिखाएं
+  th: แสดงคำแนะนำแบบเต็ม
+  cs: Zobrazit celou instrukci
+  sv: Visa fullständig instruktion
+  he: הצג הוראה מלאה
+  verified_by_human: []
+focus_modes.show_less:
+  context: Button to collapse expanded instructions
+  en: Show less
+  de: Weniger anzeigen
+  zh: 显示更少
+  es: Mostrar menos
+  fr: Afficher moins
+  pt: Mostrar menos
+  ru: Показать меньше
+  ja: 少なく表示
+  ko: 간략히 보기
+  it: Mostra meno
+  tr: Daha az göster
+  vi: Hiển thị ít hơn
+  id: Tampilkan lebih sedikit
+  pl: Pokaż mniej
+  nl: Minder tonen
+  ar: عرض أقل
+  hi: कम दिखाएं
+  th: แสดงน้อยลง
+  cs: Zobrazit méně
+  sv: Visa mindre
+  he: הצג פחות
+  verified_by_human: []
+focus_modes.summary:
+  context: Section heading for the bullet-point process summary on the focus mode settings detail page. Shows what steps the AI takes when this focus mode is active.
+  en: What this focus mode does
+  de: Was dieser Fokusmodus macht
+  zh: 此专注模式的功能
+  es: Qué hace este modo de enfoque
+  fr: Ce que fait ce mode focus
+  pt: O que este modo de foco faz
+  ru: Что делает этот режим фокуса
+  ja: このフォーカスモードの機能
+  ko: 이 포커스 모드가 하는 일
+  it: Cosa fa questa modalità di focus
+  tr: Bu odak modu ne yapar
+  vi: Chế độ tập trung này làm gì
+  id: Apa yang dilakukan mode fokus ini
+  pl: Co robi ten tryb skupienia
+  nl: Wat deze focusmodus doet
+  ar: ما يفعله وضع التركيز هذا
+  hi: यह फोकस मोड क्या करता है
+  th: โหมดโฟกัสนี้ทำอะไร
+  cs: Co dělá tento režim zaměření
+  sv: Vad detta fokusläge gör
+  he: מה מצב המיקוד הזה עושה
+  verified_by_human: []
+focus_modes.no_description:
+  context: Message when focus mode has no description
+  en: No description available for this focus mode.
+  de: Keine Beschreibung für diesen Fokusmodus verfügbar.
+  zh: 此专注模式没有可用的描述。
+  es: No hay descripción disponible para este modo de enfoque.
+  fr: Aucune description disponible pour ce mode de concentration.
+  pt: Nenhuma descrição disponível para este modo de foco.
+  ru: Нет описания для этого режима фокуса.
+  ja: このフォーカスモードには説明がありません。
+  ko: 이 포커스 모드에 대한 설명이 없습니다.
+  it: Nessuna descrizione disponibile per questa modalità di focus.
+  tr: Bu odak modu için açıklama yok.
+  vi: Không có mô tả cho chế độ tập trung này.
+  id: Tidak ada deskripsi untuk mode fokus ini.
+  pl: Brak opisu dla tego trybu skupienia.
+  nl: Geen beschrijving beschikbaar voor deze focusmodus.
+  ar: لا يوجد وصف لهذا الوضع التركيز.
+  hi: इस फोकस मोड के लिए कोई विवरण उपलब्ध नहीं है।
+  th: ไม่มีคำอธิบายสำหรับโหมดโฟกัสนี้
+  cs: Pro tento režim zaměření není k dispozici žádný popis.
+  sv: Ingen beskrivning tillgänglig för detta fok läge.
+  he: אין תיאור זמין למצב מיקוד זה.
+  verified_by_human: []
+focus_mode_not_found:
+  context: Error message when focus mode is not found
+  en: Focus mode not found.
+  de: Fokusmodus nicht gefunden.
+  zh: 未找到专注模式。
+  es: Modo de enfoque no encontrado.
+  fr: Mode de concentration introuvable.
+  pt: Modo de foco não encontrado.
+  ru: Режим фокуса не найден.
+  ja: フォーカスモードが見つかりません。
+  ko: 포커스 모드를 찾을 수 없습니다.
+  it: Modalità di focus non trovata.
+  tr: Odak modu bulunamadı.
+  vi: Không tìm thấy chế độ tập trung.
+  id: Mode fokus tidak ditemukan.
+  pl: Nie znaleziono trybu skupienia.
+  nl: Focusmodus niet gevonden.
+  ar: لم يتم العثور على وضع التركيز.
+  hi: फोकस मोड नहीं मिला।
+  th: ไม่พบโหมดโฟกัส
+  cs: Režim zaměření nenalezen.
+  sv: Fok läge hittades inte.
+  he: מצב המיקוד לא נמצא.
+  verified_by_human: []
+settings_memories.title:
+  context: Section title for settings and memories in app details
+  en: Settings & Memories
+  de: Einstellungen & Erinnerungen
+  zh: 设置和记忆
+  es: Configuración y recuerdos
+  fr: Paramètres et souvenirs
+  pt: Configurações e memórias
+  ru: Настройки и воспоминания
+  ja: 設定と記憶
+  ko: 설정 및 메모리
+  it: Impostazioni e ricordi
+  tr: Ayarlar ve anılar
+  vi: Cài đặt và ký ức
+  id: Pengaturan dan memori
+  pl: Ustawienia i wspomnienia
+  nl: Instellingen en herinneringen
+  ar: الإعدادات والذكريات
+  hi: सेटिंग्स और यादें
+  th: การตั้งค่าและความทรงจำ
+  cs: Nastavení a vzpomínky
+  sv: Inställningar och minnen
+  he: הגדרות וזיכרונות
+  verified_by_human: []
+settings_memories.section_description:
+  context: Description text shown under the Settings & Memories section heading in app details, explaining what settings & memories are
+  en: "Your mates can request these details from you, to give you even better responses. While you stay in control over what you share & when:"
+  de: "Deine Mates können diese Details von dir anfordern, um dir noch bessere Antworten zu geben. Dabei behältst du immer die Kontrolle darüber, was du teilst und wann:"
+  zh: "你的伙伴可以向你请求这些详细信息，以便给你提供更好的回答。同时，你始终控制自己分享的内容和时间："
+  es: "Tus compañeros pueden pedirte estos detalles para darte respuestas aún mejores. Tú siempre tienes el control sobre qué compartes y cuándo:"
+  fr: "Vos compagnons peuvent vous demander ces informations pour vous donner de meilleures réponses. Vous gardez le contrôle sur ce que vous partagez et quand :"
+  pt: "Seus companheiros podem solicitar esses detalhes de você para dar respostas ainda melhores. Você mantém o controle sobre o que compartilha e quando:"
+  ru: "Ваши помощники могут запрашивать у вас эти сведения, чтобы давать ещё лучшие ответы. Вы всегда контролируете, что и когда делитесь:"
+  ja: "mates はより良い回答を提供するためにこれらの詳細を求めることがあります。何をいつ共有するかはあなたが決めます："
+  ko: "메이트가 더 나은 응답을 제공하기 위해 이 세부 정보를 요청할 수 있습니다. 공유할 내용과 시기는 항상 당신이 결정합니다:"
+  it: "I tuoi compagni possono chiederti questi dettagli per darti risposte ancora migliori. Tu mantieni sempre il controllo su cosa condividi e quando:"
+  tr: "Mateleriniz sizi daha iyi yanıtlamak için bu ayrıntıları sizden isteyebilir. Ne zaman ve ne paylaşacağınız her zaman sizin kontrolünüzde:"
+  vi: "Bạn đồng hành của bạn có thể yêu cầu những chi tiết này để cung cấp phản hồi tốt hơn. Bạn luôn kiểm soát những gì bạn chia sẻ và khi nào:"
+  id: "Teman-teman Anda dapat meminta detail ini untuk memberikan jawaban yang lebih baik. Anda selalu mengontrol apa yang Anda bagikan dan kapan:"
+  pl: "Twoi towarzysze mogą poprosić o te szczegóły, aby dawać Ci jeszcze lepsze odpowiedzi. Ty zawsze kontrolujesz, co udostępniasz i kiedy:"
+  nl: "Je maatjes kunnen om deze details vragen om je nog betere antwoorden te geven. Jij blijft altijd in controle over wat je deelt en wanneer:"
+  ar: "يمكن لرفاقك طلب هذه التفاصيل منك لإعطائك ردودًا أفضل. بينما تحتفظ بالسيطرة على ما تشارك ومتى:"
+  hi: "आपके साथी आपको और बेहतर उत्तर देने के लिए ये विवरण आपसे मांग सकते हैं। आप हमेशा यह नियंत्रित करते हैं कि आप क्या और कब साझा करते हैं:"
+  th: "เพื่อนของคุณสามารถขอข้อมูลเหล่านี้จากคุณเพื่อให้คำตอบที่ดีขึ้น คุณยังคงควบคุมสิ่งที่แบ่งปันและเมื่อใด:"
+  cs: "Vaši spoluhráči vás mohou požádat o tyto podrobnosti, aby vám dávali ještě lepší odpovědi. Vy vždy kontrolujete, co sdílíte a kdy:"
+  sv: "Dina kompisar kan be om dessa uppgifter för att ge dig ännu bättre svar. Du har alltid kontroll över vad du delar och när:"
+  he: "החברים שלך יכולים לבקש ממך פרטים אלה כדי לתת לך תשובות טובות יותר. ואתה תמיד שולט במה שאתה משתף ומתי:"
+  verified_by_human: []
+settings_memories.subtitle:
+  context: Subtitle showing number of settings/memories categories
+  en: "{count} categories available"
+  de: "{count} Kategorien verfügbar"
+  zh: "{count} 个类别可用"
+  es: "{count} categorías disponibles"
+  fr: "{count} catégories disponibles"
+  pt: "{count} categorias disponíveis"
+  ru: "{count} категорий доступно"
+  ja: "{count} のカテゴリが利用可能"
+  ko: "{count}개의 카테고리 사용 가능"
+  it: "{count} categorie disponibili"
+  tr: "{count} kategori mevcut"
+  vi: "{count} danh mục có sẵn"
+  id: "{count} kategori tersedia"
+  pl: "{count} kategorie dostępne"
+  nl: "{count} categorieën beschikbaar"
+  ar: "{count} فئات متاحة"
+  hi: "{count} श्रेणियां उपलब्ध"
+  th: "{count} หมวดหมู่พร้อมใช้งาน"
+  cs: "{count} kategorií k dispozici"
+  sv: "{count} kategorier tillgängliga"
+  he: "{count} קטגוריות זמינות"
+  verified_by_human: []
+skill_not_found:
+  context: Error message when skill is not found
+  en: Skill not found.
+  de: Fähigkeit nicht gefunden.
+  zh: 未找到技能。
+  es: Habilidad no encontrada.
+  fr: Compétence introuvable.
+  pt: Habilidade não encontrada.
+  ru: Навык не найден.
+  ja: スキルが見つかりません。
+  ko: 스킬을 찾을 수 없습니다.
+  it: Abilità non trovata.
+  tr: Beceri bulunamadı.
+  vi: Không tìm thấy kỹ năng.
+  id: Keterampilan tidak ditemukan.
+  pl: Nie znaleziono umiejętności.
+  nl: Vaardigheid niet gevonden.
+  ar: لم يتم العثور على المهارة.
+  hi: कौशल नहीं मिला।
+  th: ไม่พบทักษะ
+  cs: Dovednost nenalezena.
+  sv: Färdighet hittades inte.
+  he: המיומנות לא נמצאה.
+  verified_by_human: []
+back_to_app:
+  context: Button text to go back to app details
+  en: Back to App
+  de: Zurück zur App
+  zh: 返回应用
+  es: Volver a la aplicación
+  fr: Retour à l'application
+  pt: Voltar ao aplicativo
+  ru: Назад к приложению
+  ja: アプリに戻る
+  ko: 앱으로 돌아가기
+  it: Torna all'app
+  tr: Uygulamaya dön
+  vi: Quay lại ứng dụng
+  id: Kembali ke aplikasi
+  pl: Powrót do aplikacji
+  nl: Terug naar app
+  ar: العودة إلى التطبيق
+  hi: ऐप पर वापस जाएं
+  th: กลับไปที่แอป
+  cs: Zpět k aplikaci
+  sv: Tillbaka till appen
+  he: חזרה לאפליקציה
+  verified_by_human: []
+settings_memories.manage_subtitle:
+  context: Subtitle for settings and memories management page
+  en: Manage your app settings and memories entries
+  de: Verwalten Sie Ihre App-Einstellungen und Erinnerungseinträge
+  zh: 管理您的应用设置和记忆条目
+  es: Administre sus configuraciones y entradas de recuerdos de la aplicación
+  fr: Gérez vos paramètres d'application et vos entrées de souvenirs
+  pt: Gerencie suas configurações de aplicativo e entradas de memórias
+  ru: Управляйте настройками приложения и записями воспоминаний
+  ja: アプリの設定とメモリエントリを管理
+  ko: 앱 설정 및 메모리 항목 관리
+  it: Gestisci le impostazioni dell'app e le voci dei ricordi
+  tr: Uygulama ayarlarınızı ve anı girişlerinizi yönetin
+  vi: Quản lý cài đặt ứng dụng và mục ký ức của bạn
+  id: Kelola pengaturan aplikasi dan entri memori Anda
+  pl: Zarządzaj ustawieniami aplikacji i wpisami wspomnień
+  nl: Beheer uw app-instellingen en geheugenitems
+  ar: إدارة إعدادات التطبيق وإدخالات الذكريات
+  hi: अपनी ऐप सेटिंग्स और मेमोरी प्रविष्टियों को प्रबंधित करें
+  th: จัดการการตั้งค่าแอปและรายการความทรงจำของคุณ
+  cs: Spravujte nastavení aplikace a položky paměti
+  sv: Hantera dina appinställningar och minnesposter
+  he: ניהול הגדרות האפליקציה ורשומות הזיכרונות שלך
+  verified_by_human: []
+settings_memories.no_categories:
+  context: Message when app has no settings/memories categories
+  en: This app has no settings or memories categories defined.
+  de: Diese App hat keine Einstellungs- oder Erinnerungskategorien definiert.
+  zh: 此应用没有定义设置或记忆类别。
+  es: Esta aplicación no tiene categorías de configuración o recuerdos definidas.
+  fr: Cette application n'a pas de catégories de paramètres ou de souvenirs définies.
+  pt: Este aplicativo não tem categorias de configurações ou memórias definidas.
+  ru: У этого приложения нет определенных категорий настроек или воспоминаний.
+  ja: このアプリには設定やメモリカテゴリが定義されていません。
+  ko: 이 앱에는 설정 또는 메모리 카테고리가 정의되어 있지 않습니다.
+  it: Questa app non ha categorie di impostazioni o ricordi definite.
+  tr: Bu uygulamanın tanımlı ayar veya anı kategorisi yok.
+  vi: Ứng dụng này không có danh mục cài đặt hoặc ký ức được xác định.
+  id: Aplikasi ini tidak memiliki kategori pengaturan atau memori yang ditentukan.
+  pl: Ta aplikacja nie ma zdefiniowanych kategorii ustawień ani wspomnień.
+  nl: Deze app heeft geen instellingen- of geheugencategorieën gedefinieerd.
+  ar: لا يحتوي هذا التطبيق على فئات إعدادات أو ذكريات محددة.
+  hi: इस ऐप में कोई सेटिंग्स या मेमोरी श्रेणियां परिभाषित नहीं हैं।
+  th: แอปนี้ไม่มีหมวดหมู่การตั้งค่าหรือความทรงจำที่กำหนดไว้
+  cs: Tato aplikace nemá definované kategorie nastavení nebo paměti.
+  sv: Denna app har inga inställnings- eller minneskategorier definierade.
+  he: לא הוגדרו קטגוריות הגדרות או זיכרונות לאפליקציה זו.
+  verified_by_human: []
+settings_memories.no_entries:
+  context: Message when a category has no entries
+  en: "No entries in {category} yet."
+  de: "Noch keine Einträge in {category}."
+  zh: "{category} 中还没有条目。"
+  es: "Aún no hay entradas en {category}."
+  fr: "Aucune entrée dans {category} pour le moment."
+  pt: "Ainda não há entradas em {category}."
+  ru: "Пока нет записей в {category}."
+  ja: "{category}にはまだエントリがありません。"
+  ko: "{category}에 아직 항목이 없습니다."
+  it: "Nessuna voce in {category} ancora."
+  tr: "{category} içinde henüz giriş yok."
+  vi: "Chưa có mục nào trong {category}."
+  id: "Belum ada entri di {category}."
+  pl: "Brak wpisów w {category} jeszcze."
+  nl: "Nog geen items in {category}."
+  ar: "لا توجد إدخالات في {category} بعد."
+  hi: "{category} में अभी तक कोई प्रविष्टि नहीं है।"
+  th: "ยังไม่มีรายการใน {category}"
+  cs: "V {category} zatím nejsou žádné položky."
+  sv: "Inga poster i {category} ännu."
+  he: "אין עדיין רשומות ב-{category}."
+  verified_by_human: []
+settings_memories.add_entry:
+  context: Button text to add a new entry
+  en: Add Entry
+  de: Eintrag hinzufügen
+  zh: 添加条目
+  es: Agregar entrada
+  fr: Ajouter une entrée
+  pt: Adicionar entrada
+  ru: Добавить запись
+  ja: エントリを追加
+  ko: 항목 추가
+  it: Aggiungi voce
+  tr: Giriş ekle
+  vi: Thêm mục
+  id: Tambah entri
+  pl: Dodaj wpis
+  nl: Item toevoegen
+  ar: إضافة إدخال
+  hi: प्रविष्टि जोड़ें
+  th: เพิ่มรายการ
+  cs: Přidat položku
+  sv: Lägg till post
+  he: הוספת רשומה
+  verified_by_human: []
+settings_memories.delete:
+  context: Button text to delete an entry
+  en: Delete
+  de: Löschen
+  zh: 删除
+  es: Eliminar
+  fr: Supprimer
+  pt: Excluir
+  ru: Удалить
+  ja: 削除
+  ko: 삭제
+  it: Elimina
+  tr: Sil
+  vi: Xóa
+  id: Hapus
+  pl: Usuń
+  nl: Verwijderen
+  ar: حذف
+  hi: हटाएं
+  th: ลบ
+  cs: Smazat
+  sv: Ta bort
+  he: מחיקה
+  verified_by_human: []
+settings_memories.pending:
+  context: Badge text for pending entries
+  en: Pending
+  de: Ausstehend
+  zh: 待处理
+  es: Pendiente
+  fr: En attente
+  pt: Pendente
+  ru: В ожидании
+  ja: 保留中
+  ko: 대기 중
+  it: In attesa
+  tr: Beklemede
+  vi: Đang chờ
+  id: Tertunda
+  pl: Oczekujące
+  nl: In afwachting
+  ar: قيد الانتظار
+  hi: लंबित
+  th: รอดำเนินการ
+  cs: Čekající
+  sv: Väntande
+  he: בהמתנה
+  verified_by_human: []
+settings_memories.loading:
+  context: Loading message while fetching settings and memories entries
+  en: Loading settings and memories...
+  de: Laden von Einstellungen und Erinnerungen...
+  zh: 正在加载设置和记忆...
+  es: Cargando configuración y recuerdos...
+  fr: Chargement des paramètres et des souvenirs...
+  pt: Carregando configurações e memórias...
+  ru: Загрузка настроек и воспоминаний...
+  ja: 設定とメモリを読み込み中...
+  ko: 설정 및 메모리 로드 중...
+  it: Caricamento di impostazioni e ricordi...
+  tr: Ayarlar ve anılar yükleniyor...
+  vi: Đang tải cài đặt và ký ức...
+  id: Memuat pengaturan dan memori...
+  pl: Ładowanie ustawień i wspomnień...
+  nl: Instellingen en herinneringen laden...
+  ar: جاري تحميل الإعدادات والذكريات...
+  hi: सेटिंग्स और यादें लोड की जा रही हैं...
+  th: กำลังโหลดการตั้งค่าและความทรงจำ...
+  cs: Načítání nastavení a paměti...
+  sv: Läser in inställningar och minnen...
+  he: טוען הגדרות וזיכרונות...
+  verified_by_human: []
+settings_memories.no_settings:
+  context: Message when no settings and memories have been synced for an app
+  en: No settings or memories synced yet. They will appear here once available.
+  de: Noch keine Einstellungen oder Erinnerungen synchronisiert. Sie werden hier angezeigt, wenn verfügbar.
+  zh: 尚未同步任何设置或记忆。可用后会在此显示。
+  es: Aún no hay configuración ni recuerdos sincronizados. Aparecerán aquí una vez disponibles.
+  fr: Aucun paramètre ou souvenir encore synchronisé. Ils apparaîtront ici une fois disponibles.
+  pt: Nenhuma configuração ou memória sincronizada ainda. Eles aparecerão aqui assim que disponíveis.
+  ru: Настройки и воспоминания еще не синхронизированы. Они появятся здесь после доступности.
+  ja: 設定とメモリはまだ同期されていません。利用可能になると表示されます。
+  ko: 아직 동기화된 설정 또는 메모리가 없습니다. 이용 가능할 때 여기에 표시됩니다.
+  it: Nessuna impostazione o ricordo sincronizzato ancora. Appariranno qui una volta disponibili.
+  tr: Henüz hiçbir ayar veya anı senkronize edilmedi. Mevcut olduğunda burada görünecekler.
+  vi: Chưa có cài đặt hoặc ký ức nào được đồng bộ hóa. Chúng sẽ xuất hiện ở đây khi có sẵn.
+  id: Belum ada pengaturan atau memori yang disinkronkan. Mereka akan muncul di sini setelah tersedia.
+  pl: Brak jeszcze zsynchronizowanych ustawień ani wspomnień. Pojawią się tutaj, gdy tylko będą dostępne.
+  nl: Nog geen instellingen of herinneringen gesynchroniseerd. Ze verschijnen hier zodra deze beschikbaar zijn.
+  ar: لم يتم مزامنة أي إعدادات أو ذكريات حتى الآن. ستظهر هنا بمجرد توفرها.
+  hi: अभी तक कोई सेटिंग्स या यादें सिंक नहीं की गई हैं। वे यहां उपलब्ध हो जाने के बाद दिखाई देंगे।
+  th: ยังไม่มีการตั้งค่าหรือความทรงจำที่ซิงค์แล้ว พวกเขาจะปรากฏที่นี่เมื่อมีให้บริการ
+  cs: Zatím nejsou synchronizovány žádné nastavení ani paměti. Zobrazí se zde, jakmile budou dostupná.
+  sv: Inga inställningar eller minnen ännu inte synkroniserade. De visas här när de är tillgängliga.
+  he: טרם סונכרנו הגדרות או זיכרונות. הם יופיעו כאן כשהם יהיו זמינים.
+  verified_by_human: []
+settings_memories.item_key:
+  context: Label for entry key input field
+  en: Entry Key
+  de: Eintragschlüssel
+  zh: 条目键
+  es: Clave de entrada
+  fr: Clé d'entrée
+  pt: Chave de entrada
+  ru: Ключ записи
+  ja: エントリキー
+  ko: 항목 키
+  it: Chiave voce
+  tr: Giriş Anahtarı
+  vi: Khóa mục
+  id: Kunci Masukan
+  pl: Klucz wpisu
+  nl: Invoersleutel
+  ar: مفتاح الإدخال
+  hi: प्रविष्टि कुंजी
+  th: คีย์รายการ
+  cs: Klíč položky
+  sv: Inmatningsnyckel
+  he: מפתח רשומה
+  verified_by_human: []
+settings_memories.settings_group:
+  context: Label for settings group input field
+  en: Settings Group
+  de: Einstellungsgruppe
+  zh: 设置组
+  es: Grupo de configuración
+  fr: Groupe de paramètres
+  pt: Grupo de configurações
+  ru: Группа настроек
+  ja: 設定グループ
+  ko: 설정 그룹
+  it: Gruppo di impostazioni
+  tr: Ayarlar Grubu
+  vi: Nhóm cài đặt
+  id: Grup Pengaturan
+  pl: Grupa ustawień
+  nl: Instellingengroep
+  ar: مجموعة الإعدادات
+  hi: सेटिंग्स समूह
+  th: กลุ่มการตั้งค่า
+  cs: Skupina nastavení
+  sv: Inställningsgrupp
+  he: קבוצת הגדרות
+  verified_by_human: []
+settings_memories.item_value:
+  context: Label for entry value input field
+  en: Entry Value
+  de: Eintragswert
+  zh: 条目值
+  es: Valor de entrada
+  fr: Valeur d'entrée
+  pt: Valor da entrada
+  ru: Значение записи
+  ja: エントリ値
+  ko: 항목 값
+  it: Valore voce
+  tr: Giriş Değeri
+  vi: Giá trị mục
+  id: Nilai Masukan
+  pl: Wartość wpisu
+  nl: Invoerwaarde
+  ar: قيمة الإدخال
+  hi: प्रविष्टि मूल्य
+  th: ค่ารายการ
+  cs: Hodnota položky
+  sv: Ingångsvärde
+  he: ערך רשומה
+  verified_by_human: []
+settings_memories.cancel:
+  context: Cancel button text
+  en: Cancel
+  de: Abbrechen
+  zh: 取消
+  es: Cancelar
+  fr: Annuler
+  pt: Cancelar
+  ru: Отмена
+  ja: キャンセル
+  ko: 취소
+  it: Annulla
+  tr: İptal
+  vi: Hủy
+  id: Batal
+  pl: Anuluj
+  nl: Annuleren
+  ar: إلغاء
+  hi: रद्द करें
+  th: ยกเลิก
+  cs: Zrušit
+  sv: Avbryt
+  he: ביטול
+  verified_by_human: []
+settings_memories.creating:
+  context: Button text while creating entry
+  en: Creating...
+  de: Wird erstellt...
+  zh: 正在创建...
+  es: Creando...
+  fr: Création en cours...
+  pt: Criando...
+  ru: Создание...
+  ja: 作成中...
+  ko: 생성 중...
+  it: Creazione...
+  tr: Oluşturuluyor...
+  vi: Đang tạo...
+  id: Membuat...
+  pl: Tworzenie...
+  nl: Maken...
+  ar: جاري الإنشاء...
+  hi: बना रहा है...
+  th: กำลังสร้าง...
+  cs: Vytváření...
+  sv: Skapar...
+  he: יוצר...
+  verified_by_human: []
+settings_memories_entry:
+  context: Type label shown in header when viewing a settings & memories entry detail
+  en: Settings & Memories Entry
+  de: Einstellungen & Erinnerungen Eintrag
+  zh: 设置与记忆条目
+  es: Entrada de configuración y memorias
+  fr: Entrée de paramètres et mémoires
+  pt: Entrada de configurações e memórias
+  ru: Запись настроек и воспоминаний
+  ja: 設定＆メモリーエントリ
+  ko: 설정 및 메모리 항목
+  it: Voce di impostazioni e memorie
+  tr: Ayarlar ve anılar girişi
+  vi: Mục cài đặt và ký ức
+  id: Entri pengaturan dan memori
+  pl: Wpis ustawień i wspomnień
+  nl: Instellingen en herinneringen item
+  ar: إدخال الإعدادات والذكريات
+  hi: सेटिंग्स और यादें प्रविष्टि
+  th: รายการการตั้งค่าและความทรงจำ
+  cs: Položka nastavení a vzpomínek
+  sv: Inställningar och minnen post
+  he: רשומת הגדרות וזיכרונות
+  verified_by_human: []
+app_not_found:
+  context: Error message when app is not found
+  en: App not found.
+  de: App nicht gefunden.
+  zh: 未找到应用。
+  es: Aplicación no encontrada.
+  fr: Application introuvable.
+  pt: Aplicativo não encontrado.
+  ru: Приложение не найдено.
+  ja: アプリが見つかりません。
+  ko: 앱을 찾을 수 없습니다.
+  it: App non trovata.
+  tr: Uygulama bulunamadı.
+  vi: Không tìm thấy ứng dụng.
+  id: Aplikasi tidak ditemukan.
+  pl: Nie znaleziono aplikacji.
+  nl: App niet gevonden.
+  ar: لم يتم العثور على التطبيق.
+  hi: ऐप नहीं मिला।
+  th: ไม่พบแอป
+  cs: Aplikace nenalezena.
+  sv: Appen hittades inte.
+  he: האפליקציה לא נמצאה.
+  verified_by_human: []
+back_to_app_store:
+  context: Button text to go back to app store
+  en: Back to App Store
+  de: Zurück zum App Store
+  zh: 返回应用商店
+  es: Volver a la tienda de aplicaciones
+  fr: Retour à la boutique d'applications
+  pt: Voltar à loja de aplicativos
+  ru: Назад в магазин приложений
+  ja: アプリストアに戻る
+  ko: 앱 스토어로 돌아가기
+  it: Torna al negozio di app
+  tr: Uygulama mağazasına dön
+  vi: Quay lại cửa hàng ứng dụng
+  id: Kembali ke toko aplikasi
+  pl: Powrót do sklepu aplikacji
+  nl: Terug naar app store
+  ar: العودة إلى متجر التطبيقات
+  hi: ऐप स्टोर पर वापस जाएं
+  th: กลับไปที่ร้านค้าแอป
+  cs: Zpět do obchodu s aplikacemi
+  sv: Tillbaka till appbutiken
+  he: חזרה לחנות האפליקציות
+  verified_by_human: []
+category_not_found:
+  context: Error message when category is not found
+  en: Category not found.
+  de: Kategorie nicht gefunden.
+  zh: 未找到类别。
+  es: Categoría no encontrada.
+  fr: Catégorie introuvable.
+  pt: Categoria não encontrada.
+  ru: Категория не найдена.
+  ja: カテゴリが見つかりません。
+  ko: 카테고리를 찾을 수 없습니다.
+  it: Categoria non trovata.
+  tr: Kategori bulunamadı.
+  vi: Không tìm thấy danh mục.
+  id: Kategori tidak ditemukan.
+  pl: Nie znaleziono kategorii.
+  nl: Categorie niet gevonden.
+  ar: لم يتم العثور على الفئة.
+  hi: श्रेणी नहीं मिली।
+  th: ไม่พบหมวดหมู่
+  cs: Kategorie nenalezena.
+  sv: Kategori hittades inte.
+  he: הקטגוריה לא נמצאה.
+  verified_by_human: []
+app_embeds.no_embeds:
+  context: Message when no embeds are found for an app
+  en: No embeds found for this app.
+  de: Keine Einbettungen für diese App gefunden.
+  zh: 未找到此应用的嵌入内容。
+  es: No se encontraron incrustaciones para esta aplicación.
+  fr: Aucune intégration trouvée pour cette application.
+  pt: Nenhuma incorporação encontrada para este aplicativo.
+  ru: Встраивания для этого приложения не найдены.
+  ja: このアプリの埋め込みが見つかりません。
+  ko: 이 앱에 대한 임베드가 없습니다.
+  it: Nessuna incorporazione trovata per questa app.
+  tr: Bu uygulama için gömme bulunamadı.
+  vi: Không tìm thấy nội dung nhúng cho ứng dụng này.
+  id: Tidak ada embed yang ditemukan untuk aplikasi ini.
+  pl: Nie znaleziono osadzeń dla tej aplikacji.
+  nl: Geen inbeddingen gevonden voor deze app.
+  ar: لم يتم العثور على محتوى مضمن لهذا التطبيق.
+  hi: इस ऐप के लिए कोई एम्बेड नहीं मिला।
+  th: ไม่พบการฝังสำหรับแอปนี้
+  cs: Pro tuto aplikaci nebyly nalezeny žádné vložené prvky.
+  sv: Inga inbäddningar hittades för denna app.
+  he: לא נמצאו הטמעות לאפליקציה זו.
+  verified_by_human: []
+app_embeds.loading:
+  context: Loading message while fetching embeds
+  en: Loading embeds...
+  de: Einbettungen werden geladen...
+  zh: 正在加载嵌入内容...
+  es: Cargando incrustaciones...
+  fr: Chargement des intégrations...
+  pt: Carregando incorporações...
+  ru: Загрузка встраиваний...
+  ja: 埋め込みを読み込み中...
+  ko: 임베드 로드 중...
+  it: Caricamento incorporazioni...
+  tr: Gömme yükleniyor...
+  vi: Đang tải nội dung nhúng...
+  id: Memuat embed...
+  pl: Ładowanie osadzeń...
+  nl: Inbeddingen laden...
+  ar: جاري تحميل المحتوى المضمن...
+  hi: एम्बेड लोड हो रहे हैं...
+  th: กำลังโหลดการฝัง...
+  cs: Načítání vložených prvků...
+  sv: Läser in inbäddningar...
+  he: טוען הטמעות...
+  verified_by_human: []
+app_settings_memories.no_settings:
+  context: Message when no settings and memories have been synced for an app
+  en: No settings or memories synced yet. They will appear here once available.
+  de: Noch keine Einstellungen oder Erinnerungen synchronisiert. Sie werden hier angezeigt, wenn verfügbar.
+  zh: 尚未同步任何设置或记忆。可用后会在此显示。
+  es: Aún no hay configuración ni recuerdos sincronizados. Aparecerán aquí una vez disponibles.
+  fr: Aucun paramètre ou souvenir encore synchronisé. Ils apparaîtront ici une fois disponibles.
+  pt: Nenhuma configuração ou memória sincronizada ainda. Eles aparecerão aqui assim que disponíveis.
+  ru: Настройки и воспоминания еще не синхронизированы. Они появятся здесь после доступности.
+  ja: 設定とメモリはまだ同期されていません。利用可能になると表示されます。
+  ko: 아직 동기화된 설정 또는 메모리가 없습니다. 이용 가능할 때 여기에 표시됩니다.
+  it: Nessuna impostazione o ricordo sincronizzato ancora. Appariranno qui una volta disponibili.
+  tr: Henüz hiçbir ayar veya anı senkronize edilmedi. Mevcut olduğunda burada görünecekler.
+  vi: Chưa có cài đặt hoặc ký ức nào được đồng bộ hóa. Chúng sẽ xuất hiện ở đây khi có sẵn.
+  id: Belum ada pengaturan atau memori yang disinkronkan. Mereka akan muncul di sini setelah tersedia.
+  pl: Brak jeszcze zsynchronizowanych ustawień ani wspomnień. Pojawią się tutaj, gdy tylko będą dostępne.
+  nl: Nog geen instellingen of herinneringen gesynchroniseerd. Ze verschijnen hier zodra deze beschikbaar zijn.
+  ar: لم يتم مزامنة أي إعدادات أو ذكريات حتى الآن. ستظهر هنا بمجرد توفرها.
+  hi: अभी तक कोई सेटिंग्स या यादें सिंक नहीं की गई हैं। वे यहां उपलब्ध हो जाने के बाद दिखाई देंगे।
+  th: ยังไม่มีการตั้งค่าหรือความทรงจำที่ซิงค์แล้ว พวกเขาจะปรากฏที่นี่เมื่อมีให้บริการ
+  cs: Zatím nejsou synchronizovány žádné nastavení ani paměti. Zobrazí se zde, jakmile budou dostupná.
+  sv: Inga inställningar eller minnen ännu inte synkroniserade. De visas här när de är tillgängliga.
+  he: טרם סונכרנו הגדרות או זיכרונות. הם יופיעו כאן ברגע שיהיו זמינים.
+  verified_by_human: []
+app_settings_memories.add_entry:
+  context: Button text to add a new entry
+  en: Add Entry
+  de: Eintrag hinzufügen
+  zh: 添加条目
+  es: Agregar entrada
+  fr: Ajouter une entrée
+  pt: Adicionar entrada
+  ru: Добавить запись
+  ja: エントリを追加
+  ko: 항목 추加
+  it: Aggiungi voce
+  tr: Giriş ekle
+  vi: Thêm mục
+  id: Tambah entri
+  pl: Dodaj wpis
+  nl: Item toevoegen
+  ar: إضافة إدخال
+  hi: प्रविष्टि जोड़ें
+  th: เพิ่มรายการ
+  cs: Přidat položku
+  sv: Lägg till post
+  he: הוספת רשומה
+  verified_by_human: []
+plus_n_more:
+  context: Shows remaining count in scrollable app/skill/focus mode/settings lists (e.g. "+ 5 more")
+  en: "+ {count} more"
+  de: "+ {count} weitere"
+  es: "+ {count} más"
+  fr: "+ {count} de plus"
+  it: "+ {count} in più"
+  ar: "+ {count} أخرى"
+  he: "+ {count} נוספים"
+  verified_by_human: []
+skills.models:
+  context: Section heading for available models list on a skill details page
+  en: Models
+  de: Modelle
+  zh: 模型
+  es: Modelos
+  fr: Modèles
+  pt: Modelos
+  ru: Модели
+  ja: モデル
+  ko: 모델
+  it: Modelli
+  tr: Modeller
+  vi: Mô hình
+  id: Model
+  pl: Modele
+  nl: Modellen
+  ar: النماذج
+  hi: मॉडल
+  th: โมเดล
+  cs: Modely
+  sv: Modeller
+  he: מודלים
+  verified_by_human: []
+skills.model_detail.model_info:
+  context: Section heading for model details on the skill model detail page
+  en: Details
+  de: Details
+  zh: 详情
+  es: Detalles
+  fr: Détails
+  pt: Detalhes
+  ru: Подробности
+  ja: 詳細
+  ko: 세부 정보
+  it: Dettagli
+  tr: Ayrıntılar
+  vi: Chi tiết
+  id: Detail
+  pl: Szczegóły
+  nl: Details
+  ar: التفاصيل
+  hi: विवरण
+  th: รายละเอียด
+  cs: Podrobnosti
+  sv: Detaljer
+  he: פרטים
+  verified_by_human: []
+skills.model_detail.origin:
+  context: Label for model origin/provider country on skill model detail page
+  en: Origin
+  de: Herkunft
+  zh: 来源
+  es: Origen
+  fr: Origine
+  pt: Origem
+  ru: Происхождение
+  ja: 出所
+  ko: 출처
+  it: Origine
+  tr: Köken
+  vi: Nguồn gốc
+  id: Asal
+  pl: Pochodzenie
+  nl: Origine
+  ar: المصدر
+  hi: उत्पत्ति
+  th: แหล่งกำเนิด
+  cs: Původ
+  sv: Ursprung
+  he: מקור
+  verified_by_human: []
+skills.model_detail.release_date:
+  context: Label for model release date on skill model detail page
+  en: Released
+  de: Veröffentlicht
+  zh: 发布日期
+  es: Lanzado
+  fr: Publié
+  pt: Lançado
+  ru: Выпущено
+  ja: リリース日
+  ko: 출시일
+  it: Rilasciato
+  tr: Yayınlandı
+  vi: Ngày phát hành
+  id: Dirilis
+  pl: Wydano
+  nl: Uitgebracht
+  ar: تاريخ الإصدار
+  hi: जारी किया गया
+  th: วันที่เปิดตัว
+  cs: Vydáno
+  sv: Utgiven
+  he: שוחרר
+  verified_by_human: []
+skills.model_detail.tier:
+  context: Label for model pricing tier on skill model detail page
+  en: Tier
+  de: Stufe
+  zh: 级别
+  es: Nivel
+  fr: Niveau
+  pt: Nível
+  ru: Уровень
+  ja: ティア
+  ko: 등급
+  it: Livello
+  tr: Kademe
+  vi: Bậc
+  id: Tingkat
+  pl: Poziom
+  nl: Tier
+  ar: المستوى
+  hi: स्तर
+  th: ระดับ
+  cs: Úroveň
+  sv: Nivå
+  he: רמה
+  verified_by_human: []
+skills.model_detail.tier_economy:
+  context: Economy tier badge label on skill model detail page
+  en: Economy
+  de: Economy
+  zh: 经济
+  es: Económico
+  fr: Économique
+  pt: Econômico
+  ru: Эконом
+  ja: エコノミー
+  ko: 이코노미
+  it: Economy
+  tr: Ekonomi
+  vi: Kinh tế
+  id: Ekonomi
+  pl: Economy
+  nl: Economy
+  ar: اقتصادي
+  hi: इकोनॉमी
+  th: ประหยัด
+  cs: Economy
+  sv: Economy
+  he: חיסכון
+  verified_by_human: []
+skills.model_detail.tier_standard:
+  context: Standard tier badge label on skill model detail page
+  en: Standard
+  de: Standard
+  zh: 标准
+  es: Estándar
+  fr: Standard
+  pt: Padrão
+  ru: Стандарт
+  ja: スタンダード
+  ko: 스탠다드
+  it: Standard
+  tr: Standart
+  vi: Tiêu chuẩn
+  id: Standar
+  pl: Standard
+  nl: Standard
+  ar: قياسي
+  hi: स्टैंडर्ड
+  th: มาตรฐาน
+  cs: Standard
+  sv: Standard
+  he: סטנדרט
+  verified_by_human: []
+skills.model_detail.tier_premium:
+  context: Premium tier badge label on skill model detail page
+  en: Premium
+  de: Premium
+  zh: 高级
+  es: Premium
+  fr: Premium
+  pt: Premium
+  ru: Премиум
+  ja: プレミアム
+  ko: 프리미엄
+  it: Premium
+  tr: Premium
+  vi: Cao cấp
+  id: Premium
+  pl: Premium
+  nl: Premium
+  ar: بريميوم
+  hi: प्रीमियम
+  th: พรีเมียม
+  cs: Premium
+  sv: Premium
+  he: פרימיום
+  verified_by_human: []
+skills.model_detail.input_types:
+  context: Label for supported input types on skill model detail page
+  en: Accepts
+  de: Akzeptiert
+  zh: 接受
+  es: Acepta
+  fr: Accepte
+  pt: Aceita
+  ru: Принимает
+  ja: 受け付けるもの
+  ko: 입력 유형
+  it: Accetta
+  tr: Kabul eder
+  vi: Chấp nhận
+  id: Menerima
+  pl: Akceptuje
+  nl: Accepteert
+  ar: يقبل
+  hi: स्वीकार करता है
+  th: ยอมรับ
+  cs: Přijímá
+  sv: Accepterar
+  he: מקבל
+  verified_by_human: []
+skills.model_detail.output_types:
+  context: Label for supported output types on skill model detail page
+  en: Outputs
+  de: Ausgaben
+  zh: 输出
+  es: Salidas
+  fr: Sorties
+  pt: Saídas
+  ru: Выводит
+  ja: 出力
+  ko: 출력 유형
+  it: Output
+  tr: Çıktılar
+  vi: Xuất ra
+  id: Keluaran
+  pl: Wyjścia
+  nl: Uitvoer
+  ar: يخرج
+  hi: आउटपुट
+  th: ส่งออก
+  cs: Výstupy
+  sv: Utdata
+  he: פלט
+  verified_by_human: []
+skills.model_detail.pricing:
+  context: Section heading for pricing on skill model detail page
+  en: Pricing
+  de: Preise
+  zh: 定价
+  es: Precios
+  fr: Tarification
+  pt: Preços
+  ru: Цены
+  ja: 価格
+  ko: 가격
+  it: Prezzi
+  tr: Fiyatlandırma
+  vi: Định giá
+  id: Harga
+  pl: Ceny
+  nl: Prijzen
+  ar: التسعير
+  hi: मूल्य निर्धारण
+  th: ราคา
+  cs: Ceny
+  sv: Prissättning
+  he: תמחור
+  verified_by_human: []
+skills.model_detail.provider:
+  context: Section heading for provider/server info on skill model detail page
+  en: Provider
+  de: Anbieter
+  zh: 提供商
+  es: Proveedor
+  fr: Fournisseur
+  pt: Provedor
+  ru: Провайдер
+  ja: プロバイダー
+  ko: 제공자
+  it: Fornitore
+  tr: Sağlayıcı
+  vi: Nhà cung cấp
+  id: Penyedia
+  pl: Dostawca
+  nl: Provider
+  ar: المزود
+  hi: प्रदाता
+  th: ผู้ให้บริการ
+  cs: Poskytovatel
+  sv: Leverantör
+  he: ספק
+  verified_by_human: []
+skills.model_detail.model_not_found:
+  context: Error message when skill model is not found on detail page
+  en: Model not found.
+  de: Modell nicht gefunden.
+  zh: 未找到模型。
+  es: Modelo no encontrado.
+  fr: Modèle introuvable.
+  pt: Modelo não encontrado.
+  ru: Модель не найдена.
+  ja: モデルが見つかりません。
+  ko: 모델을 찾을 수 없습니다.
+  it: Modello non trovato.
+  tr: Model bulunamadı.
+  vi: Không tìm thấy mô hình.
+  id: Model tidak ditemukan.
+  pl: Nie znaleziono modelu.
+  nl: Model niet gevonden.
+  ar: لم يتم العثور على النموذج.
+  hi: मॉडल नहीं मिला।
+  th: ไม่พบโมเดล
+  cs: Model nenalezen.
+  sv: Modell hittades inte.
+  he: המודל לא נמצא.
+  verified_by_human: []
+skills.model_detail.per_image:
+  context: Pricing unit label showing cost per generated image
+  en: per image
+  de: pro Bild
+  zh: 每张图片
+  es: por imagen
+  fr: par image
+  pt: por imagem
+  ru: за изображение
+  ja: 画像1枚あたり
+  ko: 이미지당
+  it: per immagine
+  tr: görsel başına
+  vi: mỗi ảnh
+  id: per gambar
+  pl: za obraz
+  nl: per afbeelding
+  ar: لكل صورة
+  hi: प्रति छवि
+  th: ต่อภาพ
+  cs: za obrázek
+  sv: per bild
+  he: לתמונה
+  verified_by_human: []
+skills.model_detail.per_megapixel:
+  context: Pricing unit label showing cost per megapixel
+  en: per megapixel
+  de: pro Megapixel
+  zh: 每兆像素
+  es: por megapíxel
+  fr: par mégapixel
+  pt: por megapixel
+  ru: за мегапиксель
+  ja: メガピクセルあたり
+  ko: 메가픽셀당
+  it: per megapixel
+  tr: megapiksel başına
+  vi: mỗi megapixel
+  id: per megapiksel
+  pl: za megapiksel
+  nl: per megapixel
+  ar: لكل ميغابكسل
+  hi: प्रति मेगापिक्सेल
+  th: ต่อเมกะพิกเซล
+  cs: za megapixel
+  sv: per megapixel
+  he: למגה-פיקסל
+  verified_by_human: []
+skills.model_detail.per_minute:
+  context: Pricing unit label showing cost per minute of audio
+  en: per minute
+  de: pro Minute
+  zh: 每分钟
+  es: por minuto
+  fr: par minute
+  pt: por minuto
+  ru: за минуту
+  ja: 1分あたり
+  ko: 분당
+  it: per minuto
+  tr: dakika başına
+  vi: mỗi phút
+  id: per menit
+  pl: za minutę
+  nl: per minuut
+  ar: في الدقيقة
+  hi: प्रति मिनट
+  th: ต่อนาที
+  cs: za minutu
+  sv: per minut
+  he: לדקה
+  verified_by_human: []
+skills.model_detail.servers:
+  context: Label for the server/infrastructure region on model detail page
+  en: Servers
+  de: Server
+  zh: 服务器
+  es: Servidores
+  fr: Serveurs
+  pt: Servidores
+  ru: Серверы
+  ja: サーバー
+  ko: 서버
+  it: Server
+  tr: Sunucular
+  vi: Máy chủ
+  id: Server
+  pl: Serwery
+  nl: Servers
+  ar: الخوادم
+  hi: सर्वर
+  th: เซิร์ฟเวอร์
+  cs: Servery
+  sv: Servrar
+  he: שרתים
+  verified_by_human: []
+
+# AI Ask skill model names — used as the page title when deep-linking directly to a model detail page.
+# Model names are proper nouns and do not require translation; all locales use the same English value.
+ai.skill.ask.model.qwen3_235b_a22b_2507:
+  context: Display name for the Qwen 3 256b AI model, shown as the settings page title when navigating directly to this model
+  en: Qwen 3 256b
+  de: Qwen 3 256b
+  zh: Qwen 3 256b
+  es: Qwen 3 256b
+  fr: Qwen 3 256b
+  pt: Qwen 3 256b
+  ru: Qwen 3 256b
+  ja: Qwen 3 256b
+  ko: Qwen 3 256b
+  it: Qwen 3 256b
+  tr: Qwen 3 256b
+  vi: Qwen 3 256b
+  id: Qwen 3 256b
+  pl: Qwen 3 256b
+  nl: Qwen 3 256b
+  ar: Qwen 3 256b
+  hi: Qwen 3 256b
+  th: Qwen 3 256b
+  cs: Qwen 3 256b
+  sv: Qwen 3 256b
+  he: Qwen 3 256b
+  verified_by_human: []
+
+ai.skill.ask.model.claude_haiku_4_5_20251001:
+  context: Display name for the Claude Haiku 4.5 AI model, shown as the settings page title when navigating directly to this model
+  en: Claude Haiku 4.5
+  de: Claude Haiku 4.5
+  zh: Claude Haiku 4.5
+  es: Claude Haiku 4.5
+  fr: Claude Haiku 4.5
+  pt: Claude Haiku 4.5
+  ru: Claude Haiku 4.5
+  ja: Claude Haiku 4.5
+  ko: Claude Haiku 4.5
+  it: Claude Haiku 4.5
+  tr: Claude Haiku 4.5
+  vi: Claude Haiku 4.5
+  id: Claude Haiku 4.5
+  pl: Claude Haiku 4.5
+  nl: Claude Haiku 4.5
+  ar: Claude Haiku 4.5
+  hi: Claude Haiku 4.5
+  th: Claude Haiku 4.5
+  cs: Claude Haiku 4.5
+  sv: Claude Haiku 4.5
+  he: Claude Haiku 4.5
+  verified_by_human: []
+
+ai.skill.ask.model.claude_sonnet_4_6:
+  context: Display name for the Claude Sonnet 4.6 AI model, shown as the settings page title when navigating directly to this model
+  en: Claude Sonnet 4.6
+  de: Claude Sonnet 4.6
+  zh: Claude Sonnet 4.6
+  es: Claude Sonnet 4.6
+  fr: Claude Sonnet 4.6
+  pt: Claude Sonnet 4.6
+  ru: Claude Sonnet 4.6
+  ja: Claude Sonnet 4.6
+  ko: Claude Sonnet 4.6
+  it: Claude Sonnet 4.6
+  tr: Claude Sonnet 4.6
+  vi: Claude Sonnet 4.6
+  id: Claude Sonnet 4.6
+  pl: Claude Sonnet 4.6
+  nl: Claude Sonnet 4.6
+  ar: Claude Sonnet 4.6
+  hi: Claude Sonnet 4.6
+  th: Claude Sonnet 4.6
+  cs: Claude Sonnet 4.6
+  sv: Claude Sonnet 4.6
+  he: Claude Sonnet 4.6
+  verified_by_human: []
+
+ai.skill.ask.model.claude_opus_4_6:
+  context: Display name for the Claude Opus 4.6 AI model, shown as the settings page title when navigating directly to this model
+  en: Claude Opus 4.6
+  de: Claude Opus 4.6
+  zh: Claude Opus 4.6
+  es: Claude Opus 4.6
+  fr: Claude Opus 4.6
+  pt: Claude Opus 4.6
+  ru: Claude Opus 4.6
+  ja: Claude Opus 4.6
+  ko: Claude Opus 4.6
+  it: Claude Opus 4.6
+  tr: Claude Opus 4.6
+  vi: Claude Opus 4.6
+  id: Claude Opus 4.6
+  pl: Claude Opus 4.6
+  nl: Claude Opus 4.6
+  ar: Claude Opus 4.6
+  hi: Claude Opus 4.6
+  th: Claude Opus 4.6
+  cs: Claude Opus 4.6
+  sv: Claude Opus 4.6
+  he: Claude Opus 4.6
+  verified_by_human: []
+
+ai.skill.ask.model.deepseek_v3.2:
+  context: Display name for the DeepSeek V3.2 AI model, shown as the settings page title when navigating directly to this model
+  en: DeepSeek V3.2
+  de: DeepSeek V3.2
+  zh: DeepSeek V3.2
+  es: DeepSeek V3.2
+  fr: DeepSeek V3.2
+  pt: DeepSeek V3.2
+  ru: DeepSeek V3.2
+  ja: DeepSeek V3.2
+  ko: DeepSeek V3.2
+  it: DeepSeek V3.2
+  tr: DeepSeek V3.2
+  vi: DeepSeek V3.2
+  id: DeepSeek V3.2
+  pl: DeepSeek V3.2
+  nl: DeepSeek V3.2
+  ar: DeepSeek V3.2
+  hi: DeepSeek V3.2
+  th: DeepSeek V3.2
+  cs: DeepSeek V3.2
+  sv: DeepSeek V3.2
+  he: DeepSeek V3.2
+  verified_by_human: []
+
+ai.skill.ask.model.gemini_3_flash_preview:
+  context: Display name for the Gemini 3 Flash AI model, shown as the settings page title when navigating directly to this model
+  en: Gemini 3 Flash
+  de: Gemini 3 Flash
+  zh: Gemini 3 Flash
+  es: Gemini 3 Flash
+  fr: Gemini 3 Flash
+  pt: Gemini 3 Flash
+  ru: Gemini 3 Flash
+  ja: Gemini 3 Flash
+  ko: Gemini 3 Flash
+  it: Gemini 3 Flash
+  tr: Gemini 3 Flash
+  vi: Gemini 3 Flash
+  id: Gemini 3 Flash
+  pl: Gemini 3 Flash
+  nl: Gemini 3 Flash
+  ar: Gemini 3 Flash
+  hi: Gemini 3 Flash
+  th: Gemini 3 Flash
+  cs: Gemini 3 Flash
+  sv: Gemini 3 Flash
+  he: Gemini 3 Flash
+  verified_by_human: []
+
+ai.skill.ask.model.gemini_3.1_pro_preview:
+  context: Display name for the Gemini 3.1 Pro AI model, shown as the settings page title when navigating directly to this model
+  en: Gemini 3.1 Pro
+  de: Gemini 3.1 Pro
+  zh: Gemini 3.1 Pro
+  es: Gemini 3.1 Pro
+  fr: Gemini 3.1 Pro
+  pt: Gemini 3.1 Pro
+  ru: Gemini 3.1 Pro
+  ja: Gemini 3.1 Pro
+  ko: Gemini 3.1 Pro
+  it: Gemini 3.1 Pro
+  tr: Gemini 3.1 Pro
+  vi: Gemini 3.1 Pro
+  id: Gemini 3.1 Pro
+  pl: Gemini 3.1 Pro
+  nl: Gemini 3.1 Pro
+  ar: Gemini 3.1 Pro
+  hi: Gemini 3.1 Pro
+  th: Gemini 3.1 Pro
+  cs: Gemini 3.1 Pro
+  sv: Gemini 3.1 Pro
+  he: Gemini 3.1 Pro
+  verified_by_human: []
+
+ai.skill.ask.model.mistral_small_latest:
+  context: Display name for the Mistral Small AI model, shown as the settings page title when navigating directly to this model
+  en: Mistral Small
+  de: Mistral Small
+  zh: Mistral Small
+  es: Mistral Small
+  fr: Mistral Small
+  pt: Mistral Small
+  ru: Mistral Small
+  ja: Mistral Small
+  ko: Mistral Small
+  it: Mistral Small
+  tr: Mistral Small
+  vi: Mistral Small
+  id: Mistral Small
+  pl: Mistral Small
+  nl: Mistral Small
+  ar: Mistral Small
+  hi: Mistral Small
+  th: Mistral Small
+  cs: Mistral Small
+  sv: Mistral Small
+  he: Mistral Small
+  verified_by_human: []
+
+ai.skill.ask.model.mistral_medium_latest:
+  context: Display name for the Mistral Medium AI model, shown as the settings page title when navigating directly to this model
+  en: Mistral Medium
+  de: Mistral Medium
+  zh: Mistral Medium
+  es: Mistral Medium
+  fr: Mistral Medium
+  pt: Mistral Medium
+  ru: Mistral Medium
+  ja: Mistral Medium
+  ko: Mistral Medium
+  it: Mistral Medium
+  tr: Mistral Medium
+  vi: Mistral Medium
+  id: Mistral Medium
+  pl: Mistral Medium
+  nl: Mistral Medium
+  ar: Mistral Medium
+  hi: Mistral Medium
+  th: Mistral Medium
+  cs: Mistral Medium
+  sv: Mistral Medium
+  he: Mistral Medium
+  verified_by_human: []
+
+ai.skill.ask.model.ministral_8b_2512:
+  context: Display name for the Ministral 3 8B AI model, shown as the settings page title when navigating directly to this model
+  en: Ministral 3 8B
+  de: Ministral 3 8B
+  zh: Ministral 3 8B
+  es: Ministral 3 8B
+  fr: Ministral 3 8B
+  pt: Ministral 3 8B
+  ru: Ministral 3 8B
+  ja: Ministral 3 8B
+  ko: Ministral 3 8B
+  it: Ministral 3 8B
+  tr: Ministral 3 8B
+  vi: Ministral 3 8B
+  id: Ministral 3 8B
+  pl: Ministral 3 8B
+  nl: Ministral 3 8B
+  ar: Ministral 3 8B
+  hi: Ministral 3 8B
+  th: Ministral 3 8B
+  cs: Ministral 3 8B
+  sv: Ministral 3 8B
+  he: Ministral 3 8B
+  verified_by_human: []
+
+ai.skill.ask.model.devstral_2512:
+  context: Display name for the Devstral 2 AI model, shown as the settings page title when navigating directly to this model
+  en: Devstral 2
+  de: Devstral 2
+  zh: Devstral 2
+  es: Devstral 2
+  fr: Devstral 2
+  pt: Devstral 2
+  ru: Devstral 2
+  ja: Devstral 2
+  ko: Devstral 2
+  it: Devstral 2
+  tr: Devstral 2
+  vi: Devstral 2
+  id: Devstral 2
+  pl: Devstral 2
+  nl: Devstral 2
+  ar: Devstral 2
+  hi: Devstral 2
+  th: Devstral 2
+  cs: Devstral 2
+  sv: Devstral 2
+  he: Devstral 2
+  verified_by_human: []
+
+ai.skill.ask.model.kimi_k2.5:
+  context: Display name for the Kimi K2.5 AI model, shown as the settings page title when navigating directly to this model
+  en: Kimi K2.5
+  de: Kimi K2.5
+  zh: Kimi K2.5
+  es: Kimi K2.5
+  fr: Kimi K2.5
+  pt: Kimi K2.5
+  ru: Kimi K2.5
+  ja: Kimi K2.5
+  ko: Kimi K2.5
+  it: Kimi K2.5
+  tr: Kimi K2.5
+  vi: Kimi K2.5
+  id: Kimi K2.5
+  pl: Kimi K2.5
+  nl: Kimi K2.5
+  ar: Kimi K2.5
+  hi: Kimi K2.5
+  th: Kimi K2.5
+  cs: Kimi K2.5
+  sv: Kimi K2.5
+  he: Kimi K2.5
+  verified_by_human: []
+
+ai.skill.ask.model.gpt_5.4:
+  context: Display name for the GPT-5.4 AI model, shown as the settings page title when navigating directly to this model
+  en: GPT-5.4
+  de: GPT-5.4
+  zh: GPT-5.4
+  es: GPT-5.4
+  fr: GPT-5.4
+  pt: GPT-5.4
+  ru: GPT-5.4
+  ja: GPT-5.4
+  ko: GPT-5.4
+  it: GPT-5.4
+  tr: GPT-5.4
+  vi: GPT-5.4
+  id: GPT-5.4
+  pl: GPT-5.4
+  nl: GPT-5.4
+  ar: GPT-5.4
+  hi: GPT-5.4
+  th: GPT-5.4
+  cs: GPT-5.4
+  sv: GPT-5.4
+  he: GPT-5.4
+  verified_by_human: []
+
+ai.skill.ask.model.gpt_oss_120b:
+  context: Display name for the GPT-OSS-120b AI model, shown as the settings page title when navigating directly to this model
+  en: GPT-OSS-120b
+  de: GPT-OSS-120b
+  zh: GPT-OSS-120b
+  es: GPT-OSS-120b
+  fr: GPT-OSS-120b
+  pt: GPT-OSS-120b
+  ru: GPT-OSS-120b
+  ja: GPT-OSS-120b
+  ko: GPT-OSS-120b
+  it: GPT-OSS-120b
+  tr: GPT-OSS-120b
+  vi: GPT-OSS-120b
+  id: GPT-OSS-120b
+  pl: GPT-OSS-120b
+  nl: GPT-OSS-120b
+  ar: GPT-OSS-120b
+  hi: GPT-OSS-120b
+  th: GPT-OSS-120b
+  cs: GPT-OSS-120b
+  sv: GPT-OSS-120b
+  he: GPT-OSS-120b
+  verified_by_human: []
+
+ai.skill.ask.model.zai_glm_4.7:
+  context: Display name for the GLM 4.7 AI model, shown as the settings page title when navigating directly to this model
+  en: GLM 4.7
+  de: GLM 4.7
+  zh: GLM 4.7
+  es: GLM 4.7
+  fr: GLM 4.7
+  pt: GLM 4.7
+  ru: GLM 4.7
+  ja: GLM 4.7
+  ko: GLM 4.7
+  it: GLM 4.7
+  tr: GLM 4.7
+  vi: GLM 4.7
+  id: GLM 4.7
+  pl: GLM 4.7
+  nl: GLM 4.7
+  ar: GLM 4.7
+  hi: GLM 4.7
+  th: GLM 4.7
+  cs: GLM 4.7
+  sv: GLM 4.7
+  he: GLM 4.7
+  verified_by_human: []
+
+skill:
+  context: Type label shown in the gradient banner header on a skill detail sub-page (e.g. displayed as "Skill" below the skill name)
+  en: Skill
+  de: Skill
+  zh: 技能
+  es: Habilidad
+  fr: Compétence
+  pt: Habilidade
+  ru: Навык
+  ja: スキル
+  ko: 스킬
+  it: Abilità
+  tr: Beceri
+  vi: Kỹ năng
+  id: Keahlian
+  pl: Umiejętność
+  nl: Vaardigheid
+  ar: مهارة
+  hi: कौशल
+  th: ทักษะ
+  cs: Dovednost
+  sv: Färdighet
+  he: מיומנות
+  verified_by_human: []
+
+focus_mode:
+  context: Type label shown in the gradient banner header on a focus mode detail sub-page (e.g. displayed as "Focus mode" below the focus mode name)
+  en: Focus mode
+  de: Fokus-Modus
+  zh: 专注模式
+  es: Modo de enfoque
+  fr: Mode de concentration
+  pt: Modo de foco
+  ru: Режим фокуса
+  ja: フォーカスモード
+  ko: 집중 모드
+  it: Modalità di messa a fuoco
+  tr: Odak modu
+  vi: Chế độ tập trung
+  id: Mode fokus
+  pl: Tryb skupienia
+  nl: Focusmodus
+  ar: وضع التركيز
+  hi: फोकस मोड
+  th: โหมดโฟกัส
+  cs: Režim soustředění
+  sv: Fokusläge
+  he: מצב מיקוד
+  verified_by_human: []
+
+settings_memories:
+  context: Type label shown in the gradient banner header on a settings & memories category sub-page (e.g. displayed as "Settings & Memories" below the category name)
+  en: Settings & Memories
+  de: Einstellungen & Erinnerungen
+  zh: 设置与记忆
+  es: Ajustes y Memorias
+  fr: Paramètres et Mémoires
+  pt: Configurações e Memórias
+  ru: Настройки и Воспоминания
+  ja: 設定とメモリ
+  ko: 설정 및 기억
+  it: Impostazioni e Memorie
+  tr: Ayarlar ve Anılar
+  vi: Cài đặt & Ký ức
+  id: Pengaturan & Memori
+  pl: Ustawienia i Wspomnienia
+  nl: Instellingen & Herinneringen
+  ar: الإعدادات والذكريات
+  hi: सेटिंग्स और यादें
+  th: การตั้งค่าและความทรงจำ
+  cs: Nastavení a vzpomínky
+  sv: Inställningar & Minnen
+  he: הגדרות וזיכרונות
+  verified_by_human: []
+
+nav.previous_item:
+  context: Aria-label for the left arrow button in the app store sub-item header (skill/focus mode/settings category). {name} is the display name of the previous sibling item.
+  en: "Previous: {name}"
+  de: "Vorherige: {name}"
+  zh: "上一个：{name}"
+  es: "Anterior: {name}"
+  fr: "Précédent : {name}"
+  pt: "Anterior: {name}"
+  ru: "Предыдущее: {name}"
+  ja: "前へ: {name}"
+  ko: "이전: {name}"
+  it: "Precedente: {name}"
+  tr: "Önceki: {name}"
+  vi: "Trước: {name}"
+  id: "Sebelumnya: {name}"
+  pl: "Poprzedni: {name}"
+  nl: "Vorige: {name}"
+  ar: "السابق: {name}"
+  hi: "पिछला: {name}"
+  th: "ก่อนหน้า: {name}"
+  cs: "Předchozí: {name}"
+  sv: "Föregående: {name}"
+  he: "הקודם: {name}"
+  verified_by_human: []
+
+nav.next_item:
+  context: Aria-label for the right arrow button in the app store sub-item header (skill/focus mode/settings category). {name} is the display name of the next sibling item.
+  en: "Next: {name}"
+  de: "Nächste: {name}"
+  zh: "下一个：{name}"
+  es: "Siguiente: {name}"
+  fr: "Suivant : {name}"
+  pt: "Próximo: {name}"
+  ru: "Следующее: {name}"
+  ja: "次へ: {name}"
+  ko: "다음: {name}"
+  it: "Successivo: {name}"
+  tr: "Sonraki: {name}"
+  vi: "Tiếp: {name}"
+  id: "Berikutnya: {name}"
+  pl: "Następny: {name}"
+  nl: "Volgende: {name}"
+  ar: "التالي: {name}"
+  hi: "अगला: {name}"
+  th: "ถัดไป: {name}"
+  cs: "Další: {name}"
+  sv: "Nästa: {name}"
+  he: "הבא: {name}"
+  verified_by_human: []
+provider_detail.connected_skills:
+  context: Section heading on provider detail page listing all app skills that use this provider
+  en: Connected Skills
+  de: Verbundene Fähigkeiten
+  zh: 已连接的技能
+  es: Habilidades conectadas
+  fr: Compétences connectées
+  pt: Habilidades conectadas
+  ru: Связанные навыки
+  ja: 接続されたスキル
+  ko: 연결된 스킬
+  it: Abilità collegate
+  tr: Bağlı beceriler
+  vi: Kỹ năng được kết nối
+  id: Keterampilan terhubung
+  pl: Połączone umiejętności
+  nl: Verbonden vaardigheden
+  ar: المهارات المتصلة
+  hi: जुड़े हुए कौशल
+  th: ทักษะที่เชื่อมต่อ
+  cs: Propojené dovednosti
+  sv: Anslutna färdigheter
+  he: מיומנויות מחוברות
+  verified_by_human: []
+provider_detail.about:
+  context: Section heading on provider detail page showing provider information (description + location)
+  en: About
+  de: Über
+  zh: 关于
+  es: Acerca de
+  fr: À propos
+  pt: Sobre
+  ru: О провайдере
+  ja: 概要
+  ko: 소개
+  it: Informazioni
+  tr: Hakkında
+  vi: Giới thiệu
+  id: Tentang
+  pl: O dostawcy
+  nl: Over
+  ar: حول
+  hi: के बारे में
+  th: เกี่ยวกับ
+  cs: O poskytovateli
+  sv: Om
+  he: אודות
+  verified_by_human: []
+provider_detail.location:
+  context: Label for the provider's country/location on the provider detail page
+  en: Location
+  de: Standort
+  zh: 位置
+  es: Ubicación
+  fr: Localisation
+  pt: Localização
+  ru: Местоположение
+  ja: 所在地
+  ko: 위치
+  it: Posizione
+  tr: Konum
+  vi: Địa điểm
+  id: Lokasi
+  pl: Lokalizacja
+  nl: Locatie
+  ar: الموقع
+  hi: स्थान
+  th: ที่ตั้ง
+  cs: Umístění
+  sv: Plats
+  he: מיקום
+  verified_by_human: []
+provider_not_found:
+  context: Error message when provider is not found on provider detail page
+  en: Provider not found.
+  de: Anbieter nicht gefunden.
+  zh: 未找到提供商。
+  es: Proveedor no encontrado.
+  fr: Fournisseur introuvable.
+  pt: Provedor não encontrado.
+  ru: Провайдер не найден.
+  ja: プロバイダーが見つかりません。
+  ko: 제공업체를 찾을 수 없습니다.
+  it: Fornitore non trovato.
+  tr: Sağlayıcı bulunamadı.
+  vi: Không tìm thấy nhà cung cấp.
+  id: Penyedia tidak ditemukan.
+  pl: Nie znaleziono dostawcy.
+  nl: Provider niet gevonden.
+  ar: لم يتم العثور على المزود.
+  hi: प्रदाता नहीं मिला।
+  th: ไม่พบผู้ให้บริการ
+  cs: Poskytovatel nenalezen.
+  sv: Leverantör hittades inte.
+  he: הספק לא נמצא.
+  verified_by_human: []
+
+settings_memories.hub_no_entries:
+  context: Empty state message in the Settings & Memories hub when user has no entries yet
+  en: No settings or memories yet. Visit an app in the App Store to create them.
+  de: Noch keine Einstellungen oder Erinnerungen. Besuche eine App im App Store, um sie zu erstellen.
+  zh: 还没有设置或记忆。请在 App Store 中访问某个应用来创建。
+  es: Todavía no hay ajustes ni memorias. Visita una app en la App Store para crearlos.
+  fr: Pas encore de paramètres ni de mémoires. Visitez une app dans l'App Store pour en créer.
+  pt: ""
+  ru: ""
+  ja: まだ設定やメモリがありません。App Store のアプリを訪問して作成してください。
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: لا توجد إعدادات أو ذكريات بعد. قم بزيارة أحد التطبيقات في App Store لإنشائها.
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: אין עדיין הגדרות או זיכרונות. בקר באפליקציה ב-App Store כדי ליצור אותם.
+  verified_by_human: []
+
+settings_memories.discover_link:
+  context: Footer link at the bottom of the Settings & Memories hub pointing to App Store
+  en: Discover apps with settings & memories
+  de: Apps mit Einstellungen & Erinnerungen entdecken
+  zh: 发现具有设置和记忆的应用
+  es: Descubre apps con ajustes y memorias
+  fr: Découvrir des apps avec paramètres et mémoires
+  pt: ""
+  ru: ""
+  ja: 設定とメモリを持つアプリを発見する
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: اكتشف التطبيقات التي تحتوي على إعدادات وذكريات
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: גלה אפליקציות עם הגדרות וזיכרונות
+  verified_by_human: []
+
+settings_memories.entry_count:
+  context: Number of entries shown for a settings/memories category in the hub (e.g. "3 entries")
+  en: "{count, plural, one {# entry} other {# entries}}"
+  de: "{count, plural, one {# Eintrag} other {# Einträge}}"
+  zh: "{count, plural, other {# 条目}}"
+  es: "{count, plural, one {# entrada} other {# entradas}}"
+  fr: "{count, plural, one {# entrée} other {# entrées}}"
+  pt: ""
+  ru: ""
+  ja: "{count} 件"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: "{count, plural, one {# إدخال} other {# إدخالات}}"
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: "{count, plural, one {# רשומה} other {# רשומות}}"
+  verified_by_human: []

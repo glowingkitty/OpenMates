@@ -17,7 +17,7 @@
         }
     ],
     "python.testing.pytestArgs": [
-        "tests"
+        "backend"
     ],
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true

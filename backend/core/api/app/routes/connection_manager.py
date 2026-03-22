@@ -1,15 +1,49 @@
 import asyncio
 import logging
-from fastapi import WebSocket, WebSocketDisconnect
+from fastapi import WebSocket
 from typing import Dict, Tuple, Optional
 
 logger = logging.getLogger(__name__)
 
+
+def _safe_message_summary(message: object) -> str:
+    """Return metadata-only message summary for logs."""
+    if isinstance(message, dict):
+        keys = sorted(message.keys())
+        return f"keys={keys}, key_count={len(keys)}"
+    if isinstance(message, list):
+        return f"list_len={len(message)}"
+    return f"type={type(message).__name__}"
+
 class ConnectionManager:
+    """
+    Manages WebSocket connections with support for multiple browser instances per device.
+    
+    Dual-Hash Architecture:
+        1. Device Hash (without sessionId): SHA256(OS:Country:UserID)
+           - Used for: Device verification, "new device" email detection
+           - Stored in: Directus user_devices table
+           - Persists across browser sessions on same physical device
+        
+        2. Connection Hash (with sessionId): SHA256(OS:Country:UserID:SessionID)
+           - Used for: WebSocket connection routing (stored as device_fingerprint_hash key)
+           - SessionID: UUID generated per browser tab/instance, stored in sessionStorage
+           - Each browser instance (Arc, Firefox, Chrome) = unique connection hash
+           - Allows multiple instances on same physical device without conflicts
+    
+    Connection Structure:
+        - active_connections: {user_id: {connection_hash: WebSocket}}
+        - Each connection_hash = one specific browser instance
+        - Example: Arc = connection_hash_A, Firefox = connection_hash_B on same device
+        - Both coexist independently without connection overwrites
+        - Each receives its own ping/pong and messages
+    """
     GRACE_PERIOD_SECONDS = 30  # 30 seconds grace period
 
     def __init__(self):
         # Structure: {user_id: {device_fingerprint_hash: WebSocket}}
+        # Note: Each browser instance has unique sessionId → unique device_fingerprint_hash
+        # Example: {user123: {hash_arc: ws_arc, hash_firefox: ws_firefox}}
         self.active_connections: Dict[str, Dict[str, WebSocket]] = {}
         # Structure: {websocket_id: (user_id, device_fingerprint_hash)} for reverse lookup
         self.reverse_lookup: Dict[int, Tuple[str, str]] = {}
@@ -150,7 +184,10 @@ class ConnectionManager:
         if websocket:
             try:
                 await websocket.send_json(message)
-                logger.debug(f"Sent message to User {user_id}, Device {device_fingerprint_hash}: {message}")
+                logger.debug(
+                    f"Sent message to User {user_id}, Device {device_fingerprint_hash} "
+                    f"(message_summary={_safe_message_summary(message)})"
+                )
             except Exception as e: # Catch any exception during send
                 logger.error(f"Error sending message to User {user_id}, Device {device_fingerprint_hash} (ws_id: {id(websocket)}): {e}. Initiating disconnect process.")
                 self.disconnect(websocket, reason=f"Send error: {type(e).__name__}") # Pass reason
@@ -189,7 +226,10 @@ class ConnectionManager:
                         logger.error(f"Error broadcasting to User {user_id}, Device {failed_device_hash_lookup} (WS ID: {ws_id}): {result}. Initiating disconnect process.")
                         self.disconnect(failed_websocket, reason=f"Broadcast error: {type(result).__name__}") # Pass reason
 
-                logger.debug(f"Broadcasted message to User {user_id} (excluding {exclude_device_hash}): {message}")
+                logger.debug(
+                    f"Broadcasted message to User {user_id} (excluding {exclude_device_hash}) "
+                    f"(message_summary={_safe_message_summary(message)})"
+                )
 
     async def broadcast_to_user_specific_event(self, user_id: str, event_name: str, payload: dict):
         """Sends a specific event message to all connected devices for a specific user."""
@@ -197,12 +237,22 @@ class ConnectionManager:
             message = {"type": event_name, "payload": payload}
             tasks = []
             websockets_to_send = []
+            connection_count = len(self.active_connections[user_id])
 
             for device_hash, websocket in list(self.active_connections[user_id].items()):
                 tasks.append(websocket.send_json(message))
                 websockets_to_send.append(websocket)
             
             if tasks:
+                # Enhanced logging for send_embed_data events
+                if event_name == "send_embed_data":
+                    embed_id = payload.get("embed_id", "unknown")
+                    status = payload.get("status", "unknown")
+                    logger.info(
+                        f"[EMBED_EVENT] Broadcasting 'send_embed_data' for embed {embed_id} (status={status}) "
+                        f"to User {user_id} across {connection_count} WebSocket connection(s)"
+                    )
+                
                 results = await asyncio.gather(*tasks, return_exceptions=True)
                 for i, result in enumerate(results):
                     if isinstance(result, Exception):
@@ -216,7 +266,12 @@ class ConnectionManager:
                         logger.error(f"Error broadcasting event '{event_name}' to User {user_id}, Device {failed_device_hash_lookup} (WS ID: {ws_id}): {result}. Initiating disconnect process.")
                         self.disconnect(failed_websocket, reason=f"Broadcast event error: {type(result).__name__}") # Pass reason
                 
-                logger.debug(f"Broadcasted event '{event_name}' to User {user_id}. Payload: {payload}")
+                if event_name != "send_embed_data":  # Avoid duplicate logging for send_embed_data
+                    payload_keys = sorted(payload.keys()) if isinstance(payload, dict) else []
+                    logger.debug(
+                        f"Broadcasted event '{event_name}' to User {user_id}. "
+                        f"Payload summary: keys={payload_keys}, key_count={len(payload_keys)}"
+                    )
 
     def is_user_active(self, user_id: str) -> bool:
         """Checks if a user has any active WebSocket connections or connections in grace period."""

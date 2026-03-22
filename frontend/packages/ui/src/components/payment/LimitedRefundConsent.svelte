@@ -15,6 +15,8 @@
         dispatch('consentChanged', { consented: hasConsentedToLimitedRefund });
     });
     
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
     function openRefundInfo() {
         // Open refund info in new tab
         window.open(getWebsiteUrl(routes.docs.userGuide_signup_10_1), '_blank');
@@ -24,19 +26,19 @@
 <div class="consent-view" in:fade={{ duration: 300 }} out:fade={{ duration: 200 }}>
     <div class="signup-header">
         <div class="icon header_size legal"></div>
-        <h2 class="signup-menu-title">{@html $text('signup.limited_refund.text')}</h2>
+        <h2 class="signup-menu-title">{@html $text('signup.limited_refund')}</h2>
     </div>
 
     <div class="consent-container">
         <div class="confirmation-row">
             <Toggle bind:checked={hasConsentedToLimitedRefund} id="limited-refund-consent-toggle" />
             <label for="limited-refund-consent-toggle" class="confirmation-text">
-                {@html $text('signup.i_agree_to_limited_refund.text')}
+                {@html $text('signup.i_agree_to_limited_refund')}
             </label>
         </div>
         <!-- TODO add link again once documentation page exists -->
         <!-- <button onclick={openRefundInfo} class="text-button learn-more-button">
-            {@html $text('signup.click_here_learn_more.text')}
+            {@html $text('signup.click_here_learn_more')}
         </button> -->
     </div>
 </div>

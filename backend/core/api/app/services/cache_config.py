@@ -2,6 +2,11 @@
 DEFAULT_TTL = 3600  # 1 hour
 USER_TTL = 86400    # 24 hours
 SESSION_TTL = 86400 # 24 hours
+# Directus access token TTL — must match the ACCESS_TOKEN_TTL env var on the cms service.
+# Used to calculate token_expiry in cached user data so we only refresh when near expiry.
+ACCESS_TOKEN_TTL_SECONDS = 900  # 15 minutes (Directus default)
+# How long before expiry to trigger a proactive refresh (seconds).
+TOKEN_REFRESH_THRESHOLD_SECONDS = 300  # 5 minutes
 USER_DEVICE_TTL = 86400 # 24 hours
 USER_APP_DATA_TTL = 86400 # 24 hours (For user-specific app memories and settings)
 
@@ -12,6 +17,7 @@ USER_DEVICE_KEY_PREFIX = "user_device:"
 USER_DEVICE_LIST_KEY_PREFIX = "user_device_list:"
 ORDER_KEY_PREFIX = "order_status:"
 USER_APP_SETTINGS_AND_MEMORIES_KEY_PREFIX = "user_app_settings_and_memories:"
+GIFT_CARD_KEY_PREFIX = "gift_card:"
 
 # Obsolete/Legacy chat prefixes
 CHAT_LIST_META_KEY_PREFIX = "chat_list_meta:"
@@ -29,5 +35,5 @@ CHAT_IDS_VERSIONS_TTL = 86400  # 24 hours
 CHAT_VERSIONS_TTL = 2700       # 45 minutes
 CHAT_LIST_ITEM_DATA_TTL = 2700 # 45 minutes
 USER_DRAFT_TTL = 2700          # 45 minutes (For the new user:{user_id}:chat:{chat_id}:draft key)
-CHAT_MESSAGES_TTL = 86400      # 24 hours (cache last 3 chats for follow-up context)
+CHAT_MESSAGES_TTL = 259200     # 72 hours (cache last 3 chats for follow-up context)
 TOP_N_MESSAGES_COUNT = 3       # Configurable: How many chats keep full messages in cache

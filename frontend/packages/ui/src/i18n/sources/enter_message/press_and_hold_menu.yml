@@ -1,0 +1,144 @@
+delete:
+  context: Menu option to delete an attachment
+  en: Delete
+  de: Löschen
+  zh: 删除
+  es: Eliminar
+  fr: Supprimer
+  pt: Excluir
+  ru: Удалить
+  ja: 削除
+  ko: 삭제
+  it: Elimina
+  tr: Sil
+  vi: Xóa
+  id: Hapus
+  pl: Usuń
+  nl: Verwijderen
+  ar: حذف
+  hi: हटाएं
+  th: ลบ
+  cs: Smazat
+  sv: "Ta bort"
+  he: מחיקה
+  verified_by_human: []
+copy_link:
+  context: Menu option to copy web link
+  en: Copy link
+  de: Link kopieren
+  zh: 复制链接
+  es: Copiar enlace
+  fr: Copier le lien
+  pt: Copiar link
+  ru: Копировать ссылку
+  ja: リンクをコピー
+  ko: 링크 복사
+  it: Copia link
+  tr: Bağlantıyı kopyala
+  vi: Sao chép liên kết
+  id: Salin tautan
+  pl: Skopiuj link
+  nl: Link kopiëren
+  ar: نسخ الرابط
+  hi: लिंक कॉपी करें
+  th: คัดลอกลิงก์
+  cs: Kopírovat odkaz
+  sv: "Kopiera länk"
+  he: העתקת קישור
+  verified_by_human: []
+download:
+  context: Menu option to download an attachment
+  en: Download
+  de: Herunterladen
+  zh: 下载
+  es: Descargar
+  fr: Télécharger
+  pt: Baixar
+  ru: Скачать
+  ja: ダウンロード
+  ko: 다운로드
+  it: Scarica
+  tr: İndir
+  vi: Tải xuống
+  id: Unduh
+  pl: Pobierz
+  nl: Downloaden
+  ar: تنزيل
+  hi: डाउनलोड करें
+  th: ดาวน์โหลด
+  cs: Stáhnout
+  sv: "Ladda ner"
+  he: הורדה
+  verified_by_human: []
+view:
+  context: Menu option to view attachment in full screen
+  en: View
+  de: Ansehen
+  zh: 查看
+  es: Ver
+  fr: Voir
+  pt: Visualizar
+  ru: Просмотреть
+  ja: 表示
+  ko: 보기
+  it: Visualizza
+  tr: Görüntüle
+  vi: Xem
+  id: Lihat
+  pl: Zobacz
+  nl: Bekijken
+  ar: عرض
+  hi: देखें
+  th: ดู
+  cs: Zobrazit
+  sv: "Visa"
+  he: צפייה
+  verified_by_human: []
+paste_as_text:
+  context: Menu option to replace an embed (text, website, video URL, audio recording) with its plain text content in the message input
+  en: Paste as text
+  de: Als Text einfügen
+  zh: 粘贴为文本
+  es: Pegar como texto
+  fr: Coller en texte
+  pt: Colar como texto
+  ru: Вставить как текст
+  ja: テキストとして貼り付け
+  ko: 텍스트로 붙여넣기
+  it: Incolla come testo
+  tr: Metin olarak yapıştır
+  vi: Dán dưới dạng văn bản
+  id: Tempel sebagai teks
+  pl: Wklej jako tekst
+  nl: Plakken als tekst
+  ar: لصق كنص
+  hi: टेक्स्ट के रूप में पेस्ट करें
+  th: วางเป็นข้อความ
+  cs: Vložit jako text
+  sv: Klistra in som text
+  he: הדבר כטקסט
+  verified_by_human: []
+copied_to_clipboard:
+  context: Message shown when a URL has been copied to clipboard
+  en: Copied to clipboard
+  de: Kopiert
+  zh: 已复制
+  es: Copiado al portapapeles
+  fr: Copié
+  pt: Copiado para a área de transferência
+  ru: Скопировано в буфер обмена
+  ja: クリップボードにコピーしました
+  ko: 클립보드에 복사됨
+  it: Copiato negli appunti
+  tr: Panoya kopyalandı
+  vi: Đã sao chép vào clipboard
+  id: Disalin ke clipboard
+  pl: Skopiowano do schowka
+  nl: Gekopieerd naar klembord
+  ar: تم النسخ إلى الحافظة
+  hi: क्लिपबोर्ड पर कॉपी किया गया
+  th: คัดลอกไปยังคลิปบอร์ดแล้ว
+  cs: Zkopírováno do schránky
+  sv: "Kopierat till urklipp"
+  he: הועתק ללוח
+  verified_by_human: []

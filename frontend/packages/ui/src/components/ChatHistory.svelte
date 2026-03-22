@@ -1,61 +1,197 @@
 <script lang="ts">
   import { createEventDispatcher, tick, onMount, onDestroy } from "svelte"; // Removed afterUpdate for runes mode compatibility
+  import type { SvelteComponent } from 'svelte';
   import { flip } from 'svelte/animate';
   import ChatMessage from "./ChatMessage.svelte";
-  import { fly, fade } from "svelte/transition";
-  import type { MessageStatus } from '../types/chat'; // Import global MessageStatus
-
-  // Define types without the export modifier.
-  type TextMessagePart = {
-    type: "text";
-    content: string;
-  };
-
-  type AppCardsMessagePart = {
-    type: "app-cards";
-    content: any[]; // Use more specific type if available.
-  };
-
-  type MessagePart = TextMessagePart | AppCardsMessagePart;
+  import FollowUpSuggestions from './FollowUpSuggestions.svelte';
+  import { fade } from "svelte/transition";
+  import type { MessageStatus, ProcessingPhase } from '../types/chat'; // Import global MessageStatus and ProcessingPhase
 
   // Define the internal Message type for ChatHistory's own state,
   // tailored for what ChatMessage.svelte needs.
   // This should align with the global Message type from ../types/chat
   import type { Message as GlobalMessage, MessageRole } from '../types/chat';
   import { preprocessTiptapJsonForEmbeds } from './enter_message/utils/tiptapContentProcessor';
-  import { parseMarkdownToTiptap } from '../components/enter_message/utils/markdownParser';
-  import { createTruncatedMessage, truncateTiptapContent } from '../utils/messageTruncation';
+  import { parse_message } from '../message_parsing/parse_message';
+  import { truncateTiptapContent } from '../utils/messageTruncation';
+  import { restorePIIInText } from './enter_message/services/piiDetectionService';
+  import type { PIIMapping } from '../types/chat';
+  import { piiVisibilityStore } from '../stores/piiVisibilityStore';
+  import { locale } from 'svelte-i18n';
+  import { contentCache } from '../utils/contentCache';
+  import { getDemoMessages, isPublicChat, DEMO_CHATS, LEGAL_CHATS } from '../demo_chats'; // Import demo chat utilities for re-fetching on locale change
+  import { messageHighlightStore } from '../stores/messageHighlightStore';
+  import type { 
+    AppSettingsMemoriesResponseContent,
+    AppSettingsMemoriesRequestContent
+  } from '../services/chatSyncServiceHandlersAppSettings';
+    
+  // ChatHeader: permanent display-only card shown at the top of new chats (title + category circle)
+  import ChatHeader from './ChatHeader.svelte';
+  // Note: Icon was previously used for preprocessing step cards (now removed).
+  // If Icon is needed elsewhere in future, re-import it.
+
+  // Import the permission dialog component and its store for inline rendering
+  // The permission dialog is rendered as part of the chat history (scrollable with messages)
+  // rather than as a fixed overlay, so users can scroll while the dialog is visible
+  import AppSettingsMemoriesPermissionDialog from './AppSettingsMemoriesPermissionDialog.svelte';
+  import { 
+    appSettingsMemoriesPermissionStore,
+    isPermissionDialogVisible,
+    currentPermissionRequest
+  } from '../stores/appSettingsMemoriesPermissionStore';
+  import type { PendingPermissionRequest, AppSettingsMemoriesCategory } from '../services/chatSyncServiceHandlersAppSettings';
+  import { formatDisplayName, getAppGradient } from '../services/chatSyncServiceHandlersAppSettings';
+  import { text } from '@repo/ui'; // Used for compression summary UI labels
+  import { chatDebugStore } from '../stores/chatDebugStore';
+
+  type AppCardData = {
+    component: new (...args: unknown[]) => SvelteComponent;
+    props: Record<string, unknown>;
+  };
+
+  type TiptapDoc = {
+    type: 'doc';
+    content: Array<Record<string, unknown>>;
+  };
 
   interface InternalMessage {
     id: string; // Derived from message_id
     role: MessageRole;
     category?: string;
     sender_name?: string; // Actual name of the mate
-    content: any; // Tiptap JSON content
+    model_name?: string; // Model name for AI messages
+    content: unknown; // Tiptap JSON content (shape varies by embed nodes)
     status?: MessageStatus; // Status of the message
     is_truncated?: boolean; // Flag indicating if content is truncated
     full_content_length?: number; // Length of full content for reference
     original_message?: GlobalMessage; // Store original message for full content loading
+    appCards?: AppCardData[]; // App skill preview cards (rendered by ChatMessage)
+    _embedUpdateTimestamp?: number; // Forces re-render when embed data becomes available
+    _embedErrors?: Set<string>; // Embed IDs that errored (tracked by ActiveChat for error banners)
+    appSettingsMemoriesResponse?: AppSettingsMemoriesResponseContent; // Response to user's app settings/memories request
+    pii_mappings?: PIIMapping[]; // PII mappings for restoration (from user message)
+  }
+
+  // Add optional embed/app-card metadata without widening the core message type.
+  type MessageWithEmbedMetadata = GlobalMessage & {
+    appCards?: AppCardData[];
+    _embedUpdateTimestamp?: number;
+    _embedErrors?: Set<string>;
+  };
+
+  /**
+   * Build a cumulative PII mappings lookup from all user messages in the chat.
+   * This allows assistant messages to restore PII from any preceding user message.
+   * 
+   * The approach: Aggregate all PII mappings from user messages, keyed by placeholder.
+   * Later messages with the same placeholder override earlier ones (unlikely but handled).
+   */
+  function buildCumulativePIIMappings(allMessages: GlobalMessage[]): Map<string, PIIMapping> {
+    const cumulativeMappings = new Map<string, PIIMapping>();
+    
+    for (const msg of allMessages) {
+      if (msg.role === 'user' && msg.pii_mappings && msg.pii_mappings.length > 0) {
+        for (const mapping of msg.pii_mappings) {
+          cumulativeMappings.set(mapping.placeholder, mapping);
+        }
+      }
+    }
+    
+    return cumulativeMappings;
+  }
+
+  /**
+   * Returns true if the message content (markdown string) contains a focus_mode_activation embed reference.
+   */
+  function hasFocusModeActivationEmbed(content: unknown): boolean {
+    if (typeof content !== 'string') return false;
+    return content.includes('"type":"focus_mode_activation"') || content.includes('"type": "focus_mode_activation"');
+  }
+
+  /**
+   * Merge consecutive assistant messages for display when the previous is a focus mode activation.
+   * Backend stores two messages (focus embed, then continuation text). We show one bubble.
+   */
+  function mergeFocusContinuationForDisplay(incoming: GlobalMessage[]): GlobalMessage[] {
+    const result: GlobalMessage[] = [];
+    for (let i = 0; i < incoming.length; i++) {
+      const prev = result[result.length - 1];
+      const curr = incoming[i];
+      if (
+        prev?.role === 'assistant' &&
+        curr.role === 'assistant' &&
+        hasFocusModeActivationEmbed(prev.content)
+      ) {
+        const prevContent = typeof prev.content === 'string' ? prev.content : '';
+        const currContent = typeof curr.content === 'string' ? curr.content : '';
+        result[result.length - 1] = {
+          ...curr,
+          message_id: prev.message_id,
+          content: prevContent + (prevContent && currContent ? '\n\n' : '') + currContent,
+        };
+      } else {
+        result.push(curr);
+      }
+    }
+    return result;
+  }
+
+  /**
+   * Restore PII placeholders in markdown content using the provided mappings.
+   * Returns the markdown with placeholders replaced by highlighted original values.
+   */
+  function restorePIIInMarkdown(
+    markdown: string, 
+    mappings: Map<string, PIIMapping>
+  ): string {
+    if (mappings.size === 0) return markdown;
+    
+    // Convert Map to array for the restorePIIInText function
+    const mappingsArray = Array.from(mappings.values());
+    return restorePIIInText(markdown, mappingsArray);
   }
 
   // Helper function to map incoming message structure to InternalMessage
-  function G_mapToInternalMessage(incomingMessage: GlobalMessage): InternalMessage {
+  // IMPORTANT: piiMappings parameter is optional - when provided, PII restoration is applied
+  function G_mapToInternalMessage(
+    incomingMessage: GlobalMessage,
+    piiMappings?: Map<string, PIIMapping>
+  ): InternalMessage {
     // incomingMessage.content is now a markdown string (never Tiptap JSON on server!)
     // We need to convert it to Tiptap JSON for display purposes
-    let processedContent: any;
+    let processedContent: unknown;
     
     if (typeof incomingMessage.content === 'string') {
-      // Content is markdown string - convert to Tiptap JSON for display
-      const tiptapJson = parseMarkdownToTiptap(incomingMessage.content);
-      processedContent = preprocessTiptapJsonForEmbeds(tiptapJson);
+      let contentToProcess = incomingMessage.content;
       
+      // PII RESTORATION: Restore PII placeholders with original values before parsing
+      // This applies to both user and assistant messages when mappings are available
+      if (piiMappings && piiMappings.size > 0) {
+        contentToProcess = restorePIIInMarkdown(contentToProcess, piiMappings);
+      }
+      
+      // Content is markdown string - convert to Tiptap JSON with unified parsing (includes embed parsing)
+      // CRITICAL FIX: Use 'write' mode for streaming messages to show 'processing' status on embeds
+      // This ensures users see "processing" state during streaming instead of waiting for embed data
+      const parseMode = incomingMessage.status === 'streaming' ? 'write' : 'read';
+      const tiptapJson = parse_message(contentToProcess, parseMode, {
+        unifiedParsingEnabled: true,
+        role: incomingMessage.role
+      });
+      processedContent = preprocessTiptapJsonForEmbeds(tiptapJson);
+
       // Apply truncation at TipTap level for user messages to avoid breaking node structure
       if (incomingMessage.role === 'user' && incomingMessage.content.length > 1000) {
         processedContent = truncateTiptapContent(processedContent);
       }
     } else {
       // Fallback for any other format (should not happen with new architecture)
-      processedContent = preprocessTiptapJsonForEmbeds(incomingMessage.content as any);
+      const maybeDoc = incomingMessage.content;
+      const isTiptapDoc = (value: unknown): value is TiptapDoc => {
+        return !!value && typeof value === 'object' && (value as { type?: string }).type === 'doc';
+      };
+      processedContent = preprocessTiptapJsonForEmbeds(isTiptapDoc(maybeDoc) ? maybeDoc : null);
     }
 
     // Check if message should be truncated (for UI display purposes)
@@ -69,16 +205,255 @@
       role: incomingMessage.role,
       category: incomingMessage.category,
       sender_name: incomingMessage.sender_name,
+      model_name: incomingMessage.model_name,
       content: processedContent,
       status: incomingMessage.status,
       is_truncated: shouldTruncate,
       full_content_length: shouldTruncate ? incomingMessage.content.length : 0,
-      original_message: incomingMessage // Store original for full content loading
+      original_message: incomingMessage, // Store original for full content loading
+      appCards: (incomingMessage as MessageWithEmbedMetadata).appCards, // Preserve appCards if present
+      _embedUpdateTimestamp: (incomingMessage as MessageWithEmbedMetadata)._embedUpdateTimestamp, // Force re-render when embed data arrives
+      _embedErrors: (incomingMessage as MessageWithEmbedMetadata)._embedErrors, // Propagate embed error tracking from ActiveChat
+      pii_mappings: incomingMessage.pii_mappings // Preserve PII mappings
     };
   }
  
   // Array that holds all chat messages using $state (Svelte 5 runes mode)
   let messages = $state<InternalMessage[]>([]);
+
+  /**
+   * Parse system message content to check if it's an app_settings_memories_response.
+   * Returns the parsed content or null if not a valid response.
+   */
+  function parseAppSettingsMemoriesResponse(content: unknown): AppSettingsMemoriesResponseContent | null {
+    if (typeof content !== 'string') {
+      console.warn(`[ChatHistory][parseResponse] content is not a string, got: ${typeof content}`, content);
+      return null;
+    }
+    // Fast-path: valid app_settings_memories_response JSON always starts with '{'.
+    // Skip JSON.parse entirely for plain-text system messages (e.g. credits rejection)
+    // to avoid noisy parse-failure warnings on every render.
+    if (!content.trimStart().startsWith('{')) return null;
+    try {
+      const parsed = JSON.parse(content);
+      if (parsed.type === 'app_settings_memories_response') {
+        return parsed as AppSettingsMemoriesResponseContent;
+      }
+      console.warn(`[ChatHistory][parseResponse] parsed JSON but type was '${parsed.type}', not 'app_settings_memories_response'`);
+    } catch (e) {
+      console.warn(`[ChatHistory][parseResponse] JSON.parse failed for content (length=${content.length}):`, content.substring(0, 200), e);
+    }
+    return null;
+  }
+
+  /**
+   * Parse system message content to check if it's an app_settings_memories_request.
+   * Returns the parsed content or null if not a valid request.
+   */
+  function parseAppSettingsMemoriesRequest(content: unknown): AppSettingsMemoriesRequestContent | null {
+    if (typeof content !== 'string') {
+      console.warn(`[ChatHistory][parseRequest] content is not a string, got: ${typeof content}`, content);
+      return null;
+    }
+    try {
+      const parsed = JSON.parse(content);
+      if (parsed.type === 'app_settings_memories_request') {
+        return parsed as AppSettingsMemoriesRequestContent;
+      }
+    } catch {
+      // Not valid JSON, ignore
+    }
+    return null;
+  }
+
+  /**
+   * Helper to read thinking entries from the map with a stable signature.
+   * This keeps template logic concise and avoids unsupported {@const} placement.
+   */
+  function getThinkingEntry(messageId: string | undefined) {
+    if (!messageId) return undefined;
+    return thinkingContentByTask.get(messageId);
+  }
+
+  /**
+   * Derived state: Create a lookup map of user_message_id → app settings/memories REQUEST.
+   * System messages with type 'app_settings_memories_request' contain the request metadata
+   * (requested_keys, categories) and should be displayed as part of the user's message, not separately.
+   * 
+   * Used together with appSettingsMemoriesResponseMap to detect "unpaired" requests
+   * (a request without a matching response) which indicates a pending permission dialog.
+   * 
+   * IMPORTANT: Both this map and the response map use user_message_id from the system message
+   * content as the key. This ensures symmetric lookup — a request and its response always
+   * map to the same key, preventing false "unpaired" detection.
+   */
+  let appSettingsMemoriesRequestMap = $derived.by(() => {
+    const map = new Map<string, AppSettingsMemoriesRequestContent>();
+    
+    // Debug: count system messages to understand what we're working with
+    const systemMessages = messages.filter(m => m.role === 'system');
+
+    
+    for (const msg of messages) {
+      if (msg.role === 'system') {
+        const request = parseAppSettingsMemoriesRequest(msg.original_message?.content);
+        if (request) {
+          map.set(request.user_message_id, request);
+        }
+      }
+    }
+    
+
+    
+    return map;
+  });
+
+  /**
+   * Derived state: Create a lookup map of user_message_id → app settings/memories response.
+   * System messages with type 'app_settings_memories_response' contain the user's decision
+   * (included/rejected) and should be displayed as part of the user's message, not separately.
+   * 
+   * IMPORTANT: Uses user_message_id from the system message content directly as the key,
+   * matching the same strategy as the request map. Both request and response system messages
+   * store the same user_message_id (the client-generated ID of the triggering user message),
+   * so using it directly ensures they always pair correctly.
+   * 
+   * FALLBACK: If user_message_id is missing from the response content (should not happen
+   * in normal flow), falls back to position-based association with the nearest preceding
+   * user message.
+   */
+  let appSettingsMemoriesResponseMap = $derived.by(() => {
+    const map = new Map<string, AppSettingsMemoriesResponseContent>();
+    
+    for (let i = 0; i < messages.length; i++) {
+      const msg = messages[i];
+      if (msg.role === 'system') {
+        const response = parseAppSettingsMemoriesResponse(msg.original_message?.content);
+        if (response) {
+          // Use user_message_id directly as the map key — same strategy as the request map.
+          // Both request and response system messages store the same user_message_id
+          // (the client-generated ID of the user message that triggered the request).
+          if (response.user_message_id) {
+            map.set(response.user_message_id, response);
+          } else {
+            // FALLBACK: user_message_id is missing (should not happen in normal flow).
+            // Fall back to position-based association with the nearest preceding user message.
+            for (let j = i - 1; j >= 0; j--) {
+              if (messages[j].role === 'user') {
+                map.set(messages[j].id, response);
+                console.warn(
+                  `[ChatHistory] Response system message missing user_message_id, ` +
+                  `fell back to position-based mapping with user message ${messages[j].id}`
+                );
+                break;
+              }
+            }
+          }
+        }
+      }
+    }
+    
+
+    
+    return map;
+  });
+
+  /**
+   * Derived state: Cumulative PII mappings from all user messages.
+   * Passed to every ChatMessage so ReadOnlyMessage can apply decorations
+   * to highlight restored PII values in both user and assistant messages.
+   */
+  let cumulativePIIMappingsArray = $derived.by(() => {
+    const allMappings: PIIMapping[] = [];
+    for (const msg of messages) {
+      if (msg.role === 'user' && msg.pii_mappings && msg.pii_mappings.length > 0) {
+        allMappings.push(...msg.pii_mappings);
+      }
+    }
+    return allMappings;
+  });
+
+  /**
+   * Derived state: Filter out system messages for app_settings_memories request and response.
+   * Request system messages drive the permission dialog (not rendered as chat bubbles).
+   * Response system messages are displayed as part of the user's message (included/rejected badge).
+   */
+  // --- Compression / forgotten messages ---
+  // Whether the user has toggled "Show earlier messages" to see messages before the compression summary.
+  let showForgottenMessages = $state(false);
+
+  /**
+   * Find the index of the compression summary system message in the messages array.
+   * Returns -1 if no compression summary exists. Used to split messages into
+   * "forgotten" (before summary) and "active" (summary + after) groups.
+   */
+  let compressionSummaryIndex = $derived.by(() => {
+    for (let i = 0; i < messages.length; i++) {
+      const msg = messages[i];
+      if (
+        msg.role === 'system' &&
+        (msg.category === 'compression_summary' ||
+         msg.original_message?.category === 'compression_summary')
+      ) {
+        return i;
+      }
+    }
+    return -1;
+  });
+
+  /** True when this chat has a compression summary, so the forgotten messages UI should appear. */
+  let hasCompressionSummary = $derived(compressionSummaryIndex >= 0);
+
+  /** Messages before the compression summary (the "forgotten" ones). */
+  let forgottenMessages = $derived.by(() => {
+    if (!hasCompressionSummary) return [] as typeof messages;
+    return messages.slice(0, compressionSummaryIndex);
+  });
+
+  let displayMessages = $derived.by(() => {
+    // Start with either all messages or only post-summary messages
+    let base = hasCompressionSummary && !showForgottenMessages
+      ? messages.slice(compressionSummaryIndex)
+      : messages;
+
+    return base.filter(msg => {
+      if (msg.role === 'system') {
+        const response = parseAppSettingsMemoriesResponse(msg.original_message?.content);
+        // Filter out app_settings_memories_response system messages
+        if (response?.type === 'app_settings_memories_response') {
+          return false;
+        }
+        const request = parseAppSettingsMemoriesRequest(msg.original_message?.content);
+        // Filter out app_settings_memories_request system messages
+        if (request?.type === 'app_settings_memories_request') {
+          return false;
+        }
+      }
+      return true;
+    });
+  });
+
+  let debugChatCopied = $state(false);
+  let debugChatCopyTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function copyDebugChatText(): void {
+    const text = $chatDebugStore.chatReport;
+    if (!text) return;
+    void navigator.clipboard.writeText(text).then(() => {
+      debugChatCopied = true;
+      if (debugChatCopyTimer) clearTimeout(debugChatCopyTimer);
+      debugChatCopyTimer = setTimeout(() => { debugChatCopied = false; }, 2000);
+    });
+  }
+
+  let lastAssistantMessageId = $derived.by(() => {
+    for (let i = displayMessages.length - 1; i >= 0; i--) {
+      if (displayMessages[i].role === 'assistant') {
+        return displayMessages[i].id;
+      }
+    }
+    return null;
+  });
 
   // Show/hide the messages block for fade-out animation using $state (Svelte 5 runes mode)
   let showMessages = $state(true);
@@ -88,19 +463,226 @@
 
   // Props using Svelte 5 runes mode
   let {
-    messageInputHeight = 0
+    messageInputHeight = 0,
+    containerWidth = 0,
+    currentChatId = undefined,
+    processingPhase = null,
+    thinkingContentByTask = new Map(),
+    // Chat header props: shown at the top of new chats only.
+    // chatTitle / chatCategory / chatIcon are the decrypted metadata once received.
+    // isNewChatGeneratingTitle=true shows the "Generating title..." placeholder instead.
+    chatTitle = '',
+    chatCategory = null,
+    chatIcon = null,
+    chatSummary = null,
+    chatCreatedAt = null,
+    isNewChatGeneratingTitle = false,
+    isNewChatCreditsError = false,
+    isCreditsRestored = false,
+    onResend = undefined,
+    isIncognito = false,
+    followUpSuggestions = [],
+    onSuggestionClick = undefined,
   }: {
     messageInputHeight?: number;
+    containerWidth?: number;
+    currentChatId?: string; // Current active chat ID - used to ensure permission dialog only shows in the originating chat
+    processingPhase?: ProcessingPhase; // Current phase of the AI processing pipeline (sending → processing → typing → null)
+    thinkingContentByTask?: Map<string, { content: string; isStreaming: boolean; signature?: string | null; totalTokens?: number | null }>; // Thinking content from thinking models
+
+    /** Decrypted title to show in the permanent header card (new chats only). */
+    chatTitle?: string;
+    /** Decrypted category (e.g. "technology") for the gradient circle (new chats only). */
+    chatCategory?: string | null;
+    /** Decrypted icon name (e.g. "cpu") for the category circle (new chats only). */
+    chatIcon?: string | null;
+    /** Decrypted chat summary — shown as 14px text below the title if available. */
+    chatSummary?: string | null;
+    /** Unix timestamp in seconds of when the chat was created. Used for the "Started ..." time in the header banner. */
+    chatCreatedAt?: number | null;
+    /** True while the server is still generating the title/category/icon for a new chat.
+     *  Shows the "Creating new chat ..." shimmer placeholder instead of the full card. */
+    isNewChatGeneratingTitle?: boolean;
+    /** True when the first message on this new chat was rejected due to insufficient credits.
+     *  Keeps the header banner visible with a "Not enough credits" state instead of dismissing it. */
+    isNewChatCreditsError?: boolean;
+    /** True when the user now has credits again after a credits rejection.
+     *  Passed through to ChatMessage so the system notice can switch to "Resend message" mode. */
+    isCreditsRestored?: boolean;
+    /** Callback to resend the original message after credits are restored.
+     *  Passed through to ChatMessage; called when the user clicks "Resend message". */
+    onResend?: () => void;
+    /** True when the active chat is an incognito chat.
+     *  Shows the incognito-specific ChatHeader variant immediately (no shimmer needed). */
+    isIncognito?: boolean;
+    /** Follow-up suggestions to display below the last assistant message.
+     *  Passed from ActiveChat; shown without input-focus requirement so users
+     *  see them immediately without clicking the message input. */
+    followUpSuggestions?: string[];
+    /** Callback fired when the user clicks a follow-up suggestion. */
+    onSuggestionClick?: (suggestion: string, mentionSyntax?: string) => void;
   } = $props();
 
   // Add reactive statement to handle height changes using $derived (Svelte 5 runes mode)
   let containerStyle = $derived(`bottom: ${messageInputHeight-30}px`);
 
+  // PII visibility: derive whether PII is revealed for the current chat.
+  // Default is false (hidden) — user must explicitly toggle to reveal sensitive data.
+  let piiRevealedMap = $state<Map<string, boolean>>(new Map());
+  // Subscribe to the store to keep piiRevealedMap in sync
+  const unsubPiiVisibility = piiVisibilityStore.subscribe(map => {
+      piiRevealedMap = map;
+  });
+  let piiRevealed = $derived(currentChatId ? (piiRevealedMap.get(currentChatId) ?? false) : false);
+  
+  // CRITICAL: Only show permission dialog if it belongs to the current chat
+  // This prevents the dialog from showing in the wrong chat when user switches chats
+  // The dialog's chatId must match the currently active chat's ID
+  let shouldShowPermissionDialog = $derived(
+    $isPermissionDialogVisible && 
+    $currentPermissionRequest?.chatId && 
+    currentChatId && 
+    $currentPermissionRequest.chatId === currentChatId
+  );
+
+  /**
+   * Derived state: Detect unpaired app settings/memories requests.
+   * An "unpaired" request is a request system message that has no matching response system message
+   * (both reference the same user_message_id). This indicates the user hasn't responded yet.
+   *
+   * When an unpaired request is detected for the current chat, the permission dialog is shown
+   * automatically. This handles the case where the user logs out/in or refreshes while a
+   * permission dialog was pending - the dialog re-appears from the persisted system message.
+   */
+  let unpairedRequest = $derived.by(() => {
+    // Find the first unpaired request in this chat's messages
+    for (const [userMessageId, request] of appSettingsMemoriesRequestMap) {
+      if (!appSettingsMemoriesResponseMap.has(userMessageId)) {
+        console.warn(`[ChatHistory][UnpairedRequest] Request for user_message_id="${userMessageId}" has NO matching response. Response map keys:`, [...appSettingsMemoriesResponseMap.keys()]);
+        return request;
+      }
+    }
+    return null;
+  });
+
+  /**
+   * Effect: When an unpaired request is detected and no dialog is currently visible,
+   * rebuild the full PendingPermissionRequest and show the dialog via the store.
+   * This handles session recovery (logout/login, refresh, cross-device sync).
+   */
+  $effect(() => {
+    if (!unpairedRequest || !currentChatId) return;
+    
+    // Don't show if a dialog is already visible (either for this request or another)
+    if ($isPermissionDialogVisible) return;
+
+    // Rebuild full categories with display info from the persisted minimal metadata
+    const fullCategories: AppSettingsMemoriesCategory[] = unpairedRequest.categories.map(cat => ({
+      key: `${cat.appId}-${cat.itemType}`,
+      appId: cat.appId,
+      itemType: cat.itemType,
+      displayName: formatDisplayName(cat.itemType),
+      entryCount: cat.entryCount,
+      iconGradient: getAppGradient(cat.appId),
+      selected: true, // Default all to selected when recovering
+    }));
+
+    // Rebuild the PendingPermissionRequest for the store
+    const recoveredRequest: PendingPermissionRequest = {
+      requestId: unpairedRequest.request_id,
+      chatId: currentChatId,
+      messageId: unpairedRequest.user_message_id,
+      categories: fullCategories,
+      yamlContent: '', // YAML content not stored in system message (not needed for dialog)
+      createdAt: Date.now(),
+    };
+
+    console.info(
+      `[ChatHistory] Recovered unpaired permission request ${unpairedRequest.request_id} ` +
+      `for chat ${currentChatId} - showing dialog`
+    );
+
+    appSettingsMemoriesPermissionStore.showDialog(recoveredRequest);
+  });
+
+  // Determine if we should show settings/memories suggestions
+  // Only show after the last assistant message when:
+  // 1. We have suggestions to show
+  // 2. We have a current chat ID
+  // 3. The last message is from the assistant (not streaming)
+
   const dispatch = createEventDispatcher();
 
-  // Track the last user message to implement ChatGPT-style scrolling
-  let lastUserMessageId: string | null = null;
-  let shouldScrollToNewUserMessage = false;
+  // CRITICAL: These must be $state() for Svelte 5 reactivity.
+  // The scroll $effect at line ~689 reads these variables, and without $state(),
+  // changes to them won't trigger re-execution of the effect — breaking the
+  // ChatGPT-style scroll that positions the user message near the top after sending.
+  let lastUserMessageId = $state<string | null>(null);
+  let shouldScrollToNewUserMessage = $state(false);
+  let isScrolling = $state(false);
+
+  // Track whether the scroll container is at the very top.
+  // Used to conditionally suppress the top gradient fade on .chat-history-container
+  // so the banner (which sits at the top) isn't clipped by the fade when in view.
+  // Starts true since the chat opens scrolled to the top.
+  let isAtTop = $state(true);
+  
+  // Track whether the user has manually scrolled away during streaming.
+  // When true, spacer height updates are frozen to prevent disrupting the user's scroll position.
+  let userHasScrolledAway = $state(false);
+
+  // Detect if any message is currently streaming
+  let isCurrentlyStreaming = $derived(
+    messages.some(m => m.status === 'streaming')
+  );
+
+  /**
+   * Show follow-up suggestions below the last assistant message when:
+   * 1. There are suggestions to show
+   * 2. The last message is from the assistant
+   * 3. No message is currently streaming
+   */
+  let showFollowUpSuggestionsInHistory = $derived(
+    followUpSuggestions.length > 0 &&
+    lastAssistantMessageId !== null &&
+    !isCurrentlyStreaming
+  );
+  
+  // NOTE: The centered AI status overlay has been removed. The spacer system directly uses
+  // `processingPhase !== null` to know when AI processing is happening (affects scroll behaviour).
+
+  // Whether to show the chat header card (or its loading placeholder) at the top of the chat.
+  // Only shown for new chats — existing chats opened from the sidebar never show this.
+  // The header is visible as long as any of these are true:
+  //   a) isNewChatGeneratingTitle is true (shimmer placeholder state), or
+  //   b) we have both a title and a category (loaded state), or
+  //   c) isNewChatCreditsError is true (credits error state), or
+  //   d) isIncognito is true (always show the incognito header immediately)
+  let showChatHeader = $derived(isIncognito || isNewChatGeneratingTitle || isNewChatCreditsError || !!(chatTitle && chatCategory));
+  
+  // Message ID waiting to be scrolled into view after the new-chat title arrives.
+  // When a message is sent to a brand-new chat we activate the spacer immediately
+  // (so there is room to scroll) but suppress the normal post-send scroll.  Instead
+  // we store the message ID here so triggerNewChatUserMessageScroll() can execute
+  // the scroll 2 s after the title/category/icon have been received.
+  let pendingNewChatScrollMessageId = $state<string | null>(null);
+
+  // Whether the streaming spacer should be active.
+  // The spacer ensures the scroll position remains valid after the user-message scroll
+  // positions the user message near the top of the viewport. Without it, there wouldn't
+  // be enough scrollable content to hold that scroll position.
+  // The spacer is activated when the user sends a message and deactivated when:
+  //   - The AI response finishes (no streaming AND no processing phase), OR
+  //   - The safety timeout fires (belt-and-suspenders guard against stuck spacers)
+  let isSpacerActive = $state(false);
+
+  // The computed spacer height — fills remaining viewport below the AI response.
+  // As the AI response grows, the spacer shrinks. Once the response fills the viewport, spacer = 0.
+  let spacerHeight = $state(0);
+
+  // Safety timeout handle — ensures the spacer is never stuck indefinitely.
+  // Cleared when the spacer is deactivated normally; fires after 60s as a last resort.
+  let spacerSafetyTimeout: ReturnType<typeof setTimeout> | null = null;
 
   /**
    * Exposed function to add a new message to the chat.
@@ -109,9 +691,16 @@
    * @param incomingMessage - The new message object, likely conforming to global Message type.
    */
   export function addMessage(incomingMessage: GlobalMessage) {
-    console.debug('Adding message to chat history (raw):', incomingMessage);
-    const messageForHistory: InternalMessage = G_mapToInternalMessage(incomingMessage);
-    console.debug('Adding message to chat history (processed):', messageForHistory);
+    
+    // Build cumulative PII mappings from existing messages + the new message
+    // This allows assistant messages to restore PII from any preceding user message
+    const allOriginalMessages = [
+      ...messages.map(m => m.original_message).filter((m): m is GlobalMessage => m !== undefined),
+      incomingMessage
+    ];
+    const piiMappings = buildCumulativePIIMappings(allOriginalMessages);
+    
+    const messageForHistory: InternalMessage = G_mapToInternalMessage(incomingMessage, piiMappings);
     
     // Track if this is a new user message for scrolling behavior
     if (messageForHistory.role === 'user') {
@@ -131,6 +720,10 @@
     messages = [];
     lastUserMessageId = null;
     shouldScrollToNewUserMessage = false;
+    isSpacerActive = false;
+    spacerHeight = 0;
+    userHasScrolledAway = false;
+    if (spacerSafetyTimeout) { clearTimeout(spacerSafetyTimeout); spacerSafetyTimeout = null; }
     await tick();
     dispatch('messagesChange', { hasMessages: false });
   }
@@ -147,6 +740,10 @@
       messages = []; // Clear messages after fade out completes
       lastUserMessageId = null;
       shouldScrollToNewUserMessage = false;
+      isSpacerActive = false;
+      spacerHeight = 0;
+      userHasScrolledAway = false;
+      if (spacerSafetyTimeout) { clearTimeout(spacerSafetyTimeout); spacerSafetyTimeout = null; }
       showMessages = true; // Show the (empty) chat history
       if (outroResolve) {
         outroResolve(); // Resolve the promise
@@ -155,24 +752,106 @@
     }
   }
 
+  // Track previous locale to detect changes
+  let previousLocale = $state($locale || 'en');
+
   // Add method to update messages
-  export function updateMessages(newMessagesArray: GlobalMessage[]) {
-    console.debug('[ChatHistory] updateMessages CALLED with', newMessagesArray.length, 'messages');
+  // isNewChat: when true, the post-send scroll is delayed by 2 s so the user can
+  // first see the "Creating new chat..." header transition into the generated title.
+  export function updateMessages(newMessagesArray: GlobalMessage[], isNewChat = false) {
+    // Check if locale has changed - if so, force re-processing of all messages
+    // Use previousLocale to detect changes since currentLocale is $derived
+    const newLocale = $locale || 'en';
+    const localeChanged = newLocale !== previousLocale;
+    if (localeChanged) {
+      // DON'T update previousLocale here - update it after processing messages
+      // This ensures localeChanged stays true throughout the message processing
+      // Clear cache to ensure fresh processing with new locale
+      contentCache.clear();
+    }
+    
+    // Update previousLocale AFTER checking localeChanged but BEFORE processing messages
+    // This ensures localeChanged flag is preserved during message processing
+    if (localeChanged) {
+      previousLocale = newLocale;
+    }
 
     const previousMessagesLength = messages.length;
-    const newInternalMessages = newMessagesArray.map(newMessage => {
+    
+    // Display merge: show focus activation + following assistant as one bubble
+    const mergedForDisplay = mergeFocusContinuationForDisplay(newMessagesArray);
+    
+    // Build cumulative PII mappings from all user messages in the incoming array
+    // This allows assistant messages to restore PII from any preceding user message
+    const piiMappings = buildCumulativePIIMappings(mergedForDisplay);
+    
+    const newInternalMessages = mergedForDisplay.map(newMessage => {
         const oldMessage = messages.find(m => m.id === newMessage.message_id);
-        const newInternalMessage = G_mapToInternalMessage(newMessage);
+        const hasEmbedUpdate = (newMessage as MessageWithEmbedMetadata)._embedUpdateTimestamp !== undefined;
 
-        // CRITICAL FIX: Skip content optimization for streaming messages
+        // PERFORMANCE OPTIMIZATION: Skip G_mapToInternalMessage entirely for messages
+        // whose raw content, status, and metadata have not changed since the last render.
+        //
+        // This is the critical fix for the user-message re-render glitch: every AI streaming
+        // chunk triggers updateMessages() with the full messages array. Without this guard,
+        // G_mapToInternalMessage is called for EVERY message on EVERY chunk, including user
+        // messages with large image embeds. G_mapToInternalMessage calls parse_message →
+        // preprocessTiptapJsonForEmbeds → embed resolver, which fires network requests for
+        // every image embed on every AI response chunk.
+        //
+        // We can safely skip processing when ALL of the following hold:
+        //   1. An existing InternalMessage for this id exists (already processed before)
+        //   2. The locale has not changed (no retranslation needed)
+        //   3. No embed update timestamp is present (no forced embed re-render)
+        //   4. The message is not currently streaming (streaming needs live updates)
+        //   5. The raw content string is identical (nothing actually changed)
+        //   6. The status is identical (status changes must be reflected)
+        //   7. The appCards reference is identical (app cards unchanged)
+        if (
+            oldMessage &&
+            !localeChanged &&
+            !hasEmbedUpdate &&
+            newMessage.status !== 'streaming' &&
+            oldMessage.status === newMessage.status &&
+            oldMessage.appCards === (newMessage as MessageWithEmbedMetadata).appCards &&
+            oldMessage.original_message?.content === newMessage.content
+        ) {
+            // Raw content and status identical — reuse the existing InternalMessage entirely.
+            // This avoids all parsing, embed resolution, and network fetches.
+            return oldMessage;
+        }
+
+        const newInternalMessage = G_mapToInternalMessage(newMessage, piiMappings);
+
+        // CRITICAL FIX: Skip content optimization for streaming messages AND when locale changes
         // Streaming messages need to re-render on every chunk update
+        // When locale changes, we need to re-process content to get correct translations
+        // When embed updates occur (_embedUpdateTimestamp changes), force re-render so embeds display
         // If an old message exists and its content is identical to the new one,
         // reuse the old content object reference to prevent unnecessary re-renders
-        // of the ReadOnlyMessage component. BUT skip this for streaming messages.
+        // of the ReadOnlyMessage component. BUT skip this for streaming messages, locale changes, and embed updates.
         if (oldMessage &&
-            newMessage.status !== 'streaming' &&
-            JSON.stringify(oldMessage.content) === JSON.stringify(newInternalMessage.content)) {
-            newInternalMessage.content = oldMessage.content;
+            !localeChanged &&
+            !hasEmbedUpdate &&
+            newMessage.status !== 'streaming') {
+            // Compare content to see if it's actually different
+            const oldContentStr = JSON.stringify(oldMessage.content);
+            const newContentStr = JSON.stringify(newInternalMessage.content);
+            if (oldContentStr === newContentStr) {
+                // Content is identical, reuse old reference for optimization
+                newInternalMessage.content = oldMessage.content;
+            }
+        } else if (hasEmbedUpdate) {
+            // Embed was updated - force new content to re-render embed NodeViews
+            newInternalMessage.content = JSON.parse(JSON.stringify(newInternalMessage.content));
+        } else if (localeChanged) {
+            // Locale changed - always use new content even if it appears identical
+            // This ensures translations are refreshed
+            // CRITICAL: Force new content object reference to break any object equality checks
+            // This ensures ReadOnlyMessage detects the change and re-renders
+            // Create a completely new content object to force reactivity
+            // This breaks object reference equality, forcing Svelte to detect the change
+            newInternalMessage.content = JSON.parse(JSON.stringify(newInternalMessage.content));
         }
         return newInternalMessage;
     });
@@ -185,7 +864,27 @@
       const newMessage = newInternalMessages[newInternalMessages.length - 1];
       if (newMessage.role === 'user') {
         lastUserMessageId = newMessage.id;
-        shouldScrollToNewUserMessage = true;
+        if (isNewChat) {
+          // New chat: activate the spacer immediately so there is room to scroll,
+          // but suppress the post-send scroll entirely.  The scroll will fire 2 s
+          // after the title/category/icon arrive via triggerNewChatUserMessageScroll().
+          pendingNewChatScrollMessageId = newMessage.id;
+          isSpacerActive = true;
+          spacerHeight = container?.clientHeight ?? window.innerHeight;
+          if (spacerSafetyTimeout) clearTimeout(spacerSafetyTimeout);
+          spacerSafetyTimeout = setTimeout(() => {
+            if (isSpacerActive) {
+              console.warn('[ChatHistory] Spacer safety timeout (new-chat) — force-deactivating stuck spacer');
+              isSpacerActive = false;
+              spacerHeight = 0;
+              userHasScrolledAway = false;
+              pendingNewChatScrollMessageId = null;
+            }
+            spacerSafetyTimeout = null;
+          }, 60_000);
+        } else {
+          shouldScrollToNewUserMessage = true;
+        }
       }
     }
 
@@ -207,24 +906,227 @@
     dispatch('messagesStatusChanged', { messages });
   }
 
-  // Implement ChatGPT-style scrolling behavior using $effect (Svelte 5 runes mode)
+  // ChatGPT-like scroll behavior: when user sends a message, scroll so that only
+  // the LAST LINE of the user message is visible at the top of the viewport.
+  // This leaves maximum space below for the assistant's response to render.
+  // The scroll target is computed dynamically from the actual rendered line height
+  // so it works correctly regardless of viewport width or message length.
   $effect(() => {
-    if (container && shouldScrollToNewUserMessage && lastUserMessageId) {
-      // Find the user message element
-      const userMessageElement = container.querySelector(`[data-message-id="${lastUserMessageId}"]`);
-      if (userMessageElement) {
-        // Scroll so the user message appears at the top of the visible area
-        const containerRect = container.getBoundingClientRect();
-        const messageRect = userMessageElement.getBoundingClientRect();
-        const scrollOffset = messageRect.top - containerRect.top + container.scrollTop - 20; // 20px padding from top
-        
-        container.scrollTo({
-          top: scrollOffset,
-          behavior: 'smooth'
-        });
-        
-        shouldScrollToNewUserMessage = false;
+    if (container && shouldScrollToNewUserMessage && lastUserMessageId && !isScrolling) {
+      isScrolling = true;
+      
+      // CRITICAL: Activate the spacer FIRST, before scrolling.
+      // The spacer adds enough scrollable height to reach the desired scroll position.
+      // Without it, the container's scrollHeight may be too small for the target offset.
+      isSpacerActive = true;
+      // Set an initial spacer height equal to the viewport height to guarantee
+      // enough room to scroll the user message to the top.
+      spacerHeight = container.clientHeight;
+
+      // Safety timeout: ensure the spacer is never stuck indefinitely.
+      // In normal operation the state-based cleanup deactivates it much sooner,
+      // but this guards against any edge case where the state signals are missed.
+      if (spacerSafetyTimeout) clearTimeout(spacerSafetyTimeout);
+      spacerSafetyTimeout = setTimeout(() => {
+        if (isSpacerActive) {
+          console.warn('[ChatHistory] Spacer safety timeout fired — force-deactivating stuck spacer');
+          isSpacerActive = false;
+          spacerHeight = 0;
+          userHasScrolledAway = false;
+        }
+        spacerSafetyTimeout = null;
+      }, 60_000);
+
+      // Wait for the spacer to render, then calculate and execute the scroll.
+      tick().then(() => {
+        setTimeout(() => {
+          const userMessageElement = container.querySelector(`[data-message-id="${lastUserMessageId}"]`);
+          if (userMessageElement) {
+            const containerRect = container.getBoundingClientRect();
+            const messageRect = userMessageElement.getBoundingClientRect();
+            
+            // Measure the actual rendered line height from a text paragraph inside the
+            // message bubble. This adapts to any font-size / line-height / viewport width.
+            // Falls back to 24px (16px * 1.5 line-height) if the element can't be found.
+            let lineHeight = 24;
+            const paragraph = userMessageElement.querySelector('.ProseMirror p');
+            if (paragraph) {
+              const computed = window.getComputedStyle(paragraph);
+              const parsed = parseFloat(computed.lineHeight);
+              if (!isNaN(parsed) && parsed > 0) {
+                lineHeight = parsed;
+              }
+            }
+
+            // We want the scroll position such that only the last line of text
+            // (plus the bubble's bottom padding/chrome) peeks above the viewport top.
+            // "visiblePortion" = one line of text + bubble bottom padding (12px) + 
+            //   bubble tail/shadow clearance (8px)
+            const visiblePortion = lineHeight + 20;
+
+            // topOfMessage in scroll coordinates (relative to container's scroll origin)
+            const topOfMessage = messageRect.top - containerRect.top + container.scrollTop;
+            // Total rendered height of the message wrapper element
+            const messageHeight = messageRect.height;
+
+            // Scroll so that the message is pushed up, leaving only visiblePortion showing.
+            // scrollTarget = topOfMessage + (messageHeight - visiblePortion)
+            const scrollTarget = topOfMessage + messageHeight - visiblePortion;
+
+            container.scrollTo({
+              top: Math.max(0, scrollTarget),
+              behavior: 'smooth'
+            });
+
+            shouldScrollToNewUserMessage = false;
+
+            setTimeout(() => {
+              isScrolling = false;
+            }, 800);
+          } else {
+            shouldScrollToNewUserMessage = false;
+            isScrolling = false;
+          }
+        }, 350);
+      });
+    }
+  });
+
+  // --- Spacer lifecycle: deactivate when AI response is complete ---
+  // Uses direct state checks instead of transition detection (wasStreaming).
+  // The old approach tracked streaming start/end transitions, which failed when:
+  //   - Streaming never technically started (fast/cached/error responses)
+  //   - Svelte batched the streaming→completed transition in a single tick
+  // Now we simply check: is the spacer still needed? It's needed while either
+  // processingPhase is active (sending/processing/typing) or a message is streaming.
+  // Once both are false and the initial scroll animation is done, cleanup fires.
+  $effect(() => {
+    if (!isSpacerActive) return;
+
+    // The spacer is needed while we're waiting for or receiving the AI response.
+    // processingPhase covers: sending → processing → typing (set by ActiveChat)
+    // isCurrentlyStreaming covers: active streaming chunks arriving
+    const isWaitingForResponse = processingPhase !== null || isCurrentlyStreaming;
+
+    if (!isWaitingForResponse && !isScrolling) {
+      // Response is complete — deactivate spacer
+      isSpacerActive = false;
+      spacerHeight = 0;
+      userHasScrolledAway = false;
+      // Clear safety timeout since spacer was deactivated normally
+      if (spacerSafetyTimeout) {
+        clearTimeout(spacerSafetyTimeout);
+        spacerSafetyTimeout = null;
       }
+    }
+  });
+
+  // --- Spacer height computation ---
+  // The spacer ensures the scroll position remains valid after the user-message scroll
+  // positions the user message near the top of the viewport.
+  //
+  // How it works:
+  // 1. User sends a message → scroll positions user message near top → isSpacerActive = true
+  // 2. AI response starts streaming below the user message
+  // 3. The spacer fills the remaining viewport height below the AI response,
+  //    preventing the scroll position from jumping as content grows downward
+  // 4. As the AI response grows taller, the spacer shrinks toward 0
+  // 5. Once streaming ends, the spacer is removed
+  //
+  // CRITICAL: We do NOT auto-scroll during streaming. The scroll position stays fixed
+  // and the user reads the AI response naturally as it extends downward. This avoids
+  // interrupting the user's reading flow.
+  $effect(() => {
+    if (!container || !isSpacerActive) {
+      if (!isSpacerActive) spacerHeight = 0;
+      return;
+    }
+    // Re-run whenever messages change (on each streaming chunk)
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    messages;
+
+    // If the user has scrolled away to read older messages, freeze the spacer
+    // so their scroll position isn't disrupted by the growing AI response.
+    if (userHasScrolledAway) return;
+
+    tick().then(() => {
+      if (!container || !isSpacerActive || userHasScrolledAway) return;
+      
+      // Find the last message element (the streaming AI response)
+      const messageWrappers = container.querySelectorAll('[data-message-id]');
+      if (messageWrappers.length === 0) return;
+      const lastMessageEl = messageWrappers[messageWrappers.length - 1] as HTMLElement;
+      
+      // The spacer fills the gap between the bottom of the last message and
+      // the bottom of the viewport. As the AI response grows, the spacer shrinks.
+      const viewportHeight = container.clientHeight;
+      const lastMessageHeight = lastMessageEl.offsetHeight;
+      
+      // 80px accounts for the user message offset at top + padding
+      const neededSpacer = Math.max(0, viewportHeight - lastMessageHeight - 80);
+      spacerHeight = neededSpacer;
+    });
+  });
+
+  // Handle scrolling to highlighted message from search or deep link.
+  //
+  // The messageHighlightStore is set by handleSearchMessageSnippetClick in Chats.svelte
+  // AFTER the chat is selected, so ChatHistory is already mounting when this effect fires.
+  // We still retry up to 30 times (3 seconds) to account for messages loading from IndexedDB.
+  //
+  // Two-phase scrolling:
+  //   Phase 1 — Scroll the message element into view (message may still be rendering).
+  //   Phase 2 — After a brief delay for the in-message mark highlights to be applied
+  //             (ChatMessage.svelte adds them in a requestAnimationFrame), scroll to the
+  //             first <mark class="search-match"> inside the message so the exact match
+  //             is centered in the viewport, not just the top of the message.
+  $effect(() => {
+    if (container && $messageHighlightStore) {
+      const messageId = $messageHighlightStore;
+      
+      // Wait for Svelte to apply pending DOM updates before querying
+      tick().then(() => {
+        // Retry loop: messages may still be loading from IndexedDB when this fires.
+        // 30 attempts × 100 ms = up to 3 seconds of patience.
+        const MAX_ATTEMPTS = 30;
+        const attemptScroll = (attempts = 0) => {
+          const targetMessage = container.querySelector(`[data-message-id="${messageId}"]`);
+          
+          if (targetMessage) {
+            const messageTop = (targetMessage as HTMLElement).offsetTop;
+            // Phase 1: Scroll so the message has 100px of breathing room from the top
+            const scrollPosition = Math.max(0, messageTop - 100);
+            container.scrollTo({
+              top: scrollPosition,
+              behavior: 'smooth'
+            });
+            console.debug(`[ChatHistory] Scrolled to highlighted message ${messageId} (attempt ${attempts + 1})`);
+
+            // Phase 2: After two rAF cycles (enough for ChatMessage's own rAF to fire
+            // and apply <mark class="search-match"> nodes), scroll to the first match
+            // element so the exact matched text is visible, not just the message header.
+            // We use two nested requestAnimationFrame calls:
+            //   - First rAF: Svelte/markdown renderer has painted
+            //   - Second rAF: ChatMessage's highlight rAF has fired and marks are in DOM
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => {
+                const firstMark = targetMessage.querySelector('mark.search-match');
+                if (firstMark) {
+                  firstMark.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                  console.debug(`[ChatHistory] Scrolled to first search-match mark in message ${messageId}`);
+                }
+              });
+            });
+          } else if (attempts < MAX_ATTEMPTS) {
+            // Message not found yet — messages may still be decrypting from IndexedDB
+            setTimeout(() => attemptScroll(attempts + 1), 100);
+          } else {
+            console.warn(`[ChatHistory] Could not find message element for id ${messageId} after ${MAX_ATTEMPTS} attempts`);
+          }
+        };
+        
+        attemptScroll();
+      });
     }
   });
 
@@ -232,6 +1134,7 @@
   $effect(() => {
     dispatch('messagesChange', { hasMessages: messages.length > 0 });
   });
+
 
   // Update the scroll methods to use the correct container reference
   export function scrollToTop() {
@@ -245,19 +1148,112 @@
     }
   }
   
-  export function scrollToBottom() {
+  export function scrollToBottom(smooth = false) {
     if (container) {
       container.scrollTo({
         top: container.scrollHeight,
-        behavior: 'auto' // Use instant scroll to avoid animation
+        behavior: smooth ? 'smooth' : 'auto' // Instant by default for programmatic calls; smooth for user-initiated
       });
     } else {
       console.warn("[ChatHistory] Container not found");
     }
   }
 
+  /**
+   * Called by ActiveChat 3 s after the new-chat title/category/icon have been
+   * received and rendered.  Executes the ChatGPT-style scroll so the user
+   * message sits at the top of the viewport with space below for the AI response.
+   *
+   * Uses tick() to ensure the layout is fully settled (chat header fully rendered)
+   * before measuring positions, which prevents the scroll target being miscalculated.
+   *
+   * If no pending message ID exists (e.g. the scroll was already cancelled) this
+   * is a safe no-op.
+   */
+  export function triggerNewChatUserMessageScroll() {
+    const msgId = pendingNewChatScrollMessageId;
+    if (!msgId || !container) return;
+    pendingNewChatScrollMessageId = null;
+
+    isScrolling = true;
+
+    // Wait for Svelte to flush any pending DOM updates (e.g. the chat header card
+    // finishing its transition) before measuring scroll positions.
+    tick().then(() => {
+      if (!container) { isScrolling = false; return; }
+
+      const userMessageElement = container.querySelector(`[data-message-id="${msgId}"]`);
+      if (!userMessageElement) {
+        console.warn('[ChatHistory] triggerNewChatUserMessageScroll: message element not found for', msgId);
+        isScrolling = false;
+        return;
+      }
+
+      const containerRect = container.getBoundingClientRect();
+      const messageRect = userMessageElement.getBoundingClientRect();
+
+      let lineHeight = 24;
+      const paragraph = userMessageElement.querySelector('.ProseMirror p');
+      if (paragraph) {
+        const computed = window.getComputedStyle(paragraph);
+        const parsed = parseFloat(computed.lineHeight);
+        if (!isNaN(parsed) && parsed > 0) lineHeight = parsed;
+      }
+
+      const visiblePortion = lineHeight + 20;
+      const topOfMessage = messageRect.top - containerRect.top + container.scrollTop;
+      const messageHeight = messageRect.height;
+      const scrollTarget = topOfMessage + messageHeight - visiblePortion;
+
+      container.scrollTo({ top: Math.max(0, scrollTarget), behavior: 'smooth' });
+
+      // Allow extra time for the smooth scroll animation to complete (it can span
+      // a large distance from the top of the chat to the user message).
+      setTimeout(() => { isScrolling = false; }, 1200);
+    });
+  }
+
+  /**
+   * Scroll to the top of the last assistant message so the user can read the
+   * response from the beginning. Used when navigating from a background-chat
+   * notification where the user hasn't seen the reply yet.
+   *
+   * Shows a small sliver of the preceding user message (≈40px) so context is
+   * clear, then the assistant message starts at the top of the visible area.
+   * Falls back to scrollToBottom() if no assistant message is found.
+   */
+  export function scrollToLatestAssistantMessage() {
+    if (!container) {
+      console.warn("[ChatHistory] Container not found for scrollToLatestAssistantMessage");
+      return;
+    }
+
+    const attemptScroll = (attempts = 0) => {
+      // Find all assistant message wrapper elements by their CSS class
+      // (ChatHistory renders assistant messages with class "message-wrapper assistant")
+      const assistantMessages = container.querySelectorAll('.message-wrapper.assistant');
+      const lastAssistant = assistantMessages[assistantMessages.length - 1] as HTMLElement | undefined;
+
+      if (lastAssistant) {
+        // Scroll so the top of the assistant message is ~40px from the top of the
+        // container – showing a thin sliver of the user message above for context.
+        const scrollPosition = Math.max(0, lastAssistant.offsetTop - 40);
+        container.scrollTo({ top: scrollPosition, behavior: 'auto' });
+        console.debug(`[ChatHistory] Scrolled to top of latest assistant message (offsetTop=${lastAssistant.offsetTop})`);
+      } else if (attempts < 15) {
+        // Messages may not be in the DOM yet – retry after a short delay
+        setTimeout(() => attemptScroll(attempts + 1), 50);
+      } else {
+        console.warn("[ChatHistory] No assistant message found after retries – falling back to scrollToBottom");
+        scrollToBottom();
+      }
+    };
+
+    requestAnimationFrame(() => attemptScroll());
+  }
+
   // Scroll position tracking for cross-device sync
-  let scrollDebounceTimer: NodeJS.Timeout | null = null;
+  let scrollDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   let isRestoringScroll = false;
   let scrollFrame: number | null = null;
 
@@ -266,7 +1262,20 @@
   function handleScroll() {
     // Don't track scroll position during restoration
     if (isRestoringScroll) return;
-    
+
+    // Detect if user has manually scrolled away during streaming.
+    // If streaming is active and the user scrolls upward (away from the bottom),
+    // freeze spacer updates so their scroll position isn't disrupted.
+    if (isCurrentlyStreaming && container) {
+      const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+      // If user scrolled more than 150px from the bottom, they're reading older messages
+      if (distanceFromBottom > 150) {
+        userHasScrolledAway = true;
+      } else {
+        userHasScrolledAway = false;
+      }
+    }
+
     // Performance optimization: Use requestAnimationFrame for immediate UI updates
     // This ensures smooth, jank-free scrolling by syncing with browser repaint cycle
     if (scrollFrame) return; // Skip if frame already scheduled
@@ -291,11 +1300,17 @@
   function checkIfAtBottomForUI() {
     if (!container) return;
     
-    const isAtBottom = 
+    const isAtBottomLocal = 
       container.scrollHeight - container.scrollTop - container.clientHeight < 50;
     
+    // Check if scrolled to the very top (within 50px threshold)
+    const isAtTopLocal = container.scrollTop < 50;
+    
+    // Update local isAtTop state so the mask-image CSS can toggle without re-rendering
+    isAtTop = isAtTopLocal;
+    
     // Dispatch immediate event for UI state changes (button visibility)
-    dispatch('scrollPositionUI', { isAtBottom });
+    dispatch('scrollPositionUI', { isAtBottom: isAtBottomLocal, isAtTop: isAtTopLocal });
   }
 
   // Find the last message that's currently visible in viewport
@@ -396,11 +1411,94 @@
     requestAnimationFrame(() => attemptRestore());
   }
 
+  // Listen for language changes to force re-processing of messages
+  // This ensures translations update immediately when language changes
+  // Note: For demo chats, ActiveChat will call updateMessages with newly translated messages
+  // This handler ensures non-demo chats also update when language changes
+  // CRITICAL: Only listen to 'language-changed-complete' to avoid race conditions
+  // ActiveChat's handler will call updateMessages with new messages, which will detect locale change
+  // This handler is a fallback for non-demo chats
+  onMount(() => {
+    const handleLanguageChange = async () => {
+      // Clear cache to ensure fresh processing with new locale
+      contentCache.clear();
+      
+      // CRITICAL: Check if messages are from a public chat (demo or legal)
+      // If so, re-fetch them with new translations
+      // This is a fallback in case ActiveChat's handler didn't run or failed
+      if (messages.length > 0 && messages[0].original_message?.chat_id) {
+        const chatId = messages[0].original_message.chat_id;
+        if (isPublicChat(chatId)) {
+          try {
+            // Re-fetch messages with new translations
+            const newMessages = getDemoMessages(chatId, DEMO_CHATS, LEGAL_CHATS);
+            if (newMessages.length > 0) {
+              // Call updateMessages to process the new messages
+              // This will detect locale change and force re-processing
+              updateMessages(newMessages);
+              return; // Exit early since updateMessages handled everything
+            } else {
+              console.warn('[ChatHistory] No messages found for public chat:', chatId);
+            }
+          } catch (error) {
+            console.error('[ChatHistory] Error re-fetching demo messages:', error);
+            // Fall through to fallback re-render
+          }
+        }
+      }
+      
+      // CRITICAL: Don't update previousLocale here - let updateMessages handle it
+      // This ensures that when ActiveChat calls updateMessages, it will detect the locale change
+      // Only force re-render if updateMessages hasn't been called (non-demo chats)
+      // For demo chats, ActiveChat will call updateMessages with new messages
+      
+      // Force complete re-render by creating entirely new message objects
+      // This ensures ReadOnlyMessage components detect the change and re-process content
+      // This is especially important for non-demo chats where ActiveChat might not call updateMessages
+      // For non-demo chats, we force a re-render which will trigger ReadOnlyMessage to re-process
+      messages = messages.map(msg => {
+        // Create a completely new message object with new content reference
+        // This forces Svelte to detect the change and re-render ReadOnlyMessage
+        const newContent = JSON.parse(JSON.stringify(msg.content));
+        
+        return {
+          ...msg,
+          content: newContent,
+          // Force new object reference for original_message too
+          // If original_message has markdown content, it will be re-processed with new locale
+          original_message: msg.original_message ? {
+            ...msg.original_message,
+            // Re-process original message content if it's a string (markdown)
+            // This ensures translations are updated when ReadOnlyMessage processes it
+            content: typeof msg.original_message.content === 'string' 
+              ? msg.original_message.content // Keep markdown string, will be re-processed with new locale
+              : msg.original_message.content
+          } : msg.original_message
+        };
+      });
+      
+    };
+
+    // Listen to language change complete event
+    // This fires after ActiveChat has processed, so updateMessages should have been called
+    // But we still handle it as a fallback for non-demo chats
+    window.addEventListener('language-changed-complete', handleLanguageChange);
+
+    // Cleanup on component destroy
+    return () => {
+      window.removeEventListener('language-changed-complete', handleLanguageChange);
+    };
+  });
+
   // Cleanup on component destroy
   onDestroy(() => {
     // Cancel any pending scroll tracking operations
     if (scrollDebounceTimer) clearTimeout(scrollDebounceTimer);
     if (scrollFrame) cancelAnimationFrame(scrollFrame);
+    // Clear spacer safety timeout
+    if (spacerSafetyTimeout) clearTimeout(spacerSafetyTimeout);
+    // Unsubscribe from PII visibility store
+    unsubPiiVisibility();
   });
 </script>
 
@@ -408,52 +1506,186 @@
   The chat history container:
     - Takes full height and is scrollable.
     - Messages are aligned to the top for ChatGPT-style behavior.
+    - Wrapped in a positioning parent so the AI processing overlay can float above the scroll area.
 -->
+<div class="chat-history-wrapper" style={containerStyle}>
 <div 
     class="chat-history-container" 
+    class:empty={displayMessages.length === 0}
+    class:is-at-top={isAtTop}
     bind:this={container}
-    style={containerStyle}
     onscroll={handleScroll}
 >
+    <!-- Chat header banner: absolutely positioned at the top of the scroll container
+         so it spans the full width regardless of the .chat-history-content max-width.
+         Scrolls naturally with the content because it lives in the scroll container. -->
+    {#if showChatHeader}
+        <div class="chat-header-wrapper">
+            <ChatHeader
+                title={chatTitle}
+                category={chatCategory}
+                icon={chatIcon}
+                summary={chatSummary}
+                {chatCreatedAt}
+                isLoading={isNewChatGeneratingTitle}
+                isCreditsError={isNewChatCreditsError}
+                {isIncognito}
+            />
+        </div>
+    {/if}
+
     {#if showMessages}
         <div class="chat-history-content" 
+             class:has-messages={displayMessages.length > 0}
+             class:has-header={showChatHeader}
              transition:fade={{ duration: 100 }} 
              onoutroend={handleOutroEnd}>
-            {#each messages as msg (msg.id)}
-                <div class="message-wrapper {msg.role === 'user' ? 'user' : 'assistant'}"
+
+            <!-- "Show earlier messages" toggle: appears when compression summary exists.
+                 When collapsed, messages before the summary are hidden. -->
+            {#if hasCompressionSummary}
+              <div class="forgotten-messages-toggle">
+                <button
+                  class="forgotten-messages-btn"
+                  onclick={() => { showForgottenMessages = !showForgottenMessages; }}
+                >
+                  {showForgottenMessages
+                    ? $text('chat.compression.hide_forgotten')
+                    : $text('chat.compression.show_forgotten')}
+                  {#if !showForgottenMessages && forgottenMessages.length > 0}
+                    <span class="forgotten-count">({forgottenMessages.length})</span>
+                  {/if}
+                </button>
+              </div>
+            {/if}
+
+            {#each displayMessages as msg, msgIndex (msg.id)}
+                <!-- Disable fade/flip animations for streaming and processing messages
+                     to prevent visual glitches when content height changes rapidly.
+                     Duration 0 effectively disables the animation without removing the directive. -->
+                <div class="message-wrapper {msg.role === 'system' ? 'system' : (msg.role === 'user' ? 'user' : 'assistant')}"
                      data-message-id={msg.id}
                      style={`
                          opacity: ${msg.status === 'sending' ? 0.5 : (msg.status === 'failed' ? 0.7 : 1)};
                          ${msg.status === 'failed' ? 'border: 1px solid var(--color-error); border-radius: 12px; padding: 2px;' : ''}
                      `}
-                     in:fade={{ duration: 300 }}
-                     animate:flip={{ duration: 250 }}>
+                     in:fade={{ duration: (msg.status === 'streaming' || msg.status === 'processing') ? 0 : 300 }}
+                     animate:flip={{ duration: (msg.status === 'streaming' || msg.status === 'processing') ? 0 : 250 }}>
                     <ChatMessage
                         role={msg.role}
                         category={msg.category}
+                        model_name={msg.model_name}
                         content={msg.content}
                         status={msg.status}
                         is_truncated={msg.is_truncated}
-                        full_content_length={msg.full_content_length}
                         original_message={msg.original_message}
+                        containerWidth={containerWidth}
+                        appCards={msg.appCards}
+                        _embedUpdateTimestamp={msg._embedUpdateTimestamp}
+                        hasEmbedErrors={msg._embedErrors ? msg._embedErrors.size > 0 : false}
+                        appSettingsMemoriesResponse={msg.role === 'user' ? appSettingsMemoriesResponseMap.get(msg.id) : undefined}
+                        thinkingContent={msg.role === 'assistant' ? (getThinkingEntry(msg.id)?.content ?? msg.original_message?.thinking_content) : undefined}
+                        isThinkingStreaming={msg.role === 'assistant' ? (getThinkingEntry(msg.id)?.isStreaming || false) : false}
+                        piiMappings={cumulativePIIMappingsArray}
+                        {piiRevealed}
+                        messageId={msg.id}
+                        userMessageId={msg.original_message?.user_message_id}
+                        isFirstMessage={msgIndex === 0}
+                        {isCreditsRestored}
+                        {onResend}
                     />
+
                 </div>
             {/each}
+
+            <!-- Admin debug panel: shown after the last assistant message when debug mode is active.
+                 Must be OUTSIDE the {#each} loop — message-wrapper uses display:flex which would
+                 place anything inside it beside the message, not below it. -->
+            {#if $chatDebugStore.rawTextMode && lastAssistantMessageId}
+              <div class="debug-history-output selectable">
+                <div class="debug-history-header-row">
+                  <div class="debug-history-title">window.debug.chat</div>
+                  <button class="debug-history-copy-btn" onclick={copyDebugChatText} disabled={!$chatDebugStore.chatReport}>
+                    {debugChatCopied ? 'Copied!' : 'Copy'}
+                  </button>
+                </div>
+                {#if $chatDebugStore.chatReportLoading}
+                  <div class="debug-history-loading">Loading debug chat report...</div>
+                {:else if $chatDebugStore.chatReport}
+                  <pre class="debug-history-pre selectable">{$chatDebugStore.chatReport}</pre>
+                {:else}
+                  <div class="debug-history-loading">No debug chat report available yet.</div>
+                {/if}
+
+                {#if isCurrentlyStreaming || $chatDebugStore.streamLogs.length > 0}
+                  <div class="debug-history-title logs">Streaming warn/error logs</div>
+                  <pre class="debug-history-pre selectable">{$chatDebugStore.streamLogs.join('\n')}</pre>
+                {/if}
+              </div>
+            {/if}
+            
+            <!-- App settings/memories permission dialog (inline, scrolls with messages) -->
+            <!-- Placed BEFORE the spacer so it appears right under the user message, not pushed below -->
+            <!-- CRITICAL: Only show dialog if it belongs to the current chat (prevents showing in wrong chat) -->
+            {#if shouldShowPermissionDialog}
+                <div class="permission-dialog-wrapper" in:fade={{ duration: 200 }}>
+                    <AppSettingsMemoriesPermissionDialog />
+                </div>
+            {/if}
+            
+            <!-- Bottom spacer: fills remaining viewport space below messages during streaming.
+                 Creates the ChatGPT-like effect where the user message sits near the top
+                 with empty space below that gradually fills as the AI response streams in. -->
+            {#if spacerHeight > 0}
+                <div class="streaming-spacer" style="height: {spacerHeight}px;"></div>
+            {/if}
+            
+            <!-- Follow-up suggestions shown after the last assistant message.
+                 Visible without requiring the user to focus the message input first. -->
+            {#if showFollowUpSuggestionsInHistory && onSuggestionClick}
+                <div class="follow-up-suggestions-wrapper" in:fade={{ duration: 200 }}>
+                    <FollowUpSuggestions
+                        suggestions={followUpSuggestions}
+                        messageInputContent=""
+                        onSuggestionClick={onSuggestionClick}
+                    />
+                </div>
+            {/if}
         </div>
     {/if}
+    
+</div>
+
 </div>
 
 <style>
+  /* Wrapper provides positioning context for the AI processing overlay.
+     Takes the same absolute positioning the container previously had. */
+  .chat-history-wrapper {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+  }
+
   .chat-history-container {
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
+    bottom: 0;
     overflow-y: auto;
+    overflow-x: hidden; /* Prevent horizontal scrollbar from appearing at certain viewport widths */
     padding: 10px;
     box-sizing: border-box;
     -webkit-overflow-scrolling: touch;
-    /* Add mask for top and bottom fade effect */
+    /* Disable browser's automatic scroll anchoring.
+       During streaming, content grows from the bottom which triggers the browser's
+       scroll-anchoring algorithm. This fights with our manual scroll management
+       and causes unpredictable jumps. We handle scroll position ourselves. */
+    overflow-anchor: none;
+    /* Fade the bottom edge — always visible to indicate more content below.
+       Top fade is suppressed when at the top (.is-at-top) so the banner is not clipped. */
     mask-image: linear-gradient(to bottom, 
         rgba(0, 0, 0, 0) 0%, 
         rgba(0, 0, 0, 1) 30px, 
@@ -462,35 +1694,150 @@
     );
   }
 
+  .debug-history-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.35rem;
+  }
+
+  .debug-history-copy-btn {
+    all: unset;
+    cursor: pointer;
+    font-size: 0.75rem;
+    color: var(--color-primary);
+    flex-shrink: 0;
+  }
+
+  .debug-history-copy-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  .debug-history-output {
+    margin-top: 0.5rem;
+    margin-left: 2.25rem;
+    margin-right: 0.75rem;
+    padding: 0.75rem;
+    border-radius: 0.75rem;
+    border: 1px solid var(--color-grey-30);
+    background: var(--color-grey-10);
+  }
+
+  .debug-history-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--color-font-secondary);
+  }
+
+  .debug-history-title.logs {
+    margin-top: 0.65rem;
+  }
+
+  .debug-history-loading {
+    font-size: 0.8rem;
+    color: var(--color-font-secondary);
+  }
+
+  .debug-history-pre {
+    margin: 0;
+    font-family: monospace;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--color-font-primary);
+    overflow: visible;
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    -webkit-touch-callout: default;
+  }
+
+  /* When scrolled to the top, remove the top gradient so the banner edges aren't faded */
+  .chat-history-container.is-at-top {
+    mask-image: linear-gradient(to bottom, 
+        rgba(0, 0, 0, 1) 0%, 
+        rgba(0, 0, 0, 1) calc(100% - 30px), 
+        rgba(0, 0, 0, 0) 100%
+    );
+  }
+
+  /* Hide scrollbar and prevent any content height when chat is empty */
+  .chat-history-container.empty {
+    overflow: hidden;
+  }
+
+  /* When empty, ensure content has no height to prevent scrollbar */
+  .chat-history-container.empty .chat-history-content {
+    height: 0;
+    min-height: 0;
+    padding-top: 0;
+  }
+
   /* Add styles for the content wrapper - aligned to top for ChatGPT-style behavior */
   .chat-history-content {
     width: 100%;
-    max-width: 900px;
+    max-width: var(--chat-content-max-width, 1000px);
     margin: 0 auto;
-    /* Add margin-top to account for the top buttons */
-    /* Removed padding to not show scroll when there is nothing to scroll*/
-    /* padding-top: 60px; */
-    /* Ensure minimum height for proper scrolling */
+  }
+
+  /* Only apply padding-top and min-height when there are messages */
+  /* This prevents the first message from overlaying the button */
+  .chat-history-content.has-messages {
+    padding-top: 50px;
+    /* Ensure minimum height for proper scrolling when messages exist */
     min-height: 100%;
   }
 
-  /* Make sure the container can be scrolled */
-  .chat-history-container::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+  /* When the header banner is showing, push messages below the banner.
+     Banner height: 240px desktop / 190px mobile (matches ChatHeader.svelte dimensions).
+     12px gap between banner bottom and first message.
+     The banner itself is positioned in-flow (not absolute) so the content's padding-top
+     stacks on top of it — we only need the extra padding-top offset removed since
+     the banner already occupies the top space. */
+  .chat-history-content.has-messages.has-header {
+    padding-top: 12px;
   }
 
-  .chat-history-container::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.1);
-    border-radius: 4px;
+
+  /* Permission dialog wrapper - renders as part of chat history */
+  /* This allows users to scroll the chat while the dialog is visible */
+  .permission-dialog-wrapper {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    padding: 20px 0;
+    margin-top: 10px;
   }
 
-  .chat-history-container::-webkit-scrollbar-thumb {
-    background-color: var(--color-grey-40);
-    border-radius: 4px;
+  /* Follow-up suggestions wrapper — shown inline in the chat history after the last
+     assistant message so users can see them without clicking the message input. */
+  .follow-up-suggestions-wrapper {
+    padding: 8px 0 16px;
+    /* Align with assistant message bubbles (left-aligned) */
+    display: flex;
+    justify-content: flex-start;
   }
-  .chat-history-container::-webkit-scrollbar-thumb:hover {
-    background-color: var(--color-grey-50);
+
+  :global([dir="rtl"]) .follow-up-suggestions-wrapper {
+    justify-content: flex-end;
+  }
+
+  /* Hide the upward-fade gradient that was designed for use above the MessageInput.
+     Inside ChatHistory the gradient would bleed over preceding messages, so we suppress it. */
+  .follow-up-suggestions-wrapper :global(.suggestions-container::before) {
+    display: none;
+  }
+
+  /* Bottom spacer that fills remaining viewport space during AI streaming.
+     Creates visual space below user message that fills as the response streams in. */
+  .streaming-spacer {
+    flex-shrink: 0;
+    pointer-events: none;
+    /* Smooth transition as spacer shrinks while AI response grows */
+    transition: height 0.15s ease-out;
   }
 
   .message-wrapper {
@@ -501,15 +1848,75 @@
   }
 
   .message-wrapper.user {
-    justify-content: flex-end; /* User messages aligned to the right */
+    /* LTR default: user messages on the right */
+    justify-content: flex-end;
+  }
+
+  /* RTL: user messages sit on the left (inline-start), assistant on the right */
+  :global([dir="rtl"]) .message-wrapper.user {
+    justify-content: flex-start;
   }
 
   .message-wrapper.assistant { /* Assistant messages aligned to the left */
     justify-content: flex-start;
   }
 
+  :global([dir="rtl"]) .message-wrapper.assistant {
+    justify-content: flex-end;
+  }
+
+  .message-wrapper.system { /* System messages (e.g., insufficient credits) centered */
+    justify-content: center;
+  }
+
   .message-wrapper :global(.chat-message) {
     width: 100%;
-    max-width: 900px;
+  }
+
+  /* "Show earlier messages" toggle button for compressed chats.
+     Appears above the message list when a compression summary exists. */
+  .forgotten-messages-toggle {
+    display: flex;
+    justify-content: center;
+    padding: 8px 0 4px;
+  }
+
+  .forgotten-messages-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-grey-60, #888);
+    background: var(--color-grey-15, rgba(255, 255, 255, 0.05));
+    border: 1px solid var(--color-grey-20, rgba(255, 255, 255, 0.08));
+    border-radius: 20px;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+
+  .forgotten-messages-btn:hover {
+    background: var(--color-grey-20, rgba(255, 255, 255, 0.08));
+    color: var(--color-grey-80, #ccc);
+  }
+
+  .forgotten-count {
+    font-weight: 400;
+    opacity: 0.7;
+  }
+
+  /* Wrapper for the ChatHeader banner at the top of new chats.
+     Positioned in the normal flow of .chat-history-container (outside the max-width content),
+     so it stretches edge-to-edge relative to the full scroll container width.
+     The container has 10px padding on all sides — we cancel it on left/right/top
+     with negative margins so the banner is flush with the scroll container edges. */
+  .chat-header-wrapper {
+    /* Cancel the container's 10px padding on all sides */
+    margin-top: -10px;
+    margin-inline-start: -10px;
+    margin-inline-end: -10px;
+    /* Full width including the cancelled side padding */
+    width: calc(100% + 20px);
   }
 </style>

@@ -1,0 +1,53 @@
+app_analytics_daily:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+
+    date:
+      type: string
+      length: 10
+      note: "[Indexed] Date in format 'YYYY-MM-DD'. Combined with other fields for uniqueness."
+
+    # Dimension fields — each row represents one unique combination of dimensions per day.
+    # A NULL dimension means "not applicable" or "unknown".
+
+    app_id:
+      type: string
+      length: 100
+      note: "App identifier (e.g. 'ai', 'web', 'pdf'). Null = unknown."
+
+    skill_id:
+      type: string
+      length: 100
+      note: "Skill identifier within the app. Null = no specific skill."
+
+    model_used:
+      type: string
+      length: 200
+      note: "LLM model name (e.g. 'claude-3-5-sonnet-20241022'). Null = not applicable."
+
+    focus_mode_id:
+      type: string
+      length: 100
+      note: "Focus mode identifier. Null = no focus mode active."
+
+    settings_memory_type:
+      type: string
+      length: 50
+      note: "Memory type setting: 'none', 'session', 'persistent'. Null = unknown."
+
+    # Metric
+    count:
+      type: integer
+      default: 0
+      note: "Number of events with this dimension combination on this day."
+
+    created_at:
+      type: timestamp
+      note: "Timestamp when record was created."
+
+    updated_at:
+      type: timestamp
+      note: "Timestamp when record was last updated."

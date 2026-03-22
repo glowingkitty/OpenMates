@@ -1,0 +1,89 @@
+name_translation_key: plants
+description_translation_key: plants.description
+icon_image: |
+  plants.svg
+category: personal
+last_updated: "2025-11-12"
+settings_and_memories:
+  - id: my_plants
+    name_translation_key: plants.my_plants
+    description_translation_key: plants.my_plants.description
+    type: list
+    stage: planning
+    example_translation_keys:
+      - "plants.my_plants.example_1"
+      - "plants.my_plants.example_2"
+    example_entries:
+      - name: "plants.my_plants.example_1.name"
+        species: "Monstera deliciosa"
+        location: "plants.my_plants.example_1.location"
+        watering_frequency_days: 7
+        next_watering_date: "2025-03-10"
+        notes: "plants.my_plants.example_1.notes"
+      - name: "plants.my_plants.example_2.name"
+        species: "Ocimum basilicum"
+        location: "plants.my_plants.example_2.location"
+        watering_frequency_days: 3
+        next_watering_date: "2025-03-07"
+        notes: "plants.my_plants.example_2.notes"
+    schema:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Plant name (e.g., 'Monstera Deliciosa', 'Snake Plant')
+        species:
+          type: string
+          description: Plant species or common name
+        location:
+          type: string
+          description:
+            Where the plant is located (e.g., 'Living room', 'Kitchen window',
+            'Office desk')
+        watering_frequency_days:
+          type: integer
+          description:
+            Number of days between watering (e.g., 7 for weekly, 3 for every
+            3 days)
+        fertilizing_frequency_days:
+          type: integer
+          description:
+            Number of days between fertilizing (e.g., 30 for monthly, 14
+            for bi-weekly)
+        next_watering_date:
+          type: string
+          format: date
+          description: Next scheduled watering date in YYYY-MM-DD format
+        next_fertilizing_date:
+          type: string
+          format: date
+          description: Next scheduled fertilizing date in YYYY-MM-DD format
+        last_watered_date:
+          type: string
+          format: date
+          description: Last watering date in YYYY-MM-DD format
+        last_fertilized_date:
+          type: string
+          format: date
+          description: Last fertilizing date in YYYY-MM-DD format
+        notes:
+          type: string
+          description:
+            Additional care notes, special instructions, or observations
+            about the plant
+          multiline: true
+        acquired_date:
+          type: string
+          format: date
+          description: Date when the plant was acquired in YYYY-MM-DD format
+      required:
+        - name
+        - watering_frequency_days
+        - next_watering_date
+skills: []
+focuses:
+  - id: plant_care_guide
+    name_translation_key: plants.plant_care_guide
+    description_translation_key: plants.plant_care_guide.description
+    stage: planning
+      You are an expert plant care specialist and horticulturist. Your role is to help users understand how to properly care for their specific plants through thoughtful questioning and personalized guidance. Ask detailed questions about the plant's species, current condition, environment, and care history. Provide specific, actionable recommendations for watering, fertilizing, light, and other care needs. Help identify and troubleshoot common plant problems. When appropriate, guide users to update their plant care schedule in their 'my_plants' collection. Be encouraging and educational, helping users become confident plant parents.

@@ -1,5 +1,20 @@
 import adapter from '@sveltejs/adapter-vercel';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
+import * as child_process from 'node:child_process';
+
+/**
+ * Get the current git commit hash for version tracking.
+ * This enables SvelteKit's built-in version detection to work properly.
+ * Falls back to timestamp if git is not available.
+ */
+function getVersionName() {
+	try {
+		return child_process.execSync('git rev-parse HEAD').toString().trim();
+	} catch {
+		// Fallback to timestamp if git is not available (e.g., in some CI environments)
+		return `build-${Date.now()}`;
+	}
+}
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
@@ -10,11 +25,63 @@ const config = {
 		runes: true
 	},
 	kit: {
-		// See https://kit.svelte.dev/docs/adapters for more information about adapters.
 		adapter: adapter({
-			// Vercel specific options can be added here if needed
-			// See https://github.com/sveltejs/kit/tree/master/packages/adapter-vercel#options
-		})
+			// see https://github.com/sveltejs/kit/tree/master/packages/adapter-vercel
+			// for more information on Vercel specific options
+		}),
+		paths: {
+			// Use absolute asset paths (/_app/...) instead of relative (./_app/...).
+			// Required because the Vercel rewrite for /dev/* serves the SPA shell HTML
+			// at deep nested URLs (e.g. /dev/preview/embeds/web/Component).
+			// With relative paths, the browser would resolve ./_app/... relative to
+			// that deep URL, producing wrong paths like /dev/preview/embeds/web/_app/...
+			// which return HTML instead of JS (MIME type error, blank page).
+			relative: false
+		},
+		files: {
+			assets: 'static'
+		},
+		/**
+		 * Version configuration for detecting app updates.
+		 * This prevents "chunk loading errors" after deployments by:
+		 * 1. Using git commit hash as version identifier
+		 * 2. Polling every 2 minutes to detect new deployments
+		 * 3. Setting `updated.current` to true when a new version is detected
+		 *
+		 * The app can then show an update banner and/or auto-refresh on navigation.
+		 * See: https://kit.svelte.dev/docs/configuration#version
+		 */
+		version: {
+			// Use git commit hash for deterministic version identification
+			name: getVersionName(),
+			// Poll for updates every 2 minutes (120000ms)
+			// This checks if a new version has been deployed
+			// Set to 0 to disable polling (not recommended)
+			pollInterval: 120000
+		},
+		prerender: {
+			// SEO pages (e.g. /demo/chat/[slug], /intro/[slug]) link to the SPA root via
+			// /#chat-id={slug} hash deep links. The prerenderer follows these href links and
+			// complains that no element with id="chat-id=..." exists on the / page — which is
+			// correct, because / is a JS SPA and the anchor is a client-side deep link, not
+			// a real DOM id. Ignore these missing-id warnings so the build succeeds.
+			handleMissingId: 'ignore',
+			// Demo chat slugs are fetched from the backend at build time. If the backend
+			// returns a slug in the list but its individual endpoint 404s (e.g. temporary
+			// data inconsistency, backend deploy in progress), skip that page gracefully
+			// rather than failing the entire build. The page will be served via SSR on
+			// first request — prerender='auto' already handles this fallback.
+			handleHttpError: ({ status, path, referrer, referenceType }) => {
+				if (status === 404 && path.startsWith('/demo/chat/')) {
+					console.warn(
+						`[prerender] Skipping ${path} — backend returned 404 (will SSR on first request)`
+					);
+					return;
+				}
+				// All other HTTP errors are real build failures — throw as normal.
+				throw new Error(`${status} ${path}${referrer ? ` (referred from ${referrer})` : ''}`);
+			}
+		}
 	}
 };
 

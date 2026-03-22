@@ -1,0 +1,37 @@
+content_views_daily:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+
+    date:
+      type: string
+      length: 10
+      note: "[Indexed] Date in format 'YYYY-MM-DD'."
+
+    # Content identification — combined with date to uniquely identify a row.
+
+    content_type:
+      type: string
+      length: 50
+      note: "Type of content viewed. Examples: 'intro', 'legal_privacy', 'legal_terms', 'example_chat'."
+
+    content_id:
+      type: string
+      length: 200
+      note: "Content identifier within the type. E.g. chat slug for example_chat, locale for legal."
+
+    # Metric
+    view_count:
+      type: integer
+      default: 0
+      note: "Number of views for this content on this day."
+
+    created_at:
+      type: timestamp
+      note: "Timestamp when record was created."
+
+    updated_at:
+      type: timestamp
+      note: "Timestamp when record was last updated."

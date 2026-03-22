@@ -5,7 +5,7 @@ import logging
 import os
 import yaml
 from pathlib import Path
-from typing import Dict, List
+from typing import List
 
 logger = logging.getLogger(__name__)
 
@@ -23,8 +23,8 @@ def load_urls_config():
         return {
             'base': {
                 'webapp': {
-                    'development': 'http://localhost:5174',
-                    'production': 'https://app.openmates.org'
+                    'development': 'http://localhost:5173',
+                    'production': 'https://openmates.org'
                 }
             }
         }
@@ -34,8 +34,9 @@ URLS_CONFIG = load_urls_config()
 
 # Buckets that need CORS settings
 CORS_ENABLED_BUCKETS = [
-    'openmates-profile-images', 
-    'dev-openmates-profile-images',
+    # Private profile images — AES-256-GCM encrypted, served via API proxy
+    'openmates-profile-images-private',
+    'dev-openmates-profile-images-private',
     'openmates-chatfiles',
     'dev-openmates-chatfiles',
     'openmates-invoices',
@@ -44,13 +45,16 @@ CORS_ENABLED_BUCKETS = [
 
 # S3 bucket configurations
 BUCKETS = {
-    'profile_images': {
-        'name': 'openmates-profile-images',
-        'dev_name': 'dev-openmates-profile-images',
-        'allowed_types': ['image/jpeg', 'image/png', 'image/webp'],
-        'max_size': 300 * 1024,  # 300KB
-        'access': 'public-read',
-        'lifecycle_policy': None,  # No auto-delete
+    # Private encrypted profile images bucket.
+    # All profile image uploads go here: bytes are AES-256-GCM encrypted before storage.
+    # Served via GET /v1/users/{user_id}/profile-image (authenticated API proxy).
+    'profile_images_private': {
+        'name': 'openmates-profile-images-private',
+        'dev_name': 'dev-openmates-profile-images-private',
+        'allowed_types': ['application/octet-stream'],  # Encrypted blobs are always octet-stream
+        'max_size': 300 * 1024,  # 300KB (same limit as unencrypted, with AES-GCM overhead ~16 bytes)
+        'access': 'private',
+        'lifecycle_policy': None,  # No auto-delete (cleanup is manual: old key deleted on re-upload)
     },
     'invoices': {
         'name': 'openmates-invoices',
@@ -65,8 +69,14 @@ BUCKETS = {
         'dev_name': 'dev-openmates-chatfiles',
         'allowed_types': ['*/*'],  # Allow all file types
         'max_size': 500 * 1024 * 1024,  # 500MB
-        'access': 'public-read',
+        'access': 'private',
         'lifecycle_policy': None,  # No auto-delete
+        # Cache-Control for presigned URL responses: encrypted blobs are content-addressed
+        # (unique S3 key per upload) and never modified in place, so browsers can cache them.
+        # Changed from 'public' to 'private' because files are now served via presigned URLs
+        # from a private bucket — 'private' tells CDNs not to cache shared copies, while
+        # still allowing the user's browser to cache for 1 year.
+        'cache_control': 'private, max-age=31536000, immutable',
     },
     'userdata_backups': {
         'name': 'openmates-userdata-backups',
@@ -76,11 +86,58 @@ BUCKETS = {
         'access': 'private',
         'lifecycle_policy': 60,  # 2 months auto-delete (in days)
     },
-    'compliance_logs': {
+    # Financial compliance logs — invoices, transactions, refund records.
+    # Retention: 10 years (3650 days) — mandated by German commercial/tax law (AO §147, HGB §257).
+    # S3 key prefix convention: financial-compliance/<date>/<filename>
+    'financial_compliance_logs': {
         'name': 'openmates-compliance-logs-backups',
         'dev_name': 'dev-openmates-compliance-logs-backups',
-        'allowed_types': ['*/*'],  # Allow all file types
+        'allowed_types': ['*/*'],
         'max_size': 500 * 1024 * 1024,  # 500MB
+        'access': 'private',
+        'lifecycle_policy': 3650,  # 10 years — AO §147 / HGB §257
+    },
+    # Audit compliance logs — auth events, consents, account/data deletions.
+    # Retention: 2 years (730 days) — GDPR accountability + BSI recommendation (§34 BDSG).
+    # S3 key prefix convention: audit-compliance/<date>/<filename>
+    # Note: uses the same S3 bucket; lifecycle is enforced by path-based bucket lifecycle rules
+    # (applied during S3 service initialization in main.py via compliance_log_backup_task setup).
+    'audit_compliance_logs': {
+        'name': 'openmates-compliance-logs-backups',
+        'dev_name': 'dev-openmates-compliance-logs-backups',
+        'allowed_types': ['*/*'],
+        'max_size': 500 * 1024 * 1024,  # 500MB
+        'access': 'private',
+        'lifecycle_policy': 730,  # 2 years — GDPR / BSI §34 BDSG
+    },
+    'usage_archives': {
+        'name': 'openmates-usage-archives',
+        'dev_name': 'dev-openmates-usage-archives',
+        'allowed_types': ['application/gzip', 'application/json'],
+        'max_size': 500 * 1024 * 1024,  # 500MB per archive
+        'access': 'private',
+        'lifecycle_policy': 2555,  # 7 years auto-delete (in days)
+    },
+    # Temporary public images bucket for reverse image search (Google Lens via SerpAPI).
+    # Plaintext (decrypted) images are uploaded here with a very short TTL.
+    # The bucket is public-read so Google's crawlers can fetch the image URL.
+    # Files are auto-deleted after 1 day via lifecycle policy.
+    # See: backend/apps/images/skills/search_skill.py → _upload_temp_public_image
+    'temp_images': {
+        'name': 'openmates-temp-images',
+        'dev_name': 'dev-openmates-temp-images',
+        'allowed_types': ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
+        'max_size': 20 * 1024 * 1024,  # 20MB max per temp image
+        'access': 'public-read',
+        'lifecycle_policy': 1,  # 1 day auto-delete (in days)
+    },
+    'issue_logs': {
+        'name': 'openmates-issue-logs',
+        'dev_name': 'dev-openmates-issue-logs',
+        # Allow encrypted YAML logs (application/octet-stream) and plain PNG screenshots.
+        # Screenshots are stored unencrypted so admins/LLMs can view them via pre-signed URL.
+        'allowed_types': ['application/octet-stream', 'image/png'],
+        'max_size': 10 * 1024 * 1024,  # 10MB per log file / screenshot
         'access': 'private',
         'lifecycle_policy': 365,  # 1 year auto-delete (in days)
     }
@@ -144,6 +201,9 @@ def get_allowed_origins(environment: str) -> List[str]:
     """
     Get allowed origins based on environment.
     
+    Includes both the deployed server origins and local development origins
+    so that S3 CORS allows cross-origin fetches from all valid frontends.
+    
     Args:
         environment: The environment ('development' or 'production')
         
@@ -152,16 +212,36 @@ def get_allowed_origins(environment: str) -> List[str]:
     """
     origins = []
     
-    # Add webapp URLs
+    # Add webapp URLs from shared config (typically localhost for dev)
     webapp_url = URLS_CONFIG.get('base', {}).get('webapp', {}).get(environment)
     if webapp_url:
         origins.append(webapp_url)
     
+    # Add deployed server origins that aren't in the shared config
+    # The shared config urls.yml has localhost for development, but the actual
+    # deployed dev server uses app.dev.openmates.org / dev.openmates.org
+    if environment == 'development':
+        deployed_dev_origins = [
+            'https://app.dev.openmates.org',
+            'https://dev.openmates.org',
+        ]
+        for origin in deployed_dev_origins:
+            if origin not in origins:
+                origins.append(origin)
+    elif environment == 'production':
+        deployed_prod_origins = [
+            'https://app.openmates.org',
+            'https://openmates.org',
+        ]
+        for origin in deployed_prod_origins:
+            if origin not in origins:
+                origins.append(origin)
+    
     # If no origins were found, add defaults
     if not origins:
         if environment == 'development':
-            origins = ['http://localhost:5174']
+            origins = ['http://localhost:5173', 'https://app.dev.openmates.org']
         else:
-            origins = ['https://app.openmates.org']
+            origins = ['https://openmates.org', 'https://app.openmates.org']
     
     return origins

@@ -1,1 +1,0 @@
-Coming soon - the apps settings will be available here.

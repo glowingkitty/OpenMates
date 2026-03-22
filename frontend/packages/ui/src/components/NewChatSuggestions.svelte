@@ -1,162 +1,903 @@
 <script lang="ts">
-  import { fade } from 'svelte/transition';
   import { onMount } from 'svelte';
   import { chatDB } from '../services/db';
   import { chatSyncService } from '../services/chatSyncService';
   import { decryptWithMasterKey } from '../services/cryptoService';
+  import { setClickedSuggestion } from '../stores/suggestionTracker';
+  import { text } from '@repo/ui';
+  import type { NewChatSuggestion } from '../types/chat';
+  import { authStore } from '../stores/authStore';
+  import { DEFAULT_NEW_CHAT_SUGGESTION_KEYS } from '../demo_chats/defaultNewChatSuggestions';
+  import { get } from 'svelte/store';
+  import { locale } from 'svelte-i18n';
+  import NewChatSuggestionContextMenu from './NewChatSuggestionContextMenu.svelte';
+  import Icon from './Icon.svelte';
+  import { appSkillsStore } from '../stores/appSkillsStore';
 
   let {
     messageInputContent = '',
     onSuggestionClick
   }: {
     messageInputContent?: string;
-    onSuggestionClick: (suggestion: string) => void;
+    onSuggestionClick: (suggestion: string, mentionSyntax?: string) => void;
   } = $props();
 
-  // Full suggestions pool (decrypted), used for filtering
+  // Apps metadata for icon resolution
+  let appsMetadata = $state(appSkillsStore.getState());
+
+  /**
+   * Parsed suggestion: splits "[app_id-skill_id] body text" into parts.
+   * Returns null prefix/appId/subId if no valid prefix is present.
+   */
+  interface ParsedSuggestionMeta {
+    prefix: string | null;   // e.g. "web-search"
+    appId: string | null;    // e.g. "web"
+    subId: string | null;    // e.g. "search"
+    body: string;            // Text to insert on click (without prefix)
+  }
+
+  /**
+   * Parse a raw suggestion string of the form "[app_id-skill_id] body text".
+   * LLMs sometimes generate dashes in the skill name portion (e.g. "reminder-set-reminder")
+   * instead of underscores ("reminder-set_reminder"). We correct for this by replacing
+   * dashes in the subId portion with underscores, then validate against the known app
+   * skills store. If no valid app+skill pair is found, appId/subId are set to null so
+   * no icons render.
+   */
+  function parseSuggestion(raw: string): ParsedSuggestionMeta {
+    // Allow dashes anywhere in the prefix (LLMs may use dashes instead of underscores in skill names)
+    const match = raw.match(/^\[([a-z0-9_-]+)\]\s*(.+)$/i);
+    if (!match) {
+      return { prefix: null, appId: null, subId: null, body: raw };
+    }
+    const prefix = match[1];
+    const body = match[2].trim();
+    const dashIdx = prefix.indexOf('-');
+    if (dashIdx === -1) {
+      return { prefix: null, appId: null, subId: null, body: raw };
+    }
+    const appId = prefix.substring(0, dashIdx);
+    // Replace any remaining dashes in the subId with underscores to correct LLM errors
+    // (e.g. "set-reminder" -> "set_reminder")
+    const subIdRaw = prefix.substring(dashIdx + 1);
+    const subId = subIdRaw.replace(/-/g, '_');
+
+    // Validate that appId and subId correspond to a real skill or focus mode
+    const app = appsMetadata?.apps?.[appId];
+    const isValidSkill = app?.skills?.some(s => s.id === subId) ?? false;
+    const isValidFocus = app?.focus_modes?.some(f => f.id === subId) ?? false;
+    if (!isValidSkill && !isValidFocus) {
+      // Unknown skill — keep body text but don't render any app/skill icons
+      return { prefix: null, appId: null, subId: null, body };
+    }
+
+    return { prefix, appId, subId, body };
+  }
+
+  /**
+   * Resolve the icon image name for a skill or focus mode sub-id.
+   * Returns the icon_image string (svg filename without extension) if found.
+   */
+  function resolveSubIcon(appId: string, subId: string): string | null {
+    const app = appsMetadata?.apps?.[appId];
+    if (!app) return null;
+
+    // Check skills first
+    const skill = app.skills?.find(s => s.id === subId);
+    if (skill?.icon_image) return skill.icon_image.replace(/\.svg$/i, '');
+
+    // Check focus modes
+    const focus = app.focus_modes?.find(f => f.id === subId);
+    if (focus?.icon_image) return focus.icon_image.replace(/\.svg$/i, '');
+
+    return null;
+  }
+
+  /**
+   * Strip HTML tags from text to display as plain text
+   * Converts HTML like "<strong><mark>Open</mark>Mates</strong>" to "OpenMates"
+   */
+  function stripHtmlTags(html: string): string {
+    if (!html) return '';
+    // Create a temporary div to parse HTML
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    return tmp.textContent || tmp.innerText || '';
+  }
+
+  /**
+   * Shuffle an array using Fisher-Yates algorithm
+   * This ensures suggestions are displayed in random order rather than always newest-first
+   * @param array - The array to shuffle
+   * @returns A new shuffled array (original array is not modified)
+   */
+  function shuffleArray<T>(array: T[]): T[] {
+    const shuffled = [...array]; // Create a copy to avoid mutating the original
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  }
+
+  // Detect if device is touch-capable
+  // Checks for ontouchstart event support and maxTouchPoints
+  const isTouchDevice = () => {
+    return (('ontouchstart' in window) ||
+            (navigator.maxTouchPoints > 0) ||
+            ((navigator as Navigator & { msMaxTouchPoints?: number }).msMaxTouchPoints > 0));
+  };
+
+  let touchDevice = $state(isTouchDevice());
+
+  // Force reactivity to language changes
+  let currentLocale = $state($locale);
+
+  // Context menu state
+  let contextMenu = $state({
+    show: false,
+    x: 0,
+    y: 0,
+    suggestionText: '',
+    suggestionId: '' // Use ID instead of encrypted value for reliable deletion
+  });
+
+  // Touch handling for context menu
+  let touchStartTime = $state(0);
+  let touchTimer: number | undefined;
+
+  // Full suggestions pool with text, encrypted value, and ID
+  let fullSuggestionsWithEncrypted = $state<Array<{ text: string; encrypted: string; id: string }>>([]);
+  // Full suggestions pool (decrypted only), used for filtering
   let fullSuggestions = $state<string[]>([]);
-  // Currently shown suggestions (random 3 when input empty)
-  let suggestions = $state<Array<{text: string}>>([]);
   let loading = $state(true);
+  // Whether we're showing default (placeholder) suggestions before user's real ones arrive
+  let showingDefaults = $state(true);
+  // Fade transition state: 'visible' | 'fading-out' | 'fading-in'
+  let fadeState = $state<'visible' | 'fading-out' | 'fading-in'>('visible');
+  // Carousel state - tracks current page (0-indexed)
+  let currentSlide = $state(0);
+  let suggestionsPerSlide = 3;
+  // Track previous search term to reset pagination when search changes
+  let previousSearchTerm = $state<string>('');
+  let previousAuthState = $authStore.isAuthenticated;
+
+  /**
+   * Build the default suggestions array from translation keys.
+   * Used for non-auth users, as initial placeholder while sync loads, and as fallback.
+   */
+  function buildDefaultSuggestions(): Array<{ text: string; encrypted: string; id: string }> {
+      // Use the text store (which auto-appends .text for the JSON wrapper) instead of raw get(_)
+      const t = get(text);
+      const translatedSuggestions = DEFAULT_NEW_CHAT_SUGGESTION_KEYS.map(key => t(key));
+      const plainTextSuggestions = translatedSuggestions.map(s => stripHtmlTags(s));
+      return shuffleArray(plainTextSuggestions.map(text => ({
+          text,
+          encrypted: '', // No encrypted version for default suggestions
+          id: '' // No ID for default suggestions
+      })));
+  }
+
+  /**
+   * Apply default suggestions to component state (used for immediate display).
+   */
+  function applyDefaultSuggestions() {
+      const defaults = buildDefaultSuggestions();
+      fullSuggestionsWithEncrypted = defaults;
+      fullSuggestions = defaults.map(s => s.text);
+      currentSlide = 0;
+      showingDefaults = true;
+  }
+
+  /**
+   * Transition from current suggestions to new ones with a fade-out / fade-in animation.
+   * Used when user's real suggestions arrive to replace the default placeholder suggestions.
+   */
+  function transitionToSuggestions(newSuggestions: Array<{ text: string; encrypted: string; id: string }>) {
+      // If currently showing defaults and new suggestions are different, do a crossfade
+      if (showingDefaults && newSuggestions.length > 0) {
+          fadeState = 'fading-out';
+          // After fade-out completes (200ms), swap data and fade-in
+          setTimeout(() => {
+              fullSuggestionsWithEncrypted = newSuggestions;
+              fullSuggestions = newSuggestions.map(s => s.text);
+              currentSlide = 0;
+              showingDefaults = false;
+              fadeState = 'fading-in';
+              // After fade-in completes, reset to normal visible state
+              setTimeout(() => {
+                  fadeState = 'visible';
+              }, 200);
+          }, 200);
+      } else {
+          // No transition needed - just swap directly (e.g. already showing user suggestions)
+          fullSuggestionsWithEncrypted = newSuggestions;
+          fullSuggestions = newSuggestions.map(s => s.text);
+          currentSlide = 0;
+          showingDefaults = newSuggestions.length === 0 || newSuggestions.every(s => s.id === '');
+      }
+  }
+
+  /**
+   * Load suggestions from IndexedDB (auth) or defaults (non-auth).
+   * For authenticated users, shows default suggestions immediately and transitions
+   * to real suggestions once they're loaded from IndexedDB.
+   */
+  const loadSuggestions = async () => {
+      // For non-authenticated users, use default suggestions instead of IndexedDB
+      if (!$authStore.isAuthenticated) {
+          applyDefaultSuggestions();
+          loading = false;
+          return;
+      }
+
+      // For authenticated users: show defaults immediately so UI isn't empty,
+      // then transition to real suggestions when they're ready
+      if (loading && fullSuggestions.length === 0) {
+          applyDefaultSuggestions();
+          loading = false; // Show defaults immediately - no loading spinner
+      }
+
+      // Load real suggestions from IndexedDB in the background
+      // Handle case where database might be unavailable (e.g., during logout/deletion)
+      try {
+          await chatDB.init();
+          // Small delay to ensure upgrade completion
+          await new Promise(resolve => setTimeout(resolve, 100));
+
+          // Load full pool and decrypt, keeping text, encrypted value, and ID
+          const all: NewChatSuggestion[] = await chatDB.getAllNewChatSuggestions();
+          const decryptedSuggestions = await Promise.all(
+              all.map(async s => {
+                  const decrypted = await decryptWithMasterKey(s.encrypted_suggestion);
+                  if (!decrypted) return null;
+                  // Strip HTML tags from decrypted suggestions to display as plain text
+                  const plainText = stripHtmlTags(decrypted);
+                  return {
+                      text: plainText,
+                      encrypted: s.encrypted_suggestion,
+                      id: s.id // Include ID for reliable deletion
+                  };
+              })
+          );
+          let realSuggestions = decryptedSuggestions.filter((s): s is { text: string; encrypted: string; id: string } => s !== null);
+
+          // Shuffle suggestions to ensure random order (not always newest-first)
+          realSuggestions = shuffleArray(realSuggestions);
+
+          // If authenticated user has real suggestions, transition to them
+          if (realSuggestions.length > 0) {
+              transitionToSuggestions(realSuggestions);
+          }
+          // else: No real suggestions yet - keep showing defaults (already displayed)
+      } catch (error) {
+          // Handle database errors gracefully (e.g., database being deleted during logout)
+          if (!$authStore.isAuthenticated) {
+              // Non-auth: DB unavailable is expected (being deleted during logout)
+          } else {
+              console.error('[NewChatSuggestions] Error loading suggestions:', error);
+          }
+      }
+  };
+
+  // React to auth state changes (e.g., logout) - reload suggestions when auth state actually changes
+  // This ensures non-authenticated users get default suggestions immediately after logout
+  // Only reload when auth state transitions (not on every reactive update)
+  $effect(() => {
+    const isAuthenticated = $authStore.isAuthenticated;
+    // Only reload if auth state actually changed (not just a reactive update)
+    if (previousAuthState !== isAuthenticated) {
+      previousAuthState = isAuthenticated;
+      loadSuggestions();
+    }
+  });
 
   onMount(() => {
-    const pickRandomThree = (pool: string[]): Array<{text: string}> => {
-      // Ensure we only work with unique suggestions (remove duplicates)
-      const unique = Array.from(new Set(pool));
-      // Shuffle copy for randomization
-      const shuffled = unique.slice().sort(() => Math.random() - 0.5);
-      // Pick top 3 unique suggestions
-      const top3 = shuffled.slice(0, Math.min(3, shuffled.length));
-      return top3.map(text => ({ text }));
-    };
-
-    const loadSuggestions = async () => {
-      try {
-        // Wait for database to be initialized before accessing it
-        await chatDB.init();
-        // Small delay to ensure upgrade completion
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        // Load full pool and decrypt
-        const all = await chatDB.getAllNewChatSuggestions();
-        fullSuggestions = all
-          .map(s => decryptWithMasterKey(s.encrypted_suggestion))
-          .filter((s): s is string => s !== null);
-
-        // Pick 3 random suggestions for empty-input state (fresh each mount)
-        suggestions = pickRandomThree(fullSuggestions);
-        console.debug('[NewChatSuggestions] Loaded full pool:', fullSuggestions.length, 'random shown:', suggestions.length);
-      } catch (error) {
-        console.error('[NewChatSuggestions] Error loading suggestions:', error);
-        fullSuggestions = [];
-        suggestions = [];
-      } finally {
-        loading = false;
-      }
-    };
-
     // Initial load
     loadSuggestions();
 
     // Refresh suggestions when Phase 3 completes (server sends latest suggestions)
-    const handleFullSyncReady = (event: CustomEvent) => {
-      console.debug('[NewChatSuggestions] fullSyncReady received, refreshing suggestions');
+    const handleFullSyncReady = () => {
       // Re-load suggestions from DB (they were saved by chatSyncService on phase 3)
-      loading = true;
       loadSuggestions();
     };
-    chatSyncService.addEventListener('fullSyncReady', handleFullSyncReady as EventListener);
+    chatSyncService.addEventListener('fullSyncReady', handleFullSyncReady);
+
+    // Add language change listener to reload suggestions when language changes
+    const handleLanguageChange = () => {
+      // Update locale for header text reactivity
+      currentLocale = $locale;
+      
+      if (!$authStore.isAuthenticated) {
+          loadSuggestions();
+      }
+    };
+    window.addEventListener('language-changed', handleLanguageChange);
 
     return () => {
-      chatSyncService.removeEventListener('fullSyncReady', handleFullSyncReady as EventListener);
+      chatSyncService.removeEventListener('fullSyncReady', handleFullSyncReady);
+      window.removeEventListener('language-changed', handleLanguageChange);
     };
   });
 
+  // Reset pagination when search term changes
+  $effect(() => {
+    const searchTerm = (messageInputContent || '').trim();
+    if (searchTerm !== previousSearchTerm) {
+      previousSearchTerm = searchTerm;
+      currentSlide = 0; // Reset to first page when search changes
+    }
+  });
+
+  // CRITICAL: Reset currentSlide if it's beyond available complete pages
+  // This can happen when filtering reduces the number of complete pages
+  $effect(() => {
+    if (currentSlide >= totalCompletePages && totalCompletePages > 0) {
+      currentSlide = 0;
+    }
+  });
+
+  // Get all available suggestions (either all when empty, or filtered when searching)
+  // CRITICAL: Include encrypted value directly to avoid lookup failures.
+  // Each item includes parsed prefix metadata so the template can render icon chips.
   let filteredSuggestions = $derived.by(() => {
     if (loading) return [];
 
     if (!messageInputContent || messageInputContent.trim() === '') {
-      // Show the pre-picked random 3 when input is empty
-      return suggestions.map(s => ({ text: s.text, matchIndex: -1, matchLength: 0 }));
+      // When input is empty, return all suggestions (will be paginated)
+      // Include encrypted value and ID directly from fullSuggestionsWithEncrypted
+      // Remove duplicates by text, keeping the first occurrence (which should have the encrypted value and ID)
+      const seen = new Set<string>();
+      const uniqueSuggestions = fullSuggestionsWithEncrypted
+        .filter(s => {
+          if (seen.has(s.text)) return false;
+          seen.add(s.text);
+          return true;
+        })
+        .map(s => {
+          const parsed = parseSuggestion(s.text);
+          return { 
+            text: s.text,    // full raw text (for lookup/tracking)
+            body: parsed.body,
+            appId: parsed.appId,
+            subId: parsed.subId,
+            encrypted: s.encrypted,
+            id: s.id,
+            matchIndex: -1, 
+            matchLength: 0 
+          };
+        });
+      return uniqueSuggestions;
     }
 
     const searchTerm = messageInputContent.trim();
     const searchTermLower = searchTerm.toLowerCase();
 
-    console.debug('[NewChatSuggestions] Filtering with search term:', {
-      searchTerm,
-      searchTermLower,
-      fullPoolSize: fullSuggestions.length
-    });
-
-    // Exact substring match (case-insensitive) across FULL pool
-    // Remove duplicates first, then filter and limit to top 3 unique results
-    const uniqueSuggestions = Array.from(new Set(fullSuggestions));
+    // Exact substring match (case-insensitive) across FULL pool with encrypted values.
+    // Search over full raw text (including prefix) so e.g. "web" matches "[web-search] ..." suggestions.
+    // Remove duplicates by text, keeping the first occurrence
+    const seen = new Set<string>();
+    const uniqueSuggestions = fullSuggestionsWithEncrypted
+      .filter(s => {
+        if (seen.has(s.text)) return false;
+        seen.add(s.text);
+        return true;
+      });
     
     const filtered = uniqueSuggestions
-      .map(text => {
-        const lowerSuggestion = text.toLowerCase();
-        const matchIndex = lowerSuggestion.indexOf(searchTermLower);
+      .map(s => {
+        const parsed = parseSuggestion(s.text);
+        // Search over body text only for matchIndex (prefix not shown as text)
+        const lowerBody = parsed.body.toLowerCase();
+        const matchIndex = lowerBody.indexOf(searchTermLower);
         return {
-          text,
+          text: s.text,
+          body: parsed.body,
+          appId: parsed.appId,
+          subId: parsed.subId,
+          encrypted: s.encrypted,
+          id: s.id,
           matchIndex,
           matchLength: searchTerm.length
         };
       })
       .filter(item => item.matchIndex !== -1)
       // Exclude exact matches (100% match) - no point showing what user already typed
-      .filter(item => item.text.toLowerCase() !== searchTermLower)
-      // Limit to top 3 unique matches
-      .slice(0, 3);
+      .filter(item => item.body.toLowerCase() !== searchTermLower);
 
-    console.debug('[NewChatSuggestions] Filtered results:', filtered.length, 'unique matches');
+    // Shuffle filtered results to avoid always showing the same matches first
+    // This provides variety when multiple suggestions match the search term
+    const shuffledFiltered = shuffleArray(filtered);
 
-    return filtered;
+    return shuffledFiltered;
   });
 
-  function renderHighlightedText(suggestion: { text: string; matchIndex: number; matchLength: number }) {
-    if (suggestion.matchIndex === -1 || !messageInputContent || !messageInputContent.trim()) {
-      return suggestion.text;
+  /**
+   * Render highlighted body text for a suggestion.
+   * matchIndex/matchLength are relative to the body text (without prefix).
+   */
+  function renderHighlightedText(body: string, matchIndex: number, matchLength: number) {
+    if (matchIndex === -1 || !messageInputContent || !messageInputContent.trim()) {
+      return body;
     }
 
-    const before = suggestion.text.substring(0, suggestion.matchIndex);
-    const match = suggestion.text.substring(suggestion.matchIndex, suggestion.matchIndex + suggestion.matchLength);
-    const after = suggestion.text.substring(suggestion.matchIndex + suggestion.matchLength);
+    const before = body.substring(0, matchIndex);
+    const match = body.substring(matchIndex, matchIndex + matchLength);
+    const after = body.substring(matchIndex + matchLength);
 
     return { before, match, after };
   }
+
+  /**
+   * Handle suggestion click - track it for deletion and pass body-only text to parent.
+   * The raw text (with prefix) is used for lookup/tracking; only body goes into the input.
+   * When the suggestion has a prefix (e.g. [web-search]), we build the @skill mention syntax
+   * so the parent can insert a proper mention node, ensuring the app skill is triggered.
+   */
+  function handleSuggestionClickWithTracking(
+    rawText: string,
+    body: string,
+    appId: string | null,
+    subId: string | null,
+    suggestionId?: string,
+    encryptedSuggestion?: string
+  ) {
+    // For authenticated users, track the suggestion for deletion after sending
+    if ($authStore.isAuthenticated) {
+      // Use ID or encrypted value from parameter if provided, otherwise try to find it
+      let id = suggestionId;
+      let encrypted = encryptedSuggestion;
+      if (!id || !encrypted) {
+        const suggestionData = fullSuggestionsWithEncrypted.find(s => s.text === rawText);
+        id = id || suggestionData?.id;
+        encrypted = encrypted || suggestionData?.encrypted;
+      }
+
+      if (encrypted && encrypted.trim() !== '') {
+        // Track this suggestion (body-only text) so it can be deleted after the message is sent
+        setClickedSuggestion(body, encrypted);
+      } else {
+        console.warn('[NewChatSuggestions] Could not find encrypted version of clicked suggestion - skipping tracking');
+      }
+    }
+
+    // Build mention syntax for skill-prefixed suggestions (e.g. "@skill:web:search")
+    const mentionSyntax = appId && subId ? `@skill:${appId}:${subId}` : undefined;
+
+    // Pass body text + optional mention syntax to parent
+    onSuggestionClick(body, mentionSyntax);
+  }
+
+  /**
+   * Handle context menu (right-click or long touch)
+   */
+  function handleContextMenu(event: MouseEvent | TouchEvent, suggestionText: string, suggestionId?: string) {
+    if (!$authStore.isAuthenticated) {
+      return; // Only show context menu for authenticated users
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    // Use ID from parameter if provided, otherwise try to find it
+    let id = suggestionId;
+    if (!id) {
+      const suggestionData = fullSuggestionsWithEncrypted.find(s => s.text === suggestionText);
+      id = suggestionData?.id;
+    }
+
+    // Validate that we have a non-empty ID
+    // Empty IDs indicate default suggestions which cannot be deleted
+    if (!id || id.trim() === '') {
+      console.warn('[NewChatSuggestions] Cannot show context menu for default suggestion (no ID)', {
+        suggestionText,
+        suggestionId: id || 'undefined',
+        idType: typeof id,
+        idLength: id ? id.length : 0,
+        foundSuggestion: fullSuggestionsWithEncrypted.find(s => s.text === suggestionText)
+      });
+      return;
+    }
+
+    // Additional safety check: ensure ID is not just whitespace
+    if (id.trim().length === 0) {
+      console.warn('[NewChatSuggestions] Cannot show context menu for suggestion with whitespace-only ID', {
+        suggestionText,
+        suggestionId: id,
+        trimmedLength: id.trim().length
+      });
+      return;
+    }
+
+    // Get position for context menu
+    let x = 0;
+    let y = 0;
+
+    if (event instanceof MouseEvent) {
+      x = event.clientX;
+      y = event.clientY;
+    } else if (event instanceof TouchEvent && event.touches.length > 0) {
+      x = event.touches[0].clientX;
+      y = event.touches[0].clientY;
+    }
+
+    // Show context menu
+    contextMenu = {
+      show: true,
+      x,
+      y,
+      suggestionText,
+      suggestionId: id
+    };
+  }
+
+  /**
+   * Handle touch start for long-press detection
+   */
+  function handleTouchStart(event: TouchEvent, suggestionText: string, suggestionId?: string) {
+    touchStartTime = Date.now();
+
+    // Clear any existing timer
+    if (touchTimer) {
+      clearTimeout(touchTimer);
+    }
+
+    // Start timer for long press (500ms)
+    touchTimer = window.setTimeout(() => {
+      handleContextMenu(event, suggestionText, suggestionId);
+    }, 500);
+  }
+
+  /**
+   * Handle touch end - cancel long press if it's a quick tap
+   */
+  function handleTouchEnd(
+    event: TouchEvent,
+    rawText: string,
+    body: string,
+    appId: string | null,
+    subId: string | null,
+    suggestionId?: string,
+    encryptedSuggestion?: string
+  ) {
+    const touchDuration = Date.now() - touchStartTime;
+
+    // Clear the timer
+    if (touchTimer) {
+      clearTimeout(touchTimer);
+      touchTimer = undefined;
+    }
+
+    // If it was a short tap (less than 500ms), handle as regular click
+    if (touchDuration < 500) {
+      handleSuggestionClickWithTracking(rawText, body, appId, subId, suggestionId, encryptedSuggestion);
+    }
+
+    // Prevent default to avoid any unwanted behaviors
+    event.preventDefault();
+  }
+
+  /**
+   * Handle touch move - cancel context menu if user moves finger
+   */
+  function handleTouchMove() {
+    if (touchTimer) {
+      clearTimeout(touchTimer);
+      touchTimer = undefined;
+    }
+  }
+
+  /**
+   * Close context menu
+   */
+  function handleContextMenuClose() {
+    contextMenu = {
+      show: false,
+      x: 0,
+      y: 0,
+      suggestionText: '',
+      suggestionId: ''
+    };
+  }
+
+  /**
+   * Handle context menu delete action
+   */
+  async function handleContextMenuDelete() {
+    // Validate that we have a non-empty suggestion ID
+    // Empty IDs indicate default suggestions which cannot be deleted
+    if (!contextMenu.suggestionId || contextMenu.suggestionId.trim() === '') {
+      console.warn('[NewChatSuggestions] Cannot delete default suggestion (no ID)', {
+        suggestionText: contextMenu.suggestionText,
+        suggestionId: contextMenu.suggestionId,
+        suggestionIdType: typeof contextMenu.suggestionId,
+        contextMenuState: { ...contextMenu }
+      });
+      // Close context menu and return early
+      handleContextMenuClose();
+      return;
+    }
+
+    // Additional safety check before proceeding
+    const trimmedId = contextMenu.suggestionId.trim();
+    if (trimmedId.length === 0) {
+      console.error('[NewChatSuggestions] CRITICAL: suggestionId passed initial validation but is empty after trim', {
+        originalId: contextMenu.suggestionId,
+        trimmedId: trimmedId,
+        contextMenuState: { ...contextMenu }
+      });
+      handleContextMenuClose();
+      return;
+    }
+
+    try {
+      // Use captured trimmedId (not contextMenu.suggestionId) to avoid race condition:
+      // the context menu dispatches 'close' synchronously after 'delete', which calls
+      // handleContextMenuClose() and resets contextMenu.suggestionId to '' before the
+      // awaits below complete.
+      const deleteResult = await chatDB.deleteNewChatSuggestionById(trimmedId);
+
+      if (deleteResult) {
+        // Delete from server using ID
+        try {
+          await chatSyncService.sendDeleteNewChatSuggestionById(trimmedId);
+        } catch (serverError) {
+          console.warn('[NewChatSuggestions] Failed to delete suggestion from server:', serverError);
+          // Continue anyway - local deletion succeeded
+        }
+
+        // Reload suggestions to update the display
+        loading = true;
+        loadSuggestions();
+      } else {
+        console.error('[NewChatSuggestions] Failed to delete suggestion from IndexedDB');
+      }
+    } catch (error) {
+      console.error('[NewChatSuggestions] Error deleting suggestion:', error);
+    }
+
+    // Close context menu
+    handleContextMenuClose();
+  }
+
+  /**
+   * Calculate the number of complete pages (pages with exactly 3 suggestions)
+   * First page is excluded from this count as it can have 1-3 results
+   * Only subsequent pages (page 1+) need exactly 3 suggestions
+   */
+  let totalCompletePages = $derived(Math.floor(filteredSuggestions.length / suggestionsPerSlide));
+
+  /**
+   * Calculate if there are any complete pages after the first page
+   * Used to determine if the next button should be shown
+   */
+  let hasCompletePagesAfterFirst = $derived(filteredSuggestions.length > suggestionsPerSlide && totalCompletePages > 1);
+
+  /**
+   * Move to next page of suggestions
+   * First page can have 1-3 results, subsequent pages must have exactly 3
+   * Loops back to first page when reaching the end
+   */
+  function nextSlide() {
+    // Check if there are complete pages after the first page
+    if (!hasCompletePagesAfterFirst) return; // No complete pages after first page
+    
+    // Calculate the maximum slide we can navigate to
+    // First page (0) + complete pages after first (totalCompletePages - 1)
+    const maxSlide = totalCompletePages - 1;
+    
+    if (currentSlide < maxSlide) {
+      // Move to next complete page
+      currentSlide++;
+    } else {
+      // Loop back to first page when reaching the end
+      currentSlide = 0;
+    }
+  }
+
+  /**
+   * Get the currently visible suggestions for the current page
+   * First page (page 0): Shows suggestions even if there are fewer than 3 (1 or 2 results)
+   * Subsequent pages: Only shows if there are exactly 3 suggestions (complete page)
+   */
+  let visibleSuggestions = $derived.by(() => {
+    if (filteredSuggestions.length === 0) return [];
+    
+    // Calculate pagination for current page
+    const startIdx = currentSlide * suggestionsPerSlide;
+    const endIdx = startIdx + suggestionsPerSlide;
+    const paginated = filteredSuggestions.slice(startIdx, endIdx);
+    
+    // EXCEPTION: First page (page 0) can show 1 or 2 results when searching
+    // This ensures users see search results even if there are only 1-2 matches
+    if (currentSlide === 0) {
+      // First page: Show if we have at least 1 suggestion
+      if (paginated.length > 0) {
+        return paginated;
+      }
+    } else {
+      // Subsequent pages: Only show if we have exactly 3 (complete page)
+      if (paginated.length !== suggestionsPerSlide) {
+        return [];
+      }
+    }
+    
+    return paginated;
+  });
+  
+  /**
+   * Determine if next button should be enabled
+   * Only enabled when there are complete pages after the first page
+   * (First page can have 1-3 results, but subsequent pages must have exactly 3)
+   */
+  let canNextSlide = $derived(hasCompletePagesAfterFirst);
 </script>
 
-{#if !loading && filteredSuggestions.length > 0}
-  <div class="suggestions-container" transition:fade={{ duration: 200 }}>
-    {#each filteredSuggestions as suggestion (suggestion.text)}
-      {@const highlighted = renderHighlightedText(suggestion)}
-      <button
-        class="suggestion-item"
-        onclick={() => onSuggestionClick(suggestion.text)}
-      >
-        {#if typeof highlighted === 'string'}
-          {highlighted}
-        {:else}
-          <span class="text-part">{highlighted.before}</span><span class="text-match">{highlighted.match}</span><span class="text-part">{highlighted.after}</span>
-        {/if}
-      </button>
-    {/each}
+{#if !loading && visibleSuggestions.length > 0}
+  <div class="suggestions-wrapper" class:fade-out={fadeState === 'fading-out'} class:fade-in={fadeState === 'fading-in'}>
+    <div class="suggestions-header">
+      {#key currentLocale}
+        {touchDevice ? $text('chat.suggestions.header_tap') : $text('chat.suggestions.header_click')}
+      {/key}
+    </div>
+    <div class="carousel-container">
+      <div class="suggestions-container">
+        {#each visibleSuggestions as suggestion (suggestion.text)}
+        {@const highlighted = renderHighlightedText(suggestion.body, suggestion.matchIndex, suggestion.matchLength)}
+        {@const subIconName = suggestion.appId && suggestion.subId ? resolveSubIcon(suggestion.appId, suggestion.subId) : null}
+        <button
+          class="suggestion-item"
+          onclick={() => handleSuggestionClickWithTracking(suggestion.text, suggestion.body, suggestion.appId, suggestion.subId, suggestion.id, suggestion.encrypted)}
+          oncontextmenu={(event) => handleContextMenu(event, suggestion.text, suggestion.id)}
+          ontouchstart={(event) => handleTouchStart(event, suggestion.text, suggestion.id)}
+          ontouchend={(event) => handleTouchEnd(event, suggestion.text, suggestion.body, suggestion.appId, suggestion.subId, suggestion.id, suggestion.encrypted)}
+          ontouchmove={handleTouchMove}
+        >
+          {#if suggestion.appId}
+            <span class="app-skill-icons">
+              <Icon name={suggestion.appId} type="app" size="16px" noAnimation noMargin />
+              {#if subIconName}
+                <Icon name={subIconName} type="skill" size="14px" noAnimation noMargin />
+              {/if}
+            </span>
+          {/if}
+          {#if typeof highlighted === 'string'}
+            {highlighted}
+          {:else}
+            <span class="text-part">{highlighted.before}</span><span class="text-match">{highlighted.match}</span><span class="text-part">{highlighted.after}</span>
+          {/if}
+        </button>
+      {/each}
+      </div>
+      {#if canNextSlide}
+        <button
+          class="carousel-nav next-nav"
+          onclick={nextSlide}
+          aria-label="Next suggestions"
+        >
+          →
+        </button>
+      {/if}
+    </div>
   </div>
 {/if}
 
+<!-- Context menu for suggestion deletion -->
+<NewChatSuggestionContextMenu
+  show={contextMenu.show}
+  x={contextMenu.x}
+  y={contextMenu.y}
+  suggestionText={contextMenu.suggestionText}
+  suggestionId={contextMenu.suggestionId}
+  on:close={handleContextMenuClose}
+  on:delete={handleContextMenuDelete}
+/>
+
 <style>
+  .suggestions-wrapper {
+    animation: fadeIn 200ms ease-out;
+    animation-delay: 200ms;
+    transition: opacity 200ms ease;
+    opacity: 1;
+    position: relative;
+  }
+
+  /* Fade-out when transitioning from default to user suggestions */
+  .suggestions-wrapper.fade-out {
+    opacity: 0;
+    transition: opacity 200ms ease-out;
+  }
+
+  /* Fade-in when user suggestions are ready */
+  .suggestions-wrapper.fade-in {
+    opacity: 0;
+    animation: fadeIn 200ms ease-in forwards;
+  }
+
+  .suggestions-header {
+    color: var(--color-grey-50);
+    font-size: 16px;
+    font-weight: 500;
+    padding: 0 18px;
+    letter-spacing: 0.5px;
+    opacity: 0.9;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .carousel-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
   .suggestions-container {
     display: flex;
     flex-direction: column;
     gap: 5px;
-    margin-bottom: 8px;
+    flex: 1;
     padding: 6px 10px;
     background-color: var(--color-grey-15);
-    border: 1px solid var(--color-grey-25);
     border-radius: 10px;
-    width: 100%;
-    max-width: 629px;
+    min-height: 60px;
+    position: relative;
+    z-index: 50;
+  }
+
+  /* Gradient fade background that extends above the suggestions to overlay
+     background content (e.g., report issue button, chat content).
+     Matches the same pattern used in FollowUpSuggestions for consistency. */
+  .suggestions-wrapper::before {
+    content: '';
+    position: absolute;
+    top: -100px;
+    bottom: -10px;
+    left: -9999px;
+    right: -9999px;
+    /* Gradient stays solid longer with a smoother, more gradual fade at the top
+       This ensures smooth transition while maintaining readability */
+    background: linear-gradient(to top, var(--color-grey-20) 0%, var(--color-grey-20) 60%, transparent 100%);
+    z-index: -1;
+    pointer-events: none;
+  }
+
+  .carousel-nav {
+    background-color: var(--color-grey-15);
+    border: none;
+    border-radius: 10px;
+    color: var(--color-grey-60);
+    cursor: pointer;
+    padding: 8px 12px;
+    font-size: 18px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    min-width: 40px;
+    height: auto;
+  }
+
+  .carousel-nav:hover:not(:disabled) {
+    background-color: var(--color-grey-20);
+    color: var(--color-grey-70);
+  }
+
+  .carousel-nav:active:not(:disabled) {
+    transform: scale(0.95);
+  }
+
+  .carousel-nav:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
   }
 
   .suggestion-item {
@@ -177,10 +918,31 @@
     margin-right: 0;
     filter: none;
     width: 100%;
-    display: block;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0 6px;
     justify-content: flex-start;
-    align-items: flex-start;
+    align-items: center;
     scale: 1;
+  }
+
+  /* App + skill icon pair rendered before the suggestion body text.
+     Shows the gradient app icon (square with rounded edges) alongside
+     the smaller skill-specific icon for clear visual identification. */
+  .app-skill-icons {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+    opacity: 0.8;
+  }
+
+  /* Override Icon animation/border so it blends into the suggestion row */
+  .app-skill-icons :global(.icon) {
+    animation: none !important;
+    opacity: 1 !important;
+    border: none !important;
   }
 
   .suggestion-item:hover {
@@ -207,10 +969,25 @@
   }
 
   @media (max-width: 730px) {
+    .carousel-container {
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+
     .suggestions-container {
       gap: 5px;
-      margin-bottom: 6px;
       padding: 5px 8px;
+      min-height: 55px;
+    }
+
+    .suggestions-header {
+      padding: 0 15px;
+    }
+
+    .carousel-nav {
+      padding: 6px 10px;
+      font-size: 16px;
+      min-width: 36px;
     }
 
     .suggestion-item {

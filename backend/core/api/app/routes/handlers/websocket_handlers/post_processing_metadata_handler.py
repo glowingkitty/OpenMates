@@ -35,7 +35,8 @@ async def handle_post_processing_metadata(
         "encrypted_follow_up_suggestions": "...",  // Encrypted array (max 18)
         "encrypted_new_chat_suggestions": ["...", "..."],  // Array of encrypted strings (max 6)
         "encrypted_chat_summary": "...",  // Encrypted summary
-        "encrypted_chat_tags": "..."  // Encrypted array of tags (max 10)
+        "encrypted_chat_tags": "...",  // Encrypted array of tags (max 10)
+        "encrypted_top_recommended_apps_for_chat": "...",  // Optional: Encrypted array of up to 5 app IDs
     }
 
     All fields are encrypted CLIENT-SIDE (not server-encrypted) for zero-knowledge storage.
@@ -46,11 +47,23 @@ async def handle_post_processing_metadata(
         encrypted_new_chat_suggestions = payload.get("encrypted_new_chat_suggestions", [])
         encrypted_chat_summary = payload.get("encrypted_chat_summary")
         encrypted_chat_tags = payload.get("encrypted_chat_tags")
+        encrypted_top_recommended_apps_for_chat = payload.get("encrypted_top_recommended_apps_for_chat")
 
         if not chat_id:
             logger.error(f"Missing chat_id in post-processing metadata from {user_id}")
             await manager.send_personal_message(
                 {"type": "error", "payload": {"message": "Missing chat_id in post-processing metadata"}},
+                user_id,
+                device_fingerprint_hash
+            )
+            return
+
+        # Verify chat ownership
+        is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
+        if not is_owner:
+            logger.warning(f"User {user_id} attempted to update post-processing metadata for chat {chat_id} they don't own. Rejecting.")
+            await manager.send_personal_message(
+                {"type": "error", "payload": {"message": "You do not have permission to modify this chat.", "chat_id": chat_id}},
                 user_id,
                 device_fingerprint_hash
             )
@@ -65,18 +78,27 @@ async def handle_post_processing_metadata(
             chat_update_fields["encrypted_follow_up_request_suggestions"] = encrypted_follow_up_suggestions
 
         if encrypted_new_chat_suggestions and len(encrypted_new_chat_suggestions) > 0:
-            celery_app.send_task(
+            # CRITICAL: This task MUST be dispatched to 'persistence' queue, which is handled by 'task-worker' container.
+            # app-web-worker only handles 'app_web' queue for long-running web app skills (like scraping).
+            # If you see this task executing in app-web-worker logs, there's a queue routing misconfiguration.
+            task_result = celery_app.send_task(
                 "app.tasks.persistence_tasks.persist_new_chat_suggestions",
                 args=[user_id_hash, chat_id, encrypted_new_chat_suggestions[:6]],
-                queue="persistence"
+                queue="persistence"  # Must route to task-worker, NOT app-web-worker
             )
-            logger.info(f"Queued new chat suggestions task for chat {chat_id} ({len(encrypted_new_chat_suggestions[:6])} suggestions)")
+            logger.info(
+                f"Queued new chat suggestions task for chat {chat_id} ({len(encrypted_new_chat_suggestions[:6])} suggestions) "
+                f"to 'persistence' queue (handled by task-worker). Task ID: {task_result.id}"
+            )
 
         if encrypted_chat_summary:
             chat_update_fields["encrypted_chat_summary"] = encrypted_chat_summary
 
         if encrypted_chat_tags:
             chat_update_fields["encrypted_chat_tags"] = encrypted_chat_tags
+
+        if encrypted_top_recommended_apps_for_chat:
+            chat_update_fields["encrypted_top_recommended_apps_for_chat"] = encrypted_top_recommended_apps_for_chat
 
         if not chat_update_fields:
             logger.warning(f"No metadata fields to update for chat {chat_id}")
@@ -89,9 +111,10 @@ async def handle_post_processing_metadata(
         logger.info(f"Storing encrypted post-processing metadata for chat {chat_id}: {list(chat_update_fields.keys())}")
 
         # Queue task to update chat metadata in Directus
+        # CRITICAL: Pass user_id (not hashed) for cache updates
         celery_app.send_task(
             "app.tasks.persistence_tasks.persist_encrypted_chat_metadata",
-            args=[chat_id, chat_update_fields, user_id_hash],
+            args=[chat_id, chat_update_fields, user_id_hash, user_id],  # Added user_id for cache updates
             queue="persistence"
         )
         logger.info(f"Queued post-processing metadata update task for chat {chat_id}")

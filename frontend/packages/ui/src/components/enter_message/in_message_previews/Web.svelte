@@ -44,7 +44,7 @@
             {/if}
         </div>
         <div class="copied-message">
-            {$_('enter_message.press_and_hold_menu.copied_to_clipboard.text')}
+            {$_('enter_message.press_and_hold_menu.copied_to_clipboard')}
         </div>
     </div>
 </InlinePreviewBase>

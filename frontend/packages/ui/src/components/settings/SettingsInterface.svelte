@@ -10,12 +10,15 @@ changes to the documentation (to keep the documentation up to date).
 -->
 
 <script lang="ts">
-    import { text } from '@repo/ui';
+    import { text, SUPPORTED_LANGUAGES } from '@repo/ui';
     import { createEventDispatcher, onMount } from 'svelte';
     import SettingsItem from '../SettingsItem.svelte';
     import SettingsLanguage from './interface/SettingsLanguage.svelte';
-    import { locale } from 'svelte-i18n';
+    import SettingsDarkMode from './interface/SettingsDarkMode.svelte';
+    import { locale, waitLocale } from 'svelte-i18n';
     import { browser } from '$app/environment';
+    import { get } from 'svelte/store';
+    import { themeMode } from '../../stores/theme';
 
     const dispatch = createEventDispatcher();
     
@@ -30,33 +33,70 @@ changes to the documentation (to keep the documentation up to date).
         shortCode: string;
     };
 
-    const supportedLanguages: Language[] = [
-        { code: 'en', name: 'English', shortCode: 'EN' },
-        { code: 'de', name: 'Deutsch', shortCode: 'DE' },
-        { code: 'es', name: 'Español', shortCode: 'ES' },
-        { code: 'fr', name: 'Français', shortCode: 'FR' },
-        { code: 'zh', name: '中文', shortCode: 'ZH' },
-        { code: 'ja', name: '日本語', shortCode: 'JA' }
-    ];
+    // Import supported languages from single source of truth
+    const supportedLanguages: Language[] = SUPPORTED_LANGUAGES;
 
-    let currentLanguage = 'en';
-    let currentLanguageObj = $derived(supportedLanguages.find(lang => lang.code === currentLanguage) || supportedLanguages[0]);
+    // Make currentLanguage reactive to the locale store from svelte-i18n
+    // This ensures it updates when language changes via SettingsLanguage component or ?lang= parameter
+    // $locale is the reactive way to access the locale store in Svelte 5
+    let currentLanguage = $derived($locale || 'en');
+    
+    // Find the current language object reactively based on the current locale
+    let currentLanguageObj = $derived(
+        supportedLanguages.find(lang => lang.code === currentLanguage) || supportedLanguages[0]
+    );
 
-    // Initialize current language
+    // Derive a human-readable label for the current dark mode mode.
+    // Shown as the subtitle on the Dark Mode settings row.
+    let currentDarkModeLabel = $derived((() => {
+        switch ($themeMode) {
+            case 'dark':  return $text('settings.interface.dark_mode.dark');
+            case 'light': return $text('settings.interface.dark_mode.light');
+            default:      return $text('settings.interface.dark_mode.auto');
+        }
+    })());
+
+    // Handle ?lang= URL parameter on mount
+    // This ensures the language is set correctly when the component loads with a URL parameter
     onMount(() => {
         if (browser) {
-            const savedLocale = localStorage.getItem('preferredLanguage');
-            if (savedLocale && supportedLanguages.some(lang => lang.code === savedLocale)) {
-                currentLanguage = savedLocale;
-            } else {
-                // Use browser language
-                const browserLang = navigator.language.split('-')[0];
-                if (supportedLanguages.some(lang => lang.code === browserLang)) {
-                    currentLanguage = browserLang;
-                } else {
-                    currentLanguage = 'en';
-                }
+            // Check for ?lang= URL parameter
+            const urlParams = new URLSearchParams(window.location.search);
+            const langParam = urlParams.get('lang');
+            
+            if (langParam && supportedLanguages.some(lang => lang.code === langParam)) {
+                // If URL parameter exists and is valid, set the locale
+                // This will automatically update currentLanguage via $derived
+                locale.set(langParam);
+                waitLocale().then(() => {
+                    // Store preference in localStorage (sole source of truth for language preference)
+                    localStorage.setItem('preferredLanguage', langParam);
+                    
+                    // Update HTML lang attribute
+                    document.documentElement.setAttribute('lang', langParam);
+                    
+                    console.debug('[SettingsInterface] Language set from URL parameter:', langParam);
+                });
             }
+            
+            // Also listen to global language-changed events as a backup
+            // This ensures we react to language changes even if the locale store doesn't update immediately
+            // Note: The $derived($locale) will automatically update, but we listen to events for debugging
+            const handleLanguageChangedEvent = () => {
+                // The $locale derived value will automatically update
+                // We can read the current locale for logging purposes
+                const currentLocale = get(locale);
+                console.debug('[SettingsInterface] Language changed event received, current locale:', currentLocale);
+            };
+            
+            window.addEventListener('language-changed', handleLanguageChangedEvent);
+            window.addEventListener('language-changed-complete', handleLanguageChangedEvent);
+            
+            // Cleanup event listeners on component destroy
+            return () => {
+                window.removeEventListener('language-changed', handleLanguageChangedEvent);
+                window.removeEventListener('language-changed-complete', handleLanguageChangedEvent);
+            };
         }
     });
 
@@ -72,8 +112,8 @@ changes to the documentation (to keep the documentation up to date).
             settingsPath: 'interface/language', 
             direction: 'forward',
             icon: 'language',
-            title: $text('settings.language.text'),
-            translationKey: 'settings.language'
+            title: $text('settings.interface.language'),
+            translationKey: 'settings.interface.language'
         });
         
         // Find settings content element and scroll to top
@@ -86,9 +126,39 @@ changes to the documentation (to keep the documentation up to date).
         }
     }
 
+    // Navigate to the dark mode sub-page
+    function showDarkModeSettings(event = null) {
+        if (event) event.stopPropagation();
+
+        currentView = 'dark_mode';
+        childComponent = SettingsDarkMode;
+
+        dispatch('openSettings', {
+            settingsPath: 'interface/dark_mode',
+            direction: 'forward',
+            icon: 'dark_mode',
+            title: $text('settings.interface.dark_mode'),
+            translationKey: 'settings.interface.dark_mode'
+        });
+
+        // Scroll the settings panel back to top
+        const settingsContent = document.querySelector('.settings-content-wrapper');
+        if (settingsContent) {
+            settingsContent.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        }
+    }
+
     // Handle language change event from SettingsLanguage component
+    // Note: We don't need to manually update currentLanguage here because it's now
+    // derived from the $locale store, which is automatically updated by SettingsLanguage
     function handleLanguageChanged(event) {
-        currentLanguage = event.detail.locale;
+        // The locale store has already been updated by SettingsLanguage component
+        // currentLanguage will automatically update via $derived($locale)
+        console.debug('[SettingsInterface] Language changed event received:', event.detail.locale);
+        
         // Go back to main view after selection
         currentView = 'main';
         childComponent = null;
@@ -96,19 +166,42 @@ changes to the documentation (to keep the documentation up to date).
         // Let parent Settings component know we want to go back to interface main view
         dispatch('navigateBack');
     }
+
+    // Handle dark mode change event from SettingsDarkMode component
+    function handleDarkModeChanged(event) {
+        console.debug('[SettingsInterface] Dark mode changed:', event.detail.mode);
+        currentView = 'main';
+        childComponent = null;
+        dispatch('navigateBack');
+    }
 </script>
 
 {#if currentView === 'main'}
+    <!-- Language row — navigates to SettingsLanguage sub-page -->
     <SettingsItem 
         type="subsubmenu"
-        icon="subsetting_icon subsetting_icon_language"
-        subtitle={$text('settings.language.text')}
+        icon="subsetting_icon language"
+        subtitle={$text('settings.interface.language')}
         title={currentLanguageObj.name}
         onClick={() => showLanguageSettings()}
+    />
+
+    <!-- Dark mode row — navigates to SettingsDarkMode sub-page -->
+    <SettingsItem
+        type="subsubmenu"
+        icon="subsetting_icon dark_mode"
+        subtitle={$text('settings.interface.dark_mode')}
+        title={currentDarkModeLabel}
+        onClick={() => showDarkModeSettings()}
     />
 {:else if currentView === 'language' && childComponent}
     {@const Component = childComponent}
     <Component 
         on:languageChanged={handleLanguageChanged} 
+    />
+{:else if currentView === 'dark_mode' && childComponent}
+    {@const Component = childComponent}
+    <Component
+        on:darkModeChanged={handleDarkModeChanged}
     />
 {/if}

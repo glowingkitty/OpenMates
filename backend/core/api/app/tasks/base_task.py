@@ -1,6 +1,6 @@
 import logging
 import os # Import os for environment variables
-from typing import Optional
+from typing import Optional, Dict, Any
 import asyncio # Keep asyncio import if initialize_services uses it
 
 from celery import Task # Import Task for context
@@ -11,6 +11,7 @@ from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.s3.service import S3UploadService
 from backend.core.api.app.services.pdf.invoice import InvoiceTemplateService
+from backend.core.api.app.services.pdf.credit_note import CreditNoteTemplateService
 from backend.core.api.app.services.email_template import EmailTemplateService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.services.translations import TranslationService
@@ -26,6 +27,7 @@ class BaseServiceTask(Task):
     _encryption_service: Optional[EncryptionService] = None
     _s3_service: Optional[S3UploadService] = None
     _invoice_template_service: Optional[InvoiceTemplateService] = None
+    _credit_note_template_service: Optional[CreditNoteTemplateService] = None
     _email_template_service: Optional[EmailTemplateService] = None
     _secrets_manager: Optional[SecretsManager] = None
     _translation_service: Optional[TranslationService] = None
@@ -94,6 +96,13 @@ class BaseServiceTask(Task):
         else:
              logger.debug(f"InvoiceTemplateService already initialized for task {self.request.id}")
 
+        if self._credit_note_template_service is None:
+            logger.debug(f"Initializing CreditNoteTemplateService for task {self.request.id}")
+            self._credit_note_template_service = CreditNoteTemplateService(secrets_manager=self._secrets_manager) # Pass SecretsManager
+            logger.debug(f"CreditNoteTemplateService initialized for task {self.request.id}")
+        else:
+             logger.debug(f"CreditNoteTemplateService already initialized for task {self.request.id}")
+
         if self._email_template_service is None:
             logger.debug(f"Initializing EmailTemplateService for task {self.request.id}")
             self._email_template_service = EmailTemplateService(secrets_manager=self._secrets_manager) # Pass SecretsManager
@@ -128,6 +137,31 @@ class BaseServiceTask(Task):
             logger.debug(f"PaymentService already initialized for task {self.request.id}")
 
 
+    async def publish_websocket_event(self, user_id_hash: str, event: str, payload: Dict[str, Any]):
+        """
+        Publish a WebSocket event to a user via Redis.
+        """
+        if self._cache_service is None:
+            await self.initialize_services()
+            
+        client = await self._cache_service.client
+        if client:
+            import json as json_lib
+            channel_key = f"websocket:user:{user_id_hash}"
+            event_payload = {
+                "event": event,
+                "type": event,
+                "event_for_client": event,
+                "payload": payload
+            }
+            await client.publish(channel_key, json_lib.dumps(event_payload))
+            logger.info(f"Published WebSocket event '{event}' to user '{user_id_hash[:8]}...'")
+            return True
+        else:
+            logger.warning(f"Redis client not available, cannot publish WebSocket event '{event}'")
+            return False
+
+
     @property
     def directus_service(self) -> DirectusService:
         if self._directus_service is None:
@@ -159,6 +193,14 @@ class BaseServiceTask(Task):
             logger.error(f"InvoiceTemplateService accessed before initialization in task {self.request.id}")
             raise RuntimeError("InvoiceTemplateService not initialized. Call initialize_services first.")
         return self._invoice_template_service
+
+    @property
+    def credit_note_template_service(self) -> CreditNoteTemplateService:
+        if self._credit_note_template_service is None:
+             # Log error before raising
+            logger.error(f"CreditNoteTemplateService accessed before initialization in task {self.request.id}")
+            raise RuntimeError("CreditNoteTemplateService not initialized. Call initialize_services first.")
+        return self._credit_note_template_service
 
     @property
     def email_template_service(self) -> EmailTemplateService:
@@ -205,3 +247,60 @@ class BaseServiceTask(Task):
             logger.error(f"PaymentService accessed before initialization in task {self.request.id}")
             raise RuntimeError("PaymentService not initialized. Call initialize_services first.")
         return self._payment_service
+    
+    async def cleanup_services(self):
+        """
+        Cleanup async resources before the event loop closes.
+        
+        CRITICAL: Call this method in a finally block before returning from async functions
+        that are executed with asyncio.run() (e.g., in Celery tasks). This ensures the httpx
+        client's cleanup tasks complete while the event loop is still running, preventing
+        "Event loop is closed" errors.
+        
+        Example usage:
+            async def _async_task(task: BaseServiceTask):
+                try:
+                    await task.initialize_services()
+                    # ... do work ...
+                finally:
+                    await task.cleanup_services()
+        """
+        # Close SecretsManager's httpx client
+        if self._secrets_manager is not None:
+            try:
+                await self._secrets_manager.aclose()
+                logger.debug(f"SecretsManager httpx client closed for task {self.request.id}")
+                # Reset the reference so future tasks reinitialize a fresh client.
+                # This prevents reuse of a closed httpx client across Celery tasks.
+                self._secrets_manager = None
+            except Exception as e:
+                # Log but don't raise - cleanup errors shouldn't break the task
+                logger.warning(f"Error closing SecretsManager in task {self.request.id}: {e}")
+        
+        # Close DirectusService's httpx client if it has one
+        if self._directus_service is not None and hasattr(self._directus_service, 'close'):
+            try:
+                await self._directus_service.close()
+                logger.debug(f"DirectusService httpx client closed for task {self.request.id}")
+                # Reset the reference so future tasks create a new client.
+                # The DirectusService wraps an AsyncClient which cannot be reused once closed.
+                self._directus_service = None
+            except Exception as e:
+                logger.warning(f"Error closing DirectusService in task {self.request.id}: {e}")
+        
+        # Close CacheService's Redis client
+        # CRITICAL: The async Redis client is bound to a specific event loop.
+        # If not closed before asyncio.run() finishes, subsequent tasks will fail with
+        # "Event loop is closed" errors because the cached client references a closed loop.
+        if self._cache_service is not None and hasattr(self._cache_service, 'close'):
+            try:
+                await self._cache_service.close()
+                logger.debug(f"CacheService Redis client closed for task {self.request.id}")
+                # Reset the reference so future tasks create a fresh client bound to their event loop
+                self._cache_service = None
+            except Exception as e:
+                logger.warning(f"Error closing CacheService in task {self.request.id}: {e}")
+        
+        # Also reset encryption service since it may hold a reference to the cache service
+        if self._encryption_service is not None:
+            self._encryption_service = None

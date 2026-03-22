@@ -3,14 +3,14 @@
     import { goto } from '$app/navigation';
     import { externalLinks, routes } from '../config/links';
     import { isPageVisible } from '../config/pages';
-    import { replaceOpenMates } from '../actions/replaceText';
-    import { waitLocale } from 'svelte-i18n';  // Remove t import
-    import { onMount, tick } from 'svelte';
+    import { waitLocale } from 'svelte-i18n';
+    import { onMount } from 'svelte';
     import { isMenuOpen } from '../stores/menuState';
     import { text } from '@repo/ui';
     import { isInSignupProcess, isLoggingOut } from '../stores/signupState'; // Import the signup state and logging out state
     import { panelState } from '../stores/panelStateStore'; // Import panel state store
-    import { isMobileView } from '../stores/uiStateStore'; // Import mobile view state
+    import { loginInterfaceOpen } from '../stores/uiStateStore'; // Import mobile view state and login interface visibility
+    import { authStore } from '../stores/authStore'; // Import auth store to check login status
 
     // Props using Svelte 5 runes
     let { 
@@ -20,38 +20,36 @@
         context?: 'website' | 'webapp';
         isLoggedIn?: boolean;
     } = $props();
+    
+    // Server edition state - will be fetched on mount
+    let serverEdition = $state<string | null>(null);
+    let serverEditionLabel = $derived(
+        serverEdition === 'self_hosted'
+            ? $text('header.self_hosting_edition')
+            : serverEdition === 'development'
+              ? $text('header.development_server')
+              : $text('signup.version_title')
+    );
 
     let headerDiv: HTMLElement;
-    
-    async function initializeContent() {
-        await waitLocale();
-        await tick();
-        if (headerDiv) {
-            replaceOpenMates(headerDiv);
-        }
-    }
-
-    onMount(() => {
-        initializeContent();
-    });
 
     // Simplify the websiteNavItems - remove isTranslationsReady check using Svelte 5 runes
     let websiteNavItems = $derived([
-        { href: routes.home, text: $text('navigation.for_all.text') },
-        { href: routes.developers, text: $text('navigation.for_developers.text') },
-        { href: routes.docs.main, text: $text('navigation.docs.text') }
+        { href: routes.home, text: $text('navigation.for_all') },
+        { href: routes.developers, text: $text('navigation.for_developers') },
+        { href: routes.docs.main, text: $text('navigation.docs') }
     ].filter(item => item.href && isPageVisible(item.href)));
 
-    interface NavItem {
+    interface _NavItem {
         href: string;
         text: string;
     }
 
     // Update the webAppNavItems based on login state using Svelte 5 runes
     let webAppNavItems = $derived(isLoggedIn ? [
-        // { href: '/app/chat', text: $t('navigation.chat.text') },
-        // { href: '/app/projects', text: $t('navigation.projects.text') },
-        // { href: '/app/workflows', text: $t('navigation.workflows.text') }
+        // { href: '/app/chat', text: $t('navigation.chat') },
+        // { href: '/app/projects', text: $t('navigation.projects') },
+        // { href: '/app/workflows', text: $t('navigation.workflows') }
     ] : []);
 
     // Define the type for social links
@@ -102,6 +100,36 @@
         await goto(path, { replaceState: false });
     }
 
+    /**
+     * Handle logo click - behavior depends on server edition:
+     * - If self_hosted or development: open GitHub repo in new tab
+     * - Otherwise: if toggle menu is visible, trigger it; otherwise navigate to home
+     */
+    const handleLogoClick = (event: MouseEvent) => {
+        // Check if this is a self-hosted or development server edition
+        if (serverEdition === 'self_hosted' || serverEdition === 'development') {
+            // Open GitHub repo in new tab
+            event.preventDefault();
+            window.open(externalLinks.github, '_blank', 'noopener,noreferrer');
+            return;
+        }
+
+        // For regular edition, check if toggle menu is visible
+        const isMenuButtonVisible = context === 'webapp' && 
+            !$isInSignupProcess && 
+            !$loginInterfaceOpen && 
+            !$panelState.isActivityHistoryOpen;
+
+        if (isMenuButtonVisible) {
+            // Trigger toggle menu
+            event.preventDefault();
+            panelState.toggleChats();
+        } else {
+            // Default behavior: navigate to home
+            handleClick(event, '/');
+        }
+    }
+
     // Add state for mobile menu using Svelte 5 runes
     let isMobileMenuOpen = $state(false);
     
@@ -118,23 +146,43 @@
     });
 
     // Add mobile breakpoint check
-    let isMobile = false;
+    let isMobile = $state(false);
 
     onMount(() => {
         const checkMobile = () => {
             isMobile = window.innerWidth < 730;
         };
-        
+
         checkMobile();
         window.addEventListener('resize', checkMobile);
         
+        // Fetch server status to display server edition (async, fire and forget)
+        (async () => {
+            try {
+                const { getApiEndpoint } = await import('../config/api');
+                const response = await fetch(getApiEndpoint('/v1/settings/server-status'));
+                if (response.ok) {
+                    const status = await response.json();
+                    // Use server_edition from request-based validation (includes "development" for dev subdomains)
+                    // server_edition can be: "production" | "development" | "self_hosted"
+                    serverEdition = status.server_edition || null;
+                    // server_edition detection logged for debugging: production | development | self_hosted
+                }
+            } catch (error) {
+                console.error('[Header] Error fetching server status:', error);
+            }
+        })();
+
         return () => {
             window.removeEventListener('resize', checkMobile);
         };
     });
 
+    // Derive button text based on viewport size
+    let loginButtonText = $derived(isMobile ? $text('signup.sign_up') : `${$text('login.login')} / ${$text('signup.sign_up')}`);
+
     // Update menu toggle logic to consider the logging out state as well
-    const toggleMenu = () => {
+    const _toggleMenu = () => {
         if (isLoggedIn && !$isInSignupProcess && !$isLoggingOut) {
             isMenuOpen.set(!$isMenuOpen);
         }
@@ -155,7 +203,7 @@
     });
 
     // Add custom transition function
-    function slideFade(node: HTMLElement, { 
+    function _slideFade(node: HTMLElement, { 
         duration = 200 
     }) {
         const width = node.offsetWidth; // Get the natural width
@@ -188,23 +236,48 @@
         <div class="container">
             <nav class:webapp={context === 'webapp'}>
                 <div class="left-section">
-                    <!-- {#if context === 'webapp' && isLoggedIn && !$isInSignupProcess && !$isLoggingOut && !$isMobileView && !$panelState.isActivityHistoryOpen} -->
-                    {#if context === 'webapp' && isLoggedIn && !$isInSignupProcess && !$panelState.isActivityHistoryOpen}
-                        <div transition:slideFade={{ duration: 200 }}>
-                            <button
-                                class="clickable-icon icon_menu"
-                                onclick={panelState.toggleChats}
-                                aria-label={$text('header.toggle_menu.text')}
-                            ></button>
-                        </div>
-                    {/if}
-                    <a
-                        href="/"
-                        class="logo-link"
-                        onclick={(e) => handleClick(e, '/')}
+                    <!-- Menu button container - always rendered to maintain header height -->
+                    <!-- Show menu button for both authenticated and non-authenticated users (to access demo chats) -->
+                    <!-- Hide menu button visually when login interface is open, during signup, or when chats panel is open -->
+                    <div 
+                        class="menu-button-container"
+                        class:hidden={context !== 'webapp' || $isInSignupProcess || $loginInterfaceOpen || $panelState.isActivityHistoryOpen}
                     >
-                        <strong><mark>Open</mark><span style="color: var(--color-grey-100);">Mates</span></strong>
-                    </a>
+                        <button
+                            class="clickable-icon icon_menu"
+                            onclick={panelState.toggleChats}
+                            aria-label={$text('header.toggle_menu')}
+                        ></button>
+                    </div>
+                    <div class="logo-container">
+                        <a
+                            href={serverEdition === 'self_hosted' || serverEdition === 'development' ? externalLinks.github : '/'}
+                            class="logo-link"
+                            onclick={handleLogoClick}
+                            target={serverEdition === 'self_hosted' || serverEdition === 'development' ? '_blank' : undefined}
+                            rel={serverEdition === 'self_hosted' || serverEdition === 'development' ? 'noopener noreferrer' : undefined}
+                        >
+                            <strong><mark>Open</mark><span style="color: var(--color-grey-100);">Mates</span></strong>
+                        </a>
+                        {#if serverEdition === 'self_hosted' || serverEdition === 'development'}
+                            <div
+                                class="server-edition"
+                                onclick={handleLogoClick}
+                                role="button"
+                                tabindex="0"
+                                onkeydown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        handleLogoClick(e as unknown as MouseEvent);
+                                    }
+                                }}
+                            >
+                                {serverEditionLabel}
+                            </div>
+                        {:else}
+                            <div class="server-edition">{serverEditionLabel}</div>
+                        {/if}
+                    </div>
                 </div>
                   
                 {#if showNavLinks && (context !== 'webapp' || isLoggedIn)}
@@ -213,7 +286,7 @@
                         <button 
                             class="mobile-menu-button" 
                             onclick={toggleMobileMenu}
-                            aria-label={$text('header.toggle_menu.text')}
+                            aria-label={$text('header.toggle_menu')}
                         >
                             <div class:open={isMobileMenuOpen} class="hamburger">
                                 <span></span>
@@ -254,6 +327,26 @@
                         {/if}
                     </div>
                 {/if}
+                
+                <!-- Login button for non-authenticated users in webapp context -->
+                <!-- Opens login interface which also provides signup option -->
+                <!-- Always render to maintain header height, but hide visually when not needed -->
+                <div
+                    class="right-section"
+                    class:hidden={context !== 'webapp' || $authStore.isAuthenticated || $loginInterfaceOpen}
+                >
+                    <button
+                        class="login-signup-button"
+                        onclick={(e) => {
+                            e.preventDefault();
+                            // Dispatch event to open login interface (which includes Login/Sign up tabs)
+                            window.dispatchEvent(new CustomEvent('openLoginInterface'));
+                        }}
+                        aria-label={loginButtonText}
+                    >
+                        {loginButtonText}
+                    </button>
+                </div>
             </nav>
         </div>
     {/await}
@@ -262,11 +355,13 @@
 <style>
     header {
         z-index: 1000;
-        padding: 20px;
+        padding: 20px 20px 10px;
         position: fixed;
         top: 0;
         left: 0;
         right: 0;
+        display: flex;
+        align-items: center;
     }
 
     /* Add website-specific gradient */
@@ -287,9 +382,10 @@
     nav {
         display: flex;
         justify-content: space-between;
-        align-items: center;
+        align-items: center; /* Keep items centered vertically */
         max-width: 1400px;
         margin: 0 auto;
+        position: relative; /* Enable absolute positioning for child elements */
     }
 
     /* Remove max-width constraint for webapp navigation */
@@ -301,6 +397,16 @@
         flex-shrink: 0;
     }
 
+    /* Container for logo and server edition text */
+    /* Logo container uses relative positioning to allow absolute positioning of server edition text */
+    /* Absolutely positioned text will not affect header height */
+    .logo-container {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
     .logo-link {
         font-size: 1.25rem;
         font-weight: 600;
@@ -322,6 +428,31 @@
         background-color: var(--color-primary);
         color: var(--color-grey-20);
         padding: 0 0.2rem;
+    }
+    
+    /* Server edition text displayed under the logo - absolutely positioned to not affect header height */
+    .server-edition {
+        position: absolute;
+        left: 0;
+        font-size: 0.75rem;
+        color: var(--color-grey-60);
+        font-weight: 400;
+        text-align: left;
+        line-height: 1.2;
+        cursor: pointer;
+        white-space: nowrap;
+        /* Add padding to make clickable area larger */
+        padding: 0.125rem 0;
+        left: 4px;
+        top: 24px;
+    }
+
+    /* RTL: pin the subtitle to the right edge of the logo container and
+       right-align the text so it mirrors the LTR layout. */
+    :global([dir="rtl"]) .server-edition {
+        left: auto;
+        right: 4px;
+        text-align: right;
     }
 
     .nav-links {
@@ -468,6 +599,39 @@
         transform: translateY(-50%);
     }
 
+    .left-section {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        transition: gap 0.2s ease; /* Smooth transition for gap when menu button is hidden */
+    }
+
+    /* When menu button is hidden, collapse the gap smoothly */
+    .left-section:has(.menu-button-container.hidden) {
+        gap: 0;
+    }
+
+    /* Menu button container - maintains header height when visible */
+    .menu-button-container {
+        display: flex;
+        align-items: center;
+        width: 25px; /* Match the button width */
+        height: 25px; /* Match the button height */
+        min-width: 25px; /* Prevent shrinking below button width when visible */
+        overflow: hidden; /* Clip button when width collapses */
+        transition: opacity 0.2s ease, visibility 0.2s ease, width 0.2s ease, min-width 0.2s ease;
+    }
+
+    /* Hide the menu button visually but keep it in layout flow to maintain header height */
+    /* Collapse width to 0 to allow logo to smoothly move left */
+    .menu-button-container.hidden {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none; /* Prevent interaction when hidden */
+        width: 0;
+        min-width: 0; /* Allow full collapse */
+    }
+
     @media (max-width: 600px) {
         .nav-links.webapp {
             display: flex;
@@ -477,12 +641,19 @@
             background: none;
             backdrop-filter: none;
         }
-    }
 
-    .left-section {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
+        /* Mobile-specific styles for left section and logo */
+        .left-section {
+            gap: 0.5rem;
+        }
+
+        .logo-link {
+            font-size: 0.9rem;
+        }
+
+        .server-edition {
+            top: 18px;
+        }
     }
 
     .menu-button {
@@ -506,5 +677,47 @@
 
     .profile-button:hover {
         background-color: var(--color-grey-20);
+    }
+
+    .right-section {
+        position: absolute;
+        right: 50px; /* Space for settings menu button */
+        top: 50%; /* Center vertically */
+        transform: translateY(-50%); /* Center vertically */
+        display: flex;
+        align-items: center;
+        gap: 0.75rem; /* Add gap between sign in button and language icon */
+        transition: opacity 0.2s ease, visibility 0.2s ease;
+        margin-right: 10px;
+        /* Absolutely positioned so it doesn't affect header height, but we keep it rendered for smooth transitions */
+    }
+
+    /* Hide the right section visually but keep it rendered to prevent layout shifts */
+    .right-section.hidden {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none; /* Prevent interaction when hidden */
+    }
+
+    .login-signup-button {
+        all: unset;
+        padding: 8px 12px;
+        border-radius: 8px;
+        background-color: var(--color-button-primary);
+        color: white;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .login-signup-button:hover {
+        transform: scale(1.02);
+    }
+
+    .login-signup-button:active {
+        background-color: var(--color-button-primary-pressed);
+        transform: scale(0.98);
+        box-shadow: none;
     }
 </style>

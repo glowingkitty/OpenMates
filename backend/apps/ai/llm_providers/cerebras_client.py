@@ -1,11 +1,15 @@
 # backend/apps/ai/llm_providers/cerebras_client.py
 # Low-level HTTP client for interacting with Cerebras Inference API.
 # Cerebras provides an OpenAI-compatible API for fast inference.
+#
+# Health Check:
+# - No dedicated /health endpoint available
+# - Health checks use test LLM requests (minimal: "1+2?" with system prompt "Answer short")
+# - Checked every 5 minutes via Celery Beat task
 
 import logging
 import json
 import httpx
-import asyncio
 from typing import Dict, Any, List, Optional, Union, AsyncIterator
 import time
 
@@ -14,7 +18,8 @@ from .openai_shared import (
     ParsedOpenAIToolCall,
     OpenAIUsageMetadata,
     RawOpenAIChatCompletionResponse,
-    _map_tools_to_openai_format
+    _map_tools_to_openai_format,
+    calculate_token_breakdown
 )
 
 logger = logging.getLogger(__name__)
@@ -86,18 +91,41 @@ async def invoke_cerebras_api(
         payload["top_p"] = top_p
     
     # Add tools if provided (OpenAI-compatible format)
+    # _map_tools_to_openai_format already sanitizes schemas (removes min/max for all providers)
     if tools:
         openai_tools = _map_tools_to_openai_format(tools)
         if openai_tools:
             payload["tools"] = openai_tools
             
+            # Log tool definitions for debugging (Cerebras requires specific format)
+            logger.info(f"{log_prefix} Adding {len(openai_tools)} tool(s) to request")
+            for idx, tool in enumerate(openai_tools):
+                tool_name = tool.get("function", {}).get("name", "unknown")
+                tool_desc = tool.get("function", {}).get("description", "")
+                tool_params = tool.get("function", {}).get("parameters", {})
+                logger.info(
+                    f"{log_prefix} Tool {idx + 1}: name='{tool_name}', "
+                    f"description_length={len(tool_desc)}, "
+                    f"parameters_type={tool_params.get('type', 'unknown')}, "
+                    f"parameters_properties_count={len(tool_params.get('properties', {}))}"
+                )
+                # Log full tool definition at debug level
+                logger.debug(f"{log_prefix} Tool {idx + 1} full definition: {json.dumps(tool, indent=2)}")
+            
             if tool_choice:
+                # Cerebras API expects literal strings: "none", "auto", or "required"
+                # OR a ChoiceObject with {"type": "function", "function": {"name": "function_name"}}
+                # For "required", use the string directly (simplest and most compatible)
                 if tool_choice == "required":
-                    payload["tool_choice"] = {"type": "function"}
+                    payload["tool_choice"] = "required"
                 elif tool_choice == "auto":
                     payload["tool_choice"] = "auto"
+                elif tool_choice == "none":
+                    payload["tool_choice"] = "none"
                 else:
+                    # For specific function selection, pass as-is (should be ChoiceObject format)
                     payload["tool_choice"] = tool_choice
+            logger.info(f"{log_prefix} Tool choice: {payload.get('tool_choice', 'not set')}")
     
     # Prepare headers with API key
     headers = DEFAULT_HEADERS.copy()
@@ -105,7 +133,24 @@ async def invoke_cerebras_api(
     
     # Log the request (excluding sensitive information)
     sanitized_payload = payload.copy()
-    logger.debug(f"{log_prefix} Request payload: {json.dumps(sanitized_payload)}")
+    # Remove sensitive data from logged payload
+    if "messages" in sanitized_payload:
+        # Log message count and roles, but not full content
+        messages_summary = [
+            {"role": msg.get("role"), "content_length": len(str(msg.get("content", "")))}
+            for msg in sanitized_payload["messages"]
+        ]
+        sanitized_payload["messages"] = messages_summary
+    
+    logger.info(
+        f"{log_prefix} Request payload: model={model_id}, messages_count={len(messages)}, "
+        f"stream={stream}, temperature={temperature}, tools_count={len(payload.get('tools', []))}"
+    )
+    # Log full payload structure at debug level (without sensitive content)
+    logger.debug(f"{log_prefix} Request payload structure: {json.dumps(sanitized_payload, indent=2)}")
+    # Log actual tools payload at info level for debugging Cerebras 400 errors
+    if "tools" in payload:
+        logger.info(f"{log_prefix} Tools payload being sent to Cerebras...")
     
     try:
         if stream:
@@ -179,10 +224,17 @@ async def _send_cerebras_request(
             
             # Extract usage information
             usage_data = response_data.get("usage", {})
+            
+            # Calculate token breakdown from input messages (estimate)
+            messages = payload.get("messages", [])
+            breakdown = calculate_token_breakdown(messages, model_id)
+            
             usage = OpenAIUsageMetadata(
                 input_tokens=usage_data.get("prompt_tokens", 0),
                 output_tokens=usage_data.get("completion_tokens", 0),
-                total_tokens=usage_data.get("total_tokens", 0)
+                total_tokens=usage_data.get("total_tokens", 0),
+                user_input_tokens=breakdown.get("user_input_tokens"),
+                system_prompt_tokens=breakdown.get("system_prompt_tokens")
             )
             
             # Handle tool calls if present
@@ -192,8 +244,8 @@ async def _send_cerebras_request(
                 for tc in message.get("tool_calls", []):
                     if tc.get("type") == "function":
                         function_data = tc.get("function", {})
-                        function_name = function_data.get("name", "")
-                        arguments_raw = function_data.get("arguments", "{}")
+                        function_name = function_data.get("name") or ""
+                        arguments_raw = function_data.get("arguments") or "{}"
                         
                         # Parse the function arguments
                         parsed_args = {}
@@ -303,9 +355,48 @@ async def _stream_cerebras_response(
                 headers=headers,
                 timeout=DEFAULT_TIMEOUT
             ) as response:
-                # Check for HTTP errors
-                response.raise_for_status()
+                # Check for HTTP errors before reading stream
+                # If there's an error, we need to read the response body first
+                if response.status_code >= 400:
+                    # Read error response body - for error responses, read as bytes first
+                    error_body = b""
+                    try:
+                        # Read the entire response body for error responses
+                        async for chunk in response.aiter_bytes():
+                            error_body += chunk
+                            if len(error_body) > 10000:  # Limit error body size
+                                break
+                    except Exception as e:
+                        logger.warning(f"{log_prefix} Error reading error response body: {e}")
+                    
+                    # Try to parse error JSON
+                    error_msg = f"HTTP {response.status_code}"
+                    error_text = ""
+                    try:
+                        error_text = error_body.decode('utf-8', errors='ignore').strip()
+                        if error_text:
+                            try:
+                                error_detail = json.loads(error_text)
+                                error_msg = error_detail.get('error', {}).get('message', error_detail.get('message', error_msg))
+                            except json.JSONDecodeError:
+                                error_msg = f"HTTP {response.status_code}: provider returned non-JSON error body"
+                    except UnicodeDecodeError:
+                        error_msg = f"HTTP {response.status_code}: provider returned non-UTF8 error body"
+                    
+                    # Log the full error details including the payload that caused it
+                    logger.error(f"{log_prefix} Cerebras API error: {error_msg}")
+                    error_text_len = len(error_text) if isinstance(error_text, str) else len(error_body)
+                    logger.error(f"{log_prefix} Error response metadata: body_length={error_text_len}")
+                    logger.debug(
+                        f"{log_prefix} Request payload summary on error: "
+                        f"model={payload.get('model')}, "
+                        f"messages_count={len(payload.get('messages', [])) if isinstance(payload.get('messages'), list) else 0}, "
+                        f"tools_count={len(payload.get('tools', [])) if isinstance(payload.get('tools'), list) else 0}, "
+                        f"stream={payload.get('stream')}"
+                    )
+                    raise ValueError(f"HTTP error {response.status_code}: {error_msg}")
                 
+                # Stream successful response
                 async for line in response.aiter_lines():
                     # Skip empty lines
                     if not line.strip():
@@ -341,12 +432,10 @@ async def _stream_cerebras_response(
                         if "content" in delta and delta["content"]:
                             yield delta["content"]
                         
-                        # Handle tool calls
+                        # Handle tool calls - accumulate them in the buffer
                         if "tool_calls" in delta:
                             for tc_delta in delta["tool_calls"]:
                                 tc_id = tc_delta.get("id", "")
-                                tc_index = tc_delta.get("index", 0)
-                                
                                 # Initialize or update the tool call in the buffer
                                 if tc_id not in tool_calls_buffer:
                                     tool_calls_buffer[tc_id] = {
@@ -355,68 +444,100 @@ async def _stream_cerebras_response(
                                         "function": {"name": "", "arguments": ""}
                                     }
                                 
-                                # Update function name if present
-                                if "function" in tc_delta and "name" in tc_delta["function"]:
+                                # Update function name if present (guard against None)
+                                if "function" in tc_delta and "name" in tc_delta["function"] and tc_delta["function"]["name"]:
                                     tool_calls_buffer[tc_id]["function"]["name"] = tc_delta["function"]["name"]
                                 
-                                # Update function arguments if present
-                                if "function" in tc_delta and "arguments" in tc_delta["function"]:
+                                # Update function arguments if present (accumulate across chunks, guard against None)
+                                if "function" in tc_delta and "arguments" in tc_delta["function"] and tc_delta["function"]["arguments"]:
                                     tool_calls_buffer[tc_id]["function"]["arguments"] += tc_delta["function"]["arguments"]
+                        
+                        # Check for finish_reason and yield accumulated tool calls
+                        # finish_reason is typically set on the final chunk, which may not have tool_calls in delta
+                        finish_reason = choice.get("finish_reason")
+                        if finish_reason == "tool_calls" and tool_calls_buffer:
+                            # Yield all accumulated tool calls when finish_reason indicates tool_calls
+                            for tc_id, tc in tool_calls_buffer.items():
+                                function_name = tc["function"]["name"] or ""
+                                arguments_raw = tc["function"]["arguments"] or ""
                                 
-                                # If this is the last chunk for this tool call, yield it
-                                if choice.get("finish_reason") == "tool_calls":
-                                    tc = tool_calls_buffer[tc_id]
-                                    function_name = tc["function"]["name"]
-                                    arguments_raw = tc["function"]["arguments"]
-                                    
-                                    # Parse the function arguments
-                                    parsed_args = {}
-                                    parsing_error = None
-                                    try:
-                                        parsed_args = json.loads(arguments_raw)
-                                    except json.JSONDecodeError as e:
-                                        parsing_error = f"Failed to parse function arguments: {str(e)}"
-                                        logger.error(f"{log_prefix} {parsing_error}")
-                                    
-                                    yield ParsedOpenAIToolCall(
-                                        tool_call_id=tc_id,
-                                        function_name=function_name,
-                                        function_arguments_raw=arguments_raw,
-                                        function_arguments_parsed=parsed_args,
-                                        parsing_error=parsing_error
-                                    )
+                                # Parse the function arguments
+                                parsed_args = {}
+                                parsing_error = None
+                                try:
+                                    parsed_args = json.loads(arguments_raw)
+                                except json.JSONDecodeError as e:
+                                    parsing_error = f"Failed to parse function arguments: {str(e)}"
+                                    logger.error(f"{log_prefix} {parsing_error}")
+                                
+                                yield ParsedOpenAIToolCall(
+                                    tool_call_id=tc_id,
+                                    function_name=function_name,
+                                    function_arguments_raw=arguments_raw,
+                                    function_arguments_parsed=parsed_args,
+                                    parsing_error=parsing_error
+                                )
+                            
+                            # Clear the buffer after yielding
+                            tool_calls_buffer.clear()
                         
                         # Update usage if present
                         if "usage" in chunk:
-                            usage = chunk["usage"]
-                            cumulative_usage["input_tokens"] = usage.get("prompt_tokens", cumulative_usage["input_tokens"])
-                            cumulative_usage["output_tokens"] = usage.get("completion_tokens", cumulative_usage["output_tokens"])
-                            cumulative_usage["total_tokens"] = usage.get("total_tokens", cumulative_usage["total_tokens"])
+                            usage_chunk = chunk["usage"]
+                            cumulative_usage["input_tokens"] = usage_chunk.get("prompt_tokens", cumulative_usage["input_tokens"])
+                            cumulative_usage["output_tokens"] = usage_chunk.get("completion_tokens", cumulative_usage["output_tokens"])
+                            cumulative_usage["total_tokens"] = usage_chunk.get("total_tokens", cumulative_usage["total_tokens"])
+                            
+                            # Calculate token breakdown from input messages (estimate)
+                            messages = payload.get("messages", [])
+                            breakdown = calculate_token_breakdown(messages, model_id)
+                            cumulative_usage["user_input_tokens"] = breakdown.get("user_input_tokens")
+                            cumulative_usage["system_prompt_tokens"] = breakdown.get("system_prompt_tokens")
                     
                     except json.JSONDecodeError as e:
-                        # Log with more context to help debug actual parsing issues
-                        logger.warning(f"{log_prefix} Failed to parse SSE chunk as JSON: {str(e)}. Line content: {line[:100]}...")
+                        logger.warning(
+                            f"{log_prefix} Failed to parse SSE chunk as JSON: {str(e)} "
+                            f"(line_length={len(line)})"
+                        )
                         continue
                 
                 # Yield final usage information
                 yield OpenAIUsageMetadata(
                     input_tokens=cumulative_usage["input_tokens"],
                     output_tokens=cumulative_usage["output_tokens"],
-                    total_tokens=cumulative_usage["total_tokens"]
+                    total_tokens=cumulative_usage["total_tokens"],
+                    user_input_tokens=cumulative_usage.get("user_input_tokens"),
+                    system_prompt_tokens=cumulative_usage.get("system_prompt_tokens")
                 )
                 
                 logger.info(f"{log_prefix} Stream completed")
                 
     except httpx.HTTPStatusError as e:
-        error_msg = f"HTTP error {e.response.status_code}: {e.response.text}"
-        logger.error(f"{log_prefix} {error_msg}")
-        yield f"[ERROR: {error_msg}]"
+        # This should not happen since we check status before reading stream
+        # But handle it gracefully if it does
+        error_msg = f"HTTP {e.response.status_code}"
+        try:
+            # Try to read error response (non-streaming responses can use .text)
+            if hasattr(e.response, 'text'):
+                error_text = e.response.text
+                try:
+                    error_detail = json.loads(error_text)
+                    error_msg = error_detail.get('error', {}).get('message', error_msg)
+                except json.JSONDecodeError:
+                    error_msg = f"HTTP {e.response.status_code}: {error_text[:200]}"
+        except Exception as read_error:
+            logger.warning(f"{log_prefix} Could not read error response body: {read_error}")
+        
+        logger.error(f"{log_prefix} Cerebras API error: {error_msg}")
+        # Raise ValueError so the fallback logic can catch it and try the next server
+        raise ValueError(f"HTTP error {e.response.status_code}: {error_msg}")
     except httpx.RequestError as e:
         error_msg = f"Request error: {str(e)}"
         logger.error(f"{log_prefix} {error_msg}")
-        yield f"[ERROR: {error_msg}]"
+        # Raise ValueError so the fallback logic can catch it
+        raise ValueError(error_msg)
     except Exception as e:
         error_msg = f"Unexpected error: {str(e)}"
         logger.error(f"{log_prefix} {error_msg}", exc_info=True)
-        yield f"[ERROR: {error_msg}]"
-
+        # Raise ValueError so the fallback logic can catch it
+        raise ValueError(error_msg)

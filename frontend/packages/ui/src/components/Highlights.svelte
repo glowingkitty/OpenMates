@@ -34,22 +34,22 @@
     {#if target === 'for_all'}
         <Highlight
             sub_heading="Ask"
-            main_heading={`<mark>${$_('highlight.sections.ask.main_heading_1.text')}</mark><br>${$_('highlight.sections.ask.main_heading_2.text')}`}
-            paragraph={$_('highlight.sections.ask.paragraph.text')}
+            main_heading={`<mark>${$_('highlight.sections.ask.main_heading_1')}</mark><br>${$_('highlight.sections.ask.main_heading_2')}`}
+            paragraph={$_('highlight.sections.ask.paragraph')}
             text_side="left"
             {target}
         />
         <Highlight
             sub_heading="Tasks"
-            main_heading={`${$_('highlight.sections.tasks.main_heading_1.text')}<br><mark>${$_('highlight.sections.tasks.main_heading_2.text')}</mark>`}
-            paragraph={$_('highlight.sections.tasks.paragraph.text')}
+            main_heading={`${$_('highlight.sections.tasks.main_heading_1')}<br><mark>${$_('highlight.sections.tasks.main_heading_2')}</mark>`}
+            paragraph={$_('highlight.sections.tasks.paragraph')}
             text_side="right"
             {target}
         />
         <Highlight
             sub_heading="Apps"
-            main_heading={`<mark>${$_('highlight.sections.apps.main_heading_1.text')}</mark><br>${$_('highlight.sections.apps.main_heading_2.text')}`}
-            paragraph={$_('highlight.sections.apps.paragraph.text')}
+            main_heading={`<mark>${$_('highlight.sections.apps.main_heading_1')}</mark><br>${$_('highlight.sections.apps.main_heading_2')}`}
+            paragraph={$_('highlight.sections.apps.paragraph')}
             text_side="left"
             {target}
         />
@@ -58,22 +58,22 @@
     {#if target === 'for_developers'}
         <Highlight
             sub_heading="Ask"
-            main_heading={`<mark>${$_('highlight.sections.ask.main_heading.text')}</mark>`}
-            paragraph={$_('highlight.sections.ask.paragraph.text')}
+            main_heading={`<mark>${$_('highlight.sections.ask.main_heading')}</mark>`}
+            paragraph={$_('highlight.sections.ask.paragraph')}
             text_side="left"
             target="for_developers"
         />
         <Highlight
             sub_heading="Tasks"
-            main_heading={`<mark>${$_('highlight.sections.tasks.main_heading.text')}</mark>`}
-            paragraph={$_('highlight.sections.tasks.paragraph.text')}
+            main_heading={`<mark>${$_('highlight.sections.tasks.main_heading')}</mark>`}
+            paragraph={$_('highlight.sections.tasks.paragraph')}
             text_side="right"
             target="for_developers"
         />
         <Highlight
             sub_heading="Apps"
-            main_heading={`<mark>${$_('highlight.sections.apps.main_heading.text')}</mark>`}
-            paragraph={$_('highlight.sections.apps.paragraph.text')}
+            main_heading={`<mark>${$_('highlight.sections.apps.main_heading')}</mark>`}
+            paragraph={$_('highlight.sections.apps.paragraph')}
             text_side="left"
             target="for_developers"
         />

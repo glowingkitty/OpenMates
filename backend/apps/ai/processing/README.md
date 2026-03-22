@@ -6,8 +6,9 @@ This directory contains modules responsible for the core logic of processing AI 
 
 -   **[`preprocessor.py`](backend/apps/ai/processing/preprocessor.py):** Handles the initial preprocessing stage of an AI skill request. This includes:
     -   Loading and applying safety instructions.
-    -   Interacting with a cost-effective LLM to analyze the request (e.g., for harmful content, category, complexity, memory loading needs).
+    -   Interacting with a cost-effective LLM to analyze the request (e.g., for harmful content, category, complexity, memory loading needs, and embedded preview requirements).
     -   Performing initial checks like credit availability.
+    -   Identifying relevant embedded preview types (code, math, music, etc.) needed for response formatting.
 -   **[`main_processor.py`](backend/apps/ai/processing/main_processor.py):** Handles the main processing stage after preprocessing. This includes:
     -   Loading any required application-specific user memories.
     -   Assembling the full system prompt for the main LLM (incorporating base ethics, Mate defaults, focus prompts, etc.).

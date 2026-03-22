@@ -19,7 +19,23 @@
     } = $props();
 
     // Common click handler for all previews
-    function handleClick(e: MouseEvent) {
+    function handleClick(_e: MouseEvent) {
+        document.dispatchEvent(new CustomEvent('embedclick', { 
+            bubbles: true, 
+            detail: { 
+                id,
+                elementId: `embed-${id}`
+            }
+        }));
+    }
+
+    // Right-click handler: opens the PressAndHoldMenu in the compose editor.
+    // Dispatches the same 'embedclick' event so the existing menu flow in
+    // MessageInput.handleEmbedClick() can position and show PressAndHoldMenu.
+    // We prevent the native browser context menu since our custom menu is more useful.
+    function handleContextMenu(e: MouseEvent) {
+        e.preventDefault();
+        e.stopPropagation();
         document.dispatchEvent(new CustomEvent('embedclick', { 
             bubbles: true, 
             detail: { 
@@ -57,6 +73,7 @@
     style="height: {height}"
     {...dataAttributes}
     onclick={handleClick}
+    oncontextmenu={handleContextMenu}
     onkeydown={handleKeydown}
 >
     <!-- Icon slot for the rounded icon -->

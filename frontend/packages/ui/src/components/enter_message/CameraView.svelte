@@ -11,8 +11,10 @@
     // Props using Svelte 5 $props()
     interface Props {
         videoElement?: HTMLVideoElement;
+        /** Whether the parent message field is currently in fullscreen mode. */
+        isFullscreen?: boolean;
     }
-    let { videoElement = $bindable() }: Props = $props();
+    let { videoElement = $bindable(), isFullscreen = false }: Props = $props();
     let isRecording = $state(false);
     let stream: MediaStream | null = null;
     let mediaRecorder: MediaRecorder | null = null;
@@ -24,8 +26,8 @@
 
     // Logger using console.debug for debugging.
     const logger = {
-        debug: (...args: any[]) => console.debug('[CameraView]', ...args),
-        info: (...args: any[]) => console.info('[CameraView]', ...args)
+        debug: (...args: unknown[]) => console.debug('[CameraView]', ...args),
+        info: (...args: unknown[]) => console.info('[CameraView]', ...args)
     };
 
     // Reference to the fallback file input element.
@@ -63,6 +65,10 @@
         stopCamera();
         stopRecordingTimer();
     });
+
+    function toggleFullscreen() {
+        dispatch('toggleFullscreen');
+    }
 
     function initiateClose() {
         if (isMobile) {
@@ -208,38 +214,57 @@
         }
     }
 
-    function handleFallbackChange(event: Event) {
-        const target = event.target as HTMLInputElement;
-        if (target.files && target.files.length > 0) {
-            const file = target.files[0];
-            console.debug('[CameraView] Fallback media captured:', file);
-            // Process the captured file as needed.
-        }
-    }
-
     /**
-     * Triggered by the main camera button click.
-     * Now, it directly opens the hidden fallback input (with 'capture' attribute) on mobile.
+     * Handles file selection from the iOS/Android native camera input.
+     * Dispatches 'photocaptured' with a blob so MessageInput can create an image embed,
+     * matching the same flow as the file picker upload path.
      */
-    function onCameraButtonClick() {
-        if (fallbackInput) {
-            fallbackInput.value = "";
-            console.debug('[CameraView] Opening fallback file input');
-            fallbackInput.click();
-        } else {
-            console.error('[CameraView] Fallback file input is not available.');
+    async function handleFallbackChange(event: Event) {
+        const target = event.target as HTMLInputElement;
+        if (!target.files || target.files.length === 0) return;
+
+        const file = target.files[0];
+        console.debug('[CameraView] Native camera file captured:', { name: file.name, type: file.type, size: file.size });
+
+        try {
+            if (file.type.startsWith('video/')) {
+                // Dispatch as a video recorded event so MessageInput can insert a video embed
+                dispatch('videorecorded', { blob: file, duration: '0:00' });
+            } else {
+                // Image — resize for preview and dispatch photocaptured
+                const { previewBlob, previewUrl } = await resizeImage(file);
+                dispatch('photocaptured', {
+                    blob: file,          // Original for uploading
+                    previewBlob,         // Smaller version for preview display
+                    previewUrl           // Object URL for immediate display
+                });
+            }
+        } catch (error) {
+            console.error('[CameraView] Error processing captured media file:', error);
+            // Fallback: dispatch with original file as both blob and previewBlob
+            if (file.type.startsWith('video/')) {
+                dispatch('videorecorded', { blob: file, duration: '0:00' });
+            } else {
+                dispatch('photocaptured', { blob: file, previewBlob: file, previewUrl: URL.createObjectURL(file) });
+            }
         }
+
+        // Reset so the same file can be re-captured if needed
+        target.value = '';
+        dispatch('close');
     }
 </script>
 
 {#if isMobile}
-    <!-- For mobile devices, no extra "Open Camera" button is needed.
-         The camera is triggered directly from MessageInput.svelte. -->
+    <!-- Mobile: hidden file input with camera capture attribute.
+         capture="environment" opens the rear camera (most useful for photos/docs).
+         The camera is triggered from MessageInput.svelte via cameraInput.click(),
+         but this component provides the same fallback for when CameraView is shown directly. -->
     <input
         bind:this={fallbackInput}
         type="file"
         accept="image/*,video/*"
-        capture="user"
+        capture="environment"
         onchange={handleFallbackChange}
         style="display: none;"
     />
@@ -247,6 +272,13 @@
     <!-- For non-mobile devices, render the custom camera overlay -->
     {#if showOverlay}
         <div class="camera-overlay" transition:slide={{ duration: 300, axis: 'y' }} onoutroend={onOutroEnd}>
+            <!-- Maximize / minimize button — top-right corner -->
+            <button
+                class="overlay-fullscreen-btn clickable-icon {isFullscreen ? 'icon_minimize' : 'icon_fullscreen'}"
+                onclick={toggleFullscreen}
+                aria-label={isFullscreen ? $text('enter_message.fullscreen.exit_fullscreen') : $text('enter_message.fullscreen.enter_fullscreen')}
+                use:tooltip
+            ></button>
             <video
                 bind:this={videoElement}
                 autoplay
@@ -261,7 +293,7 @@
                     <button 
                         class="clickable-icon icon_close" 
                         onclick={stopCamera}
-                        aria-label={$text('cameraview.close.text')}
+                        aria-label={$text('cameraview.close')}
                         use:tooltip
                     ></button>
                     {#if isRecording}
@@ -274,7 +306,7 @@
                             class="control-button video-button"
                             class:recording={isRecording}
                             onclick={toggleRecording}
-                            aria-label={isRecording ? $text('cameraview.stoprecording.text') : $text('cameraview.startrecording.text')}
+                            aria-label={isRecording ? $text('cameraview.stoprecording') : $text('cameraview.startrecording')}
                             use:tooltip
                         >
                             <div class="video-button-inner"></div>
@@ -285,7 +317,7 @@
                             onclick={capturePhoto}
                             disabled={isRecording}
                             class:disabled={isRecording}
-                            aria-label={$text('cameraview.takephoto.text')}
+                            aria-label={$text('cameraview.takephoto')}
                             use:tooltip
                         >
                             <div class="photo-button-inner"></div>
@@ -299,17 +331,43 @@
 
 <style>
     .camera-overlay {
+        /* Fill the .message-field container edge-to-edge, matching the MapsView overlay.
+           The message-field grows to 400px when showCamera is true (see MessageInput.svelte
+           containerStyle / showCamera logic), so this overlay will be exactly 400px tall. */
         position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        height: 400px;
+        inset: 0;
         background: #000;
         z-index: 1000;
         display: flex;
         flex-direction: column;
         border-radius: 24px;
         overflow: hidden;
+    }
+
+    /* Maximize/minimize button — top-right corner. Overrides buttons.css global button styles. */
+    .overlay-fullscreen-btn {
+        position: absolute;
+        top: 10px;
+        right: 12px;
+        z-index: 10;
+        min-width: unset !important;
+        width: 32px !important;
+        height: 32px !important;
+        padding: 4px !important;
+        border-radius: 8px !important;
+        background: rgba(0, 0, 0, 0.5) !important;
+        border: none !important;
+        opacity: 0.8;
+        transition: opacity 0.2s ease-in-out;
+        cursor: pointer;
+        margin-right: 0 !important;
+        filter: none !important;
+    }
+
+    .overlay-fullscreen-btn:hover {
+        opacity: 1 !important;
+        scale: unset !important;
+        background: rgba(0, 0, 0, 0.75) !important;
     }
 
     .camera-preview {

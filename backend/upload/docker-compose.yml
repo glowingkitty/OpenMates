@@ -1,0 +1,290 @@
+# backend/upload/docker-compose.yml
+#
+# Docker Compose for the OpenMates Upload Server (dedicated VM).
+# Runs the upload microservice, ClamAV, and a local Vault.
+#
+# USAGE (on the upload VM):
+#   cd ~/projects/OpenMates
+#   docker compose -f backend/upload/docker-compose.yml up -d
+#
+# SECURITY ARCHITECTURE:
+#   The uploads service runs on a SEPARATE VM with zero access to the main
+#   Vault, Directus, or any user data. A local Vault (production mode, file
+#   storage) stores ONLY S3 and SightEngine credentials. All Directus queries
+#   and Vault Transit key wrapping are proxied through the core API's internal
+#   endpoints (/internal/uploads/*), secured by INTERNAL_API_SHARED_TOKEN.
+#
+#   If this VM is compromised, the attacker gets:
+#     - S3 write credentials (can upload junk, cannot read existing files)
+#     - SightEngine API keys (benign — image classification only)
+#   They CANNOT:
+#     - Decrypt any existing files (no Transit decrypt access)
+#     - Access user data (no Directus access)
+#     - Reach the main Vault
+#
+# ENVIRONMENT VARIABLES (define in backend/upload/.env):
+#   PROD_CORE_API_URL                  — Private IP URL of the prod core API
+#   PROD_INTERNAL_API_SHARED_TOKEN     — Shared secret matching the prod API server
+#   DEV_CORE_API_URL                   — Private IP URL of the dev core API
+#   DEV_INTERNAL_API_SHARED_TOKEN      — Shared secret matching the dev API server
+#   SECRET__HETZNER__S3_ACCESS_KEY     — S3 access key (migrated into local Vault)
+#   SECRET__HETZNER__S3_SECRET_KEY     — S3 secret key
+#   SECRET__HETZNER__S3_REGION_NAME    — S3 region (e.g. nbg1)
+#   SECRET__SIGHTENGINE__API_USER      — SightEngine API user (optional)
+#   SECRET__SIGHTENGINE__API_SECRET    — SightEngine API secret
+#   SERVER_ENVIRONMENT                 — "production"
+#   LOG_LEVEL                          — "info" | "debug" | "warning"
+
+name: openmates-uploads
+
+services:
+  # ---------------------------------------------------------------------------
+  # Local Vault (production mode — file storage, persistent across restarts)
+  # ---------------------------------------------------------------------------
+  # This Vault instance stores ONLY S3 and SightEngine credentials.
+  # It has NO Transit engine, NO user keys, NO connection to the main Vault.
+  # Production mode = file storage at /vault/file on a named Docker volume.
+  # vault-setup initializes + unseals on first run, then auto-unseals on restart.
+  vault:
+    container_name: uploads-vault
+    image: hashicorp/vault:1.19
+    restart: unless-stopped
+    cap_add:
+      - IPC_LOCK
+    environment:
+      VAULT_LOG_LEVEL: "info"
+    volumes:
+      # Vault config (vault.hcl — file storage, TLS disabled)
+      - ./vault/config:/vault/config:ro
+      # Persistent file storage — Vault data survives container restarts
+      - vault-data:/vault/file
+    command: ["vault", "server", "-config=/vault/config/vault.hcl"]
+    networks:
+      - uploads
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "8200"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # ---------------------------------------------------------------------------
+  # Vault Setup (init container — initializes, unseals, and populates Vault)
+  # ---------------------------------------------------------------------------
+  # On first boot: initializes Vault, saves unseal key + root token to
+  # vault-setup-data volume, enables KV v2, creates policy + scoped API token.
+  # On subsequent restarts: loads saved root token, auto-unseals, reuses
+  # existing API token (or creates a new one if expired).
+  # Migrates SECRET__* env vars into Vault KV on first run (idempotent).
+  vault-setup:
+    container_name: uploads-vault-setup
+    build:
+      # Build context is project root so Dockerfile can COPY backend/
+      context: ../../
+      dockerfile: backend/upload/vault/Dockerfile
+    env_file: .env
+    environment:
+      VAULT_ADDR: "http://vault:8200"
+      VAULT_AUTO_UNSEAL: "true"
+    volumes:
+      # Persistent volume for unseal key, root token, and scoped API token.
+      # vault-setup writes here; app-uploads reads api.token from here (read-only).
+      - vault-setup-data:/app/data
+    networks:
+      - uploads
+    depends_on:
+      vault:
+        condition: service_healthy
+    restart: "on-failure"
+    deploy:
+      restart_policy:
+        condition: on-failure
+        max_attempts: 5
+
+  # ---------------------------------------------------------------------------
+  # File Uploads Microservice
+  # ---------------------------------------------------------------------------
+  # Handles user file uploads: malware scanning, AI detection, preview generation,
+  # and encrypted S3 storage.
+  #
+  # Security: this container intentionally has NO Docker socket access.
+  # Admin operations (logs, update) are handled by the admin-sidecar container.
+  # This limits the blast radius if a malicious upload ever escapes the container.
+  app-uploads:
+    container_name: app-uploads
+    build:
+      # Build context is the project root so the Dockerfile can COPY backend/
+      context: ../../
+      dockerfile: backend/upload/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      # Expose on localhost only — Caddy on this VM proxies to this port.
+      - "127.0.0.1:8000:8000"
+    environment:
+      PYTHONPATH: "/app"
+      UPLOADS_APP_INTERNAL_PORT: "8000"
+      # Core API credentials — two pairs, one per environment.
+      # Caddy injects X-Target-Env ("dev" or "prod") based on the request's
+      # Origin header, and the upload service picks the right pair for each
+      # request. See backend/upload/routes/upload_route.py.
+      PROD_CORE_API_URL: "${PROD_CORE_API_URL}"
+      PROD_INTERNAL_API_SHARED_TOKEN: "${PROD_INTERNAL_API_SHARED_TOKEN}"
+      DEV_CORE_API_URL: "${DEV_CORE_API_URL}"
+      DEV_INTERNAL_API_SHARED_TOKEN: "${DEV_INTERNAL_API_SHARED_TOKEN}"
+      # Local Vault — for S3 and SightEngine credentials ONLY.
+      # This is NOT the main Vault. It runs as a sidecar in this compose stack.
+      VAULT_URL: "http://vault:8200"
+      # ClamAV — always runs as a sidecar in the same compose stack
+      CLAMAV_HOST: "clamav"
+      CLAMAV_PORT: "3310"
+      SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT:-production}"
+      LOG_LEVEL: "${LOG_LEVEL:-info}"
+    volumes:
+      # Vault API token written by vault-setup init container (read-only)
+      - vault-setup-data:/vault-data:ro
+      # NO Docker socket mount here — the admin-sidecar handles that
+    networks:
+      - uploads
+    depends_on:
+      clamav:
+        condition: service_healthy
+      vault-setup:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s # Extra time to wait for ClamAV startup
+
+  # ---------------------------------------------------------------------------
+  # Admin Sidecar
+  # ---------------------------------------------------------------------------
+  # Tiny isolated container that holds the Docker socket and ADMIN_LOG_API_KEY.
+  # Exposes only /admin/logs (GET) and /admin/update (POST).
+  # The main 'app-uploads' container has NO Docker socket — this is intentional.
+  #
+  # Security rationale: app-uploads processes user-controlled file uploads.
+  # Isolating Docker socket access into a dedicated container limits the blast
+  # radius if a malicious upload ever escapes the container sandbox.
+  #
+  # Caddy on this VM should route /admin/* to admin-sidecar:8001.
+  # Do NOT expose port 8001 to the public internet — let Caddy handle routing.
+  admin-sidecar:
+    container_name: uploads-admin-sidecar
+    build:
+      # Build context is project root so Dockerfile can COPY backend/admin_sidecar/
+      context: ../../
+      dockerfile: backend/admin_sidecar/Dockerfile
+    restart: unless-stopped
+    environment:
+      # Admin authentication — same key as SECRET__UPLOAD_SERVER__ADMIN_LOG_API_KEY
+      # on the core server (set in .env on this VM).
+      ADMIN_LOG_API_KEY: "${ADMIN_LOG_API_KEY:-}"
+
+      # Docker Compose project to query and manage
+      COMPOSE_PROJECT: "openmates-uploads"
+
+      # Path to the compose file (relative to GIT_WORK_DIR)
+      COMPOSE_FILE: "backend/upload/docker-compose.yml"
+
+      # Which services are queryable via /admin/logs
+      # Includes admin-sidecar itself so its update logs are visible remotely
+      SERVICES_ALLOWED: "app-uploads,clamav,vault,admin-sidecar"
+
+      # Which service to rebuild and restart via /admin/update
+      SERVICE_UPDATE_TARGET: "app-uploads"
+
+      # Git repository root on the host (where `git pull` runs).
+      # Must be set in .env (e.g. GIT_WORK_DIR=/home/superdev/projects/OpenMates).
+      GIT_WORK_DIR: "${GIT_WORK_DIR}"
+
+      PORT: "8001"
+    # Bind to localhost only — Caddy proxies from the outside
+    ports:
+      - "127.0.0.1:8001:8001"
+    volumes:
+      # Docker socket — this container needs it; app-uploads does NOT
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Mount the project root so `git pull` and `docker compose` can run.
+      # GIT_WORK_DIR must be set in .env (e.g. /home/superdev/projects/OpenMates).
+      - type: bind
+        source: "${GIT_WORK_DIR}"
+        target: "${GIT_WORK_DIR}"
+    group_add:
+      # Add the docker group so this container can access the Docker socket.
+      # Find the GID with: stat -c %g /var/run/docker.sock
+      # Typically 999 on Debian/Ubuntu — may vary per host.
+      - "${DOCKER_GID:-999}"
+    networks:
+      - uploads
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.25"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  # ---------------------------------------------------------------------------
+  # ClamAV Malware Scanner (sidecar — always co-located with app-uploads)
+  # ---------------------------------------------------------------------------
+  clamav:
+    container_name: clamav
+    image: clamav/clamav-debian:stable
+    restart: unless-stopped
+    environment:
+      CLAMAV_NO_FRESHCLAMD: "false" # Enable virus database auto-updates via freshclam
+      CLAMAV_NO_CLAMD: "false" # Enable ClamAV daemon
+      CLAMAV_NO_MILTERD: "true" # Disable milter (mail filter — not needed)
+    volumes:
+      - clamav-db:/var/lib/clamav # Persist virus DB across restarts (avoids re-download)
+    networks:
+      - uploads
+    healthcheck:
+      # clamdcheck.sh is provided by the official clamav/clamav-debian image
+      test: ["CMD", "/usr/local/bin/clamdcheck.sh"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+      # ClamAV takes 60-120s on first start to download and load the virus database
+      start_period: 120s
+
+# ---------------------------------------------------------------------------
+# Networks
+# ---------------------------------------------------------------------------
+networks:
+  uploads:
+    # Internal network for uploads <-> clamav <-> vault communication.
+    driver: bridge
+
+# ---------------------------------------------------------------------------
+# Volumes
+# ---------------------------------------------------------------------------
+volumes:
+  clamav-db:
+    # Persist ClamAV virus signature database across container restarts.
+    # Without this, ClamAV re-downloads ~200 MB of signatures on every restart.
+    name: openmates-clamav-db
+  vault-data:
+    # Persistent Vault file storage — Vault data (KV secrets, policies, tokens)
+    # survives container restarts. vault-setup auto-unseals on each restart
+    # using the unseal key saved in vault-setup-data.
+    name: openmates-uploads-vault-data
+  vault-setup-data:
+    # Shared between vault-setup (writer) and app-uploads (reader).
+    # Contains: unseal.key, root.token, api.token
+    # app-uploads mounts this read-only at /vault-data and waits for api.token
+    # before starting uvicorn (via wait-for-vault.sh).
+    name: openmates-uploads-vault-setup-data

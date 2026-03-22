@@ -1,0 +1,85 @@
+api_key_devices:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+      note: "Primary Key - Unique identifier for this device record"
+    
+    api_key_id:
+      type: uuid
+      note: "Reference to the api_keys collection - which API key this device is associated with"
+      required: true
+    
+    hashed_user_id:
+      type: string
+      length: 255
+      note: "[Hashed] SHA256 hash of user_id for privacy-preserving lookups"
+      required: true
+    
+    device_hash:
+      type: string
+      length: 64
+      note: "[Hashed] SHA256 hash of IP_address:user_id (for REST API) or machine_identifier:user_id (for CLI/pip/npm). Used for security verification."
+      required: true
+      unique: false  # Multiple API keys can have same device hash
+    
+    encrypted_anonymized_ip:
+      type: string
+      length: 512
+      note: "[Encrypted] Anonymized IP address (first two octets only, e.g., '184.149.xxx') encrypted with user's vault key"
+    
+    encrypted_country_code:
+      type: string
+      length: 512
+      note: "[Encrypted] Country code derived from IP address (e.g., 'US', 'DE') encrypted with user's vault key"
+    
+    encrypted_region:
+      type: string
+      length: 512
+      note: "[Encrypted] Region/state name derived from IP address (e.g., 'California', 'Bavaria') encrypted with user's vault key"
+    
+    encrypted_city:
+      type: string
+      length: 512
+      note: "[Encrypted] City name derived from IP address (e.g., 'San Francisco', 'Munich') encrypted with user's vault key"
+    
+    encrypted_device_name:
+      type: string
+      length: 512
+      note: "[Encrypted] Client-side encrypted custom device name (e.g., 'Work Laptop', 'Home Server'), encrypted with user's master key"
+    
+    approved_at:
+      type: timestamp
+      note: "Timestamp when this device was approved by the user. NULL means device is pending approval."
+    
+    first_access_at:
+      type: timestamp
+      note: "Timestamp when this device first attempted to use the API key"
+      required: true
+    
+    last_access_at:
+      type: timestamp
+      note: "Timestamp when this device last used the API key"
+      required: true
+    
+    encrypted_access_type:
+      type: string
+      length: 512
+      note: "[Encrypted] Type of access: 'rest_api', 'cli', 'pip', 'npm' encrypted with user's vault key"
+      required: true
+    
+    encrypted_machine_identifier:
+      type: string
+      length: 512
+      note: "[Encrypted] Machine identifier for CLI/pip/npm access encrypted with user's vault key. Only stored if access_type is 'cli', 'pip', or 'npm'"
+    
+    created_at:
+      type: timestamp
+      note: "Timestamp when this device record was created"
+      required: true
+    
+    updated_at:
+      type: timestamp
+      note: "Timestamp when this device record was last updated"
+      required: true

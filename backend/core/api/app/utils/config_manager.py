@@ -91,25 +91,25 @@ class ConfigManager:
         """Returns the entire backend configuration."""
         return self._backend_config if self._backend_config is not None else {}
 
-    def get_enabled_apps(self) -> List[str]:
+    def get_disabled_apps(self) -> List[str]:
         """
-        Returns the list of enabled app IDs (service names).
-        Assumes 'enabled_apps' in backend_config.yml is a simple list of strings.
+        Returns the list of disabled app IDs (service names).
+        Apps are enabled by default - this is an opt-out list for temporarily disabling problematic apps.
+        Assumes 'disabled_apps' in backend_config.yml is a simple list of strings.
         """
-        if self._backend_config and "enabled_apps" in self._backend_config:
-            apps = self._backend_config["enabled_apps"]
+        if self._backend_config and "disabled_apps" in self._backend_config:
+            apps = self._backend_config["disabled_apps"]
             if isinstance(apps, list):
                 # Ensure all items are strings
                 valid_apps = [str(app_id) for app_id in apps if isinstance(app_id, (str, int))] # Allow int for convenience, convert to str
                 if len(valid_apps) != len(apps):
-                    logger.warning("Some items in 'enabled_apps' were not strings and have been filtered or converted.")
-                if not valid_apps:
-                    logger.info("'enabled_apps' list is empty after validation.")
+                    logger.warning("Some items in 'disabled_apps' were not strings and have been filtered or converted.")
+                if valid_apps:
+                    logger.info(f"Found {len(valid_apps)} disabled app(s): {valid_apps}")
                 return valid_apps
             else:
-                logger.warning(f"'enabled_apps' in backend_config.yml is not a list. Found: {type(apps)}. Returning empty list.")
-        else:
-            logger.info("'enabled_apps' key not found in backend_config.yml or backend_config not loaded. Returning empty list.")
+                logger.warning(f"'disabled_apps' in backend_config.yml is not a list. Found: {type(apps)}. Returning empty list.")
+        # If disabled_apps is not found, return empty list (all apps enabled by default)
         return []
 
     def get_provider_configs(self) -> Dict[str, Dict[str, Any]]:
@@ -139,6 +139,75 @@ class ConfigManager:
                 return model
         
         logger.warning(f"Model '{model_id}' not found in provider config for '{provider_id}'.")
+        return None
+
+    def find_provider_for_model(self, model_id: str) -> Optional[str]:
+        """
+        Searches all provider configurations to find which provider defines a given model ID.
+        
+        This is useful when a user specifies a model without a provider prefix (e.g., 
+        "claude-haiku-4-5-20251001" instead of "anthropic/claude-haiku-4-5-20251001").
+        
+        Args:
+            model_id: The model ID to search for (without provider prefix).
+            
+        Returns:
+            The provider_id if found, None otherwise.
+        """
+        if not self._provider_configs:
+            logger.warning(f"No provider configurations loaded when searching for model '{model_id}'.")
+            return None
+        
+        for provider_id, provider_config in self._provider_configs.items():
+            for model in provider_config.get("models", []):
+                if isinstance(model, dict) and model.get("id") == model_id:
+                    logger.info(f"Found model '{model_id}' in provider '{provider_id}'.")
+                    return provider_id
+        
+        logger.warning(f"Model '{model_id}' not found in any provider configuration.")
+        return None
+
+    def get_model_display_name(self, model_id: str, provider_id: Optional[str] = None) -> Optional[str]:
+        """
+        Gets the human-readable display name for a model ID.
+        
+        This is useful for showing friendly names like "Claude Haiku 4.5" instead of 
+        technical IDs like "claude-haiku-4-5-20251001" in the UI.
+        
+        Args:
+            model_id: The model ID to look up (without provider prefix).
+            provider_id: Optional provider ID to search within. If not provided,
+                        searches all providers.
+            
+        Returns:
+            The human-readable model name if found, None otherwise.
+        """
+        if not self._provider_configs:
+            logger.warning(f"No provider configurations loaded when looking up name for model '{model_id}'.")
+            return None
+        
+        # If provider_id is specified, search only that provider
+        if provider_id:
+            provider_config = self.get_provider_config(provider_id)
+            if provider_config:
+                for model in provider_config.get("models", []):
+                    if isinstance(model, dict) and model.get("id") == model_id:
+                        model_name = model.get("name")
+                        if model_name:
+                            logger.debug(f"Found display name '{model_name}' for model '{model_id}' in provider '{provider_id}'.")
+                            return model_name
+            return None
+        
+        # Search all providers
+        for pid, provider_config in self._provider_configs.items():
+            for model in provider_config.get("models", []):
+                if isinstance(model, dict) and model.get("id") == model_id:
+                    model_name = model.get("name")
+                    if model_name:
+                        logger.debug(f"Found display name '{model_name}' for model '{model_id}' in provider '{pid}'.")
+                        return model_name
+        
+        logger.debug(f"No display name found for model '{model_id}'.")
         return None
 
 # Create a singleton instance for easy import across the application.

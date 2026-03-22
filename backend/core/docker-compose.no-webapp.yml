@@ -1,0 +1,13 @@
+# backend/core/docker-compose.no-webapp.yml
+#
+# Use this file to run the stack *without* the webapp, while keeping `docker-compose.yml`
+# starting everything (including webapp) by default.
+#
+# Example:
+#   - With webapp (default): docker compose -f docker-compose.yml up -d
+#   - Without webapp:        docker compose -f docker-compose.yml -f docker-compose.no-webapp.yml up -d
+#
+
+services:
+  webapp:
+    profiles: ["webapp"]

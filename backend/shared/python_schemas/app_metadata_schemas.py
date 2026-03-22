@@ -5,7 +5,7 @@
 # These models are shared across different backend services.
 
 from typing import Dict, Any, List, Optional
-from pydantic import BaseModel, validator, Field
+from pydantic import BaseModel, field_validator, model_validator, Field, ConfigDict
 
 class IconColorGradient(BaseModel):
     """Defines the start and end colors for an icon gradient."""
@@ -19,30 +19,153 @@ class AppPricing(BaseModel):
     per_minute: Optional[int] = None # credits per minute
     fixed: Optional[int] = None # fixed credits per call
 
+class AppSkillApiConfig(BaseModel):
+    """
+    REST API configuration for a skill.
+    
+    Controls how the skill is exposed in the public REST API (/v1/apps/{app_id}/skills/{skill_id}).
+    By default, skills expose both GET (metadata) and POST (execute) endpoints.
+    Use this to restrict visibility (e.g., GET-only for skills that require client-side encryption
+    flows and cannot be executed meaningfully via a stateless REST API call).
+    """
+    expose_get: bool = Field(default=True, description="Whether to expose a GET endpoint for skill metadata. Set to false for skills that should only accept POST requests (e.g., write-only anonymous data collection).")
+    expose_post: bool = Field(default=True, description="Whether to expose a POST endpoint for skill execution. Set to false for skills that require client-side encryption flows (e.g., image generation) and cannot be executed via a stateless REST API call. The GET metadata endpoint remains visible so developers know the skill exists.")
+
+
 class AppSkillDefinition(BaseModel):
     """Defines the structure for a skill within an app's metadata."""
     id: str
-    name: str
-    description: str
-    class_path: str # e.g., "apps.ai.skills.ask_skill.AskSkill"
-    stage: str = Field(default="development", pattern="^(development|production)$")
+    name_translation_key: str  # Required: Translation key for skill name (e.g., "app_translations.web.skills.search.name")
+    description_translation_key: str  # Required: Translation key for skill description (e.g., "app_translations.web.skills.search.description")
+    class_path: Optional[str] = None  # e.g., "apps.ai.skills.ask_skill.AskSkill" - optional for planning stage skills
+    stage: Optional[str] = Field(default="development", description="Stage of the skill: 'planning', 'development', or 'production'. Components with stage='planning' are excluded from API responses.")
     pricing: Optional[AppPricing] = None
+    providers: Optional[List[str]] = None  # Optional list of provider names (e.g., ["Brave"]) - used for provider-level pricing lookup
+    full_model_reference: Optional[str] = Field(default=None, description="Optional full model reference (e.g., 'google/gemini-3-pro-image-preview') used for model-specific pricing.")
     default_config: Optional[Dict[str, Any]] = Field(default=None, alias="skill_config")
+    tool_schema: Optional[Dict[str, Any]] = None  # Optional: Tool schema in JSON Schema format for function calling (required for skills used as tools, optional for entry-point skills like ai.ask)
+    # Fields to exclude from LLM inference (but keep in full results for UI rendering)
+    # Supports dot notation for nested fields (e.g., "meta_url.favicon", "thumbnail.original")
+    exclude_fields_for_llm: Optional[List[str]] = Field(default=None, description="List of field paths to exclude from LLM inference. Full data is kept in chat history for UI rendering.")
+    # Brief LLM-facing hint for the preprocessor describing when to select this skill.
+    # Included alongside the skill identifier in the preprocessing prompt so the LLM can
+    # make informed skill selection decisions without hardcoded guidance in base_instructions.yml.
+    preprocessor_hint: Optional[str] = Field(default=None, description="Brief hint for the preprocessing LLM describing when to select this skill (1-3 sentences).")
+    # REST API configuration — controls how the skill is exposed in the public API docs
+    api_config: Optional[AppSkillApiConfig] = Field(default=None, description="REST API configuration for this skill. Controls GET/POST endpoint exposure in /docs.")
+    # Internal skills are used by the AI backend only and must NOT be shown to users
+    # in the app store or settings UI. Set internal: true for skills that are invoked
+    # automatically (e.g., images.view for uploaded images, audio.transcribe for
+    # voice recordings) — users never discover or invoke these manually.
+    internal: Optional[bool] = Field(default=False, description="If true, this skill is hidden from the app store and settings UI. It is invoked automatically by the backend and is not user-facing.")
 
 class AppFocusDefinition(BaseModel):
     """Defines the structure for a focus mode within an app's metadata."""
     id: str
-    name: str
-    description: str
-    system_prompt: str = Field(alias="systemprompt") # Allow 'systemprompt' in YAML
+    name_translation_key: str  # Required: Translation key for focus mode name (e.g., "app_translations.web.focus_modes.research.name")
+    description_translation_key: str  # Required: Translation key for focus mode description (e.g., "app_translations.web.focus_modes.research.description")
+    system_prompt: Optional[str] = Field(default=None, alias="systemprompt")  # Allow 'systemprompt' in YAML - optional for planning stage focuses
+    process: Optional[List[str]] = Field(default=None, description="Optional list of process steps for the focus mode")
+    stage: Optional[str] = Field(default=None, description="Stage of the focus mode: 'planning', 'development', or 'production'. Components with stage='planning' are excluded from API responses.")
+    # Brief LLM-facing hint for the preprocessor describing when to select this focus mode.
+    # Included alongside the focus mode identifier in the preprocessing prompt so the LLM can
+    # make informed focus mode selection decisions (same pattern as skill preprocessor_hint).
+    preprocessor_hint: Optional[str] = Field(default=None, description="Brief hint for the preprocessing LLM describing when to select this focus mode (1-3 sentences).")
 
 class AppMemoryFieldDefinition(BaseModel):
     """Defines the structure for a memory field within an app's metadata."""
     id: str
-    name: str
-    description: str
+    name_translation_key: str  # Required: Translation key for memory field name (e.g., "app_translations.web.settings_memories.bookmarks.name")
+    description_translation_key: str  # Required: Translation key for memory field description (e.g., "app_translations.web.settings_memories.bookmarks.description")
     type: str # e.g., "string", "number", "boolean", "json_object", "list_of_strings"
     schema_definition: Optional[Dict[str, Any]] = Field(default=None, alias="schema") # Optional JSON schema
+    stage: Optional[str] = Field(default=None, description="Stage of the memory field: 'planning', 'development', or 'production'. Components with stage='planning' are excluded from API responses.")
+    # Full example entries with all field values populated.
+    # Each entry is a dict mapping field names to values. String field values
+    # that should be translated are stored as translation keys (looked up via $text() on frontend).
+    # Enum values, booleans, and numbers are stored as raw values.
+    # Replaces the older example_translation_keys (title-only strings).
+    example_entries: Optional[List[Dict[str, Any]]] = Field(default=None, description="Full example entries with all field values for UI display.")
+
+    @model_validator(mode='after')
+    def inject_added_date(self):
+        """
+        Automatically injects 'added_date' into every settings/memories schema.
+        
+        added_date is a universal field that records when a user created an entry.
+        It's auto_generated (hidden from UI forms, auto-populated by the client)
+        and converted to human-readable format before being included in LLM prompts.
+        
+        This removes the need to define added_date in every app.yml file,
+        preventing misconfiguration (e.g., forgetting auto_generated: true).
+        """
+        if self.schema_definition is not None:
+            properties = self.schema_definition.get("properties", {})
+            if "added_date" not in properties:
+                properties["added_date"] = {
+                    "type": "integer",
+                    "description": "Unix timestamp when added",
+                    "auto_generated": True
+                }
+                self.schema_definition["properties"] = properties
+        return self
+
+
+class EmbedTypeDefinition(BaseModel):
+    """
+    Defines an embed type within an app's metadata.
+    
+    Each entry becomes a single source of truth for frontend embed routing.
+    The build script generate-embed-registry.js reads these definitions
+    (from app.yml embed_types sections) and auto-generates TypeScript
+    routing files, eliminating manual if/else chains across 12+ files.
+    
+    Two categories exist:
+      - app-skill-use: Backend skill produces results → EmbedService creates embed.
+        Routed by app_id + skill_id.
+      - direct: Client-side embeds (file uploads, code blocks, tables).
+        Routed by frontend_type string.
+    """
+    id: str = Field(..., description="Unique embed type ID within this app (e.g., 'search', 'generate', 'code')")
+    category: str = Field(..., pattern=r'^(app-skill-use|direct)$', description="'app-skill-use' for backend skill embeds, 'direct' for client-side embeds")
+    skill_id: Optional[str] = Field(default=None, description="Backend skill ID (required for app-skill-use category)")
+    frontend_type: str = Field(..., description="Type string used on the frontend (e.g., 'app-skill-use', 'image', 'code-code')")
+    backend_type: str = Field(..., description="Type string used on the backend (e.g., 'app_skill_use', 'image', 'code')")
+    has_children: bool = Field(default=False, description="True for composite embeds that contain child embeds (e.g., search results)")
+    child_type: Optional[str] = Field(default=None, description="Child embed type ID (for composite embeds)")
+    child_frontend_type: Optional[str] = Field(default=None, description="Frontend type string for child embeds (e.g., 'web-website')")
+    groupable: Optional[bool] = Field(default=False, description="Whether this embed type can be grouped in the TipTap editor")
+    preview_component: Optional[str] = Field(default=None, description="Path to Svelte preview component relative to embeds/ dir")
+    fullscreen_component: Optional[str] = Field(default=None, description="Path to Svelte fullscreen component relative to embeds/ dir (null if no fullscreen)")
+    child_preview_component: Optional[str] = Field(default=None, description="Preview component path for child embeds")
+    child_fullscreen_component: Optional[str] = Field(default=None, description="Fullscreen component path for child embeds")
+    icon: Optional[str] = Field(default=None, description="Icon identifier (maps to SVG filename or icon set)")
+    gradient_var: Optional[str] = Field(default=None, description="CSS custom property for the gradient (e.g., '--color-app-web')")
+    i18n_namespace: Optional[str] = Field(default=None, description="i18n namespace for embed-specific translations")
+
+    @model_validator(mode='after')
+    def validate_category_fields(self):
+        """Validate that app-skill-use embeds have a skill_id."""
+        if self.category == 'app-skill-use' and not self.skill_id:
+            raise ValueError(f"Embed type '{self.id}' with category 'app-skill-use' must have a skill_id")
+        if self.has_children and not self.child_type:
+            raise ValueError(f"Embed type '{self.id}' with has_children=true must have a child_type")
+        return self
+
+
+class AppInstructionDefinition(BaseModel):
+    """
+    Defines the structure for app-specific instructions that are dynamically loaded
+    into the system prompt ONLY when the app is available.
+    
+    This prevents the AI from being instructed about capabilities that don't exist
+    (e.g., instructing about web search when the web app is unavailable).
+    """
+    instruction: str  # The actual instruction text to inject into the system prompt
+    categories: Optional[List[str]] = Field(
+        default=None,
+        description="Optional list of categories where this instruction is most relevant. If provided, the instruction is only injected when the conversation category matches."
+    )
 
 class AppYAML(BaseModel):
     """
@@ -50,23 +173,99 @@ class AppYAML(BaseModel):
     This is used for validating app configurations and for service discovery.
     """
     id: Optional[str] = None # Made id optional, will be derived if not present
-    name: str
-    description: str
+    name_translation_key: str # Translation key for app name (e.g., "app_translations.web") - required
+    description_translation_key: str # Translation key for app description (e.g., "apps.web.description") - required (no backwards compatibility)
+    expose_in_api: bool = Field(
+        default=True,
+        description=(
+            "Whether to expose this app in the public REST API docs (/docs) and the "
+            "list-apps endpoint. Set to false for apps whose skills rely on zero-knowledge "
+            "encryption or other client-side crypto flows that cannot be executed via a "
+            "stateless REST call (e.g., the images app). When false, the app-level GET "
+            "endpoint and all skill endpoints are registered with include_in_schema=False "
+            "so they are invisible in OpenAPI docs but still reachable at runtime."
+        ),
+    )
     icon_image: Optional[str] = Field(default=None, pattern=r'.+\.svg$') # Filename ending with .svg
     icon_colorgradient: Optional[IconColorGradient] = None
     skills: List[AppSkillDefinition] = []
     focuses: List[AppFocusDefinition] = Field(default=[], alias="focus_modes") # Allow 'focus_modes' as alias
     memory_fields: List[AppMemoryFieldDefinition] = Field(default=[], alias="memory") # Allow 'memory' as alias
-
-    @validator('focuses', pre=True, always=True)
-    def set_focuses_default(cls, v, values):
-        """Ensures focuses list is initialized even if 'focus_modes' is missing or None."""
-        return v if v is not None else values.get('focus_modes', [])
-
-    @validator('memory_fields', pre=True, always=True)
-    def set_memory_fields_default(cls, v, values):
-        """Ensures memory_fields list is initialized even if 'memory' is missing or None."""
-        return v if v is not None else values.get('memory', [])
+    # App-specific instructions that are dynamically loaded into the system prompt
+    # ONLY when this app is available. This prevents the AI from being instructed about
+    # capabilities that don't exist (e.g., instructing about web search when web app is down)
+    instructions: List[AppInstructionDefinition] = Field(default=[], description="App-specific instructions to inject into system prompt when this app is available")
+    # Embed type definitions — single source of truth for frontend embed routing.
+    # Read by generate-embed-registry.js to auto-generate TypeScript routing files.
+    # Each entry maps an embed type to its components, icons, and routing metadata,
+    # eliminating manual if/else chains across 12+ frontend files.
+    embed_types: List[EmbedTypeDefinition] = Field(default=[], description="Embed type definitions for frontend routing code generation")
     
-    class Config:
-        validate_by_name = True # Allows using 'system_prompt' for 'systemprompt' etc.
+    @model_validator(mode='after')
+    def validate_description(self):
+        """
+        Validates that 'description_translation_key' is provided.
+        No backwards compatibility - description_translation_key is required.
+        """
+        if not self.description_translation_key:
+            raise ValueError("'description_translation_key' is required (no backwards compatibility with 'description' field)")
+        
+        return self
+
+    @field_validator('focuses', mode='before')
+    @classmethod
+    def set_focuses_default(cls, v):
+        """Ensures focuses list is initialized even if 'focus_modes' is missing or None."""
+        # Return the value if it's not None, otherwise return empty list
+        # The alias 'focus_modes' is handled by the Field definition
+        return v if v is not None else []
+
+    @model_validator(mode='before')
+    @classmethod
+    def map_aliases(cls, values):
+        """
+        Maps various field aliases from app.yml for compatibility.
+        - Maps 'settings_and_memories' to 'memory' if 'memory'/'memory_fields' don't exist
+        - Ensures 'focus_modes' is mapped to 'focuses' field
+        - Ensures 'memory' is available for 'memory_fields' field
+        """
+        if isinstance(values, dict):
+            # Map 'settings_and_memories' to 'memory' if needed
+            if 'settings_and_memories' in values and 'memory_fields' not in values and 'memory' not in values:
+                values['memory'] = values['settings_and_memories']
+            
+            # Ensure 'focus_modes' alias is handled (Pydantic will handle this via Field alias, but ensure it's present)
+            if 'focus_modes' in values and 'focuses' not in values:
+                # The alias will be handled by Field, but we ensure the value is there
+                pass
+            
+            # Ensure 'memory' alias is handled for 'memory_fields'
+            if 'memory' in values and 'memory_fields' not in values:
+                # The alias will be handled by Field, but we ensure the value is there
+                pass
+        return values
+
+
+    @field_validator('memory_fields', mode='before')
+    @classmethod
+    def set_memory_fields_default(cls, v):
+        """Ensures memory_fields list is initialized even if 'memory' is missing or None."""
+        # Return the value if it's not None, otherwise return empty list
+        # The alias 'memory' is handled by the Field definition
+        return v if v is not None else []
+    
+    @field_validator('instructions', mode='before')
+    @classmethod
+    def set_instructions_default(cls, v):
+        """Ensures instructions list is initialized even if missing or None."""
+        return v if v is not None else []
+
+    @field_validator('embed_types', mode='before')
+    @classmethod
+    def set_embed_types_default(cls, v):
+        """Ensures embed_types list is initialized even if missing or None."""
+        return v if v is not None else []
+    
+    # Pydantic v2 configuration: allows using field names and aliases interchangeably
+    # This enables using 'system_prompt' for 'systemprompt', 'focus_modes' for 'focuses', etc.
+    model_config = ConfigDict(validate_by_name=True)

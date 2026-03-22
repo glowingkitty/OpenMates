@@ -1,94 +1,134 @@
 <!-- frontend/packages/ui/src/components/enter_message/RecordAudio.svelte -->
+<!--
+  Audio recording UI — renders as a full overlay inside .message-field.
+  Replaces the normal message field appearance with a purple/blue gradient
+  while recording is in progress, matching the Figma design:
+
+  ┌──────────────────────────────────────────────────────┐
+  │              Release to finish                       │  ← bold, centered
+  │                                                      │
+  │  [00:01]   ← Slide left to cancel     [●mic]         │  ← controls row
+  └──────────────────────────────────────────────────────┘
+
+  Release / stop behaviour:
+  ─────────────────────────
+  The overlay covers the entire message field (inset:0, z-index:200), so the
+  original mic button underneath can never receive mouseup/touchend after the
+  overlay mounts. We therefore own ALL pointer-release and keyboard events here,
+  via document-level listeners attached on mount and removed on destroy:
+
+    • mouseup   → stop()  (complete recording → audiorecorded event)
+    • touchend  → stop()  (complete recording on mobile)
+    • keydown Escape → cancel()  (discard recording)
+
+  Drag-left-to-cancel:
+  ────────────────────
+  mousemove / touchmove track horizontal displacement from the start position.
+  Dragging left >100px triggers cancel(). The mic circle follows the drag so
+  the user gets visual feedback.
+
+  Exported methods (called by parent as fallback):
+    stop()   — complete the recording
+    cancel() — discard the recording
+-->
 <script lang="ts">
     import { createEventDispatcher, onMount, onDestroy } from 'svelte';
-    import { slide } from 'svelte/transition';
-    import { text } from '@repo/ui'; // Assuming this is your text store import
+    import { fade } from 'svelte/transition';
+    import { text } from '@repo/ui';
 
-    // Define dispatched events more precisely
     const dispatch = createEventDispatcher<{
-        audiorecorded: { blob: Blob; duration: number };
-        close: void; // Dispatched when the component should close (after recording/cancel)
-        cancel: void; // Dispatched specifically on cancellation (drag or external call)
-        recordingStateChange: { active: boolean }; // Renamed from layoutChange
+        audiorecorded: { blob: Blob; duration: number; mimeType: string };
+        close: void;
+        cancel: void;
+        recordingStateChange: { active: boolean };
     }>();
 
-    // --- Props using Svelte 5 $props() ---
+    // --- Props ---
     interface Props {
         initialPosition: { x: number; y: number };
         externalStream?: MediaStream | null;
     }
-    let { 
+    let {
         initialPosition,
         externalStream = null
     }: Props = $props();
 
     // --- Internal State ---
     let isRecording = $state(false);
-    let internalStream: MediaStream | null = null; // Stream created internally if externalStream is null
+    let internalStream: MediaStream | null = null;
     let mediaRecorder: MediaRecorder | null = null;
     let recordedChunks: Blob[] = [];
     let recordingTime = $state(0);
     let recordingInterval: ReturnType<typeof setInterval> | null = null;
     let startPosition = { x: 0, y: 0 };
     let currentPosition = { x: 0, y: 0 };
-    // let isDragging = false; // Not explicitly used, remove?
-    // let circleSize = 0; // Not used in template, remove?
-    // let growthInterval: ReturnType<typeof setInterval>; // Not used in template, remove?
-    let isCancelled = false; // Flag to indicate cancellation by dragging or external call
-    let microphonePosition = $state({ x: 0, y: 0 }); // For visual feedback
+    let isCancelled = false;
+    // Whether stop() has already been called (prevents double-stop from both
+    // document mouseup and parent's onRecordMouseUp after tick()).
+    let stopAlreadyCalled = false;
+    // Horizontal drag offset for the cancel animation (negative = dragging left)
+    let dragOffsetX = $state(0);
+    // Guard: ignore pointer-release events until the MediaRecorder has actually
+    // started. Without this, a queued/bubbled mouseup from the original press
+    // interaction fires before getUserMedia resolves, causing stopInternal to see
+    // mediaRecorder=null and immediately dispatch 'close'.
+    let readyForRelease = false;
+    // If a release event arrives while readyForRelease is false, we record that
+    // fact here so we can stop immediately once the recorder becomes ready.
+    // null = no pending release; false = complete; true = cancel.
+    let pendingReleaseCancel: boolean | null = null;
 
-    // Simple logger
     const logger = {
-        debug: (...args: any[]) => console.debug('[RecordAudio]', ...args),
-        info: (...args: any[]) => console.info('[RecordAudio]', ...args),
-        error: (...args: any[]) => console.error('[RecordAudio]', ...args),
+        debug: (...args: unknown[]) => console.debug('[RecordAudio]', ...args),
+        info:  (...args: unknown[]) => console.info('[RecordAudio]',  ...args),
+        error: (...args: unknown[]) => console.error('[RecordAudio]', ...args),
     };
 
     // --- Lifecycle ---
     onMount(() => {
-        logger.debug('Component mounted, initializing audio recorder.');
-        // Use the provided initial position
+        logger.debug('Component mounted, starting recording.');
         startPosition = { ...initialPosition };
         currentPosition = { ...startPosition };
-        microphonePosition = { x: 0, y: 0 }; // Reset visual position
 
+        // Attach document-level listeners so release / Escape work even though
+        // the overlay completely covers the original mic button.
+        document.addEventListener('mouseup',   handleDocumentMouseUp);
+        document.addEventListener('touchend',  handleDocumentTouchEnd);
         document.addEventListener('mousemove', handleMouseMove);
-        document.addEventListener('touchmove', handleTouchMove, { passive: false }); // Allow preventDefault
+        document.addEventListener('touchmove', handleTouchMove, { passive: false });
+        document.addEventListener('keydown',   handleKeyDown);
 
-        // Start the recording process
         initializeAndStartRecording();
-
-        // Notify parent that the recording UI is active
         dispatch('recordingStateChange', { active: true });
     });
 
     onDestroy(() => {
         logger.debug('Component destroying.');
-        // Ensure recording is stopped and resources are cleaned up
-        // Pass true to indicate potential cancellation if destroyed mid-recording
-        stopInternal(true);
-
+        // Guard: don't double-stop if stop/cancel already ran
+        if (!stopAlreadyCalled) {
+            stopInternal(true);
+        }
+        document.removeEventListener('mouseup',   handleDocumentMouseUp);
+        document.removeEventListener('touchend',  handleDocumentTouchEnd);
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('touchmove', handleTouchMove);
-
-        // Notify parent that the recording UI is inactive
+        document.removeEventListener('keydown',   handleKeyDown);
         dispatch('recordingStateChange', { active: false });
     });
 
     // --- Recording Logic ---
-
     async function initializeAndStartRecording() {
-        isCancelled = false; // Reset cancellation flag
-        recordedChunks = []; // Reset chunks
+        isCancelled = false;
+        stopAlreadyCalled = false;
+        recordedChunks = [];
 
         try {
             let streamToUse: MediaStream;
             if (externalStream) {
                 logger.info('Using external stream provided from parent.');
                 streamToUse = externalStream;
-                // We don't manage this stream's tracks
             } else {
-                logger.debug('Requesting audio permission via getUserMedia...');
+                logger.debug('Requesting audio via getUserMedia...');
                 internalStream = await navigator.mediaDevices.getUserMedia({
                     audio: { echoCancellation: true, noiseSuppression: true }
                 });
@@ -96,142 +136,131 @@
                 logger.info('Internal audio stream acquired.');
             }
 
-            // Determine MIME type
-            let mimeType = 'audio/webm'; // Default preference
-            if (MediaRecorder.isTypeSupported('audio/mp4')) { // iOS often prefers mp4
+            // Prefer mp4 on iOS; fall back to webm or ogg
+            let mimeType = 'audio/webm';
+            if (MediaRecorder.isTypeSupported('audio/mp4')) {
                 mimeType = 'audio/mp4';
-            } else if (!MediaRecorder.isTypeSupported('audio/webm')) { // Fallback if webm not supported
-                 mimeType = 'audio/ogg'; // Or even default ''
-                 logger.info('Using fallback mimeType:', mimeType || 'default');
+            } else if (!MediaRecorder.isTypeSupported('audio/webm')) {
+                mimeType = 'audio/ogg';
+                logger.info('Using fallback mimeType:', mimeType);
             }
 
             mediaRecorder = new MediaRecorder(streamToUse, {
-                mimeType: mimeType || undefined, // Use determined type or let browser decide
+                mimeType: mimeType || undefined,
                 audioBitsPerSecond: 128000
             });
 
             mediaRecorder.ondataavailable = (e) => {
-                if (e.data && e.data.size > 0) {
-                    recordedChunks.push(e.data);
-                }
+                if (e.data && e.data.size > 0) recordedChunks.push(e.data);
             };
 
             mediaRecorder.onstop = () => {
                 logger.debug('MediaRecorder stopped.');
-                // This handler executes *after* stop() is called
 
-                // Clean up the internally created stream only
+                // Release the mic track
                 if (internalStream) {
-                    logger.debug('Stopping internal stream tracks.');
                     internalStream.getTracks().forEach(track => track.stop());
-                    internalStream = null; // Clear reference
-                } else {
-                     logger.debug('External stream used, not stopping tracks.');
+                    internalStream = null;
                 }
 
                 if (!isCancelled && recordedChunks.length > 0) {
-                    const blob = new Blob(recordedChunks, { type: mediaRecorder?.mimeType || mimeType });
-                    const finalDuration = recordingTime; // Use time captured before stop
-                    logger.info('Audio recording finished successfully:', {
+                    const finalMimeType = mediaRecorder?.mimeType || mimeType;
+                    const blob = new Blob(recordedChunks, { type: finalMimeType });
+                    const finalDuration = recordingTime;
+                    logger.info('Recording finished:', {
                         blobSize: `${(blob.size / 1024).toFixed(2)} KB`,
-                        duration: `${finalDuration}s (${formatTime(finalDuration)})`,
-                        mimeType: blob.type,
+                        duration:  `${finalDuration}s`,
+                        mimeType:  blob.type,
                     });
-                    dispatch('audiorecorded', { blob, duration: finalDuration });
-                } else if (isCancelled) {
-                    logger.info('Recording was cancelled, not dispatching audiorecorded.');
-                    dispatch('cancel'); // Dispatch specific cancel event
+                    dispatch('audiorecorded', { blob, duration: finalDuration, mimeType: finalMimeType });
                 } else {
-                    logger.info('Recording stopped with no data or was cancelled before data.');
-                     if (!isCancelled) dispatch('cancel'); // Treat no data as cancellation unless already cancelled
+                    logger.info(isCancelled ? 'Recording cancelled.' : 'Recording stopped with no data.');
+                    dispatch('cancel');
                 }
 
-                // Reset state after processing
                 isRecording = false;
                 recordedChunks = [];
                 recordingTime = 0;
-                stopRecordingTimer(); // Ensure timer is stopped
-
-                // Signal component closure AFTER processing is done
+                stopRecordingTimer();
                 dispatch('close');
             };
 
             mediaRecorder.onerror = (event) => {
                 logger.error('MediaRecorder error:', event);
-                // Handle error appropriately, maybe dispatch an error event
-                stopInternal(true); // Attempt cleanup on error
+                stopInternal(true);
             };
 
-            // Start recording
-            mediaRecorder.start(); // Record continuously
+            mediaRecorder.start();
             isRecording = true;
-            logger.info('MediaRecorder started successfully.');
-            startRecordingTimer(); // Start UI timer
+            readyForRelease = true;
+            logger.info('MediaRecorder started.');
+            startRecordingTimer();
+
+            // If a pointer-release or Escape arrived while we were waiting for
+            // getUserMedia + MediaRecorder init, honour it now.
+            if (pendingReleaseCancel !== null) {
+                const shouldCancel = pendingReleaseCancel;
+                pendingReleaseCancel = null;
+                logger.info(`Executing deferred ${shouldCancel ? 'cancel' : 'stop'}.`);
+                stopInternal(shouldCancel);
+                return;
+            }
 
         } catch (err) {
-            logger.error('Failed to initialize or start recording:', err);
+            logger.error('Failed to initialize recording:', err);
             isRecording = false;
             stopRecordingTimer();
-            // Clean up potentially created internal stream on error
             if (internalStream) {
                 internalStream.getTracks().forEach(track => track.stop());
                 internalStream = null;
             }
-            dispatch('close'); // Close component on error
+            dispatch('close');
         }
     }
 
-    /** Internal function to stop recording, handles state checks */
+    /**
+     * Core stop/cancel — all paths converge here.
+     * Guards against double-invocation via stopAlreadyCalled.
+     */
     function stopInternal(cancelled = false) {
-        if (!isRecording && mediaRecorder?.state !== 'recording' && mediaRecorder?.state !== 'paused') {
-            logger.debug('stopInternal called but not recording.');
-            // Ensure cleanup if called redundantly after stop
-            stopRecordingTimer();
-            if (internalStream) {
-                internalStream.getTracks().forEach(track => track.stop());
-                internalStream = null;
-            }
-            return; // Already stopped or never started properly
+        if (stopAlreadyCalled) {
+            logger.debug('stopInternal: already called, ignoring duplicate.');
+            return;
         }
+        stopAlreadyCalled = true;
 
-        isCancelled = isCancelled || cancelled; // Mark as cancelled if requested
+        isCancelled = isCancelled || cancelled;
         logger.info(`Stopping recording. Cancelled: ${isCancelled}`);
 
-        // Stop the UI timer immediately to capture final duration
         stopRecordingTimer();
-        isRecording = false; // Update state variable
+        isRecording = false;
 
         if (mediaRecorder && (mediaRecorder.state === 'recording' || mediaRecorder.state === 'paused')) {
-             try {
-                mediaRecorder.stop(); // Triggers the 'onstop' handler
-             } catch (e) {
-                logger.error("Error stopping MediaRecorder:", e);
-                // Force cleanup if stop fails
+            try {
+                mediaRecorder.stop(); // fires onstop → dispatches events
+            } catch (e) {
+                logger.error('Error calling mediaRecorder.stop():', e);
                 if (internalStream) {
                     internalStream.getTracks().forEach(track => track.stop());
                     internalStream = null;
                 }
                 dispatch('close');
-             }
+            }
         } else {
-            logger.error('MediaRecorder not found or not in a stoppable state.');
-            // Manually clean up if recorder is missing or in wrong state
+            // Recorder was never started or already stopped (e.g. error path)
             if (internalStream) {
                 internalStream.getTracks().forEach(track => track.stop());
                 internalStream = null;
             }
-            dispatch('close'); // Close if recorder wasn't active
+            dispatch('close');
         }
     }
 
     // --- Timer ---
     function startRecordingTimer() {
-        stopRecordingTimer(); // Clear existing interval if any
+        stopRecordingTimer();
         recordingTime = 0;
-        recordingInterval = setInterval(() => {
-            recordingTime++;
-            // logger.debug('Recording time:', formatTime(recordingTime)); // Can be noisy
-        }, 1000);
+        recordingInterval = setInterval(() => { recordingTime++; }, 1000);
     }
 
     function stopRecordingTimer() {
@@ -242,213 +271,264 @@
     }
 
     function formatTime(seconds: number): string {
-        const minutes = Math.floor(seconds / 60);
-        const remainingSeconds = seconds % 60;
-        return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
     }
 
-    // --- Drag/Cancel Logic ---
-    function handleMouseMove(event: MouseEvent) {
-        if (!isRecording) return; // Only track while actively recording
-        currentPosition = { x: event.clientX, y: event.clientY };
-        checkCancelThreshold();
+    // --- Document-level pointer release → complete recording ---
+
+    /**
+     * mouseup anywhere on the document completes the recording.
+     * This fires even though the overlay covers the original mic button.
+     *
+     * Ignored until readyForRelease is true — prevents a queued/bubbled mouseup
+     * from the original press interaction from stopping the recording before the
+     * MediaRecorder has had time to initialise (getUserMedia is async).
+     */
+    function handleDocumentMouseUp(_event: MouseEvent) {
+        if (!readyForRelease) {
+            logger.debug('Document mouseup — deferred (not ready for release yet).');
+            pendingReleaseCancel = false; // queue: complete when ready
+            return;
+        }
+        logger.debug('Document mouseup — completing recording.');
+        stopInternal(false); // not cancelled
     }
 
-    function handleTouchMove(event: TouchEvent) {
-        if (!isRecording) return;
-        // Prevent default scroll/zoom behavior while dragging for recording
-        event.preventDefault();
-        if (event.touches.length > 0) {
-            currentPosition = {
-                x: event.touches[0].clientX,
-                y: event.touches[0].clientY
-            };
-            checkCancelThreshold();
+    /**
+     * touchend anywhere on the document completes the recording on mobile.
+     * Same readyForRelease guard as mouseup.
+     */
+    function handleDocumentTouchEnd(_event: TouchEvent) {
+        if (!readyForRelease) {
+            logger.debug('Document touchend — deferred (not ready for release yet).');
+            pendingReleaseCancel = false; // queue: complete when ready
+            return;
+        }
+        logger.debug('Document touchend — completing recording.');
+        stopInternal(false);
+    }
+
+    // --- Escape key → cancel recording ---
+    function handleKeyDown(event: KeyboardEvent) {
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            if (!readyForRelease) {
+                logger.debug('Escape pressed — deferred cancel (not ready yet).');
+                pendingReleaseCancel = true;
+                return;
+            }
+            logger.debug('Escape pressed — cancelling recording.');
+            stopInternal(true); // cancelled
         }
     }
 
-    function checkCancelThreshold() {
+    // --- Drag / Cancel Logic ---
+    function handleMouseMove(event: MouseEvent) {
+        if (!isRecording || !readyForRelease) return;
+        currentPosition = { x: event.clientX, y: event.clientY };
+        updateDragState();
+    }
+
+    function handleTouchMove(event: TouchEvent) {
+        if (!isRecording || !readyForRelease) return;
+        event.preventDefault();
+        if (event.touches.length > 0) {
+            currentPosition = { x: event.touches[0].clientX, y: event.touches[0].clientY };
+            updateDragState();
+        }
+    }
+
+    function updateDragState() {
         const deltaX = currentPosition.x - startPosition.x;
         const deltaY = currentPosition.y - startPosition.y;
         const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
 
-        // Update visual position (limited for safety)
-        const maxOffset = 50; // Limit visual drag distance
-        microphonePosition = {
-            x: Math.max(-maxOffset, Math.min(maxOffset, deltaX)),
-            y: Math.max(-maxOffset, Math.min(maxOffset, deltaY))
-        };
+        // Only show leftward drag visually
+        dragOffsetX = Math.min(0, deltaX);
 
-        // Check cancellation threshold
-        const cancelDistance = 100; // Pixels to drag to cancel
-        if (distance > cancelDistance) {
-            logger.debug('Recording cancelled - distance threshold reached');
-            stopInternal(true); // Stop and mark as cancelled
+        // Cancel when dragged left >100px total distance AND mostly horizontal
+        if (distance > 100 && deltaX < -60) {
+            logger.debug('Recording cancelled by drag.');
+            stopInternal(true);
         }
     }
 
-    // --- Exported Methods for Parent Control ---
-    /** Stops the recording and dispatches the 'audiorecorded' event if successful. */
+    // --- Exported Methods (called by parent as fallback via bind:this) ---
+
+    /** Complete the recording (produces audiorecorded event). */
     export function stop() {
-        logger.debug('stop() called externally.');
-        stopInternal(false); // Not cancelled by this call itself
+        if (!readyForRelease) {
+            logger.debug('stop() called by parent — deferred (not ready for release yet).');
+            pendingReleaseCancel = false;
+            return;
+        }
+        logger.debug('stop() called by parent.');
+        stopInternal(false);
     }
 
-    /** Cancels the recording, preventing the 'audiorecorded' event. */
+    /** Cancel the recording (no audiorecorded event). */
     export function cancel() {
-        logger.debug('cancel() called externally.');
-        stopInternal(true); // Mark as cancelled
+        if (!readyForRelease) {
+            logger.debug('cancel() called by parent — deferred (not ready for release yet).');
+            pendingReleaseCancel = true;
+            return;
+        }
+        logger.debug('cancel() called by parent.');
+        stopInternal(true);
     }
-
 </script>
 
-<div class="record-overlay" transition:slide={{ duration: 200, axis: 'y' }}>
-    <div class="record-content">
-        <!-- Use $text for translation -->
-        <h2 class="header-text">{@html $text('enter_message.record_audio.release_to_finish.text') || 'Release to finish'}</h2>
+<!--
+  Full overlay covering .message-field.
+  pointer-events: none on the overlay itself so clicks/taps fall through to
+  document-level listeners — no need to intercept on the div.
+-->
+<div class="record-overlay" transition:fade={{ duration: 150 }}>
+    <!-- Top: "Release to finish" heading -->
+    <div class="record-header">
+        <span class="release-text">{@html $text('enter_message.record_audio.release_to_finish')}</span>
+    </div>
 
-        <div class="controls-row">
-            {#if isRecording}
-                <!-- Timer Pill -->
-                <div class="timer-pill" transition:slide={{ duration: 200 }}>
-                    {formatTime(recordingTime)}
-                </div>
-            {:else}
-                 <!-- Placeholder for alignment -->
-                <div class="timer-pill placeholder">00:00</div>
-            {/if}
+    <!-- Bottom controls: timer | cancel hint | mic circle -->
+    <div class="record-controls">
+        <!-- Red timer pill -->
+        <div class="timer-pill">
+            {formatTime(recordingTime)}
+        </div>
 
-            <!-- Cancel Indicator -->
-            <div class="cancel-indicator">
-                <div class="cancel-x">✕</div>
-                <span>{@html $text('enter_message.record_audio.slide_left_to_cancel.text') || 'Slide left to cancel'}</span>
-            </div>
+        <!-- "← Slide left to cancel" hint, fades as user drags left -->
+        <div class="cancel-hint" style="opacity: {Math.max(0.3, 1 + dragOffsetX / 80)}">
+            <span class="cancel-arrow">‹</span>
+            <span class="cancel-text">{@html $text('enter_message.record_audio.slide_left_to_cancel')}</span>
+        </div>
 
-            <!-- Draggable Microphone -->
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <!-- svelte-ignore a11y_missing_attribute -->
-            <div class="record-button-wrapper"
-                 role="button"
-                 style="transform: translate({microphonePosition.x}px, {microphonePosition.y}px); touch-action: none;"
-                 >
-                 <!-- touch-action: none prevents scrolling on touch devices while dragging -->
-                <div class="microphone-icon icon_recordaudio" class:recording={isRecording}></div>
-            </div>
+        <!-- Green mic circle follows horizontal drag -->
+        <div
+            class="mic-button"
+            class:recording={isRecording}
+            style="transform: translateX({Math.max(-120, dragOffsetX)}px)"
+        >
+            <div class="mic-icon icon_recordaudio"></div>
         </div>
     </div>
 </div>
 
 <style>
+    /* Full overlay that covers the entire .message-field */
     .record-overlay {
         position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        background: var(--color-record-audio-background, rgba(0, 0, 0, 0.8)); /* Fallback color */
-        z-index: 900; /* Ensure it's above action buttons but below modals */
-        border-radius: 24px 24px 0 0; /* Rounded top corners */
-        overflow: hidden;
-        padding: 16px;
-        box-sizing: border-box;
-        color: white; /* Default text color */
-    }
-
-    .record-content {
+        inset: 0;
+        border-radius: 24px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        z-index: 200;
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 16px;
-    }
-
-    .header-text {
-        color: inherit;
-        font-size: 16px; /* Slightly smaller */
-        font-weight: 500;
-        margin: 0;
-        text-align: center;
-    }
-
-    .controls-row {
-        width: 100%;
-        display: flex;
         justify-content: space-between;
-        align-items: center;
-        padding: 0 8px; /* Reduced padding */
+        padding: 20px 20px 18px;
         box-sizing: border-box;
-        min-height: 48px; /* Ensure row has height */
-    }
-
-    .timer-pill {
-        background-color: var(--color-app-audio, #FF0000); /* Use theme color */
         color: white;
-        padding: 6px 12px; /* Slightly smaller */
-        border-radius: 16px;
-        font-weight: 600;
-        font-size: 14px;
-        min-width: 50px; /* Ensure space */
+        overflow: hidden;
+    }
+
+    /* "Release to finish" heading */
+    .record-header {
+        width: 100%;
         text-align: center;
-        box-sizing: border-box;
-    }
-    .timer-pill.placeholder {
-        opacity: 0;
-        pointer-events: none;
-    }
-
-
-    .cancel-indicator {
-        color: inherit;
-        opacity: 0.6; /* Slightly more visible */
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 13px; /* Smaller text */
-        transition: opacity 0.2s ease-out;
-        text-align: center;
-        flex-grow: 1; /* Allow it to take space */
-        justify-content: center; /* Center text */
-        padding: 0 10px; /* Add some padding */
-    }
-
-    .cancel-x {
-        font-size: 16px;
-        line-height: 1;
-    }
-
-    .record-button-wrapper {
-        position: relative; /* Keep relative for transform */
-        width: 48px;
-        height: 48px;
-        transition: transform 0.1s ease-out;
-        will-change: transform;
-        cursor: grabbing; /* Indicate draggable state */
-        flex-shrink: 0; /* Prevent shrinking */
+        flex: 1;
         display: flex;
         align-items: center;
         justify-content: center;
     }
 
-    .microphone-icon {
-        width: 24px; /* Adjust icon size */
-        height: 24px;
-        background-color: white; /* Use CSS mask for icon */
+    .release-text {
+        font-size: 16px;
+        font-weight: 700;
+        color: white;
+        letter-spacing: 0.01em;
+    }
+
+    /* Bottom controls row */
+    .record-controls {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+    }
+
+    /* Red timer pill */
+    .timer-pill {
+        background-color: #ff4444;
+        color: white;
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-weight: 700;
+        font-size: 14px;
+        min-width: 60px;
+        text-align: center;
+        flex-shrink: 0;
+        letter-spacing: 0.02em;
+    }
+
+    /* "Slide left to cancel" hint */
+    .cancel-hint {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 13px;
+        font-weight: 400;
+        flex: 1;
+        justify-content: center;
+        transition: opacity 0.1s ease-out;
+        user-select: none;
+    }
+
+    .cancel-arrow {
+        font-size: 18px;
+        line-height: 1;
+        color: rgba(255, 255, 255, 0.5);
+    }
+
+    /* Green mic button circle */
+    .mic-button {
+        width: 44px;
+        height: 44px;
+        background-color: #4caf50;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        transition: transform 0.05s ease-out, background-color 0.15s ease;
+        cursor: grabbing;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+        will-change: transform;
+    }
+
+    .mic-button.recording {
+        background-color: #43a047;
+        animation: mic-pulse 1.8s ease-in-out infinite;
+    }
+
+    @keyframes mic-pulse {
+        0%, 100% { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25); }
+        50%       { box-shadow: 0 2px 16px rgba(76, 175, 80, 0.6), 0 0 0 6px rgba(76, 175, 80, 0.2); }
+    }
+
+    /* Mic icon (mask-based CSS icon, white) */
+    .mic-icon {
+        width: 22px;
+        height: 22px;
+        background-color: white;
         -webkit-mask-size: contain;
         mask-size: contain;
         -webkit-mask-repeat: no-repeat;
         mask-repeat: no-repeat;
         -webkit-mask-position: center;
         mask-position: center;
-        /* Assuming icon_recordaudio provides the mask */
-    }
-
-    /* Add styles for the recording state if needed, e.g., pulsing */
-    .microphone-icon.recording {
-       /* Example: animation: pulse 1.5s infinite; */
-    }
-
-    /* Example pulse animation */
-    @keyframes pulse {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.1); }
-        100% { transform: scale(1); }
     }
 </style>

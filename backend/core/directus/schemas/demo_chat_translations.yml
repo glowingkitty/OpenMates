@@ -1,0 +1,28 @@
+demo_chat_translations:
+  type: collection
+  fields:
+    id:
+      type: uuid
+    demo_chat_id:
+      type: uuid
+      note: "Foreign key to demo_chats.id"
+      required: true
+    language:
+      type: string
+      length: 10
+      note: "Language code (e.g., 'en', 'de', 'zh')"
+      required: true
+    title:
+      type: textfield
+      note: "Translated title (cleartext)"
+      required: true
+    summary:
+      type: textfield
+      note: "Translated summary (cleartext)"
+    follow_up_suggestions:
+      type: textfield
+      note: "JSON array of translated follow-up suggestions (cleartext)"
+    created_at:
+      type: timestamp
+      note: "When this translation was created"
+  note: "Metadata translations for each language. All content is stored in cleartext and cached server-side for performance."

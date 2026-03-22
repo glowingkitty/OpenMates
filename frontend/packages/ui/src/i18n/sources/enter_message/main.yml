@@ -1,0 +1,747 @@
+enter_your_message:
+  context: Placeholder text shown in empty message input field
+  en: Enter your message
+  de: Gebe deine Nachricht ein
+  zh: 输入您的消息
+  es: Ingresa tu mensaje
+  fr: Entrez votre message
+  pt: Digite sua mensagem
+  ru: Введите ваше сообщение
+  ja: メッセージを入力してください
+  ko: 메시지를 입력하세요
+  it: Inserisci il tuo messaggio
+  tr: Mesajınızı girin
+  vi: Nhập tin nhắn của bạn
+  id: Masukkan pesan Anda
+  pl: Wprowadź wiadomość
+  nl: Voer je bericht in
+  ar: أدخل رسالتك
+  hi: अपना संदेश दर्ज करें
+  th: ใส่ข้อความของคุณ
+  cs: Zadejte svou zprávu
+  sv: "Ange ditt meddelande"
+  he: הקלד את ההודעה שלך
+  verified_by_human: []
+click_to_enter_message:
+  context: Placeholder text shown when message field is not focused
+  en: Click here to ask anything
+  de: Hier klicken um etwas zu fragen
+  zh: 点击此处提问
+  es: Haz clic aquí para preguntar lo que sea
+  fr: Cliquez ici pour poser une question
+  pt: Clique aqui para perguntar qualquer coisa
+  ru: Нажмите здесь, чтобы спросить что угодно
+  ja: クリックして何でも質問
+  ko: 여기를 클릭하여 무엇이든 질문
+  it: Clicca qui per chiedere qualsiasi cosa
+  tr: Herhangi bir şey sormak için buraya tıklayın
+  vi: Nhấp vào đây để hỏi bất cứ điều gì
+  id: Klik di sini untuk bertanya apa saja
+  pl: Kliknij tutaj, aby zapytać o cokolwiek
+  nl: Klik hier om iets te vragen
+  ar: انقر هنا لتسأل عن أي شيء
+  hi: कुछ भी पूछने के लिए यहां क्लिक करें
+  th: คลิกที่นี่เพื่อถามอะไรก็ได้
+  cs: Klikněte sem a zeptejte se na cokoliv
+  sv: "Klicka här för att fråga vad som helst"
+  he: לחץ כאן כדי לשאול כל דבר
+  verified_by_human: []
+click_to_add_text:
+  context: Prompt shown after attachments to add more text
+  en: Click here to add text
+  de: Klicke hier um Text hinzuzufügen
+  zh: 点击此处添加文本
+  es: Haz clic aquí para agregar texto
+  fr: Cliquez ici pour ajouter du texte
+  pt: Clique aqui para adicionar texto
+  ru: Нажмите здесь, чтобы добавить текст
+  ja: クリックしてテキストを追加
+  ko: 여기를 클릭하여 텍스트 추가
+  it: Clicca qui per aggiungere testo
+  tr: Metin eklemek için buraya tıklayın
+  vi: Nhấp vào đây để thêm văn bản
+  id: Klik di sini untuk menambahkan teks
+  pl: Kliknij tutaj, aby dodać tekst
+  nl: Klik hier om tekst toe te voegen
+  ar: انقر هنا لإضافة نص
+  hi: पाठ जोड़ने के लिए यहां क्लिक करें
+  th: คลิกที่นี่เพื่อเพิ่มข้อความ
+  cs: Klikněte sem pro přidání textu
+  sv: "Klicka här för att lägga till text"
+  he: לחץ כאן כדי להוסיף טקסט
+  verified_by_human: []
+send:
+  context: Button text for sending a message
+  en: Send
+  de: Senden
+  zh: 发送
+  es: Enviar
+  fr: Envoyer
+  pt: Enviar
+  ru: Отправить
+  ja: 送信
+  ko: 보내기
+  it: Invia
+  tr: Gönder
+  vi: Gửi
+  id: Kirim
+  pl: Wyślij
+  nl: Verzenden
+  ar: إرسال
+  hi: भेजें
+  th: ส่ง
+  cs: Odeslat
+  sv: "Skicka"
+  he: שלח
+  verified_by_human: []
+buy_credits:
+  context: Button text shown instead of Send when a signed-in user has zero credits
+  en: Buy credits
+  he: קנה קרדיטים
+  verified_by_human: []
+is_typing_powered_by:
+  context: Text shown when someone is typing with model and provider information
+  en: "{mate} is typing...
+
+    Powered by {model_name} via {provider_name}
+
+    "
+  de: "{mate} tippt...
+
+    Angetrieben von {model_name} via {provider_name}
+
+    "
+  zh: "{mate} 正在输入...
+
+    由 {model_name} 通过 {provider_name} 提供支持
+
+    "
+  es: "{mate} está escribiendo...
+
+    Impulsado por {model_name}
+
+    "
+  fr: "{mate} est en train d'écrire...
+
+    Propulsé par {model_name} via {provider_name}
+
+    "
+  pt: "{mate} está digitando...
+
+    Alimentado por {model_name} via {provider_name}
+
+    "
+  ru: "{mate} печатает...
+
+    Работает на {model_name} через {provider_name}
+
+    "
+  ja: "{mate}が入力中...
+
+    {model_name}（{provider_name}経由）による提供
+
+    "
+  ko: "{mate} 입력 중...
+
+    {model_name}에서 제공 (via {provider_name})
+
+    "
+  it: "{mate} sta scrivendo...
+
+    Alimentato da {model_name} tramite {provider_name}
+
+    "
+  tr: "{mate} yazıyor...
+
+    {model_name} tarafından destekleniyor (via {provider_name})
+
+    "
+  vi: "{mate} đang nhập...
+
+    Được hỗ trợ bởi {model_name} qua {provider_name}
+
+    "
+  id: "{mate} sedang mengetik...
+
+    Didukung oleh {model_name} via {provider_name}
+
+    "
+  pl: "{mate} pisze...
+
+    Zasilane przez {model_name} via {provider_name}
+
+    "
+  nl: "{mate} is aan het typen...
+
+    Aangedreven door {model_name} via {provider_name}
+
+    "
+  ar: "{mate} يكتب...
+
+    مدعوم من {model_name} عبر {provider_name}
+
+    "
+  hi: "{mate} टाइप कर रहा है...
+
+    {model_name} द्वारा संचालित (via {provider_name})
+
+    "
+  th: "{mate} กำลังพิมพ์...
+
+    ใช้ {model_name} ผ่าน {provider_name}
+
+    "
+  cs: "{mate} píše...
+
+    Powered by {model_name} via {provider_name}
+
+    "
+  sv: "{mate} skriver...
+
+    Drivs av {model_name} via {provider_name}
+
+    "
+  he: |
+    {mate} מקליד/ה...
+    מופעל על ידי {model_name} באמצעות {provider_name}
+  verified_by_human: []
+is_typing:
+  context: Text shown when someone is typing
+  en: "{mate} is typing..."
+  de: "{mate} tippt..."
+  zh: "{mate} 正在输入..."
+  es: "{mate} está escribiendo..."
+  fr: "{mate} est en train d'écrire..."
+  pt: "{mate} está digitando..."
+  ru: "{mate} печатает..."
+  ja: "{mate}が入力中..."
+  ko: "{mate} 입력 중..."
+  it: "{mate} sta scrivendo..."
+  tr: "{mate} yazıyor..."
+  vi: "{mate} đang nhập..."
+  id: "{mate} sedang mengetik..."
+  pl: "{mate} pisze..."
+  nl: "{mate} is aan het typen..."
+  ar: "{mate} يكتب..."
+  hi: "{mate} टाइप कर रहा है..."
+  th: "{mate} กำลังพิมพ์..."
+  cs: "{mate} píše..."
+  sv: "{mate} skriver..."
+  he: "{mate} מקליד/ה..."
+  verified_by_human: []
+is_thinking:
+  context: Text shown in sidebar when a thinking/reasoning model is processing in a background chat
+  en: "{mate} is thinking..."
+  de: "{mate} denkt nach..."
+  zh: "{mate} 正在思考..."
+  es: "{mate} está pensando..."
+  fr: "{mate} réfléchit..."
+  pt: "{mate} está pensando..."
+  ru: "{mate} думает..."
+  ja: "{mate}が考え中..."
+  ko: "{mate} 생각 중..."
+  it: "{mate} sta pensando..."
+  tr: "{mate} düşünüyor..."
+  vi: "{mate} đang suy nghĩ..."
+  id: "{mate} sedang berpikir..."
+  pl: "{mate} myśli..."
+  nl: "{mate} is aan het nadenken..."
+  ar: "{mate} يفكر..."
+  hi: "{mate} सोच रहा है..."
+  th: "{mate} กำลังคิด..."
+  cs: "{mate} přemýšlí..."
+  sv: "{mate} tänker..."
+  he: "{mate} חושב/ת..."
+  verified_by_human: []
+using_skill:
+  context: Text shown in sidebar when an app skill is being used in a background chat (e.g. Using Search...)
+  en: "Using {skill}..."
+  de: "{skill} wird verwendet..."
+  zh: "正在使用{skill}..."
+  es: "Usando {skill}..."
+  fr: "Utilisation de {skill}..."
+  pt: "Usando {skill}..."
+  ru: "Используется {skill}..."
+  ja: "{skill}を使用中..."
+  ko: "{skill} 사용 중..."
+  it: "Usando {skill}..."
+  tr: "{skill} kullanılıyor..."
+  vi: "Đang sử dụng {skill}..."
+  id: "Menggunakan {skill}..."
+  pl: "Używanie {skill}..."
+  nl: "{skill} wordt gebruikt..."
+  ar: "استخدام {skill}..."
+  hi: "{skill} का उपयोग हो रहा है..."
+  th: "กำลังใช้ {skill}..."
+  cs: "Používání {skill}..."
+  sv: "Använder {skill}..."
+  he: "משתמש ב-{skill}..."
+  verified_by_human: []
+draft:
+  context: Text shown for drafts
+  en: "Draft:"
+  de: "Entwurf:"
+  zh: "草稿:"
+  es: "Borrador:"
+  fr: "Brouillon :"
+  pt: "Rascunho:"
+  ru: "Черновик:"
+  ja: "下書き:"
+  ko: "초안:"
+  it: "Bozza:"
+  tr: "Taslak:"
+  vi: "Bản nháp:"
+  id: "Draf:"
+  pl: "Szkic:"
+  nl: "Concept:"
+  ar: "مسودة:"
+  hi: "ड्राफ्ट:"
+  th: "ร่าง:"
+  cs: "Návrh:"
+  sv: "Utkast:"
+  he: "טיוטה:"
+  verified_by_human: []
+draft_with_beginning:
+  context: Text shown for drafts, but with the draft beginning
+  en: "Draft: {draft_beginning}"
+  de: "Entwurf: {draft_beginning}"
+  zh: "草稿: {draft_beginning}"
+  es: "Borrador: {draft_beginning}"
+  fr: "Brouillon : {draft_beginning}"
+  pt: "Rascunho: {draft_beginning}"
+  ru: "Черновик: {draft_beginning}"
+  ja: "下書き: {draft_beginning}"
+  ko: "초안: {draft_beginning}"
+  it: "Bozza: {draft_beginning}"
+  tr: "Taslak: {draft_beginning}"
+  vi: "Bản nháp: {draft_beginning}"
+  id: "Draf: {draft_beginning}"
+  pl: "Szkic: {draft_beginning}"
+  nl: "Concept: {draft_beginning}"
+  ar: "مسودة: {draft_beginning}"
+  hi: "ड्राफ्ट: {draft_beginning}"
+  th: "ร่าง: {draft_beginning}"
+  cs: "Návrh: {draft_beginning}"
+  sv: "Utkast: {draft_beginning}"
+  he: "טיוטה: {draft_beginning}"
+  verified_by_human: []
+sending:
+  context: Text shown when sending a message
+  en: Sending...
+  de: Sende...
+  zh: "正在发送..."
+  es: Enviando...
+  fr: "Envoi en cours..."
+  pt: Enviando...
+  ru: "Отправка..."
+  ja: "送信中..."
+  ko: "전송 중..."
+  it: "Invio in corso..."
+  tr: "Gönderiliyor..."
+  vi: "Đang gửi..."
+  id: "Mengirim..."
+  pl: "Wysyłanie..."
+  nl: "Verzenden..."
+  ar: "جاري الإرسال..."
+  hi: "भेजा जा रहा है..."
+  th: "กำลังส่ง..."
+  cs: "Odesílání..."
+  sv: "Skickar..."
+  he: שולח...
+  verified_by_human: []
+processing:
+  context: Text shown when the AI is processing a response
+  en: Processing...
+  de: Verarbeite...
+  zh: 正在处理...
+  es: Procesando...
+  fr: Traitement...
+  pt: Processando...
+  ru: Обработка...
+  ja: 処理中...
+  ko: 처리 중...
+  it: Elaborazione...
+  tr: İşleniyor...
+  vi: Đang xử lý...
+  id: Memproses...
+  pl: Przetwarzanie...
+  nl: Verwerken...
+  ar: جاري المعالجة...
+  hi: प्रसंस्करण...
+  th: กำลังประมวลผล...
+  cs: Zpracovávání...
+  sv: "Bearbetar..."
+  he: מעבד...
+  verified_by_human: []
+waiting_for_internet:
+  context: Text shown when disconnected from server and having to sync later
+  en: Waiting to reconnect to internet...
+  de: Warte auf Wiederverbindung zum Internet...
+  zh: 等待重新连接到互联网...
+  es: Esperando reconectar a internet...
+  fr: En attente de reconnexion à Internet...
+  pt: Aguardando reconexão à internet...
+  ru: Ожидание переподключения к интернету...
+  ja: インターネットへの再接続を待機中...
+  ko: 인터넷 재연결 대기 중...
+  it: In attesa di riconnessione a Internet...
+  tr: İnternete yeniden bağlanmayı bekliyor...
+  vi: Đang chờ kết nối lại internet...
+  id: Menunggu koneksi ulang ke internet...
+  pl: Oczekiwanie na ponowne połączenie z internetem...
+  nl: Wachten op herverbinding met internet...
+  ar: في انتظار إعادة الاتصال بالإنترنت...
+  hi: "इंटरनेट से पुन: कनेक्ट होने की प्रतीक्षा कर रहे हैं..."
+  th: กำลังรอการเชื่อมต่ออินเทอร์เน็ตใหม่...
+  cs: Čekání na opětovné připojení k internetu...
+  sv: "Väntar på återanslutning till internet..."
+  he: ממתין לחיבור מחדש לאינטרנט...
+  verified_by_human: []
+waiting_for_user:
+  context: Text shown when chat is paused waiting for user action (e.g., insufficient credits, app settings permission)
+  en: Waiting for you...
+  de: Wartet auf dich...
+  zh: 等待您的操作...
+  es: Esperando por ti...
+  fr: En attente de votre action...
+  pt: Aguardando você...
+  ru: Ожидание вашего действия...
+  ja: あなたの操作を待っています...
+  ko: 당신의 조치를 기다리는 중...
+  it: In attesa della tua azione...
+  tr: Sizi bekliyor...
+  vi: Đang chờ bạn...
+  id: Menunggu Anda...
+  pl: Czeka na Ciebie...
+  nl: Wacht op jou...
+  ar: في انتظارك...
+  hi: आपकी प्रतीक्षा में...
+  th: กำลังรอคุณ...
+  cs: Čeká na vás...
+  sv: "Väntar på dig..."
+  he: ממתין לך...
+  verified_by_human: []
+stop:
+  context: Button text for stopping the AI response
+  en: Stop
+  de: Stopp
+  zh: 停止
+  es: Detener
+  fr: Arrêter
+  pt: Parar
+  ru: Остановить
+  ja: 停止
+  ko: 중지
+  it: Ferma
+  tr: Durdur
+  vi: Dừng
+  id: Hentikan
+  pl: Zatrzymaj
+  nl: Stoppen
+  ar: إيقاف
+  hi: रोकें
+  th: หยุด
+  cs: Zastavit
+  sv: Stoppa
+  he: עצור
+  verified_by_human: []
+status.generating_title:
+  context: Progressive status text shown while AI is processing a new chat request (initial step before step cards appear)
+  en: Processing...
+  de: Verarbeitung...
+  zh: 处理中...
+  es: Procesando...
+  fr: Traitement...
+  pt: Processando...
+  ru: Обработка...
+  ja: 処理中...
+  ko: 처리 중...
+  it: Elaborazione...
+  tr: İşleniyor...
+  vi: Đang xử lý...
+  id: Memproses...
+  pl: Przetwarzanie...
+  nl: Verwerken...
+  ar: جاري المعالجة...
+  hi: प्रोसेसिंग...
+  th: กำลังประมวลผล...
+  cs: Zpracování...
+  sv: Bearbetar...
+  he: מעבד...
+  verified_by_human: []
+status.selecting_mate:
+  context: Progressive status text shown while AI is selecting the optimal mate (assistant persona)
+  en: Selecting optimal mate...
+  de: Optimalen Mate auswählen...
+  zh: 选择最佳助手...
+  es: Seleccionando el compañero óptimo...
+  fr: Sélection du partenaire optimal...
+  pt: Selecionando o companheiro ideal...
+  ru: Выбор оптимального помощника...
+  ja: 最適なメイトを選択中...
+  ko: 최적의 메이트 선택 중...
+  it: Selezione del compagno ottimale...
+  tr: Optimum arkadaş seçiliyor...
+  vi: Đang chọn trợ lý tối ưu...
+  id: Memilih mitra optimal...
+  pl: Wybieranie optymalnego partnera...
+  nl: Optimale mate selecteren...
+  ar: جاري اختيار المساعد الأمثل...
+  hi: सर्वोत्तम सहायक चुना जा रहा है...
+  th: กำลังเลือกผู้ช่วยที่เหมาะสม...
+  cs: Výběr optimálního partnera...
+  sv: Väljer optimal kompanjon...
+  he: בוחר עוזר אופטימלי...
+  verified_by_human: []
+status.analyzing_message:
+  context: Progressive status text shown while AI is analyzing the user message (for existing chats)
+  en: Analyzing your message...
+  de: Nachricht wird analysiert...
+  zh: 正在分析您的消息...
+  es: Analizando tu mensaje...
+  fr: Analyse de votre message...
+  pt: Analisando sua mensagem...
+  ru: Анализ вашего сообщения...
+  ja: メッセージを分析中...
+  ko: 메시지 분석 중...
+  it: Analisi del messaggio...
+  tr: Mesajınız analiz ediliyor...
+  vi: Đang phân tích tin nhắn của bạn...
+  id: Menganalisis pesan Anda...
+  pl: Analizowanie wiadomości...
+  nl: Bericht analyseren...
+  ar: جاري تحليل رسالتك...
+  hi: आपका संदेश विश्लेषित किया जा रहा है...
+  th: กำลังวิเคราะห์ข้อความของคุณ...
+  cs: Analýza vaší zprávy...
+  sv: Analyserar ditt meddelande...
+  he: מנתח את ההודעה שלך...
+  verified_by_human: []
+status.selecting_model:
+  context: Progressive status text shown while AI is selecting the optimal AI model
+  en: Selecting AI model...
+  de: KI-Modell wird ausgewählt...
+  zh: 正在选择AI模型...
+  es: Seleccionando modelo de IA...
+  fr: Sélection du modèle IA...
+  pt: Selecionando modelo de IA...
+  ru: Выбор модели ИИ...
+  ja: AIモデルを選択中...
+  ko: AI 모델 선택 중...
+  it: Selezione del modello IA...
+  tr: Yapay zeka modeli seçiliyor...
+  vi: Đang chọn mô hình AI...
+  id: Memilih model AI...
+  pl: Wybieranie modelu AI...
+  nl: AI-model selecteren...
+  ar: جاري اختيار نموذج الذكاء الاصطناعي...
+  hi: AI मॉडल चुना जा रहा है...
+  th: กำลังเลือกโมเดล AI...
+  cs: Výběr AI modelu...
+  sv: Väljer AI-modell...
+  he: בוחר מודל AI...
+  verified_by_human: []
+attachments.record_audio.hint:
+  context: Inline hint text shown next to the audio record button
+  en: Hold to record
+  de: Halten zum Aufnehmen
+  he: החזק כדי להקליט
+  verified_by_human: []
+message_queued:
+  context: Fallback text shown when user sends a message while AI task is active
+  en: Message queued
+  de: Nachricht in Warteschlange
+  he: ההודעה בתור
+  verified_by_human: []
+waiting_for_upload:
+  context: Status text shown under a user message that is queued while file attachments are still uploading
+  en: "Uploading attachment..."
+  de: "Anhang wird hochgeladen..."
+  zh: "正在上传附件..."
+  es: "Subiendo archivo adjunto..."
+  fr: "Envoi de la pièce jointe..."
+  pt: "Enviando anexo..."
+  ru: "Загрузка вложения..."
+  ja: "添付ファイルをアップロード中..."
+  ko: "첨부 파일 업로드 중..."
+  it: "Caricamento allegato..."
+  tr: "Ek yükleniyor..."
+  vi: "Đang tải tệp đính kèm..."
+  id: "Mengunggah lampiran..."
+  pl: "Przesyłanie załącznika..."
+  nl: "Bijlage uploaden..."
+  ar: "جاري رفع المرفق..."
+  hi: "अनुलग्नक अपलोड हो रहा है..."
+  th: "กำลังอัปโหลดไฟล์แนบ..."
+  cs: "Nahrávání přílohy..."
+  sv: "Laddar upp bilaga..."
+  he: מעלה קובץ מצורף...
+  verified_by_human: []
+upload_progress.uploading:
+  context: Per-attachment progress label shown under a queued message — {percent} is a number 0–100
+  en: "Uploading {percent}%"
+  de: "{percent}% hochgeladen"
+  zh: "上传 {percent}%"
+  es: "Subiendo {percent}%"
+  fr: "Envoi {percent}%"
+  pt: "Enviando {percent}%"
+  ru: "Загрузка {percent}%"
+  ja: "アップロード中 {percent}%"
+  ko: "업로드 중 {percent}%"
+  it: "Caricamento {percent}%"
+  tr: "Yükleniyor {percent}%"
+  vi: "Đang tải lên {percent}%"
+  id: "Mengunggah {percent}%"
+  pl: "Przesyłanie {percent}%"
+  nl: "Uploaden {percent}%"
+  ar: "جاري الرفع {percent}%"
+  hi: "अपलोड हो रहा है {percent}%"
+  th: "กำลังอัปโหลด {percent}%"
+  cs: "Nahrávání {percent}%"
+  sv: "Laddar upp {percent}%"
+  he: "מעלה {percent}%"
+  verified_by_human: []
+upload_progress.transcribing:
+  context: Per-attachment status label shown under a queued message while audio is being transcribed
+  en: "Transcribing..."
+  de: "Transkribierung..."
+  zh: "转录中..."
+  es: "Transcribiendo..."
+  fr: "Transcription..."
+  pt: "Transcrevendo..."
+  ru: "Транскрипция..."
+  ja: "文字起こし中..."
+  ko: "전사 중..."
+  it: "Trascrizione..."
+  tr: "Transkript oluşturuluyor..."
+  vi: "Đang phiên âm..."
+  id: "Mentranskripsikan..."
+  pl: "Transkrypcja..."
+  nl: "Transcriberen..."
+  ar: "جاري النسخ..."
+  hi: "ट्रांसक्राइब हो रहा है..."
+  th: "กำลังถอดความ..."
+  cs: "Přepisování..."
+  sv: "Transkriberar..."
+  he: מתמלל...
+  verified_by_human: []
+upload_progress.processing:
+  context: Per-attachment status label shown under a queued message while a PDF is being processed (OCR)
+  en: "Processing..."
+  de: "Verarbeitung..."
+  zh: "处理中..."
+  es: "Procesando..."
+  fr: "Traitement..."
+  pt: "Processando..."
+  ru: "Обработка..."
+  ja: "処理中..."
+  ko: "처리 중..."
+  it: "Elaborazione..."
+  tr: "İşleniyor..."
+  vi: "Đang xử lý..."
+  id: "Memproses..."
+  pl: "Przetwarzanie..."
+  nl: "Verwerken..."
+  ar: "جاري المعالجة..."
+  hi: "प्रसंस्करण..."
+  th: "กำลังประมวลผล..."
+  cs: "Zpracovávání..."
+  sv: "Bearbetar..."
+  he: מעבד...
+  verified_by_human: []
+upload_progress.error:
+  context: Per-attachment error label shown under a queued message when a file upload fails
+  en: "Upload failed"
+  de: "Upload fehlgeschlagen"
+  zh: "上传失败"
+  es: "Error al subir"
+  fr: "Échec de l'envoi"
+  pt: "Falha no upload"
+  ru: "Ошибка загрузки"
+  ja: "アップロード失敗"
+  ko: "업로드 실패"
+  it: "Caricamento fallito"
+  tr: "Yükleme başarısız"
+  vi: "Tải lên thất bại"
+  id: "Gagal mengunggah"
+  pl: "Błąd przesyłania"
+  nl: "Upload mislukt"
+  ar: "فشل الرفع"
+  hi: "अपलोड विफल"
+  th: "อัปโหลดล้มเหลว"
+  cs: "Nahrávání selhalo"
+  sv: "Uppladdning misslyckades"
+  he: העלאה נכשלה
+  verified_by_human: []
+preprocessing_step.chat_title_label:
+  context: "Label prefix shown in the preprocessing step card when the AI has generated a chat title"
+  en: "Chat title:"
+  de: "Chat-Titel:"
+  zh: "聊天标题："
+  es: "Título del chat:"
+  fr: "Titre du chat :"
+  pt: "Título do chat:"
+  ru: "Заголовок чата:"
+  ja: "チャットタイトル："
+  ko: "채팅 제목:"
+  it: "Titolo chat:"
+  tr: "Sohbet başlığı:"
+  vi: "Tiêu đề chat:"
+  id: "Judul obrolan:"
+  pl: "Tytuł czatu:"
+  nl: "Chattitel:"
+  ar: "عنوان المحادثة:"
+  hi: "चैट शीर्षक:"
+  th: "ชื่อแชท:"
+  cs: "Název chatu:"
+  sv: "Chattitel:"
+  he: "כותרת הצ'אט:"
+  verified_by_human: []
+preprocessing_step.selected_mate_label:
+  context: "Label prefix shown in the preprocessing step card when the AI has selected a mate/persona"
+  en: "Selected mate:"
+  de: "Ausgewählter Mate:"
+  zh: "已选择助手："
+  es: "Compañero seleccionado:"
+  fr: "Partenaire sélectionné :"
+  pt: "Companheiro selecionado:"
+  ru: "Выбранный помощник:"
+  ja: "選択されたメイト："
+  ko: "선택된 메이트:"
+  it: "Compagno selezionato:"
+  tr: "Seçilen arkadaş:"
+  vi: "Trợ lý đã chọn:"
+  id: "Mitra dipilih:"
+  pl: "Wybrany partner:"
+  nl: "Geselecteerde mate:"
+  ar: "المساعد المختار:"
+  hi: "चयनित सहायक:"
+  th: "ผู้ช่วยที่เลือก:"
+  cs: "Vybraný partner:"
+  sv: "Vald kompanjon:"
+  he: "עוזר שנבחר:"
+  verified_by_human: []
+preprocessing_step.selected_model_label:
+  context: "Label prefix shown in the preprocessing step card when the AI has selected an AI model"
+  en: "Selected model:"
+  de: "Ausgewähltes Modell:"
+  zh: "已选择模型："
+  es: "Modelo seleccionado:"
+  fr: "Modèle sélectionné :"
+  pt: "Modelo selecionado:"
+  ru: "Выбранная модель:"
+  ja: "選択されたモデル："
+  ko: "선택된 모델:"
+  it: "Modello selezionato:"
+  tr: "Seçilen model:"
+  vi: "Mô hình đã chọn:"
+  id: "Model dipilih:"
+  pl: "Wybrany model:"
+  nl: "Geselecteerd model:"
+  ar: "النموذج المختار:"
+  hi: "चयनित मॉडल:"
+  th: "โมเดลที่เลือก:"
+  cs: "Vybraný model:"
+  sv: "Vald modell:"
+  he: "מודל שנבחר:"
+  verified_by_human: []

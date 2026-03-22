@@ -81,7 +81,9 @@ def create_invoice(
         invoice_id = new_invoice.get('id')
         invoice_number = new_invoice.get('number', 'N/A')
         if invoice_id:
-            logger.info(f"Successfully created invoice (Draft): ID={invoice_id}, Number={invoice_number}")
+            # Log the correct status based on mark_sent parameter
+            status_text = "Sent (processed)" if mark_sent else "Draft"
+            logger.info(f"Successfully created invoice ({status_text}): ID={invoice_id}, Number={invoice_number}")
             return invoice_id, invoice_number
         else:
             logger.error("Invoice creation response did not contain an ID.")

@@ -26,10 +26,12 @@
     import 'highlight.js/lib/languages/shell';
     import 'highlight.js/lib/languages/sql';
     import { createEventDispatcher } from 'svelte';
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
     import { scale } from 'svelte/transition';
-    import { cubicOut } from 'svelte/easing';
 
     // Props using Svelte 5 runes
+    /* eslint-disable @typescript-eslint/no-unused-vars -- props used in Svelte template */
     let { 
         src,
         filename,
@@ -47,6 +49,7 @@
         lineCount?: number | undefined;
         numberedContent?: string | undefined;
     } = $props();
+    /* eslint-enable @typescript-eslint/no-unused-vars */
 
     let codePreview: string = '';
     let isTransitioningToFullscreen = false;
@@ -181,7 +184,7 @@
                             ALLOWED_TAGS: ['span'],
                             ALLOWED_ATTR: ['class']
                         });
-                    } catch (error) {
+                    } catch (_error) {
                         console.warn(`Fallback to auto-detection for language: ${highlightLanguage}`);
                         const highlighted = hljs.highlightAuto(sanitizedCode).value;
                         codeElement.innerHTML = DOMPurify.sanitize(highlighted, {
@@ -251,7 +254,7 @@
     }
 </script>
 
-<InlinePreviewBase {id} type="code" {src} {filename} height="200px" on:view={e => handleMenuAction('view')} on:fullscreen={handleFullscreen}>
+<InlinePreviewBase {id} type="code" {src} {filename} height="200px" on:view={_e => handleMenuAction('view')} on:fullscreen={handleFullscreen}>
     <div 
         class="preview-container"
         class:transitioning={isTransitioningToFullscreen}

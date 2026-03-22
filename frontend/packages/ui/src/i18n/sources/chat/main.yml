@@ -1,0 +1,1188 @@
+new_chat:
+  context: Button label for creating a new chat
+  en: New chat
+  de: Neuer Chat
+  zh: 新聊天
+  es: Nuevo chat
+  fr: Nouveau chat
+  pt: Novo chat
+  ru: Новый чат
+  ja: 新しいチャット
+  ko: 새 채팅
+  it: Nuova chat
+  tr: Yeni sohbet
+  vi: Trò chuyện mới
+  id: Obrolan baru
+  pl: Nowy czat
+  nl: Nieuwe chat
+  ar: محادثة جديدة
+  hi: नई चैट
+  th: แชทใหม่
+  cs: Nový chat
+  sv: Ny chatt
+  he: "צ'אט חדש"
+  verified_by_human: []
+share:
+  context: Button label for sharing a chat
+  en: Share chat
+  de: Chat teilen
+  zh: 分享聊天
+  es: Compartir chat
+  fr: Partager le chat
+  pt: Compartilhar chat
+  ru: Поделиться чатом
+  ja: チャットを共有
+  ko: 채팅 공유
+  it: Condividi chat
+  tr: Sohbeti paylaş
+  vi: Chia sẻ trò chuyện
+  id: Bagikan obrolan
+  pl: Udostępnij czat
+  nl: Chat delen
+  ar: مشاركة المحادثة
+  hi: चैट साझा करें
+  th: แชร์แชท
+  cs: Sdílet chat
+  sv: Dela chatt
+  he: "שיתוף צ'אט"
+  verified_by_human: []
+start_audio_call:
+  context: Button label for starting an audio call
+  en: Start audio call
+  de: Audioanruf starten
+  zh: 开始语音通话
+  es: Iniciar llamada de audio
+  fr: Démarrer un appel audio
+  pt: Iniciar chamada de áudio
+  ru: Начать аудиозвонок
+  ja: 音声通話を開始
+  ko: 오디오 통화 시작
+  it: Avvia chiamata audio
+  tr: Sesli arama başlat
+  vi: Bắt đầu cuộc gọi thoại
+  id: Mulai panggilan audio
+  pl: Rozpocznij rozmowę głosową
+  nl: Start audiogesprek
+  ar: بدء مكالمة صوتية
+  hi: ऑडियो कॉल शुरू करें
+  th: เริ่มการโทรเสียง
+  cs: Zahájit hlasový hovor
+  sv: Starta röstsamtal
+  he: התחלת שיחת שמע
+  verified_by_human: []
+start_video_call:
+  context: Button label for starting a video call
+  en: Start video call
+  de: Videoanruf starten
+  zh: 开始视频通话
+  es: Iniciar videollamada
+  fr: Démarrer un appel vidéo
+  pt: Iniciar chamada de vídeo
+  ru: Начать видеозвонок
+  ja: ビデオ通話を開始
+  ko: 비디오 통화 시작
+  it: Avvia videochiamata
+  tr: Görüntülü arama başlat
+  vi: Bắt đầu cuộc gọi video
+  id: Mulai panggilan video
+  pl: Rozpocznij rozmowę wideo
+  nl: Start videogesprek
+  ar: بدء مكالمة فيديو
+  hi: वीडियो कॉल शुरू करें
+  th: เริ่มการโทรวิดีโอ
+  cs: Zahájit videohovor
+  sv: Starta videosamtal
+  he: התחלת שיחת וידאו
+  verified_by_human: []
+an_error_occured:
+  context: Generic error message shown in chat
+  en: Sorry, something went wrong while I was trying to process your message. This can happen for many reasons. But be assured, the OpenMates team will be informed and will fix it as soon as possible. But if you want to help, let us know on Discord what you were doing when this error happened (but keep in mind that you should not include personal/sensitive details).
+  de: Entschuldigung, etwas ist schiefgelaufen, während ich versucht habe, deine Nachricht zu verarbeiten. Dies kann aus vielen Gründen geschehen. Aber sei versichert, dass das OpenMates-Team benachrichtigt wird und das Problem so bald wie möglich behebt. Aber wenn du helfen möchtest, lass uns auf Discord wissen, was du getan hast, als dieser Fehler auftrat (beachte aber, dass du keine persönlichen/sensiblen Details einbeziehen solltest).
+  zh: 抱歉，处理您的消息时出错。这可能出于多种原因。但请放心，OpenMates 团队将收到通知并尽快修复。但如果你想帮助，请在 Discord 上告诉我们发生此错误时你在做什么（但请记住，您不应该包含个人/敏感信息）。
+  es: Lo siento, algo salió mal mientras intentaba procesar tu mensaje. Esto puede suceder por muchas razones. Pero ten la seguridad de que el equipo de OpenMates será informado y lo arreglará lo antes posible. Pero si quieres ayudar, háznoslo saber en Discord qué estabas haciendo cuando ocurrió este error (pero ten en cuenta que no debes incluir detalles personales/sensibles).
+  fr: Je suis désolé, quelque chose s'est mal passé lors du traitement de votre message. Cela peut se produire pour de nombreuses raisons. Mais soyez assuré que l'équipe OpenMates en sera informée et le corrigera dès que possible. Mais si vous voulez aider, faites-le nous savoir sur Discord ce que vous faisiez quand cette erreur s'est produite (mais gardez à l'esprit que vous ne devez pas inclure de détails personnels/sensibles).
+  pt: Desculpe, algo deu errado ao tentar processar sua mensagem. Isso pode acontecer por muitos motivos. Mas fique assegurado de que a equipe OpenMates será informada e corrigirá o erro assim que possível. Mas se quiser ajudar, nos avise no Discord o que você estava fazendo quando esse erro ocorreu (mas lembre-se de que você não deve incluir detalhes pessoais/sensíveis).
+  ru: Извините, при обработке вашего сообщения что-то пошло не так. Это может произойти по многим причинам. Но будьте уверены, что команда OpenMates будет уведомлена и исправит это как можно скорее. Но если вы хотите помочь, дайте нам знать в Discord, что вы делали, когда произошла эта ошибка (но помните, что вы не должны включать личные/конфиденциальные данные).
+  ja: 申し訳ございません。メッセージの処理中に問題が発生しました。これはいろいろな理由で起こる可能性があります。ただし、OpenMates チームに通知され、できるだけ早く修正されることをご安心ください。ですが、お力になりたい場合は、このエラーが発生したときに何をしていたかを Discord でお知らせください（ただし、個人情報や機密情報は含めないようにしてください）。
+  ko: 죄송합니다. 메시지를 처리하는 중에 문제가 발생했습니다. 이는 여러 가지 이유로 발생할 수 있습니다. 그러나 OpenMates 팀이 알게 될 것이며 가능한 한 빨리 수정할 것입니다. 하지만 도움을 드리고 싶으시다면 Discord에서 이 오류가 발생했을 때 무엇을 하고 있었는지 알려주세요 (개인/민감한 정보는 포함하지 마시기 바랍니다).
+  it: Scusa, qualcosa è andato storto mentre cercavo di elaborare il tuo messaggio. Questo può accadere per molti motivi. Ma sii sicuro che il team OpenMates sarà informato e lo risolverà il prima possibile. Ma se vuoi aiutare, facci sapere su Discord cosa stavi facendo quando si è verificato questo errore (ma ricorda che non devi includere dettagli personali/sensibili).
+  tr: Üzgünüm, mesajınızı işlemeye çalışırken bir sorun oluştu. Bu birçok nedenden dolayı olabilir. Ancak OpenMates ekibinin bilgilendirilecek ve sorunu en kısa sürede düzelteceklerinden emin olun. Ancak yardımcı olmak istiyorsanız, bu hata oluştuğunda ne yaptığınızı Discord üzerinden bize bildirin (ancak kişisel/hassas ayrıntılar eklememek gerektiğini unutmayın).
+  vi: Xin lỗi, có lỗi xảy ra khi tôi đang cố xử lý tin nhắn của bạn. Điều này có thể xảy ra vì nhiều lý do. Nhưng hãy yên tâm rằng nhóm OpenMates sẽ được thông báo và sẽ khắc phục nó càng sớm càng tốt. Nhưng nếu bạn muốn giúp đỡ, hãy cho chúng tôi biết trên Discord bạn đang làm gì khi lỗi này xảy ra (nhưng hãy lưu ý rằng bạn không nên bao gồm chi tiết cá nhân/nhạy cảm).
+  id: Maaf, ada yang salah saat saya mencoba memproses pesan Anda. Ini dapat terjadi karena banyak alasan. Tetapi percayalah bahwa tim OpenMates akan diberitahu dan akan memperbaikinya sesegera mungkin. Namun jika Anda ingin membantu, beri tahu kami di Discord apa yang Anda lakukan saat kesalahan ini terjadi (tetapi ingat bahwa Anda tidak boleh menyertakan detail pribadi/sensitif).
+  pl: Przepraszam, coś poszło nie tak przy próbie przetworzenia Twojej wiadomości. Może się to zdarzyć z wielu powodów. Ale bądź pewny, że zespół OpenMates zostanie powiadomiony i naprawią to jak najszybciej. Ale jeśli chcesz pomóc, daj nam znać na Discord co robiłeś, gdy ten błąd się pojawił (ale pamiętaj, że nie powinieneś uwzględniać danych osobowych/poufnych).
+  nl: Sorry, er is iets fout gegaan bij het verwerken van je bericht. Dit kan om veel redenen gebeuren. Maar wees verzekerd dat het OpenMates-team op de hoogte zal worden gebracht en het zo snel mogelijk zal repareren. Maar als je wilt helpen, laat ons op Discord weten wat je aan het doen was toen deze fout plaatsvond (maar houd er rekening mee dat je geen persoonlijke/gevoelige gegevens moet opnemen).
+  ar: أعتذر، حدث خطأ أثناء محاولة معالجة رسالتك. يمكن أن يحدث هذا لعدة أسباب. لكن تأكد من أن فريق OpenMates سيتم إخطاره وسيصلح المشكلة في أقرب وقت ممكن. لكن إذا كنت تريد المساعدة، أخبرنا على Discord ما كنت تفعل عندما حدث هذا الخطأ (لكن تذكر أنه لا يجب عليك تضمين تفاصيل شخصية/حساسة).
+  hi: क्षमा करें, आपके संदेश को संसाधित करने का प्रयास करते समय कुछ गलत हुआ। यह कई कारणों से हो सकता है। लेकिन आश्वस्त रहें कि OpenMates टीम को सूचित किया जाएगा और इसे जल्दी से ठीक किया जाएगा। लेकिन यदि आप मदद करना चाहते हैं, तो हमें Discord पर बताएं कि यह त्रुटि होने पर आप क्या कर रहे थे (लेकिन याद रखें कि आपको व्यक्तिगत/संवेदनशील विवरण शामिल नहीं करने चाहिए)।
+  th: ขออภัยค่ะ มีบางอย่างผิดพลาดขณะที่ฉันพยายามประมวลผลข้อความของคุณ สิ่งนี้อาจเกิดขึ้นได้ด้วยเหตุผลมากมาย แต่ให้มั่นใจว่าทีม OpenMates จะได้รับข้อมูลและจะแก้ไขได้เร็วที่สุด แต่หากคุณต้องการช่วยเหลือ โปรดบอกเราบน Discord ว่าคุณกำลังทำอะไรอยู่เมื่อเกิดข้อผิดพลาดนี้ (แต่โปรดจำไว้ว่าคุณไม่ควรใส่รายละเอียดส่วนตัว/ที่ละเอียดอ่อน)
+  cs: Je nám líto, něco se pokazilo při pokusu o zpracování vaší zprávy. To se může stát z mnoha důvodů. Ale buďte si jisti, že tým OpenMates bude informován a opraví to co nejdříve. Ale pokud chcete pomoci, dejte nám prosím vědět na Discord, co jste dělali, když došlo k této chybě (ale pamatujte, že byste neměli zahrnovat osobní/citlivé údaje).
+  sv: Jag beklagar, något gick fel när jag försökte bearbeta ditt meddelande. Detta kan hända av många anledningar. Men var säker på att OpenMates-teamet kommer att informeras och åtgärdar det så snart som möjligt. Men om du vill hjälpa, låt oss veta på Discord vad du höll på med när det här felet inträffade (men kom ihåg att du inte bör inkludera personlig/känslig information).
+  he: מצטערים, משהו השתבש בזמן הניסיון לעבד את ההודעה שלך. זה יכול לקרות מסיבות רבות. אך היו בטוחים שצוות OpenMates יעודכן ויתקן זאת בהקדם האפשרי. אבל אם ברצונך לעזור, נשמח אם תעדכן אותנו ב-Discord מה עשית כשהשגיאה הזו התרחשה (אך שים לב שאין לכלול פרטים אישיים או רגישים).
+  verified_by_human: []
+untitled_chat:
+  context: Default title for a new chat
+  en: Untitled chat
+  de: Unbenannter Chat
+  zh: 未标题的聊天
+  es: Chat sin título
+  fr: Chat sans titre
+  pt: Bate-papo sem título
+  ru: Чат без названия
+  ja: タイトルなしのチャット
+  ko: 제목 없는 채팅
+  it: Chat senza titolo
+  tr: Başlıksız sohbet
+  vi: Trò chuyện chưa đặt tên
+  id: Obrolan tanpa judul
+  pl: Czat bez tytułu
+  nl: Naamloze chat
+  ar: محادثة بدون عنوان
+  hi: बिना शीर्षक की चैट
+  th: แชทที่ไม่มีชื่อ
+  cs: Chat bez názvu
+  sv: Namnlös chatt
+  he: "צ'אט ללא כותרת"
+  verified_by_human: []
+show_full_message:
+  context: Button text for showing the full content of a truncated message
+  en: Show full message
+  de: Komplett anzeigen
+  zh: 显示完整消息
+  es: Mostrar mensaje completo
+  fr: Afficher le message complet
+  pt: Mostrar mensagem completa
+  ru: Показать полное сообщение
+  ja: 完全なメッセージを表示
+  ko: 전체 메시지 보기
+  it: Mostra messaggio completo
+  tr: Tam mesajı göster
+  vi: Hiển thị tin nhắn đầy đủ
+  id: Tampilkan pesan lengkap
+  pl: Pokaż pełną wiadomość
+  nl: Volledig bericht weergeven
+  ar: عرض الرسالة الكاملة
+  hi: पूरा संदेश दिखाएं
+  th: แสดงข้อความเต็ม
+  cs: Zobrazit úplnou zprávu
+  sv: Visa fullständigt meddelande
+  he: הצגת ההודעה המלאה
+  verified_by_human: []
+hide_full_message:
+  context: Button text for hiding the full content and showing truncated version
+  en: Show less
+  de: Weniger anzeigen
+  zh: 显示较少
+  es: Mostrar menos
+  fr: Afficher moins
+  pt: Mostrar menos
+  ru: Показать меньше
+  ja: 少なく表示
+  ko: 더 적게 보기
+  it: Mostra meno
+  tr: Daha az göster
+  vi: Hiển thị ít hơn
+  id: Tampilkan lebih sedikit
+  pl: Pokaż mniej
+  nl: Minder weergeven
+  ar: عرض أقل
+  hi: कम दिखाएं
+  th: แสดงน้อยลง
+  cs: Zobrazit méně
+  sv: Visa mindre
+  he: הצג פחות
+  verified_by_human: []
+loading:
+  context: Text shown while loading full message content
+  en: Loading...
+  de: Lade...
+  zh: 加载中...
+  es: Cargando...
+  fr: Chargement...
+  pt: Carregando...
+  ru: Загрузка...
+  ja: 読み込み中...
+  ko: 로드 중...
+  it: Caricamento...
+  tr: Yükleniyor...
+  vi: Đang tải...
+  id: Memuat...
+  pl: Ładowanie...
+  nl: Laden...
+  ar: جاري التحميل...
+  hi: लोड हो रहा है...
+  th: กำลังโหลด...
+  cs: Načítání...
+  sv: Laddar...
+  he: טוען...
+  verified_by_human: []
+
+# App Settings & Memories Permission Dialog
+permissions.title:
+  context: Header for the permissions dialog requesting app settings/memories access
+  en: Permissions
+  de: Berechtigungen
+  zh: 权限
+  es: Permisos
+  fr: Autorisations
+  pt: Permissões
+  ru: Разрешения
+  ja: 許可
+  ko: 권한
+  it: Permessi
+  tr: İzinler
+  vi: Quyền
+  id: Izin
+  pl: Uprawnienia
+  nl: Rechten
+  ar: الأذونات
+  hi: अनुमतियाँ
+  th: สิทธิ์
+  cs: Oprávnění
+  sv: Behörigheter
+  he: הרשאות
+  verified_by_human: []
+permissions.question:
+  context: Question asking user to confirm sharing app settings and memories
+  en: Include these App settings & memories in this chat, for a more personalized response?
+  de: Diese App-Einstellungen & Erinnerungen in diesen Chat einbeziehen, für eine persönlichere Antwort?
+  zh: 在此聊天中包含这些应用设置和记忆，以获得更个性化的回复？
+  es: ¿Incluir esta configuración de aplicación y memorias en este chat para una respuesta más personalizada?
+  fr: Inclure ces paramètres d'application et souvenirs dans cette discussion pour une réponse plus personnalisée ?
+  pt: Incluir essas configurações de aplicativo e memórias neste chat para uma resposta mais personalizada?
+  ru: Включить эти настройки приложения и воспоминания в этот чат для более персонализированного ответа?
+  ja: よりパーソナライズされた返答のために、このチャットにこれらのアプリ設定と思い出を含めますか？
+  ko: 더 맞춤화된 답변을 위해 이 앱 설정과 기억을 이 채팅에 포함하시겠습니까?
+  it: Includere queste impostazioni dell'app e memorie in questa chat per una risposta più personalizzata?
+  tr: Daha kişiselleştirilmiş bir yanıt için bu uygulama ayarlarını ve anıları bu sohbete dahil edilsin mi?
+  vi: Bao gồm cài đặt ứng dụng và ký ức này trong cuộc trò chuyện này để có phản hồi cá nhân hơn?
+  id: Sertakan pengaturan aplikasi dan memori ini dalam obrolan ini untuk respons yang lebih personal?
+  pl: Uwzględnić te ustawienia aplikacji i wspomnienia w tym czacie dla bardziej spersonalizowanej odpowiedzi?
+  nl: Deze app-instellingen en herinneringen in deze chat opnemen voor een meer gepersonaliseerd antwoord?
+  ar: تضمين إعدادات التطبيق والذكريات هذه في هذه المحادثة للحصول على رد أكثر تخصيصاً؟
+  hi: अधिक व्यक्तिगत प्रतिक्रिया के लिए इन ऐप सेटिंग्स और यादों को इस चैट में शामिल करें?
+  th: รวมการตั้งค่าแอปและความทรงจำเหล่านี้ในแชทนี้เพื่อการตอบกลับที่เป็นส่วนตัวมากขึ้นหรือไม่?
+  cs: Zahrnout tato nastavení aplikace a vzpomínky do tohoto chatu pro více personalizovanou odpověď?
+  sv: Inkludera dessa appinställningar och minnen i denna chatt för ett mer personligt svar?
+  he: "האם לכלול את הגדרות האפליקציה והזיכרונות האלו בצ'אט זה, לקבלת מענה מותאם אישית יותר?"
+  verified_by_human: []
+permissions.include_selected:
+  context: Button to include selected app settings and memories in the chat
+  en: Include selected
+  de: Ausgewählte einbeziehen
+  zh: 包含所选
+  es: Incluir seleccionados
+  fr: Inclure la sélection
+  pt: Incluir selecionados
+  ru: Включить выбранные
+  ja: 選択した項目を含める
+  ko: 선택 항목 포함
+  it: Includi selezionati
+  tr: Seçilenleri dahil et
+  vi: Bao gồm đã chọn
+  id: Sertakan yang dipilih
+  pl: Uwzględnij wybrane
+  nl: Selectie opnemen
+  ar: تضمين المحدد
+  hi: चयनित शामिल करें
+  th: รวมที่เลือก
+  cs: Zahrnout vybrané
+  sv: Inkludera valda
+  he: כלול את הנבחרים
+  verified_by_human: []
+permissions.reject_all:
+  context: Button to reject all app settings and memories request
+  en: Reject all
+  de: Alle ablehnen
+  zh: 全部拒绝
+  es: Rechazar todo
+  fr: Tout rejeter
+  pt: Rejeitar tudo
+  ru: Отклонить все
+  ja: すべて拒否
+  ko: 모두 거부
+  it: Rifiuta tutti
+  tr: Tümünü reddet
+  vi: Từ chối tất cả
+  id: Tolak semua
+  pl: Odrzuć wszystko
+  nl: Alles weigeren
+  ar: رفض الكل
+  hi: सभी अस्वीकार करें
+  th: ปฏิเสธทั้งหมด
+  cs: Odmítnout vše
+  sv: Avvisa alla
+  he: דחה הכל
+  verified_by_human: []
+permissions.entry_singular:
+  context: Singular form of entry count (e.g., "1 entry")
+  en: entry
+  de: Eintrag
+  zh: 条目
+  es: entrada
+  fr: entrée
+  pt: entrada
+  ru: запись
+  ja: 件
+  ko: 개 항목
+  it: voce
+  tr: giriş
+  vi: mục
+  id: entri
+  pl: wpis
+  nl: item
+  ar: إدخال
+  hi: प्रविष्टि
+  th: รายการ
+  cs: záznam
+  sv: post
+  he: פריט
+  verified_by_human: []
+permissions.entry_plural:
+  context: Plural form of entry count (e.g., "6 entries")
+  en: entries
+  de: Einträge
+  zh: 条目
+  es: entradas
+  fr: entrées
+  pt: entradas
+  ru: записей
+  ja: 件
+  ko: 개 항목
+  it: voci
+  tr: giriş
+  vi: mục
+  id: entri
+  pl: wpisów
+  nl: items
+  ar: إدخالات
+  hi: प्रविष्टियाँ
+  th: รายการ
+  cs: záznamů
+  sv: poster
+  he: פריטים
+  verified_by_human: []
+permissions.included_summary:
+  context: Label shown after user includes app settings/memories
+  en: Included App settings & memories
+  de: Einbezogene App-Einstellungen & Erinnerungen
+  zh: 已包含的应用设置和记忆
+  es: Configuración de aplicación y memorias incluidas
+  fr: Paramètres d'application et souvenirs inclus
+  pt: Configurações de aplicativo e memórias incluídas
+  ru: Включены настройки приложения и воспоминания
+  ja: 含まれたアプリ設定と思い出
+  ko: 포함된 앱 설정 및 기억
+  it: Impostazioni dell'app e memorie incluse
+  tr: Dahil edilen uygulama ayarları ve anılar
+  vi: Cài đặt ứng dụng và ký ức đã bao gồm
+  id: Pengaturan aplikasi dan memori yang disertakan
+  pl: Uwzględnione ustawienia aplikacji i wspomnienia
+  nl: Opgenomen app-instellingen en herinneringen
+  ar: إعدادات التطبيق والذكريات المضمنة
+  hi: शामिल ऐप सेटिंग्स और यादें
+  th: การตั้งค่าแอปและความทรงจำที่รวม
+  cs: Zahrnutá nastavení aplikace a vzpomínky
+  sv: Inkluderade appinställningar och minnen
+  he: הגדרות אפליקציה וזיכרונות שנכללו
+  verified_by_human: []
+permissions.rejected_summary:
+  context: Text shown when user rejects app settings/memories request
+  en: Rejected App settings & memories request.
+  de: Anfrage für App-Einstellungen & Erinnerungen abgelehnt.
+  zh: 已拒绝应用设置和记忆请求。
+  es: Solicitud de configuración de aplicación y memorias rechazada.
+  fr: Demande de paramètres d'application et de souvenirs refusée.
+  pt: Solicitação de configurações de aplicativo e memórias rejeitada.
+  ru: Запрос на настройки приложения и воспоминания отклонён.
+  ja: アプリ設定と思い出のリクエストを拒否しました。
+  ko: 앱 설정 및 기억 요청이 거부되었습니다.
+  it: Richiesta di impostazioni dell'app e memorie rifiutata.
+  tr: Uygulama ayarları ve anılar talebi reddedildi.
+  vi: Đã từ chối yêu cầu cài đặt ứng dụng và ký ức.
+  id: Permintaan pengaturan aplikasi dan memori ditolak.
+  pl: Odrzucono żądanie ustawień aplikacji i wspomnień.
+  nl: App-instellingen en herinneringen verzoek afgewezen.
+  ar: تم رفض طلب إعدادات التطبيق والذكريات.
+  hi: ऐप सेटिंग्स और यादों का अनुरोध अस्वीकृत।
+  th: ปฏิเสธคำขอการตั้งค่าแอปและความทรงจำแล้ว
+  cs: Žádost o nastavení aplikace a vzpomínky byla zamítnuta.
+  sv: Begäran om appinställningar och minnen avvisad.
+  he: בקשת הגדרות האפליקציה והזיכרונות נדחתה.
+  verified_by_human: []
+report_bad_answer.button_text:
+  context: Button label for reporting a bad answer (thumbs down)
+  en: Report bad answer
+  de: Schlechte Antwort melden
+  zh: 报告错误答案
+  es: Reportar mala respuesta
+  fr: Signaler une mauvaise réponse
+  pt: Denunciar resposta ruim
+  ru: Сообщить о плохом ответе
+  ja: 悪い回答を報告
+  ko: 잘못된 답변 신고
+  it: Segnala risposta errata
+  tr: Kötü cevabı bildir
+  vi: Báo cáo câu trả lời tồi
+  id: Laporkan jawaban buruk
+  pl: Zgłoś złą odpowiedź
+  nl: Slecht antwoord melden
+  ar: الإبلاغ عن إجابة سيئة
+  hi: खराब उत्तर की रिपोर्ट करें
+  th: รายงานคำตอบที่ไม่ดี
+  cs: Nahlásit špatnou odpověď
+  sv: Rapportera dåligt svar
+  he: דיווח על תשובה גרועה
+  verified_by_human: []
+report_bad_answer.title:
+  context: Title for reporting a bad answer
+  en: Bad response quality
+  de: Schlechte Antwortqualität
+  zh: 响应质量差
+  es: Mala calidad de respuesta
+  fr: Mauvaise qualité de réponse
+  pt: Má qualidade de resposta
+  ru: Плохое качество ответа
+  ja: 回答の質が悪い
+  ko: 답변 품질 저하
+  it: Scarsa qualità della risposta
+  tr: Kötü yanıt kalitesi
+  vi: Chất lượng phản hồi kém
+  id: Kualitas respons buruk
+  pl: Zła jakość odpowiedzi
+  nl: Slechte antwoordkwaliteit
+  ar: جودة الرد سيئة
+  hi: खराब प्रतिक्रिया गुणवत्ता
+  th: คุณภาพการตอบกลับไม่ดี
+  cs: Špatná kvalita odpovědi
+  sv: Dålig svarskvalitet
+  he: איכות מענה ירודה
+  verified_by_human: []
+report_bad_answer.retry_message:
+  context: Message pasted into the chat input when user clicks the dislike button, asking the assistant to try again with better tools
+  en: I am not happy with the response. Use web search or other app skills and try again.
+  de: Ich bin mit der Antwort nicht zufrieden. Verwende die Websuche oder andere App-Skills und versuche es erneut.
+  zh: 我对这个回答不满意。请使用网络搜索或其他应用技能重新尝试。
+  es: No estoy satisfecho con la respuesta. Usa la busqueda web u otras habilidades de la app e intentalo de nuevo.
+  fr: Je ne suis pas satisfait de la reponse. Utilise la recherche web ou d'autres competences de l'application et reessaie.
+  pt: Nao estou satisfeito com a resposta. Use a pesquisa na web ou outras habilidades do app e tente novamente.
+  ru: Я не доволен ответом. Используй веб-поиск или другие навыки приложения и попробуй снова.
+  ja: この回答に満足していません。ウェブ検索や他のアプリスキルを使ってもう一度試してください。
+  ko: 이 응답에 만족하지 않습니다. 웹 검색이나 다른 앱 스킬을 사용해서 다시 시도해 주세요.
+  it: Non sono soddisfatto della risposta. Usa la ricerca web o altre competenze dell'app e riprova.
+  tr: Bu yanittan memnun degilim. Web aramasini veya diger uygulama becerilerini kullan ve tekrar dene.
+  vi: Toi khong hai long voi cau tra loi. Hay su dung tim kiem web hoac cac ky nang ung dung khac va thu lai.
+  id: Saya tidak puas dengan jawabannya. Gunakan pencarian web atau keterampilan aplikasi lainnya dan coba lagi.
+  pl: Nie jestem zadowolony z odpowiedzi. Uzyj wyszukiwania internetowego lub innych umiejetnosci aplikacji i sprobuj ponownie.
+  nl: Ik ben niet tevreden met het antwoord. Gebruik de webzoekmachine of andere app-vaardigheden en probeer het opnieuw.
+  ar: "\u0644\u0633\u062A \u0631\u0627\u0636\u064A\u064B\u0627 \u0639\u0646 \u0627\u0644\u0631\u062F. \u0627\u0633\u062A\u062E\u062F\u0645 \u0628\u062D\u062B \u0627\u0644\u0648\u064A\u0628 \u0623\u0648 \u0645\u0647\u0627\u0631\u0627\u062A \u0627\u0644\u062A\u0637\u0628\u064A\u0642 \u0627\u0644\u0623\u062E\u0631\u0649 \u0648\u062D\u0627\u0648\u0644 \u0645\u0631\u0629 \u0623\u062E\u0631\u0649."
+  hi: "\u092E\u0948\u0902 \u0907\u0938 \u0909\u0924\u094D\u0924\u0930 \u0938\u0947 \u0916\u0941\u0936 \u0928\u0939\u0940\u0902 \u0939\u0942\u0901\u0964 \u0935\u0947\u092C \u0938\u0930\u094D\u091A \u092F\u093E \u0905\u0928\u094D\u092F \u0910\u092A \u0915\u094C\u0936\u0932 \u0915\u093E \u0909\u092A\u092F\u094B\u0917 \u0915\u0930\u0947\u0902 \u0914\u0930 \u092B\u093F\u0930 \u0938\u0947 \u092A\u094D\u0930\u092F\u093E\u0938 \u0915\u0930\u0947\u0902\u0964"
+  th: "\u0E09\u0E31\u0E19\u0E44\u0E21\u0E48\u0E1E\u0E2D\u0E43\u0E08\u0E01\u0E31\u0E1A\u0E04\u0E33\u0E15\u0E2D\u0E1A\u0E19\u0E35\u0E49 \u0E43\u0E0A\u0E49\u0E01\u0E32\u0E23\u0E04\u0E49\u0E19\u0E2B\u0E32\u0E40\u0E27\u0E47\u0E1A\u0E2B\u0E23\u0E37\u0E2D\u0E17\u0E31\u0E01\u0E29\u0E30\u0E41\u0E2D\u0E1B\u0E2D\u0E37\u0E48\u0E19\u0E46 \u0E41\u0E25\u0E30\u0E25\u0E2D\u0E07\u0E2D\u0E35\u0E01\u0E04\u0E23\u0E31\u0E49\u0E07"
+  cs: Nejsem spokojen s odpovedi. Pouzij webove vyhledavani nebo jine dovednosti aplikace a zkus to znovu.
+  sv: Jag ar inte nojd med svaret. Anvand webbsokning eller andra appfardigheter och forsok igen.
+  he: אני לא מרוצה מהתשובה. השתמש בחיפוש באינטרנט או במיומנויות אפליקציה אחרות ונסה שוב.
+  verified_by_human: []
+report_bad_answer.template:
+  context: Prefilled template for reporting a bad answer
+  en: "\n\n\nMessage link:\n{link}"
+  de: "\n\n\nLink zur Nachricht:\n{link}"
+  zh: "\n\n\n消息链接：\n{link}"
+  es: "\n\n\nEnlace del mensaje:\n{link}"
+  fr: "\n\n\nLien du message :\n{link}"
+  pt: "\n\n\nLink da mensagem:\n{link}"
+  ru: "\n\n\nСсылка на сообщение:\n{link}"
+  ja: "\n\n\nメッセージリンク：\n{link}"
+  ko: "\n\n\n메시지 링크:\n{link}"
+  it: "\n\n\nLink al messaggio:\n{link}"
+  tr: "\n\n\nMesaj bağlantısı:\n{link}"
+  vi: "\n\n\nLiên kết tin nhắn:\n{link}"
+  id: "\n\n\nTautan pesan:\n{link}"
+  pl: "\n\n\nLink do wiadomości:\n{link}"
+  nl: "\n\n\nBerichtlink:\n{link}"
+  ar: "\n\n\nرابط الرسالة:\n{link}"
+  hi: "\n\n\nसंदेश लिंक:\n{link}"
+  th: "\n\n\nลิงก์ข้อความ:\n{link}"
+  cs: "\n\n\nOdkaz na zprávu:\n{link}"
+  sv: "\n\n\nMeddelandelänk:\n{link}"
+  he: |
+    קישור להודעה:
+    {link}
+  verified_by_human: []
+embed_error.message:
+  context: Error banner shown below assistant message when an app skill embed fails to process
+  en: An error occurred while processing your request.
+  de: Beim Verarbeiten Ihrer Anfrage ist ein Fehler aufgetreten.
+  zh: 处理您的请求时发生错误。
+  es: Se produjo un error al procesar su solicitud.
+  fr: Une erreur s'est produite lors du traitement de votre demande.
+  pt: Ocorreu um erro ao processar sua solicitacao.
+  ru: Произошла ошибка при обработке вашего запроса.
+  ja: リクエストの処理中にエラーが発生しました。
+  ko: 요청을 처리하는 중 오류가 발생했습니다.
+  it: Si e verificato un errore durante l'elaborazione della richiesta.
+  tr: Istegi islerken bir hata olustu.
+  vi: Da xay ra loi khi xu ly yeu cau cua ban.
+  id: Terjadi kesalahan saat memproses permintaan Anda.
+  pl: Wystapil blad podczas przetwarzania zadania.
+  nl: Er is een fout opgetreden bij het verwerken van uw verzoek.
+  ar: حدث خطأ أثناء معالجة طلبك.
+  hi: आपके अनुरोध को संसाधित करते समय एक त्रुटि हुई।
+  th: เกิดข้อผิดพลาดขณะประมวลผลคำขอของคุณ
+  cs: Pri zpracovani vaseho pozadavku doslo k chybe.
+  sv: Ett fel uppstod vid behandling av din begaran.
+  he: אירעה שגיאה במהלך עיבוד הבקשה שלך.
+  verified_by_human: []
+embed_error.report_link:
+  context: Clickable link text in the error banner to report the issue
+  en: Click here to report the issue, to help fixing it.
+  de: Klicken Sie hier, um das Problem zu melden und bei der Behebung zu helfen.
+  zh: 点击此处报告问题，以帮助修复它。
+  es: Haga clic aqui para reportar el problema y ayudar a solucionarlo.
+  fr: Cliquez ici pour signaler le probleme et aider a le resoudre.
+  pt: Clique aqui para relatar o problema e ajudar a corrigi-lo.
+  ru: Нажмите здесь, чтобы сообщить о проблеме и помочь её исправить.
+  ja: ここをクリックして問題を報告し、修正にご協力ください。
+  ko: 문제를 신고하고 수정에 도움을 주려면 여기를 클릭하세요.
+  it: Clicca qui per segnalare il problema e aiutare a risolverlo.
+  tr: Sorunu bildirmek ve cozulmesine yardimci olmak icin buraya tiklayin.
+  vi: Nhan vao day de bao cao su co va giup khac phuc.
+  id: Klik di sini untuk melaporkan masalah dan membantu memperbaikinya.
+  pl: Kliknij tutaj, aby zglosic problem i pomoc go naprawic.
+  nl: Klik hier om het probleem te melden en te helpen bij het oplossen.
+  ar: انقر هنا للإبلاغ عن المشكلة والمساعدة في إصلاحها.
+  hi: समस्या की रिपोर्ट करने और इसे ठीक करने में मदद करने के लिए यहां क्लिक करें।
+  th: คลิกที่นี่เพื่อรายงานปัญหาและช่วยแก้ไข
+  cs: Kliknete sem pro nahlaseni problemu a pomoc pri jeho oprave.
+  sv: Klicka har for att rapportera problemet och hjalpa till att atgarda det.
+  he: לחץ כאן כדי לדווח על הבעיה ולעזור בתיקונה.
+  verified_by_human: []
+generated_by:
+  context: Label indicating which AI model generated the response
+  en: "generated by {model}"
+  de: "generiert von {model}"
+  zh: "由 {model} 生成"
+  es: "generado por {model}"
+  fr: "généré par {model}"
+  pt: "gerado por {model}"
+  ru: "сгенерировано {model}"
+  ja: "{model} によって生成"
+  ko: "{model}에 의해 생성됨"
+  it: "generato da {model}"
+  tr: "{model} tarafından oluşturuldu"
+  vi: "được tạo bởi {model}"
+  id: "dibuat oleh {model}"
+  pl: "wygenerowane przez {model}"
+  nl: "gegenereerd door {model}"
+  ar: "تم إنشاؤه بواسطة {model}"
+  hi: "{model} द्वारा जनरेट किया गया"
+  th: "สร้างโดย {model}"
+  cs: "generováno modelem {model}"
+  sv: "genererad av {model}"
+  he: "נוצר על ידי {model}"
+  verified_by_human: []
+
+pii_hide:
+  context: Tooltip for the PII toggle button when sensitive data is currently visible (clicking will hide it)
+  en: Hide sensitive data
+  de: Sensible Daten ausblenden
+
+  he: הסתרת נתונים רגישים
+pii_show:
+  context: Tooltip for the PII toggle button when sensitive data is currently hidden (clicking will reveal it)
+  en: Show sensitive data
+  de: Sensible Daten anzeigen
+  he: הצגת נתונים רגישים
+minimize:
+  context: Aria-label and tooltip for minimize button that hides chat panel in side-by-side layout
+  en: Minimize chat
+  de: Chat minimieren
+  he: "מזעור הצ'אט"
+  verified_by_human: []
+read_only_shared:
+  context: Text shown in read-only indicator when viewing a shared chat you don't own
+  en: This is a shared chat. You can view messages but cannot reply.
+  de: Dies ist ein geteilter Chat. Du kannst Nachrichten lesen, aber nicht antworten.
+  he: "זהו צ'אט משותף. ניתן לצפות בהודעות אך לא ניתן להשיב."
+  verified_by_human: []
+show_chat:
+  context: Aria-label for button that restores chat panel after minimizing
+  en: Show chat
+  de: Chat anzeigen
+  he: "הצגת הצ'אט"
+  verified_by_human: []
+credits_needed:
+  context: Label shown in sidebar when user doesn't have enough credits, displayed like a draft label
+  en: Credits needed...
+  de: Credits benötigt...
+  zh: 需要积分...
+  es: Créditos necesarios...
+  fr: Crédits nécessaires...
+  pt: Créditos necessários...
+  ru: Требуются кредиты...
+  ja: クレジットが必要です...
+  ko: 크레딧이 필요합니다...
+  it: Crediti necessari...
+  tr: Kredi gerekli...
+  vi: Cần tín dụng...
+  id: Kredit diperlukan...
+  pl: Potrzebne kredyty...
+  nl: Credits nodig...
+  ar: الاعتمادات مطلوبة...
+  hi: क्रेडिट की आवश्यकता...
+  th: ต้องการเครดิต...
+  cs: Jsou potřeba kredity...
+  sv: Krediter behövs...
+  he: נדרשים קרדיטים...
+  verified_by_human: []
+insufficient_credits_buy:
+  context: Button text in system message prompting user to buy credits when they don't have enough
+  en: Buy Credits
+  de: Credits kaufen
+  zh: 购买积分
+  es: Comprar créditos
+  fr: Acheter des crédits
+  pt: Comprar créditos
+  ru: Купить кредиты
+  ja: クレジットを購入
+  ko: 크레딧 구매
+  it: Acquista crediti
+  tr: Kredi satın al
+  vi: Mua tín dụng
+  id: Beli kredit
+  pl: Kup kredyty
+  nl: Credits kopen
+  ar: شراء الاعتمادات
+  hi: क्रेडिट खरीदें
+  th: ซื้อเครดิต
+  cs: Koupit kredity
+  sv: Köp krediter
+  he: קניית קרדיטים
+  verified_by_human: []
+credits_restored_message:
+  context: Message shown in the credits-error system notice when the user has topped up credits and can now continue
+  en: You have credits again to continue using OpenMates!
+  de: Du hast wieder Credits, um OpenMates weiter zu nutzen!
+  zh: 您已重新获得积分，可以继续使用 OpenMates！
+  es: ¡Tienes créditos nuevamente para continuar usando OpenMates!
+  fr: Vous avez à nouveau des crédits pour continuer à utiliser OpenMates !
+  pt: Você tem créditos novamente para continuar usando o OpenMates!
+  ru: У вас снова есть кредиты для продолжения использования OpenMates!
+  ja: OpenMatesを引き続き使用するためのクレジットが再び付与されました！
+  ko: OpenMates를 계속 사용할 크레딧이 다시 생겼습니다!
+  it: Hai di nuovo crediti per continuare a usare OpenMates!
+  tr: OpenMates kullanmaya devam etmek için yeniden krediniz var!
+  vi: Bạn đã có tín dụng trở lại để tiếp tục sử dụng OpenMates!
+  id: Anda kembali memiliki kredit untuk melanjutkan penggunaan OpenMates!
+  pl: Masz znowu kredyty, aby kontynuować korzystanie z OpenMates!
+  nl: Je hebt weer credits om OpenMates te blijven gebruiken!
+  ar: لديك رصيد مرة أخرى لمواصلة استخدام OpenMates!
+  hi: आपके पास OpenMates का उपयोग जारी रखने के लिए फिर से क्रेडिट हैं!
+  th: คุณมีเครดิตอีกครั้งเพื่อใช้งาน OpenMates ต่อไป!
+  cs: Máte opět kredity pro pokračování v používání OpenMates!
+  sv: Du har credits igen för att fortsätta använda OpenMates!
+  he: "יש לך שוב קרדיטים כדי להמשיך להשתמש ב-OpenMates!"
+  verified_by_human: []
+credits_restored_resend:
+  context: Button text to resend the last rejected message after the user has topped up credits
+  en: Resend message
+  de: Nachricht erneut senden
+  zh: 重新发送消息
+  es: Reenviar mensaje
+  fr: Renvoyer le message
+  pt: Reenviar mensagem
+  ru: Повторно отправить сообщение
+  ja: メッセージを再送信
+  ko: 메시지 재전송
+  it: Reinvia messaggio
+  tr: Mesajı yeniden gönder
+  vi: Gửi lại tin nhắn
+  id: Kirim ulang pesan
+  pl: Wyślij ponownie
+  nl: Bericht opnieuw verzenden
+  ar: إعادة إرسال الرسالة
+  hi: संदेश पुनः भेजें
+  th: ส่งข้อความอีกครั้ง
+  cs: Znovu odeslat zprávu
+  sv: Skicka om meddelandet
+  he: שליחה מחדש של ההודעה
+  verified_by_human: []
+creating_new_chat:
+  context: Status text shown in the chat header banner while a new chat is being created/processed by AI
+  en: Creating new chat ...
+  de: Neuer Chat wird erstellt ...
+  zh: 正在创建新聊天 ...
+  es: Creando nuevo chat ...
+  fr: Création d'un nouveau chat ...
+  pt: Criando novo chat ...
+  ru: Создание нового чата ...
+  ja: 新しいチャットを作成中 ...
+  ko: 새 채팅 생성 중 ...
+  it: Creazione nuova chat ...
+  tr: Yeni sohbet oluşturuluyor ...
+  vi: Đang tạo cuộc trò chuyện mới ...
+  id: Membuat obrolan baru ...
+  pl: Tworzenie nowego czatu ...
+  nl: Nieuwe chat wordt aangemaakt ...
+  ar: جارٍ إنشاء محادثة جديدة ...
+  hi: नई चैट बनाई जा रही है ...
+  th: กำลังสร้างแชทใหม่ ...
+  cs: Vytváří se nový chat ...
+  sv: Skapar ny chatt ...
+  he: "יוצר צ'אט חדש..."
+  verified_by_human: []
+header.not_enough_credits:
+  context: Text shown in the chat header banner when user has no credits and a new chat message was rejected. Replaces the "Creating new chat..." shimmer text.
+  en: Not enough credits
+  de: Nicht genug Credits
+  zh: 积分不足
+  es: No hay suficientes créditos
+  fr: Crédits insuffisants
+  pt: Créditos insuficientes
+  ru: Недостаточно кредитов
+  ja: クレジットが不足しています
+  ko: 크레딧이 부족합니다
+  it: Crediti insufficienti
+  tr: Yeterli kredi yok
+  vi: Không đủ tín dụng
+  id: Kredit tidak cukup
+  pl: Za mało kredytów
+  nl: Niet genoeg credits
+  ar: رصيد غير كافٍ
+  hi: पर्याप्त क्रेडिट नहीं
+  th: เครดิตไม่เพียงพอ
+  cs: Nedostatek kreditů
+  sv: Inte tillräckligt med krediter
+  he: אין מספיק קרדיטים
+  verified_by_human: []
+header.started_today:
+  context: Chat creation time shown in header banner when chat was created today. {time} is replaced with HH:MM format
+  en: "Started today, {time}"
+  de: "Gestartet heute, {time}"
+  zh: "今天开始, {time}"
+  es: "Iniciado hoy, {time}"
+  fr: "Commencé aujourd'hui, {time}"
+  pt: "Iniciado hoje, {time}"
+  ru: "Начат сегодня, {time}"
+  ja: "今日開始, {time}"
+  ko: "오늘 시작, {time}"
+  it: "Iniziato oggi, {time}"
+  tr: "Bugün başladı, {time}"
+  vi: "Bắt đầu hôm nay, {time}"
+  id: "Dimulai hari ini, {time}"
+  pl: "Rozpoczęto dzisiaj, {time}"
+  nl: "Gestart vandaag, {time}"
+  ar: "بدأت اليوم، {time}"
+  hi: "आज शुरू हुई, {time}"
+  th: "เริ่มวันนี้, {time}"
+  cs: "Zahájeno dnes, {time}"
+  sv: "Startad idag, {time}"
+  he: "התחיל היום, {time}"
+  verified_by_human: []
+header.started_yesterday:
+  context: Chat creation time shown in header banner when chat was created yesterday. {time} is replaced with HH:MM format
+  en: "Started yesterday, {time}"
+  de: "Gestartet gestern, {time}"
+  zh: "昨天开始, {time}"
+  es: "Iniciado ayer, {time}"
+  fr: "Commencé hier, {time}"
+  pt: "Iniciado ontem, {time}"
+  ru: "Начат вчера, {time}"
+  ja: "昨日開始, {time}"
+  ko: "어제 시작, {time}"
+  it: "Iniziato ieri, {time}"
+  tr: "Dün başladı, {time}"
+  vi: "Bắt đầu hôm qua, {time}"
+  id: "Dimulai kemarin, {time}"
+  pl: "Rozpoczęto wczoraj, {time}"
+  nl: "Gestart gisteren, {time}"
+  ar: "بدأت أمس، {time}"
+  hi: "कल शुरू हुई, {time}"
+  th: "เริ่มเมื่อวาน, {time}"
+  cs: "Zahájeno včera, {time}"
+  sv: "Startad igår, {time}"
+  he: "התחיל אתמול, {time}"
+  verified_by_human: []
+header.started_date:
+  context: Chat creation time shown in header banner for older chats. {date} is YYYY/MM/DD, {time} is HH:MM
+  en: "Started {date}, {time}"
+  de: "Gestartet {date}, {time}"
+  zh: "开始于 {date}, {time}"
+  es: "Iniciado {date}, {time}"
+  fr: "Commencé le {date}, {time}"
+  pt: "Iniciado {date}, {time}"
+  ru: "Начат {date}, {time}"
+  ja: "開始 {date}, {time}"
+  ko: "시작 {date}, {time}"
+  it: "Iniziato {date}, {time}"
+  tr: "Başladı {date}, {time}"
+  vi: "Bắt đầu {date}, {time}"
+  id: "Dimulai {date}, {time}"
+  pl: "Rozpoczęto {date}, {time}"
+  nl: "Gestart {date}, {time}"
+  ar: "بدأت {date}، {time}"
+  hi: "शुरू {date}, {time}"
+  th: "เริ่ม {date}, {time}"
+  cs: "Zahájeno {date}, {time}"
+  sv: "Startad {date}, {time}"
+  he: "התחיל ב-{date}, {time}"
+  verified_by_human: []
+header.minutes_ago:
+  context: Relative time shown in chat header banner when chat was created within last 10 minutes. {count} is the number of minutes
+  en: "{count} min ago"
+  de: "vor {count} Min."
+  zh: "{count} 分钟前"
+  es: "hace {count} min"
+  fr: "il y a {count} min"
+  pt: "há {count} min"
+  ru: "{count} мин. назад"
+  ja: "{count} 分前"
+  ko: "{count}분 전"
+  it: "{count} min fa"
+  tr: "{count} dk önce"
+  vi: "{count} phút trước"
+  id: "{count} menit lalu"
+  pl: "{count} min temu"
+  nl: "{count} min geleden"
+  ar: "منذ {count} دقيقة"
+  hi: "{count} मिनट पहले"
+  th: "{count} นาทีที่แล้ว"
+  cs: "před {count} min"
+  sv: "{count} min sedan"
+  he: "לפני {count} דק'"
+  verified_by_human: []
+header.just_now:
+  context: Relative time shown in chat header banner when chat was created less than 1 minute ago
+  en: Just now
+  de: Gerade eben
+  zh: 刚刚
+  es: Ahora mismo
+  fr: À l'instant
+  pt: Agora mesmo
+  ru: Только что
+  ja: たった今
+  ko: 방금
+  it: Proprio ora
+  tr: Az önce
+  vi: Vừa xong
+  id: Baru saja
+  pl: Właśnie teraz
+  nl: Zojuist
+  ar: الآن
+  hi: अभी
+  th: เมื่อสักครู่
+  cs: Právě teď
+  sv: Just nu
+  he: ממש עכשיו
+  verified_by_human: []
+
+header.previous_chat:
+  context: Accessible label for the "previous chat" navigation arrow button shown in the chat header banner
+  en: Previous chat
+  de: Vorheriger Chat
+  he: "הצ'אט הקודם"
+  verified_by_human: []
+
+header.next_chat:
+  context: Accessible label for the "next chat" navigation arrow button shown in the chat header banner
+  en: Next chat
+  de: Nächster Chat
+  he: "הצ'אט הבא"
+  verified_by_human: []
+
+thinking.placeholder:
+  context: Placeholder text shown in the thinking section while waiting for the AI reasoning model to start producing thinking content
+  en: Let me think about that...
+  de: Lass mich darüber nachdenken...
+  zh: 让我想想...
+  es: Déjame pensar en eso...
+  fr: Laissez-moi réfléchir...
+  pt: Deixe-me pensar nisso...
+  ru: Дайте мне подумать...
+  ja: ちょっと考えさせて...
+  ko: 생각해 볼게요...
+  it: Fammi pensare...
+  tr: Düşünmeme izin ver...
+  vi: Để tôi suy nghĩ...
+  id: Biarkan saya berpikir...
+  pl: Pozwól mi pomyśleć...
+  nl: Laat me even nadenken...
+  ar: دعني أفكر في ذلك...
+  hi: मुझे इसके बारे में सोचने दो...
+  th: ให้ฉันคิดดูก่อน...
+  cs: Nech mě přemýšlet...
+  sv: Låt mig tänka på det...
+  he: תן/י לי לחשוב על זה...
+  verified_by_human: []
+
+thinking.header_streaming:
+  context: Header text shown in the thinking section while the AI reasoning model is actively thinking
+  en: Thinking...
+  de: Denkt nach...
+  zh: 思考中...
+  es: Pensando...
+  fr: Réflexion...
+  pt: Pensando...
+  ru: Думает...
+  ja: 考え中...
+  ko: 생각 중...
+  it: Sta pensando...
+  tr: Düşünüyor...
+  vi: Đang suy nghĩ...
+  id: Sedang berpikir...
+  pl: Myśli...
+  nl: Denkt na...
+  ar: يفكر...
+  hi: सोच रहा है...
+  th: กำลังคิด...
+  cs: Přemýšlí...
+  sv: Tänker...
+  he: חושב/ת...
+  verified_by_human: []
+
+thinking.header_done:
+  context: Header text shown in the thinking section after the AI reasoning model has finished thinking (collapsed state)
+  en: Thought process
+  de: Denkprozess
+  zh: 思考过程
+  es: Proceso de pensamiento
+  fr: Processus de réflexion
+  pt: Processo de pensamento
+  ru: Ход мыслей
+  ja: 思考プロセス
+  ko: 사고 과정
+  it: Processo di pensiero
+  tr: Düşünce süreci
+  vi: Quá trình suy nghĩ
+  id: Proses berpikir
+  pl: Proces myślenia
+  nl: Denkproces
+  ar: عملية التفكير
+  hi: विचार प्रक्रिया
+  th: กระบวนการคิด
+  cs: Myšlenkový proces
+  sv: Tankeprocess
+  he: תהליך החשיבה
+  verified_by_human: []
+
+thinking.collapse:
+  context: Accessible label for the button to collapse the thinking section
+  en: Collapse thought process
+  de: Denkprozess einklappen
+  zh: 收起思考过程
+  es: Contraer proceso de pensamiento
+  fr: Réduire le processus de réflexion
+  pt: Recolher processo de pensamento
+  ru: Свернуть ход мыслей
+  ja: 思考プロセスを折りたたむ
+  ko: 사고 과정 접기
+  it: Comprimi processo di pensiero
+  tr: Düşünce sürecini daralt
+  vi: Thu gọn quá trình suy nghĩ
+  id: Ciutkan proses berpikir
+  pl: Zwiń proces myślenia
+  nl: Denkproces inklappen
+  ar: طي عملية التفكير
+  hi: विचार प्रक्रिया संक्षिप्त करें
+  th: ย่อกระบวนการคิด
+  cs: Sbalit myšlenkový proces
+  sv: Fäll ihop tankeprocess
+  he: כווץ תהליך חשיבה
+  verified_by_human: []
+
+thinking.expand:
+  context: Accessible label for the button to expand the thinking section
+  en: Expand thought process
+  de: Denkprozess ausklappen
+  zh: 展开思考过程
+  es: Expandir proceso de pensamiento
+  fr: Développer le processus de réflexion
+  pt: Expandir processo de pensamento
+  ru: Развернуть ход мыслей
+  ja: 思考プロセスを展開する
+  ko: 사고 과정 펼치기
+  it: Espandi processo di pensiero
+  tr: Düşünce sürecini genişlet
+  vi: Mở rộng quá trình suy nghĩ
+  id: Perluas proses berpikir
+  pl: Rozwiń proces myślenia
+  nl: Denkproces uitklappen
+  ar: توسيع عملية التفكير
+  hi: विचार प्रक्रिया विस्तार करें
+  th: ขยายกระบวนการคิด
+  cs: Rozbalit myšlenkový proces
+  sv: Fäll ut tankeprocess
+  he: הרחב תהליך חשיבה
+  verified_by_human: []
+
+compression.compressing:
+  context: Status text shown when the AI is compressing a long chat history into a summary before processing
+  en: Compressing chat...
+  de: Chat wird komprimiert...
+  zh: 正在压缩聊天记录...
+  es: Comprimiendo chat...
+  fr: Compression du chat...
+  pt: Comprimindo o chat...
+  ru: Сжатие чата...
+  ja: チャットを圧縮中...
+  ko: 채팅 압축 중...
+  it: Compressione della chat...
+  tr: Sohbet sıkıştırılıyor...
+  vi: Đang nén cuộc trò chuyện...
+  id: Mengompres obrolan...
+  pl: Kompresja czatu...
+  nl: Chat wordt gecomprimeerd...
+  ar: جاري ضغط المحادثة...
+  hi: चैट संपीड़ित हो रही है...
+  th: กำลังบีบอัดแชท...
+  cs: Komprimace chatu...
+  sv: Komprimerar chatten...
+  he: דוחס את השיחה...
+  verified_by_human: []
+
+compression.summary_title:
+  context: Title shown on the compression summary system message card
+  en: Chat Summary
+  de: Chat-Zusammenfassung
+  zh: 聊天摘要
+  es: Resumen del chat
+  fr: Résumé du chat
+  pt: Resumo do chat
+  ru: Сводка чата
+  ja: チャット要約
+  ko: 채팅 요약
+  it: Riepilogo della chat
+  tr: Sohbet özeti
+  vi: Tóm tắt cuộc trò chuyện
+  id: Ringkasan obrolan
+  pl: Podsumowanie czatu
+  nl: Chatsamenvatting
+  ar: ملخص المحادثة
+  hi: चैट सारांश
+  th: สรุปแชท
+  cs: Shrnutí chatu
+  sv: Chattsammanfattning
+  he: סיכום השיחה
+  verified_by_human: []
+
+compression.show_more:
+  context: Button text to expand the full compression summary
+  en: Show full summary
+  de: Vollständige Zusammenfassung anzeigen
+  zh: 显示完整摘要
+  es: Mostrar resumen completo
+  fr: Afficher le résumé complet
+  pt: Mostrar resumo completo
+  ru: Показать полную сводку
+  ja: 完全な要約を表示
+  ko: 전체 요약 보기
+  it: Mostra riepilogo completo
+  tr: Tam özeti göster
+  vi: Hiển thị tóm tắt đầy đủ
+  id: Tampilkan ringkasan lengkap
+  pl: Pokaż pełne podsumowanie
+  nl: Volledige samenvatting tonen
+  ar: عرض الملخص الكامل
+  hi: पूरा सारांश दिखाएं
+  th: แสดงสรุปทั้งหมด
+  cs: Zobrazit celé shrnutí
+  sv: Visa fullständig sammanfattning
+  he: הצג סיכום מלא
+  verified_by_human: []
+
+compression.show_less:
+  context: Button text to collapse the compression summary
+  en: Show less
+  de: Weniger anzeigen
+  zh: 收起
+  es: Mostrar menos
+  fr: Afficher moins
+  pt: Mostrar menos
+  ru: Свернуть
+  ja: 折りたたむ
+  ko: 접기
+  it: Mostra meno
+  tr: Daha az göster
+  vi: Thu gọn
+  id: Tampilkan lebih sedikit
+  pl: Pokaż mniej
+  nl: Minder tonen
+  ar: عرض أقل
+  hi: कम दिखाएं
+  th: แสดงน้อยลง
+  cs: Zobrazit méně
+  sv: Visa mindre
+  he: הצג פחות
+  verified_by_human: []
+
+compression.show_forgotten:
+  context: Button text to show messages that were compressed/forgotten
+  en: Show earlier messages
+  de: Frühere Nachrichten anzeigen
+  zh: 显示早期消息
+  es: Mostrar mensajes anteriores
+  fr: Afficher les messages précédents
+  pt: Mostrar mensagens anteriores
+  ru: Показать ранние сообщения
+  ja: 以前のメッセージを表示
+  ko: 이전 메시지 보기
+  it: Mostra messaggi precedenti
+  tr: Önceki mesajları göster
+  vi: Hiển thị tin nhắn trước đó
+  id: Tampilkan pesan sebelumnya
+  pl: Pokaż wcześniejsze wiadomości
+  nl: Eerdere berichten tonen
+  ar: عرض الرسائل السابقة
+  hi: पुराने संदेश दिखाएं
+  th: แสดงข้อความก่อนหน้า
+  cs: Zobrazit starší zprávy
+  sv: Visa tidigare meddelanden
+  he: הצג הודעות קודמות
+  verified_by_human: []
+
+compression.hide_forgotten:
+  context: Button text to hide the earlier compressed/forgotten messages
+  en: Hide earlier messages
+  de: Frühere Nachrichten ausblenden
+  zh: 隐藏早期消息
+  es: Ocultar mensajes anteriores
+  fr: Masquer les messages précédents
+  pt: Ocultar mensagens anteriores
+  ru: Скрыть ранние сообщения
+  ja: 以前のメッセージを非表示
+  ko: 이전 메시지 숨기기
+  it: Nascondi messaggi precedenti
+  tr: Önceki mesajları gizle
+  vi: Ẩn tin nhắn trước đó
+  id: Sembunyikan pesan sebelumnya
+  pl: Ukryj wcześniejsze wiadomości
+  nl: Eerdere berichten verbergen
+  ar: إخفاء الرسائل السابقة
+  hi: पुराने संदेश छुपाएं
+  th: ซ่อนข้อความก่อนหน้า
+  cs: Skrýt starší zprávy
+  sv: Dölj tidigare meddelanden
+  he: הסתר הודעות קודמות
+  verified_by_human: []
+
+compression.messages_compressed:
+  context: Subtitle text in the compression summary showing how many messages were summarized
+  en: "{count} messages summarized"
+  de: "{count} Nachrichten zusammengefasst"
+  zh: "已汇总 {count} 条消息"
+  es: "{count} mensajes resumidos"
+  fr: "{count} messages résumés"
+  pt: "{count} mensagens resumidas"
+  ru: "{count} сообщений сводка"
+  ja: "{count} 件のメッセージを要約"
+  ko: "{count}개 메시지 요약됨"
+  it: "{count} messaggi riassunti"
+  tr: "{count} mesaj özetlendi"
+  vi: "Đã tóm tắt {count} tin nhắn"
+  id: "{count} pesan diringkas"
+  pl: "{count} wiadomości podsumowanych"
+  nl: "{count} berichten samengevat"
+  ar: "تم تلخيص {count} رسالة"
+  hi: "{count} संदेश सारांशित"
+  th: "สรุป {count} ข้อความ"
+  cs: "{count} zpráv shrnuto"
+  sv: "{count} meddelanden sammanfattade"
+  he: "{count} הודעות סוכמו"
+  verified_by_human: []

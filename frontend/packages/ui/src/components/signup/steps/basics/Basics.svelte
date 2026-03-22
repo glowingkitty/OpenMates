@@ -2,28 +2,28 @@
     import { createEventDispatcher } from 'svelte';
     import { fade } from 'svelte/transition';
     import { text } from '@repo/ui';
-    import WaitingList from '../../../WaitingList.svelte';
     import Toggle from '../../../Toggle.svelte';
+    import InputWarning from '../../../common/InputWarning.svelte';
     import { requireInviteCode } from '../../../../stores/signupRequirements';
     import { getApiEndpoint, apiEndpoints } from '../../../../config/api';
     import { tick } from 'svelte';
     import { externalLinks, getWebsiteUrl } from '../../../../config/links';
     import { onMount, onDestroy } from 'svelte';
     import { get } from 'svelte/store';
-    import InputWarning from '../../../common/InputWarning.svelte';
     import { updateUsername } from '../../../../stores/userProfile';
-    import { signupStore } from '../../../../stores/signupStore';
+    import { signupStore, clearSignupData } from '../../../../stores/signupStore';
     import * as cryptoService from '../../../../services/cryptoService';
 
     const dispatch = createEventDispatcher();
 
     // --- Inactivity Timer ---
-    const SIGNUP_INACTIVITY_TIMEOUT_MS = 120000; // 2 minutes
+    const SIGNUP_INACTIVITY_TIMEOUT_MS = 30000; // 30 seconds
     let signupTimer: ReturnType<typeof setTimeout> | null = null;
     let isSignupTimerActive = false;
     // --- End Inactivity Timer ---
 
     // Props using Svelte 5 runes mode
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
     let { isValidated = false, is_admin = false }: { isValidated?: boolean, is_admin?: boolean } = $props();
     
     // Form state using Svelte 5 runes
@@ -40,6 +40,7 @@
     let termsAgreed = $state(false);
     let privacyAgreed = $state(false);
     let stayLoggedIn = $state(false); // Add stay logged in toggle
+    let subscribeToNewsletter = $state(false); // Newsletter subscription toggle
 
     // Add reference for the input using Svelte 5 runes
     let inviteCodeInput = $state<HTMLInputElement>();
@@ -58,6 +59,7 @@
     let showUsernameWarning = $state(false);
     let usernameError = $state('');
     let isUsernameValidationPending = $state(false);
+    let usernameAlreadyTaken = $state(false); // True when the server says the username is taken
 
     const RATE_LIMIT_DURATION = 120000; // 120 seconds in milliseconds
     let isRateLimited = $state(false);
@@ -95,12 +97,15 @@
                 termsAgreed = false;
                 privacyAgreed = false;
                 stayLoggedIn = false;
+                subscribeToNewsletter = false;
                 // Clear any error states
                 showEmailWarning = false;
                 emailError = '';
                 emailAlreadyInUse = false;
                 showUsernameWarning = false;
                 usernameError = '';
+                // Stop the inactivity timer when fields are cleared
+                stopSignupTimer();
             }
         });
 
@@ -154,13 +159,14 @@
 
     // --- Inactivity Timer Functions ---
     function handleSignupTimeout() {
-        console.debug("Signup Step Basics inactivity timeout triggered.");
+        console.debug("Signup Step Basics inactivity timeout triggered - clearing email and username fields.");
         // Clear local state
         username = '';
         email = '';
         termsAgreed = false;
         privacyAgreed = false;
         stayLoggedIn = false;
+        subscribeToNewsletter = false;
         // Clear errors/warnings related to these fields
         showEmailWarning = false;
         emailError = '';
@@ -170,8 +176,8 @@
 
         stopSignupTimer(); // Stop the timer state
 
-        // Dispatch event to request switch back to login
-        dispatch('requestSwitchToLogin');
+        // Clear signup store to ensure fields are cleared across components
+        clearSignupData();
     }
 
     function resetSignupTimer() {
@@ -219,10 +225,10 @@
 
     // Watch for changes in isValidated using Svelte 5 runes
     $effect(() => {
-        if (isValidated && usernameInput && !isTouchDevice) {
+        if (isValidated && emailInput && !isTouchDevice) {
             // Use tick to ensure DOM is updated
             tick().then(() => {
-                usernameInput.focus();
+                emailInput.focus();
             });
         }
     });
@@ -337,11 +343,39 @@
         }
     }
 
+    // Check if server is self-hosted (for skipping email confirmation)
+    let isSelfHosted = $state(false);
+    
+    onMount(async () => {
+        // Check server status to determine if self-hosted
+        try {
+            const response = await fetch(getApiEndpoint('/v1/settings/server-status'));
+            if (response.ok) {
+                const status = await response.json();
+                isSelfHosted = status.is_self_hosted || false;
+            }
+        } catch (error) {
+            console.error('[Basics] Error checking server status:', error);
+        }
+    });
+
     // Handle form submission
     async function handleSubmit(event: Event) {
         event.preventDefault();
         
         if (emailAlreadyInUse) {
+            return;
+        }
+
+        // CRITICAL: Check if invite code is required but not validated
+        // This prevents silent signup failures when invite codes are required
+        if ($requireInviteCode && !isValidated) {
+            console.error('[Basics] Cannot submit: invite code is required but not validated');
+            showWarning = true;
+            // Focus invite code input if available
+            if (inviteCodeInput && !isTouchDevice) {
+                inviteCodeInput.focus();
+            }
             return;
         }
 
@@ -361,7 +395,56 @@
             // Hash the email for lookup and uniqueness check
             const hashedEmail = await cryptoService.hashEmail(email);
             
-            // Request email verification code
+            // If self-hosted, skip email confirmation and go directly to secure_account
+            if (isSelfHosted) {
+                // Update the Svelte store
+                signupStore.update(store => ({
+                    ...store,
+                    email,
+                    username,
+                    inviteCode,
+                    language: currentLang,
+                    darkmode: darkModeEnabled,
+                    stayLoggedIn: stayLoggedIn
+                }));
+                
+                // Subscribe to newsletter if toggle is enabled
+                // This happens in the background and doesn't block the signup flow
+                if (subscribeToNewsletter) {
+                    console.debug('[Basics] Newsletter subscription toggle is enabled, subscribing to newsletter...');
+                    // Fire and forget - don't block signup flow if newsletter subscription fails
+                    fetch(getApiEndpoint(apiEndpoints.newsletter.subscribe), {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'Origin': window.location.origin
+                        },
+                        body: JSON.stringify({
+                            email: email.trim().toLowerCase(),
+                            language: currentLang,
+                            darkmode: darkModeEnabled
+                        }),
+                        credentials: 'include'
+                    }).then(async (response) => {
+                        const data = await response.json();
+                        if (response.ok && data.success) {
+                            console.debug('[Basics] Newsletter subscription request sent successfully');
+                        } else {
+                            console.warn('[Basics] Newsletter subscription failed:', data.message || 'Unknown error');
+                        }
+                    }).catch((error) => {
+                        console.warn('[Basics] Error subscribing to newsletter:', error);
+                        // Don't block signup flow if newsletter subscription fails
+                    });
+                }
+                
+                // Dispatch the next event to transition to secure_account (skipping email confirmation)
+                dispatch('next');
+                return;
+            }
+            
+            // Request email verification code (only for non-self-hosted)
             const response = await fetch(getApiEndpoint(apiEndpoints.auth.request_confirm_email_code), {
                 method: 'POST',
                 headers: {
@@ -398,6 +481,37 @@
                     stayLoggedIn: stayLoggedIn
                 }));
                 
+                // Subscribe to newsletter if toggle is enabled
+                // This happens in the background and doesn't block the signup flow
+                if (subscribeToNewsletter) {
+                    console.debug('[Basics] Newsletter subscription toggle is enabled, subscribing to newsletter...');
+                    // Fire and forget - don't block signup flow if newsletter subscription fails
+                    fetch(getApiEndpoint(apiEndpoints.newsletter.subscribe), {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'Origin': window.location.origin
+                        },
+                        body: JSON.stringify({
+                            email: email.trim().toLowerCase(),
+                            language: currentLang,
+                            darkmode: darkModeEnabled
+                        }),
+                        credentials: 'include'
+                    }).then(async (response) => {
+                        const data = await response.json();
+                        if (response.ok && data.success) {
+                            console.debug('[Basics] Newsletter subscription request sent successfully');
+                        } else {
+                            console.warn('[Basics] Newsletter subscription failed:', data.message || 'Unknown error');
+                        }
+                    }).catch((error) => {
+                        console.warn('[Basics] Error subscribing to newsletter:', error);
+                        // Don't block signup flow if newsletter subscription fails
+                    });
+                }
+                
                 // Dispatch the next event to transition to step 2
                 dispatch('next');
             } else {
@@ -407,12 +521,15 @@
                     if (emailInput && !isTouchDevice) {
                         emailInput.focus();
                     }
-                } else if (data.error_code === 'DOMAIN_NOT_ALLOWED') {
+                } else if (data.error_code === 'DOMAIN_NOT_SUPPORTED' || data.error_code === 'DOMAIN_NOT_ALLOWED') {
+                    // Domain is blocked - show error immediately and prevent code from being sent
+                    // Backend returns translation key in data.message, use $text() to load translated version
                     showEmailWarning = true;
-                    emailError = $text('signup.domain_not_allowed.text');
+                    emailError = data.message ? $text(data.message) : $text('signup.domain_not_allowed');
                     if (emailInput && !isTouchDevice) {
                         emailInput.focus();
                     }
+                    console.warn('Domain blocked during signup:', data.message);
                 } else {
                     showWarning = true;
                     console.error('Error requesting verification code:', data.message);
@@ -439,8 +556,12 @@
     }
 
 
-    // Modify email validation check
-    const debouncedCheckEmail = debounce((email: string) => {
+    /**
+     * Validates email format immediately (no debounce) so warnings stay visible
+     * as long as the input is invalid. This ensures users see feedback right away.
+     * @param email - The email address to validate
+     */
+    function validateEmailFormat(email: string): void {
         if (!email) {
             emailError = '';
             showEmailWarning = false;
@@ -449,14 +570,14 @@
         }
 
         if (!email.includes('@')) {
-            emailError = $text('signup.at_missing.text');
+            emailError = $text('signup.at_missing');
             showEmailWarning = true;
             isEmailValidationPending = false;
             return;
         }
 
         if (!email.match(/\.[a-z]{2,}$/i)) {
-            emailError = $text('signup.domain_ending_missing.text');
+            emailError = $text('signup.domain_ending_missing');
             showEmailWarning = true;
             isEmailValidationPending = false;
             return;
@@ -465,7 +586,7 @@
         emailError = '';
         showEmailWarning = false;
         isEmailValidationPending = false;
-    }, 800);
+    }
 
     // Update username validation function
     const checkUsername = (username: string): boolean => {
@@ -479,27 +600,27 @@
         const normalizedUsername = username.normalize('NFC');
 
         if (normalizedUsername.length < 3) {
-            usernameError = $text('signup.username_too_short.text');
+            usernameError = $text('signup.username_too_short');
             showUsernameWarning = true;
             return false;
         }
 
         if (normalizedUsername.length > 20) {
-            usernameError = $text('signup.username_too_long.text');
+            usernameError = $text('signup.username_too_long');
             showUsernameWarning = true;
             return false;
         }
 
         // Check for at least one letter (including international letters)
         if (!/\p{L}/u.test(normalizedUsername)) {
-            usernameError = $text('signup.password_needs_letter.text');
+            usernameError = $text('signup.password_needs_letter');
             showUsernameWarning = true;
             return false;
         }
 
         // Allow letters (including international), numbers, dots, and underscoress        // Include specific Unicode ranges for Thai [\u0E00-\u0E7F]
         if (!/^[\p{L}\p{M}0-9._]+$/u.test(normalizedUsername)) {
-            usernameError = $text('signup.username_invalid_chars.text');
+            usernameError = $text('signup.username_invalid_chars');
             showUsernameWarning = true;
             return false;
         }
@@ -509,8 +630,12 @@
         return true;
     };
 
-    // Update debounced username check to clear warnings when empty
-    const debouncedCheckUsername = debounce((username: string) => {
+    /**
+     * Validates username immediately (no debounce) so warnings stay visible
+     * as long as the input is invalid. Wrapper around checkUsername for consistency.
+     * @param username - The username to validate
+     */
+    function validateUsernameFormat(username: string): void {
         if (!username) {
             usernameError = '';
             showUsernameWarning = false;
@@ -519,12 +644,67 @@
         }
         isUsernameValidationPending = false;
         checkUsername(username);
-    }, 500);
+    }
+
+    /**
+     * Debounced server-side availability check for the chosen username.
+     * Called after the local format validation passes, so we only hit the
+     * network when the input is already well-formed.
+     */
+    const debouncedCheckUsernameAvailability = debounce(async (value: string) => {
+        if (!value) return;
+
+        // Only check if format is valid (checkUsername sets usernameError on failure)
+        const formatOk = checkUsername(value);
+        if (!formatOk) {
+            isUsernameValidationPending = false;
+            return;
+        }
+
+        try {
+            const response = await fetch(
+                getApiEndpoint(apiEndpoints.auth.check_username_valid),
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'Origin': window.location.origin,
+                    },
+                    body: JSON.stringify({ username: value }),
+                    credentials: 'include',
+                }
+            );
+
+            if (!response.ok) {
+                // Server error — fail silently to avoid blocking the user
+                console.warn('[Basics] Username availability check failed with HTTP', response.status);
+                isUsernameValidationPending = false;
+                return;
+            }
+
+            const data = await response.json();
+
+            if (!data.available) {
+                usernameAlreadyTaken = true;
+                usernameError = $text('signup.username_taken');
+                showUsernameWarning = true;
+            }
+            // If available, leave usernameError/usernameAlreadyTaken as-is from the
+            // format check (which already cleared them above).
+        } catch (err) {
+            console.warn('[Basics] Username availability check error:', err);
+            // Network error — do not block the user
+        } finally {
+            isUsernameValidationPending = false;
+        }
+    }, 600);
 
     // Helper function to check if form is valid using Svelte 5 runes
     let isFormValid = $derived(username && 
                      !usernameError &&
                      !isUsernameValidationPending &&
+                     !usernameAlreadyTaken && // Block submission if username is already taken
                      email && 
                      !emailError &&
                      !isEmailValidationPending &&
@@ -533,11 +713,11 @@
                      privacyAgreed);
 
     // Update reactive statements to include email validation using Svelte 5 runes
+    // Email validation runs immediately so warnings stay visible as long as input is invalid
     $effect(() => {
         if (email) {
-            isEmailValidationPending = true;
             emailAlreadyInUse = false; // Reset the already in use warning when email changes
-            debouncedCheckEmail(email);
+            validateEmailFormat(email); // Immediate validation - no debounce delay
         } else {
             emailError = '';
             showEmailWarning = false;
@@ -547,14 +727,22 @@
     });
 
     // Update reactive statements to include username validation using Svelte 5 runes
+    // Username validation runs immediately (format) + debounced server uniqueness check.
     $effect(() => {
         if (!username) {
             usernameError = '';
             showUsernameWarning = false;
             isUsernameValidationPending = false;
+            usernameAlreadyTaken = false;
         } else {
-            isUsernameValidationPending = true;
-            debouncedCheckUsername(username);
+            usernameAlreadyTaken = false; // Reset on every keystroke; re-checked by the debounced call
+            validateUsernameFormat(username); // Immediate format validation
+
+            // Trigger async uniqueness check after a short pause
+            if (!usernameError) {
+                isUsernameValidationPending = true;
+                debouncedCheckUsernameAvailability(username);
+            }
         }
     });
 
@@ -564,166 +752,441 @@
             updateUsername(username);
         }
     });
+
+    // --- Newsletter Subscription State (for users without invite code) ---
+    let newsletterEmail = $state('');
+    let isNewsletterSubmitting = $state(false);
+    let newsletterSuccessMessage = $state('');
+    let newsletterErrorMessage = $state('');
+    let showNewsletterEmailWarning = $state(false);
+    let newsletterEmailError = $state('');
+    let isNewsletterEmailValidationPending = $state(false);
+    let newsletterEmailInput = $state<HTMLInputElement>();
+
+    /**
+     * Email validation check for newsletter subscription (same as signup email validation)
+     */
+    const debouncedCheckNewsletterEmail = debounce((email: string) => {
+        if (!email) {
+            newsletterEmailError = '';
+            showNewsletterEmailWarning = false;
+            isNewsletterEmailValidationPending = false;
+            return;
+        }
+
+        if (!email.includes('@')) {
+            newsletterEmailError = $text('signup.at_missing');
+            showNewsletterEmailWarning = true;
+            isNewsletterEmailValidationPending = false;
+            return;
+        }
+
+        if (!email.match(/\.[a-z]{2,}$/i)) {
+            newsletterEmailError = $text('signup.domain_ending_missing');
+            showNewsletterEmailWarning = true;
+            isNewsletterEmailValidationPending = false;
+            return;
+        }
+
+        newsletterEmailError = '';
+        showNewsletterEmailWarning = false;
+        isNewsletterEmailValidationPending = false;
+    }, 800);
+
+    // Watch newsletter email changes and validate
+    $effect(() => {
+        if (newsletterEmail) {
+            isNewsletterEmailValidationPending = true;
+            debouncedCheckNewsletterEmail(newsletterEmail);
+        } else {
+            newsletterEmailError = '';
+            showNewsletterEmailWarning = false;
+            isNewsletterEmailValidationPending = false;
+        }
+    });
+
+    /**
+     * Handles newsletter subscription form submission.
+     * Sends email to backend which will send a confirmation email to the user.
+     */
+    async function handleNewsletterSubscribe() {
+        // Reset messages
+        newsletterSuccessMessage = '';
+        newsletterErrorMessage = '';
+        
+        // Validate email before submission
+        if (!newsletterEmail || !newsletterEmail.trim()) {
+            newsletterEmailError = $text('signup.at_missing');
+            showNewsletterEmailWarning = true;
+            if (newsletterEmailInput && !isTouchDevice) {
+                newsletterEmailInput.focus();
+            }
+            return;
+        }
+        
+        // Check if email validation is pending or has errors
+        if (isNewsletterEmailValidationPending || newsletterEmailError) {
+            if (newsletterEmailInput && !isTouchDevice) {
+                newsletterEmailInput.focus();
+            }
+            return;
+        }
+        
+        isNewsletterSubmitting = true;
+        
+        try {
+            // Get current language for newsletter subscription
+            // Use the same logic as signup form: localStorage or browser default
+            const currentLang = localStorage.getItem('preferredLanguage') || 
+                              navigator.language.split('-')[0] || 
+                              'en';
+            
+            // Get dark mode setting for newsletter subscription
+            // Use the same logic as signup form: localStorage or system preference
+            const prefersDarkMode = window.matchMedia && 
+                                  window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const darkModeEnabled = localStorage.getItem('darkMode') === 'true' || prefersDarkMode;
+            
+            const response = await fetch(getApiEndpoint(apiEndpoints.newsletter.subscribe), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'Origin': window.location.origin
+                },
+                body: JSON.stringify({
+                    email: newsletterEmail.trim().toLowerCase(),
+                    language: currentLang,
+                    darkmode: darkModeEnabled
+                }),
+                credentials: 'include'
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok && data.success) {
+                // Show success message
+                newsletterSuccessMessage = data.message || $text('signup.newsletter.subscribe_success');
+                // Clear email input
+                newsletterEmail = '';
+                newsletterEmailError = '';
+                showNewsletterEmailWarning = false;
+            } else {
+                // Show error message from API or default error
+                newsletterErrorMessage = data.message || $text('signup.newsletter.subscribe_error');
+            }
+        } catch (error) {
+            console.error('[Basics] Error subscribing to newsletter:', error);
+            newsletterErrorMessage = $text('signup.newsletter.subscribe_error');
+        } finally {
+            isNewsletterSubmitting = false;
+        }
+    }
+    
+    /**
+     * Handles Enter key press in newsletter email input field.
+     */
+    function handleNewsletterKeyPress(event: KeyboardEvent) {
+        if (event.key === 'Enter' && !isNewsletterSubmitting && !isNewsletterEmailValidationPending && !newsletterEmailError) {
+            handleNewsletterSubscribe();
+        }
+    }
+    
+    // Check if newsletter form is valid
+    let isNewsletterFormValid = $derived(
+        newsletterEmail && 
+        !newsletterEmailError && 
+        !isNewsletterEmailValidationPending
+    );
+    // --- End Newsletter Subscription State ---
 </script>
 
-<div class="content-area">
-    <h1><mark>{@html $text('signup.sign_up.text')}</mark></h1>
-    <h2>{@html $text('login.to_chat_to_your.text')}<br><mark>{@html $text('login.digital_team_mates.text')}</mark></h2>
-    
-    <div class="form-container">
-        {#if !isValidated && $requireInviteCode}
-            <form>
-                <div class="input-group">
-                    {#if isRateLimited}
-                        <div class="rate-limit-message" transition:fade>
-                            {$text('signup.too_many_requests.text')}
-                        </div>
-                    {:else}
-                        <div class="input-wrapper">
-                            <span class="clickable-icon icon_secret"></span>
-                            <input 
-                                bind:this={inviteCodeInput}
-                                type="text" 
-                                bind:value={inviteCode}
-                                oninput={handleInviteCodeInput}
-                                onpaste={handlePaste}
-                                placeholder={$text('signup.enter_personal_invite_code.text')}
-                                maxlength="14"
-                                disabled={isLoading}
-                            />
-                            {#if showWarning}
-                                <InputWarning 
-                                    message={$text('signup.code_is_invalid.text')}
-                                    target={inviteCodeInput}
-                                />
-                            {/if}
-                        </div>
-                    {/if}
-                    {#if isLoading}
-                        <div class="loading-message-container" transition:fade>
-                            <div class="loading-message">
-                                {$text('signup.checking_code.text')}
-                            </div>
-                        </div>
-                    {/if}
-                </div>
-            </form>
+<h1><mark>{@html $text('signup.sign_up')}</mark></h1>
 
-        {:else}
-            <form onsubmit={handleSubmit}>
-                <div class="input-group">
-                    <div class="input-wrapper">
-                        <span class="clickable-icon icon_mail"></span>
-                        <input 
-                            bind:this={emailInput}
-                            type="email" 
-                            bind:value={email}
-                            placeholder={$text('login.email_placeholder.text')}
-                            required
-                            autocomplete="email"
-                            class:error={!!emailError || emailAlreadyInUse}
-                            oninput={(e) => {
-                                checkSignupActivityAndManageTimer();
-                                // Auto-fill username based on email if username is empty
-                                if (!username && email.includes('@')) {
-                                    const emailParts = email.split('@');
-                                    username = emailParts[0];
-                                }
-                            }} />
-                        {#if showEmailWarning && emailError}
-                            <InputWarning
-                                message={emailError}
-                                target={emailInput}
-                            />
-                        {/if}
-                        {#if emailAlreadyInUse}
-                            <InputWarning 
-                                message={$text('signup.email_address_already_in_use.text')}
-                                target={emailInput}
-                            />
-                        {/if}
+<!-- Advantages list: informs users about key benefits and pricing model to reduce signup cancellations -->
+<ul class="advantages-list">
+    <li class="advantage-item">
+        <span class="advantage-check-icon"></span>
+        <span class="advantage-text">{$text('signup.advantage_no_ads')}</span>
+    </li>
+    <li class="advantage-item">
+        <span class="advantage-check-icon"></span>
+        <span class="advantage-text">{$text('signup.advantage_no_subscription')}</span>
+    </li>
+    <li class="advantage-item">
+        <span class="advantage-check-icon"></span>
+        <span class="advantage-text">{$text('signup.advantage_privacy_focus')}</span>
+    </li>
+    <li class="advantage-item">
+        <span class="advantage-check-icon"></span>
+        <span class="advantage-text">{$text('signup.advantage_pay_per_use')}</span>
+    </li>
+</ul>
+
+<div class="form-container">
+    {#if !isValidated && $requireInviteCode}
+        <form>
+            <div class="input-group">
+                {#if isRateLimited}
+                    <div class="rate-limit-message" transition:fade>
+                        {$text('signup.too_many_requests')}
                     </div>
-                </div>
-
-                <div class="input-group">
+                {:else}
                     <div class="input-wrapper">
-                        <span class="clickable-icon icon_user"></span>
+                        <span class="clickable-icon icon_secret"></span>
                         <input 
-                            bind:this={usernameInput}
+                            bind:this={inviteCodeInput}
                             type="text" 
-                            bind:value={username}
-                            placeholder={$text('signup.enter_username.text')}
-                            required
-                            autocomplete="username"
-                            class:error={!!usernameError}
-                            oninput={checkSignupActivityAndManageTimer} />
-                        {#if showUsernameWarning && usernameError}
-                            <InputWarning
-                                message={usernameError}
-                                target={usernameInput}
+                            bind:value={inviteCode}
+                            oninput={handleInviteCodeInput}
+                            onpaste={handlePaste}
+                            placeholder={$text('signup.enter_personal_invite_code')}
+                            maxlength="14"
+                            disabled={isLoading}
+                        />
+                        {#if showWarning}
+                            <InputWarning 
+                                message={$text('signup.code_is_invalid')}
+                                autoHideDelay={0}
                             />
                         {/if}
                     </div>
-                </div>
+                {/if}
+                {#if isLoading}
+                    <div class="loading-message-container" transition:fade>
+                        <div class="loading-message">
+                            {$text('signup.checking_code')}
+                        </div>
+                    </div>
+                {/if}
+            </div>
+        </form>
 
-                <div class="agreement-row">
-                    <Toggle 
-                        id="stayLoggedIn" 
-                        name="stayLoggedIn" 
-                        bind:checked={stayLoggedIn} 
-                        ariaLabel={$text('login.stay_logged_in.text')} 
+    {:else}
+        <form onsubmit={handleSubmit}>
+            <div class="input-group">
+                <div class="input-wrapper">
+                    <span class="clickable-icon icon_mail"></span>
+                    <input 
+                        bind:this={emailInput}
+                        type="email" 
+                        bind:value={email}
+                        placeholder={$text('login.email_placeholder')}
+                        required
+                        autocomplete="email"
+                        class:error={!!emailError || emailAlreadyInUse}
+                        oninput={() => {
+                            checkSignupActivityAndManageTimer();
+                            // Auto-fill username based on email if username is empty
+                            if (!username && email.includes('@')) {
+                                const emailParts = email.split('@');
+                                // Sanitize username: replace invalid characters (like '-') with underscore
+                                // Valid chars are: letters (including international), numbers, dots, underscores
+                                let sanitizedUsername = emailParts[0]
+                                    .replace(/[^\p{L}\p{M}0-9._]/gu, '_') // Replace invalid chars with _
+                                    .replace(/_+/g, '_') // Collapse multiple underscores to single
+                                    .replace(/^_+|_+$/g, ''); // Trim leading/trailing underscores
+                                username = sanitizedUsername;
+                            }
+                        }} />
+                    {#if showEmailWarning && emailError}
+                        <InputWarning
+                            message={emailError}
+                            autoHideDelay={0}
+                        />
+                    {/if}
+                    {#if emailAlreadyInUse}
+                        <InputWarning 
+                            message={$text('signup.email_address_already_in_use')}
+                            autoHideDelay={0}
+                        />
+                    {/if}
+                </div>
+            </div>
+
+            <div class="input-group">
+                <div class="input-wrapper">
+                    <span class="clickable-icon icon_user"></span>
+                    <input 
+                        bind:this={usernameInput}
+                        type="text" 
+                        bind:value={username}
+                        placeholder={$text('signup.enter_username')}
+                        required
+                        autocomplete="username"
+                        class:error={!!usernameError}
+                        oninput={checkSignupActivityAndManageTimer} />
+                    {#if showUsernameWarning && usernameError}
+                        <InputWarning
+                            message={usernameError}
+                            autoHideDelay={0}
+                        />
+                    {/if}
+                </div>
+            </div>
+
+            <div class="agreement-row">
+                <Toggle 
+                    id="stayLoggedIn" 
+                    name="stayLoggedIn" 
+                    bind:checked={stayLoggedIn} 
+                    ariaLabel={$text('login.stay_logged_in')} 
+                />
+                <label for="stayLoggedIn" class="agreement-text">{@html $text('login.stay_logged_in')}</label>
+            </div>
+
+            <div class="agreement-row">
+                <Toggle bind:checked={subscribeToNewsletter} id="newsletter-subscribe-toggle" />
+                <label for="newsletter-subscribe-toggle" class="agreement-text">
+                    {@html $text('signup.subscribe_to_newsletter')}
+                </label>
+            </div>
+
+            <div class="agreement-row">
+                <Toggle bind:checked={termsAgreed} id="terms-agreed-toggle" />
+                <label for="terms-agreed-toggle" class="agreement-text">
+                    {$text('signup.agree_to')} 
+                    <a href={getWebsiteUrl(externalLinks.legal.terms)} target="_blank" rel="noopener noreferrer">
+                        <mark>{@html $text('signup.terms_of_service')}</mark>
+                    </a>
+                </label>
+            </div>
+
+            <div class="agreement-row">
+                <Toggle bind:checked={privacyAgreed} id="privacy-agreed-toggle" />
+                <label for="privacy-agreed-toggle" class="agreement-text">
+                    {$text('signup.agree_to')} 
+                    <a href={getWebsiteUrl(externalLinks.legal.privacyPolicy)} target="_blank" rel="noopener noreferrer">
+                        <mark>{@html $text('signup.privacy_policy')}</mark>
+                    </a>
+                </label>
+            </div>
+        </form>
+    {/if}
+</div>
+{#if !isValidated && $requireInviteCode}
+    <!-- Newsletter Subscription Form (for users without invite code) -->
+    <div class="newsletter-content">
+        <p class="newsletter-text">
+            {$text('signup.newsletter.subscribe_text')}
+        </p>
+        
+        <div class="newsletter-form">
+            <div class="input-group">
+                <div class="input-wrapper">
+                    <span class="clickable-icon icon_mail"></span>
+                    <input
+                        bind:this={newsletterEmailInput}
+                        type="email"
+                        placeholder={$text('signup.newsletter.email_placeholder')}
+                        bind:value={newsletterEmail}
+                        onkeypress={handleNewsletterKeyPress}
+                        disabled={isNewsletterSubmitting}
+                        class:error={!!newsletterEmailError}
+                        aria-label={$text('signup.newsletter.email_placeholder')}
+                        autocomplete="email"
                     />
-                    <label for="stayLoggedIn" class="agreement-text">{@html $text('login.stay_logged_in.text')}</label>
+                    {#if showNewsletterEmailWarning && newsletterEmailError}
+                        <InputWarning
+                            message={newsletterEmailError}
+                            autoHideDelay={0}
+                        />
+                    {/if}
                 </div>
-
-                <div class="agreement-row">
-                    <Toggle bind:checked={termsAgreed} id="terms-agreed-toggle" />
-                    <label for="terms-agreed-toggle" class="agreement-text">
-                        {$text('signup.agree_to.text')} 
-                        <a href={getWebsiteUrl(externalLinks.legal.terms)} target="_blank" rel="noopener noreferrer">
-                            <mark>{@html $text('signup.terms_of_service.text')}</mark>
-                        </a>
-                    </label>
-                </div>
-
-                <div class="agreement-row">
-                    <Toggle bind:checked={privacyAgreed} id="privacy-agreed-toggle" />
-                    <label for="privacy-agreed-toggle" class="agreement-text">
-                        {$text('signup.agree_to.text')} 
-                        <a href={getWebsiteUrl(externalLinks.legal.privacyPolicy)} target="_blank" rel="noopener noreferrer">
-                            <mark>{@html $text('signup.privacy_policy.text')}</mark>
-                        </a>
-                    </label>
-                </div>
-            </form>
-        {/if}
-    </div>
-    <div class="bottom-positioned">
-        {#if !isValidated && $requireInviteCode}
-            <WaitingList showPersonalInviteMessage={true} />
-        {:else}
-            {#if isRateLimited}
-                <div class="rate-limit-message" transition:fade>
-                    {$text('signup.too_many_requests.text')}
-                </div>
-            {:else}
-                <div class="action-button-container">
-                    <button 
-                        class="action-button signup-button" 
-                        class:loading={isLoading}
-                        disabled={!isFormValid || isLoading}
-                        onclick={handleSubmit}
-                        transition:fade
-                    >
-                        {isLoading ? $text('login.loading.text') : $text('signup.create_new_account.text')}
-                    </button>
+            </div>
+            
+            <div class="button-container">
+                <button
+                    class="action-button newsletter-button"
+                    onclick={handleNewsletterSubscribe}
+                    disabled={!isNewsletterFormValid || isNewsletterSubmitting}
+                    class:loading={isNewsletterSubmitting}
+                    aria-label={$text('signup.newsletter.subscribe_button')}
+                >
+                    {#if isNewsletterSubmitting}
+                        {$text('signup.newsletter.subscribing')}
+                    {:else}
+                        {$text('signup.newsletter.subscribe_button')}
+                    {/if}
+                </button>
+            </div>
+            
+            <!-- Success message -->
+            {#if newsletterSuccessMessage}
+                <div class="newsletter-message success-message" role="alert">
+                    {newsletterSuccessMessage}
                 </div>
             {/if}
-        {/if}
+            
+            <!-- Error message -->
+            {#if newsletterErrorMessage}
+                <div class="newsletter-message error-message" role="alert">
+                    {newsletterErrorMessage}
+                </div>
+            {/if}
+        </div>
     </div>
-</div>
+{:else}
+    {#if isRateLimited}
+        <div class="rate-limit-message" transition:fade>
+            {$text('signup.too_many_requests')}
+        </div>
+    {:else}
+        <div class="action-button-container">
+            <button 
+                class="action-button signup-button" 
+                class:loading={isLoading}
+                disabled={!isFormValid || isLoading}
+                onclick={handleSubmit}
+                transition:fade
+            >
+                {isLoading ? $text('login.loading') : $text('signup.create_new_account')}
+            </button>
+        </div>
+    {/if}
+{/if}
 
 <style>
+    /* Advantages list displayed below the signup header.
+       width: fit-content + margin auto centers the block while keeping
+       the items left-aligned inside it. */
+    .advantages-list {
+        list-style: none;
+        margin: 0 auto 0.75rem auto;
+        padding: 0;
+        width: fit-content;
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+    }
+
+    .advantage-item {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+    }
+
+    /* Green check icon using CSS mask — matches PaymentTopContent.svelte pattern */
+    .advantage-check-icon {
+        display: inline-block;
+        flex-shrink: 0;
+        width: 20px;
+        height: 20px;
+        background-color: #58BC00;
+        -webkit-mask-image: url('@openmates/ui/static/icons/check.svg');
+        mask-image: url('@openmates/ui/static/icons/check.svg');
+        mask-size: contain;
+        mask-repeat: no-repeat;
+        mask-position: center;
+    }
+
+    .advantage-text {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--color-grey-100);
+        line-height: 1.3;
+    }
+
     .action-button.loading {
         opacity: 0.6;
         cursor: not-allowed;
@@ -733,4 +1196,80 @@
         text-align: left;
         cursor: pointer;
     }
+
+    
+
+    .newsletter-content {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .newsletter-text {
+        color: var(--color-grey-60);
+        margin: 0;
+        text-align: center;
+        font-size: 14px;
+    }
+
+    .newsletter-form {
+        width: 100%;
+        max-width: 400px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .newsletter-form .input-group {
+        margin-bottom: 0;
+    }
+
+    .newsletter-form .input-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+        width: 100%;
+    }
+
+    .newsletter-form .input-wrapper .clickable-icon {
+        position: absolute;
+        left: 1rem;
+        color: var(--color-grey-60);
+        z-index: 1;
+    }
+
+    .newsletter-form .input-wrapper input.error {
+        border-color: var(--color-error, #e74c3c);
+    }
+
+    .newsletter-form .button-container {
+        width: 100%;
+    }
+
+    .newsletter-form .button-container button {
+        width: 100%;
+    }
+
+    .newsletter-message {
+        padding: 10px 12px;
+        border-radius: 8px;
+        font-size: 14px;
+        line-height: 1.4;
+        text-align: center;
+    }
+
+    .newsletter-message.success-message {
+        background-color: var(--color-success-light, #e8f5e9);
+        color: var(--color-success-dark, #2e7d32);
+        border: 1px solid var(--color-success, #4caf50);
+    }
+
+    .newsletter-message.error-message {
+        background-color: var(--color-error-light, #ffebee);
+        color: var(--color-error-dark, #c62828);
+        border: 1px solid var(--color-error, #f44336);
+    }
+
 </style>

@@ -1,87 +1,553 @@
 // frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
-import type { ChatSynchronizationService } from './chatSyncService';
-import { aiTypingStore } from '../stores/aiTypingStore';
-import { chatDB } from './db'; // Import chatDB
-import * as LucideIcons from '@lucide/svelte';
+import type { ChatSynchronizationService } from "./chatSyncService";
+import type { PreprocessorStepResult } from "../types/chat";
+import { aiTypingStore } from "../stores/aiTypingStore";
+import { chatDB } from "./db"; // Import chatDB
+import { storeEmbed, markEmbedAsError } from "./embedResolver"; // Import storeEmbed and markEmbedAsError
+import { chatMetadataCache } from "./chatMetadataCache"; // Import for cache invalidation after post-processing
+import { chatListCache } from "./chatListCache"; // Import for cache invalidation when metadata arrives
+import { flushPendingMessagesForChat } from "./chatSyncServiceHandlersChatUpdates"; // Flush messages queued while chat key was unavailable
+import { flushPendingSystemMessagesForChat } from "./chatSyncServiceHandlersAppSettings"; // Flush system messages queued while chat key was unavailable
+import type { EmbedType } from "../message_parsing/types";
+import { activeChatStore } from "../stores/activeChatStore";
+import { notificationStore } from "../stores/notificationStore";
+import { unreadMessagesStore } from "../stores/unreadMessagesStore";
+import { webSocketService } from "./websocketService"; // For notifying data activity during AI streaming
+import { normalizeToUnixSeconds } from "./timestampUtils";
+import { chatKeyManager } from "./encryption/ChatKeyManager";
+
+// Safe TOON decoder for metadata extraction (local to avoid circular deps)
+let toonDecode:
+  | ((toonString: string, options?: { strict?: boolean }) => unknown)
+  | null = null;
+async function decodeToonContentSafe(
+  toonContent: string | null | undefined,
+): Promise<unknown> {
+  if (!toonContent) return null;
+  if (typeof toonContent !== "string") {
+    if (typeof toonContent === "object") return toonContent;
+    return null;
+  }
+  if (!toonDecode) {
+    try {
+      const toonModule = await import("@toon-format/toon");
+      toonDecode = toonModule.decode;
+    } catch (error) {
+      console.warn(
+        "[ChatSyncService:AI] TOON decoder not available, using JSON fallback:",
+        error,
+      );
+    }
+  }
+  if (toonDecode) {
+    try {
+      // Use non-strict mode to be lenient with content that may have edge-case formatting
+      // (e.g., large pasted text with unusual indentation or special characters)
+      return toonDecode(toonContent, { strict: false });
+    } catch (err) {
+      console.debug(
+        "[ChatSyncService:AI] TOON decode failed, JSON fallback:",
+        err instanceof Error ? err.message : String(err),
+        {
+          contentLength: toonContent.length,
+          contentPreview: toonContent.substring(0, 200),
+        },
+      );
+    }
+  }
+  try {
+    return JSON.parse(toonContent);
+  } catch {
+    return null;
+  }
+}
+import * as LucideIcons from "@lucide/svelte";
 
 /**
  * Check if a string is a valid Lucide icon name
  */
 function isValidLucideIcon(iconName: string): boolean {
-    // Convert kebab-case to PascalCase (e.g., 'help-circle' -> 'HelpCircle')
-    const pascalCaseName = iconName
-        .split('-')
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-        .join('');
-    
-    return pascalCaseName in LucideIcons;
+  // Convert kebab-case to PascalCase (e.g., 'help-circle' -> 'HelpCircle')
+  const pascalCaseName = iconName
+    .split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join("");
+
+  return pascalCaseName in LucideIcons;
 }
 
 /**
  * Get fallback icon for a category when no icon names are provided
  */
 function getFallbackIconForCategory(category: string): string {
-    const categoryIcons: Record<string, string> = {
-        'software_development': 'code',
-        'business_development': 'briefcase',
-        'medical_health': 'heart',
-        'legal_law': 'gavel',
-        'maker_prototyping': 'wrench',
-        'marketing_sales': 'megaphone',
-        'finance': 'dollar-sign',
-        'design': 'palette',
-        'electrical_engineering': 'zap',
-        'movies_tv': 'tv',
-        'history': 'clock',
-        'science': 'microscope',
-        'life_coach_psychology': 'users',
-        'cooking_food': 'utensils',
-        'activism': 'trending-up',
-        'general_knowledge': 'help-circle'
-    };
-    
-    return categoryIcons[category] || 'help-circle';
+  const categoryIcons: Record<string, string> = {
+    software_development: "code",
+    business_development: "briefcase",
+    medical_health: "heart",
+    legal_law: "gavel",
+    maker_prototyping: "wrench",
+    marketing_sales: "megaphone",
+    finance: "dollar-sign",
+    design: "palette",
+    electrical_engineering: "zap",
+    movies_tv: "tv",
+    history: "clock",
+    science: "microscope",
+    life_coach_psychology: "users",
+    cooking_food: "utensils",
+    activism: "trending-up",
+    general_knowledge: "help-circle",
+    onboarding_support: "compass",
+  };
+
+  return categoryIcons[category] || "help-circle";
 }
 
 import type {
-    Chat, // Import Chat type
-    Message,
-    AITaskInitiatedPayload,
-    AIMessageUpdatePayload,
-    AIBackgroundResponseCompletedPayload,
-    AITypingStartedPayload,
-    AIMessageReadyPayload,
-    AITaskCancelRequestedPayload
-} from '../types/chat'; // Assuming these types might be moved or are already in a shared types file
+  Chat, // Import Chat type
+  Message,
+  AITaskInitiatedPayload,
+  AIMessageUpdatePayload,
+  AIBackgroundResponseCompletedPayload,
+  AITypingStartedPayload,
+  AIMessageReadyPayload,
+  AITaskCancelRequestedPayload,
+  EmbedUpdatePayload,
+  SendEmbedDataPayload,
+  AIThinkingChunkPayload,
+  AIThinkingCompletePayload,
+} from "../types/chat"; // Assuming these types might be moved or are already in a shared types file
+
+// --- Deduplication tracking for embed processing ---
+// Track which finalized embeds have already been processed to prevent duplicate key generation
+// Key: embed_id, Value: true if already processed
+const processedFinalizedEmbeds = new Set<string>();
+
+// --- Thinking content buffering (cross-device persistence) ---
+// We buffer thinking content per message_id so we can:
+// 1) Stream updates to the active chat immediately (UI),
+// 2) Persist the completed thinking content to IndexedDB on ALL devices,
+//    so reopening the chat shows the thinking section.
+type ThinkingBufferEntry = {
+  chatId: string;
+  content: string;
+  signature?: string | null;
+  totalTokens?: number | null;
+};
+const thinkingBufferByMessageId = new Map<string, ThinkingBufferEntry>();
+
+/**
+ * Persist completed thinking content into IndexedDB so it syncs across devices.
+ * This intentionally runs outside ActiveChat so background tabs/devices still store it.
+ *
+ * IMPORTANT: Uses updateMessageRawFields() instead of getMessage()→spread→saveMessage().
+ * saveMessage() calls encryptMessageFields() → getOrGenerateChatKey(). If the chat key
+ * is transiently absent from the in-memory cache, getOrGenerateChatKey() silently
+ * generates a new random key and re-encrypts the message with it — while
+ * encrypted_chat_key still holds the original key. This causes "[Content decryption
+ * failed]" on the sender's device. updateMessageRawFields() patches only the specified
+ * non-encrypted fields in-place with no key operations whatsoever.
+ *
+ * If the assistant message doesn't exist in IndexedDB yet (early streaming), a minimal
+ * placeholder is created via the fallback parameter. The streaming handler will later
+ * fill in encrypted_content via its own saveMessage() call on a freshly generated
+ * assistant message (where no existing encrypted content is at risk).
+ */
+async function persistThinkingToDb(
+  messageId: string,
+  chatId: string,
+  entry: ThinkingBufferEntry,
+): Promise<void> {
+  try {
+    // Build the set of non-encrypted metadata fields to write.
+    const thinkingFields: Partial<Message> = {
+      thinking_content: entry.content,
+      thinking_signature: entry.signature || undefined,
+      has_thinking: !!entry.content,
+    };
+    if (entry.totalTokens !== undefined && entry.totalTokens !== null) {
+      thinkingFields.thinking_token_count = entry.totalTokens;
+    }
+
+    // Minimal fallback used only when the assistant message placeholder doesn't exist yet.
+    const fallback: Omit<Message, "message_id"> = {
+      chat_id: chatId,
+      role: "assistant",
+      created_at: Math.floor(Date.now() / 1000),
+      status: "processing",
+      encrypted_content: "",
+    };
+
+    await chatDB.updateMessageRawFields(messageId, thinkingFields, fallback);
+    console.debug(
+      `[ChatSyncService:AI] ✅ Persisted thinking content for message ${messageId} (chat ${chatId})`,
+    );
+  } catch (error) {
+    console.error(
+      `[ChatSyncService:AI] Error persisting thinking content for message ${messageId}:`,
+      error,
+    );
+  }
+}
+
+/**
+ * Check if a finalized embed has already been processed
+ */
+function isEmbedAlreadyProcessed(embedId: string): boolean {
+  return processedFinalizedEmbeds.has(embedId);
+}
+
+/**
+ * Mark an embed as processed (for finalized embeds only)
+ */
+function markEmbedAsProcessed(embedId: string): void {
+  processedFinalizedEmbeds.add(embedId);
+}
+
+/**
+ * Clear processed embeds tracking (e.g., on logout)
+ */
+export function clearProcessedEmbedsTracking(): void {
+  processedFinalizedEmbeds.clear();
+}
+
+/**
+ * Remove a single embed from the processed-embeds set.
+ *
+ * Called by AppSkillUseRenderer before issuing a `request_embed` after a
+ * decryption failure. Without this, the fresh `send_embed_data` response from
+ * the server would be silently dropped by `isEmbedAlreadyProcessed`, preventing
+ * re-encryption and re-storage of the embed with a valid key.
+ */
+export function unmarkEmbedAsProcessed(embedId: string): void {
+  processedFinalizedEmbeds.delete(embedId);
+}
 
 // --- AI Task and Stream Event Handler Implementations ---
 
 export function handleAITaskInitiatedImpl(
-    serviceInstance: ChatSynchronizationService,
-    payload: AITaskInitiatedPayload
+  serviceInstance: ChatSynchronizationService,
+  payload: AITaskInitiatedPayload,
 ): void {
-    console.info("[ChatSyncService:AI] Received 'ai_task_initiated':", payload);
-    // Accessing private member, ensure 'this' context is correct or pass necessary state/methods
-    (serviceInstance as any).activeAITasks.set(payload.chat_id, { taskId: payload.ai_task_id, userMessageId: payload.user_message_id });
-    serviceInstance.dispatchEvent(new CustomEvent('aiTaskInitiated', { detail: payload }));
+  console.info("[ChatSyncService:AI] Received 'ai_task_initiated':", payload);
+  // Accessing public member activeAITasks
+  serviceInstance.activeAITasks.set(payload.chat_id, {
+    taskId: payload.ai_task_id,
+    userMessageId: payload.user_message_id,
+  });
+  serviceInstance.dispatchEvent(
+    new CustomEvent("aiTaskInitiated", { detail: payload }),
+  );
 }
 
-export function handleAIMessageUpdateImpl(
-    serviceInstance: ChatSynchronizationService,
-    payload: AIMessageUpdatePayload
+// --- Thinking/Reasoning Event Handlers ---
+// These handlers process thinking content from thinking models (Gemini, Anthropic Claude)
+// Thinking content is streamed to a separate channel and displayed above the main response
+
+/**
+ * Handle thinking content chunks from thinking models.
+ * Dispatches 'aiThinkingChunk' event for ActiveChat to display.
+ */
+export function handleAIThinkingChunkImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: AIThinkingChunkPayload,
 ): void {
-    console.debug("[ChatSyncService:AI] Received 'ai_message_update':", payload);
-    serviceInstance.dispatchEvent(new CustomEvent('aiMessageChunk', { detail: payload }));
-    if (payload.is_final_chunk) {
-        const taskInfo = (serviceInstance as any).activeAITasks.get(payload.chat_id);
-        if (taskInfo && taskInfo.taskId === payload.task_id) {
-            (serviceInstance as any).activeAITasks.delete(payload.chat_id);
-            // Clear typing status for this specific AI task
-            aiTypingStore.clearTyping(payload.chat_id, payload.task_id); 
-            serviceInstance.dispatchEvent(new CustomEvent('aiTaskEnded', { detail: { chatId: payload.chat_id, taskId: payload.task_id, status: payload.interrupted_by_revocation ? 'cancelled' : (payload.interrupted_by_soft_limit ? 'timed_out' : 'completed') } }));
-            console.info(`[ChatSyncService:AI] AI Task ${payload.task_id} for chat ${payload.chat_id} considered ended due to final chunk marker. Typing status cleared.`);
-        }
+  const messageId = payload.message_id || payload.task_id;
+  const contentLength = payload.content?.length || 0;
+  const contentPreview =
+    payload.content?.substring(0, 80).replace(/\n/g, "\\n") || "(empty)";
+
+  console.log(
+    `[ChatSyncService:AI] 🧠 THINKING CHUNK | ` +
+      `chat_id: ${payload.chat_id} | ` +
+      `task_id: ${payload.task_id} | ` +
+      `message_id: ${messageId} | ` +
+      `content_length: ${contentLength} chars | ` +
+      `preview: "${contentPreview}${contentLength > 80 ? "..." : ""}"`,
+  );
+
+  // Buffer thinking content so we can persist on completion.
+  // This runs for ALL devices, not just the active chat tab.
+  const existing = thinkingBufferByMessageId.get(messageId);
+  const updatedEntry: ThinkingBufferEntry = {
+    chatId: payload.chat_id,
+    content: (existing?.content || "") + (payload.content || ""),
+    signature: existing?.signature,
+    totalTokens: existing?.totalTokens,
+  };
+  thinkingBufferByMessageId.set(messageId, updatedEntry);
+
+  // Dispatch event for ActiveChat component to display thinking content
+  serviceInstance.dispatchEvent(
+    new CustomEvent("aiThinkingChunk", { detail: payload }),
+  );
+}
+
+/**
+ * Handle thinking completion from thinking models.
+ * Contains the signature (if provided) and total token count for cost tracking.
+ * Dispatches 'aiThinkingComplete' event for ActiveChat to finalize thinking display.
+ */
+export function handleAIThinkingCompleteImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: AIThinkingCompletePayload,
+): void {
+  const messageId = payload.message_id || payload.task_id;
+  console.log(
+    `[ChatSyncService:AI] 🧠 THINKING COMPLETE | ` +
+      `chat_id: ${payload.chat_id} | ` +
+      `task_id: ${payload.task_id} | ` +
+      `message_id: ${messageId} | ` +
+      `has_signature: ${!!payload.signature} | ` +
+      `total_tokens: ${payload.total_tokens || "unknown"}`,
+  );
+
+  // Update the buffer with signature/token metadata for persistence.
+  const existing = thinkingBufferByMessageId.get(messageId);
+  if (existing) {
+    thinkingBufferByMessageId.set(messageId, {
+      ...existing,
+      signature: payload.signature ?? existing.signature,
+      totalTokens: payload.total_tokens ?? existing.totalTokens,
+    });
+  }
+
+  // Dispatch event for ActiveChat component to finalize thinking
+  serviceInstance.dispatchEvent(
+    new CustomEvent("aiThinkingComplete", { detail: payload }),
+  );
+
+  // Persist completed thinking content to IndexedDB so it's available after reload/sync.
+  const entryToPersist = thinkingBufferByMessageId.get(messageId);
+  if (entryToPersist) {
+    void persistThinkingToDb(messageId, payload.chat_id, entryToPersist);
+  } else {
+    console.warn(
+      `[ChatSyncService:AI] Thinking complete received with no buffered content for message ${messageId}`,
+    );
+  }
+}
+// --- End Thinking/Reasoning Event Handlers ---
+
+export function handleAIMessageUpdateImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: AIMessageUpdatePayload,
+): void {
+  // Receiving an AI streaming chunk is proof the WebSocket connection is alive.
+  // Notify the WebSocket service so it doesn't fire a pong timeout mid-stream
+  // (the server may delay its pong response while busy pushing chunks).
+  webSocketService.notifyDataActivity();
+
+  // 🔍 STREAMING DEBUG: Log chunk reception with detailed info
+  const contentLength = payload.full_content_so_far?.length || 0;
+  const contentPreview =
+    payload.full_content_so_far?.substring(0, 100).replace(/\n/g, "\\n") ||
+    "(empty)";
+  const timestamp = new Date().toISOString();
+
+  console.log(
+    `[ChatSyncService:AI] 🔵 CHUNK RECEIVED | ` +
+      `seq: ${payload.sequence} | ` +
+      `chat_id: ${payload.chat_id} | ` +
+      `message_id: ${payload.message_id} | ` +
+      `content_length: ${contentLength} chars | ` +
+      `is_final: ${payload.is_final_chunk} | ` +
+      `timestamp: ${timestamp} | ` +
+      `preview: "${contentPreview}${contentLength > 100 ? "..." : ""}"`,
+  );
+
+  console.debug("[ChatSyncService:AI] Full payload:", payload);
+
+  // Dispatch event for ActiveChat component
+  console.log(
+    `[ChatSyncService:AI] 🟢 Dispatching 'aiMessageChunk' event (seq: ${payload.sequence})`,
+  );
+  serviceInstance.dispatchEvent(
+    new CustomEvent("aiMessageChunk", { detail: payload }),
+  );
+
+  // Process embeds from content if present (streaming or final)
+  if (payload.full_content_so_far) {
+    processEmbedsFromContent(payload.full_content_so_far).catch((err) => {
+      console.error(
+        "[ChatSyncService:AI] Error processing embeds from AI message chunk:",
+        err,
+      );
+    });
+  }
+
+  if (payload.is_final_chunk) {
+    console.log(
+      `[ChatSyncService:AI] 🏁 FINAL CHUNK received (seq: ${payload.sequence}, total_length: ${contentLength} chars)`,
+    );
+
+    // CRITICAL FIX: ALWAYS clear typing indicator when final chunk is received
+    // The typing indicator must be cleared regardless of whether we have task tracking info.
+    // Previously, clearTyping was only called if taskInfo existed AND task IDs matched,
+    // which caused the typing indicator to persist forever if:
+    // 1. ai_task_initiated event was missed (websocket hiccup)
+    // 2. Task IDs didn't match for some reason
+    aiTypingStore.clearTyping(payload.chat_id, payload.message_id);
+    console.info(
+      `[ChatSyncService:AI] Typing status cleared for chat ${payload.chat_id} (message_id: ${payload.message_id})`,
+    );
+
+    // Clean up task tracking if we have matching task info
+    const taskInfo = serviceInstance.activeAITasks.get(payload.chat_id);
+    if (taskInfo && taskInfo.taskId === payload.task_id) {
+      serviceInstance.activeAITasks.delete(payload.chat_id);
+      serviceInstance.dispatchEvent(
+        new CustomEvent("aiTaskEnded", {
+          detail: {
+            chatId: payload.chat_id,
+            taskId: payload.task_id,
+            status: payload.interrupted_by_revocation
+              ? "cancelled"
+              : payload.interrupted_by_soft_limit
+                ? "timed_out"
+                : "completed",
+          },
+        }),
+      );
+      console.info(
+        `[ChatSyncService:AI] AI Task ${payload.task_id} for chat ${payload.chat_id} considered ended due to final chunk marker.`,
+      );
+    } else {
+      // Task info missing or mismatched - still dispatch event but log warning
+      console.warn(
+        `[ChatSyncService:AI] ⚠️ Task tracking mismatch for chat ${payload.chat_id}: taskInfo=${taskInfo ? `{taskId: ${taskInfo.taskId}}` : "undefined"}, payload.task_id=${payload.task_id}`,
+      );
+
+      // CRITICAL FIX: Clear the active task for this chat anyway to ensure the stop button disappears
+      // This handles cases where task IDs might be out of sync or mismatched due to websocket hiccups
+      if (taskInfo) {
+        serviceInstance.activeAITasks.delete(payload.chat_id);
+        console.info(
+          `[ChatSyncService:AI] Cleared mismatched active task ${taskInfo.taskId} for chat ${payload.chat_id} because another task ended.`,
+        );
+      }
+
+      serviceInstance.dispatchEvent(
+        new CustomEvent("aiTaskEnded", {
+          detail: {
+            chatId: payload.chat_id,
+            taskId: payload.task_id,
+            status: payload.interrupted_by_revocation
+              ? "cancelled"
+              : payload.interrupted_by_soft_limit
+                ? "timed_out"
+                : "completed",
+          },
+        }),
+      );
     }
+  }
+}
+
+/**
+ * Process content to extract and fetch embeds found in JSON code blocks (new architecture)
+ * and TOON blocks (legacy format)
+ */
+async function processEmbedsFromContent(content: string): Promise<void> {
+  // NEW ARCHITECTURE: Find JSON code blocks with embed references
+  // Format: ```json\n{"type": "app_skill_use", "embed_id": "..."}\n```
+  const jsonBlockRegex = /```json\n([\s\S]*?)\n```/g;
+  let jsonMatch;
+
+  while ((jsonMatch = jsonBlockRegex.exec(content)) !== null) {
+    const jsonContent = jsonMatch[1];
+    try {
+      const embedRef = JSON.parse(jsonContent.trim());
+      // Check if this is an embed reference (has type and embed_id)
+      if (embedRef.type && embedRef.embed_id) {
+        console.debug(
+          `[ChatSyncService:AI] Found embed reference in JSON block: ${embedRef.embed_id} (${embedRef.type})`,
+        );
+
+        // Request embed data from server via WebSocket
+        await requestEmbedFromServer(embedRef.embed_id);
+      }
+    } catch (e) {
+      // Not a valid embed reference, continue
+      console.debug(
+        "[ChatSyncService:AI] JSON block is not an embed reference:",
+        e,
+      );
+    }
+  }
+
+  // LEGACY: Find toon blocks (backward compatibility)
+  const toonBlockRegex = /```toon\n([\s\S]*?)\n```/g;
+  let toonMatch;
+
+  while ((toonMatch = toonBlockRegex.exec(content)) !== null) {
+    const toonContent = toonMatch[1];
+    try {
+      // We need to find the embed_id associated with this toon content.
+      // Look for embed_reference field which contains the ID
+      // embed_reference: "{\"type\": \"app_skill_use\", \"embed_id\": \"...\"}"
+      // We handle both escaped quotes (in JSON string) and regular quotes
+      const embedIdMatch = toonContent.match(
+        /embed_id\\?":\s*\\?"([a-f0-9-]+)\\?"/,
+      );
+
+      if (embedIdMatch && embedIdMatch[1]) {
+        const embedId = embedIdMatch[1];
+        const typeMatch = toonContent.match(/type\\?":\s*\\?"([a-z_]+)\\?"/);
+        const type = typeMatch ? typeMatch[1] : "app_skill_use";
+
+        console.debug(
+          `[ChatSyncService:AI] Found embed in TOON block: ${embedId} (${type})`,
+        );
+
+        await storeEmbed({
+          embed_id: embedId,
+          type: type,
+          status: "finished", // Assume finished if we got the response
+          content: toonContent, // Store the raw TOON content
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        });
+      }
+    } catch (e) {
+      console.error("[ChatSyncService:AI] Error processing TOON block:", e);
+    }
+  }
+}
+
+/**
+ * Request embed data from server via WebSocket
+ * Server will respond with the vault-encrypted embed from cache
+ */
+async function requestEmbedFromServer(embedId: string): Promise<void> {
+  try {
+    const { webSocketService } = await import("./websocketService");
+
+    // Check if embed already exists in local store
+    const { embedStore } = await import("./embedStore");
+    const existingEmbed = await embedStore.get(`embed:${embedId}`);
+
+    if (existingEmbed && existingEmbed.status === "finished") {
+      console.debug(
+        `[ChatSyncService:AI] Embed ${embedId} already in local store with finished status, skipping fetch`,
+      );
+      return;
+    }
+
+    // Send request to server via WebSocket
+    await webSocketService.sendMessage("request_embed", {
+      embed_id: embedId,
+    });
+
+    console.debug(
+      `[ChatSyncService:AI] Requested embed ${embedId} from server via WebSocket`,
+    );
+  } catch (error) {
+    console.error(
+      `[ChatSyncService:AI] Error requesting embed ${embedId} from server:`,
+      error,
+    );
+  }
 }
 
 /**
@@ -90,423 +556,1139 @@ export function handleAIMessageUpdateImpl(
  * storing the completed response in IndexedDB for later retrieval.
  */
 export async function handleAIBackgroundResponseCompletedImpl(
-    serviceInstance: ChatSynchronizationService,
-    payload: AIBackgroundResponseCompletedPayload
+  serviceInstance: ChatSynchronizationService,
+  payload: AIBackgroundResponseCompletedPayload,
 ): Promise<void> {
-    console.info("[ChatSyncService:AI] Received 'ai_background_response_completed' for inactive chat:", payload);
-    
+  console.info(
+    "[ChatSyncService:AI] Received 'ai_background_response_completed' for inactive chat:",
+    payload,
+  );
+
+  try {
+    // Get chat from DB or incognito service to update messages_v
+    let chat: Chat | null = null;
+    let isIncognitoChat = false;
+
+    // First check if it's an incognito chat
+    const { incognitoChatService } = await import("./incognitoChatService");
     try {
-        // Get chat from DB to update messages_v
-        const chat = await chatDB.getChat(payload.chat_id);
-        if (!chat) {
-            console.error(`[ChatSyncService:AI] Chat ${payload.chat_id} not found in DB for background response`);
-            return;
-        }
-        
-        // Get the category from typing store if available
-        // If not in typing store (chat was switched), try to get from chat metadata
-        const { get } = await import('svelte/store');
-        const typingStatus = get(aiTypingStore);
-        let category = (typingStatus?.chatId === payload.chat_id) ? typingStatus.category : undefined;
-        
-        // CRITICAL FIX for Issue 2: If category not in typing store (because user switched chats),
-        // decrypt the category from the chat's encrypted_category field
-        if (!category && chat.encrypted_category) {
-            try {
-                const { decryptWithChatKey } = await import('./cryptoService');
-                const chatKey = chatDB.getOrGenerateChatKey(payload.chat_id);
-                category = decryptWithChatKey(chat.encrypted_category, chatKey);
-                console.info(`[ChatSyncService:AI] Retrieved category from chat metadata for background response: ${category}`);
-            } catch (error) {
-                console.error(`[ChatSyncService:AI] Failed to decrypt category from chat metadata:`, error);
-            }
-        }
-        
-        // Create the completed AI message
-        // CRITICAL: Store AI response as markdown string, not Tiptap JSON
-        // Tiptap JSON is only for UI rendering, never stored in database
-        const aiMessage: Message = {
-            message_id: payload.message_id,
-            chat_id: payload.chat_id,
-            user_message_id: payload.user_message_id,
-            role: 'assistant',
-            category: category || undefined,
-            content: payload.full_content, // Store as markdown string, not Tiptap JSON
-            status: 'synced',
-            created_at: Math.floor(Date.now() / 1000),
-            // Note: encrypted fields will be populated by encryptMessageFields in chatDB.saveMessage()
-            // Do NOT set encrypted_* fields here as they should only exist after encryption
-            encrypted_content: '', // Will be set by encryption
-        };
-        
-        // Save message to IndexedDB (encryption handled by chatDB)
-        // This will encrypt all fields including encrypted_category
-        await chatDB.saveMessage(aiMessage);
-        console.info(`[ChatSyncService:AI] Saved background AI response to DB for chat ${payload.chat_id} with category: ${category || 'none'}`);
-        
-        // Update chat metadata with new messages_v
-        const newMessagesV = (chat.messages_v || 0) + 1;
-        const newLastEdited = Math.floor(Date.now() / 1000);
-        const updatedChat: Chat = {
-            ...chat,
-            messages_v: newMessagesV,
-            last_edited_overall_timestamp: newLastEdited
-        };
-        await chatDB.updateChat(updatedChat);
-        console.info(`[ChatSyncService:AI] Updated chat ${payload.chat_id} metadata: messages_v=${newMessagesV}`);
-        
-        // Clear AI task tracking
-        const taskInfo = (serviceInstance as any).activeAITasks.get(payload.chat_id);
-        if (taskInfo && taskInfo.taskId === payload.task_id) {
-            (serviceInstance as any).activeAITasks.delete(payload.chat_id);
-            console.info(`[ChatSyncService:AI] Cleared active AI task for chat ${payload.chat_id}`);
-        }
-        
-        // Clear typing status for this specific AI task
-        aiTypingStore.clearTyping(payload.chat_id, payload.task_id);
-        
-        // Dispatch chatUpdated event to notify UI (e.g., update chat list)
-        // This will NOT update ActiveChat if the chat is not currently open
-        serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', {
-            detail: {
-                chat_id: payload.chat_id,
-                chat: updatedChat,
-                newMessage: aiMessage,
-                type: 'background_ai_completion'
-            }
-        }));
-        
-        // Dispatch aiTaskEnded event for cleanup
-        serviceInstance.dispatchEvent(new CustomEvent('aiTaskEnded', {
-            detail: {
-                chatId: payload.chat_id,
-                taskId: payload.task_id,
-                status: payload.interrupted_by_revocation ? 'cancelled' : (payload.interrupted_by_soft_limit ? 'timed_out' : 'completed')
-            }
-        }));
-        
-        console.info(`[ChatSyncService:AI] Background AI response processing completed for chat ${payload.chat_id}`);
-        
-        // CRITICAL: Send encrypted AI response back to server for Directus storage (zero-knowledge architecture)
-        // This uses the existing sendCompletedAIResponse method
-        try {
-            console.debug('[ChatSyncService:AI] Sending completed background AI response to server for encrypted Directus storage:', {
-                messageId: aiMessage.message_id,
-                chatId: aiMessage.chat_id,
-                contentLength: aiMessage.content?.length || 0
-            });
-            await (serviceInstance as any).sendCompletedAIResponse(aiMessage);
-        } catch (error) {
-            console.error('[ChatSyncService:AI] Error sending completed background AI response to server:', error);
-        }
-        
-    } catch (error) {
-        console.error(`[ChatSyncService:AI] Error handling background AI response for chat ${payload.chat_id}:`, error);
+      chat = await incognitoChatService.getChat(payload.chat_id);
+      if (chat) {
+        isIncognitoChat = true;
+      }
+    } catch {
+      // Not an incognito chat, continue to check IndexedDB
     }
+
+    // If not found in incognito service, check IndexedDB
+    if (!chat) {
+      chat = await chatDB.getChat(payload.chat_id);
+    }
+
+    if (!chat) {
+      console.error(
+        `[ChatSyncService:AI] Chat ${payload.chat_id} not found in DB or incognito service for background response`,
+      );
+      return;
+    }
+
+    // Get the category and model_name from the payload first (most reliable source),
+    // then fall back to typing store if not available (e.g., for older payloads)
+    const { get } = await import("svelte/store");
+    const typingStatus = get(aiTypingStore);
+    let category =
+      payload.category ||
+      (typingStatus?.chatId === payload.chat_id
+        ? typingStatus.category
+        : undefined);
+    const modelName =
+      payload.model_name ||
+      (typingStatus?.chatId === payload.chat_id
+        ? typingStatus.modelName
+        : undefined);
+
+    console.debug(
+      `[ChatSyncService:AI] Background response model_name: "${modelName}" for message ${payload.message_id}`,
+    );
+
+    // CRITICAL FIX for Issue 2: If category not in typing store (because user switched chats),
+    // decrypt the category from the chat's encrypted_category field
+    if (!category && chat.encrypted_category) {
+      try {
+        const { decryptWithChatKey } = await import("./cryptoService");
+        const chatKey = chatKeyManager.getKeySync(payload.chat_id);
+        if (!chatKey) {
+          console.debug(
+            `[ChatSyncService:AI] No chat key available for ${payload.chat_id}, skipping category decrypt`,
+          );
+        } else {
+          category =
+            (await decryptWithChatKey(chat.encrypted_category, chatKey)) ||
+            undefined;
+        }
+        console.info(
+          `[ChatSyncService:AI] Retrieved category from chat metadata for background response: ${category}`,
+        );
+      } catch (error) {
+        console.error(
+          `[ChatSyncService:AI] Failed to decrypt category from chat metadata:`,
+          error,
+        );
+      }
+    }
+
+    // Process embeds from full content
+    if (payload.full_content) {
+      await processEmbedsFromContent(payload.full_content);
+    }
+
+    // CRITICAL: Retrieve thinking content from buffer if available
+    // Thinking content was buffered separately via aiThinkingChunk/aiThinkingComplete events
+    // and must be attached to the final message for persistence and cross-device sync.
+    const thinkingEntry = thinkingBufferByMessageId.get(payload.message_id);
+
+    // Create the completed AI message
+    // CRITICAL: Store AI response as markdown string, not Tiptap JSON
+    // Tiptap JSON is only for UI rendering, never stored in database
+    // For rejection messages (e.g., insufficient credits), use role 'system' and status 'waiting_for_user'
+    const isRejection = !!payload.rejection_reason;
+    const aiMessage: Message = {
+      message_id: payload.message_id,
+      chat_id: payload.chat_id,
+      user_message_id: payload.user_message_id,
+      role: isRejection ? "system" : "assistant",
+      category: category || undefined,
+      model_name: modelName || undefined,
+      content: payload.full_content, // Store as markdown string, not Tiptap JSON
+      status: isRejection ? "waiting_for_user" : "synced",
+      created_at: Math.floor(Date.now() / 1000),
+      // Note: encrypted fields will be populated by encryptMessageFields in chatDB.saveMessage()
+      // Do NOT set encrypted_* fields here as they should only exist after encryption
+      encrypted_content: "", // Will be set by encryption
+      // Attach thinking content from buffer (for thinking models like Gemini, Claude)
+      thinking_content: thinkingEntry?.content || undefined,
+      thinking_signature: thinkingEntry?.signature || undefined,
+      thinking_token_count: thinkingEntry?.totalTokens ?? undefined,
+      has_thinking: !!thinkingEntry?.content,
+    };
+
+    // Save message to IndexedDB or incognito service.
+    // Use aiMessage.created_at as the sort timestamp so last_edited_overall_timestamp
+    // is consistent with the message's own timestamp (both set at delivery time).
+    // This avoids two separate Date.now() calls that could differ by a few ms.
+    const newLastEdited = aiMessage.created_at;
+    if (isIncognitoChat) {
+      // Save to incognito service (no encryption needed for incognito chats)
+      await incognitoChatService.addMessage(payload.chat_id, aiMessage);
+      const newMessagesV = (chat.messages_v || 0) + 1;
+      await incognitoChatService.updateChat(payload.chat_id, {
+        messages_v: newMessagesV,
+        last_edited_overall_timestamp: newLastEdited,
+      });
+      chat.messages_v = newMessagesV;
+      chat.last_edited_overall_timestamp = newLastEdited;
+      console.info(
+        `[ChatSyncService:AI] Saved background AI response to incognito service for chat ${payload.chat_id}`,
+      );
+    } else {
+      // Save message to IndexedDB (encryption handled by chatDB)
+      // This will encrypt all fields including encrypted_category
+      await chatDB.saveMessage(aiMessage);
+      console.info(
+        `[ChatSyncService:AI] Saved background AI response to DB for chat ${payload.chat_id} with category: ${category || "none"}`,
+      );
+
+      // MESSAGES_V HANDLING: Do NOT increment messages_v locally here.
+      // The server atomically increments messages_v via Redis HINCRBY and
+      // broadcasts the authoritative value in the `chat_message_added` event.
+      // The handler `handleChatMessageReceivedImpl` is the SOLE writer of
+      // messages_v for non-incognito chats. Local increments cause drift
+      // when this code and the broadcast handler race against each other.
+      // Only update last_edited_overall_timestamp (safe, no version drift risk).
+      const updatedChat: Chat = {
+        ...chat,
+        last_edited_overall_timestamp: newLastEdited,
+      };
+      await chatDB.updateChat(updatedChat);
+      chat = updatedChat;
+      console.info(
+        `[ChatSyncService:AI] Updated chat ${payload.chat_id} last_edited timestamp (messages_v=${chat.messages_v} — owned by chat_message_added handler)`,
+      );
+    }
+
+    // Clear AI task tracking
+    const taskInfo = serviceInstance.activeAITasks.get(payload.chat_id);
+    if (taskInfo && taskInfo.taskId === payload.task_id) {
+      serviceInstance.activeAITasks.delete(payload.chat_id);
+      console.info(
+        `[ChatSyncService:AI] Cleared active AI task for chat ${payload.chat_id}`,
+      );
+    }
+
+    // Clear typing status using message_id (which is what setTyping stores as aiMessageId)
+    // Previously used task_id which caused mismatch - typing indicator wouldn't clear
+    aiTypingStore.clearTyping(payload.chat_id, payload.message_id);
+
+    // Dispatch chatUpdated event to notify UI (e.g., update chat list)
+    // This will NOT update ActiveChat if the chat is not currently open
+    serviceInstance.dispatchEvent(
+      new CustomEvent("chatUpdated", {
+        detail: {
+          chat_id: payload.chat_id,
+          chat: chat,
+          newMessage: aiMessage,
+          type: "background_ai_completion",
+        },
+      }),
+    );
+
+    // Dispatch aiTaskEnded event for cleanup
+    serviceInstance.dispatchEvent(
+      new CustomEvent("aiTaskEnded", {
+        detail: {
+          chatId: payload.chat_id,
+          taskId: payload.task_id,
+          status: payload.interrupted_by_revocation
+            ? "cancelled"
+            : payload.interrupted_by_soft_limit
+              ? "timed_out"
+              : "completed",
+        },
+      }),
+    );
+
+    // Show notification and increment unread count for background chat completion.
+    // This is a background handler (chat is not active), so always show the notification.
+    // The activeChatStore check is a safety guard in case the user switched back
+    // to this chat between the server sending the event and us processing it.
+    const activeChatId = activeChatStore.get();
+    if (activeChatId !== payload.chat_id) {
+      console.debug(
+        `[ChatSyncService:AI] Showing notification for background chat ${payload.chat_id} (active: ${activeChatId})`,
+      );
+
+      // Increment unread count for this chat
+      unreadMessagesStore.incrementUnread(payload.chat_id);
+
+      // Extract a preview from the AI response content (first ~120 chars, strip markdown)
+      let messagePreview = "New AI response ready";
+      if (
+        payload.full_content &&
+        payload.full_content !== "chat.an_error_occured"
+      ) {
+        // Strip markdown formatting for a clean preview
+        const plainText = payload.full_content
+          .replace(/#{1,6}\s+/g, "") // Remove headings
+          .replace(/\*\*(.+?)\*\*/g, "$1") // Remove bold
+          .replace(/\*(.+?)\*/g, "$1") // Remove italic
+          .replace(/`{1,3}[^`]*`{1,3}/g, "") // Remove code
+          .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1") // Links -> text
+          .replace(/!\[[^\]]*\]\([^)]+\)/g, "") // Remove images
+          .replace(/>\s+/g, "") // Remove blockquotes
+          .replace(/[-*+]\s+/g, "") // Remove list markers
+          .replace(/\n+/g, " ") // Collapse newlines
+          .trim();
+        if (plainText.length > 0) {
+          messagePreview =
+            plainText.length > 120
+              ? plainText.substring(0, 120) + "..."
+              : plainText;
+        }
+      }
+
+      // Get the decrypted chat title if available
+      let chatTitle = "New message";
+      if (chat.title) {
+        chatTitle = chat.title;
+      } else if (chat.encrypted_title) {
+        // Try to decrypt the title for the notification
+        try {
+          const { decryptWithChatKey } = await import("./cryptoService");
+          const chatKey = chatKeyManager.getKeySync(payload.chat_id);
+          if (!chatKey) {
+            console.debug(
+              `[ChatSyncService:AI] No chat key available for notification title decrypt (chat ${payload.chat_id})`,
+            );
+            throw new Error("Chat key not available");
+          }
+          const decryptedTitle = await decryptWithChatKey(
+            chat.encrypted_title,
+            chatKey,
+          );
+          if (decryptedTitle) {
+            chatTitle = decryptedTitle;
+          }
+        } catch (titleError) {
+          console.debug(
+            "[ChatSyncService:AI] Could not decrypt chat title for notification, using fallback:",
+            titleError,
+          );
+        }
+      }
+
+      // Show in-app notification with message preview and mate category for profile image
+      notificationStore.chatMessage(
+        payload.chat_id,
+        chatTitle,
+        messagePreview,
+        undefined, // avatarUrl - not used, we use category-based profile images
+        category || undefined, // Pass mate category for profile image rendering
+      );
+    }
+
+    console.info(
+      `[ChatSyncService:AI] Background AI response processing completed for chat ${payload.chat_id}`,
+    );
+
+    // CRITICAL: Send encrypted AI response back to server for Directus storage (zero-knowledge architecture)
+    // Skip for incognito chats (they're not stored on the server)
+    if (!isIncognitoChat) {
+      try {
+        console.debug(
+          "[ChatSyncService:AI] Sending completed background AI response to server for encrypted Directus storage:",
+          {
+            messageId: aiMessage.message_id,
+            chatId: aiMessage.chat_id,
+            contentLength: aiMessage.content?.length || 0,
+          },
+        );
+        await serviceInstance.sendCompletedAIResponse(aiMessage);
+      } catch (error) {
+        console.error(
+          "[ChatSyncService:AI] Error sending completed background AI response to server:",
+          error,
+        );
+      }
+    } else {
+      console.debug(
+        "[ChatSyncService:AI] Skipping server storage for incognito chat - not persisted on server",
+      );
+    }
+  } catch (error) {
+    console.error(
+      `[ChatSyncService:AI] Error handling background AI response for chat ${payload.chat_id}:`,
+      error,
+    );
+  }
 }
 
 export async function handleAITypingStartedImpl( // Changed to async
-    serviceInstance: ChatSynchronizationService,
-    payload: AITypingStartedPayload
-): Promise<void> { // Added Promise<void>
-    console.debug("[ChatSyncService:AI] Received 'ai_typing_started':", payload);
-    
-    // Update aiTypingStore first
-    aiTypingStore.setTyping(payload.chat_id, payload.user_message_id, payload.message_id, payload.category, payload.model_name);
+  serviceInstance: ChatSynchronizationService,
+  payload: AITypingStartedPayload,
+): Promise<void> {
+  // Added Promise<void>
+  console.debug("[ChatSyncService:AI] Received 'ai_typing_started':", payload);
 
-    // DUAL-PHASE ARCHITECTURE: Always send encrypted user message storage
-    // For NEW chats (with icon_names): Also handle metadata encryption
-    // For FOLLOW-UPS (no icon_names): Only send encrypted user message
-    
+  // Update aiTypingStore first
+  aiTypingStore.setTyping(
+    payload.chat_id,
+    payload.user_message_id,
+    payload.message_id,
+    payload.category,
+    payload.model_name,
+    payload.provider_name,
+    payload.server_region,
+  );
+
+  // DUAL-PHASE ARCHITECTURE: Always send encrypted user message storage
+  // For NEW chats (with icon_names): Also handle metadata encryption
+  // For FOLLOW-UPS (no icon_names): Only send encrypted user message
+
+  try {
+    // Get the current chat (check incognito service first)
+    let chat: Chat | null = null;
+    let isIncognitoChat = false;
+
+    const { incognitoChatService } = await import("./incognitoChatService");
     try {
-        // Get the current chat
-        const chat = await chatDB.getChat(payload.chat_id);
-        if (!chat) {
-            console.error(`[ChatSyncService:AI] Chat ${payload.chat_id} not found for processing`);
-            return;
-        }
-        
-        const isNewChat = payload.icon_names && payload.icon_names.length > 0;
-        
-        if (isNewChat) {
-            console.info(`[ChatSyncService:AI] DUAL-PHASE: Processing metadata encryption for NEW CHAT ${payload.chat_id}:`, {
-                hasTitle: !!payload.title,
-                category: payload.category,
-                iconNames: payload.icon_names
-            });
-        } else {
-            console.info(`[ChatSyncService:AI] DUAL-PHASE: Processing FOLLOW-UP message for chat ${payload.chat_id} (no metadata update)`);
-        }
-        
-        // ONLY for new chats: Update local chat with encrypted metadata
-        if (isNewChat) {
-            // Encrypt title, icon, and category with chat-specific key for local storage
-            let encryptedTitle: string | null = null;
-            let encryptedIcon: string | null = null;
-            let encryptedCategory: string | null = null;
-            
-            // Get or generate chat key for encryption
-            const chatKey = chatDB.getOrGenerateChatKey(payload.chat_id);
-            const { encryptWithChatKey } = await import('./cryptoService');
-            
-            // Encrypt title if payload has one (only for new chats on first message)
-            if (payload.title) {
-                encryptedTitle = encryptWithChatKey(payload.title, chatKey);
-                if (!encryptedTitle) {
-                    console.error(`[ChatSyncService:AI] Failed to encrypt title for chat ${payload.chat_id}`);
-                    return;
-                }
-            }
-            
-            // Encrypt icon and category ONLY if payload has icon_names (only for new chats on first message)
-            // Server only sends icon_names when chat doesn't have a title yet
-            // CRITICAL: Only update icon and category when icon_names is present to avoid overwriting on follow-ups
-            if (payload.icon_names && payload.icon_names.length > 0) {
-                console.info(`[ChatSyncService:AI] Validating ${payload.icon_names.length} icon names for NEW CHAT: ${payload.icon_names.join(', ')}`);
-                
-                // Find the first valid Lucide icon name from the list
-                let validIconName: string | null = null;
-                for (const iconName of payload.icon_names) {
-                    if (isValidLucideIcon(iconName)) {
-                        validIconName = iconName;
-                        console.info(`[ChatSyncService:AI] ✅ Found valid icon: ${iconName}`);
-                        break;
-                    } else {
-                        console.warn(`[ChatSyncService:AI] ❌ Invalid icon name: ${iconName}, trying next...`);
-                    }
-                }
-                
-                // If no valid icon found, use category fallback
-                if (!validIconName) {
-                    validIconName = getFallbackIconForCategory(payload.category || 'general_knowledge');
-                    console.info(`[ChatSyncService:AI] 🔄 No valid icons found, using category fallback: ${validIconName}`);
-                }
-                
-                encryptedIcon = encryptWithChatKey(validIconName, chatKey);
-                if (!encryptedIcon) {
-                    console.error(`[ChatSyncService:AI] Failed to encrypt icon for chat ${payload.chat_id}`);
-                    return;
-                }
-                
-                // CRITICAL: Only encrypt and update category when icon_names is present (NEW CHAT ONLY)
-                // This prevents overwriting category on follow-up messages
-                if (payload.category) {
-                    encryptedCategory = encryptWithChatKey(payload.category, chatKey);
-                    if (!encryptedCategory) {
-                        console.error(`[ChatSyncService:AI] Failed to encrypt category for chat ${payload.chat_id}`);
-                        return;
-                    }
-                    console.info(`[ChatSyncService:AI] ✅ Encrypted category for NEW CHAT: ${payload.category}`);
-                } else {
-                    console.warn(`[ChatSyncService:AI] ⚠️ icon_names present but no category - using general_knowledge`);
-                    encryptedCategory = encryptWithChatKey('general_knowledge', chatKey);
-                }
-            } else {
-                console.debug(`[ChatSyncService:AI] No icon_names in payload - chat already has icon/category (follow-up message). NOT updating icon or category.`);
-            }
-            
-            // Update local chat with encrypted metadata
-            try {
-                const chatToUpdate = await chatDB.getChat(payload.chat_id);
-                if (chatToUpdate) {
-                    console.info(`[ChatSyncService:AI] ✅ Chat loaded for update:`, {
-                        chatId: payload.chat_id,
-                        currentTitleV: chatToUpdate.title_v,
-                        hasEncryptedIcon: !!chatToUpdate.encrypted_icon,
-                        hasEncryptedCategory: !!chatToUpdate.encrypted_category
-                    });
-                    
-                    // Update chat with encrypted title
-                    if (encryptedTitle) {
-                        chatToUpdate.encrypted_title = encryptedTitle;
-                        chatToUpdate.title_v = (chatToUpdate.title_v || 0) + 1; // Frontend increments title_v
-                        console.info(`[ChatSyncService:AI] ✅ SET encrypted_title, version: ${chatToUpdate.title_v}`);
-                    }
-                    
-                    // Update chat with encrypted icon (ONLY if encryptedIcon is set - i.e., new chat)
-                    if (encryptedIcon) {
-                        chatToUpdate.encrypted_icon = encryptedIcon;
-                        console.info(`[ChatSyncService:AI] ✅ SET encrypted_icon (NEW CHAT):`, encryptedIcon.substring(0, 30) + '...');
-                    } else {
-                        console.debug(`[ChatSyncService:AI] No encrypted_icon to set (follow-up message - preserving existing icon)`);
-                    }
-                    
-                    // Update chat with encrypted category (ONLY if encryptedCategory is set - i.e., new chat)
-                    if (encryptedCategory) {
-                        chatToUpdate.encrypted_category = encryptedCategory;
-                        console.info(`[ChatSyncService:AI] ✅ SET encrypted_category (NEW CHAT):`, encryptedCategory.substring(0, 30) + '...');
-                    } else {
-                        console.debug(`[ChatSyncService:AI] No encrypted_category to set (follow-up message - preserving existing category)`);
-                    }
-                    
-                    // Ensure chat key is stored for decryption
-                    const chatKey = chatDB.getOrGenerateChatKey(payload.chat_id);
-                    const encryptedChatKey = await import('./cryptoService').then(m => m.encryptChatKeyWithMasterKey(chatKey));
-                    if (encryptedChatKey) {
-                        chatToUpdate.encrypted_chat_key = encryptedChatKey;
-                        console.info(`[ChatSyncService:AI] Stored encrypted chat key for chat ${payload.chat_id}`);
-                    }
-                    
-                    // Update timestamps
-                    chatToUpdate.updated_at = Math.floor(Date.now() / 1000);
-                    
-                    console.info(`[ChatSyncService:AI] 🔵 BEFORE updateChat - Chat object has:`, {
-                        chatId: chatToUpdate.chat_id,
-                        hasEncryptedTitle: !!chatToUpdate.encrypted_title,
-                        hasEncryptedIcon: !!chatToUpdate.encrypted_icon,
-                        hasEncryptedCategory: !!chatToUpdate.encrypted_category,
-                        encryptedIconPreview: chatToUpdate.encrypted_icon?.substring(0, 20) || 'null',
-                        encryptedCategoryPreview: chatToUpdate.encrypted_category?.substring(0, 20) || 'null'
-                    });
-                    
-                    await chatDB.updateChat(chatToUpdate);
-                    
-                    console.info(`[ChatSyncService:AI] ✅ Local chat ${payload.chat_id} updated with encrypted title, icon, category and chat key`);
-                    
-                    // Verify the save by reading back
-                    const verifyChat = await chatDB.getChat(payload.chat_id);
-                    console.info(`[ChatSyncService:AI] 🔍 VERIFICATION - Chat after save:`, {
-                        chatId: payload.chat_id,
-                        hasEncryptedTitle: !!verifyChat?.encrypted_title,
-                        hasEncryptedIcon: !!verifyChat?.encrypted_icon,
-                        hasEncryptedCategory: !!verifyChat?.encrypted_category,
-                        encryptedIconPreview: verifyChat?.encrypted_icon?.substring(0, 20) || 'null',
-                        encryptedCategoryPreview: verifyChat?.encrypted_category?.substring(0, 20) || 'null'
-                    });
-                    
-                    serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', { 
-                        detail: { chat_id: payload.chat_id, type: 'title_updated', chat: chatToUpdate } 
-                    }));
-                } else {
-                    console.error(`[ChatSyncService:AI] Chat ${payload.chat_id} not found for title update`);
-                    return;
-                }
-            } catch (error) {
-                console.error(`[ChatSyncService:AI] Error updating local chat ${payload.chat_id}:`, error);
-                return;
-            }
-        } // END if (isNewChat) - metadata encryption block
-        
-        // ALWAYS send encrypted storage package (for both NEW chats and FOLLOW-UPS)
-        const { sendEncryptedStoragePackage } = await import('./chatSyncServiceSenders');
-        
-        // Get the user's pending message (the one being processed)
-        const messages = await chatDB.getMessagesForChat(payload.chat_id);
-        const userMessage = messages
-            .filter(m => m.role === 'user')
-            .sort((a, b) => b.created_at - a.created_at)[0];
-            
-        if (!userMessage) {
-            console.error(`[ChatSyncService:AI] No user message found for chat ${payload.chat_id} to encrypt`);
-            return;
-        }
-        
-        // Get the updated chat object
-        const updatedChat = await chatDB.getChat(payload.chat_id);
-        if (!updatedChat) {
-            console.error(`[ChatSyncService:AI] Updated chat ${payload.chat_id} not found for sending to server`);
-            return;
-        }
-        
-        // Prepare metadata ONLY for new chats
-        let validIconName: string | undefined = undefined;
-        let categoryForServer: string | undefined = undefined;
-        let titleForServer: string | undefined = undefined;
-        
-        if (isNewChat) {
-            // NEW CHAT ONLY - validate and prepare icon, category, and title for server
-            console.info(`[ChatSyncService:AI] Server sync - Validating ${payload.icon_names!.length} icon names for NEW CHAT: ${payload.icon_names!.join(', ')}`);
-            
-            for (const iconName of payload.icon_names!) {
-                if (isValidLucideIcon(iconName)) {
-                    validIconName = iconName;
-                    console.info(`[ChatSyncService:AI] Server sync - ✅ Found valid icon: ${iconName}`);
-                    break;
-                } else {
-                    console.warn(`[ChatSyncService:AI] Server sync - ❌ Invalid icon name: ${iconName}, trying next...`);
-                }
-            }
-            // If no valid icon found, use category fallback
-            if (!validIconName) {
-                validIconName = getFallbackIconForCategory(payload.category || 'general_knowledge');
-                console.info(`[ChatSyncService:AI] Server sync - 🔄 No valid icons found, using category fallback: ${validIconName}`);
-            }
-            
-            // Only include category and title for new chats
-            categoryForServer = payload.category;
-            titleForServer = payload.title;
-            console.info(`[ChatSyncService:AI] Server sync - Preparing metadata for NEW CHAT: title=${!!titleForServer}, category=${categoryForServer}, icon=${validIconName}`);
-        } else {
-            console.debug(`[ChatSyncService:AI] Server sync - FOLLOW-UP message. NOT sending icon/category/title to server.`);
-        }
-        
-        // Send encrypted storage package with metadata (for new chats) or just user message (for follow-ups)
-        await sendEncryptedStoragePackage(serviceInstance, {
-            chat_id: payload.chat_id,
-            plaintext_title: titleForServer, // Only set for new chats
-            plaintext_category: categoryForServer, // Only set for new chats
-            plaintext_icon: validIconName, // Only set for new chats
-            user_message: userMessage,
-            task_id: payload.task_id,
-            updated_chat: updatedChat  // Pass the updated chat object with incremented title_v
-        });
-        
-        if (isNewChat) {
-            console.info(`[ChatSyncService:AI] DUAL-PHASE: Sent encrypted storage package with metadata for NEW CHAT ${payload.chat_id}`);
-        } else {
-            console.info(`[ChatSyncService:AI] DUAL-PHASE: Sent encrypted storage package for FOLLOW-UP message in chat ${payload.chat_id}`);
-        }
-        
-    } catch (error) {
-        console.error(`[ChatSyncService:AI] DUAL-PHASE: Error processing for chat ${payload.chat_id}:`, error);
+      chat = await incognitoChatService.getChat(payload.chat_id);
+      if (chat) {
+        isIncognitoChat = true;
+      }
+    } catch {
+      // Not an incognito chat, continue to check IndexedDB
     }
-    
-    serviceInstance.dispatchEvent(new CustomEvent('aiTypingStarted', { detail: payload }));
+
+    if (!chat) {
+      chat = await chatDB.getChat(payload.chat_id);
+    }
+
+    if (!chat) {
+      console.error(
+        `[ChatSyncService:AI] Chat ${payload.chat_id} not found for processing`,
+      );
+      // CRITICAL: Still dispatch the typing event so the UI transitions to the typing phase
+      // with model/provider info even if the chat isn't found in local storage yet
+      serviceInstance.dispatchEvent(
+        new CustomEvent("aiTypingStarted", { detail: payload }),
+      );
+      return;
+    }
+
+    // For incognito chats, skip server-side post-processing (no encryption pipeline),
+    // but still apply the plaintext metadata (title, category, icon) from the payload
+    // so the chat header can be shown immediately after the first message.
+    if (isIncognitoChat) {
+      console.debug(
+        `[ChatSyncService:AI] Incognito chat ${payload.chat_id}: applying plaintext metadata and dispatching aiTypingStarted`,
+      );
+
+      // Apply plaintext title/category/icon from the ai_typing_started payload.
+      // For new incognito chats the server sends these fields so the UI can display
+      // the header without any encryption round-trip.
+      const hasMetadata =
+        payload.category && (payload.icon_names?.length ?? 0) > 0;
+
+      if (hasMetadata) {
+        const metaUpdates: Partial<import("../types/chat").Chat> = {
+          category: payload.category,
+          icon: payload.icon_names?.[0] ?? null,
+          ...(payload.title ? { title: payload.title } : {}),
+        };
+
+        // Persist to sessionStorage and dispatch 'incognitoChatsUpdated'
+        await incognitoChatService.updateChat(payload.chat_id, metaUpdates);
+
+        // Dispatch a chatUpdated event with metadata_updated type so ActiveChat's
+        // handleChatUpdated can pick up the plaintext fields and reveal the header.
+        const updatedChat = await incognitoChatService.getChat(payload.chat_id);
+        if (updatedChat) {
+          serviceInstance.dispatchEvent(
+            new CustomEvent("chatUpdated", {
+              detail: {
+                chat_id: payload.chat_id,
+                chat: updatedChat,
+                type: "metadata_updated",
+              },
+            }),
+          );
+        }
+      }
+
+      // CRITICAL: Still dispatch the typing event so the UI transitions to the typing phase
+      serviceInstance.dispatchEvent(
+        new CustomEvent("aiTypingStarted", { detail: payload }),
+      );
+      return;
+    }
+
+    // CRITICAL: Skip user message persistence for continuation tasks (after app settings/memories confirmation)
+    // The user message was already persisted during the initial ai_typing_started event before the pause.
+    // Re-persisting would create a duplicate message in Directus.
+    if (payload.is_continuation) {
+      console.info(
+        `[ChatSyncService:AI] Skipping user message persistence for CONTINUATION task in chat ${payload.chat_id} - message already persisted before app settings/memories pause`,
+      );
+      // Still dispatch the typing event for UI updates
+      serviceInstance.dispatchEvent(
+        new CustomEvent("aiTypingStarted", { detail: payload }),
+      );
+      return;
+    }
+
+    const isNewChat = payload.icon_names && payload.icon_names.length > 0;
+
+    if (isNewChat) {
+      console.info(
+        `[ChatSyncService:AI] DUAL-PHASE: Processing metadata encryption for NEW CHAT ${payload.chat_id}:`,
+        {
+          hasTitle: !!payload.title,
+          category: payload.category,
+          iconNames: payload.icon_names,
+        },
+      );
+    } else {
+      console.info(
+        `[ChatSyncService:AI] DUAL-PHASE: Processing FOLLOW-UP message for chat ${payload.chat_id} (no metadata update)`,
+      );
+    }
+
+    // ONLY for new chats: Update local chat with encrypted metadata
+    if (isNewChat) {
+      // Encrypt title, icon, and category with chat-specific key for local storage
+      let encryptedTitle: string | null = null;
+      let encryptedIcon: string | null = null;
+      let encryptedCategory: string | null = null;
+
+      // CROSS-DEVICE FIX: If the payload carries an encrypted_chat_key (added by
+      // ask_skill_task.py for secondary devices), decrypt and cache it BEFORE
+      // falling back to getOrGenerateChatKey(). Without this, secondary devices
+      // generate a random wrong key and all subsequent encryption/decryption fails.
+      const payloadWithKey = payload as AITypingStartedPayload & {
+        encrypted_chat_key?: string;
+      };
+      if (
+        payloadWithKey.encrypted_chat_key &&
+        !chatDB.getChatKeyOrNull(payload.chat_id)
+      ) {
+        try {
+          const { decryptChatKeyWithMasterKey } =
+            await import("./cryptoService");
+          const decryptedKey = await decryptChatKeyWithMasterKey(
+            payloadWithKey.encrypted_chat_key,
+          );
+          if (decryptedKey) {
+            chatDB.setChatKey(payload.chat_id, decryptedKey);
+            console.info(
+              `[ChatSyncService:AI] Cached chat key from ai_typing_started for chat ${payload.chat_id}`,
+            );
+          }
+        } catch (keyErr) {
+          console.error(
+            `[ChatSyncService:AI] Failed to decrypt chat key from ai_typing_started for chat ${payload.chat_id}:`,
+            keyErr,
+          );
+        }
+      }
+
+      // Get chat key: should already be in cache from sendEncryptedStoragePackage (originator)
+      // or from the encrypted_chat_key decrypted above (secondary device).
+      //
+      // CRITICAL: NEVER generate a new key here. This handler runs on ALL connected
+      // devices, including secondary ones that did NOT create this chat. Generating a
+      // key on a secondary device produces a DIFFERENT key than the originator, causing
+      // half the messages to be encrypted with key A and half with key B — making both
+      // unreadable on the other device. See docs/architecture/zero-knowledge-storage.md.
+      //
+      // If the key is not available, skip the entire ai_typing_started processing for
+      // this new chat. The originating device will handle metadata encryption and the
+      // sendEncryptedStoragePackage(). The secondary device will receive the correct
+      // metadata via the encrypted_chat_metadata broadcast.
+      let chatKey = chatKeyManager.getKeySync(payload.chat_id);
+      if (!chatKey) {
+        chatKey = await chatKeyManager.getKey(payload.chat_id);
+      }
+      if (!chatKey) {
+        console.warn(
+          `[ChatSyncService:AI] No chat key available for ${payload.chat_id} in ai_typing_started — ` +
+            `this is a secondary device that has not yet received the key. ` +
+            `Skipping metadata encryption; the originating device will handle it.`,
+        );
+        // Do NOT call flushPendingMessagesForChat here — the key hasn't been set yet,
+        // so saveMessage → encryptMessageFields would throw. The flush will happen
+        // when the key arrives via encrypted_chat_metadata broadcast (handleEncryptedChatMetadataImpl)
+        // or from a new_chat_message event that carries the key.
+        //
+        // As a safety net, schedule a delayed retry: the encrypted_chat_metadata broadcast
+        // typically arrives within 1-3 seconds. If the key has been cached by then, flush.
+        const chatIdForRetry = payload.chat_id;
+        setTimeout(async () => {
+          try {
+            const retryKey = chatKeyManager.getKeySync(chatIdForRetry);
+            if (retryKey) {
+              console.info(
+                `[ChatSyncService:AI] Delayed retry: key now available for ${chatIdForRetry}, flushing pending messages`,
+              );
+              await flushPendingMessagesForChat(chatIdForRetry);
+              await flushPendingSystemMessagesForChat(chatIdForRetry);
+            } else {
+              console.debug(
+                `[ChatSyncService:AI] Delayed retry: key still not available for ${chatIdForRetry} — will arrive via encrypted_chat_metadata broadcast`,
+              );
+            }
+          } catch (e) {
+            console.error(
+              `[ChatSyncService:AI] Delayed retry flush failed for ${chatIdForRetry}:`, e,
+            );
+          }
+        }, 3000);
+        // Return early — do NOT proceed with metadata encryption or sendEncryptedStoragePackage
+        // on a secondary device without the correct key. The originating device handles all of it.
+        return;
+      }
+      // Flush regular messages and system messages queued waiting for this key (cross-device sync fix)
+      await flushPendingMessagesForChat(payload.chat_id);
+      await flushPendingSystemMessagesForChat(payload.chat_id);
+      const { encryptWithChatKey } = await import("./cryptoService");
+
+      // Encrypt title if payload has one (only for new chats on first message)
+      if (payload.title) {
+        encryptedTitle = await encryptWithChatKey(payload.title, chatKey);
+        if (!encryptedTitle) {
+          console.error(
+            `[ChatSyncService:AI] Failed to encrypt title for chat ${payload.chat_id}`,
+          );
+          return;
+        }
+      }
+
+      // Encrypt icon and category ONLY if payload has icon_names (only for new chats on first message)
+      // Server only sends icon_names when chat doesn't have a title yet
+      // CRITICAL: Only update icon and category when icon_names is present to avoid overwriting on follow-ups
+      if (payload.icon_names && payload.icon_names.length > 0) {
+        console.info(
+          `[ChatSyncService:AI] Validating ${payload.icon_names.length} icon names for NEW CHAT: ${payload.icon_names.join(", ")}`,
+        );
+
+        // Find the first valid Lucide icon name from the list
+        let validIconName: string | null = null;
+        for (const iconName of payload.icon_names) {
+          if (isValidLucideIcon(iconName)) {
+            validIconName = iconName;
+            console.info(
+              `[ChatSyncService:AI] ✅ Found valid icon: ${iconName}`,
+            );
+            break;
+          } else {
+            console.warn(
+              `[ChatSyncService:AI] ❌ Invalid icon name: ${iconName}, trying next...`,
+            );
+          }
+        }
+
+        // If no valid icon found, use category fallback
+        if (!validIconName) {
+          validIconName = getFallbackIconForCategory(
+            payload.category || "general_knowledge",
+          );
+          console.info(
+            `[ChatSyncService:AI] 🔄 No valid icons found, using category fallback: ${validIconName}`,
+          );
+        }
+
+        encryptedIcon = await encryptWithChatKey(validIconName, chatKey);
+        if (!encryptedIcon) {
+          console.error(
+            `[ChatSyncService:AI] Failed to encrypt icon for chat ${payload.chat_id}`,
+          );
+          return;
+        }
+
+        // CRITICAL: Only encrypt and update category when icon_names is present (NEW CHAT ONLY)
+        // This prevents overwriting category on follow-up messages
+        if (payload.category) {
+          encryptedCategory = await encryptWithChatKey(
+            payload.category,
+            chatKey,
+          );
+          if (!encryptedCategory) {
+            console.error(
+              `[ChatSyncService:AI] Failed to encrypt category for chat ${payload.chat_id}`,
+            );
+            return;
+          }
+          console.info(
+            `[ChatSyncService:AI] ✅ Encrypted category for NEW CHAT: ${payload.category}`,
+          );
+        } else {
+          console.warn(
+            `[ChatSyncService:AI] ⚠️ icon_names present but no category - using general_knowledge`,
+          );
+          encryptedCategory = await encryptWithChatKey(
+            "general_knowledge",
+            chatKey,
+          );
+        }
+      } else {
+        console.debug(
+          `[ChatSyncService:AI] No icon_names in payload - chat already has icon/category (follow-up message). NOT updating icon or category.`,
+        );
+      }
+
+      // Update local chat with encrypted metadata
+      try {
+        const chatToUpdate = await chatDB.getChat(payload.chat_id);
+        if (chatToUpdate) {
+          console.info(`[ChatSyncService:AI] ✅ Chat loaded for update:`, {
+            chatId: payload.chat_id,
+            currentTitleV: chatToUpdate.title_v,
+            hasEncryptedIcon: !!chatToUpdate.encrypted_icon,
+            hasEncryptedCategory: !!chatToUpdate.encrypted_category,
+          });
+
+          // Update chat with encrypted title
+          if (encryptedTitle) {
+            chatToUpdate.encrypted_title = encryptedTitle;
+            chatToUpdate.title_v = (chatToUpdate.title_v || 0) + 1; // Frontend increments title_v
+            console.info(
+              `[ChatSyncService:AI] ✅ SET encrypted_title, version: ${chatToUpdate.title_v}`,
+            );
+          }
+
+          // Update chat with encrypted icon (ONLY if encryptedIcon is set - i.e., new chat)
+          if (encryptedIcon) {
+            chatToUpdate.encrypted_icon = encryptedIcon;
+            console.info(
+              `[ChatSyncService:AI] ✅ SET encrypted_icon (NEW CHAT):`,
+              encryptedIcon.substring(0, 30) + "...",
+            );
+          } else {
+            console.debug(
+              `[ChatSyncService:AI] No encrypted_icon to set (follow-up message - preserving existing icon)`,
+            );
+          }
+
+          // Update chat with encrypted category (ONLY if encryptedCategory is set - i.e., new chat)
+          if (encryptedCategory) {
+            chatToUpdate.encrypted_category = encryptedCategory;
+            console.info(
+              `[ChatSyncService:AI] ✅ SET encrypted_category (NEW CHAT):`,
+              encryptedCategory.substring(0, 30) + "...",
+            );
+          } else {
+            console.debug(
+              `[ChatSyncService:AI] No encrypted_category to set (follow-up message - preserving existing category)`,
+            );
+          }
+
+          // Ensure chat key is stored for decryption — key must be ready from ai_typing_started handler above
+          const chatKey = chatKeyManager.getKeySync(payload.chat_id);
+          if (!chatKey) {
+            console.error(
+              `[ChatSyncService:AI] Chat key missing for ${payload.chat_id} when storing encrypted_chat_key — this should not happen`,
+            );
+            // Skip storing encrypted_chat_key rather than generating a wrong one
+          }
+          const encryptedChatKey = chatKey
+            ? await import("./cryptoService").then((m) =>
+                m.encryptChatKeyWithMasterKey(chatKey),
+              )
+            : null;
+          if (encryptedChatKey) {
+            chatToUpdate.encrypted_chat_key = encryptedChatKey;
+            console.info(
+              `[ChatSyncService:AI] Stored encrypted chat key for chat ${payload.chat_id}`,
+            );
+          }
+
+          // Update timestamps
+          chatToUpdate.updated_at = Math.floor(Date.now() / 1000);
+
+          console.info(
+            `[ChatSyncService:AI] 🔵 BEFORE updateChat - Chat object has:`,
+            {
+              chatId: chatToUpdate.chat_id,
+              hasEncryptedTitle: !!chatToUpdate.encrypted_title,
+              hasEncryptedIcon: !!chatToUpdate.encrypted_icon,
+              hasEncryptedCategory: !!chatToUpdate.encrypted_category,
+              encryptedIconPreview:
+                chatToUpdate.encrypted_icon?.substring(0, 20) || "null",
+              encryptedCategoryPreview:
+                chatToUpdate.encrypted_category?.substring(0, 20) || "null",
+            },
+          );
+
+          // CRITICAL: Clear waiting_for_metadata flag now that all metadata is ready
+          // This transitions the chat from "waiting" state to regular display with full metadata
+          if (chatToUpdate.waiting_for_metadata) {
+            console.info(
+              `[ChatSyncService:AI] 🔄 BEFORE clearing waiting_for_metadata flag:`,
+              {
+                chatId: chatToUpdate.chat_id,
+                waiting_for_metadata: chatToUpdate.waiting_for_metadata,
+                hasTitle: !!chatToUpdate.encrypted_title,
+                hasIcon: !!chatToUpdate.encrypted_icon,
+                hasCategory: !!chatToUpdate.encrypted_category,
+              },
+            );
+            chatToUpdate.waiting_for_metadata = false;
+            console.info(
+              `[ChatSyncService:AI] ✅ AFTER clearing waiting_for_metadata flag - chat ready for regular display:`,
+              {
+                chatId: chatToUpdate.chat_id,
+                waiting_for_metadata: chatToUpdate.waiting_for_metadata,
+              },
+            );
+          }
+          // Also clear deprecated processing_metadata for backwards compatibility
+          if (chatToUpdate.processing_metadata) {
+            chatToUpdate.processing_metadata = false;
+          }
+
+          await chatDB.updateChat(chatToUpdate);
+
+          console.info(
+            `[ChatSyncService:AI] ✅ Local chat ${payload.chat_id} updated with encrypted title, icon, category and chat key`,
+          );
+
+          // Verify the save by reading back
+          const verifyChat = await chatDB.getChat(payload.chat_id);
+          console.info(
+            `[ChatSyncService:AI] 🔍 VERIFICATION - Chat after save:`,
+            {
+              chatId: payload.chat_id,
+              hasEncryptedTitle: !!verifyChat?.encrypted_title,
+              hasEncryptedIcon: !!verifyChat?.encrypted_icon,
+              hasEncryptedCategory: !!verifyChat?.encrypted_category,
+              encryptedIconPreview:
+                verifyChat?.encrypted_icon?.substring(0, 20) || "null",
+              encryptedCategoryPreview:
+                verifyChat?.encrypted_category?.substring(0, 20) || "null",
+              processing_metadata: verifyChat?.processing_metadata,
+              processing_metadata_type: typeof verifyChat?.processing_metadata,
+            },
+          );
+
+          // CRITICAL: Invalidate chatListCache directly so stale data is cleared
+          // even when the sidebar (Chats.svelte) is closed/unmounted (e.g., on mobile).
+          // Without this, the sidebar would show "Sending..." from the cached lastMessage
+          // because the localChatListChanged event handler only runs when the sidebar is mounted.
+          chatListCache.invalidateLastMessage(payload.chat_id);
+          chatMetadataCache.invalidateChat(payload.chat_id);
+          chatListCache.upsertChat(chatToUpdate);
+          console.info(
+            `[ChatSyncService:AI] 🗑️ Invalidated chatListCache/chatMetadataCache for chat ${payload.chat_id} (works even when sidebar is closed)`,
+          );
+
+          // CRITICAL: Dispatch localChatListChanged event to trigger immediate UI update
+          // This ensures the chat appears in the sidebar now that processing_metadata is cleared
+          window.dispatchEvent(
+            new CustomEvent("localChatListChanged", {
+              detail: { chat_id: payload.chat_id },
+            }),
+          );
+          console.info(
+            `[ChatSyncService:AI] 📢 Dispatched localChatListChanged event to show chat in sidebar`,
+          );
+
+          serviceInstance.dispatchEvent(
+            new CustomEvent("chatUpdated", {
+              detail: {
+                chat_id: payload.chat_id,
+                type: "title_updated",
+                chat: chatToUpdate,
+              },
+            }),
+          );
+        } else {
+          console.error(
+            `[ChatSyncService:AI] Chat ${payload.chat_id} not found for title update`,
+          );
+          return;
+        }
+      } catch (error) {
+        console.error(
+          `[ChatSyncService:AI] Error updating local chat ${payload.chat_id}:`,
+          error,
+        );
+        return;
+      }
+    } // END if (isNewChat) - metadata encryption block
+
+    // ALWAYS send encrypted storage package (for both NEW chats and FOLLOW-UPS)
+    const { sendEncryptedStoragePackage } =
+      await import("./chatSyncServiceSenders");
+
+    // Get the user's pending message (the one being processed)
+    // CRITICAL: Use user_message_id from payload if available (most reliable)
+    let userMessage: Message | null = null;
+
+    if (payload.user_message_id) {
+      // Try to get the specific message by ID first (most reliable)
+      userMessage = await chatDB.getMessage(payload.user_message_id);
+      if (!userMessage) {
+        console.warn(
+          `[ChatSyncService:AI] Message ${payload.user_message_id} not found by ID, falling back to latest user message`,
+        );
+      }
+    }
+
+    // Fallback: Get latest user message if ID lookup failed
+    if (!userMessage) {
+      const messages = await chatDB.getMessagesForChat(payload.chat_id);
+      userMessage =
+        messages
+          .filter((m) => m.role === "user")
+          .sort((a, b) => b.created_at - a.created_at)[0] || null;
+    }
+
+    if (!userMessage) {
+      console.error(
+        `[ChatSyncService:AI] No user message found for chat ${payload.chat_id} to encrypt`,
+      );
+      return;
+    }
+
+    // CRITICAL: Validate that message has content (should be decrypted by getMessagesForChat)
+    if (!userMessage.content && !userMessage.encrypted_content) {
+      console.error(
+        `[ChatSyncService:AI] ❌ User message ${userMessage.message_id} has neither content nor encrypted_content! Cannot send to server.`,
+      );
+      return;
+    }
+
+    // CRITICAL: If content is missing but encrypted_content exists, decrypt it now
+    if (!userMessage.content && userMessage.encrypted_content) {
+      console.warn(
+        `[ChatSyncService:AI] Message ${userMessage.message_id} missing content field, decrypting from encrypted_content`,
+      );
+      const chatKey =
+        chatKeyManager.getKeySync(payload.chat_id) ||
+        (await chatKeyManager.getKey(payload.chat_id));
+      if (!chatKey) {
+        console.error(
+          `[ChatSyncService:AI] No chat key available for ${payload.chat_id}, cannot decrypt missing message content`,
+        );
+        return;
+      }
+      const { decryptWithChatKey } = await import("./cryptoService");
+      try {
+        const decrypted = await decryptWithChatKey(
+          userMessage.encrypted_content,
+          chatKey,
+        );
+        if (decrypted) {
+          userMessage.content = decrypted;
+          console.info(
+            `[ChatSyncService:AI] Successfully decrypted content for message ${userMessage.message_id}`,
+          );
+        } else {
+          console.error(
+            `[ChatSyncService:AI] Failed to decrypt content for message ${userMessage.message_id} - decryption returned null`,
+          );
+          return;
+        }
+      } catch (decryptError) {
+        console.error(
+          `[ChatSyncService:AI] Failed to decrypt content for message ${userMessage.message_id}:`,
+          decryptError,
+        );
+        return;
+      }
+    }
+
+    console.debug(
+      `[ChatSyncService:AI] User message retrieved for encryption:`,
+      {
+        messageId: userMessage.message_id,
+        hasContent: !!userMessage.content,
+        hasEncryptedContent: !!userMessage.encrypted_content,
+        contentLength: userMessage.content?.length || 0,
+      },
+    );
+
+    // Get the updated chat object
+    const updatedChat = await chatDB.getChat(payload.chat_id);
+    if (!updatedChat) {
+      console.error(
+        `[ChatSyncService:AI] Updated chat ${payload.chat_id} not found for sending to server`,
+      );
+      return;
+    }
+
+    // Prepare metadata ONLY for new chats
+    let validIconName: string | undefined = undefined;
+    let categoryForServer: string | undefined = undefined;
+    let titleForServer: string | undefined = undefined;
+
+    if (isNewChat) {
+      // NEW CHAT ONLY - validate and prepare icon, category, and title for server
+      console.info(
+        `[ChatSyncService:AI] Server sync - Validating ${payload.icon_names!.length} icon names for NEW CHAT: ${payload.icon_names!.join(", ")}`,
+      );
+
+      for (const iconName of payload.icon_names!) {
+        if (isValidLucideIcon(iconName)) {
+          validIconName = iconName;
+          console.info(
+            `[ChatSyncService:AI] Server sync - ✅ Found valid icon: ${iconName}`,
+          );
+          break;
+        } else {
+          console.warn(
+            `[ChatSyncService:AI] Server sync - ❌ Invalid icon name: ${iconName}, trying next...`,
+          );
+        }
+      }
+      // If no valid icon found, use category fallback
+      if (!validIconName) {
+        validIconName = getFallbackIconForCategory(
+          payload.category || "general_knowledge",
+        );
+        console.info(
+          `[ChatSyncService:AI] Server sync - 🔄 No valid icons found, using category fallback: ${validIconName}`,
+        );
+      }
+
+      // Only include category and title for new chats
+      categoryForServer = payload.category;
+      titleForServer = payload.title;
+      console.info(
+        `[ChatSyncService:AI] Server sync - Preparing metadata for NEW CHAT: title=${!!titleForServer}, category=${categoryForServer}, icon=${validIconName}`,
+      );
+    } else {
+      console.debug(
+        `[ChatSyncService:AI] Server sync - FOLLOW-UP message. NOT sending icon/category/title to server.`,
+      );
+    }
+
+    // Send encrypted storage package with metadata (for new chats) or just user message (for follow-ups)
+    await sendEncryptedStoragePackage(serviceInstance, {
+      chat_id: payload.chat_id,
+      plaintext_title: titleForServer, // Only set for new chats
+      plaintext_category: categoryForServer, // Only set for new chats
+      plaintext_icon: validIconName, // Only set for new chats
+      user_message: userMessage,
+      task_id: payload.task_id,
+      updated_chat: updatedChat, // Pass the updated chat object with incremented title_v
+    });
+
+    if (isNewChat) {
+      console.info(
+        `[ChatSyncService:AI] DUAL-PHASE: Sent encrypted storage package with metadata for NEW CHAT ${payload.chat_id}`,
+      );
+    } else {
+      console.info(
+        `[ChatSyncService:AI] DUAL-PHASE: Sent encrypted storage package for FOLLOW-UP message in chat ${payload.chat_id}`,
+      );
+    }
+  } catch (error) {
+    console.error(
+      `[ChatSyncService:AI] DUAL-PHASE: Error processing for chat ${payload.chat_id}:`,
+      error,
+    );
+  }
+
+  serviceInstance.dispatchEvent(
+    new CustomEvent("aiTypingStarted", { detail: payload }),
+  );
 }
 
 export function handleAITypingEndedImpl(
-    serviceInstance: ChatSynchronizationService,
-    payload: { chat_id: string, message_id: string }
+  serviceInstance: ChatSynchronizationService,
+  payload: { chat_id: string; message_id: string },
 ): void {
-    console.debug("[ChatSyncService:AI] Received 'ai_typing_ended':", payload);
-    aiTypingStore.clearTyping(payload.chat_id, payload.message_id);
-    serviceInstance.dispatchEvent(new CustomEvent('aiTypingEnded', { detail: payload }));
+  console.debug("[ChatSyncService:AI] Received 'ai_typing_ended':", payload);
+  aiTypingStore.clearTyping(payload.chat_id, payload.message_id);
+  serviceInstance.dispatchEvent(
+    new CustomEvent("aiTypingEnded", { detail: payload }),
+  );
 }
 
-export function handleAIMessageReadyImpl(
-    serviceInstance: ChatSynchronizationService,
-    payload: AIMessageReadyPayload
-): void {
-    console.debug("[ChatSyncService:AI] Received 'ai_message_ready':", payload);
-    serviceInstance.dispatchEvent(new CustomEvent('aiMessageCompletedOnServer', { detail: payload }));
-    const taskInfo = (serviceInstance as any).activeAITasks.get(payload.chat_id);
-    if (taskInfo && taskInfo.taskId === payload.message_id) {
-        (serviceInstance as any).activeAITasks.delete(payload.chat_id);
-        serviceInstance.dispatchEvent(new CustomEvent('aiTaskEnded', { detail: { chatId: payload.chat_id, taskId: payload.message_id, status: 'completed' } }));
-        console.info(`[ChatSyncService:AI] AI Task ${payload.message_id} for chat ${payload.chat_id} considered ended due to 'ai_message_ready'.`);
-    }
+export async function handleAIMessageReadyImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: AIMessageReadyPayload,
+): Promise<void> {
+  console.debug("[ChatSyncService:AI] Received 'ai_message_ready':", payload);
+  serviceInstance.dispatchEvent(
+    new CustomEvent("aiMessageCompletedOnServer", { detail: payload }),
+  );
+  const taskInfo = serviceInstance.activeAITasks.get(payload.chat_id);
+  if (taskInfo && taskInfo.taskId === payload.message_id) {
+    serviceInstance.activeAITasks.delete(payload.chat_id);
+    serviceInstance.dispatchEvent(
+      new CustomEvent("aiTaskEnded", {
+        detail: {
+          chatId: payload.chat_id,
+          taskId: payload.message_id,
+          status: "completed",
+        },
+      }),
+    );
+    console.info(
+      `[ChatSyncService:AI] AI Task ${payload.message_id} for chat ${payload.chat_id} considered ended due to 'ai_message_ready'.`,
+    );
+
+    // NOTE: Background chat notifications (unread count + toast) are handled in
+    // handleAIBackgroundResponseCompletedImpl, which fires on the 'ai_background_response_completed'
+    // WebSocket event. That handler has access to the full AI response content for the preview.
+    // This handler ('ai_message_ready') is kept for forward-compatibility but does not
+    // duplicate the notification logic to avoid double notifications.
+  }
 }
 
-export function handleAITaskCancelRequestedImpl(
-    serviceInstance: ChatSynchronizationService,
-    payload: AITaskCancelRequestedPayload
-): void {
-    console.info("[ChatSyncService:AI] Received 'ai_task_cancel_requested' acknowledgement:", payload);
-    serviceInstance.dispatchEvent(new CustomEvent('aiTaskCancellationAcknowledged', { detail: payload }));
-    
-    if (payload.status === 'already_completed' || payload.status === 'not_found') {
-        const chatIdsToClear: string[] = [];
-        (serviceInstance as any).activeAITasks.forEach((value: { taskId: string; }, key: string) => {
-            if (value.taskId === payload.task_id) {
-                chatIdsToClear.push(key);
-            }
-        });
-        chatIdsToClear.forEach(chatId => {
-            (serviceInstance as any).activeAITasks.delete(chatId);
-            serviceInstance.dispatchEvent(new CustomEvent('aiTaskEnded', { detail: { chatId: chatId, taskId: payload.task_id, status: payload.status } }));
-            console.info(`[ChatSyncService:AI] AI Task ${payload.task_id} for chat ${chatId} cleared due to cancel ack status: ${payload.status}.`);
-        });
+export async function handleAITaskCancelRequestedImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: AITaskCancelRequestedPayload,
+): Promise<void> {
+  console.info(
+    "[ChatSyncService:AI] Received 'ai_task_cancel_requested' acknowledgement:",
+    payload,
+  );
+  serviceInstance.dispatchEvent(
+    new CustomEvent("aiTaskCancellationAcknowledged", { detail: payload }),
+  );
+
+  // Clear activeAITasks for all statuses when cancellation is acknowledged
+  // This ensures the frontend state matches the backend state
+  const chatIdsToClear: string[] = [];
+  serviceInstance.activeAITasks.forEach(
+    (value: { taskId: string }, key: string) => {
+      if (value.taskId === payload.task_id) {
+        chatIdsToClear.push(key);
+      }
+    },
+  );
+  // Cancel all processing embeds for affected chats and dispatch UI updates
+  // This is done BEFORE dispatching aiTaskEnded so the embed UI updates immediately
+  for (const chatId of chatIdsToClear) {
+    try {
+      const { embedStore } = await import("./embedStore");
+      const cancelledEmbedIds = embedStore.cancelProcessingEmbeds(chatId);
+
+      // Dispatch embedUpdated events for each cancelled embed so UnifiedEmbedPreview updates
+      for (const embedId of cancelledEmbedIds) {
+        serviceInstance.dispatchEvent(
+          new CustomEvent("embedUpdated", {
+            detail: {
+              embed_id: embedId,
+              chat_id: chatId,
+              status: "cancelled",
+            },
+          }),
+        );
+      }
+
+      if (cancelledEmbedIds.length > 0) {
+        console.info(
+          `[ChatSyncService:AI] Cancelled ${cancelledEmbedIds.length} processing embed(s) for chat ${chatId} due to task cancellation`,
+        );
+      }
+    } catch (err) {
+      console.warn(
+        `[ChatSyncService:AI] Failed to cancel processing embeds for chat ${chatId}:`,
+        err,
+      );
     }
+  }
+
+  chatIdsToClear.forEach((chatId) => {
+    serviceInstance.activeAITasks.delete(chatId);
+    // Clear typing status for this cancelled task
+    // Use clearTypingForChat since we only have task_id, not message_id
+    // (message_id is what setTyping stores as aiMessageId)
+    aiTypingStore.clearTypingForChat(chatId);
+    serviceInstance.dispatchEvent(
+      new CustomEvent("aiTaskEnded", {
+        detail: {
+          chatId: chatId,
+          taskId: payload.task_id,
+          status:
+            payload.status === "revocation_sent" ? "cancelled" : payload.status,
+        },
+      }),
+    );
+    console.info(
+      `[ChatSyncService:AI] AI Task ${payload.task_id} for chat ${chatId} cleared due to cancel ack status: ${payload.status}.`,
+    );
+  });
+}
+
+/**
+ * Handle message queued notification from server.
+ * This occurs when a user sends a message while an AI task is still processing.
+ * The message is queued and will be processed after the current task completes.
+ *
+ * The message should be displayed in MessageInput.svelte, not as a notification.
+ */
+export function handleMessageQueuedImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: {
+    chat_id: string;
+    user_message_id: string;
+    active_task_id: string;
+    message: string;
+  },
+): void {
+  console.info(
+    `[ChatSyncService:AI] Message ${payload.user_message_id} queued for chat ${payload.chat_id}. Active task: ${payload.active_task_id}`,
+  );
+
+  // Dispatch event for MessageInput component to handle the UI display
+  // Don't show notification - MessageInput will display the message instead
+  serviceInstance.dispatchEvent(
+    new CustomEvent("messageQueued", { detail: payload }),
+  );
 }
 
 /**
@@ -514,21 +1696,31 @@ export function handleAITaskCancelRequestedImpl(
  * This confirms that the encrypted AI response has been stored in Directus
  */
 export function handleAIResponseStorageConfirmedImpl(
-    serviceInstance: ChatSynchronizationService,
-    payload: { chat_id: string; message_id: string; task_id?: string }
+  serviceInstance: ChatSynchronizationService,
+  payload: { chat_id: string; message_id: string; task_id?: string },
 ): void {
-    console.info("[ChatSyncService:AI] Received 'ai_response_storage_confirmed':", payload);
-    
-    // Dispatch event to notify components that AI response storage is confirmed
-    serviceInstance.dispatchEvent(new CustomEvent('aiResponseStorageConfirmed', { 
-        detail: { 
-            chatId: payload.chat_id, 
-            messageId: payload.message_id,
-            taskId: payload.task_id 
-        } 
-    }));
-    
-    console.debug(`[ChatSyncService:AI] AI response storage confirmed for message ${payload.message_id} in chat ${payload.chat_id}`);
+  console.info(
+    "[ChatSyncService:AI] Received 'ai_response_storage_confirmed':",
+    payload,
+  );
+
+  // Unmark message as syncing
+  serviceInstance.unmarkMessageSyncing(payload.message_id);
+
+  // Dispatch event to notify components that AI response storage is confirmed
+  serviceInstance.dispatchEvent(
+    new CustomEvent("aiResponseStorageConfirmed", {
+      detail: {
+        chatId: payload.chat_id,
+        messageId: payload.message_id,
+        taskId: payload.task_id,
+      },
+    }),
+  );
+
+  console.debug(
+    `[ChatSyncService:AI] AI response storage confirmed for message ${payload.message_id} in chat ${payload.chat_id}`,
+  );
 }
 
 /**
@@ -536,11 +1728,22 @@ export function handleAIResponseStorageConfirmedImpl(
  * This confirms that encrypted chat metadata has been successfully stored on the server.
  */
 export function handleEncryptedMetadataStoredImpl(
-    serviceInstance: ChatSynchronizationService,
-    payload: { chat_id: string; message_id: string; task_id?: string }
+  serviceInstance: ChatSynchronizationService,
+  payload: { chat_id: string; message_id: string; task_id?: string },
 ): void {
-    console.debug(`[ChatSyncService:AI] Received 'encrypted_metadata_stored':`, payload);
-    console.debug(`[ChatSyncService:AI] Encrypted metadata storage confirmed for chat ${payload.chat_id}`);
+  console.debug(
+    `[ChatSyncService:AI] Received 'encrypted_metadata_stored':`,
+    payload,
+  );
+
+  // Unmark message as syncing if message_id is provided
+  if (payload.message_id) {
+    serviceInstance.unmarkMessageSyncing(payload.message_id);
+  }
+
+  console.debug(
+    `[ChatSyncService:AI] Encrypted metadata storage confirmed for chat ${payload.chat_id}`,
+  );
 }
 
 /**
@@ -548,123 +1751,357 @@ export function handleEncryptedMetadataStoredImpl(
  * This confirms that encrypted follow-up suggestions, summary, and tags were stored in Directus.
  */
 export function handlePostProcessingMetadataStoredImpl(
-    serviceInstance: ChatSynchronizationService,
-    payload: { chat_id: string; task_id?: string }
+  serviceInstance: ChatSynchronizationService,
+  payload: { chat_id: string; task_id?: string },
 ): void {
-    console.info(`[ChatSyncService:AI] Received 'post_processing_metadata_stored' confirmation for chat ${payload.chat_id}`);
-    // Nothing to do here - the data is already encrypted and stored locally
-    // This is just an acknowledgment that the server successfully stored it in Directus
+  console.info(
+    `[ChatSyncService:AI] Received 'post_processing_metadata_stored' confirmation for chat ${payload.chat_id}`,
+  );
+  // Nothing to do here - the data is already encrypted and stored locally
+  // This is just an acknowledgment that the server successfully stored it in Directus
 }
 
 /**
  * Handle post-processing completed event from the server.
- * This includes follow-up suggestions, new chat suggestions, summary, and tags.
+ * This includes follow-up suggestions, new chat suggestions, summary, tags,
+ * and suggested settings/memories entries.
  */
 export async function handlePostProcessingCompletedImpl(
-    serviceInstance: ChatSynchronizationService,
-    payload: {
-        chat_id: string;
-        task_id: string;
-        follow_up_request_suggestions: string[];
-        new_chat_request_suggestions: string[];
-        chat_summary: string;
-        chat_tags: string[];
-        harmful_response: number;
-    }
+  serviceInstance: ChatSynchronizationService,
+  payload: {
+    chat_id: string;
+    task_id: string;
+    follow_up_request_suggestions: string[];
+    new_chat_request_suggestions: string[];
+    chat_summary: string;
+    chat_tags: string[];
+    harmful_response: number;
+    top_recommended_apps_for_user?: string[]; // Optional: Top 5 recommended app IDs
+  },
 ): Promise<void> {
-    console.info(`[ChatSyncService:AI] Received 'post_processing_completed' for chat ${payload.chat_id}`);
+  console.info(
+    `[ChatSyncService:AI] Received 'post_processing_completed' for chat ${payload.chat_id}`,
+  );
 
-    try {
-        // Capture encrypted values for syncing back to Directus
-        let encryptedFollowUpSuggestions: string | null = null;
-        let encryptedNewChatSuggestions: string[] = [];
-        let encryptedChatSummary: string | null = null;
-        let encryptedChatTags: string | null = null;
+  try {
+    // Capture encrypted values for syncing back to Directus
+    let encryptedFollowUpSuggestions: string | null = null;
+    let encryptedNewChatSuggestions: string[] = [];
+    let encryptedChatSummary: string | null = null;
+    let encryptedChatTags: string | null = null;
+    let encryptedTopRecommendedApps: string | null = null;
 
-        const chat = await chatDB.getChat(payload.chat_id);
-        if (!chat) {
-            throw new Error(`Chat ${payload.chat_id} not found`);
-        }
-
-        const chatKey = chatDB.getOrGenerateChatKey(payload.chat_id);
-        const { encryptWithChatKey, encryptArrayWithChatKey, encryptWithMasterKey } = await import('./cryptoService');
-
-        // Encrypt and save follow-up suggestions to chat record (last 18)
-        if (payload.follow_up_request_suggestions && payload.follow_up_request_suggestions.length > 0) {
-            encryptedFollowUpSuggestions = encryptArrayWithChatKey(
-                payload.follow_up_request_suggestions.slice(0, 18), // Keep last 18
-                chatKey
-            );
-
-            chat.encrypted_follow_up_request_suggestions = encryptedFollowUpSuggestions;
-            console.debug(`[ChatSyncService:AI] Saved ${payload.follow_up_request_suggestions.length} follow-up suggestions for chat ${payload.chat_id}`);
-        }
-
-        // Save new chat suggestions to separate store (keep last 50)
-        // Encrypt each suggestion with master key for global pool
-        if (payload.new_chat_request_suggestions && payload.new_chat_request_suggestions.length > 0) {
-            await chatDB.saveNewChatSuggestions(
-                payload.new_chat_request_suggestions,
-                payload.chat_id
-            );
-
-            // Encrypt new chat suggestions for server sync (max 6)
-            encryptedNewChatSuggestions = payload.new_chat_request_suggestions.slice(0, 6).map(suggestion => {
-                const encrypted = encryptWithMasterKey(suggestion);
-                if (!encrypted) throw new Error('Failed to encrypt new chat suggestion');
-                return encrypted;
-            });
-
-            console.debug(`[ChatSyncService:AI] Saved ${payload.new_chat_request_suggestions.length} new chat suggestions`);
-        }
-
-        // Encrypt chat summary and tags
-        if (payload.chat_summary) {
-            encryptedChatSummary = encryptWithChatKey(payload.chat_summary, chatKey);
-            chat.encrypted_chat_summary = encryptedChatSummary;
-        }
-
-        if (payload.chat_tags && payload.chat_tags.length > 0) {
-            encryptedChatTags = encryptArrayWithChatKey(
-                payload.chat_tags.slice(0, 10), // Max 10 tags
-                chatKey
-            );
-            chat.encrypted_chat_tags = encryptedChatTags;
-        }
-
-        // Update chat with all encrypted metadata at once
-        if (payload.follow_up_request_suggestions?.length > 0 || payload.chat_summary || payload.chat_tags?.length > 0) {
-            await chatDB.updateChat(chat);
-            console.debug(`[ChatSyncService:AI] Updated chat ${payload.chat_id} with encrypted post-processing metadata`);
-        }
-
-        // Sync encrypted data back to Directus via WebSocket
-        if (encryptedFollowUpSuggestions || encryptedNewChatSuggestions.length > 0 || encryptedChatSummary || encryptedChatTags) {
-            const { sendPostProcessingMetadataImpl } = await import('./chatSyncServiceSenders');
-            await sendPostProcessingMetadataImpl(
-                serviceInstance,
-                payload.chat_id,
-                encryptedFollowUpSuggestions || '',
-                encryptedNewChatSuggestions,
-                encryptedChatSummary || '',
-                encryptedChatTags || ''
-            );
-            console.debug(`[ChatSyncService:AI] Sent encrypted post-processing metadata to server for Directus sync`);
-        }
-
-        // Dispatch event to notify components (e.g., to update UI with new suggestions)
-        serviceInstance.dispatchEvent(new CustomEvent('postProcessingCompleted', {
-            detail: {
-                chatId: payload.chat_id,
-                taskId: payload.task_id,
-                followUpSuggestions: payload.follow_up_request_suggestions,
-                harmfulResponse: payload.harmful_response
-            }
-        }));
-
-    } catch (error) {
-        console.error(`[ChatSyncService:AI] Error handling post-processing results for chat ${payload.chat_id}:`, error);
+    const chat = await chatDB.getChat(payload.chat_id);
+    if (!chat) {
+      throw new Error(`Chat ${payload.chat_id} not found`);
     }
+
+    // Use ChatKeyManager: try sync cache, then async IDB load. NEVER generate a wrong key.
+    let chatKey = chatKeyManager.getKeySync(payload.chat_id);
+    if (!chatKey) {
+      chatKey = await chatKeyManager.getKey(payload.chat_id);
+    }
+    if (!chatKey) {
+      console.error(
+        `[ChatSyncService:AI] ❌ CRITICAL: No chat key available for post-processing of chat ${payload.chat_id}. ` +
+          `Skipping encryption of follow-ups/summary/tags to prevent data corruption.`,
+      );
+      return;
+    }
+    const {
+      encryptWithChatKey,
+      encryptArrayWithChatKey,
+      encryptWithMasterKey,
+    } = await import("./cryptoService");
+
+    // Encrypt and save follow-up suggestions to chat record (last 18)
+    // CRITICAL FIX: await encryption operation since encryptArrayWithChatKey is async
+    if (
+      payload.follow_up_request_suggestions &&
+      payload.follow_up_request_suggestions.length > 0
+    ) {
+      encryptedFollowUpSuggestions = await encryptArrayWithChatKey(
+        payload.follow_up_request_suggestions.slice(0, 18), // Keep last 18
+        chatKey,
+      );
+
+      chat.encrypted_follow_up_request_suggestions =
+        encryptedFollowUpSuggestions;
+      console.debug(
+        `[ChatSyncService:AI] Saved ${payload.follow_up_request_suggestions.length} follow-up suggestions for chat ${payload.chat_id}`,
+      );
+    }
+
+    // Save new chat suggestions to separate store (keep last 50)
+    // Encrypt each suggestion with master key for global pool
+    if (
+      payload.new_chat_request_suggestions &&
+      payload.new_chat_request_suggestions.length > 0
+    ) {
+      await chatDB.saveNewChatSuggestions(
+        payload.new_chat_request_suggestions,
+        payload.chat_id,
+      );
+
+      // Encrypt new chat suggestions for server sync (max 6)
+      // CRITICAL FIX: await all encryption operations since encryptWithMasterKey is async
+      encryptedNewChatSuggestions = await Promise.all(
+        payload.new_chat_request_suggestions
+          .slice(0, 6)
+          .map(async (suggestion) => {
+            const encrypted = await encryptWithMasterKey(suggestion);
+            if (!encrypted)
+              throw new Error("Failed to encrypt new chat suggestion");
+            return encrypted;
+          }),
+      );
+
+      console.debug(
+        `[ChatSyncService:AI] Saved ${payload.new_chat_request_suggestions.length} new chat suggestions`,
+      );
+    }
+
+    // Encrypt chat summary and tags
+    // CRITICAL FIX: await all encryption operations since encrypt functions are async
+    if (payload.chat_summary) {
+      encryptedChatSummary = await encryptWithChatKey(
+        payload.chat_summary,
+        chatKey,
+      );
+      chat.encrypted_chat_summary = encryptedChatSummary;
+    }
+
+    if (payload.chat_tags && payload.chat_tags.length > 0) {
+      encryptedChatTags = await encryptArrayWithChatKey(
+        payload.chat_tags.slice(0, 10), // Max 10 tags
+        chatKey,
+      );
+      chat.encrypted_chat_tags = encryptedChatTags;
+    }
+
+    // Encrypt and save top recommended apps for this chat
+    if (
+      payload.top_recommended_apps_for_user &&
+      payload.top_recommended_apps_for_user.length > 0
+    ) {
+      encryptedTopRecommendedApps = await encryptArrayWithChatKey(
+        payload.top_recommended_apps_for_user.slice(0, 5), // Max 5 apps
+        chatKey,
+      );
+      chat.encrypted_top_recommended_apps_for_chat =
+        encryptedTopRecommendedApps;
+      console.debug(
+        `[ChatSyncService:AI] Saved top recommended apps for chat ${payload.chat_id}`,
+      );
+    }
+
+    // Update chat with all encrypted metadata at once
+    if (
+      payload.follow_up_request_suggestions?.length > 0 ||
+      payload.chat_summary ||
+      payload.chat_tags?.length > 0 ||
+      encryptedTopRecommendedApps
+    ) {
+      await chatDB.updateChat(chat);
+      // CRITICAL: Invalidate metadata cache so context menu shows updated summary
+      chatMetadataCache.invalidateChat(payload.chat_id);
+      console.debug(
+        `[ChatSyncService:AI] Updated chat ${payload.chat_id} with encrypted post-processing metadata`,
+      );
+
+      // CRITICAL: Dispatch chatUpdated so Chats.svelte updates its in-memory chat list.
+      // Without this, the chat object held by the sidebar still has encrypted_chat_summary=null
+      // and the context menu won't show the summary until a full page reload.
+      serviceInstance.dispatchEvent(
+        new CustomEvent("chatUpdated", {
+          detail: {
+            chat_id: payload.chat_id,
+            type: "post_processing_metadata",
+            chat,
+          },
+        }),
+      );
+    }
+
+    // Sync encrypted data back to Directus via WebSocket
+    if (
+      encryptedFollowUpSuggestions ||
+      encryptedNewChatSuggestions.length > 0 ||
+      encryptedChatSummary ||
+      encryptedChatTags ||
+      encryptedTopRecommendedApps
+    ) {
+      const { sendPostProcessingMetadataImpl } =
+        await import("./chatSyncServiceSenders");
+      await sendPostProcessingMetadataImpl(
+        serviceInstance,
+        payload.chat_id,
+        encryptedFollowUpSuggestions || "",
+        encryptedNewChatSuggestions,
+        encryptedChatSummary || "",
+        encryptedChatTags || "",
+        encryptedTopRecommendedApps || "",
+      );
+      console.debug(
+        `[ChatSyncService:AI] Sent encrypted post-processing metadata to server for Directus sync`,
+      );
+    }
+
+    // Aggregate recommendations from recent chats and update user profile
+    if (
+      payload.top_recommended_apps_for_user &&
+      payload.top_recommended_apps_for_user.length > 0
+    ) {
+      await aggregateAndUpdateTopRecommendedApps(
+        payload.top_recommended_apps_for_user,
+      );
+    }
+
+    // Dispatch event to notify components (e.g., to update UI with new suggestions)
+    const event = new CustomEvent("postProcessingCompleted", {
+      detail: {
+        chatId: payload.chat_id,
+        taskId: payload.task_id,
+        followUpSuggestions: payload.follow_up_request_suggestions,
+        harmfulResponse: payload.harmful_response,
+      },
+    });
+    console.info(
+      `[ChatSyncService:AI] 🚀 Dispatching 'postProcessingCompleted' event for chat ${payload.chat_id} with ${payload.follow_up_request_suggestions?.length || 0} follow-up suggestions`,
+    );
+    serviceInstance.dispatchEvent(event);
+    console.debug(`[ChatSyncService:AI] ✅ Event dispatched successfully`);
+  } catch (error) {
+    console.error(
+      `[ChatSyncService:AI] Error handling post-processing results for chat ${payload.chat_id}:`,
+      error,
+    );
+  }
+}
+
+/**
+ * Aggregates top recommended apps from the last 20 chats and updates user profile.
+ * This runs client-side to maintain zero-knowledge architecture.
+ */
+async function aggregateAndUpdateTopRecommendedApps(
+  currentChatApps: string[],
+): Promise<void> {
+  try {
+    const { chatDB } = await import("./db");
+    const { decryptArrayWithChatKey } = await import("./cryptoService");
+
+    // Get last 20 chats sorted by last_edited_overall_timestamp
+    const allChats = await chatDB.getAllChats();
+    const sortedChats = allChats
+      .filter((chat) => chat.last_edited_overall_timestamp)
+      .sort(
+        (a, b) =>
+          (b.last_edited_overall_timestamp || 0) -
+          (a.last_edited_overall_timestamp || 0),
+      )
+      .slice(0, 20); // Last 20 chats
+
+    // Collect all recommended apps from these chats
+    const appCounts = new Map<string, number>();
+
+    for (const chat of sortedChats) {
+      if (chat.encrypted_top_recommended_apps_for_chat) {
+        try {
+          const chatKey = chatKeyManager.getKeySync(chat.chat_id);
+          if (!chatKey) {
+            console.debug(
+              `[AggregateApps] No chat key available for chat ${chat.chat_id}, skipping`,
+            );
+            continue;
+          }
+          const decryptedApps = await decryptArrayWithChatKey(
+            chat.encrypted_top_recommended_apps_for_chat,
+            chatKey,
+          );
+
+          // Count each app
+          if (decryptedApps && Array.isArray(decryptedApps)) {
+            for (const appId of decryptedApps) {
+              if (typeof appId === "string" && appId.length > 0) {
+                appCounts.set(appId, (appCounts.get(appId) || 0) + 1);
+              }
+            }
+          }
+        } catch (error) {
+          console.warn(
+            `[AggregateApps] Failed to decrypt apps for chat ${chat.chat_id}:`,
+            error,
+          );
+          // Continue with other chats
+        }
+      }
+    }
+
+    // Also include current chat's apps
+    for (const appId of currentChatApps) {
+      if (typeof appId === "string" && appId.length > 0) {
+        appCounts.set(appId, (appCounts.get(appId) || 0) + 1);
+      }
+    }
+
+    // Get top 5 most mentioned apps
+    const topApps = Array.from(appCounts.entries())
+      .sort((a, b) => b[1] - a[1]) // Sort by count descending
+      .slice(0, 5)
+      .map(([appId]) => appId); // Extract app IDs
+
+    // Update user profile in IndexedDB (decrypted)
+    const { updateProfile } = await import("../stores/userProfile");
+    updateProfile({
+      top_recommended_apps: topApps,
+    });
+
+    // Encrypt and sync to server for Directus storage
+    await syncTopRecommendedAppsToServer(topApps);
+
+    console.debug(`[AggregateApps] Updated top recommended apps:`, topApps);
+  } catch (error) {
+    console.error(
+      "[AggregateApps] Error aggregating top recommended apps:",
+      error,
+    );
+  }
+}
+
+/**
+ * Encrypts and syncs top recommended apps to server for Directus storage.
+ */
+async function syncTopRecommendedAppsToServer(appIds: string[]): Promise<void> {
+  try {
+    const { encryptWithMasterKey } = await import("./cryptoService");
+
+    if (appIds.length === 0) {
+      return; // Don't sync empty arrays
+    }
+
+    // Encrypt array using master key
+    // Convert array to JSON string first, then encrypt with master key
+    // This follows the same pattern as encryptArrayWithChatKey but uses master key instead
+    const jsonString = JSON.stringify(appIds);
+    const encrypted = await encryptWithMasterKey(jsonString);
+    if (!encrypted) {
+      throw new Error("Failed to encrypt top recommended apps");
+    }
+
+    // Update user profile with encrypted value
+    const { updateProfile } = await import("../stores/userProfile");
+    updateProfile({
+      encrypted_top_recommended_apps: encrypted,
+    });
+
+    // TODO: Sync to server via WebSocket when user profile sync is implemented
+    // For now, this is stored locally and will be synced during next user profile sync
+    console.debug(
+      `[SyncApps] Encrypted and stored top recommended apps locally (will sync to server on next profile sync)`,
+    );
+  } catch (error) {
+    console.error("[SyncApps] Error syncing top recommended apps:", error);
+  }
 }
 
 /**
@@ -672,67 +2109,2202 @@ export async function handlePostProcessingCompletedImpl(
  * Server sends this when it cannot decrypt cached messages
  */
 export async function handleRequestChatHistoryImpl(
-    serviceInstance: ChatSynchronizationService,
-    payload: { chat_id: string; reason: string; message?: string }
+  serviceInstance: ChatSynchronizationService,
+  payload: { chat_id: string; reason: string; message?: string },
 ): Promise<void> {
-    console.warn(`[ChatSyncService:AI] Server requested chat history for chat ${payload.chat_id}. Reason: ${payload.reason}`);
-    
-    try {
-        // Get all messages for this chat from IndexedDB
-        const allMessages = await chatDB.getMessagesForChat(payload.chat_id);
-        
-        if (allMessages.length === 0) {
-            console.error(`[ChatSyncService:AI] No messages found for chat ${payload.chat_id} to send to server`);
-            return;
-        }
-        
-        // Convert to format expected by server (plaintext for AI processing)
-        const messageHistory = allMessages.map(msg => ({
-            message_id: msg.message_id,
-            role: msg.role,
-            content: msg.content, // Plaintext content
-            sender_name: msg.sender_name,
-            category: msg.category,
-            created_at: msg.created_at
-        }));
-        
-        console.info(`[ChatSyncService:AI] Sending ${messageHistory.length} messages to server for cache refresh`);
-        
-        // Get the most recent user message (the one that triggered the request)
-        const latestUserMessage = allMessages
-            .filter(m => m.role === 'user')
-            .sort((a, b) => b.created_at - a.created_at)[0];
-        
-        if (!latestUserMessage) {
-            console.error(`[ChatSyncService:AI] No user message found to resend with history`);
-            return;
-        }
-        
-        // Get chat metadata
-        const chat = await chatDB.getChat(payload.chat_id);
-        const chatHasMessages = (chat?.messages_v ?? 0) > 1;
-        
-        // Resend the message with full history
-        const resendPayload = {
-            chat_id: payload.chat_id,
-            message: {
-                message_id: latestUserMessage.message_id,
-                role: latestUserMessage.role,
-                content: latestUserMessage.content,
-                created_at: latestUserMessage.created_at,
-                sender_name: latestUserMessage.sender_name,
-                chat_has_title: chatHasMessages,
-                message_history: messageHistory // Include full history
-            }
-        };
-        
-        console.info(`[ChatSyncService:AI] Resending message with ${messageHistory.length} historical messages`);
-        
-        // Import webSocketService
-        const { webSocketService } = await import('./websocketService');
-        await webSocketService.sendMessage('chat_message_added', resendPayload);
-        
-    } catch (error) {
-        console.error(`[ChatSyncService:AI] Error handling chat history request for chat ${payload.chat_id}:`, error);
+  console.warn(
+    `[ChatSyncService:AI] Server requested chat history for chat ${payload.chat_id}. Reason: ${payload.reason}`,
+  );
+
+  try {
+    // Get all messages for this chat from IndexedDB
+    const allMessages = await chatDB.getMessagesForChat(payload.chat_id);
+
+    if (allMessages.length === 0) {
+      console.error(
+        `[ChatSyncService:AI] No messages found for chat ${payload.chat_id} to send to server`,
+      );
+      return;
     }
+
+    // Convert to format expected by server (plaintext for AI processing)
+    const messageHistory = allMessages.map((msg) => ({
+      message_id: msg.message_id,
+      role: msg.role,
+      content: msg.content, // Plaintext content
+      sender_name: msg.sender_name,
+      category: msg.category,
+      created_at: msg.created_at,
+    }));
+
+    console.info(
+      `[ChatSyncService:AI] Sending ${messageHistory.length} messages to server for cache refresh`,
+    );
+
+    // Get the most recent user message (the one that triggered the request)
+    const latestUserMessage = allMessages
+      .filter((m) => m.role === "user")
+      .sort((a, b) => b.created_at - a.created_at)[0];
+
+    if (!latestUserMessage) {
+      console.error(
+        `[ChatSyncService:AI] No user message found to resend with history`,
+      );
+      return;
+    }
+
+    // Get chat metadata
+    const chat = await chatDB.getChat(payload.chat_id);
+    // Use title_v (same as sendNewMessageImpl) — not messages_v — to determine chat_has_title.
+    // messages_v can be 1 for inspiration chats that have a pre-existing assistant message
+    // but no AI-generated title yet. title_v: 1 means a title was already set at creation,
+    // and chat_has_title: true prevents the backend from regenerating/overwriting it.
+    const chatHasTitle = (chat?.title_v ?? 0) > 0;
+
+    // Decrypt active_focus_id so the AI uses the correct focus mode system prompt on resend.
+    // Without this, the onboarding chat (and any other focus-mode chat) would receive the
+    // default Suki system prompt instead of the focus-mode-specific one (e.g. openmates-welcome).
+    let activeFocusId: string | null = null;
+    if (chat?.encrypted_active_focus_id) {
+      try {
+        const chatKey = chatDB.getChatKey(payload.chat_id);
+        if (chatKey) {
+          const { decryptWithChatKey } = await import("./cryptoService");
+          activeFocusId = await decryptWithChatKey(
+            chat.encrypted_active_focus_id,
+            chatKey,
+          );
+        }
+      } catch (e) {
+        console.warn(
+          "[ChatSyncService:AI] Failed to decrypt active_focus_id for resend (AI will use default focus):",
+          e,
+        );
+      }
+    }
+
+    // Build resend payload. active_focus_id goes at top-level (matches sendNewMessageImpl
+    // in chatSyncServiceSenders.ts) so the backend reads it from payload.get("active_focus_id").
+    const resendPayload: Record<string, unknown> = {
+      chat_id: payload.chat_id,
+      message: {
+        message_id: latestUserMessage.message_id,
+        role: latestUserMessage.role,
+        content: latestUserMessage.content,
+        created_at: latestUserMessage.created_at,
+        sender_name: latestUserMessage.sender_name,
+        chat_has_title: chatHasTitle,
+        message_history: messageHistory, // Include full history
+      },
+      // Include encrypted_chat_key for device-sync broadcast (mirrors normal send path)
+      encrypted_chat_key: chat?.encrypted_chat_key ?? null,
+    };
+
+    // Only include active_focus_id when it could be decrypted (non-null)
+    if (activeFocusId) {
+      resendPayload.active_focus_id = activeFocusId;
+    }
+
+    console.info(
+      `[ChatSyncService:AI] Resending message with ${messageHistory.length} historical messages` +
+        (activeFocusId ? ` (focus: ${activeFocusId})` : ""),
+    );
+
+    // Import webSocketService
+    const { webSocketService } = await import("./websocketService");
+    await webSocketService.sendMessage("chat_message_added", resendPayload);
+  } catch (error) {
+    console.error(
+      `[ChatSyncService:AI] Error handling chat history request for chat ${payload.chat_id}:`,
+      error,
+    );
+  }
+}
+
+/**
+ * Handle embed_update event from server
+ * This updates an existing "processing" embed with finished results.
+ *
+ * CRITICAL: When transitioning from "processing" to "finished", we need to:
+ * 1. Encrypt the plaintext content that was stored during processing
+ * 2. Create and persist embed key wrappers (master + chat) to IndexedDB
+ * 3. Store the encrypted embed properly
+ *
+ * Without this, the embed key stays only in memory cache and is lost on page refresh,
+ * causing fullscreen views to fail loading child embeds.
+ */
+export async function handleEmbedUpdateImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: EmbedUpdatePayload,
+): Promise<void> {
+  console.info(
+    `[ChatSyncService:AI] Received 'embed_update' for embed ${payload.embed_id}`,
+  );
+
+  // CRITICAL FIX: If this embed was already fully processed by handleSendEmbedDataImpl
+  // (which handles encryption, key storage, and Directus persistence), skip the embed_update
+  // entirely. The embed_update is redundant in this case and can cause race conditions
+  // (e.g., trying to access embed keys before IndexedDB storage completes).
+  if (isEmbedAlreadyProcessed(payload.embed_id)) {
+    console.debug(
+      `[ChatSyncService:AI] embed_update: Skipping ${payload.embed_id} - already fully processed by send_embed_data handler`,
+    );
+    // Still dispatch a lightweight UI refresh event (status may have changed)
+    serviceInstance.dispatchEvent(
+      new CustomEvent("embedUpdated", {
+        detail: {
+          embed_id: payload.embed_id,
+          chat_id: payload.chat_id,
+          message_id: payload.message_id,
+          status: payload.status,
+          child_embed_ids: payload.child_embed_ids,
+        },
+      }),
+    );
+    return;
+  }
+
+  try {
+    // Load the existing embed from cache (may be in-memory only from processing stage)
+    const { embedStore } = await import("./embedStore");
+    const embedRef = `embed:${payload.embed_id}`;
+
+    // Get the existing embed (from memory cache or IndexedDB)
+    const existingEmbed = await embedStore.get(embedRef);
+    if (existingEmbed) {
+      // STATE MACHINE: Validate transition before applying the status change
+      if (existingEmbed.status) {
+        try {
+          const {
+            validateEmbedTransition,
+            normalizeEmbedStatus: normalizeStatus,
+          } = await import("./embedStateMachine");
+          const incomingStatus = normalizeStatus(payload.status);
+          if (
+            !validateEmbedTransition(
+              existingEmbed.status,
+              incomingStatus,
+              payload.embed_id,
+            )
+          ) {
+            console.warn(
+              `[ChatSyncService:AI] embed_update: Blocked invalid transition ` +
+                `'${existingEmbed.status}' → '${incomingStatus}' for embed ${payload.embed_id}. Skipping.`,
+            );
+            return;
+          }
+        } catch {
+          // Non-blocking: proceed if state machine import fails
+        }
+      }
+      // Check if this embed needs encryption + key storage
+      // Processing embeds have plaintext content and only in-memory keys
+      const wasProcessing = !existingEmbed.encrypted_content;
+      const isNowFinished =
+        payload.status === "finished" || payload.status === "completed";
+
+      // Update status to finished
+      existingEmbed.status = payload.status;
+
+      // Store child embed IDs if provided (for composite embeds)
+      if (payload.child_embed_ids && payload.child_embed_ids.length > 0) {
+        existingEmbed.embed_ids = payload.child_embed_ids;
+        console.debug(
+          `[ChatSyncService:AI] embed_update added ${payload.child_embed_ids.length} child embed_ids`,
+        );
+      }
+
+      // Update timestamp
+      existingEmbed.updatedAt = Date.now();
+
+      // CRITICAL FIX: If transitioning from processing to finished, we need to:
+      // 1. Encrypt the content and persist key wrappers
+      // 2. This ensures the key survives page refresh
+      //
+      // IMPORTANT: SKIP this if the content is still the "processing" placeholder!
+      // The `send_embed_data` event with the actual finished content should handle encryption/storage.
+      // This prevents a race condition where `embed_update` arrives before `send_embed_data` finishes,
+      // causing the OLD placeholder content to be encrypted and stored to Directus.
+      //
+      // Detection: If existingEmbed.content contains 'status: processing' or 'status: "processing"',
+      // it's still the placeholder and we should NOT encrypt it here.
+      const contentString =
+        typeof existingEmbed.content === "string" ? existingEmbed.content : "";
+      const isStillPlaceholderContent =
+        contentString.includes("status: processing") ||
+        contentString.includes('status: "processing"') ||
+        contentString.includes("status: 'processing'");
+
+      if (isStillPlaceholderContent) {
+        // CRITICAL FIX: Don't store to IndexedDB when content is still placeholder!
+        // Only update the in-memory status - the send_embed_data (finished) event will store the actual content.
+        // Previously, this was calling embedStore.put() with placeholder content, overwriting memory-only data.
+        console.warn(
+          `[ChatSyncService:AI] embed_update: SKIPPING storage for ${payload.embed_id} - ` +
+            `content still contains "processing" status. The send_embed_data event with actual content should handle storage.`,
+        );
+
+        // existingEmbed.status was already updated above (line 1268)
+        // Since memory-only embeds are references, this update persists in the cache
+
+        // Dispatch event for UI refresh (status changed, but content still loading)
+        serviceInstance.dispatchEvent(
+          new CustomEvent("embedUpdated", {
+            detail: {
+              embed_id: payload.embed_id,
+              chat_id: payload.chat_id,
+              message_id: payload.message_id,
+              status: payload.status,
+              child_embed_ids: payload.child_embed_ids,
+              isWaitingForContent: true, // Flag to indicate content is still coming
+            },
+          }),
+        );
+        return; // CRITICAL: Early return - don't call embedStore.put() with placeholder content
+      } else if (wasProcessing && isNowFinished && existingEmbed.content) {
+        console.info(
+          `[ChatSyncService:AI] embed_update: Transitioning ${payload.embed_id} from processing to finished - encrypting and persisting keys`,
+        );
+
+        try {
+          // Import crypto utilities
+          const { computeSHA256 } = await import("../message_parsing/utils");
+          const {
+            generateEmbedKey,
+            encryptWithEmbedKey,
+            wrapEmbedKeyWithMasterKey,
+            wrapEmbedKeyWithChatKey,
+          } = await import("./cryptoService");
+
+          // Get chat_id from payload or existing embed
+          const chatId = payload.chat_id || existingEmbed.chat_id;
+          // Get user_id from payload (user_id_uuid) or existing embed
+          const userId = payload.user_id_uuid || existingEmbed.user_id;
+
+          if (!chatId) {
+            console.warn(
+              `[ChatSyncService:AI] embed_update: No chat_id available for ${payload.embed_id}, skipping key persistence`,
+            );
+          } else {
+            // Compute hashed IDs
+            const hashedChatId = await computeSHA256(chatId);
+            const hashedEmbedId = await computeSHA256(payload.embed_id);
+            const hashedUserId = userId
+              ? await computeSHA256(userId)
+              : "unknown";
+
+            // Get or generate embed key (may already exist in memory cache from processing stage)
+            let embedKey = await embedStore.getEmbedKey(
+              payload.embed_id,
+              hashedChatId,
+            );
+            if (!embedKey) {
+              // Key not in cache, generate a new one
+              embedKey = generateEmbedKey();
+              console.debug(
+                `[ChatSyncService:AI] embed_update: Generated new embed key for ${payload.embed_id}`,
+              );
+            } else {
+              console.debug(
+                `[ChatSyncService:AI] embed_update: Using cached embed key for ${payload.embed_id}`,
+              );
+            }
+
+            // CRITICAL: Cache the embed key immediately after generation/retrieval
+            // This prevents race conditions where concurrent operations try to access the key
+            embedStore.setEmbedKeyInCache(
+              payload.embed_id,
+              embedKey,
+              hashedChatId,
+            );
+            embedStore.setEmbedKeyInCache(
+              payload.embed_id,
+              embedKey,
+              undefined,
+            ); // master fallback
+            console.debug(
+              `[ChatSyncService:AI] embed_update: ✅ Cached embed key immediately for ${payload.embed_id}`,
+            );
+
+            // If this embed has child embed_ids, pre-cache the key for children immediately
+            if (
+              existingEmbed.embed_ids &&
+              Array.isArray(existingEmbed.embed_ids) &&
+              existingEmbed.embed_ids.length > 0
+            ) {
+              console.debug(
+                `[ChatSyncService:AI] embed_update: Pre-caching parent key for ${existingEmbed.embed_ids.length} known child embeds`,
+              );
+              for (const childEmbedId of existingEmbed.embed_ids) {
+                embedStore.setEmbedKeyInCache(
+                  childEmbedId,
+                  embedKey,
+                  hashedChatId,
+                );
+                embedStore.setEmbedKeyInCache(
+                  childEmbedId,
+                  embedKey,
+                  undefined,
+                ); // 'master' fallback
+              }
+            }
+
+            // Encrypt the content
+            const plaintextContent = existingEmbed.content;
+            const encryptedContent = await encryptWithEmbedKey(
+              plaintextContent,
+              embedKey,
+            );
+            if (!encryptedContent) {
+              throw new Error("Failed to encrypt embed content");
+            }
+
+            // Encrypt the type if available
+            let encryptedType: string | undefined;
+            if (existingEmbed.type) {
+              encryptedType =
+                (await encryptWithEmbedKey(existingEmbed.type, embedKey)) ||
+                undefined;
+            }
+
+            // Create key wrappers (only for parent embeds)
+            const isChildEmbed = !!existingEmbed.parent_embed_id;
+
+            if (!isChildEmbed) {
+              // Create master key wrapper
+              const wrappedMasterKey =
+                await wrapEmbedKeyWithMasterKey(embedKey);
+              if (!wrappedMasterKey) {
+                throw new Error("Failed to wrap embed key with master key");
+              }
+
+              // Create chat key wrapper — use ChatKeyManager (never generate a wrong key)
+              const chatKey =
+                chatKeyManager.getKeySync(chatId) ||
+                (await chatKeyManager.getKey(chatId));
+              if (!chatKey) {
+                throw new Error(
+                  `No chat key available for embed key wrapping (chat ${chatId})`,
+                );
+              }
+              const wrappedChatKey = await wrapEmbedKeyWithChatKey(
+                embedKey,
+                chatKey,
+              );
+              if (!wrappedChatKey) {
+                throw new Error("Failed to wrap embed key with chat key");
+              }
+
+              // Store key wrappers to IndexedDB
+              const now = Math.floor(Date.now() / 1000);
+              const embedKeysForStorage = [
+                {
+                  hashed_embed_id: hashedEmbedId,
+                  key_type: "master" as const,
+                  hashed_chat_id: null,
+                  encrypted_embed_key: wrappedMasterKey,
+                  hashed_user_id: hashedUserId,
+                  created_at: now,
+                },
+                {
+                  hashed_embed_id: hashedEmbedId,
+                  key_type: "chat" as const,
+                  hashed_chat_id: hashedChatId,
+                  encrypted_embed_key: wrappedChatKey,
+                  hashed_user_id: hashedUserId,
+                  created_at: now,
+                },
+              ];
+
+              await embedStore.storeEmbedKeys(embedKeysForStorage);
+              console.info(
+                `[ChatSyncService:AI] embed_update: ✅ Stored key wrappers for ${payload.embed_id} to IndexedDB`,
+              );
+
+              // Also send key wrappers to server
+              try {
+                const sendersModule = await import("./chatSyncServiceSenders");
+                const sendStoreEmbedKeysFunction =
+                  sendersModule.sendStoreEmbedKeysImpl ||
+                  (
+                    sendersModule as {
+                      default?: {
+                        sendStoreEmbedKeysImpl?: typeof sendersModule.sendStoreEmbedKeysImpl;
+                      };
+                    }
+                  ).default?.sendStoreEmbedKeysImpl;
+
+                if (typeof sendStoreEmbedKeysFunction === "function") {
+                  await sendStoreEmbedKeysFunction(serviceInstance, {
+                    keys: embedKeysForStorage,
+                  });
+                  console.debug(
+                    `[ChatSyncService:AI] embed_update: Sent key wrappers to server for ${payload.embed_id}`,
+                  );
+                }
+              } catch (sendError) {
+                // Non-fatal - keys are stored locally
+                console.warn(
+                  `[ChatSyncService:AI] embed_update: Failed to send key wrappers to server:`,
+                  sendError,
+                );
+              }
+            }
+
+            // Update the embed with encrypted content
+            existingEmbed.encrypted_content = encryptedContent;
+            existingEmbed.encrypted_type = encryptedType;
+            existingEmbed.hashed_chat_id = hashedChatId;
+            // Clear plaintext content (it's now encrypted)
+            delete existingEmbed.content;
+
+            // NOTE: Primary key caching is now done immediately after key generation (above)
+            // This section kept as safety fallback - won't hurt to re-cache the same values
+
+            // Build encrypted embed object for putEncrypted (new format with separate fields)
+            // This is the same format used by handleSendEmbedDataImpl for finalized embeds
+            const hashedMessageId = payload.message_id
+              ? await computeSHA256(payload.message_id)
+              : existingEmbed.hashed_message_id;
+
+            const encryptedEmbedForStorage = {
+              embed_id: payload.embed_id,
+              encrypted_type: encryptedType,
+              encrypted_content: encryptedContent,
+              status: existingEmbed.status,
+              hashed_chat_id: hashedChatId,
+              hashed_message_id: hashedMessageId,
+              hashed_task_id: existingEmbed.hashed_task_id,
+              hashed_user_id: hashedUserId,
+              embed_ids: existingEmbed.embed_ids,
+              parent_embed_id: existingEmbed.parent_embed_id,
+              version_number: existingEmbed.version_number,
+              file_path: existingEmbed.file_path,
+              content_hash: existingEmbed.content_hash,
+              text_length_chars: existingEmbed.text_length_chars,
+              is_private: existingEmbed.is_private ?? false,
+              is_shared: existingEmbed.is_shared ?? false,
+              createdAt: existingEmbed.createdAt,
+              updatedAt: existingEmbed.updatedAt,
+            };
+
+            // Extract app_id/skill_id from plaintext content for metadata
+            const preExtractedMetadata = {
+              app_id: existingEmbed.app_id,
+              skill_id: existingEmbed.skill_id,
+            };
+
+            // Use putEncrypted for proper separate field storage (instead of put)
+            // This ensures embed_ids is stored as a separate field that can be queried
+            await embedStore.putEncrypted(
+              embedRef,
+              encryptedEmbedForStorage,
+              existingEmbed.type,
+              plaintextContent,
+              preExtractedMetadata,
+            );
+
+            console.info(
+              `[ChatSyncService:AI] embed_update: ✅ Encrypted and stored ${payload.embed_id} with putEncrypted`,
+            );
+
+            // Send encrypted embed to server for Directus storage
+            try {
+              const sendersModule = await import("./chatSyncServiceSenders");
+              const sendStoreFunction =
+                sendersModule.sendStoreEmbedImpl ||
+                (
+                  sendersModule as {
+                    default?: {
+                      sendStoreEmbedImpl?: typeof sendersModule.sendStoreEmbedImpl;
+                    };
+                  }
+                ).default?.sendStoreEmbedImpl;
+
+              if (typeof sendStoreFunction === "function") {
+                // CRITICAL: Normalize camelCase timestamps to snake_case Unix seconds for Directus
+                const nowSecs = Math.floor(Date.now() / 1000);
+                const { createdAt, updatedAt, ...restFields } =
+                  encryptedEmbedForStorage;
+                const storePayload = {
+                  ...restFields,
+                  created_at: normalizeToUnixSeconds(createdAt, nowSecs),
+                  updated_at: normalizeToUnixSeconds(updatedAt, nowSecs),
+                };
+                await sendStoreFunction(serviceInstance, storePayload);
+                console.debug(
+                  `[ChatSyncService:AI] embed_update: Sent encrypted embed to server for ${payload.embed_id}`,
+                );
+              }
+            } catch (sendError) {
+              // Non-fatal - embed is stored locally
+              console.warn(
+                `[ChatSyncService:AI] embed_update: Failed to send encrypted embed to server:`,
+                sendError,
+              );
+            }
+
+            // Skip the regular put() call since we've already stored via putEncrypted
+            // Dispatch event for UI to refresh the embed preview
+            serviceInstance.dispatchEvent(
+              new CustomEvent("embedUpdated", {
+                detail: {
+                  embed_id: payload.embed_id,
+                  chat_id: payload.chat_id,
+                  message_id: payload.message_id,
+                  status: payload.status,
+                  child_embed_ids: payload.child_embed_ids,
+                },
+              }),
+            );
+            return; // Early return - already handled storage and event dispatch
+          }
+        } catch (encryptError) {
+          console.error(
+            `[ChatSyncService:AI] embed_update: Failed to encrypt/persist keys for ${payload.embed_id}:`,
+            encryptError,
+          );
+          // Continue anyway - embed will still be stored (unencrypted), just won't survive page refresh well
+        }
+      }
+
+      // Save updated embed (for non-encryption cases or fallback)
+      await embedStore.put(embedRef, existingEmbed, existingEmbed.type);
+
+      console.info(
+        `[ChatSyncService:AI] Updated embed ${payload.embed_id} to status ${payload.status}`,
+      );
+
+      // Dispatch event for UI to refresh the embed preview
+      serviceInstance.dispatchEvent(
+        new CustomEvent("embedUpdated", {
+          detail: {
+            embed_id: payload.embed_id,
+            chat_id: payload.chat_id,
+            message_id: payload.message_id,
+            status: payload.status,
+            child_embed_ids: payload.child_embed_ids,
+          },
+        }),
+      );
+    } else {
+      // CRITICAL FIX: If embed doesn't exist yet, request it from server
+      // This can happen if embed_update is sent before send_embed_data is processed
+      // or if the embed was not properly stored
+      console.warn(
+        `[ChatSyncService:AI] Embed ${payload.embed_id} not found in cache for update. Requesting from server.`,
+      );
+
+      // Request embed from server via request_embed event
+      const { sendRequestEmbed } = await import("./chatSyncServiceSenders");
+      try {
+        await sendRequestEmbed(serviceInstance, payload.embed_id);
+        console.info(
+          `[ChatSyncService:AI] Requested embed ${payload.embed_id} from server`,
+        );
+      } catch (error) {
+        console.error(
+          `[ChatSyncService:AI] Error requesting embed ${payload.embed_id} from server:`,
+          error,
+        );
+      }
+    }
+  } catch (error) {
+    console.error(
+      `[ChatSyncService:AI] Error handling embed_update for embed ${payload.embed_id}:`,
+      error,
+    );
+  }
+}
+
+// Type alias for the inner embed data structure (used when WebSocket passes payload directly)
+type EmbedDataPayload = SendEmbedDataPayload["payload"];
+
+/**
+ * Handle send_embed_data event from server
+ * This receives plaintext TOON content, encrypts it client-side, stores in IndexedDB,
+ * and sends the encrypted version back to server for Directus storage.
+ */
+export async function handleSendEmbedDataImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: SendEmbedDataPayload,
+): Promise<void> {
+  // FIX: The WebSocket service extracts rawMessage.payload and passes it to handlers,
+  // so 'payload' here is already the inner embed data object, NOT the full message structure.
+  // Handle both cases for backwards compatibility:
+  // 1. payload.embed_id exists: WebSocket passed inner payload directly (correct behavior)
+  // 2. payload.payload.embed_id exists: Full message structure was passed (legacy/edge case)
+  const payloadWithEmbedId = payload as unknown as EmbedDataPayload;
+  const payloadWithNestedData = payload as SendEmbedDataPayload;
+  const embedData: EmbedDataPayload | undefined = payloadWithEmbedId.embed_id
+    ? payloadWithEmbedId
+    : payloadWithNestedData.payload;
+
+  if (!embedData?.embed_id) {
+    console.warn(
+      "[ChatSyncService:AI] Received send_embed_data payload without embed_id. Raw payload:",
+      payload,
+    );
+    return;
+  }
+  // Enhanced logging for send_embed_data events (helps debug composite embed issues)
+  const contentPreview =
+    typeof embedData.content === "string"
+      ? embedData.content.substring(0, 300)
+      : "NOT_STRING";
+  const hasResultsInContent =
+    typeof embedData.content === "string" &&
+    embedData.content.includes("results:");
+  const hasEmbedIdsInContent =
+    typeof embedData.content === "string" &&
+    embedData.content.includes("embed_ids:");
+  const embedIdsInPayload = embedData.embed_ids;
+  console.info(
+    `[ChatSyncService:AI] [EMBED_EVENT] 📦 Received 'send_embed_data' for embed ${embedData.embed_id}:\n` +
+      `  status=${embedData.status}, type=${embedData.type}\n` +
+      `  hasResultsInContent=${hasResultsInContent}, hasEmbedIdsInContent=${hasEmbedIdsInContent}\n` +
+      `  embedIdsInPayload=${JSON.stringify(embedIdsInPayload)} (count=${embedIdsInPayload?.length || 0})\n` +
+      `  contentPreview="${contentPreview}..."`,
+  );
+
+  // DEBUG: Check if embedData contains any Promises
+  for (const [key, value] of Object.entries(embedData)) {
+    if (value instanceof Promise) {
+      console.error(
+        `[ChatSyncService:AI] ERROR: embedData field "${key}" is a Promise!`,
+        value,
+      );
+    }
+  }
+
+  // STATE MACHINE: Validate transition from current status (if embed exists in memory)
+  // Uses the embed state machine to prevent invalid transitions and duplicate events.
+  // See: frontend/packages/ui/src/services/embedStateMachine.ts
+  try {
+    const { validateEmbedTransition, normalizeEmbedStatus: normalizeStatus } =
+      await import("./embedStateMachine");
+    const { embedStore: stateCheckStore } = await import("./embedStore");
+    const stateCheckRef = `embed:${embedData.embed_id}`;
+    const existingEntry = await stateCheckStore.get(stateCheckRef);
+    if (existingEntry?.status) {
+      const currentStatus = existingEntry.status;
+      const incomingStatus = normalizeStatus(embedData.status);
+      if (
+        !validateEmbedTransition(
+          currentStatus,
+          incomingStatus,
+          embedData.embed_id,
+        )
+      ) {
+        console.warn(
+          `[ChatSyncService:AI] [EMBED_STATE_MACHINE] Blocked invalid transition: ` +
+            `'${currentStatus}' → '${incomingStatus}' for embed ${embedData.embed_id}. Skipping event.`,
+        );
+        return;
+      }
+    }
+  } catch (stateErr) {
+    // Non-blocking: if state check fails, proceed with the event (backwards compatible)
+    console.debug(
+      `[ChatSyncService:AI] State machine check failed (non-blocking):`,
+      stateErr,
+    );
+  }
+
+  try {
+    // Determine if this is a "processing" placeholder or a finalized embed
+    const isProcessingPlaceholder = embedData.status === "processing";
+
+    if (isProcessingPlaceholder) {
+      // ============================================================
+      // "PROCESSING" STATUS: In-memory only, but generate key early for children
+      // ============================================================
+      console.info(
+        `[ChatSyncService:AI] Embed ${embedData.embed_id} is "processing" - storing in memory cache for rendering`,
+      );
+
+      // CRITICAL FIX: Store the processing embed in memory cache so resolveEmbed() can find it
+      // During streaming, the UI renders embed nodes which call resolveEmbed(). If the embed
+      // is not in memory cache, resolveEmbed() returns null and "Processing..." is shown.
+      // By storing here, the next render cycle will find the embed data.
+      try {
+        const { embedStore } = await import("./embedStore");
+        const embedRef = `embed:${embedData.embed_id}`;
+
+        // Store in memory cache (not persisted to IndexedDB for processing embeds)
+        // CRITICAL: Include ALL fields needed for rendering, especially:
+        // - skill_id: Determines which component to render (news vs web search)
+        // - app_id: Parent app identifier
+        // - query: Search query to display in the preview
+        // NOTE: Use type assertion for dynamic payload fields that aren't in the base type
+        const embedPayload = embedData as Record<string, unknown>;
+        embedStore.setInMemoryOnly(embedRef, {
+          embed_id: embedData.embed_id,
+          type: embedData.type,
+          status: embedData.status,
+          content: embedData.content, // Plaintext TOON content
+          text_preview: embedData.text_preview,
+          task_id: embedData.task_id,
+          embed_ids: embedData.embed_ids,
+          parent_embed_id: embedData.parent_embed_id,
+          chat_id: embedData.chat_id,
+          message_id: embedData.message_id,
+          // CRITICAL: App skill metadata for rendering the correct component
+          // These fields come from the server but aren't in the base type definition
+          skill_id: embedPayload.skill_id as string | undefined,
+          app_id: embedPayload.app_id as string | undefined,
+          query: embedPayload.query as string | undefined, // Search query for search skills
+          provider: embedPayload.provider as string | undefined, // Provider name (e.g., "Brave Search")
+          results: embedPayload.results as unknown[] | undefined, // Results array if available
+          createdAt: embedData.createdAt || Date.now(),
+          updatedAt: embedData.updatedAt || Date.now(),
+        });
+        const queryStr = embedPayload.query as string | undefined;
+        console.info(
+          `[ChatSyncService:AI] ✅ Stored processing embed ${embedData.embed_id} in memory cache`,
+          {
+            skill_id: embedPayload.skill_id,
+            app_id: embedPayload.app_id,
+            query: queryStr?.substring(0, 30),
+          },
+        );
+      } catch (err) {
+        console.warn(
+          `[ChatSyncService:AI] Failed to store processing embed in memory cache:`,
+          err,
+        );
+      }
+
+      // Register embed_ref for processing embeds so inline links resolve even before finalization.
+      // embed_ref lives only in plaintext TOON content (zero-knowledge: never stored unencrypted).
+      // We decode here while content is still plaintext and register in the in-memory index only.
+      // Also register appId so parse_message.ts can colour the badge correctly immediately.
+      try {
+        const { embedStore: esForRef } = await import("./embedStore");
+        const decodedForRef = await decodeToonContentSafe(embedData.content);
+        if (decodedForRef && typeof decodedForRef === "object") {
+          const refObj = decodedForRef as Record<string, unknown>;
+          if (typeof refObj.embed_ref === "string" && refObj.embed_ref) {
+            // Prefer app_id from decoded TOON content; fall back to payload field
+            const refAppId =
+              typeof refObj.app_id === "string" ? refObj.app_id : null;
+            esForRef.registerEmbedRef(
+              refObj.embed_ref,
+              embedData.embed_id,
+              refAppId,
+            );
+            console.debug(
+              `[ChatSyncService:AI] Registered embed_ref (processing) "${refObj.embed_ref}" → ${embedData.embed_id} (appId: ${refAppId})`,
+            );
+          }
+        }
+      } catch (refErr) {
+        console.debug(
+          "[ChatSyncService:AI] Failed to register embed_ref for processing embed:",
+          refErr,
+        );
+      }
+
+      // Generate embed-specific encryption key early (if not already exists)
+      // This is CRITICAL for key inheritance: child embeds arrive while parent is still processing
+      // and they need the parent's key to encrypt themselves.
+      try {
+        const { generateEmbedKey } = await import("./cryptoService");
+        const { computeSHA256 } = await import("../message_parsing/utils");
+        const { embedStore } = await import("./embedStore");
+        const hashedChatId = await computeSHA256(embedData.chat_id);
+
+        // Only generate if not already in cache
+        const existingKey = await embedStore.getEmbedKey(
+          embedData.embed_id,
+          hashedChatId,
+        );
+        if (!existingKey) {
+          const newKey = generateEmbedKey();
+          // Cache the key so children can find it
+          embedStore.setEmbedKeyInCache(
+            embedData.embed_id,
+            newKey,
+            hashedChatId,
+          );
+          embedStore.setEmbedKeyInCache(embedData.embed_id, newKey, undefined); // master fallback
+          console.debug(
+            `[ChatSyncService:AI] Generated and cached early key for processing parent embed ${embedData.embed_id}`,
+          );
+        }
+      } catch (err) {
+        console.warn(
+          `[ChatSyncService:AI] Failed to generate early key for processing embed:`,
+          err,
+        );
+      }
+
+      // Dispatch event with FULL embed data so UI can render from it directly
+      serviceInstance.dispatchEvent(
+        new CustomEvent("embedUpdated", {
+          detail: {
+            embed_id: embedData.embed_id,
+            chat_id: embedData.chat_id,
+            message_id: embedData.message_id,
+            status: embedData.status,
+            type: embedData.type,
+            content: embedData.content, // Plaintext TOON for in-memory rendering
+            text_preview: embedData.text_preview,
+            task_id: embedData.task_id,
+            embed_ids: embedData.embed_ids,
+            parent_embed_id: embedData.parent_embed_id,
+            // Include all fields UI might need for rendering
+            isProcessing: true,
+          },
+        }),
+      );
+    } else if (
+      embedData.status === "error" ||
+      embedData.status === "cancelled"
+    ) {
+      // ============================================================
+      // ERROR/CANCELLED STATUS: Clean up only, no persistence
+      // ============================================================
+      // Failed/cancelled embeds are NOT stored in IndexedDB or Directus.
+      // The backend has already removed the processing placeholder from its cache.
+      // We just need to:
+      // 1. Mark embed as error in the embedResolver's knownErrorEmbeds set
+      //    (CRITICAL: prevents infinite loop where resolveEmbed() re-requests
+      //    error embeds from the server on every render cycle)
+      // 2. Remove the in-memory processing placeholder
+      // 3. Dispatch embedUpdated so ActiveChat tracks it in _embedErrors
+      // 4. The UI will hide the embed and show the error banner
+      console.info(
+        `[ChatSyncService:AI] Embed ${embedData.embed_id} has status="${embedData.status}" — ` +
+          `cleaning up without persisting (failed embeds are not stored)`,
+      );
+
+      // Mark as known error FIRST so resolveEmbed() won't re-request it
+      markEmbedAsError(embedData.embed_id, embedData.status);
+
+      try {
+        const { embedStore } = await import("./embedStore");
+        const embedRef = `embed:${embedData.embed_id}`;
+        // Remove the "processing" placeholder from memory cache
+        embedStore.removeFromMemoryCache(embedRef);
+        console.debug(
+          `[ChatSyncService:AI] Removed processing placeholder for ${embedData.status} embed ${embedData.embed_id} from memory cache`,
+        );
+      } catch (err) {
+        console.warn(
+          `[ChatSyncService:AI] Failed to remove ${embedData.status} embed from memory cache:`,
+          err,
+        );
+      }
+
+      // Dispatch event so ActiveChat can track the error and update the UI
+      serviceInstance.dispatchEvent(
+        new CustomEvent("embedUpdated", {
+          detail: {
+            embed_id: embedData.embed_id,
+            chat_id: embedData.chat_id,
+            message_id: embedData.message_id,
+            status: embedData.status,
+            child_embed_ids: embedData.embed_ids,
+            isProcessing: false,
+          },
+        }),
+      );
+    } else {
+      // ============================================================
+      // FINALIZED STATUS (completed/etc): Full encryption and persistence
+      // ============================================================
+      // CRITICAL: Check if this embed has already been processed to prevent duplicate keys
+      // The same send_embed_data event may be received multiple times (e.g., duplicate WebSocket messages)
+      if (isEmbedAlreadyProcessed(embedData.embed_id)) {
+        console.warn(
+          `[ChatSyncService:AI] [EMBED_EVENT] ⚠️ DUPLICATE DETECTED: Embed ${embedData.embed_id} already processed ` +
+            `(status=${embedData.status}) - skipping duplicate processing. ` +
+            `This should not happen if deduplication is working correctly!`,
+        );
+        // Still dispatch event for UI refresh, but don't re-encrypt or re-send
+        serviceInstance.dispatchEvent(
+          new CustomEvent("embedUpdated", {
+            detail: {
+              embed_id: embedData.embed_id,
+              chat_id: embedData.chat_id,
+              message_id: embedData.message_id,
+              status: embedData.status,
+              child_embed_ids: embedData.embed_ids,
+              isProcessing: false,
+            },
+          }),
+        );
+        return;
+      }
+
+      // Mark as processed BEFORE starting async operations to prevent race conditions
+      markEmbedAsProcessed(embedData.embed_id);
+      console.info(
+        `[ChatSyncService:AI] [EMBED_EVENT] Marked embed ${embedData.embed_id} as processed. ` +
+          `Total processed embeds: ${processedFinalizedEmbeds.size}`,
+      );
+
+      // CHECK: If this embed arrives with already_encrypted flag, it means the server
+      // is sending back client-encrypted data from Directus (e.g., when the cache had stale
+      // "processing" status but Directus had the finished embed). In this case, store directly
+      // in IndexedDB without re-encryption and do NOT send back to server (it's already there).
+      const alreadyEncrypted =
+        (embedData as unknown as Record<string, unknown>).already_encrypted ===
+        true;
+      if (alreadyEncrypted) {
+        console.info(
+          `[ChatSyncService:AI] Embed ${embedData.embed_id} arrived with already_encrypted=true - storing directly without re-encryption`,
+        );
+
+        const { embedStore } = await import("./embedStore");
+        const { computeSHA256 } = await import("../message_parsing/utils");
+        const embedRef = `embed:${embedData.embed_id}`;
+        const hashedChatId = await computeSHA256(embedData.chat_id || "");
+
+        // Safety net: If the server included embed_keys (from request_embed handler),
+        // store them in IndexedDB so the client can later unwrap the embed key
+        // and decrypt the content. Without this, second devices have no way to
+        // derive the embed key for inspiration embeds.
+        const serverEmbedKeys = (
+          embedData as unknown as Record<string, unknown>
+        ).embed_keys;
+        if (
+          serverEmbedKeys &&
+          Array.isArray(serverEmbedKeys) &&
+          serverEmbedKeys.length > 0
+        ) {
+          try {
+            // Map from Directus field names to EmbedKeyEntry interface
+            const keyEntries = serverEmbedKeys.map(
+              (k: Record<string, unknown>) => ({
+                hashed_embed_id: k.hashed_embed_id as string,
+                key_type: k.key_type as "master" | "chat",
+                hashed_chat_id: (k.hashed_chat_id as string) || null,
+                encrypted_embed_key: k.encrypted_embed_key as string,
+                hashed_user_id: k.hashed_user_id as string,
+                created_at: k.created_at as number,
+              }),
+            );
+            await embedStore.storeEmbedKeys(keyEntries);
+            console.info(
+              `[ChatSyncService:AI] Stored ${keyEntries.length} embed_keys from server for embed ${embedData.embed_id}`,
+            );
+          } catch (keyErr) {
+            console.error(
+              `[ChatSyncService:AI] Failed to store embed_keys for embed ${embedData.embed_id}:`,
+              keyErr,
+            );
+          }
+        }
+
+        // The content and type are already encrypted - store as-is
+        const encryptedEmbedForStorage = {
+          embed_id: embedData.embed_id,
+          encrypted_type: embedData.type, // Already encrypted
+          encrypted_content: embedData.content, // Already encrypted
+          encrypted_text_preview: embedData.text_preview,
+          status: embedData.status,
+          hashed_chat_id: hashedChatId,
+          embed_ids: embedData.embed_ids,
+          parent_embed_id: embedData.parent_embed_id,
+          version_number: embedData.version_number,
+          file_path: embedData.file_path,
+          content_hash: embedData.content_hash,
+          text_length_chars: embedData.text_length_chars,
+          is_private: embedData.is_private ?? false,
+          is_shared: embedData.is_shared ?? false,
+          createdAt: embedData.createdAt,
+          updatedAt: embedData.updatedAt,
+        };
+
+        await embedStore.putEncrypted(
+          embedRef,
+          encryptedEmbedForStorage,
+          (embedData.type || "app-skill-use") as EmbedType,
+        );
+        console.info(
+          `[ChatSyncService:AI] ✅ Stored already-encrypted embed ${embedData.embed_id} in IndexedDB (no re-encryption, no server round-trip)`,
+        );
+
+        // Dispatch event for UI refresh
+        serviceInstance.dispatchEvent(
+          new CustomEvent("embedUpdated", {
+            detail: {
+              embed_id: embedData.embed_id,
+              chat_id: embedData.chat_id,
+              message_id: embedData.message_id,
+              status: embedData.status,
+              child_embed_ids: embedData.embed_ids,
+              isProcessing: false,
+            },
+          }),
+        );
+        return;
+      }
+
+      // HYBRID ENCRYPTION: Check if this is a server-managed (Vault) embed
+      // If encryption_mode is "vault", we skip local encryption and key generation
+      // because the server already has the record and handles decryption via API.
+      const encryptionMode = embedData.encryption_mode || "client";
+      if (encryptionMode === "vault") {
+        console.info(
+          `[ChatSyncService:AI] Embed ${embedData.embed_id} uses Vault encryption - skipping local re-encryption`,
+        );
+
+        const { embedStore } = await import("./embedStore");
+        const embedRef = `embed:${embedData.embed_id}`;
+
+        // Store in local IndexedDB as-is (plaintext content, but marked as vault)
+        // We use put() instead of putEncrypted() because put() encrypts with the master key,
+        // which is safe for local storage of server-managed metadata.
+        await embedStore.put(
+          embedRef,
+          {
+            ...embedData,
+            encryption_mode: "vault",
+            vault_key_id: embedData.vault_key_id,
+          },
+          embedData.type as EmbedType,
+        );
+
+        console.info(
+          `[ChatSyncService:AI] ✅ Stored Vault-managed embed ${embedData.embed_id} locally`,
+        );
+
+        // Dispatch event for UI refresh
+        serviceInstance.dispatchEvent(
+          new CustomEvent("embedUpdated", {
+            detail: {
+              embed_id: embedData.embed_id,
+              chat_id: embedData.chat_id,
+              message_id: embedData.message_id,
+              status: embedData.status,
+              child_embed_ids: embedData.embed_ids,
+              isProcessing: false,
+              encryption_mode: "vault",
+            },
+          }),
+        );
+        return;
+      }
+
+      // ============================================================
+      // DRAFT PDF EMBED: chat_id is null when OCR completes before the
+      // message has been sent (the PDF is still in the compose area).
+      // The embed cannot be persisted to IndexedDB yet because there is
+      // no chat key to wrap the embed key with. We:
+      //   1. Store the plaintext TOON in the in-memory cache so that
+      //      UnifiedEmbedPreview can decode screenshot credentials and
+      //      show the page-1 preview image.
+      //   2. Dispatch embedUpdated so MessageInput.svelte can update the
+      //      TipTap node from 'processing' → 'finished'.
+      // The embed is stored to IndexedDB normally when handleSend()
+      // serialises the message content and sends it to the server.
+      // ============================================================
+      if (!embedData.chat_id) {
+        console.info(
+          `[ChatSyncService:AI] Embed ${embedData.embed_id} has no chat_id — draft PDF (OCR completed before message sent). ` +
+            `Caching in-memory and dispatching embedUpdated for MessageInput.`,
+        );
+        // Store in memory cache (not persisted to IndexedDB) so UnifiedEmbedPreview
+        // can call resolveEmbed() → find plaintext TOON → decode screenshot credentials.
+        try {
+          const { embedStore: esForDraft } = await import("./embedStore");
+          const embedRef = `embed:${embedData.embed_id}`;
+          esForDraft.setInMemoryOnly(embedRef, {
+            embed_id: embedData.embed_id,
+            type: embedData.type,
+            status: embedData.status,
+            content: embedData.content,
+            text_preview: embedData.text_preview,
+            chat_id: null,
+            message_id: null,
+            createdAt: embedData.createdAt || Date.now(),
+            updatedAt: embedData.updatedAt || Date.now(),
+          });
+          console.debug(
+            `[ChatSyncService:AI] Cached draft PDF embed ${embedData.embed_id} in memory (no IndexedDB)`,
+          );
+        } catch (cacheErr) {
+          // Non-fatal: status will still update; only screenshot preview is affected.
+          console.warn(
+            `[ChatSyncService:AI] Failed to cache draft PDF embed in memory:`,
+            cacheErr,
+          );
+        }
+        serviceInstance.dispatchEvent(
+          new CustomEvent("embedUpdated", {
+            detail: {
+              embed_id: embedData.embed_id,
+              chat_id: null,
+              message_id: null,
+              status: embedData.status,
+              child_embed_ids: embedData.embed_ids,
+              isProcessing: false,
+            },
+          }),
+        );
+        return;
+      }
+
+      // Generate embed key, encrypt content, store locally, send to Directus
+      console.info(
+        `[ChatSyncService:AI] Embed ${embedData.embed_id} is finalized (status=${embedData.status}) - encrypting and persisting`,
+      );
+
+      // Import dependencies
+      const embedStoreModule = await import("./embedStore");
+      const embedStore = embedStoreModule.embedStore;
+      const cryptoService = await import("./cryptoService");
+      const { computeSHA256 } = await import("../message_parsing/utils");
+      const { chatDB } = await import("./db");
+
+      const {
+        generateEmbedKey,
+        encryptWithEmbedKey,
+        wrapEmbedKeyWithMasterKey,
+        wrapEmbedKeyWithChatKey,
+      } = cryptoService;
+
+      // 0. Hash IDs first (needed for parent key lookup if this is a child embed)
+      const hashedChatId = await computeSHA256(embedData.chat_id);
+      const hashedMessageId = await computeSHA256(embedData.message_id);
+      const hashedUserId = await computeSHA256(embedData.user_id);
+      const hashedEmbedId = await computeSHA256(embedData.embed_id);
+
+      let hashedTaskId: string | undefined;
+      if (embedData.task_id) {
+        hashedTaskId = await computeSHA256(embedData.task_id);
+      }
+
+      // 1. Determine embed encryption key (Option A - key inheritance)
+      // - Parent embeds: Generate new unique key (or use early-generated key from processing state)
+      // - Child embeds: Use parent embed's key (key inheritance)
+      // Backend now sends parent_embed_id with child embeds, so we can use it directly
+      let embedKey: Uint8Array;
+      const isChildEmbed = !!embedData.parent_embed_id;
+      const parentEmbedId = embedData.parent_embed_id;
+
+      if (isChildEmbed) {
+        // Child embed: Use parent embed's key (key inheritance - Option A)
+        console.debug(
+          `[ChatSyncService:AI] Child embed detected (parent: ${parentEmbedId}), using parent embed key`,
+        );
+
+        // Use exponential backoff retry mechanism since parent might still be processing
+        // This handles race conditions where child embed arrives before parent finishes
+        const maxRetries = 5;
+        const baseDelay = 100; // Start with 100ms
+        let parentKey: Uint8Array | null = null;
+
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+          parentKey = await embedStore.getEmbedKey(
+            parentEmbedId!,
+            hashedChatId,
+          );
+
+          if (parentKey) {
+            if (attempt > 0) {
+              console.info(
+                `[ChatSyncService:AI] ✅ Parent key found on attempt ${attempt + 1} for child ${embedData.embed_id}`,
+              );
+            }
+            break;
+          }
+
+          if (attempt < maxRetries) {
+            // Exponential backoff: 100ms, 200ms, 400ms, 800ms, 1600ms (total ~3s max wait)
+            const delay = baseDelay * Math.pow(2, attempt);
+            console.debug(
+              `[ChatSyncService:AI] Parent key not found for child ${embedData.embed_id}, retry ${attempt + 1}/${maxRetries} in ${delay}ms...`,
+            );
+            await new Promise((resolve) => setTimeout(resolve, delay));
+          }
+        }
+
+        if (!parentKey) {
+          // Log detailed error for debugging
+          console.error(
+            `[ChatSyncService:AI] ❌ CRITICAL: Failed to get parent embed key after ${maxRetries} retries`,
+            {
+              childEmbedId: embedData.embed_id,
+              parentEmbedId,
+              hashedChatId: hashedChatId?.substring(0, 16) + "...",
+            },
+          );
+          throw new Error(
+            `Failed to get parent embed key for child embed ${embedData.embed_id} (parent: ${parentEmbedId}) after ${maxRetries} retries`,
+          );
+        }
+        embedKey = parentKey;
+        console.debug(
+          `[ChatSyncService:AI] Using parent embed key for child embed ${embedData.embed_id}`,
+        );
+
+        // CRITICAL: Cache the child embed's key immediately so it's available for decryption
+        // This prevents race conditions where the embed is stored but key lookup fails
+        embedStore.setEmbedKeyInCache(
+          embedData.embed_id,
+          embedKey,
+          hashedChatId,
+        );
+        embedStore.setEmbedKeyInCache(embedData.embed_id, embedKey, undefined); // 'master' fallback
+        console.debug(
+          `[ChatSyncService:AI] Cached inherited key for child embed ${embedData.embed_id}`,
+        );
+      } else {
+        // Parent embed: Use already cached key or generate new unique key
+        const cachedKey = await embedStore.getEmbedKey(
+          embedData.embed_id,
+          hashedChatId,
+        );
+        if (cachedKey) {
+          embedKey = cachedKey;
+          console.debug(
+            `[ChatSyncService:AI] Using existing early-generated key for finalized parent embed ${embedData.embed_id}`,
+          );
+        } else {
+          embedKey = generateEmbedKey();
+          console.debug(
+            `[ChatSyncService:AI] Generated new embed_key for finalized parent embed ${embedData.embed_id}`,
+          );
+        }
+
+        // CRITICAL: Cache the parent embed key immediately after generation/retrieval
+        // This ensures the key is available for:
+        // 1. Child embeds that may be processed concurrently
+        // 2. UI decryption when embedUpdated event is dispatched
+        // 3. Any other code that needs the key before IndexedDB storage completes
+        embedStore.setEmbedKeyInCache(
+          embedData.embed_id,
+          embedKey,
+          hashedChatId,
+        );
+        embedStore.setEmbedKeyInCache(embedData.embed_id, embedKey, undefined); // 'master' fallback
+        console.debug(
+          `[ChatSyncService:AI] ✅ Cached embed key immediately for parent embed ${embedData.embed_id}`,
+        );
+
+        // CRITICAL: Pre-cache parent key for all known child embeds
+        // This prevents race conditions where child embeds try to get parent key before it's cached
+        if (
+          embedData.embed_ids &&
+          Array.isArray(embedData.embed_ids) &&
+          embedData.embed_ids.length > 0
+        ) {
+          console.debug(
+            `[ChatSyncService:AI] Pre-caching parent key for ${embedData.embed_ids.length} known child embeds`,
+          );
+          for (const childEmbedId of embedData.embed_ids) {
+            embedStore.setEmbedKeyInCache(childEmbedId, embedKey, hashedChatId);
+            embedStore.setEmbedKeyInCache(childEmbedId, embedKey, undefined); // 'master' fallback
+          }
+          console.debug(
+            `[ChatSyncService:AI] ✅ Pre-cached parent key for children: ${embedData.embed_ids.join(", ")}`,
+          );
+        }
+      }
+
+      // 2. Encrypt content with embed_key
+      const encryptedContent = await encryptWithEmbedKey(
+        embedData.content,
+        embedKey,
+      );
+      if (!encryptedContent) {
+        throw new Error("Failed to encrypt embed content with embed_key");
+      }
+
+      // 3. Encrypt type with embed_key
+      const encryptedType = await encryptWithEmbedKey(embedData.type, embedKey);
+      if (!encryptedType) {
+        throw new Error("Failed to encrypt embed type with embed_key");
+      }
+
+      // 4. Encrypt text preview if present
+      let encryptedTextPreview: string | undefined;
+      if (embedData.text_preview) {
+        const encrypted = await encryptWithEmbedKey(
+          embedData.text_preview,
+          embedKey,
+        );
+        if (encrypted) {
+          encryptedTextPreview = encrypted;
+        }
+      }
+
+      // 3. Create key wrappers for offline sharing support (ONLY for parent embeds)
+      // Child embeds inherit the parent's key, so they don't need their own wrappers
+      // Master key wrapper: AES(embed_key, master_key) - for owner's cross-chat access
+      // Chat key wrapper: AES(embed_key, chat_key) - for shared chat access
+      let wrappedMasterKey: string | null = null;
+      let wrappedChatKey: string | null = null;
+
+      if (!isChildEmbed) {
+        // Only create key wrappers for parent embeds
+        wrappedMasterKey = await wrapEmbedKeyWithMasterKey(embedKey);
+        if (!wrappedMasterKey) {
+          throw new Error("Failed to wrap embed_key with master key");
+        }
+
+        // CRITICAL: Use getChatKey (NOT getOrGenerateChatKey) to prevent silently
+        // generating a random throwaway key when the chat key is transiently absent
+        // from the in-memory cache. This race condition occurs on brand-new chats when
+        // multiple embeds finalize concurrently before the chat key is loaded into cache.
+        // Throwing here is safe: the embed is simply not stored in IDB, and the renderer's
+        // _decryptionFailed recovery path will re-request it from the server once the
+        // chat key is warmed up. A silent wrong-key-wrap permanently corrupts the embed
+        // (AES-GCM auth tag fails on every future reload because the stored wrapped key
+        // was encrypted with the wrong key — decryption always returns null).
+        // See: chatSyncServiceHandlersChatUpdates.ts:625 for the identical guard on messages.
+        const chatKey = chatDB.getChatKey(embedData.chat_id);
+        if (!chatKey) {
+          throw new Error(
+            `[ChatSyncService:AI] Chat key not in cache for chat ${embedData.chat_id} — ` +
+              `refusing to generate throwaway key. Embed ${embedData.embed_id} will be ` +
+              `re-requested by the renderer after the chat key is available.`,
+          );
+        }
+        wrappedChatKey = await wrapEmbedKeyWithChatKey(embedKey, chatKey);
+
+        console.debug(
+          `[ChatSyncService:AI] Created key wrappers for parent embed ${embedData.embed_id}`,
+        );
+      } else {
+        console.debug(
+          `[ChatSyncService:AI] Skipping key wrapper creation for child embed ${embedData.embed_id} (uses parent key)`,
+        );
+      }
+
+      // 7. Store encrypted embed locally in IndexedDB
+      // This uses putEncrypted() since content is already encrypted with embed_key
+      // CRITICAL: Pass plaintext content to extract app_id/skill_id metadata BEFORE encryption
+      // This avoids needing to decrypt later when embed keys might not be available yet
+      const embedRef = `embed:${embedData.embed_id}`;
+      // Extract metadata from plaintext content (best effort)
+      let preExtractedMetadata:
+        | { app_id?: string; skill_id?: string }
+        | undefined;
+      try {
+        const decoded = await decodeToonContentSafe(embedData.content);
+        if (decoded && typeof decoded === "object" && decoded !== null) {
+          const decodedObj = decoded as Record<string, unknown>;
+          // CRITICAL: For child embeds (e.g. image_result from images/search),
+          // the TOON content has the parent's skill_id ("search"), NOT the child type.
+          // The server now sends the correct skill_id (= child type, e.g. "image_result")
+          // in the WebSocket payload top-level. Prefer that over the TOON content.
+          preExtractedMetadata = {
+            app_id:
+              typeof embedData.app_id === "string"
+                ? embedData.app_id
+                : typeof decodedObj.app_id === "string"
+                  ? decodedObj.app_id
+                  : undefined,
+            skill_id:
+              typeof embedData.skill_id === "string"
+                ? embedData.skill_id
+                : typeof decodedObj.skill_id === "string"
+                  ? decodedObj.skill_id
+                  : undefined,
+          };
+          console.debug(
+            "[ChatSyncService:AI] Pre-extracted app metadata from plaintext:",
+            preExtractedMetadata,
+            "payload skill_id override:",
+            embedData.skill_id,
+          );
+
+          // Register embed_ref → embed_id mapping for inline embed link resolution.
+          // embed_ref is a short descriptive slug (e.g. "ryanair-0600-k8D") generated
+          // by the backend and stored ONLY inside the encrypted TOON content — it never
+          // appears as an unencrypted field anywhere (zero-knowledge compliance).
+          // We extract it here during the brief window when plaintext TOON is available,
+          // before we encrypt it, and store it only in the in-memory index.
+          // Also store appId so parse_message.ts can colour the badge gradient immediately.
+          if (
+            typeof decodedObj.embed_ref === "string" &&
+            decodedObj.embed_ref
+          ) {
+            const refAppId =
+              typeof decodedObj.app_id === "string"
+                ? decodedObj.app_id
+                : (preExtractedMetadata?.app_id ?? null);
+            embedStore.registerEmbedRef(
+              decodedObj.embed_ref,
+              embedData.embed_id,
+              refAppId,
+            );
+            console.debug(
+              `[ChatSyncService:AI] Registered embed_ref "${decodedObj.embed_ref}" → ${embedData.embed_id} (appId: ${refAppId})`,
+            );
+          }
+        }
+      } catch (metaErr) {
+        console.debug(
+          "[ChatSyncService:AI] Failed to pre-extract app metadata:",
+          metaErr,
+        );
+      }
+      const encryptedEmbedForStorage = {
+        embed_id: embedData.embed_id,
+        encrypted_type: encryptedType,
+        encrypted_content: encryptedContent,
+        encrypted_text_preview: encryptedTextPreview,
+        status: embedData.status,
+        hashed_chat_id: hashedChatId,
+        hashed_message_id: hashedMessageId,
+        hashed_task_id: hashedTaskId,
+        embed_ids: embedData.embed_ids,
+        parent_embed_id: parentEmbedId || embedData.parent_embed_id, // Use detected parent_embed_id if found
+        version_number: embedData.version_number,
+        file_path: embedData.file_path,
+        content_hash: embedData.content_hash,
+        text_length_chars: embedData.text_length_chars,
+        is_private: embedData.is_private ?? false,
+        is_shared: embedData.is_shared ?? false,
+        createdAt: embedData.createdAt,
+        updatedAt: embedData.updatedAt,
+      };
+
+      // Pass plaintext content to extract app_id/skill_id metadata
+      await embedStore.putEncrypted(
+        embedRef,
+        encryptedEmbedForStorage,
+        embedData.type as EmbedType,
+        embedData.content,
+        preExtractedMetadata,
+      );
+      console.info(
+        `[ChatSyncService:AI] Stored encrypted embed ${embedData.embed_id} in local IndexedDB`,
+      );
+
+      // 8. Store embed keys locally in IndexedDB (ONLY for parent embeds)
+      // Child embeds don't have their own key wrappers - they use the parent's key
+      if (!isChildEmbed && wrappedMasterKey && wrappedChatKey) {
+        const now = Math.floor(Date.now() / 1000);
+        const embedKeysForStorage = [
+          {
+            hashed_embed_id: hashedEmbedId,
+            key_type: "master" as const,
+            hashed_chat_id: null,
+            encrypted_embed_key: wrappedMasterKey,
+            hashed_user_id: hashedUserId,
+            created_at: now,
+          },
+          {
+            hashed_embed_id: hashedEmbedId,
+            key_type: "chat" as const,
+            hashed_chat_id: hashedChatId,
+            encrypted_embed_key: wrappedChatKey,
+            hashed_user_id: hashedUserId,
+            created_at: now,
+          },
+        ];
+
+        await embedStore.storeEmbedKeys(embedKeysForStorage);
+        console.info(
+          `[ChatSyncService:AI] Stored key wrappers for parent embed ${embedData.embed_id} locally`,
+        );
+      } else if (isChildEmbed) {
+        console.debug(
+          `[ChatSyncService:AI] Skipping key wrapper storage for child embed ${embedData.embed_id} (uses parent key)`,
+        );
+      }
+
+      // 9. Send encrypted embed to server for Directus storage
+      // CRITICAL: Use snake_case for Directus fields and normalized Unix seconds
+      const nowSeconds = Math.floor(Date.now() / 1000);
+      const storePayload: import("../types/chat").StoreEmbedPayload = {
+        embed_id: embedData.embed_id,
+        encrypted_type: encryptedType,
+        encrypted_content: encryptedContent,
+        encrypted_text_preview: encryptedTextPreview,
+        status: embedData.status,
+        hashed_chat_id: hashedChatId,
+        hashed_message_id: hashedMessageId,
+        hashed_task_id: hashedTaskId,
+        hashed_user_id: hashedUserId,
+        embed_ids: embedData.embed_ids,
+        parent_embed_id: parentEmbedId || embedData.parent_embed_id, // Use detected parent_embed_id if found
+        version_number: embedData.version_number,
+        file_path: embedData.file_path,
+        content_hash: embedData.content_hash,
+        text_length_chars: embedData.text_length_chars,
+        is_private: embedData.is_private ?? false,
+        is_shared: embedData.is_shared ?? false,
+        created_at: normalizeToUnixSeconds(embedData.createdAt, nowSeconds),
+        updated_at: normalizeToUnixSeconds(embedData.updatedAt, nowSeconds),
+      };
+
+      const sendersModule = await import("./chatSyncServiceSenders");
+      const sendStoreFunction =
+        sendersModule.sendStoreEmbedImpl ||
+        (
+          sendersModule as {
+            default?: {
+              sendStoreEmbedImpl?: typeof sendersModule.sendStoreEmbedImpl;
+            };
+          }
+        ).default?.sendStoreEmbedImpl;
+
+      if (typeof sendStoreFunction !== "function") {
+        throw new Error("sendStoreEmbedImpl function not found");
+      }
+
+      await sendStoreFunction(serviceInstance, storePayload);
+      console.info(
+        `[ChatSyncService:AI] Sent encrypted embed ${embedData.embed_id} to Directus`,
+      );
+
+      // 10. Send key wrappers to server for embed_keys collection (ONLY for parent embeds)
+      // Child embeds don't have their own key wrappers - they use the parent's key
+      if (!isChildEmbed && wrappedMasterKey && wrappedChatKey) {
+        const now = Math.floor(Date.now() / 1000);
+        const embedKeysForStorage = [
+          {
+            hashed_embed_id: hashedEmbedId,
+            key_type: "master" as const,
+            hashed_chat_id: null,
+            encrypted_embed_key: wrappedMasterKey,
+            hashed_user_id: hashedUserId,
+            created_at: now,
+          },
+          {
+            hashed_embed_id: hashedEmbedId,
+            key_type: "chat" as const,
+            hashed_chat_id: hashedChatId,
+            encrypted_embed_key: wrappedChatKey,
+            hashed_user_id: hashedUserId,
+            created_at: now,
+          },
+        ];
+
+        const embedKeysPayload = { keys: embedKeysForStorage };
+
+        const sendStoreEmbedKeysFunction =
+          sendersModule.sendStoreEmbedKeysImpl ||
+          (
+            sendersModule as {
+              default?: {
+                sendStoreEmbedKeysImpl?: typeof sendersModule.sendStoreEmbedKeysImpl;
+              };
+            }
+          ).default?.sendStoreEmbedKeysImpl;
+
+        if (typeof sendStoreEmbedKeysFunction !== "function") {
+          throw new Error("sendStoreEmbedKeysImpl function not found");
+        }
+
+        await sendStoreEmbedKeysFunction(serviceInstance, embedKeysPayload);
+        console.info(
+          `[ChatSyncService:AI] [EMBED_EVENT] ✅ Sent key wrappers for parent embed ${embedData.embed_id} to Directus ` +
+            `(master + chat). This should only happen ONCE per finalized embed!`,
+        );
+      } else if (isChildEmbed) {
+        console.debug(
+          `[ChatSyncService:AI] Skipping key wrapper sending for child embed ${embedData.embed_id} (uses parent key)`,
+        );
+      }
+
+      // 11. SAFETY FALLBACK: Re-cache parent key for children at the end
+      // NOTE: Primary key caching now happens early (right after key generation) to prevent race conditions.
+      // This fallback ensures keys are cached even if the early caching was somehow missed,
+      // or if new child embed IDs were discovered during processing.
+      if (
+        !isChildEmbed &&
+        embedData.embed_ids &&
+        Array.isArray(embedData.embed_ids) &&
+        embedData.embed_ids.length > 0
+      ) {
+        console.debug(
+          `[ChatSyncService:AI] [FALLBACK] Re-caching parent key for ${embedData.embed_ids.length} child embeds (safety measure)`,
+        );
+        for (const childEmbedId of embedData.embed_ids) {
+          embedStore.setEmbedKeyInCache(childEmbedId, embedKey, hashedChatId);
+          embedStore.setEmbedKeyInCache(childEmbedId, embedKey, undefined); // 'master' fallback
+        }
+      }
+
+      // 12. Dispatch event for UI to refresh from stored data
+      console.debug(
+        `[ChatSyncService:AI] 📤 Dispatching embedUpdated event for embed ${embedData.embed_id}`,
+        {
+          embed_id: embedData.embed_id,
+          status: embedData.status,
+          chat_id: embedData.chat_id,
+        },
+      );
+      serviceInstance.dispatchEvent(
+        new CustomEvent("embedUpdated", {
+          detail: {
+            embed_id: embedData.embed_id,
+            chat_id: embedData.chat_id,
+            message_id: embedData.message_id,
+            status: embedData.status,
+            child_embed_ids: embedData.embed_ids,
+            isProcessing: false,
+          },
+        }),
+      );
+    }
+  } catch (error) {
+    // If a finalized embed failed anywhere after being marked as processed,
+    // allow the next send_embed_data/request_embed retry to process it again.
+    // Without this, a transient failure (for example chat-key cache race while
+    // wrapping key_type='chat') can permanently skip key-wrapper persistence.
+    unmarkEmbedAsProcessed(embedData.embed_id);
+    console.error(
+      `[ChatSyncService:AI] Error handling send_embed_data for embed ${embedData.embed_id}:`,
+      error,
+    );
+  }
+}
+
+/**
+ * Handles a real-time preprocessing step event from the backend.
+ *
+ * The backend emits one event per preprocessing step (title_generated, mate_selected,
+ * model_selected) immediately after the single preprocessing LLM call resolves.
+ * Events arrive in a burst. The frontend accumulates non-skipped steps into the
+ * processing overlay as completed step cards, while the spinner advances to the next step.
+ *
+ * Skipped steps (skipped=true) are silently ignored — no card is rendered for them.
+ *
+ * This handler dispatches a global CustomEvent "preprocessingStep" that ActiveChat.svelte
+ * listens for to update processingPhase.completedSteps.
+ *
+ * @param payload - The preprocessing step payload from the WebSocket event.
+ */
+export function handlePreprocessingStepImpl(
+  _serviceInstance: ChatSynchronizationService,
+  payload: PreprocessorStepResult,
+): void {
+  console.debug("[ChatSyncService:AI] Received 'preprocessing_step':", payload);
+
+  // Dispatch a global custom event so ActiveChat.svelte (and any other subscriber)
+  // can update the processing overlay with the new completed step card.
+  window.dispatchEvent(
+    new CustomEvent("preprocessingStep", {
+      detail: payload,
+    }),
+  );
+
+  // When a non-skipped step arrives that updates chat metadata (title or mate/category),
+  // also fire localChatListChanged so ActiveChat.svelte refreshes currentChat from the
+  // local DB. This updates the active chat header (title, category icon) as each step
+  // arrives rather than waiting for the full ai_task_initiated flow.
+  if (
+    !payload.skipped &&
+    payload.chat_id &&
+    (payload.step === "title_generated" || payload.step === "mate_selected")
+  ) {
+    window.dispatchEvent(
+      new CustomEvent("localChatListChanged", {
+        detail: { reason: "preprocessing_step", chatId: payload.chat_id },
+      }),
+    );
+    console.debug(
+      "[ChatSyncService:AI] Fired localChatListChanged for chat preview refresh after step:",
+      payload.step,
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Daily Inspiration
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Handle the `daily_inspiration` WebSocket event.
+ *
+ * Payload shape (from backend):
+ *   { inspirations: DailyInspiration[], user_id: string }
+ *
+ * The backend sends this event:
+ *   - On WebSocket connect (pending delivery queue) — if inspirations were
+ *     generated while the user was offline
+ *   - After background Celery generation completes (real-time push)
+ *
+ * PERSISTENCE FLOW:
+ *   1. Set inspirations in Svelte store immediately (for instant UI update)
+ *   2. Send ACK to server to clear Redis pending queue
+ *   3. Encrypt and save to IndexedDB (survives page reload)
+ *   4. Sync encrypted blobs to Directus API (survives re-login / new device)
+ *
+ * Steps 3 and 4 are asynchronous and non-blocking — the banner shows
+ * immediately while persistence happens in the background.
+ */
+export function handleDailyInspirationImpl(
+  _serviceInstance: import("./chatSyncService").ChatSynchronizationService,
+  payload: {
+    inspirations: import("../stores/dailyInspirationStore").DailyInspiration[];
+    user_id: string;
+  },
+): void {
+  console.info("[ChatSyncService:AI] Received daily_inspiration event:", {
+    count: payload?.inspirations?.length ?? 0,
+    user_id: payload?.user_id,
+  });
+
+  if (!payload?.inspirations || !Array.isArray(payload.inspirations)) {
+    console.error(
+      "[ChatSyncService:AI] Invalid daily_inspiration payload — missing 'inspirations' array:",
+      payload,
+    );
+    return;
+  }
+
+  if (payload.inspirations.length === 0) {
+    console.warn(
+      "[ChatSyncService:AI] Received empty daily_inspiration list — skipping store update",
+    );
+    return;
+  }
+
+  // Lazily import the store to avoid circular dependencies.
+  Promise.all([
+    import("../stores/dailyInspirationStore"),
+    import("./dailyInspirationDB"),
+  ])
+    .then(async ([{ dailyInspirationStore }, dailyInspirationDB]) => {
+      // 1. Update the Svelte store immediately so the banner appears at once.
+      //    Mark as personalized so public defaults can never overwrite this data.
+      dailyInspirationStore.setInspirations(payload.inspirations, {
+        personalized: true,
+      });
+      console.debug(
+        "[ChatSyncService:AI] Daily inspirations loaded into store:",
+        payload.inspirations.length,
+      );
+
+      // 2. Send ACK to the server so it can clear the pending Redis queue.
+      //    We send the ACK NOW (not after persistence) so the server clears its
+      //    queue immediately. Persistence to IndexedDB/Directus takes over as the
+      //    durable storage source.
+      webSocketService
+        .sendMessage("daily_inspiration_received", {})
+        .then(() => {
+          console.debug(
+            "[ChatSyncService:AI] Sent daily_inspiration_received ACK to server",
+          );
+        })
+        .catch((ackErr) => {
+          // Non-fatal: if the ACK fails the server will re-deliver on next connect
+          console.warn(
+            "[ChatSyncService:AI] Failed to send daily_inspiration_received ACK (non-fatal):",
+            ackErr,
+          );
+        });
+
+      // 3 & 4. Persist inspirations to IndexedDB + Directus API (non-blocking)
+      // Run in background so UI is never blocked by encryption or network calls.
+      persistInspirations(
+        payload.inspirations,
+        dailyInspirationDB,
+        _serviceInstance,
+        payload.user_id,
+      ).catch((persistErr) => {
+        console.error(
+          "[ChatSyncService:AI] Background persistence of inspirations failed:",
+          persistErr,
+        );
+      });
+    })
+    .catch((err) => {
+      console.error(
+        "[ChatSyncService:AI] Failed to import stores/modules for daily inspiration:",
+        err,
+      );
+    });
+}
+
+/**
+ * Persist personalised inspirations to IndexedDB and then sync to the API.
+ *
+ * Called asynchronously from handleDailyInspirationImpl so it does not block
+ * the store update or the ACK.
+ */
+async function persistInspirations(
+  inspirations: import("../stores/dailyInspirationStore").DailyInspiration[],
+  dailyInspirationDB: typeof import("./dailyInspirationDB"),
+  serviceInstance: import("./chatSyncService").ChatSynchronizationService,
+  userId: string,
+): Promise<void> {
+  const storedRecords: import("./dailyInspirationDB").StoredDailyInspiration[] =
+    [];
+
+  // Lazily import all modules needed for embed creation, encryption, and server sync
+  const [
+    { dailyInspirationStore },
+    { embedStore },
+    { encode: toonEncode },
+    { generateUUID, computeSHA256 },
+    cryptoService,
+    sendersModule,
+  ] = await Promise.all([
+    import("../stores/dailyInspirationStore"),
+    import("./embedStore"),
+    import("@toon-format/toon"),
+    import("../message_parsing/utils"),
+    import("./cryptoService"),
+    import("./chatSyncServiceSenders"),
+  ]);
+
+  const { generateEmbedKey, encryptWithEmbedKey, wrapEmbedKeyWithMasterKey } =
+    cryptoService;
+
+  // Pre-compute hashed user ID (used for all embeds in this batch)
+  const hashedUserId = await computeSHA256(userId);
+
+  for (const inspiration of inspirations) {
+    // ── 1. Create a video embed in EmbedStore if this inspiration has a video
+    //       and we haven't already stored one for it.
+    //       This ensures the embed is available for fullscreen preview before
+    //       the user starts a chat (clicking the thumbnail should open the video
+    //       without creating a chat first).
+    //       The embed is also encrypted and persisted to Directus via the
+    //       store_embed WebSocket event so it syncs across devices.
+    let resolvedEmbedId = inspiration.embed_id ?? null;
+
+    if (inspiration.video?.youtube_id && !resolvedEmbedId) {
+      try {
+        const video = inspiration.video;
+        const videoUrl = `https://www.youtube.com/watch?v=${video.youtube_id}`;
+        const embedId = generateUUID();
+
+        let durationFormatted: string | null = null;
+        if (video.duration_seconds != null) {
+          const mins = Math.floor(video.duration_seconds / 60);
+          const secs = video.duration_seconds % 60;
+          durationFormatted = `${mins}:${secs.toString().padStart(2, "0")}`;
+        }
+
+        const embedContent = {
+          url: videoUrl,
+          video_id: video.youtube_id,
+          title: video.title || null,
+          description: null,
+          channel_name: video.channel_name || null,
+          channel_id: null,
+          channel_thumbnail: null,
+          thumbnail: video.thumbnail_url || null,
+          duration_seconds: video.duration_seconds ?? null,
+          duration_formatted: durationFormatted,
+          view_count: video.view_count ?? null,
+          like_count: null,
+          published_at: video.published_at || null,
+          fetched_at: new Date().toISOString(),
+        };
+
+        let toonContent: string;
+        try {
+          toonContent = toonEncode(embedContent);
+        } catch {
+          toonContent = JSON.stringify(embedContent);
+        }
+
+        const nowMs = Date.now();
+        const embedType = "video";
+        const textPreview = video.title || "YouTube Video";
+
+        // ── 1a. Store locally in IndexedDB (master-key encrypted, for immediate UI access)
+        await embedStore.put(
+          `embed:${embedId}`,
+          {
+            embed_id: embedId,
+            type: embedType,
+            status: "finished",
+            content: toonContent,
+            text_preview: textPreview,
+            createdAt: nowMs,
+            updatedAt: nowMs,
+          },
+          "videos-video",
+        );
+
+        resolvedEmbedId = embedId;
+
+        // Update the Svelte store so DailyInspirationBanner can use the real embed_id
+        dailyInspirationStore.setEmbedId(inspiration.inspiration_id, embedId);
+
+        console.debug(
+          "[ChatSyncService:AI] Pre-stored inspiration video embed:",
+          embedId,
+          "for inspiration:",
+          inspiration.inspiration_id,
+        );
+
+        // ── 1b. Encrypt with embed key and persist to Directus via store_embed
+        //        This makes the embed available on other devices and survives
+        //        browser data clearing.
+        try {
+          // Generate a new embed key for this embed
+          const embedKey = generateEmbedKey();
+
+          // Encrypt content, type, and text preview with the embed key
+          const encryptedContent = await encryptWithEmbedKey(
+            toonContent,
+            embedKey,
+          );
+          if (!encryptedContent) {
+            throw new Error("Failed to encrypt embed content with embed_key");
+          }
+
+          const encryptedType = await encryptWithEmbedKey(embedType, embedKey);
+          if (!encryptedType) {
+            throw new Error("Failed to encrypt embed type with embed_key");
+          }
+
+          let encryptedTextPreview: string | undefined;
+          const encTextPrev = await encryptWithEmbedKey(textPreview, embedKey);
+          if (encTextPrev) {
+            encryptedTextPreview = encTextPrev;
+          }
+
+          // Create master key wrapper (no chat key wrapper since there's no chat yet)
+          const wrappedMasterKey = await wrapEmbedKeyWithMasterKey(embedKey);
+          if (!wrappedMasterKey) {
+            throw new Error("Failed to wrap embed_key with master key");
+          }
+
+          // Cache the embed key for local decryption
+          embedStore.setEmbedKeyInCache(embedId, embedKey, undefined);
+
+          // Hash the embed ID for the key wrapper
+          const hashedEmbedId = await computeSHA256(embedId);
+
+          // Use the inspiration_id as a placeholder for hashed_chat_id (no chat exists yet;
+          // the embed will be associated with a chat when the user opens the inspiration)
+          const hashedInspId = await computeSHA256(inspiration.inspiration_id);
+
+          // Store embed key wrappers locally in IndexedDB
+          const nowSeconds = Math.floor(Date.now() / 1000);
+          const embedKeysForStorage = [
+            {
+              hashed_embed_id: hashedEmbedId,
+              key_type: "master" as const,
+              hashed_chat_id: null,
+              encrypted_embed_key: wrappedMasterKey,
+              hashed_user_id: hashedUserId,
+              created_at: nowSeconds,
+            },
+          ];
+          await embedStore.storeEmbedKeys(embedKeysForStorage);
+
+          // Build the store_embed payload and send to server
+          const storePayload: import("../types/chat").StoreEmbedPayload = {
+            embed_id: embedId,
+            encrypted_type: encryptedType,
+            encrypted_content: encryptedContent,
+            encrypted_text_preview: encryptedTextPreview,
+            status: "finished",
+            hashed_chat_id: hashedInspId, // placeholder — no chat yet
+            hashed_message_id: hashedInspId, // placeholder — no message yet
+            hashed_user_id: hashedUserId,
+            is_private: false,
+            is_shared: false,
+            created_at: Math.floor(nowMs / 1000),
+            updated_at: Math.floor(nowMs / 1000),
+          };
+
+          await sendersModule.sendStoreEmbedImpl(serviceInstance, storePayload);
+
+          // Send embed key wrappers to server
+          await sendersModule.sendStoreEmbedKeysImpl(serviceInstance, {
+            keys: embedKeysForStorage,
+          });
+
+          console.info(
+            `[ChatSyncService:AI] ✅ Persisted inspiration embed ${embedId} to Directus (encrypted + key wrappers)`,
+          );
+        } catch (syncErr) {
+          // Non-fatal: embed is already stored locally; server sync can be retried
+          console.error(
+            `[ChatSyncService:AI] Failed to sync inspiration embed ${embedId} to Directus (non-fatal):`,
+            syncErr,
+          );
+        }
+      } catch (embedErr) {
+        console.error(
+          "[ChatSyncService:AI] Failed to pre-store inspiration embed (non-fatal):",
+          embedErr,
+        );
+        // Non-fatal — fallback to ephemeral preview on click
+      }
+    }
+
+    // ── 2. Persist inspiration metadata (with the resolved embed_id) to IndexedDB
+    const inspirationWithEmbed = resolvedEmbedId
+      ? { ...inspiration, embed_id: resolvedEmbedId }
+      : inspiration;
+
+    const assistantResponse =
+      inspiration.assistant_response ?? inspiration.phrase;
+
+    const record = await dailyInspirationDB.saveInspirationToIndexedDB(
+      inspirationWithEmbed,
+      assistantResponse,
+    );
+
+    if (record) {
+      storedRecords.push(record);
+      console.debug(
+        "[ChatSyncService:AI] Persisted inspiration to IndexedDB:",
+        inspiration.inspiration_id,
+      );
+    } else {
+      console.warn(
+        "[ChatSyncService:AI] Failed to persist inspiration to IndexedDB:",
+        inspiration.inspiration_id,
+      );
+    }
+  }
+
+  // Sync to Directus API (so cross-device / re-login works)
+  if (storedRecords.length > 0) {
+    await dailyInspirationDB.syncInspirationsToAPI(storedRecords);
+  }
+}
+
+/**
+ * Handle an `inspiration_opened` broadcast from the server.
+ *
+ * When the user opens a Daily Inspiration chat on **another device**, the
+ * REST endpoint `mark_inspiration_opened` broadcasts this event to ALL of the
+ * user's connected devices (it has no device context to exclude the sender).
+ * This handler therefore guards against double-processing by checking whether
+ * the inspiration is already marked as opened in the local store before
+ * touching IndexedDB.
+ *
+ * Steps:
+ * 1. Guard: if already opened in memory, skip (self-echo from the device that
+ *    triggered the REST call).
+ * 2. Update in-memory `dailyInspirationStore` so the carousel re-renders.
+ * 3. Persist to IndexedDB so the flag survives a page reload.
+ *
+ * NOTE: We deliberately do NOT call `markInspirationOpenedOnAPI` here — that
+ * would create an infinite loop (REST → broadcast → REST → …).
+ */
+export function handleInspirationOpenedImpl(
+  _serviceInstance: import("./chatSyncService").ChatSynchronizationService,
+  payload: { inspiration_id: string; opened_chat_id: string },
+): void {
+  if (!payload?.inspiration_id) {
+    console.warn(
+      "[ChatSyncService:AI] inspiration_opened event missing inspiration_id — ignoring",
+      payload,
+    );
+    return;
+  }
+
+  const { inspiration_id, opened_chat_id } = payload;
+
+  console.debug(
+    `[ChatSyncService:AI] Received inspiration_opened broadcast: ${inspiration_id} → chat ${opened_chat_id}`,
+  );
+
+  Promise.all([
+    import("../stores/dailyInspirationStore"),
+    import("./dailyInspirationDB"),
+    import("svelte/store"),
+  ])
+    .then(async ([{ dailyInspirationStore }, dailyInspirationDB, { get }]) => {
+      // Guard against self-echo: if this device already marked this inspiration
+      // as opened (because it was the one that triggered the REST call), skip.
+      const state = get(dailyInspirationStore);
+      const existing = state.inspirations.find(
+        (i) => i.inspiration_id === inspiration_id,
+      );
+      if (existing?.is_opened) {
+        console.debug(
+          `[ChatSyncService:AI] inspiration_opened: already opened locally — skipping (self-echo guard)`,
+        );
+        return;
+      }
+
+      // Update in-memory store so the carousel immediately reflects the change
+      dailyInspirationStore.markOpened(inspiration_id, opened_chat_id);
+      console.debug(
+        `[ChatSyncService:AI] inspiration_opened: updated in-memory store for ${inspiration_id}`,
+      );
+
+      // Persist to IndexedDB (non-fatal if record not found — may be a default inspiration)
+      await dailyInspirationDB.markInspirationOpenedInIndexedDB(
+        inspiration_id,
+        opened_chat_id,
+      );
+      console.debug(
+        `[ChatSyncService:AI] inspiration_opened: persisted to IndexedDB for ${inspiration_id}`,
+      );
+    })
+    .catch((err) => {
+      console.error(
+        "[ChatSyncService:AI] Failed to handle inspiration_opened broadcast:",
+        err,
+      );
+    });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Chat Compression Events
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Handles 'chat_compression_started' WebSocket event.
+ *
+ * Published by the AI worker when chat history exceeds the compression threshold.
+ * Dispatches a global event for ActiveChat.svelte to show the "Compressing chat..."
+ * shimmer indicator.
+ */
+export function handleChatCompressionStartedImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: { chat_id: string; task_id: string },
+): void {
+  console.debug(
+    "[ChatSyncService:AI] Received 'chat_compression_started' for chat",
+    payload.chat_id,
+  );
+
+  serviceInstance.dispatchEvent(
+    new CustomEvent("chatCompressionStarted", { detail: payload }),
+  );
+}
+
+/**
+ * Handles 'chat_compression_completed' WebSocket event.
+ *
+ * Published by the AI worker when compression finishes (success or error).
+ * Dispatches a global event for ActiveChat.svelte to clear the compression
+ * indicator and proceed with the normal processing flow.
+ */
+export function handleChatCompressionCompletedImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: {
+    chat_id: string;
+    task_id: string;
+    compressed_message_count?: number;
+    summary_token_estimate?: number;
+    compressed_up_to_timestamp?: number;
+    summary_message_id?: string;
+    error?: string;
+  },
+): void {
+  if (payload.error) {
+    console.warn(
+      "[ChatSyncService:AI] Chat compression failed for chat",
+      payload.chat_id,
+      ":",
+      payload.error,
+    );
+  } else {
+    console.debug(
+      "[ChatSyncService:AI] Chat compression completed for chat",
+      payload.chat_id,
+      `(${payload.compressed_message_count} messages compressed)`,
+    );
+  }
+
+  serviceInstance.dispatchEvent(
+    new CustomEvent("chatCompressionCompleted", { detail: payload }),
+  );
 }

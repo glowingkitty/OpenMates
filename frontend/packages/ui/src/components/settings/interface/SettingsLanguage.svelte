@@ -10,15 +10,18 @@ changes to the documentation (to keep the documentation up to date).
 -->
 
 <script lang="ts">
-    import { text } from '@repo/ui';
+    import { text, SUPPORTED_LANGUAGES } from '@repo/ui';
     import SettingsItem from '../../SettingsItem.svelte';
-    import { locale, locales } from 'svelte-i18n';
+    import { locale } from 'svelte-i18n';
     import { browser } from '$app/environment';
     import { waitLocale } from 'svelte-i18n';
+    import { isRtlLanguage } from '../../../i18n/languages';
     import { loadMetaTags, getMetaTags } from '../../../config/meta';
     import { createEventDispatcher, onMount } from 'svelte';
-    import { settingsNavigationStore, updateBreadcrumbsWithLanguage } from '../../../stores/settingsNavigationStore';
+    import { updateBreadcrumbsWithLanguage } from '../../../stores/settingsNavigationStore';
     import { getApiUrl, apiEndpoints } from '../../../config/api'; // Import API config
+    import { contentCache } from '../../../utils/contentCache'; // Import content cache to clear on language change
+    import { authStore } from '../../../stores/authStore'; // Import auth store to check authentication status
 
     const dispatch = createEventDispatcher();
 
@@ -29,15 +32,8 @@ changes to the documentation (to keep the documentation up to date).
         shortCode: string; // Two letter code for display
     };
 
-    // Define supported languages with added shortCode property
-    const baseLanguages: Language[] = [
-        { code: 'en', name: 'English', shortCode: 'EN' },
-        { code: 'de', name: 'Deutsch', shortCode: 'DE' },
-        { code: 'es', name: 'Español', shortCode: 'ES' },
-        { code: 'fr', name: 'Français', shortCode: 'FR' },
-        { code: 'zh', name: '中文', shortCode: 'ZH' },
-        { code: 'ja', name: '日本語', shortCode: 'JA' }
-    ];
+    // Import supported languages from single source of truth
+    const baseLanguages: Language[] = SUPPORTED_LANGUAGES;
 
     // Current language state
     let currentLanguage = $state('en');
@@ -45,14 +41,16 @@ changes to the documentation (to keep the documentation up to date).
     // Browser's default language (set only once)
     let browserLanguage = $state('en');
 
-    // Sort languages with browser language at top, but don't reorder when selecting
-    // This is done once during initialization
-    let sortedLanguages: Language[] = $state([]);
+    // Use languages in the order defined in languages.json (single source of truth)
+    // Order: English first, German second, then by global speaker count
+    // No need to re-sort - respect the intended order from languages.json
+    let sortedLanguages: Language[] = $state(baseLanguages);
 
     // Find the current language object using Svelte 5 runes
     let currentLanguageObj = $derived(baseLanguages.find(lang => lang.code === currentLanguage) || baseLanguages[0]);
 
-    // Initialize locale from browser language and sort languages
+    // Initialize locale from browser language
+    // Note: We preserve the order from languages.json instead of re-sorting
     const initializeLocale = () => {
         if (browser) {
             // Get saved locale
@@ -71,12 +69,9 @@ changes to the documentation (to keep the documentation up to date).
                 currentLanguage = browserLanguage;
             }
             
-            // Sort languages with browser language first, then alphabetically
-            sortedLanguages = [...baseLanguages].sort((a, b) => {
-                if (a.code === browserLanguage) return -1;
-                if (b.code === browserLanguage) return 1;
-                return a.name.localeCompare(b.name);
-            });
+            // Use languages in their original order from languages.json
+            // This preserves: English first, German second, then by speaker count
+            sortedLanguages = baseLanguages;
         }
     };
 
@@ -94,14 +89,16 @@ changes to the documentation (to keep the documentation up to date).
             // Update current language after locale is set
             currentLanguage = newLocale;
 
-            // Store preference in localStorage
+            // Store preference in localStorage (sole source of truth for language preference)
             localStorage.setItem('preferredLanguage', newLocale);
             
             // Wait for translations to load
             await waitLocale();
 
-            // Update HTML lang attribute
+            // Update HTML lang + dir attributes.
+            // dir="rtl" flips the entire layout for right-to-left languages like Arabic.
             document.documentElement.setAttribute('lang', newLocale);
+            document.documentElement.setAttribute('dir', isRtlLanguage(newLocale) ? 'rtl' : 'ltr');
 
             try {
                 // Attempt to reload meta tags with new language (with proper error handling)
@@ -147,6 +144,11 @@ changes to the documentation (to keep the documentation up to date).
             // Update breadcrumbs with new translations
             updateNavigationAndBreadcrumbs();
 
+            // Clear content cache to force re-processing of messages with new locale
+            // This ensures that cached TipTap JSON content is regenerated with correct translations
+            contentCache.clear();
+            console.debug('[SettingsLanguage] Cleared content cache on language change');
+
             // Force re-render of components
             setTimeout(() => {
                 // Dispatch event to inform parent components that language has changed
@@ -165,25 +167,31 @@ changes to the documentation (to keep the documentation up to date).
             }, 0);
 
             // --- Call API to save preference (Moved to the end of the try block) ---
-            try {
-                const response = await fetch(getApiUrl() + apiEndpoints.settings.user.language, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                    },
-                    body: JSON.stringify({ language: newLocale }),
-                    credentials: 'include' // Important for sending auth cookies
-                });
-                if (!response.ok) {
-                    console.error('Failed to update language setting on server:', response.statusText);
+            // Only save to server if user is authenticated
+            // For unauthenticated users, language preference is stored locally only (localStorage + cookies)
+            if ($authStore.isAuthenticated) {
+                try {
+                    const response = await fetch(getApiUrl() + apiEndpoints.settings.user.language, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                        },
+                        body: JSON.stringify({ language: newLocale }),
+                        credentials: 'include' // Important for sending auth cookies
+                    });
+                    if (!response.ok) {
+                        console.error('Failed to update language setting on server:', response.statusText);
+                        // Optional: Add user feedback about the failure
+                    } else {
+                        console.debug('Language preference saved to server successfully.');
+                    }
+                } catch (apiError) {
+                    console.error('Error sending language setting to server:', apiError);
                     // Optional: Add user feedback about the failure
-                } else {
-                    console.debug('Language preference saved to server successfully.');
                 }
-            } catch (apiError) {
-                console.error('Error sending language setting to server:', apiError);
-                // Optional: Add user feedback about the failure
+            } else {
+                console.debug('User not authenticated - language preference saved locally only (localStorage + cookies)');
             }
             // --- End API Call ---
 
@@ -202,8 +210,10 @@ changes to the documentation (to keep the documentation up to date).
         // Update settings navigation breadcrumbs using the current translations
         updateBreadcrumbsWithLanguage($text);
         
-        // Force text store subscribers to update by dispatching a custom event
-        window.dispatchEvent(new CustomEvent('language-changed'));
+        // NOTE: Don't dispatch 'language-changed' here - it's dispatched in the main
+        // changeLanguage() flow via setTimeout. Dispatching it here caused a double-dispatch
+        // that triggered two concurrent demo chat reloads, leading to a race condition where
+        // community demo chat titles would stay in the old language.
         
         // Force a re-render of all text elements
         const textElements = document.querySelectorAll('[data-i18n]');
@@ -224,7 +234,7 @@ changes to the documentation (to keep the documentation up to date).
     {#each sortedLanguages as language}
         <SettingsItem 
             type="quickaction"
-            icon="subsetting_icon subsetting_icon_language"
+            icon="subsetting_icon language"
             title={language.name}
             hasToggle={true}
             checked={currentLanguage === language.code}
@@ -251,7 +261,9 @@ changes to the documentation (to keep the documentation up to date).
         transform: translate(-50%, -50%);
         font-size: 16px;
         font-weight: 600;
-        color: var(--color-grey-90);
+        /* Always white so the text is legible on the blue subsetting_icon background
+           regardless of light/dark theme mode */
+        color: #ffffff;
         pointer-events: none;
         z-index: 2;
     }

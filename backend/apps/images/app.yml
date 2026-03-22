@@ -1,32 +1,443 @@
-name: |
-  Images
-description: |
-  Generate images, modify and resize them and more.
+name_translation_key: images
+description_translation_key: images.description
 icon_image: |
   image.svg
-icon_colorgradient:
-  start: |
-    #001E36
-  end: |
-    #073A62
-
+category: work
+last_updated: "2026-01-17"
+# All image skills rely on zero-knowledge (client-side) encryption or WebSocket-based
+# crypto flows that cannot be executed via a stateless REST call. Hide the entire app
+# from the public /docs so the API reference does not show unusable endpoints.
+expose_in_api: false
+# Embed type definitions — single source of truth for frontend embed routing.
+embed_types:
+  - id: generate
+    category: app-skill-use
+    skill_id: generate
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    preview_component: images/ImageGenerateEmbedPreview.svelte
+    fullscreen_component: images/ImageGenerateEmbedFullscreen.svelte
+    icon: image
+    gradient_var: "--color-app-images"
+    i18n_namespace: embeds.images.generate
+    content_fields:
+      - name: prompt
+        type: string
+        required: true
+      - name: model
+        type: string
+        required: true
+      - name: aspect_ratio
+        type: string
+      - name: s3_base_url
+        type: string
+        required: true
+      - name: files
+        type: object
+        required: true
+        description: "Record of file variants with S3 keys"
+      - name: aes_key
+        type: string
+        required: true
+      - name: aes_nonce
+        type: string
+        required: true
+  - id: generate_draft
+    category: app-skill-use
+    skill_id: generate_draft
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    # Reuses the same components as generate
+    preview_component: images/ImageGenerateEmbedPreview.svelte
+    fullscreen_component: images/ImageGenerateEmbedFullscreen.svelte
+    icon: image
+    gradient_var: "--color-app-images"
+    i18n_namespace: embeds.images.generate
+    content_fields:
+      - name: prompt
+        type: string
+        required: true
+      - name: model
+        type: string
+        required: true
+      - name: s3_base_url
+        type: string
+        required: true
+      - name: files
+        type: object
+        required: true
+      - name: aes_key
+        type: string
+        required: true
+      - name: aes_nonce
+        type: string
+        required: true
+  # User-uploaded image (direct-type, inserted by file upload flow)
+  - id: image
+    category: direct
+    frontend_type: image
+    backend_type: image
+    has_children: false
+    preview_component: images/ImageEmbedPreview.svelte
+    fullscreen_component: images/ImageEmbedFullscreen.svelte
+    icon: image
+    gradient_var: "--color-app-images"
+    i18n_namespace: embeds.images.view
+    content_fields:
+      - name: filename
+        type: string
+      - name: s3_base_url
+        type: string
+      - name: files
+        type: object
+      - name: aes_key
+        type: string
+      - name: aes_nonce
+        type: string
+      - name: content_hash
+        type: string
+  # Image search result — parent embed produced by images.search skill
+  - id: search
+    category: app-skill-use
+    skill_id: search
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: true
+    child_type: image_result
+    child_frontend_type: images-image-result
+    preview_component: images/ImagesSearchEmbedPreview.svelte
+    fullscreen_component: images/ImagesSearchEmbedFullscreen.svelte
+    child_preview_component: images/ImageResultEmbedPreview.svelte
+    child_fullscreen_component: images/ImageResultEmbedFullscreen.svelte
+    icon: search
+    gradient_var: "--color-app-images"
+    i18n_namespace: embeds.images.search
+    content_fields:
+      - name: query
+        type: string
+      - name: provider
+        type: string
+      - name: result_count
+        type: number
+      - name: embed_ids
+        type: string
+        description: "Pipe-separated child embed IDs"
+  # Individual image search result — child embed of images.search
+  - id: image_result
+    category: direct
+    frontend_type: images-image-result
+    backend_type: image_result
+    has_children: false
+    preview_component: images/ImageResultEmbedPreview.svelte
+    fullscreen_component: images/ImageResultEmbedFullscreen.svelte
+    icon: search
+    gradient_var: "--color-app-images"
+    i18n_namespace: embeds.images.search
+    content_fields:
+      - name: title
+        type: string
+      - name: source_page_url
+        type: string
+      - name: image_url
+        type: string
+        description: "Direct URL to the full-resolution image"
+      - name: thumbnail_url
+        type: string
+        description: "Proxied thumbnail URL"
+      - name: source
+        type: string
+        description: "Source domain name"
+      - name: favicon_url
+        type: string
 settings_and_memories:
-  - id: |
-      preffered_styles
-
-# pricing structure for skills?
+  # Preferred styles: Image styles and aesthetics the user prefers
+  - id: preferred_styles
+    name_translation_key: images.preferred_styles
+    description_translation_key: images.preferred_styles.description
+    icon_image: image.svg
+    type: list
+    stage: production
+    example_translation_keys:
+      - "images.preferred_styles.example_1"
+      - "images.preferred_styles.example_2"
+      - "images.preferred_styles.example_3"
+    example_entries:
+      - name: "images.preferred_styles.example_1.name"
+        description: "images.preferred_styles.example_1.description"
+      - name: "images.preferred_styles.example_2.name"
+        description: "images.preferred_styles.example_2.description"
+    schema:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Style name (e.g., Watercolor, Minimalist, Cyberpunk, Art Deco)
+          is_title: true
+        description:
+          type: string
+          description: Optional description of the style or when to use it
+          multiline: true
+      required:
+        - name
+instructions:
+  - instruction: |
+      When you use the images-generate or images-generate_draft tool, the result will confirm the image is being generated. In your response, briefly acknowledge the request in a natural conversational way (e.g., "I'm generating that image for you now" or "Your image is being created"). Do NOT output any JSON, technical details, task IDs, embed IDs, or status codes. Keep it short and natural.
+  - instruction: |
+      CRITICAL — Image editing / modification workflow:
+      When the user asks to edit, modify, transform, or remix an uploaded image, you MUST call images-generate (or images-generate_draft) with the embed_ref in the reference_images parameter. The server will automatically load and decrypt the original image and pass it to the image generation model. Do NOT call images-view first — that is only for when you need to visually inspect or describe an image, not for editing it.
+      Correct example: User uploads "photo.jpg" and says "add a dragon" → call images-generate with requests: [{"prompt": "...", "reference_images": ["photo.jpg"]}]
+      Wrong: calling images-view first and then images-generate without reference_images.
 skills:
-
-  - id: |
-      generate
-    name: |
-      Generate
-    description: |
-      Generate an image based on a prompt and/or images.
-    stage: |
-      planning
+  - id: search
+    name_translation_key: images.search
+    description_translation_key: images.search.description
+    api_config:
+      expose_get: false
+      expose_post: false
+    preprocessor_hint: >
+      Search for images by text description or find visually similar images using reverse image search.
+      Use text mode (query) when the user asks to "find images of X", "search for X images", or wants
+      to discover images matching a description.
+      Use reverse image search (file_path) when the user uploads an image and asks to "find similar
+      images", "find where this image appears", "reverse image search this", or wants to find
+      visually matching content. Pass the exact embed_ref (filename) from the toon block.
+      Each search result image can itself be used as input to images-search for further reverse search.
+    stage: production
     class_path: |
-      skills.image.GenerateSkill
-    models:
-      - "google/imagen-4"
-      - "openai/gpt-image-1"
+      backend.apps.images.skills.search_skill.SearchSkill
+    providers:
+      - Brave
+      - SerpAPI
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          description: |
+            REQUIRED: Array of image search request objects (up to 5 parallel searches).
+            Each object must contain either 'query' (text search) or 'file_path'
+            (reverse image search with an embed_ref from the conversation).
+            Example text search: {"requests": [{"query": "golden retriever puppies"}]}
+            Example reverse search: {"requests": [{"file_path": "my_photo.jpg"}]}
+          items:
+            type: object
+            properties:
+              query:
+                type: string
+                description: |
+                  Text description of images to search for (e.g. "sunset over mountains").
+                  Use this for discovering images by topic or visual description.
+                  Mutually exclusive with file_path.
+              file_path:
+                type: string
+                description: |
+                  The original filename (embed_ref) of an image in the conversation to
+                  reverse-search. Use the exact embed_ref value from the toon block.
+                  Works for uploaded images AND for image search result embeds.
+                  Mutually exclusive with query.
+              count:
+                type: integer
+                description: Number of image results to return (default 10, max 20).
+                default: 10
+                minimum: 1
+                maximum: 20
+              country:
+                type: string
+                description: Country code for localised results (default "us").
+                default: "us"
+              search_lang:
+                type: string
+                description: Language code for search (default "en").
+                default: "en"
+      required:
+        - requests
+  - id: generate
+    name_translation_key: images.generate
+    description_translation_key: images.generate.description
+    api_config:
+      expose_get: false # Hidden from REST API docs — image generation requires WebSocket + browser crypto (zero-knowledge). Use the web app or CLI instead.
+      expose_post: false # POST requires client-side encryption (WebSocket + browser crypto). Use the web app or CLI instead.
+    preprocessor_hint: >
+      Generate high-quality images from text prompts and/or reference images (image-to-image editing).
+      Also use for: mockups, design concepts, visual mockup creation, logo mockups,
+      product mockups, illustration requests, visual design, concept art, posters,
+      banners, thumbnails, or any request that implies creating a visual output.
+      Use output_filetype="svg" for logos, icons, illustrations, and any other
+      vector graphics that need to be scalable or editable.
+      When the user provides uploaded images as references (embed_refs), pass them via reference_images.
+    stage: production
+    class_path: |
+      backend.apps.images.skills.generate_skill.GenerateSkill
+    providers:
+      - Google
+      - Recraft
+    full_model_reference: google/gemini-3-pro-image-preview
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          description: |
+            REQUIRED: Array of image generation request objects for parallel processing (up to 5 requests).
+            This parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single image.
+            Example for single image: {"requests": [{"prompt": "a cute cat"}]}
+            Each object must contain 'prompt' (detailed description), and can include optional
+            'aspect_ratio', 'output_filetype', and 'quality'.
+          items:
+            type: object
+            properties:
+              prompt:
+                type: string
+                description: Detailed description of the image to generate
+              aspect_ratio:
+                type: string
+                description: Aspect ratio of the generated image
+                enum: ["1:1", "16:9", "4:3", "3:2", "2:3", "9:16"]
+                default: "1:1"
+              output_filetype:
+                type: string
+                description: |
+                  Output file format. Use "svg" to generate a scalable vector graphic (SVG) via
+                  Recraft V4 — ideal for logos, icons, illustrations, and any graphic that needs
+                  to be scalable, editable in design tools, or used at any size without quality loss.
+                  Use "png" or "jpg" for photos, realistic scenes, and detailed raster images.
+                  When a Recraft model is selected, Recraft V4 is used for raster output as well.
+                enum: ["png", "jpg", "svg"]
+                default: "png"
+              quality:
+                type: string
+                description: |
+                  Generation quality. Controls which model tier is used when Recraft is the provider.
+                  For SVG output (output_filetype="svg"):
+                    "default" uses Recraft V4 Vector (1MP, 80 credits — good for web/UI use).
+                    "max" uses Recraft V4 Pro Vector (4MP, 300 credits — best for print, large-format,
+                    or highly detailed vector illustrations).
+                  For raster output (output_filetype="png"/"jpg") with a Recraft model selected:
+                    "default" uses Recraft V4 (1024×1024, 40 credits — fast, cost-effective).
+                    "max" uses Recraft V4 Pro (2048×2048, 250 credits — high-resolution, print-ready).
+                  For other raster models (Google Gemini, FLUX), quality is ignored.
+                enum: ["default", "max"]
+                default: "default"
+              reference_images:
+                type: array
+                description: |
+                  Optional list of reference image filenames (embed_refs) to use as visual
+                  references for this generation. Pass the exact embed_ref values (original
+                  filenames, e.g. "my_photo.jpg") from the toon blocks in the conversation.
+                  The server resolves all cryptographic and storage details automatically.
+                  Supports up to 14 reference images. When provided, enables image-to-image
+                  editing/style-transfer mode (Google Gemini: same endpoint; FLUX: switches
+                  to the 4B edit model). Ignored for SVG/Recraft output.
+                items:
+                  type: string
+                  description: Original filename (embed_ref) of an uploaded image
+            required:
+              - prompt
+      required:
+        - requests
+  - id: view
+    name_translation_key: images.view
+    description_translation_key: images.view.description
+    # Internal: invoked automatically by the backend when the user attaches an image.
+    # Never shown in the app store or settings UI — users don't select this manually.
+    internal: true
+    preprocessor_hint: >
+      Load an image into the conversation so the AI can see it. Use this skill
+      when the user references an uploaded image embed and wants the AI to look
+      at it, describe it, read text in it, identify objects, or answer any visual
+      question about it. Pass the exact embed_ref (original filename) from the
+      toon block — the server resolves all cryptographic and storage details automatically.
+    stage: production
+    class_path: |
+      backend.apps.images.skills.view_skill.ViewSkill
+    api_config:
+      expose_get: false # Hidden — requires server-side embed lookup with Vault Transit decryption
+      expose_post: false # Hidden — requires server-side context (user_vault_key_id). Not usable via stateless REST.
+    tool_schema:
+      type: object
+      properties:
+        file_path:
+          type: string
+          description: "The original filename of the image (embed_ref, e.g. 'my_photo.jpg'). Use the exact embed_ref value from the toon block in the user's message."
+      required:
+        - file_path
+  - id: vectorize
+    name_translation_key: images.vectorize
+    description_translation_key: images.vectorize.description
+    api_config:
+      expose_get: false # Hidden — requires WebSocket + browser crypto (zero-knowledge)
+      expose_post: false # POST requires client-side encryption (WebSocket + browser crypto)
+    preprocessor_hint: >
+      Convert a raster image (PNG, JPG, WEBP) to a scalable SVG vector graphic.
+      Use this skill when the user asks to vectorize an image, convert a raster image
+      to SVG, make an image scalable, or convert a logo/icon/illustration to vector format.
+      The user must have uploaded an image in the conversation to use as input.
+      Pass the exact embed_ref (original filename) from the toon block.
+    stage: production
+    class_path: |
+      backend.apps.images.skills.vectorize_skill.VectorizeSkill
+    providers:
+      - Recraft
+    full_model_reference: recraft/vectorize
+    tool_schema:
+      type: object
+      properties:
+        source_image:
+          type: string
+          description: |
+            REQUIRED: The original filename (embed_ref) of the uploaded raster image
+            to convert to SVG. Use the exact embed_ref value from the toon block in
+            the user's conversation. The image must be PNG, JPG, or WEBP format.
+      required:
+        - source_image
+  - id: generate_draft
+    name_translation_key: images.generate_draft
+    description_translation_key: images.generate_draft.description
+    api_config:
+      expose_get: false # Hidden from REST API docs — image generation requires WebSocket + browser crypto (zero-knowledge). Use the web app or CLI instead.
+      expose_post: false # POST requires client-side encryption (WebSocket + browser crypto). Use the web app or CLI instead.
+    preprocessor_hint: >
+      Quickly generate a draft/preview image from a text prompt and/or reference images (image-to-image).
+      Also use for: quick mockups, rough design concepts, draft illustrations,
+      sketches, quick visual previews, or any request for a fast/rough image.
+      When the user provides uploaded images as references (embed_refs), pass them via reference_images.
+    stage: production
+    class_path: |
+      backend.apps.images.skills.generate_skill.GenerateSkill
+    providers:
+      - BFL
+    full_model_reference: bfl/flux-2-klein
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          description: |
+            REQUIRED: Array of image generation request objects for parallel processing (up to 5 requests).
+            This parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single image.
+            Example for single image: {"requests": [{"prompt": "a cute cat"}]}
+            Each object must contain 'prompt' (description of the image).
+          items:
+            type: object
+            properties:
+              prompt:
+                type: string
+                description: Description of the image to generate
+              reference_images:
+                type: array
+                description: |
+                  Optional list of reference image filenames (embed_refs) to use as visual
+                  references for this generation. Pass the exact embed_ref values (original
+                  filenames, e.g. "my_photo.jpg") from the toon blocks in the conversation.
+                  The server resolves all cryptographic and storage details automatically.
+                  Supports up to 4 reference images. When provided, automatically switches to
+                  the FLUX.2 [klein] 4B edit model (image-to-image, 27 credits).
+                items:
+                  type: string
+                  description: Original filename (embed_ref) of an uploaded image
+            required:
+              - prompt
+      required:
+        - requests

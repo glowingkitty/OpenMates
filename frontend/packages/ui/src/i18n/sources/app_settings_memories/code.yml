@@ -1,0 +1,639 @@
+# Translations for code app settings and memories categories
+# See backend/apps/code/app.yml for the settings_and_memories definitions
+
+preferred_tech:
+  context: Settings/memory name for preferred technologies
+  en: Preferred Technologies
+  de: Bevorzugte Technologien
+  zh: 偏好技术
+  es: Tecnologías preferidas
+  fr: Technologies préférées
+  pt: Tecnologias preferidas
+  ru: Предпочтительные технологии
+  ja: 好みの技術
+  ko: 선호하는 기술
+  it: Tecnologie preferite
+  tr: Tercih edilen teknolojiler
+  vi: Công nghệ ưa thích
+  id: Teknologi pilihan
+  pl: Preferowane technologie
+  nl: Voorkeurstechnologieën
+  ar: التقنيات المفضلة
+  hi: पसंदीदा तकनीकें
+  th: เทคโนโลยีที่ชื่นชอบ
+  cs: Preferované technologie
+  sv: Föredragna teknologier
+  he: טכנולוגיות מועדפות
+  verified_by_human:
+    - en
+    - de
+preferred_tech.description:
+  context: Description for preferred technologies settings/memory
+  en: Your preferred languages & frameworks.
+  de: Deine bevorzugten Sprachen & Frameworks.
+  zh: 你偏好的语言和框架。
+  es: Tus lenguajes y frameworks preferidos.
+  fr: Vos langages et frameworks préférés.
+  pt: Suas linguagens e frameworks preferidos.
+  ru: Ваши предпочитаемые языки и фреймворки.
+  ja: 好みの言語とフレームワーク。
+  ko: 선호하는 언어와 프레임워크.
+  it: I tuoi linguaggi e framework preferiti.
+  tr: Tercih ettiğiniz diller ve framework'ler.
+  vi: Ngôn ngữ và framework bạn thích.
+  id: Bahasa dan framework pilihan Anda.
+  pl: Twoje preferowane języki i frameworki.
+  nl: Je favoriete talen en frameworks.
+  ar: لغاتك وأطرك المفضلة.
+  hi: आपकी पसंदीदा भाषाएं और फ्रेमवर्क।
+  th: ภาษาและเฟรมเวิร์กที่คุณชอบ
+  cs: Vaše preferované jazyky a frameworky.
+  sv: Dina föredragna språk och ramverk.
+  he: השפות והפריימוורקים המועדפים עליך.
+  verified_by_human:
+    - en
+    - de
+projects:
+  context: Settings/memory name for projects
+  en: Projects
+  de: Projekte
+  zh: 项目
+  es: Proyectos
+  fr: Projets
+  pt: Projetos
+  ru: Проекты
+  ja: プロジェクト
+  ko: 프로젝트
+  it: Progetti
+  tr: Projeler
+  vi: Dự án
+  id: Proyek
+  pl: Projekty
+  nl: Projecten
+  ar: المشاريع
+  hi: परियोजनाएं
+  th: โครงการ
+  cs: Projekty
+  sv: Projekt
+  he: פרויקטים
+  verified_by_human:
+    - en
+    - de
+projects.description:
+  context: Description for projects settings/memory
+  en: Your projects (active, planned, or completed)
+  de: Deine Projekte (aktiv, geplant oder abgeschlossen)
+  zh: 你的项目（进行中、计划中或已完成）
+  es: Tus proyectos (activos, planificados o completados)
+  fr: Vos projets (actifs, planifiés ou terminés)
+  pt: Seus projetos (ativos, planejados ou concluídos)
+  ru: Ваши проекты (активные, планируемые, завершённые)
+  ja: あなたのプロジェクト（進行中、計画中、完了済み）
+  ko: 당신의 프로젝트 (진행 중, 계획됨, 완료됨)
+  it: I tuoi progetti (attivi, pianificati o completati)
+  tr: Projeleriniz (aktif, planlı veya tamamlanmış)
+  vi: Dự án của bạn (hoạt động, kế hoạch, hoàn thành)
+  id: Proyek Anda (aktif, direncanakan, atau selesai)
+  pl: Twoje projekty (aktywne, planowane lub ukończone)
+  nl: Je projecten (actief, gepland of voltooid)
+  ar: مشاريعك (نشطة أو مخططة أو مكتملة)
+  hi: आपकी परियोजनाएं (सक्रिय, नियोजित, या पूर्ण)
+  th: โครงการของคุณ (กำลังดำเนินการ วางแผน หรือเสร็จสิ้น)
+  cs: Vaše projekty (aktivní, plánované nebo dokončené)
+  sv: Dina projekt (aktiva, planerade eller avslutade)
+  he: הפרויקטים שלך (פעילים, מתוכננים או שהושלמו)
+  verified_by_human:
+    - en
+    - de
+want_to_learn:
+  context: Settings/memory name for technologies to learn
+  en: Want to Learn
+  de: Möchte lernen
+  zh: 想学习
+  es: Quiero aprender
+  fr: Envie d'apprendre
+  pt: Quero aprender
+  ru: Хочу изучить
+  ja: 学びたい
+  ko: 배우고 싶은 것
+  it: Voglio imparare
+  tr: Öğrenmek istiyorum
+  vi: Muốn học
+  id: Ingin belajar
+  pl: Chcę się nauczyć
+  nl: Wil leren
+  ar: أريد أن أتعلم
+  hi: सीखना चाहते हैं
+  th: อยากเรียนรู้
+  cs: Chci se naučit
+  sv: Vill lära mig
+  he: רוצה ללמוד
+  verified_by_human:
+    - en
+    - de
+want_to_learn.description:
+  context: Description for want to learn settings/memory
+  en: Technologies and skills you want to learn
+  de: Technologien und Fähigkeiten, die du lernen möchtest
+  zh: 你想学习的技术和技能
+  es: Tecnologías y habilidades que quieres aprender
+  fr: Technologies et compétences à apprendre
+  pt: Tecnologias e habilidades que você quer aprender
+  ru: Технологии и навыки, которые вы хотите изучить
+  ja: 学びたい技術やスキル
+  ko: 배우고 싶은 기술과 기능
+  it: Tecnologie e competenze che vuoi imparare
+  tr: Öğrenmek istediğiniz teknolojiler ve beceriler
+  vi: Các công nghệ và kỹ năng bạn muốn học
+  id: Teknologi dan keterampilan yang ingin Anda pelajari
+  pl: Technologie i umiejętności, których chcesz się nauczyć
+  nl: Technologieën en vaardigheden die je wilt leren
+  ar: التقنيات والمهارات التي تريد تعلمها
+  hi: तकनीक और कौशल जो आप सीखना चाहते हैं
+  th: เทคโนโลยีและทักษะที่คุณต้องการเรียนรู้
+  cs: Technologie a dovednosti, které se chcete naučit
+  sv: Teknologier och färdigheter du vill lära dig
+  he: טכנולוגיות ומיומנויות שברצונך ללמוד
+  verified_by_human:
+    - en
+    - de
+
+coding_setup:
+  context: Settings/memory name for preferred coding setup
+  en: Coding Setup
+  de: Coding-Setup
+  verified_by_human:
+    - en
+    - de
+
+coding_setup.description:
+  context: Description for preferred coding setup settings/memory
+  en: How you like to code, collaborate with AI, and enter instructions
+  de: Wie du am liebsten codest, mit KI zusammenarbeitest und Eingaben machst
+  verified_by_human:
+    - en
+    - de
+
+coding_setup.example_1:
+  context: Example entry title for coding setup (terminal-heavy workflow)
+  en: Terminal-first setup
+  de: Terminal-first-Setup
+  verified_by_human:
+    - en
+    - de
+
+coding_setup.example_2:
+  context: Example entry title for coding setup (guided web workflow)
+  en: Guided web workflow
+  de: Geführter Web-Workflow
+  verified_by_human:
+    - en
+    - de
+
+coding_setup.example_1.notes:
+  context: Example notes for coding setup entry 1
+  en: Neovim + tmux, short suggestions only
+  de: Neovim + tmux, nur kurze Vorschläge
+  verified_by_human:
+    - en
+    - de
+
+coding_setup.example_2.notes:
+  context: Example notes for coding setup entry 2
+  en: Prefers presets and one-click actions
+  de: Bevorzugt Presets und One-Click-Aktionen
+  verified_by_human:
+    - en
+    - de
+
+# Example entries shown to non-authenticated users to illustrate what each category stores
+
+preferred_tech.example_1:
+  context: Example entry for preferred technologies (a programming language)
+  en: Python
+  de: Python
+  zh: Python
+  es: Python
+  fr: Python
+  pt: Python
+  ru: Python
+  ja: Python
+  ko: Python
+  it: Python
+  tr: Python
+  vi: Python
+  id: Python
+  pl: Python
+  nl: Python
+  ar: Python
+  hi: Python
+  th: Python
+  cs: Python
+  sv: Python
+  he: Python
+  verified_by_human:
+    - en
+    - de
+preferred_tech.example_2:
+  context: Example entry for preferred technologies (a programming language)
+  en: TypeScript
+  de: TypeScript
+  zh: TypeScript
+  es: TypeScript
+  fr: TypeScript
+  pt: TypeScript
+  ru: TypeScript
+  ja: TypeScript
+  ko: TypeScript
+  it: TypeScript
+  tr: TypeScript
+  vi: TypeScript
+  id: TypeScript
+  pl: TypeScript
+  nl: TypeScript
+  ar: TypeScript
+  hi: TypeScript
+  th: TypeScript
+  cs: TypeScript
+  sv: TypeScript
+  he: TypeScript
+  verified_by_human:
+    - en
+    - de
+preferred_tech.example_3:
+  context: Example entry for preferred technologies (a frontend framework)
+  en: Svelte
+  de: Svelte
+  zh: Svelte
+  es: Svelte
+  fr: Svelte
+  pt: Svelte
+  ru: Svelte
+  ja: Svelte
+  ko: Svelte
+  it: Svelte
+  tr: Svelte
+  vi: Svelte
+  id: Svelte
+  pl: Svelte
+  nl: Svelte
+  ar: Svelte
+  hi: Svelte
+  th: Svelte
+  cs: Svelte
+  sv: Svelte
+  he: Svelte
+  verified_by_human:
+    - en
+    - de
+projects.example_1:
+  context: Example entry for projects (a type of personal project)
+  en: Personal website
+  de: Persönliche Website
+  zh: 个人网站
+  es: Sitio web personal
+  fr: Site web personnel
+  pt: Site pessoal
+  ru: Личный сайт
+  ja: 個人ウェブサイト
+  ko: 개인 웹사이트
+  it: Sito web personale
+  tr: Kişisel web sitesi
+  vi: Trang web cá nhân
+  id: Situs web pribadi
+  pl: Strona osobista
+  nl: Persoonlijke website
+  ar: موقع شخصي
+  hi: व्यक्तिगत वेबसाइट
+  th: เว็บไซต์ส่วนตัว
+  cs: Osobní web
+  sv: Personlig webbplats
+  he: אתר אישי
+  verified_by_human:
+    - en
+    - de
+projects.example_2:
+  context: Example entry for projects (a type of app project)
+  en: Mobile app
+  de: Mobile App
+  zh: 移动应用
+  es: Aplicación móvil
+  fr: Application mobile
+  pt: Aplicativo móvel
+  ru: Мобильное приложение
+  ja: モバイルアプリ
+  ko: 모바일 앱
+  it: App mobile
+  tr: Mobil uygulama
+  vi: Ứng dụng di động
+  id: Aplikasi seluler
+  pl: Aplikacja mobilna
+  nl: Mobiele app
+  ar: تطبيق جوال
+  hi: मोबाइल ऐप
+  th: แอปมือถือ
+  cs: Mobilní aplikace
+  sv: Mobilapp
+  he: אפליקציה לנייד
+  verified_by_human:
+    - en
+    - de
+projects.example_3:
+  context: Example entry for projects (a type of backend project)
+  en: API backend
+  de: API-Backend
+  zh: API后端
+  es: Backend de API
+  fr: Backend API
+  pt: Backend de API
+  ru: API-бэкенд
+  ja: APIバックエンド
+  ko: API 백엔드
+  it: Backend API
+  tr: API arka ucu
+  vi: Backend API
+  id: Backend API
+  pl: Backend API
+  nl: API-backend
+  ar: واجهة برمجة خلفية
+  hi: API बैकएंड
+  th: แบ็กเอนด์ API
+  cs: API backend
+  sv: API-backend
+  he: API backend
+  verified_by_human:
+    - en
+    - de
+want_to_learn.example_1:
+  context: Example entry for want to learn (a programming language)
+  en: Rust
+  de: Rust
+  zh: Rust
+  es: Rust
+  fr: Rust
+  pt: Rust
+  ru: Rust
+  ja: Rust
+  ko: Rust
+  it: Rust
+  tr: Rust
+  vi: Rust
+  id: Rust
+  pl: Rust
+  nl: Rust
+  ar: Rust
+  hi: Rust
+  th: Rust
+  cs: Rust
+  sv: Rust
+  he: Rust
+  verified_by_human:
+    - en
+    - de
+want_to_learn.example_2:
+  context: Example entry for want to learn (a tech field)
+  en: Machine Learning
+  de: Maschinelles Lernen
+  zh: 机器学习
+  es: Aprendizaje automático
+  fr: Apprentissage automatique
+  pt: Aprendizado de máquina
+  ru: Машинное обучение
+  ja: 機械学習
+  ko: 머신 러닝
+  it: Machine Learning
+  tr: Makine öğrenimi
+  vi: Học máy
+  id: Pembelajaran mesin
+  pl: Uczenie maszynowe
+  nl: Machine learning
+  ar: التعلم الآلي
+  hi: मशीन लर्निंग
+  th: การเรียนรู้ของเครื่อง
+  cs: Strojové učení
+  sv: Maskininlärning
+  he: למידת מכונה
+  verified_by_human:
+    - en
+    - de
+want_to_learn.example_3:
+  context: Example entry for want to learn (a DevOps tool)
+  en: Kubernetes
+  de: Kubernetes
+  zh: Kubernetes
+  es: Kubernetes
+  fr: Kubernetes
+  pt: Kubernetes
+  ru: Kubernetes
+  ja: Kubernetes
+  ko: Kubernetes
+  it: Kubernetes
+  tr: Kubernetes
+  vi: Kubernetes
+  id: Kubernetes
+  pl: Kubernetes
+  nl: Kubernetes
+  ar: Kubernetes
+  hi: Kubernetes
+  th: Kubernetes
+  cs: Kubernetes
+  sv: Kubernetes
+  he: Kubernetes
+  verified_by_human:
+    - en
+    - de
+
+# Structured example entries for example_entries in app.yml
+
+preferred_tech.example_1.name:
+  context: Example value for name in preferred_tech
+  en: Python
+  de: Python
+  zh: Python
+  es: Python
+  fr: Python
+  pt: Python
+  ru: Python
+  ja: Python
+  ko: Python
+  it: Python
+  tr: Python
+  vi: Python
+  id: Python
+  pl: Python
+  nl: Python
+  ar: Python
+  hi: Python
+  th: Python
+  cs: Python
+  sv: Python
+  he: Python
+  verified_by_human: []
+preferred_tech.example_2.name:
+  context: Example value for name in preferred_tech
+  en: TypeScript
+  de: TypeScript
+  zh: TypeScript
+  es: TypeScript
+  fr: TypeScript
+  pt: TypeScript
+  ru: TypeScript
+  ja: TypeScript
+  ko: TypeScript
+  it: TypeScript
+  tr: TypeScript
+  vi: TypeScript
+  id: TypeScript
+  pl: TypeScript
+  nl: TypeScript
+  ar: TypeScript
+  hi: TypeScript
+  th: TypeScript
+  cs: TypeScript
+  sv: TypeScript
+  he: TypeScript
+  verified_by_human: []
+projects.example_1.name:
+  context: Example value for name in projects
+  en: Personal Website
+  de: Persönliche Webseite
+  zh: 个人网站
+  es: Sitio web personal
+  fr: Site web personnel
+  pt: Site pessoal
+  ru: Личный сайт
+  ja: 個人ウェブサイト
+  ko: 개인 웹사이트
+  it: Sito web personale
+  tr: Kişisel web sitesi
+  vi: Trang web cá nhân
+  id: Situs web pribadi
+  pl: Strona osobista
+  nl: Persoonlijke website
+  ar: موقع شخصي
+  hi: व्यक्तिगत वेबसाइट
+  th: เว็บไซต์ส่วนตัว
+  cs: Osobní web
+  sv: Personlig webbplats
+  he: אתר אישי
+  verified_by_human: []
+projects.example_1.description:
+  context: Example value for description in projects
+  en: A portfolio website built with SvelteKit
+  de: Eine Portfolio-Website mit SvelteKit erstellt
+  zh: 使用SvelteKit构建的作品集网站
+  es: Un sitio web de portafolio construido con SvelteKit
+  fr: Un site portfolio construit avec SvelteKit
+  pt: Um site de portfólio construído com SvelteKit
+  ru: Сайт-портфолио, созданный на SvelteKit
+  ja: SvelteKitで構築したポートフォリオサイト
+  ko: SvelteKit으로 만든 포트폴리오 웹사이트
+  it: Un sito portfolio realizzato con SvelteKit
+  tr: SvelteKit ile oluşturulmuş bir portföy sitesi
+  vi: Trang web danh mục đầu tư được xây dựng bằng SvelteKit
+  id: Situs portofolio yang dibangun dengan SvelteKit
+  pl: Strona portfolio zbudowana w SvelteKit
+  nl: Een portfoliowebsite gebouwd met SvelteKit
+  ar: موقع محفظة أعمال مبني بـ SvelteKit
+  hi: SvelteKit से बनी पोर्टफोलियो वेबसाइट
+  th: เว็บไซต์พอร์ตโฟลิโอที่สร้างด้วย SvelteKit
+  cs: Portfoliový web vytvořený pomocí SvelteKit
+  sv: En portföljwebbplats byggd med SvelteKit
+  he: אתר תיק עבודות שנבנה עם SvelteKit
+  verified_by_human: []
+projects.example_2.name:
+  context: Example value for name in projects
+  en: Weather App
+  de: Wetter-App
+  zh: 天气应用
+  es: Aplicación del tiempo
+  fr: Application météo
+  pt: Aplicativo de clima
+  ru: Приложение погоды
+  ja: 天気アプリ
+  ko: 날씨 앱
+  it: App meteo
+  tr: Hava durumu uygulaması
+  vi: Ứng dụng thời tiết
+  id: Aplikasi cuaca
+  pl: Aplikacja pogodowa
+  nl: Weer-app
+  ar: تطبيق الطقس
+  hi: मौसम ऐप
+  th: แอปพยากรณ์อากาศ
+  cs: Aplikace počasí
+  sv: Väderapp
+  he: אפליקציית מזג אוויר
+  verified_by_human: []
+projects.example_2.description:
+  context: Example value for description in projects
+  en: A weather forecast app using React and OpenWeather API
+  de: Eine Wetter-App mit React und OpenWeather API
+  zh: 使用React和OpenWeather API构建的天气预报应用
+  es: Una aplicación de pronóstico del tiempo con React y OpenWeather API
+  fr: Une application météo utilisant React et l'API OpenWeather
+  pt: Um aplicativo de previsão do tempo usando React e OpenWeather API
+  ru: Приложение прогноза погоды на React и OpenWeather API
+  ja: ReactとOpenWeather APIを使った天気予報アプリ
+  ko: React와 OpenWeather API를 사용한 날씨 예보 앱
+  it: Un'app meteo con React e OpenWeather API
+  tr: React ve OpenWeather API ile hava durumu uygulaması
+  vi: Ứng dụng dự báo thời tiết sử dụng React và OpenWeather API
+  id: Aplikasi prakiraan cuaca menggunakan React dan OpenWeather API
+  pl: Aplikacja pogodowa z React i OpenWeather API
+  nl: Een weersvoorspelling-app met React en OpenWeather API
+  ar: تطبيق توقعات الطقس باستخدام React و OpenWeather API
+  hi: React और OpenWeather API का उपयोग करके बनाया गया मौसम पूर्वानुमान ऐप
+  th: แอปพยากรณ์อากาศที่ใช้ React และ OpenWeather API
+  cs: Aplikace předpovědi počasí s React a OpenWeather API
+  sv: En väderprognosapp med React och OpenWeather API
+  he: אפליקציית תחזית מזג אוויר עם React ו-OpenWeather API
+  verified_by_human: []
+want_to_learn.example_1.name:
+  context: Example value for name in want_to_learn
+  en: Rust
+  de: Rust
+  zh: Rust
+  es: Rust
+  fr: Rust
+  pt: Rust
+  ru: Rust
+  ja: Rust
+  ko: Rust
+  it: Rust
+  tr: Rust
+  vi: Rust
+  id: Rust
+  pl: Rust
+  nl: Rust
+  ar: Rust
+  hi: Rust
+  th: Rust
+  cs: Rust
+  sv: Rust
+  he: Rust
+  verified_by_human: []
+want_to_learn.example_2.name:
+  context: Example value for name in want_to_learn
+  en: Machine Learning
+  de: Maschinelles Lernen
+  zh: 机器学习
+  es: Aprendizaje automático
+  fr: Apprentissage automatique
+  pt: Aprendizado de máquina
+  ru: Машинное обучение
+  ja: 機械学習
+  ko: 머신 러닝
+  it: Machine Learning
+  tr: Makine öğrenimi
+  vi: Học máy
+  id: Pembelajaran mesin
+  pl: Uczenie maszynowe
+  nl: Machine learning
+  ar: التعلم الآلي
+  hi: मशीन लर्निंग
+  th: การเรียนรู้ของเครื่อง
+  cs: Strojové učení
+  sv: Maskininlärning
+  he: למידת מכונה
+  verified_by_human: []

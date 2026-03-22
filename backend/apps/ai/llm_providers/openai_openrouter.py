@@ -42,7 +42,10 @@ async def _get_openrouter_api_key(secrets_manager: SecretsManager) -> Optional[s
         )
         
         if not api_key:
-            logger.error("OpenRouter API key not found in Vault")
+            logger.error(
+                "OpenRouter API key not found in Vault at path 'kv/data/providers/openrouter' with key 'api_key'. "
+                "Please configure the OpenRouter API key in Vault to enable OpenRouter API access."
+            )
             return None
         
         _openrouter_api_key = api_key
@@ -111,7 +114,20 @@ def _resolve_openrouter_model_id(model_id: str) -> str:
 
         upstream_provider, model_suffix = model_id.split("/", 1)
         # If it's already an upstream OpenRouter namespace like qwen/* or openai/*, keep it
+        # BUT only if it's not a provider we have a specific mapping for in our config.
+        # We'll allow the lookup below to be the authoritative source if the model exists in our config.
+        # This set acts as a fallback for models not in our config.
         if upstream_provider in {"qwen", "openai", "mistral", "anthropic", "google"}:
+            # Check if this specific model exists in our config first
+            provider_config = config_manager.get_provider_config(upstream_provider)
+            if provider_config:
+                for model in provider_config.get("models", []):
+                    if isinstance(model, dict) and model.get("id") == model_suffix:
+                        servers = model.get("servers") or []
+                        for server in servers:
+                            if isinstance(server, dict) and server.get("id") == "openrouter" and server.get("model_id"):
+                                return str(server["model_id"])
+                        break
             return model_id
 
         provider_config = config_manager.get_provider_config(upstream_provider)
@@ -178,7 +194,10 @@ async def invoke_openrouter_chat_completions(
     # Get the OpenRouter API key
     api_key = await _get_openrouter_api_key(secrets_manager)
     if not api_key:
-        error_msg = "Failed to retrieve OpenRouter API key"
+        error_msg = (
+            "Failed to retrieve OpenRouter API key from Vault. "
+            "Please ensure the API key is configured at 'kv/data/providers/openrouter' with key 'api_key'."
+        )
         logger.error(f"{log_prefix} {error_msg}")
         if stream:
             raise ValueError(error_msg)
@@ -189,12 +208,18 @@ async def invoke_openrouter_chat_completions(
             error_message=error_msg
         )
     
-    # Map to OpenRouter's expected model id when needed (e.g., alibaba → qwen/...)
+    # Resolve the model ID to the exact string OpenRouter expects
+    # This handles cases where the model_id is in provider format (e.g., "alibaba/qwen3-235b-a22b-2507")
+    # and needs to be resolved to OpenRouter format (e.g., "qwen/qwen3-235b-a22b-2507")
     resolved_model_id = _resolve_openrouter_model_id(model_id)
-
-    # Get provider overrides for the model (based on original upstream config)
+    logger.info(f"{log_prefix} Resolved OpenRouter model_id: '{resolved_model_id}' (original: '{model_id}')")
+    
+    # Get provider overrides if configured for this model
+    # Provider overrides allow specifying which upstream provider OpenRouter should use
+    # (e.g., forcing a specific provider when multiple are available)
     provider_overrides = _get_provider_overrides_for_model(model_id)
-    logger.debug(f"{log_prefix} Using provider overrides: {provider_overrides}")
+    if provider_overrides:
+        logger.debug(f"{log_prefix} Using provider overrides: {provider_overrides}")
     
     # Invoke the OpenRouter API
     return await invoke_openrouter_api(

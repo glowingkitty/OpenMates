@@ -126,10 +126,10 @@ changes to the documentation (to keep the documentation up to date).
         <!-- Standard Purchase Flow -->
         <div class="credits-package-container">
             {#if canShowLess} <!-- Reactive variable already uses stores -->
-                <button class="nav-button" onclick={showLessCredits}>
-                    <div class="clickable-icon icon_back"></div>
-                {@html $text('signup.less.text')}
-                </button>
+            <button id="signup-credits-less" class="nav-button" onclick={showLessCredits}>
+                <div class="clickable-icon icon_back"></div>
+            {@html $text('signup.less')}
+            </button>
             {/if}
 
             <div class="package-wrapper">
@@ -148,13 +148,13 @@ changes to the documentation (to keep the documentation up to date).
             </div>
 
             {#if canShowMore}
-                <button class="nav-button" onclick={showMoreCredits}>
-                    {@html $text('signup.more.text')}
-                    <div class="clickable-icon icon_back icon-mirrored"></div>
-                </button>
+            <button id="signup-credits-more" class="nav-button" onclick={showMoreCredits}>
+                {@html $text('signup.more')}
+                <div class="clickable-icon icon_back icon-mirrored"></div>
+            </button>
             {/if}
         </div>
-        <div class="select_amount_text">{@html $text('signup.select_amount.text')}</div>
+        <div class="select_amount_text">{@html $text('signup.select_amount')}</div>
     {/if}
 </div>
 

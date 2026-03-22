@@ -5,24 +5,36 @@
  * to provide a unified interface for the rest of the application.
  */
 
-import { authStore as coreAuthStore, isCheckingAuth, needsDeviceVerification, authInitialState } from './authState';
-import * as sessionActions from './authSessionActions';
-import * as loginLogoutActions from './authLoginLogoutActions';
-import * as miscActions from './authMiscActions';
-import * as derivedStores from './authDerivedStores';
+import {
+  authStore as coreAuthStore,
+  isCheckingAuth,
+  needsDeviceVerification,
+  deviceVerificationType,
+  deviceVerificationReason,
+  authInitialState,
+} from "./authState";
+import * as sessionActions from "./authSessionActions";
+import * as loginLogoutActions from "./authLoginLogoutActions";
+import * as miscActions from "./authMiscActions";
 
 // Combine the core store with all action functions
 export const authStore = {
   ...coreAuthStore,
   ...sessionActions,
   ...loginLogoutActions,
-  ...miscActions
+  ...miscActions,
 };
 
 // Re-export everything for individual use if needed
-export { isCheckingAuth, needsDeviceVerification, authInitialState };
-export * from './authTypes';
-export * from './authSessionActions';
-export * from './authLoginLogoutActions';
-export * from './authMiscActions';
-export * from './authDerivedStores';
+export {
+  isCheckingAuth,
+  needsDeviceVerification,
+  deviceVerificationType,
+  deviceVerificationReason,
+  authInitialState,
+};
+export * from "./authTypes";
+export * from "./authSessionActions";
+export * from "./authLoginLogoutActions";
+export * from "./authMiscActions";
+export * from "./authDerivedStores";

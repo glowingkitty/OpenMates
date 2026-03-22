@@ -1,0 +1,122 @@
+# backend/core/directus/schemas/daily_inspiration_defaults.yml
+#
+# Stores the daily-selected "top 3" inspiration entries per language.
+# Populated once per day at 06:30 UTC by the daily defaults selection job.
+# Survives server restarts (Postgres-backed).
+#
+# The public /v1/default-inspirations endpoint and the authenticated non-paying
+# user delivery path both read from this table (with a 1-hour Redis cache).
+#
+# Old rows (date < today) are cleaned up by the daily job.
+
+daily_inspiration_defaults:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      note: "Primary key — Directus record ID"
+
+    date:
+      type: string
+      length: 10
+      note: "[Indexed] The date these defaults are for (YYYY-MM-DD, UTC).  Only one set of 3 per language per date."
+      required: true
+
+    language:
+      type: string
+      length: 10
+      note: "[Indexed] Language code (e.g. 'en', 'de').  Combined with date to identify the day's selections."
+      required: true
+
+    position:
+      type: integer
+      note: "Display order within the day (1, 2, or 3)."
+      required: true
+
+    pool_entry_id:
+      type: uuid
+      note: "FK reference to daily_inspiration_pool.id — the selected pool entry."
+      required: true
+
+    # ── Denormalized content from pool entry (avoids JOINs at read time) ──────
+    # These fields are copied from the pool entry when the daily selection is made
+    # so the API endpoint can serve them without a second Directus query.
+
+    phrase:
+      type: textfield
+      note: "Copied from pool entry: curiosity phrase"
+      required: true
+
+    title:
+      type: string
+      length: 200
+      note: "Copied from pool entry: chat title"
+
+    assistant_response:
+      type: textfield
+      note: "Copied from pool entry: first assistant message"
+
+    category:
+      type: string
+      length: 100
+      note: "Copied from pool entry: category"
+      required: true
+
+    content_type:
+      type: string
+      length: 20
+      default: "video"
+      note: "Copied from pool entry: content type"
+
+    youtube_id:
+      type: string
+      length: 20
+      note: "Copied from pool entry: YouTube video ID"
+
+    video_title:
+      type: textfield
+      note: "Copied from pool entry: video title"
+
+    video_thumbnail_url:
+      type: textfield
+      note: "Copied from pool entry: thumbnail URL"
+
+    video_channel_name:
+      type: textfield
+      note: "Copied from pool entry: channel name"
+
+    video_view_count:
+      type: integer
+      note: "Copied from pool entry: view count"
+
+    video_duration_seconds:
+      type: integer
+      note: "Copied from pool entry: duration"
+
+    video_published_at:
+      type: textfield
+      note: "Copied from pool entry: publication date"
+
+    follow_up_suggestions:
+      type: textfield
+      note: "Copied from pool entry: JSON array of follow-up suggestions"
+
+    generated_at:
+      type: integer
+      note: "Copied from pool entry: original generation timestamp"
+
+    created_at:
+      type: timestamp
+      note: "When this default selection row was created"
+
+  indexes:
+    - name: idx_defaults_date_lang
+      fields: [date, language]
+      note: "For fetching today's 3 defaults for a given language (primary query)"
+
+  note: |
+    Daily-selected default inspirations per language.
+    Populated by the daily defaults selection job (06:30 UTC).
+    At most 20 languages × 3 entries = 60 rows per day.
+    Old dates are cleaned up automatically.
+    Content is denormalized from daily_inspiration_pool to avoid JOINs.

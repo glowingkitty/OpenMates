@@ -1,0 +1,20 @@
+chat:
+  title: 'Playwright Import Test Chat 1'
+  exported_at: '2026-03-01T10:00:00.000Z'
+  message_count: 3
+  draft: null
+  summary: 'A test conversation about Python programming for import testing.'
+
+messages:
+  - role: 'user'
+    completed_at: '2026-03-01T10:00:05.000Z'
+    content: 'Hello! Can you help me write a Python function to calculate the factorial of a number?'
+  - role: 'assistant'
+    completed_at: '2026-03-01T10:00:10.000Z'
+    assistant_category: 'code'
+    content: "Sure! Here's a simple Python function to calculate factorial:\n\n```python\ndef factorial(n):\n    if n == 0 or n == 1:\n        return 1\n    return n * factorial(n - 1)\n\nprint(factorial(5))  # Output: 120\n```\n\nThis uses recursion. Would you like an iterative version too?"
+  - role: 'user'
+    completed_at: '2026-03-01T10:00:20.000Z'
+    content: 'Yes please, show me the iterative version as well.'
+
+embeds: []

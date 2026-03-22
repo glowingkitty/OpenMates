@@ -12,8 +12,19 @@
     import { tfaAppIcons } from '../config/tfa';
     import * as cryptoService from '../services/cryptoService';
     import { updateProfile } from '../stores/userProfile';
+    import { getSessionId } from '../utils/sessionId';
+    import { notificationStore } from '../stores/notificationStore';
+    import AccountRecovery from './AccountRecovery.svelte';
 
     const dispatch = createEventDispatcher();
+    
+    // State for account recovery view
+    let showAccountRecovery = $state(false);
+    
+    // Notify parent when account recovery mode changes (for inactivity timer management)
+    $effect(() => {
+        dispatch('accountRecoveryModeChanged', { active: showAccountRecovery });
+    });
 
     // Props using Svelte 5 runes mode
     let { 
@@ -25,7 +36,7 @@
         tfaAppName = null,
         previewMode = false,
         previewTfaAppName = 'Google Authenticator',
-        tfa_required = true,
+        tfa_required = false, // Default to false - only show 2FA input if explicitly required
         highlight = []
     }: {
         email?: string,
@@ -53,6 +64,21 @@
     let tfaCode = $state('');
     let isBackupMode = $state(false);
 
+    // Local state for tfa_required - initialized from prop value at component mount
+    // 
+    // The tfa_required prop comes from the /lookup response which correctly indicates
+    // whether the user has actually set up 2FA (based on encrypted_tfa_secret existence).
+    // 
+    // IMPORTANT: We use the prop value for initialization, NOT a hardcoded default.
+    // - If user has 2FA set up: tfa_required=true → show 2FA input initially
+    // - If user has NOT set up 2FA: tfa_required=false → don't show 2FA input
+    // 
+    // Anti-enumeration protection still works because:
+    // - The backend /login endpoint returns tfa_required=true for non-existent accounts
+    // - handleSubmit() logic updates tfaRequiredState based on server response
+    // - This only affects the INITIAL display, which is based on verified user data from /lookup
+    let tfaRequiredState = $state(tfa_required);
+
     // Input references using Svelte 5 runes
     let passwordInput: HTMLInputElement = $state();
     let tfaInput: HTMLInputElement = $state();
@@ -61,6 +87,10 @@
     const RATE_LIMIT_DURATION = 120000; // 120 seconds in milliseconds
     let isRateLimited = $state(false);
     let rateLimitTimer: ReturnType<typeof setTimeout>;
+
+    // Guard flag to prevent infinite auto-resubmit loops.
+    // Set to true while an auto-resubmit is in-flight; reset after the response is processed.
+    let isAutoResubmitting = $state(false);
 
     // TFA app display logic using Svelte 5 runes
     let currentAppIndex = $state(0);
@@ -72,13 +102,13 @@
     let tfaAppIconClass = $derived(currentDisplayedApp in tfaAppIcons ? tfaAppIcons[currentDisplayedApp] : undefined);
 
     // Reactive statements for backup mode using Svelte 5 runes
-    let inputPlaceholder = $derived(isBackupMode ? $text('login.enter_backup_code.text') : $text('signup.enter_one_time_code.text'));
-    let toggleButtonText = $derived(isBackupMode ? $text('login.login_with_tfa_app.text') : $text('login.login_with_backup_code.text'));
+    let inputPlaceholder = $derived(isBackupMode ? $text('login.enter_backup_code') : $text('signup.enter_one_time_code'));
+    let toggleButtonText = $derived(isBackupMode ? $text('login.login_with_tfa_app') : $text('login.login_with_backup_code'));
     let inputMaxLength = $derived(isBackupMode ? 14 : 6);
 
-    // Validation using Svelte 5 runes
+    // Validation using Svelte 5 runes - use local state variable
     let isPasswordValid = $derived(password.length > 0);
-    let isTfaValid = $derived(!tfa_required || (isBackupMode ? tfaCode.length === 14 : tfaCode.length === 6));
+    let isTfaValid = $derived(!tfaRequiredState || (isBackupMode ? tfaCode.length === 14 : tfaCode.length === 6));
     let isFormValid = $derived(isPasswordValid && isTfaValid);
 
     // Helper function to generate opacity style using Svelte 5 runes
@@ -145,7 +175,7 @@
 
     // Handle form submission - makes single request to /login
     async function handleSubmit() {
-        if (!isPasswordValid || (tfa_required && !isTfaValid) || isLoading) return;
+        if (!isPasswordValid || (tfaRequiredState && !isTfaValid) || isLoading) return;
 
         isLoading = true;
         errorMessage = null;
@@ -172,11 +202,12 @@
             // Prepare request body
             const requestBody: any = {
                 hashed_email,
-                lookup_hash
+                lookup_hash,
+                stay_logged_in: stayLoggedIn  // Send stay logged in preference
             };
 
             // Add 2FA code if provided and required
-            if (tfa_required && tfaCode) {
+            if (tfaRequiredState && tfaCode) {
                 requestBody.tfa_code = tfaCode;
                 requestBody.code_type = isBackupMode ? 'backup' : 'otp';
             }
@@ -186,6 +217,9 @@
             if (email_encryption_key) {
                 requestBody.email_encryption_key = email_encryption_key;
             }
+
+            // Add sessionId for device fingerprint uniqueness (multi-browser support)
+            requestBody.session_id = getSessionId();
 
             // Send single login request
             const response = await fetch(getApiEndpoint(apiEndpoints.auth.login), {
@@ -209,28 +243,280 @@
             }
 
             const data = await response.json();
+            
+            // Debug logging to understand response structure
+            console.debug('[PasswordAndTfaOtp] Login response:', {
+                ok: response.ok,
+                status: response.status,
+                success: data.success,
+                tfa_required: data.tfa_required,
+                message: data.message,
+                hasUser: !!data.user
+            });
 
             if (response.ok && data.success) {
-                // Login successful
-                await handleSuccessfulLogin(data);
-            } else {
-                if (data.tfa_required) {
-                    // Update local tfa_required state if server indicates it's needed
-                    tfa_required = true;
+                // Check if 2FA is required before treating as successful login
+                // SECURITY: Backend returns success=True with tfa_required=True for non-existent accounts
+                // to prevent email enumeration - we must check tfa_required first
+                // Explicitly check for true (not just truthy) to handle edge cases
+                if (data.tfa_required === true) {
+                    console.debug('[PasswordAndTfaOtp] 2FA required detected');
+                    // Check if 2FA is actually configured (tfa_enabled indicates encrypted_tfa_secret exists)
+                    // tfa_app_name is optional and doesn't indicate if 2FA is configured
+                    const isTfaConfigured = data.user?.tfa_enabled === true;
+                    // Import isSignupPath helper for checking signup paths
+                    const { isSignupPath } = await import('../stores/signupState');
+                    const isInSignupFlow = isSignupPath(data.user?.last_opened) || false;
+
+                    // AUTO-RESUBMIT: Users who skipped 2FA during signup get back an anti-enumeration
+                    // response on first login attempt (success=true, tfa_required=true, tfa_enabled=false,
+                    // last_opened=null, message="2FA required") because the backend can't distinguish them
+                    // from non-existent accounts when no tfa_code is supplied.
+                    //
+                    // Fix: when 2FA is not configured and no code was submitted yet, automatically
+                    // re-send the same credentials with tfa_code="" so the backend takes the
+                    // Scenario 1 path (no 2FA) and returns a real login response.
+                    //
+                    // Security: if the account doesn't actually exist, the backend returns
+                    // success=false with message="login.code_wrong" on the re-submit, which
+                    // causes the OTP field to appear — preserving anti-enumeration protection.
+                    //
+                    // See docs/architecture/auth.md for the full anti-enumeration design.
+                    if (!isTfaConfigured && !tfaCode && !isAutoResubmitting && data.message === '2FA required') {
+                        console.debug('[PasswordAndTfaOtp] No 2FA configured and no code submitted — auto-resubmitting with empty tfa_code to bypass anti-enumeration gate');
+                        isAutoResubmitting = true;
+                        try {
+                            // Re-use the already-computed hashed_email and lookup_hash from the outer scope.
+                            const resubmitBody: any = {
+                                hashed_email,
+                                lookup_hash,
+                                stay_logged_in: stayLoggedIn,
+                                tfa_code: '',
+                                code_type: 'otp'
+                            };
+                            const emailEncKey = cryptoService.getEmailEncryptionKeyForApi();
+                            if (emailEncKey) resubmitBody.email_encryption_key = emailEncKey;
+                            resubmitBody.session_id = getSessionId();
+
+                            const resubmitResponse = await fetch(getApiEndpoint(apiEndpoints.auth.login), {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Accept': 'application/json',
+                                    'Origin': window.location.origin
+                                },
+                                body: JSON.stringify(resubmitBody),
+                                credentials: 'include'
+                            });
+
+                            if (resubmitResponse.status === 429) {
+                                console.warn('[PasswordAndTfaOtp] Rate limit hit on auto-resubmit');
+                                isRateLimited = true;
+                                localStorage.setItem('passwordTfaRateLimit', Date.now().toString());
+                                setRateLimitTimer(RATE_LIMIT_DURATION);
+                                return;
+                            }
+
+                            const resubmitData = await resubmitResponse.json();
+                            console.debug('[PasswordAndTfaOtp] Auto-resubmit response:', {
+                                ok: resubmitResponse.ok,
+                                status: resubmitResponse.status,
+                                success: resubmitData.success,
+                                tfa_required: resubmitData.tfa_required,
+                                message: resubmitData.message
+                            });
+
+                            if (resubmitResponse.ok && resubmitData.success && !resubmitData.tfa_required) {
+                                // Real user with no 2FA — backend took the Scenario 1 path and logged them in.
+                                await handleSuccessfulLogin(resubmitData);
+                                return;
+                            }
+
+                            // Account doesn't exist (anti-enumeration) or some other issue —
+                            // fall through to show OTP field so UX is consistent with wrong-password behaviour.
+                            console.debug('[PasswordAndTfaOtp] Auto-resubmit did not yield a clean login — showing OTP field (anti-enumeration)');
+                        } finally {
+                            isAutoResubmitting = false;
+                        }
+                        // Fall through: tfaRequiredState = true will be set below
+                    }
+
+                    // If account exists but 2FA is not configured (user hasn't finished signup),
+                    // hide the 2FA field and redirect to signup to complete setup
+                    if (data.user && !isTfaConfigured && isInSignupFlow) {
+                        console.debug('[PasswordAndTfaOtp] Account exists but 2FA not configured - hiding 2FA field and redirecting to signup');
+                        // Hide 2FA field for this case
+                        tfaRequiredState = false;
+                        
+                        // Update profile with user data if available
+                        if (data.user) {
+                            // Log auto top-up fields from backend response - ERROR if missing
+                            const hasAutoTopupFields = 'auto_topup_low_balance_enabled' in data.user;
+                            if (!hasAutoTopupFields) {
+                                console.error('[PasswordAndTfaOtp] ERROR: Auto top-up fields missing from backend response (2FA not configured path)!');
+                                console.error('[PasswordAndTfaOtp] Received user object keys:', Object.keys(data.user));
+                                console.error('[PasswordAndTfaOtp] Full user object:', data.user);
+                            }
+                            
+                            // Save to IndexedDB first
+                            const { userDB } = await import('../services/userDB');
+                            await userDB.saveUserData(data.user);
+                            
+                            const userProfileData = {
+                                username: data.user.username || '',
+                                profile_image_url: data.user.profile_image_url || null,
+                                credits: data.user.credits || 0,
+                                is_admin: data.user.is_admin || false,
+                                last_opened: data.user.last_opened || '',
+                                tfa_app_name: data.user.tfa_app_name || null,
+                                tfa_enabled: data.user.tfa_enabled || false,
+                                consent_privacy_and_apps_default_settings: data.user.consent_privacy_and_apps_default_settings || false,
+                                consent_mates_default_settings: data.user.consent_mates_default_settings || false,
+                                language: data.user.language || 'en',
+                                darkmode: data.user.darkmode || false,
+                                // Low balance auto top-up fields
+                                auto_topup_low_balance_enabled: data.user.auto_topup_low_balance_enabled ?? false,
+                                auto_topup_low_balance_threshold: data.user.auto_topup_low_balance_threshold,
+                                auto_topup_low_balance_amount: data.user.auto_topup_low_balance_amount,
+                                auto_topup_low_balance_currency: data.user.auto_topup_low_balance_currency
+                            };
+                            updateProfile(userProfileData);
+                        }
+                        
+                        // Dispatch event to redirect to signup
+                        dispatch('loginSuccess', {
+                            user: data.user,
+                            inSignupFlow: true
+                        });
+                        return;
+                    }
+                    
+                    // All other cases (including non-existent accounts) - show 2FA field
+                    // This prevents email enumeration
+                    tfaRequiredState = true;
                     // Show TFA-specific error message only for TFA field
-                    if (data.message === 'login.code_wrong.text') {
-                        tfaErrorMessage = $text('login.code_wrong.text');
+                    // SECURITY: Don't show error when message is "2FA required" - this prevents email enumeration
+                    // The backend returns "2FA required" for failed authentication to prevent revealing account existence
+                    if (data.message === 'login.code_wrong') {
+                        tfaErrorMessage = $text('login.code_wrong');
+                        errorMessage = null;
+                    } else if (data.message === '2FA required') {
+                        // Don't show error message - just show the 2FA input field
+                        // This is used for security (preventing email enumeration)
+                        tfaErrorMessage = null;
                         errorMessage = null;
                     } else {
-                        tfaErrorMessage = data.message || $text('login.code_wrong.text');
+                        tfaErrorMessage = data.message || $text('login.code_wrong');
                         errorMessage = null;
                     }
                 } else {
-                    // Show password/email error for password field
-                    if (data.message === 'login.email_or_password_wrong.text') {
-                        errorMessage = $text('login.email_or_password_wrong.text');
+                    // Login successful (no 2FA required)
+                    await handleSuccessfulLogin(data);
+                }
+            } else {
+                if (data.tfa_required) {
+                    // Check if 2FA is actually configured (tfa_enabled indicates encrypted_tfa_secret exists)
+                    // tfa_app_name is optional and doesn't indicate if 2FA is configured
+                    // CRITICAL: Only check tfa_enabled if user object is present
+                    // When auth fails, backend omits user object for anti-enumeration
+                    const hasUserData = data.user !== undefined && data.user !== null;
+                    const isTfaConfigured = data.user?.tfa_enabled === true;
+                    // Import isSignupPath helper for checking signup paths
+                    const { isSignupPath } = await import('../stores/signupState');
+                    const isInSignupFlow = isSignupPath(data.user?.last_opened) || false;
+                    
+                    // If 2FA is required but not actually configured (tfa_enabled is false) AND user is in signup flow,
+                    // redirect to signup instead of asking for a 2FA code
+                    // This handles the case where user hasn't completed 2FA setup during signup
+                    // CRITICAL: Only do this if we have user data - otherwise we can't determine signup flow
+                    if (hasUserData && !isTfaConfigured && isInSignupFlow) {
+                        console.debug('[PasswordAndTfaOtp] 2FA required but not configured - redirecting to signup flow');
+                        // Update profile with user data if available
+                        if (data.user) {
+                            // Log auto top-up fields from backend response - ERROR if missing
+                            const hasAutoTopupFields = 'auto_topup_low_balance_enabled' in data.user;
+                            if (!hasAutoTopupFields) {
+                                console.error('[PasswordAndTfaOtp] ERROR: Auto top-up fields missing from backend response (2FA required path 2)!');
+                                console.error('[PasswordAndTfaOtp] Received user object keys:', Object.keys(data.user));
+                                console.error('[PasswordAndTfaOtp] Full user object:', data.user);
+                            }
+                            
+                            // Save to IndexedDB first
+                            const { userDB } = await import('../services/userDB');
+                            await userDB.saveUserData(data.user);
+                            
+                            const userProfileData = {
+                                username: data.user.username || '',
+                                profile_image_url: data.user.profile_image_url || null,
+                                credits: data.user.credits || 0,
+                                is_admin: data.user.is_admin || false,
+                                last_opened: data.user.last_opened || '',
+                                tfa_app_name: data.user.tfa_app_name || null,
+                                tfa_enabled: data.user.tfa_enabled || false,
+                                consent_privacy_and_apps_default_settings: data.user.consent_privacy_and_apps_default_settings || false,
+                                consent_mates_default_settings: data.user.consent_mates_default_settings || false,
+                                language: data.user.language || 'en',
+                                darkmode: data.user.darkmode || false,
+                                // Low balance auto top-up fields
+                                auto_topup_low_balance_enabled: data.user.auto_topup_low_balance_enabled ?? false,
+                                auto_topup_low_balance_threshold: data.user.auto_topup_low_balance_threshold,
+                                auto_topup_low_balance_amount: data.user.auto_topup_low_balance_amount,
+                                auto_topup_low_balance_currency: data.user.auto_topup_low_balance_currency
+                            };
+                            updateProfile(userProfileData);
+                        }
+                        
+                        // Dispatch event to redirect to signup
+                        dispatch('loginSuccess', {
+                            user: data.user,
+                            inSignupFlow: true
+                        });
+                        return;
+                    }
+                    
+                    // CRITICAL FIX: When we have no user data, we cannot determine if 2FA is configured
+                    // Backend intentionally omits user data on failed auth to prevent email enumeration
+                    // In this case, we should:
+                    // 1. Keep the 2FA field visible if it was already shown (tfaRequiredState was true)
+                    // 2. Show appropriate error message based on whether code was submitted
+                    if (!hasUserData) {
+                        // No user data = auth failed (wrong password/lookup_hash) or account doesn't exist
+                        // Keep 2FA field visible and show password error since we can't determine 2FA status
+                        console.debug('[PasswordAndTfaOtp] Auth failed, no user data (anti-enumeration). Keeping 2FA visible, showing password error.');
+                        tfaRequiredState = true; // Keep 2FA field visible
+                        // Show error on password field - the password/lookup_hash is likely wrong
+                        errorMessage = $text('login.email_or_password_wrong');
+                        tfaErrorMessage = null;
+                    } else if (isTfaConfigured) {
+                        // User data present and 2FA is configured
+                        // Update local tfa_required state if server indicates it's needed AND 2FA is configured
+                        tfaRequiredState = true;
+                        // Show TFA-specific error message only for TFA field
+                        // SECURITY: Don't show error when message is "2FA required" - this prevents email enumeration
+                        // The backend returns "2FA required" for failed authentication to prevent revealing account existence
+                        if (data.message === 'login.code_wrong') {
+                            tfaErrorMessage = $text('login.code_wrong');
+                            errorMessage = null;
+                        } else if (data.message === '2FA required') {
+                            // Don't show error message - just show the 2FA input field
+                            // This is used for security (preventing email enumeration)
+                            tfaErrorMessage = null;
+                            errorMessage = null;
+                        }
                     } else {
-                        errorMessage = data.message || $text('login.email_or_password_wrong.text');
+                        // User data present but 2FA is not configured (tfa_enabled === false)
+                        // Don't show 2FA input
+                        console.debug('[PasswordAndTfaOtp] 2FA required but not configured - not showing 2FA input');
+                        tfaRequiredState = false;
+                        tfaErrorMessage = null;
+                    }
+                } else {
+                    // tfa_required is false - handle regular error messages
+                    // Show password/email error for password field
+                    if (data.message === 'login.email_or_password_wrong') {
+                        errorMessage = $text('login.email_or_password_wrong');
+                    } else {
+                        errorMessage = data.message || $text('login.email_or_password_wrong');
                     }
                     tfaErrorMessage = null;
                 }
@@ -245,70 +531,225 @@
 
     // Handle successful login
     async function handleSuccessfulLogin(data: any) {
-        // Decrypt and save master key
-        if (data.user && data.user.encrypted_key && data.user.salt) {
-            try {
-                const saltString = atob(data.user.salt);
-                const salt = new Uint8Array(saltString.length);
-                for (let i = 0; i < saltString.length; i++) {
-                    salt[i] = saltString.charCodeAt(i);
-                }
-                const wrappingKey = await cryptoService.deriveKeyFromPassword(password, salt);
-                const masterKey = cryptoService.decryptKey(data.user.encrypted_key, wrappingKey);
-
-                if (masterKey) {
-                    cryptoService.saveKeyToSession(masterKey, stayLoggedIn);
-                    console.debug('Master key decrypted and saved to session/local storage.');
-                    
-                    // Save email encrypted with master key for payment processing
-                    const emailStoredSuccessfully = cryptoService.saveEmailEncryptedWithMasterKey(email, stayLoggedIn);
-                    if (!emailStoredSuccessfully) {
-                        console.error('Failed to encrypt and store email with master key during login');
-                    } else {
-                        console.debug('Email encrypted and stored with master key for payment processing');
-                    }
-                    
-                    // Update user profile with received data
-                    if (data.user) {
-                        const userProfileData = {
-                            username: data.user.username || '',
-                            profile_image_url: data.user.profile_image_url || null,
-                            credits: data.user.credits || 0,
-                            is_admin: data.user.is_admin || false,
-                            last_opened: data.user.last_opened || '',
-                            tfa_app_name: data.user.tfa_app_name || null,
-                            tfa_enabled: data.user.tfa_enabled || false,
-                            consent_privacy_and_apps_default_settings: data.user.consent_privacy_and_apps_default_settings || false,
-                            consent_mates_default_settings: data.user.consent_mates_default_settings || false,
-                            language: data.user.language || 'en',
-                            darkmode: data.user.darkmode || false
-                        };
-                        
-                        // Update the user profile store
-                        updateProfile(userProfileData);
-                        console.debug('User profile updated with login data:', userProfileData);
-                    }
-                    
-                    // Check if user is in signup flow based on last_opened path
-                    const inSignupFlow = data.user?.last_opened?.startsWith('/signup/') || false;
-                    console.debug('Login success, in signup flow:', inSignupFlow);
-                    
-                    // Clear sensitive data
-                    password = '';
-                    tfaCode = '';
-                    
-                    // Dispatch success event
-                    dispatch('loginSuccess', {
-                        user: data.user,
-                        inSignupFlow: inSignupFlow
-                    });
-                } else {
-                    errorMessage = 'Failed to decrypt master key. Please try again.';
-                }
-            } catch (e) {
-                console.error('Error during key decryption:', e);
-                errorMessage = 'Error during key decryption. Please try again.';
+        console.debug('[PasswordAndTfaOtp] handleSuccessfulLogin called with data:', {
+            hasUser: !!data.user,
+            hasEncryptedKey: !!data.user?.encrypted_key,
+            hasSalt: !!data.user?.salt,
+            hasKeyIv: !!data.user?.key_iv,
+            hasWsToken: !!data.ws_token
+        });
+        
+        // CRITICAL: Store WebSocket token FIRST before any auth state changes
+        // This must happen before calling setAuthenticatedState to prevent race conditions
+        if (data.ws_token) {
+            const { setWebSocketToken } = await import('../utils/cookies');
+            setWebSocketToken(data.ws_token);
+            console.debug('[PasswordAndTfaOtp] WebSocket token stored from login response');
+        } else {
+            console.warn('[PasswordAndTfaOtp] No ws_token in login response - WebSocket connection may fail on Safari/iPad');
+        }
+        
+        // CRITICAL: Validate required data for master key decryption
+        // If any required field is missing, show error instead of silently failing
+        if (!data.user) {
+            console.error('[PasswordAndTfaOtp] CRITICAL: Login response missing user object!');
+            errorMessage = $text('login.login_failed');
+            return;
+        }
+        
+        if (!data.user.encrypted_key) {
+            console.error('[PasswordAndTfaOtp] CRITICAL: Login response missing encrypted_key! User object keys:', Object.keys(data.user));
+            errorMessage = $text('login.login_failed');
+            return;
+        }
+        
+        if (!data.user.salt) {
+            console.error('[PasswordAndTfaOtp] CRITICAL: Login response missing salt! User object keys:', Object.keys(data.user));
+            errorMessage = $text('login.login_failed');
+            return;
+        }
+        
+        // Decrypt and save master key (Web Crypto API)
+        try {
+            // Decode salt from base64
+            console.debug('[PasswordAndTfaOtp] Decoding salt from base64...');
+            const saltString = atob(data.user.salt);
+            const salt = new Uint8Array(saltString.length);
+            for (let i = 0; i < saltString.length; i++) {
+                salt[i] = saltString.charCodeAt(i);
             }
+
+            // Derive wrapping key from password
+            console.debug('[PasswordAndTfaOtp] Deriving wrapping key from password...');
+            const wrappingKey = await cryptoService.deriveKeyFromPassword(password, salt);
+
+            // Unwrap master key with IV (Web Crypto API)
+            const keyIv = data.user.key_iv || ''; // IV for key unwrapping
+            console.debug('[PasswordAndTfaOtp] Decrypting master key...');
+            const masterKey = await cryptoService.decryptKey(data.user.encrypted_key, keyIv, wrappingKey);
+
+            if (!masterKey) {
+                console.error('[PasswordAndTfaOtp] Master key decryption returned null/undefined');
+                errorMessage = 'Failed to decrypt master key. Please try again.';
+                return;
+            }
+            
+            // Save extractable master key to IndexedDB
+            // Extractable keys allow wrapping for recovery keys while still using Web Crypto API
+            // Pass stayLoggedIn to ensure key is cleared on tab/browser close if user didn't check "Stay logged in"
+            // CRITICAL: Wrap in try-catch to handle IndexedDB failures (e.g., blocked by other tabs)
+            console.debug('[PasswordAndTfaOtp] Saving master key to IndexedDB...');
+            try {
+                await cryptoService.saveKeyToSession(masterKey, stayLoggedIn);
+                console.debug('[PasswordAndTfaOtp] Master key unwrapped and saved to IndexedDB (extractable).');
+            } catch (saveError) {
+                // IndexedDB can fail for various reasons:
+                // - Browser in private/incognito mode with IndexedDB disabled
+                // - Storage quota exceeded
+                // - Database corruption
+                // - Firefox-specific bugs with IndexedDB
+                console.error('[PasswordAndTfaOtp] CRITICAL: Failed to save master key to IndexedDB!', saveError);
+                errorMessage = 'Failed to save login data. Please try refreshing the page or using a different browser.';
+                return;
+            }
+
+            // Store pair login credentials in sessionStorage so the authorizing device
+            // can build the encrypted bundle for SettingsSessionsConfirmPair.
+            // These are never sent to the server in plaintext — only as AES ciphertext during pairing.
+            // Keys: openmates_pair_lookup_hash, openmates_pair_encrypted_key, openmates_pair_salt
+            try {
+                sessionStorage.setItem('openmates_pair_lookup_hash', lookup_hash);
+                sessionStorage.setItem('openmates_pair_encrypted_key', data.user.encrypted_key);
+                sessionStorage.setItem('openmates_pair_salt', data.user.salt);
+            } catch (pairStoreErr) {
+                // Non-fatal — pair login will show an error to re-login if needed
+                console.warn('[PasswordAndTfaOtp] Failed to store pair credentials:', pairStoreErr);
+            }
+
+            // Save email encrypted with master key for payment processing
+            const emailStoredSuccessfully = await cryptoService.saveEmailEncryptedWithMasterKey(email, false);
+            if (!emailStoredSuccessfully) {
+                console.error('[PasswordAndTfaOtp] Failed to encrypt and store email with master key during login');
+                // Don't block login for this - it's not critical
+            } else {
+                console.debug('[PasswordAndTfaOtp] Email encrypted and stored with master key for payment processing');
+            }
+            
+            // Check if user is in signup flow BEFORE updating profile
+            // A user is in signup flow ONLY if last_opened explicitly indicates a signup path.
+            // Do NOT infer signup from tfa_enabled=false — users who completed signup but skipped
+            // 2FA setup have tfa_enabled=false and should NOT be forced back into the signup flow.
+            // This aligns with authLoginLogoutActions.ts and authSessionActions.ts which also
+            // do not use tfa_enabled=false for signup detection (to protect passkey users too).
+            const { isInSignupProcess, currentSignupStep, getStepFromPath, isSignupPath } = await import('../stores/signupState');
+            const inSignupFlow = isSignupPath(data.user?.last_opened);
+            console.debug('[PasswordAndTfaOtp] Login success, in signup flow:', inSignupFlow, {
+                last_opened: data.user?.last_opened,
+                tfa_enabled: data.user?.tfa_enabled
+            });
+            
+            // If user completed signup but has no 2FA, show a reminder notification.
+            // This only fires on fresh login (not page reload — session restore uses authSessionActions.ts).
+            if (!inSignupFlow && data.user?.tfa_enabled === false) {
+                console.debug('[PasswordAndTfaOtp] User has no 2FA — showing security reminder notification');
+                try {
+                    const { notificationStore } = await import('../stores/notificationStore');
+                    const { text } = await import('../i18n/translations');
+                    const { get } = await import('svelte/store');
+                    const t = get(text);
+                    notificationStore.addNotificationWithOptions('warning', {
+                        title: t('notifications.security_reminder.title'),
+                        message: t('notifications.security_reminder.message'),
+                        actionLabel: t('notifications.security_reminder.action'),
+                        onAction: () => {
+                            // Deep-link into security settings
+                            if (typeof window !== 'undefined') {
+                                window.location.hash = '#settings/account/security';
+                            }
+                        },
+                        duration: 0, // Persistent until dismissed
+                        dismissible: true,
+                    });
+                } catch (notifError) {
+                    console.warn('[PasswordAndTfaOtp] Failed to show 2FA reminder notification:', notifError);
+                }
+            }
+            
+            // If in signup flow, set signup state IMMEDIATELY before any other operations
+            // This prevents WebSocket from sending set_active_chat and overwriting last_opened
+            if (inSignupFlow) {
+                // Determine step: use last_opened if it's a signup path
+                const stepName = getStepFromPath(data.user.last_opened);
+                currentSignupStep.set(stepName);
+                isInSignupProcess.set(true);
+                console.debug('[PasswordAndTfaOtp] Signup flow detected - set isInSignupProcess=true immediately, step:', stepName);
+            }
+            
+            // Update user profile with received data
+            if (data.user) {
+                // Log auto top-up fields from backend response - ERROR if missing
+                const hasAutoTopupFields = 'auto_topup_low_balance_enabled' in data.user;
+                if (!hasAutoTopupFields) {
+                    console.error('[PasswordAndTfaOtp] ERROR: Auto top-up fields missing from backend response (successful login)!');
+                    console.error('[PasswordAndTfaOtp] Received user object keys:', Object.keys(data.user));
+                    console.error('[PasswordAndTfaOtp] Full user object:', data.user);
+                } else {
+                    console.debug('[PasswordAndTfaOtp] Auto top-up fields from backend (successful login):', {
+                        enabled: data.user.auto_topup_low_balance_enabled,
+                        threshold: data.user.auto_topup_low_balance_threshold,
+                        amount: data.user.auto_topup_low_balance_amount,
+                        currency: data.user.auto_topup_low_balance_currency
+                    });
+                }
+                
+                // Save to IndexedDB first - wrap in try-catch for IndexedDB failures
+                console.debug('[PasswordAndTfaOtp] Saving user data to IndexedDB...');
+                try {
+                    const { userDB } = await import('../services/userDB');
+                    await userDB.saveUserData(data.user);
+                    console.debug('[PasswordAndTfaOtp] User data saved to IndexedDB');
+                } catch (userDbError) {
+                    console.error('[PasswordAndTfaOtp] Failed to save user data to IndexedDB:', userDbError);
+                    // Don't block login for this - profile store update below is more important
+                }
+                
+                const userProfileData = {
+                    username: data.user.username || '',
+                    profile_image_url: data.user.profile_image_url || null,
+                    credits: data.user.credits || 0,
+                    is_admin: data.user.is_admin || false,
+                    last_opened: data.user.last_opened || '',
+                    tfa_app_name: data.user.tfa_app_name || null,
+                    tfa_enabled: data.user.tfa_enabled || false,
+                    consent_privacy_and_apps_default_settings: data.user.consent_privacy_and_apps_default_settings || false,
+                    consent_mates_default_settings: data.user.consent_mates_default_settings || false,
+                    language: data.user.language || 'en',
+                    darkmode: data.user.darkmode || false,
+                    // Low balance auto top-up fields
+                    auto_topup_low_balance_enabled: data.user.auto_topup_low_balance_enabled ?? false,
+                    auto_topup_low_balance_threshold: data.user.auto_topup_low_balance_threshold,
+                    auto_topup_low_balance_amount: data.user.auto_topup_low_balance_amount,
+                    auto_topup_low_balance_currency: data.user.auto_topup_low_balance_currency
+                };
+                
+                // Update the user profile store
+                updateProfile(userProfileData);
+                console.debug('[PasswordAndTfaOtp] User profile updated with login data:', userProfileData);
+            }
+            
+            // Clear sensitive data
+            password = '';
+            tfaCode = '';
+            
+            // Dispatch success event
+            console.debug('[PasswordAndTfaOtp] Dispatching loginSuccess event');
+            dispatch('loginSuccess', {
+                user: data.user,
+                inSignupFlow: inSignupFlow
+            });
+        } catch (e) {
+            console.error('[PasswordAndTfaOtp] Error during key decryption:', e);
+            errorMessage = 'Error during key decryption. Please try again.';
         }
     }
 
@@ -353,9 +794,8 @@
 
     // Handle back to email
     function handleBackToEmail() {
-        // Clear all local and session storage to remove email encryption key and salt
-        localStorage.clear();
-        sessionStorage.clear();
+        // Clear email encryption key and salt specifically (security: remove sensitive data when interrupting login)
+        cryptoService.clearAllEmailData();
         dispatch('backToEmail');
     }
 
@@ -382,9 +822,45 @@
 </script>
 
 <div class="password-tfa-login" in:fade={{ duration: 300 }}>
-    {#if isRateLimited}
+    {#if showAccountRecovery}
+        <!-- Account Recovery UI - replaces the login form -->
+        <AccountRecovery
+            {email}
+            on:back={() => {
+                showAccountRecovery = false;
+            }}
+            on:resetComplete={() => {
+                // Account reset completed successfully
+                // CRITICAL: Do NOT dispatch loginSuccess - user is NOT logged in!
+                // The backend resets credentials but does NOT create a session.
+                // User must login with their new credentials.
+                console.log('[PasswordAndTfaOtp] Account reset completed, returning to login');
+                
+                // CRITICAL: Clear the old email salt from storage!
+                // After recovery, the server has a NEW user_email_salt.
+                // We must clear the old one so the /lookup endpoint returns the new salt.
+                // Otherwise, login will fail with "Invalid lookup hash" because
+                // the client would compute lookup_hash with the old salt.
+                cryptoService.clearEmailSalt();
+                cryptoService.clearEmailEncryptionKey();
+                console.log('[PasswordAndTfaOtp] Cleared old email salt and encryption key after account reset');
+                
+                // Show success notification with instructions to login
+                notificationStore.success(
+                    $text('login.account_reset_complete_login_now'),
+                    8000
+                );
+                
+                // Dispatch backToEmail event to FULLY RESET the login interface
+                // This clears the email and returns to the initial login state where
+                // the user must either click "Login with passkey" or enter their email.
+                // NOTE: We use 'backToEmail' (not 'back') because Login.svelte listens for this event.
+                dispatch('backToEmail');
+            }}
+        />
+    {:else if isRateLimited}
         <div class="rate-limit-message" in:fade={{ duration: 200 }}>
-            {$text('signup.too_many_requests.text')}
+            {$text('signup.too_many_requests')}
         </div>
     {:else}
         <!-- Combined password and 2FA form -->
@@ -413,7 +889,7 @@
                     bind:this={passwordInput}
                     type="password"
                     bind:value={password}
-                    placeholder={$text('login.password_placeholder.text')}
+                    placeholder={$text('login.password_placeholder')}
                     required
                     autocomplete="current-password"
                     class:error={!!errorMessage}
@@ -422,21 +898,20 @@
                 {#if errorMessage}
                     <InputWarning
                         message={errorMessage}
-                        target={passwordInput}
                     />
                 {/if}
             </div>
         </div>
 
         <!-- 2FA section - only visible if required -->
-        {#if tfa_required}
+        {#if tfaRequiredState}
         <!-- Wrap check-2fa text for conditional hiding -->
         <div class="check-2fa-container" class:hidden={isBackupMode}>
             <p id="check-2fa" class="check-2fa-text" style={getStyle('check-2fa')}>
                 {#if isBackupMode}
-                    {@html $text('login.backup_code_is_single_use.text')}
+                    {@html $text('login.backup_code_is_single_use')}
                 {:else if currentDisplayedApp}
-                    <span class="app-name-inline">{@html $text('login.check_your_2fa_app.text').replace('{tfa_app}', '')}</span>
+                    <span class="app-name-inline">{@html $text('login.check_your_2fa_app').replace('{tfa_app}', '')}</span>
                     <span class="app-name-inline">
                         {#if tfaAppIconClass}
                             <span class="icon provider-{tfaAppIconClass} mini-icon {previewMode && !tfaAppName ? 'fade-animation' : ''}"></span>
@@ -444,7 +919,7 @@
                         <span class="{previewMode && !tfaAppName ? 'fade-text' : ''}">{currentDisplayedApp}</span>
                     </span>
                 {:else}
-                    {@html $text('login.check_your_2fa_app.text').replace('{tfa_app}', $text('login.your_tfa_app.text'))}
+                    {@html $text('login.check_your_2fa_app').replace('{tfa_app}', $text('login.your_tfa_app'))}
                 {/if}
             </p>
 
@@ -482,7 +957,6 @@
                     {#if tfaErrorMessage}
                         <InputWarning
                             message={tfaErrorMessage}
-                            target={tfaInput}
                         />
                     {/if}
                 </div>
@@ -498,23 +972,24 @@
             {#if isLoading}
                 <span class="loading-spinner"></span>
             {:else}
-                {$text('login.login_button.text')}
+                {$text('login.login_button')}
             {/if}
         </button>
     </form>
+    {/if}
 
-    <!-- Login options container -->
+    <!-- Login options container - always visible -->
     <div class="login-options-container">
         <!-- Back to email button -->
         <div id="login-with-another-account" style={getStyle('login-with-another-account')}>
             <button class="login-option-button" onclick={handleBackToEmail}>
                 <span class="clickable-icon icon_user"></span>
-                <mark>{$text('login.login_with_another_account.text')}</mark>
+                <mark>{$text('login.login_with_another_account')}</mark>
             </button>
         </div>
 
-        <!-- Toggle Button - only if TFA is required -->
-        {#if tfa_required}
+        <!-- Toggle Button - only if TFA is required and not in account recovery mode -->
+        {#if tfaRequiredState && !showAccountRecovery}
         <div id="login-with-backup-code" style={getStyle('login-with-backup-code')}>
             <button class="login-option-button" onclick={toggleBackupMode} disabled={isLoading}>
                 {#if isBackupMode}
@@ -527,15 +1002,27 @@
         </div>
         {/if}
 
-        <!-- Login options -->
+        <!-- Login with recovery key -->
         <div id="login-with-recoverykey" style={getStyle('login-with-recoverykey')}>
             <button class="login-option-button" onclick={handleSwitchToRecoveryKey}>
                 <span class="clickable-icon icon_warning"></span>
-                <mark>{$text('login.login_with_recovery_key.text')}</mark>
+                <mark>{$text('login.login_with_recovery_key')}</mark>
             </button>
         </div>
+        
+        <!-- Can't login to account? - only show when NOT in account recovery mode -->
+        {#if !showAccountRecovery}
+        <div class="cant-login-divider">
+            <hr />
+        </div>
+        <div id="cant-login">
+            <button class="login-option-button cant-login-button" onclick={() => showAccountRecovery = true}>
+                <span class="clickable-icon icon_warning"></span>
+                <mark>{$text('login.cant_login')}</mark>
+            </button>
+        </div>
+        {/if}
     </div>
-    {/if}
 </div>
 
 <style>
@@ -617,5 +1104,14 @@
         background-color: var(--color-error-light);
         border-radius: 8px;
         margin: 24px 0;
+    }
+    
+    .cant-login-divider {
+        width: 100%;
+    }
+    
+    .cant-login-divider hr {
+        border: none;
+        border-top: 1px solid var(--color-grey-30);
     }
 </style>

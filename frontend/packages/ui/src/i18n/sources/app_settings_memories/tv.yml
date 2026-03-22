@@ -1,0 +1,614 @@
+watched_movies:
+  context: Settings/memory name for watched movies
+  en: Watched Movies
+  de: Gesehene Filme
+  zh: 已看电影
+  es: Películas vistas
+  fr: Films regardés
+  pt: Filmes assistidos
+  ru: Просмотренные фильмы
+  ja: 視聴した映画
+  ko: 본 영화
+  it: Film visti
+  tr: İzlenen filmler
+  vi: Phim đã xem
+  id: Film yang ditonton
+  pl: Obejrzane filmy
+  nl: Bekeken films
+  ar: الأفلام المشاهدة
+  hi: देखे गए फिल्में
+  th: ภาพยนตร์ที่ดูแล้ว
+  cs: Sledované filmy
+  sv: Tittade filmer
+  he: סרטים שראיתי
+  verified_by_human:
+    - en
+    - de
+watched_movies.description:
+  context: Description for watched movies settings/memory
+  en: Movies you have watched
+  de: Filme, die du gesehen hast
+  zh: 你看过的电影
+  es: Películas que has visto
+  fr: Films que vous avez regardés
+  pt: Filmes que você assistiu
+  ru: Фильмы, которые вы посмотрели
+  ja: あなたが見た映画
+  ko: 본 영화
+  it: Film che hai visto
+  tr: İzlediğiniz filmler
+  vi: Phim bạn đã xem
+  id: Film yang telah Anda tonton
+  pl: Filmy, które obejrzałeś
+  nl: Films die je hebt bekeken
+  ar: الأفلام التي شاهدتها
+  hi: आपके द्वारा देखे गए फिल्में
+  th: ภาพยนตร์ที่คุณดูแล้ว
+  cs: Filmy, které jste viděli
+  sv: Filmer du har sett
+  he: סרטים שראית
+  verified_by_human:
+    - en
+    - de
+watched_tv_shows:
+  context: Settings/memory name for watched TV shows
+  en: Watched TV Shows
+  de: Gesehene TV-Serien
+  zh: 已看电视剧
+  es: Series de TV vistas
+  fr: Séries TV regardées
+  pt: Séries de TV assistidas
+  ru: Просмотренные сериалы
+  ja: 視聴したテレビ番組
+  ko: 본 TV 프로그램
+  it: Serie TV viste
+  tr: İzlenen TV dizileri
+  vi: Chương trình TV đã xem
+  id: Acara TV yang ditonton
+  pl: Obejrzane seriale
+  nl: Bekeken TV-series
+  ar: البرامج التلفزيونية المشاهدة
+  hi: देखे गए टीवी शो
+  th: รายการทีวีที่ดูแล้ว
+  cs: Sledované seriály
+  sv: Tittade TV-program
+  he: סדרות שראיתי
+  verified_by_human:
+    - en
+    - de
+watched_tv_shows.description:
+  context: Description for watched TV shows settings/memory
+  en: TV shows you have watched or are watching
+  de: TV-Serien, die du gesehen hast oder gerade schaust
+  zh: 你看过或正在看的电视节目
+  es: Series de TV que has visto o estás viendo
+  fr: Séries TV que vous avez regardées ou que vous regardez
+  pt: Séries de TV que você assistiu ou está assistindo
+  ru: Телесериалы, которые вы посмотрели или смотрите
+  ja: あなたが見た、または見ているテレビ番組
+  ko: 본 또는 시청 중인 TV 프로그램
+  it: Serie TV che hai visto o stai guardando
+  tr: İzlediğiniz veya izlediğiniz TV dizileri
+  vi: Chương trình TV bạn đã xem hoặc đang xem
+  id: Acara TV yang telah Anda tonton atau sedang ditonton
+  pl: Seriale, które obejrzałeś lub oglądasz
+  nl: TV-series die je hebt bekeken of bekijkt
+  ar: البرامج التلفزيونية التي شاهدتها أو تشاهدها
+  hi: आपके द्वारा देखे गए या देखे जा रहे टीवी शो
+  th: รายการทีวีที่คุณดูแล้วหรือกำลังดูอยู่
+  cs: Seriály, které jste viděli nebo sledujete
+  sv: TV-program du har sett eller tittar på
+  he: סדרות שראית או שאתה צופה בהן
+  verified_by_human:
+    - en
+    - de
+to_watch_list:
+  context: Settings/memory name for to watch list
+  en: To Watch List
+  de: Watchlist
+  zh: 待看清单
+  es: Lista de pendientes
+  fr: Liste à regarder
+  pt: Lista para assistir
+  ru: Список к просмотру
+  ja: 視聴リスト
+  ko: 시청 목록
+  it: Lista da guardare
+  tr: İzlenecekler listesi
+  vi: Danh sách xem
+  id: Daftar tontonan
+  pl: Lista do obejrzenia
+  nl: Te bekijken lijst
+  ar: قائمة المشاهدة
+  hi: देखने की सूची
+  th: รายการที่ต้องดู
+  cs: Seznam k sledování
+  sv: Att-se-lista
+  he: רשימת צפייה
+  verified_by_human:
+    - en
+    - de
+to_watch_list.description:
+  context: Description for to watch list settings/memory
+  en: Movies and TV shows you want to watch
+  de: Filme und TV-Serien, die du sehen möchtest
+  zh: 你想看的电影和电视节目
+  es: Películas y series de TV que quieres ver
+  fr: Films et séries TV que vous souhaitez regarder
+  pt: Filmes e séries de TV que você quer assistir
+  ru: Фильмы и телесериалы, которые вы хотите посмотреть
+  ja: 見たい映画とテレビ番組
+  ko: 보고 싶은 영화 및 TV 프로그램
+  it: Film e serie TV che vuoi guardare
+  tr: İzlemek istediğiniz filmler ve TV dizileri
+  vi: Phim và chương trình TV bạn muốn xem
+  id: Film dan acara TV yang ingin Anda tonton
+  pl: Filmy i seriale, które chcesz obejrzeć
+  nl: Films en TV-series die je wilt bekijken
+  ar: الأفلام والبرامج التلفزيونية التي تريد مشاهدتها
+  hi: आप जिन फिल्मों और टीवी शो को देखना चाहते हैं
+  th: ภาพยนตร์และรายการทีวีที่คุณต้องการดู
+  cs: Filmy a seriály, které chcete sledovat
+  sv: Filmer och TV-program du vill titta på
+  he: סרטים וסדרות שאתה רוצה לראות
+  verified_by_human:
+    - en
+    - de
+
+# Example entries shown to non-authenticated users to illustrate what each category stores
+
+watched_movies.example_1:
+  context: Example entry for watched movies (a classic sci-fi movie)
+  en: Inception
+  de: Inception
+  zh: 盗梦空间
+  es: Origen
+  fr: Inception
+  pt: A Origem
+  ru: Начало
+  ja: インセプション
+  ko: 인셉션
+  it: Inception
+  tr: Başlangıç
+  vi: Kẻ đánh cắp giấc mơ
+  id: Inception
+  pl: Incepcja
+  nl: Inception
+  ar: استهلال
+  hi: इन्सेप्शन
+  th: อินเซปชัน
+  cs: Počátek
+  sv: Inception
+  he: התחלה
+  verified_by_human: [en, de]
+
+watched_movies.example_2:
+  context: Example entry for watched movies (a popular movie)
+  en: The Shawshank Redemption
+  de: Die Verurteilten
+  zh: 肖申克的救赎
+  es: Cadena perpetua
+  fr: Les Évadés
+  pt: Um Sonho de Liberdade
+  ru: Побег из Шоушенка
+  ja: ショーシャンクの空に
+  ko: 쇼생크 탈출
+  it: Le Ali della Libertà
+  tr: Esaretin Bedeli
+  vi: Nhà tù Shawshank
+  id: The Shawshank Redemption
+  pl: Skazani na Shawshank
+  nl: The Shawshank Redemption
+  ar: الخلاص من شاوشانك
+  hi: द शॉशैंक रिडेम्पशन
+  th: ชอว์แชงค์
+  cs: Vykoupení z věznice Shawshank
+  sv: Nyckeln till frihet
+  he: חומות של תקווה
+  verified_by_human: [en, de]
+
+watched_tv_shows.example_1:
+  context: Example entry for watched TV shows (a popular drama)
+  en: Breaking Bad
+  de: Breaking Bad
+  zh: 绝命毒师
+  es: Breaking Bad
+  fr: Breaking Bad
+  pt: Breaking Bad
+  ru: Во все тяжкие
+  ja: ブレイキング・バッド
+  ko: 브레이킹 배드
+  it: Breaking Bad
+  tr: Breaking Bad
+  vi: Tập làm người xấu
+  id: Breaking Bad
+  pl: Breaking Bad
+  nl: Breaking Bad
+  ar: بريكينغ باد
+  hi: ब्रेकिंग बैड
+  th: บเรกกิ้ง แบด
+  cs: Perníkový táta
+  sv: Breaking Bad
+  he: שובר שורות
+  verified_by_human: [en, de]
+
+watched_tv_shows.example_2:
+  context: Example entry for watched TV shows (a popular sci-fi show)
+  en: Stranger Things
+  de: Stranger Things
+  zh: 怪奇物语
+  es: Stranger Things
+  fr: Stranger Things
+  pt: Stranger Things
+  ru: Очень странные дела
+  ja: ストレンジャー・シングス
+  ko: 기묘한 이야기
+  it: Stranger Things
+  tr: Stranger Things
+  vi: Cậu bé mất tích
+  id: Stranger Things
+  pl: Stranger Things
+  nl: Stranger Things
+  ar: أشياء غريبة
+  hi: स्ट्रेंजर थिंग्स
+  th: สเตรนเจอร์ ธิงส์
+  cs: Stranger Things
+  sv: Stranger Things
+  he: דברים מוזרים
+  verified_by_human: [en, de]
+
+to_watch_list.example_1:
+  context: Example entry for to watch list (a recent movie)
+  en: Oppenheimer
+  de: Oppenheimer
+  zh: 奥本海默
+  es: Oppenheimer
+  fr: Oppenheimer
+  pt: Oppenheimer
+  ru: Оппенгеймер
+  ja: オッペンハイマー
+  ko: 오펜하이머
+  it: Oppenheimer
+  tr: Oppenheimer
+  vi: Oppenheimer
+  id: Oppenheimer
+  pl: Oppenheimer
+  nl: Oppenheimer
+  ar: أوبنهايمر
+  hi: ओपनहाइमर
+  th: ออพเพนไฮเมอร์
+  cs: Oppenheimer
+  sv: Oppenheimer
+  he: אופנהיימר
+  verified_by_human: [en, de]
+
+to_watch_list.example_2:
+  context: Example entry for to watch list (a popular TV show)
+  en: The Bear
+  de: The Bear
+  zh: 熊家餐馆
+  es: The Bear
+  fr: The Bear
+  pt: O Urso
+  ru: Медведь
+  ja: ザ・ベア
+  ko: 더 베어
+  it: The Bear
+  tr: The Bear
+  vi: The Bear
+  id: The Bear
+  pl: The Bear
+  nl: The Bear
+  ar: ذا بير
+  hi: द बेयर
+  th: เดอะ แบร์
+  cs: The Bear
+  sv: The Bear
+  he: הדוב
+  verified_by_human: [en, de]
+
+# example_entries translation keys for watched_movies
+
+watched_movies.example_1.title:
+  context: Example movie title for watched movies
+  en: Inception
+  de: Inception
+  zh: 盗梦空间
+  es: Origen
+  fr: Inception
+  pt: A Origem
+  ru: Начало
+  ja: インセプション
+  ko: 인셉션
+  it: Inception
+  tr: Başlangıç
+  vi: Kẻ đánh cắp giấc mơ
+  id: Inception
+  pl: Incepcja
+  nl: Inception
+  ar: استهلال
+  hi: इन्सेप्शन
+  th: อินเซปชัน
+  cs: Počátek
+  sv: Inception
+  he: התחלה
+  verified_by_human: []
+
+watched_movies.example_1.notes:
+  context: Example notes for watched movie Inception
+  en: Mind-bending masterpiece about dreams within dreams
+  de: Gedankenverdrehendes Meisterwerk über Träume in Träumen
+  zh: 关于梦中之梦的烧脑杰作
+  es: Obra maestra alucinante sobre sueños dentro de sueños
+  fr: Chef-d'œuvre hallucinant sur les rêves dans les rêves
+  pt: Obra-prima surpreendente sobre sonhos dentro de sonhos
+  ru: Умопомрачительный шедевр о снах внутри снов
+  ja: 夢の中の夢を描いた驚異の傑作
+  ko: 꿈속의 꿈에 관한 놀라운 걸작
+  it: Capolavoro sbalorditivo sui sogni dentro i sogni
+  tr: Rüya içinde rüyayı anlatan büyüleyici başyapıt
+  vi: Kiệt tác đảo lộn tư duy về giấc mơ trong giấc mơ
+  id: Mahakarya yang memutar pikiran tentang mimpi di dalam mimpi
+  pl: Oszałamiające arcydzieło o snach w snach
+  nl: Geestverruimend meesterwerk over dromen in dromen
+  ar: تحفة مذهلة عن أحلام داخل أحلام
+  hi: सपनों के भीतर सपनों के बारे में दिमाग चकरा देने वाली कृति
+  th: ผลงานชิ้นเอกที่ท้าทายความคิดเกี่ยวกับความฝันในความฝัน
+  cs: Ohromující mistrovské dílo o snech uvnitř snů
+  sv: Tankeväckande mästerverk om drömmar i drömmar
+  he: יצירת מופת מסחררת על חלומות בתוך חלומות
+  verified_by_human: []
+
+watched_movies.example_2.title:
+  context: Example movie title for watched movies
+  en: Parasite
+  de: Parasite
+  zh: 寄生虫
+  es: Parásitos
+  fr: Parasite
+  pt: Parasita
+  ru: Паразиты
+  ja: パラサイト 半地下の家族
+  ko: 기생충
+  it: Parasite
+  tr: Parazit
+  vi: Ký sinh trùng
+  id: Parasite
+  pl: Parasite
+  nl: Parasite
+  ar: طفيلي
+  hi: पैरासाइट
+  th: ชนชั้นปรสิต
+  cs: Parazit
+  sv: Parasit
+  he: פרזיט
+  verified_by_human: []
+
+watched_movies.example_2.notes:
+  context: Example notes for watched movie Parasite
+  en: Brilliant social commentary with unexpected twists
+  de: Brillanter sozialer Kommentar mit unerwarteten Wendungen
+  zh: 出色的社会评论，充满意想不到的转折
+  es: Brillante comentario social con giros inesperados
+  fr: Commentaire social brillant avec des rebondissements inattendus
+  pt: Comentário social brilhante com reviravoltas inesperadas
+  ru: Блестящий социальный комментарий с неожиданными поворотами
+  ja: 予想外の展開を持つ見事な社会風刺
+  ko: 예상치 못한 반전이 있는 뛰어난 사회 비평
+  it: Brillante commento sociale con colpi di scena inaspettati
+  tr: Beklenmedik dönüşlerle parlak bir sosyal yorum
+  vi: Bình luận xã hội xuất sắc với những bước ngoặt bất ngờ
+  id: Komentar sosial brilian dengan kejutan tak terduga
+  pl: Błyskotliwy komentarz społeczny z niespodziewanymi zwrotami akcji
+  nl: Briljant sociaal commentaar met onverwachte wendingen
+  ar: تعليق اجتماعي رائع مع تقلبات غير متوقعة
+  hi: अप्रत्याशित मोड़ के साथ शानदार सामाजिक टिप्पणी
+  th: บทวิจารณ์สังคมอันยอดเยี่ยมพร้อมเรื่องพลิกผันที่ไม่คาดคิด
+  cs: Brilantní sociální komentář s nečekanými zvraty
+  sv: Briljant samhällskommentar med oväntade vändningar
+  he: פרשנות חברתית מבריקה עם תפניות בלתי צפויות
+  verified_by_human: []
+
+# example_entries translation keys for watched_tv_shows
+
+watched_tv_shows.example_1.title:
+  context: Example TV show title for watched TV shows
+  en: Breaking Bad
+  de: Breaking Bad
+  zh: 绝命毒师
+  es: Breaking Bad
+  fr: Breaking Bad
+  pt: Breaking Bad
+  ru: Во все тяжкие
+  ja: ブレイキング・バッド
+  ko: 브레이킹 배드
+  it: Breaking Bad
+  tr: Breaking Bad
+  vi: Tập làm người xấu
+  id: Breaking Bad
+  pl: Breaking Bad
+  nl: Breaking Bad
+  ar: بريكينغ باد
+  hi: ब्रेकिंग बैड
+  th: บเรกกิ้ง แบด
+  cs: Perníkový táta
+  sv: Breaking Bad
+  he: שובר שורות
+  verified_by_human: []
+
+watched_tv_shows.example_1.notes:
+  context: Example notes for watched TV show Breaking Bad
+  en: One of the greatest TV shows ever made
+  de: Eine der besten Fernsehserien aller Zeiten
+  zh: 史上最伟大的电视剧之一
+  es: Una de las mejores series de televisión jamás realizadas
+  fr: L'une des meilleures séries télévisées jamais réalisées
+  pt: Uma das maiores séries de TV já feitas
+  ru: Один из величайших сериалов всех времён
+  ja: 史上最高のテレビシリーズの一つ
+  ko: 역대 최고의 TV 시리즈 중 하나
+  it: Una delle più grandi serie TV mai realizzate
+  tr: Gelmiş geçmiş en iyi TV dizilerinden biri
+  vi: Một trong những bộ phim truyền hình vĩ đại nhất từng được sản xuất
+  id: Salah satu serial TV terbaik yang pernah dibuat
+  pl: Jeden z najlepszych seriali telewizyjnych w historii
+  nl: Een van de beste tv-series ooit gemaakt
+  ar: واحد من أعظم المسلسلات التلفزيونية على الإطلاق
+  hi: अब तक बने सबसे महान टीवी शो में से एक
+  th: หนึ่งในซีรีส์ทีวีที่ยิ่งใหญ่ที่สุดตลอดกาล
+  cs: Jeden z nejlepších televizních seriálů všech dob
+  sv: En av de bästa TV-serierna någonsin
+  he: אחת מסדרות הטלוויזיה הגדולות שנעשו אי פעם
+  verified_by_human: []
+
+watched_tv_shows.example_2.title:
+  context: Example TV show title for watched TV shows
+  en: The Bear
+  de: The Bear
+  zh: 熊家餐馆
+  es: The Bear
+  fr: The Bear
+  pt: O Urso
+  ru: Медведь
+  ja: ザ・ベア
+  ko: 더 베어
+  it: The Bear
+  tr: The Bear
+  vi: The Bear
+  id: The Bear
+  pl: The Bear
+  nl: The Bear
+  ar: ذا بير
+  hi: द बेयर
+  th: เดอะ แบร์
+  cs: The Bear
+  sv: The Bear
+  he: הדוב
+  verified_by_human: []
+
+watched_tv_shows.example_2.notes:
+  context: Example notes for watched TV show The Bear
+  en: Intense kitchen drama with amazing performances
+  de: Intensives Küchendrama mit großartigen Darstellungen
+  zh: 紧张的厨房剧情，精彩的表演
+  es: Intenso drama de cocina con actuaciones increíbles
+  fr: Drame culinaire intense avec des performances incroyables
+  pt: Drama de cozinha intenso com performances incríveis
+  ru: Напряжённая кухонная драма с потрясающей игрой актёров
+  ja: 素晴らしい演技の緊迫したキッチンドラマ
+  ko: 놀라운 연기의 긴박한 주방 드라마
+  it: Dramma culinario intenso con interpretazioni straordinarie
+  tr: Muhteşem performanslarla yoğun bir mutfak draması
+  vi: Phim chính kịch nhà bếp gay cấn với diễn xuất tuyệt vời
+  id: Drama dapur yang intens dengan akting luar biasa
+  pl: Intensywny dramat kuchenny z niesamowitymi występami
+  nl: Intens keukendrama met geweldige prestaties
+  ar: دراما مطبخ مكثفة مع أداء مذهل
+  hi: अद्भुत प्रदर्शन के साथ गहन रसोई नाटक
+  th: ละครครัวเข้มข้นพร้อมการแสดงที่น่าทึ่ง
+  cs: Intenzivní kuchyňské drama s úžasnými hereckými výkony
+  sv: Intensivt köksdrama med fantastiska prestationer
+  he: דרמת מטבח אינטנסיבית עם משחק מדהים
+  verified_by_human: []
+
+# example_entries translation keys for to_watch_list
+
+to_watch_list.example_1.title:
+  context: Example title for to watch list
+  en: Oppenheimer
+  de: Oppenheimer
+  zh: 奥本海默
+  es: Oppenheimer
+  fr: Oppenheimer
+  pt: Oppenheimer
+  ru: Оппенгеймер
+  ja: オッペンハイマー
+  ko: 오펜하이머
+  it: Oppenheimer
+  tr: Oppenheimer
+  vi: Oppenheimer
+  id: Oppenheimer
+  pl: Oppenheimer
+  nl: Oppenheimer
+  ar: أوبنهايمر
+  hi: ओपनहाइमर
+  th: ออพเพนไฮเมอร์
+  cs: Oppenheimer
+  sv: Oppenheimer
+  he: אופנהיימר
+  verified_by_human: []
+
+to_watch_list.example_1.reason:
+  context: Example reason for to watch list entry Oppenheimer
+  en: Award-winning biographical film
+  de: Preisgekrönter biografischer Film
+  zh: 获奖传记电影
+  es: Película biográfica galardonada
+  fr: Film biographique primé
+  pt: Filme biográfico premiado
+  ru: Отмеченный наградами биографический фильм
+  ja: 受賞歴のある伝記映画
+  ko: 수상 경력의 전기 영화
+  it: Film biografico pluripremiato
+  tr: Ödüllü biyografik film
+  vi: Phim tiểu sử đoạt giải thưởng
+  id: Film biografi pemenang penghargaan
+  pl: Nagradzany film biograficzny
+  nl: Bekroonde biografische film
+  ar: فيلم سيرة ذاتية حائز على جوائز
+  hi: पुरस्कार विजेता जीवनी फिल्म
+  th: ภาพยนตร์ชีวประวัติที่ได้รับรางวัล
+  cs: Oceněný biografický film
+  sv: Prisbelönad biografisk film
+  he: סרט ביוגרפי זוכה פרסים
+  verified_by_human: []
+
+to_watch_list.example_2.title:
+  context: Example title for to watch list
+  en: Severance
+  de: Severance
+  zh: 人生切割术
+  es: Separación
+  fr: Severance
+  pt: Ruptura
+  ru: Разделение
+  ja: セヴェランス
+  ko: 세버런스
+  it: Severance
+  tr: Severance
+  vi: Severance
+  id: Severance
+  pl: Severance
+  nl: Severance
+  ar: سيفيرانس
+  hi: सेवरेंस
+  th: เซเวอแรนซ์
+  cs: Severance
+  sv: Severance
+  he: סברנס
+  verified_by_human: []
+
+to_watch_list.example_2.reason:
+  context: Example reason for to watch list entry Severance
+  en: Unique sci-fi workplace thriller
+  de: Einzigartiger Sci-Fi-Arbeitsplatzthriller
+  zh: 独特的科幻职场惊悚片
+  es: Thriller único de ciencia ficción en el lugar de trabajo
+  fr: Thriller unique de science-fiction au travail
+  pt: Thriller único de ficção científica no ambiente de trabalho
+  ru: Уникальный научно-фантастический рабочий триллер
+  ja: ユニークなSF職場スリラー
+  ko: 독특한 SF 직장 스릴러
+  it: Thriller fantascientifico unico ambientato sul posto di lavoro
+  tr: Eşsiz bir bilim kurgu iş yeri gerilimi
+  vi: Phim giật gân nơi công sở khoa học viễn tưởng độc đáo
+  id: Thriller tempat kerja fiksi ilmiah yang unik
+  pl: Unikalny thriller science fiction w miejscu pracy
+  nl: Unieke sci-fi werkplekthriller
+  ar: فيلم إثارة خيال علمي فريد في مكان العمل
+  hi: अनोखी साइ-फाई कार्यस्थल थ्रिलर
+  th: ภาพยนตร์ระทึกขวัญไซไฟในที่ทำงานที่ไม่เหมือนใคร
+  cs: Jedinečný sci-fi pracovní thriller
+  sv: Unik sci-fi-arbetsplatsthriller
+  he: מותחן מדע בדיוני ייחודי בסביבת עבודה
+  verified_by_human: []

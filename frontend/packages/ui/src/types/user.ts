@@ -11,5 +11,6 @@ export interface User {
     tfa_app_name?: string | null; // Explicitly define
     tfa_enabled?: boolean; // Explicitly define
     login_method?: string; // Store the selected login method (password, passkey, security_key)
+    hidden_demo_chats?: string[]; // Array of demo chat IDs that user has dismissed/deleted (decrypted on client)
     [key: string]: any; // Allow additional properties (can be kept or removed if strict typing is desired)
 }

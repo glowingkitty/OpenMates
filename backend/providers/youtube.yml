@@ -1,0 +1,40 @@
+# backend/providers/youtube.yml
+#
+# Configuration for YouTube provider.
+# Used by the videos app for transcript functionality.
+
+provider_id: "youtube"
+name: "YouTube"
+description: "YouTube video transcript extraction."
+logo_svg: "logos/youtube.svg" # Path for UI, relative to a common logos directory
+region: "US" # YouTube/Google HQ is in the US
+
+# API endpoint configuration
+# Note: YouTube transcript extraction uses a proxy service
+# The actual API endpoint is handled by the backend service
+
+rate_limits:
+  default:
+    requests_per_second: 50 # Reasonable default for Residential Proxies (no hard limit, but good practice)
+    requests_per_day: null # No daily limit (governed by monthly data allowance)
+
+# Pricing information
+# Cost per request in credits (user-facing pricing)
+#
+# Revenue Share Model (see docs/architecture/revenue_share_model.md):
+# - User pays: 20 credits per transcript request
+# - Creator (video owner) gets: 9 credits (claimable by channel owner)
+# - YouTube gets: 1 credit (claimable by YouTube to cover their server costs)
+# - OpenMates gets: 10 credits (covers operational costs, not tracked as creator income)
+#
+# This split:
+# 1. Provides compensation to video creators (€0.009 per transcript)
+# 2. Reserves credits for YouTube that they can claim to cover their server costs
+# 3. Covers OpenMates operational costs
+# 4. Keeps pricing competitive and fair for users (€0.02 per transcript)
+#
+# Users are always charged 20 credits per transcript request
+# If a user makes 5 parallel transcript requests, they are charged 100 credits total (5 * 20)
+pricing:
+  per_request_credits: 20 # Always 20 credits per transcript request for users (9 to creator, 1 to YouTube, 10 to OpenMates)
+

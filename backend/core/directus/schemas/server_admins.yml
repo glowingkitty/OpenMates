@@ -1,0 +1,20 @@
+server_admins:
+  type: collection
+  fields:
+    hashed_user_id:
+      type: string
+      length: 64
+      note: "SHA-256 hash of the user ID who has admin privileges"
+      required: true
+      unique: true
+    granted_at:
+      type: timestamp
+      note: "When admin privileges were granted"
+      required: true
+    is_active:
+      type: boolean
+      default: true
+      note: "Whether the admin privilege is currently active"
+    revoked_at:
+      type: timestamp
+      note: "When admin privileges were revoked"

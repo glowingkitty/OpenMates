@@ -1,24 +1,145 @@
-name: |
-  Code
-description: |
-  Write, test, improve and execute code.
+name_translation_key: code
+description_translation_key: code.description
 icon_image: |
   coding.svg
-icon_colorgradient:
-  start: |
-    #155D91
-  end: |
-    #42ABF4
-
+category: work
+last_updated: "2025-11-12"
 settings_and_memories:
-  - id: |
-      preferred_languages_frameworks_tech
-  - id: |
-      current_projects
-  - id: |
-      past_projects
-  - id: |
-      want_to_learn
+  # Preferred technologies: Languages, frameworks, tools the user prefers
+  - id: preferred_tech
+    name_translation_key: code.preferred_tech
+    description_translation_key: code.preferred_tech.description
+    icon_image: coding.svg
+    type: list
+    stage: production
+    example_translation_keys:
+      - "code.preferred_tech.example_1"
+      - "code.preferred_tech.example_2"
+    example_entries:
+      - name: "code.preferred_tech.example_1.name"
+        proficiency: "advanced"
+      - name: "code.preferred_tech.example_2.name"
+        proficiency: "intermediate"
+    schema:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Technology name (e.g., Python, React, Docker)
+          is_title: true
+        proficiency:
+          type: string
+          description: Your proficiency level
+          enum: ["beginner", "intermediate", "advanced", "expert"]
+          is_subtitle: true
+      required:
+        - name
+  # Projects: All projects with status to indicate current state
+  - id: projects
+    name_translation_key: code.projects
+    description_translation_key: code.projects.description
+    icon_image: project.svg
+    type: list
+    stage: production
+    example_translation_keys:
+      - "code.projects.example_1"
+      - "code.projects.example_2"
+    example_entries:
+      - name: "code.projects.example_1.name"
+        status: "active"
+        description: "code.projects.example_1.description"
+        git_repo_url: "https://github.com/user/portfolio"
+      - name: "code.projects.example_2.name"
+        status: "completed"
+        description: "code.projects.example_2.description"
+    schema:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Project name
+          is_title: true
+        status:
+          type: string
+          description: Project status
+          enum: ["active", "planned", "completed"]
+          is_subtitle: true
+        description:
+          type: string
+          description: Brief description of the project
+          multiline: true
+        git_repo_url:
+          type: string
+          description: Git repository URL (e.g., https://github.com/user/repo)
+      required:
+        - name
+  # Technologies to learn: Things the user wants to learn
+  - id: want_to_learn
+    name_translation_key: code.want_to_learn
+    description_translation_key: code.want_to_learn.description
+    icon_image: library.svg
+    type: list
+    stage: production
+    example_translation_keys:
+      - "code.want_to_learn.example_1"
+      - "code.want_to_learn.example_2"
+    example_entries:
+      - name: "code.want_to_learn.example_1.name"
+      - name: "code.want_to_learn.example_2.name"
+    schema:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Technology or skill you want to learn
+          is_title: true
+      required:
+        - name
+  # Coding setup: capture preferred environment and amount of AI support
+  - id: coding_setup
+    name_translation_key: code.coding_setup
+    description_translation_key: code.coding_setup.description
+    icon_image: library.svg
+    type: list
+    stage: production
+    example_translation_keys:
+      - "code.coding_setup.example_1"
+      - "code.coding_setup.example_2"
+    example_entries:
+      - workspace: "terminal"
+        ai_level: "low"
+        input_style: "free_text"
+        notes: "code.coding_setup.example_1.notes"
+      - workspace: "web_ui"
+        ai_level: "high"
+        input_style: "guided_choices"
+        notes: "code.coding_setup.example_2.notes"
+    schema:
+      type: object
+      properties:
+        workspace:
+          type: string
+          description: Main coding workspace used most often
+          enum: ["ide", "terminal", "web_ui", "mixed"]
+          is_title: true
+        ai_level:
+          type: string
+          description: Amount of AI support preferred while coding
+          enum: ["off", "low", "medium", "high"]
+          is_subtitle: true
+        input_style:
+          type: string
+          description: Preferred balance between guided choices and free input
+          enum: ["guided_choices", "free_text", "mixed"]
+        notes:
+          type: string
+          description: Optional details about tools or workflow preferences
+          multiline: true
+      required:
+        - workspace
+        - ai_level
+        - input_style
+
 # IMPORTANT lerning:
 # if we let ai code for too long extensive code changes and then start to test it, it becomes a huge broken mess. instead we need to find other ways. Maybe by reminding llm to break tasks down into smaller steps (that also allows for placebolder code), and build it up so that we can test individual steps better if they work and if so we continue to the next step.
 
@@ -29,7 +150,7 @@ settings_and_memories:
 #- Treat AI as pair programming partner requiring frequent check-ins rather than autonomous contractor
 
 #**Chat specific files**
-#- todo.md -> to manage all 
+#- todo.md -> to manage all
 
 #**Project awareness files:**
 #- Keep existing `todo.md`, `architecture.md`, and project structure
@@ -75,13 +196,13 @@ settings_and_memories:
 # What actually happens
 
 # ## Environment
-# - OS: 
+# - OS:
 # - Browser/Version:
 # - Project Version:
 
 # ## Additional Context
 # Screenshots, logs, or other relevant information
-
+# Legacy embed descriptions (kept for documentation)
 embeds:
   - id: |
       code_embed
@@ -93,192 +214,123 @@ embeds:
       Embedded rendered preview of hydra live visuals, but not playing by default.
     description_fullscreen: |
       Code on the left, rendered preview (auto playing) on the right.
-  # separate embeds for hydra with live view and play button like in videos, and rendered html 
-
+# Embed type definitions — single source of truth for frontend embed routing.
+embed_types:
+  - id: get_docs
+    category: app-skill-use
+    skill_id: get_docs
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    preview_component: code/CodeGetDocsEmbedPreview.svelte
+    fullscreen_component: code/CodeGetDocsEmbedFullscreen.svelte
+    icon: library
+    gradient_var: "--color-app-code"
+    i18n_namespace: embeds.code.get_docs
+    content_fields:
+      - name: library
+        type: string
+        required: true
+      - name: results
+        type: array
+        required: true
+      - name: result_count
+        type: number
+        required: true
+  # Code block — direct-type, auto-detected from ``` code blocks by stream_consumer.py
+  - id: code
+    category: direct
+    frontend_type: code-code
+    backend_type: code
+    has_children: false
+    groupable: true
+    preview_component: code/CodeEmbedPreview.svelte
+    fullscreen_component: code/CodeEmbedFullscreen.svelte
+    icon: coding
+    gradient_var: "--color-app-code"
+    i18n_namespace: embeds.code.code
+    content_fields:
+      - name: language
+        type: string
+        required: true
+      - name: code
+        type: string
+        required: true
+      - name: filename
+        type: string
+      - name: line_count
+        type: number
+        required: true
 skills:
-  - id: |
-      clean_repo
-    name: |
-      Clean repo
-    description: |
-      Check the local repo and its code for unused imports, functions, variables - and auto remove them.
-
-  - id: |
-      get_issues
-    name: |
-      Get issues
-    description: |
-      Get issues from GitHub or GitLab for a project. Either all or with specific tags.
-
-  - id: |
-      add_issue
-    name: |
-      Add issue
-    description: |
-      Add an issue to your GitHub or GitLab project.
-
-  - id: |
-      remove_secrets
-    name: |
-      Remove secrets
-    description: | # use gitleaks, git log -p --all -S "max mustermann" -i, git filter (to remove)
-      Check the repo and its code for api keys, passwords, tokens, name, addresses, phone numbers, emails and other sensitive information - and auto remove them.
-
-  - id: |
-      get_project_overview
-    name: |
-      Get project overview
-    description: |
-      Create an AST overview of all folders, files and functions inside the files, to get a good understanding of the local project architecture.
-
+  - id: get_docs
+    name_translation_key: code.get_docs
+    description_translation_key: code.get_docs.description
+    icon_image: library.svg
+    preprocessor_hint: >
+      Get latest documentation for programming libraries, frameworks, APIs, SDKs.
+      Use for ANY programming-related query about a specific library or framework.
+    stage: production
+    class_path: |
+      backend.apps.code.skills.get_docs_skill.GetDocsSkill
+    providers:
+      - Context7
+    tool_schema:
+      type: object
+      properties:
+        library:
+          type: string
+          description: |
+            Library name to search for (e.g., "Svelte 5", "React", "FastAPI", "Miro API", etc.).
+        question:
+          type: string
+          description: |
+            Natural language question about the documentation needed
+            (e.g., "How to use useState hook?", "How to setup routing?").
+      required:
+        - library
+        - question
+  - id: clean_repo
+    name_translation_key: code.clean_repo
+    description_translation_key: code.clean_repo.description
+    stage: planning
+  - id: get_issues
+    name_translation_key: code.get_issues
+    description_translation_key: code.get_issues.description
+    stage: planning
+  - id: add_issue
+    name_translation_key: code.add_issue
+    description_translation_key: code.add_issue.description
+    stage: planning
+  - id: remove_secrets
+    name_translation_key: code.remove_secrets
+    description_translation_key: code.remove_secrets.description
+    stage: planning
+  - id: get_project_overview
+    name_translation_key: code.get_project_overview
+    description_translation_key: code.get_project_overview.description
+    stage: planning
 focuses:
-  - id: |
-      test_git_repo
-    name: |
-      Test git repo
-    description: |
-      Clone a git repo and test if it works.
-    stage: |
-      planning
-    process:
-      - "if not provided already, ask user for the github/gitlab repo url"
-      - "if not provided already, ask user what they want to test / what their usecase is"
-      - "use skill to check in issues if there are any critital issues recently with using the repo reported"
-      - "if project is reported to be broken, ask user if they want to continue with testing it"
-      - "ask user where to clone and test the repo? setting up new machine? using github codespaces? local machine? etc."
-      - "clone the repo to the specified location"
-      - "read project folder & file structure and readme.md to get an overview of the project"
-      - "figure out how to test the project and start testing it"
-
-# During development, use the following focuses:
-# TODO: implement in Sophia system prompt instruction to use these focuses
-# Step 1: Plan changes (load project overview (if project exists), ask questions and create files:
-# - `.context/{subject}_todo.md` (include unit tests of sub task changes/ instructions what to test manually)
-# - `.context/{subject}_requirements.md`
-# - `.context/{subject}_architecture.md`
-  - id: |
-      plan_project
-    name: |
-      Plan project
-    description: |
-      Plan a project or changes to a project. Create collaboratively the requirements.md, architecture.md and todo.md files for the changes or project.
-    stage: |
-      planning
-    process:
-      - ""
-
-# Step 2: Write & test & debug code (get content of these files and then start or continue implementing them, step by step with placeholde architecture for complex changes. Auto write & run unit tests and for tests that user needs to executed, ask user / give test instructions. If an error occurs: ask for what is going wrong, ask for logs, then fix it. If major architectural decisions have to be made which aren't defined in /docs/architecture/README.md, then ask user instead of implementing changes with huge consequences for the project & update plan files. When changes have been applied, add to`.tempcontext/{subject}_changelog.md`. Instruct the LLM also to create unittest and run them or when that isn't practical (for web apps for sample) output test instructions to `.tempcontext/{subject}_testing.md`. Once new solution is implemented, also create or update documentation in README files of folders where files have been updated / added.
-# Important:
-# - keep /docs folder updated with .md files for humans and LLMs about general processing
-# - keep folder specific readme files updated with overview of folders / files and their purpose / basic functionamity (include automated generated folder overview structure with functions / classes & another file with "issues.md" with linter errors which eventually should be handled in GitHub issues.)
-# /.tempcontext (on gitignore) for file for temporary context only
-
-# include license / SPFX for REUSE project automatically for each file?
-
-  - id: |
-      write_test_debug_document
-    name: |
-      Write, test, debug & document
-    description: |
-      Write, test and debug code changes. When task is complete, update documentation. For more complex changes: after previous planning phase.
-    stage: |
-      planning
-    process:
-      - "ask users clearifying question to make the requirements clear and create requirements.md file"
-      - "for more complex tasks: create todo.md file and keep it updated with progress. Include filepaths or function names / variable names relevant."
-      - "if problem can't be solved within a few steps, ask if new approach should be tried or if requirements should be redefined"
-    # systemprompt just an early placeholder. Nowhere near complete.
-    systemprompt: |
-      You are a programming expert.
-
-  - id: |
-      analyze_logs
-    name: |
-      Analyze logs
-    description: |
-      Helps you to understand and analyze logs to see what is going on, what is broken, what should be improved, etc
-    stage: |
-      planning
-    process:
-      - ""
-
-  - id: |
-      improve_issue
-    name: |
-      Improve issue
-    description: |
-      Helps you to improve an issue, bug or feature request, by adding clearifing details, remove unnecessary details and logs and more.
-    stage: |
-      planning
-    process:
-      - ""
-
-  - id: |
-      learn_new_tech
-    name: |
-      Learn new tech
-    description: |
-      Start learning a new programming language, framework or other new technology.
-    process:
-      - "asks user what their learning goal is (understanding a specific part of a new technology, extending knowledge, etc.)
-      - "show examples, suggest a sample project, consider Q&As or other learning methods for understanding a tech"
-      - "goal is to assist software developers who don't want to use AI assisted coding but still profit from the use of AI (and ease the developers into accepting AI support more)."
-
-  - id: |
-      explain_project
-    name: |
-      Explain project
-    description: |
-      Clones a git repo, analyzes it and explains its architecture, issues and more.
-    stage: |
-      planning
-
-  - id: |
-      research_solutions
-    name: |
-      Research solitions
-    description: |
-      Brainstorm & research what tech would work well for the requirements of the user.
-    stage: |
-      planning
-
-  - id: |
-      code_walkthrough
-    name: |
-      Code walkthrough
-    description: |
-      Talk through code problems step-by-step. Think through issues without jumping straight to solutions."
-    stage: |
-      planning
-
-  - id: |
-      setup_infrastructure
-    name: |
-      Setup infrastructure
-    description: |
-      Get assistance for setting up a software or infrastructure.
-    stage: |
-      planning
-    process:
-      - "mate asks multiple questions to understand what user wants to setup and in what context"
-      - "mate asks clearification questions if first response is not clear"
-      - "mate provides step-by-step instructions for setting up the software or infrastructure the user asked for"
-      - "mate explains the first step, then waits for user feedback, then continues with the next step if step is successful, etc."
-      - "at the end of the successful setup process, mate suggests saving the setup instructions as markdown (for humans), terraform, ansible playbook or cloud-init script (depending on the context)"
-    # systemprompt just an early placeholder. Nowhere near complete.
-    systemprompt: |
-      You are an expert in setting up infrastructure and software via terminal.
-
-  - id: |
-      refactor_code
-    name: |
-      Refactor code
-    description: |
-      Refactor code to improve its structure, readability and maintainability.
-    stage: |
-      planning
-    process:
-      - "mate asks multiple questions to better understand requirements and what isn't working well in the current code"
-      - "mate checks code structure overview and asks further clearifying questions if needed"
-      - "mate tries to find redundant code, unnecessary complexity, etc. and suggests improvements before implementing them"
-      - "mate implements the changes step-by-step, asks for feedback and then continues with the next step"
+  - id: test_git_repo
+    name_translation_key: code.test_git_repo
+    description_translation_key: code.test_git_repo.description
+    stage: planning
+  - id: analyze_logs
+    name_translation_key: code.analyze_logs
+    description_translation_key: code.analyze_logs.description
+    stage: planning
+  - id: research_solutions
+    name_translation_key: code.research_solutions
+    description_translation_key: code.research_solutions.description
+    stage: planning
+  - id: code_walkthrough
+    name_translation_key: code.code_walkthrough
+    description_translation_key: code.code_walkthrough.description
+    stage: planning
+  - id: setup_infrastructure
+    name_translation_key: code.setup_infrastructure
+    description_translation_key: code.setup_infrastructure.description
+    stage: planning
+  - id: refactor_code
+    name_translation_key: code.refactor_code
+    description_translation_key: code.refactor_code.description
+    stage: planning

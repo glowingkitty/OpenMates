@@ -1,0 +1,146 @@
+<mjml>
+  <mj-head>
+    <mj-title>{{ t.email.test_run_summary.title.text }}</mj-title>
+    <mj-attributes>
+      <mj-all font-family="Arial, Helvetica, sans-serif" font-size="16px" align="center" font-weight="bold" line-height="1.3" />
+      {% if darkmode %}
+      <mj-text color="#e6e6e6" />
+      {% else %}
+      <mj-text color="#000000" />
+      {% endif %}
+    </mj-attributes>
+    <!-- Include styles from separate file -->
+    <mj-include path="./components/email-styles.mjml" />
+  </mj-head>
+  <mj-body css-class="{% if darkmode %}dark-mode{% else %}light-mode{% endif %}">
+    <!-- Header -->
+    <mj-include path="./components/header.mjml" />
+
+    <!-- Main Content -->
+    <mj-wrapper css-class="content-box" padding="20px" padding-bottom="0">
+      <mj-section>
+        <mj-column>
+          <!-- Status icon: checkmark for success, warning for failure -->
+          {% if failed == 0 %}
+          <mj-image width="50px" height="50px" src="icons/checkmark.png" align="center" css-class="email-icon-50" />
+          {% else %}
+          <mj-image width="50px" height="50px" src="icons/warning.png" align="center" css-class="email-icon-50" />
+          {% endif %}
+
+          <!-- Headline -->
+          <mj-text font-size="30px" padding-bottom="30px">
+            {% if failed == 0 %}
+            <mark>{{ t.email.test_run_summary.header_success.text }}</mark>
+            {% else %}
+            <mark>{{ t.email.test_run_summary.header_failure.text | replace("{failed}", failed | string) | replace("{total}", total | string) }}</mark>
+            {% endif %}
+          </mj-text>
+
+          <!-- Overall status badge -->
+          <mj-text font-size="18px" padding-bottom="20px">
+            <span style="background-color: {% if failed == 0 %}#4CAF50{% else %}#F44336{% endif %}; color: #ffffff; padding: 4px 16px; border-radius: 4px; font-weight: bold;">
+              {% if failed == 0 %}✓ PASSED{% else %}✗ {{ failed }} FAILED{% endif %}
+            </span>
+          </mj-text>
+
+          <!-- Run Details section -->
+          <mj-text font-size="18px" padding-bottom="10px" font-weight="bold">
+            {{ t.email.test_run_summary.run_details_label.text }}
+          </mj-text>
+
+          <mj-text font-size="15px" padding-bottom="8px">
+            <strong>Environment:</strong>&nbsp;
+            <span style="background-color: {% if environment == 'Production' %}#FF5722{% else %}#2196F3{% endif %}; color: #ffffff; padding: 2px 10px; border-radius: 3px; font-size: 13px; font-weight: bold;">
+              {{ environment }}
+            </span>
+          </mj-text>
+
+          <mj-text font-size="15px" padding-bottom="8px">
+            <strong>{{ t.email.test_run_summary.git_label.text }}:</strong>&nbsp;
+            <span style="font-family: monospace; font-size: 13px; background-color: {% if darkmode %}#2d2d2d{% else %}#f0f0f0{% endif %}; padding: 2px 6px; border-radius: 3px;">{{ git_sha }}</span>
+            &nbsp;({{ git_branch }})
+          </mj-text>
+
+          <mj-text font-size="15px" padding-bottom="8px">
+            <strong>{{ t.email.test_run_summary.duration_label.text }}:</strong>&nbsp;{{ duration_minutes }}m {{ duration_remainder_seconds }}s
+          </mj-text>
+
+          <mj-text font-size="15px" padding-bottom="20px">
+            <strong>Total:</strong>&nbsp;{{ total }} tests &nbsp;|&nbsp;
+            <span style="color: #4CAF50; font-weight: bold;">{{ passed }} passed</span>&nbsp;|&nbsp;
+            {% if failed > 0 %}<span style="color: #F44336; font-weight: bold;">{{ failed }} failed</span>{% else %}<span style="color: #4CAF50;">0 failed</span>{% endif %}
+            {% if skipped > 0 %}&nbsp;|&nbsp;<span style="color: #FF9800;">{{ skipped }} skipped</span>{% endif %}
+            {% if not_started > 0 %}&nbsp;|&nbsp;<span style="color: #9E9E9E;">{{ not_started }} not started</span>{% endif %}
+          </mj-text>
+
+          <!-- Suite Breakdown -->
+          <mj-text font-size="18px" padding-bottom="10px" font-weight="bold">
+            {{ t.email.test_run_summary.suites_label.text }}
+          </mj-text>
+
+          <!-- Suite table -->
+          <mj-text font-size="14px" padding-bottom="20px">
+            <table style="width: 100%; border-collapse: collapse; font-size: 14px; text-align: left;">
+              <thead>
+                <tr style="border-bottom: 2px solid {% if darkmode %}#555{% else %}#ddd{% endif %};">
+                  <th style="padding: 8px 12px; font-weight: bold;">Suite</th>
+                  <th style="padding: 8px 12px; font-weight: bold; text-align: center;">Total</th>
+                  <th style="padding: 8px 12px; font-weight: bold; text-align: center; color: #4CAF50;">Passed</th>
+                  <th style="padding: 8px 12px; font-weight: bold; text-align: center; color: #F44336;">Failed</th>
+                  <th style="padding: 8px 12px; font-weight: bold; text-align: center;">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for suite in suites %}
+                <tr style="border-bottom: 1px solid {% if darkmode %}#444{% else %}#eee{% endif %}; background-color: {% if loop.index is odd %}{% if darkmode %}#1e1e1e{% else %}#fafafa{% endif %}{% else %}transparent{% endif %};">
+                  <td style="padding: 8px 12px; font-family: monospace; font-size: 13px;">{{ suite.name }}</td>
+                  <td style="padding: 8px 12px; text-align: center;">{{ suite.total }}</td>
+                  <td style="padding: 8px 12px; text-align: center; color: {% if suite.passed > 0 %}#4CAF50{% else %}inherit{% endif %};">{{ suite.passed }}</td>
+                  <td style="padding: 8px 12px; text-align: center; color: {% if suite.failed > 0 %}#F44336{% else %}inherit{% endif %};">{{ suite.failed }}</td>
+                  <td style="padding: 8px 12px; text-align: center;">
+                    {% if suite.status == 'skipped' %}
+                    <span style="color: #FF9800;">SKIPPED</span>
+                    {% elif suite.failed > 0 %}
+                    <span style="color: #F44336; font-weight: bold;">FAILED</span>
+                    {% else %}
+                    <span style="color: #4CAF50; font-weight: bold;">PASSED</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </mj-text>
+
+          <!-- Failed Tests section (only shown when there are failures) -->
+          {% if failed_tests %}
+          <mj-text font-size="18px" padding-bottom="10px" font-weight="bold">
+            {{ t.email.test_run_summary.failed_tests_label.text }}
+          </mj-text>
+
+          {% for test in failed_tests %}
+          <mj-text font-size="14px" padding-bottom="12px">
+            <div style="background-color: {% if darkmode %}#2d1a1a{% else %}#fff5f5{% endif %}; border-left: 4px solid #F44336; padding: 10px 14px; border-radius: 0 4px 4px 0; text-align: left;">
+              <div style="font-family: monospace; font-size: 13px; font-weight: bold; margin-bottom: 4px; color: #F44336;">
+                [{{ test.suite }}] {{ test.name }}
+              </div>
+              {% if test.error %}
+              <div style="font-family: monospace; font-size: 12px; color: {% if darkmode %}#ccc{% else %}#555{% endif %}; white-space: pre-wrap; word-wrap: break-word; margin-top: 6px;">{{ test.error }}</div>
+              {% endif %}
+            </div>
+          </mj-text>
+          {% endfor %}
+          {% endif %}
+
+          <!-- Footer note -->
+          <mj-text font-size="13px" padding-bottom="30px" font-style="italic" color="{% if darkmode %}#888{% else %}#999{% endif %}">
+            {{ t.email.test_run_summary.footer_note.text }}
+          </mj-text>
+        </mj-column>
+      </mj-section>
+    </mj-wrapper>
+
+    <!-- Footer -->
+    <mj-include path="./components/footer.mjml" />
+  </mj-body>
+</mjml>

@@ -5,11 +5,7 @@ description: |
   string
 icon_image: |
   string (filename)
-icon_colorgradient:
-  start: |
-    string (hex color)
-  end: |
-    string (hex color)
+# Icon colors are defined in theme.css instead of here
 
 settings_and_memories:
   - memory_type_1_name: dict (example: recent_visits)
@@ -43,6 +39,62 @@ skills:
     providers:
       - provider_1_name
       - provider_2_name
+
+# Embed type definitions — single source of truth for how embeds are rendered.
+# Each entry describes a frontend embed component pair (Preview + Fullscreen).
+#
+# Categories:
+#   - "app-skill-use": Embeds produced by backend skill execution.
+#     Requires app_id + skill_id to route to the correct component.
+#   - "direct": Client-side embeds (file uploads, user interactions).
+#     Routed by their frontend_type string.
+#
+# The generate-embed-registry.js build script reads these definitions from all
+# app.yml files and generates:
+#   - embedRegistry.generated.ts (type maps, router tables, component imports)
+#
+# This eliminates the need to manually update 10+ files when adding a new embed type.
+# See docs/architecture/embeds.md for the full architecture.
+embed_types:
+  - id: |
+      string (unique id matching the embed type, e.g. "search" or "code")
+    category: |
+      string ("app-skill-use" or "direct")
+    # For app-skill-use embeds: which skill produces this embed
+    skill_id: |
+      string (matches a skill id in the skills section, optional for direct)
+    # Frontend type string used in TipTap nodes and renderer registry
+    frontend_type: |
+      string (e.g. "app-skill-use", "code-code", "math-plot")
+    # Backend type string sent over WebSocket / stored in Directus
+    backend_type: |
+      string (e.g. "app_skill_use", "code", "math-plot")
+    # Whether this embed produces child embeds (composite results like search)
+    has_children: |
+      boolean (default: false)
+    # The backend type string for child embeds (e.g. "website", "place", "event")
+    child_type: |
+      string (only when has_children is true)
+    # The frontend type string for child embeds
+    child_frontend_type: |
+      string (only when has_children is true, e.g. "web-website", "maps-place")
+    # Whether child embeds can be grouped in horizontal scrollable containers
+    groupable: |
+      boolean (default: false)
+    # Svelte component paths relative to components/embeds/
+    preview_component: |
+      string (e.g. "web/WebSearchEmbedPreview.svelte")
+    fullscreen_component: |
+      string (e.g. "web/WebSearchEmbedFullscreen.svelte")
+    # Icon used in BasicInfosBar and EmbedHeader (matches icon SVG filename without .svg)
+    icon: |
+      string (e.g. "search", "math", "coding")
+    # CSS gradient variable name from theme.css (e.g. "--color-app-web")
+    gradient_var: |
+      string
+    # i18n namespace for this embed's translations
+    i18n_namespace: |
+      string (e.g. "embeds.web.search")
 
 focuses:
   - id: |

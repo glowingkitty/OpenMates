@@ -1,0 +1,57 @@
+# shared/config/embed_types.yml
+#
+# Virtual embed types that don't belong to a specific app's app.yml.
+# These are produced by stream_consumer.py (sheets from markdown tables,
+# focus_mode_activation from focus mode changes) or by generic client-side
+# actions, and have no corresponding backend skill.
+#
+# Merged with per-app embed_types by the generate-embed-registry.js build script.
+
+embed_types:
+  # Sheet/table — auto-detected from markdown table syntax by stream_consumer.py
+  - id: sheet
+    app_id: sheets
+    category: direct
+    frontend_type: sheets-sheet
+    backend_type: sheet
+    has_children: false
+    groupable: true
+    preview_component: sheets/SheetEmbedPreview.svelte
+    fullscreen_component: sheets/SheetEmbedFullscreen.svelte
+    icon: sheets
+    gradient_var: "--color-app-sheets"
+    i18n_namespace: embeds.sheets.sheet
+    content_fields:
+      - name: table
+        type: string
+        required: true
+        description: "Raw markdown table content"
+      - name: title
+        type: string
+      - name: row_count
+        type: number
+        required: true
+      - name: col_count
+        type: number
+        required: true
+
+  # Focus mode activation indicator
+  - id: focus_mode_activation
+    app_id: ai
+    category: direct
+    frontend_type: focus-mode-activation
+    backend_type: focus_mode_activation
+    has_children: false
+    groupable: false
+    preview_component: FocusModeActivationEmbed.svelte
+    fullscreen_component: null
+    icon: focus
+    gradient_var: "--color-app-ai"
+    i18n_namespace: embeds.ai.focus_mode_activation
+    content_fields:
+      - name: focus_id
+        type: string
+        required: true
+      - name: focus_mode_name
+        type: string
+        required: true

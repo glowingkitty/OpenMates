@@ -1,5 +1,6 @@
 import logging
 import json
+import httpx
 from typing import Dict, Any, Optional, Tuple, List # Added List import
 
 logger = logging.getLogger(__name__)
@@ -35,7 +36,7 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
         user_data = response.json().get("data", {})
         
         vault_key_id = user_data.get("vault_key_id")
-        logger.info(f"Found vault_key_id")
+        logger.info("Found vault_key_id")
         
         if not vault_key_id:
             logger.error("No vault_key_id found in user data")
@@ -49,6 +50,7 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
         # Create a profile object with both encrypted and decrypted data
         profile = {
             "id": user_id,
+            "account_id": user_data.get("account_id"),  # Include account_id for invoice generation
             "tfa_enabled": tfa_enabled_status, # Add the determined status here
             "is_admin": user_data.get("is_admin", False),
             "last_opened": user_data.get("last_opened"),
@@ -59,6 +61,7 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
             "vault_key_version": user_data.get("vault_key_version"),
             "language": user_data.get("language", "en"),
             "darkmode": user_data.get("darkmode", False),
+            "timezone": user_data.get("timezone"),  # IANA timezone (e.g., 'Europe/Berlin'), auto-detected from browser
             "tfa_last_used": user_data.get("tfa_last_used"),  # Include 2FA last used timestamp
             "consent_privacy_and_apps_default_settings": user_data.get("consent_privacy_and_apps_default_settings"),
             "consent_mates_default_settings": user_data.get("consent_mates_default_settings"),
@@ -66,12 +69,72 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
             # Include lookup_hashes array for authentication methods
             "lookup_hashes": user_data.get("lookup_hashes", []),
             
+            # Email-related fields for passkey login and authentication
+            "hashed_email": user_data.get("hashed_email"),  # SHA256(email) for user lookup
+            "user_email_salt": user_data.get("user_email_salt"),  # Plaintext salt for email encryption key derivation
+            "encrypted_email_with_master_key": user_data.get("encrypted_email_with_master_key"),  # Email encrypted with master key (for passwordless passkey login)
+            
             # Keep sensitive data encrypted (don't decrypt these)
             "encrypted_email_address": user_data.get("encrypted_email_address"),
             "encrypted_settings": user_data.get("encrypted_settings"),
             # Ensure devices key exists even if encrypted field is missing
             "devices": {},
+            
+            # Monthly subscription fields (cleartext fields, not sensitive)
+            "stripe_customer_id": user_data.get("stripe_customer_id"),
+            "stripe_subscription_id": user_data.get("stripe_subscription_id"),
+            "subscription_status": user_data.get("subscription_status"),
+            "subscription_credits": user_data.get("subscription_credits"),
+            "subscription_currency": user_data.get("subscription_currency"),
+            "next_billing_date": user_data.get("next_billing_date"),
+            
+            # Keep encrypted payment method ID encrypted
+            "encrypted_payment_method_id": user_data.get("encrypted_payment_method_id"),
+            
+            # Email notification fields (encrypted_notification_email is vault-encrypted,
+            # must be decrypted at point of use with the user's vault key)
+            "email_notifications_enabled": user_data.get("email_notifications_enabled", False),
+            "email_notification_preferences": user_data.get("email_notification_preferences", {}),
+            "encrypted_notification_email": user_data.get("encrypted_notification_email"),
+
+            # Backup reminder fields — used by daily_notification_dispatcher to determine eligibility.
+            # last_export_at: set when user downloads a full data export ZIP.
+            # backup_reminder_dismissed_at: set when user dismisses an in-app or email reminder (snooze).
+            # backup_reminder_interval_days: user-configurable cadence (default 30 days).
+            "last_export_at": user_data.get("last_export_at"),
+            "backup_reminder_dismissed_at": user_data.get("backup_reminder_dismissed_at"),
+            "backup_reminder_interval_days": user_data.get("backup_reminder_interval_days", 30),
+            
+            # Low balance auto top-up fields (cleartext configuration fields)
+            "auto_topup_low_balance_enabled": user_data.get("auto_topup_low_balance_enabled", False),
+            "auto_topup_low_balance_threshold": user_data.get("auto_topup_low_balance_threshold"),
+            "auto_topup_low_balance_amount": user_data.get("auto_topup_low_balance_amount"),
+            "auto_topup_low_balance_currency": user_data.get("auto_topup_low_balance_currency"),
+            
+            # Keep encrypted timestamp encrypted
+            "encrypted_auto_topup_last_triggered": user_data.get("encrypted_auto_topup_last_triggered"),
+
+            # Keep encrypted email for auto top-up encrypted (server-side vault encryption,
+            # decrypted at point of use in billing_service._get_decrypted_email())
+            "encrypted_email_auto_topup": user_data.get("encrypted_email_auto_topup"),
         }
+
+        # Expose profile_image_s3_key in the profile dict so the internal
+        # process_profile_image endpoint can read it for old-object cleanup.
+        # (It is not sensitive — it's just an S3 key, not an AES key.)
+        profile["profile_image_s3_key"] = user_data.get("profile_image_s3_key")
+
+        # Profile image URL resolution:
+        #   All profile images are stored as AES-256-GCM encrypted blobs in the private
+        #   S3 bucket. Users with a profile_image_s3_key get the authenticated proxy URL.
+        #   Users without a profile image get no profile_image_url (frontend shows placeholder).
+        _new_s3_key = user_data.get("profile_image_s3_key")
+        if _new_s3_key:
+            profile["profile_image_url"] = f"/v1/users/{user_id}/profile-image"
+            logger.info(
+                f"[UserProfile] User {user_id[:8]}... has encrypted profile image; "
+                f"setting profile_image_url to proxy URL"
+            )
 
         # Decrypt fields that are safe to cache and commonly needed (DO NOT decrypt tfa_secret here)
         try:
@@ -81,7 +144,6 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
             fields_to_decrypt = [
                 ("username", "encrypted_username"),
                 ("credits", "encrypted_credit_balance"),
-                ("profile_image_url", "encrypted_profileimage_url"),
                 ("tfa_app_name", "encrypted_tfa_app_name"),
                 ("gifted_credits_for_signup", "encrypted_gifted_credits_for_signup"),
                 ("invoice_counter", "encrypted_invoice_counter")
@@ -111,21 +173,34 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
                                     profile[field] = 0 # Default to 0 if conversion fails
                             else:
                                 profile[field] = decrypted_value
-                        # If decryption results in None/empty, handle default for invoice_counter
+                        # If decryption results in None/empty, handle appropriately
                         elif field == "invoice_counter":
                              logger.info(f"Decrypted invoice_counter is None or empty for user {user_id}. Setting to 0.")
                              profile[field] = 0
+                        elif field == "username":
+                            # CRITICAL: Username decryption returned None/empty - this is a critical error
+                            logger.error(f"CRITICAL: Username decryption returned None/empty for user {user_id}. Encrypted field exists but decryption failed.")
+                            # Don't set username - let validation catch this later
+                        # For other optional fields, silently skip if decryption returns None
 
                     except Exception as e:
                         logger.error(f"Error decrypting {field} for user {user_id}: {str(e)}", exc_info=True)
+                        # CRITICAL: If username decryption fails, this is a critical error
+                        if field == "username":
+                            logger.error(f"CRITICAL: Username decryption exception for user {user_id}. This indicates a data integrity or encryption key issue.")
+                            # Don't set username - let validation catch this later
                         # Ensure default value for invoice_counter if decryption fails
-                        if field == "invoice_counter":
+                        elif field == "invoice_counter":
                             logger.warning(f"Setting invoice_counter to 0 for user {user_id} due to decryption error.")
                             profile[field] = 0
-                # If encrypted field doesn't exist or is empty, ensure default for invoice_counter
+                # If encrypted field doesn't exist or is empty, handle appropriately
                 elif field == "invoice_counter":
                      logger.info(f"encrypted_invoice_counter not found or empty for user {user_id}. Setting invoice_counter to 0.")
                      profile[field] = 0
+                elif field == "username":
+                    # CRITICAL: encrypted_username is missing - this is a critical error
+                    logger.error(f"CRITICAL: encrypted_username field is missing or empty for user {user_id}. This indicates a data integrity issue.")
+                    # Don't set username - let validation catch this later
 
         except Exception as e:
             logger.error(f"General error during user data decryption for user {user_id}: {str(e)}", exc_info=True)
@@ -138,6 +213,20 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
         if "invoice_counter" not in profile:
             logger.warning(f"Invoice counter still missing for user {user_id} after decryption block. Setting to 0.")
             profile["invoice_counter"] = 0
+
+        # CRITICAL: Validate that required fields are present - fail fast if they're missing
+        # username is required for User model - if it's missing, something is broken
+        if "username" not in profile or not profile.get("username"):
+            error_msg = f"CRITICAL: Username is missing or empty for user {user_id} after decryption. This indicates a data integrity issue."
+            logger.error(error_msg)
+            logger.error(f"User data available: encrypted_username present={bool(user_data.get('encrypted_username'))}, vault_key_id={bool(vault_key_id)}")
+            return False, None, error_msg
+        
+        # vault_key_id should already be validated earlier, but double-check
+        if "vault_key_id" not in profile or not profile.get("vault_key_id"):
+            error_msg = f"CRITICAL: vault_key_id is missing for user {user_id} after profile creation. This indicates a data integrity issue."
+            logger.error(error_msg)
+            return False, None, error_msg
 
         # Cache the profile
         await self.cache.set(cache_key, profile, ttl=self.cache_ttl)

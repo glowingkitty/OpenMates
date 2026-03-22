@@ -10,8 +10,8 @@ step_10_top_content_svelte:
     credits_amount_header:
         type: 'text'
         text:
-            - $text('signup.amount_currency.text') with amount and currency icon
-            - $text('signup.for_chatting_and_apps.text')
+            - $text('signup.amount_currency') with amount and currency icon
+            - $text('signup.for_chatting_and_apps')
         purpose:
             - 'Display the amount of credits the user will receive'
         bigger_context:
@@ -35,8 +35,11 @@ step_10_top_content_svelte:
 
 <script lang="ts">
     import { text } from '@repo/ui';
-    import { createEventDispatcher } from 'svelte';
+    import { createEventDispatcher, onMount } from 'svelte';
     import Payment from '../../../../components/Payment.svelte';
+    import GiftCardRedeem from '../../../../components/settings/billing/GiftCardRedeem.svelte';
+    import AutoTopUp from '../../../../components/payment/AutoTopUp.svelte';
+    import { apiEndpoints, getApiUrl } from '../../../../config/api';
     
     const dispatch = createEventDispatcher();
     
@@ -45,16 +48,116 @@ step_10_top_content_svelte:
         credits_amount = 21000,
         price = 20,
         currency = 'EUR',
-        isGift = false
+        isGift = false,
+        isGiftCardRedemption = false, // Flag to indicate this is a gift card redemption
+        showSuccess = false, // When true, shows success message instead of payment form
+        // Auto top-up props (used when showSuccess is true)
+        purchasedCredits = null,
+        purchasedPrice = null,
+        paymentMethodSaved = true,
+        paymentMethodSaveError = null,
+        oncomplete,
+        'onactivate-subscription': onactivateSubscription
     }: {
         credits_amount?: number,
         price?: number,
         currency?: string,
-        isGift?: boolean
+        isGift?: boolean,
+        isGiftCardRedemption?: boolean,
+        showSuccess?: boolean,
+        purchasedCredits?: number | null,
+        purchasedPrice?: number | null,
+        paymentMethodSaved?: boolean,
+        paymentMethodSaveError?: string | null,
+        oncomplete?: (event: CustomEvent) => void,
+        'onactivate-subscription'?: (event: CustomEvent) => void
     } = $props();
     
     // Track if payment form is visible
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
     let isPaymentFormVisible = false;
+    let showGiftCardInput = $state(false);
+    let pendingGiftCardCode = $state('');
+    
+    // Local state for payment method status (used as fallback if prop is not set correctly)
+    let localPaymentMethodSaved = $state(paymentMethodSaved);
+    let localPaymentMethodSaveError = $state<string | null>(paymentMethodSaveError);
+    
+    // Update local state when props change
+    $effect(() => {
+        localPaymentMethodSaved = paymentMethodSaved;
+        localPaymentMethodSaveError = paymentMethodSaveError;
+    });
+
+    $effect(() => {
+        if (showSuccess || typeof window === 'undefined') {
+            return;
+        }
+
+        const pendingCode = sessionStorage.getItem('pending_gift_card_code');
+        if (!pendingCode) {
+            return;
+        }
+
+        pendingGiftCardCode = pendingCode.toUpperCase();
+        showGiftCardInput = true;
+        console.debug('[PaymentTopContent] Auto-opening gift card form with pending code at payment step');
+    });
+    
+    
+    // Check payment method on mount if showSuccess is true and paymentMethodSaved is false
+    // This is a fallback check in case the parent component didn't check on reload
+    onMount(async () => {
+        if (showSuccess && !paymentMethodSaved) {
+            console.debug('[PaymentTopContent] showSuccess=true but paymentMethodSaved=false, checking backend...');
+            try {
+                const response = await fetch(getApiUrl() + apiEndpoints.payments.hasPaymentMethod, {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const hasPaymentMethod = data.has_payment_method === true;
+                    console.debug(`[PaymentTopContent] Payment method status from backend: ${hasPaymentMethod}`);
+                    
+                    if (hasPaymentMethod) {
+                        // Update local state and dispatch event to parent
+                        localPaymentMethodSaved = true;
+                        localPaymentMethodSaveError = null;
+                        // Dispatch event to parent to update its state
+                        dispatch('paymentMethodStatusUpdate', { 
+                            saved: true, 
+                            error: null 
+                        });
+                    } else {
+                        localPaymentMethodSaved = false;
+                        localPaymentMethodSaveError = 'No payment method found. Please complete payment first.';
+                        dispatch('paymentMethodStatusUpdate', { 
+                            saved: false, 
+                            error: localPaymentMethodSaveError 
+                        });
+                    }
+                } else {
+                    console.warn('[PaymentTopContent] Failed to check payment method status:', response.status);
+                    localPaymentMethodSaved = false;
+                    localPaymentMethodSaveError = 'Failed to check payment method status';
+                    dispatch('paymentMethodStatusUpdate', { 
+                        saved: false, 
+                        error: localPaymentMethodSaveError 
+                    });
+                }
+            } catch (error) {
+                console.error('[PaymentTopContent] Error checking payment method status:', error);
+                localPaymentMethodSaved = false;
+                localPaymentMethodSaveError = error instanceof Error ? error.message : 'Unknown error checking payment method';
+                dispatch('paymentMethodStatusUpdate', { 
+                    saved: false, 
+                    error: localPaymentMethodSaveError 
+                });
+            }
+        }
+    });
     
     // Format number with thousand separators
     function formatNumber(num: number): string {
@@ -83,35 +186,123 @@ step_10_top_content_svelte:
         // Forward payment state changes to parent component
         dispatch('paymentStateChange', event.detail);
     }
+
+    function handleGiftCardRedeemed(event: CustomEvent<{ credits_added: number, current_credits: number }>) {
+        dispatch('step', {
+            step: 'payment',
+            isGiftCardRedemption: true,
+            showSuccess: true,
+            credits_amount: event.detail.credits_added || 0
+        });
+    }
+
+    function handleGiftCardCancel() {
+        showGiftCardInput = false;
+    }
+
+    function openGiftCardInput() {
+        if (typeof window !== 'undefined') {
+            pendingGiftCardCode = sessionStorage.getItem('pending_gift_card_code')?.toUpperCase() || '';
+        }
+        showGiftCardInput = true;
+    }
 </script>
 
 <div class="container">
-    <div class="top-container">
-        <div class="header-content">
-            <div class="primary-text">
-                {@html $text('signup.amount_currency.text')
-                    .replace('{currency}', '<span class="coin-icon-inline"></span>')
-                    .replace('{amount}', formatNumber(credits_amount))}
+    {#if showSuccess}
+        {#if isGiftCardRedemption}
+            <!-- Gift card redemption: Show credits amount in top, success message in bottom -->
+            <div class="top-container">
+                <div class="header-content">
+                    <div class="primary-text">
+                        {@html $text('signup.amount_currency')
+                            .replace('{currency}', '<span class="coin-icon-inline"></span>')
+                            .replace('{amount}', formatNumber(credits_amount))}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bottom-container">
+                <div class="main-content">
+                    <div class="separated-block gift-card-success">
+                        <div class="success-message-container">
+                            <div class="success-icon-large"></div>
+                            <div class="success-text">
+                                {@html $text('signup.gift_card_redeemed_success')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {:else}
+            <!-- Regular payment success: Show success message in top, auto top-up in bottom -->
+            <div class="top-container success-container">
+                <div class="header-content">
+                    <div class="success-icon"></div>
+                    <div class="primary-text">
+                        {@html $text('signup.purchase_successful')}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Auto top-up content below success message -->
+            <div class="bottom-container">
+                <div class="main-content">
+                    <div class="separated-block">
+                        <AutoTopUp
+                            purchasedCredits={purchasedCredits || 0}
+                            purchasedPrice={purchasedPrice || 0}
+                            currency={currency.toLowerCase()}
+                            paymentMethodSaved={localPaymentMethodSaved}
+                            paymentMethodSaveError={localPaymentMethodSaveError}
+                            {oncomplete}
+                            onactivate-subscription={onactivateSubscription}
+                        />
+                    </div>
+                </div>
+            </div>
+        {/if}
+    {:else}
+        <!-- Payment form for payment step -->
+        <div class="top-container">
+            <div class="header-content">
+                <div class="primary-text">
+                    {@html $text('signup.amount_currency')
+                        .replace('{currency}', '<span class="coin-icon-inline"></span>')
+                        .replace('{amount}', formatNumber(credits_amount))}
+                </div>
             </div>
         </div>
-    </div>
 
-    <div class="bottom-container">
-        <div class="main-content">
-            <div class="separated-block">
-                <Payment 
-                    {credits_amount} 
-                    purchasePrice={price} 
-                    {currency}
-                    initialState={isGift ? 'success' : 'idle'}
-                    {isGift}
-                    on:consentGiven={handleConsent}
-                    on:openRefundInfo={handleOpenRefundInfo}
-                    on:paymentStateChange={handlePaymentStateChange}
-                />
+        <div class="bottom-container">
+            <div class="main-content">
+                <div class="separated-block">
+                    {#if showGiftCardInput}
+                        <GiftCardRedeem
+                            hideSuccessMessage={true}
+                            initialCode={pendingGiftCardCode}
+                            on:redeemed={handleGiftCardRedeemed}
+                            on:cancel={handleGiftCardCancel}
+                        />
+                    {:else}
+                        <button class="gift-card-toggle" onclick={openGiftCardInput}>
+                            {@html $text('settings.billing.gift_card.have_code')}
+                        </button>
+                        <Payment 
+                            {credits_amount} 
+                            purchasePrice={price * 100} 
+                            {currency}
+                            initialState={isGift ? 'success' : 'idle'}
+                            {isGift}
+                            on:consentGiven={handleConsent}
+                            on:openRefundInfo={handleOpenRefundInfo}
+                            on:paymentStateChange={handlePaymentStateChange}
+                        />
+                    {/if}
+                </div>
             </div>
         </div>
-    </div>
+    {/if}
 </div>
 
 <style>
@@ -119,6 +310,7 @@ step_10_top_content_svelte:
         position: relative;
         width: 100%;
         height: 100%;
+        min-height: 400px; /* Ensure minimum height for payment form visibility */
     }
     
     .top-container {
@@ -134,14 +326,49 @@ step_10_top_content_svelte:
         z-index: 2;
     }
     
+    /* Success container with purple background */
+    .success-container {
+        background: var(--color-primary);
+        border-radius: 16px 16px 0 0;
+        height: 100px;
+        align-items: flex-end;
+        padding-bottom: 0;
+    }
+    
     .header-content {
         display: flex;
         flex-direction: column;
         text-align: center;
         padding-bottom: 20px;
+        align-items: center;
+        gap: 6px;
     }
     
+    /* For success container, display icon and text horizontally */
+    .success-container .header-content {
+        flex-direction: row;
+        gap: 12px;
+    }
     
+    .success-icon {
+        width: 36px;
+        height: 36px;
+        background-color: #58BC00;
+        mask-image: url('@openmates/ui/static/icons/check.svg');
+        mask-size: contain;
+        mask-repeat: no-repeat;
+        mask-position: center;
+        animation: scaleIn 0.3s ease-out;
+    }
+    
+    @keyframes scaleIn {
+        from {
+            transform: scale(0);
+        }
+        to {
+            transform: scale(1);
+        }
+    }
     
     .primary-text {
         white-space: nowrap;
@@ -149,6 +376,8 @@ step_10_top_content_svelte:
         align-items: center;
         justify-content: center;
         color: white;
+        font-size: 18px;
+        font-weight: 500;
     }
 
     .bottom-container {
@@ -158,15 +387,20 @@ step_10_top_content_svelte:
         right: 0;
         bottom: 0;
         padding: 0 24px;
-        overflow-y: hidden;
+        overflow-y: auto; /* Allow scrolling if content exceeds container */
+        overflow-x: hidden;
     }
 
     @media (max-width: 600px) {
         .top-container {
             height: 60px;
         }
+        .success-container {
+            height: 60px;
+        }
         .bottom-container {
             top: 80px;
+            padding: 0 5px;
         }
     }
     
@@ -176,26 +410,47 @@ step_10_top_content_svelte:
         align-items: center;
         justify-content: flex-start;
         width: 100%;
-        gap: 24px;
+        height: 100%; /* Fill available space */
+        gap: 0; /* Remove gap to allow full height usage */
     }
 
     .separated-block {
         position: relative;
         width: 95%;
-        height: 490px;
         max-width: 400px;
+        /* min-height fills the available space for non-Polar forms; for the Polar
+           iframe (1800px tall) height is auto so the block grows to fit and the
+           .bottom-container scroll container (overflow-y: auto) can scroll over it. */
+        min-height: 100%;
+        height: auto;
         background-color: var(--color-grey-20);
         border-radius: 16px;
         padding: 16px;
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
         display: flex;
         flex-direction: column;
+        /* overflow: visible so the 1800px Polar iframe isn't clipped and the
+           .bottom-container can scroll the full height. */
+        overflow: visible;
+        box-sizing: border-box; /* Include padding in height calculation */
+    }
+
+    .gift-card-toggle {
+        margin-bottom: 12px;
+        align-self: center;
+        border: none;
+        background: transparent;
+        color: var(--color-primary);
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        padding: 8px 10px;
     }
     
     /* Target the bottom containers of our payment components */
     .separated-block :global(.bottom-container) {
         position: absolute;
-        bottom: 20px; /* Position 50px from the bottom as requested */
+        bottom: 20px;
         left: 0;
         width: 100%;
         padding-bottom: 0;
@@ -206,5 +461,50 @@ step_10_top_content_svelte:
             position: relative;
             bottom: unset;
         }
+    }
+    
+    /* Adjust bottom-container position for success view */
+    .success-container ~ .bottom-container {
+        top: 120px;
+    }
+    
+    @media (max-width: 600px) {
+        .success-container ~ .bottom-container {
+            top: 75px;
+        }
+    }
+    
+    /* Gift card success message styling */
+    .gift-card-success {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 200px;
+    }
+    
+    .success-message-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+        text-align: center;
+    }
+    
+    .success-icon-large {
+        width: 64px;
+        height: 64px;
+        background-color: #58BC00;
+        mask-image: url('@openmates/ui/static/icons/check.svg');
+        mask-size: contain;
+        mask-repeat: no-repeat;
+        mask-position: center;
+        animation: scaleIn 0.3s ease-out;
+    }
+    
+    .success-text {
+        font-size: 24px;
+        font-weight: 600;
+        color: var(--color-grey-100);
     }
 </style>

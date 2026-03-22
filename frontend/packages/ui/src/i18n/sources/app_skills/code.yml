@@ -1,0 +1,388 @@
+get_docs:
+  context: Skill name for get docs
+  en: Get docs
+  de: Docs abrufen
+  zh: 获取文档
+  es: Obtener documentación
+  fr: Obtenir la documentation
+  pt: Obter documentação
+  ru: Получить документацию
+  ja: ドキュメントを取得
+  ko: 문서 가져오기
+  it: Ottieni documentazione
+  tr: Belgeleri al
+  vi: Lấy tài liệu
+  id: Dapatkan dokumentasi
+  pl: Pobierz dokumentację
+  nl: Documentatie ophalen
+  ar: الحصول على الوثائق
+  hi: डॉक्स प्राप्त करें
+  th: รับเอกสาร
+  cs: Získat dokumentaci
+  sv: Hämta dokumentation
+  he: קבלת תיעוד
+  verified_by_human:
+    - en
+    - de
+get_docs.description:
+  context: Description for get docs skill
+  en: Get latest docs for libraries & frameworks.
+  de: Aktuelle Docs für Bibliotheken & Frameworks.
+  zh: 获取库和框架的最新文档。
+  es: Obtén docs de bibliotecas y frameworks.
+  fr: Docs à jour pour bibliothèques et frameworks.
+  pt: Docs atualizados de bibliotecas e frameworks.
+  ru: Актуальные docs библиотек и фреймворков.
+  ja: ライブラリ・フレームワークの最新ドキュメント。
+  ko: 라이브러리 및 프레임워크 최신 문서.
+  it: Docs aggiornati per librerie e framework.
+  tr: Kütüphane ve çerçeve güncel belgeleri.
+  vi: Tài liệu mới nhất cho thư viện & framework.
+  id: Docs terbaru untuk library & framework.
+  pl: Aktualne docs bibliotek i frameworków.
+  nl: Actuele docs voor bibliotheken & frameworks.
+  ar: وثائق محدثة للمكتبات والأطر.
+  hi: लाइब्रेरी और फ्रेमवर्क के नवीनतम डॉक्स।
+  th: เอกสารล่าสุดของไลบรารีและเฟรมเวิร์ก
+  cs: Aktuální docs knihoven a frameworků.
+  sv: Senaste docs för bibliotek & ramverk.
+  he: קבלת התיעוד העדכני ביותר עבור ספריות ומסגרות עבודה.
+  verified_by_human:
+    - en
+    - de
+
+get_docs.how_to_use.1:
+  context: Example instruction for get docs skill - explore API capabilities
+  en: Based on the docs, what can I do with the **Miro API**?
+  de: Was kann ich laut der Dokumentation mit der Miro API machen?
+  zh: 根据文档，我可以用Miro API做什么？
+  es: Según la documentación, ¿qué puedo hacer con la API de Miro?
+  fr: D'après la documentation, que puis-je faire avec l'API Miro ?
+  pt: Com base na documentação, o que posso fazer com a API do Miro?
+  ru: Судя по документации, что я могу сделать с Miro API?
+  ja: ドキュメントに基づいて、Miro APIで何ができますか？
+  ko: 문서를 기반으로 Miro API로 무엇을 할 수 있나요?
+  it: In base alla documentazione, cosa posso fare con l'API di Miro?
+  tr: Belgelere göre Miro API ile neler yapabilirim?
+  vi: Dựa trên tài liệu, tôi có thể làm gì với Miro API?
+  id: Berdasarkan dokumentasi, apa yang bisa saya lakukan dengan Miro API?
+  pl: Na podstawie dokumentacji, co mogę zrobić z Miro API?
+  nl: Wat kan ik volgens de documentatie doen met de Miro API?
+  ar: بناءً على الوثائق، ماذا يمكنني فعله مع Miro API؟
+  hi: डॉक्स के अनुसार, मैं Miro API के साथ क्या कर सकता हूँ?
+  th: จากเอกสาร ฉันสามารถทำอะไรกับ Miro API ได้บ้าง?
+  cs: Co mohu podle dokumentace dělat s Miro API?
+  sv: Baserat på dokumentationen, vad kan jag göra med Miro API?
+  he: "בהתבסס על התיעוד, מה אני יכול לעשות עם ה-**Miro API**?"
+  verified_by_human: [en, de]
+
+get_docs.how_to_use.2:
+  context: Example instruction for get docs skill - setup guide from docs
+  en: Using the **Stripe docs**, how do I set up subscriptions?
+  de: Wie richte ich laut Stripe-Dokumentation Abonnements ein?
+  zh: 根据Stripe文档，如何设置订阅？
+  es: Según la documentación de Stripe, ¿cómo configuro las suscripciones?
+  fr: En utilisant la documentation Stripe, comment configurer les abonnements ?
+  pt: Usando a documentação do Stripe, como configuro assinaturas?
+  ru: Используя документацию Stripe, как настроить подписки?
+  ja: Stripeのドキュメントを使って、サブスクリプションはどう設定しますか？
+  ko: Stripe 문서를 사용하여 구독을 어떻게 설정하나요?
+  it: Usando la documentazione di Stripe, come configuro gli abbonamenti?
+  tr: Stripe belgelerini kullanarak abonelikleri nasıl ayarlarım?
+  vi: Sử dụng tài liệu Stripe, làm thế nào để thiết lập đăng ký?
+  id: Menggunakan dokumentasi Stripe, bagaimana cara mengatur langganan?
+  pl: Korzystając z dokumentacji Stripe, jak skonfigurować subskrypcje?
+  nl: Hoe stel ik abonnementen in met de Stripe-documentatie?
+  ar: باستخدام وثائق Stripe، كيف أقوم بإعداد الاشتراكات؟
+  hi: Stripe डॉक्स का उपयोग करके, मैं सब्सक्रिप्शन कैसे सेट करूँ?
+  th: จากเอกสาร Stripe ฉันจะตั้งค่าการสมัครสมาชิกอย่างไร?
+  cs: Jak pomocí dokumentace Stripe nastavím předplatné?
+  sv: Hur ställer jag in prenumerationer med Stripe-dokumentationen?
+  he: "באמצעות **התיעוד של Stripe**, איך אני מגדיר מנויים?"
+  verified_by_human: [en, de]
+
+get_docs.how_to_use.3:
+  context: Example instruction for get docs skill - best practices
+  en: What are the **best practices** for error handling in FastAPI?
+  de: Was sind die Best Practices für Fehlerbehandlung in FastAPI?
+  zh: FastAPI中错误处理的最佳实践是什么？
+  es: ¿Cuáles son las mejores prácticas para el manejo de errores en FastAPI?
+  fr: Quelles sont les bonnes pratiques de gestion des erreurs dans FastAPI ?
+  pt: Quais são as melhores práticas para tratamento de erros no FastAPI?
+  ru: Каковы лучшие практики обработки ошибок в FastAPI?
+  ja: FastAPIでのエラーハンドリングのベストプラクティスは何ですか？
+  ko: FastAPI에서 오류 처리의 모범 사례는 무엇인가요?
+  it: Quali sono le best practice per la gestione degli errori in FastAPI?
+  tr: FastAPI'de hata yönetimi için en iyi uygulamalar nelerdir?
+  vi: Các phương pháp tốt nhất để xử lý lỗi trong FastAPI là gì?
+  id: Apa saja praktik terbaik untuk penanganan error di FastAPI?
+  pl: Jakie są najlepsze praktyki obsługi błędów w FastAPI?
+  nl: Wat zijn de best practices voor foutafhandeling in FastAPI?
+  ar: ما هي أفضل الممارسات للتعامل مع الأخطاء في FastAPI؟
+  hi: FastAPI में एरर हैंडलिंग के लिए सर्वोत्तम प्रथाएं क्या हैं?
+  th: แนวทางปฏิบัติที่ดีที่สุดสำหรับการจัดการข้อผิดพลาดใน FastAPI คืออะไร?
+  cs: Jaké jsou osvědčené postupy pro zpracování chyb ve FastAPI?
+  sv: Vilka är bästa praxis för felhantering i FastAPI?
+  he: "מהן **שיטות העבודה המומלצות** לטיפול בשגיאות ב-FastAPI?"
+  verified_by_human: [en, de]
+
+clean_repo:
+  context: Skill name for clean repo
+  en: Clean repo
+  de: Repository bereinigen
+  zh: 清理仓库
+  es: Limpiar repositorio
+  fr: Nettoyer le dépôt
+  pt: Limpar repositório
+  ru: Очистить репозиторий
+  ja: リポジトリをクリーンアップ
+  ko: 저장소 정리
+  it: Pulisci repository
+  tr: Depoyu temizle
+  vi: Dọn dẹp kho lưu trữ
+  id: Bersihkan repo
+  pl: Wyczyść repozytorium
+  nl: Repository opschonen
+  ar: تنظيف المستودع
+  hi: रेपो साफ करें
+  th: ทำความสะอาด repo
+  cs: Vyčistit úložiště
+  sv: Rensa repo
+  he: ניקוי מאגר
+  verified_by_human:
+    - en
+    - de
+clean_repo.description:
+  context: Description for clean repo skill
+  en: Find and remove unused code automatically.
+  de: Unbenutzten Code automatisch finden und entfernen.
+  zh: 自动查找并删除未使用的代码。
+  es: Encuentra y elimina código no utilizado.
+  fr: Trouvez et supprimez le code inutilisé.
+  pt: Encontre e remova código não utilizado.
+  ru: Найдите и удалите неиспользуемый код.
+  ja: 未使用のコードを自動で検出・削除。
+  ko: 사용하지 않는 코드를 자동으로 찾아 제거.
+  it: Trova e rimuovi codice non utilizzato.
+  tr: Kullanılmayan kodu bul ve kaldır.
+  vi: Tìm và xóa mã không sử dụng.
+  id: Temukan dan hapus kode yang tidak digunakan.
+  pl: Znajdź i usuń nieużywany kod.
+  nl: Vind en verwijder ongebruikte code.
+  ar: ابحث وأزل الكود غير المستخدم.
+  hi: अप्रयुक्त कोड खोजें और हटाएं।
+  th: ค้นหาและลบโค้ดที่ไม่ได้ใช้
+  cs: Najděte a odstraňte nepoužívaný kód.
+  sv: Hitta och ta bort oanvänd kod.
+  he: איתור והסרה של קוד שאינו בשימוש באופן אוטומטי.
+  verified_by_human:
+    - en
+    - de
+get_issues:
+  context: Skill name for get issues
+  en: Get issues
+  de: Issues abrufen
+  zh: 获取问题
+  es: Obtener problemas
+  fr: Obtenir les problèmes
+  pt: Obter problemas
+  ru: Получить проблемы
+  ja: 問題を取得
+  ko: 이슈 가져오기
+  it: Ottieni problemi
+  tr: Sorunları al
+  vi: Lấy vấn đề
+  id: Dapatkan masalah
+  pl: Pobierz problemy
+  nl: Problemen ophalen
+  ar: الحصول على المشاكل
+  hi: समस्याएं प्राप्त करें
+  th: รับปัญหา
+  cs: Získat problémy
+  sv: Hämta problem
+  he: קבלת אישיוז
+  verified_by_human:
+    - en
+    - de
+get_issues.description:
+  context: Description for get issues skill
+  en: Get GitHub/GitLab issues, all or by tags.
+  de: GitHub/GitLab-Issues abrufen, alle oder nach Tags.
+  zh: 获取GitHub/GitLab问题，全部或按标签。
+  es: Obtén issues de GitHub/GitLab, todos o por tags.
+  fr: Obtenez les issues GitHub/GitLab, tous ou par tags.
+  pt: Obtenha issues do GitHub/GitLab, todos ou por tags.
+  ru: Получите issues GitHub/GitLab, все или по тегам.
+  ja: GitHub/GitLabのissueを取得、全部またはタグ別。
+  ko: GitHub/GitLab 이슈 가져오기, 전체 또는 태그별.
+  it: Ottieni issue GitHub/GitLab, tutti o per tag.
+  tr: GitHub/GitLab sorunlarını al, hepsi veya etiketle.
+  vi: Lấy issues GitHub/GitLab, tất cả hoặc theo tag.
+  id: Dapatkan issues GitHub/GitLab, semua atau per tag.
+  pl: Pobierz issues GitHub/GitLab, wszystkie lub po tagach.
+  nl: Haal GitHub/GitLab issues op, alle of per tag.
+  ar: احصل على مشاكل GitHub/GitLab، الكل أو بالعلامات.
+  hi: GitHub/GitLab issues प्राप्त करें, सभी या टैग द्वारा।
+  th: รับ issues GitHub/GitLab ทั้งหมดหรือตามแท็ก
+  cs: Získejte issues GitHub/GitLab, všechny nebo dle tagů.
+  sv: Hämta GitHub/GitLab issues, alla eller per tagg.
+  he: קבלת אישיוז מ-GitHub/GitLab, כולם או לפי תגיות.
+  verified_by_human:
+    - en
+    - de
+add_issue:
+  context: Skill name for add issue
+  en: Add issue
+  de: Issue hinzufügen
+  zh: 添加问题
+  es: Agregar problema
+  fr: Ajouter un problème
+  pt: Adicionar problema
+  ru: Добавить проблему
+  ja: 問題を追加
+  ko: 이슈 추가
+  it: Aggiungi problema
+  tr: Sorun ekle
+  vi: Thêm vấn đề
+  id: Tambahkan masalah
+  pl: Dodaj problem
+  nl: Probleem toevoegen
+  ar: إضافة مشكلة
+  hi: समस्या जोड़ें
+  th: เพิ่มปัญหา
+  cs: Přidat problém
+  sv: Lägg till problem
+  he: הוספת אישיו
+  verified_by_human:
+    - en
+    - de
+add_issue.description:
+  context: Description for add issue skill
+  en: Add an issue to GitHub or GitLab project.
+  de: Issue zu GitHub- oder GitLab-Projekt hinzufügen.
+  zh: 向GitHub或GitLab项目添加问题。
+  es: Agrega un issue a proyecto GitHub o GitLab.
+  fr: Ajoutez un issue à votre projet GitHub/GitLab.
+  pt: Adicione issue ao projeto GitHub ou GitLab.
+  ru: Добавьте issue в проект GitHub или GitLab.
+  ja: GitHub/GitLabプロジェクトにissueを追加。
+  ko: GitHub/GitLab 프로젝트에 이슈 추가.
+  it: Aggiungi issue al progetto GitHub o GitLab.
+  tr: GitHub veya GitLab projesine sorun ekleyin.
+  vi: Thêm issue vào dự án GitHub hoặc GitLab.
+  id: Tambahkan issue ke proyek GitHub atau GitLab.
+  pl: Dodaj issue do projektu GitHub lub GitLab.
+  nl: Voeg issue toe aan GitHub- of GitLab-project.
+  ar: أضف مشكلة إلى مشروع GitHub أو GitLab.
+  hi: GitHub या GitLab प्रोजेक्ट में issue जोड़ें।
+  th: เพิ่ม issue ไปยังโปรเจ็กต์ GitHub/GitLab
+  cs: Přidejte issue do projektu GitHub nebo GitLab.
+  sv: Lägg till issue i GitHub- eller GitLab-projekt.
+  he: הוספת אישיו לפרויקט ב-GitHub או ב-GitLab.
+  verified_by_human:
+    - en
+    - de
+remove_secrets:
+  context: Skill name for remove secrets
+  en: Remove secrets
+  de: Geheimnisse entfernen
+  zh: 删除密钥
+  es: Eliminar secretos
+  fr: Supprimer les secrets
+  pt: Remover segredos
+  ru: Удалить секреты
+  ja: シークレットを削除
+  ko: 비밀 제거
+  it: Rimuovi segreti
+  tr: Sırları kaldır
+  vi: Xóa bí mật
+  id: Hapus rahasia
+  pl: Usuń sekrety
+  nl: Geheimen verwijderen
+  ar: إزالة الأسرار
+  hi: रहस्य हटाएं
+  th: ลบความลับ
+  cs: Odstranit tajemství
+  sv: Ta bort hemligheter
+  he: הסרת סודות
+  verified_by_human:
+    - en
+    - de
+remove_secrets.description:
+  context: Description for remove secrets skill
+  en: Find and remove sensitive data automatically.
+  de: Sensible Daten automatisch finden und entfernen.
+  zh: 自动查找并删除敏感数据。
+  es: Encuentra y elimina datos sensibles.
+  fr: Trouvez et supprimez les données sensibles.
+  pt: Encontre e remova dados sensíveis.
+  ru: Найдите и удалите конфиденциальные данные.
+  ja: 機密データを自動で検出・削除。
+  ko: 민감한 데이터를 자동으로 찾아 제거.
+  it: Trova e rimuovi dati sensibili.
+  tr: Hassas verileri bul ve kaldır.
+  vi: Tìm và xóa dữ liệu nhạy cảm.
+  id: Temukan dan hapus data sensitif.
+  pl: Znajdź i usuń dane poufne.
+  nl: Vind en verwijder gevoelige gegevens.
+  ar: ابحث وأزل البيانات الحساسة.
+  hi: संवेदनशील डेटा खोजें और हटाएं।
+  th: ค้นหาและลบข้อมูลที่ละเอียดอ่อน
+  cs: Najděte a odstraňte citlivá data.
+  sv: Hitta och ta bort känsliga data.
+  he: איתור והסרה של נתונים רגישים באופן אוטומטי.
+  verified_by_human:
+    - en
+    - de
+get_project_overview:
+  context: Skill name for get project overview
+  en: Get project overview
+  de: Projektübersicht abrufen
+  zh: 获取项目概览
+  es: Obtener resumen del proyecto
+  fr: Obtenir une vue d'ensemble du projet
+  pt: Obter visão geral do projeto
+  ru: Получить обзор проекта
+  ja: プロジェクト概要を取得
+  ko: 프로젝트 개요 가져오기
+  it: Ottieni panoramica progetto
+  tr: Proje genel bakışını al
+  vi: Lấy tổng quan dự án
+  id: Dapatkan ringkasan proyek
+  pl: Pobierz przegląd projektu
+  nl: Projectoverzicht ophalen
+  ar: الحصول على نظرة عامة على المشروع
+  hi: प्रोजेक्ट अवलोकन प्राप्त करें
+  th: รับภาพรวมโปรเจ็กต์
+  cs: Získat přehled projektu
+  sv: Hämta projektöversikt
+  he: קבלת סקירת פרויקט
+  verified_by_human:
+    - en
+    - de
+get_project_overview.description:
+  context: Description for get project overview skill
+  en: Create AST overview of project structure.
+  de: AST-Übersicht der Projektstruktur erstellen.
+  zh: 创建项目结构的AST概览。
+  es: Crea resumen AST de la estructura del proyecto.
+  fr: Créez une vue d'ensemble AST du projet.
+  pt: Crie visão geral AST da estrutura do projeto.
+  ru: Создайте AST-обзор структуры проекта.
+  ja: プロジェクト構造のAST概要を作成。
+  ko: 프로젝트 구조 AST 개요 생성.
+  it: Crea panoramica AST della struttura progetto.
+  tr: Proje yapısı AST genel bakışı oluşturun.
+  vi: Tạo tổng quan AST của cấu trúc dự án.
+  id: Buat ringkasan AST struktur proyek.
+  pl: Utwórz przegląd AST struktury projektu.
+  nl: Maak AST-overzicht van projectstructuur.
+  ar: أنشئ نظرة AST لهيكل المشروع.
+  hi: प्रोजेक्ट संरचना का AST अवलोकन बनाएं।
+  th: สร้างภาพรวม AST ของโครงสร้างโปรเจ็กต์
+  cs: Vytvořte AST přehled struktury projektu.
+  sv: Skapa AST-översikt av projektstruktur.
+  he: יצירת סקירת AST של מבנה הפרויקט.
+  verified_by_human:
+    - en
+    - de

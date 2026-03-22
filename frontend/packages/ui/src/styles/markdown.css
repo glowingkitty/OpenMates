@@ -1,5 +1,8 @@
 /* Markdown Styles for ReadOnlyMessage */
 
+/* Import KaTeX CSS for math formula rendering */
+@import "katex/dist/katex.min.css";
+
 /* Typography */
 .markdown-heading {
   font-weight: 600;
@@ -54,6 +57,7 @@
 /* Text formatting */
 .markdown-bold {
   font-weight: 600;
+  color: var(--color-bold-text, #503ba0);
 }
 
 .markdown-italic {
@@ -97,7 +101,8 @@
   border: 1px solid var(--color-border-secondary, #e1e5e9);
   border-radius: 6px;
   padding: 0.2em 0.4em;
-  font-family: 'SFMono-Regular', 'Consolas', 'Liberation Mono', 'Menlo', monospace;
+  font-family:
+    "SFMono-Regular", "Consolas", "Liberation Mono", "Menlo", monospace;
   font-size: 0.85em;
   color: var(--color-font-primary, #000);
 }
@@ -109,7 +114,8 @@
   border-radius: 6px;
   padding: 1em;
   margin: 1em 0;
-  font-family: 'SFMono-Regular', 'Consolas', 'Liberation Mono', 'Menlo', monospace;
+  font-family:
+    "SFMono-Regular", "Consolas", "Liberation Mono", "Menlo", monospace;
   font-size: 0.85em;
   line-height: 1.45;
   overflow-x: auto;
@@ -119,7 +125,6 @@
 .markdown-horizontal-rule {
   border: none;
   border-top: 2px solid var(--color-border-secondary, #e1e5e9);
-  margin: 2em 0;
   height: 0;
 }
 
@@ -180,6 +185,14 @@
 
 .markdown-blockquote .markdown-paragraph:last-child {
   margin-bottom: 0;
+}
+
+/* Source Quote Blocks (verified quotes from embed sources) */
+/* The .source-quote-node wrapper is the TipTap atom node container.
+   All visual styling lives inside SourceQuoteBlock.svelte (scoped).
+   This class only handles spacing in the message flow. */
+.source-quote-node {
+  margin: 8px 0;
 }
 
 /* Tables */
@@ -257,90 +270,126 @@
   .markdown-table {
     font-size: 0.875em;
   }
-  
+
   .markdown-table-header,
   .markdown-table-cell {
     padding: 0.5em 0.75em;
   }
 }
 
-/* Dark mode support (if your app has dark mode) */
-@media (prefers-color-scheme: dark) {
+/* Dark mode support — uses app's theme toggle attribute, not OS preference */
+[data-theme="dark"] {
   .markdown-heading {
     color: var(--color-font-primary-dark, #fff);
   }
-  
+
   .markdown-h1,
   .markdown-h2 {
     border-bottom-color: var(--color-border-secondary-dark, #30363d);
   }
-  
+
   .markdown-h6 {
     color: var(--color-font-secondary-dark, #8b949e);
   }
-  
+
   .markdown-paragraph {
     color: var(--color-font-primary-dark, #fff);
   }
-  
+
   .markdown-inline-code {
     background-color: var(--color-background-secondary-dark, #161b22);
     border-color: var(--color-border-secondary-dark, #30363d);
     color: var(--color-font-primary-dark, #fff);
   }
-  
+
   .markdown-code-block {
     background-color: var(--color-background-secondary-dark, #161b22);
     border-color: var(--color-border-secondary-dark, #30363d);
   }
-  
+
   .markdown-horizontal-rule {
     border-top-color: var(--color-border-secondary-dark, #30363d);
   }
-  
+
   .markdown-blockquote {
     border-left-color: var(--color-border-accent-dark, #30363d);
     color: var(--color-font-secondary-dark, #8b949e);
     background-color: var(--color-background-tertiary-dark, #0d1117);
   }
-  
+
   .markdown-table {
     border-color: var(--color-border-secondary-dark, #30363d);
   }
-  
+
   .markdown-table-row {
     border-bottom-color: var(--color-border-secondary-dark, #30363d);
   }
-  
+
   .markdown-table-header {
     background-color: var(--color-background-secondary-dark, #161b22);
     border-right-color: var(--color-border-secondary-dark, #30363d);
     color: var(--color-font-primary-dark, #fff);
   }
-  
+
   .markdown-table-cell {
     border-right-color: var(--color-border-secondary-dark, #30363d);
     color: var(--color-font-primary-dark, #fff);
   }
-  
+
   .markdown-table-row:nth-child(even) .markdown-table-cell {
     background-color: var(--color-background-tertiary-dark, #0d1117);
   }
-  
+
   .markdown-highlight {
     background-color: var(--color-highlight-dark, #664d03);
     color: var(--color-font-primary-dark, #fff);
   }
-  
+
   .markdown-link {
     color: var(--color-link-dark, #58a6ff);
   }
-  
+
   .markdown-link:hover {
     color: var(--color-link-hover-dark, #79c0ff);
   }
-  
+
   .markdown-link:focus {
     outline-color: var(--color-focus-dark, #58a6ff);
   }
+
+  /* SVG images in legal documents - invert colors for dark mode */
+  .legal-svg-image {
+    filter: invert(1);
+  }
+}
+
+/* Also support OS-level preference as fallback for when no data-theme is set */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .legal-svg-image {
+    filter: invert(1);
+  }
+}
+
+/* Legal SVG images styling - minimal spacing, non-clickable */
+.legal-svg-image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0;
+  margin-bottom: 8px; /* Small spacing between multiple SVGs */
+  pointer-events: none; /* Make non-clickable */
+}
+
+/* Image embed containers (for legal SVGs) - make non-interactive */
+.embed-image-non-interactive {
+  pointer-events: none;
+  cursor: default;
+  margin: 0;
+  margin-bottom: 8px;
+}
+
+/* Remove wrapper spacing for image embeds */
+.embed-full-width-wrapper:has(.embed-image-non-interactive) {
+  margin: 0;
+  margin-bottom: 8px;
 }

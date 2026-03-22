@@ -1,16 +1,13 @@
 import logging
-import json
 import time
 from typing import Dict, Any, Optional
 
 from fastapi import WebSocket
 
 from backend.core.api.app.services.cache import CacheService
-from backend.core.api.app.services.directus.directus import DirectusService # Keep if needed for validation?
-from backend.core.api.app.services.directus import chat_methods
+from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
-# No Celery task needed for immediate draft persistence
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +74,56 @@ async def handle_update_draft(
 
     logger.info(f"Processing update_draft for user {user_id}, chat {chat_id} from device {device_fingerprint_hash}")
 
+    # Verify chat ownership
+    # CRITICAL: Allow drafts for new chats that don't exist in Directus yet
+    # When a user starts typing in a new chat, the chat is created locally but not yet in Directus.
+    # The chat is only created in Directus when the first message is sent.
+    # This matches the behavior in message_received_handler.py (lines 108-110)
+    try:
+        is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
+        if not is_owner:
+            # Check if chat exists at all - if not, treat as new chat creation (allowed)
+            chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
+            if chat_metadata:
+                # Chat exists but user doesn't own it - reject
+                logger.warning(f"User {user_id} attempted to update draft for chat {chat_id} they don't own. Rejecting.")
+                await manager.send_personal_message(
+                    message={"type": "error", "payload": {"message": "You do not have permission to modify this chat.", "chat_id": chat_id}},
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash
+                )
+                return
+            else:
+                # Chat doesn't exist - this is a new chat creation, which is allowed
+                logger.debug(f"Chat {chat_id} not found in database - treating as new chat draft (allowed)")
+    except Exception as e_ownership:
+        # On error checking ownership, check if chat exists
+        # If chat doesn't exist, allow draft save (new chat creation)
+        # If chat exists, reject for security (fail closed)
+        try:
+            chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
+            if chat_metadata:
+                # Chat exists but we couldn't verify ownership - reject for security
+                logger.error(f"Error verifying ownership for existing chat {chat_id}, user {user_id}: {e_ownership}", exc_info=True)
+                await manager.send_personal_message(
+                    message={"type": "error", "payload": {"message": "Unable to verify chat ownership. Please try again.", "chat_id": chat_id}},
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash
+                )
+                return
+            else:
+                # Chat doesn't exist - treat as new chat creation (allowed)
+                logger.debug(f"Chat {chat_id} not found in database during ownership check error - treating as new chat draft (allowed)")
+        except Exception as e_metadata:
+            # Couldn't check if chat exists - reject for security
+            logger.error(f"Error checking if chat {chat_id} exists for user {user_id}: {e_metadata}", exc_info=True)
+            await manager.send_personal_message(
+                message={"type": "error", "payload": {"message": "Unable to verify chat permissions. Please try again.", "chat_id": chat_id}},
+                user_id=user_id,
+                device_fingerprint_hash=device_fingerprint_hash
+            )
+            return
+
     # Basic validation - check length limits for encrypted content
     if encrypted_draft_md and len(encrypted_draft_md) > MAX_DRAFT_CHARS:  # Use existing limit for encrypted content, NOTE: does this make sense? needs update?
         await manager.send_personal_message(
@@ -100,86 +147,51 @@ async def handle_update_draft(
         )
         return # Cannot proceed without new version
 
-    # Update encrypted draft_json in user:{user_id}:chat:{chat_id}:draft cache key
-    update_success = await cache_service.update_user_draft_in_cache(user_id, chat_id, encrypted_draft_str, new_user_draft_v)
+    # Update encrypted draft content and preview in user:{user_id}:chat:{chat_id}:draft cache key
+    draft_preview_from_payload: Optional[str] = payload.get("encrypted_draft_preview")
+    update_success = await cache_service.update_user_draft_in_cache(
+        user_id, chat_id, encrypted_draft_str, new_user_draft_v,
+        encrypted_draft_preview=draft_preview_from_payload
+    )
     if not update_success:
         logger.error(f"Failed to update user draft in cache for user {user_id}, chat {chat_id}.")
         # Log error but continue, version was incremented.
 
-    # Update last_edited_overall_timestamp for the chat and re-sort
+    # --- Draft-only chat discoverability for cross-device sync ---
+    # For draft-only NEW chats (not yet in the sorted set), we add them so that
+    # initial_sync and reconnect can discover them on other devices.
+    # We do NOT update the score for existing chats — only messages should change
+    # last_edited_overall_timestamp for proper sorting. The frontend sorts chats
+    # with drafts above non-draft chats via hasNonEmptyDraft() in chatSortUtils.ts.
     now_ts = int(time.time())
-    update_score_success = await cache_service.update_chat_score_in_ids_versions(user_id, chat_id, now_ts)
-    if not update_score_success:
-         logger.error(f"Failed to update last_edited_overall_timestamp score for chat {chat_id}. User: {user_id}")
-    # --- Top N Message Cache Maintenance (Section 9.1) ---
-    if update_score_success: # Only proceed if the score update was likely successful
-        try:
-            top_n_chat_ids = await cache_service.get_chat_ids_versions(
-                user_id, start=0, end=cache_service.TOP_N_MESSAGES_COUNT - 1
-            )
+    chat_exists_in_sorted_set = await cache_service.check_chat_exists_for_user(user_id, chat_id)
+    if not chat_exists_in_sorted_set:
+        # This is a draft-only new chat — add it to the sorted set so other devices
+        # can discover it during initial sync or reconnect.
+        add_success = await cache_service.add_chat_to_ids_versions(user_id, chat_id, now_ts)
+        if add_success:
+            logger.info(f"Added draft-only new chat {chat_id} to chat_ids_versions for user {user_id}")
+        else:
+            logger.error(f"Failed to add draft-only new chat {chat_id} to chat_ids_versions for user {user_id}")
 
-            if chat_id in top_n_chat_ids:
-                # Check if messages are already cached for this chat
-                messages_key = cache_service._get_chat_messages_key(user_id, chat_id)
-                client = await cache_service.client
-                if client and not await client.exists(messages_key):
-                    logger.info(f"Chat {chat_id} entered Top N, caching messages.")
-                    try:
-                        # First check if messages exist to avoid permission issues with encrypted fields
-                        messages_exist = await directus_service.chat.check_messages_exist_for_chat(chat_id)
-                        if messages_exist:
-                            # Fetch full messages from Directus
-                            messages_list = await directus_service.chat.get_all_messages_for_chat(
-                                chat_id=chat_id
-                                )
-                            if messages_list:
-                                await cache_service.set_chat_messages_history(user_id, chat_id, messages_list)
-                                logger.info(f"Successfully cached messages for Top N chat {chat_id}.")
-                            else:
-                                logger.info(f"No messages found in Directus for Top N chat {chat_id} to cache. This is normal for new chats.")
-                        else:
-                            logger.info(f"No messages exist for Top N chat {chat_id}. This is normal for new chats.")
-                    except Exception as e_fetch:
-                        # Handle permission errors or other issues gracefully
-                        logger.warning(f"Failed to fetch messages for Top N chat {chat_id}: {e_fetch}. This may be a new chat with no messages yet.")
-                        # Don't raise the exception, just log it and continue
-                # else: # Optional: log if messages already cached or client unavailable
-                #      logger.debug(f"Messages for chat {chat_id} already cached or client unavailable.")
+    # Get the current score for this chat (for the broadcast payload).
+    # Other devices need this timestamp when creating the chat entry locally.
+    chat_timestamp = await cache_service.get_chat_last_edited_overall_timestamp(user_id, chat_id)
+    if chat_timestamp is None:
+        chat_timestamp = now_ts
 
-            # Evict messages for chats that fell out of Top N
-            # Get N+1 chats to find the one to evict (if any)
-            # Note: This simple eviction assumes only one chat drops out at a time.
-            # A more robust approach might involve checking all keys matching the pattern
-            # user:{user_id}:chat:*:messages and comparing against the current Top N set.
-            
-            # Simple eviction: Check the (N+1)th chat ID if it exists
-            if len(top_n_chat_ids) >= cache_service.TOP_N_MESSAGES_COUNT:
-                 # Get the ID just outside the top N
-                 potential_evict_candidates = await cache_service.get_chat_ids_versions(
-                     user_id, start=cache_service.TOP_N_MESSAGES_COUNT, end=cache_service.TOP_N_MESSAGES_COUNT
-                 )
-                 if potential_evict_candidates:
-                     evict_chat_id = potential_evict_candidates[0]
-                     # Check if this chat actually had messages cached before evicting
-                     messages_key_to_evict = cache_service._get_chat_messages_key(user_id, evict_chat_id)
-                     if client and await client.exists(messages_key_to_evict):
-                          logger.info(f"Chat {evict_chat_id} fell out of Top N. Evicting its messages from cache.")
-                          await cache_service.delete_chat_messages_history(user_id, evict_chat_id)
-
-        except Exception as e_top_n:
-            logger.error(f"Error during Top N message cache maintenance for chat {chat_id}: {e_top_n}", exc_info=True)
-            # Log error but continue - don't let Top N cache issues break draft saving
-    # --- End Top N Logic ---
-
-    # NO immediate Celery task dispatched for draft persistence
-
-    # Broadcast to all connected devices for this user
+    # Broadcast to all connected devices for this user.
+    # Include encrypted_draft_preview so other devices can show preview text in chat list.
+    # Include last_edited_overall_timestamp so new chats can be created with correct sorting.
     broadcast_payload = {
-        "event": "chat_draft_updated", # As per chat_sync_architecture.md Section 7
+        "event": "chat_draft_updated",
         "chat_id": chat_id,
-        "data": {"encrypted_draft_md": encrypted_draft_str}, # Send encrypted draft (or null)
-        "versions": {"draft_v": new_user_draft_v}, # Send new user-specific draft version, renamed to draft_v
-        "last_edited_overall_timestamp": now_ts # Send the new timestamp for the chat
+        "data": {
+            "encrypted_draft_md": encrypted_draft_str,
+            "encrypted_draft_preview": draft_preview_from_payload,
+        },
+        "versions": {"draft_v": new_user_draft_v},
+        "last_edited_overall_timestamp": chat_timestamp,
     }
     # Broadcast only to the current user's other connected devices
     await manager.broadcast_to_user(

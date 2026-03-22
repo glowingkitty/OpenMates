@@ -5,7 +5,7 @@ from typing import Dict, Any, List
 
 from fastapi import WebSocket
 
-from backend.core.api.app.services.directus import DirectusService, chat_methods
+from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 
@@ -38,6 +38,17 @@ async def handle_get_chat_messages(
     logger.info(f"User {user_id}/{device_fingerprint_hash} requesting messages for chat_id: {chat_id}")
 
     try:
+        # Verify chat ownership
+        is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
+        if not is_owner:
+            logger.warning(f"User {user_id} attempted to fetch messages for chat {chat_id} they don't own. Rejecting.")
+            await manager.send_personal_message(
+                message={"type": "error", "payload": {"message": "You do not have permission to access this chat.", "chat_id": chat_id}},
+                user_id=user_id,
+                device_fingerprint_hash=device_fingerprint_hash
+            )
+            return
+
         # Fetch and decrypt messages
         # get_all_messages_for_chat returns List[Dict[str, Any]] when decrypt_content=True
         messages: List[Dict[str, Any]] = await directus_service.chat.get_all_messages_for_chat(

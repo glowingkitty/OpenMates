@@ -1,5 +1,5 @@
-from pydantic import BaseModel, EmailStr
-from typing import Optional, Dict, Any
+from pydantic import BaseModel
+from typing import Optional
 
 class User(BaseModel):
     id: str
@@ -14,6 +14,7 @@ class User(BaseModel):
     # Consent fields (store timestamp as string)
     consent_privacy_and_apps_default_settings: Optional[str] = None
     consent_mates_default_settings: Optional[str] = None
+    consent_withdrawal_waiver_timestamp: Optional[str] = None # Timestamp of withdrawal waiver consent (for EU/German consumer law compliance)
     language: Optional[str] = 'en' # User's preferred language, default 'en'
     darkmode: bool = False # User's dark mode preference, default false
     gifted_credits_for_signup: Optional[int] = None # Gifted credits from signup invite
@@ -24,3 +25,20 @@ class User(BaseModel):
     user_email_salt: Optional[str] = None # Salt used for client-side email encryption (base64)
     lookup_hashes: Optional[list] = None # List of lookup hashes for authentication
     account_id: Optional[str] = None # Account ID for invoice numbering
+    
+    # Monthly subscription fields
+    encrypted_payment_method_id: Optional[str] = None # Encrypted Stripe payment method ID for recurring charges
+    stripe_customer_id: Optional[str] = None # Stripe customer identifier (cleartext, not sensitive)
+    stripe_subscription_id: Optional[str] = None # Stripe subscription identifier (cleartext, not sensitive)
+    subscription_status: Optional[str] = None # Subscription status (active, canceled, past_due, etc.)
+    subscription_credits: Optional[int] = None # Base credit amount for monthly subscription
+    subscription_currency: Optional[str] = None # Currency code (eur, usd)
+    next_billing_date: Optional[str] = None # Next billing date (ISO 8601 format)
+    subscription_billing_day_preference: Optional[str] = None # Billing day preference: 'anniversary' (default, 30 days from activation) or 'first_of_month'
+    
+    # Low balance auto top-up fields
+    auto_topup_low_balance_enabled: bool = False # Enable automatic one-time top-up when balance low
+    auto_topup_low_balance_threshold: Optional[int] = None # Credit threshold that triggers auto top-up (fixed at 100 credits, cannot be changed to simplify setup)
+    auto_topup_low_balance_amount: Optional[int] = None # Credits to purchase when threshold crossed
+    auto_topup_low_balance_currency: Optional[str] = None # Currency for auto top-up purchases
+    encrypted_auto_topup_last_triggered: Optional[str] = None # Encrypted timestamp of last auto top-up

@@ -138,7 +138,7 @@ export function isLikelyCode(text: string): boolean {
  */
 export function detectLanguage(text: string): string {
     // Handle a few special cases that lowlight might miss
-    if (text.match(/^#\s|^\*\*\s|^\-\s|^>\s|^```/m) && !text.includes('def ') && !text.includes('import ')) {
+    if (text.match(/^#\s|^\*\*\s|^-\s|^>\s|^```/m) && !text.includes('def ') && !text.includes('import ')) {
         return 'markdown';
     }
     

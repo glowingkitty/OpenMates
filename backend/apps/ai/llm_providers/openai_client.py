@@ -17,6 +17,7 @@ from .openai_shared import (
     OpenAIUsageMetadata,
     RawOpenAIChatCompletionResponse,
     _map_tools_to_openai_format,
+    calculate_token_breakdown,
 )
 from .openai_openrouter import invoke_openrouter_chat_completions
 
@@ -34,6 +35,18 @@ _openai_api_key: Optional[str] = None
 _openai_base_url: Optional[str] = None
 _openai_organization: Optional[str] = None
 _openai_project: Optional[str] = None
+
+
+def _is_reasoning_model(model_id: str) -> bool:
+    """Check if model is a reasoning model based on config."""
+    try:
+        model_config = config_manager.get_model_pricing("openai", model_id)
+        if model_config and model_config.get("features", {}).get("reasoning_token_support"):
+            return True
+        # Fallback for known reasoning models if config is missing
+        return model_id.startswith(("o1", "o3", "gpt-5"))
+    except Exception:
+        return model_id.startswith(("o1", "o3", "gpt-5"))
 
 
 def _select_server_for_model(model_id: str) -> str:
@@ -128,7 +141,13 @@ def _parse_tool_calls_from_choice(choice: Dict[str, Any]) -> Optional[List[Parse
         return None
 
 
-def _build_unified_response(task_id: str, model_id: str, response_json: Dict[str, Any]) -> UnifiedOpenAIResponse:
+def _build_unified_response(
+    task_id: str, 
+    model_id: str, 
+    response_json: Dict[str, Any], 
+    messages: Optional[List[Dict[str, Any]]] = None,
+    tools: Optional[List[Dict[str, Any]]] = None
+) -> UnifiedOpenAIResponse:
     try:
         choices = response_json.get("choices") or []
         first = choices[0] if choices else {}
@@ -140,10 +159,16 @@ def _build_unified_response(task_id: str, model_id: str, response_json: Dict[str
         usage = None
         if usage_raw:
             try:
+                # Get breakdown if messages provided
+                # Include tools in the breakdown to ensure system_prompt_tokens matches prompt_tokens
+                breakdown = calculate_token_breakdown(messages, model_id, tools=tools) if messages else {}
+                
                 usage = OpenAIUsageMetadata(
                     input_tokens=int(usage_raw.get("prompt_tokens") or 0),
                     output_tokens=int(usage_raw.get("completion_tokens") or 0),
                     total_tokens=int(usage_raw.get("total_tokens") or 0),
+                    user_input_tokens=breakdown.get("user_input_tokens"),
+                    system_prompt_tokens=breakdown.get("system_prompt_tokens")
                 )
             except Exception:
                 usage = None
@@ -225,15 +250,25 @@ async def _invoke_openai_direct_api(
         # For fallback token estimation when usage is absent
         collected_output_text_parts: List[str] = []
 
+        is_reasoning = _is_reasoning_model(model_id)
+
         # Build payload with streaming enabled
         stream_payload: Dict[str, Any] = {
             "model": model_id,
             "messages": messages,
-            # "temperature": temperature, # NOTE: gpt-5 does not support temperature (and possible also other models)
             "stream": True,
         }
+        
+        # Add temperature if NOT a reasoning model (reasoning models usually don't support it or require 1.0)
+        if not is_reasoning:
+            stream_payload["temperature"] = temperature
+
         if max_tokens is not None:
-            stream_payload["max_tokens"] = max_tokens
+            # Reasoning models (like o1, gpt-5) use max_completion_tokens instead of max_tokens
+            if is_reasoning:
+                stream_payload["max_completion_tokens"] = max_tokens
+            else:
+                stream_payload["max_tokens"] = max_tokens
         if tools:
             mapped_tools = _map_tools_to_openai_format(tools)
             if mapped_tools:
@@ -249,6 +284,10 @@ async def _invoke_openai_direct_api(
         try:
             # Create the streaming request
             stream_resp = await _openai_direct_client.chat.completions.create(**stream_payload)  # type: ignore
+
+            # Calculate token breakdown from input messages (estimate)
+            # Include tools in the estimate to ensure it matches the actual prompt_tokens from API
+            token_breakdown = calculate_token_breakdown(messages, model_id, tools=mapped_tools if tools else None)
 
             # Iterate over streamed ChatCompletionChunk objects
             async for chunk in stream_resp:  # type: ignore
@@ -384,6 +423,8 @@ async def _invoke_openai_direct_api(
                 input_tokens=cumulative_usage["input_tokens"],
                 output_tokens=cumulative_usage["output_tokens"],
                 total_tokens=cumulative_usage["total_tokens"],
+                user_input_tokens=token_breakdown.get("user_input_tokens"),
+                system_prompt_tokens=token_breakdown.get("system_prompt_tokens")
             )
 
             logger.info(f"{log_prefix} Stream completed for model '{model_id}'")
@@ -398,13 +439,23 @@ async def _invoke_openai_direct_api(
         # Return the async generator for the calling pipeline to iterate over
         return _iterate_openai_direct_stream()
 
+    is_reasoning = _is_reasoning_model(model_id)
+
     payload: Dict[str, Any] = {
         "model": model_id,
         "messages": messages,
-        "temperature": temperature,
     }
+    
+    # Add temperature if NOT a reasoning model
+    if not is_reasoning:
+        payload["temperature"] = temperature
+        
     if max_tokens is not None:
-        payload["max_tokens"] = max_tokens
+        # Reasoning models (like o1, gpt-5) use max_completion_tokens instead of max_tokens
+        if is_reasoning:
+            payload["max_completion_tokens"] = max_tokens
+        else:
+            payload["max_tokens"] = max_tokens
     if tools:
         payload["tools"] = _map_tools_to_openai_format(tools)
         if tool_choice:
@@ -421,7 +472,8 @@ async def _invoke_openai_direct_api(
         resp = await _openai_direct_client.chat.completions.create(**payload)  # type: ignore
         response_json: Dict[str, Any] = resp.model_dump() if hasattr(resp, "model_dump") else resp  # type: ignore
         logger.info("[%s] OpenAI Direct API success for model '%s'", task_id, model_id)
-        return _build_unified_response(task_id, model_id, response_json)
+        # Pass mapped tools to ensure correct token breakdown calculation
+        return _build_unified_response(task_id, model_id, response_json, messages=messages, tools=payload.get("tools"))
     except Exception as exc:
         logger.error("[%s] OpenAI Direct API error: %s", task_id, exc, exc_info=True)
         return UnifiedOpenAIResponse(task_id=task_id, model_id=model_id, success=False, error_message=str(exc))
@@ -444,8 +496,9 @@ async def invoke_openai_chat_completions(
     server_choice = _select_server_for_model(model_id)
     logger.info("[%s] OpenAI Client: server=%s, stream=%s", task_id, server_choice, stream)
 
+    # Try the primary server choice first
     if server_choice == "openrouter":
-        return await invoke_openrouter_chat_completions(
+        response = await invoke_openrouter_chat_completions(
             task_id=task_id,
             model_id=model_id,
             messages=messages,
@@ -456,21 +509,80 @@ async def invoke_openai_chat_completions(
             tool_choice=tool_choice,
             stream=stream,
         )
-
-    if server_choice == "azure":
+    elif server_choice == "azure":
         error_msg = "Azure OpenAI selected by config, but not yet implemented in this client."
         logger.error("[%s] %s", task_id, error_msg)
         if stream:
             raise ValueError(error_msg)
-        return UnifiedOpenAIResponse(task_id=task_id, model_id=model_id, success=False, error_message=error_msg)
+        response = UnifiedOpenAIResponse(task_id=task_id, model_id=model_id, success=False, error_message=error_msg)
+    else:
+        # Default to openai direct
+        response = await _invoke_openai_direct_api(
+            task_id=task_id,
+            model_id=model_id,
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            tools=tools,
+            tool_choice=tool_choice,
+            stream=stream,
+        )
 
-    return await _invoke_openai_direct_api(
-        task_id=task_id,
-        model_id=model_id,
-        messages=messages,
-        temperature=temperature,
-        max_tokens=max_tokens,
-        tools=tools,
-        tool_choice=tool_choice,
-        stream=stream,
-    )
+    # AUTOMATIC FALLBACK: If primary failed (non-streaming only), try other available servers
+    if not stream and isinstance(response, UnifiedOpenAIResponse) and not response.success:
+        logger.warning("[%s] OpenAI Client: Primary server '%s' failed: %s. Checking for fallback servers...", 
+                       task_id, server_choice, response.error_message)
+        
+        try:
+            provider_config = config_manager.get_provider_config("openai")
+            if provider_config:
+                for model in provider_config.get("models", []):
+                    if isinstance(model, dict) and model.get("id") == model_id:
+                        servers = model.get("servers") or []
+                        for server in servers:
+                            fallback_server = server.get("id")
+                            # Skip the one we already tried
+                            if fallback_server == server_choice:
+                                continue
+                            
+                            logger.info("[%s] OpenAI Client: Attempting fallback to server '%s' for model '%s'", 
+                                        task_id, fallback_server, model_id)
+                            
+                            if fallback_server == "openrouter":
+                                fallback_response = await invoke_openrouter_chat_completions(
+                                    task_id=task_id,
+                                    model_id=model_id,
+                                    messages=messages,
+                                    secrets_manager=secrets_manager,
+                                    temperature=temperature,
+                                    max_tokens=max_tokens,
+                                    tools=tools,
+                                    tool_choice=tool_choice,
+                                    stream=False,
+                                )
+                                if fallback_response.success:
+                                    logger.info("[%s] OpenAI Client: Fallback to OpenRouter successful.", task_id)
+                                    return fallback_response
+                                logger.warning("[%s] OpenAI Client: Fallback to OpenRouter failed: %s", 
+                                               task_id, fallback_response.error_message)
+                                
+                            elif fallback_server == "openai":
+                                fallback_response = await _invoke_openai_direct_api(
+                                    task_id=task_id,
+                                    model_id=model_id,
+                                    messages=messages,
+                                    temperature=temperature,
+                                    max_tokens=max_tokens,
+                                    tools=tools,
+                                    tool_choice=tool_choice,
+                                    stream=False,
+                                )
+                                if fallback_response.success:
+                                    logger.info("[%s] OpenAI Client: Fallback to OpenAI Direct successful.", task_id)
+                                    return fallback_response
+                                logger.warning("[%s] OpenAI Client: Fallback to OpenAI Direct failed: %s", 
+                                               task_id, fallback_response.error_message)
+        except Exception as fallback_exc:
+            logger.error("[%s] OpenAI Client: Error during fallback attempt: %s", task_id, fallback_exc, exc_info=True)
+
+    return response

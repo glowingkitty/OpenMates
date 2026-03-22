@@ -1,0 +1,475 @@
+transcribe:
+  context: Skill name shown on voice recording embed card and in the app store
+  en: Get Transcript
+  de: Transkript erstellen
+  zh: 获取转录
+  es: Obtener transcripción
+  fr: Obtenir la transcription
+  pt: Obter transcrição
+  ru: Получить транскрипт
+  ja: 文字起こしを取得
+  ko: 자막 가져오기
+  it: Ottieni trascrizione
+  tr: Transkript al
+  vi: Lấy bản ghi
+  id: Dapatkan transkrip
+  pl: Pobierz transkrypcję
+  nl: Transcript ophalen
+  ar: الحصول على النص
+  hi: प्रतिलिपि प्राप्त करें
+  th: รับสำเนา
+  cs: Získat přepis
+  sv: Hämta transkription
+  he: קבלת תמלול
+  verified_by_human: []
+
+transcribe.description:
+  context: Description shown below the skill name on voice recording embed card
+  en: Transcribed voice recording
+  de: Transkribierte Sprachaufnahme
+  zh: 已转录的语音录音
+  es: Grabación de voz transcrita
+  fr: Enregistrement vocal transcrit
+  pt: Gravação de voz transcrita
+  ru: Расшифрованная запись
+  ja: 文字起こしした音声録音
+  ko: 변환된 음성 녹음
+  it: Registrazione vocale trascritta
+  tr: Transkript edilmiş ses kaydı
+  vi: Ghi âm đã chuyển văn bản
+  id: Rekaman suara yang ditranskripsi
+  pl: Transkrybowane nagranie głosowe
+  nl: Getranscribeerde geluidsopname
+  ar: تسجيل صوتي مُحوَّل
+  hi: ट्रांसक्राइब की गई आवाज़
+  th: บันทึกเสียงที่ถอดเสียงแล้ว
+  cs: Přepsaná hlasová nahrávka
+  sv: Transkriberad röstinspelning
+  he: הקלטה קולית מתומללת
+  verified_by_human:
+    - en
+
+transcribe.uploading:
+  context: Status shown on voice recording embed card while audio is uploading
+  en: Uploading…
+  de: Wird hochgeladen…
+  zh: 上传中…
+  es: Subiendo…
+  fr: Envoi en cours…
+  pt: Enviando…
+  ru: Загрузка…
+  ja: アップロード中…
+  ko: 업로드 중…
+  it: Caricamento…
+  tr: Yükleniyor…
+  vi: Đang tải lên…
+  id: Mengunggah…
+  pl: Przesyłanie…
+  nl: Uploaden…
+  ar: جاري الرفع…
+  hi: अपलोड हो रहा है…
+  th: กำลังอัปโหลด…
+  cs: Nahrávání…
+  sv: Laddar upp…
+  he: מעלה…
+  verified_by_human: []
+
+transcribe.transcribing:
+  context: Status shown on voice recording embed card while transcript is being generated
+  en: Transcribing…
+  de: Wird transkribiert…
+  zh: 转录中…
+  es: Transcribiendo…
+  fr: Transcription en cours…
+  pt: Transcrevendo…
+  ru: Транскрибирование…
+  ja: 文字起こし中…
+  ko: 변환 중…
+  it: Trascrizione in corso…
+  tr: Dönüştürülüyor…
+  vi: Đang chuyển đổi…
+  id: Mentranskripsikan…
+  pl: Transkrypcja…
+  nl: Transcriberen…
+  ar: جاري النسخ…
+  hi: ट्रांस्क्राइब हो रहा है…
+  th: กำลังถอดเสียง…
+  cs: Přepis…
+  sv: Transkriberar…
+  he: מתמלל…
+  verified_by_human: []
+
+transcribe.upload_failed:
+  context: Error status on voice recording embed card when upload fails
+  en: Upload failed
+  de: Hochladen fehlgeschlagen
+  zh: 上传失败
+  es: Error al subir
+  fr: Envoi échoué
+  pt: Falha no envio
+  ru: Ошибка загрузки
+  ja: アップロード失敗
+  ko: 업로드 실패
+  it: Caricamento fallito
+  tr: Yükleme başarısız
+  vi: Tải lên thất bại
+  id: Gagal mengunggah
+  pl: Przesyłanie nie powiodło się
+  nl: Uploaden mislukt
+  ar: فشل الرفع
+  hi: अपलोड विफल
+  th: อัปโหลดไม่สำเร็จ
+  cs: Nahrávání se nezdařilo
+  sv: Uppladdning misslyckades
+  he: העלאה נכשלה
+  verified_by_human: []
+
+transcribe.transcription_failed:
+  context: Error status on voice recording embed card when transcription fails
+  en: Transcription failed
+  de: Transkription fehlgeschlagen
+  zh: 转录失败
+  es: Transcripción fallida
+  fr: Transcription échouée
+  pt: Transcrição falhou
+  ru: Транскрибирование не удалось
+  ja: 文字起こし失敗
+  ko: 변환 실패
+  it: Trascrizione fallita
+  tr: Dönüştürme başarısız
+  vi: Chuyển đổi thất bại
+  id: Transkripsi gagal
+  pl: Transkrypcja nie powiodła się
+  nl: Transcriptie mislukt
+  ar: فشل النسخ
+  hi: ट्रांस्क्रिप्शन विफल
+  th: ถอดเสียงไม่สำเร็จ
+  cs: Přepis se nezdařil
+  sv: Transkription misslyckades
+  he: התמלול נכשל
+  verified_by_human: []
+
+transcribe.no_credits:
+  context: Persistent toast and error state message shown when user has 0 credits and tries to transcribe a voice recording
+  en: You ran out of credits. Buy more to continue transcribing voice notes.
+  de: Dein Guthaben ist aufgebraucht. Kaufe mehr, um weiter Sprachnotizen zu transkribieren.
+  zh: 您的点数已用完。购买更多以继续转录语音备忘录。
+  es: Te has quedado sin créditos. Compra más para seguir transcribiendo notas de voz.
+  fr: Vous avez épuisé vos crédits. Achetez-en plus pour continuer à transcrire les notes vocales.
+  pt: Você ficou sem créditos. Compre mais para continuar transcrevendo notas de voz.
+  ru: У вас закончились кредиты. Купите ещё, чтобы продолжить транскрибирование голосовых заметок.
+  ja: クレジットが不足しています。音声メモの文字起こしを続けるためにクレジットを購入してください。
+  ko: 크레딧이 부족합니다. 음성 메모 변환을 계속하려면 더 구매하세요.
+  it: Hai esaurito i crediti. Acquistane altri per continuare a trascrivere le note vocali.
+  tr: Krediniz tükendi. Sesli notları yazmaya devam etmek için daha fazla satın alın.
+  vi: Bạn đã hết tín dụng. Mua thêm để tiếp tục chuyển đổi ghi chú giọng nói.
+  id: Kredit Anda habis. Beli lebih banyak untuk melanjutkan transkripsi catatan suara.
+  pl: Twoje kredyty się skończyły. Kup więcej, aby kontynuować transkrypcję notatek głosowych.
+  nl: Je hebt geen credits meer. Koop er meer om door te gaan met het transcriberen van spraakmemo's.
+  ar: لقد نفدت رصيدك. اشترِ المزيد لمواصلة نسخ الملاحظات الصوتية.
+  hi: आपके क्रेडिट समाप्त हो गए। वॉइस नोट्स ट्रांस्क्राइब करना जारी रखने के लिए और खरीदें।
+  th: เครดิตของคุณหมดแล้ว ซื้อเพิ่มเพื่อถอดเสียงบันทึกเสียงต่อไป
+  cs: Vyčerpali jste kredity. Zakupte další pro pokračování v přepisu hlasových poznámek.
+  sv: Du har slut på krediter. Köp mer för att fortsätta transkribera röstanteckningar.
+  he: נגמרו לך הקרדיטים. רכוש עוד כדי להמשיך לתמלל הודעות קוליות.
+  verified_by_human: []
+
+transcribe.retry:
+  context: Button label on the voice recording error card to retry a failed transcription
+  en: Retry
+  de: Erneut versuchen
+  zh: 重试
+  es: Reintentar
+  fr: Réessayer
+  pt: Tentar novamente
+  ru: Повторить
+  ja: 再試行
+  ko: 다시 시도
+  it: Riprova
+  tr: Tekrar dene
+  vi: Thử lại
+  id: Coba lagi
+  pl: Spróbuj ponownie
+  nl: Opnieuw proberen
+  ar: إعادة المحاولة
+  hi: पुनः प्रयास करें
+  th: ลองใหม่
+  cs: Zkusit znovu
+  sv: Försök igen
+  he: נסה שוב
+  verified_by_human: []
+
+transcribe.no_transcript:
+  context: Message shown in recording embed when no transcript is available yet
+  en: Transcript not available
+  de: Transkript nicht verfügbar
+  zh: 转录不可用
+  es: Transcripción no disponible
+  fr: Transcription non disponible
+  pt: Transcrição não disponível
+  ru: Транскрипт недоступен
+  ja: 文字起こしが利用できません
+  ko: 변환을 사용할 수 없음
+  it: Trascrizione non disponibile
+  tr: Transkript mevcut değil
+  vi: Không có bản ghi
+  id: Transkripsi tidak tersedia
+  pl: Transkrypcja niedostępna
+  nl: Transcript niet beschikbaar
+  ar: النص غير متوفر
+  hi: ट्रांस्क्रिप्ट उपलब्ध नहीं
+  th: ไม่มีข้อความถอดเสียง
+  cs: Přepis není dostupný
+  sv: Transkription ej tillgänglig
+  he: תמלול לא זמין
+  verified_by_human: []
+
+transcribe.edit_transcript:
+  context: Placeholder text in the editable transcript textarea on recording embed fullscreen
+  en: Edit transcript…
+  de: Transkript bearbeiten…
+  zh: 编辑转录…
+  es: Editar transcripción…
+  fr: Modifier la transcription…
+  pt: Editar transcrição…
+  ru: Редактировать транскрипт…
+  ja: 文字起こしを編集…
+  ko: 변환 편집…
+  it: Modifica trascrizione…
+  tr: Transkripti düzenle…
+  vi: Chỉnh sửa bản ghi…
+  id: Edit transkripsi…
+  pl: Edytuj transkrypcję…
+  nl: Transcript bewerken…
+  ar: تعديل النص…
+  hi: ट्रांस्क्रिप्ट संपादित करें…
+  th: แก้ไขข้อความถอดเสียง…
+  cs: Upravit přepis…
+  sv: Redigera transkription…
+  he: עריכת תמלול…
+  verified_by_human: []
+
+transcribe.audio_recording:
+  context: Title shown on voice recording embed card in the basic info bar
+  en: Audio recording
+  de: Audioaufnahme
+  zh: 音频录制
+  es: Grabación de audio
+  fr: Enregistrement audio
+  pt: Gravação de áudio
+  ru: Аудиозапись
+  ja: 音声録音
+  ko: 오디오 녹음
+  it: Registrazione audio
+  tr: Ses kaydı
+  vi: Ghi âm
+  id: Rekaman audio
+  pl: Nagranie audio
+  nl: Audio-opname
+  ar: تسجيل صوتي
+  hi: ऑडियो रिकॉर्डिंग
+  th: การบันทึกเสียง
+  cs: Zvuková nahrávka
+  sv: Ljudinspelning
+  he: הקלטת שמע
+  verified_by_human: []
+
+transcribe.signup_to_upload:
+  context: Subtitle shown on recording embed for unauthenticated users who cannot upload
+  en: Signup to upload...
+  de: Registrieren zum Hochladen...
+  zh: 注册以上传...
+  es: Regístrate para subir...
+  fr: Inscrivez-vous pour envoyer...
+  pt: Cadastre-se para enviar...
+  ru: Зарегистрируйтесь для загрузки...
+  ja: アップロードするには登録...
+  ko: 업로드하려면 가입...
+  it: Iscriviti per caricare...
+  tr: Yüklemek için kaydolun...
+  vi: Đăng ký để tải lên...
+  id: Daftar untuk mengunggah...
+  pl: Zarejestruj się, aby przesłać...
+  nl: Registreer om te uploaden...
+  ar: سجّل للرفع...
+  hi: अपलोड करने के लिए साइन अप करें...
+  th: ลงทะเบียนเพื่ออัปโหลด...
+  cs: Zaregistrujte se pro nahrání...
+  sv: Registrera dig för att ladda upp...
+  he: הירשם כדי להעלות...
+  verified_by_human: []
+
+transcribe.signup_to_see_transcript:
+  context: Text shown in transcript area of recording embed for unauthenticated users
+  en: Signup to see transcript here.
+  de: Registrieren, um Transkript hier zu sehen.
+  zh: 注册以在此查看转录。
+  es: Regístrate para ver la transcripción aquí.
+  fr: Inscrivez-vous pour voir la transcription ici.
+  pt: Cadastre-se para ver a transcrição aqui.
+  ru: Зарегистрируйтесь, чтобы увидеть транскрипт здесь.
+  ja: ここで文字起こしを見るには登録してください。
+  ko: 여기에서 자막을 보려면 가입하세요.
+  it: Iscriviti per vedere la trascrizione qui.
+  tr: Transkripti burada görmek için kaydolun.
+  vi: Đăng ký để xem bản ghi tại đây.
+  id: Daftar untuk melihat transkripsi di sini.
+  pl: Zarejestruj się, aby zobaczyć transkrypcję tutaj.
+  nl: Registreer om het transcript hier te zien.
+  ar: سجّل لرؤية النص هنا.
+  hi: यहाँ ट्रांस्क्रिप्ट देखने के लिए साइन अप करें।
+  th: ลงทะเบียนเพื่อดูข้อความถอดเสียงที่นี่
+  cs: Zaregistrujte se pro zobrazení přepisu zde.
+  sv: Registrera dig för att se transkriptionen här.
+  he: הירשם כדי לראות את התמלול כאן.
+  verified_by_human: []
+
+transcribe.transcribing_via:
+  context: Subtitle shown on recording embed while Voxtral is transcribing (replaces generic 'Processing…' when model name is known). {model} is replaced with the provider/model display name, e.g. "Transcribing via Mistral…"
+  en: "Transcribing via {model}…"
+  de: "Transkription mit {model}…"
+  zh: "正在通过 {model} 转录…"
+  es: "Transcribiendo con {model}…"
+  fr: "Transcription via {model}…"
+  pt: "Transcrevendo via {model}…"
+  ru: "Транскрибирование через {model}…"
+  ja: "{model} で文字起こし中…"
+  ko: "{model}(으)로 변환 중…"
+  it: "Trascrizione via {model}…"
+  tr: "{model} ile dönüştürülüyor…"
+  vi: "Đang chuyển đổi qua {model}…"
+  id: "Mentranskripsikan melalui {model}…"
+  pl: "Transkrypcja przez {model}…"
+  nl: "Transcriberen via {model}…"
+  ar: "جاري النسخ عبر {model}…"
+  hi: "{model} के माध्यम से ट्रांस्क्राइब हो रहा है…"
+  th: "กำลังถอดเสียงผ่าน {model}…"
+  cs: "Přepis přes {model}…"
+  sv: "Transkriberar via {model}…"
+  he: "מתמלל באמצעות {model}…"
+  verified_by_human: []
+
+transcribe.transcribed_by:
+  context: Label shown above the transcript text in the recording embed preview once transcription is done. {model} is replaced with the provider/model display name, e.g. "Transcribed by Mistral:"
+  en: "Transcribed by {model}:"
+  de: "Transkribiert von {model}:"
+  zh: "由 {model} 转录："
+  es: "Transcrito por {model}:"
+  fr: "Transcrit par {model} :"
+  pt: "Transcrito por {model}:"
+  ru: "Транскрибировано {model}:"
+  ja: "{model} による文字起こし："
+  ko: "{model}이(가) 변환함:"
+  it: "Trascritto da {model}:"
+  tr: "{model} tarafından dönüştürüldü:"
+  vi: "Được chuyển đổi bởi {model}:"
+  id: "Ditranskripsi oleh {model}:"
+  pl: "Transkrybowane przez {model}:"
+  nl: "Getranscribeerd door {model}:"
+  ar: "تمت الترجمة بواسطة {model}:"
+  hi: "{model} द्वारा ट्रांस्क्राइब किया गया:"
+  th: "ถอดเสียงโดย {model}:"
+  cs: "Přepsáno {model}:"
+  sv: "Transkriberat av {model}:"
+  he: "תומלל על ידי {model}:"
+  verified_by_human: []
+
+transcribe.processing:
+  context: Subtitle shown on recording embed while audio is being uploaded or transcribed
+  en: Processing...
+  de: Verarbeitung...
+  zh: 处理中...
+  es: Procesando...
+  fr: Traitement en cours...
+  pt: Processando...
+  ru: Обработка...
+  ja: 処理中...
+  ko: 처리 중...
+  it: Elaborazione...
+  tr: İşleniyor...
+  vi: Đang xử lý...
+  id: Memproses...
+  pl: Przetwarzanie...
+  nl: Verwerken...
+  ar: جاري المعالجة...
+  hi: प्रोसेस हो रहा है...
+  th: กำลังประมวลผล...
+  cs: Zpracování...
+  sv: Bearbetar...
+  he: מעבד...
+  verified_by_human: []
+
+transcribe.how_to_use.1:
+  context: Example prompt for the audio Get Transcript skill - record and transcribe
+  en: "Record your voice and I'll transcribe it"
+  de: "Nimm deine Stimme auf und ich transkribiere sie"
+  zh: "录制你的声音，我会将其转录"
+  es: "Graba tu voz y la transcribiré"
+  fr: "Enregistre ta voix et je la transcrirai"
+  pt: "Grave sua voz e eu a transcreverei"
+  ru: "Запишите свой голос, и я его расшифрую"
+  ja: "音声を録音すると文字起こしします"
+  ko: "목소리를 녹음하면 자막으로 변환해드립니다"
+  it: "Registra la tua voce e la trascrivo"
+  tr: "Sesinizi kaydedin, ben de yazıya dökerim"
+  vi: "Ghi âm giọng nói của bạn và tôi sẽ chuyển thành văn bản"
+  id: "Rekam suara Anda dan saya akan mentranskripsikannya"
+  pl: "Nagraj swój głos, a ja go przepiszę"
+  nl: "Neem je stem op en ik transcribeer het"
+  ar: "سجّل صوتك وسأحوّله إلى نص"
+  hi: "अपनी आवाज़ रिकॉर्ड करें और मैं उसे ट्रांसक्राइब करूँगा"
+  th: "บันทึกเสียงของคุณและฉันจะถอดเสียงให้"
+  cs: "Nahrajte svůj hlas a já ho přepíšu"
+  sv: "Spela in din röst och jag transkriberar den"
+  he: הקלט את קולך ואני אתמלל אותו
+  verified_by_human: []
+
+transcribe.how_to_use.2:
+  context: Example prompt for the audio Get Transcript skill - transcribe uploaded audio
+  en: "Transcribe this audio file for me"
+  de: "Transkribiere diese Audiodatei für mich"
+  zh: "帮我转录这个音频文件"
+  es: "Transcribe este archivo de audio para mí"
+  fr: "Transcris ce fichier audio pour moi"
+  pt: "Transcreva este arquivo de áudio para mim"
+  ru: "Расшифруй этот аудиофайл для меня"
+  ja: "この音声ファイルを文字起こしして"
+  ko: "이 오디오 파일을 자막으로 변환해줘"
+  it: "Trascrivi questo file audio per me"
+  tr: "Bu ses dosyasını benim için yazıya döker misin"
+  vi: "Hãy chuyển tệp âm thanh này thành văn bản cho tôi"
+  id: "Tolong transkripsikan file audio ini untuk saya"
+  pl: "Proszę transkrybuj ten plik audio dla mnie"
+  nl: "Transcribeer dit audiobestand voor mij"
+  ar: "انسخ هذا الملف الصوتي لي"
+  hi: "मेरे लिए इस ऑडियो फ़ाइल को ट्रांसक्राइब करें"
+  th: "ถอดเสียงไฟล์เสียงนี้ให้ฉัน"
+  cs: "Přepiš mi tento zvukový soubor"
+  sv: "Transkribera den här ljudfilen åt mig"
+  he: תמלל עבורי את קובץ השמע הזה
+  verified_by_human: []
+
+transcribe.how_to_use.3:
+  context: Example prompt for the audio Get Transcript skill - transcribe and summarize
+  en: "Transcribe this meeting recording and summarize the key decisions"
+  de: "Transkribiere diese Besprechungsaufnahme und fasse die wichtigsten Entscheidungen zusammen"
+  zh: "转录这段会议录音并总结关键决定"
+  es: "Transcribe esta grabación de reunión y resume las decisiones clave"
+  fr: "Transcris cet enregistrement de réunion et résume les décisions clés"
+  pt: "Transcreva esta gravação de reunião e resuma as principais decisões"
+  ru: "Расшифруй эту запись совещания и выдели ключевые решения"
+  ja: "この会議の録音を文字起こしして、重要な決定事項をまとめて"
+  ko: "이 회의 녹음을 자막으로 변환하고 주요 결정 사항을 요약해줘"
+  it: "Trascrivi questa registrazione della riunione e riassumi le decisioni chiave"
+  tr: "Bu toplantı kaydını yazıya dök ve önemli kararları özetle"
+  vi: "Chuyển bản ghi buổi họp này thành văn bản và tóm tắt các quyết định chính"
+  id: "Transkripsikan rekaman rapat ini dan rangkum keputusan-keputusan penting"
+  pl: "Transkrybuj to nagranie ze spotkania i podsumuj kluczowe decyzje"
+  nl: "Transcribeer deze vergaderopname en vat de belangrijkste beslissingen samen"
+  ar: "انسخ هذا التسجيل للاجتماع ولخص القرارات الرئيسية"
+  hi: "इस मीटिंग रिकॉर्डिंग को ट्रांसक्राइब करें और मुख्य निर्णयों का सारांश दें"
+  th: "ถอดเสียงการบันทึกการประชุมนี้และสรุปการตัดสินใจสำคัญ"
+  cs: "Přepiš tento záznam schůzky a shrň klíčová rozhodnutí"
+  sv: "Transkribera den här mötesinspelningen och sammanfatta de viktigaste besluten"
+  he: תמלל את הקלטת הפגישה הזו וסכם את ההחלטות המרכזיות
+  verified_by_human: []

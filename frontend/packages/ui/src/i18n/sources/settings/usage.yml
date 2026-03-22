@@ -1,0 +1,1512 @@
+usage:
+  context: Usage settings menu item
+  en: Usage
+  de: Nutzung
+  zh: 使用情况
+  es: Uso
+  fr: Utilisation
+  pt: Uso
+  ru: Использование
+  ja: 使用状況
+  ko: 사용량
+  it: Utilizzo
+  tr: Kullanım
+  vi: Sử dụng
+  id: Penggunaan
+  pl: Użycie
+  nl: Gebruik
+  ar: الاستخدام
+  hi: उपयोग
+  th: การใช้งาน
+  cs: Použití
+  sv: Användning
+  he: שימוש
+  verified_by_human: []
+title:
+  context: Usage settings page title
+  en: Usage
+  de: Nutzung
+  zh: 使用情况
+  es: Uso
+  fr: Utilisation
+  pt: Uso
+  ru: Использование
+  ja: 使用状況
+  ko: 사용량
+  it: Utilizzo
+  tr: Kullanım
+  vi: Sử dụng
+  id: Penggunaan
+  pl: Użycie
+  nl: Gebruik
+  ar: الاستخدام
+  hi: उपयोग
+  th: การใช้งาน
+  cs: Použití
+  sv: Användning
+  he: שימוש
+  verified_by_human: []
+description:
+  context: Usage settings description
+  en: Overview of last activities where credits have been spent
+  de: Übersicht der letzten Aktivitäten, bei denen Credits ausgegeben wurden
+  zh: 最近花费积分的活动概览
+  es: Resumen de las últimas actividades donde se han gastado créditos
+  fr: Aperçu des dernières activités où des crédits ont été dépensés
+  pt: Visão geral das últimas atividades onde créditos foram gastos
+  ru: Обзор последних действий, где были потрачены кредиты
+  ja: クレジットが使用された最後のアクティビティの概要
+  ko: 크레딧이 지출된 최근 활동 개요
+  it: Panoramica delle ultime attività in cui sono stati spesi crediti
+  tr: Kredilerin harcandığı son etkinliklerin özeti
+  vi: Tổng quan về các hoạt động gần đây nơi đã chi tiêu tín dụng
+  id: Ringkasan aktivitas terakhir di mana kredit telah dibelanjakan
+  pl: Przegląd ostatnich aktywności, w których wydano kredyty
+  nl: Overzicht van laatste activiteiten waar credits zijn uitgegeven
+  ar: نظرة عامة على الأنشطة الأخيرة حيث تم إنفاق الاعتمادات
+  hi: अंतिम गतिविधियों का अवलोकन जहां क्रेडिट खर्च किए गए हैं
+  th: ภาพรวมของกิจกรรมล่าสุดที่ใช้เครดิต
+  cs: Přehled posledních aktivit, kde byly utraceny kredity
+  sv: Översikt över senaste aktiviteter där krediter har spenderats
+  he: סקירה של הפעילויות האחרונות שבהן נוצלו קרדיטים
+  verified_by_human: []
+tab_chats:
+  context: Chats tab label
+  en: Chats
+  de: Chats
+  zh: 聊天
+  es: Chats
+  fr: Discussions
+  pt: Chats
+  ru: Чаты
+  ja: チャット
+  ko: 채팅
+  it: Chat
+  tr: Sohbetler
+  vi: Trò chuyện
+  id: Obrolan
+  pl: Czaty
+  nl: Gesprekken
+  ar: الدردشات
+  hi: चैट
+  th: แชท
+  cs: Chaty
+  sv: Chattar
+  he: "צ'אטים"
+  verified_by_human: []
+tab_apps:
+  context: Apps tab label
+  en: Apps
+  de: Apps
+  zh: 应用
+  es: Aplicaciones
+  fr: Applications
+  pt: Aplicativos
+  ru: Приложения
+  ja: アプリ
+  ko: 앱
+  it: App
+  tr: Uygulamalar
+  vi: Ứng dụng
+  id: Aplikasi
+  pl: Aplikacje
+  nl: Apps
+  ar: التطبيقات
+  hi: ऐप्स
+  th: แอป
+  cs: Aplikace
+  sv: Appar
+  he: אפליקציות
+  verified_by_human: []
+tab_api:
+  context: API tab label
+  en: API
+  de: API
+  zh: API
+  es: API
+  fr: API
+  pt: API
+  ru: API
+  ja: API
+  ko: API
+  it: API
+  tr: API
+  vi: API
+  id: API
+  pl: API
+  nl: API
+  ar: API
+  hi: API
+  th: API
+  cs: API
+  sv: API
+  he: API
+  verified_by_human: []
+group_by_month:
+  context: Group by month button label
+  en: By month
+  de: Nach Monat
+  zh: 按月
+  es: Por mes
+  fr: Par mois
+  pt: Por mês
+  ru: По месяцам
+  ja: 月別
+  ko: 월별
+  it: Per mese
+  tr: Aya göre
+  vi: Theo tháng
+  id: Per bulan
+  pl: Według miesiąca
+  nl: Per maand
+  ar: حسب الشهر
+  hi: महीने के अनुसार
+  th: ตามเดือน
+  cs: Podle měsíce
+  sv: Per månad
+  he: לפי חודש
+  verified_by_human: []
+group_by_day:
+  context: Group by day button label
+  en: By day
+  de: Nach Tag
+  zh: 按天
+  es: Por día
+  fr: Par jour
+  pt: Por dia
+  ru: По дням
+  ja: 日別
+  ko: 일별
+  it: Per giorno
+  tr: Güne göre
+  vi: Theo ngày
+  id: Per hari
+  pl: Według dnia
+  nl: Per dag
+  ar: حسب اليوم
+  hi: दिन के अनुसार
+  th: ตามวัน
+  cs: Podle dne
+  sv: Per dag
+  he: לפי יום
+  verified_by_human: []
+sort:
+  context: Sort button label
+  en: Sort
+  de: Sortieren
+  zh: 排序
+  es: Ordenar
+  fr: Trier
+  pt: Ordenar
+  ru: Сортировать
+  ja: 並べ替え
+  ko: 정렬
+  it: Ordina
+  tr: Sırala
+  vi: Sắp xếp
+  id: Urutkan
+  pl: Sortuj
+  nl: Sorteren
+  ar: ترتيب
+  hi: क्रमबद्ध करें
+  th: เรียงลำดับ
+  cs: Seřadit
+  sv: Sortera
+  he: מיון
+  verified_by_human: []
+export:
+  context: Export button label
+  en: Export
+  de: Exportieren
+  zh: 导出
+  es: Exportar
+  fr: Exporter
+  pt: Exportar
+  ru: Экспорт
+  ja: エクスポート
+  ko: 내보내기
+  it: Esporta
+  tr: Dışa aktar
+  vi: Xuất
+  id: Ekspor
+  pl: Eksportuj
+  nl: Exporteren
+  ar: تصدير
+  hi: निर्यात
+  th: ส่งออก
+  cs: Exportovat
+  sv: Exportera
+  he: ייצוא
+  verified_by_human: []
+loading:
+  context: Loading message
+  en: Loading usage data...
+  de: Nutzungsdaten werden geladen...
+  zh: 正在加载使用数据...
+  es: Cargando datos de uso...
+  fr: Chargement des données d'utilisation...
+  pt: Carregando dados de uso...
+  ru: Загрузка данных об использовании...
+  ja: 使用データを読み込み中...
+  ko: 사용 데이터 로드 중...
+  it: Caricamento dati di utilizzo...
+  tr: Kullanım verileri yükleniyor...
+  vi: Đang tải dữ liệu sử dụng...
+  id: Memuat data penggunaan...
+  pl: Ładowanie danych użycia...
+  nl: Gebruiksgegevens laden...
+  ar: جارٍ تحميل بيانات الاستخدام...
+  hi: उपयोग डेटा लोड हो रहा है...
+  th: กำลังโหลดข้อมูลการใช้งาน...
+  cs: Načítání dat o použití...
+  sv: Laddar användningsdata...
+  he: טוען נתוני שימוש...
+  verified_by_human: []
+error_loading:
+  context: Error loading usage data
+  en: Failed to load usage data
+  de: Laden der Nutzungsdaten fehlgeschlagen
+  zh: 加载使用数据失败
+  es: Error al cargar datos de uso
+  fr: Échec du chargement des données d'utilisation
+  pt: Falha ao carregar dados de uso
+  ru: Не удалось загрузить данные об использовании
+  ja: 使用データの読み込みに失敗しました
+  ko: 사용 데이터 로드 실패
+  it: Impossibile caricare i dati di utilizzo
+  tr: Kullanım verileri yüklenemedi
+  vi: Không thể tải dữ liệu sử dụng
+  id: Gagal memuat data penggunaan
+  pl: Nie udało się załadować danych użycia
+  nl: Laden van gebruiksgegevens mislukt
+  ar: فشل تحميل بيانات الاستخدام
+  hi: उपयोग डेटा लोड करने में विफल
+  th: โหลดข้อมูลการใช้งานล้มเหลว
+  cs: Načtení dat o použití se nezdařilo
+  sv: Misslyckades med att ladda användningsdata
+  he: טעינת נתוני השימוש נכשלה
+  verified_by_human: []
+no_usage_title:
+  context: No usage data title
+  en: No usage data
+  de: Keine Nutzungsdaten
+  zh: 无使用数据
+  es: Sin datos de uso
+  fr: Aucune donnée d'utilisation
+  pt: Sem dados de uso
+  ru: Нет данных об использовании
+  ja: 使用データがありません
+  ko: 사용 데이터 없음
+  it: Nessun dato di utilizzo
+  tr: Kullanım verisi yok
+  vi: Không có dữ liệu sử dụng
+  id: Tidak ada data penggunaan
+  pl: Brak danych użycia
+  nl: Geen gebruiksgegevens
+  ar: لا توجد بيانات استخدام
+  hi: कोई उपयोग डेटा नहीं
+  th: ไม่มีข้อมูลการใช้งาน
+  cs: Žádná data o použití
+  sv: Ingen användningsdata
+  he: אין נתוני שימוש
+  verified_by_human: []
+no_usage_description:
+  context: No usage data description
+  en: Your usage statistics will appear here once you start using OpenMates.
+  de: Ihre Nutzungsstatistiken werden hier angezeigt, sobald Sie OpenMates verwenden.
+  zh: 当您开始使用 OpenMates 时，您的使用统计信息将显示在这里。
+  es: Sus estadísticas de uso aparecerán aquí una vez que comience a usar OpenMates.
+  fr: Vos statistiques d'utilisation apparaîtront ici une fois que vous commencerez à utiliser OpenMates.
+  pt: Suas estatísticas de uso aparecerão aqui assim que você começar a usar o OpenMates.
+  ru: Ваша статистика использования появится здесь, как только вы начнете использовать OpenMates.
+  ja: OpenMatesの使用を開始すると、使用統計がここに表示されます。
+  ko: OpenMates 사용을 시작하면 사용 통계가 여기에 표시됩니다.
+  it: Le tue statistiche di utilizzo appariranno qui una volta che inizi a usare OpenMates.
+  tr: OpenMates'i kullanmaya başladığınızda kullanım istatistikleriniz burada görünecektir.
+  vi: Thống kê sử dụng của bạn sẽ xuất hiện ở đây khi bạn bắt đầu sử dụng OpenMates.
+  id: Statistik penggunaan Anda akan muncul di sini setelah Anda mulai menggunakan OpenMates.
+  pl: Twoje statystyki użycia pojawią się tutaj, gdy zaczniesz korzystać z OpenMates.
+  nl: Uw gebruiksstatistieken verschijnen hier zodra u OpenMates begint te gebruiken.
+  ar: ستظهر إحصائيات الاستخدام الخاصة بك هنا بمجرد أن تبدأ في استخدام OpenMates.
+  hi: जैसे ही आप OpenMates का उपयोग शुरू करेंगे, आपके उपयोग आंकड़े यहां दिखाई देंगे।
+  th: สถิติการใช้งานของคุณจะปรากฏที่นี่เมื่อคุณเริ่มใช้ OpenMates
+  cs: Vaše statistiky použití se zde zobrazí, jakmile začnete používat OpenMates.
+  sv: Dina användningsstatistik kommer att visas här när du börjar använda OpenMates.
+  he: סטטיסטיקות השימוש שלך יופיעו כאן ברגע שתתחיל להשתמש ב-OpenMates.
+  verified_by_human: []
+exporting:
+  context: Exporting message
+  en: Exporting usage data...
+  de: Nutzungsdaten werden exportiert...
+  zh: 正在导出使用数据...
+  es: Exportando datos de uso...
+  fr: Exportation des données d'utilisation...
+  pt: Exportando dados de uso...
+  ru: Экспорт данных об использовании...
+  ja: 使用データをエクスポート中...
+  ko: 사용 데이터 내보내는 중...
+  it: Esportazione dati di utilizzo...
+  tr: Kullanım verileri dışa aktarılıyor...
+  vi: Đang xuất dữ liệu sử dụng...
+  id: Mengekspor data penggunaan...
+  pl: Eksportowanie danych użycia...
+  nl: Gebruiksgegevens exporteren...
+  ar: جارٍ تصدير بيانات الاستخدام...
+  hi: उपयोग डेटा निर्यात कर रहा है...
+  th: กำลังส่งออกข้อมูลการใช้งาน...
+  cs: Exportování dat o použití...
+  sv: Exporterar användningsdata...
+  he: מייצא נתוני שימוש...
+  verified_by_human: []
+export_success:
+  context: Export success message
+  en: Usage data exported successfully
+  de: Nutzungsdaten erfolgreich exportiert
+  zh: 使用数据导出成功
+  es: Datos de uso exportados correctamente
+  fr: Données d'utilisation exportées avec succès
+  pt: Dados de uso exportados com sucesso
+  ru: Данные об использовании успешно экспортированы
+  ja: 使用データのエクスポートが完了しました
+  ko: 사용 데이터 내보내기 성공
+  it: Dati di utilizzo esportati con successo
+  tr: Kullanım verileri başarıyla dışa aktarıldı
+  vi: Xuất dữ liệu sử dụng thành công
+  id: Data penggunaan berhasil diekspor
+  pl: Dane użycia zostały pomyślnie wyeksportowane
+  nl: Gebruiksgegevens succesvol geëxporteerd
+  ar: تم تصدير بيانات الاستخدام بنجاح
+  hi: उपयोग डेटा सफलतापूर्वक निर्यात किया गया
+  th: ส่งออกข้อมูลการใช้งานสำเร็จ
+  cs: Data o použití byla úspěšně exportována
+  sv: Användningsdata exporterades framgångsrikt
+  he: נתוני השימוש יוצאו בהצלחה
+  verified_by_human: []
+export_error:
+  context: Export error message
+  en: Failed to export usage data
+  de: Export der Nutzungsdaten fehlgeschlagen
+  zh: 导出使用数据失败
+  es: Error al exportar datos de uso
+  fr: Échec de l'exportation des données d'utilisation
+  pt: Falha ao exportar dados de uso
+  ru: Не удалось экспортировать данные об использовании
+  ja: 使用データのエクスポートに失敗しました
+  ko: 사용 데이터 내보내기 실패
+  it: Impossibile esportare i dati di utilizzo
+  tr: Kullanım verileri dışa aktarılamadı
+  vi: Không thể xuất dữ liệu sử dụng
+  id: Gagal mengekspor data penggunaan
+  pl: Nie udało się wyeksportować danych użycia
+  nl: Exporteren van gebruiksgegevens mislukt
+  ar: فشل تصدير بيانات الاستخدام
+  hi: उपयोग डेटा निर्यात करने में विफल
+  th: ส่งออกข้อมูลการใช้งานล้มเหลว
+  cs: Export dat o použití se nezdařil
+  sv: Misslyckades med att exportera användningsdata
+  he: ייצוא נתוני השימוש נכשל
+  verified_by_human: []
+pdf_coming_soon:
+  context: PDF export coming soon message
+  en: PDF export coming soon
+  de: PDF-Export kommt bald
+  zh: PDF 导出即将推出
+  es: Exportación PDF próximamente
+  fr: Export PDF bientôt disponible
+  pt: Exportação PDF em breve
+  ru: Экспорт PDF скоро
+  ja: PDFエクスポートは近日公開予定
+  ko: PDF 내보내기 곧 출시 예정
+  it: Esportazione PDF in arrivo
+  tr: PDF dışa aktarma yakında
+  vi: Xuất PDF sắp ra mắt
+  id: Ekspor PDF segera hadir
+  pl: Eksport PDF wkrótce
+  nl: PDF-export komt binnenkort
+  ar: تصدير PDF قريباً
+  hi: PDF निर्यात जल्द ही आ रहा है
+  th: การส่งออก PDF เร็วๆ นี้
+  cs: Export PDF brzy
+  sv: PDF-export kommer snart
+  he: ייצוא ל-PDF בקרוב
+  verified_by_human: []
+back:
+  context: Back button label
+  en: Back
+  de: Zurück
+  zh: 返回
+  es: Atrás
+  fr: Retour
+  pt: Voltar
+  ru: Назад
+  ja: 戻る
+  ko: 뒤로
+  it: Indietro
+  tr: Geri
+  vi: Quay lại
+  id: Kembali
+  pl: Wstecz
+  nl: Terug
+  ar: رجوع
+  hi: वापस
+  th: กลับ
+  cs: Zpět
+  sv: Tillbaka
+  he: חזרה
+  verified_by_human: []
+api_key_details:
+  context: API key details header
+  en: API Key
+  de: API-Schlüssel
+  zh: API 密钥
+  es: Clave API
+  fr: Clé API
+  pt: Chave API
+  ru: API-ключ
+  ja: APIキー
+  ko: API 키
+  it: Chiave API
+  tr: API Anahtarı
+  vi: Khóa API
+  id: Kunci API
+  pl: Klucz API
+  nl: API-sleutel
+  ar: مفتاح API
+  hi: API कुंजी
+  th: คีย์ API
+  cs: API klíč
+  sv: API-nyckel
+  he: מפתח API
+  verified_by_human: []
+chat_details:
+  context: Chat details header
+  en: Chat Details
+  de: Chat-Details
+  zh: 聊天详情
+  es: Detalles del chat
+  fr: Détails de la discussion
+  pt: Detalhes do chat
+  ru: Детали чата
+  ja: チャットの詳細
+  ko: 채팅 세부정보
+  it: Dettagli chat
+  tr: Sohbet detayları
+  vi: Chi tiết trò chuyện
+  id: Detail obrolan
+  pl: Szczegóły czatu
+  nl: Chatdetails
+  ar: تفاصيل الدردشة
+  hi: चैट विवरण
+  th: รายละเอียดแชท
+  cs: Podrobnosti chatu
+  sv: Chattdetaljer
+  he: "פרטי צ'אט"
+  verified_by_human: []
+activity_ai:
+  context: AI activity label
+  en: AI
+  de: KI
+  zh: AI
+  es: IA
+  fr: IA
+  pt: IA
+  ru: ИИ
+  ja: AI
+  ko: AI
+  it: IA
+  tr: AI
+  vi: AI
+  id: AI
+  pl: AI
+  nl: AI
+  ar: الذكاء الاصطناعي
+  hi: AI
+  th: AI
+  cs: AI
+  sv: AI
+  he: AI
+  verified_by_human: []
+activity_ask:
+  context: Ask activity sublabel
+  en: Ask
+  de: Fragen
+  zh: 询问
+  es: Preguntar
+  fr: Demander
+  pt: Perguntar
+  ru: Спросить
+  ja: 質問
+  ko: 질문
+  it: Chiedi
+  tr: Sor
+  vi: Hỏi
+  id: Tanya
+  pl: Zapytaj
+  nl: Vragen
+  ar: اسأل
+  hi: पूछें
+  th: ถาม
+  cs: Zeptat se
+  sv: Fråga
+  he: שאלה
+  verified_by_human: []
+unknown_activity:
+  context: Unknown activity label
+  en: Unknown activity
+  de: Unbekannte Aktivität
+  zh: 未知活动
+  es: Actividad desconocida
+  fr: Activité inconnue
+  pt: Atividade desconhecida
+  ru: Неизвестная активность
+  ja: 不明なアクティビティ
+  ko: 알 수 없는 활동
+  it: Attività sconosciuta
+  tr: Bilinmeyen etkinlik
+  vi: Hoạt động không xác định
+  id: Aktivitas tidak dikenal
+  pl: Nieznana aktywność
+  nl: Onbekende activiteit
+  ar: نشاط غير معروف
+  hi: अज्ञात गतिविधि
+  th: กิจกรรมที่ไม่ทราบ
+  cs: Neznámá aktivita
+  sv: Okänd aktivitet
+  he: פעילות לא ידועה
+  verified_by_human: []
+just_now:
+  context: Just now time label
+  en: Just now
+  de: Gerade eben
+  zh: 刚刚
+  es: Ahora mismo
+  fr: À l'instant
+  pt: Agora mesmo
+  ru: Только что
+  ja: たった今
+  ko: 방금
+  it: Proprio ora
+  tr: Az önce
+  vi: Vừa xong
+  id: Baru saja
+  pl: Właśnie teraz
+  nl: Zojuist
+  ar: للتو
+  hi: अभी
+  th: เมื่อสักครู่
+  cs: Právě teď
+  sv: Just nu
+  he: ממש עכשיו
+  verified_by_human: []
+minutes_ago:
+  context: Minutes ago label
+  en: minutes ago
+  de: Minuten zuvor
+  zh: 分钟前
+  es: hace minutos
+  fr: il y a quelques minutes
+  pt: minutos atrás
+  ru: минут назад
+  ja: 分前
+  ko: 분 전
+  it: minuti fa
+  tr: dakika önce
+  vi: phút trước
+  id: menit yang lalu
+  pl: minut temu
+  nl: minuten geleden
+  ar: منذ دقائق
+  hi: मिनट पहले
+  th: นาทีที่แล้ว
+  cs: minut zpět
+  sv: minuter sedan
+  he: דקות לפני
+  verified_by_human: []
+hours_ago:
+  context: Hours ago label
+  en: hours ago
+  de: Stunden zuvor
+  zh: 小时前
+  es: hace horas
+  fr: il y a quelques heures
+  pt: horas atrás
+  ru: часов назад
+  ja: 時間前
+  ko: 시간 전
+  it: ore fa
+  tr: saat önce
+  vi: giờ trước
+  id: jam yang lalu
+  pl: godzin temu
+  nl: uren geleden
+  ar: منذ ساعات
+  hi: घंटे पहले
+  th: ชั่วโมงที่แล้ว
+  cs: hodin zpět
+  sv: timmar sedan
+  he: שעות לפני
+  verified_by_human: []
+days_ago:
+  context: Days ago label
+  en: days ago
+  de: Tage zuvor
+  zh: 天前
+  es: hace días
+  fr: il y a quelques jours
+  pt: dias atrás
+  ru: дней назад
+  ja: 日前
+  ko: 일 전
+  it: giorni fa
+  tr: gün önce
+  vi: ngày trước
+  id: hari yang lalu
+  pl: dni temu
+  nl: dagen geleden
+  ar: منذ أيام
+  hi: दिन पहले
+  th: วันที่แล้ว
+  cs: dní zpět
+  sv: dagar sedan
+  he: ימים לפני
+  verified_by_human: []
+previous_page:
+  context: Previous page button
+  en: Previous page
+  de: Vorherige Seite
+  zh: 上一页
+  es: Página anterior
+  fr: Page précédente
+  pt: Página anterior
+  ru: Предыдущая страница
+  ja: 前のページ
+  ko: 이전 페이지
+  it: Pagina precedente
+  tr: Önceki sayfa
+  vi: Trang trước
+  id: Halaman sebelumnya
+  pl: Poprzednia strona
+  nl: Vorige pagina
+  ar: الصفحة السابقة
+  hi: पिछला पृष्ठ
+  th: หน้าที่แล้ว
+  cs: Předchozí stránka
+  sv: Föregående sida
+  he: עמוד קודם
+  verified_by_human: []
+next_page:
+  context: Next page button
+  en: Next page
+  de: Nächste Seite
+  zh: 下一页
+  es: Página siguiente
+  fr: Page suivante
+  pt: Próxima página
+  ru: Следующая страница
+  ja: 次のページ
+  ko: 다음 페이지
+  it: Pagina successiva
+  tr: Sonraki sayfa
+  vi: Trang tiếp theo
+  id: Halaman berikutnya
+  pl: Następna strona
+  nl: Volgende pagina
+  ar: الصفحة التالية
+  hi: अगला पृष्ठ
+  th: หน้าถัดไป
+  cs: Další stránka
+  sv: Nästa sida
+  he: עמוד הבא
+  verified_by_human: []
+page_info:
+  context: Page information text with placeholders
+  en: Page {current} of {total}
+  de: Seite {current} von {total}
+  zh: 第 {current} 页，共 {total} 页
+  es: Página {current} de {total}
+  fr: Page {current} sur {total}
+  pt: Página {current} de {total}
+  ru: Страница {current} из {total}
+  ja: "{total} ページ中 {current} ページ目"
+  ko: "{total}페이지 중 {current}페이지"
+  it: Pagina {current} di {total}
+  tr: "{total} sayfanın {current}. sayfası"
+  vi: "Trang {current} / {total}"
+  id: "Halaman {current} dari {total}"
+  pl: Strona {current} z {total}
+  nl: Pagina {current} van {total}
+  ar: الصفحة {current} من {total}
+  hi: "{total} में से {current} पृष्ठ"
+  th: หน้า {current} จาก {total}
+  cs: Stránka {current} z {total}
+  sv: Sida {current} av {total}
+  he: "עמוד {current} מתוך {total}"
+  verified_by_human: []
+show_more:
+  context: Show more months button
+  en: Show more
+  de: Mehr anzeigen
+  zh: 显示更多
+  es: Mostrar más
+  fr: Afficher plus
+  pt: Mostrar mais
+  ru: Показать больше
+  ja: もっと表示
+  ko: 더 보기
+  it: Mostra altro
+  tr: Daha fazla göster
+  vi: Hiển thị thêm
+  id: Tampilkan lebih banyak
+  pl: Pokaż więcej
+  nl: Meer weergeven
+  ar: عرض المزيد
+  hi: और दिखाएं
+  th: แสดงเพิ่มเติม
+  cs: Zobrazit více
+  sv: Visa mer
+  he: הצג עוד
+  verified_by_human: []
+view_chat_details:
+  context: View chat details button aria label
+  en: View chat details
+  de: Chat-Details anzeigen
+  zh: 查看聊天详情
+  es: Ver detalles del chat
+  fr: Voir les détails de la discussion
+  pt: Ver detalhes do chat
+  ru: Просмотреть детали чата
+  ja: チャットの詳細を表示
+  ko: 채팅 세부정보 보기
+  it: Visualizza dettagli chat
+  tr: Sohbet detaylarını görüntüle
+  vi: Xem chi tiết trò chuyện
+  id: Lihat detail obrolan
+  pl: Zobacz szczegóły czatu
+  nl: Chatdetails bekijken
+  ar: عرض تفاصيل الدردشة
+  hi: चैट विवरण देखें
+  th: ดูรายละเอียดแชท
+  cs: Zobrazit podrobnosti chatu
+  sv: Visa chattdetaljer
+  he: "הצגת פרטי הצ'אט"
+  verified_by_human: []
+tab_overview:
+  context: Overview tab label in usage settings - shows daily usage breakdown
+  en: Overview
+  de: Übersicht
+  zh: 概览
+  es: Resumen
+  fr: Aperçu
+  pt: Visão geral
+  ru: Обзор
+  ja: 概要
+  ko: 개요
+  it: Panoramica
+  tr: Genel bakış
+  vi: Tổng quan
+  id: Ikhtisar
+  pl: Przegląd
+  nl: Overzicht
+  ar: نظرة عامة
+  hi: अवलोकन
+  th: ภาพรวม
+  cs: Přehled
+  sv: Översikt
+  he: סקירה כללית
+  verified_by_human: []
+today:
+  context: Label for today's date in the daily usage overview
+  en: Today
+  de: Heute
+  zh: 今天
+  es: Hoy
+  fr: "Aujourd'hui"
+  pt: Hoje
+  ru: Сегодня
+  ja: 今日
+  ko: 오늘
+  it: Oggi
+  tr: Bugün
+  vi: Hôm nay
+  id: Hari ini
+  pl: Dzisiaj
+  nl: Vandaag
+  ar: اليوم
+  hi: आज
+  th: วันนี้
+  cs: Dnes
+  sv: Idag
+  he: היום
+  verified_by_human: []
+yesterday:
+  context: Label for yesterday's date in the daily usage overview
+  en: Yesterday
+  de: Gestern
+  zh: 昨天
+  es: Ayer
+  fr: Hier
+  pt: Ontem
+  ru: Вчера
+  ja: 昨日
+  ko: 어제
+  it: Ieri
+  tr: Dün
+  vi: Hôm qua
+  id: Kemarin
+  pl: Wczoraj
+  nl: Gisteren
+  ar: أمس
+  hi: कल
+  th: เมื่อวาน
+  cs: Včera
+  sv: Igår
+  he: אתמול
+  verified_by_human: []
+no_usage_on_day:
+  context: Shown when there is no usage data for a specific day
+  en: No usage on this day
+  de: Keine Nutzung an diesem Tag
+  zh: 当天无使用记录
+  es: Sin uso en este día
+  fr: Aucune utilisation ce jour
+  pt: Sem uso neste dia
+  ru: Нет использования в этот день
+  ja: この日の使用はありません
+  ko: 이 날 사용 내역이 없습니다
+  it: Nessun utilizzo in questo giorno
+  tr: Bu gün kullanım yok
+  vi: Không có sử dụng vào ngày này
+  id: Tidak ada penggunaan pada hari ini
+  pl: Brak użycia w tym dniu
+  nl: Geen gebruik op deze dag
+  ar: لا يوجد استخدام في هذا اليوم
+  hi: इस दिन कोई उपयोग नहीं
+  th: ไม่มีการใช้งานในวันนี้
+  cs: Žádné použití v tento den
+  sv: Ingen användning denna dag
+  he: אין שימוש ביום זה
+  verified_by_human: []
+load_more_days:
+  context: Button to load more days in the daily overview
+  en: Load more days
+  de: Weitere Tage laden
+  zh: 加载更多天数
+  es: Cargar más días
+  fr: Charger plus de jours
+  pt: Carregar mais dias
+  ru: Загрузить больше дней
+  ja: さらに日を読み込む
+  ko: 더 많은 일자 불러오기
+  it: Carica altri giorni
+  tr: Daha fazla gün yükle
+  vi: Tải thêm ngày
+  id: Muat lebih banyak hari
+  pl: Wczytaj więcej dni
+  nl: Meer dagen laden
+  ar: تحميل المزيد من الأيام
+  hi: और दिन लोड करें
+  th: โหลดเพิ่มเติม
+  cs: Načíst více dní
+  sv: Ladda fler dagar
+  he: טעינת ימים נוספים
+  verified_by_human: []
+credits_label:
+  context: Label shown next to credit amounts in daily overview
+  en: credits
+  de: Credits
+  zh: 积分
+  es: créditos
+  fr: crédits
+  pt: créditos
+  ru: кредитов
+  ja: クレジット
+  ko: 크레딧
+  it: crediti
+  tr: kredi
+  vi: tín dụng
+  id: kredit
+  pl: kredytów
+  nl: credits
+  ar: رصيد
+  hi: क्रेडिट
+  th: เครดิต
+  cs: kreditů
+  sv: krediter
+  he: קרדיטים
+  verified_by_human: []
+api_key_label:
+  context: Label for API key items in the daily usage overview
+  en: API Key
+  de: API-Schlüssel
+  zh: API 密钥
+  es: Clave API
+  fr: Clé API
+  pt: Chave API
+  ru: API-ключ
+  ja: APIキー
+  ko: API 키
+  it: Chiave API
+  tr: API Anahtarı
+  vi: Khóa API
+  id: Kunci API
+  pl: Klucz API
+  nl: API-sleutel
+  ar: مفتاح API
+  hi: API कुंजी
+  th: คีย์ API
+  cs: API klíč
+  sv: API-nyckel
+  he: מפתח API
+  verified_by_human: []
+model_label:
+  context: Label for the AI model used in a usage entry detail view
+  en: Model
+  de: Modell
+  zh: 模型
+  es: Modelo
+  fr: Modèle
+  pt: Modelo
+  ru: Модель
+  ja: モデル
+  ko: 모델
+  it: Modello
+  tr: Model
+  vi: Mô hình
+  id: Model
+  pl: Model
+  nl: Model
+  ar: النموذج
+  hi: मॉडल
+  th: โมเดล
+  cs: Model
+  sv: Modell
+  he: מודל
+  verified_by_human: []
+input_tokens_label:
+  context: Label for input tokens count in a usage entry detail view
+  en: Input tokens
+  de: Eingabe-Token
+  zh: 输入令牌
+  es: Tokens de entrada
+  fr: Tokens d'entrée
+  pt: Tokens de entrada
+  ru: Входные токены
+  ja: 入力トークン
+  ko: 입력 토큰
+  it: Token di input
+  tr: Giriş token
+  vi: Token đầu vào
+  id: Token masukan
+  pl: Tokeny wejściowe
+  nl: Invoertokens
+  ar: رموز الإدخال
+  hi: इनपुट टोकन
+  th: โทเค็นอินพุต
+  cs: Vstupní tokeny
+  sv: Inmatningstoken
+  he: טוקנים של קלט
+  verified_by_human: []
+output_tokens_label:
+  context: Label for output tokens count in a usage entry detail view
+  en: Output tokens
+  de: Ausgabe-Token
+  zh: 输出令牌
+  es: Tokens de salida
+  fr: Tokens de sortie
+  pt: Tokens de saída
+  ru: Выходные токены
+  ja: 出力トークン
+  ko: 출력 토큰
+  it: Token di output
+  tr: Çıkış token
+  vi: Token đầu ra
+  id: Token keluaran
+  pl: Tokeny wyjściowe
+  nl: Uitvoertokens
+  ar: رموز الإخراج
+  hi: आउटपुट टोकन
+  th: โทเค็นเอาต์พุต
+  cs: Výstupní tokeny
+  sv: Utmatningstoken
+  he: טוקנים של פלט
+  verified_by_human: []
+total_credits_label:
+  context: Label for total credits in a usage entry detail view
+  en: Total credits
+  de: Gesamt-Credits
+  zh: 总积分
+  es: Créditos totales
+  fr: Crédits totaux
+  pt: Créditos totais
+  ru: Всего кредитов
+  ja: 合計クレジット
+  ko: 총 크레딧
+  it: Crediti totali
+  tr: Toplam kredi
+  vi: Tổng tín dụng
+  id: Total kredit
+  pl: Łączne kredyty
+  nl: Totale credits
+  ar: إجمالي الرصيد
+  hi: कुल क्रेडिट
+  th: เครดิตทั้งหมด
+  cs: Celkové kredity
+  sv: Totala krediter
+  he: "סה\"כ קרדיטים"
+  verified_by_human: []
+entry_detail_title:
+  context: Title shown in the usage entry detail view header
+  en: Usage Details
+  de: Nutzungsdetails
+  zh: 使用详情
+  es: Detalles de uso
+  fr: Détails d'utilisation
+  pt: Detalhes de uso
+  ru: Детали использования
+  ja: 使用詳細
+  ko: 사용 세부정보
+  it: Dettagli utilizzo
+  tr: Kullanım Detayları
+  vi: Chi tiết sử dụng
+  id: Detail Penggunaan
+  pl: Szczegóły użycia
+  nl: Gebruiksdetails
+  ar: تفاصيل الاستخدام
+  hi: उपयोग विवरण
+  th: รายละเอียดการใช้งาน
+  cs: Podrobnosti použití
+  sv: Användningsdetaljer
+  he: פרטי שימוש
+  verified_by_human: []
+provider_label:
+  context: Label for the AI provider (e.g., Google, Anthropic, OpenAI) in usage entry detail view
+  en: Provider
+  de: Anbieter
+  zh: 提供商
+  es: Proveedor
+  fr: Fournisseur
+  pt: Provedor
+  ru: Провайдер
+  ja: プロバイダー
+  ko: 제공업체
+  it: Fornitore
+  tr: Sağlayıcı
+  vi: Nhà cung cấp
+  id: Penyedia
+  pl: Dostawca
+  nl: Aanbieder
+  ar: المزود
+  hi: प्रदाता
+  th: ผู้ให้บริการ
+  cs: Poskytovatel
+  sv: Leverantör
+  he: ספק
+  verified_by_human: []
+server_provider_label:
+  context: Label for the server provider name (e.g., AWS Bedrock, Google Vertex AI) in usage entry detail view
+  en: Server
+  de: Server
+  zh: 服务器
+  es: Servidor
+  fr: Serveur
+  pt: Servidor
+  ru: Сервер
+  ja: サーバー
+  ko: 서버
+  it: Server
+  tr: Sunucu
+  vi: Máy chủ
+  id: Server
+  pl: Serwer
+  nl: Server
+  ar: الخادم
+  hi: सर्वर
+  th: เซิร์ฟเวอร์
+  cs: Server
+  sv: Server
+  he: שרת
+  verified_by_human: []
+server_region_label:
+  context: Label for the server region (e.g., EU, US) in usage entry detail view
+  en: Region
+  de: Region
+  zh: 区域
+  es: Región
+  fr: Région
+  pt: Região
+  ru: Регион
+  ja: リージョン
+  ko: 리전
+  it: Regione
+  tr: Bölge
+  vi: Vùng
+  id: Wilayah
+  pl: Region
+  nl: Regio
+  ar: المنطقة
+  hi: क्षेत्र
+  th: ภูมิภาค
+  cs: Region
+  sv: Region
+  he: אזור
+  verified_by_human: []
+user_input_tokens_label:
+  context: Label for user input tokens count in usage entry detail view
+  en: User input tokens
+  de: Benutzereingabe-Token
+  zh: 用户输入令牌
+  es: Tokens de entrada del usuario
+  fr: Tokens d'entrée utilisateur
+  pt: Tokens de entrada do usuário
+  ru: Токены пользовательского ввода
+  ja: ユーザー入力トークン
+  ko: 사용자 입력 토큰
+  it: Token di input utente
+  tr: Kullanıcı giriş token
+  vi: Token đầu vào người dùng
+  id: Token masukan pengguna
+  pl: Tokeny wejściowe użytkownika
+  nl: Gebruikersinvoertokens
+  ar: رموز إدخال المستخدم
+  hi: उपयोगकर्ता इनपुट टोकन
+  th: โทเค็นอินพุตผู้ใช้
+  cs: Vstupní tokeny uživatele
+  sv: Användarens inmatningstoken
+  he: טוקנים של קלט משתמש
+  verified_by_human: []
+system_prompt_tokens_label:
+  context: Label for system prompt tokens count in usage entry detail view
+  en: System prompt tokens
+  de: Systemprompt-Token
+  zh: 系统提示令牌
+  es: Tokens del prompt del sistema
+  fr: Tokens du prompt système
+  pt: Tokens do prompt do sistema
+  ru: Токены системного промпта
+  ja: システムプロンプトトークン
+  ko: 시스템 프롬프트 토큰
+  it: Token del prompt di sistema
+  tr: Sistem istem token
+  vi: Token lời nhắc hệ thống
+  id: Token prompt sistem
+  pl: Tokeny promptu systemowego
+  nl: Systeemprompt-tokens
+  ar: رموز موجه النظام
+  hi: सिस्टम प्रॉम्प्ट टोकन
+  th: โทเค็นพรอมต์ระบบ
+  cs: Tokeny systémového promptu
+  sv: Systempromptstoken
+  he: טוקנים של הנחיית מערכת
+  verified_by_human: []
+credits_breakdown_label:
+  context: Label for the credit cost breakdown section in usage entry detail view
+  en: Credit breakdown
+  de: Aufschlüsselung
+  zh: 积分明细
+  es: Desglose de créditos
+  fr: Détail des crédits
+  pt: Detalhamento de créditos
+  ru: Разбивка кредитов
+  ja: クレジット内訳
+  ko: 크레딧 내역
+  it: Dettaglio crediti
+  tr: Kredi dökümü
+  vi: Chi tiết tín dụng
+  id: Rincian kredit
+  pl: Rozbicie kredytów
+  nl: Creditverdeling
+  ar: تفصيل الرصيد
+  hi: क्रेडिट विवरण
+  th: รายละเอียดเครดิต
+  cs: Rozpis kreditů
+  sv: Kreditfördelning
+  he: פירוט קרדיטים
+  verified_by_human: []
+credits_system_prompt_label:
+  context: Label for system prompt credit cost in the breakdown
+  en: System prompt
+  de: Systemprompt
+  zh: 系统提示
+  es: Prompt del sistema
+  fr: Prompt système
+  pt: Prompt do sistema
+  ru: Системный промпт
+  ja: システムプロンプト
+  ko: 시스템 프롬프트
+  it: Prompt di sistema
+  tr: Sistem istemi
+  vi: Lời nhắc hệ thống
+  id: Prompt sistem
+  pl: Prompt systemowy
+  nl: Systeemprompt
+  ar: موجه النظام
+  hi: सिस्टम प्रॉम्प्ट
+  th: พรอมต์ระบบ
+  cs: Systémový prompt
+  sv: Systemprompt
+  he: הנחיית מערכת
+  verified_by_human: []
+credits_history_label:
+  context: Label for chat history credit cost in the breakdown
+  en: Chat history
+  de: Chatverlauf
+  zh: 聊天记录
+  es: Historial de chat
+  fr: Historique de chat
+  pt: Histórico de chat
+  ru: История чата
+  ja: チャット履歴
+  ko: 채팅 기록
+  it: Cronologia chat
+  tr: Sohbet geçmişi
+  vi: Lịch sử trò chuyện
+  id: Riwayat obrolan
+  pl: Historia czatu
+  nl: Chatgeschiedenis
+  ar: سجل المحادثة
+  hi: चैट इतिहास
+  th: ประวัติแชท
+  cs: Historie chatu
+  sv: Chatthistorik
+  he: "היסטוריית צ'אט"
+  verified_by_human: []
+credits_response_label:
+  context: Label for response credit cost in the breakdown
+  en: Response
+  de: Antwort
+  zh: 回复
+  es: Respuesta
+  fr: Réponse
+  pt: Resposta
+  ru: Ответ
+  ja: レスポンス
+  ko: 응답
+  it: Risposta
+  tr: Yanıt
+  vi: Phản hồi
+  id: Respons
+  pl: Odpowiedź
+  nl: Antwoord
+  ar: الاستجابة
+  hi: प्रतिक्रिया
+  th: การตอบกลับ
+  cs: Odpověď
+  sv: Svar
+  he: תגובה
+  verified_by_human: []
+incognito_chat:
+  context: Label shown for usage entries from an incognito chat (ephemeral, never synced to server)
+  en: Incognito chat
+  de: Inkognito-Chat
+  zh: 隐私聊天
+  es: Chat incógnito
+  fr: Chat incognito
+  pt: Chat incógnito
+  ru: Инкогнито-чат
+  ja: シークレットチャット
+  ko: 시크릿 채팅
+  it: Chat incognito
+  tr: Gizli sohbet
+  vi: Cuộc trò chuyện ẩn danh
+  id: Obrolan penyamaran
+  pl: Czat incognito
+  nl: Incognito gesprek
+  ar: محادثة متخفية
+  hi: गुप्त चैट
+  th: แชทไม่ระบุตัวตน
+  cs: Inkognito chat
+  sv: Inkognitosamtal
+  he: "צ'אט אנונימי"
+  verified_by_human: []
+deleted_chat:
+  context: Label shown for usage entries from a chat that has been deleted
+  en: Deleted chat
+  de: Gelöschter Chat
+  zh: 已删除的聊天
+  es: Chat eliminado
+  fr: Chat supprimé
+  pt: Chat excluído
+  ru: Удалённый чат
+  ja: 削除されたチャット
+  ko: 삭제된 채팅
+  it: Chat eliminata
+  tr: Silinmiş sohbet
+  vi: Cuộc trò chuyện đã xóa
+  id: Obrolan dihapus
+  pl: Usunięty czat
+  nl: Verwijderd gesprek
+  ar: محادثة محذوفة
+  hi: हटाई गई चैट
+  th: แชทที่ถูกลบ
+  cs: Smazaný chat
+  sv: Borttagen chatt
+  he: "צ'אט שנמחק"
+  verified_by_human: []
+unsent_draft:
+  context: Label shown for usage entries from an audio recording that was made in a new chat that was never sent
+  en: Unsent draft
+  de: Nicht gesendeter Entwurf
+  zh: 未发送的草稿
+  es: Borrador no enviado
+  fr: Brouillon non envoyé
+  pt: Rascunho não enviado
+  ru: Неотправленный черновик
+  ja: 未送信の下書き
+  ko: 전송되지 않은 초안
+  it: Bozza non inviata
+  tr: Gönderilmemiş taslak
+  vi: Bản nháp chưa gửi
+  id: Draf belum terkirim
+  pl: Niewysłany szkic
+  nl: Niet verzonden concept
+  ar: مسودة لم تُرسل
+  hi: न भेजा गया मसौदा
+  th: แบบร่างที่ยังไม่ได้ส่ง
+  cs: Neodeslané návrh
+  sv: Ej skickad utkast
+  he: טיוטה שלא נשלחה
+  verified_by_human: []
+view_app_details:
+  context: Aria-label on clickable app usage row for accessibility
+  en: View app details
+  de: App-Details anzeigen
+  zh: 查看应用详情
+  es: Ver detalles de la aplicación
+  fr: Voir les détails de l'application
+  pt: Ver detalhes do aplicativo
+  ru: Просмотреть детали приложения
+  ja: アプリの詳細を表示
+  ko: 앱 세부정보 보기
+  it: Visualizza dettagli app
+  tr: Uygulama ayrıntılarını görüntüle
+  vi: Xem chi tiết ứng dụng
+  id: Lihat detail aplikasi
+  pl: Zobacz szczegóły aplikacji
+  nl: App-details bekijken
+  ar: عرض تفاصيل التطبيق
+  hi: ऐप विवरण देखें
+  th: ดูรายละเอียดแอป
+  cs: Zobrazit podrobnosti aplikace
+  sv: Visa appdetaljer
+  he: הצגת פרטי אפליקציה
+  verified_by_human: []
+view_api_key_details:
+  context: Aria-label on clickable API key usage row for accessibility
+  en: View API key details
+  de: API-Schlüssel-Details anzeigen
+  zh: 查看 API 密钥详情
+  es: Ver detalles de la clave API
+  fr: Voir les détails de la clé API
+  pt: Ver detalhes da chave API
+  ru: Просмотреть детали API-ключа
+  ja: APIキーの詳細を表示
+  ko: API 키 세부정보 보기
+  it: Visualizza dettagli chiave API
+  tr: API anahtarı ayrıntılarını görüntüle
+  vi: Xem chi tiết khóa API
+  id: Lihat detail kunci API
+  pl: Zobacz szczegóły klucza API
+  nl: API-sleuteldetails bekijken
+  ar: عرض تفاصيل مفتاح API
+  hi: API कुंजी विवरण देखें
+  th: ดูรายละเอียดคีย์ API
+  cs: Zobrazit podrobnosti API klíče
+  sv: Visa API-nyckeldetaljer
+  he: הצגת פרטי מפתח API
+  verified_by_human: []
+tool_iterations_label:
+  context: Label for the number of extra LLM iterations triggered by app skill tool use in usage entry detail view
+  en: App skill iterations
+  de: App-Skill-Iterationen
+  zh: 应用技能迭代次数
+  es: Iteraciones de habilidades de la app
+  fr: Itérations de compétences d'app
+  pt: Iterações de habilidades do app
+  ru: Итерации навыков приложения
+  ja: アプリスキルの反復回数
+  ko: 앱 스킬 반복 횟수
+  it: Iterazioni skill app
+  tr: Uygulama becerisi tekrarları
+  vi: Số lần lặp kỹ năng ứng dụng
+  id: Iterasi keterampilan aplikasi
+  pl: Iteracje umiejętności aplikacji
+  nl: App-vaardigheidsherhaling
+  ar: تكرارات مهارة التطبيق
+  hi: ऐप स्किल पुनरावृत्ति
+  th: รอบซ้ำทักษะแอป
+  cs: Iterace dovedností aplikace
+  sv: Iterationer för appfärdigheter
+  he: איטרציות של כישורי אפליקציה
+  verified_by_human: []
+tool_iterations_hint:
+  context: Short hint shown next to the tool iteration count explaining why token counts are higher when app skills were used
+  en: Including app skill responses
+  de: Einschließlich App-Skill-Antworten
+  zh: 包含应用技能响应
+  es: Incluye respuestas de habilidades de la app
+  fr: Réponses de compétences d'app incluses
+  pt: Incluindo respostas de habilidades do app
+  ru: Включая ответы навыков приложения
+  ja: アプリスキルのレスポンスを含む
+  ko: 앱 스킬 응답 포함
+  it: Include risposte skill app
+  tr: Uygulama becerisi yanıtları dahil
+  vi: Bao gồm phản hồi kỹ năng ứng dụng
+  id: Termasuk respons keterampilan aplikasi
+  pl: W tym odpowiedzi umiejętności aplikacji
+  nl: Inclusief app-vaardigheidsantwoorden
+  ar: يشمل ردود مهارة التطبيق
+  hi: ऐप स्किल प्रतिक्रियाएं सहित
+  th: รวมการตอบสนองทักษะแอป
+  cs: Včetně odpovědí dovedností aplikace
+  sv: Inklusive svar på appfärdigheter
+  he: כולל תגובות של מיומנויות אפליקציה
+  verified_by_human: []
+open_message:
+  context: Button label on a usage entry detail page that navigates to the original chat message that triggered this usage
+  en: Open message
+  de: Nachricht öffnen
+  zh: 打开消息
+  es: Abrir mensaje
+  fr: Ouvrir le message
+  pt: Abrir mensagem
+  ru: Открыть сообщение
+  ja: メッセージを開く
+  ko: 메시지 열기
+  it: Apri messaggio
+  tr: Mesajı aç
+  vi: Mở tin nhắn
+  id: Buka pesan
+  pl: Otwórz wiadomość
+  nl: Bericht openen
+  ar: فتح الرسالة
+  hi: संदेश खोलें
+  th: เปิดข้อความ
+  cs: Otevřít zprávu
+  sv: Öppna meddelande
+  he: פתח הודעה
+  verified_by_human: []
+open_embed:
+  context: Button label on a usage entry detail page that opens the embed (skill result card) generated by this usage
+  en: Open result
+  de: Ergebnis öffnen
+  zh: 打开结果
+  es: Abrir resultado
+  fr: Ouvrir le résultat
+  pt: Abrir resultado
+  ru: Открыть результат
+  ja: 結果を開く
+  ko: 결과 열기
+  it: Apri risultato
+  tr: Sonucu aç
+  vi: Mở kết quả
+  id: Buka hasil
+  pl: Otwórz wynik
+  nl: Resultaat openen
+  ar: فتح النتيجة
+  hi: परिणाम खोलें
+  th: เปิดผลลัพธ์
+  cs: Otevřít výsledek
+  sv: Öppna resultat
+  he: פתח תוצאה
+  verified_by_human: []

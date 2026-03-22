@@ -10,7 +10,7 @@
     class="mastodon-button"
 >
     <span class="small-icon icon_mastodon"></span>
-    {@html $text('signup.open_mastodon.text')}
+    {@html $text('signup.open_mastodon')}
 </a>
 
 <style>

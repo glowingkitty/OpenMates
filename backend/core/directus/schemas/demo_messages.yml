@@ -1,0 +1,39 @@
+demo_messages:
+  type: collection
+  fields:
+    id:
+      type: uuid
+    demo_chat_id:
+      type: uuid
+      note: "Foreign key to demo_chats.id"
+      required: true
+    language:
+      type: string
+      length: 10
+      note: "Language code (e.g., 'en', 'de', 'original' for source language)"
+      required: true
+    role:
+      type: string
+      length: 50
+      note: "Role: 'user' | 'assistant' | 'system'"
+      required: true
+    content:
+      type: textfield
+      note: "Tiptap JSON content (cleartext)"
+      required: true
+    category:
+      type: string
+      length: 100
+      note: "Message category (cleartext)"
+    model_name:
+      type: string
+      length: 100
+      note: "Model name for assistant messages (cleartext)"
+    original_created_at:
+      type: timestamp
+      note: "Original message timestamp from user's chat (used for ordering messages)"
+      required: true
+    created_at:
+      type: timestamp
+      note: "When this demo message entry was created"
+  note: "Messages ordered by original_created_at to maintain conversation flow. Stored per-language after translation."

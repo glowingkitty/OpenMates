@@ -2,10 +2,156 @@
 # Shared utilities and models for OpenAI implementations (including via OpenRouter)
 
 import logging
-from typing import Dict, Any, List, Optional, Union
-from pydantic import BaseModel, Field
+from typing import Dict, Any, List, Optional
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
+
+# --- Token Calculation Helpers ---
+
+# Estimated token cost per image for vision models.
+# Based on documented values from LLM providers:
+#   - Anthropic: ~1,600 tokens/image (see https://docs.anthropic.com/en/docs/build-with-claude/vision)
+#   - Google / OpenAI: similar order of magnitude
+# We use 1,600 as a conservative single estimate for all providers, since the
+# actual count from the provider's API response is always used for real billing.
+# This estimate is only used in the pre-call credit sufficiency check.
+IMAGE_TOKENS_ESTIMATE = 1600
+
+
+def _count_content_tokens(content: Any, encoding: Any) -> int:
+    """
+    Count tokens for a message's content field, handling both plain strings
+    and multimodal content lists (text + image_url blocks).
+
+    For image_url blocks, we use IMAGE_TOKENS_ESTIMATE instead of tokenizing
+    the base64 payload. Tokenizing a base64 string gives a wildly inflated
+    count (hundreds of thousands of tokens) because tiktoken sees it as raw
+    ASCII, not as the ~1,600 vision tokens the LLM provider actually charges.
+
+    Args:
+        content: The message content — either a string or a list of content blocks.
+        encoding: The tiktoken encoding to use for text tokenization.
+
+    Returns:
+        Estimated token count for this content field.
+    """
+    if not content:
+        return 0
+
+    # Plain string content — tokenize directly
+    if isinstance(content, str):
+        return len(encoding.encode(content))
+
+    # Multimodal content — list of typed blocks
+    if isinstance(content, list):
+        total = 0
+        for block in content:
+            if not isinstance(block, dict):
+                # Unexpected format; fall back to string representation
+                total += len(encoding.encode(str(block)))
+                continue
+
+            block_type = block.get("type", "")
+
+            if block_type == "image_url":
+                # Use the documented per-image token estimate instead of
+                # tokenizing the base64 data URI, which would be massively inflated.
+                total += IMAGE_TOKENS_ESTIMATE
+                logger.debug(
+                    f"Image content block detected — using {IMAGE_TOKENS_ESTIMATE} token estimate "
+                    f"(actual cost will come from provider usage response)"
+                )
+
+            elif block_type == "text":
+                text = block.get("text", "")
+                if text:
+                    total += len(encoding.encode(text))
+
+            else:
+                # tool_use, tool_result, or other block types — tokenize their
+                # text-representable fields (excluding any nested image data)
+                text_repr = block.get("text") or block.get("content") or ""
+                if text_repr and isinstance(text_repr, str):
+                    total += len(encoding.encode(text_repr))
+                elif block.get("name"):
+                    # e.g. tool_use blocks: count name + id as a proxy
+                    total += len(encoding.encode(str(block.get("name", "")) + str(block.get("id", ""))))
+
+        return total
+
+    # Fallback for unexpected types
+    return len(encoding.encode(str(content)))
+
+
+def calculate_token_breakdown(messages: List[Dict[str, Any]], model_id: str, tools: Optional[List[Dict[str, Any]]] = None) -> Dict[str, int]:
+    """
+    Calculate the breakdown of tokens between system prompt and user input.
+    Provides estimates based on tiktoken encoding.
+
+    For multimodal messages containing images (image_url content blocks), the
+    base64 payload is NOT tokenized — instead IMAGE_TOKENS_ESTIMATE is used per
+    image. This avoids a massive over-count that would cause false "insufficient
+    credits" rejections even when the actual image cost is affordable.
+
+    Note: These are pre-call estimates used only for the credit sufficiency check.
+    Actual billing always uses the token counts from the provider's API response.
+    """
+    try:
+        import tiktoken
+        import json
+        encoding = None
+        try:
+            # Try to get encoding for the specific model
+            encoding = tiktoken.encoding_for_model(model_id)
+        except Exception:
+            # Fallback to common encodings
+            for enc_name in ["o200k_base", "cl100k_base", "p50k_base"]:
+                try:
+                    encoding = tiktoken.get_encoding(enc_name)
+                    break
+                except Exception:
+                    continue
+
+        if not encoding:
+            logger.warning(f"Could not find any suitable tiktoken encoding for model {model_id}")
+            return {"system_prompt_tokens": 0, "user_input_tokens": 0}
+
+        system_tokens = 0
+        user_tokens = 0
+
+        for msg in messages:
+            role = msg.get("role", "")
+            content = msg.get("content", "")
+            if not content:
+                continue
+
+            # Use multimodal-aware token counting to avoid inflating image tokens
+            tokens = _count_content_tokens(content, encoding)
+            if role == "system":
+                system_tokens += tokens
+            else:
+                # user, assistant (history), or tool
+                user_tokens += tokens
+
+        # Include tool definitions in system tokens if provided
+        if tools:
+            try:
+                tools_json = json.dumps(tools)
+                tool_tokens = len(encoding.encode(tools_json))
+                system_tokens += tool_tokens
+                logger.debug(f"Added {tool_tokens} tokens for tool definitions to system_prompt_tokens")
+            except Exception as tool_err:
+                logger.warning(f"Failed to calculate tool tokens: {tool_err}")
+
+        logger.info(f"Token breakdown calculated for {model_id}: system={system_tokens}, user={user_tokens}")
+        return {
+            "system_prompt_tokens": system_tokens,
+            "user_input_tokens": user_tokens
+        }
+    except Exception as e:
+        logger.error(f"Error calculating token breakdown for {model_id}: {e}")
+        return {"system_prompt_tokens": 0, "user_input_tokens": 0}
 
 # --- Pydantic Models for Structured OpenAI Response ---
 
@@ -17,6 +163,8 @@ class OpenAIUsageMetadata(BaseModel):
     input_tokens: int
     output_tokens: int
     total_tokens: int
+    user_input_tokens: Optional[int] = None
+    system_prompt_tokens: Optional[int] = None
 
 class RawOpenAIChatCompletionResponse(BaseModel):
     """
@@ -53,18 +201,125 @@ class UnifiedOpenAIResponse(BaseModel):
     usage: Optional[OpenAIUsageMetadata] = None
 
 
+def _sanitize_schema_for_llm_providers(schema: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Recursively sanitizes a JSON schema to remove fields that LLM providers don't accept.
+    
+    Many LLM providers (Cerebras, OpenAI, OpenRouter, etc.) reject schemas with 
+    'minimum' and 'maximum' fields for integer and number types, even though these are valid 
+    JSON Schema fields. This function removes these fields to ensure compatibility.
+    
+    Also converts integer/number enum values to strings. Google Gemini's SDK validates
+    FunctionDeclaration parameters with Pydantic and requires all enum values to be strings,
+    even for integer-typed fields (e.g., enum: [1, 3, 7, 14] must become ["1", "3", "7", "14"]).
+    String enum values are safe for all other providers too, since the LLM will return the
+    string and we cast it back to int when we validate tool call arguments against app.yml.
+    
+    Note: The original schema (with min/max and integer enums) is kept in app.yml and used for
+    validation when we receive tool call arguments from the LLM.
+    
+    Args:
+        schema: The JSON schema dictionary to sanitize
+        
+    Returns:
+        A sanitized copy of the schema with minimum/maximum removed and enum values
+        converted to strings for integer and number properties
+    """
+    if not isinstance(schema, dict):
+        return schema
+    
+    # Create a copy to avoid modifying the original
+    sanitized = schema.copy()
+    
+    # Convert type list (e.g., type: [string, integer]) to anyOf format
+    # Some LLM providers (Cerebras, Google) don't support list types and require anyOf instead
+    # This must be done BEFORE processing nested structures
+    if isinstance(sanitized.get("type"), list):
+        type_list = sanitized.pop("type")
+        # Convert to anyOf format: anyOf: [{type: "string"}, {type: "integer"}]
+        sanitized["anyOf"] = [{"type": t} for t in type_list if isinstance(t, str)]
+        # After converting to anyOf, we still need to recursively sanitize the anyOf items
+        # This will be handled by the anyOf processing below
+    
+    # If this is a property definition with type 'integer' or 'number':
+    # 1. Remove minimum/maximum fields (Cerebras and other providers reject them)
+    # 2. When the field has an enum, convert both the type and enum values to strings.
+    #    Google's API (and its Pydantic-backed SDK) only allows enum on STRING-typed fields
+    #    (API error: "enum: only allowed for STRING type"). Converting type→"string" and
+    #    enum values→str() is safe for all providers: the LLM returns the chosen string,
+    #    and skills already cast with int() when consuming tool call arguments.
+    if sanitized.get("type") in ("integer", "number"):
+        sanitized.pop("minimum", None)
+        sanitized.pop("maximum", None)
+        if "enum" in sanitized and isinstance(sanitized["enum"], list):
+            sanitized["enum"] = [str(v) for v in sanitized["enum"]]
+            sanitized["type"] = "string"  # Google API requires STRING type for enum fields
+    
+    # Recursively sanitize nested structures
+    if "properties" in sanitized:
+        sanitized["properties"] = {
+            key: _sanitize_schema_for_llm_providers(value)
+            for key, value in sanitized["properties"].items()
+        }
+    
+    if "items" in sanitized:
+        sanitized["items"] = _sanitize_schema_for_llm_providers(sanitized["items"])
+    
+    if "allOf" in sanitized:
+        sanitized["allOf"] = [
+            _sanitize_schema_for_llm_providers(item) for item in sanitized["allOf"]
+        ]
+    
+    if "anyOf" in sanitized:
+        sanitized["anyOf"] = [
+            _sanitize_schema_for_llm_providers(item) for item in sanitized["anyOf"]
+        ]
+    
+    if "oneOf" in sanitized:
+        sanitized["oneOf"] = [
+            _sanitize_schema_for_llm_providers(item) for item in sanitized["oneOf"]
+        ]
+    
+    return sanitized
+
+
 def _map_tools_to_openai_format(tools: List[Dict[str, Any]]) -> Optional[List[Dict[str, Any]]]:
     """
     Maps the internal tool format to OpenAI's expected format.
+    
+    Also sanitizes tool schemas to remove fields that LLM providers don't accept
+    (e.g., minimum/maximum for integer types). The original schemas in app.yml
+    are preserved for validation purposes.
     
     Args:
         tools: List of tool definitions in internal format
         
     Returns:
-        List of tool definitions in OpenAI format, or None if no valid tools
+        List of tool definitions in OpenAI format with sanitized schemas, or None if no valid tools
     """
     if not tools:
         return None
     
-    # Pass through as-is since our internal format matches OpenAI's format
-    return tools
+    # Sanitize each tool's schema before returning
+    # This removes minimum/maximum fields from integer properties that LLM providers reject
+    sanitized_tools = []
+    for tool in tools:
+        if not isinstance(tool, dict) or "function" not in tool:
+            # Skip invalid tools
+            sanitized_tools.append(tool)
+            continue
+        
+        # Create a copy of the tool
+        sanitized_tool = tool.copy()
+        sanitized_function = tool["function"].copy()
+        
+        # Sanitize the parameters schema
+        if "parameters" in sanitized_function:
+            sanitized_function["parameters"] = _sanitize_schema_for_llm_providers(
+                sanitized_function["parameters"]
+            )
+        
+        sanitized_tool["function"] = sanitized_function
+        sanitized_tools.append(sanitized_tool)
+    
+    return sanitized_tools

@@ -1,0 +1,3808 @@
+"""
+Embed Service for creating and managing embeds from skill results.
+Handles TOON encoding, embed creation, and server-side caching.
+"""
+import logging
+import json
+import hashlib
+import uuid
+import random
+import string
+import re
+from typing import Dict, Any, Optional, List, Tuple
+from datetime import datetime
+
+from toon_format import encode, decode
+from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.utils.encryption import EncryptionService
+from backend.shared.python_schemas.embed_status import (
+    EmbedStatus,
+    validate_embed_transition,
+)
+
+logger = logging.getLogger(__name__)
+
+
+def _flatten_for_toon_tabular(obj: Any, prefix: str = "") -> Any:
+    """
+    Flatten nested objects for TOON tabular format encoding.
+    This enables TOON to use efficient tabular arrays instead of repeated field names.
+    
+    Converts:
+    - profile: {name: "..."} → profile_name: "..."
+    - meta_url: {favicon: "..."} → meta_url_favicon: "..."
+    - extra_snippets: [...] → extra_snippets: "|".join([...])
+    
+    Args:
+        obj: Object to flatten (dict, list, or primitive)
+        prefix: Prefix for nested keys
+        
+    Returns:
+        Flattened object
+    """
+    if isinstance(obj, dict):
+        flattened = {}
+        for key, value in obj.items():
+            new_key = f"{prefix}_{key}" if prefix else key
+            if isinstance(value, dict):
+                flattened.update(_flatten_for_toon_tabular(value, new_key))
+            elif isinstance(value, list):
+                # For lists, join with pipe separator for simple values, or flatten each item
+                if value and isinstance(value[0], (str, int, float, bool, type(None))):
+                    flattened[new_key] = "|".join(str(v) for v in value)
+                else:
+                    flattened_list = [_flatten_for_toon_tabular(item, "") for item in value]
+                    flattened[new_key] = flattened_list
+            else:
+                flattened[new_key] = value
+        return flattened
+    elif isinstance(obj, list):
+        return [_flatten_for_toon_tabular(item, prefix) for item in obj]
+    else:
+        return obj
+
+
+class EmbedService:
+    """
+    Service for creating and managing embeds from skill results.
+
+    Handles:
+    - Converting skill results to TOON format
+    - Creating embed entries (child + parent for composite results)
+    - Server-side caching with vault encryption
+    - Generating embed references for streaming
+    - Creating "processing" placeholders that update when skill completes
+    """
+
+    def __init__(
+        self,
+        cache_service: CacheService,
+        directus_service: DirectusService,
+        encryption_service: EncryptionService
+    ):
+        self.cache_service = cache_service
+        self.directus_service = directus_service
+        self.encryption_service = encryption_service
+
+    async def create_processing_embed_placeholder(
+        self,
+        app_id: str,
+        skill_id: str,
+        chat_id: str,
+        message_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        task_id: Optional[str] = None,
+        skill_task_id: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        log_prefix: str = ""
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Create a "processing" embed placeholder immediately when skill starts.
+        This allows the frontend to show the skill execution immediately.
+
+        The embed will be updated with actual results when skill completes.
+
+        Args:
+            app_id: The app ID that owns the skill
+            skill_id: The skill ID being executed
+            chat_id: Chat ID where the embed is created
+            message_id: Message ID that references the embed
+            user_id: User ID (UUID)
+            user_id_hash: Hashed user ID
+            user_vault_key_id: User's vault key ID for encryption
+            task_id: Optional main AI task ID for tracking
+            skill_task_id: Optional unique ID for this specific skill invocation (for cancellation).
+                          If not provided, one will be generated automatically.
+            metadata: Optional metadata (query, provider, etc.)
+            log_prefix: Logging prefix for this operation
+
+        Returns:
+            Dictionary with:
+            - embed_id: The embed_id of the placeholder
+            - embed_reference: JSON string for embedding in message markdown
+            - skill_task_id: The unique skill task ID for cancellation
+            None if creation fails
+        """
+        try:
+            # Hash sensitive IDs for privacy protection
+            hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+            hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
+            hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
+            
+            # Generate skill_task_id if not provided - this is used for individual skill cancellation
+            # CRITICAL: skill_task_id allows cancelling a single skill without stopping the entire AI response
+            if not skill_task_id:
+                skill_task_id = str(uuid.uuid4())
+            hashed_skill_task_id = hashlib.sha256(skill_task_id.encode()).hexdigest()
+
+            # Generate embed_id for placeholder
+            embed_id = str(uuid.uuid4())
+
+            # Create minimal placeholder content with metadata
+            # CRITICAL: Include all metadata (query, provider, etc.) in placeholder
+            # This ensures the frontend can display the query immediately while skill executes
+            # CRITICAL: Include task_id and skill_task_id so frontend can:
+            #   - task_id: Cancel the entire AI response
+            #   - skill_task_id: Cancel just this specific skill (AI continues)
+            placeholder_content = {
+                "app_id": app_id,
+                "skill_id": skill_id,
+                "status": "processing",
+                **({"task_id": task_id} if task_id else {}),
+                "skill_task_id": skill_task_id,  # For individual skill cancellation
+                **(metadata or {})
+            }
+            
+            # Log metadata for debugging (especially query for web search)
+            if metadata:
+                logger.debug(
+                    f"{log_prefix} Creating placeholder with metadata: "
+                    f"keys={list(metadata.keys())}, "
+                    f"key_count={len(metadata.keys())}, "
+                    f"query_present={'query' in metadata}, "
+                    f"provider_present={'provider' in metadata}"
+                )
+
+            # Convert to TOON format
+            placeholder_toon = encode(placeholder_content)
+
+            # Encrypt with vault key for server cache
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                placeholder_toon,
+                user_vault_key_id
+            )
+
+            # Create placeholder embed entry
+            embed_data = {
+                "embed_id": embed_id,
+                "type": "app_skill_use",
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "hashed_chat_id": hashed_chat_id,
+                "hashed_message_id": hashed_message_id,
+                "hashed_task_id": hashed_task_id,
+                "hashed_skill_task_id": hashed_skill_task_id,  # For individual skill cancellation
+                "status": "processing",
+                "hashed_user_id": user_id_hash,
+                "is_private": False,
+                "is_shared": False,
+                "encryption_mode": "client",
+                "embed_ids": None,  # Will be populated when skill completes (for composite)
+                "encrypted_content": encrypted_content,
+                "created_at": int(datetime.now().timestamp()),
+                "updated_at": int(datetime.now().timestamp())
+            }
+
+            # Cache placeholder embed
+            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+
+            # SEND PLAINTEXT TOON TO CLIENT via WebSocket
+            # This ensures the client has the embed data immediately to render the placeholder
+            await self.send_embed_data_to_client(
+                embed_id=embed_id,
+                embed_type="app_skill_use",
+                content_toon=placeholder_toon,  # PLAINTEXT TOON
+                chat_id=chat_id,
+                message_id=message_id,
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                status="processing",
+                task_id=task_id,
+                is_private=False,
+                is_shared=False,
+                created_at=embed_data["created_at"],
+                updated_at=embed_data["updated_at"],
+                log_prefix=log_prefix
+            )
+
+            logger.info(
+                f"{log_prefix} Created processing placeholder embed {embed_id} for {app_id}.{skill_id} "
+                f"with skill_task_id={skill_task_id}"
+            )
+
+            # Generate embed reference JSON
+            # CRITICAL: Include app_id and skill_id so frontend can properly group embeds
+            # by app+skill type (e.g., web.search embeds grouped separately from code.get_docs).
+            # ALSO include query/provider when available so the UI can render the query
+            # immediately (even before the finished embed content arrives).
+            embed_reference_payload = {
+                "type": "app_skill_use",
+                "embed_id": embed_id,
+                "app_id": app_id,
+                "skill_id": skill_id
+            }
+            # Include query and provider from metadata if available
+            # This enables the frontend to display the query text immediately in grouped embeds
+            # without waiting for the embed data to arrive via WebSocket
+            if metadata:
+                if metadata.get("query"):
+                    embed_reference_payload["query"] = metadata["query"]
+                if metadata.get("provider"):
+                    embed_reference_payload["provider"] = metadata["provider"]
+            embed_reference = json.dumps(embed_reference_payload)
+
+            return {
+                "embed_id": embed_id,
+                "embed_reference": embed_reference,
+                "skill_task_id": skill_task_id  # Return skill_task_id for cancellation tracking
+            }
+
+        except Exception as e:
+            logger.error(f"{log_prefix} Error creating processing embed placeholder: {e}", exc_info=True)
+            return None
+
+    async def create_focus_mode_activation_embed(
+        self,
+        focus_id: str,
+        app_id: str,
+        focus_mode_name: str,
+        chat_id: str,
+        message_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        task_id: Optional[str] = None,
+        log_prefix: str = ""
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Create a focus mode activation embed that the frontend renders as a
+        countdown indicator (4-3-2-1) with the option for the user to reject.
+
+        This is a lightweight embed that contains focus mode metadata.
+        The frontend uses it to show the activation UI and manage the
+        active focus mode state for the chat.
+
+        Args:
+            focus_id: Full focus mode ID (e.g., 'web-research')
+            app_id: The app that owns the focus mode (e.g., 'web')
+            focus_mode_name: Translated display name of the focus mode
+            chat_id: Chat ID
+            message_id: Message ID
+            user_id: User ID (UUID)
+            user_id_hash: Hashed user ID
+            user_vault_key_id: User's vault key ID for encryption
+            task_id: Optional main AI task ID
+            log_prefix: Logging prefix
+
+        Returns:
+            Dictionary with embed_id and embed_reference, or None on failure
+        """
+        try:
+            hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+            hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
+            hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
+
+            embed_id = str(uuid.uuid4())
+
+            # Focus mode activation content - kept minimal
+            activation_content = {
+                "focus_id": focus_id,
+                "app_id": app_id,
+                "focus_mode_name": focus_mode_name,
+                "status": "activated"
+            }
+
+            # Encode to TOON
+            activation_toon = encode(activation_content)
+
+            # Encrypt with vault key for server cache
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                activation_toon,
+                user_vault_key_id
+            )
+
+            embed_data = {
+                "embed_id": embed_id,
+                "type": "focus_mode_activation",
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "hashed_chat_id": hashed_chat_id,
+                "hashed_message_id": hashed_message_id,
+                "hashed_task_id": hashed_task_id,
+                "status": "finished",
+                "hashed_user_id": user_id_hash,
+                "is_private": False,
+                "is_shared": False,
+                "encryption_mode": "client",
+                "embed_ids": None,
+                "encrypted_content": encrypted_content,
+                "created_at": int(datetime.now().timestamp()),
+                "updated_at": int(datetime.now().timestamp())
+            }
+
+            # Cache
+            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+
+            # Send plaintext TOON to client via WebSocket
+            await self.send_embed_data_to_client(
+                embed_id=embed_id,
+                embed_type="focus_mode_activation",
+                content_toon=activation_toon,
+                chat_id=chat_id,
+                message_id=message_id,
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                status="finished",
+                task_id=task_id,
+                is_private=False,
+                is_shared=False,
+                created_at=embed_data["created_at"],
+                updated_at=embed_data["updated_at"],
+                log_prefix=log_prefix,
+                check_cache_status=False
+            )
+
+            # Build embed reference JSON for the message markdown
+            embed_reference_payload = {
+                "type": "focus_mode_activation",
+                "embed_id": embed_id,
+                "focus_id": focus_id,
+                "app_id": app_id,
+                "focus_mode_name": focus_mode_name
+            }
+            embed_reference = json.dumps(embed_reference_payload)
+
+            logger.info(
+                f"{log_prefix} [FOCUS_MODE] Created focus mode activation embed {embed_id} "
+                f"for focus_id={focus_id} (app={app_id}, name={focus_mode_name})"
+            )
+
+            # Schedule fallback persistence for focus mode activation embed
+            self._schedule_embed_persistence_fallback(embed_id)
+
+            return {
+                "embed_id": embed_id,
+                "embed_reference": embed_reference
+            }
+
+        except Exception as e:
+            logger.error(f"{log_prefix} Error creating focus mode activation embed: {e}", exc_info=True)
+            return None
+
+    async def create_code_embed_placeholder(
+        self,
+        language: str,
+        chat_id: str,
+        message_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        task_id: Optional[str] = None,
+        filename: Optional[str] = None,
+        log_prefix: str = ""
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Create a "processing" code embed placeholder immediately when code block starts.
+        This allows the frontend to show the code block embed immediately while code streams.
+        
+        The embed will be updated with code content as it streams paragraph by paragraph,
+        and finalized when the code block closes.
+        
+        Args:
+            language: Programming language (e.g., "python", "javascript", "" for no language)
+            chat_id: Chat ID where the embed is created
+            message_id: Message ID that references the embed
+            user_id: User ID (UUID)
+            user_id_hash: Hashed user ID
+            user_vault_key_id: User's vault key ID for encryption
+            task_id: Optional task ID for tracking
+            filename: Optional filename (extracted from language:filename format)
+            log_prefix: Logging prefix for this operation
+            
+        Returns:
+            Dictionary with:
+            - embed_id: The embed_id of the placeholder
+            - embed_reference: JSON string for embedding in message markdown
+            None if creation fails
+        """
+        try:
+            # Hash sensitive IDs for privacy protection
+            hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+            hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
+            hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
+
+            # Generate embed_id for placeholder
+            embed_id = str(uuid.uuid4())
+
+            # Create minimal placeholder content with language and filename.
+            # app_id and skill_id are included so the frontend can index this embed
+            # under the "code" app in IndexedDB, making it visible in My Embeds.
+            placeholder_content = {
+                "type": "code",
+                "app_id": "code",
+                "skill_id": "code",
+                "language": language or "",
+                "code": "",  # Empty initially, will be updated as code streams
+                "filename": filename,
+                "status": "processing",
+                "line_count": 0  # Will be updated when content is finalized
+            }
+
+            # Convert to TOON format
+            placeholder_toon = encode(placeholder_content)
+
+            # Encrypt with vault key for server cache
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                placeholder_toon,
+                user_vault_key_id
+            )
+
+            # Create placeholder embed entry
+            embed_data = {
+                "embed_id": embed_id,
+                "type": "code",
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "hashed_chat_id": hashed_chat_id,
+                "hashed_message_id": hashed_message_id,
+                "hashed_task_id": hashed_task_id,
+                "status": "processing",
+                "hashed_user_id": user_id_hash,
+                "is_private": False,
+                "is_shared": False,
+                "encryption_mode": "client",
+                "embed_ids": None,  # Code embeds don't have child embeds
+                "encrypted_content": encrypted_content,
+                "created_at": int(datetime.now().timestamp()),
+                "updated_at": int(datetime.now().timestamp())
+            }
+
+            # Cache placeholder embed
+            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+
+            # SEND PLAINTEXT TOON TO CLIENT via WebSocket
+            # This ensures the client has the embed data immediately to render the placeholder
+            await self.send_embed_data_to_client(
+                embed_id=embed_id,
+                embed_type="code",
+                content_toon=placeholder_toon,  # PLAINTEXT TOON
+                chat_id=chat_id,
+                message_id=message_id,
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                status="processing",
+                task_id=task_id,
+                is_private=False,
+                is_shared=False,
+                created_at=embed_data["created_at"],
+                updated_at=embed_data["updated_at"],
+                log_prefix=log_prefix
+            )
+
+            logger.info(f"{log_prefix} Created processing code embed placeholder {embed_id} (language: {language or 'none'})")
+
+            # Generate embed reference JSON
+            embed_reference = json.dumps({
+                "type": "code",
+                "embed_id": embed_id
+            })
+
+            return {
+                "embed_id": embed_id,
+                "embed_reference": embed_reference
+            }
+
+        except Exception as e:
+            logger.error(f"{log_prefix} Error creating code embed placeholder: {e}", exc_info=True)
+            return None
+
+    async def update_code_embed_content(
+        self,
+        embed_id: str,
+        code_content: str,
+        chat_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        status: str = "processing",
+        log_prefix: str = ""
+    ) -> bool:
+        """
+        Update code embed content as code streams paragraph by paragraph.
+        
+        This method updates the cached embed with new code content and sends
+        the updated content to the client via WebSocket.
+        
+        Args:
+            embed_id: The embed identifier
+            code_content: The code content to update (accumulated so far)
+            chat_id: Chat ID for cache indexing
+            user_id: User ID (UUID)
+            user_id_hash: Hashed user ID
+            user_vault_key_id: User's vault key ID for encryption
+            status: Embed status ("processing" while streaming, "finished" when complete)
+            log_prefix: Logging prefix for this operation
+            
+        Returns:
+            True if update succeeded, False otherwise
+        """
+        try:
+            # Get existing embed from cache to preserve metadata
+            cached_embed = await self._get_cached_embed(embed_id, user_vault_key_id, log_prefix)
+            if not cached_embed:
+                logger.warning(f"{log_prefix} Code embed {embed_id} not found in cache, cannot update")
+                return False
+
+            # Decode existing content to get language and filename
+            existing_toon = await self._get_cached_embed_toon(embed_id, user_vault_key_id, log_prefix)
+            if existing_toon:
+                try:
+                    existing_content = decode(existing_toon)
+                    language = existing_content.get("language", "")
+                    filename = existing_content.get("filename")
+                except Exception as e:
+                    logger.warning(f"{log_prefix} Failed to decode existing code embed content: {e}")
+                    language = ""
+                    filename = None
+            else:
+                language = ""
+                filename = None
+
+            # Create updated content with new code
+            # Calculate line count for display (count all lines including empty ones)
+            line_count = code_content.count('\n') + 1 if code_content else 0
+
+            # app_id / skill_id are preserved across updates so the embed remains
+            # visible in My Embeds under the "code" app after finalization.
+            updated_content = {
+                "type": "code",
+                "app_id": "code",
+                "skill_id": "code",
+                "language": language,
+                "code": code_content,
+                "filename": filename,
+                "status": status,
+                "line_count": line_count
+            }
+
+            # Convert to TOON format
+            updated_toon = encode(updated_content)
+
+            # Encrypt with vault key for server cache
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                updated_toon,
+                user_vault_key_id
+            )
+
+            # Update embed data
+            updated_embed_data = {
+                **cached_embed,
+                "encrypted_content": encrypted_content,
+                "status": status,
+                "updated_at": int(datetime.now().timestamp())
+            }
+
+            # CRITICAL: Check if embed is already finalized to prevent duplicate send_embed_data events
+            # If the embed is already "finished" and we're trying to send "finished" again, skip it
+            # This prevents duplicate events when update_code_embed_content is called multiple times
+            current_status = cached_embed.get("status", "processing")
+            should_send_event = True
+            if status == "finished" and current_status == "finished":
+                # Embed is already finalized - don't send duplicate event
+                should_send_event = False
+                logger.debug(
+                    f"{log_prefix} [EMBED_EVENT] Skipping duplicate send_embed_data for already-finalized embed {embed_id} "
+                    f"(current_status={current_status}, new_status={status})"
+                )
+
+            # Update cache
+            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+
+            # Send updated content to client via WebSocket (only if not a duplicate finalization)
+            if should_send_event:
+                # CRITICAL FIX: Pass check_cache_status=False because we already checked the cache
+                # status above (at line 440). The cache was updated at line 451 BEFORE this call,
+                # so send_embed_data_to_client's default cache check would see the NEW status
+                # ("finished") and incorrectly skip sending. This was causing embeds to never
+                # be finalized on the frontend because the "finished" event was being dropped.
+                await self.send_embed_data_to_client(
+                    embed_id=embed_id,
+                    embed_type="code",
+                    content_toon=updated_toon,  # PLAINTEXT TOON
+                    chat_id=chat_id,
+                    message_id=cached_embed.get("message_id", ""),
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    status=status,
+                    task_id=cached_embed.get("hashed_task_id"),
+                    is_private=cached_embed.get("is_private", False),
+                    is_shared=cached_embed.get("is_shared", False),
+                    created_at=cached_embed.get("created_at"),
+                    updated_at=updated_embed_data["updated_at"],
+                    log_prefix=log_prefix,
+                    check_cache_status=False  # Already checked above, cache was just updated
+                )
+
+            logger.debug(f"{log_prefix} Updated code embed {embed_id} with {len(code_content)} chars (status: {status})")
+
+            # Schedule fallback persistence when code embed is finalized
+            if status == "finished":
+                self._schedule_embed_persistence_fallback(embed_id)
+
+            return True
+
+        except Exception as e:
+            logger.error(f"{log_prefix} Error updating code embed content: {e}", exc_info=True)
+            return False
+
+    # =========================================================================
+    # Table/sheet embed methods (for markdown tables detected in AI responses)
+    # Mirrors the code embed pattern but uses type="sheet" with markdown table content.
+    # The frontend renders these as interactive spreadsheet-like previews.
+    # =========================================================================
+
+    async def create_table_embed_placeholder(
+        self,
+        chat_id: str,
+        message_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        task_id: Optional[str] = None,
+        title: Optional[str] = None,
+        log_prefix: str = ""
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Create a "processing" table embed placeholder when a markdown table starts.
+        Mirrors create_code_embed_placeholder() but for type="sheet".
+        
+        The embed will be updated row-by-row as the table streams,
+        and finalized when the table ends (next non-table line).
+        
+        Returns:
+            Dictionary with embed_id and embed_reference, or None on failure.
+        """
+        try:
+            hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+            hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
+            hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
+
+            embed_id = str(uuid.uuid4())
+
+            # Placeholder content — table markdown will be accumulated as rows stream.
+            # app_id and skill_id are included so the frontend can index this embed
+            # under the "sheets" app in IndexedDB, making it visible in My Embeds.
+            placeholder_content = {
+                "type": "sheet",
+                "app_id": "sheets",
+                "skill_id": "sheet",
+                "table": "",           # Raw markdown table, accumulated row by row
+                "title": title or "",
+                "status": "processing",
+                "row_count": 0,
+                "col_count": 0,
+            }
+
+            placeholder_toon = encode(placeholder_content)
+
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                placeholder_toon,
+                user_vault_key_id
+            )
+
+            embed_data = {
+                "embed_id": embed_id,
+                "type": "sheet",
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "hashed_chat_id": hashed_chat_id,
+                "hashed_message_id": hashed_message_id,
+                "hashed_task_id": hashed_task_id,
+                "status": "processing",
+                "hashed_user_id": user_id_hash,
+                "is_private": False,
+                "is_shared": False,
+                "encryption_mode": "client",
+                "embed_ids": None,
+                "encrypted_content": encrypted_content,
+                "created_at": int(datetime.now().timestamp()),
+                "updated_at": int(datetime.now().timestamp())
+            }
+
+            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+
+            # Send plaintext TOON to client immediately so it can render the placeholder
+            await self.send_embed_data_to_client(
+                embed_id=embed_id,
+                embed_type="sheet",
+                content_toon=placeholder_toon,
+                chat_id=chat_id,
+                message_id=message_id,
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                status="processing",
+                task_id=task_id,
+                is_private=False,
+                is_shared=False,
+                created_at=embed_data["created_at"],
+                updated_at=embed_data["updated_at"],
+                log_prefix=log_prefix
+            )
+
+            logger.info(f"{log_prefix} Created processing table embed placeholder {embed_id}")
+
+            embed_reference = json.dumps({
+                "type": "sheet",
+                "embed_id": embed_id
+            })
+
+            return {
+                "embed_id": embed_id,
+                "embed_reference": embed_reference
+            }
+
+        except Exception as e:
+            logger.error(f"{log_prefix} Error creating table embed placeholder: {e}", exc_info=True)
+            return None
+
+    async def update_table_embed_content(
+        self,
+        embed_id: str,
+        table_content: str,
+        chat_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        status: str = "processing",
+        title: Optional[str] = None,
+        row_count: int = 0,
+        col_count: int = 0,
+        log_prefix: str = ""
+    ) -> bool:
+        """
+        Update table embed content as rows stream in.
+        Mirrors update_code_embed_content() but for table markdown.
+        
+        Args:
+            table_content: Accumulated markdown table so far (all rows including header + separator).
+            status: "processing" while streaming, "finished" when table ends.
+            title: Optional title extracted from HTML comment above the table.
+            row_count: Number of data rows (excluding header and separator).
+            col_count: Number of columns.
+        """
+        try:
+            cached_embed = await self._get_cached_embed(embed_id, user_vault_key_id, log_prefix)
+            if not cached_embed:
+                logger.warning(f"{log_prefix} Table embed {embed_id} not found in cache, cannot update")
+                return False
+
+            # Preserve existing title if not provided in this update
+            if not title:
+                existing_toon = await self._get_cached_embed_toon(embed_id, user_vault_key_id, log_prefix)
+                if existing_toon:
+                    try:
+                        existing_content = decode(existing_toon)
+                        title = existing_content.get("title", "")
+                    except Exception:
+                        title = ""
+
+            # app_id / skill_id are preserved across updates so the embed remains
+            # visible in My Embeds under the "sheets" app after finalization.
+            updated_content = {
+                "type": "sheet",
+                "app_id": "sheets",
+                "skill_id": "sheet",
+                "table": table_content,
+                "title": title or "",
+                "status": status,
+                "row_count": row_count,
+                "col_count": col_count,
+            }
+
+            updated_toon = encode(updated_content)
+
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                updated_toon,
+                user_vault_key_id
+            )
+
+            updated_embed_data = {
+                **cached_embed,
+                "encrypted_content": encrypted_content,
+                "status": status,
+                "updated_at": int(datetime.now().timestamp())
+            }
+
+            # Prevent duplicate finalization events
+            current_status = cached_embed.get("status", "processing")
+            should_send_event = True
+            if status == "finished" and current_status == "finished":
+                should_send_event = False
+                logger.debug(
+                    f"{log_prefix} [EMBED_EVENT] Skipping duplicate send_embed_data for "
+                    f"already-finalized table embed {embed_id}"
+                )
+
+            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+
+            if should_send_event:
+                await self.send_embed_data_to_client(
+                    embed_id=embed_id,
+                    embed_type="sheet",
+                    content_toon=updated_toon,
+                    chat_id=chat_id,
+                    message_id=cached_embed.get("message_id", ""),
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    status=status,
+                    task_id=cached_embed.get("hashed_task_id"),
+                    is_private=cached_embed.get("is_private", False),
+                    is_shared=cached_embed.get("is_shared", False),
+                    created_at=cached_embed.get("created_at"),
+                    updated_at=updated_embed_data["updated_at"],
+                    log_prefix=log_prefix,
+                    check_cache_status=False
+                )
+
+            logger.debug(f"{log_prefix} Updated table embed {embed_id} ({row_count} rows, {col_count} cols, status: {status})")
+
+            if status == "finished":
+                self._schedule_embed_persistence_fallback(embed_id)
+
+            return True
+
+        except Exception as e:
+            logger.error(f"{log_prefix} Error updating table embed content: {e}", exc_info=True)
+            return False
+
+    # =========================================================================
+    # Math plot embed methods (for ```plot ... ``` fenced blocks)
+    # Mirrors the table embed pattern but uses type="math-plot" with expression content.
+    # Created by stream_consumer.py when the LLM outputs a ```plot\nf(x)=...\n``` block.
+    # =========================================================================
+
+    async def create_plot_embed_placeholder(
+        self,
+        chat_id: str,
+        message_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        task_id: Optional[str] = None,
+        log_prefix: str = ""
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Create a "processing" math-plot embed placeholder when a ```plot block starts.
+        Mirrors create_table_embed_placeholder() but for type="math-plot".
+
+        The embed will be updated with the full expression content once the closing
+        ``` fence is received, then finalized to "finished" status.
+
+        Returns:
+            Dictionary with embed_id and embed_reference, or None on failure.
+        """
+        try:
+            hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+            hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
+            hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
+
+            embed_id = str(uuid.uuid4())
+
+            # Placeholder content — plot_spec will be filled in when the closing fence arrives.
+            # app_id and skill_id are included so the frontend can index this embed
+            # under the "math" app in IndexedDB, making it visible in My Embeds.
+            placeholder_content = {
+                "type": "math-plot",
+                "app_id": "math",
+                "skill_id": "plot",
+                "plot_spec": "",   # Raw expression from the plot block, filled in at finalization
+                "status": "processing",
+            }
+
+            placeholder_toon = encode(placeholder_content)
+
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                placeholder_toon,
+                user_vault_key_id
+            )
+
+            embed_data = {
+                "embed_id": embed_id,
+                "type": "math-plot",
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "hashed_chat_id": hashed_chat_id,
+                "hashed_message_id": hashed_message_id,
+                "hashed_task_id": hashed_task_id,
+                "status": "processing",
+                "hashed_user_id": user_id_hash,
+                "is_private": False,
+                "is_shared": False,
+                "encryption_mode": "client",
+                "embed_ids": None,
+                "encrypted_content": encrypted_content,
+                "created_at": int(datetime.now().timestamp()),
+                "updated_at": int(datetime.now().timestamp())
+            }
+
+            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+
+            # Send plaintext TOON to client immediately so it can render the placeholder
+            await self.send_embed_data_to_client(
+                embed_id=embed_id,
+                embed_type="math-plot",
+                content_toon=placeholder_toon,
+                chat_id=chat_id,
+                message_id=message_id,
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                status="processing",
+                task_id=task_id,
+                is_private=False,
+                is_shared=False,
+                created_at=embed_data["created_at"],
+                updated_at=embed_data["updated_at"],
+                log_prefix=log_prefix
+            )
+
+            logger.info(f"{log_prefix} Created processing math-plot embed placeholder {embed_id}")
+
+            embed_reference = json.dumps({
+                "type": "math-plot",
+                "embed_id": embed_id
+            })
+
+            return {
+                "embed_id": embed_id,
+                "embed_reference": embed_reference
+            }
+
+        except Exception as e:
+            logger.error(f"{log_prefix} Error creating math-plot embed placeholder: {e}", exc_info=True)
+            return None
+
+    async def update_plot_embed_content(
+        self,
+        embed_id: str,
+        expression: str,
+        chat_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        status: str = "finished",
+        log_prefix: str = ""
+    ) -> bool:
+        """
+        Update math-plot embed content with the expression from the plot block.
+        Called once when the closing ``` fence is received.
+
+        Args:
+            embed_id:          The embed to update.
+            expression:        The full expression text from between the ```plot fences.
+            status:            "finished" when the block is complete.
+        """
+        try:
+            cached_embed = await self._get_cached_embed(embed_id, user_vault_key_id, log_prefix)
+            if not cached_embed:
+                logger.warning(f"{log_prefix} Math-plot embed {embed_id} not found in cache, cannot update")
+                return False
+
+            # app_id / skill_id are preserved across updates so the embed remains
+            # visible in My Embeds under the "math" app after finalization.
+            updated_content = {
+                "type": "math-plot",
+                "app_id": "math",
+                "skill_id": "plot",
+                "plot_spec": expression,
+                "status": status,
+            }
+
+            updated_toon = encode(updated_content)
+
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                updated_toon,
+                user_vault_key_id
+            )
+
+            updated_embed_data = {
+                **cached_embed,
+                "encrypted_content": encrypted_content,
+                "status": status,
+                "updated_at": int(datetime.now().timestamp())
+            }
+
+            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+
+            await self.send_embed_data_to_client(
+                embed_id=embed_id,
+                embed_type="math-plot",
+                content_toon=updated_toon,
+                chat_id=chat_id,
+                message_id=cached_embed.get("message_id", ""),
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                status=status,
+                task_id=cached_embed.get("hashed_task_id"),
+                is_private=cached_embed.get("is_private", False),
+                is_shared=cached_embed.get("is_shared", False),
+                created_at=cached_embed.get("created_at"),
+                updated_at=updated_embed_data["updated_at"],
+                log_prefix=log_prefix,
+                check_cache_status=False
+            )
+
+            logger.info(f"{log_prefix} Updated math-plot embed {embed_id} (expr len={len(expression)}, status: {status})")
+
+            if status == "finished":
+                self._schedule_embed_persistence_fallback(embed_id)
+
+            return True
+
+        except Exception as e:
+            logger.error(f"{log_prefix} Error updating math-plot embed content: {e}", exc_info=True)
+            return False
+
+    # =========================================================================
+    # Mail embed methods (for ```email ... ``` fenced blocks)
+    # Mirrors the code/document pattern but uses type="mail" with structured fields.
+    # =========================================================================
+
+    async def create_mail_embed_placeholder(
+        self,
+        chat_id: str,
+        message_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        task_id: Optional[str] = None,
+        receiver: str = "",
+        subject: str = "",
+        log_prefix: str = ""
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Create a processing mail embed placeholder when an ```email block starts.
+        """
+        try:
+            hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+            hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
+            hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
+
+            embed_id = str(uuid.uuid4())
+
+            placeholder_content = {
+                "type": "mail",
+                "app_id": "mail",
+                "skill_id": "email",
+                "receiver": receiver,
+                "subject": subject,
+                "content": "",
+                "footer": "",
+                "status": "processing",
+            }
+
+            placeholder_toon = encode(placeholder_content)
+
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                placeholder_toon,
+                user_vault_key_id
+            )
+
+            embed_data = {
+                "embed_id": embed_id,
+                "type": "mail",
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "hashed_chat_id": hashed_chat_id,
+                "hashed_message_id": hashed_message_id,
+                "hashed_task_id": hashed_task_id,
+                "status": "processing",
+                "hashed_user_id": user_id_hash,
+                "is_private": False,
+                "is_shared": False,
+                "encryption_mode": "client",
+                "embed_ids": None,
+                "encrypted_content": encrypted_content,
+                "created_at": int(datetime.now().timestamp()),
+                "updated_at": int(datetime.now().timestamp())
+            }
+
+            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+
+            await self.send_embed_data_to_client(
+                embed_id=embed_id,
+                embed_type="mail",
+                content_toon=placeholder_toon,
+                chat_id=chat_id,
+                message_id=message_id,
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                status="processing",
+                task_id=task_id,
+                is_private=False,
+                is_shared=False,
+                created_at=embed_data["created_at"],
+                updated_at=embed_data["updated_at"],
+                log_prefix=log_prefix,
+            )
+
+            embed_reference = json.dumps({
+                "type": "mail",
+                "embed_id": embed_id,
+            })
+
+            logger.info(f"{log_prefix} Created processing mail embed placeholder {embed_id}")
+
+            return {
+                "embed_id": embed_id,
+                "embed_reference": embed_reference,
+            }
+
+        except Exception as e:
+            logger.error(f"{log_prefix} Error creating mail embed placeholder: {e}", exc_info=True)
+            return None
+
+    async def update_mail_embed_content(
+        self,
+        embed_id: str,
+        receiver: str,
+        subject: str,
+        content: str,
+        chat_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        status: str = "finished",
+        footer: str = "",
+        log_prefix: str = ""
+    ) -> bool:
+        """
+        Update mail embed content while streaming and on finalization.
+        """
+        try:
+            cached_embed = await self._get_cached_embed(embed_id, user_vault_key_id, log_prefix)
+            if not cached_embed:
+                logger.warning(f"{log_prefix} Mail embed {embed_id} not found in cache, cannot update")
+                return False
+
+            updated_content = {
+                "type": "mail",
+                "app_id": "mail",
+                "skill_id": "email",
+                "receiver": receiver,
+                "subject": subject,
+                "content": content,
+                "footer": footer,
+                "status": status,
+            }
+
+            updated_toon = encode(updated_content)
+
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                updated_toon,
+                user_vault_key_id
+            )
+
+            updated_embed_data = {
+                **cached_embed,
+                "encrypted_content": encrypted_content,
+                "status": status,
+                "updated_at": int(datetime.now().timestamp())
+            }
+
+            current_status = cached_embed.get("status", "processing")
+            should_send_event = not (status == "finished" and current_status == "finished")
+
+            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+
+            if should_send_event:
+                await self.send_embed_data_to_client(
+                    embed_id=embed_id,
+                    embed_type="mail",
+                    content_toon=updated_toon,
+                    chat_id=chat_id,
+                    message_id=cached_embed.get("message_id", ""),
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    status=status,
+                    task_id=cached_embed.get("hashed_task_id"),
+                    is_private=cached_embed.get("is_private", False),
+                    is_shared=cached_embed.get("is_shared", False),
+                    created_at=cached_embed.get("created_at"),
+                    updated_at=updated_embed_data["updated_at"],
+                    log_prefix=log_prefix,
+                    check_cache_status=False,
+                )
+
+            if status == "finished":
+                self._schedule_embed_persistence_fallback(embed_id)
+
+            logger.info(
+                f"{log_prefix} Updated mail embed {embed_id} (receiver={receiver[:50]!r}, subject_len={len(subject)}, status={status})"
+            )
+            return True
+
+        except Exception as e:
+            logger.error(f"{log_prefix} Error updating mail embed content: {e}", exc_info=True)
+            return False
+
+    # =========================================================================
+    # Document embed methods (for document_html fenced blocks)
+    # Mirrors the code embed pattern but uses type="document" with HTML content
+    # =========================================================================
+
+    async def create_document_embed_placeholder(
+        self,
+        chat_id: str,
+        message_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        task_id: Optional[str] = None,
+        title: Optional[str] = None,
+        log_prefix: str = ""
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Create a "processing" document embed placeholder immediately when a document_html
+        block starts streaming. This allows the frontend to show the document embed
+        immediately while HTML content streams.
+        
+        The embed will be updated with HTML content as it streams, and finalized
+        when the closing ``` fence is detected.
+        
+        Args:
+            chat_id: Chat ID where the embed is created
+            message_id: Message ID that references the embed
+            user_id: User ID (UUID)
+            user_id_hash: Hashed user ID
+            user_vault_key_id: User's vault key ID for encryption
+            task_id: Optional task ID for tracking
+            title: Optional document title (extracted from <!-- title: "..." --> comment)
+            log_prefix: Logging prefix for this operation
+            
+        Returns:
+            Dictionary with embed_id and embed_reference, or None on failure
+        """
+        try:
+            # Hash sensitive IDs for privacy protection
+            hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+            hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
+            hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
+
+            # Generate embed_id for placeholder
+            embed_id = str(uuid.uuid4())
+
+            # Create minimal placeholder content for document embed.
+            # app_id and skill_id are included so the frontend can index this embed
+            # under the "docs" app in IndexedDB, making it visible in My Embeds.
+            placeholder_content = {
+                "type": "document",
+                "app_id": "docs",
+                "skill_id": "document",
+                "html": "",  # Empty initially, will be updated as HTML streams
+                "title": title,
+                "status": "processing",
+                "word_count": 0  # Will be updated when content is finalized
+            }
+
+            # Convert to TOON format
+            placeholder_toon = encode(placeholder_content)
+
+            # Encrypt with vault key for server cache
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                placeholder_toon,
+                user_vault_key_id
+            )
+
+            # Create placeholder embed entry
+            embed_data = {
+                "embed_id": embed_id,
+                "type": "document",
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "hashed_chat_id": hashed_chat_id,
+                "hashed_message_id": hashed_message_id,
+                "hashed_task_id": hashed_task_id,
+                "status": "processing",
+                "hashed_user_id": user_id_hash,
+                "is_private": False,
+                "is_shared": False,
+                "encryption_mode": "client",
+                "embed_ids": None,  # Document embeds don't have child embeds
+                "encrypted_content": encrypted_content,
+                "created_at": int(datetime.now().timestamp()),
+                "updated_at": int(datetime.now().timestamp())
+            }
+
+            # Cache placeholder embed
+            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+
+            # Send plaintext TOON to client via WebSocket for immediate rendering
+            await self.send_embed_data_to_client(
+                embed_id=embed_id,
+                embed_type="document",
+                content_toon=placeholder_toon,
+                chat_id=chat_id,
+                message_id=message_id,
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                status="processing",
+                task_id=task_id,
+                is_private=False,
+                is_shared=False,
+                created_at=embed_data["created_at"],
+                updated_at=embed_data["updated_at"],
+                log_prefix=log_prefix
+            )
+
+            logger.info(
+                f"{log_prefix} Created processing document embed placeholder {embed_id} "
+                f"(title_present={bool(title)}, title_length={len(title) if isinstance(title, str) else 0})"
+            )
+
+            # Generate embed reference JSON
+            embed_reference = json.dumps({
+                "type": "document",
+                "embed_id": embed_id
+            })
+
+            return {
+                "embed_id": embed_id,
+                "embed_reference": embed_reference
+            }
+
+        except Exception as e:
+            logger.error(f"{log_prefix} Error creating document embed placeholder: {e}", exc_info=True)
+            return None
+
+    async def update_document_embed_content(
+        self,
+        embed_id: str,
+        html_content: str,
+        chat_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        status: str = "processing",
+        title: Optional[str] = None,
+        log_prefix: str = ""
+    ) -> bool:
+        """
+        Update document embed content as HTML streams.
+        
+        This method updates the cached embed with new HTML content and sends
+        the updated content to the client via WebSocket.
+        
+        Args:
+            embed_id: The embed identifier
+            html_content: The HTML content to update (accumulated so far)
+            chat_id: Chat ID for cache indexing
+            user_id: User ID (UUID)
+            user_id_hash: Hashed user ID
+            user_vault_key_id: User's vault key ID for encryption
+            status: Embed status ("processing" while streaming, "finished" when complete)
+            title: Optional document title (may be discovered during streaming)
+            log_prefix: Logging prefix for this operation
+            
+        Returns:
+            True if update succeeded, False otherwise
+        """
+        try:
+            # Get existing embed from cache to preserve metadata
+            cached_embed = await self._get_cached_embed(embed_id, user_vault_key_id, log_prefix)
+            if not cached_embed:
+                logger.warning(f"{log_prefix} Document embed {embed_id} not found in cache, cannot update")
+                return False
+
+            # Decode existing content to preserve title if not provided
+            if title is None:
+                existing_toon = await self._get_cached_embed_toon(embed_id, user_vault_key_id, log_prefix)
+                if existing_toon:
+                    try:
+                        existing_content = decode(existing_toon)
+                        title = existing_content.get("title")
+                    except Exception as e:
+                        logger.warning(f"{log_prefix} Failed to decode existing document embed content: {e}")
+
+            # Calculate word count from HTML content (strip tags for accurate count)
+            import re
+            text_content = re.sub(r'<[^>]+>', ' ', html_content)
+            word_count = len(text_content.split()) if text_content.strip() else 0
+
+            # Create updated content with new HTML.
+            # app_id / skill_id are preserved across updates so the embed remains
+            # visible in My Embeds under the "docs" app after finalization.
+            updated_content = {
+                "type": "document",
+                "app_id": "docs",
+                "skill_id": "document",
+                "html": html_content,
+                "title": title,
+                "status": status,
+                "word_count": word_count
+            }
+
+            # Convert to TOON format
+            updated_toon = encode(updated_content)
+
+            # Encrypt with vault key for server cache
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                updated_toon,
+                user_vault_key_id
+            )
+
+            # Update embed data
+            updated_embed_data = {
+                **cached_embed,
+                "encrypted_content": encrypted_content,
+                "status": status,
+                "updated_at": int(datetime.now().timestamp())
+            }
+
+            # Check if embed is already finalized to prevent duplicate send_embed_data events
+            current_status = cached_embed.get("status", "processing")
+            should_send_event = True
+            if status == "finished" and current_status == "finished":
+                should_send_event = False
+                logger.debug(
+                    f"{log_prefix} [EMBED_EVENT] Skipping duplicate send_embed_data for already-finalized document embed {embed_id} "
+                    f"(current_status={current_status}, new_status={status})"
+                )
+
+            # Update cache
+            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+
+            # Send updated content to client via WebSocket (only if not a duplicate finalization)
+            if should_send_event:
+                await self.send_embed_data_to_client(
+                    embed_id=embed_id,
+                    embed_type="document",
+                    content_toon=updated_toon,
+                    chat_id=chat_id,
+                    message_id=cached_embed.get("message_id", ""),
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    status=status,
+                    task_id=cached_embed.get("hashed_task_id"),
+                    is_private=cached_embed.get("is_private", False),
+                    is_shared=cached_embed.get("is_shared", False),
+                    created_at=cached_embed.get("created_at"),
+                    updated_at=updated_embed_data["updated_at"],
+                    log_prefix=log_prefix,
+                    check_cache_status=False  # Already checked above, cache was just updated
+                )
+
+            logger.debug(f"{log_prefix} Updated document embed {embed_id} with {len(html_content)} chars, {word_count} words (status: {status})")
+
+            # Schedule fallback persistence when document embed is finalized
+            if status == "finished":
+                self._schedule_embed_persistence_fallback(embed_id)
+
+            return True
+
+        except Exception as e:
+            logger.error(f"{log_prefix} Error updating document embed content: {e}", exc_info=True)
+            return False
+
+    async def extract_code_blocks_from_user_message(
+        self,
+        content: str,
+        chat_id: str,
+        message_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        log_prefix: str = ""
+    ) -> Tuple[str, List[Dict[str, Any]]]:
+        """
+        Extract code blocks from user message content and create embeds for each.
+        
+        This is called when a user message is received to:
+        1. Find all markdown code blocks in the message
+        2. Create an embed for each code block
+        3. Replace code blocks with embed references
+        4. Return modified content and list of created embeds
+        
+        Args:
+            content: User message markdown content
+            chat_id: Chat ID
+            message_id: Message ID
+            user_id: User ID
+            user_id_hash: Hashed user ID
+            user_vault_key_id: User's vault key ID for encryption
+            log_prefix: Logging prefix
+            
+        Returns:
+            Tuple of (modified_content, list_of_embed_data)
+            - modified_content: Message with code blocks replaced by embed references
+            - list_of_embed_data: List of embed dictionaries to send to client for encrypted storage
+        """
+        import re
+        
+        # Pattern to match markdown code blocks with optional language and filename
+        # Format: ```language:filename\ncontent\n``` or ```language\ncontent\n``` or ```\ncontent\n```
+        # IMPORTANT: Skip JSON blocks that are already embed references
+        code_block_pattern = r'```([a-zA-Z0-9_+\-#.]*?)(?::([^\n`]+))?\n([\s\S]*?)\n```'
+        
+        created_embeds = []
+        
+        def replace_code_block(match):
+            """Replace a code block with an embed reference."""
+            nonlocal created_embeds
+            
+            full_match = match.group(0)
+            language = (match.group(1) or '').strip()
+            filename = match.group(2).strip() if match.group(2) else None
+            code_content = match.group(3)
+            
+            # FIX: If language/filename not in fence line, check first content line
+            # LLMs sometimes put "python:backend/main.py" in content instead of fence line
+            # This handles code blocks like:
+            # ```
+            # python:backend/main.py
+            # from fastapi import FastAPI
+            # ```
+            if (not language or not filename) and code_content:
+                lines = code_content.split('\n')
+                if lines:
+                    first_line = lines[0].strip()
+                    # Check if first line matches language:filename pattern
+                    if ':' in first_line and not first_line.startswith('#'):
+                        lang_file_pattern = r'^([a-zA-Z0-9_+\-#.]+):([^\s:]+)$'
+                        lang_file_match = re.match(lang_file_pattern, first_line)
+                        if lang_file_match:
+                            potential_lang = lang_file_match.group(1)
+                            potential_filename = lang_file_match.group(2)
+                            # Use extracted values if we don't already have them
+                            if not language:
+                                language = potential_lang
+                                logger.debug(f"{log_prefix} Extracted language from first content line: {language}")
+                            if not filename:
+                                filename = potential_filename
+                                logger.debug(f"{log_prefix} Extracted filename from first content line: {filename}")
+                            # Remove the first line from code content since it's metadata
+                            code_content = '\n'.join(lines[1:])
+                            logger.info(f"{log_prefix} Removed language:filename line from code content")
+            
+            # Skip JSON blocks that are already embed references
+            if language.lower() in ('json', 'json_embed'):
+                try:
+                    import json as json_lib
+                    json_data = json_lib.loads(code_content.strip())
+                    if 'embed_id' in json_data or 'embed_ids' in json_data:
+                        logger.debug(f"{log_prefix} Skipping existing embed reference JSON block")
+                        return full_match  # Keep as-is
+                except (json.JSONDecodeError, ValueError):
+                    pass  # Not valid JSON, treat as code block
+            
+            # Generate embed ID
+            embed_id = str(uuid.uuid4())
+            
+            # Create embed content structure
+            embed_content = {
+                "type": "code",
+                "language": language,
+                "code": code_content,
+                "filename": filename,
+                "status": "finished",
+                "line_count": code_content.count('\n') + 1 if code_content else 0
+            }
+            
+            # Encode to TOON format
+            toon_content = encode(embed_content)
+            
+            # Create embed data for client storage
+            # NOTE: Hashed IDs (hashed_chat_id, hashed_message_id) are computed by the 
+            # websocket handler when sending the embed to the client, not here
+            embed_data = {
+                "embed_id": embed_id,
+                "type": "code",
+                "content": toon_content,  # TOON-encoded string (cleartext for client to encrypt)
+                "status": "finished",
+                "language": language,
+                "filename": filename,
+                "line_count": embed_content["line_count"]
+            }
+            created_embeds.append(embed_data)
+            
+            logger.info(f"{log_prefix} Created code embed {embed_id} from user message (language: {language or 'none'}, {embed_content['line_count']} lines)")
+            
+            # Return embed reference JSON block to replace the code block
+            embed_reference = json.dumps({
+                "type": "code",
+                "embed_id": embed_id
+            })
+            return f"```json\n{embed_reference}\n```"
+        
+        try:
+            # Replace all code blocks with embed references
+            modified_content = re.sub(code_block_pattern, replace_code_block, content)
+            
+            if created_embeds:
+                logger.info(f"{log_prefix} Extracted {len(created_embeds)} code blocks from user message and created embeds")
+            
+            return modified_content, created_embeds
+            
+        except Exception as e:
+            logger.error(f"{log_prefix} Error extracting code blocks from user message: {e}", exc_info=True)
+            return content, []  # Return original content on error
+
+    async def _get_cached_embed_toon(
+        self,
+        embed_id: str,
+        user_vault_key_id: str,
+        log_prefix: str = ""
+    ) -> Optional[str]:
+        """
+        Retrieve an embed from cache and decrypt its content, returning as TOON string.
+        
+        This preserves the space savings of TOON format (30-60% vs JSON) while providing
+        decrypted content for LLM processing.
+        
+        Args:
+            embed_id: The embed identifier
+            user_vault_key_id: User's vault key ID for decryption
+            log_prefix: Logging prefix for this operation
+            
+        Returns:
+            Decrypted TOON string or None if not found
+        """
+        try:
+            cache_key = f"embed:{embed_id}"
+            client = await self.cache_service.client
+            if not client:
+                logger.warning(f"{log_prefix} Redis client not available")
+                return None
+                
+            embed_json = await client.get(cache_key)
+            if not embed_json:
+                logger.debug(f"{log_prefix} Embed {embed_id} not found in cache")
+                return None
+                
+            import json as json_lib
+            embed_data = json_lib.loads(embed_json)
+            
+            # Decrypt content using vault key
+            encrypted_content = embed_data.get("encrypted_content")
+            if not encrypted_content:
+                logger.debug(f"{log_prefix} Embed {embed_id} has no encrypted_content")
+                return None
+                
+            # decrypt_with_user_key returns Optional[str], not a tuple
+            plaintext_toon = await self.encryption_service.decrypt_with_user_key(
+                encrypted_content,
+                user_vault_key_id
+            )
+            
+            if not plaintext_toon:
+                logger.warning(f"{log_prefix} Failed to decrypt embed {embed_id} content")
+                return None
+                
+            # Return TOON string as-is (don't decode - preserves space savings)
+            logger.debug(f"{log_prefix} Retrieved and decrypted embed {embed_id} from cache (TOON format)")
+            return plaintext_toon
+            
+        except Exception as e:
+            logger.error(f"{log_prefix} Error retrieving embed {embed_id} from cache: {e}", exc_info=True)
+            return None
+
+    async def _get_cached_embed(
+        self,
+        embed_id: str,
+        user_vault_key_id: str,
+        log_prefix: str = ""
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Retrieve an embed from cache and decrypt its content, returning the full embed data dictionary.
+        
+        This is used when we need to access metadata (query, provider, etc.) from a cached embed.
+        
+        Args:
+            embed_id: The embed identifier
+            user_vault_key_id: User's vault key ID for decryption
+            log_prefix: Logging prefix for this operation
+            
+        Returns:
+            Decrypted embed data dictionary or None if not found
+        """
+        try:
+            cache_key = f"embed:{embed_id}"
+            client = await self.cache_service.client
+            if not client:
+                logger.warning(f"{log_prefix} Redis client not available")
+                return None
+                
+            embed_json = await client.get(cache_key)
+            if not embed_json:
+                logger.debug(f"{log_prefix} Embed {embed_id} not found in cache")
+                return None
+                
+            import json as json_lib
+            embed_data = json_lib.loads(embed_json)
+            
+            # Decrypt content using vault key if present
+            encrypted_content = embed_data.get("encrypted_content")
+            if encrypted_content:
+                plaintext_content = await self.encryption_service.decrypt_with_user_key(
+                    encrypted_content,
+                    user_vault_key_id
+                )
+                
+                if plaintext_content:
+                    # Parse TOON content to extract metadata
+                    try:
+                        decoded_content = decode(plaintext_content)
+                        
+                        # Log what was decoded for debugging
+                        logger.debug(
+                            f"{log_prefix} Decoded TOON content. Type: {type(decoded_content)}, "
+                            f"Is dict: {isinstance(decoded_content, dict)}"
+                        )
+                        if isinstance(decoded_content, dict):
+                            logger.debug(
+                                f"{log_prefix} Decoded TOON keys: {list(decoded_content.keys())}, "
+                                f"Has 'query': {'query' in decoded_content}, "
+                                f"Has 'provider': {'provider' in decoded_content}"
+                            )
+                            # Merge decoded content into embed_data for easy access
+                            # The decoded content contains the actual data (query, provider, etc.)
+                            embed_data.update(decoded_content)
+                            logger.debug(
+                                f"{log_prefix} After merge, embed_data has 'query': {'query' in embed_data}, "
+                                f"'provider': {'provider' in embed_data}"
+                            )
+                        else:
+                            logger.warning(
+                                f"{log_prefix} Decoded TOON content is not a dict, got {type(decoded_content)}"
+                            )
+                    except Exception as decode_err:
+                        logger.warning(
+                            f"{log_prefix} Could not decode TOON content for metadata extraction: {decode_err}",
+                            exc_info=True
+                        )
+                        # Continue without decoded content - metadata might be in embed_data already
+                else:
+                    logger.warning(f"{log_prefix} Failed to decrypt embed {embed_id} content")
+            
+            logger.debug(
+                f"{log_prefix} Retrieved embed {embed_id} from cache. Final keys: {list(embed_data.keys())}, "
+                f"query_present={'query' in embed_data}, provider_present={'provider' in embed_data}"
+            )
+            return embed_data
+            
+        except Exception as e:
+            logger.error(f"{log_prefix} Error retrieving embed {embed_id} from cache: {e}", exc_info=True)
+            return None
+
+    # ---- Fields to strip from embed TOON before showing to LLM ----
+    # These are cryptographic and infrastructure details that the LLM doesn't
+    # need for reasoning. The images-view skill resolves them server-side by
+    # embed_ref (filepath/filename). Stripping them also prevents the plaintext
+    # aes_key (used only by the client for local decryption) from ever entering
+    # the LLM context.
+    _TOON_LLM_STRIP_FIELDS = frozenset({
+        "aes_key",               # Plaintext AES key — client-only, never for LLM
+        "vault_wrapped_aes_key", # Opaque Vault ciphertext — resolved server-side
+        "aes_nonce",             # AES-GCM nonce — resolved server-side
+        "s3_base_url",           # S3 bucket URL — resolved server-side
+        "files",                 # Nested s3_key per variant — resolved server-side
+        "content_hash",          # Internal dedup hash — not useful for LLM
+    })
+
+    def _filter_toon_for_llm(
+        self, toon_content: str, embed_id: str, log_prefix: str = "",
+        seen_embed_refs: Optional[Dict[str, int]] = None,
+    ) -> Tuple[str, Optional[str]]:
+        """
+        Filter a TOON-encoded embed content string for LLM consumption.
+
+        Decodes the TOON, strips cryptographic/infrastructure fields that the
+        LLM doesn't need, injects ``embed_ref`` (a human-readable filepath or
+        filename) instead of the raw UUID ``embed_id``, and re-encodes to TOON.
+
+        The ``embed_ref`` is what the LLM uses as the argument to skills like
+        ``images-view``.  The server maps ``embed_ref → embed_id`` via the
+        ``embed_file_path_index`` built during resolution.
+
+        Returns a tuple ``(filtered_toon, embed_ref)``:
+          - ``filtered_toon``: the TOON string safe for LLM context
+          - ``embed_ref``: the human-readable reference injected (or ``None``
+            if this embed type does not get an embed_ref injection)
+
+        For image upload embeds (app_id="images", skill_id="upload"), the LLM
+        sees only:
+          - embed_ref, app_id, skill_id, type, status
+          - filename (uploaded images)
+          - ai_detection (uploaded images — sightengine scan result)
+          - prompt, model, aspect_ratio, output_filetype, generated_at (generated images)
+
+        If decoding/re-encoding fails, returns the original TOON unchanged
+        to avoid data loss.
+
+        Args:
+            toon_content: Raw TOON string from the embed cache.
+            embed_id: The embed's UUID (used for Redis lookup; NOT shown to LLM).
+            log_prefix: Logging prefix.
+            seen_embed_refs: Mutable dict tracking embed_refs already assigned in
+                this resolution pass, used to deduplicate filenames across multiple
+                embeds with the same name.  Key: base embed_ref, value: count seen
+                so far.  Pass the same dict for every call within one resolution
+                pass so duplicates receive a ``(2)``, ``(3)`` suffix.
+
+        Returns:
+            Tuple of (filtered_toon, embed_ref):
+              - filtered_toon: TOON string safe for LLM context
+              - embed_ref: the human-readable reference injected into the TOON
+                (e.g. "my_photo.jpg"), or None if this embed type is not given
+                an embed_ref (passes through unchanged).
+        """
+        try:
+            decoded = decode(toon_content)
+            if not isinstance(decoded, dict):
+                # Non-dict TOON (unusual) — return as-is, no embed_ref
+                return toon_content, None
+
+            # Route to type-specific filtering logic.
+            #
+            # IMPORTANT: We must NOT filter app_skill_use embeds that wrap an images.view
+            # result (app_id="images", skill_id="view"). Those embeds are tracking
+            # placeholders whose embed_id is an internal task reference — NOT the crypto
+            # address of the image. Injecting their embed_id would mislead the LLM into
+            # calling images.view with the wrong ID (the placeholder's UUID instead of the
+            # upload's UUID), causing the skill to fail with "missing vault_wrapped_aes_key".
+            app_id = decoded.get("app_id")
+            skill_id = decoded.get("skill_id")
+            embed_type = decoded.get("type")
+
+            if embed_type == "audio-recording":
+                # Audio recording embeds: the LLM only needs the transcript for context
+                # and a minimal set of fields to let it target the recording in downstream
+                # skills (e.g. re-transcription, audio processing).
+                #
+                # Kept:
+                #   embed_ref     — human-readable filename so the LLM can refer to this recording
+                #   type          — discriminator so the LLM knows what it's looking at
+                #   transcript    — the actual speech content (primary inference signal)
+                #   duration      — useful context ("a 2-minute recording said …")
+                #   mime_type     — needed if a skill re-processes the file
+                #   filename      — human-readable label (may be None)
+                #   status        — lifecycle state (should always be "finished" here)
+                #
+                # Stripped: s3_base_url, files (s3 keys), aes_key, aes_nonce,
+                #           vault_wrapped_aes_key — all crypto/infra, resolved server-side.
+                #           app_id, skill_id — internal routing metadata, not useful to LLM.
+                #           embed_id (UUID) — not shown to LLM; use embed_ref instead.
+                _AUDIO_KEEP = frozenset({
+                    "type", "transcript", "duration", "mime_type", "filename", "status"
+                })
+                filtered = {k: v for k, v in decoded.items() if k in _AUDIO_KEEP}
+                # Use filename as embed_ref; fall back to a short UUID prefix.
+                raw_ref = (decoded.get("filename") or embed_id[:8])
+                embed_ref = self._unique_embed_ref(raw_ref, seen_embed_refs)
+                filtered["embed_ref"] = embed_ref
+                filtered_toon = encode(filtered)
+                logger.debug(
+                    f"{log_prefix} Filtered audio-recording embed TOON for LLM: "
+                    f"{len(toon_content)} → {len(filtered_toon)} chars "
+                    f"(kept: {list(filtered.keys())}, embed_ref={embed_ref!r})"
+                )
+                return filtered_toon, embed_ref
+
+            if embed_type == "pdf":
+                # PDF upload embeds processed by app-pdf-worker.
+                #
+                # The LLM needs document metadata (filename, page count, TOC, per-page token
+                # estimates) to plan which skills to call. It does NOT need any cryptographic
+                # or storage fields — the pdf.read/pdf.view/pdf.search skills resolve all
+                # of those server-side via file_path → embed_id → Redis → Vault.
+                #
+                # Kept:
+                #   embed_ref              — original filename; used as the skill file_path arg
+                #   type, status           — discriminator and lifecycle state
+                #   filename               — human-readable label (same value as embed_ref)
+                #   page_count             — total pages (LLM uses to plan pagination)
+                #   total_tokens_estimated — total OCR tokens (LLM uses for context planning)
+                #   per_page_tokens        — per-page token estimates (LLM uses for page selection)
+                #   toc                    — table of contents (LLM uses for navigation)
+                #   legend                 — legend section info (LLM uses for interpretation)
+                #   app_id                 — "pdf" (skill routing discriminator)
+                #
+                # Stripped (all crypto/storage — resolved server-side):
+                #   aes_key, aes_nonce, vault_wrapped_aes_key — AES encryption fields
+                #   ocr_data_s3_key, screenshot_s3_keys, extracted_image_s3_keys — S3 object keys
+                #   s3_base_url — S3 bucket URL
+                #   embed_id (UUID) — never shown to LLM; use embed_ref (filename) instead
+                _PDF_STRIP_FIELDS = frozenset({
+                    "aes_key",
+                    "aes_nonce",
+                    "vault_wrapped_aes_key",
+                    "ocr_data_s3_key",
+                    "screenshot_s3_keys",
+                    "extracted_image_s3_keys",
+                    "s3_base_url",
+                })
+                filtered = {
+                    k: v for k, v in decoded.items()
+                    if k not in _PDF_STRIP_FIELDS and k != "embed_id"
+                }
+                # Use the original filename as embed_ref so the LLM passes it to pdf.* skills.
+                raw_ref = decoded.get("filename") or embed_id[:8]
+                embed_ref = self._unique_embed_ref(raw_ref, seen_embed_refs)
+                filtered["embed_ref"] = embed_ref
+                filtered_toon = encode(filtered)
+                logger.debug(
+                    f"{log_prefix} Filtered PDF embed TOON for LLM: "
+                    f"{len(toon_content)} → {len(filtered_toon)} chars "
+                    f"(kept: {list(filtered.keys())}, embed_ref={embed_ref!r})"
+                )
+                return filtered_toon, embed_ref
+
+            if app_id != "images" or skill_id != "upload":
+                # For all other embed types (search results, web pages, travel, maps, etc.),
+                # check whether the TOON content already contains an embed_ref that was
+                # injected by create_embeds_from_skill_results().  If so, strip the raw
+                # embed_id (UUID) so the LLM never sees it and return the embed_ref as-is.
+                # If no embed_ref is present, pass through unchanged.
+                embed_ref_in_toon = decoded.get("embed_ref")
+                if embed_ref_in_toon and isinstance(embed_ref_in_toon, str):
+                    # Strip internal fields the LLM should not see, but keep content fields.
+                    filtered = {
+                        k: v for k, v in decoded.items()
+                        if k not in self._TOON_LLM_STRIP_FIELDS and k != "embed_id"
+                    }
+                    # embed_ref is already in the dict; ensure it stays.
+                    filtered["embed_ref"] = embed_ref_in_toon
+                    embed_ref = self._unique_embed_ref(embed_ref_in_toon, seen_embed_refs)
+                    filtered["embed_ref"] = embed_ref
+                    filtered_toon = encode(filtered)
+                    logger.debug(
+                        f"{log_prefix} Passed embed_ref through for embed {embed_id}: "
+                        f"embed_ref={embed_ref!r}, type={embed_type!r}, "
+                        f"app_id={app_id!r}, skill_id={skill_id!r}"
+                    )
+                    return filtered_toon, embed_ref
+                # No embed_ref in TOON — pass through as-is, no embed_ref exposed.
+                return toon_content, None
+
+            # ----------------------------------------------------------------
+            # Image upload embeds: strip crypto/infra fields; inject embed_ref.
+            # ----------------------------------------------------------------
+            filtered = {
+                k: v for k, v in decoded.items()
+                if k not in self._TOON_LLM_STRIP_FIELDS
+            }
+
+            # Build a human-readable embed_ref from the original filename.
+            # The filename stored in the TOON is file.name from the frontend upload
+            # handler (the true original user filename, not the S3 key).
+            # If it is missing or looks like a bare UUID (no extension, 36 chars),
+            # fall back to a short embed_id prefix so the LLM still has something
+            # meaningful to pass to images-view.
+            raw_filename: str = decoded.get("filename") or ""
+            if raw_filename:
+                raw_ref = raw_filename
+            else:
+                raw_ref = embed_id[:8]
+
+            embed_ref = self._unique_embed_ref(raw_ref, seen_embed_refs)
+
+            # Replace any previously injected embed_id with the human-readable
+            # embed_ref.  The UUID is intentionally NOT exposed to the LLM.
+            filtered.pop("embed_id", None)
+            filtered["embed_ref"] = embed_ref
+
+            # Re-encode to TOON
+            filtered_toon = encode(filtered)
+            logger.debug(
+                f"{log_prefix} Filtered image embed TOON for LLM: "
+                f"{len(toon_content)} → {len(filtered_toon)} chars "
+                f"(stripped {len(decoded) - len(filtered) + 1} fields, "  # +1 for embed_id removal
+                f"remaining: {list(filtered.keys())}, embed_ref={embed_ref!r})"
+            )
+            return filtered_toon, embed_ref
+
+        except Exception as e:
+            # On any failure, return the original TOON to avoid data loss
+            logger.warning(
+                f"{log_prefix} Failed to filter TOON for LLM (embed {embed_id}): {e}. "
+                f"Returning original TOON."
+            )
+            return toon_content, None
+
+    @staticmethod
+    def get_child_embed_type(app_id: str, skill_id: str) -> str:
+        """
+        Return the canonical child embed type for a given app_id + skill_id combination.
+
+        This is used by both embed creation paths (update_embed_with_results and
+        create_embeds_from_skill_results) and by main_processor.py when it needs to
+        inject embed_ref slugs into tool results before sending them to the LLM.
+
+        Returns one of: "connection", "stay", "place", "event", "website"
+        """
+        if app_id == "maps" and skill_id == "search":
+            return "place"
+        elif app_id == "travel" and skill_id == "search_connections":
+            return "connection"
+        elif app_id == "travel" and skill_id == "search_stays":
+            return "stay"
+        elif skill_id == "places_search":
+            return "place"
+        elif skill_id == "events_search":
+            return "event"
+        elif app_id == "events" and skill_id == "search":
+            return "event"
+        elif app_id == "images" and skill_id == "search":
+            return "image_result"
+        else:
+            return "website"  # Default: web search, news, videos, etc.
+
+    @staticmethod
+    def _generate_embed_ref_slug(
+        child_type: str,
+        result: Dict[str, Any],
+    ) -> str:
+        """
+        Generate a short, descriptive embed_ref slug for a child embed result.
+
+        The slug is derived from result content so it's human-readable and gives the
+        LLM a meaningful handle to reference specific items inline:
+          - website/news: domain from URL (e.g. "wikipedia.org")
+          - place: place name, slugified (e.g. "eiffel-tower")
+          - connection (flight/train): carrier + departure time (e.g. "ryanair-0600")
+          - stay (hotel): hotel name, slugified (e.g. "hotel-ibis-paris")
+          - event: event title, slugified (e.g. "jazz-festival-2026")
+
+        A 3-character random alphanumeric suffix is appended to guarantee global
+        uniqueness across multiple embeds of the same type in a single chat:
+          "wikipedia.org-k8D", "ryanair-0600-x4F"
+
+        Args:
+            child_type: The embed type string ("website", "place", "connection", etc.)
+            result: The raw result dict for this child embed.
+
+        Returns:
+            A short descriptive slug with 3-char random suffix, e.g. "wikipedia.org-k8D".
+        """
+        def _random_suffix() -> str:
+            chars = string.ascii_letters + string.digits
+            return "".join(random.choices(chars, k=3))
+
+        def _slugify(text: str, max_words: int = 3) -> str:
+            """Lowercase, keep alphanumeric and hyphens, limit word count."""
+            text = text.lower().strip()
+            # Replace non-word chars with hyphens
+            text = re.sub(r"[^a-z0-9]+", "-", text)
+            text = text.strip("-")
+            # Limit to max_words hyphen-separated parts
+            parts = text.split("-")[:max_words]
+            return "-".join(p for p in parts if p)
+
+        def _extract_domain(url: str) -> str:
+            """Extract bare domain from a URL (no www prefix)."""
+            # Strip scheme
+            url = re.sub(r"^https?://", "", url)
+            # Take host part only
+            url = url.split("/")[0]
+            # Remove www.
+            url = re.sub(r"^www\.", "", url)
+            # Keep only hostname (no port)
+            url = url.split(":")[0]
+            return url.lower()[:40]
+
+        suffix = _random_suffix()
+        slug = ""
+
+        try:
+            if child_type in ("website", "video"):
+                # Use domain from URL as the slug
+                url = result.get("url") or result.get("link") or ""
+                if url:
+                    slug = _extract_domain(url)
+                else:
+                    title = result.get("title") or ""
+                    slug = _slugify(title) if title else "result"
+
+            elif child_type == "place":
+                name = result.get("name") or result.get("title") or ""
+                slug = _slugify(name) if name else "place"
+
+            elif child_type == "connection":
+                # Flights/trains: carrier + departure time.
+                # Flight results use "carriers" (a list) and "departure" (ISO datetime
+                # e.g. "2026-03-05T06:45:00"). Fall back to singular/alternate field
+                # names used by other providers.
+                carriers_raw = result.get("carriers") or []
+                if isinstance(carriers_raw, list) and carriers_raw:
+                    carrier = carriers_raw[0]
+                else:
+                    carrier = (
+                        result.get("carrier")
+                        or result.get("airline")
+                        or result.get("operator")
+                        or ""
+                    )
+                depart = (
+                    result.get("departure")        # ISO datetime: "2026-03-05T06:45:00"
+                    or result.get("departure_time")
+                    or result.get("departs_at")
+                    or ""
+                )
+                carrier_slug = _slugify(carrier, max_words=1) if carrier else "flight"
+                # Extract "HH:MM" from ISO datetime or plain "HH:MM" string → "HHMM"
+                if depart and "T" in depart:
+                    # ISO format: take only the time part after "T"
+                    depart = depart.split("T")[1]
+                depart_str = depart.replace(":", "").replace(" ", "")[:4] if depart else ""
+                slug = f"{carrier_slug}-{depart_str}" if depart_str else carrier_slug
+
+            elif child_type == "stay":
+                name = (
+                    result.get("name")
+                    or result.get("hotel_name")
+                    or result.get("title")
+                    or ""
+                )
+                slug = _slugify(name) if name else "hotel"
+
+            elif child_type == "event":
+                name = result.get("name") or result.get("title") or ""
+                slug = _slugify(name) if name else "event"
+
+            elif child_type == "image_result":
+                # Image search result: use source domain (from source_page_url or image_url)
+                url = result.get("source_page_url") or result.get("image_url") or ""
+                if url:
+                    slug = _extract_domain(url)
+                else:
+                    title = result.get("title") or result.get("source") or ""
+                    slug = _slugify(title) if title else "image"
+
+            else:
+                # Generic fallback: try title/name fields
+                title = (
+                    result.get("title")
+                    or result.get("name")
+                    or result.get("url")
+                    or ""
+                )
+                if title:
+                    if title.startswith("http"):
+                        slug = _extract_domain(title)
+                    else:
+                        slug = _slugify(str(title))
+                else:
+                    slug = child_type or "item"
+
+        except Exception:
+            # Never fail embed creation over slug generation
+            slug = child_type or "item"
+
+        # Truncate slug to 40 chars to keep refs compact
+        slug = slug[:40].rstrip("-")
+        return f"{slug}-{suffix}"
+
+    @staticmethod
+    def _unique_embed_ref(
+        raw_ref: str,
+        seen_embed_refs: Optional[Dict[str, int]],
+    ) -> str:
+        """
+        Return a unique embed_ref string for this resolution pass.
+
+        If ``seen_embed_refs`` is provided and ``raw_ref`` has already been
+        used, append a ``(2)``, ``(3)`` … suffix so every embed in a chat
+        has a distinct, stable reference the LLM can address.
+
+        Args:
+            raw_ref: Desired reference string (e.g. the original filename).
+            seen_embed_refs: Mutable counter dict shared across all calls
+                in one resolution pass.  Pass None to skip deduplication.
+
+        Returns:
+            A unique reference string.
+        """
+        if seen_embed_refs is None:
+            return raw_ref
+
+        count = seen_embed_refs.get(raw_ref, 0)
+        seen_embed_refs[raw_ref] = count + 1
+
+        if count == 0:
+            return raw_ref
+        # Second occurrence gets suffix " (2)", third " (3)", etc.
+        return f"{raw_ref} ({count + 1})"
+
+    async def resolve_embed_references_in_content(
+        self,
+        content: str,
+        user_vault_key_id: str,
+        log_prefix: str = "",
+        # Shared deduplication counter for embed_refs across multiple messages in one
+        # resolution pass.  Caller should create one dict and pass it for every message
+        # in the history so duplicate filenames across messages get consistent suffixes.
+        # Pass None (default) to use a fresh counter per-call.
+        seen_embed_refs: Optional[Dict[str, int]] = None,
+    ) -> Tuple[str, Dict[str, str]]:
+        """
+        Resolve embed references in message content by replacing JSON code blocks
+        with actual embed content from cache (as TOON format).
+
+        According to embeds architecture, messages contain embed references like:
+        ```json
+        {"type": "app_skill_use", "embed_id": "..."}
+        ```
+
+        This function:
+        1. Parses message markdown to find JSON code blocks with embed references
+        2. For each embed reference, loads embed from cache
+        3. Decrypts TOON content (but keeps as TOON string - not decoded to JSON)
+        4. Filters the TOON for LLM (strips crypto fields; injects embed_ref for
+           image/audio embeds instead of the raw UUID embed_id)
+        5. Replaces embed reference JSON block with TOON code block containing
+           embed content
+
+        CRITICAL: TOON format is preserved (not decoded to JSON) to maintain space
+        savings (30-60% token reduction vs JSON). LLM can process TOON format directly.
+
+        Args:
+            content: Message content (markdown) that may contain embed references.
+            user_vault_key_id: User's vault key ID for decryption.
+            log_prefix: Logging prefix for this operation.
+            seen_embed_refs: Mutable deduplication counter shared across multiple
+                messages so filenames are unique even across the full history.
+
+        Returns:
+            Tuple of (resolved_content, file_path_index):
+              - resolved_content: Content with embed references resolved
+                (replaced with TOON code blocks).
+              - file_path_index: Mapping of embed_ref → embed_id UUID for every
+                embed that received an embed_ref injection.  Used by main_processor
+                to let skills resolve embed_ref back to the internal UUID for
+                Redis lookups.  Empty dict if no such embeds were encountered.
+        """
+        import re
+        import json as json_lib
+
+        # Per-call deduplication counter if the caller did not provide one.
+        if seen_embed_refs is None:
+            seen_embed_refs = {}
+
+        # Maps embed_ref (human-readable) → embed_id (UUID) for this call.
+        file_path_index: Dict[str, str] = {}
+
+        # Pattern to match JSON code blocks that might contain embed references
+        # Format: ```json\n{...}\n```
+        json_block_pattern = r'```json\s*\n([\s\S]*?)\n```'
+
+        # Find all embed references first
+        # Embed references now include optional URL field as fallback for LLM inference
+        # Format: {"type": "...", "embed_id": "...", "url": "..."} (url is optional but recommended)
+        embed_refs = []
+        for match in re.finditer(json_block_pattern, content):
+            json_content = match.group(1).strip()
+            try:
+                embed_ref = json_lib.loads(json_content)
+                if isinstance(embed_ref, dict):
+                    embed_type = embed_ref.get("type")
+                    embed_id = embed_ref.get("embed_id")
+                    # Extract URL if present - used as fallback when embed is not in cache
+                    embed_url = embed_ref.get("url")
+                    if embed_type and embed_id:
+                        embed_refs.append({
+                            "match": match,
+                            "embed_id": embed_id,
+                            "embed_type": embed_type,
+                            "embed_url": embed_url,  # May be None for legacy references
+                            "full_match": match.group(0)
+                        })
+            except json_lib.JSONDecodeError:
+                continue
+
+        # If no embed references found, return original content with empty index
+        if not embed_refs:
+            return content, file_path_index
+
+        # Resolve all embed references (async)
+        resolved_parts = []
+        last_end = 0
+
+        for embed_ref_info in embed_refs:
+            match = embed_ref_info["match"]
+            embed_id = embed_ref_info["embed_id"]
+            embed_type = embed_ref_info["embed_type"]
+            embed_url = embed_ref_info.get("embed_url")  # May be None for legacy references
+
+            # Add content before this match
+            resolved_parts.append(content[last_end:match.start()])
+
+            # Load embed from cache (returns TOON string, not decoded)
+            toon_content = await self._get_cached_embed_toon(embed_id, user_vault_key_id, log_prefix)
+
+            if not toon_content:
+                # CRITICAL: If embed not found in cache, try to use URL as fallback
+                # This ensures LLM has at least the URL to work with even if full embed content is missing
+                # This can happen due to: cache expiration (24h TTL), encryption errors, or caching failures
+                if embed_url:
+                    # URL available - create a minimal but useful fallback for LLM
+                    # Format as descriptive text so LLM understands what it is
+                    fallback_text = f"[{embed_type.upper()} EMBED - URL: {embed_url}]"
+                    logger.warning(
+                        f"{log_prefix} Embed {embed_id} not found in cache during resolution. "
+                        f"Using URL fallback for LLM inference: {embed_url}"
+                    )
+                    resolved_parts.append(fallback_text)
+                else:
+                    # No URL available - keep original reference as last resort
+                    logger.warning(
+                        f"{log_prefix} Embed {embed_id} not found in cache during resolution. "
+                        f"No URL fallback available. This may indicate embeds expired from cache (24h TTL) "
+                        f"or were not cached properly. Keeping embed reference in message content."
+                    )
+                    resolved_parts.append(embed_ref_info["full_match"])  # Keep original reference
+            else:
+                # Filter the TOON content before showing to the LLM.
+                # Strips crypto/infra fields; injects embed_ref (human-readable filepath
+                # or filename) for image/audio embeds instead of the raw UUID embed_id.
+                filtered_toon, embed_ref = self._filter_toon_for_llm(
+                    toon_content, embed_id, log_prefix, seen_embed_refs
+                )
+
+                # If an embed_ref was assigned, record it in the file_path_index so
+                # skills can resolve it back to the internal UUID at execution time.
+                if embed_ref is not None:
+                    file_path_index[embed_ref] = embed_id
+
+                # Replace embed reference with filtered TOON content
+                # TOON format is space-efficient (30-60% savings vs JSON) and LLM can process it
+                # Format as code block to preserve TOON structure
+                resolved_text = f"```toon\n{filtered_toon}\n```"
+
+                logger.debug(
+                    f"{log_prefix} Resolved embed reference {embed_id} ({embed_type}) "
+                    f"with filtered TOON content ({len(filtered_toon)} chars, was "
+                    f"{len(toon_content)} chars)"
+                    + (f", embed_ref={embed_ref!r}" if embed_ref else "")
+                )
+                resolved_parts.append(resolved_text)
+
+            last_end = match.end()
+
+        # Add remaining content after last match
+        resolved_parts.append(content[last_end:])
+
+        return "".join(resolved_parts), file_path_index
+
+    async def update_embed_with_results(
+        self,
+        embed_id: str,
+        app_id: str,
+        skill_id: str,
+        results: List[Dict[str, Any]],
+        chat_id: str,
+        message_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        task_id: Optional[str] = None,
+        log_prefix: str = "",
+        request_metadata: Optional[Dict[str, Any]] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Update an existing "processing" embed with actual skill results.
+
+        For composite results (web search, places, events):
+        - Creates child embed entries (one per result)
+        - Updates parent embed with embed_ids array
+
+        For single results:
+        - Updates embed with result content
+
+        Args:
+            embed_id: The embed_id to update (from placeholder)
+            app_id: The app ID that owns the skill
+            skill_id: The skill ID that was executed
+            results: List of skill result dictionaries
+            chat_id: Chat ID where the embed is created
+            message_id: Message ID that references the embed
+            user_id_hash: Hashed user ID
+            user_vault_key_id: User's vault key ID for encryption
+            task_id: Optional task ID for long-running tasks
+            log_prefix: Logging prefix for this operation
+            request_metadata: Optional metadata from the original request (query, url, provider, etc.)
+                             This preserves input parameters in the embed content
+
+        Returns:
+            Dictionary with:
+            - embed_id: The embed_id (same as input)
+            - child_embed_ids: List of child embed IDs (if composite)
+            - status: "finished" or "error"
+            None if update fails
+        """
+        if not results or len(results) == 0:
+            logger.warning(f"{log_prefix} No results to update embed {embed_id}")
+            return None
+
+        try:
+            # Hash sensitive IDs for privacy protection
+            hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+            hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
+            hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
+
+            # Determine if this is a composite result (web search, places, events, connections, stays)
+            is_composite = skill_id in ["search", "places_search", "events_search", "search_connections", "search_stays"]
+
+            child_embed_ids = []
+
+            # Retrieve original placeholder metadata (query, provider, url, etc.)
+            # This ensures we preserve the original metadata when updating the embed
+            # Priority: request_metadata (passed in) > original_content (from cache)
+            original_content = await self._get_cached_embed(embed_id, user_vault_key_id, log_prefix)
+            original_metadata = {}
+            
+            # First, use request_metadata if provided (most reliable source)
+            if request_metadata:
+                # Copy all metadata except internal fields
+                for key, value in request_metadata.items():
+                    if key not in ['request_id']:  # Skip internal tracking fields
+                        original_metadata[key] = value
+                logger.debug(
+                    f"{log_prefix} Using request_metadata for original_metadata: {list(original_metadata.keys())}"
+                )
+            
+            # Fallback to original_content from cache if request_metadata not provided
+            if not original_metadata and original_content:
+                # Extract metadata fields that should be preserved
+                # The decoded TOON content is merged into embed_data, so check both places
+                logger.debug(
+                    f"{log_prefix} Retrieved original_content from cache. "
+                    f"Keys: {list(original_content.keys())}, "
+                    f"Has 'query': {'query' in original_content}, "
+                    f"Has 'provider': {'provider' in original_content}, "
+                    f"Has 'url': {'url' in original_content}, "
+                    f"Has 'app_id': {'app_id' in original_content}, "
+                    f"Has 'skill_id': {'skill_id' in original_content}"
+                )
+                
+                # Extract common metadata fields that should be preserved
+                # Include all common input parameters (query, url, provider, languages, etc.)
+                for key in ['query', 'provider', 'url', 'languages', 'input_data', 'count', 'country', 'search_lang', 'safesearch', 'file_path', 'embed_id']:
+                    if key in original_content:
+                        original_metadata[key] = original_content[key]
+                        logger.debug(f"{log_prefix} Found metadata key '{key}'")
+                    else:
+                        logger.debug(f"{log_prefix} Metadata key '{key}' not found in original_content")
+                
+                # CRITICAL: Log detailed metadata extraction for debugging
+                logger.info(
+                    f"{log_prefix} Preserving original metadata from cache: {list(original_metadata.keys())} "
+                    f"(key_count={len(original_metadata.keys())}, "
+                    f"query_present={'query' in original_metadata}, "
+                    f"url_present={'url' in original_metadata}, "
+                    f"provider_present={'provider' in original_metadata})"
+                )
+            elif not original_metadata:
+                logger.warning(f"{log_prefix} Could not retrieve original embed metadata for {embed_id} and no request_metadata provided")
+
+            if is_composite:
+                # Determine child embed type using canonical helper (single source of truth)
+                child_type = EmbedService.get_child_embed_type(app_id, skill_id)
+
+                for result in results:
+                    # Generate embed_id for child
+                    child_embed_id = str(uuid.uuid4())
+
+                    # DEBUG: Log the result BEFORE flattening to see if thumbnail/meta_url exist
+                    logger.info(
+                        f"{log_prefix} [EMBED_DEBUG] Child embed {child_embed_id} - RAW result keys: {list(result.keys())}, "
+                        f"has_thumbnail={'thumbnail' in result}, "
+                        f"has_meta_url={'meta_url' in result}"
+                    )
+
+                    # Use pre-generated embed_ref from result dict if present (single source of truth).
+                    # main_processor.py pre-generates slugs in results_with_refs BEFORE building
+                    # the tool_result_content_str, so the LLM sees the SAME slug that ends up in
+                    # the child embed TOON — preventing the slug-mismatch bug where two independent
+                    # random suffixes are generated for the same logical result.
+                    # Fall back to generating a new slug only if embed_ref is missing (e.g., for
+                    # non-composite skills or code paths that bypass the pre-generation step).
+                    result_with_ref = dict(result)
+                    if "embed_ref" in result_with_ref:
+                        child_embed_ref = result_with_ref["embed_ref"]
+                        logger.debug(f"{log_prefix} Reusing pre-generated embed_ref '{child_embed_ref}' for child embed")
+                    else:
+                        child_embed_ref = self._generate_embed_ref_slug(child_type, result)
+                        result_with_ref["embed_ref"] = child_embed_ref
+
+                    # Inject app_id and skill_id into child TOON so the frontend can
+                    # extract them when registering embed_ref → appId in the in-memory index.
+                    # Without this the inline badge gradient falls back to grey because
+                    # the child result dict only contains flight/event fields, not app metadata.
+                    result_with_ref["app_id"] = app_id
+                    result_with_ref["skill_id"] = skill_id
+
+                    # Convert result to TOON format (PLAINTEXT)
+                    flattened_result = _flatten_for_toon_tabular(result_with_ref)
+                    
+                    # DEBUG: Log the result AFTER flattening to see if thumbnail_original/meta_url_favicon exist
+                    logger.info(
+                        f"{log_prefix} [EMBED_DEBUG] Child embed {child_embed_id} - FLATTENED result keys: {list(flattened_result.keys())}, "
+                        f"has_thumbnail_original={'thumbnail_original' in flattened_result}, "
+                        f"has_meta_url_favicon={'meta_url_favicon' in flattened_result}"
+                    )
+                    
+                    content_toon = encode(flattened_result)
+
+                    # Calculate text length for child embed
+                    text_length_chars = len(content_toon)
+
+                    # Create child embed entry
+                    created_at = int(datetime.now().timestamp())
+                    child_embed_data = {
+                        "embed_id": child_embed_id,
+                        "type": child_type,
+                        "chat_id": chat_id,
+                        "message_id": message_id,
+                        "hashed_chat_id": hashed_chat_id,
+                        "hashed_message_id": hashed_message_id,
+                        "hashed_task_id": hashed_task_id,
+                        "status": "finished",
+                        "hashed_user_id": user_id_hash,
+                        "is_private": False,
+                        "is_shared": False,
+                        "encryption_mode": "client",
+                        "parent_embed_id": embed_id,  # CRITICAL: Set parent_embed_id for key inheritance
+                        "text_length_chars": text_length_chars,
+                        "created_at": created_at,
+                        "updated_at": created_at
+                    }
+
+                    # Encrypt with vault key for server-side cache
+                    encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                        content_toon,
+                        user_vault_key_id
+                    )
+                    child_embed_data["encrypted_content"] = encrypted_content
+
+                    # Cache child embed (server-side, vault-encrypted)
+                    await self._cache_embed(child_embed_id, child_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+
+                    # SEND PLAINTEXT TOON TO CLIENT via WebSocket
+                    # CRITICAL: Pass parent_embed_id so child embeds can use parent's key (key inheritance - Option A)
+                    # CRITICAL: Pass check_cache_status=False because child embeds are already cached with status="finished"
+                    # above. Without this, the duplicate prevention check would skip sending these newly created embeds!
+                    await self.send_embed_data_to_client(
+                        embed_id=child_embed_id,
+                        embed_type=child_type,
+                        content_toon=content_toon,  # PLAINTEXT TOON
+                        chat_id=chat_id,
+                        message_id=message_id,
+                        user_id=user_id,
+                        user_id_hash=user_id_hash,
+                        status="finished",
+                        task_id=task_id,
+                        text_length_chars=text_length_chars,
+                        created_at=created_at,
+                        updated_at=created_at,
+                        parent_embed_id=embed_id,  # Set parent_embed_id so frontend can use parent key
+                        log_prefix=log_prefix,
+                        check_cache_status=False,  # Skip cache check - we just created this embed
+                        app_id=app_id,  # Pass app_id so frontend can route to correct renderer
+                        skill_id=child_type  # Use child_type as skill_id (e.g. "image_result", "web_result")
+                    )
+
+                    child_embed_ids.append(child_embed_id)
+                    logger.debug(f"{log_prefix} Created child embed {child_embed_id} (type: {child_type})")
+
+                # Update parent embed with child embed_ids and results
+                # Include original metadata (query, provider, etc.) for proper frontend rendering
+                # CRITICAL: original_metadata must include query for web search embeds to display correctly
+                parent_content = {
+                    "app_id": app_id,
+                    "skill_id": skill_id,
+                    "result_count": len(results),
+                    "embed_ids": child_embed_ids,
+                    "status": "finished",
+                    **original_metadata  # Preserve query, provider, url, etc. from placeholder
+                }
+                
+                # Log final parent content to verify query is included
+                logger.info(
+                    f"{log_prefix} Parent embed content includes: "
+                    f"query_present={'query' in parent_content}, "
+                    f"provider_present={'provider' in parent_content}, "
+                    f"result_count={parent_content.get('result_count')}"
+                )
+
+                # Convert to TOON (PLAINTEXT)
+                flattened_parent = _flatten_for_toon_tabular(parent_content)
+                parent_content_toon = encode(flattened_parent)
+
+                # Calculate text length for parent embed
+                parent_text_length_chars = len(parent_content_toon)
+
+                # Encrypt with vault key
+                encrypted_parent_content, _ = await self.encryption_service.encrypt_with_user_key(
+                    parent_content_toon,
+                    user_vault_key_id
+                )
+
+                # Update parent embed in cache
+                updated_at = int(datetime.now().timestamp())
+                updated_embed_data = {
+                    "embed_id": embed_id,
+                    "type": "app_skill_use",
+                    "chat_id": chat_id,
+                    "message_id": message_id,
+                    "hashed_chat_id": hashed_chat_id,
+                    "hashed_message_id": hashed_message_id,
+                    "hashed_task_id": hashed_task_id,
+                    "status": "finished",
+                    "hashed_user_id": user_id_hash,
+                    "is_private": False,
+                    "is_shared": False,
+                    "encryption_mode": "client",
+                    "embed_ids": child_embed_ids,  # JSON array
+                    "encrypted_content": encrypted_parent_content,
+                    "text_length_chars": parent_text_length_chars,
+                    "created_at": updated_at,
+                    "updated_at": updated_at
+                }
+
+                # CRITICAL FIX: Send BEFORE updating cache to avoid duplicate prevention blocking
+                # The send_embed_data_to_client with check_cache_status=True will check if cache 
+                # already has status=finished and skip. We need to send first, then update cache.
+                # This ensures the client receives the parent embed data with embed_ids (child embeds)
+                await self.send_embed_data_to_client(
+                    embed_id=embed_id,
+                    embed_type="app_skill_use",
+                    content_toon=parent_content_toon,  # PLAINTEXT TOON
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    status="finished",
+                    task_id=task_id,
+                    embed_ids=child_embed_ids,
+                    text_length_chars=parent_text_length_chars,
+                    created_at=updated_at,
+                    updated_at=updated_at,
+                    log_prefix=log_prefix,
+                    check_cache_status=True,  # Enable deduplication check (will pass since cache still has "processing")
+                    app_id=app_id,
+                    skill_id=skill_id
+                )
+
+                # Update cache AFTER sending (overwrites placeholder with finished status)
+                await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+
+                logger.info(f"{log_prefix} Updated embed {embed_id} with {len(child_embed_ids)} child embeds")
+
+                # Schedule fallback persistence for parent and all child embeds
+                # This ensures embeds are persisted even if the client doesn't send store_embed
+                self._schedule_embed_persistence_fallback(embed_id)
+                for cid in child_embed_ids:
+                    self._schedule_embed_persistence_fallback(cid)
+
+                return {
+                    "embed_id": embed_id,
+                    "child_embed_ids": child_embed_ids,
+                    "status": "finished"
+                }
+
+            else:
+                # Single result - update embed with result content
+                # CRITICAL: Wrap results with app_id and skill_id metadata for consistency with create_embeds_from_skill_results
+                # This ensures the frontend can identify which skill was executed and render the appropriate preview component
+                # Structure matches composite results pattern: app_id, skill_id, results array
+                # Also include original_metadata (query, url, provider, etc.) to preserve input parameters
+                flattened_results = [_flatten_for_toon_tabular(result) for result in results]
+
+                # Generate embed_ref for this single embed so the LLM can reference it
+                # and QUOTE_VERIFY can build its embed_ref→id map.
+                # Must match the slug generated in main_processor.py (which pre-generates
+                # slugs from the same results before the LLM sees them).
+                # For the update path (placeholder flow), the slug was already pre-generated
+                # by main_processor.py and injected into the result dict. Use it if present,
+                # otherwise generate a fresh one (fallback for edge cases).
+                _first_result = results[0] if results else {}
+                single_embed_ref = _first_result.get("embed_ref") or self._generate_embed_ref_slug(
+                    skill_id, _first_result
+                )
+
+                # Wrap with app_id and skill_id metadata (same structure as create_embeds_from_skill_results)
+                # Include original_metadata to preserve input parameters (url for videos, query for search, etc.)
+                content_with_metadata = {
+                    "app_id": app_id,
+                    "skill_id": skill_id,
+                    "results": flattened_results,
+                    "result_count": len(results),
+                    "status": "finished",
+                    "embed_ref": single_embed_ref,
+                    **original_metadata  # Preserve query, url, provider, languages, etc. from placeholder
+                }
+                
+                # Log final content to verify metadata is included
+                logger.info(
+                    f"{log_prefix} Single result embed content includes: "
+                    f"query_present={'query' in content_with_metadata}, "
+                    f"url_present={'url' in content_with_metadata}, "
+                    f"provider_present={'provider' in content_with_metadata}, "
+                    f"result_count={content_with_metadata.get('result_count')}"
+                )
+                
+                content_toon = encode(_flatten_for_toon_tabular(content_with_metadata))
+
+                # Calculate text length
+                single_text_length_chars = len(content_toon)
+
+                # Encrypt with vault key
+                encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                    content_toon,
+                    user_vault_key_id
+                )
+
+                # Update embed in cache
+                updated_at = int(datetime.now().timestamp())
+                updated_embed_data = {
+                    "embed_id": embed_id,
+                    "type": "app_skill_use",
+                    "chat_id": chat_id,
+                    "message_id": message_id,
+                    "hashed_chat_id": hashed_chat_id,
+                    "hashed_message_id": hashed_message_id,
+                    "hashed_task_id": hashed_task_id,
+                    "status": "finished",
+                    "hashed_user_id": user_id_hash,
+                    "is_private": False,
+                    "is_shared": False,
+                    "embed_ids": None,  # No child embeds
+                    "encrypted_content": encrypted_content,
+                    "text_length_chars": single_text_length_chars,
+                    "created_at": updated_at,
+                    "updated_at": updated_at
+                }
+
+                # CRITICAL FIX: Send BEFORE updating cache to avoid duplicate prevention blocking
+                # This ensures the client receives the embed data before cache is marked as finished
+                await self.send_embed_data_to_client(
+                    embed_id=embed_id,
+                    embed_type="app_skill_use",
+                    content_toon=content_toon,  # PLAINTEXT TOON
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    status="finished",
+                    task_id=task_id,
+                    text_length_chars=single_text_length_chars,
+                    created_at=updated_at,
+                    updated_at=updated_at,
+                    log_prefix=log_prefix
+                )
+
+                # Update cache AFTER sending (overwrites placeholder with finished status)
+                await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+
+                logger.info(f"{log_prefix} Updated single embed {embed_id}")
+
+                # Schedule fallback persistence for single embed
+                self._schedule_embed_persistence_fallback(embed_id)
+
+                return {
+                    "embed_id": embed_id,
+                    "child_embed_ids": [],
+                    "status": "finished"
+                }
+
+        except Exception as e:
+            logger.error(f"{log_prefix} Error updating embed {embed_id} with results: {e}", exc_info=True)
+            return None
+
+    async def update_embed_status_to_error(
+        self,
+        embed_id: str,
+        app_id: str,
+        skill_id: str,
+        error_message: str,
+        chat_id: str,
+        message_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        task_id: Optional[str] = None,
+        log_prefix: str = ""
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Update an existing "processing" embed to "error" status when skill execution fails.
+        
+        Args:
+            embed_id: The embed_id to update (from placeholder)
+            app_id: The app ID that owns the skill
+            skill_id: The skill ID that was executed
+            error_message: Error message to include in embed content
+            chat_id: Chat ID where the embed is created
+            message_id: Message ID that references the embed
+            user_id: User ID (UUID)
+            user_id_hash: Hashed user ID
+            user_vault_key_id: User's vault key ID for encryption
+            task_id: Optional task ID for tracking
+            log_prefix: Logging prefix for this operation
+            
+        Returns:
+            Dictionary with:
+            - embed_id: The embed_id (same as input)
+            - status: "error"
+            None if update fails
+        """
+        try:
+            from datetime import datetime
+            from toon_format import encode
+
+            # Retrieve original placeholder metadata (query, provider, etc.)
+            # This ensures we preserve the original metadata when updating the embed
+            original_content = await self._get_cached_embed(embed_id, user_vault_key_id, log_prefix)
+            original_metadata = {}
+            if original_content:
+                # Extract metadata fields that should be preserved
+                for key in ['query', 'provider', 'url', 'input_data']:
+                    if key in original_content:
+                        original_metadata[key] = original_content[key]
+                        logger.debug(f"{log_prefix} Found metadata key '{key}'")
+            
+            # Create error content with metadata and error message
+            error_content = {
+                "app_id": app_id,
+                "skill_id": skill_id,
+                "status": "error",
+                "error": error_message,
+                "result_count": 0,
+                "embed_ids": None,  # No child embeds for error case
+                **original_metadata  # Preserve query, provider, etc. from placeholder
+            }
+            
+            # Convert to TOON (PLAINTEXT)
+            flattened_error = _flatten_for_toon_tabular(error_content)
+            error_content_toon = encode(flattened_error)
+            
+            # Calculate text length
+            error_text_length_chars = len(error_content_toon)
+            
+            updated_at = int(datetime.now().timestamp())
+            
+            # CLEANUP: Remove the "processing" placeholder from cache instead of
+            # storing an error embed. Failed embeds are wasted storage — the error
+            # is already logged and the client will hide the embed from the UI.
+            try:
+                await self.cache_service.remove_embed_from_chat_cache(chat_id, embed_id)
+                logger.debug(f"{log_prefix} Removed processing placeholder for failed embed {embed_id} from cache")
+            except Exception as cache_err:
+                logger.warning(f"{log_prefix} Failed to remove embed {embed_id} from cache: {cache_err}")
+            
+            # SEND PLAINTEXT TOON TO CLIENT via WebSocket so the client can:
+            # 1. Remove the in-memory processing placeholder
+            # 2. Track the error in _embedErrors for UI cleanup (hide embed, show error banner)
+            # 3. Skip persisting to IndexedDB (no store_embed sent back to server)
+            await self.send_embed_data_to_client(
+                embed_id=embed_id,
+                embed_type="app_skill_use",
+                content_toon=error_content_toon,  # PLAINTEXT TOON
+                chat_id=chat_id,
+                message_id=message_id,
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                status="error",
+                task_id=task_id,
+                text_length_chars=error_text_length_chars,
+                created_at=updated_at,
+                updated_at=updated_at,
+                log_prefix=log_prefix
+            )
+            
+            logger.info(f"{log_prefix} Updated embed {embed_id} to error status: {error_message}")
+            
+            return {
+                "embed_id": embed_id,
+                "child_embed_ids": [],
+                "status": "error"
+            }
+            
+        except Exception as e:
+            logger.error(f"{log_prefix} Error updating embed {embed_id} to error status: {e}", exc_info=True)
+            return None
+
+    async def update_embed_status_to_cancelled(
+        self,
+        embed_id: str,
+        app_id: str,
+        skill_id: str,
+        chat_id: str,
+        message_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        task_id: Optional[str] = None,
+        log_prefix: str = ""
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Update an existing "processing" embed to "cancelled" status when a task is revoked.
+        
+        Similar to update_embed_status_to_error but uses "cancelled" status and a
+        user-friendly cancellation message instead of an error message.
+        
+        Args:
+            embed_id: The embed_id to update (from placeholder)
+            app_id: The app ID that owns the skill
+            skill_id: The skill ID that was executed
+            chat_id: Chat ID where the embed is created
+            message_id: Message ID that references the embed
+            user_id: User ID (UUID)
+            user_id_hash: Hashed user ID
+            user_vault_key_id: User's vault key ID for encryption
+            task_id: Optional task ID for tracking
+            log_prefix: Logging prefix for this operation
+            
+        Returns:
+            Dictionary with embed_id and status if successful, None if update fails
+        """
+        try:
+            from datetime import datetime
+            from toon_format import encode
+
+            # Retrieve original placeholder metadata (query, provider, etc.)
+            original_content = await self._get_cached_embed(embed_id, user_vault_key_id, log_prefix)
+            original_metadata = {}
+            if original_content:
+                for key in ['query', 'provider', 'url', 'input_data']:
+                    if key in original_content:
+                        original_metadata[key] = original_content[key]
+            
+            # Create cancelled content with metadata
+            cancelled_content = {
+                "app_id": app_id,
+                "skill_id": skill_id,
+                "status": "cancelled",
+                "error": "Cancelled by user",
+                "result_count": 0,
+                "embed_ids": None,
+                **original_metadata
+            }
+            
+            # Convert to TOON (PLAINTEXT)
+            flattened_cancelled = _flatten_for_toon_tabular(cancelled_content)
+            cancelled_content_toon = encode(flattened_cancelled)
+            
+            cancelled_text_length_chars = len(cancelled_content_toon)
+            
+            updated_at = int(datetime.now().timestamp())
+            
+            # CLEANUP: Remove the "processing" placeholder from cache instead of
+            # storing a cancelled embed. Failed/cancelled embeds are wasted storage.
+            try:
+                await self.cache_service.remove_embed_from_chat_cache(chat_id, embed_id)
+                logger.debug(f"{log_prefix} Removed processing placeholder for cancelled embed {embed_id} from cache")
+            except Exception as cache_err:
+                logger.warning(f"{log_prefix} Failed to remove embed {embed_id} from cache: {cache_err}")
+            
+            # SEND PLAINTEXT TOON TO CLIENT via WebSocket so the client can
+            # clean up the in-memory processing placeholder and update the UI.
+            # The client will NOT persist this to IndexedDB or send it back to Directus.
+            await self.send_embed_data_to_client(
+                embed_id=embed_id,
+                embed_type="app_skill_use",
+                content_toon=cancelled_content_toon,
+                chat_id=chat_id,
+                message_id=message_id,
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                status="cancelled",
+                task_id=task_id,
+                text_length_chars=cancelled_text_length_chars,
+                created_at=updated_at,
+                updated_at=updated_at,
+                log_prefix=log_prefix
+            )
+            
+            logger.info(f"{log_prefix} Updated embed {embed_id} to cancelled status")
+            
+            return {
+                "embed_id": embed_id,
+                "child_embed_ids": [],
+                "status": "cancelled"
+            }
+            
+        except Exception as e:
+            logger.error(f"{log_prefix} Error updating embed {embed_id} to cancelled status: {e}", exc_info=True)
+            return None
+
+    async def send_embed_data_to_client(
+        self,
+        embed_id: str,
+        embed_type: str,
+        content_toon: str,
+        chat_id: str,
+        message_id: str,
+        user_id: str,
+        user_id_hash: str,
+        status: str = "finished",
+        text_preview: Optional[str] = None,
+        task_id: Optional[str] = None,
+        embed_ids: Optional[List[str]] = None,
+        parent_embed_id: Optional[str] = None,
+        version_number: Optional[int] = None,
+        file_path: Optional[str] = None,
+        content_hash: Optional[str] = None,
+        text_length_chars: Optional[int] = None,
+        is_private: bool = False,
+        is_shared: bool = False,
+        encryption_mode: str = "client",  # New parameter
+        created_at: Optional[int] = None,
+        updated_at: Optional[int] = None,
+        log_prefix: str = "",
+        check_cache_status: bool = True,  # New parameter to optionally skip cache check
+        app_id: Optional[str] = None,  # App ID for renderer routing (child embeds)
+        skill_id: Optional[str] = None  # Skill ID for renderer routing (child embeds)
+    ) -> bool:
+        """
+        Send PLAINTEXT TOON embed content to client via WebSocket for client-side encryption and storage.
+
+        CRITICAL: This sends PLAINTEXT content to the client. The client will:
+        1. Receive plaintext TOON
+        2. IMMEDIATELY encrypt with master key (NEVER stores plaintext!)
+        3. Store encrypted in IndexedDB
+        4. Send client-encrypted back to server via store_embed event
+
+        Args:
+            embed_id: The embed identifier
+            embed_type: Plaintext embed type (client will encrypt before storage)
+            content_toon: Plaintext TOON-encoded string (client will encrypt before storage)
+            chat_id: Plaintext chat_id (client will hash before sending to server)
+            message_id: Plaintext message_id (client will hash before sending to server)
+            user_id: User ID (UUID)
+            user_id_hash: Hashed user ID for channel targeting
+            status: Embed status
+            text_preview: Plaintext text preview (client will encrypt)
+            task_id: Optional task ID (client will hash)
+            embed_ids: For composite embeds (app_skill_use)
+            parent_embed_id: For versioned embeds
+            version_number: For versioned embeds
+            file_path: For code/file embeds
+            content_hash: SHA256 hash for deduplication
+            text_length_chars: Character count for text-based embeds (auto-calculated if not provided)
+            is_private: Whether embed is private (not shared)
+            is_shared: Whether embed has been shared (share link generated)
+            created_at: Unix timestamp
+            updated_at: Unix timestamp
+            log_prefix: Logging prefix
+
+        Returns:
+            True if event was published successfully, False otherwise
+        """
+        try:
+            # STATE MACHINE: Validate transition before sending to client.
+            # Uses the embed state machine (backend/shared/python_schemas/embed_status.py)
+            # to enforce valid transitions and prevent duplicate finalization events.
+            if check_cache_status:
+                try:
+                    cache_key = f"embed:{embed_id}"
+                    client = await self.cache_service.client
+                    if client:
+                        embed_json = await client.get(cache_key)
+                        if embed_json:
+                            import json as json_lib
+                            cached_embed_data = json_lib.loads(embed_json)
+                            current_status = cached_embed_data.get("status", EmbedStatus.PROCESSING.value)
+                            if not validate_embed_transition(
+                                current=current_status,
+                                target=status,
+                                embed_id=embed_id,
+                                log_prefix=f"{log_prefix} [EMBED_STATE_MACHINE]"
+                            ):
+                                logger.warning(
+                                    f"{log_prefix} [EMBED_EVENT] Blocked invalid transition: "
+                                    f"'{current_status}' → '{status}' for embed {embed_id}. "
+                                    f"This prevents duplicate or out-of-order status events."
+                                )
+                                return False
+                except Exception as e:
+                    # If cache check fails, log but continue (don't block the send)
+                    logger.debug(f"{log_prefix} [EMBED_EVENT] Could not check cache status for state validation: {e}, proceeding with send")
+            
+            # Auto-calculate text_length_chars if not provided
+            # For text-based embeds: code, table, document, app_skill_use
+            if text_length_chars is None:
+                # Count characters in TOON content for text-based embeds
+                text_length_chars = len(content_toon)
+
+            # Build send_embed_data payload with PLAINTEXT content
+            payload = {
+                "event": "send_embed_data",
+                "type": "send_embed_data",
+                "event_for_client": "send_embed_data",
+                "payload": {
+                    "embed_id": embed_id,
+                    "type": embed_type,  # PLAINTEXT (client will encrypt)
+                    "content": content_toon,  # PLAINTEXT TOON (client will encrypt)
+                    "status": status,
+                    "chat_id": chat_id,  # PLAINTEXT (client will hash before sending back)
+                    "message_id": message_id,  # PLAINTEXT (client will hash)
+                    "user_id": user_id,
+                    "is_private": is_private,
+                    "is_shared": is_shared,
+                    "encryption_mode": encryption_mode,
+                    "text_length_chars": text_length_chars,  # Character count for LLM compression decision
+                    "createdAt": created_at or int(datetime.now().timestamp()),
+                    "updatedAt": updated_at or int(datetime.now().timestamp())
+                }
+            }
+
+            # Add optional fields
+            if text_preview is not None:
+                payload["payload"]["text_preview"] = text_preview  # PLAINTEXT (client will encrypt)
+            if task_id is not None:
+                payload["payload"]["task_id"] = task_id  # PLAINTEXT (client will hash)
+            if embed_ids is not None:
+                payload["payload"]["embed_ids"] = embed_ids
+            if parent_embed_id is not None:
+                payload["payload"]["parent_embed_id"] = parent_embed_id
+            if version_number is not None:
+                payload["payload"]["version_number"] = version_number
+            if file_path is not None:
+                payload["payload"]["file_path"] = file_path
+            if content_hash is not None:
+                payload["payload"]["content_hash"] = content_hash
+            if app_id is not None:
+                payload["payload"]["app_id"] = app_id
+            if skill_id is not None:
+                payload["payload"]["skill_id"] = skill_id
+
+            # Publish to Redis for WebSocket delivery
+            client = await self.cache_service.client
+            if client:
+                import json as json_lib
+                channel_key = f"websocket:user:{user_id_hash}"
+                await client.publish(channel_key, json_lib.dumps(payload))
+                logger.info(
+                    f"{log_prefix} [EMBED_EVENT] Published send_embed_data event for embed {embed_id} "
+                    f"(status={status}, type={embed_type}, chat_id={chat_id}, message_id={message_id})"
+                )
+
+                # Track finished embeds as pending client encryption
+                if status == "finished":
+                    await self._track_pending_embed(user_id, embed_id, log_prefix)
+
+                return True
+            else:
+                logger.warning(f"{log_prefix} Redis client not available, skipping send_embed_data event")
+                return False
+
+        except Exception as e:
+            logger.error(f"{log_prefix} Error sending embed data to client: {e}", exc_info=True)
+            return False
+
+    async def _track_pending_embed(
+        self,
+        user_id: str,
+        embed_id: str,
+        log_prefix: str = ""
+    ) -> None:
+        """
+        Add an embed to the pending encryption tracking set.
+
+        Called after a finished embed is published via Redis pub/sub. The embed
+        stays in the pending set until the client confirms encryption via store_embed,
+        at which point it is removed by the store_embed handler.
+
+        This enables reliable re-delivery on reconnect if the pub/sub message is lost.
+
+        Args:
+            user_id: User ID (UUID string)
+            embed_id: Embed ID to track
+            log_prefix: Logging prefix for context
+        """
+        try:
+            await self.cache_service.add_pending_embed(user_id, embed_id)
+        except Exception as e:
+            # Non-critical: don't fail embed delivery if tracking fails.
+            # The existing fallback task still provides a safety net.
+            logger.warning(
+                f"{log_prefix} [PENDING_EMBED] Failed to track embed {embed_id} "
+                f"as pending for user {user_id[:8]}...: {e}"
+            )
+
+    async def create_embeds_from_skill_results(
+        self,
+        app_id: str,
+        skill_id: str,
+        results: List[Dict[str, Any]],
+        chat_id: str,
+        message_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        task_id: Optional[str] = None,
+        log_prefix: str = "",
+        request_metadata: Optional[Dict[str, Any]] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Create embeds from skill results immediately after skill execution.
+        
+        For composite results (web search, places, events):
+        - Creates child embed entries (one per result)
+        - Creates parent app_skill_use embed with embed_ids array
+        
+        For single results:
+        - Creates single app_skill_use embed
+        
+        Args:
+            app_id: The app ID that owns the skill
+            skill_id: The skill ID that was executed
+            results: List of skill result dictionaries
+            chat_id: Chat ID where the embed is created
+            message_id: Message ID that references the embed
+            user_id: User ID (UUID)
+            user_id_hash: Hashed user ID
+            user_vault_key_id: User's vault key ID for encryption
+            task_id: Optional task ID for long-running tasks
+            log_prefix: Logging prefix for this operation
+            
+        Returns:
+            Dictionary with:
+            - parent_embed_id: The embed_id of the parent app_skill_use embed
+            - embed_reference: JSON string for embedding in message markdown
+            - child_embed_ids: List of child embed IDs (if composite)
+            None if creation fails
+        """
+        if not results or len(results) == 0:
+            logger.warning(f"{log_prefix} No results to create embeds from")
+            return None
+        
+        try:
+            # Hash sensitive IDs for privacy protection
+            hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+            hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
+            hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
+            
+            # Determine if this is a composite result (web search, places, events, connections, stays)
+            # Check both app_id and skill_id to determine composite vs single
+            # Maps search uses skill_id "search" but should create "place" embeds, not "website" embeds
+            is_composite = skill_id in ["search", "places_search", "events_search", "search_connections", "search_stays"]
+            
+            child_embed_ids = []
+            
+            if is_composite:
+                # Determine child embed type using canonical helper (single source of truth)
+                child_type = EmbedService.get_child_embed_type(app_id, skill_id)
+                
+                # CRITICAL: Generate parent_embed_id FIRST so child embeds can reference it
+                # This enables key inheritance: child embeds use parent's encryption key
+                parent_embed_id = str(uuid.uuid4())
+                
+                for result in results:
+                    # Generate embed_id for child
+                    child_embed_id = str(uuid.uuid4())
+
+                    # Use pre-generated embed_ref from result dict if present (single source of truth).
+                    # main_processor.py pre-generates slugs in results_with_refs BEFORE building
+                    # the tool_result_content_str and passes them here via the results list.
+                    # This ensures the LLM's inline ref slug EXACTLY matches the slug stored in
+                    # the child embed TOON — preventing the slug-mismatch bug.
+                    # The embed_ref is injected INSIDE the encrypted TOON content so only the
+                    # client (after decryption) and the LLM (via filtered TOON) can see it.
+                    result_with_ref = dict(result)
+                    if "embed_ref" in result_with_ref:
+                        child_embed_ref = result_with_ref["embed_ref"]
+                        logger.debug(f"{log_prefix} Reusing pre-generated embed_ref '{child_embed_ref}' for child embed")
+                    else:
+                        child_embed_ref = self._generate_embed_ref_slug(child_type, result)
+                        result_with_ref["embed_ref"] = child_embed_ref
+
+                    # Inject app_id and skill_id into child TOON so the frontend can
+                    # extract them when registering embed_ref → appId in the in-memory index.
+                    # Without this the inline badge gradient falls back to grey because
+                    # the child result dict only contains flight/event fields, not app metadata.
+                    result_with_ref["app_id"] = app_id
+                    result_with_ref["skill_id"] = skill_id
+
+                    flattened_result = _flatten_for_toon_tabular(result_with_ref)
+                    content_toon = encode(flattened_result)
+                    
+                    # Calculate text length for child embed
+                    text_length_chars = len(content_toon)
+                    created_at = int(datetime.now().timestamp())
+                    
+                    # Create child embed entry
+                    # CRITICAL: Include parent_embed_id for key inheritance
+                    child_embed_data = {
+                        "embed_id": child_embed_id,
+                        "type": child_type,
+                        "chat_id": chat_id,
+                        "message_id": message_id,
+                        "hashed_chat_id": hashed_chat_id,
+                        "hashed_message_id": hashed_message_id,
+                        "hashed_task_id": hashed_task_id,
+                        "status": "finished",
+                        "hashed_user_id": user_id_hash,
+                        "is_private": False,
+                        "is_shared": False,
+                        "parent_embed_id": parent_embed_id,  # CRITICAL: Set parent for key inheritance
+                        "text_length_chars": text_length_chars,
+                        "created_at": created_at,
+                        "updated_at": created_at
+                    }
+                    
+                    # Encrypt with vault key for server-side cache
+                    encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                        content_toon,
+                        user_vault_key_id
+                    )
+                    child_embed_data["encrypted_content"] = encrypted_content
+                    
+                    # Cache child embed (server-side, vault-encrypted)
+                    await self._cache_embed(child_embed_id, child_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+                    
+                    # CRITICAL: Send child embed to client via WebSocket for client-side encryption and storage
+                    # Without this, child embeds only exist in server cache and won't be stored in Directus
+                    # CRITICAL: Pass check_cache_status=False because child embeds are already cached with status="finished"
+                    # above. Without this, the duplicate prevention check would skip sending these newly created embeds!
+                    await self.send_embed_data_to_client(
+                        embed_id=child_embed_id,
+                        embed_type=child_type,
+                        content_toon=content_toon,  # PLAINTEXT TOON
+                        chat_id=chat_id,
+                        message_id=message_id,
+                        user_id=user_id,
+                        user_id_hash=user_id_hash,
+                        status="finished",
+                        task_id=task_id,
+                        text_length_chars=text_length_chars,
+                        created_at=created_at,
+                        updated_at=created_at,
+                        parent_embed_id=parent_embed_id,  # Set parent_embed_id so frontend can use parent key
+                        log_prefix=log_prefix,
+                        check_cache_status=False  # Skip cache check - we just created this embed
+                    )
+                    
+                    child_embed_ids.append(child_embed_id)
+                    logger.debug(f"{log_prefix} Created child embed {child_embed_id} (type: {child_type}, parent: {parent_embed_id})")
+                
+                # Create parent app_skill_use embed
+                # NOTE: parent_embed_id was already generated above (before child embeds)
+
+                # Generate an embed_ref for the parent (composite skill result).
+                # Format: "{app_id}-{skill_id}-{suffix}" so the LLM can refer to the
+                # whole result set (e.g. "web-search-k8D") as well as individual items.
+                parent_embed_ref = self._generate_embed_ref_slug(
+                    f"{app_id}-{skill_id}",
+                    request_metadata or {},
+                )
+
+                # Parent embed content: metadata about the skill execution
+                # Include request metadata (query, etc.) if provided for proper frontend rendering
+                parent_content = {
+                    "app_id": app_id,
+                    "skill_id": skill_id,
+                    "result_count": len(results),
+                    "embed_ids": child_embed_ids,
+                    "status": "finished",
+                    "embed_ref": parent_embed_ref,
+                }
+                
+                # Add request metadata (query, provider, etc.) if available
+                if request_metadata:
+                    if "query" in request_metadata:
+                        parent_content["query"] = request_metadata["query"]
+                    if "provider" in request_metadata:
+                        parent_content["provider"] = request_metadata["provider"]
+                    # Add other metadata fields as needed
+                    for key in ["country", "search_lang", "safesearch"]:
+                        if key in request_metadata:
+                            parent_content[key] = request_metadata[key]
+                
+                # Convert to TOON
+                flattened_parent = _flatten_for_toon_tabular(parent_content)
+                parent_content_toon = encode(flattened_parent)
+                
+                # Calculate text length for parent embed
+                parent_text_length_chars = len(parent_content_toon)
+                parent_created_at = int(datetime.now().timestamp())
+                
+                # Encrypt with vault key
+                encrypted_parent_content, _ = await self.encryption_service.encrypt_with_user_key(
+                    parent_content_toon,
+                    user_vault_key_id
+                )
+                
+                parent_embed_data = {
+                    "embed_id": parent_embed_id,
+                    "type": "app_skill_use",
+                    "chat_id": chat_id,
+                    "message_id": message_id,
+                    "hashed_chat_id": hashed_chat_id,
+                    "hashed_message_id": hashed_message_id,
+                    "hashed_task_id": hashed_task_id,
+                    "status": "finished",
+                    "hashed_user_id": user_id_hash,
+                    "is_private": False,
+                    "is_shared": False,
+                    "encryption_mode": "client",
+                    "embed_ids": child_embed_ids,  # JSON array
+                    "encrypted_content": encrypted_parent_content,
+                    "text_length_chars": parent_text_length_chars,
+                    "created_at": parent_created_at,
+                    "updated_at": parent_created_at
+                }
+                
+                # CRITICAL: Send parent embed to client BEFORE caching to avoid duplicate prevention blocking
+                # The cache will have status="finished" after caching, so send_embed_data_to_client's
+                # default cache check would skip sending if we cached first.
+                await self.send_embed_data_to_client(
+                    embed_id=parent_embed_id,
+                    embed_type="app_skill_use",
+                    content_toon=parent_content_toon,  # PLAINTEXT TOON
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    status="finished",
+                    task_id=task_id,
+                    embed_ids=child_embed_ids,
+                    text_length_chars=parent_text_length_chars,
+                    created_at=parent_created_at,
+                    updated_at=parent_created_at,
+                    log_prefix=log_prefix
+                )
+                
+                # Cache parent embed AFTER sending
+                await self._cache_embed(parent_embed_id, parent_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+                
+                logger.info(f"{log_prefix} Created parent embed {parent_embed_id} with {len(child_embed_ids)} child embeds")
+
+                # Schedule fallback persistence for parent and all child embeds
+                self._schedule_embed_persistence_fallback(parent_embed_id)
+                for cid in child_embed_ids:
+                    self._schedule_embed_persistence_fallback(cid)
+                
+                # Generate embed reference JSON
+                # CRITICAL: Include app_id and skill_id so frontend can properly group embeds
+                # by app+skill type (e.g., web.search embeds grouped separately from code.get_docs).
+                # ALSO include query/provider when available so the UI can render the query
+                # even if the parent embed content is delayed or missing metadata.
+                embed_reference_payload = {
+                    "type": "app_skill_use",
+                    "embed_id": parent_embed_id,
+                    "app_id": app_id,
+                    "skill_id": skill_id
+                }
+                # Include query and provider from request_metadata if available
+                # This enables the frontend to display the query text immediately in grouped embeds
+                if request_metadata:
+                    if request_metadata.get("query"):
+                        embed_reference_payload["query"] = request_metadata["query"]
+                    if request_metadata.get("provider"):
+                        embed_reference_payload["provider"] = request_metadata["provider"]
+                embed_reference = json.dumps(embed_reference_payload)
+                
+                return {
+                    "parent_embed_id": parent_embed_id,
+                    "embed_reference": embed_reference,
+                    "child_embed_ids": child_embed_ids
+                }
+            
+            else:
+                # Non-composite result - create single app_skill_use embed
+                # All skills return results as an array, so we always structure it consistently
+                embed_id = str(uuid.uuid4())
+
+                # Generate embed_ref for this single embed (injected inside encrypted TOON).
+                # For single results, derive the slug from the first result.
+                single_embed_ref = self._generate_embed_ref_slug(
+                    skill_id, results[0] if results else {}
+                )
+
+                # Flatten all results for TOON encoding
+                flattened_results = [_flatten_for_toon_tabular(result) for result in results]
+                
+                # Wrap with app_id and skill_id metadata for frontend rendering
+                # This ensures the frontend can identify which skill was executed
+                # and render the appropriate preview component
+                # Structure matches composite results pattern: app_id, skill_id, results array
+                content_with_metadata = {
+                    "app_id": app_id,
+                    "skill_id": skill_id,
+                    "results": flattened_results,
+                    "result_count": len(results),
+                    "status": "finished",
+                    "embed_ref": single_embed_ref,
+                }
+                
+                # Add request metadata if available
+                if request_metadata:
+                    for key in ["query", "provider", "url", "languages", "country", "search_lang", "safesearch"]:
+                        if key in request_metadata:
+                            content_with_metadata[key] = request_metadata[key]
+                
+                content_toon = encode(_flatten_for_toon_tabular(content_with_metadata))
+                
+                # Calculate text length for embed
+                single_text_length_chars = len(content_toon)
+                single_created_at = int(datetime.now().timestamp())
+                
+                # Encrypt with vault key
+                encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                    content_toon,
+                    user_vault_key_id
+                )
+                
+                embed_data = {
+                    "embed_id": embed_id,
+                    "type": "app_skill_use",
+                    "chat_id": chat_id,
+                    "message_id": message_id,
+                    "hashed_chat_id": hashed_chat_id,
+                    "hashed_message_id": hashed_message_id,
+                    "hashed_task_id": hashed_task_id,
+                    "status": "finished",
+                    "hashed_user_id": user_id_hash,
+                    "is_private": False,
+                    "is_shared": False,
+                    "embed_ids": None,  # No child embeds
+                    "encrypted_content": encrypted_content,
+                    "text_length_chars": single_text_length_chars,
+                    "created_at": single_created_at,
+                    "updated_at": single_created_at
+                }
+                
+                # CRITICAL: Send embed to client BEFORE caching to avoid duplicate prevention blocking
+                # The cache will have status="finished" after caching, so send_embed_data_to_client's
+                # default cache check would skip sending if we cached first.
+                await self.send_embed_data_to_client(
+                    embed_id=embed_id,
+                    embed_type="app_skill_use",
+                    content_toon=content_toon,  # PLAINTEXT TOON
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    status="finished",
+                    task_id=task_id,
+                    text_length_chars=single_text_length_chars,
+                    created_at=single_created_at,
+                    updated_at=single_created_at,
+                    log_prefix=log_prefix
+                )
+                
+                # Cache embed AFTER sending
+                await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+                
+                logger.info(f"{log_prefix} Created single embed {embed_id}")
+
+                # Schedule fallback persistence for single embed
+                self._schedule_embed_persistence_fallback(embed_id)
+                
+                # Generate embed reference JSON
+                # CRITICAL: Include app_id and skill_id so frontend can properly group embeds
+                # by app+skill type (e.g., web.search embeds grouped separately from code.get_docs)
+                # Without these, undefined === undefined comparisons incorrectly group different skills
+                embed_reference = json.dumps({
+                    "type": "app_skill_use",
+                    "embed_id": embed_id,
+                    "app_id": app_id,
+                    "skill_id": skill_id
+                })
+                
+                return {
+                    "parent_embed_id": embed_id,
+                    "embed_reference": embed_reference,
+                    "child_embed_ids": []
+                }
+        
+        except Exception as e:
+            logger.error(f"{log_prefix} Error creating embeds from skill results: {e}", exc_info=True)
+            return None
+    
+    async def _cache_embed(
+        self,
+        embed_id: str,
+        embed_data: Dict[str, Any],
+        chat_id: str,
+        user_id_hash: str,
+        user_vault_key_id: Optional[str] = None,
+        user_id: Optional[str] = None
+    ) -> None:
+        """
+        Cache embed in Redis with vault encryption.
+        
+        Args:
+            embed_id: The embed identifier
+            embed_data: Embed data dictionary (already vault-encrypted)
+            chat_id: Chat ID for indexing
+            user_id_hash: Hashed user ID
+            user_vault_key_id: User's vault key ID for fallback persistence.
+                              Stored in cache so the fallback Celery task can decrypt
+                              vault-encrypted content and re-send it to the client.
+            user_id: Plaintext user ID (UUID) for fallback re-send via WebSocket pub/sub.
+        """
+        try:
+            # Cache key: embed:{embed_id} (global cache, one entry per embed)
+            cache_key = f"embed:{embed_id}"
+            
+            # Include vault_key_id and user_id in cached data for fallback persistence support.
+            # The fallback task needs:
+            # - vault_key_id: to decrypt the vault-encrypted TOON content
+            # - user_id: to re-send the embed data to the client via WebSocket pub/sub
+            if user_vault_key_id and "vault_key_id" not in embed_data:
+                embed_data["vault_key_id"] = user_vault_key_id
+            if user_id and "user_id" not in embed_data:
+                embed_data["user_id"] = user_id
+            
+            # Store embed data (already encrypted with vault key)
+            import json as json_lib
+            embed_json = json_lib.dumps(embed_data)
+            
+            # Cache with 72h TTL (same as message cache - CHAT_MESSAGES_TTL)
+            client = await self.cache_service.client
+            if client:
+                await client.set(cache_key, embed_json, ex=259200)  # 72 hours
+
+                # Add to chat index for eviction tracking
+                chat_embed_index_key = f"chat:{chat_id}:embed_ids"
+                await client.sadd(chat_embed_index_key, embed_id)
+                await client.expire(chat_embed_index_key, 259200)  # 72 hours
+                
+                logger.debug(f"Cached embed {embed_id} at {cache_key}")
+            else:
+                logger.warning(f"Redis client not available, skipping embed cache for {embed_id}")
+        
+        except Exception as e:
+            logger.error(f"Error caching embed {embed_id}: {e}", exc_info=True)
+            # Don't fail embed creation if caching fails
+
+    def _schedule_embed_persistence_fallback(
+        self,
+        embed_id: str,
+        countdown_seconds: int = 60
+    ) -> None:
+        """
+        Schedule a delayed Celery task to check if an embed was persisted to Directus
+        by the client, and if not, persist the vault-encrypted version from Redis cache.
+        
+        This provides a server-side safety net for embed persistence when the client-to-server
+        store_embed round-trip fails (WebSocket disconnect, client crash, tab closure, etc.).
+        
+        Args:
+            embed_id: The embed ID to schedule fallback for
+            countdown_seconds: Delay in seconds before the task runs (default: 60).
+                              Must be long enough for the client to complete normal persistence,
+                              but short enough that it runs well before the 72h cache TTL.
+        """
+        try:
+            from backend.core.api.app.tasks.celery_config import app as celery_app
+            celery_app.send_task(
+                name="app.tasks.persistence_tasks.persist_embed_fallback",
+                kwargs={"embed_id": embed_id},
+                queue="persistence",
+                countdown=countdown_seconds,
+            )
+            logger.debug(
+                f"Scheduled embed fallback persistence for {embed_id} "
+                f"(countdown={countdown_seconds}s)"
+            )
+        except Exception as e:
+            # Non-critical: don't fail embed creation if scheduling fails.
+            # The normal client-side persistence may still succeed.
+            logger.warning(
+                f"Failed to schedule embed fallback persistence for {embed_id}: {e}"
+            )
+
+    # ─── Source Quote Verification ──────────────────────────────────────────
+    # Verifies that quoted text from an LLM response actually exists in the
+    # referenced embed's source content. Used by stream_consumer.py post-processing
+    # to enforce accurate quoting.
+    # See docs/architecture/embeds.md for the embed content model.
+
+    # Fields in embed TOON content that contain quotable text, ordered by priority
+    _QUOTABLE_TOON_FIELDS = (
+        "title", "description", "extra_snippets", "markdown", "html",
+        "code", "table", "transcript",
+    )
+
+    async def verify_quote_in_embed(
+        self,
+        embed_id: str,
+        quoted_text: str,
+        user_vault_key_id: str,
+        log_prefix: str = "",
+    ) -> bool:
+        """
+        Check whether `quoted_text` appears (case-insensitive substring) in the
+        textual content of the embed identified by `embed_id`.
+
+        For composite embeds (web/news search) that have child embeds, the search
+        is performed on the parent embed's own content only — the caller should
+        resolve the correct child embed_id from the embed_ref before calling.
+
+        Args:
+            embed_id: UUID of the embed to search within.
+            quoted_text: The exact text the LLM claims comes from this embed.
+            user_vault_key_id: Vault key for decrypting the embed cache.
+            log_prefix: Logging prefix.
+
+        Returns:
+            True if `quoted_text` was found in the embed content, False otherwise.
+        """
+        if not quoted_text or not embed_id:
+            return False
+
+        toon_str = await self._get_cached_embed_toon(embed_id, user_vault_key_id, log_prefix)
+        if not toon_str:
+            logger.warning(
+                f"{log_prefix} [QUOTE_VERIFY] Embed {embed_id} not in cache — "
+                f"cannot verify quote, treating as unverifiable"
+            )
+            # If the embed is no longer in cache, we can't verify — don't flag as wrong
+            return True
+
+        try:
+            decoded = decode(toon_str)
+        except Exception as e:
+            logger.warning(f"{log_prefix} [QUOTE_VERIFY] Failed to decode TOON for {embed_id}: {e}")
+            return True  # Can't verify — don't penalise
+
+        quote_lower = quoted_text.lower().strip()
+        if not quote_lower:
+            return False
+
+        # Search through all quotable fields
+        searchable_text = self._extract_searchable_text(decoded)
+        return quote_lower in searchable_text.lower()
+
+    @classmethod
+    def _extract_searchable_text(cls, decoded: Any) -> str:
+        """
+        Extract all searchable text from a decoded TOON embed content dict.
+        Handles both flat dicts and nested results arrays (web-read, composite embeds).
+
+        Returns a single concatenated string of all quotable content.
+        """
+        if not isinstance(decoded, dict):
+            return str(decoded) if decoded else ""
+
+        parts: list[str] = []
+
+        # Collect text from top-level quotable fields
+        for field in cls._QUOTABLE_TOON_FIELDS:
+            val = decoded.get(field)
+            if isinstance(val, str) and val:
+                # extra_snippets is pipe-delimited
+                if field == "extra_snippets":
+                    parts.extend(val.split("|"))
+                else:
+                    parts.append(val)
+
+        # Handle nested results array (web-read, multi-result embeds)
+        results = decoded.get("results")
+        if isinstance(results, list):
+            for item in results:
+                if isinstance(item, dict):
+                    for field in cls._QUOTABLE_TOON_FIELDS:
+                        val = item.get(field)
+                        if isinstance(val, str) and val:
+                            if field == "extra_snippets":
+                                parts.extend(val.split("|"))
+                            else:
+                                parts.append(val)
+
+        return " ".join(parts)

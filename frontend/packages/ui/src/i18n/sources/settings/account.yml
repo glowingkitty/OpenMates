@@ -1,0 +1,2966 @@
+username:
+  context: Username submenu item label in Account settings — also used as the page title
+  en: Username
+  de: Benutzername
+  zh: 用户名
+  es: Nombre de usuario
+  fr: Nom d'utilisateur
+  pt: Nome de usuário
+  ru: Имя пользователя
+  ja: ユーザー名
+  ko: 사용자 이름
+  it: Nome utente
+  tr: Kullanıcı adı
+  vi: Tên người dùng
+  id: Nama pengguna
+  pl: Nazwa użytkownika
+  nl: Gebruikersnaam
+  ar: اسم المستخدم
+  hi: उपयोगकर्ता नाम
+  th: ชื่อผู้ใช้
+  cs: Uživatelské jméno
+  sv: Användarnamn
+  he: שם משתמש
+  verified_by_human: []
+username.current:
+  context: Label shown above the current username in the username settings page
+  en: Current Username
+  de: Aktueller Benutzername
+  zh: 当前用户名
+  es: Nombre de usuario actual
+  fr: Nom d'utilisateur actuel
+  pt: Nome de usuário atual
+  ru: Текущее имя пользователя
+  ja: 現在のユーザー名
+  ko: 현재 사용자 이름
+  it: Nome utente attuale
+  tr: Mevcut kullanıcı adı
+  vi: Tên người dùng hiện tại
+  id: Nama pengguna saat ini
+  pl: Aktualna nazwa użytkownika
+  nl: Huidige gebruikersnaam
+  ar: اسم المستخدم الحالي
+  hi: वर्तमान उपयोगकर्ता नाम
+  th: ชื่อผู้ใช้ปัจจุบัน
+  cs: Aktuální uživatelské jméno
+  sv: Nuvarande användarnamn
+  he: שם משתמש נוכחי
+  verified_by_human: []
+username.new:
+  context: Label for the new username input field
+  en: New Username
+  de: Neuer Benutzername
+  zh: 新用户名
+  es: Nuevo nombre de usuario
+  fr: Nouveau nom d'utilisateur
+  pt: Novo nome de usuário
+  ru: Новое имя пользователя
+  ja: 新しいユーザー名
+  ko: 새 사용자 이름
+  it: Nuovo nome utente
+  tr: Yeni kullanıcı adı
+  vi: Tên người dùng mới
+  id: Nama pengguna baru
+  pl: Nowa nazwa użytkownika
+  nl: Nieuwe gebruikersnaam
+  ar: اسم المستخدم الجديد
+  hi: नया उपयोगकर्ता नाम
+  th: ชื่อผู้ใช้ใหม่
+  cs: Nové uživatelské jméno
+  sv: Nytt användarnamn
+  he: שם משתמש חדש
+  verified_by_human: []
+username.placeholder:
+  context: Placeholder text for the username input field
+  en: e.g. jane.doe
+  de: z. B. jane.doe
+  zh: 例如 jane.doe
+  es: p. ej. jane.doe
+  fr: ex. jane.doe
+  pt: ex. jane.doe
+  ru: например, jane.doe
+  ja: 例：jane.doe
+  ko: "예: jane.doe"
+  it: es. jane.doe
+  tr: ör. jane.doe
+  vi: vd. jane.doe
+  id: mis. jane.doe
+  pl: np. jane.doe
+  nl: bijv. jane.doe
+  ar: "مثال: jane.doe"
+  hi: जैसे jane.doe
+  th: เช่น jane.doe
+  cs: např. jane.doe
+  sv: t.ex. jane.doe
+  he: למשל jane.doe
+  verified_by_human: []
+username.save:
+  context: Save button label on the username settings page
+  en: Save Username
+  de: Benutzername speichern
+  zh: 保存用户名
+  es: Guardar nombre de usuario
+  fr: Enregistrer le nom d'utilisateur
+  pt: Salvar nome de usuário
+  ru: Сохранить имя пользователя
+  ja: ユーザー名を保存
+  ko: 사용자 이름 저장
+  it: Salva nome utente
+  tr: Kullanıcı adını kaydet
+  vi: Lưu tên người dùng
+  id: Simpan nama pengguna
+  pl: Zapisz nazwę użytkownika
+  nl: Gebruikersnaam opslaan
+  ar: حفظ اسم المستخدم
+  hi: उपयोगकर्ता नाम सहेजें
+  th: บันทึกชื่อผู้ใช้
+  cs: Uložit uživatelské jméno
+  sv: Spara användarnamn
+  he: שמירת שם משתמש
+  verified_by_human: []
+username.saving:
+  context: Button label while the username save request is in progress
+  en: Saving…
+  de: Wird gespeichert…
+  zh: 保存中…
+  es: Guardando…
+  fr: Enregistrement…
+  pt: Salvando…
+  ru: Сохранение…
+  ja: 保存中…
+  ko: 저장 중…
+  it: Salvataggio…
+  tr: Kaydediliyor…
+  vi: Đang lưu…
+  id: Menyimpan…
+  pl: Zapisywanie…
+  nl: Opslaan…
+  ar: جاري الحفظ…
+  hi: सहेजा जा रहा है…
+  th: กำลังบันทึก…
+  cs: Ukládání…
+  sv: Sparar…
+  he: שומר…
+  verified_by_human: []
+username.success:
+  context: Success message shown after username is successfully updated
+  en: Username updated
+  de: Benutzername aktualisiert
+  zh: 用户名已更新
+  es: Nombre de usuario actualizado
+  fr: Nom d'utilisateur mis à jour
+  pt: Nome de usuário atualizado
+  ru: Имя пользователя обновлено
+  ja: ユーザー名が更新されました
+  ko: 사용자 이름이 업데이트되었습니다
+  it: Nome utente aggiornato
+  tr: Kullanıcı adı güncellendi
+  vi: Tên người dùng đã được cập nhật
+  id: Nama pengguna diperbarui
+  pl: Nazwa użytkownika zaktualizowana
+  nl: Gebruikersnaam bijgewerkt
+  ar: تم تحديث اسم المستخدم
+  hi: उपयोगकर्ता नाम अपडेट किया गया
+  th: อัปเดตชื่อผู้ใช้แล้ว
+  cs: Uživatelské jméno aktualizováno
+  sv: Användarnamn uppdaterat
+  he: שם המשתמש עודכן
+  verified_by_human: []
+username.error_length:
+  context: Validation error when username is too short or too long (3–20 chars)
+  en: Username must be between 3 and 20 characters
+  de: Benutzername muss zwischen 3 und 20 Zeichen lang sein
+  zh: 用户名必须在 3 到 20 个字符之间
+  es: El nombre de usuario debe tener entre 3 y 20 caracteres
+  fr: Le nom d'utilisateur doit contenir entre 3 et 20 caractères
+  pt: O nome de usuário deve ter entre 3 e 20 caracteres
+  ru: Имя пользователя должно содержать от 3 до 20 символов
+  ja: ユーザー名は3〜20文字である必要があります
+  ko: 사용자 이름은 3자에서 20자 사이여야 합니다
+  it: Il nome utente deve essere compreso tra 3 e 20 caratteri
+  tr: Kullanıcı adı 3 ile 20 karakter arasında olmalıdır
+  vi: Tên người dùng phải từ 3 đến 20 ký tự
+  id: Nama pengguna harus antara 3 dan 20 karakter
+  pl: Nazwa użytkownika musi mieć od 3 do 20 znaków
+  nl: Gebruikersnaam moet tussen 3 en 20 tekens lang zijn
+  ar: يجب أن يتراوح اسم المستخدم بين 3 و 20 حرفًا
+  hi: उपयोगकर्ता नाम 3 से 20 अक्षरों के बीच होना चाहिए
+  th: ชื่อผู้ใช้ต้องมีความยาวระหว่าง 3 ถึง 20 ตัวอักษร
+  cs: Uživatelské jméno musí mít délku 3 až 20 znaků
+  sv: Användarnamnet måste vara mellan 3 och 20 tecken
+  he: שם המשתמש חייב להכיל בין 3 ל-20 תווים
+  verified_by_human: []
+username.error_no_letter:
+  context: Validation error when username contains no letters
+  en: Username must contain at least one letter
+  de: Benutzername muss mindestens einen Buchstaben enthalten
+  zh: 用户名必须包含至少一个字母
+  es: El nombre de usuario debe contener al menos una letra
+  fr: Le nom d'utilisateur doit contenir au moins une lettre
+  pt: O nome de usuário deve conter pelo menos uma letra
+  ru: Имя пользователя должно содержать хотя бы одну букву
+  ja: ユーザー名には少なくとも1文字含める必要があります
+  ko: 사용자 이름에는 최소 한 개의 문자가 포함되어야 합니다
+  it: Il nome utente deve contenere almeno una lettera
+  tr: Kullanıcı adı en az bir harf içermelidir
+  vi: Tên người dùng phải chứa ít nhất một chữ cái
+  id: Nama pengguna harus mengandung setidaknya satu huruf
+  pl: Nazwa użytkownika musi zawierać co najmniej jedną literę
+  nl: Gebruikersnaam moet minimaal één letter bevatten
+  ar: يجب أن يحتوي اسم المستخدم على حرف واحد على الأقل
+  hi: उपयोगकर्ता नाम में कम से कम एक अक्षर होना चाहिए
+  th: ชื่อผู้ใช้ต้องมีตัวอักษรอย่างน้อยหนึ่งตัว
+  cs: Uživatelské jméno musí obsahovat alespoň jedno písmeno
+  sv: Användarnamnet måste innehålla minst en bokstav
+  he: שם המשתמש חייב להכיל לפחות אות אחת
+  verified_by_human: []
+username.error_invalid_chars:
+  context: Validation error when username contains characters that are not allowed
+  en: Username can only contain letters, numbers, dots and underscores
+  de: Benutzername darf nur Buchstaben, Zahlen, Punkte und Unterstriche enthalten
+  zh: 用户名只能包含字母、数字、点和下划线
+  es: El nombre de usuario solo puede contener letras, números, puntos y guiones bajos
+  fr: Le nom d'utilisateur ne peut contenir que des lettres, des chiffres, des points et des traits de soulignement
+  pt: O nome de usuário só pode conter letras, números, pontos e sublinhados
+  ru: Имя пользователя может содержать только буквы, цифры, точки и символы подчёркивания
+  ja: ユーザー名には文字、数字、ドット、アンダースコアのみ使用できます
+  ko: 사용자 이름은 문자, 숫자, 점 및 밑줄만 포함할 수 있습니다
+  it: Il nome utente può contenere solo lettere, numeri, punti e trattini bassi
+  tr: Kullanıcı adı yalnızca harf, rakam, nokta ve alt çizgi içerebilir
+  vi: Tên người dùng chỉ có thể chứa chữ cái, số, dấu chấm và dấu gạch dưới
+  id: Nama pengguna hanya boleh mengandung huruf, angka, titik, dan garis bawah
+  pl: Nazwa użytkownika może zawierać tylko litery, cyfry, kropki i podkreślenia
+  nl: Gebruikersnaam mag alleen letters, cijfers, punten en underscores bevatten
+  ar: يمكن أن يحتوي اسم المستخدم فقط على حروف وأرقام ونقاط وشرطات سفلية
+  hi: उपयोगकर्ता नाम में केवल अक्षर, संख्याएं, डॉट्स और अंडरस्कोर हो सकते हैं
+  th: ชื่อผู้ใช้สามารถประกอบด้วยตัวอักษร ตัวเลข จุด และขีดล่างเท่านั้น
+  cs: Uživatelské jméno může obsahovat pouze písmena, číslice, tečky a podtržítka
+  sv: Användarnamnet får endast innehålla bokstäver, siffror, punkter och understreck
+  he: שם המשתמש יכול להכיל רק אותיות, מספרים, נקודות וקווים תחתונים
+  verified_by_human: []
+username.error_taken:
+  context: Error shown when the new username is already in use by another account
+  en: This username is already taken. Please choose another one.
+  de: Dieser Benutzername ist bereits vergeben. Bitte wähle einen anderen.
+  zh: 该用户名已被使用，请选择其他用户名。
+  es: Este nombre de usuario ya está en uso. Por favor, elige otro.
+  fr: Ce nom d'utilisateur est déjà pris. Veuillez en choisir un autre.
+  pt: Este nome de usuário já está em uso. Por favor, escolha outro.
+  ru: Это имя пользователя уже занято. Пожалуйста, выберите другое.
+  ja: このユーザー名はすでに使用されています。別のユーザー名を選んでください。
+  ko: 이 사용자 이름은 이미 사용 중입니다. 다른 이름을 선택해 주세요.
+  it: Questo nome utente è già in uso. Per favore, scegline un altro.
+  tr: Bu kullanıcı adı zaten alınmış. Lütfen başka birini seçin.
+  vi: Tên người dùng này đã được sử dụng. Vui lòng chọn tên khác.
+  id: Nama pengguna ini sudah digunakan. Silakan pilih yang lain.
+  pl: Ta nazwa użytkownika jest już zajęta. Proszę wybrać inną.
+  nl: Deze gebruikersnaam is al in gebruik. Kies een andere naam.
+  ar: اسم المستخدم هذا مأخوذ بالفعل. يرجى اختيار اسم آخر.
+  hi: यह उपयोगकर्ता नाम पहले से उपयोग में है। कृपया कोई अन्य नाम चुनें।
+  th: ชื่อผู้ใช้นี้ถูกใช้ไปแล้ว กรุณาเลือกชื่ออื่น
+  cs: Toto uživatelské jméno je již obsazeno. Prosím zvolte jiné.
+  sv: ""
+  he: שם המשתמש הזה כבר תפוס. אנא בחר שם אחר.
+  verified_by_human: []
+username.error_failed:
+  context: Generic error when username update fails on the server
+  en: Failed to update username. Please try again.
+  de: Benutzername konnte nicht aktualisiert werden. Bitte versuche es erneut.
+  zh: 更新用户名失败，请重试。
+  es: No se pudo actualizar el nombre de usuario. Inténtalo de nuevo.
+  fr: Impossible de mettre à jour le nom d'utilisateur. Veuillez réessayer.
+  pt: Falha ao atualizar o nome de usuário. Por favor, tente novamente.
+  ru: Не удалось обновить имя пользователя. Пожалуйста, попробуйте снова.
+  ja: ユーザー名の更新に失敗しました。再試行してください。
+  ko: 사용자 이름을 업데이트하지 못했습니다. 다시 시도해 주세요.
+  it: Impossibile aggiornare il nome utente. Per favore, riprova.
+  tr: Kullanıcı adı güncellenemedi. Lütfen tekrar deneyin.
+  vi: Không thể cập nhật tên người dùng. Vui lòng thử lại.
+  id: Gagal memperbarui nama pengguna. Silakan coba lagi.
+  pl: Nie udało się zaktualizować nazwy użytkownika. Spróbuj ponownie.
+  nl: Gebruikersnaam bijwerken mislukt. Probeer het opnieuw.
+  ar: فشل تحديث اسم المستخدم. يرجى المحاولة مرة أخرى.
+  hi: उपयोगकर्ता नाम अपडेट करने में विफल। कृपया पुनः प्रयास करें।
+  th: ไม่สามารถอัปเดตชื่อผู้ใช้ได้ กรุณาลองอีกครั้ง
+  cs: Aktualizace uživatelského jména selhala. Zkuste to prosím znovu.
+  sv: Det gick inte att uppdatera användarnamnet. Försök igen.
+  he: עדכון שם המשתמש נכשל. יש לנסות שוב.
+  verified_by_human: []
+username.info:
+  context: Informational note at the bottom of the username settings page explaining what the username is used for
+  en: Your username is your display name across OpenMates. It must be 3–20 characters and can contain letters, numbers, dots and underscores.
+  de: Dein Benutzername ist dein Anzeigename in OpenMates. Er muss 3–20 Zeichen lang sein und kann Buchstaben, Zahlen, Punkte und Unterstriche enthalten.
+  zh: 您的用户名是您在 OpenMates 中的显示名称。它必须是 3–20 个字符，可以包含字母、数字、点和下划线。
+  es: Tu nombre de usuario es tu nombre para mostrar en OpenMates. Debe tener entre 3 y 20 caracteres y puede contener letras, números, puntos y guiones bajos.
+  fr: Votre nom d'utilisateur est votre nom d'affichage sur OpenMates. Il doit comporter entre 3 et 20 caractères et peut contenir des lettres, des chiffres, des points et des traits de soulignement.
+  pt: Seu nome de usuário é seu nome de exibição no OpenMates. Deve ter entre 3 e 20 caracteres e pode conter letras, números, pontos e sublinhados.
+  ru: Ваше имя пользователя — это ваше отображаемое имя в OpenMates. Оно должно содержать от 3 до 20 символов и может включать буквы, цифры, точки и символы подчёркивания.
+  ja: ユーザー名はOpenMatesでの表示名です。3〜20文字で、文字、数字、ドット、アンダースコアを使用できます。
+  ko: 사용자 이름은 OpenMates에서의 표시 이름입니다. 3~20자여야 하며 문자, 숫자, 점 및 밑줄을 포함할 수 있습니다.
+  it: Il tuo nome utente è il nome visualizzato su OpenMates. Deve contenere 3–20 caratteri e può includere lettere, numeri, punti e trattini bassi.
+  tr: Kullanıcı adınız OpenMates'teki görünen adınızdır. 3–20 karakter olmalı ve harfler, rakamlar, noktalar ve alt çizgiler içerebilir.
+  vi: Tên người dùng của bạn là tên hiển thị trên OpenMates. Phải có từ 3–20 ký tự và có thể chứa chữ cái, số, dấu chấm và dấu gạch dưới.
+  id: Nama pengguna Anda adalah nama tampilan Anda di OpenMates. Harus terdiri dari 3–20 karakter dan dapat berisi huruf, angka, titik, dan garis bawah.
+  pl: Twoja nazwa użytkownika to Twoja nazwa wyświetlana w OpenMates. Musi mieć od 3 do 20 znaków i może zawierać litery, cyfry, kropki i podkreślenia.
+  nl: Uw gebruikersnaam is uw weergavenaam in OpenMates. Deze moet 3–20 tekens lang zijn en kan letters, cijfers, punten en underscores bevatten.
+  ar: اسم المستخدم الخاص بك هو اسمك المعروض على OpenMates. يجب أن يتراوح بين 3 و 20 حرفًا ويمكن أن يحتوي على حروف وأرقام ونقاط وشرطات سفلية.
+  hi: आपका उपयोगकर्ता नाम OpenMates में आपका प्रदर्शन नाम है। यह 3–20 अक्षरों का होना चाहिए और इसमें अक्षर, संख्याएं, डॉट्स और अंडरस्कोर हो सकते हैं।
+  th: ชื่อผู้ใช้ของคุณคือชื่อที่แสดงใน OpenMates ต้องมีความยาว 3–20 ตัวอักษร และสามารถประกอบด้วยตัวอักษร ตัวเลข จุด และขีดล่าง
+  cs: Vaše uživatelské jméno je vaše zobrazovací jméno v OpenMates. Musí mít délku 3–20 znaků a může obsahovat písmena, číslice, tečky a podtržítka.
+  sv: Ditt användarnamn är ditt visningsnamn på OpenMates. Det måste vara 3–20 tecken och kan innehålla bokstäver, siffror, punkter och understreck.
+  he: שם המשתמש שלך הוא שם התצוגה שלך ב-OpenMates. עליו להכיל 3–20 תווים ויכול לכלול אותיות, מספרים, נקודות וקווים תחתונים.
+  verified_by_human: []
+description:
+  context: Short description shown in the account settings page gradient banner header
+  en: Manage your profile, authentication and account settings
+  de: Verwalte dein Profil, Authentifizierung und Kontoeinstellungen
+  zh: 管理您的个人资料、身份验证和账户设置
+  es: Gestiona tu perfil, autenticación y configuración de cuenta
+  fr: Gérez votre profil, l'authentification et les paramètres du compte
+  pt: ""
+  ru: ""
+  ja: プロフィール、認証、アカウント設定を管理する
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: إدارة ملفك الشخصي وإعدادات المصادقة والحساب
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: ניהול הפרופיל, האימות והגדרות החשבון
+  verified_by_human: []
+account:
+  context: Account settings menu item
+  en: Account
+  de: Konto
+  zh: 账户
+  es: Cuenta
+  fr: Compte
+  pt: Conta
+  ru: Аккаунт
+  ja: アカウント
+  ko: 계정
+  it: Account
+  tr: Hesap
+  vi: Tài khoản
+  id: Akun
+  pl: Konto
+  nl: Account
+  ar: حساب
+  hi: खाता
+  th: บัญชี
+  cs: Účet
+  sv: Konto
+  he: חשבון
+  verified_by_human: []
+email:
+  context: Email submenu item
+  en: E-mail
+  de: E-Mail
+  ar: البريد الإلكتروني
+  he: אימייל
+email.loading:
+  context: Loading message for email decryption
+  en: Decrypting e-mail address...
+  de: E-Mail-Adresse wird entschlüsselt...
+  ar: جارٍ فك تشفير عنوان البريد الإلكتروني...
+  he: מפענח כתובת אימייל...
+email.current_email:
+  context: Header for current email address
+  en: Current E-mail Address
+  de: Aktuelle E-Mail-Adresse
+  ar: عنوان البريد الإلكتروني الحالي
+  he: כתובת אימייל נוכחית
+email.privacy_info:
+  context: Privacy information about email storage
+  en: >-
+    Your e-mail address is stored encrypted on your device and the server.
+    Only you can decrypt it using your master key.
+  de: >-
+    Ihre E-Mail-Adresse wird verschlüsselt auf Ihrem Gerät und dem Server gespeichert.
+    Nur Sie können sie mit Ihrem Hauptschlüssel entschlüsseln.
+  ar: >-
+    يتم تخزين عنوان بريدك الإلكتروني بشكل مشفر على جهازك والخادم.
+    أنت وحدك يمكنك فك تشفيره باستخدام مفتاحك الرئيسي.
+  he: כתובת האימייל שלך נשמרת מוצפנת במכשיר שלך ובשרת. רק לך יש אפשרות לפענח אותה באמצעות מפתח המאסטר שלך.
+email.copied:
+  context: Notification shown when email address is copied to clipboard
+  en: E-mail address copied to clipboard
+  de: E-Mail-Adresse in die Zwischenablage kopiert
+  ar: تم نسخ عنوان البريد الإلكتروني إلى الحافظة
+  he: כתובת האימייל הועתקה ללוח
+email.error_decrypting:
+  context: Error message when email decryption fails
+  en: Failed to decrypt e-mail address.
+  de: E-Mail-Adresse konnte nicht entschlüsselt werden.
+  ar: فشل فك تشفير عنوان البريد الإلكتروني.
+  he: פענוח כתובת האימייל נכשל.
+security:
+  context: Security submenu under Account settings
+  en: Security
+  de: Sicherheit
+  zh: 安全
+  es: Seguridad
+  fr: Sécurité
+  pt: Segurança
+  ru: Безопасность
+  ja: セキュリティ
+  ko: 보안
+  it: Sicurezza
+  tr: Güvenlik
+  vi: Bảo mật
+  id: Keamanan
+  pl: Bezpieczeństwo
+  nl: Beveiliging
+  ar: الأمان
+  hi: सुरक्षा
+  th: ความปลอดภัย
+  cs: Zabezpečení
+  sv: Säkerhet
+  he: אבטחה
+  verified_by_human: []
+passkeys:
+  context: Passkeys submenu under Security settings
+  en: Passkeys
+  de: Passkeys
+  zh: 通行密钥
+  es: Claves de acceso
+  fr: Clés d'accès
+  pt: Chaves de acesso
+  ru: Ключи доступа
+  ja: パスキー
+  ko: 패스키
+  it: Chiavi di accesso
+  tr: Erişim anahtarları
+  vi: Khóa truy cập
+  id: Kunci akses
+  pl: Klucze dostępu
+  nl: Toegangssleutels
+  ar: مفاتيح الوصول
+  hi: पासकी
+  th: คีย์การเข้าถึง
+  cs: Přístupové klíče
+  sv: Åtkomstnycklar
+  he: מפתחות גישה
+  verified_by_human: []
+profile_picture:
+  context: Profile picture submenu under Account settings — menu item label and page title
+  en: Profile picture
+  de: Profilbild
+  zh: 个人头像
+  es: Foto de perfil
+  fr: Photo de profil
+  pt: Foto de perfil
+  ru: Фото профиля
+  ja: プロフィール写真
+  ko: 프로필 사진
+  it: Foto del profilo
+  tr: Profil fotoğrafı
+  vi: Ảnh đại diện
+  id: Foto profil
+  pl: Zdjęcie profilowe
+  nl: Profielfoto
+  ar: صورة الملف الشخصي
+  hi: प्रोफ़ाइल चित्र
+  th: รูปโปรไฟล์
+  cs: Profilový obrázek
+  sv: Profilbild
+  he: תמונת פרופיל
+  verified_by_human: []
+profile_picture.upload:
+  context: Upload button label on the profile picture settings page
+  en: Upload new picture
+  de: Neues Bild hochladen
+  zh: 上传新图片
+  es: Subir nueva foto
+  fr: Télécharger une nouvelle photo
+  pt: ""
+  ru: ""
+  ja: 新しい画像をアップロード
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: تحميل صورة جديدة
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: העלאת תמונה חדשה
+  verified_by_human: []
+profile_picture.uploading:
+  context: Status message shown while profile picture is being uploaded
+  en: Uploading…
+  de: Wird hochgeladen…
+  zh: 上传中…
+  es: Subiendo…
+  fr: Téléchargement…
+  pt: ""
+  ru: ""
+  ja: アップロード中…
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: جارٍ التحميل…
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: מעלה…
+  verified_by_human: []
+profile_picture.upload_success:
+  context: Success message shown after profile picture is successfully uploaded
+  en: Profile picture updated
+  de: Profilbild aktualisiert
+  zh: 头像已更新
+  es: Foto de perfil actualizada
+  fr: Photo de profil mise à jour
+  pt: ""
+  ru: ""
+  ja: プロフィール写真が更新されました
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: تم تحديث صورة الملف الشخصي
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: תמונת הפרופיל עודכנה
+  verified_by_human: []
+profile_picture.upload_error:
+  context: Generic error message shown when profile picture upload fails unexpectedly
+  en: Upload failed. Please try again.
+  de: Upload fehlgeschlagen. Bitte versuche es erneut.
+  zh: 上传失败，请重试。
+  es: Error al subir. Inténtalo de nuevo.
+  fr: Échec du téléchargement. Veuillez réessayer.
+  pt: ""
+  ru: ""
+  ja: アップロードに失敗しました。再試行してください。
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: فشل التحميل. يرجى المحاولة مرة أخرى.
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: ההעלאה נכשלה. יש לנסות שוב.
+  verified_by_human: []
+profile_picture.file_too_large:
+  context: Error message shown when selected profile picture file is too large (max 20 MB before canvas processing)
+  en: Image is too large. Please choose a smaller image.
+  de: Bild ist zu groß. Bitte wähle ein kleineres Bild.
+  zh: 图片太大，请选择较小的图片。
+  es: La imagen es demasiado grande. Por favor, elige una imagen más pequeña.
+  fr: L'image est trop grande. Veuillez choisir une image plus petite.
+  pt: ""
+  ru: ""
+  ja: 画像が大きすぎます。小さい画像を選んでください。
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: الصورة كبيرة جدًا. يرجى اختيار صورة أصغر.
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: התמונה גדולה מדי. יש לבחור תמונה קטנה יותר.
+  verified_by_human: []
+profile_picture.wrong_format:
+  context: Error message shown when selected profile picture has an unsupported file type
+  en: Please choose a JPEG or PNG image.
+  de: Bitte wähle ein JPEG- oder PNG-Bild.
+  zh: 请选择 JPEG 或 PNG 格式的图片。
+  es: Por favor, elige una imagen JPEG o PNG.
+  fr: Veuillez choisir une image JPEG ou PNG.
+  pt: ""
+  ru: ""
+  ja: JPEGまたはPNG画像を選択してください。
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: يرجى اختيار صورة بتنسيق JPEG أو PNG.
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: יש לבחור תמונה בפורמט JPEG או PNG.
+  verified_by_human: []
+storage:
+  context: Storage overview submenu under Account settings (header title shown when navigating into account/storage)
+  en: Storage
+  de: Speicher
+  zh: 存储
+  es: Almacenamiento
+  fr: Stockage
+  pt: Armazenamento
+  ru: Хранилище
+  ja: ストレージ
+  ko: 저장소
+  it: Archiviazione
+  tr: Depolama
+  vi: Lưu trữ
+  id: Penyimpanan
+  pl: Przechowywanie
+  nl: Opslag
+  ar: التخزين
+  hi: संग्रहण
+  th: การจัดเก็บ
+  cs: Úložiště
+  sv: Lagring
+  he: אחסון
+  verified_by_human: []
+delete:
+  context: Delete Account submenu under Account settings
+  en: Delete
+  de: Löschen
+  zh: 删除
+  es: Eliminar
+  fr: Supprimer
+  pt: Excluir
+  ru: Удалить
+  ja: 削除
+  ko: 삭제
+  it: Elimina
+  tr: Sil
+  vi: Xóa
+  id: Hapus
+  pl: Usuń
+  nl: Verwijderen
+  ar: حذف
+  hi: हटाएं
+  th: ลบ
+  cs: Smazat
+  sv: Radera
+  he: מחיקה
+  verified_by_human: []
+delete_account_title:
+  context: Title for delete account page
+  en: Delete Your Account
+  de: Konto löschen
+  zh: 删除您的账户
+  es: Eliminar tu cuenta
+  fr: Supprimer votre compte
+  pt: Excluir sua conta
+  ru: Удалить ваш аккаунт
+  ja: アカウントを削除
+  ko: 계정 삭제
+  it: Elimina il tuo account
+  tr: Hesabınızı silin
+  vi: Xóa tài khoản của bạn
+  id: Hapus akun Anda
+  pl: Usuń swoje konto
+  nl: Verwijder uw account
+  ar: حذف حسابك
+  hi: अपना खाता हटाएं
+  th: ลบบัญชีของคุณ
+  cs: Smazat váš účet
+  sv: Ta bort ditt konto
+  he: מחיקת החשבון שלך
+  verified_by_human: []
+delete_account_loading_preview:
+  context: Loading message while fetching deletion preview
+  en: Loading deletion preview...
+  de: Löschanzeige wird geladen...
+  zh: 正在加载删除预览...
+  es: Cargando vista previa de eliminación...
+  fr: Chargement de l'aperçu de suppression...
+  pt: Carregando visualização de exclusão...
+  ru: Загрузка предварительного просмотра удаления...
+  ja: 削除プレビューを読み込み中...
+  ko: 삭제 미리보기 로드 중...
+  it: Caricamento anteprima eliminazione...
+  tr: Silme önizlemesi yükleniyor...
+  vi: Đang tải xem trước xóa...
+  id: Memuat pratinjau penghapusan...
+  pl: Ładowanie podglądu usuwania...
+  nl: Verwijderingsvoorvertoning laden...
+  ar: جاري تحميل معاينة الحذف...
+  hi: हटाने का पूर्वावलोकन लोड हो रहा है...
+  th: กำลังโหลดตัวอย่างการลบ...
+  cs: Načítání náhledu smazání...
+  sv: Laddar borttagningsförhandsvisning...
+  he: טוען תצוגה מקדימה של המחיקה...
+  verified_by_human: []
+delete_account_credits_loss_warning_title:
+  context: Title for credits loss warning
+  en: Credits Loss Warning
+  de: Warnung vor Credits-Verlust
+  zh: 积分损失警告
+  es: Advertencia de pérdida de créditos
+  fr: Avertissement de perte de crédits
+  pt: Aviso de perda de créditos
+  ru: Предупреждение о потере кредитов
+  ja: クレジット損失の警告
+  ko: 크레딧 손실 경고
+  it: Avviso di perdita crediti
+  tr: Kredi kaybı uyarısı
+  vi: Cảnh báo mất tín dụng
+  id: Peringatan kehilangan kredit
+  pl: Ostrzeżenie o utracie kredytów
+  nl: Waarschuwing voor creditsverlies
+  ar: تحذير فقدان الرصيد
+  hi: क्रेडिट हानि चेतावनी
+  th: คำเตือนการสูญเสียเครดิต
+  cs: Varování před ztrátou kreditů
+  sv: Varning för kreditförlust
+  he: אזהרת אובדן קרדיטים
+  verified_by_human: []
+delete_account_credits_loss_warning_message:
+  context: Message about credits loss
+  en: You will lose {count} credits that are older than 14 days. These credits cannot be refunded.
+  de: Sie verlieren {count} Credits, die älter als 14 Tage sind. Diese Credits können nicht erstattet werden.
+  zh: 您将丢失超过 14 天的 {count} 个积分。这些积分无法退款。
+  es: Perderá {count} créditos que tienen más de 14 días. Estos créditos no se pueden reembolsar.
+  fr: Vous perdrez {count} crédits qui ont plus de 14 jours. Ces crédits ne peuvent pas être remboursés.
+  pt: Você perderá {count} créditos com mais de 14 dias. Esses créditos não podem ser reembolsados.
+  ru: Вы потеряете {count} кредитов, которым больше 14 дней. Эти кредиты не могут быть возвращены.
+  ja: 14日を超える {count} クレジットを失います。これらのクレジットは返金できません。
+  ko: 14일 이상 된 {count} 크레딧을 잃게 됩니다. 이러한 크레딧은 환불할 수 없습니다.
+  it: Perderai {count} crediti che hanno più di 14 giorni. Questi crediti non possono essere rimborsati.
+  tr: 14 günden eski {count} krediyi kaybedeceksiniz. Bu krediler iade edilemez.
+  vi: Bạn sẽ mất {count} tín dụng có hơn 14 ngày. Những tín dụng này không thể hoàn lại.
+  id: Anda akan kehilangan {count} kredit yang berusia lebih dari 14 hari. Kredit ini tidak dapat dikembalikan.
+  pl: Stracisz {count} kredytów, które mają więcej niż 14 dni. Te kredyty nie mogą być zwrócone.
+  nl: U verliest {count} credits die ouder zijn dan 14 dagen. Deze credits kunnen niet worden terugbetaald.
+  ar: ستفقد {count} رصيدًا أقدم من 14 يومًا. لا يمكن استرداد هذه الرصيد.
+  hi: आप 14 दिनों से अधिक पुराने {count} क्रेडिट खो देंगे। ये क्रेडिट वापस नहीं किए जा सकते।
+  th: คุณจะสูญเสีย {count} เครดิตที่มีอายุมากกว่า 14 วัน เครดิตเหล่านี้ไม่สามารถคืนเงินได้
+  cs: Ztratíte {count} kreditů, které jsou starší než 14 dní. Tyto kredity nelze vrátit.
+  sv: Du kommer att förlora {count} krediter som är äldre än 14 dagar. Dessa krediter kan inte återbetalas.
+  he: "תאבד {count} קרדיטים שגילם עולה על 14 ימים. לא ניתן לקבל החזר על קרדיטים אלו."
+  verified_by_human: []
+delete_account_credits_loss_warning_confirm:
+  context: Confirmation checkbox for credits loss
+  en: I understand that I will lose {count} credits older than 14 days
+  de: Ich verstehe, dass ich {count} Credits verlieren werde, die älter als 14 Tage sind
+  zh: 我理解我将丢失超过 14 天的 {count} 个积分
+  es: Entiendo que perderé {count} créditos con más de 14 días
+  fr: Je comprends que je perdrai {count} crédits de plus de 14 jours
+  pt: Entendo que perderei {count} créditos com mais de 14 dias
+  ru: Я понимаю, что потеряю {count} кредитов старше 14 дней
+  ja: 14日を超える {count} クレジットを失うことを理解しています
+  ko: 14일 이상 된 {count} 크레딧을 잃게 됨을 이해합니다
+  it: Capisco che perderò {count} crediti con più di 14 giorni
+  tr: 14 günden eski {count} krediyi kaybedeceğimi anlıyorum
+  vi: Tôi hiểu rằng tôi sẽ mất {count} tín dụng có hơn 14 ngày
+  id: Saya memahami bahwa saya akan kehilangan {count} kredit yang berusia lebih dari 14 hari
+  pl: Rozumiem, że stracę {count} kredytów starszych niż 14 dni
+  nl: Ik begrijp dat ik {count} credits ouder dan 14 dagen zal verliezen
+  ar: أفهم أنني سأفقد {count} رصيدًا أقدم من 14 يومًا
+  hi: मैं समझता हूं कि मैं 14 दिनों से अधिक पुराने {count} क्रेडिट खो दूंगा
+  th: ฉันเข้าใจว่าฉันจะสูญเสีย {count} เครดิตที่มีอายุมากกว่า 14 วัน
+  cs: Rozumím, že ztratím {count} kreditů starších než 14 dní
+  sv: Jag förstår att jag kommer att förlora {count} krediter som är äldre än 14 dagar
+  he: "אני מבין שאאבד {count} קרדיטים שגילם עולה על 14 ימים"
+  verified_by_human: []
+delete_account_auto_refund_title:
+  context: Title for auto-refund information
+  en: Automatic Refunds
+  de: Automatische Rückerstattungen
+  zh: 自动退款
+  es: Reembolsos automáticos
+  fr: Remboursements automatiques
+  pt: Reembolsos automáticos
+  ru: Автоматические возвраты
+  ja: 自動返金
+  ko: 자동 환불
+  it: Rimborsi automatici
+  tr: Otomatik iadeler
+  vi: Hoàn tiền tự động
+  id: Pengembalian dana otomatis
+  pl: Automatyczne zwroty
+  nl: Automatische terugbetalingen
+  ar: المبالغ المستردة التلقائية
+  hi: स्वचालित धनवापसी
+  th: การคืนเงินอัตโนมัติ
+  cs: Automatické vrácení peněz
+  sv: Automatiska återbetalningar
+  he: החזרים אוטומטיים
+  verified_by_human: []
+delete_account_auto_refund_description:
+  context: Description of auto-refund process
+  en: Purchases from the last 14 days with unused credits will be automatically refunded.
+  de: Käufe der letzten 14 Tage mit ungenutzten Credits werden automatisch erstattet.
+  zh: 过去 14 天内未使用积分的购买将自动退款。
+  es: Las compras de los últimos 14 días con créditos no utilizados se reembolsarán automáticamente.
+  fr: Les achats des 14 derniers jours avec des crédits non utilisés seront automatiquement remboursés.
+  pt: Compras dos últimos 14 dias com créditos não utilizados serão reembolsadas automaticamente.
+  ru: Покупки за последние 14 дней с неиспользованными кредитами будут автоматически возвращены.
+  ja: 未使用のクレジットがある過去14日間の購入は自動的に返金されます。
+  ko: 미사용 크레딧이 있는 지난 14일간의 구매는 자동으로 환불됩니다.
+  it: Gli acquisti degli ultimi 14 giorni con crediti non utilizzati verranno automaticamente rimborsati.
+  tr: Kullanılmayan kredileri olan son 14 günün satın alımları otomatik olarak iade edilecektir.
+  vi: Các giao dịch mua trong 14 ngày qua có tín dụng chưa sử dụng sẽ được hoàn tiền tự động.
+  id: Pembelian dari 14 hari terakhir dengan kredit yang tidak digunakan akan secara otomatis dikembalikan.
+  pl: Zakupy z ostatnich 14 dni z niewykorzystanymi kredytami zostaną automatycznie zwrócone.
+  nl: Aankopen van de afgelopen 14 dagen met ongebruikte credits worden automatisch terugbetaald.
+  ar: سيتم استرداد المشتريات من آخر 14 يومًا مع الرصيد غير المستخدم تلقائيًا.
+  hi: पिछले 14 दिनों की अप्रयुक्त क्रेडिट वाली खरीदारी स्वचालित रूप से वापस कर दी जाएगी।
+  th: การซื้อในช่วง 14 วันที่ผ่านมาพร้อมเครดิตที่ไม่ได้ใช้จะถูกคืนเงินอัตโนมัติ
+  cs: Nákupy z posledních 14 dnů s nevyužitými kredity budou automaticky vráceny.
+  sv: Köp från de senaste 14 dagarna med oanvända krediter kommer automatiskt att återbetalas.
+  he: רכישות מ-14 הימים האחרונים עם קרדיטים שלא נוצלו יוחזרו באופן אוטומטי.
+  verified_by_human: []
+delete_account_auto_refund_total_refund:
+  context: Label for total refund amount
+  en: Total Refund Amount
+  de: Gesamter Rückerstattungsbetrag
+  zh: 总退款金额
+  es: Importe total del reembolso
+  fr: Montant total du remboursement
+  pt: Valor total do reembolso
+  ru: Общая сумма возврата
+  ja: 返金総額
+  ko: 총 환불 금액
+  it: Importo totale del rimborso
+  tr: Toplam iade tutarı
+  vi: Tổng số tiền hoàn lại
+  id: Jumlah pengembalian dana total
+  pl: Całkowita kwota zwrotu
+  nl: Totaal terugbetalingsbedrag
+  ar: إجمالي مبلغ الاسترداد
+  hi: कुल धनवापसी राशि
+  th: จำนวนเงินคืนทั้งหมด
+  cs: Celková částka vrácení
+  sv: Totalt återbetalningsbelopp
+  he: סכום ההחזר הכולל
+  verified_by_human: []
+delete_account_auto_refund_unused_credits:
+  context: Label for unused credits
+  en: Unused Credits
+  de: Ungenutzte Credits
+  zh: 未使用的积分
+  es: Créditos no utilizados
+  fr: Crédits non utilisés
+  pt: Créditos não utilizados
+  ru: Неиспользованные кредиты
+  ja: 未使用のクレジット
+  ko: 미사용 크레딧
+  it: Crediti non utilizzati
+  tr: Kullanılmayan krediler
+  vi: Tín dụng chưa sử dụng
+  id: Kredit yang tidak digunakan
+  pl: Niewykorzystane kredyty
+  nl: Ongebruikte credits
+  ar: الرصيد غير المستخدم
+  hi: अप्रयुक्त क्रेडिट
+  th: เครดิตที่ไม่ได้ใช้
+  cs: Nevyužité kredity
+  sv: Oanvända krediter
+  he: קרדיטים שלא נוצלו
+  verified_by_human: []
+delete_account_auto_refund_eligible_invoices:
+  context: Label for eligible invoices count
+  en: Eligible Invoices
+  de: Berechtigte Rechnungen
+  zh: 符合条件的发票
+  es: Facturas elegibles
+  fr: Factures éligibles
+  pt: Faturas elegíveis
+  ru: Подходящие счета
+  ja: 対象となる請求書
+  ko: 자격이 있는 청구서
+  it: Fatture idonee
+  tr: Uygun faturalar
+  vi: Hóa đơn đủ điều kiện
+  id: Faktur yang memenuhi syarat
+  pl: Uprawnione faktury
+  nl: In aanmerking komende facturen
+  ar: الفواتير المؤهلة
+  hi: पात्र चालान
+  th: ใบแจ้งหนี้ที่เหมาะสม
+  cs: Oprávněné faktury
+  sv: Berättigade fakturor
+  he: חשבוניות זכאיות
+  verified_by_human: []
+delete_account_auto_refund_gift_cards:
+  context: Label for gift cards
+  en: Gift Cards
+  de: Geschenkkarten
+  zh: 礼品卡
+  es: Tarjetas de regalo
+  fr: Cartes cadeaux
+  pt: Cartões-presente
+  ru: Подарочные карты
+  ja: ギフトカード
+  ko: 기프트 카드
+  it: Carte regalo
+  tr: Hediye kartları
+  vi: Thẻ quà tặng
+  id: Kartu hadiah
+  pl: Karty podarunkowe
+  nl: Cadeaukaarten
+  ar: بطاقات الهدايا
+  hi: उपहार कार्ड
+  th: บัตรของขวัญ
+  cs: Dárkové karty
+  sv: Presentkort
+  he: כרטיסי מתנה
+  verified_by_human: []
+delete_account_auto_refund_gift_cards_note:
+  context: Note about gift cards
+  en: (Cannot be refunded once used)
+  de: (Kann nicht erstattet werden, sobald verwendet)
+  zh: （使用后无法退款）
+  es: (No se puede reembolsar una vez usado)
+  fr: (Ne peut pas être remboursé une fois utilisé)
+  pt: (Não pode ser reembolsado após o uso)
+  ru: (Не может быть возвращен после использования)
+  ja: （使用後は返金できません）
+  ko: (사용 후 환불 불가)
+  it: (Non può essere rimborsato una volta utilizzato)
+  tr: (Kullanıldıktan sonra iade edilemez)
+  vi: (Không thể hoàn lại sau khi sử dụng)
+  id: (Tidak dapat dikembalikan setelah digunakan)
+  pl: (Nie można zwrócić po użyciu)
+  nl: (Kan niet worden terugbetaald zodra gebruikt)
+  ar: (لا يمكن استرداده بعد الاستخدام)
+  hi: (उपयोग के बाद वापस नहीं किया जा सकता)
+  th: (ไม่สามารถคืนเงินได้เมื่อใช้แล้ว)
+  cs: (Nelze vrátit po použití)
+  sv: (Kan inte återbetalas när den väl använts)
+  he: (לא ניתן לקבל החזר לאחר השימוש)
+  verified_by_human: []
+delete_account_refund_all_description:
+  context: Description explaining all unused credits will be refunded (except gift card credits)
+  en: All your unused credits will be automatically refunded to your original payment method.
+  de: Alle Ihre ungenutzten Credits werden automatisch auf Ihre ursprüngliche Zahlungsmethode zurückerstattet.
+  zh: 您所有未使用的积分将自动退还到您的原始支付方式。
+  es: Todos tus créditos no utilizados se reembolsarán automáticamente a tu método de pago original.
+  fr: Tous vos crédits non utilisés seront automatiquement remboursés sur votre méthode de paiement d'origine.
+  pt: Todos os seus créditos não utilizados serão reembolsados automaticamente para o seu método de pagamento original.
+  ru: Все ваши неиспользованные кредиты будут автоматически возвращены на ваш первоначальный способ оплаты.
+  ja: 未使用のクレジットはすべて、元のお支払い方法に自動的に返金されます。
+  ko: 모든 미사용 크레딧은 원래 결제 수단으로 자동 환불됩니다.
+  it: Tutti i tuoi crediti non utilizzati verranno automaticamente rimborsati sul tuo metodo di pagamento originale.
+  tr: Tüm kullanılmayan kredileriniz orijinal ödeme yönteminize otomatik olarak iade edilecektir.
+  vi: Tất cả tín dụng chưa sử dụng của bạn sẽ được tự động hoàn trả vào phương thức thanh toán ban đầu.
+  id: Semua kredit Anda yang tidak digunakan akan dikembalikan secara otomatis ke metode pembayaran asli Anda.
+  pl: Wszystkie Twoje niewykorzystane kredyty zostaną automatycznie zwrócone na oryginalną metodę płatności.
+  nl: Al uw ongebruikte credits worden automatisch teruggestort op uw oorspronkelijke betaalmethode.
+  ar: سيتم استرداد جميع رصيدك غير المستخدم تلقائيًا إلى طريقة الدفع الأصلية.
+  hi: आपके सभी अप्रयुक्त क्रेडिट स्वचालित रूप से आपकी मूल भुगतान विधि पर वापस कर दिए जाएंगे।
+  th: เครดิตที่ไม่ได้ใช้ทั้งหมดของคุณจะถูกคืนเงินโดยอัตโนมัติไปยังวิธีการชำระเงินเดิมของคุณ
+  cs: Všechny vaše nevyužité kredity budou automaticky vráceny na vaši původní platební metodu.
+  sv: Alla dina oanvända krediter kommer automatiskt att återbetalas till din ursprungliga betalningsmetod.
+  he: כל הקרדיטים שלא נוצלו יוחזרו באופן אוטומטי לאמצעי התשלום המקורי שלך.
+  verified_by_human: []
+delete_account_refundable_credits:
+  context: Label for refundable credits count
+  en: Refundable Credits
+  de: Erstattungsfähige Credits
+  zh: 可退款积分
+  es: Créditos reembolsables
+  fr: Crédits remboursables
+  pt: Créditos reembolsáveis
+  ru: Возвратные кредиты
+  ja: 払い戻し可能なクレジット
+  ko: 환불 가능한 크레딧
+  it: Crediti rimborsabili
+  tr: İade edilebilir krediler
+  vi: Tín dụng có thể hoàn lại
+  id: Kredit yang dapat dikembalikan
+  pl: Kredyty podlegające zwrotowi
+  nl: Terugbetaalbare credits
+  ar: الرصيد القابل للاسترداد
+  hi: वापसी योग्य क्रेडिट
+  th: เครดิตที่สามารถคืนเงินได้
+  cs: Vratné kredity
+  sv: Återbetalningsbara krediter
+  he: קרדיטים ברי החזר
+  verified_by_human: []
+delete_account_gift_card_credits_title:
+  context: Title for gift card credits notice section
+  en: Gift Card Credits
+  de: Geschenkkarten-Credits
+  zh: 礼品卡积分
+  es: Créditos de tarjeta de regalo
+  fr: Crédits de carte cadeau
+  pt: Créditos de cartão presente
+  ru: Кредиты подарочной карты
+  ja: ギフトカードクレジット
+  ko: 기프트 카드 크레딧
+  it: Crediti carta regalo
+  tr: Hediye kartı kredileri
+  vi: Tín dụng thẻ quà tặng
+  id: Kredit kartu hadiah
+  pl: Kredyty z karty podarunkowej
+  nl: Cadeaukaart credits
+  ar: رصيد بطاقة الهدايا
+  hi: उपहार कार्ड क्रेडिट
+  th: เครดิตบัตรของขวัญ
+  cs: Kredity z dárkové karty
+  sv: Presentkortskrediter
+  he: קרדיטים מכרטיסי מתנה
+  verified_by_human: []
+delete_account_gift_card_credits_message:
+  context: Message explaining gift card credits are not refundable
+  en: You have {count} credits from redeemed gift cards. These credits cannot be refunded as they were a gift.
+  de: Sie haben {count} Credits aus eingelösten Geschenkkarten. Diese Credits können nicht erstattet werden, da sie ein Geschenk waren.
+  zh: 您有 {count} 个来自已兑换礼品卡的积分。这些积分因为是礼物无法退款。
+  es: Tienes {count} créditos de tarjetas de regalo canjeadas. Estos créditos no se pueden reembolsar ya que fueron un regalo.
+  fr: Vous avez {count} crédits provenant de cartes cadeaux échangées. Ces crédits ne peuvent pas être remboursés car ils étaient un cadeau.
+  pt: Você tem {count} créditos de cartões presente resgatados. Esses créditos não podem ser reembolsados pois foram um presente.
+  ru: У вас {count} кредитов от погашенных подарочных карт. Эти кредиты не могут быть возвращены, так как они были подарком.
+  ja: 引き換えたギフトカードから {count} クレジットがあります。これらのクレジットはギフトだったため返金できません。
+  ko: 사용한 기프트 카드에서 {count} 크레딧이 있습니다. 이 크레딧은 선물이었으므로 환불할 수 없습니다.
+  it: Hai {count} crediti da carte regalo riscattate. Questi crediti non possono essere rimborsati perché erano un regalo.
+  tr: Kullandığınız hediye kartlarından {count} krediniz var. Bu krediler hediye olduğu için iade edilemez.
+  vi: Bạn có {count} tín dụng từ thẻ quà tặng đã đổi. Những tín dụng này không thể hoàn lại vì chúng là quà tặng.
+  id: Anda memiliki {count} kredit dari kartu hadiah yang ditukarkan. Kredit ini tidak dapat dikembalikan karena merupakan hadiah.
+  pl: Masz {count} kredytów z zrealizowanych kart podarunkowych. Te kredyty nie mogą zostać zwrócone, ponieważ były prezentem.
+  nl: U heeft {count} credits van ingewisselde cadeaukaarten. Deze credits kunnen niet worden terugbetaald omdat ze een cadeau waren.
+  ar: لديك {count} رصيد من بطاقات الهدايا المستردة. لا يمكن استرداد هذا الرصيد لأنه كان هدية.
+  hi: आपके पास भुनाए गए उपहार कार्ड से {count} क्रेडिट हैं। ये क्रेडिट वापस नहीं किए जा सकते क्योंकि वे उपहार थे।
+  th: คุณมี {count} เครดิตจากบัตรของขวัญที่แลกแล้ว เครดิตเหล่านี้ไม่สามารถคืนเงินได้เนื่องจากเป็นของขวัญ
+  cs: Máte {count} kreditů z uplatněných dárkových karet. Tyto kredity nelze vrátit, protože byly dárkem.
+  sv: Du har {count} krediter från inlösta presentkort. Dessa krediter kan inte återbetalas eftersom de var en gåva.
+  he: "יש לך {count} קרדיטים שמומשו מכרטיסי מתנה. לא ניתן לקבל החזר על קרדיטים אלו מכיוון שהם ניתנו כמתנה."
+  verified_by_human: []
+delete_account_data_deletion_warning_title:
+  context: Title for data deletion warning
+  en: Data Deletion Warning
+  de: Warnung vor Datenlöschung
+  zh: 数据删除警告
+  es: Advertencia de eliminación de datos
+  fr: Avertissement de suppression de données
+  pt: Aviso de exclusão de dados
+  ru: Предупреждение об удалении данных
+  ja: データ削除の警告
+  ko: 데이터 삭제 경고
+  it: Avviso di eliminazione dati
+  tr: Veri silme uyarısı
+  vi: Cảnh báo xóa dữ liệu
+  id: Peringatan penghapusan data
+  pl: Ostrzeżenie o usunięciu danych
+  nl: Waarschuwing voor gegevensverwijdering
+  ar: تحذير حذف البيانات
+  hi: डेटा हटाने की चेतावनी
+  th: คำเตือนการลบข้อมูล
+  cs: Varování před smazáním dat
+  sv: Varning för data borttagning
+  he: אזהרת מחיקת נתונים
+  verified_by_human: []
+delete_account_data_deletion_warning_message:
+  context: Message about data deletion
+  en: All your data will be permanently deleted and cannot be recovered, including chats, embeds, uploaded files, settings, memories, etc.
+  de: Alle Ihre Daten werden dauerhaft gelöscht und können nicht wiederhergestellt werden, einschließlich Chats, Einbettungen, hochgeladener Dateien, Einstellungen, Erinnerungen usw.
+  zh: 您的所有数据将被永久删除且无法恢复，包括聊天、嵌入、上传的文件、设置、记忆等。
+  es: Todos sus datos se eliminarán permanentemente y no se podrán recuperar, incluidas conversaciones, incrustaciones, archivos cargados, configuraciones, recuerdos, etc.
+  fr: Toutes vos données seront définitivement supprimées et ne pourront pas être récupérées, y compris les chats, les intégrations, les fichiers téléchargés, les paramètres, les souvenirs, etc.
+  pt: Todos os seus dados serão excluídos permanentemente e não poderão ser recuperados, incluindo conversas, incorporações, arquivos enviados, configurações, memórias, etc.
+  ru: Все ваши данные будут навсегда удалены и не могут быть восстановлены, включая чаты, встраивания, загруженные файлы, настройки, воспоминания и т.д.
+  ja: チャット、埋め込み、アップロードされたファイル、設定、メモリなどを含むすべてのデータが永続的に削除され、復元できません。
+  ko: 채팅, 임베드, 업로드된 파일, 설정, 메모리 등을 포함한 모든 데이터가 영구적으로 삭제되며 복구할 수 없습니다.
+  it: Tutti i tuoi dati verranno eliminati permanentemente e non potranno essere recuperati, inclusi chat, incorporazioni, file caricati, impostazioni, ricordi, ecc.
+  tr: Tüm verileriniz kalıcı olarak silinecek ve kurtarılamayacak, sohbetler, gömülmeler, yüklenen dosyalar, ayarlar, anılar vb. dahil.
+  vi: Tất cả dữ liệu của bạn sẽ bị xóa vĩnh viễn và không thể khôi phục, bao gồm cuộc trò chuyện, nhúng, tệp đã tải lên, cài đặt, ký ức, v.v.
+  id: Semua data Anda akan dihapus secara permanen dan tidak dapat dipulihkan, termasuk obrolan, sematan, file yang diunggah, pengaturan, memori, dll.
+  pl: Wszystkie Twoje dane zostaną trwale usunięte i nie będą mogły zostać odzyskane, w tym czaty, osadzenia, przesłane pliki, ustawienia, wspomnienia itp.
+  nl: Al uw gegevens worden permanent verwijderd en kunnen niet worden hersteld, inclusief chats, embedments, geüploade bestanden, instellingen, herinneringen, enz.
+  ar: سيتم حذف جميع بياناتك بشكل دائم ولا يمكن استعادتها، بما في ذلك الدردشات والدمجات والملفات المرفوعة والإعدادات والذكريات وما إلى ذلك.
+  hi: आपका सभी डेटा स्थायी रूप से हटा दिया जाएगा और पुनर्प्राप्त नहीं किया जा सकता, जिसमें चैट, एम्बेड, अपलोड की गई फ़ाइलें, सेटिंग्स, यादें आदि शामिल हैं।
+  th: ข้อมูลทั้งหมดของคุณจะถูกลบอย่างถาวรและไม่สามารถกู้คืนได้ รวมถึงการแชท การฝัง ไฟล์ที่อัปโหลด การตั้งค่า ความทรงจำ ฯลฯ
+  cs: Všechna vaše data budou trvale smazána a nelze je obnovit, včetně chatů, vložení, nahraných souborů, nastavení, vzpomínek atd.
+  sv: All din data kommer att raderas permanent och kan inte återställas, inklusive chattar, inbäddningar, uppladdade filer, inställningar, minnen, etc.
+  he: "כל הנתונים שלך יימחקו לצמיתות ולא יהיה ניתן לשחזר אותם, כולל צ'אטים, הטמעות (embeds), קבצים שהועלו, הגדרות, זיכרונות וכו'."
+  verified_by_human: []
+delete_account_data_deletion_warning_confirm:
+  context: Confirmation checkbox for data deletion
+  en: I understand that all my data will be permanently deleted and cannot be recovered, including chats, embeds, uploaded files, settings, memories, etc.
+  de: Ich verstehe, dass alle meine Daten dauerhaft gelöscht werden und nicht wiederhergestellt werden können, einschließlich Chats, Einbettungen, hochgeladener Dateien, Einstellungen, Erinnerungen usw.
+  zh: 我理解我的所有数据将被永久删除且无法恢复，包括聊天、嵌入、上传的文件、设置、记忆等。
+  es: Entiendo que todos mis datos se eliminarán permanentemente y no se podrán recuperar, incluidas conversaciones, incrustaciones, archivos cargados, configuraciones, recuerdos, etc.
+  fr: Je comprends que toutes mes données seront définitivement supprimées et ne pourront pas être récupérées, y compris les chats, les intégrations, les fichiers téléchargés, les paramètres, les souvenirs, etc.
+  pt: Entendo que todos os meus dados serão excluídos permanentemente e não poderão ser recuperados, incluindo conversas, incorporações, arquivos enviados, configurações, memórias, etc.
+  ru: Я понимаю, что все мои данные будут навсегда удалены и не могут быть восстановлены, включая чаты, встраивания, загруженные файлы, настройки, воспоминания и т.д.
+  ja: チャット、埋め込み、アップロードされたファイル、設定、メモリなどを含むすべてのデータが永続的に削除され、復元できないことを理解しています。
+  ko: 채팅, 임베드, 업로드된 파일, 설정, 메모리 등을 포함한 모든 데이터가 영구적으로 삭제되며 복구할 수 없음을 이해합니다.
+  it: Capisco che tutti i miei dati verranno eliminati permanentemente e non potranno essere recuperati, inclusi chat, incorporazioni, file caricati, impostazioni, ricordi, ecc.
+  tr: Sohbetler, gömülmeler, yüklenen dosyalar, ayarlar, anılar vb. dahil olmak üzere tüm verilerimin kalıcı olarak silineceğini ve kurtarılamayacağını anlıyorum.
+  vi: Tôi hiểu rằng tất cả dữ liệu của tôi sẽ bị xóa vĩnh viễn và không thể khôi phục, bao gồm cuộc trò chuyện, nhúng, tệp đã tải lên, cài đặt, ký ức, v.v.
+  id: Saya memahami bahwa semua data saya akan dihapus secara permanen dan tidak dapat dipulihkan, termasuk obrolan, sematan, file yang diunggah, pengaturan, memori, dll.
+  pl: Rozumiem, że wszystkie moje dane zostaną trwale usunięte i nie będą mogły zostać odzyskane, w tym czaty, osadzenia, przesłane pliki, ustawienia, wspomnienia itp.
+  nl: Ik begrijp dat al mijn gegevens permanent worden verwijderd en niet kunnen worden hersteld, inclusief chats, embedments, geüploade bestanden, instellingen, herinneringen, enz.
+  ar: أفهم أن جميع بياناتي سيتم حذفها بشكل دائم ولا يمكن استعادتها، بما في ذلك الدردشات والدمجات والملفات المرفوعة والإعدادات والذكريات وما إلى ذلك.
+  hi: मैं समझता हूं कि मेरा सभी डेटा स्थायी रूप से हटा दिया जाएगा और पुनर्प्राप्त नहीं किया जा सकता, जिसमें चैट, एम्बेड, अपलोड की गई फ़ाइलें, सेटिंग्स, यादें आदि शामिल हैं।
+  th: ฉันเข้าใจว่าข้อมูลทั้งหมดของฉันจะถูกลบอย่างถาวรและไม่สามารถกู้คืนได้ รวมถึงการแชท การฝัง ไฟล์ที่อัปโหลด การตั้งค่า ความทรงจำ ฯลฯ
+  cs: Rozumím, že všechna má data budou trvale smazána a nelze je obnovit, včetně chatů, vložení, nahraných souborů, nastavení, vzpomínek atd.
+  sv: Jag förstår att all min data kommer att raderas permanent och inte kan återställas, inklusive chattar, inbäddningar, uppladdade filer, inställningar, minnen, etc.
+  he: "אני מבין שכל הנתונים שלי יימחקו לצמיתות ולא יהיה ניתן לשחזר אותם, כולל צ'אטים, הטמעות (embeds), קבצים שהועלו, הגדרות, זיכרונות וכו'."
+  verified_by_human: []
+delete_account_confirmation_input_label:
+  context: Label for confirmation input field
+  en: Type "delete account" to confirm
+  de: Geben Sie "Konto löschen" ein, um zu bestätigen
+  zh: 输入"删除账户"以确认
+  es: Escriba "eliminar cuenta" para confirmar
+  fr: Tapez "supprimer compte" pour confirmer
+  pt: Digite "excluir conta" para confirmar
+  ru: Введите "удалить аккаунт" для подтверждения
+  ja: 「アカウントを削除」と入力して確認
+  ko: 계정 삭제를 입력하여 확인
+  it: Digita "elimina account" per confermare
+  tr: Onaylamak için "hesabı sil" yazın
+  vi: Nhập "xóa tài khoản" để xác nhận
+  id: Ketik "hapus akun" untuk mengonfirmasi
+  pl: Wpisz "usuń konto", aby potwierdzić
+  nl: Typ "account verwijderen" om te bevestigen
+  ar: اكتب "حذف الحساب" للتأكيد
+  hi: पुष्टि करने के लिए "खाता हटाएं" टाइप करें
+  th: พิมพ์ "ลบบัญชี" เพื่อยืนยัน
+  cs: Zadejte "smazat účet" pro potvrzení
+  sv: Skriv "ta bort konto" för att bekräfta
+  he: 'הקלד "delete account" כדי לאשר'
+  verified_by_human: []
+delete_account_confirmation_input_placeholder:
+  context: Placeholder for confirmation input field
+  en: delete account
+  de: Konto löschen
+  zh: 删除账户
+  es: eliminar cuenta
+  fr: supprimer compte
+  pt: excluir conta
+  ru: удалить аккаунт
+  ja: アカウントを削除
+  ko: 계정 삭제
+  it: elimina account
+  tr: hesabı sil
+  vi: xóa tài khoản
+  id: hapus akun
+  pl: usuń konto
+  nl: account verwijderen
+  ar: حذف الحساب
+  hi: खाता हटाएं
+  th: ลบบัญชี
+  cs: smazat účet
+  sv: ta bort konto
+  he: delete account
+  verified_by_human: []
+delete_account_delete_button:
+  context: Delete account button text
+  en: Delete My Account
+  de: Mein Konto löschen
+  zh: 删除我的账户
+  es: Eliminar mi cuenta
+  fr: Supprimer mon compte
+  pt: Excluir minha conta
+  ru: Удалить мой аккаунт
+  ja: アカウントを削除
+  ko: 내 계정 삭제
+  it: Elimina il mio account
+  tr: Hesabımı sil
+  vi: Xóa tài khoản của tôi
+  id: Hapus akun saya
+  pl: Usuń moje konto
+  nl: Verwijder mijn account
+  ar: حذف حسابي
+  hi: मेरा खाता हटाएं
+  th: ลบบัญชีของฉัน
+  cs: Smazat můj účet
+  sv: Ta bort mitt konto
+  he: מחק את החשבון שלי
+  verified_by_human: []
+delete_account_deleting:
+  context: Deleting account in progress
+  en: Deleting Account...
+  de: Konto wird gelöscht...
+  zh: 正在删除账户...
+  es: Eliminando cuenta...
+  fr: Suppression du compte...
+  pt: Excluindo conta...
+  ru: Удаление аккаунта...
+  ja: アカウントを削除中...
+  ko: 계정 삭제 중...
+  it: Eliminazione account...
+  tr: Hesap siliniyor...
+  vi: Đang xóa tài khoản...
+  id: Menghapus akun...
+  pl: Usuwanie konta...
+  nl: Account verwijderen...
+  ar: جاري حذف الحساب...
+  hi: खाता हटाया जा रहा है...
+  th: กำลังลบบัญชี...
+  cs: Mazání účtu...
+  sv: Tar bort konto...
+  he: מוחק את החשבון...
+  verified_by_human: []
+delete_account_retry:
+  context: Retry button text
+  en: Retry
+  de: Erneut versuchen
+  zh: 重试
+  es: Reintentar
+  fr: Réessayer
+  pt: Tentar novamente
+  ru: Повторить
+  ja: 再試行
+  ko: 다시 시도
+  it: Riprova
+  tr: Yeniden dene
+  vi: Thử lại
+  id: Coba lagi
+  pl: Spróbuj ponownie
+  nl: Opnieuw proberen
+  ar: إعادة المحاولة
+  hi: पुनः प्रयास करें
+  th: ลองอีกครั้ง
+  cs: Zkusit znovu
+  sv: Försök igen
+  he: ניסיון חוזר
+  verified_by_human: []
+delete_account_no_auth_method:
+  context: Error message when user has no authentication method (no passkey and no 2FA) for account deletion
+  en: Authentication required. Please set up a passkey or 2FA in Security settings first.
+  de: Authentifizierung erforderlich. Bitte richten Sie zuerst einen Passkey oder 2FA in den Sicherheitseinstellungen ein.
+  zh: 需要身份验证。请先在安全设置中设置密钥或双因素认证。
+  es: Se requiere autenticación. Por favor, configure primero una clave de acceso o 2FA en Configuración de seguridad.
+  fr: Authentification requise. Veuillez d'abord configurer une clé d'accès ou 2FA dans les paramètres de sécurité.
+  pt: Autenticação necessária. Por favor, configure primeiro uma chave de acesso ou 2FA nas configurações de segurança.
+  ru: Требуется аутентификация. Пожалуйста, сначала настройте ключ доступа или 2FA в настройках безопасности.
+  ja: 認証が必要です。まずセキュリティ設定でパスキーまたは2FAを設定してください。
+  ko: 인증이 필요합니다. 먼저 보안 설정에서 패스키 또는 2FA를 설정하세요.
+  it: Autenticazione richiesta. Per favore, configura prima una passkey o 2FA nelle impostazioni di sicurezza.
+  tr: Kimlik doğrulama gerekli. Lütfen önce Güvenlik ayarlarında bir geçiş anahtarı veya 2FA kurun.
+  vi: Yêu cầu xác thực. Vui lòng thiết lập passkey hoặc 2FA trong cài đặt Bảo mật trước.
+  id: Autentikasi diperlukan. Silakan atur kunci sandi atau 2FA di pengaturan Keamanan terlebih dahulu.
+  pl: Wymagane uwierzytelnienie. Najpierw skonfiguruj klucz dostępu lub 2FA w ustawieniach bezpieczeństwa.
+  nl: Authenticatie vereist. Stel eerst een toegangssleutel of 2FA in bij Beveiligingsinstellingen.
+  ar: المصادقة مطلوبة. يرجى إعداد مفتاح المرور أو المصادقة الثنائية في إعدادات الأمان أولاً.
+  hi: प्रमाणीकरण आवश्यक है। कृपया पहले सुरक्षा सेटिंग्स में पासकी या 2FA सेट करें।
+  th: ต้องการการยืนยันตัวตน กรุณาตั้งค่า passkey หรือ 2FA ในการตั้งค่าความปลอดภัยก่อน
+  cs: Vyžadována autentizace. Nejprve prosím nastavte přístupový klíč nebo 2FA v nastavení zabezpečení.
+  sv: Autentisering krävs. Vänligen konfigurera först en nyckel eller 2FA i säkerhetsinställningarna.
+  he: נדרש אימות. אנא הגדר מפתח גישה (passkey) או אימות דו-שלבי (2FA) בהגדרות האבטחה תחילה.
+  verified_by_human: []
+delete_account_passkey_failed:
+  context: Error message when passkey authentication fails during account deletion
+  en: Passkey authentication failed. Please try again.
+  de: Passkey-Authentifizierung fehlgeschlagen. Bitte versuchen Sie es erneut.
+  zh: 密钥验证失败。请重试。
+  es: La autenticación con clave de acceso falló. Por favor, inténtalo de nuevo.
+  fr: L'authentification par clé d'accès a échoué. Veuillez réessayer.
+  pt: Autenticação por chave de acesso falhou. Por favor, tente novamente.
+  ru: Аутентификация по ключу доступа не удалась. Пожалуйста, попробуйте снова.
+  ja: パスキー認証に失敗しました。もう一度お試しください。
+  ko: 패스키 인증에 실패했습니다. 다시 시도해 주세요.
+  it: Autenticazione passkey fallita. Per favore, riprova.
+  tr: Geçiş anahtarı kimlik doğrulaması başarısız oldu. Lütfen tekrar deneyin.
+  vi: Xác thực passkey không thành công. Vui lòng thử lại.
+  id: Autentikasi kunci sandi gagal. Silakan coba lagi.
+  pl: Uwierzytelnienie kluczem dostępu nie powiodło się. Spróbuj ponownie.
+  nl: Authenticatie met toegangssleutel mislukt. Probeer het opnieuw.
+  ar: فشلت مصادقة مفتاح المرور. يرجى المحاولة مرة أخرى.
+  hi: पासकी प्रमाणीकरण विफल। कृपया पुनः प्रयास करें।
+  th: การยืนยันตัวตนด้วย passkey ล้มเหลว กรุณาลองอีกครั้ง
+  cs: Autentizace přístupovým klíčem selhala. Zkuste to prosím znovu.
+  sv: Passkey-autentisering misslyckades. Försök igen.
+  he: אימות מפתח הגישה נכשל. אנא נסה שוב.
+  verified_by_human: []
+delete_account_2fa_title:
+  context: Title for 2FA input section during account deletion
+  en: Enter 2FA Code
+  de: 2FA-Code eingeben
+  zh: 输入双因素认证码
+  es: Ingresa el código 2FA
+  fr: Entrez le code 2FA
+  pt: Digite o código 2FA
+  ru: Введите код 2FA
+  ja: 2FAコードを入力
+  ko: 2FA 코드 입력
+  it: Inserisci il codice 2FA
+  tr: 2FA Kodunu Girin
+  vi: Nhập mã 2FA
+  id: Masukkan Kode 2FA
+  pl: Wprowadź kod 2FA
+  nl: Voer 2FA-code in
+  ar: أدخل رمز المصادقة الثنائية
+  hi: 2FA कोड दर्ज करें
+  th: ใส่รหัส 2FA
+  cs: Zadejte kód 2FA
+  sv: Ange 2FA-kod
+  he: הזן קוד 2FA
+  verified_by_human: []
+delete_account_2fa_description:
+  context: Description for 2FA input during account deletion
+  en: Please enter the 6-digit code from your authenticator app to confirm account deletion.
+  de: Bitte geben Sie den 6-stelligen Code aus Ihrer Authenticator-App ein, um die Kontolöschung zu bestätigen.
+  zh: 请输入您身份验证器应用程序中的6位数代码以确认删除帐户。
+  es: Por favor, ingresa el código de 6 dígitos de tu aplicación de autenticación para confirmar la eliminación de la cuenta.
+  fr: Veuillez entrer le code à 6 chiffres de votre application d'authentification pour confirmer la suppression du compte.
+  pt: Por favor, digite o código de 6 dígitos do seu aplicativo autenticador para confirmar a exclusão da conta.
+  ru: Пожалуйста, введите 6-значный код из вашего приложения-аутентификатора для подтверждения удаления аккаунта.
+  ja: アカウント削除を確認するため、認証アプリの6桁のコードを入力してください。
+  ko: 계정 삭제를 확인하려면 인증 앱의 6자리 코드를 입력하세요.
+  it: Per favore, inserisci il codice a 6 cifre dalla tua app di autenticazione per confermare l'eliminazione dell'account.
+  tr: Hesap silme işlemini onaylamak için kimlik doğrulama uygulamanızdaki 6 haneli kodu girin.
+  vi: Vui lòng nhập mã 6 chữ số từ ứng dụng xác thực của bạn để xác nhận xóa tài khoản.
+  id: Silakan masukkan kode 6 digit dari aplikasi autentikator Anda untuk mengonfirmasi penghapusan akun.
+  pl: Proszę wprowadzić 6-cyfrowy kod z aplikacji uwierzytelniającej, aby potwierdzić usunięcie konta.
+  nl: Voer de 6-cijferige code van uw authenticator-app in om het verwijderen van het account te bevestigen.
+  ar: يرجى إدخال الرمز المكون من 6 أرقام من تطبيق المصادقة لتأكيد حذف الحساب.
+  hi: कृपया खाता हटाने की पुष्टि के लिए अपने प्रमाणक ऐप से 6 अंकों का कोड दर्ज करें।
+  th: กรุณาใส่รหัส 6 หลักจากแอปยืนยันตัวตนของคุณเพื่อยืนยันการลบบัญชี
+  cs: Zadejte prosím 6místný kód z vaší autentizační aplikace pro potvrzení smazání účtu.
+  sv: Ange den 6-siffriga koden från din autentiseringsapp för att bekräfta kontoborttagningen.
+  he: אנא הזן את הקוד בן 6 הספרות מאפליקציית האימות שלך כדי לאשר את מחיקת החשבון.
+  verified_by_human: []
+delete_account_2fa_cancel:
+  context: Cancel button text in 2FA input section
+  en: Cancel
+  de: Abbrechen
+  zh: 取消
+  es: Cancelar
+  fr: Annuler
+  pt: Cancelar
+  ru: Отмена
+  ja: キャンセル
+  ko: 취소
+  it: Annulla
+  tr: İptal
+  vi: Hủy
+  id: Batal
+  pl: Anuluj
+  nl: Annuleren
+  ar: إلغاء
+  hi: रद्द करें
+  th: ยกเลิก
+  cs: Zrušit
+  sv: Avbryt
+  he: ביטול
+  verified_by_human: []
+delete_account_2fa_invalid:
+  context: Error message when 2FA code is invalid
+  en: Invalid 2FA code. Please try again.
+  de: Ungültiger 2FA-Code. Bitte versuchen Sie es erneut.
+  zh: 无效的双因素认证码。请重试。
+  es: Código 2FA inválido. Por favor, inténtalo de nuevo.
+  fr: Code 2FA invalide. Veuillez réessayer.
+  pt: Código 2FA inválido. Por favor, tente novamente.
+  ru: Неверный код 2FA. Пожалуйста, попробуйте снова.
+  ja: 2FAコードが無効です。もう一度お試しください。
+  ko: 잘못된 2FA 코드입니다. 다시 시도해 주세요.
+  it: Codice 2FA non valido. Per favore, riprova.
+  tr: Geçersiz 2FA kodu. Lütfen tekrar deneyin.
+  vi: Mã 2FA không hợp lệ. Vui lòng thử lại.
+  id: Kode 2FA tidak valid. Silakan coba lagi.
+  pl: Nieprawidłowy kod 2FA. Spróbuj ponownie.
+  nl: Ongeldige 2FA-code. Probeer het opnieuw.
+  ar: رمز المصادقة الثنائية غير صالح. يرجى المحاولة مرة أخرى.
+  hi: अमान्य 2FA कोड। कृपया पुनः प्रयास करें।
+  th: รหัส 2FA ไม่ถูกต้อง กรุณาลองอีกครั้ง
+  cs: Neplatný kód 2FA. Zkuste to prosím znovu.
+  sv: Ogiltig 2FA-kod. Försök igen.
+  he: קוד 2FA לא תקין. יש לנסות שוב.
+  verified_by_human: []
+delete_account_2fa_failed:
+  context: Error message when 2FA authentication fails
+  en: 2FA authentication failed. Please try again.
+  de: 2FA-Authentifizierung fehlgeschlagen. Bitte versuchen Sie es erneut.
+  zh: 双因素认证失败。请重试。
+  es: La autenticación 2FA falló. Por favor, inténtalo de nuevo.
+  fr: L'authentification 2FA a échoué. Veuillez réessayer.
+  pt: Autenticação 2FA falhou. Por favor, tente novamente.
+  ru: Аутентификация 2FA не удалась. Пожалуйста, попробуйте снова.
+  ja: 2FA認証に失敗しました。もう一度お試しください。
+  ko: 2FA 인증에 실패했습니다. 다시 시도해 주세요.
+  it: Autenticazione 2FA fallita. Per favore, riprova.
+  tr: 2FA kimlik doğrulaması başarısız oldu. Lütfen tekrar deneyin.
+  vi: Xác thực 2FA không thành công. Vui lòng thử lại.
+  id: Autentikasi 2FA gagal. Silakan coba lagi.
+  pl: Uwierzytelnienie 2FA nie powiodło się. Spróbuj ponownie.
+  nl: 2FA-authenticatie mislukt. Probeer het opnieuw.
+  ar: فشلت مصادقة 2FA. يرجى المحاولة مرة أخرى.
+  hi: 2FA प्रमाणीकरण विफल। कृपया पुनः प्रयास करें।
+  th: การยืนยันตัวตน 2FA ล้มเหลว กรุณาลองอีกครั้ง
+  cs: Autentizace 2FA selhala. Zkuste to prosím znovu.
+  sv: 2FA-autentisering misslyckades. Försök igen.
+  he: אימות 2FA נכשל. יש לנסות שוב.
+  verified_by_human: []
+delete_account_auth_title:
+  context: Title for the SecurityAuth modal when deleting account
+  en: Confirm Account Deletion
+  de: Kontolöschung bestätigen
+  zh: 确认删除账户
+  es: Confirmar eliminación de cuenta
+  fr: Confirmer la suppression du compte
+  pt: Confirmar exclusão da conta
+  ru: Подтвердить удаление аккаунта
+  ja: アカウント削除を確認
+  ko: 계정 삭제 확인
+  it: Conferma eliminazione account
+  tr: Hesap Silme İşlemini Onayla
+  vi: Xác nhận xóa tài khoản
+  id: Konfirmasi Penghapusan Akun
+  pl: Potwierdź usunięcie konta
+  nl: Bevestig accountverwijdering
+  ar: تأكيد حذف الحساب
+  hi: खाता हटाने की पुष्टि करें
+  th: ยืนยันการลบบัญชี
+  cs: Potvrdit smazání účtu
+  sv: Bekräfta kontoborttagning
+  he: אישור מחיקת חשבון
+  verified_by_human: []
+delete_account_auth_description:
+  context: Description for the SecurityAuth modal when deleting account
+  en: Please authenticate to confirm that you want to permanently delete your account.
+  de: Bitte authentifizieren Sie sich, um zu bestätigen, dass Sie Ihr Konto dauerhaft löschen möchten.
+  zh: 请验证身份以确认您要永久删除您的账户。
+  es: Por favor, autentícate para confirmar que deseas eliminar permanentemente tu cuenta.
+  fr: Veuillez vous authentifier pour confirmer que vous souhaitez supprimer définitivement votre compte.
+  pt: Por favor, autentique-se para confirmar que deseja excluir permanentemente sua conta.
+  ru: Пожалуйста, подтвердите свою личность, чтобы подтвердить удаление аккаунта.
+  ja: アカウントを完全に削除することを確認するために認証してください。
+  ko: 계정을 영구적으로 삭제할 것인지 확인하려면 인증하세요.
+  it: Si prega di autenticarsi per confermare che si desidera eliminare permanentemente il proprio account.
+  tr: Hesabınızı kalıcı olarak silmek istediğinizi onaylamak için lütfen kimlik doğrulaması yapın.
+  vi: Vui lòng xác thực để xác nhận rằng bạn muốn xóa vĩnh viễn tài khoản của mình.
+  id: Silakan autentikasi untuk mengonfirmasi bahwa Anda ingin menghapus akun Anda secara permanen.
+  pl: Proszę się uwierzytelnić, aby potwierdzić, że chcesz trwale usunąć swoje konto.
+  nl: Verifieer uzelf om te bevestigen dat u uw account permanent wilt verwijderen.
+  ar: يرجى المصادقة لتأكيد رغبتك في حذف حسابك نهائياً.
+  hi: कृपया पुष्टि करने के लिए प्रमाणित करें कि आप अपना खाता स्थायी रूप से हटाना चाहते हैं।
+  th: กรุณายืนยันตัวตนเพื่อยืนยันว่าคุณต้องการลบบัญชีของคุณอย่างถาวร
+  cs: Prosím, ověřte se, abyste potvrdili, že chcete trvale smazat svůj účet.
+  sv: Vänligen autentisera för att bekräfta att du vill ta bort ditt konto permanent.
+  he: יש לבצע אימות כדי לאשר שברצונך למחוק את חשבונך לצמיתות.
+  verified_by_human: []
+delete_account_auth_failed:
+  context: Error message when authentication fails during account deletion
+  en: Authentication failed. Please try again.
+  de: Authentifizierung fehlgeschlagen. Bitte versuchen Sie es erneut.
+  zh: 身份验证失败。请重试。
+  es: La autenticación falló. Por favor, inténtalo de nuevo.
+  fr: L'authentification a échoué. Veuillez réessayer.
+  pt: A autenticação falhou. Por favor, tente novamente.
+  ru: Аутентификация не удалась. Пожалуйста, попробуйте снова.
+  ja: 認証に失敗しました。もう一度お試しください。
+  ko: 인증에 실패했습니다. 다시 시도해 주세요.
+  it: Autenticazione fallita. Per favore, riprova.
+  tr: Kimlik doğrulama başarısız oldu. Lütfen tekrar deneyin.
+  vi: Xác thực không thành công. Vui lòng thử lại.
+  id: Autentikasi gagal. Silakan coba lagi.
+  pl: Uwierzytelnienie nie powiodło się. Spróbuj ponownie.
+  nl: Authenticatie mislukt. Probeer het opnieuw.
+  ar: فشلت المصادقة. يرجى المحاولة مرة أخرى.
+  hi: प्रमाणीकरण विफल। कृपया पुनः प्रयास करें।
+  th: การยืนยันตัวตนล้มเหลว กรุณาลองอีกครั้ง
+  cs: Autentizace selhala. Zkuste to prosím znovu.
+  sv: Autentiseringen misslyckades. Försök igen.
+  he: האימות נכשל. יש לנסות שוב.
+  verified_by_human: []
+delete_account_success:
+  context: Success message when account deletion is initiated
+  en: Account deletion initiated. You will be logged out shortly.
+  de: Kontolöschung eingeleitet. Sie werden in Kürze abgemeldet.
+  zh: 账户删除已启动。您将很快被登出。
+  es: Eliminación de cuenta iniciada. Serás desconectado en breve.
+  fr: Suppression du compte initiée. Vous serez déconnecté sous peu.
+  pt: Exclusão da conta iniciada. Você será desconectado em breve.
+  ru: Удаление аккаунта запущено. Вы будете отключены в ближайшее время.
+  ja: アカウント削除が開始されました。まもなくログアウトされます。
+  ko: 계정 삭제가 시작되었습니다. 곧 로그아웃됩니다.
+  it: Eliminazione account avviata. Verrai disconnesso a breve.
+  tr: Hesap silme işlemi başlatıldı. Kısa süre içinde çıkış yapılacak.
+  vi: Đã bắt đầu xóa tài khoản. Bạn sẽ bị đăng xuất trong giây lát.
+  id: Penghapusan akun dimulai. Anda akan segera keluar.
+  pl: Rozpoczęto usuwanie konta. Wkrótce zostaniesz wylogowany.
+  nl: Accountverwijdering gestart. U wordt binnenkort uitgelogd.
+  ar: بدأ حذف الحساب. سيتم تسجيل خروجك قريباً.
+  hi: खाता हटाना शुरू हो गया है। आप जल्द ही लॉग आउट हो जाएंगे।
+  th: เริ่มการลบบัญชีแล้ว คุณจะถูกออกจากระบบในไม่ช้า
+  cs: Mazání účtu zahájeno. Brzy budete odhlášeni.
+  sv: Kontoborttagning påbörjad. Du kommer snart att loggas ut.
+  he: תהליך מחיקת החשבון החל. תנותק מהמערכת בקרוב.
+  verified_by_human: []
+
+# --- Export Account (GDPR Article 20 - Data Portability) ---
+export:
+  context: Export Data submenu under Account settings
+  en: Export
+  de: Exportieren
+  zh: 导出
+  es: Exportar
+  fr: Exporter
+  pt: Exportar
+  ru: Экспорт
+  ja: エクスポート
+  ko: 내보내기
+  it: Esporta
+  tr: Dışa aktar
+  vi: Xuất
+  id: Ekspor
+  pl: Eksportuj
+  nl: Exporteren
+  ar: تصدير
+  hi: निर्यात
+  th: ส่งออก
+  cs: Exportovat
+  sv: Exportera
+  he: ייצוא
+  verified_by_human: []
+export_title:
+  context: Title for export data page
+  en: Export Your Data
+  de: Daten exportieren
+  zh: 导出您的数据
+  es: Exportar tus datos
+  fr: Exporter vos données
+  pt: Exportar seus dados
+  ru: Экспортировать ваши данные
+  ja: データをエクスポート
+  ko: 데이터 내보내기
+  it: Esporta i tuoi dati
+  tr: Verilerinizi dışa aktarın
+  vi: Xuất dữ liệu của bạn
+  id: Ekspor data Anda
+  pl: Eksportuj swoje dane
+  nl: Uw gegevens exporteren
+  ar: تصدير بياناتك
+  hi: अपना डेटा निर्यात करें
+  th: ส่งออกข้อมูลของคุณ
+  cs: Exportovat vaše data
+  sv: Exportera dina data
+  he: ייצוא הנתונים שלך
+  verified_by_human: []
+export_description:
+  context: Description for export data page
+  en: Download all your data in a portable format. This includes your chats, messages, invoices, usage history, and settings.
+  de: Laden Sie alle Ihre Daten in einem portablen Format herunter. Dies umfasst Ihre Chats, Nachrichten, Rechnungen, Nutzungsverlauf und Einstellungen.
+  zh: 以可移植格式下载您的所有数据。包括您的聊天、消息、发票、使用记录和设置。
+  es: Descarga todos tus datos en un formato portable. Esto incluye tus conversaciones, mensajes, facturas, historial de uso y configuraciones.
+  fr: Téléchargez toutes vos données dans un format portable. Cela inclut vos chats, messages, factures, historique d'utilisation et paramètres.
+  pt: Baixe todos os seus dados em um formato portátil. Isso inclui suas conversas, mensagens, faturas, histórico de uso e configurações.
+  ru: Загрузите все ваши данные в переносимом формате. Это включает ваши чаты, сообщения, счета, историю использования и настройки.
+  ja: すべてのデータをポータブルな形式でダウンロードします。チャット、メッセージ、請求書、使用履歴、設定が含まれます。
+  ko: 모든 데이터를 휴대용 형식으로 다운로드합니다. 채팅, 메시지, 청구서, 사용 기록 및 설정이 포함됩니다.
+  it: Scarica tutti i tuoi dati in un formato portabile. Include chat, messaggi, fatture, cronologia di utilizzo e impostazioni.
+  tr: Tüm verilerinizi taşınabilir bir formatta indirin. Sohbetlerinizi, mesajlarınızı, faturalarınızı, kullanım geçmişinizi ve ayarlarınızı içerir.
+  vi: Tải xuống tất cả dữ liệu của bạn ở định dạng di động. Bao gồm cuộc trò chuyện, tin nhắn, hóa đơn, lịch sử sử dụng và cài đặt.
+  id: Unduh semua data Anda dalam format portabel. Ini termasuk obrolan, pesan, faktur, riwayat penggunaan, dan pengaturan Anda.
+  pl: Pobierz wszystkie swoje dane w przenośnym formacie. Obejmuje to Twoje czaty, wiadomości, faktury, historię użytkowania i ustawienia.
+  nl: Download al uw gegevens in een draagbaar formaat. Dit omvat uw chats, berichten, facturen, gebruiksgeschiedenis en instellingen.
+  ar: قم بتنزيل جميع بياناتك بتنسيق قابل للنقل. يتضمن ذلك محادثاتك ورسائلك وفواتيرك وسجل الاستخدام والإعدادات.
+  hi: अपने सभी डेटा को पोर्टेबल प्रारूप में डाउनलोड करें। इसमें आपकी चैट, संदेश, चालान, उपयोग इतिहास और सेटिंग्स शामिल हैं।
+  th: ดาวน์โหลดข้อมูลทั้งหมดของคุณในรูปแบบที่พกพาได้ รวมถึงการแชท ข้อความ ใบแจ้งหนี้ ประวัติการใช้งาน และการตั้งค่า
+  cs: Stáhněte si všechna svá data v přenosném formátu. Zahrnuje vaše chaty, zprávy, faktury, historii použití a nastavení.
+  sv: Ladda ner all din data i ett portabelt format. Detta inkluderar dina chattar, meddelanden, fakturor, användningshistorik och inställningar.
+  he: "הורד את כל הנתונים שלך בפורמט נייד. זה כולל את הצ'אטים, ההודעות, החשבוניות, היסטוריית השימוש וההגדרות שלך."
+  verified_by_human: []
+export_includes_title:
+  context: Title for what's included section
+  en: What's Included
+  de: Was enthalten ist
+  zh: 包含内容
+  es: Qué incluye
+  fr: Ce qui est inclus
+  pt: O que está incluído
+  ru: Что включено
+  ja: 含まれる内容
+  ko: 포함 내용
+  it: Cosa è incluso
+  tr: Neler dahil
+  vi: Bao gồm những gì
+  id: Apa yang termasuk
+  pl: Co zawiera
+  nl: Wat is inbegrepen
+  ar: ما هو مشمول
+  hi: क्या शामिल है
+  th: สิ่งที่รวมอยู่
+  cs: Co je zahrnuto
+  sv: Vad som ingår
+  he: מה כלול
+  verified_by_human: []
+export_includes_chats:
+  context: Chats included in export
+  en: All your chats and conversations
+  de: Alle Ihre Chats und Gespräche
+  zh: 您所有的聊天和对话
+  es: Todos tus chats y conversaciones
+  fr: Tous vos chats et conversations
+  pt: Todas as suas conversas
+  ru: Все ваши чаты и беседы
+  ja: すべてのチャットと会話
+  ko: 모든 채팅과 대화
+  it: Tutte le tue chat e conversazioni
+  tr: Tüm sohbetleriniz ve konuşmalarınız
+  vi: Tất cả cuộc trò chuyện của bạn
+  id: Semua obrolan dan percakapan Anda
+  pl: Wszystkie Twoje czaty i rozmowy
+  nl: Al uw chats en gesprekken
+  ar: جميع محادثاتك ومحادثاتك
+  hi: आपकी सभी चैट और बातचीत
+  th: การแชทและการสนทนาทั้งหมดของคุณ
+  cs: Všechny vaše chaty a konverzace
+  sv: Alla dina chattar och konversationer
+  he: "כל הצ'אטים והשיחות שלך"
+  verified_by_human: []
+export_includes_invoices:
+  context: Invoices included in export
+  en: Invoice history and PDF files
+  de: Rechnungsverlauf und PDF-Dateien
+  zh: 发票历史和PDF文件
+  es: Historial de facturas y archivos PDF
+  fr: Historique des factures et fichiers PDF
+  pt: Histórico de faturas e arquivos PDF
+  ru: История счетов и PDF-файлы
+  ja: 請求書履歴とPDFファイル
+  ko: 청구서 기록 및 PDF 파일
+  it: Cronologia fatture e file PDF
+  tr: Fatura geçmişi ve PDF dosyaları
+  vi: Lịch sử hóa đơn và tệp PDF
+  id: Riwayat faktur dan file PDF
+  pl: Historia faktur i pliki PDF
+  nl: Factuurgeschiedenis en PDF-bestanden
+  ar: تاريخ الفواتير وملفات PDF
+  hi: चालान इतिहास और PDF फाइलें
+  th: ประวัติใบแจ้งหนี้และไฟล์ PDF
+  cs: Historie faktur a PDF soubory
+  sv: Fakturahistorik och PDF-filer
+  he: היסטוריית חשבוניות וקבצי PDF
+  verified_by_human: []
+export_includes_usage:
+  context: Usage history included in export
+  en: Usage history and credit transactions
+  de: Nutzungsverlauf und Kredittransaktionen
+  zh: 使用历史和积分交易
+  es: Historial de uso y transacciones de créditos
+  fr: Historique d'utilisation et transactions de crédits
+  pt: Histórico de uso e transações de créditos
+  ru: История использования и кредитные транзакции
+  ja: 使用履歴とクレジット取引
+  ko: 사용 기록 및 크레딧 거래
+  it: Cronologia di utilizzo e transazioni di crediti
+  tr: Kullanım geçmişi ve kredi işlemleri
+  vi: Lịch sử sử dụng và giao dịch tín dụng
+  id: Riwayat penggunaan dan transaksi kredit
+  pl: Historia użytkowania i transakcje kredytowe
+  nl: Gebruiksgeschiedenis en creditransacties
+  ar: تاريخ الاستخدام ومعاملات الرصيد
+  hi: उपयोग इतिहास और क्रेडिट लेनदेन
+  th: ประวัติการใช้งานและการทำธุรกรรมเครดิต
+  cs: Historie použití a kreditové transakce
+  sv: Användningshistorik och kredittransaktioner
+  he: היסטוריית שימוש ועסקאות קרדיט
+  verified_by_human: []
+export_includes_settings:
+  context: Settings included in export
+  en: App settings and AI memories
+  de: App-Einstellungen und KI-Erinnerungen
+  zh: 应用设置和AI记忆
+  es: Configuraciones de aplicación y memorias de IA
+  fr: Paramètres d'application et mémoires d'IA
+  pt: Configurações de aplicativo e memórias de IA
+  ru: Настройки приложения и память ИИ
+  ja: アプリ設定とAIメモリ
+  ko: 앱 설정 및 AI 기억
+  it: Impostazioni app e memorie IA
+  tr: Uygulama ayarları ve AI anıları
+  vi: Cài đặt ứng dụng và bộ nhớ AI
+  id: Pengaturan aplikasi dan memori AI
+  pl: Ustawienia aplikacji i pamięć AI
+  nl: App-instellingen en AI-herinneringen
+  ar: إعدادات التطبيق وذكريات الذكاء الاصطناعي
+  hi: ऐप सेटिंग्स और AI मेमोरीज
+  th: การตั้งค่าแอปและความทรงจำ AI
+  cs: Nastavení aplikací a AI vzpomínky
+  sv: Appinställningar och AI-minnen
+  he: הגדרות אפליקציה וזיכרונות AI
+  verified_by_human: []
+export_includes_profile:
+  context: Profile included in export
+  en: Your profile and preferences
+  de: Ihr Profil und Ihre Einstellungen
+  zh: 您的个人资料和偏好设置
+  es: Tu perfil y preferencias
+  fr: Votre profil et préférences
+  pt: Seu perfil e preferências
+  ru: Ваш профиль и настройки
+  ja: プロフィールと設定
+  ko: 프로필 및 환경 설정
+  it: Il tuo profilo e preferenze
+  tr: Profiliniz ve tercihleriniz
+  vi: Hồ sơ và tùy chọn của bạn
+  id: Profil dan preferensi Anda
+  pl: Twój profil i preferencje
+  nl: Uw profiel en voorkeuren
+  ar: ملفك الشخصي وتفضيلاتك
+  hi: आपकी प्रोफ़ाइल और प्राथमिकताएं
+  th: โปรไฟล์และการตั้งค่าของคุณ
+  cs: Váš profil a preference
+  sv: Din profil och preferenser
+  he: הפרופיל וההעדפות שלך
+  verified_by_human: []
+export_gdpr_notice:
+  context: GDPR compliance notice
+  en: This export is provided in accordance with GDPR Article 20 (Right to Data Portability). Your data is exported in a structured, machine-readable format.
+  de: Dieser Export erfolgt gemäß DSGVO Artikel 20 (Recht auf Datenübertragbarkeit). Ihre Daten werden in einem strukturierten, maschinenlesbaren Format exportiert.
+  zh: 此导出符合GDPR第20条（数据可携带权）。您的数据以结构化、机器可读的格式导出。
+  es: Esta exportación se proporciona de acuerdo con el Artículo 20 del RGPD (Derecho a la portabilidad de datos). Sus datos se exportan en un formato estructurado y legible por máquina.
+  fr: Cette exportation est fournie conformément à l'article 20 du RGPD (Droit à la portabilité des données). Vos données sont exportées dans un format structuré et lisible par machine.
+  pt: Esta exportação é fornecida de acordo com o Artigo 20 do GDPR (Direito à Portabilidade de Dados). Seus dados são exportados em um formato estruturado e legível por máquina.
+  ru: Этот экспорт предоставляется в соответствии со статьей 20 GDPR (Право на перенос данных). Ваши данные экспортируются в структурированном, машиночитаемом формате.
+  ja: このエクスポートはGDPR第20条（データポータビリティの権利）に従って提供されます。データは構造化された機械読み取り可能な形式でエクスポートされます。
+  ko: 이 내보내기는 GDPR 제20조(데이터 이동권)에 따라 제공됩니다. 데이터는 구조화된 기계 판독 가능 형식으로 내보내집니다.
+  it: Questa esportazione è fornita in conformità con l'Articolo 20 del GDPR (Diritto alla portabilità dei dati). I tuoi dati sono esportati in un formato strutturato e leggibile dalla macchina.
+  tr: Bu dışa aktarım, GDPR Madde 20 (Veri Taşınabilirliği Hakkı) uyarınca sağlanmaktadır. Verileriniz yapılandırılmış, makine tarafından okunabilir bir formatta dışa aktarılır.
+  vi: Bản xuất này được cung cấp theo Điều 20 GDPR (Quyền Chuyển Dữ Liệu). Dữ liệu của bạn được xuất ở định dạng có cấu trúc, máy có thể đọc được.
+  id: Ekspor ini disediakan sesuai dengan Pasal 20 GDPR (Hak Portabilitas Data). Data Anda diekspor dalam format terstruktur yang dapat dibaca mesin.
+  pl: Ten eksport jest dostarczany zgodnie z art. 20 RODO (Prawo do przenoszenia danych). Twoje dane są eksportowane w ustrukturyzowanym, czytelnym maszynowo formacie.
+  nl: Deze export wordt verstrekt in overeenstemming met AVG Artikel 20 (Recht op dataportabiliteit). Uw gegevens worden geëxporteerd in een gestructureerd, machine-leesbaar formaat.
+  ar: يتم توفير هذا التصدير وفقًا للمادة 20 من GDPR (الحق في قابلية نقل البيانات). يتم تصدير بياناتك بتنسيق منظم وقابل للقراءة آليًا.
+  hi: यह निर्यात GDPR अनुच्छेद 20 (डेटा पोर्टेबिलिटी का अधिकार) के अनुसार प्रदान किया गया है। आपका डेटा संरचित, मशीन-पठनीय प्रारूप में निर्यात किया जाता है।
+  th: การส่งออกนี้จัดทำตามมาตรา 20 ของ GDPR (สิทธิ์ในการพกพาข้อมูล) ข้อมูลของคุณถูกส่งออกในรูปแบบที่มีโครงสร้างและเครื่องสามารถอ่านได้
+  cs: Tento export je poskytován v souladu s článkem 20 GDPR (Právo na přenositelnost údajů). Vaše data jsou exportována ve strukturovaném, strojově čitelném formátu.
+  sv: Denna export tillhandahålls i enlighet med GDPR artikel 20 (Rätt till dataportabilitet). Din data exporteras i ett strukturerat, maskinläsbart format.
+  he: ייצוא זה מסופק בהתאם לסעיף 20 של ה-GDPR (הזכות לניידות נתונים). הנתונים שלך מיוצאים בפורמט מובנה וקריא על ידי מכונה.
+  verified_by_human: []
+export_button:
+  context: Export button text
+  en: Export My Data
+  de: Meine Daten exportieren
+  zh: 导出我的数据
+  es: Exportar mis datos
+  fr: Exporter mes données
+  pt: Exportar meus dados
+  ru: Экспортировать мои данные
+  ja: データをエクスポート
+  ko: 내 데이터 내보내기
+  it: Esporta i miei dati
+  tr: Verilerimi dışa aktar
+  vi: Xuất dữ liệu của tôi
+  id: Ekspor data saya
+  pl: Eksportuj moje dane
+  nl: Mijn gegevens exporteren
+  ar: تصدير بياناتي
+  hi: मेरा डेटा निर्यात करें
+  th: ส่งออกข้อมูลของฉัน
+  cs: Exportovat má data
+  sv: Exportera mina data
+  he: ייצוא הנתונים שלי
+  verified_by_human: []
+exporting:
+  context: Exporting in progress
+  en: Exporting...
+  de: Wird exportiert...
+  zh: 正在导出...
+  es: Exportando...
+  fr: Exportation...
+  pt: Exportando...
+  ru: Экспорт...
+  ja: エクスポート中...
+  ko: 내보내는 중...
+  it: Esportazione...
+  tr: Dışa aktarılıyor...
+  vi: Đang xuất...
+  id: Mengekspor...
+  pl: Eksportowanie...
+  nl: Exporteren...
+  ar: جاري التصدير...
+  hi: निर्यात हो रहा है...
+  th: กำลังส่งออก...
+  cs: Exportování...
+  sv: Exporterar...
+  he: מייצא...
+  verified_by_human: []
+export_success:
+  context: Export completed successfully
+  en: Export completed! Your download should start automatically.
+  de: Export abgeschlossen! Ihr Download sollte automatisch starten.
+  zh: 导出完成！您的下载应该会自动开始。
+  es: ¡Exportación completada! Tu descarga debería comenzar automáticamente.
+  fr: Exportation terminée ! Votre téléchargement devrait démarrer automatiquement.
+  pt: Exportação concluída! Seu download deve começar automaticamente.
+  ru: Экспорт завершен! Загрузка должна начаться автоматически.
+  ja: エクスポート完了！ダウンロードが自動的に開始されます。
+  ko: 내보내기 완료! 다운로드가 자동으로 시작됩니다.
+  it: Esportazione completata! Il download dovrebbe avviarsi automaticamente.
+  tr: Dışa aktarım tamamlandı! İndirmeniz otomatik olarak başlamalıdır.
+  vi: Xuất hoàn tất! Tải xuống của bạn sẽ tự động bắt đầu.
+  id: Ekspor selesai! Unduhan Anda harus dimulai secara otomatis.
+  pl: Eksport zakończony! Pobieranie powinno rozpocząć się automatycznie.
+  nl: Export voltooid! Uw download zou automatisch moeten starten.
+  ar: اكتمل التصدير! يجب أن يبدأ التنزيل تلقائيًا.
+  hi: निर्यात पूर्ण! आपका डाउनलोड स्वचालित रूप से शुरू होना चाहिए।
+  th: ส่งออกเสร็จสมบูรณ์! การดาวน์โหลดของคุณควรเริ่มต้นโดยอัตโนมัติ
+  cs: Export dokončen! Stahování by mělo začít automaticky.
+  sv: Export slutförd! Din nedladdning bör starta automatiskt.
+  he: "הייצוא הושלם! ההורדה אמורה להתחיל באופן אוטומטי."
+  verified_by_human: []
+export_failed:
+  context: Export failed message
+  en: Export failed. Please try again.
+  de: Export fehlgeschlagen. Bitte versuchen Sie es erneut.
+  zh: 导出失败。请重试。
+  es: Error en la exportación. Por favor, inténtalo de nuevo.
+  fr: Échec de l'exportation. Veuillez réessayer.
+  pt: Falha na exportação. Por favor, tente novamente.
+  ru: Ошибка экспорта. Пожалуйста, попробуйте снова.
+  ja: エクスポートに失敗しました。もう一度お試しください。
+  ko: 내보내기 실패. 다시 시도해 주세요.
+  it: Esportazione fallita. Per favore riprova.
+  tr: Dışa aktarım başarısız. Lütfen tekrar deneyin.
+  vi: Xuất thất bại. Vui lòng thử lại.
+  id: Ekspor gagal. Silakan coba lagi.
+  pl: Eksport nie powiódł się. Proszę spróbować ponownie.
+  nl: Export mislukt. Probeer het opnieuw.
+  ar: فشل التصدير. يرجى المحاولة مرة أخرى.
+  hi: निर्यात विफल। कृपया पुनः प्रयास करें।
+  th: ส่งออกล้มเหลว กรุณาลองอีกครั้ง
+  cs: Export selhal. Zkuste to prosím znovu.
+  sv: Export misslyckades. Försök igen.
+  he: הייצוא נכשל. יש לנסות שוב.
+  verified_by_human: []
+export_another:
+  context: Button to start another export
+  en: Export Again
+  de: Erneut exportieren
+  zh: 再次导出
+  es: Exportar de nuevo
+  fr: Exporter à nouveau
+  pt: Exportar novamente
+  ru: Экспортировать снова
+  ja: 再度エクスポート
+  ko: 다시 내보내기
+  it: Esporta di nuovo
+  tr: Tekrar dışa aktar
+  vi: Xuất lại
+  id: Ekspor lagi
+  pl: Eksportuj ponownie
+  nl: Opnieuw exporteren
+  ar: تصدير مرة أخرى
+  hi: फिर से निर्यात करें
+  th: ส่งออกอีกครั้ง
+  cs: Exportovat znovu
+  sv: Exportera igen
+  he: ייצוא מחדש
+  verified_by_human: []
+export_requires_login:
+  context: Message when user needs to log in
+  en: Please log in to export your data.
+  de: Bitte melden Sie sich an, um Ihre Daten zu exportieren.
+  zh: 请登录以导出您的数据。
+  es: Por favor, inicia sesión para exportar tus datos.
+  fr: Veuillez vous connecter pour exporter vos données.
+  pt: Por favor, faça login para exportar seus dados.
+  ru: Пожалуйста, войдите, чтобы экспортировать ваши данные.
+  ja: データをエクスポートするにはログインしてください。
+  ko: 데이터를 내보내려면 로그인하세요.
+  it: Accedi per esportare i tuoi dati.
+  tr: Verilerinizi dışa aktarmak için lütfen giriş yapın.
+  vi: Vui lòng đăng nhập để xuất dữ liệu của bạn.
+  id: Silakan masuk untuk mengekspor data Anda.
+  pl: Zaloguj się, aby wyeksportować swoje dane.
+  nl: Log in om uw gegevens te exporteren.
+  ar: يرجى تسجيل الدخول لتصدير بياناتك.
+  hi: अपना डेटा निर्यात करने के लिए कृपया लॉगिन करें।
+  th: กรุณาเข้าสู่ระบบเพื่อส่งออกข้อมูลของคุณ
+  cs: Pro export dat se prosím přihlaste.
+  sv: Logga in för att exportera dina data.
+  he: יש להתחבר כדי לייצא את הנתונים שלך.
+  verified_by_human: []
+export_login_required:
+  context: Notice for non-authenticated users
+  en: You must be logged in to export your data.
+  de: Sie müssen angemeldet sein, um Ihre Daten zu exportieren.
+  zh: 您必须登录才能导出数据。
+  es: Debes iniciar sesión para exportar tus datos.
+  fr: Vous devez être connecté pour exporter vos données.
+  pt: Você deve estar conectado para exportar seus dados.
+  ru: Вы должны войти в систему, чтобы экспортировать свои данные.
+  ja: データをエクスポートするにはログインが必要です。
+  ko: 데이터를 내보내려면 로그인해야 합니다.
+  it: Devi essere connesso per esportare i tuoi dati.
+  tr: Verilerinizi dışa aktarmak için giriş yapmalısınız.
+  vi: Bạn phải đăng nhập để xuất dữ liệu.
+  id: Anda harus masuk untuk mengekspor data Anda.
+  pl: Musisz być zalogowany, aby wyeksportować swoje dane.
+  nl: U moet ingelogd zijn om uw gegevens te exporteren.
+  ar: يجب أن تسجل الدخول لتصدير بياناتك.
+  hi: अपना डेटा निर्यात करने के लिए आपको लॉगिन होना चाहिए।
+  th: คุณต้องเข้าสู่ระบบเพื่อส่งออกข้อมูลของคุณ
+  cs: Pro export dat musíte být přihlášeni.
+  sv: Du måste vara inloggad för att exportera dina data.
+  he: עליך להיות מחובר כדי לייצא את הנתונים שלך.
+  verified_by_human: []
+
+# --- Password Settings ---
+password:
+  context: Password submenu under Security settings
+  en: Password
+  de: Passwort
+  zh: 密码
+  es: Contraseña
+  fr: Mot de passe
+  pt: Senha
+  ru: Пароль
+  ja: パスワード
+  ko: 비밀번호
+  it: Password
+  tr: Şifre
+  vi: Mật khẩu
+  id: Kata sandi
+  pl: Hasło
+  nl: Wachtwoord
+  ar: كلمة المرور
+  hi: पासवर्ड
+  th: รหัสผ่าน
+  cs: Heslo
+  sv: Lösenord
+  he: סיסמה
+  verified_by_human: []
+password_add:
+  context: Subtitle when user needs to add password
+  en: Add password login
+  de: Passwort-Login hinzufügen
+  zh: 添加密码登录
+  es: Agregar inicio de sesión con contraseña
+  fr: Ajouter connexion par mot de passe
+  pt: Adicionar login com senha
+  ru: Добавить вход по паролю
+  ja: パスワードログインを追加
+  ko: 비밀번호 로그인 추가
+  it: Aggiungi accesso con password
+  tr: Şifre ile giriş ekle
+  vi: Thêm đăng nhập bằng mật khẩu
+  id: Tambahkan login kata sandi
+  pl: Dodaj logowanie hasłem
+  nl: Wachtwoord login toevoegen
+  ar: إضافة تسجيل الدخول بكلمة المرور
+  hi: पासवर्ड लॉगिन जोड़ें
+  th: เพิ่มการเข้าสู่ระบบด้วยรหัสผ่าน
+  cs: Přidat přihlášení heslem
+  sv: Lägg till lösenordsinloggning
+  he: הוספת התחברות עם סיסמה
+  verified_by_human: []
+password_change:
+  context: Subtitle when user already has password
+  en: Change your password
+  de: Passwort ändern
+  zh: 更改密码
+  es: Cambiar tu contraseña
+  fr: Changer votre mot de passe
+  pt: Alterar sua senha
+  ru: Изменить пароль
+  ja: パスワードを変更
+  ko: 비밀번호 변경
+  it: Cambia la tua password
+  tr: Şifrenizi değiştirin
+  vi: Đổi mật khẩu
+  id: Ubah kata sandi Anda
+  pl: Zmień hasło
+  nl: Wachtwoord wijzigen
+  ar: تغيير كلمة المرور
+  hi: अपना पासवर्ड बदलें
+  th: เปลี่ยนรหัสผ่าน
+  cs: Změnit heslo
+  sv: Ändra lösenord
+  he: שינוי הסיסמה שלך
+  verified_by_human: []
+add_password:
+  context: Title for add password page
+  en: Add Password
+  de: Passwort hinzufügen
+  zh: 添加密码
+  es: Agregar contraseña
+  fr: Ajouter un mot de passe
+  pt: Adicionar senha
+  ru: Добавить пароль
+  ja: パスワードを追加
+  ko: 비밀번호 추가
+  it: Aggiungi password
+  tr: Şifre ekle
+  vi: Thêm mật khẩu
+  id: Tambahkan kata sandi
+  pl: Dodaj hasło
+  nl: Wachtwoord toevoegen
+  ar: إضافة كلمة المرور
+  hi: पासवर्ड जोड़ें
+  th: เพิ่มรหัสผ่าน
+  cs: Přidat heslo
+  sv: Lägg till lösenord
+  he: הוספת סיסמה
+  verified_by_human: []
+change_password:
+  context: Title for change password page
+  en: Change Password
+  de: Passwort ändern
+  zh: 更改密码
+  es: Cambiar contraseña
+  fr: Changer le mot de passe
+  pt: Alterar senha
+  ru: Изменить пароль
+  ja: パスワードを変更
+  ko: 비밀번호 변경
+  it: Cambia password
+  tr: Şifreyi değiştir
+  vi: Đổi mật khẩu
+  id: Ubah kata sandi
+  pl: Zmień hasło
+  nl: Wachtwoord wijzigen
+  ar: تغيير كلمة المرور
+  hi: पासवर्ड बदलें
+  th: เปลี่ยนรหัสผ่าน
+  cs: Změnit heslo
+  sv: Ändra lösenord
+  he: שינוי סיסמה
+  verified_by_human: []
+
+delete_account_uncompleted_title:
+  context: Title for uncompleted account deletion
+  en: Delete uncompleted account
+  de: Unvollständiges Konto löschen
+  es: Eliminar cuenta no completada
+  fr: Supprimer le compte non terminé
+  ja: 未完了のアカウントを削除
+  zh: 删除未完成的账户
+  ar: حذف الحساب غير المكتمل
+  he: מחיקת חשבון שלא הושלם
+delete_account_uncompleted_message:
+  context: Message for uncompleted account deletion
+  en: This account hasn't completed the signup process yet. You can delete it now without logging in.
+  de: Dieses Konto hat den Registrierungsprozess noch nicht abgeschlossen. Du kannst es jetzt ohne Anmeldung löschen.
+  es: Esta cuenta aún no ha completado el proceso de registro. Puedes eliminarla ahora sin iniciar sesión.
+  fr: Ce compte n'a pas encore terminé le processus d'inscription. Vous pouvez le supprimer maintenant sans vous connecter.
+  ja: このアカウントはまだサインアッププロセスを完了していません。ログインせずに今すぐ削除できます。
+  zh: 此账户尚未完成注册流程。您现在可以在不登录的情况下将其删除。
+  ar: لم يكتمل هذا الحساب عملية التسجيل بعد. يمكنك حذفه الآن دون تسجيل الدخول.
+  he: חשבון זה טרם השלים את תהליך ההרשמה. ניתן למחוק אותו כעת ללא צורך בהתחברות.
+delete_account_login_required_title:
+  context: Title when login is required for account deletion
+  en: Login required
+  de: Anmeldung erforderlich
+  es: Inicio de sesión requerido
+  fr: Connexion requise
+  ja: ログインが必要です
+  zh: 需要登录
+  ar: تسجيل الدخول مطلوب
+  he: נדרשת התחברות
+delete_account_login_required_message:
+  context: Message when login is required for account deletion
+  en: This account has completed signup or has credits/usage. Please log in to delete it using the regular interface.
+  de: Dieses Konto hat die Registrierung abgeschlossen oder verfügt über Guthaben/Nutzung. Bitte melde dich an, um es über die reguläre Oberfläche zu löschen.
+  es: Esta cuenta ha completado el registro o tiene créditos/uso. Por favor, inicia sesión para eliminarla usando la interfaz normal.
+  fr: Ce compte a terminé son inscription ou possède des crédits/utilisations. Veuillez vous connecter pour le supprimer via l'interface habituelle.
+  ja: このアカウントはサインアップを完了しているか、クレジットまたは使用履歴があります。通常のインターフェースを使用して削除するには、ログインしてください。
+  zh: 此账户已完成注册或有信用/使用记录。请登录后使用常规界面将其删除。
+  ar: أكمل هذا الحساب عملية التسجيل أو لديه رصيد/استخدام. يرجى تسجيل الدخول لحذفه عبر الواجهة العادية.
+  he: חשבון זה השלים את ההרשמה או שיש בו קרדיטים/שימוש. עליך להתחבר כדי למחוק אותו דרך הממשק הרגיל.
+delete_account_status_error:
+  context: Error message when checking account status fails
+  en: Failed to check account status. Please try again later.
+  de: Kontostatus konnte nicht überprüft werden. Bitte versuche es später erneut.
+  es: No se pudo verificar el estado de la cuenta. Por favor, inténtalo de nuevo más tarde.
+  fr: Échec de la vérification de l'état du compte. Veuillez réessayer plus tard.
+  ja: アカウントステータスの確認に失敗しました。後でもう一度お試しください。
+  zh: 无法检查账户状态。请稍后再试。
+  ar: فشل التحقق من حالة الحساب. يرجى المحاولة مرة أخرى لاحقًا.
+
+  # --- Timezone Settings ---
+  he: בדיקת סטטוס החשבון נכשלה. כדאי לנסות שוב מאוחר יותר.
+timezone:
+  context: Timezone settings menu item in account section
+  en: Timezone
+  de: Zeitzone
+  zh: 时区
+  es: Zona horaria
+  fr: Fuseau horaire
+  pt: ""
+  ru: ""
+  ja: タイムゾーン
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: المنطقة الزمنية
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: אזור זמן
+  verified_by_human: []
+timezone_current:
+  context: Label for current timezone display
+  en: Current timezone
+  de: Aktuelle Zeitzone
+  zh: 当前时区
+  es: Zona horaria actual
+  fr: Fuseau horaire actuel
+  pt: ""
+  ru: ""
+  ja: 現在のタイムゾーン
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: المنطقة الزمنية الحالية
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: אזור זמן נוכחי
+  verified_by_human: []
+timezone_use_browser:
+  context: Button to use browser detected timezone
+  en: Use browser timezone
+  de: Browser-Zeitzone verwenden
+  zh: 使用浏览器时区
+  es: Usar zona horaria del navegador
+  fr: Utiliser le fuseau horaire du navigateur
+  pt: ""
+  ru: ""
+  ja: ブラウザのタイムゾーンを使用
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: استخدام المنطقة الزمنية للمتصفح
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: שימוש באזור הזמן של הדפדפן
+  verified_by_human: []
+timezone_saved:
+  context: Success message when timezone is saved
+  en: Timezone saved
+  de: Zeitzone gespeichert
+  zh: 时区已保存
+  es: Zona horaria guardada
+  fr: Fuseau horaire enregistré
+  pt: ""
+  ru: ""
+  ja: タイムゾーンを保存しました
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: تم حفظ المنطقة الزمنية
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: אזור הזמן נשמר
+  verified_by_human: []
+timezone_loading:
+  context: Loading message for timezone settings
+  en: Loading timezone settings...
+  de: Zeitzoneneinstellungen werden geladen...
+  zh: 正在加载时区设置...
+  es: Cargando configuración de zona horaria...
+  fr: Chargement des paramètres de fuseau horaire...
+  pt: ""
+  ru: ""
+  ja: タイムゾーン設定を読み込み中...
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: جارٍ تحميل إعدادات المنطقة الزمنية...
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: טוען הגדרות אזור זמן...
+  verified_by_human: []
+timezone_other:
+  context: Header for other/custom timezones not in predefined list
+  en: Other
+  de: Andere
+  zh: 其他
+  es: Otro
+  fr: Autre
+  pt: ""
+  ru: ""
+  ja: その他
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: أخرى
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: אחר
+  verified_by_human: []
+timezone_info:
+  context: Info text explaining timezone usage
+  en: Your timezone is used for scheduling reminders and displaying times. It was automatically detected from your browser but you can change it here.
+  de: Ihre Zeitzone wird für die Planung von Erinnerungen und die Anzeige von Zeiten verwendet. Sie wurde automatisch von Ihrem Browser erkannt, aber Sie können sie hier ändern.
+  zh: 您的时区用于安排提醒和显示时间。它已从您的浏览器自动检测，但您可以在此处更改。
+  es: Su zona horaria se utiliza para programar recordatorios y mostrar horas. Se detectó automáticamente desde su navegador, pero puede cambiarla aquí.
+  fr: Votre fuseau horaire est utilisé pour planifier les rappels et afficher les heures. Il a été détecté automatiquement depuis votre navigateur, mais vous pouvez le modifier ici.
+  pt: ""
+  ru: ""
+  ja: タイムゾーンはリマインダーのスケジュールと時刻の表示に使用されます。ブラウザから自動的に検出されましたが、ここで変更できます。
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: تُستخدم منطقتك الزمنية لجدولة التذكيرات وعرض الأوقات. تم اكتشافها تلقائيًا من متصفحك ولكن يمكنك تغييرها هنا.
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: אזור הזמן שלך משמש לתזמון תזכורות ולהצגת זמנים. הוא זוהה אוטומטית מהדפדפן שלך, אך ניתן לשנות אותו כאן.
+  verified_by_human: []
+
+chats:
+  context: Chats submenu item label in Account settings — also used as the page title
+  en: Chats
+  de: Chats
+  es: Chats
+  fr: Chats
+  pt: Chats
+  ru: Чаты
+  ja: チャット
+  ko: 채팅
+  it: Chat
+  tr: Sohbetler
+  zh: 聊天
+  ar: المحادثات
+  hi: चैट
+  he: צ'אטים
+  verified_by_human: []
+chats.description:
+  context: Short description shown in the Chats settings page header
+  en: Manage and review your chat history
+  de: Chatverlauf verwalten und überprüfen
+  es: Administra y revisa tu historial de chats
+  fr: Gérez et consultez votre historique de chats
+  ar: إدارة ومراجعة سجل المحادثات
+  he: ניהול ובדיקת היסטוריית הצ'אטים
+  verified_by_human: []
+chats.total_count:
+  context: Label showing total number of chats in the account, e.g. "142 Chats"
+  en: "{count} Chats"
+  de: "{count} Chats"
+  ar: "{count} محادثات"
+  he: "{count} צ'אטים"
+  verified_by_human: []
+chats.loading:
+  context: Loading state text while chat stats are being fetched
+  en: Loading...
+  de: Laden...
+  ar: جارٍ التحميل...
+  he: טוען...
+  verified_by_human: []
+chats.error:
+  context: Error message when chat stats fail to load
+  en: Failed to load chat statistics
+  de: Chat-Statistiken konnten nicht geladen werden
+  ar: فشل تحميل إحصائيات المحادثات
+  he: טעינת נתוני הצ'אט נכשלה
+  verified_by_human: []
+chats.retry:
+  context: Button label to retry loading chat stats after error
+  en: Retry
+  de: Erneut versuchen
+  ar: إعادة المحاولة
+  he: נסה שוב
+  verified_by_human: []
+chats.timeline_title:
+  context: Section heading above the chat creation timeline graph
+  en: Chat Creation Over Time
+  de: Chat-Verlauf im Zeitverlauf
+  ar: إنشاء المحادثات عبر الزمن
+  he: יצירת צ'אטים לאורך זמן
+  verified_by_human: []
+chats.timeline_empty:
+  context: Text shown when there are no chats to display in the timeline
+  en: No chats yet
+  de: Noch keine Chats
+  ar: لا توجد محادثات بعد
+  he: אין צ'אטים עדיין
+  verified_by_human: []
+chats.delete_section_title:
+  context: Section heading for the "Delete old chats" area
+  en: Delete Old Chats
+  de: Alte Chats löschen
+  ar: حذف المحادثات القديمة
+  he: מחק צ'אטים ישנים
+  verified_by_human: []
+chats.delete_section_desc:
+  context: Description below the delete old chats section title — activity means last message sent/received
+  en: Permanently delete chats with no activity for the selected period. This cannot be undone.
+  de: Chats, die älter als der ausgewählte Zeitraum sind, werden dauerhaft gelöscht. Dieser Vorgang kann nicht rückgängig gemacht werden.
+  ar: حذف المحادثات الأقدم من الفترة المحددة بشكل دائم. لا يمكن التراجع عن هذا الإجراء.
+  he: מחיקה סופית של צ'אטים ישנים יותר מהתקופה הנבחרת. לא ניתן לבטל פעולה זו.
+  verified_by_human: []
+chats.delete_older_than:
+  context: Dropdown label — filters by last message activity, not chat creation date
+  en: No activity for
+  de: Älter als
+  ar: أقدم من
+  he: ישן מ-
+  verified_by_human: []
+chats.delete_option_1d:
+  context: Dropdown option — delete chats older than 1 day
+  en: 1 day
+  de: 1 Tag
+  ar: يوم واحد
+  he: יום אחד
+  verified_by_human: []
+chats.delete_option_7d:
+  context: Dropdown option — delete chats older than 7 days
+  en: 7 days
+  de: 7 Tage
+  ar: 7 أيام
+  he: 7 ימים
+  verified_by_human: []
+chats.delete_option_14d:
+  context: Dropdown option — delete chats older than 14 days
+  en: 14 days
+  de: 14 Tage
+  ar: 14 يومًا
+  he: 14 ימים
+  verified_by_human: []
+chats.delete_option_30d:
+  context: Dropdown option — delete chats older than 30 days
+  en: 30 days
+  de: 30 Tage
+  ar: 30 يومًا
+  he: 30 ימים
+  verified_by_human: []
+chats.delete_option_90d:
+  context: Dropdown option — delete chats older than 90 days
+  en: 90 days
+  de: 90 Tage
+  ar: 90 يومًا
+  he: 90 ימים
+  verified_by_human: []
+chats.delete_option_all:
+  context: Dropdown option — delete ALL chats regardless of age
+  en: All chats
+  de: Alle Chats
+  ar: جميع المحادثات
+  he: כל הצ'אטים
+  verified_by_human: []
+chats.delete_button:
+  context: Button to trigger deletion of old chats
+  en: Delete Old Chats
+  de: Alte Chats löschen
+  ar: حذف المحادثات القديمة
+  he: מחק צ'אטים ישנים
+  verified_by_human: []
+chats.delete_confirm_title:
+  context: Confirmation dialog title before deleting old chats
+  en: Delete Old Chats?
+  de: Alte Chats löschen?
+  ar: حذف المحادثات القديمة؟
+  he: למחוק צ'אטים ישנים?
+  verified_by_human: []
+chats.delete_confirm_desc:
+  context: Confirmation dialog body explaining what will be deleted, {days} is the number of days
+  en: "This will permanently delete all chats older than {days} days. This action cannot be undone."
+  de: "Dadurch werden alle Chats, die älter als {days} Tage sind, dauerhaft gelöscht. Diese Aktion kann nicht rückgängig gemacht werden."
+  ar: "سيؤدي هذا إلى حذف جميع المحادثات الأقدم من {days} أيام بشكل دائم. لا يمكن التراجع عن هذا الإجراء."
+  he: "פעולה זו תמחק לצמיתות את כל הצ'אטים הישנים מ-{days} ימים. לא ניתן לבטל פעולה זו."
+  verified_by_human: []
+chats.delete_confirm_button:
+  context: Confirmation button to proceed with deletion of old chats
+  en: Delete
+  de: Löschen
+  ar: حذف
+  he: מחק
+  verified_by_human: []
+chats.delete_cancel_button:
+  context: Cancel button in the delete confirmation dialog
+  en: Cancel
+  de: Abbrechen
+  ar: إلغاء
+  he: ביטול
+  verified_by_human: []
+chats.delete_deleting:
+  context: Status text shown while deletion is in progress
+  en: Deleting...
+  de: Wird gelöscht...
+  ar: جارٍ الحذف...
+  he: מוחק...
+  verified_by_human: []
+chats.delete_success:
+  context: Success message shown after chats are deleted, {count} is the number deleted
+  en: "{count} chats deleted"
+  de: "{count} Chats gelöscht"
+  ar: "تم حذف {count} محادثات"
+  he: "{count} צ'אטים נמחקו"
+  verified_by_human: []
+chats.delete_none:
+  context: Message shown when no chats were found to delete
+  en: No chats found older than the selected period
+  de: Keine Chats gefunden, die älter als der ausgewählte Zeitraum sind
+  ar: لم يتم العثور على محادثات أقدم من الفترة المحددة
+  he: לא נמצאו צ'אטים ישנים יותר מהתקופה הנבחרת
+  verified_by_human: []
+chats.preview_button:
+  context: Button label to preview how many chats will be deleted before confirming
+  en: Preview
+  de: Vorschau
+  ar: معاينة
+  he: תצוגה מקדימה
+  verified_by_human: []
+chats.preview_result:
+  context: Text showing how many chats will be deleted, {count} is the number, shown after clicking Preview
+  en: "{count} chats will be deleted"
+  de: "{count} Chats werden gelöscht"
+  ar: "سيتم حذف {count} محادثة"
+  he: "{count} צ'אטים יימחקו"
+  verified_by_human: []
+chats.preview_none:
+  context: Text shown in preview when no chats would be deleted for the selected period
+  en: No chats will be deleted
+  de: Keine Chats werden gelöscht
+  ar: لن يتم حذف أي محادثات
+  he: לא יימחקו צ'אטים
+  verified_by_human: []
+chats.preview_loading:
+  context: Loading text shown while the preview count is being fetched
+  en: Checking...
+  de: Wird geprüft...
+  ar: جارٍ التحقق...
+  he: בודק...
+  verified_by_human: []
+export_select_all:
+  context: "Link to select all export categories"
+  en: Select all
+  de: Alles auswählen
+  zh: 全选
+  es: Seleccionar todo
+  fr: Tout sélectionner
+  pt: Selecionar tudo
+  ru: Выбрать всё
+  ja: すべて選択
+  ko: 모두 선택
+  it: Seleziona tutto
+  tr: Hepsini seç
+  vi: Chọn tất cả
+  id: Pilih semua
+  pl: Zaznacz wszystko
+  nl: Alles selecteren
+  ar: تحديد الكل
+  hi: सभी चुनें
+  th: เลือกทั้งหมด
+  cs: Vybrat vše
+  sv: Välj alla
+  he: בחר הכל
+  verified_by_human: []
+export_deselect_all:
+  context: "Link to deselect all export categories"
+  en: Deselect all
+  de: Alle abwählen
+  zh: 取消全选
+  es: Deseleccionar todo
+  fr: Tout désélectionner
+  pt: Desselecionar tudo
+  ru: Снять выбор
+  ja: すべて解除
+  ko: 모두 해제
+  it: Deseleziona tutto
+  tr: Tümünü kaldır
+  vi: Bỏ chọn tất cả
+  id: Batalkan semua
+  pl: Odznacz wszystko
+  nl: Alles deselecteren
+  ar: إلغاء تحديد الكل
+  hi: सभी हटाएं
+  th: ยกเลิกเลือกทั้งหมด
+  cs: Zrušit výběr
+  sv: Avmarkera alla
+  he: בטל בחירה
+  verified_by_human: []
+export_includes_chat_files:
+  context: "Description for chat file attachments export option"
+  en: Chat file attachments
+  de: Chat-Dateianhänge
+  zh: 聊天文件附件
+  es: Archivos adjuntos de chat
+  fr: Pièces jointes des chats
+  pt: Arquivos anexados ao chat
+  ru: Вложения чата
+  ja: チャットのファイル添付
+  ko: 채팅 파일 첨부
+  it: Allegati file chat
+  tr: Sohbet dosya ekleri
+  vi: Tệp đính kèm trò chuyện
+  id: Lampiran file obrolan
+  pl: Załączniki plików czatu
+  nl: Chat bestandsbijlagen
+  ar: مرفقات ملفات الدردشة
+  hi: चैट फ़ाइल अटैचमेंट
+  th: ไฟล์แนบในแชท
+  cs: Přílohy souborů chatu
+  sv: Chatfilsbilagor
+  he: קבצים מצורפים לצ'אט
+  verified_by_human: []
+export_includes_chat_files_desc:
+  context: "Sub-description for chat file attachments export option"
+  en: Images, audio recordings, PDFs, code files, video transcripts
+  de: Bilder, Audioaufnahmen, PDFs, Code-Dateien, Videotranskripte
+  zh: 图片、音频录音、PDF、代码文件、视频转录
+  es: Imágenes, grabaciones de audio, PDFs, archivos de código, transcripciones de vídeo
+  fr: Images, enregistrements audio, PDFs, fichiers de code, transcriptions vidéo
+  pt: Imagens, gravações de áudio, PDFs, arquivos de código, transcrições de vídeo
+  ru: Изображения, аудиозаписи, PDF, файлы кода, расшифровки видео
+  ja: 画像、音声録音、PDF、コードファイル、動画文字起こし
+  ko: 이미지, 오디오 녹음, PDF, 코드 파일, 동영상 자막
+  it: Immagini, registrazioni audio, PDF, file di codice, trascrizioni video
+  tr: Resimler, ses kayıtları, PDF'ler, kod dosyaları, video transkriptleri
+  vi: Hình ảnh, bản ghi âm, PDF, tệp mã, bản ghi video
+  id: Gambar, rekaman audio, PDF, file kode, transkrip video
+  pl: Obrazy, nagrania audio, PDF, pliki kodu, transkrypcje wideo
+  nl: Afbeeldingen, audio-opnamen, PDF's, codebestanden, videotranscripties
+  ar: صور ومقاطع صوتية وملفات PDF وملفات الكود وتفريغ الفيديو
+  hi: चित्र, ऑडियो रिकॉर्डिंग, PDF, कोड फ़ाइलें, वीडियो ट्रांसक्रिप्ट
+  th: รูปภาพ บันทึกเสียง PDF ไฟล์โค้ด บทถอดเสียงวิดีโอ
+  cs: Obrázky, zvukové nahrávky, PDF, soubory kódu, přepisy videa
+  sv: Bilder, ljudinspelningar, PDF:er, kodfiler, videotranskriptioner
+  he: תמונות, הקלטות שמע, קובצי PDF, קוד, תמלולי וידאו
+  verified_by_human: []
+export_includes_profile_desc:
+  context: "Sub-description for profile export option"
+  en: Account info, preferences, profile picture (decrypted)
+  de: Kontoinformationen, Einstellungen, Profilbild (entschlüsselt)
+  zh: 账户信息、偏好设置、个人资料图片（已解密）
+  es: Información de cuenta, preferencias, foto de perfil (descifrado)
+  fr: Informations du compte, préférences, photo de profil (déchiffré)
+  pt: Informações da conta, preferências, foto do perfil (descriptografado)
+  ru: Информация об аккаунте, настройки, фото профиля (расшифровано)
+  ja: アカウント情報、設定、プロフィール画像（復号済み）
+  ko: 계정 정보, 환경 설정, 프로필 사진 (복호화됨)
+  it: Informazioni account, preferenze, foto profilo (decifrato)
+  tr: Hesap bilgileri, tercihler, profil fotoğrafı (şifresi çözülmüş)
+  vi: Thông tin tài khoản, tùy chọn, ảnh hồ sơ (đã giải mã)
+  id: Info akun, preferensi, foto profil (didekripsi)
+  pl: Informacje o koncie, preferencje, zdjęcie profilowe (odszyfrowane)
+  nl: Accountinformatie, voorkeuren, profielfoto (gedecodeerd)
+  ar: معلومات الحساب والتفضيلات وصورة الملف الشخصي (مفككة التشفير)
+  hi: खाता जानकारी, प्राथमिकताएं, प्रोफ़ाइल चित्र (डिक्रिप्टेड)
+  th: ข้อมูลบัญชี การตั้งค่า รูปโปรไฟล์ (ถอดรหัสแล้ว)
+  cs: Informace o účtu, preference, profilová fotka (dešifrováno)
+  sv: Kontoinformation, inställningar, profilbild (dekrypterat)
+  he: פרטי חשבון, העדפות, תמונת פרופיל (מפוענחת)
+  verified_by_human: []
+export_includes_settings_desc:
+  context: "Sub-description for settings export option"
+  en: App preferences and AI memories (fully decrypted)
+  de: App-Einstellungen und KI-Erinnerungen (vollständig entschlüsselt)
+  zh: 应用偏好设置和AI记忆（完全解密）
+  es: Preferencias de la app y memorias de IA (completamente descifrado)
+  fr: Préférences de l'application et mémoires IA (entièrement déchiffré)
+  pt: Preferências do aplicativo e memórias de IA (totalmente descriptografado)
+  ru: Настройки приложения и память ИИ (полностью расшифровано)
+  ja: アプリ設定とAIメモリ（完全復号済み）
+  ko: 앱 환경 설정 및 AI 기억 (완전히 복호화됨)
+  it: Preferenze dell'app e memorie AI (completamente decifrato)
+  tr: Uygulama tercihleri ve AI anıları (tamamen şifresi çözülmüş)
+  vi: Tùy chọn ứng dụng và bộ nhớ AI (giải mã hoàn toàn)
+  id: Preferensi aplikasi dan memori AI (sepenuhnya didekripsi)
+  pl: Preferencje aplikacji i pamięć AI (w pełni odszyfrowane)
+  nl: App-voorkeuren en AI-herinneringen (volledig gedecodeerd)
+  ar: تفضيلات التطبيق وذكريات الذكاء الاصطناعي (مفككة التشفير بالكامل)
+  hi: ऐप प्राथमिकताएं और AI मेमोरीज (पूरी तरह डिक्रिप्टेड)
+  th: การตั้งค่าแอปและความทรงจำ AI (ถอดรหัสทั้งหมด)
+  cs: Předvolby aplikace a paměti AI (plně dešifrováno)
+  sv: Appinställningar och AI-minnen (fullständigt dekrypterat)
+  he: העדפות אפליקציה וזיכרונות AI (מפוענחים לחלוטין)
+  verified_by_human: []
+export_includes_usage_desc:
+  context: "Sub-description for usage export option"
+  en: Usage records in YAML and CSV formats
+  de: Nutzungsaufzeichnungen in YAML- und CSV-Formaten
+  zh: YAML和CSV格式的使用记录
+  es: Registros de uso en formatos YAML y CSV
+  fr: Enregistrements d'utilisation en formats YAML et CSV
+  pt: Registros de uso nos formatos YAML e CSV
+  ru: Записи об использовании в форматах YAML и CSV
+  ja: YAMLおよびCSV形式の使用記録
+  ko: YAML 및 CSV 형식의 사용 기록
+  it: Registri di utilizzo in formati YAML e CSV
+  tr: YAML ve CSV formatlarında kullanım kayıtları
+  vi: Bản ghi sử dụng ở định dạng YAML và CSV
+  id: Catatan penggunaan dalam format YAML dan CSV
+  pl: Rekordy użytkowania w formatach YAML i CSV
+  nl: Gebruiksrecords in YAML- en CSV-formaten
+  ar: سجلات الاستخدام بتنسيقات YAML وCSV
+  hi: YAML और CSV फ़ॉर्मेट में उपयोग रिकॉर्ड
+  th: บันทึกการใช้งานในรูปแบบ YAML และ CSV
+  cs: Záznamy o použití ve formátech YAML a CSV
+  sv: Användningsrecord i YAML- och CSV-format
+  he: רשומות שימוש בפורמטי YAML ו-CSV
+  verified_by_human: []
+
+# --- Import Account (Chat Import from YAML) ---
+import:
+  context: Import Data submenu under Account settings
+  en: Import
+  de: Importieren
+  zh: 导入
+  es: Importar
+  fr: Importer
+  pt: Importar
+  ru: Импорт
+  ja: インポート
+  ko: 가져오기
+  it: Importa
+  tr: İçe aktar
+  vi: Nhập
+  id: Impor
+  pl: Importuj
+  nl: Importeren
+  ar: استيراد
+  hi: आयात
+  th: นำเข้า
+  cs: Importovat
+  sv: Importera
+  he: ייבוא
+  verified_by_human: []
+import_title:
+  context: Title for import data page
+  en: Import Chats
+  de: Chats importieren
+  zh: 导入聊天记录
+  es: Importar chats
+  fr: Importer des chats
+  pt: Importar conversas
+  ru: Импортировать чаты
+  ja: チャットをインポート
+  ko: 채팅 가져오기
+  it: Importa chat
+  tr: Sohbetleri içe aktar
+  vi: Nhập chats
+  id: Impor obrolan
+  pl: Importuj czaty
+  nl: Chats importeren
+  ar: استيراد المحادثات
+  hi: चैट आयात करें
+  th: นำเข้าแชท
+  cs: Importovat chaty
+  sv: Importera chattar
+  he: ייבוא שיחות
+  verified_by_human: []
+import_description:
+  context: Description shown on the import page (supports ZIP and YAML)
+  en: Import chats from an OpenMates export ZIP or YAML file. Each message is safety-scanned before storage.
+  de: Chats aus einer zuvor exportierten OpenMates-YAML-Datei importieren. Jede Nachricht wird vor der Speicherung auf Sicherheit geprüft.
+  zh: 从之前导出的OpenMates YAML文件导入聊天记录。每条消息在存储前都会经过安全扫描。
+  es: Importa chats desde un archivo YAML de OpenMates exportado previamente. Cada mensaje se analiza por seguridad antes de almacenarse.
+  fr: Importez des chats depuis un fichier YAML OpenMates précédemment exporté. Chaque message est analysé pour la sécurité avant stockage.
+  pt: Importe conversas de um arquivo YAML do OpenMates exportado anteriormente. Cada mensagem é verificada por segurança antes do armazenamento.
+  ru: Импортируйте чаты из ранее экспортированного файла OpenMates YAML. Каждое сообщение проверяется на безопасность перед сохранением.
+  ja: 以前にエクスポートしたOpenMates YAMLファイルからチャットをインポートします。各メッセージは保存前にセキュリティスキャンされます。
+  ko: 이전에 내보낸 OpenMates YAML 파일에서 채팅을 가져옵니다. 각 메시지는 저장 전에 보안 검사를 받습니다。
+  it: Importa le chat da un file YAML OpenMates precedentemente esportato. Ogni messaggio viene analizzato per la sicurezza prima dell'archiviazione.
+  verified_by_human: []
+import_choose_file:
+  context: Placeholder text for the file picker on the import page (accepts ZIP or YAML)
+  en: Choose a .zip or .yml file to import
+  de: .zip- oder .yml-Datei zum Importieren auswählen
+  zh: 选择要导入的.zip或.yml文件
+  es: Elige un archivo .zip o .yml para importar
+  fr: Choisir un fichier .zip ou .yml à importer
+  pt: Escolha um arquivo .zip ou .yml para importar
+  ru: Выберите файл .zip или .yml для импорта
+  ja: インポートする.zipまたは.ymlファイルを選択
+  ko: 가져올 .zip 또는 .yml 파일 선택
+  it: Scegli un file .zip o .yml da importare
+  verified_by_human: []
+import_select_chats:
+  context: Header for the chat selection list on the import page
+  en: Select chats to import
+  de: Chats zum Importieren auswählen
+  zh: 选择要导入的聊天记录
+  es: Seleccionar chats para importar
+  fr: Sélectionner les chats à importer
+  pt: Selecionar conversas para importar
+  ru: Выбрать чаты для импорта
+  ja: インポートするチャットを選択
+  ko: 가져올 채팅 선택
+  it: Seleziona le chat da importare
+  verified_by_human: []
+import_select_all:
+  context: Select all chats button on import page
+  en: Select all
+  de: Alle auswählen
+  zh: 全选
+  es: Seleccionar todo
+  fr: Tout sélectionner
+  pt: Selecionar tudo
+  ru: Выбрать все
+  ja: すべて選択
+  ko: 모두 선택
+  it: Seleziona tutto
+  verified_by_human: []
+import_deselect_all:
+  context: Deselect all chats button on import page
+  en: Deselect all
+  de: Alle abwählen
+  zh: 取消全选
+  es: Deseleccionar todo
+  fr: Tout désélectionner
+  pt: Desmarcar tudo
+  ru: Снять все
+  ja: すべて解除
+  ko: 모두 해제
+  it: Deseleziona tutto
+  verified_by_human: []
+import_messages_count:
+  context: Message count label in chat selection list
+  en: messages
+  de: Nachrichten
+  zh: 条消息
+  es: mensajes
+  fr: messages
+  pt: mensagens
+  ru: сообщений
+  ja: メッセージ
+  ko: 메시지
+  it: messaggi
+  verified_by_human: []
+import_estimated_cost:
+  context: Label for estimated credit cost before importing
+  en: Estimated cost
+  de: Geschätzte Kosten
+  zh: 预估费用
+  es: Costo estimado
+  fr: Coût estimé
+  pt: Custo estimado
+  ru: Примерная стоимость
+  ja: 推定コスト
+  ko: 예상 비용
+  it: Costo stimato
+  verified_by_human: []
+import_credits:
+  context: "Credits unit label (e.g. '5 credits')"
+  en: credits
+  de: Guthaben
+  zh: 积分
+  es: créditos
+  fr: crédits
+  pt: créditos
+  ru: кредитов
+  ja: クレジット
+  ko: 크레딧
+  it: crediti
+  verified_by_human: []
+import_chats_selected:
+  context: Number of chats selected label in cost estimate
+  en: chats
+  de: Chats
+  zh: 个聊天
+  es: chats
+  fr: chats
+  pt: conversas
+  ru: чатов
+  ja: チャット
+  ko: 채팅
+  it: chat
+  verified_by_human: []
+import_scanning:
+  context: Status message shown while importing
+  en: Scanning and importing your chats…
+  de: Chats werden gescannt und importiert…
+  zh: 正在扫描并导入您的聊天记录…
+  es: Escaneando e importando tus chats…
+  fr: Analyse et importation de vos chats en cours…
+  pt: Verificando e importando suas conversas…
+  ru: Сканирование и импорт чатов…
+  ja: チャットをスキャンしてインポートしています…
+  ko: 채팅을 스캔하고 가져오는 중…
+  it: Scansione e importazione delle chat in corso…
+  verified_by_human: []
+import_scanning_note:
+  context: Note shown below the spinner during import (reassures the user that scanning takes a moment)
+  en: Safety scanning may take a moment for large chats.
+  de: Das Sicherheitsscannen kann bei großen Chats einen Moment dauern.
+  zh: 对于较大的聊天记录，安全扫描可能需要一些时间。
+  es: El análisis de seguridad puede tardar un momento para chats grandes.
+  fr: L'analyse de sécurité peut prendre un moment pour les grandes conversations.
+  pt: A verificação de segurança pode demorar um momento para conversas grandes.
+  ru: Сканирование безопасности может занять некоторое время для больших чатов.
+  ja: 大きなチャットの場合、セキュリティスキャンに少し時間がかかることがあります。
+  ko: 큰 채팅의 경우 보안 검사에 잠시 시간이 걸릴 수 있습니다.
+  it: La scansione di sicurezza potrebbe richiedere un momento per le chat grandi.
+  verified_by_human: []
+import_button:
+  context: Primary action button on the import page
+  en: Import Selected Chats
+  de: Ausgewählte Chats importieren
+  zh: 导入选中的聊天记录
+  es: Importar chats seleccionados
+  fr: Importer les chats sélectionnés
+  pt: Importar conversas selecionadas
+  ru: Импортировать выбранные чаты
+  ja: 選択したチャットをインポート
+  ko: 선택한 채팅 가져오기
+  it: Importa le chat selezionate
+  verified_by_human: []
+import_success:
+  context: Success banner after import completes
+  en: Import complete!
+  de: Import abgeschlossen!
+  zh: 导入完成！
+  es: ¡Importación completa!
+  fr: Importation terminée !
+  pt: Importação concluída!
+  ru: Импорт завершён!
+  ja: インポート完了！
+  ko: 가져오기 완료!
+  it: Importazione completata!
+  verified_by_human: []
+import_untitled:
+  context: Placeholder name for a chat with no title
+  en: Untitled chat
+  de: Unbenannter Chat
+  zh: 无标题聊天
+  es: Chat sin título
+  fr: Chat sans titre
+  pt: Conversa sem título
+  ru: Безымянный чат
+  ja: 無題のチャット
+  ko: 제목 없는 채팅
+  it: Chat senza titolo
+  verified_by_human: []
+import_messages_imported:
+  context: "Label for messages imported count in results (e.g. '5 messages imported')"
+  en: messages imported
+  de: Nachrichten importiert
+  zh: 条消息已导入
+  es: mensajes importados
+  fr: messages importés
+  pt: mensagens importadas
+  ru: сообщений импортировано
+  ja: メッセージがインポートされました
+  ko: 메시지 가져옴
+  it: messaggi importati
+  verified_by_human: []
+import_messages_blocked:
+  context: "Label for blocked messages count in results (e.g. '2 blocked')"
+  en: blocked
+  de: blockiert
+  zh: 已拦截
+  es: bloqueados
+  fr: bloqués
+  pt: bloqueadas
+  ru: заблокировано
+  ja: ブロック済み
+  ko: 차단됨
+  it: bloccati
+  verified_by_human: []
+import_credits_charged:
+  context: Credits charged label shown in import results
+  en: Credits charged
+  de: Abgezogenes Guthaben
+  zh: 已扣除积分
+  es: Créditos cobrados
+  fr: Crédits débités
+  pt: Créditos cobrados
+  ru: Списано кредитов
+  ja: 課金クレジット
+  ko: 청구된 크레딧
+  it: Crediti addebitati
+  verified_by_human: []
+import_another:
+  context: Button to import another file after a successful import
+  en: Import another file
+  de: Weitere Datei importieren
+  zh: 导入另一个文件
+  es: Importar otro archivo
+  fr: Importer un autre fichier
+  pt: Importar outro arquivo
+  ru: Импортировать другой файл
+  ja: 別のファイルをインポート
+  ko: 다른 파일 가져오기
+  it: Importa un altro file
+  verified_by_human: []
+import_safety_notice:
+  context: Info notice explaining the safety scan on the import page
+  en: Each message is safety-scanned for prompt injection before being stored. Blocked messages are replaced with a visible placeholder and are not charged.
+  de: Jede Nachricht wird vor der Speicherung auf Prompt-Injection geprüft. Blockierte Nachrichten werden durch einen sichtbaren Platzhalter ersetzt und werden nicht berechnet.
+  zh: 每条消息在存储前都会被安全扫描以防止提示注入。被拦截的消息将被替换为可见的占位符，不会收费。
+  es: Cada mensaje es analizado por seguridad para detectar inyecciones de prompt antes de ser almacenado. Los mensajes bloqueados se reemplazan con un marcador visible y no se cobran.
+  fr: Chaque message est analysé pour les injections de prompt avant d'être stocké. Les messages bloqués sont remplacés par un espace réservé visible et ne sont pas facturés.
+  pt: Cada mensagem é verificada por injeção de prompt antes de ser armazenada. Mensagens bloqueadas são substituídas por um espaço reservado visível e não são cobradas.
+  ru: Каждое сообщение проверяется на инъекцию подсказок перед сохранением. Заблокированные сообщения заменяются видимым заменителем и не тарифицируются.
+  ja: 各メッセージは保存前にプロンプトインジェクションのセキュリティスキャンが行われます。ブロックされたメッセージは表示プレースホルダーに置き換えられ、課金されません。
+  ko: 각 메시지는 저장 전에 프롬프트 주입에 대한 보안 검사를 받습니다. 차단된 메시지는 표시 자리 표시자로 대체되며 요금이 청구되지 않습니다.
+  it: Ogni messaggio viene analizzato per l'iniezione di prompt prima di essere archiviato. I messaggi bloccati vengono sostituiti con un segnaposto visibile e non vengono addebitati.
+  verified_by_human: []
+import_login_required:
+  context: Message shown when user is not authenticated on the import page
+  en: You must be logged in to import chats.
+  de: Sie müssen angemeldet sein, um Chats zu importieren.
+  zh: 您必须登录才能导入聊天记录。
+  es: Debes iniciar sesión para importar chats.
+  fr: Vous devez être connecté pour importer des chats.
+  pt: Você deve estar conectado para importar conversas.
+  ru: Вы должны войти в систему для импорта чатов.
+  ja: チャットをインポートするにはログインが必要です。
+  ko: 채팅을 가져오려면 로그인해야 합니다.
+  it: Devi essere connesso per importare le chat.
+  verified_by_human: []
+import_importing:
+  context: Button label while import is in progress
+  en: Importing…
+  de: Wird importiert…
+  zh: 导入中…
+  es: Importando…
+  fr: Importation en cours…
+  pt: Importando…
+  ru: Импортируется…
+  ja: インポート中…
+  ko: 가져오는 중…
+  it: Importazione in corso…
+  verified_by_human: []

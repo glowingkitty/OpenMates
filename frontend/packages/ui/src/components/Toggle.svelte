@@ -2,6 +2,9 @@
     import { createEventDispatcher } from 'svelte';
 
     // Props for the toggle component using Svelte 5 $props()
+    // checked is $bindable so callers using bind:checked still work,
+    // but the input is driven by the prop directly (no internal bind:checked)
+    // so the DOM always reflects what the parent passes in.
     interface Props {
         checked?: boolean;
         disabled?: boolean;
@@ -19,10 +22,12 @@
 
     const dispatch = createEventDispatcher();
 
-    // Handle toggle change with proper event typing
+    // Handle toggle change with proper event typing.
+    // We update the bindable prop and dispatch so callers using bind:checked
+    // still receive the new value. The input's checked attribute is driven
+    // directly by the prop so the DOM stays in sync.
     function handleChange(event: Event) {
         checked = (event.target as HTMLInputElement).checked;
-        // Dispatch the change event to the parent component
         dispatch('change', { checked }); 
     }
 </script>
@@ -33,7 +38,7 @@
         {id}
         {name}
         {disabled}
-        bind:checked
+        checked={checked}
         onchange={handleChange}
         aria-label={ariaLabel}
     />
@@ -46,6 +51,8 @@
         display: inline-block;
         width: 52px;
         height: 32px;
+        min-width: 52px; /* Prevent width from being compressed */
+        flex-shrink: 0; /* Prevent flexbox from shrinking the toggle */
         cursor: pointer;
     }
 

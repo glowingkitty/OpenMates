@@ -5,11 +5,11 @@ import logging
 from typing import Dict, Any, List, Optional, Union, AsyncIterator
 import httpx
 import json
-import os
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 import tiktoken
 
 from backend.core.api.app.utils.secrets_manager import SecretsManager
+from .openai_shared import calculate_token_breakdown
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +41,8 @@ class MistralUsage(BaseModel):
     prompt_tokens: int
     completion_tokens: int
     total_tokens: int
+    user_input_tokens: Optional[int] = None
+    system_prompt_tokens: Optional[int] = None
 
 class RawMistralChatCompletionResponse(BaseModel):
     id: str
@@ -129,14 +131,41 @@ async def invoke_mistral_chat_completions(
         payload["max_tokens"] = max_tokens
     if tools:
         payload["tools"] = tools
-        payload["tool_choice"] = tool_choice or "auto"
+        # Map tool_choice to Mistral-specific values
+        if tool_choice == "required":
+            payload["tool_choice"] = "any"
+        elif tool_choice:
+            payload["tool_choice"] = tool_choice
+        else:
+            payload["tool_choice"] = "auto"
 
-    logger.debug(f"{log_prefix} Payload: {json.dumps(payload, indent=2)}")
+    payload_summary = {
+        "model": payload.get("model"),
+        "stream": payload.get("stream"),
+        "temperature": payload.get("temperature"),
+        "messages_count": len(payload.get("messages", [])) if isinstance(payload.get("messages"), list) else 0,
+        "message_roles": [
+            msg.get("role")
+            for msg in payload.get("messages", [])
+            if isinstance(msg, dict)
+        ] if isinstance(payload.get("messages"), list) else [],
+        "tools_count": len(payload.get("tools", [])) if isinstance(payload.get("tools"), list) else 0,
+        "tool_choice": payload.get("tool_choice"),
+    }
+    logger.debug(f"{log_prefix} Payload summary: {json.dumps(payload_summary, indent=2)}")
+
+    # Calculate token breakdown from input messages (estimate)
+    token_breakdown = calculate_token_breakdown(messages, model_id)
 
     async def _process_non_stream_response(response_json: Dict[str, Any]) -> UnifiedMistralResponse:
         logger.info(f"{log_prefix} Received non-streamed response.")
         try:
             raw_api_response = RawMistralChatCompletionResponse(**response_json)
+            # Add breakdown to usage
+            if raw_api_response.usage:
+                raw_api_response.usage.user_input_tokens = token_breakdown.get("user_input_tokens")
+                raw_api_response.usage.system_prompt_tokens = token_breakdown.get("system_prompt_tokens")
+                
             unified_resp_obj = UnifiedMistralResponse(
                 task_id=task_id, model_id=model_id, success=True,
                 raw_response=raw_api_response, usage=raw_api_response.usage
@@ -203,12 +232,14 @@ async def invoke_mistral_chat_completions(
                                         if new_tool_id:
                                             if current_tool_function_name:
                                                 parsed_args, err_msg = None, "Incomplete tool call"
-                                                try: parsed_args = json.loads(current_tool_function_args_buffer)
-                                                except json.JSONDecodeError as e: err_msg += f" JSONDecodeError: {e}"
+                                                try:
+                                                    parsed_args = json.loads(current_tool_function_args_buffer)
+                                                except json.JSONDecodeError as e:
+                                                    err_msg += f" JSONDecodeError: {e}"
                                                 yield ParsedMistralToolCall(tool_call_id=current_tool_call_id, function_name=current_tool_function_name, function_arguments_raw=current_tool_function_args_buffer, function_arguments_parsed=parsed_args, parsing_error=err_msg)
                                             current_tool_call_id = new_tool_id
-                                            current_tool_function_name = func_details.get("name")
-                                            current_tool_function_args_buffer = func_details.get("arguments", "")
+                                            current_tool_function_name = func_details.get("name") or ""
+                                            current_tool_function_args_buffer = func_details.get("arguments") or ""
                                         elif current_tool_function_name:
                                             current_tool_function_args_buffer += func_details.get("arguments", "")
                                 if choice.get("finish_reason") == "tool_calls" and current_tool_function_name:
@@ -239,7 +270,9 @@ async def invoke_mistral_chat_completions(
             final_usage = MistralUsage(
                 prompt_tokens=usage_info.get("prompt_tokens", 0),
                 completion_tokens=usage_info.get("completion_tokens", 0),
-                total_tokens=usage_info.get("total_tokens", 0)
+                total_tokens=usage_info.get("total_tokens", 0),
+                user_input_tokens=token_breakdown.get("user_input_tokens"),
+                system_prompt_tokens=token_breakdown.get("system_prompt_tokens")
             )
             logger.info(f"[{task_id}] Mistral Client: Yielding final usage info from streaming response.")
             yield final_usage
@@ -273,7 +306,9 @@ async def invoke_mistral_chat_completions(
                 estimated_usage = MistralUsage(
                     prompt_tokens=estimated_input_tokens,
                     completion_tokens=estimated_output_tokens,
-                    total_tokens=estimated_input_tokens + estimated_output_tokens
+                    total_tokens=estimated_input_tokens + estimated_output_tokens,
+                    user_input_tokens=token_breakdown.get("user_input_tokens"),
+                    system_prompt_tokens=token_breakdown.get("system_prompt_tokens")
                 )
                 log_yield_reason = "interrupted stream" if was_interrupted else "stream without usage info"
                 logger.info(f"[{task_id}] Mistral Client: Yielding ESTIMATED usage for {log_yield_reason}.")

@@ -3,13 +3,9 @@
     import { onMount } from 'svelte';
     import { createEventDispatcher } from 'svelte';
     import { getApiEndpoint, apiEndpoints } from '../../../../config/api';
-    import { authStore } from '../../../../stores/authStore';
     import { currentSignupStep, isInSignupProcess } from '../../../../stores/signupState';
-    import { userDB } from '../../../../services/userDB';
-    import { updateProfile } from '../../../../stores/userProfile';
-    import { signupStore, clearSignupData } from '../../../../stores/signupStore';
+    import { signupStore } from '../../../../stores/signupStore';
     import { get } from 'svelte/store';
-    import * as cryptoService from '../../../../services/cryptoService';
     
     let otpCode = $state('');
     let otpInput: HTMLInputElement;
@@ -106,7 +102,7 @@
                     type="text"
                     bind:value={otpCode}
                     oninput={handleInput}
-                    placeholder={$text('signup.enter_one_time_code.text')}
+                    placeholder={$text('signup.enter_one_time_code')}
                     inputmode="numeric"
                     maxlength="6"
                     disabled={isVerifying}
@@ -114,7 +110,7 @@
                     class:fade-out={isVerifying}
                 />
                 <div class="loading-text color-grey-80" class:fade-in={isVerifying}>
-                    {$text('login.loading.text')}
+                    {$text('login.loading')}
                 </div>
             </div>
         </div>

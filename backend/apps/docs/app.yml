@@ -1,0 +1,92 @@
+# Docs App Configuration
+# Handles document generation and management (Word/Google Docs-like documents)
+# Documents are created via document_html fenced code blocks in the AI response stream
+
+# App metadata
+app_id: docs
+name_translation_key: docs
+description_translation_key: docs.description
+icon_image: |
+  docs.svg
+category: productivity
+stage: production
+
+# Legacy embed descriptions (kept for documentation)
+embeds:
+  - id: doc_embed
+    description_embed: Rich document preview with formatted HTML content (reports, articles, letters, etc.)
+# Embed type definitions — single source of truth for frontend embed routing.
+embed_types:
+  # Document — direct-type, auto-detected from ```document_html``` blocks by stream_consumer.py
+  - id: doc
+    category: direct
+    frontend_type: docs-doc
+    backend_type: document
+    has_children: false
+    groupable: true
+    preview_component: docs/DocsEmbedPreview.svelte
+    fullscreen_component: docs/DocsEmbedFullscreen.svelte
+    icon: docs
+    gradient_var: "--color-app-docs"
+    i18n_namespace: embeds.docs.doc
+    content_fields:
+      - name: html
+        type: string
+        required: true
+      - name: title
+        type: string
+      - name: word_count
+        type: number
+        required: true
+
+# Instructions injected into the AI system prompt when this app is available
+# These are loaded dynamically by the main processor based on app discovery
+instructions:
+  - instruction: |
+      **Document Generation (Docs App)**
+      When the user asks you to create, write, or generate a document, report, article, blog post,
+      essay, cover letter, proposal, memo, guide, or any substantial formatted content:
+      - Use the ```document_html code fence to produce the document
+      - Include a <!-- title: "..." --> comment as the first line with the document title
+      - Include a <!-- filename: "Descriptive_Name.docx" --> comment as the second line with a .docx filename
+        The filename should be a short, descriptive name using underscores (e.g., "Rental_Agreement.docx", "Cover_Letter_Google.docx", "Q4_Sales_Report.docx")
+      - Use semantic HTML for proper structure (h1-h6, p, ul/ol, table, blockquote, etc.)
+      - The document will be rendered as an interactive preview card that the user can open in fullscreen
+
+# Skills (planned for future implementation)
+skills: []
+
+# Focuses (planned for future implementation)
+focus_modes: []
+
+# Settings and memories for document generation preferences
+settings_and_memories:
+  - id: writing_style
+    name_translation_key: docs.writing_style
+    description_translation_key: docs.writing_style.description
+    icon_image: text.svg
+    type: list
+    stage: production
+    example_translation_keys:
+      - "docs.writing_style.example_1"
+      - "docs.writing_style.example_2"
+      - "docs.writing_style.example_3"
+    example_entries:
+      - name: "docs.writing_style.example_1.name"
+        description: "docs.writing_style.example_1.description"
+      - name: "docs.writing_style.example_2.name"
+        description: "docs.writing_style.example_2.description"
+    schema:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Style name (e.g., Formal Business, Academic, Casual Blog)
+          is_title: true
+        description:
+          type: string
+          description: Description of this writing style and when to use it
+          is_subtitle: true
+          multiline: true
+      required:
+        - name

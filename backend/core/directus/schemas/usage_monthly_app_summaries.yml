@@ -1,0 +1,47 @@
+usage_monthly_app_summaries:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+      
+    user_id_hash:
+      type: string
+      length: 255
+      note: "[Indexed] Hashed identifier of the user this summary belongs to."
+      
+    app_id:
+      type: string
+      length: 255
+      note: "[Indexed] App identifier in cleartext (e.g., 'ai', 'web', 'videos'). Not encrypted for performance and queryability."
+      
+    year_month:
+      type: string
+      length: 7
+      note: "[Indexed] Month identifier in format 'YYYY-MM' (e.g., '2024-01'). Used for grouping and filtering."
+      
+    total_credits:
+      type: integer
+      note: "Total credits consumed for this app in this month. Incrementally updated when usage entries are created."
+      
+    entry_count:
+      type: integer
+      note: "Number of usage entries for this app in this month. Incrementally updated when usage entries are created."
+      
+    is_archived:
+      type: boolean
+      default: false
+      note: "[Indexed] Flag indicating if the underlying usage entries have been archived to S3. When true, entries are no longer in Directus usage collection."
+      
+    archive_s3_key:
+      type: string
+      length: 512
+      note: "[Nullable] S3 key path to archived data if is_archived is true. Format: 'usage-archives/{user_id_hash}/{year_month}/usage.json.gz'. Null if not archived."
+      
+    created_at:
+      type: timestamp
+      note: "Timestamp when this summary record was first created."
+      
+    updated_at:
+      type: timestamp
+      note: "Timestamp when this summary record was last updated (incremented on each usage entry creation)."

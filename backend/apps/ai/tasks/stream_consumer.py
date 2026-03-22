@@ -2,9 +2,10 @@
 # Handles the consumption of the main processing stream for AI tasks.
 
 import logging
-import json
+import re
 import time
 import httpx
+import asyncio
 from typing import Dict, Any, List, Optional, AsyncIterator, Union
 
 from celery.exceptions import SoftTimeLimitExceeded
@@ -22,17 +23,589 @@ from backend.apps.ai.processing.preprocessor import PreprocessingResult
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML
 from backend.apps.ai.utils.mate_utils import MateConfig
 from backend.apps.ai.processing.main_processor import handle_main_processing, INTERNAL_API_BASE_URL, INTERNAL_API_SHARED_TOKEN
-from backend.apps.ai.utils.llm_utils import log_main_llm_stream_aggregated_output
+from backend.apps.ai.utils.llm_utils import log_main_llm_stream_aggregated_output, STANDARDIZED_USER_ERROR_MESSAGE
 from backend.shared.python_utils.billing_utils import calculate_total_credits, calculate_real_and_charged_costs
 from backend.apps.ai.llm_providers.mistral_client import MistralUsage
 from backend.apps.ai.llm_providers.google_client import GoogleUsageMetadata
 from backend.apps.ai.llm_providers.anthropic_client import AnthropicUsageMetadata
 from backend.apps.ai.llm_providers.openai_shared import OpenAIUsageMetadata
+from backend.apps.ai.llm_providers.types import UnifiedStreamChunk, StreamChunkType
+from backend.apps.ai.processing.url_validator import (
+    validate_urls_in_paragraph,
+    extract_urls_from_markdown,
+    replace_broken_urls_with_search
+)
 
 logger = logging.getLogger(__name__)
 
 # Type alias for usage metadata
 UsageMetadata = Union[MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata]
+
+# Regex pattern to match <tool_call>...</tool_call> blocks
+# Some LLMs (e.g., Qwen3) output tool calls as XML text IN ADDITION to proper function calling.
+# This causes the tool call text to appear in the user-visible response, which is confusing.
+# We strip these blocks from the text content to keep the response clean.
+_TOOL_CALL_XML_PATTERN = re.compile(
+    r'<tool_call>\s*.*?\s*</tool_call>',
+    re.DOTALL | re.IGNORECASE
+)
+
+# Regex pattern to detect garbled number sequences in aggregated responses.
+# Gemini multimodal responses sometimes emit raw token-ID / attention-index sequences
+# that arrive in small chunks (passing the per-chunk heuristic) but form long runs
+# like "-213,222,237-238,241,243-245,247,..." once aggregated.
+# Matches 200+ consecutive characters of digits, commas, hyphens, spaces, and newlines.
+_GARBLED_NUMBER_SEQUENCE_PATTERN = re.compile(r'[\d,\-\s\n]{200,}')
+
+# Regex pattern to detect source quotes in blockquotes.
+# Matches lines like: > [quoted text](embed:some-ref-k8D)
+# Group 1 = quoted text, Group 2 = embed_ref slug.
+_SOURCE_QUOTE_PATTERN = re.compile(
+    r'^>\s*\[([^\]]+)\]\(embed:([^)]+)\)\s*$',
+    re.MULTILINE
+)
+
+# Maximum number of quotes to verify per response to avoid excessive latency
+_MAX_QUOTES_TO_VERIFY = 10
+
+# Regex pattern to detect non-blockquote inline embed links: [display text](embed:ref)
+# Negative lookbehind ensures we skip source-quote blockquotes (handled by _SOURCE_QUOTE_PATTERN).
+# Group 1 = display text, Group 2 = embed_ref slug.
+_INLINE_EMBED_LINK_PATTERN = re.compile(
+    r'(?<!^>\s)\[([^\]]+)\]\(embed:([^)]+)\)'
+)
+
+# Regex to detect embed_ref-like display text — domain.tld-XYZ or slug-XYZ patterns
+# where XYZ is a 2-4 character alphanumeric random suffix.
+_EMBED_REF_SUFFIX_PATTERN = re.compile(r'-[a-zA-Z0-9]{2,4}$')
+
+_EMAIL_TO_PATTERN = re.compile(r'^(?:to|receiver|recipient)\s*:\s*(.+)$', re.IGNORECASE)
+_EMAIL_SUBJECT_PATTERN = re.compile(r'^subject\s*:\s*(.+)$', re.IGNORECASE)
+_EMAIL_CONTENT_MARKER_PATTERN = re.compile(r'^content\s*:\s*$', re.IGNORECASE)
+_EMAIL_FOOTER_PATTERN = re.compile(r'^footer\s*:\s*(.*)$', re.IGNORECASE)
+
+def _strip_tool_call_xml_from_text(text: str) -> str:
+    """
+    Strip <tool_call>...</tool_call> XML blocks from text content.
+    
+    Some LLMs (notably Qwen3) output tool calls as XML text in their response content,
+    in addition to using proper function calling APIs. This causes the raw tool call
+    JSON to appear in the user-visible message, which is confusing and ugly.
+    
+    This function removes these blocks while preserving the rest of the content.
+    
+    Args:
+        text: The text content that may contain <tool_call> XML blocks
+        
+    Returns:
+        The text with <tool_call> blocks removed and excess whitespace cleaned up
+    """
+    if not text or '<tool_call>' not in text.lower():
+        return text
+    
+    # Remove <tool_call>...</tool_call> blocks
+    cleaned = _TOOL_CALL_XML_PATTERN.sub('', text)
+    
+    # Clean up any resulting double newlines or excess whitespace
+    cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)
+    cleaned = cleaned.strip()
+    
+    if cleaned != text:
+        logger.debug(f"Stripped <tool_call> XML from text. Original: {len(text)} chars, cleaned: {len(cleaned)} chars")
+    
+    return cleaned
+
+
+def _parse_email_fence_content(raw_content: str) -> Dict[str, str]:
+    """
+    Parse the body of an ```email fenced block into structured fields.
+
+    Supported field headers (case-insensitive):
+    - to:/receiver:/recipient:  (single line)
+    - subject:                  (single line)
+    - content:                  (multi-line section)
+    - footer:                   (multi-line section, optional inline value)
+
+    Lines are routed to the currently active section. If no explicit `content:`
+    marker is present, all non-header lines are treated as body content.
+    """
+    lines = raw_content.splitlines()
+    receiver = ""
+    subject = ""
+    content_lines: List[str] = []
+    footer_lines: List[str] = []
+    # Track which section we're accumulating into: "content" or "footer".
+    # Default to "content" so non-header lines before any marker become body.
+    current_section = "content"
+
+    for line in lines:
+        stripped = line.strip()
+
+        # Empty lines are preserved in the current section
+        if not stripped:
+            if current_section == "footer":
+                footer_lines.append("")
+            else:
+                content_lines.append("")
+            continue
+
+        to_match = _EMAIL_TO_PATTERN.match(stripped)
+        if to_match:
+            receiver = to_match.group(1).strip()
+            continue
+
+        subject_match = _EMAIL_SUBJECT_PATTERN.match(stripped)
+        if subject_match:
+            subject = subject_match.group(1).strip()
+            continue
+
+        if _EMAIL_CONTENT_MARKER_PATTERN.match(stripped):
+            current_section = "content"
+            continue
+
+        footer_match = _EMAIL_FOOTER_PATTERN.match(stripped)
+        if footer_match:
+            current_section = "footer"
+            # Capture optional inline value (e.g., "footer: Best regards")
+            inline_value = footer_match.group(1).strip()
+            if inline_value:
+                footer_lines.append(inline_value)
+            continue
+
+        # Append to whichever section is active
+        if current_section == "footer":
+            footer_lines.append(line)
+        else:
+            content_lines.append(line)
+
+    content = "\n".join(content_lines).strip()
+    footer = "\n".join(footer_lines).strip()
+    return {
+        "receiver": receiver,
+        "subject": subject,
+        "content": content,
+        "footer": footer,
+    }
+
+
+async def _verify_and_strip_bad_quotes(
+    aggregated_response: str,
+    tool_calls_info: Optional[List[Dict[str, Any]]],
+    cache_service: Optional[CacheService],
+    directus_service: Optional[DirectusService],
+    encryption_service: Optional[EncryptionService],
+    user_vault_key_id: Optional[str],
+    log_prefix: str = "",
+) -> str:
+    """
+    Post-streaming quote verification: scan the response for source quotes
+    (> [text](embed:ref)), verify each against the referenced embed's content,
+    and strip any quotes that cannot be found in the source.
+
+    Returns the (potentially modified) aggregated_response.
+    """
+    if not aggregated_response or not cache_service or not encryption_service or not user_vault_key_id:
+        return aggregated_response
+
+    # Find all source quotes in the response
+    matches = list(_SOURCE_QUOTE_PATTERN.finditer(aggregated_response))
+    if not matches:
+        return aggregated_response
+
+    if len(matches) > _MAX_QUOTES_TO_VERIFY:
+        logger.info(
+            f"{log_prefix} [QUOTE_VERIFY] Found {len(matches)} quotes, "
+            f"only verifying first {_MAX_QUOTES_TO_VERIFY}"
+        )
+        matches = matches[:_MAX_QUOTES_TO_VERIFY]
+
+    logger.info(f"{log_prefix} [QUOTE_VERIFY] Verifying {len(matches)} source quote(s)")
+
+    # Build embed_ref → embed_id map from the response's JSON embed reference blocks
+    # and from tool_calls_info
+    embed_ref_to_id: Dict[str, str] = {}
+    all_embed_ids: List[str] = []
+
+    # Collect parent embed_ids from JSON code blocks in the response
+    json_block_pattern = re.compile(
+        r'```json\s*\n\s*(\{[^}]*"embed_id"\s*:\s*"([^"]+)"[^}]*\})\s*\n\s*```'
+    )
+    for m in json_block_pattern.finditer(aggregated_response):
+        embed_id = m.group(2)
+        if embed_id:
+            all_embed_ids.append(embed_id)
+
+    # Also collect from tool_calls_info
+    if tool_calls_info:
+        for tc in tool_calls_info:
+            eid = tc.get("embed_id")
+            if eid:
+                all_embed_ids.append(eid)
+            eids = tc.get("embed_ids")
+            if isinstance(eids, list):
+                all_embed_ids.extend(eids)
+
+    # De-duplicate
+    all_embed_ids = list(set(all_embed_ids))
+
+    # For each parent embed_id, load its child embeds and extract embed_ref
+    from backend.core.api.app.services.embed_service import EmbedService
+    embed_service = EmbedService(
+        cache_service=cache_service,
+        directus_service=directus_service,
+        encryption_service=encryption_service
+    )
+
+    for parent_id in all_embed_ids:
+        try:
+            # Load parent embed to get child_embed_ids
+            parent_toon = await embed_service._get_cached_embed_toon(
+                parent_id, user_vault_key_id, log_prefix
+            )
+            if not parent_toon:
+                continue
+
+            from toon_format import decode
+            parent_decoded = decode(parent_toon)
+            if not isinstance(parent_decoded, dict):
+                continue
+
+            # Check if parent itself has an embed_ref
+            parent_ref = parent_decoded.get("embed_ref")
+            if parent_ref:
+                embed_ref_to_id[parent_ref] = parent_id
+
+            # Get child embed IDs (pipe-delimited string or list)
+            child_ids_raw = parent_decoded.get("embed_ids")
+            child_ids: List[str] = []
+            if isinstance(child_ids_raw, str):
+                child_ids = [cid.strip() for cid in child_ids_raw.split("|") if cid.strip()]
+            elif isinstance(child_ids_raw, list):
+                child_ids = child_ids_raw
+
+            # Load each child embed to get its embed_ref
+            for child_id in child_ids:
+                try:
+                    child_toon = await embed_service._get_cached_embed_toon(
+                        child_id, user_vault_key_id, log_prefix
+                    )
+                    if not child_toon:
+                        continue
+                    child_decoded = decode(child_toon)
+                    if isinstance(child_decoded, dict):
+                        child_ref = child_decoded.get("embed_ref")
+                        if child_ref:
+                            embed_ref_to_id[child_ref] = child_id
+                except Exception:
+                    continue
+
+        except Exception as e:
+            logger.debug(f"{log_prefix} [QUOTE_VERIFY] Error loading embed {parent_id}: {e}")
+            continue
+
+    if not embed_ref_to_id:
+        # No embed map means zero real embeds exist in this response — any source quotes
+        # referencing embed:... are fabricated. Strip them all.
+        logger.warning(
+            f"{log_prefix} [QUOTE_VERIFY] No embed_ref→id map built but {len(matches)} source quote(s) found — "
+            f"stripping all as hallucinated (no real embeds in this response)"
+        )
+        modified = aggregated_response
+        for match in matches:
+            modified = modified.replace(match.group(0), "")
+        modified = re.sub(r'\n{3,}', '\n\n', modified)
+        return modified
+
+    logger.debug(
+        f"{log_prefix} [QUOTE_VERIFY] Built embed_ref map with {len(embed_ref_to_id)} entries: "
+        f"{list(embed_ref_to_id.keys())[:5]}..."
+    )
+
+    # Verify each quote
+    bad_quote_lines: List[str] = []
+    for match in matches:
+        quoted_text = match.group(1)
+        embed_ref = match.group(2)
+        full_line = match.group(0)
+
+        embed_id = embed_ref_to_id.get(embed_ref)
+        if not embed_id:
+            # embed_ref doesn't map to any real embed produced in this response —
+            # the LLM fabricated this citation. Strip it.
+            logger.warning(
+                f"{log_prefix} [QUOTE_VERIFY] embed_ref '{embed_ref}' not found in embed map — "
+                f"stripping hallucinated source quote: '{quoted_text[:60]}...'"
+            )
+            bad_quote_lines.append(full_line)
+            continue
+
+        try:
+            is_valid = await embed_service.verify_quote_in_embed(
+                embed_id=embed_id,
+                quoted_text=quoted_text,
+                user_vault_key_id=user_vault_key_id,
+                log_prefix=log_prefix
+            )
+            if is_valid:
+                logger.debug(
+                    f"{log_prefix} [QUOTE_VERIFY] ✓ Quote verified in embed {embed_ref}: "
+                    f"'{quoted_text[:60]}...'"
+                )
+            else:
+                logger.warning(
+                    f"{log_prefix} [QUOTE_VERIFY] ✗ Quote NOT found in embed {embed_ref}: "
+                    f"'{quoted_text[:60]}...'"
+                )
+                bad_quote_lines.append(full_line)
+        except Exception as e:
+            logger.warning(
+                f"{log_prefix} [QUOTE_VERIFY] Error verifying quote for {embed_ref}: {e}"
+            )
+            # Don't strip on error — keep the quote
+            continue
+
+    # Strip bad quotes from the response
+    if bad_quote_lines:
+        modified = aggregated_response
+        for line in bad_quote_lines:
+            # Remove the bad quote line and any surrounding empty lines
+            modified = modified.replace(line, "")
+
+        # Clean up any resulting triple+ newlines
+        modified = re.sub(r'\n{3,}', '\n\n', modified)
+
+        logger.info(
+            f"{log_prefix} [QUOTE_VERIFY] Stripped {len(bad_quote_lines)} unverified quote(s) "
+            f"from response"
+        )
+        return modified
+
+    return aggregated_response
+
+
+def _is_bad_embed_display_text(display_text: str, embed_ref: str) -> bool:
+    """
+    Detect whether the LLM used the embed_ref slug (or a fragment of it) as the
+    visible display text in an inline embed link.
+
+    Returns True when the display text is NOT a proper human-readable description
+    but instead one of these anti-patterns:
+      1. Exact match: display == embed_ref  (e.g. "macrumors.com-MvT")
+      2. Suffix only: display == random suffix  (e.g. "MvT")
+      3. Domain-with-suffix: display looks like "domain.tld-XYZ"
+      4. Bare domain: display == embed_ref minus suffix  (e.g. "macrumors.com")
+
+    The function is intentionally conservative — it only flags clearly bad patterns.
+    A display text like "New MacBook Pro" would never match any of these.
+    """
+    dt = display_text.strip()
+    ref = embed_ref.strip()
+
+    if not dt or not ref:
+        return False
+
+    # 1. Exact match — display IS the full embed_ref
+    if dt == ref:
+        return True
+
+    # 2. Suffix only — display is just the random 2-4 char code at the end
+    suffix_match = _EMBED_REF_SUFFIX_PATTERN.search(ref)
+    if suffix_match:
+        suffix_without_dash = suffix_match.group(0)[1:]  # strip leading "-"
+        if dt == suffix_without_dash:
+            return True
+
+        # 3. Domain-with-suffix — display looks like "domain.tld-XYZ" (has a dot + ends
+        #    with the same random suffix as the embed_ref)
+        if '.' in dt and _EMBED_REF_SUFFIX_PATTERN.search(dt):
+            # Strip suffix from both and compare the base
+            dt_base = _EMBED_REF_SUFFIX_PATTERN.sub('', dt)
+            ref_base = _EMBED_REF_SUFFIX_PATTERN.sub('', ref)
+            if dt_base == ref_base:
+                return True
+
+        # 4. Bare domain — display is the embed_ref with the suffix stripped
+        ref_base = _EMBED_REF_SUFFIX_PATTERN.sub('', ref)
+        if dt == ref_base:
+            return True
+
+    return False
+
+
+async def _fix_bad_embed_display_text(
+    aggregated_response: str,
+    tool_calls_info: Optional[List[Dict[str, Any]]],
+    cache_service: Optional[CacheService],
+    directus_service: Optional[DirectusService],
+    encryption_service: Optional[EncryptionService],
+    user_vault_key_id: Optional[str],
+    log_prefix: str = "",
+) -> str:
+    """
+    Post-streaming safety check: scan the response for inline embed links
+    where the LLM used the embed_ref slug (or a domain-suffix fragment) as the
+    visible display text instead of a descriptive title.
+
+    For each bad link found:
+      1. Look up the child embed's stored title → use it as the replacement.
+      2. If title lookup fails → strip the random suffix so at least the domain
+         is shown (e.g. "macrumors.com" instead of "macrumors.com-MvT").
+
+    Returns the (potentially modified) aggregated_response.
+    """
+    if not aggregated_response or not cache_service or not encryption_service or not user_vault_key_id:
+        return aggregated_response
+
+    # Find all inline embed links (skip blockquote source-quotes)
+    # We use finditer on the full response but exclude lines starting with ">"
+    all_matches = list(_INLINE_EMBED_LINK_PATTERN.finditer(aggregated_response))
+    if not all_matches:
+        return aggregated_response
+
+    # Filter out matches that are inside blockquote lines (source quotes)
+    bad_links: List[Dict[str, Any]] = []
+    for match in all_matches:
+        display_text = match.group(1)
+        embed_ref = match.group(2)
+
+        # Check if this match is on a blockquote line (starts with ">")
+        line_start = aggregated_response.rfind('\n', 0, match.start()) + 1
+        line_prefix = aggregated_response[line_start:match.start()].lstrip()
+        if line_prefix.startswith('>'):
+            continue  # Skip source quotes
+
+        if _is_bad_embed_display_text(display_text, embed_ref):
+            bad_links.append({
+                "match": match,
+                "display_text": display_text,
+                "embed_ref": embed_ref,
+                "full_match": match.group(0),
+            })
+
+    if not bad_links:
+        return aggregated_response
+
+    logger.info(
+        f"{log_prefix} [EMBED_DISPLAY_FIX] Found {len(bad_links)} inline embed link(s) "
+        f"with bad display text"
+    )
+
+    # Build embed_ref → title map from child embeds.
+    # We need to load parent embeds and their children to find the title for each ref.
+    embed_ref_to_title: Dict[str, str] = {}
+    try:
+        all_embed_ids: List[str] = []
+
+        # Collect parent embed_ids from JSON code blocks in the response
+        json_block_pattern = re.compile(
+            r'```json\s*\n\s*\{[^}]*"embed_id"\s*:\s*"([^"]+)"[^}]*\}\s*\n\s*```'
+        )
+        for m in json_block_pattern.finditer(aggregated_response):
+            embed_id = m.group(1)
+            if embed_id:
+                all_embed_ids.append(embed_id)
+
+        # Also collect from tool_calls_info
+        if tool_calls_info:
+            for tc in tool_calls_info:
+                eid = tc.get("embed_id")
+                if eid:
+                    all_embed_ids.append(eid)
+                eids = tc.get("embed_ids")
+                if isinstance(eids, list):
+                    all_embed_ids.extend(eids)
+
+        all_embed_ids = list(set(all_embed_ids))
+
+        if all_embed_ids:
+            from backend.core.api.app.services.embed_service import EmbedService
+            embed_service = EmbedService(
+                cache_service=cache_service,
+                directus_service=directus_service,
+                encryption_service=encryption_service
+            )
+            from toon_format import decode
+
+            for parent_id in all_embed_ids:
+                try:
+                    parent_toon = await embed_service._get_cached_embed_toon(
+                        parent_id, user_vault_key_id, log_prefix
+                    )
+                    if not parent_toon:
+                        continue
+
+                    parent_decoded = decode(parent_toon)
+                    if not isinstance(parent_decoded, dict):
+                        continue
+
+                    # Get child embed IDs
+                    child_ids_raw = parent_decoded.get("embed_ids")
+                    child_ids: List[str] = []
+                    if isinstance(child_ids_raw, str):
+                        child_ids = [cid.strip() for cid in child_ids_raw.split("|") if cid.strip()]
+                    elif isinstance(child_ids_raw, list):
+                        child_ids = child_ids_raw
+
+                    for child_id in child_ids:
+                        try:
+                            child_toon = await embed_service._get_cached_embed_toon(
+                                child_id, user_vault_key_id, log_prefix
+                            )
+                            if not child_toon:
+                                continue
+                            child_decoded = decode(child_toon)
+                            if isinstance(child_decoded, dict):
+                                child_ref = child_decoded.get("embed_ref")
+                                child_title = child_decoded.get("title", "")
+                                if child_ref and child_title:
+                                    embed_ref_to_title[child_ref] = child_title
+                        except Exception:
+                            continue
+
+                except Exception as e:
+                    logger.debug(
+                        f"{log_prefix} [EMBED_DISPLAY_FIX] Error loading embed {parent_id}: {e}"
+                    )
+                    continue
+
+    except Exception as e:
+        logger.warning(
+            f"{log_prefix} [EMBED_DISPLAY_FIX] Error building embed_ref→title map: {e}"
+        )
+
+    # Apply fixes — replace bad display text with title or cleaned domain
+    modified = aggregated_response
+    replacements_made = 0
+
+    # Process in reverse order to preserve match positions after replacements
+    for link_info in reversed(bad_links):
+        embed_ref = link_info["embed_ref"]
+        old_display = link_info["display_text"]
+        full_match = link_info["full_match"]
+
+        # Try to find the title from the embed data
+        new_display = embed_ref_to_title.get(embed_ref)
+
+        if not new_display:
+            # Fallback: strip the random suffix to show just the domain/base
+            new_display = _EMBED_REF_SUFFIX_PATTERN.sub('', embed_ref)
+
+        if new_display and new_display != old_display:
+            new_link = f"[{new_display}](embed:{embed_ref})"
+            modified = modified.replace(full_match, new_link, 1)
+            replacements_made += 1
+            logger.info(
+                f"{log_prefix} [EMBED_DISPLAY_FIX] Fixed: [{old_display}] → [{new_display}] "
+                f"(embed_ref: {embed_ref})"
+            )
+
+    if replacements_made > 0:
+        logger.info(
+            f"{log_prefix} [EMBED_DISPLAY_FIX] Fixed {replacements_made} bad embed display text(s)"
+        )
+
+    return modified
+
 
 def _create_redis_payload(
     task_id: str,
@@ -41,7 +614,15 @@ def _create_redis_payload(
     sequence: int,
     is_final: bool = False,
     interrupted_soft: bool = False,
-    interrupted_revoke: bool = False
+    interrupted_revoke: bool = False,
+    model_name: Optional[str] = None,
+    prompt_tokens: Optional[int] = None,
+    completion_tokens: Optional[int] = None,
+    user_input_tokens: Optional[int] = None,
+    system_prompt_tokens: Optional[int] = None,
+    total_credits: Optional[int] = None,
+    category: Optional[str] = None,
+    rejection_reason: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Create standardized Redis payload for streaming chunks."""
     payload = {
@@ -54,8 +635,31 @@ def _create_redis_payload(
         "user_message_id": request_data.message_id,
         "full_content_so_far": content,
         "sequence": sequence,
-        "is_final_chunk": is_final
+        "is_final_chunk": is_final,
+        "external_request": request_data.is_external
     }
+
+    if model_name:
+        payload["model_name"] = model_name
+    
+    if category:
+        payload["category"] = category
+    
+    # rejection_reason indicates this is a system message (e.g., "insufficient_credits"),
+    # not an AI response. Frontend uses this to render as a system notice instead of an assistant bubble.
+    if rejection_reason:
+        payload["rejection_reason"] = rejection_reason
+    
+    if prompt_tokens is not None:
+        payload["prompt_tokens"] = prompt_tokens
+    if completion_tokens is not None:
+        payload["completion_tokens"] = completion_tokens
+    if user_input_tokens is not None:
+        payload["user_input_tokens"] = user_input_tokens
+    if system_prompt_tokens is not None:
+        payload["system_prompt_tokens"] = system_prompt_tokens
+    if total_credits is not None:
+        payload["total_credits"] = total_credits
     
     if is_final:
         payload.update({
@@ -64,6 +668,60 @@ def _create_redis_payload(
         })
     
     return payload
+
+
+def _create_thinking_redis_payload(
+    task_id: str,
+    request_data: AskSkillRequest,
+    content: str,
+    is_complete: bool = False,
+    signature: Optional[str] = None,
+    total_tokens: Optional[int] = None,
+) -> Dict[str, Any]:
+    """
+    Create standardized Redis payload for thinking/reasoning content.
+    
+    Thinking content is streamed to a separate channel (chat_stream_thinking::)
+    from the main response channel. This allows the frontend to:
+    - Display a "Thinking..." indicator during streaming
+    - Store thinking content separately (encrypted)
+    - Show collapsible thinking section in UI
+    
+    Args:
+        task_id: The task ID for this AI request
+        request_data: The original request data
+        content: The thinking content (accumulated)
+        is_complete: Whether thinking is complete (signature received)
+        signature: The thinking signature for verification (Anthropic/Gemini)
+        total_tokens: Token count for thinking (for cost tracking)
+    
+    Returns:
+        Dict payload for Redis publishing
+    """
+    if is_complete:
+        return {
+            "type": "thinking_complete",
+            "task_id": task_id,
+            "chat_id": request_data.chat_id,
+            "user_id_uuid": request_data.user_id,
+            "user_id_hash": request_data.user_id_hash,
+            "message_id": task_id,
+            "signature": signature,
+            "total_tokens": total_tokens,
+            "external_request": request_data.is_external,
+        }
+    else:
+        return {
+            "type": "thinking_chunk",
+            "task_id": task_id,
+            "chat_id": request_data.chat_id,
+            "user_id_uuid": request_data.user_id,
+            "user_id_hash": request_data.user_id_hash,
+            "message_id": task_id,
+            "content": content,  # Just the new chunk, not accumulated
+            "external_request": request_data.is_external,
+        }
+
 
 async def _publish_to_redis(
     cache_service: Optional[CacheService],
@@ -88,10 +746,13 @@ async def _charge_credits(
     credits: int,
     usage_details: Dict[str, Any],
     log_prefix: str
-) -> None:
-    """Handle credit charging with error handling."""
+) -> Dict[str, Any]:
+    """
+    Handle credit charging with error handling.
+    Returns basic billing info.
+    """
     if credits <= 0:
-        return
+        return {}
         
     charge_payload = {
         "user_id": request_data.user_id,
@@ -99,7 +760,9 @@ async def _charge_credits(
         "credits": credits,
         "skill_id": "ask",
         "app_id": "ai",
-        "usage_details": usage_details
+        "usage_details": usage_details,
+        "api_key_hash": request_data.api_key_hash,
+        "device_hash": request_data.device_hash,
     }
     
     headers = {"Content-Type": "application/json"}
@@ -109,10 +772,21 @@ async def _charge_credits(
     try:
         async with httpx.AsyncClient() as client:
             url = f"{INTERNAL_API_BASE_URL}/internal/billing/charge"
-            logger.info(f"{log_prefix} Charging {credits} credits. Payload: {charge_payload}")
+            logger.info(
+                f"{log_prefix} Charging {credits} credits. "
+                f"Payload summary: keys={sorted(charge_payload.keys())}, "
+                f"usage_detail_keys={sorted(usage_details.keys()) if isinstance(usage_details, dict) else []}"
+            )
             response = await client.post(url, json=charge_payload, headers=headers)
             response.raise_for_status()
-            logger.info(f"{log_prefix} Successfully charged {credits} credits. Response: {response.json()}")
+            logger.info(f"{log_prefix} Successfully charged {credits} credits.")
+            logger.debug(f"{log_prefix} Charge response: {response.json()}")
+            
+            return {
+                "prompt_tokens": usage_details.get("input_tokens", 0),
+                "completion_tokens": usage_details.get("output_tokens", 0),
+                "total_credits": credits
+            }
     except Exception as e:
         logger.error(f"{log_prefix} Error charging credits: {e}", exc_info=True)
         raise
@@ -129,10 +803,16 @@ async def _update_chat_metadata(
     encryption_service: EncryptionService,
     user_vault_key_id: str,
     task_id: str,
-    log_prefix: str
+    log_prefix: str,
+    model_name: Optional[str] = None,
+    rejection_reason: Optional[str] = None,
 ) -> None:
     """Update chat metadata and save assistant response to cache.
-    
+
+    CRITICAL: This function NOW updates messages_v in Directus.
+    This ensures Directus reflects the actual message count and prevents version drift
+    during multi-device race conditions.
+
     Args:
         request_data: The AI skill request data
         category: The mate category for this response
@@ -145,19 +825,65 @@ async def _update_chat_metadata(
         user_vault_key_id: User's vault key ID for encryption
         task_id: The AI task ID (also the message ID for the assistant's response)
         log_prefix: Logging prefix for this task
+        model_name: The AI model name used for the response
+        rejection_reason: If set, forwarded to _save_to_cache_and_publish so the
+            persisted event is broadcast with the correct role/status for system
+            rejection messages (e.g. "insufficient_credits").
     """
-    chat_metadata = await directus_service.chat.get_chat_metadata(request_data.chat_id)
-    if not chat_metadata:
-        logger.error(f"{log_prefix} Failed to fetch chat metadata for {request_data.chat_id}.")
-        return
-        
-    new_messages_version = chat_metadata.get("messages_v", 0) + 1
+    # 1. Increment messages_v atomically via cache HINCRBY (same mechanism as system_message_handler)
+    # This prevents race conditions where system messages and AI responses compete for version numbers.
+    # Previously this used a Directus read-modify-write which was non-atomic and could collide
+    # with the cache-based HINCRBY used by system_message_handler.
+    new_messages_v = None
+    if cache_service:
+        new_messages_v = await cache_service.increment_chat_component_version(
+            request_data.user_id, request_data.chat_id, "messages_v"
+        )
+    
+    if new_messages_v is None:
+        # Fallback: if cache is unavailable, read from Directus (non-atomic, but better than nothing)
+        logger.warning(
+            f"{log_prefix} [MESSAGES_V_TRACKING] Cache unavailable for atomic increment, "
+            f"falling back to Directus read-modify-write for chat {request_data.chat_id}"
+        )
+        chat_metadata = await directus_service.chat.get_chat_metadata(request_data.chat_id)
+        current_messages_v = chat_metadata.get("messages_v", 0) if chat_metadata else 0
+        new_messages_v = current_messages_v + 1
+
+    # CRITICAL: Use optimistic locking for messages_v to prevent race conditions.
+    # When a task is cancelled and a new task starts concurrently, both call
+    # _update_chat_metadata. Without optimistic locking, the cancelled task's
+    # Directus write can clobber the new task's higher messages_v value.
+    # The Redis HINCRBY is atomic, but the Directus write is not — so we must
+    # read-compare-write to ensure we never decrease messages_v.
+    current_chat_metadata = await directus_service.chat.get_chat_metadata(request_data.chat_id)
+    current_directus_messages_v = current_chat_metadata.get("messages_v", 0) if current_chat_metadata else 0
+
     fields_to_update = {
-        "messages_v": new_messages_version,
         "last_edited_overall_timestamp": timestamp,
         "last_message_timestamp": timestamp,
-        "last_mate_category": category
+        "last_mate_category": category,
+        "updated_at": int(time.time())
     }
+
+    # Only update messages_v in Directus if our value is greater (optimistic locking)
+    if new_messages_v > current_directus_messages_v:
+        fields_to_update["messages_v"] = new_messages_v
+        logger.info(
+            f"{log_prefix} [MESSAGES_V_TRACKING] AI_RESPONSE: "
+            f"chat_id={request_data.chat_id}, "
+            f"updating messages_v in Directus: {current_directus_messages_v} -> {new_messages_v} "
+            f"(via cache atomic increment + optimistic locking), "
+            f"source=stream_consumer._update_chat_metadata"
+        )
+    else:
+        logger.info(
+            f"{log_prefix} [MESSAGES_V_TRACKING] AI_RESPONSE: "
+            f"chat_id={request_data.chat_id}, "
+            f"skipping messages_v Directus update: new={new_messages_v} <= current={current_directus_messages_v} "
+            f"(concurrent task already wrote a higher version), "
+            f"source=stream_consumer._update_chat_metadata"
+        )
     
     success = await directus_service.chat.update_chat_fields_in_directus(
         request_data.chat_id, fields_to_update
@@ -167,17 +893,81 @@ async def _update_chat_metadata(
         logger.error(f"{log_prefix} Failed to update chat metadata for {request_data.chat_id}.")
         return
         
-    logger.info(f"{log_prefix} Updated chat metadata: version {new_messages_version}, timestamp {timestamp}.")
+    logger.info(f"{log_prefix} Updated chat metadata: timestamp {timestamp}, category {category}, messages_v {fields_to_update.get('messages_v', f'unchanged at {current_directus_messages_v}')}")
     
     # Save assistant response to cache and publish events
     # This ensures follow-up messages include assistant responses in the history
+    # The cache tracks its own messages_v for AI inference purposes
     if cache_service:
         await _save_to_cache_and_publish(
             request_data, task_id, category, timestamp,
-            new_messages_version, cache_service, 
+            new_messages_v, cache_service,  # Pass the NEW version, cache will use it explicitly
             encryption_service, user_vault_key_id,
-            content_markdown, log_prefix
+            content_markdown, log_prefix,
+            model_name=model_name,
+            rejection_reason=rejection_reason,
         )
+
+
+async def _update_disclaimer_metadata(
+    cache_service: Optional[CacheService],
+    chat_id: str,
+    disclaimer_type: str,
+    log_prefix: str
+) -> None:
+    """
+    Update chat cache metadata to track when a disclaimer was injected.
+    
+    This enables the cooldown logic to prevent spamming disclaimers while
+    ensuring legal compliance by tracking:
+    - last_disclaimer_type: The type of disclaimer last shown
+    - last_disclaimer_timestamp: Unix timestamp when it was shown
+    
+    Args:
+        cache_service: Cache service for updating chat metadata
+        chat_id: The chat ID to update
+        disclaimer_type: The disclaimer type that was injected ("financial", "medical", "legal", "mental_health")
+        log_prefix: Logging prefix for debug messages
+    """
+    import time
+    import json
+    
+    if not cache_service:
+        logger.warning(f"{log_prefix} No cache service available to update disclaimer metadata")
+        return
+    
+    try:
+        current_timestamp = int(time.time())
+        cache_key = f"chat:{chat_id}:list_item_data"
+        
+        # Get existing cached data
+        cached_data = await cache_service.get(cache_key)
+        
+        if cached_data:
+            if isinstance(cached_data, str):
+                cached_data = json.loads(cached_data)
+        else:
+            cached_data = {}
+        
+        # Update disclaimer tracking fields
+        cached_data["last_disclaimer_type"] = disclaimer_type
+        cached_data["last_disclaimer_timestamp"] = current_timestamp
+        
+        # Save back to cache
+        await cache_service.set(cache_key, json.dumps(cached_data))
+        
+        logger.info(
+            f"{log_prefix} [DISCLAIMER_METADATA] Updated disclaimer metadata: "
+            f"type='{disclaimer_type}', timestamp={current_timestamp}"
+        )
+        
+    except Exception as e:
+        # Don't fail if metadata update fails - the disclaimer was still injected
+        logger.error(
+            f"{log_prefix} [DISCLAIMER_METADATA] Failed to update metadata: {e}",
+            exc_info=True
+        )
+
 
 async def _save_to_cache_and_publish(
     request_data: AskSkillRequest,
@@ -189,10 +979,12 @@ async def _save_to_cache_and_publish(
     encryption_service: EncryptionService,
     user_vault_key_id: str,
     content_markdown: str,
-    log_prefix: str
+    log_prefix: str,
+    model_name: Optional[str] = None,
+    rejection_reason: Optional[str] = None,
 ) -> None:
     """Save message to cache and publish persistence event.
-    
+
     Args:
         request_data: The AI skill request data
         task_id: The AI task ID (also the message ID for the assistant's response)
@@ -204,6 +996,14 @@ async def _save_to_cache_and_publish(
         user_vault_key_id: User's vault key ID for encryption
         content_markdown: The response content as markdown (to be encrypted for cache)
         log_prefix: Logging prefix for this task
+        model_name: The AI model name used for the response
+        rejection_reason: If set, this is a system rejection message (e.g.
+            "insufficient_credits"). The persisted event is sent with
+            role="system" / status="waiting_for_user" so the client renders it
+            as a system notice rather than an assistant bubble.  Without this fix
+            the broadcast always used role="assistant" / status="synced", which
+            overwrote the correct values the stream final-chunk handler had
+            already applied to the in-memory message.
     """
     try:
         from backend.core.api.app.schemas.chat import MessageInCache
@@ -221,26 +1021,58 @@ async def _save_to_cache_and_publish(
             # Don't cache if encryption fails
             return
         
+        # Determine role/status for this message.
+        # CRITICAL FIX: rejection messages (e.g. insufficient_credits) must be broadcast
+        # as role="system" / status="waiting_for_user" so the client renders them as system
+        # notices rather than assistant bubbles.  Previously this always used "assistant" /
+        # "synced", which overwrote the correct values the stream final-chunk handler had
+        # already applied to the in-memory message on the active device.
+        # NOTE: The server cache (MessageInCache) only accepts a limited set of statuses;
+        # "waiting_for_user" is a client-only status, so we store "synced" in cache but
+        # send "waiting_for_user" in the client-facing event payload.
+        cache_role = "system" if rejection_reason else "assistant"
+
         # Store encrypted markdown content in cache (server-side encrypted with encryption_key_user_server)
         ai_message_for_cache = MessageInCache(
             id=task_id,
             chat_id=request_data.chat_id,
-            role="assistant",
+            role=cache_role,
             category=category,
             sender_name=None,  # Assistant doesn't have a sender_name
             encrypted_content=encrypted_content_for_cache,  # Server-side encrypted content
             created_at=timestamp,
-            status="delivered"
+            status="synced",  # Server cache only accepts "synced" — client-only statuses excluded
+            model_name=model_name  # Ensure model_name is in cache object if schema supports it
         )
         
         await cache_service.save_chat_message_and_update_versions(
             user_id=request_data.user_id,
             chat_id=request_data.chat_id,
-            message_data=ai_message_for_cache
+            message_data=ai_message_for_cache,
+            explicit_messages_v=messages_version
         )
         
-        logger.info(f"{log_prefix} Saved assistant message to cache for chat {request_data.chat_id}.")
+        logger.info(f"{log_prefix} Saved {'rejection' if rejection_reason else 'assistant'} message to cache for chat {request_data.chat_id} with explicit version {messages_version}.")
         
+        # Build the client-facing message dict.
+        # For rejection messages: role="system", status="waiting_for_user", plus rejection_reason.
+        # The frontend chat_message_added handler reads these to store the message correctly
+        # and to avoid overwriting the stream final-chunk handler's correct in-memory values.
+        client_role = "system" if rejection_reason else "assistant"
+        client_status = "waiting_for_user" if rejection_reason else "synced"
+        client_message: dict = {
+            "message_id": task_id,
+            "chat_id": request_data.chat_id,
+            "role": client_role,
+            "category": category,
+            "content": content_markdown,  # Send markdown content to client
+            "created_at": timestamp,
+            "status": client_status,
+            "model_name": model_name,  # CRITICAL: Send model_name to client for encryption/storage
+        }
+        if rejection_reason:
+            client_message["rejection_reason"] = rejection_reason
+
         # Publish persistence event
         persisted_event_payload = {
             "type": "ai_message_persisted",
@@ -248,20 +1080,13 @@ async def _save_to_cache_and_publish(
             "chat_id": request_data.chat_id,
             "user_id_uuid": request_data.user_id,
             "user_id_hash": request_data.user_id_hash,
-            "message": {
-                "message_id": task_id,
-                "chat_id": request_data.chat_id,
-                "role": "assistant",
-                "category": category,
-                "content": content_markdown,  # Send markdown content to client
-                "created_at": timestamp,
-                "status": "synced",
-            },
+            "message": client_message,
             "versions": {"messages_v": messages_version},
             "last_edited_overall_timestamp": timestamp
         }
         
         persisted_channel = f"ai_message_persisted::{request_data.user_id_hash}"
+        logger.info(f"{log_prefix} Publishing 'ai_message_persisted' event with status: {persisted_event_payload['message']['status']}")
         await _publish_to_redis(
             cache_service, persisted_channel, persisted_event_payload,
             log_prefix, f"Published 'ai_message_persisted' event to channel '{persisted_channel}'"
@@ -275,25 +1100,62 @@ async def _handle_normal_billing(
     preprocessing_result: PreprocessingResult,
     request_data: AskSkillRequest,
     task_id: str,
-    log_prefix: str
-) -> None:
-    """Handle billing for normal processing flow."""
+    log_prefix: str,
+    cumulative_input_tokens: Optional[int] = None,
+    cumulative_output_tokens: Optional[int] = None,
+    tool_inference_iterations: int = 0,
+) -> Dict[str, Any]:
+    """
+    Handle billing for normal processing flow.
+    Returns usage information for Redis publishing.
+
+    When tool use is involved the LLM is called multiple times. In that case
+    cumulative_input_tokens / cumulative_output_tokens contain the sum across
+    all iterations (emitted via the __cumulative_llm_usage__ sentinel from
+    handle_main_processing).  We use those totals for billing so every iteration
+    is charged, not just the last one.  Falls back to the single-iteration
+    token counts from the usage metadata object when no sentinel was received
+    (i.e. no tool calls were made).
+    """
     # Extract token counts and provider name based on usage type
+    user_input_tokens = None
+    system_prompt_tokens = None
+    
+    logger.info(f"{log_prefix} Billing: Processing usage of type {type(usage)}")
+    
     if isinstance(usage, MistralUsage):
         input_tokens = usage.prompt_tokens
         output_tokens = usage.completion_tokens
+        user_input_tokens = usage.user_input_tokens
+        system_prompt_tokens = usage.system_prompt_tokens
         provider_name = "mistral"
     elif isinstance(usage, GoogleUsageMetadata):
-        input_tokens = usage.prompt_token_count
-        output_tokens = usage.candidates_token_count
-        provider_name = "google"
+        # Handle optional fields - Google API may return None for these in edge cases
+        input_tokens = usage.prompt_token_count or 0
+        output_tokens = usage.candidates_token_count or 0
+        user_input_tokens = usage.user_input_tokens
+        system_prompt_tokens = usage.system_prompt_tokens
+        # For third-party models hosted on Google Vertex AI (MaaS), use the original provider for pricing
+        # e.g., "deepseek/deepseek-v3.2" -> provider_name = "deepseek", not "google"
+        # This ensures we look up pricing from the model's actual provider config file
+        try:
+            selected_full_model = preprocessing_result.selected_main_llm_model_id or "google/unknown"
+            provider_name = selected_full_model.split("/", 1)[0]
+            logger.info(f"{log_prefix} Google usage - extracted billing provider from model_id: {provider_name}")
+        except Exception:
+            provider_name = "google"
     elif isinstance(usage, AnthropicUsageMetadata):
         input_tokens = usage.input_tokens
         output_tokens = usage.output_tokens
+        user_input_tokens = usage.user_input_tokens
+        system_prompt_tokens = usage.system_prompt_tokens
         provider_name = "anthropic"
     elif isinstance(usage, OpenAIUsageMetadata):
         input_tokens = usage.input_tokens
         output_tokens = usage.output_tokens
+        user_input_tokens = usage.user_input_tokens
+        system_prompt_tokens = usage.system_prompt_tokens
+        logger.info(f"{log_prefix} Billing: OpenAI usage - user_input={user_input_tokens}, system_prompt={system_prompt_tokens}")
         # Determine billing provider from the selected model id prefix (e.g., "alibaba/...", "openai/...")
         try:
             selected_full_model = preprocessing_result.selected_main_llm_model_id or "openai/unknown"
@@ -309,6 +1171,21 @@ async def _handle_normal_billing(
         raise RuntimeError("Billing configuration is not available. Task cannot be completed.")
 
     logger.info(f"{log_prefix} Determined provider_name for billing: {provider_name}")
+
+    # Override per-iteration token counts with cumulative totals when tool calls were made.
+    # The cumulative values are populated by the __cumulative_llm_usage__ sentinel emitted
+    # from handle_main_processing and cover ALL LLM iterations in this turn.
+    # When no tool calls occurred the sentinel is not emitted and we fall back to the
+    # single-iteration counts already extracted from the usage metadata object above.
+    if cumulative_input_tokens is not None:
+        logger.info(
+            f"{log_prefix} Using cumulative token totals for billing "
+            f"(tool_iterations={tool_inference_iterations}): "
+            f"input {input_tokens} → {cumulative_input_tokens}, "
+            f"output {output_tokens} → {cumulative_output_tokens}"
+        )
+        input_tokens = cumulative_input_tokens
+        output_tokens = cumulative_output_tokens or 0
 
     # Get pricing configuration
     pricing_config = celery_config.config_manager.get_provider_config(provider_name)
@@ -353,10 +1230,25 @@ async def _handle_normal_billing(
         "chat_id": request_data.chat_id,
         "message_id": request_data.message_id,
         "input_tokens": input_tokens,
-        "output_tokens": output_tokens
+        "output_tokens": output_tokens,
+        "user_input_tokens": user_input_tokens,
+        "system_prompt_tokens": system_prompt_tokens,
+        "api_key_name": request_data.api_key_name,
+        "external_request": request_data.is_external,
+        "server_provider": preprocessing_result.server_provider_name,
+        "server_region": preprocessing_result.server_region,
+        "tool_inference_iterations": tool_inference_iterations,
     }
 
     await _charge_credits(task_id, request_data, credits_charged, usage_details, log_prefix)
+    
+    return {
+        "prompt_tokens": input_tokens,
+        "completion_tokens": output_tokens,
+        "user_input_tokens": user_input_tokens,
+        "system_prompt_tokens": system_prompt_tokens,
+        "total_credits": credits_charged
+    }
 
 async def _generate_fake_stream_for_harmful_content(
     task_id: str,
@@ -367,20 +1259,23 @@ async def _generate_fake_stream_for_harmful_content(
     directus_service: Optional[DirectusService] = None,
     encryption_service: Optional[EncryptionService] = None,
     user_vault_key_id: Optional[str] = None
-) -> tuple[str, bool, bool]:
+) -> tuple[str, bool, bool, list, Optional[Dict[str, Any]]]:
     """Generate fake stream for harmful content with predefined response."""
     log_prefix = f"[Task ID: {task_id}, ChatID: {request_data.chat_id}] _generate_fake_stream_for_harmful_content:"
     logger.info(f"{log_prefix} Generating fake stream for harmful content.")
+
+    # For harmful content, we don't show a model name as it's a predefined response
+    model_name = None
     
     # Check for revocation
     if celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
         logger.warning(f"{log_prefix} Task was revoked before starting fake stream.")
-        return "", True, False
+        return "", True, False, [], None
     
     redis_channel = f"chat_stream::{request_data.chat_id}"
     
     # Publish content chunk
-    content_payload = _create_redis_payload(task_id, request_data, predefined_response, 1)
+    content_payload = _create_redis_payload(task_id, request_data, predefined_response, 1, model_name=model_name)
     await _publish_to_redis(
         cache_service, redis_channel, content_payload, log_prefix,
         f"Published content chunk to '{redis_channel}'. Length: {len(predefined_response)}"
@@ -392,13 +1287,6 @@ async def _generate_fake_stream_for_harmful_content(
     except Exception as e:
         logger.error(f"{log_prefix} Failed to log fake stream output: {e}", exc_info=True)
     
-    # Publish final marker
-    final_payload = _create_redis_payload(task_id, request_data, predefined_response, 2, is_final=True)
-    await _publish_to_redis(
-        cache_service, redis_channel, final_payload, log_prefix,
-        f"Published final marker to '{redis_channel}'"
-    )
-    
     # Handle billing for harmful content
     usage_details = {
         "real_cost_usd": 0.001,
@@ -409,39 +1297,62 @@ async def _generate_fake_stream_for_harmful_content(
         "message_id": request_data.message_id,
         "input_tokens": 0,
         "output_tokens": len(predefined_response.split()),
-        "rejection_reason": preprocessing_result.rejection_reason
+        "rejection_reason": preprocessing_result.rejection_reason,
+        "api_key_name": request_data.api_key_name,
+        "external_request": request_data.is_external
     }
     
+    billing_info = {}
     try:
-        await _charge_credits(task_id, request_data, 1, usage_details, log_prefix)
+        billing_info = await _charge_credits(task_id, request_data, 1, usage_details, log_prefix)
     except Exception as e:
         logger.error(f"{log_prefix} Error charging credits for harmful content: {e}", exc_info=True)
         # Continue with response even if billing fails
     
+    # Publish final marker
+    final_payload = _create_redis_payload(
+        task_id, request_data, predefined_response, 2, is_final=True, model_name=model_name,
+        prompt_tokens=billing_info.get("prompt_tokens"),
+        completion_tokens=billing_info.get("completion_tokens"),
+        total_credits=billing_info.get("total_credits")
+    )
+    await _publish_to_redis(
+        cache_service, redis_channel, final_payload, log_prefix,
+        f"Published final marker to '{redis_channel}'"
+    )
+    
     # Save assistant response to cache for follow-up message context
     # Even harmful content responses should be cached so follow-ups have context
-    if directus_service and cache_service and predefined_response:
+    # CRITICAL: This is non-blocking - if metadata update fails, the error message should still reach the user
+    # EXTERNAL REQUESTS skip this.
+    if not request_data.is_external and directus_service and cache_service and predefined_response:
         category = "general_knowledge"  # Default category for harmful content responses
         timestamp = int(time.time())
         content_tiptap = predefined_response  # Send as markdown
-        
-        await _update_chat_metadata(
-            request_data=request_data,
-            category=category,
-            timestamp=timestamp,
-            content_markdown=predefined_response,
-            content_tiptap=content_tiptap,
-            directus_service=directus_service,
-            cache_service=cache_service,
-            encryption_service=encryption_service,
-            user_vault_key_id=user_vault_key_id,
-            task_id=task_id,
-            log_prefix=log_prefix
-        )
-        logger.info(f"{log_prefix} Harmful content response saved to cache for future follow-up context.")
+
+        try:
+            await _update_chat_metadata(
+                request_data=request_data,
+                category=category,
+                timestamp=timestamp,
+                content_markdown=predefined_response,
+                content_tiptap=content_tiptap,
+                directus_service=directus_service,
+                cache_service=cache_service,
+                encryption_service=encryption_service,
+                user_vault_key_id=user_vault_key_id,
+                task_id=task_id,
+                log_prefix=log_prefix
+            )
+            logger.info(f"{log_prefix} Harmful content response saved to cache for future follow-up context.")
+        except Exception as e:
+            # IMPORTANT: Don't let metadata failures prevent error messages from reaching the user
+            # The error message has already been published to Redis (lines 393-410) and should reach the client
+            logger.error(f"{log_prefix} Failed to save harmful content response to cache/metadata (non-critical): {e}", exc_info=True)
+            logger.warning(f"{log_prefix} Harmful content message was still published to client successfully via Redis stream")
     
     logger.info(f"{log_prefix} Fake stream generation completed. Response length: {len(predefined_response)}.")
-    return predefined_response, False, False
+    return predefined_response, False, False, [], None
 
 async def _generate_fake_stream_for_simple_message(
     task_id: str,
@@ -451,21 +1362,26 @@ async def _generate_fake_stream_for_simple_message(
     cache_service: Optional[CacheService],
     directus_service: Optional[DirectusService] = None,
     encryption_service: Optional[EncryptionService] = None,
-    user_vault_key_id: Optional[str] = None
-) -> tuple[str, bool, bool]:
+    user_vault_key_id: Optional[str] = None,
+    rejection_reason: Optional[str] = None
+) -> tuple[str, bool, bool, list, Optional[Dict[str, Any]]]:
     """Generate a simple fake stream for non-processing cases (e.g., insufficient credits)."""
     log_prefix = f"[Task ID: {task_id}, ChatID: {request_data.chat_id}] _generate_fake_stream_for_simple_message:"
     logger.info(f"{log_prefix} Generating simple fake stream.")
 
+    # For simple messages (errors/insufficient credits), we don't show a model name
+    model_name = None
+    
     # Check for revocation
     if celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
         logger.warning(f"{log_prefix} Task was revoked before starting fake stream.")
-        return "", True, False
+        return "", True, False, [], None
 
     redis_channel = f"chat_stream::{request_data.chat_id}"
 
     # Publish content chunk
-    content_payload = _create_redis_payload(task_id, request_data, message_text, 1)
+    # Include rejection_reason so frontend can distinguish system messages from AI responses
+    content_payload = _create_redis_payload(task_id, request_data, message_text, 1, model_name=model_name, rejection_reason=rejection_reason)
     await _publish_to_redis(
         cache_service, redis_channel, content_payload, log_prefix,
         f"Published content chunk to '{redis_channel}'. Length: {len(message_text)}"
@@ -478,7 +1394,34 @@ async def _generate_fake_stream_for_simple_message(
         logger.error(f"{log_prefix} Failed to log fake stream output: {e}", exc_info=True)
 
     # Publish final marker
-    final_payload = _create_redis_payload(task_id, request_data, message_text, 2, is_final=True)
+    # Handle billing for simple messages (e.g. credit check failed messages are free but tracked)
+    usage_details = {
+        "real_cost_usd": 0,
+        "charged_cost_usd": 0,
+        "margin_usd": 0,
+        "model_used": "system_message",
+        "chat_id": request_data.chat_id,
+        "message_id": request_data.message_id,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "api_key_name": request_data.api_key_name,
+        "external_request": request_data.is_external
+    }
+    
+    # Billing for system messages is always 0, but we still call it to log the event
+    billing_info = {}
+    try:
+        billing_info = await _charge_credits(task_id, request_data, 0, usage_details, log_prefix)
+    except Exception as e:
+        logger.error(f"{log_prefix} Error charging credits for system message: {e}", exc_info=True)
+
+    final_payload = _create_redis_payload(
+        task_id, request_data, message_text, 2, is_final=True, model_name=model_name,
+        prompt_tokens=billing_info.get("prompt_tokens", 0),
+        completion_tokens=billing_info.get("completion_tokens", 0),
+        total_credits=billing_info.get("total_credits", 0),
+        rejection_reason=rejection_reason
+    )
     await _publish_to_redis(
         cache_service, redis_channel, final_payload, log_prefix,
         f"Published final marker to '{redis_channel}'"
@@ -486,28 +1429,89 @@ async def _generate_fake_stream_for_simple_message(
 
     # Save assistant response to cache for follow-up message context
     # Even simple messages (like insufficient credits) should be cached
-    if directus_service and cache_service and message_text:
+    # CRITICAL: This is non-blocking - if metadata update fails, the error message should still reach the user
+    # EXTERNAL REQUESTS skip this.
+    if not request_data.is_external and directus_service and cache_service and message_text:
         category = "general_knowledge"  # Default category for simple messages
         timestamp = int(time.time())
         content_tiptap = message_text  # Send as markdown
-        
-        await _update_chat_metadata(
-            request_data=request_data,
-            category=category,
-            timestamp=timestamp,
-            content_markdown=message_text,
-            content_tiptap=content_tiptap,
-            directus_service=directus_service,
-            cache_service=cache_service,
-            encryption_service=encryption_service,
-            user_vault_key_id=user_vault_key_id,
-            task_id=task_id,
-            log_prefix=log_prefix
-        )
-        logger.info(f"{log_prefix} Simple message response saved to cache for future follow-up context.")
+
+        try:
+            await _update_chat_metadata(
+                request_data=request_data,
+                category=category,
+                timestamp=timestamp,
+                content_markdown=message_text,
+                content_tiptap=content_tiptap,
+                directus_service=directus_service,
+                cache_service=cache_service,
+                encryption_service=encryption_service,
+                user_vault_key_id=user_vault_key_id,
+                task_id=task_id,
+                log_prefix=log_prefix,
+                model_name=None,  # Model name not applicable for simple/error messages
+                rejection_reason=rejection_reason,  # Forward so the persisted event has correct role/status
+            )
+            logger.info(f"{log_prefix} Simple message response saved to cache for future follow-up context.")
+        except Exception as e:
+            # IMPORTANT: Don't let metadata failures prevent error messages from reaching the user
+            # The error message has already been published to Redis (lines 481-498) and should reach the client
+            logger.error(f"{log_prefix} Failed to save simple message to cache/metadata (non-critical): {e}", exc_info=True)
+            logger.warning(f"{log_prefix} Error message was still published to client successfully via Redis stream")
 
     logger.info(f"{log_prefix} Simple fake stream generation completed. Response length: {len(message_text)}.")
-    return message_text, False, False
+    return message_text, False, False, [], None
+
+async def _validate_paragraph_urls(
+    paragraph: str,
+    task_id: str,
+    broken_urls_collector: List[Dict[str, Any]],
+    log_prefix: str,
+    secrets_manager: Optional[SecretsManager] = None
+) -> None:
+    """
+    Background task to validate URLs in a paragraph.
+    Collects broken URLs in the provided list (thread-safe append).
+    This runs asynchronously and doesn't block streaming.
+    
+    Uses Webshare proxy and random user agents for anti-detection if secrets_manager
+    is provided. This helps avoid datacenter IP blocking by websites.
+    
+    Args:
+        paragraph: The paragraph text to validate
+        task_id: Task ID for logging
+        broken_urls_collector: List to collect broken URLs (will be appended to)
+        log_prefix: Log prefix for consistent logging
+        secrets_manager: Optional SecretsManager for Webshare proxy credentials
+    """
+    try:
+        # Validate URLs in this paragraph using proxy and random user agents
+        validation_results = await validate_urls_in_paragraph(
+            paragraph, task_id, secrets_manager=secrets_manager
+        )
+        
+        # Filter broken URLs (4xx errors, not temporary)
+        broken_urls = [
+            r for r in validation_results 
+            if not r.get('is_valid') and not r.get('is_temporary')
+        ]
+        
+        if broken_urls:
+            logger.info(
+                f"{log_prefix} Found {len(broken_urls)} broken URL(s) in paragraph"
+            )
+            # Append to collector (list append is thread-safe in Python)
+            broken_urls_collector.extend(broken_urls)
+        else:
+            logger.debug(f"{log_prefix} All URLs valid in paragraph")
+            
+    except Exception as e:
+        logger.error(
+            f"{log_prefix} Error validating URLs in paragraph: {e}",
+            exc_info=True
+        )
+        # Don't raise - this is a background task, errors shouldn't break the stream
+
 
 async def _consume_main_processing_stream(
     task_id: str,
@@ -520,40 +1524,60 @@ async def _consume_main_processing_stream(
     all_mates_configs: List[MateConfig],
     discovered_apps_metadata: Dict[str, AppYAML],
     cache_service: Optional[CacheService],
-    secrets_manager: Optional[SecretsManager] = None, # Added SecretsManager
-) -> tuple[str, bool, bool]:
+    secrets_manager: Optional[SecretsManager] = None,
+    always_include_skills: Optional[List[str]] = None,  # Skills to ALWAYS include regardless of preprocessing
+) -> tuple[str, bool, bool, list, Optional[Dict[str, Any]]]:
     """
     Consumes the async stream from handle_main_processing, aggregates the response,
     and publishes chunks to Redis Pub/Sub.
-    Returns aggregated response, and boolean flags for revocation and soft limit.
+    Returns aggregated response, boolean flags for revocation and soft limit, thinking content list,
+    and optional debug metadata (system prompt, tools, message history) for debug caching.
     """
     final_response_chunks = []
     log_prefix = f"[Task ID: {task_id}, ChatID: {request_data.chat_id}] _consume_main_processing_stream:"
     logger.info(f"{log_prefix} Starting to consume stream from main_processor.")
 
+    standardized_error_message = STANDARDIZED_USER_ERROR_MESSAGE
+
     # Local flags for interruption status
     was_revoked_during_stream = False
     was_soft_limited_during_stream = False
+    stream_exception: Optional[BaseException] = None
+    
+    # Track if we filtered out fake tool calls (LLM attempted to use unavailable tools)
+    # This is used at the end to show a generic fallback message if the response would be empty
+    fake_tool_calls_filtered = False
+    
+    # Track if the current multi-chunk code block has language 'toon' and needs content-based
+    # validation at closing fence. 'toon' blocks can be either:
+    # a) Fake tool calls (contain "tool:", "tool_code", or '"tool":' patterns) → filter out
+    # b) Real code that the LLM mislabelled as 'toon' (e.g. YAML, Python) → deliver to user
+    # We defer the decision until the closing fence when we have the full content.
+    toon_pending_validation = False
+
+    # Track embed IDs that failed during skill execution (received from main_processor)
+    # Their embed references will be stripped from the final message content before persistence
+    failed_embed_ids: set[str] = set()
 
     # Check for revocation before starting
     # Use AsyncResult to check task status
     if celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
         logger.warning(f"{log_prefix} Task was revoked before starting main processing stream.")
         was_revoked_during_stream = True
-        return "", was_revoked_during_stream, was_soft_limited_during_stream
+        return "", was_revoked_during_stream, was_soft_limited_during_stream, [], None
 
     # Check if this is a harmful content case that should be handled with a predefined response
     if not preprocessing_result.can_proceed and preprocessing_result.rejection_reason in ["harmful_or_illegal_detected", "misuse_detected"]:
         logger.info(f"{log_prefix} Detected harmful content case. Generating fake stream with predefined response.")
         
-        # Get predefined response from translations
+        # Get predefined response from translations in the user's detected language
         translation_service = TranslationService()
-        language = "en"  # Default to English, could be made dynamic based on user preferences
+        language = preprocessing_result.output_language or "en"
         
         if preprocessing_result.rejection_reason == "harmful_or_illegal_detected":
-            predefined_response = translation_service.get_nested_translation("predefined_responses.harmful_or_illegal_detected.text", language, {})
+            predefined_response = translation_service.get_nested_translation("predefined_responses.harmful_or_illegal_detected", language, {})
         else:  # misuse_detected
-            predefined_response = translation_service.get_nested_translation("predefined_responses.misuse_detected.text", language, {})
+            predefined_response = translation_service.get_nested_translation("predefined_responses.misuse_detected", language, {})
         
         if not predefined_response:
             predefined_response = "I can't help with that request."
@@ -571,9 +1595,31 @@ async def _consume_main_processing_stream(
         )
     
     # Handle insufficient credits with a predefined message (no billing)
+    # rejection_reason is passed through to the Redis payload so the frontend can render this
+    # as a system notice (smaller text) instead of an assistant bubble
     if not preprocessing_result.can_proceed and preprocessing_result.rejection_reason == "insufficient_credits":
         logger.info(f"{log_prefix} Detected insufficient credits case. Generating simple fake stream.")
         message_text = preprocessing_result.error_message or "You don't have enough credits to run this request. Please add credits and try again."
+        return await _generate_fake_stream_for_simple_message(
+            task_id=task_id,
+            request_data=request_data,
+            preprocessing_result=preprocessing_result,
+            message_text=message_text,
+            cache_service=cache_service,
+            directus_service=directus_service,
+            encryption_service=encryption_service,
+            user_vault_key_id=user_vault_key_id,
+            rejection_reason="insufficient_credits"
+        )
+
+    # Handle LLM preprocessing failures (e.g., API errors, service unavailable)
+    # When preprocessing fails, selected_main_llm_model_id is None, so we can't proceed with main processing
+    if not preprocessing_result.can_proceed and preprocessing_result.rejection_reason == "internal_error_llm_preprocessing_failed":
+        logger.info(f"{log_prefix} Detected LLM preprocessing failure. Generating error message stream.")
+        # Use a user-friendly error message instead of exposing technical details
+        # The technical error is logged but not shown to the user
+        logger.warning(f"{log_prefix} Technical preprocessing error (not shown to user): {preprocessing_result.error_message}")
+        message_text = STANDARDIZED_USER_ERROR_MESSAGE
         return await _generate_fake_stream_for_simple_message(
             task_id=task_id,
             request_data=request_data,
@@ -592,52 +1638,2200 @@ async def _consume_main_processing_stream(
         preprocessing_results=preprocessing_result,
         base_instructions=base_instructions,
         directus_service=directus_service,
+        encryption_service=encryption_service, # Pass EncryptionService
         user_vault_key_id=user_vault_key_id,
         all_mates_configs=all_mates_configs,
         discovered_apps_metadata=discovered_apps_metadata,
-        secrets_manager=secrets_manager # Pass SecretsManager
+        secrets_manager=secrets_manager, # Pass SecretsManager
+        cache_service=cache_service, # Pass CacheService for skill status publishing
+        always_include_skills=always_include_skills  # Pass always-include skills from config
     )
 
     stream_chunk_count = 0
     usage: Optional[Union[MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata]] = None
-    redis_channel_name = f"chat_stream::{request_data.chat_id}"
 
+    # Cumulative token totals from all LLM iterations in this turn (set via sentinel dict
+    # emitted by handle_main_processing just before the final usage metadata object).
+    # When tool calls are involved the LLM is called multiple times; these totals capture
+    # every call so we can bill the user for the true API cost rather than only the last
+    # iteration.  Falls back to the single-iteration usage object when absent (no tool use).
+    cumulative_input_tokens: Optional[int] = None
+    cumulative_output_tokens: Optional[int] = None
+    tool_inference_iterations: int = 0
+
+    redis_channel_name = f"chat_stream::{request_data.chat_id}"
+    thinking_channel_name = f"chat_stream_thinking::{request_data.chat_id}"  # Separate channel for thinking content
+    tool_calls_info: Optional[List[Dict[str, Any]]] = None  # Track tool calls for code block generation
+    
+    # Thinking content tracking for thinking models (Gemini, Anthropic)
+    thinking_buffer: List[str] = []  # Accumulate thinking content
+    thinking_signature: Optional[str] = None  # Thinking signature for verification
+
+    # Persist model identifier in stream payloads so clients can store it encrypted with the message.
+    # CRITICAL: For external REST API requests (OpenAI-compatible), we MUST use the full model ID
+    # (e.g., "alibaba/qwen3-235b-a22b-2507") to be compliant with standard client expectations.
+    # For internal web app requests, we prefer the friendly model name (e.g., "Qwen3") for display.
+    stream_model_name: Optional[str] = None
+    if request_data.is_external:
+        stream_model_name = preprocessing_result.selected_main_llm_model_id
+    elif preprocessing_result.selected_main_llm_model_name:
+        stream_model_name = preprocessing_result.selected_main_llm_model_name
+    else:
+        # Fallback to extracting from model_id (for backward compatibility)
+        selected_model_id = preprocessing_result.selected_main_llm_model_id or ""
+        if isinstance(selected_model_id, str) and selected_model_id:
+            stream_model_name = selected_model_id.split("/", 1)[1] if "/" in selected_model_id else selected_model_id
+        else:
+            # Final fallback: if no model name can be determined, don't show one
+            stream_model_name = None
+    
+    # URL validation tracking: collect all validation tasks and broken URLs
+    # These are used to validate URLs during streaming and correct the full response after completion
+    url_validation_tasks: List[asyncio.Task] = []  # Track all background URL validation tasks
+    all_broken_urls: List[Dict[str, Any]] = []  # Collect all broken URLs found across all paragraphs
+
+    # Leaked thought detection: Gemini thinking models can leak raw internal reasoning into the
+    # text stream when temperature < 1.0 causes an infinite reasoning loop that exhausts the token
+    # budget. The leaked chunks start with "{thought}" (a scratchpad marker Gemini writes) and
+    # continue for hundreds of chunks. Once detected we drop all subsequent text chunks.
+    # Fix 1 (temperature clamping in google_client.py) is the primary defense; this is a safety net.
+    in_leaked_thought_mode = False
+
+    # Code block tracking: detect and convert code blocks to embeds in real-time
+    in_code_block = False
+    current_code_language = ""
+    current_code_filename: Optional[str] = None
+    current_code_content = ""
+    current_code_embed_id: Optional[str] = None
+    # New state: when LLM streams ``` and language separately, wait for next chunk
+    waiting_for_code_language = False
+    # pending_code_fence_chunk = ""  # Store the original ``` chunk to replay if needed (currently unused)
+    
+    # Document block tracking: document_html fences produce document embeds (type="document")
+    # instead of code embeds (type="code"). This flag is set when the language is "document_html"
+    # and controls which embed service methods are called during streaming and finalization.
+    in_document_block = False
+    # Title extracted from <!-- title: "..." --> comment in document HTML content
+    current_document_title: Optional[str] = None
+
+    # Math plot block tracking: ```plot ... ``` fences produce math-plot embeds (type="math-plot").
+    # This flag is set when the language is "plot" and controls which embed service methods are
+    # called during streaming and finalization. The expression is accumulated and stored at close.
+    in_plot_block = False
+
+    # Mail block tracking: ```email ... ``` fences produce structured mail embeds (type="mail").
+    # The content is parsed into receiver/subject/content/footer and rendered as draft cards.
+    in_email_block = False
+
+    # Table/sheet embed tracking: detect markdown tables (|...|) and convert to embeds.
+    # Tables don't have explicit delimiters like code blocks (```). Instead, they are
+    # sequences of pipe-delimited lines (|col1|col2|). A table ends when we see a
+    # non-table line or end-of-stream. Each chunk can contain multiple lines.
+    in_table_block = False
+    current_table_content = ""         # Accumulated markdown table rows
+    current_table_embed_id: Optional[str] = None
+    current_table_title: Optional[str] = None
+    current_table_row_count = 0        # Data rows (excluding header + separator)
+    current_table_col_count = 0
+    # Buffer the line(s) immediately preceding a table for title comment detection
+    pre_table_lines: List[str] = []
+
+    # Track if we're awaiting app settings/memories permission from user
+    # When this is True, we should NOT send an error message for empty stream
+    awaiting_app_settings_memories_permission = False
+    # Track if we're awaiting focus mode confirmation (deferred activation)
+    # Unlike app_settings, focus mode has embed content that needs to be finalized
+    awaiting_focus_mode_confirmation = False
+    
+    # Debug metadata captured from main_processor (system prompt, tools, message history)
+    # Yielded early before the LLM call loop and returned to ask_skill_task for debug caching
+    debug_metadata: Optional[Dict[str, Any]] = None
+    
     try:
         async for chunk in main_processing_stream:
+            # Check for debug metadata marker (system prompt, tools, message history)
+            # This is yielded early by main_processor before the LLM call loop,
+            # captured here and returned to ask_skill_task for debug cache enrichment.
+            if isinstance(chunk, dict) and "__debug_metadata__" in chunk:
+                debug_metadata = chunk
+                logger.debug(f"{log_prefix} Captured debug metadata (system_prompt: {chunk.get('system_prompt_char_count', 0)} chars, tools: {chunk.get('available_tools_count', 0)})")
+                continue
+
+            # Check for tool calls info marker (special dict at end of stream)
+            if isinstance(chunk, dict) and "__tool_calls_info__" in chunk:
+                tool_calls_info = chunk["__tool_calls_info__"]
+                logger.debug(f"{log_prefix} Received tool calls info: {len(tool_calls_info) if tool_calls_info else 0} tool call(s)")
+                continue
+
+            # Check for failed embed IDs marker (special dict at end of stream)
+            # These are embed IDs that failed during skill execution (error/cancelled).
+            # Their references must be stripped from the final message content before persistence,
+            # otherwise the client would try to resolve them on every page load.
+            if isinstance(chunk, dict) and "__failed_embed_ids__" in chunk:
+                failed_embed_ids = chunk["__failed_embed_ids__"]
+                logger.info(f"{log_prefix} Received {len(failed_embed_ids)} failed embed ID(s) for content cleanup")
+                continue
+            
+            # Check for app settings/memories permission marker
+            # This is yielded by main_processor when user needs to confirm data sharing
+            # The task completes without any LLM response - this is NOT an error
+            if isinstance(chunk, dict) and "__awaiting_app_settings_memories_permission__" in chunk:
+                awaiting_app_settings_memories_permission = True
+                request_id = chunk.get("request_id", "unknown")
+                logger.info(f"{log_prefix} Awaiting app settings/memories permission from user (request_id: {request_id}). Task will complete without response.")
+                continue
+            
+            # Check for focus mode confirmation marker
+            # This is yielded by main_processor when the AI calls activate_focus_mode.
+            # Instead of activating immediately, the processor stores pending context
+            # in Redis and schedules an auto-confirm task. The task completes without
+            # an LLM response — the continuation will come from either the auto-confirm
+            # task (after countdown) or the rejection handler (if user rejects).
+            # Unlike app_settings_memories, focus mode has embed content that we need
+            # to finalize so the client can persist the message (embed survives reload).
+            if isinstance(chunk, dict) and "__awaiting_focus_mode_confirmation__" in chunk:
+                awaiting_focus_mode_confirmation = True
+                focus_id = chunk.get("focus_id", "unknown")
+                logger.info(f"{log_prefix} Awaiting focus mode confirmation for '{focus_id}'. Task will complete — continuation handled by auto-confirm or rejection.")
+                continue
+
+            # Check for cumulative LLM usage sentinel (emitted by handle_main_processing
+            # just before the final usage metadata object when tool use occurred).
+            # This captures the sum of tokens across ALL LLM iterations in this turn so
+            # billing uses the true total instead of only the last iteration's tokens.
+            if isinstance(chunk, dict) and "__cumulative_llm_usage__" in chunk:
+                cumulative_input_tokens = chunk.get("total_input_tokens")
+                cumulative_output_tokens = chunk.get("total_output_tokens")
+                tool_inference_iterations = chunk.get("tool_inference_iterations", 0)
+                logger.info(
+                    f"{log_prefix} Received cumulative LLM usage sentinel: "
+                    f"input={cumulative_input_tokens}, output={cumulative_output_tokens}, "
+                    f"tool_iterations={tool_inference_iterations}"
+                )
+                continue
+            
+            # Handle UnifiedStreamChunk for thinking models (Gemini, Anthropic)
+            # These chunks contain thinking content or signatures that should be streamed
+            # to a separate channel for the frontend to display
+            if isinstance(chunk, UnifiedStreamChunk):
+                if chunk.type == StreamChunkType.THINKING:
+                    # Stream thinking content to separate thinking channel
+                    if chunk.content:
+                        thinking_buffer.append(chunk.content)
+                        thinking_payload = _create_thinking_redis_payload(
+                            task_id=task_id,
+                            request_data=request_data,
+                            content=chunk.content,
+                            is_complete=False
+                        )
+                        await _publish_to_redis(
+                            cache_service, thinking_channel_name, thinking_payload, log_prefix,
+                            f"Published thinking chunk ({len(chunk.content)} chars) to '{thinking_channel_name}'"
+                        )
+                elif chunk.type == StreamChunkType.THINKING_SIGNATURE:
+                    # Store signature and publish thinking complete event
+                    thinking_signature = chunk.signature
+                    thinking_complete_payload = _create_thinking_redis_payload(
+                        task_id=task_id,
+                        request_data=request_data,
+                        content="",
+                        is_complete=True,
+                        signature=thinking_signature,
+                        total_tokens=len("".join(thinking_buffer)) // 4  # Rough token estimate
+                    )
+                    await _publish_to_redis(
+                        cache_service, thinking_channel_name, thinking_complete_payload, log_prefix,
+                        f"Published thinking complete event to '{thinking_channel_name}'"
+                    )
+                elif chunk.type == StreamChunkType.THINKING_REDACTED:
+                    # Handle redacted thinking (Anthropic safety feature)
+                    logger.info(f"{log_prefix} Received redacted thinking block (safety feature)")
+                    thinking_buffer.append("[Some reasoning was hidden for safety reasons]")
+                    thinking_payload = _create_thinking_redis_payload(
+                        task_id=task_id,
+                        request_data=request_data,
+                        content="[Some reasoning was hidden for safety reasons]",
+                        is_complete=False
+                    )
+                    await _publish_to_redis(
+                        cache_service, thinking_channel_name, thinking_payload, log_prefix,
+                        f"Published redacted thinking notice to '{thinking_channel_name}'"
+                    )
+                # Skip to next chunk - thinking chunks don't go to main response
+                continue
+            
             if isinstance(chunk, (MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata)):
                 usage = chunk
                 continue
+            
+            # Check for revocation BEFORE processing the chunk
             if celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
-                logger.warning(f"{log_prefix} Task revoked during main processing stream. Processing partial response.")
+                logger.warning(f"{log_prefix} Task revoked during main processing stream. Including current chunk and finalizing partial response.")
                 was_revoked_during_stream = True
+                # Include the current chunk before breaking - don't discard it
+                # This ensures we return the partial response and bill for all generated tokens
+                if isinstance(chunk, str):
+                    final_response_chunks.append(chunk)
+                    stream_chunk_count += 1
+                    
+                    # Publish the final chunk with revocation marker IMMEDIATELY
+                    if cache_service:
+                        current_full_content = "".join(final_response_chunks)
+                        payload = _create_redis_payload(
+                            task_id, request_data, current_full_content, stream_chunk_count,
+                            is_final=True, interrupted_revoke=True, model_name=stream_model_name
+                        )
+                        await _publish_to_redis(
+                            cache_service, redis_channel_name, payload, log_prefix,
+                            f"Published final chunk (seq: {stream_chunk_count}) with revocation marker to '{redis_channel_name}'. Length: {len(current_full_content)}"
+                        )
                 break
 
-            final_response_chunks.append(chunk)
-            stream_chunk_count += 1
+            # Process string chunks (text or code blocks) - publish IMMEDIATELY
+            if isinstance(chunk, str):
+                # CRITICAL: Sanitize error messages before adding to response
+                # Replace any [ERROR: ...] messages with the translation key for generic error message
+                # This ensures users never see technical error details
+                if chunk.strip().startswith("[ERROR"):
+                    logger.warning(
+                        f"{log_prefix} Detected error marker in stream chunk "
+                        f"(chunk_len={len(chunk)}). Replacing with generic error message."
+                    )
+                    chunk = "chat.an_error_occured"
+                
+                # Strip <tool_call>...</tool_call> XML blocks from text content
+                # Some LLMs (e.g., Qwen3) output tool calls as XML text in addition to proper function calling
+                # This ensures the raw tool call JSON doesn't appear in the user-visible response
+                chunk = _strip_tool_call_xml_from_text(chunk)
+                
+                # Skip empty chunks after stripping (the entire chunk might have been a tool_call block)
+                if not chunk:
+                    continue
 
-            if cache_service:
-                current_full_content = "".join(final_response_chunks)
-                payload = _create_redis_payload(task_id, request_data, current_full_content, stream_chunk_count)
+                # Detect leaked internal reasoning from Gemini thinking models.
+                # When the model enters an infinite reasoning loop (usually due to temperature < 1.0),
+                # it flushes its scratchpad buffer as plain text — each leaked chunk starts with
+                # "{thought}" (with optional leading whitespace). Once we see this marker, all
+                # subsequent text chunks in this task are also leaked reasoning; we drop them all.
+                # See: google_client.py _clamp_temperature_for_thinking_model (Fix 1, primary defense).
+                if in_leaked_thought_mode:
+                    logger.debug(
+                        f"{log_prefix} Dropping leaked thought chunk "
+                        f"(seq ~{stream_chunk_count + 1}, len={len(chunk)})"
+                    )
+                    continue
+                if chunk.lstrip().startswith("{thought}"):
+                    logger.warning(
+                        f"{log_prefix} Detected leaked Gemini thought content at chunk ~{stream_chunk_count + 1}. "
+                        f"Activating in_leaked_thought_mode and dropping all subsequent text. "
+                        f"model={stream_model_name}, chunk_len={len(chunk)}"
+                    )
+                    in_leaked_thought_mode = True
+                    continue
+
+                # Guard: detect garbled / non-human-readable content before publishing.
+                # Observed with Gemini multimodal responses where the model occasionally streams
+                # what appears to be raw token-ID sequences or internal representations instead of
+                # natural language text (e.g. "-213,222,237-238,241,..."). These chunks degrade the
+                # user experience and can break frontend Tiptap rendering on some mobile browsers.
+                #
+                # Heuristic: if a chunk is longer than 200 chars and has fewer than 2% alphabetic
+                # characters, treat it as garbled and drop it with a warning.
+                if len(chunk) > 200:
+                    alpha_count = sum(1 for c in chunk if c.isalpha())
+                    alpha_ratio = alpha_count / len(chunk)
+                    if alpha_ratio < 0.02:
+                        logger.warning(
+                            f"{log_prefix} Dropping garbled chunk (seq ~{stream_chunk_count + 1}, "
+                            f"len={len(chunk)}, alpha_ratio={alpha_ratio:.3f})"
+                        )
+                        continue
                 
-                # Log less frequently to reduce noise
-                should_log = stream_chunk_count % 5 == 0 or len(current_full_content) % 1000 < len(chunk)
-                log_message = f"Published chunk (seq: {stream_chunk_count}) to '{redis_channel_name}'. Length: {len(current_full_content)}" if should_log else ""
+                # Code block detection and embed creation
+                # Detect code block opening: ```language or ```language:filename
+                # IMPORTANT: Skip JSON blocks that contain embed references - these are already processed embeds!
+                should_process_as_code_block = False
+                if not in_code_block and chunk.strip().startswith("```"):
+                    # Extract language and filename from opening fence
+                    # Format: ```language or ```language:filename
+                    lines = chunk.split('\n')
+                    fence_line = lines[0].strip()
+                    fence_content = fence_line[3:].strip()  # Remove ```
+                    
+                    # SKIP: JSON blocks that are embed references (already processed by skills)
+                    # These contain {"type": "...", "embed_id": "..."} or {"type": "...", "embed_ids": [...]}
+                    # FIX: Handle indented code blocks by stripping whitespace before checking
+                    is_embed_reference = False
+                    if fence_content.lower() in ('json', 'json_embed'):
+                        # Check if this is an embed reference JSON block
+                        remaining_content = '\n'.join(lines[1:]) if len(lines) > 1 else ''
+                        # FIX: Strip whitespace from content to handle indented JSON blocks
+                        # This allows detection of embed references even when indented (e.g., "     ```json")
+                        stripped_content = remaining_content.strip()
+                        # Look for embed reference patterns in stripped content
+                        is_embed_reference = (
+                            '"embed_id"' in stripped_content or 
+                            '"embed_ids"' in stripped_content or
+                            'embed_id' in stripped_content
+                        )
+                        if is_embed_reference:
+                            logger.debug(f"{log_prefix} Skipping JSON embed reference block (not a code block to convert, indented={remaining_content != stripped_content})")
+                            # Don't process as code block - let it pass through as-is
+                    
+                    # Only process as code block if it's NOT an embed reference
+                    if not is_embed_reference:
+                        should_process_as_code_block = True
                 
-                await _publish_to_redis(
-                    cache_service, redis_channel_name, payload, log_prefix, log_message
-                )
-            elif stream_chunk_count == 1:
-                logger.warning(f"{log_prefix} Cache service not available. Skipping Redis publish for chunks.")
+                # Process code block if detected and not an embed reference
+                if should_process_as_code_block:
+                    # Re-extract lines for processing (already extracted above but safer to re-extract)
+                    lines = chunk.split('\n')
+                    fence_line = lines[0].strip()
+                    fence_content = fence_line[3:].strip()  # Remove ```
+                    
+                    # DEBUG: Log metadata only for code block debugging (never raw content)
+                    logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Lines count: {len(lines)}")
+                    logger.info(
+                        f"{log_prefix} [CODE_BLOCK_DEBUG] fence metadata: "
+                        f"line_len={len(fence_line)}, fence_content_len={len(fence_content)}"
+                    )
+                    
+                    if ':' in fence_content:
+                        # Has filename: language:filename
+                        parts = fence_content.split(':', 1)
+                        current_code_language = parts[0].strip()
+                        current_code_filename = parts[1].strip() if len(parts) > 1 else None
+                    else:
+                        # Just language or empty
+                        current_code_language = fence_content
+                        current_code_filename = None
+                    
+                    # FIX: If language/filename not in fence line, check first content line
+                    # LLMs sometimes put "python:hello_world.py" in content instead of fence
+                    # Track if we extracted from first line so we can remove it from code content
+                    extracted_from_first_line = False
+                    if (not current_code_language or not current_code_filename) and len(lines) > 1:
+                        first_content_line = lines[1].strip()
+                        # Check if first line matches language:filename pattern (e.g., "python:hello_world.py")
+                        if ':' in first_content_line and not first_content_line.startswith('#'):
+                            # Pattern: language:filename (e.g., "python:hello_world.py")
+                            # Extract potential language:filename from first content line
+                            import re
+                            # Match pattern like "python:hello_world.py" or "javascript:index.js"
+                            lang_file_pattern = r'^([a-zA-Z0-9_+\-#.]+):([^\s:]+)$'
+                            match = re.match(lang_file_pattern, first_content_line)
+                            if match:
+                                potential_lang = match.group(1)
+                                potential_filename = match.group(2)
+                                # Only use if we don't already have language or filename
+                                if not current_code_language:
+                                    current_code_language = potential_lang
+                                    extracted_from_first_line = True
+                                    logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Extracted language from first content line")
+                                if not current_code_filename:
+                                    current_code_filename = potential_filename
+                                    extracted_from_first_line = True
+                                    logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Extracted filename from first content line")
+                    
+                    # DEBUG: Log extracted language and filename
+                    logger.info(
+                        f"{log_prefix} [CODE_BLOCK_DEBUG] Final metadata: "
+                        f"language_present={bool(current_code_language)}, filename_present={bool(current_code_filename)}"
+                    )
+                    
+                    # Check if this chunk contains both opening and closing fence (complete code block)
+                    # Look for closing fence in remaining lines (after the opening fence line)
+                    found_closing = False
+                    closing_line_idx = -1
+                    for i, line in enumerate(lines[1:], 1):
+                        if line.strip() == '```':
+                            found_closing = True
+                            closing_line_idx = i
+                            break
+                    
+                    if found_closing:
+                        # Complete code block in single chunk - extract content and finalize immediately
+                        # Extract content between opening and closing fences
+                        content_lines = lines[1:closing_line_idx]  # Lines between fences
+                        # FIX: Remove language:filename line from content if we extracted it
+                        if extracted_from_first_line and content_lines:
+                            first_line_stripped = content_lines[0].strip()
+                            # Check if first line matches the pattern we extracted from
+                            if ':' in first_line_stripped and not first_line_stripped.startswith('#'):
+                                import re
+                                lang_file_pattern = r'^([a-zA-Z0-9_+\-#.]+):([^\s:]+)$'
+                                if re.match(lang_file_pattern, first_line_stripped):
+                                    # Remove the first line as it was just metadata, not actual code
+                                    content_lines = content_lines[1:]
+                                    logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Removed language:filename line from code content")
+                        code_content = '\n'.join(content_lines)
+                        
+                        # DEBUG: Log extracted code metadata only (never code content)
+                        logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Complete code block detected, closing_line_idx: {closing_line_idx}")
+                        logger.info(
+                            f"{log_prefix} [CODE_BLOCK_DEBUG] content metadata: "
+                            f"content_lines={len(content_lines)}, code_content_len={len(code_content)}"
+                        )
+                        
+                        # HARDENING: Detect fake tool calls in code blocks
+                        # This catches cases where the LLM outputs code blocks that look like tool calls
+                        # but are not actual tool calls (because the preprocessing didn't preselect the skill).
+                        # Common patterns:
+                        # - language="tool_code" with JSON containing "tool": "..."
+                        # - language="toon" with nested TOON containing tool definitions
+                        # - language="json" with {"tool": "...", "input": {...}} patterns
+                        is_fake_tool_call = False
+                        fake_tool_name = None
+                        
+                        # Pattern 1: Code block with language "tool_code"
+                        if current_code_language and current_code_language.lower() == 'tool_code':
+                            is_fake_tool_call = True
+                            # Try to extract tool name from content
+                            try:
+                                import json
+                                parsed = json.loads(code_content)
+                                fake_tool_name = parsed.get('tool', 'unknown')
+                            except (json.JSONDecodeError, Exception):
+                                fake_tool_name = 'unknown (parsing failed)'
+                            logger.warning(
+                                f"{log_prefix} [FAKE_TOOL_CALL_DETECTED] LLM output a 'tool_code' code block "
+                                f"with tool='{fake_tool_name}'. This indicates the LLM tried to use a tool "
+                                f"that was not available. code_content_length={len(code_content)}"
+                            )
+                        
+                        # Pattern 2: Code block with language "toon" containing nested tool structure
+                        if current_code_language and current_code_language.lower() == 'toon':
+                            # Check if content looks like a tool call (nested structure with 'tool:' or 'tool_code')
+                            if '"tool":' in code_content or 'tool_code' in code_content or 'tool:' in code_content.lower():
+                                is_fake_tool_call = True
+                                fake_tool_name = 'nested_toon_tool'
+                                logger.warning(
+                                    f"{log_prefix} [FAKE_TOOL_CALL_DETECTED] LLM output a 'toon' code block "
+                                    f"containing tool-like structure. This indicates the LLM tried to fake "
+                                    f"a tool result using TOON encoding. code_content_length={len(code_content)}"
+                                )
+                        
+                        # Pattern 3: JSON code block with {"tool": "...", "input": {...}} structure
+                        if current_code_language and current_code_language.lower() == 'json':
+                            # Skip embed references (already handled above)
+                            if '"tool"' in code_content and '"input"' in code_content:
+                                try:
+                                    import json
+                                    parsed = json.loads(code_content)
+                                    if 'tool' in parsed and 'input' in parsed:
+                                        is_fake_tool_call = True
+                                        fake_tool_name = parsed.get('tool', 'unknown')
+                                        logger.warning(
+                                            f"{log_prefix} [FAKE_TOOL_CALL_DETECTED] LLM output a JSON code block "
+                                            f"that looks like a tool call definition. Tool='{fake_tool_name}'. "
+                                            f"This indicates the LLM tried to use a tool that was not available. "
+                                            f"code_content_length={len(code_content)}"
+                                        )
+                                except (json.JSONDecodeError, Exception):
+                                    pass  # Not a valid JSON, ignore
+                        
+                        # Handle fake tool call: silently filter it out
+                        # Users should NEVER see confusing tool_code/toon code blocks or error messages
+                        # We only show a fallback message at the end if the entire response would be empty
+                        if is_fake_tool_call:
+                            # Log the issue for server-side debugging
+                            logger.error(
+                                f"{log_prefix} [FAKE_TOOL_CALL_FILTERED] The LLM attempted to use "
+                                f"tool '{fake_tool_name}' but it was not available. This may indicate: "
+                                f"1) Preprocessing LLM failed to preselect the skill for a follow-up query, "
+                                f"2) The skill is not in always_include_skills config, "
+                                f"3) The skill is not assigned to the current Mate. "
+                                f"Consider adding '{fake_tool_name}' to always_include_skills in ai/app.yml. "
+                                f"Code block silently filtered (user won't see it)."
+                            )
+                            
+                            # Set the flag so we know we filtered fake tool calls
+                            # This is used at the end to show a fallback if response is empty
+                            fake_tool_calls_filtered = True
+                            
+                            # Reset code block state - silently drop this content
+                            in_code_block = False
+                            current_code_language = ""
+                            current_code_filename = None
+                            current_code_content = ""
+                            current_code_embed_id = None
+                            
+                            # Set chunk to empty to prevent any content from being added
+                            chunk = ""
+                            
+                            # Skip to the next chunk - don't create embeds or show anything to user
+                            continue
+                        
+                        # Create embed and finalize immediately (only for real code blocks, not fake tool calls)
+                        # Skip embed creation if this was a fake tool call (already handled above with fallback message)
+                        if not is_fake_tool_call and directus_service and encryption_service and user_vault_key_id:
+                            try:
+                                from backend.core.api.app.services.embed_service import EmbedService
+                                embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                                
+                                # Check if this is a math plot block (```plot ... ```)
+                                is_plot_block = current_code_language.lower() == 'plot' if current_code_language else False
+                                
+                                # Check if this is a document_html block
+                                is_document_html = current_code_language.lower() == 'document_html' if current_code_language else False
+
+                                # Check if this is a mail block
+                                is_email_block = current_code_language.lower() == 'email' if current_code_language else False
+                                
+                                if is_plot_block:
+                                    # Create math-plot embed placeholder and finalize immediately
+                                    embed_data = await embed_service.create_plot_embed_placeholder(
+                                        chat_id=request_data.chat_id,
+                                        message_id=request_data.message_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        task_id=task_id,
+                                        log_prefix=log_prefix
+                                    )
+                                    
+                                    if embed_data:
+                                        current_code_embed_id = embed_data["embed_id"]
+                                        
+                                        # Update with the full expression and finalize
+                                        await embed_service.update_plot_embed_content(
+                                            embed_id=current_code_embed_id,
+                                            expression=code_content,
+                                            chat_id=request_data.chat_id,
+                                            user_id=request_data.user_id,
+                                            user_id_hash=request_data.user_id_hash,
+                                            user_vault_key_id=user_vault_key_id,
+                                            status="finished",
+                                            log_prefix=log_prefix
+                                        )
+                                        
+                                        # Replace plot block with embed reference in chunk
+                                        embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                        chunk = embed_reference_code
+                                        logger.info(f"{log_prefix} Created and finalized math-plot embed {current_code_embed_id} (expr len={len(code_content)})")
+                                        
+                                        # Reset state
+                                        in_code_block = False
+                                        in_plot_block = False
+                                        current_code_language = ""
+                                        current_code_filename = None
+                                        current_code_content = ""
+                                        current_code_embed_id = None
+                                elif is_document_html:
+                                    # Extract title from <!-- title: "..." --> comment
+                                    import re
+                                    doc_title = None
+                                    title_match = re.search(r'<!--\s*title:\s*["\'](.+?)["\']\s*-->', code_content)
+                                    if title_match:
+                                        doc_title = title_match.group(1)
+                                    
+                                    # Create document embed placeholder and finalize immediately
+                                    embed_data = await embed_service.create_document_embed_placeholder(
+                                        chat_id=request_data.chat_id,
+                                        message_id=request_data.message_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        task_id=task_id,
+                                        title=doc_title,
+                                        log_prefix=log_prefix
+                                    )
+                                    
+                                    if embed_data:
+                                        current_code_embed_id = embed_data["embed_id"]
+                                        
+                                        # Update with full HTML content and finalize
+                                        await embed_service.update_document_embed_content(
+                                            embed_id=current_code_embed_id,
+                                            html_content=code_content,
+                                            chat_id=request_data.chat_id,
+                                            user_id=request_data.user_id,
+                                            user_id_hash=request_data.user_id_hash,
+                                            user_vault_key_id=user_vault_key_id,
+                                            status="finished",
+                                            title=doc_title,
+                                            log_prefix=log_prefix
+                                        )
+                                        
+                                        # Replace document block with embed reference in chunk
+                                        embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                        chunk = embed_reference_code
+                                        logger.info(
+                                            f"{log_prefix} Created and finalized document embed {current_code_embed_id} "
+                                            f"for complete document_html block "
+                                            f"(title_present={bool(doc_title)}, title_length={len(doc_title) if isinstance(doc_title, str) else 0})"
+                                        )
+                                        
+                                        # Reset state
+                                        in_code_block = False
+                                        in_document_block = False
+                                        current_document_title = None
+                                        current_code_language = ""
+                                        current_code_filename = None
+                                        current_code_content = ""
+                                        current_code_embed_id = None
+                                elif is_email_block:
+                                    parsed_email = _parse_email_fence_content(code_content)
+
+                                    embed_data = await embed_service.create_mail_embed_placeholder(
+                                        chat_id=request_data.chat_id,
+                                        message_id=request_data.message_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        task_id=task_id,
+                                        receiver=parsed_email.get("receiver", ""),
+                                        subject=parsed_email.get("subject", ""),
+                                        log_prefix=log_prefix,
+                                    )
+
+                                    if embed_data:
+                                        current_code_embed_id = embed_data["embed_id"]
+
+                                        await embed_service.update_mail_embed_content(
+                                            embed_id=current_code_embed_id,
+                                            receiver=parsed_email.get("receiver", ""),
+                                            subject=parsed_email.get("subject", ""),
+                                            content=parsed_email.get("content", ""),
+                                            footer=parsed_email.get("footer", ""),
+                                            chat_id=request_data.chat_id,
+                                            user_id=request_data.user_id,
+                                            user_id_hash=request_data.user_id_hash,
+                                            user_vault_key_id=user_vault_key_id,
+                                            status="finished",
+                                            log_prefix=log_prefix,
+                                        )
+
+                                        embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                        chunk = embed_reference_code
+                                        logger.info(f"{log_prefix} Created and finalized mail embed {current_code_embed_id}")
+
+                                        in_code_block = False
+                                        in_email_block = False
+                                        current_code_language = ""
+                                        current_code_filename = None
+                                        current_code_content = ""
+                                        current_code_embed_id = None
+                                else:
+                                    # Create code embed placeholder
+                                    embed_data = await embed_service.create_code_embed_placeholder(
+                                        language=current_code_language,
+                                        chat_id=request_data.chat_id,
+                                        message_id=request_data.message_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        task_id=task_id,
+                                        filename=current_code_filename,
+                                        log_prefix=log_prefix
+                                    )
+                                    
+                                    if embed_data:
+                                        current_code_embed_id = embed_data["embed_id"]
+                                        
+                                        # Update with full content and finalize
+                                        await embed_service.update_code_embed_content(
+                                            embed_id=current_code_embed_id,
+                                            code_content=code_content,
+                                            chat_id=request_data.chat_id,
+                                            user_id=request_data.user_id,
+                                            user_id_hash=request_data.user_id_hash,
+                                            user_vault_key_id=user_vault_key_id,
+                                            status="finished",
+                                            log_prefix=log_prefix
+                                        )
+                                        
+                                        # Replace code block with embed reference in chunk
+                                        embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                        chunk = embed_reference_code
+                                        logger.info(f"{log_prefix} Created and finalized code embed {current_code_embed_id} for complete code block")
+                                        
+                                        # Reset state
+                                        in_code_block = False
+                                        current_code_language = ""
+                                        current_code_filename = None
+                                        current_code_content = ""
+                                        current_code_embed_id = None
+                            except Exception as e:
+                                logger.error(f"{log_prefix} Error creating embed for complete block: {e}", exc_info=True)
+                                # Continue with original chunk if embed creation fails
+                    else:
+                        # Opening fence but no closing fence in this chunk - start code block tracking
+                        in_code_block = True
+                        current_code_content = ""
+                        current_code_embed_id = None
+                        
+                        # CRITICAL FIX: If fence has no language (e.g., just ```), wait for next chunk
+                        # LLMs often stream ``` and language as separate tokens
+                        if not current_code_language and len(lines) == 1:
+                            # Bare fence with no content - language might come in next chunk
+                            waiting_for_code_language = True
+                            # Save original chunk (currently unused but left for future potential use)
+                            # pending_code_fence_chunk = chunk
+                            chunk = ""  # Don't emit anything yet
+                            logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Detected bare fence, waiting for potential language in next chunk")
+                            continue  # Skip the rest of processing, wait for next chunk
+                        
+                        # Extract any content after opening fence in this chunk
+                        if len(lines) > 1:
+                            # There's content after the opening fence line
+                            content_lines_after_fence = lines[1:]
+                            # FIX: Remove language:filename line from content if we extracted it
+                            if extracted_from_first_line and content_lines_after_fence:
+                                first_line_stripped = content_lines_after_fence[0].strip()
+                                # Check if first line matches the pattern we extracted from
+                                if ':' in first_line_stripped and not first_line_stripped.startswith('#'):
+                                    import re
+                                    lang_file_pattern = r'^([a-zA-Z0-9_+\-#.]+):([^\s:]+)$'
+                                    if re.match(lang_file_pattern, first_line_stripped):
+                                        # Remove the first line as it was just metadata, not actual code
+                                        content_lines_after_fence = content_lines_after_fence[1:]
+                                        logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Removed language:filename line from code content (multi-chunk)")
+                            current_code_content = '\n'.join(content_lines_after_fence)
+                        
+                        # HARDENING: Check for suspicious languages that indicate fake tool calls
+                        # 'tool_code' is ALWAYS a fake tool call — never a valid programming language.
+                        # 'toon' MIGHT be a fake tool call, but could also be real code that the LLM
+                        # mislabelled (since 'toon' is our internal encoding format visible in context).
+                        # For 'toon', we defer the decision to closing fence when we have full content.
+                        is_definitely_suspicious = current_code_language and current_code_language.lower() == 'tool_code'
+                        is_toon_needs_validation = current_code_language and current_code_language.lower() == 'toon'
+                        if is_definitely_suspicious or is_toon_needs_validation:
+                            if is_toon_needs_validation:
+                                toon_pending_validation = True
+                                logger.info(
+                                    f"{log_prefix} [TOON_PENDING_VALIDATION] Multi-chunk code block started with "
+                                    f"language 'toon'. Will accumulate content and check at closing fence "
+                                    f"whether this is a fake tool call or real code."
+                                )
+                            else:
+                                logger.warning(
+                                    f"{log_prefix} [FAKE_TOOL_CALL_DETECTED] Multi-chunk code block started with "
+                                    f"suspicious language '{current_code_language}'. This indicates the LLM is trying "
+                                    f"to fake a tool call. Will replace with fallback message when code block closes."
+                                )
+                            # Don't create an embed yet — accumulate content and decide at closing fence
+                            chunk = ""  # Don't emit opening fence
+                            continue  # Skip embed creation, just track the content
+                        
+                        # Create embed placeholder (only for non-suspicious languages)
+                        # Plot blocks get math-plot embeds; document_html blocks get document embeds;
+                        # email blocks get mail embeds; all others get code embeds.
+                        is_plot_block_multi = current_code_language.lower() == 'plot' if current_code_language else False
+                        is_document_html = current_code_language.lower() == 'document_html' if current_code_language else False
+                        is_email_block_multi = current_code_language.lower() == 'email' if current_code_language else False
+                        if is_plot_block_multi:
+                            in_plot_block = True
+                        elif is_document_html:
+                            in_document_block = True
+                            current_document_title = None
+                            # Try to extract title from initial content
+                            if current_code_content:
+                                import re
+                                title_match = re.search(r'<!--\s*title:\s*["\'](.+?)["\']\s*-->', current_code_content)
+                                if title_match:
+                                    current_document_title = title_match.group(1)
+                        
+                        if directus_service and encryption_service and user_vault_key_id:
+                            try:
+                                from backend.core.api.app.services.embed_service import EmbedService
+                                embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                                
+                                if is_plot_block_multi:
+                                    # Create math-plot embed placeholder (expression arrives in subsequent chunks)
+                                    embed_data = await embed_service.create_plot_embed_placeholder(
+                                        chat_id=request_data.chat_id,
+                                        message_id=request_data.message_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        task_id=task_id,
+                                        log_prefix=log_prefix
+                                    )
+                                    
+                                    if embed_data:
+                                        current_code_embed_id = embed_data["embed_id"]
+                                        
+                                        # Replace opening fence with embed reference immediately
+                                        embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                        chunk = embed_reference_code
+                                        logger.info(f"{log_prefix} Created math-plot embed placeholder {current_code_embed_id}")
+                                elif is_document_html:
+                                    # Create document embed placeholder
+                                    embed_data = await embed_service.create_document_embed_placeholder(
+                                        chat_id=request_data.chat_id,
+                                        message_id=request_data.message_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        task_id=task_id,
+                                        title=current_document_title,
+                                        log_prefix=log_prefix
+                                    )
+                                    
+                                    if embed_data:
+                                        current_code_embed_id = embed_data["embed_id"]
+                                        
+                                        # If there's content after the opening fence, update embed immediately
+                                        if current_code_content:
+                                            await embed_service.update_document_embed_content(
+                                                embed_id=current_code_embed_id,
+                                                html_content=current_code_content,
+                                                chat_id=request_data.chat_id,
+                                                user_id=request_data.user_id,
+                                                user_id_hash=request_data.user_id_hash,
+                                                user_vault_key_id=user_vault_key_id,
+                                                status="processing",
+                                                title=current_document_title,
+                                                log_prefix=log_prefix
+                                            )
+                                        
+                                        # Replace opening fence with embed reference
+                                        embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                        chunk = embed_reference_code
+                                        logger.info(
+                                            f"{log_prefix} Created document embed placeholder {current_code_embed_id} "
+                                            f"(title_present={bool(current_document_title)}, "
+                                            f"title_length={len(current_document_title) if isinstance(current_document_title, str) else 0})"
+                                        )
+                                elif is_email_block_multi:
+                                    in_email_block = True
+
+                                    parsed_email = _parse_email_fence_content(current_code_content)
+                                    embed_data = await embed_service.create_mail_embed_placeholder(
+                                        chat_id=request_data.chat_id,
+                                        message_id=request_data.message_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        task_id=task_id,
+                                        receiver=parsed_email.get("receiver", ""),
+                                        subject=parsed_email.get("subject", ""),
+                                        log_prefix=log_prefix,
+                                    )
+
+                                    if embed_data:
+                                        current_code_embed_id = embed_data["embed_id"]
+
+                                        if current_code_content:
+                                            await embed_service.update_mail_embed_content(
+                                                embed_id=current_code_embed_id,
+                                                receiver=parsed_email.get("receiver", ""),
+                                                subject=parsed_email.get("subject", ""),
+                                                content=parsed_email.get("content", ""),
+                                                footer=parsed_email.get("footer", ""),
+                                                chat_id=request_data.chat_id,
+                                                user_id=request_data.user_id,
+                                                user_id_hash=request_data.user_id_hash,
+                                                user_vault_key_id=user_vault_key_id,
+                                                status="processing",
+                                                log_prefix=log_prefix,
+                                            )
+
+                                        embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                        chunk = embed_reference_code
+                                        logger.info(f"{log_prefix} Created mail embed placeholder {current_code_embed_id}")
+                                else:
+                                    embed_data = await embed_service.create_code_embed_placeholder(
+                                        language=current_code_language,
+                                        chat_id=request_data.chat_id,
+                                        message_id=request_data.message_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        task_id=task_id,
+                                        filename=current_code_filename,
+                                        log_prefix=log_prefix
+                                    )
+                                    
+                                    if embed_data:
+                                        current_code_embed_id = embed_data["embed_id"]
+                                        
+                                        # If there's content after the opening fence, update embed immediately
+                                        if current_code_content:
+                                            await embed_service.update_code_embed_content(
+                                                embed_id=current_code_embed_id,
+                                                code_content=current_code_content,
+                                                chat_id=request_data.chat_id,
+                                                user_id=request_data.user_id,
+                                                user_id_hash=request_data.user_id_hash,
+                                                user_vault_key_id=user_vault_key_id,
+                                                status="processing",
+                                                log_prefix=log_prefix
+                                            )
+                                        
+                                        # Replace opening fence with embed reference
+                                        embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                        chunk = embed_reference_code
+                                        logger.info(f"{log_prefix} Created code embed placeholder {current_code_embed_id} (language: {current_code_language or 'none'})")
+                            except Exception as e:
+                                logger.error(f"{log_prefix} Error creating embed placeholder: {e}", exc_info=True)
+                                # Continue with original chunk if embed creation fails
+                
+                # Handle code block content accumulation and closing
+                elif in_code_block:
+                    # CRITICAL FIX: Check if we're waiting for language after a bare ``` fence
+                    if waiting_for_code_language:
+                        waiting_for_code_language = False  # Reset flag
+                        
+                        # Check if this chunk starts with what looks like a language identifier
+                        # Language identifiers: single word, alphanumeric with optional -, _, +, #
+                        first_line = chunk.split('\n')[0].strip() if chunk else ""
+                        remaining_content = '\n'.join(chunk.split('\n')[1:]) if '\n' in chunk else ""
+                        
+                        # Language pattern: single word like "python", "javascript", "c++", "c#", etc.
+                        # Also allow "language:filename" format
+                        import re
+                        # Modified to allow : and . for filename support
+                        lang_pattern = r'^[a-zA-Z][a-zA-Z0-9_+#-.]*(?::[^\s:]+)?$'
+                        
+                        if first_line and re.match(lang_pattern, first_line) and len(first_line) <= 50:
+                            # This looks like a language identifier or language:filename
+                            if ':' in first_line:
+                                # Has filename: language:filename
+                                parts = first_line.split(':', 1)
+                                current_code_language = parts[0].strip()
+                                current_code_filename = parts[1].strip() if len(parts) > 1 else None
+                                logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Extracted language and filename from next chunk")
+                            else:
+                                current_code_language = first_line
+                                logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Extracted language from next chunk")
+                            
+                            # Any remaining lines after the language are code content
+                            current_code_content = remaining_content
+                        else:
+                            # Not a language - treat entire chunk as code content
+                            current_code_content = chunk
+                            logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] No language found in chunk, treating as code")
+                        
+                        # HARDENING: Check for suspicious languages that indicate fake tool calls
+                        # This mirrors the check in the direct-language path (Path B) above.
+                        # Without this, a bare ``` followed by "toon" in the next chunk would
+                        # create an embed placeholder before the closing-fence filter catches it,
+                        # leaving an orphaned embed reference in the message.
+                        # 'tool_code' is ALWAYS suspicious. 'toon' needs content-based validation
+                        # at closing fence (it could be real code mislabelled by the LLM).
+                        is_definitely_suspicious = current_code_language and current_code_language.lower() == 'tool_code'
+                        is_toon_needs_validation = current_code_language and current_code_language.lower() == 'toon'
+                        if is_definitely_suspicious or is_toon_needs_validation:
+                            if is_toon_needs_validation:
+                                toon_pending_validation = True
+                                logger.info(
+                                    f"{log_prefix} [TOON_PENDING_VALIDATION] Code block language 'toon' "
+                                    f"resolved after bare fence. Will accumulate content and check at "
+                                    f"closing fence whether this is a fake tool call or real code."
+                                )
+                            else:
+                                logger.warning(
+                                    f"{log_prefix} [FAKE_TOOL_CALL_DETECTED] Code block language '{current_code_language}' "
+                                    f"resolved after bare fence is suspicious (fake tool call). "
+                                    f"Will accumulate content and filter at closing fence."
+                                )
+                            # Don't create an embed yet - accumulate content and decide at closing fence
+                            chunk = ""
+                            continue
+
+                        # Now create the embed placeholder with the extracted (or empty) language
+                        # Check if this is a plot/document_html/email block (language resolved after bare fence)
+                        is_plot_block_post_bare = current_code_language.lower() == 'plot' if current_code_language else False
+                        is_document_html = current_code_language.lower() == 'document_html' if current_code_language else False
+                        is_email_block_post_bare = current_code_language.lower() == 'email' if current_code_language else False
+                        if is_plot_block_post_bare:
+                            in_plot_block = True
+                        elif is_document_html:
+                            in_document_block = True
+                            current_document_title = None
+                            # Try to extract title from initial content
+                            if current_code_content:
+                                import re
+                                title_match = re.search(r'<!--\s*title:\s*["\'](.+?)["\']\s*-->', current_code_content)
+                                if title_match:
+                                    current_document_title = title_match.group(1)
+                        
+                        if directus_service and encryption_service and user_vault_key_id:
+                            try:
+                                from backend.core.api.app.services.embed_service import EmbedService
+                                embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                                
+                                if is_plot_block_post_bare:
+                                    # Create math-plot embed placeholder (expression will arrive in subsequent chunks)
+                                    embed_data = await embed_service.create_plot_embed_placeholder(
+                                        chat_id=request_data.chat_id,
+                                        message_id=request_data.message_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        task_id=task_id,
+                                        log_prefix=log_prefix
+                                    )
+                                    
+                                    if embed_data:
+                                        current_code_embed_id = embed_data["embed_id"]
+                                        
+                                        # Replace opening fence with embed reference immediately
+                                        embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                        chunk = embed_reference_code
+                                        logger.info(f"{log_prefix} Created math-plot embed placeholder {current_code_embed_id} (language resolved after bare fence)")
+                                elif is_document_html:
+                                    embed_data = await embed_service.create_document_embed_placeholder(
+                                        chat_id=request_data.chat_id,
+                                        message_id=request_data.message_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        task_id=task_id,
+                                        title=current_document_title,
+                                        log_prefix=log_prefix
+                                    )
+                                    
+                                    if embed_data:
+                                        current_code_embed_id = embed_data["embed_id"]
+                                        
+                                        # If there's content, update embed immediately
+                                        if current_code_content:
+                                            await embed_service.update_document_embed_content(
+                                                embed_id=current_code_embed_id,
+                                                html_content=current_code_content,
+                                                chat_id=request_data.chat_id,
+                                                user_id=request_data.user_id,
+                                                user_id_hash=request_data.user_id_hash,
+                                                user_vault_key_id=user_vault_key_id,
+                                                status="processing",
+                                                title=current_document_title,
+                                                log_prefix=log_prefix
+                                            )
+                                        
+                                        # Emit the embed reference now
+                                        embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                        chunk = embed_reference_code
+                                        logger.info(
+                                            f"{log_prefix} Created document embed placeholder {current_code_embed_id} "
+                                            f"after waiting for language "
+                                            f"(title_present={bool(current_document_title)}, "
+                                            f"title_length={len(current_document_title) if isinstance(current_document_title, str) else 0})"
+                                        )
+                                    else:
+                                        chunk = ""  # Failed to create document embed
+                                elif is_email_block_post_bare:
+                                    in_email_block = True
+
+                                    parsed_email = _parse_email_fence_content(current_code_content)
+                                    embed_data = await embed_service.create_mail_embed_placeholder(
+                                        chat_id=request_data.chat_id,
+                                        message_id=request_data.message_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        task_id=task_id,
+                                        receiver=parsed_email.get("receiver", ""),
+                                        subject=parsed_email.get("subject", ""),
+                                        log_prefix=log_prefix,
+                                    )
+
+                                    if embed_data:
+                                        current_code_embed_id = embed_data["embed_id"]
+
+                                        if current_code_content:
+                                            await embed_service.update_mail_embed_content(
+                                                embed_id=current_code_embed_id,
+                                                receiver=parsed_email.get("receiver", ""),
+                                                subject=parsed_email.get("subject", ""),
+                                                content=parsed_email.get("content", ""),
+                                                footer=parsed_email.get("footer", ""),
+                                                chat_id=request_data.chat_id,
+                                                user_id=request_data.user_id,
+                                                user_id_hash=request_data.user_id_hash,
+                                                user_vault_key_id=user_vault_key_id,
+                                                status="processing",
+                                                log_prefix=log_prefix,
+                                            )
+
+                                        embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                        chunk = embed_reference_code
+                                        logger.info(f"{log_prefix} Created mail embed placeholder {current_code_embed_id} (language resolved after bare fence)")
+                                    else:
+                                        chunk = ""
+                                else:
+                                    embed_data = await embed_service.create_code_embed_placeholder(
+                                        language=current_code_language,
+                                        chat_id=request_data.chat_id,
+                                        message_id=request_data.message_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        task_id=task_id,
+                                        filename=current_code_filename,
+                                        log_prefix=log_prefix
+                                    )
+                                    
+                                    if embed_data:
+                                        current_code_embed_id = embed_data["embed_id"]
+                                        
+                                        # If there's content, update embed immediately
+                                        if current_code_content:
+                                            await embed_service.update_code_embed_content(
+                                                embed_id=current_code_embed_id,
+                                                code_content=current_code_content,
+                                                chat_id=request_data.chat_id,
+                                                user_id=request_data.user_id,
+                                                user_id_hash=request_data.user_id_hash,
+                                                user_vault_key_id=user_vault_key_id,
+                                                status="processing",
+                                                log_prefix=log_prefix
+                                            )
+                                        
+                                        # Emit the embed reference now
+                                        embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                        chunk = embed_reference_code
+                                        logger.info(f"{log_prefix} Created code embed placeholder {current_code_embed_id} (language: {current_code_language or 'none'}) after waiting for language")
+                                    else:
+                                        chunk = ""  # Failed to create embed
+                            except Exception as e:
+                                logger.error(f"{log_prefix} Error creating code embed placeholder after waiting for language: {e}", exc_info=True)
+                                chunk = ""
+                        else:
+                            chunk = ""  # No services available
+                    # Check if this chunk contains closing fence
+                    elif '```' in chunk:
+                        # Extract content before closing fence
+                        closing_fence_idx = chunk.find('```')
+                        code_chunk_content = chunk[:closing_fence_idx]
+                        current_code_content += code_chunk_content
+                        
+                        # HARDENING: Check if this was a suspicious code block (fake tool call)
+                        # 'tool_code' is ALWAYS a fake tool call.
+                        # 'toon' needs content-based validation: only filter if it contains
+                        # tool call patterns ('"tool":', 'tool_code', 'tool:').
+                        # If 'toon' block has real code content, treat it as a normal code block.
+                        is_tool_code_language = current_code_language and current_code_language.lower() == 'tool_code'
+                        
+                        # Content-based check for toon blocks: only flag as fake if content
+                        # actually contains tool call patterns (matching the single-chunk check)
+                        is_toon_fake_tool = False
+                        if toon_pending_validation and current_code_language and current_code_language.lower() == 'toon':
+                            if ('"tool":' in current_code_content
+                                    or 'tool_code' in current_code_content
+                                    or 'tool:' in current_code_content.lower()):
+                                is_toon_fake_tool = True
+                                logger.warning(
+                                    f"{log_prefix} [TOON_VALIDATED_AS_FAKE] Toon block content contains "
+                                    f"tool call patterns — confirmed as fake tool call. "
+                                    f"Content length: {len(current_code_content)} chars."
+                                )
+                            else:
+                                # This toon block is real code, NOT a fake tool call.
+                                # The LLM mislabelled it (likely mimicking toon encoding seen in context).
+                                # We'll handle it as a normal code block below.
+                                toon_pending_validation = False
+                                logger.info(
+                                    f"{log_prefix} [TOON_VALIDATED_AS_REAL_CODE] Toon block does NOT contain "
+                                    f"tool call patterns — treating as real code block. "
+                                    f"Content length: {len(current_code_content)} chars. "
+                                    f"Will create embed and deliver to user."
+                                )
+                        
+                        # Also check for JSON-like fake tool calls in content
+                        is_json_fake_tool = False
+                        fake_tool_name_from_content = None
+                        if current_code_language and current_code_language.lower() == 'json':
+                            if '"tool"' in current_code_content and '"input"' in current_code_content:
+                                try:
+                                    import json
+                                    parsed = json.loads(current_code_content)
+                                    if 'tool' in parsed and 'input' in parsed:
+                                        is_json_fake_tool = True
+                                        fake_tool_name_from_content = parsed.get('tool', 'unknown')
+                                except (json.JSONDecodeError, Exception):
+                                    pass
+                        
+                        if is_tool_code_language or is_toon_fake_tool or is_json_fake_tool:
+                            # Determine the fake tool name for logging
+                            if fake_tool_name_from_content:
+                                fake_tool_name = fake_tool_name_from_content
+                            elif '"tool":' in current_code_content:
+                                # Try to extract from content
+                                try:
+                                    import json
+                                    parsed = json.loads(current_code_content)
+                                    fake_tool_name = parsed.get('tool', current_code_language)
+                                except (json.JSONDecodeError, Exception):
+                                    fake_tool_name = current_code_language
+                            else:
+                                fake_tool_name = current_code_language or 'unknown'
+                            
+                            # Log the issue for server-side debugging, but silently filter for user
+                            logger.error(
+                                f"{log_prefix} [FAKE_TOOL_CALL_FILTERED] Multi-chunk fake tool call "
+                                f"'{fake_tool_name}' detected. Content length: {len(current_code_content)} chars. "
+                                f"Silently filtering (user won't see it)."
+                            )
+                            
+                            # SAFETY: If an embed was already created for this code block
+                            # (e.g. JSON lang detected as fake only at closing fence),
+                            # mark it as an error so the frontend doesn't show a broken placeholder.
+                            if current_code_embed_id and directus_service and encryption_service and user_vault_key_id:
+                                try:
+                                    from backend.core.api.app.services.embed_service import EmbedService
+                                    embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                                    await embed_service.update_code_embed_content(
+                                        embed_id=current_code_embed_id,
+                                        code_content="",
+                                        chat_id=request_data.chat_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        status="error",
+                                        log_prefix=log_prefix
+                                    )
+                                    logger.info(
+                                        f"{log_prefix} [FAKE_TOOL_CALL_FILTERED] Marked orphaned embed "
+                                        f"{current_code_embed_id} as error."
+                                    )
+                                except Exception as e:
+                                    logger.error(
+                                        f"{log_prefix} [FAKE_TOOL_CALL_FILTERED] Failed to clean up "
+                                        f"orphaned embed {current_code_embed_id}: {e}"
+                                    )
+                            
+                            # Reset toon_pending_validation and set filtered flag
+                            toon_pending_validation = False
+                            fake_tool_calls_filtered = True
+                            
+                            # Reset state - silently drop this content
+                            in_code_block = False
+                            current_code_language = ""
+                            current_code_filename = None
+                            current_code_content = ""
+                            current_code_embed_id = None
+                            
+                            # Set chunk to empty and skip to next iteration
+                            chunk = ""
+                            continue
+                        
+                        # TOON RECOVERY: If toon_pending_validation is True but we reached here,
+                        # the toon block was validated as real code. Create embed retroactively
+                        # and finalize it with the accumulated content.
+                        if toon_pending_validation and not current_code_embed_id:
+                            toon_pending_validation = False
+                            if directus_service and encryption_service and user_vault_key_id:
+                                try:
+                                    from backend.core.api.app.services.embed_service import EmbedService
+                                    embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                                    
+                                    # Create code embed placeholder and finalize immediately
+                                    # Use empty language since 'toon' is not a real language
+                                    embed_data = await embed_service.create_code_embed_placeholder(
+                                        language="",
+                                        chat_id=request_data.chat_id,
+                                        message_id=request_data.message_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        task_id=task_id,
+                                        filename=current_code_filename,
+                                        log_prefix=log_prefix
+                                    )
+                                    
+                                    if embed_data:
+                                        current_code_embed_id = embed_data["embed_id"]
+                                        
+                                        # Finalize with full content
+                                        await embed_service.update_code_embed_content(
+                                            embed_id=current_code_embed_id,
+                                            code_content=current_code_content,
+                                            chat_id=request_data.chat_id,
+                                            user_id=request_data.user_id,
+                                            user_id_hash=request_data.user_id_hash,
+                                            user_vault_key_id=user_vault_key_id,
+                                            status="finished",
+                                            log_prefix=log_prefix
+                                        )
+                                        
+                                        logger.info(
+                                            f"{log_prefix} [TOON_RECOVERED] Created and finalized code embed "
+                                            f"{current_code_embed_id} for toon block validated as real code "
+                                            f"({len(current_code_content)} chars)"
+                                        )
+                                        
+                                        # Inject embed reference into the response chunk
+                                        # (same pattern as normal multi-chunk code block finalization)
+                                        embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                        chunk = embed_reference_code
+                                except Exception as e:
+                                    logger.error(
+                                        f"{log_prefix} [TOON_RECOVERED] Error creating embed for "
+                                        f"toon-validated code block: {e}", exc_info=True
+                                    )
+                                finally:
+                                    # Always reset state after toon recovery attempt
+                                    in_code_block = False
+                                    current_code_language = ""
+                                    current_code_filename = None
+                                    current_code_content = ""
+                                    current_code_embed_id = None
+                        # Finalize embed (only for real code/document/plot blocks, not fake tool calls)
+                        elif current_code_embed_id and directus_service and encryption_service and user_vault_key_id:
+                            try:
+                                from backend.core.api.app.services.embed_service import EmbedService
+                                embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                                
+                                if in_plot_block:
+                                    # Finalize math-plot embed with the accumulated expression
+                                    await embed_service.update_plot_embed_content(
+                                        embed_id=current_code_embed_id,
+                                        expression=current_code_content,
+                                        chat_id=request_data.chat_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        status="finished",
+                                        log_prefix=log_prefix
+                                    )
+                                    
+                                    logger.info(f"{log_prefix} Finalized math-plot embed {current_code_embed_id} with expr len={len(current_code_content)}")
+                                elif in_document_block:
+                                    # Finalize document embed with accumulated HTML content
+                                    # Try to extract title if not already found
+                                    if not current_document_title:
+                                        import re
+                                        title_match = re.search(r'<!--\s*title:\s*["\'](.+?)["\']\s*-->', current_code_content)
+                                        if title_match:
+                                            current_document_title = title_match.group(1)
+                                    
+                                    await embed_service.update_document_embed_content(
+                                        embed_id=current_code_embed_id,
+                                        html_content=current_code_content,
+                                        chat_id=request_data.chat_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        status="finished",
+                                        title=current_document_title,
+                                        log_prefix=log_prefix
+                                    )
+                                    
+                                    logger.info(
+                                        f"{log_prefix} Finalized document embed {current_code_embed_id} with {len(current_code_content)} chars "
+                                        f"(title_present={bool(current_document_title)}, "
+                                        f"title_length={len(current_document_title) if isinstance(current_document_title, str) else 0})"
+                                    )
+                                elif in_email_block:
+                                    parsed_email = _parse_email_fence_content(current_code_content)
+                                    await embed_service.update_mail_embed_content(
+                                        embed_id=current_code_embed_id,
+                                        receiver=parsed_email.get("receiver", ""),
+                                        subject=parsed_email.get("subject", ""),
+                                        content=parsed_email.get("content", ""),
+                                        footer=parsed_email.get("footer", ""),
+                                        chat_id=request_data.chat_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        status="finished",
+                                        log_prefix=log_prefix
+                                    )
+
+                                    logger.info(f"{log_prefix} Finalized mail embed {current_code_embed_id}")
+                                else:
+                                    await embed_service.update_code_embed_content(
+                                        embed_id=current_code_embed_id,
+                                        code_content=current_code_content,
+                                        chat_id=request_data.chat_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        status="finished",
+                                        log_prefix=log_prefix
+                                    )
+                                    
+                                    logger.info(f"{log_prefix} Finalized code embed {current_code_embed_id} with {len(current_code_content)} chars")
+                            except Exception as e:
+                                logger.error(f"{log_prefix} Error finalizing embed: {e}", exc_info=True)
+                        
+                            # Reset state (only for real code/document/plot blocks - fake tool calls already reset above)
+                            in_code_block = False
+                            in_plot_block = False
+                            in_document_block = False
+                            in_email_block = False
+                            current_document_title = None
+                            current_code_language = ""
+                            current_code_filename = None
+                            current_code_content = ""
+                            current_code_embed_id = None
+                            
+                            # Don't include closing fence in response (already replaced with embed reference)
+                            chunk = ""  # Empty chunk - embed reference was already sent
+                    else:
+                        # Accumulate content (code or document HTML)
+                        current_code_content += chunk
+                        
+                        # For document blocks, try to extract title from streaming content
+                        if in_document_block and not current_document_title:
+                            import re
+                            title_match = re.search(r'<!--\s*title:\s*["\'](.+?)["\']\s*-->', current_code_content)
+                            if title_match:
+                                current_document_title = title_match.group(1)
+                        
+                        # Update embed on every newline (per-line streaming for better UX)
+                        # This provides smooth line-by-line updates instead of arbitrary chunk-based updates
+                        if current_code_embed_id and '\n' in chunk and directus_service and encryption_service and user_vault_key_id:
+                            try:
+                                from backend.core.api.app.services.embed_service import EmbedService
+                                embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                                
+                                if in_document_block:
+                                    await embed_service.update_document_embed_content(
+                                        embed_id=current_code_embed_id,
+                                        html_content=current_code_content,
+                                        chat_id=request_data.chat_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        status="processing",
+                                        title=current_document_title,
+                                        log_prefix=log_prefix
+                                    )
+                                    logger.debug(f"{log_prefix} Updated document embed {current_code_embed_id} (per-line update, {len(current_code_content)} chars)")
+                                elif in_email_block:
+                                    parsed_email = _parse_email_fence_content(current_code_content)
+                                    await embed_service.update_mail_embed_content(
+                                        embed_id=current_code_embed_id,
+                                        receiver=parsed_email.get("receiver", ""),
+                                        subject=parsed_email.get("subject", ""),
+                                        content=parsed_email.get("content", ""),
+                                        footer=parsed_email.get("footer", ""),
+                                        chat_id=request_data.chat_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        status="processing",
+                                        log_prefix=log_prefix
+                                    )
+                                    logger.debug(f"{log_prefix} Updated mail embed {current_code_embed_id} (per-line update)")
+                                else:
+                                    await embed_service.update_code_embed_content(
+                                        embed_id=current_code_embed_id,
+                                        code_content=current_code_content,
+                                        chat_id=request_data.chat_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        status="processing",
+                                        log_prefix=log_prefix
+                                    )
+                                    logger.debug(f"{log_prefix} Updated code embed {current_code_embed_id} (per-line update, {len(current_code_content)} chars, {current_code_content.count(chr(10))} lines)")
+                            except Exception as e:
+                                logger.error(f"{log_prefix} Error updating embed: {e}", exc_info=True)
+                        
+                        # Don't include content in response (embed reference was already sent)
+                        chunk = ""  # Empty chunk - content goes to embed, not message
+                
+                # ── Table/sheet embed detection ─────────────────────────────────
+                # Detect markdown tables (|...|) outside code blocks and convert
+                # them to sheet embeds, mirroring the code-block embed pipeline.
+                # Tables start when we see a pipe-delimited line and end when
+                # we see a non-table line (or end of stream).
+                if chunk and not in_code_block:
+                    import re as _re_table
+                    _TABLE_LINE_RE = _re_table.compile(r'^\s*\|.*\|\s*$')
+                    _TITLE_COMMENT_RE = _re_table.compile(r'<!--\s*title:\s*["\'](.+?)["\']\s*-->')
+
+                    chunk_lines = chunk.split('\n')
+                    output_lines: List[str] = []  # Non-table lines to keep in the response
+
+                    for line in chunk_lines:
+                        is_table_line = bool(_TABLE_LINE_RE.match(line))
+
+                        if is_table_line and not in_table_block:
+                            # ── Table starts ─────────────────────────────
+                            in_table_block = True
+                            current_table_content = line + '\n'
+                            current_table_col_count = len([c for c in line.split('|') if c.strip()])
+                            current_table_row_count = 0  # header doesn't count; separator doesn't count
+                            current_table_title = None
+
+                            # Check recent output for title comment
+                            recent_text = '\n'.join(pre_table_lines[-3:]) if pre_table_lines else ''
+                            _title_match = _TITLE_COMMENT_RE.search(recent_text)
+                            if _title_match:
+                                current_table_title = _title_match.group(1)
+
+                            # Create embed placeholder
+                            if directus_service and encryption_service and user_vault_key_id:
+                                try:
+                                    from backend.core.api.app.services.embed_service import EmbedService
+                                    _table_embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                                    _table_result = await _table_embed_service.create_table_embed_placeholder(
+                                        chat_id=request_data.chat_id,
+                                        message_id=request_data.message_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        task_id=task_id,
+                                        title=current_table_title,
+                                        log_prefix=log_prefix
+                                    )
+                                    if _table_result:
+                                        current_table_embed_id = _table_result["embed_id"]
+                                        # Emit the embed reference instead of the raw table
+                                        output_lines.append(f"```json\n{_table_result['embed_reference']}\n```\n")
+                                        logger.info(f"{log_prefix} Created table embed placeholder {current_table_embed_id}")
+                                except Exception as e:
+                                    logger.error(f"{log_prefix} Error creating table embed placeholder: {e}", exc_info=True)
+                                    # Fall through: table content won't be captured as embed
+
+                        elif is_table_line and in_table_block:
+                            # ── Table continues (another row) ────────────
+                            current_table_content += line + '\n'
+                            # Count data rows (skip header=row 0, separator=row 1)
+                            total_lines = current_table_content.strip().count('\n') + 1
+                            current_table_row_count = max(0, total_lines - 2)
+
+                            # Send progressive update on every new row
+                            if current_table_embed_id and directus_service and encryption_service and user_vault_key_id:
+                                try:
+                                    from backend.core.api.app.services.embed_service import EmbedService
+                                    _table_embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                                    await _table_embed_service.update_table_embed_content(
+                                        embed_id=current_table_embed_id,
+                                        table_content=current_table_content.rstrip('\n'),
+                                        chat_id=request_data.chat_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        status="processing",
+                                        title=current_table_title,
+                                        row_count=current_table_row_count,
+                                        col_count=current_table_col_count,
+                                        log_prefix=log_prefix
+                                    )
+                                except Exception as e:
+                                    logger.error(f"{log_prefix} Error updating table embed: {e}", exc_info=True)
+
+                        elif not is_table_line and in_table_block:
+                            # ── Table ends (non-table line encountered) ──
+                            # Finalize the table embed
+                            if current_table_embed_id and directus_service and encryption_service and user_vault_key_id:
+                                try:
+                                    from backend.core.api.app.services.embed_service import EmbedService
+                                    _table_embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                                    await _table_embed_service.update_table_embed_content(
+                                        embed_id=current_table_embed_id,
+                                        table_content=current_table_content.rstrip('\n'),
+                                        chat_id=request_data.chat_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        status="finished",
+                                        title=current_table_title,
+                                        row_count=current_table_row_count,
+                                        col_count=current_table_col_count,
+                                        log_prefix=log_prefix
+                                    )
+                                    logger.info(
+                                        f"{log_prefix} Finalized table embed {current_table_embed_id} "
+                                        f"({current_table_row_count} rows, {current_table_col_count} cols)"
+                                    )
+                                except Exception as e:
+                                    logger.error(f"{log_prefix} Error finalizing table embed: {e}", exc_info=True)
+
+                            # Reset table state
+                            in_table_block = False
+                            current_table_content = ""
+                            current_table_embed_id = None
+                            current_table_title = None
+                            current_table_row_count = 0
+                            current_table_col_count = 0
+
+                            # Keep this non-table line in the output
+                            output_lines.append(line)
+                            # Track as pre-table line for potential future title detection
+                            pre_table_lines.append(line)
+                            if len(pre_table_lines) > 5:
+                                pre_table_lines = pre_table_lines[-5:]
+
+                        else:
+                            # Normal non-table line, not in table block
+                            output_lines.append(line)
+                            pre_table_lines.append(line)
+                            if len(pre_table_lines) > 5:
+                                pre_table_lines = pre_table_lines[-5:]
+
+                    # Replace chunk with non-table output (table rows are consumed by the embed)
+                    chunk = '\n'.join(output_lines)
+
+                # Only add non-empty chunks to final response
+                if chunk:
+                    final_response_chunks.append(chunk)
+                    stream_chunk_count += 1
+
+                # CRITICAL: Publish chunk IMMEDIATELY without buffering
+                # This ensures paragraph-by-paragraph streaming and embed placeholders show up right away
+                if cache_service:
+                    current_full_content = "".join(final_response_chunks)
+                    # Include category on every intermediate chunk so the frontend can assign the
+                    # correct mate to the message immediately, regardless of whether ai_typing_started
+                    # has been received yet (race condition fix for Bug #5dc543b0).
+                    payload = _create_redis_payload(
+                        task_id, request_data, current_full_content, stream_chunk_count,
+                        model_name=stream_model_name,
+                        category=preprocessing_result.category or "general_knowledge",
+                    )
+                    
+                    # CRITICAL: Always log chunk publishing for debugging (but less verbose)
+                    # This helps diagnose if chunks are being published correctly
+                    is_code_block = chunk.strip().startswith("```")
+                    log_message = (
+                        f"Published chunk (seq: {stream_chunk_count}, type={'code_block' if is_code_block else 'text'}, "
+                        f"chunk_len={len(chunk)}, total_length={len(current_full_content)}) to '{redis_channel_name}'"
+                    )
+                    
+                    # CRITICAL: Use await to ensure publish completes before continuing
+                    # This ensures chunks are sent in order and immediately
+                    await _publish_to_redis(
+                        cache_service, redis_channel_name, payload, log_prefix, log_message
+                    )
+                    
+                    # URL Validation: Check if this paragraph contains URLs and validate them in background
+                    # Skip code blocks (they might contain URLs that are just examples)
+                    if not is_code_block:
+                        # Check if chunk contains markdown links
+                        urls_in_chunk = await extract_urls_from_markdown(chunk)
+                        if urls_in_chunk:
+                            # Start background task to validate URLs in this paragraph
+                            # This runs asynchronously and doesn't block streaming
+                            # Broken URLs will be collected and processed after streaming completes
+                            # Uses Webshare proxy and random user agents for anti-detection
+                            validation_task = asyncio.create_task(
+                                _validate_paragraph_urls(
+                                    paragraph=chunk,
+                                    task_id=task_id,
+                                    broken_urls_collector=all_broken_urls,
+                                    log_prefix=log_prefix,
+                                    secrets_manager=secrets_manager
+                                )
+                            )
+                            url_validation_tasks.append(validation_task)
+                elif stream_chunk_count == 1:
+                    logger.warning(f"{log_prefix} Cache service not available. Skipping Redis publish for chunks.")
+            else:
+                # Non-string chunk (shouldn't happen, but handle gracefully)
+                logger.warning(f"{log_prefix} Received unexpected non-string chunk type: {type(chunk)}")
     except SoftTimeLimitExceeded:
         logger.warning(f"{log_prefix} Soft time limit exceeded during main processing stream. Processing partial response.")
         was_soft_limited_during_stream = True
     except Exception as e:
         logger.error(f"{log_prefix} Exception during main processing stream consumption: {e}", exc_info=True)
+        stream_exception = e
         # Check if revoked after an unexpected error
         if celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
             was_revoked_during_stream = True
+    
+    # Finalize any open code/document block if stream was interrupted
+    if in_code_block and current_code_embed_id and directus_service and encryption_service and user_vault_key_id:
+        try:
+            from backend.core.api.app.services.embed_service import EmbedService
+            embed_service = EmbedService(cache_service, directus_service, encryption_service)
+            
+            if in_document_block:
+                # Finalize document embed with partial HTML content (interrupted)
+                await embed_service.update_document_embed_content(
+                    embed_id=current_code_embed_id,
+                    html_content=current_code_content,
+                    chat_id=request_data.chat_id,
+                    user_id=request_data.user_id,
+                    user_id_hash=request_data.user_id_hash,
+                    user_vault_key_id=user_vault_key_id,
+                    status="finished",  # Mark as finished even if interrupted
+                    title=current_document_title,
+                    log_prefix=log_prefix
+                )
+                logger.info(f"{log_prefix} Finalized interrupted document embed {current_code_embed_id} with {len(current_code_content)} chars")
+            elif in_email_block:
+                parsed_email = _parse_email_fence_content(current_code_content)
+                await embed_service.update_mail_embed_content(
+                    embed_id=current_code_embed_id,
+                    receiver=parsed_email.get("receiver", ""),
+                    subject=parsed_email.get("subject", ""),
+                    content=parsed_email.get("content", ""),
+                    footer=parsed_email.get("footer", ""),
+                    chat_id=request_data.chat_id,
+                    user_id=request_data.user_id,
+                    user_id_hash=request_data.user_id_hash,
+                    user_vault_key_id=user_vault_key_id,
+                    status="finished",
+                    log_prefix=log_prefix
+                )
+                logger.info(f"{log_prefix} Finalized interrupted mail embed {current_code_embed_id}")
+            else:
+                # Finalize code embed with partial content (interrupted)
+                await embed_service.update_code_embed_content(
+                    embed_id=current_code_embed_id,
+                    code_content=current_code_content,
+                    chat_id=request_data.chat_id,
+                    user_id=request_data.user_id,
+                    user_id_hash=request_data.user_id_hash,
+                    user_vault_key_id=user_vault_key_id,
+                    status="finished",  # Mark as finished even if interrupted
+                    log_prefix=log_prefix
+                )
+                logger.info(f"{log_prefix} Finalized interrupted code embed {current_code_embed_id} with {len(current_code_content)} chars")
+        except Exception as e:
+            logger.error(f"{log_prefix} Error finalizing interrupted embed: {e}", exc_info=True)
+
+    # Finalize any open table embed at end-of-stream
+    # (table was the last content and there was no trailing non-table line to trigger finalization)
+    if in_table_block and current_table_embed_id and directus_service and encryption_service and user_vault_key_id:
+        try:
+            from backend.core.api.app.services.embed_service import EmbedService
+            embed_service = EmbedService(cache_service, directus_service, encryption_service)
+            await embed_service.update_table_embed_content(
+                embed_id=current_table_embed_id,
+                table_content=current_table_content.rstrip('\n'),
+                chat_id=request_data.chat_id,
+                user_id=request_data.user_id,
+                user_id_hash=request_data.user_id_hash,
+                user_vault_key_id=user_vault_key_id,
+                status="finished",
+                title=current_table_title,
+                row_count=current_table_row_count,
+                col_count=current_table_col_count,
+                log_prefix=log_prefix
+            )
+            logger.info(
+                f"{log_prefix} Finalized table embed {current_table_embed_id} at end-of-stream "
+                f"({current_table_row_count} rows, {current_table_col_count} cols)"
+            )
+        except Exception as e:
+            logger.error(f"{log_prefix} Error finalizing table embed at end-of-stream: {e}", exc_info=True)
 
     aggregated_response = "".join(final_response_chunks)
+
+    # Post-aggregation sweep: strip garbled number sequences from the final response.
+    # The per-chunk garbled filter (above) catches large individual chunks, but Gemini
+    # multimodal responses sometimes emit raw token-ID / attention-index sequences in
+    # small chunks (< 200 chars each) that individually pass the per-chunk heuristic.
+    # Once aggregated, these form long runs like "-213,222,237-238,241,243-245,247,..."
+    # that are clearly non-human-readable. We detect and strip them here.
+    #
+    # Pattern: 200+ consecutive characters consisting only of digits, commas, hyphens,
+    # spaces, and newlines — with at most 2% alphabetic characters in the matched span.
+    # This is conservative enough to avoid false positives on normal numbered lists or
+    # CSV data the user might have asked for (those have labels/headers mixed in).
+    if aggregated_response:
+        garbled_matches = list(_GARBLED_NUMBER_SEQUENCE_PATTERN.finditer(aggregated_response))
+        if garbled_matches:
+            # Verify each match is truly garbled (very low alpha ratio) before stripping
+            cleaned = aggregated_response
+            total_stripped = 0
+            for match in reversed(garbled_matches):  # Reverse to preserve indices
+                span = match.group()
+                alpha_count = sum(1 for c in span if c.isalpha())
+                alpha_ratio = alpha_count / len(span) if len(span) > 0 else 0
+                if alpha_ratio < 0.02:
+                    logger.warning(
+                        f"{log_prefix} Post-aggregation garbled sweep: stripping {len(span)} chars "
+                        f"at position {match.start()}-{match.end()} "
+                        f"(alpha_ratio={alpha_ratio:.4f})"
+                    )
+                    cleaned = cleaned[:match.start()] + cleaned[match.end():]
+                    total_stripped += len(span)
+            if total_stripped > 0:
+                # Clean up any resulting double-whitespace or leading/trailing whitespace
+                aggregated_response = re.sub(r'\n{3,}', '\n\n', cleaned).strip()
+                final_response_chunks = [aggregated_response]
+                logger.info(
+                    f"{log_prefix} Post-aggregation garbled sweep: removed {total_stripped} chars total, "
+                    f"response reduced from {len(cleaned) + total_stripped} to {len(aggregated_response)} chars"
+                )
+
+    # Ensure we never complete with an empty assistant message on server-side failures.
+    # This avoids clients sending an "ai_response_completed" payload without encrypted_content,
+    # and ensures the user always sees a retryable error message when all providers fail.
+    # 
+    # EXCEPTION: When awaiting app settings/memories permission, empty content is EXPECTED.
+    # The user needs to respond to the permission dialog before LLM processing continues.
+    #
+    # SPECIAL CASE: If we filtered fake tool calls and the response is empty, show a user-friendly
+    # fallback message instead of the technical error message.
+    if (
+        not aggregated_response
+        and not was_revoked_during_stream
+        and not was_soft_limited_during_stream
+        and not awaiting_app_settings_memories_permission
+        and not awaiting_focus_mode_confirmation
+    ):
+        if fake_tool_calls_filtered:
+            # We filtered fake tool calls and the LLM didn't produce any other content
+            # Show a user-friendly fallback message in the user's language
+            logger.warning(
+                f"{log_prefix} Response empty after filtering fake tool calls. "
+                f"Showing user-friendly fallback message."
+            )
+            try:
+                translation_service = TranslationService()
+                # Get user's language from preprocessing result (detected from user's request)
+                language = preprocessing_result.output_language or "en"
+                
+                # Get the translated fallback message
+                fallback_message = translation_service.get_nested_translation(
+                    "predefined_responses.processing_error_rephrase",
+                    language,
+                    {}
+                )
+                
+                if not fallback_message:
+                    # Hardcoded fallback if translation not found
+                    fallback_message = (
+                        "I had trouble processing your request. "
+                        "Could you rephrase what you'd like me to help with? "
+                        "The more specific details you can provide, the better I can assist you."
+                    )
+                
+                aggregated_response = fallback_message
+            except Exception as e:
+                logger.error(f"{log_prefix} Error generating fallback message for filtered fake tool calls: {e}", exc_info=True)
+                aggregated_response = (
+                    "I had trouble processing your request. "
+                    "Could you rephrase what you'd like me to help with?"
+                )
+        elif stream_exception:
+            logger.error(
+                f"{log_prefix} Stream failed before producing any content. "
+                f"Returning standardized user-facing error message. Technical error: {stream_exception!r}"
+            )
+            aggregated_response = standardized_error_message
+        else:
+            logger.error(
+                f"{log_prefix} Stream completed with empty content (no interruption). "
+                "Returning standardized user-facing error message."
+            )
+            aggregated_response = standardized_error_message
+        
+        final_response_chunks = [aggregated_response]
+        if stream_chunk_count == 0:
+            # Mirror fake-stream behavior: one content chunk + one final marker.
+            # Publish a synthetic first chunk so clients can render something immediately.
+            if cache_service:
+                synthetic_payload = _create_redis_payload(
+                    task_id, request_data, aggregated_response, 1, is_final=False, model_name=stream_model_name
+                )
+                await _publish_to_redis(
+                    cache_service,
+                    redis_channel_name,
+                    synthetic_payload,
+                    log_prefix,
+                    f"Published synthetic error chunk (seq: 1) to '{redis_channel_name}'",
+                )
+            stream_chunk_count = 1
+    
+    # Handle the case where we're awaiting app settings/memories permission
+    # No error message, no response, no final marker - the client will show the permission dialog
+    # We don't save anything to cache or publish any Redis messages in this case
+    if awaiting_app_settings_memories_permission:
+        logger.info(f"{log_prefix} Task completing without response - awaiting user permission for app settings/memories. No final marker will be sent.")
+        # Return early - no message processing needed
+        # The client will receive the permission request via WebSocket and show the dialog
+        return "", False, False, [], debug_metadata
+    
+    # Handle the case where we're awaiting focus mode confirmation (deferred activation).
+    # Unlike app_settings, the focus mode case has embed content (the focus mode activation
+    # embed reference) that we need to finalize so the client can persist the message.
+    # The continuation task (auto-confirm or rejection) will reuse the same message_id
+    # (via continuation_message_id) and append the LLM response to this message.
+    if awaiting_focus_mode_confirmation:
+        logger.info(
+            f"{log_prefix} Task completing with embed content only — awaiting focus mode confirmation. "
+            f"Publishing final marker so client can persist the embed message. "
+            f"Content length: {len(aggregated_response)} chars"
+        )
+        # Publish a final chunk with the embed content so the client:
+        # 1. Transitions the message from 'streaming' to 'synced'
+        # 2. Persists it to IndexedDB (embed survives page reload)
+        # The continuation task will target the same message_id and append the LLM response.
+        if cache_service and aggregated_response:
+            focus_final_payload = _create_redis_payload(
+                task_id, request_data, aggregated_response, stream_chunk_count + 1,
+                is_final=True
+            )
+            await _publish_to_redis(
+                cache_service, redis_channel_name, focus_final_payload, log_prefix,
+                f"Published focus-mode final marker (seq: {stream_chunk_count + 1}, content: {len(aggregated_response)} chars) to '{redis_channel_name}'"
+            )
+        return aggregated_response, False, False, [], debug_metadata
+    
+    # IMPROVED LOGGING: metadata-only stream completion details.
+    # Never log streamed assistant content to avoid plaintext leakage.
+    logger.info(
+        f"{log_prefix} [STREAM_AGGREGATION] "
+        f"Total chunks: {stream_chunk_count}, "
+        f"Total length: {len(aggregated_response)} chars"
+    )
+    
+    # Wait for all URL validation tasks to complete (non-blocking during streaming, but wait now)
+    if url_validation_tasks:
+        logger.info(
+            f"{log_prefix} Waiting for {len(url_validation_tasks)} URL validation task(s) to complete..."
+        )
+        try:
+            # Wait for all validation tasks to complete
+            await asyncio.gather(*url_validation_tasks, return_exceptions=True)
+            logger.info(
+                f"{log_prefix} All URL validation tasks completed. Found {len(all_broken_urls)} broken URL(s) total."
+            )
+        except Exception as e:
+            logger.error(
+                f"{log_prefix} Error waiting for URL validation tasks: {e}",
+                exc_info=True
+            )
+        
+        # If broken URLs found, replace them with Brave search URLs
+        # This is a simple, reliable approach that:
+        # - Preserves the original link text so user sees what was intended
+        # - Replaces broken URLs with Brave search for that topic
+        # - No LLM call needed (zero cost, zero latency, can't fail)
+        if all_broken_urls:
+            logger.info(
+                f"{log_prefix} Replacing {len(all_broken_urls)} broken URL(s) with Brave search links..."
+            )
+            
+            # Replace broken URLs with Brave search URLs
+            # Example: [Python docs](broken-url) -> [Python docs](https://search.brave.com/search?q=Python%20docs)
+            corrected_response = replace_broken_urls_with_search(
+                response=aggregated_response,
+                broken_urls=all_broken_urls
+            )
+            
+            if corrected_response != aggregated_response:
+                logger.info(
+                    f"{log_prefix} Successfully replaced broken URLs with Brave search. "
+                    f"Original length: {len(aggregated_response)}, "
+                    f"Corrected length: {len(corrected_response)}"
+                )
+                
+                # Replace the aggregated response with corrected version
+                aggregated_response = corrected_response
+                
+                # Update final_response_chunks to reflect correction (for cache saving)
+                final_response_chunks = [corrected_response]
+                
+                # Publish corrected response to client (user will see text update)
+                correction_payload = _create_redis_payload(
+                    task_id, request_data, corrected_response, stream_chunk_count + 2,
+                    is_final=False,  # Not final, just a correction update
+                    model_name=stream_model_name
+                )
+                await _publish_to_redis(
+                    cache_service, redis_channel_name, correction_payload, log_prefix,
+                    f"Published corrected response (seq: {stream_chunk_count + 2}) "
+                    f"with {len(all_broken_urls)} broken URL(s) replaced with Brave search. "
+                    f"Length: {len(corrected_response)}"
+                )
+                
+                logger.info(f"{log_prefix} Published corrected response to client")
+            else:
+                # This shouldn't happen unless broken_urls didn't contain valid full_match entries
+                logger.warning(
+                    f"{log_prefix} Brave search replacement returned same content. "
+                    f"Broken URLs may not have been in expected format."
+                )
+    
+    # NOTE: Embed references are now streamed as chunks during skill execution
+    # They appear in final_response_chunks and are already part of aggregated_response
+    # No need to prepend - they're already in the stream at the correct position
+    # This allows flexible placement by the LLM (though currently they appear after skill execution)
+    if tool_calls_info and len(tool_calls_info) > 0:
+        embed_count = sum(1 for tc in tool_calls_info if tc.get("embed_reference"))
+        if embed_count > 0:
+            logger.info(
+                f"{log_prefix} {embed_count} embed reference(s) were streamed as chunks during skill execution"
+            )
+    
+    # Prepend code block with tool calls info if any tool calls were made
+    # This allows the frontend to display skill input/output and enables follow-up questions
+    # NOTE: With the new Embeds Architecture, we NO LONGER prepend the TOON code block.
+    # Tool results are displayed via Embeds (streamed as chunks during execution).
+    # Prepending raw TOON data would cause it to be rendered as text/code block at the start of the message,
+    # which is redundant and confusing for the user.
+    # We still track tool_calls_info for logging and potential future use, but we don't inject it into the message content.
+    if tool_calls_info and len(tool_calls_info) > 0:
+        logger.info(
+            f"{log_prefix} Skipped prepending TOON code block (Embeds Architecture active). "
+            f"Tool results are handled via Embeds."
+        )
+    
+    # --- Strip Failed Embed References from Message Content ---
+    # When skill execution fails, the embed reference JSON block (```json\n{"type":"app_skill_use","embed_id":"..."}\n```)
+    # is already in the streamed content. If not removed, the client will try to resolve these
+    # embeds on every page load, hitting the server repeatedly for embeds that no longer exist.
+    # We strip them here before the content is persisted.
+    if failed_embed_ids and aggregated_response:
+        import re
+        stripped_count = 0
+        for failed_id in failed_embed_ids:
+            # Match the exact JSON code block pattern for this embed_id:
+            # ```json\n{...embed_id...}\n```
+            # Use a pattern that matches the entire code block containing this embed_id
+            pattern = r'```json\s*\n\s*\{[^}]*"embed_id"\s*:\s*"' + re.escape(failed_id) + r'"[^}]*\}\s*\n\s*```\s*\n*'
+            new_response = re.sub(pattern, '', aggregated_response)
+            if new_response != aggregated_response:
+                stripped_count += 1
+                aggregated_response = new_response
+        
+        if stripped_count > 0:
+            # Update final_response_chunks to reflect the cleanup
+            final_response_chunks = [aggregated_response]
+            logger.info(
+                f"{log_prefix} Stripped {stripped_count} failed embed reference(s) from message content. "
+                f"Failed embed IDs: {failed_embed_ids}"
+            )
+
+    # --- Source Quote Verification ---
+    # Verify that quoted text in > [text](embed:ref) blockquotes actually appears
+    # in the referenced embed's source content. Strips unverified quotes silently
+    # to prevent the LLM from presenting fabricated quotations as sourced facts.
+    # This runs after failed embed stripping (so we don't verify quotes for failed embeds)
+    # and before disclaimer injection (so the disclaimer appends to the corrected text).
+    if aggregated_response and not was_revoked_during_stream and not was_soft_limited_during_stream:
+        try:
+            verified_response = await _verify_and_strip_bad_quotes(
+                aggregated_response=aggregated_response,
+                tool_calls_info=tool_calls_info,
+                cache_service=cache_service,
+                directus_service=directus_service,
+                encryption_service=encryption_service,
+                user_vault_key_id=user_vault_key_id,
+                log_prefix=log_prefix,
+            )
+            if verified_response != aggregated_response:
+                aggregated_response = verified_response
+                final_response_chunks = [aggregated_response]
+
+                # Publish the corrected response to the client
+                if cache_service:
+                    quote_corrected_payload = _create_redis_payload(
+                        task_id, request_data, aggregated_response, stream_chunk_count + 2,
+                        is_final=False, model_name=stream_model_name
+                    )
+                    await _publish_to_redis(
+                        cache_service, redis_channel_name, quote_corrected_payload, log_prefix,
+                        f"Published response with stripped unverified quotes "
+                        f"(length: {len(aggregated_response)})"
+                    )
+        except Exception as e:
+            # Don't fail the response if quote verification fails
+            logger.error(
+                f"{log_prefix} [QUOTE_VERIFY] Error during quote verification: {e}",
+                exc_info=True
+            )
+
+    # --- Embed Display Text Safety Fix ---
+    # Deterministic post-processing: detect inline embed links where the LLM used
+    # the embed_ref slug (e.g. "macrumors.com-MvT") as the visible display text
+    # instead of a human-readable description.  Replaces bad display text with the
+    # result's stored title, or strips the random suffix as a fallback.
+    # Runs after quote verification, before disclaimer injection.
+    if aggregated_response and not was_revoked_during_stream and not was_soft_limited_during_stream:
+        try:
+            display_fixed_response = await _fix_bad_embed_display_text(
+                aggregated_response=aggregated_response,
+                tool_calls_info=tool_calls_info,
+                cache_service=cache_service,
+                directus_service=directus_service,
+                encryption_service=encryption_service,
+                user_vault_key_id=user_vault_key_id,
+                log_prefix=log_prefix,
+            )
+            if display_fixed_response != aggregated_response:
+                aggregated_response = display_fixed_response
+                final_response_chunks = [aggregated_response]
+
+                # Publish the corrected response to the client
+                if cache_service:
+                    display_fix_payload = _create_redis_payload(
+                        task_id, request_data, aggregated_response, stream_chunk_count + 3,
+                        is_final=False, model_name=stream_model_name
+                    )
+                    await _publish_to_redis(
+                        cache_service, redis_channel_name, display_fix_payload, log_prefix,
+                        f"Published response with fixed embed display text "
+                        f"(length: {len(aggregated_response)})"
+                    )
+        except Exception as e:
+            # Don't fail the response if display text fix fails
+            logger.error(
+                f"{log_prefix} [EMBED_DISPLAY_FIX] Error during display text fix: {e}",
+                exc_info=True
+            )
+
+    # --- Hardcoded Advice Disclaimer Injection ---
+    # This is a HARDCODED safety mechanism that GUARANTEES disclaimers appear for sensitive topics.
+    # We do NOT rely on the LLM to include these - they are injected deterministically based on
+    # category detection in preprocessing. This ensures legal compliance for financial, medical,
+    # legal, and mental health advice.
+    if preprocessing_result.requires_advice_disclaimer and not was_revoked_during_stream and not was_soft_limited_during_stream:
+        disclaimer_type = preprocessing_result.requires_advice_disclaimer
+        
+        # Get user's language from preprocessing result (detected from user's request)
+        # The preprocessing LLM detects the language of the user's core instruction
+        user_language = preprocessing_result.output_language or "en"
+        
+        # Load translated disclaimer from translation service
+        try:
+            translation_service = TranslationService()
+            disclaimer_text = translation_service.get_nested_translation(
+                f"disclaimers.{disclaimer_type}",
+                user_language,
+                {}
+            )
+            
+            if disclaimer_text:
+                logger.info(
+                    f"{log_prefix} [DISCLAIMER_INJECTION] Appending '{disclaimer_type}' "
+                    f"disclaimer in language '{user_language}'"
+                )
+                
+                # Append disclaimer to the aggregated response
+                aggregated_response = aggregated_response.rstrip() + disclaimer_text
+                
+                # Update the final_response_chunks to reflect the disclaimer addition
+                final_response_chunks.append(disclaimer_text)
+                
+                # Publish the corrected response with disclaimer to client
+                if cache_service:
+                    disclaimer_payload = _create_redis_payload(
+                        task_id, request_data, aggregated_response, stream_chunk_count + 2,
+                        is_final=False, model_name=stream_model_name
+                    )
+                    await _publish_to_redis(
+                        cache_service, redis_channel_name, disclaimer_payload, log_prefix,
+                        f"Published response with injected {disclaimer_type} disclaimer "
+                        f"(length: {len(aggregated_response)})"
+                    )
+                
+                # Update chat metadata to track this disclaimer injection
+                # This prevents showing the same disclaimer type again within the cooldown period
+                await _update_disclaimer_metadata(
+                    cache_service=cache_service,
+                    chat_id=request_data.chat_id,
+                    disclaimer_type=disclaimer_type,
+                    log_prefix=log_prefix
+                )
+            else:
+                # Disclaimer text not found in translations - log warning but don't fail
+                logger.warning(
+                    f"{log_prefix} [DISCLAIMER_INJECTION] Failed to load disclaimer text "
+                    f"for type '{disclaimer_type}' in language '{user_language}'. "
+                    f"Check disclaimers.yml translation file."
+                )
+        except Exception as e:
+            # Don't fail the response if disclaimer injection fails
+            # Log the error but continue - the response is still valid
+            logger.error(
+                f"{log_prefix} [DISCLAIMER_INJECTION] Error injecting disclaimer: {e}",
+                exc_info=True
+            )
+    
     log_msg_suffix = f"Total chunks: {stream_chunk_count}. Aggregated response length: {len(aggregated_response)}."
     stream_error_message_for_log: Optional[str] = None
 
@@ -656,26 +3850,80 @@ async def _consume_main_processing_stream(
     except Exception as e_log_output:
         logger.error(f"{log_prefix} Failed to log main LLM stream aggregated output: {e_log_output}", exc_info=True)
 
-    # Publish final marker to Redis
+    # Handle billing for normal processing
+    # When revoked or soft-limited, we still bill for all tokens generated (usage metadata contains all generated tokens)
+    # This ensures we charge for the compute that was performed, even if the response was cut short by the user
+    # However, we should NOT bill if the response contains server error messages (all providers failed)
+    # User interruptions (revoked/soft limit) should still be billed as they consumed resources
+    
+    # Determine if this is a server error (all providers failed) vs user interruption
+    # Check for both old "[ERROR:" format and new standardized error message format
+    is_old_format_error = aggregated_response.strip().startswith("[ERROR:")
+    is_new_format_error = aggregated_response.strip() == standardized_error_message
+    is_error = is_old_format_error or is_new_format_error
+    
+    is_server_error = (
+        is_error and 
+        (is_old_format_error and ("All servers failed" in aggregated_response or "All provider" in aggregated_response or "HTTP error" in aggregated_response)) or
+        is_new_format_error  # New standardized format always indicates server error
+    )
+    
+    # Bill if:
+    # 1. We have usage metadata AND
+    # 2. Either the response is successful OR it was interrupted by user (revoked/soft limit) AND
+    # 3. It's NOT a server error (all providers failed)
+    should_bill = (
+        usage is not None and 
+        (not is_error or was_revoked_during_stream or was_soft_limited_during_stream) and
+        not is_server_error
+    )
+    
+    billing_info = {}
+    billing_error = None
+    if should_bill:
+        try:
+            billing_info = await _handle_normal_billing(
+                usage, preprocessing_result, request_data, task_id, log_prefix,
+                cumulative_input_tokens=cumulative_input_tokens,
+                cumulative_output_tokens=cumulative_output_tokens,
+                tool_inference_iterations=tool_inference_iterations,
+            )
+        except Exception as e:
+            # CRITICAL: Don't let billing errors prevent the final chunk from being sent
+            # This ensures the typing indicator is cleared even if billing fails
+            billing_error = e
+            logger.error(f"{log_prefix} Billing failed but continuing to send final chunk: {e}", exc_info=True)
+    elif usage and is_server_error:
+        logger.warning(f"{log_prefix} Skipping billing because all providers failed (server error). Usage metadata was present but will not be billed.")
+    elif usage and is_error and not (was_revoked_during_stream or was_soft_limited_during_stream):
+        logger.warning(f"{log_prefix} Skipping billing because response contains error messages and was not user-interrupted.")
+    elif not usage:
+        logger.info(f"{log_prefix} No usage metadata available. Skipping billing.")
+
+    # Publish final marker to Redis - include usage and billing info if available
     final_payload = _create_redis_payload(
         task_id, request_data, aggregated_response, stream_chunk_count + 1,
         is_final=True, interrupted_soft=was_soft_limited_during_stream,
-        interrupted_revoke=was_revoked_during_stream
+        interrupted_revoke=was_revoked_during_stream,
+        model_name=stream_model_name,
+        prompt_tokens=billing_info.get("prompt_tokens"),
+        completion_tokens=billing_info.get("completion_tokens"),
+        user_input_tokens=billing_info.get("user_input_tokens"),
+        system_prompt_tokens=billing_info.get("system_prompt_tokens"),
+        total_credits=billing_info.get("total_credits"),
+        category=preprocessing_result.category or "general_knowledge"
     )
     await _publish_to_redis(
         cache_service, redis_channel_name, final_payload, log_prefix,
         f"Published final marker (seq: {stream_chunk_count + 1}, interrupted_soft: {was_soft_limited_during_stream}, interrupted_revoke: {was_revoked_during_stream}) to '{redis_channel_name}'"
     )
 
-    # Handle billing for normal processing
-    if usage:
-        await _handle_normal_billing(
-            usage, preprocessing_result, request_data, task_id, log_prefix
-        )
-
     # Save assistant response to cache for follow-up message context
-    # This is critical for the architecture where last 3 chats are cached in memory
-    if directus_service and cache_service and aggregated_response:
+    # This is CRITICAL for the architecture where last 3 chats are cached in memory
+    # Even partial responses (due to revocation/soft limit) should be saved for context
+    # CRITICAL: Always save to AI cache, even if response is empty or interrupted
+    # EXTERNAL REQUESTS (REST API) skip this as they are stateless and don't use storage.
+    if not request_data.is_external and directus_service and cache_service and encryption_service and user_vault_key_id:
         # Use actual category from preprocessing, fallback to general_knowledge
         category = preprocessing_result.category or "general_knowledge"
         if not preprocessing_result.category:
@@ -688,25 +3936,75 @@ async def _consume_main_processing_stream(
         # In future, we could convert to TipTap JSON here if needed
         content_tiptap = aggregated_response  # Send as markdown for now
         
-        # Save to cache and update metadata
-        # This ensures follow-up messages include this assistant response in the history
-        await _update_chat_metadata(
-            request_data=request_data,
-            category=category,
-            timestamp=timestamp,
-            content_markdown=aggregated_response,  # Store markdown in cache
-            content_tiptap=content_tiptap,  # Send to client (markdown for now)
-            directus_service=directus_service,
-            cache_service=cache_service,
-            encryption_service=encryption_service,
-            user_vault_key_id=user_vault_key_id,
-            task_id=task_id,
-            log_prefix=log_prefix
-        )
-        logger.info(f"{log_prefix} Assistant response saved to cache for future follow-up context.")
-    elif not aggregated_response and not was_revoked_during_stream and not was_soft_limited_during_stream:
-        logger.warning(f"{log_prefix} Aggregated AI response is empty (and not due to interruption). Skipping cache save.")
+        # CRITICAL: Save to cache even if response is empty or partial
+        # This ensures the message exists in history (even if empty) for proper context
+        # Empty responses can occur due to errors, interruptions, or harmful content filtering
+        try:
+            await _update_chat_metadata(
+                request_data=request_data,
+                category=category,
+                timestamp=timestamp,
+                content_markdown=aggregated_response,  # Store markdown in cache (may be empty)
+                content_tiptap=content_tiptap,  # Send to client (markdown for now)
+                directus_service=directus_service,
+                cache_service=cache_service,
+                encryption_service=encryption_service,
+                user_vault_key_id=user_vault_key_id,
+                task_id=task_id,
+                log_prefix=log_prefix,
+                model_name=stream_model_name
+            )
+            logger.info(
+                f"{log_prefix} Assistant response saved to AI cache for future follow-up context. "
+                f"Response length: {len(aggregated_response)}, "
+                f"Interrupted: revoked={was_revoked_during_stream}, soft_limit={was_soft_limited_during_stream}"
+            )
+        except Exception as e_save:
+            logger.error(
+                f"{log_prefix} CRITICAL: Failed to save assistant response to AI cache: {e_save}. "
+                f"Follow-up requests will NOT have this message in context!",
+                exc_info=True
+            )
+    elif not request_data.is_external and not aggregated_response and not was_revoked_during_stream and not was_soft_limited_during_stream:
+        logger.warning(f"{log_prefix} Aggregated AI response is empty (and not due to interruption). Attempting to save anyway for context.")
+        # Try to save even empty response if services are available
+        if directus_service and cache_service and encryption_service and user_vault_key_id:
+            try:
+                category = preprocessing_result.category or "general_knowledge"
+                timestamp = int(time.time())
+                await _update_chat_metadata(
+                    request_data=request_data,
+                    category=category,
+                    timestamp=timestamp,
+                    content_markdown="",  # Empty response
+                    content_tiptap="",
+                    directus_service=directus_service,
+                    cache_service=cache_service,
+                    encryption_service=encryption_service,
+                    user_vault_key_id=user_vault_key_id,
+                    task_id=task_id,
+                    log_prefix=log_prefix
+                )
+                logger.info(f"{log_prefix} Saved empty assistant response to AI cache for context.")
+            except Exception as e_empty_save:
+                logger.error(f"{log_prefix} Failed to save empty assistant response: {e_empty_save}", exc_info=True)
+    elif request_data.is_external:
+        logger.info(f"{log_prefix} External API request - skipping storage and metadata updates.")
     elif not cache_service:
-        logger.warning(f"{log_prefix} Cache service not available. Assistant response NOT saved to cache - follow-ups won't have context!")
+        logger.error(f"{log_prefix} CRITICAL: Cache service not available. Assistant response NOT saved to AI cache - follow-ups won't have context!")
+    elif not encryption_service:
+        logger.error(f"{log_prefix} CRITICAL: Encryption service not available. Assistant response NOT saved to AI cache - follow-ups won't have context!")
+    elif not user_vault_key_id:
+        logger.error(f"{log_prefix} CRITICAL: User vault key ID not available. Assistant response NOT saved to AI cache - follow-ups won't have context!")
+    
+    # Re-raise billing error after final chunk has been sent and metadata saved
+    # This ensures proper error handling while still clearing the typing indicator
+    if billing_error:
+        logger.error(f"{log_prefix} Re-raising billing error after final chunk was sent: {billing_error}")
+        raise billing_error
+    
+    # NOTE: Email notifications for offline users are handled in websockets.py
+    # when the final marker is received. The WebSocket handler has access to
+    # ConnectionManager.is_user_active() for accurate offline detection.
             
-    return aggregated_response, was_revoked_during_stream, was_soft_limited_during_stream
+    return aggregated_response, was_revoked_during_stream, was_soft_limited_during_stream, thinking_buffer, debug_metadata

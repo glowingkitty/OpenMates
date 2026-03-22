@@ -9,6 +9,7 @@
 # to make them discoverable under the `backend.apps.ai.tasks` namespace.
 
 from .ask_skill_task import process_ai_skill_ask_task
+from .focus_mode_auto_confirm_task import focus_mode_auto_confirm_task
 
 # If you add more skill-specific task files (e.g., another_skill_task.py),
 # import and re-export their task functions here as well:
@@ -16,7 +17,7 @@ from .ask_skill_task import process_ai_skill_ask_task
 
 __all__ = [
     "process_ai_skill_ask_task",
-    # "process_another_skill_task", # Add other task names here
+    "focus_mode_auto_confirm_task",
 ]
 
 # Note: Celery's task auto-discovery typically relies on finding @app.task decorators.

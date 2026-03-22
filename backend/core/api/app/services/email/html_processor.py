@@ -15,6 +15,16 @@ def process_brand_name(content: str, dark_mode: bool = False) -> str:
     Returns:
         Processed HTML content
     """
+    # IMPORTANT: Do not inject raw HTML into <mj-head> (e.g. <mj-title>).
+    # MJML head tags expect plain text and will fail to parse if we insert <a> there.
+    head_pattern = re.compile(r'(<mj-head\b[^>]*>.*?</mj-head>)', flags=re.DOTALL | re.IGNORECASE)
+    head_match = head_pattern.search(content)
+    if head_match:
+        before_head = content[:head_match.start(1)]
+        mj_head = head_match.group(1)
+        after_head = content[head_match.end(1):]
+        return before_head + mj_head + process_brand_name(after_head, dark_mode=dark_mode)
+
     # Determine the color for "Mates" based on dark mode for regular occurrences
     mates_color = "#e6e6e6" if dark_mode else "#000000"
     

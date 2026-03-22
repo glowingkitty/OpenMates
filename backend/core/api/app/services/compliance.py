@@ -1,12 +1,17 @@
 import logging
-import json
 from datetime import datetime
 from typing import Optional, Dict, Any, Union
 import ipaddress
-from datetime import datetime # Ensure datetime is imported
+from backend.core.api.app.utils.device_fingerprint import hash_ip_address
 
-# Configure a special logger for compliance events
-compliance_logger = logging.getLogger("compliance")
+# Compliance loggers are split by retention requirement (see setup_compliance_logging.py):
+#
+#   compliance.audit      → audit-compliance.log  (2-year retention — GDPR / BSI)
+#   compliance.financial  → financial-compliance.log (10-year retention — AO §147 / HGB §257)
+#
+# setup_compliance_logging() in main.py configures the handlers; here we just reference the named loggers.
+audit_compliance_logger = logging.getLogger("compliance.audit")
+financial_compliance_logger = logging.getLogger("compliance.financial")
 # Get the standard logger for API events
 api_logger = logging.getLogger(__name__)
 # Get the specialized event logger for important business events
@@ -60,7 +65,7 @@ class ComplianceService:
             log_data["details"] = sanitized_details
             
         # Log the raw dictionary - let the JSON handler format it
-        compliance_logger.info(log_data)
+        audit_compliance_logger.info(log_data)
     
     @staticmethod
     def log_user_creation(
@@ -93,7 +98,7 @@ class ComplianceService:
             log_data["details"] = sanitized_details
             
         # Log the raw dictionary - let the JSON handler format it
-        compliance_logger.info(log_data)
+        audit_compliance_logger.info(log_data)
 
         # Log consent events immediately after user creation log
         # These logs intentionally omit IP, device fingerprint, and location
@@ -112,7 +117,7 @@ class ComplianceService:
         # Add sanitized details if they exist from the original call
         if 'details' in log_data:
              privacy_consent_log["details"] = log_data['details']
-        compliance_logger.info(privacy_consent_log)
+        audit_compliance_logger.info(privacy_consent_log)
 
         # Log Terms of Service consent
         terms_consent_log = {
@@ -127,7 +132,7 @@ class ComplianceService:
         # Add sanitized details if they exist from the original call
         if 'details' in log_data:
              terms_consent_log["details"] = log_data['details']
-        compliance_logger.info(terms_consent_log)
+        audit_compliance_logger.info(terms_consent_log)
 
     @staticmethod
     def log_api_event(
@@ -195,30 +200,30 @@ class ComplianceService:
             log_data["details"] = sanitized_details
             
         # Log the event - pass log_data directly to preserve structured data
-        compliance_logger.info(log_data)
+        audit_compliance_logger.info(log_data)
     
     @staticmethod
     def log_consent(
         user_id: str,
         ip_address: str,
-        consent_type: str,  # privacy_policy, terms, marketing, etc.
+        consent_type: str,  # privacy_policy, terms, marketing, withdrawal_waiver, etc.
         action: str,  # granted, withdrawn, updated
         version: str,  # version of the policy/terms
         details: Optional[Dict[str, Any]] = None
     ):
-        """Log consent-related events for GDPR compliance"""
-        # Validate IP address
-        try:
-            ipaddress.ip_address(ip_address)
-        except ValueError:
-            ip_address = "0.0.0.0"
+        """
+        Log consent-related events for GDPR compliance.
+        IP addresses are hashed before storage for privacy.
+        """
+        # Hash IP address for privacy (we don't store full IPs)
+        hashed_ip = hash_ip_address(ip_address)
             
         # Create log entry
         log_data = {
             "timestamp": datetime.utcnow().isoformat(),
             "event_type": "consent",
             "user_id": user_id,
-            "ip_address": ip_address,
+            "ip_address_hash": hashed_ip,  # Store hashed IP, not full IP
             "consent_type": consent_type,
             "action": action,
             "version": version
@@ -229,7 +234,7 @@ class ComplianceService:
             log_data["details"] = sanitized_details
             
         # Log the event - pass log_data directly to preserve structured data
-        compliance_logger.info(log_data)
+        audit_compliance_logger.info(log_data)
 
     @staticmethod
     def log_auth_event_safe(
@@ -270,7 +275,7 @@ class ComplianceService:
             log_data["details"] = sanitized_details
             
         # Log the raw dictionary - let the JSON handler format it
-        compliance_logger.info(log_data)
+        audit_compliance_logger.info(log_data)
 
     @staticmethod
     def log_account_deletion(
@@ -320,7 +325,7 @@ class ComplianceService:
             
         # Log to compliance logger with warning level for high visibility
         # Pass log_data directly to preserve structured data for monitoring tools
-        compliance_logger.warning(log_data)
+        audit_compliance_logger.warning(log_data)
         
         # Also log to regular API logger
         api_logger.warning(
@@ -361,15 +366,146 @@ class ComplianceService:
             
         # Log to compliance logger
         # Pass log_data directly to preserve structured data for monitoring tools
-        compliance_logger.info(log_data)
+        audit_compliance_logger.info(log_data)
         
         # Optionally, also log to regular API logger for operational visibility if needed
         api_logger.info(
             f"CHAT DELETION: User {user_id} deleted chat {chat_id} via device {device_fingerprint_hash}."
         )
-# TODO: Implement S3 archive functionality for compliance logs
-# This will:
-# 1. Periodically (daily) collect logs older than 48 hours
-# 2. Encrypt them using Vault keys
-# 3. Upload to S3 Hetzner
-# 4. Verify upload and then delete from local storage
+
+    @staticmethod
+    def log_financial_transaction(
+        user_id: str,
+        transaction_type: str,  # credit_purchase, gift_card_redemption, subscription_renewal, etc.
+        amount: Optional[Union[int, float]] = None,  # Credits or monetary amount
+        currency: Optional[str] = None,  # Currency code if monetary
+        status: str = "success",
+        details: Optional[Dict[str, Any]] = None
+    ):
+        """
+        Log financial transactions for compliance and audit purposes.
+        This includes credit purchases, gift card redemptions, and subscription renewals.
+        
+        Args:
+            user_id: ID of the user involved in the transaction
+            transaction_type: Type of transaction (credit_purchase, gift_card_redemption, etc.)
+            amount: Amount involved (credits or monetary value)
+            currency: Currency code if this is a monetary transaction
+            status: Outcome of the transaction (success, failed)
+            details: Additional context about the transaction (order_id, gift_card_code, etc.)
+        """
+        # Create log entry
+        log_data = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "event_type": "financial_transaction",
+            "transaction_type": transaction_type,
+            "user_id": user_id,
+            "status": status
+        }
+        
+        # Add optional fields if provided
+        if amount is not None:
+            log_data["amount"] = amount
+            
+        if currency:
+            log_data["currency"] = currency
+        
+        if details:
+            # Sanitize details to remove sensitive information
+            sanitized_details = {k: v for k, v in details.items() 
+                              if k not in ['password', 'token', 'secret', 'payment_method_id', 'card_number']}
+            log_data["details"] = sanitized_details
+            
+        # Log to compliance logger - pass log_data directly to preserve structured data
+        # Financial transactions require 10-year retention (AO §147 / HGB §257)
+        financial_compliance_logger.info(log_data)
+        
+        # Also log to regular API logger for operational visibility
+        amount_str = f" {amount}" if amount is not None else ""
+        currency_str = f" {currency}" if currency else ""
+        api_logger.info(
+            f"FINANCIAL TRANSACTION: User {user_id} - {transaction_type}{amount_str}{currency_str} - {status}"
+        )
+
+    @staticmethod
+    def log_refund_request(
+        user_id: str,
+        ip_address: str,
+        invoice_id: str,
+        order_id: str,
+        refund_amount: Optional[Union[int, float]] = None,
+        currency: Optional[str] = None,
+        unused_credits: Optional[int] = None,
+        total_credits: Optional[int] = None,
+        status: str = "requested",  # requested, approved, rejected, completed, failed
+        reason: Optional[str] = None,
+        details: Optional[Dict[str, Any]] = None
+    ):
+        """
+        Log refund requests for compliance and audit purposes.
+        IP addresses are hashed before storage for privacy.
+        
+        Args:
+            user_id: ID of the user requesting the refund
+            ip_address: Client IP address (will be hashed)
+            invoice_id: ID of the invoice being refunded
+            order_id: Order ID from payment provider
+            refund_amount: Amount to be refunded (in cents or currency units)
+            currency: Currency code if this is a monetary refund
+            unused_credits: Number of unused credits being refunded
+            total_credits: Total credits from the original purchase
+            status: Status of the refund request (requested, approved, rejected, completed, failed)
+            reason: Reason for rejection if status is rejected
+            details: Additional context about the refund (is_gift_card, etc.)
+        """
+        # Hash IP address for privacy (we don't store full IPs)
+        hashed_ip = hash_ip_address(ip_address)
+        
+        # Create log entry
+        log_data = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "event_type": "refund_request",
+            "user_id": user_id,
+            "ip_address_hash": hashed_ip,  # Store hashed IP, not full IP
+            "invoice_id": invoice_id,
+            "order_id": order_id,
+            "status": status
+        }
+        
+        # Add optional fields if provided
+        if refund_amount is not None:
+            log_data["refund_amount"] = refund_amount
+            
+        if currency:
+            log_data["currency"] = currency
+            
+        if unused_credits is not None:
+            log_data["unused_credits"] = unused_credits
+            
+        if total_credits is not None:
+            log_data["total_credits"] = total_credits
+            
+        if reason:
+            log_data["reason"] = reason
+        
+        if details:
+            # Sanitize details to remove sensitive information
+            sanitized_details = {k: v for k, v in details.items() 
+                              if k not in ['password', 'token', 'secret', 'payment_method_id', 'card_number']}
+            log_data["details"] = sanitized_details
+            
+        # Refund requests require 10-year retention (AO §147 / HGB §257)
+        financial_compliance_logger.info(log_data)
+        
+        # Also log to regular API logger for operational visibility
+        amount_str = f" {refund_amount}" if refund_amount is not None else ""
+        currency_str = f" {currency}" if currency else ""
+        credits_str = f" ({unused_credits}/{total_credits} credits)" if unused_credits is not None and total_credits is not None else ""
+        api_logger.info(
+            f"REFUND REQUEST: User {user_id} - Invoice {invoice_id}{amount_str}{currency_str}{credits_str} - {status}"
+        )
+
+# S3 backup of compliance logs is handled by compliance_log_backup_task() in main.py.
+# It runs nightly and uploads rotated .log.YYYY-MM-DD files to S3 Hetzner:
+#   financial-compliance/  → 10-year lifecycle (AO §147 / HGB §257)
+#   audit-compliance/      → 2-year lifecycle  (GDPR / BSI §34 BDSG)

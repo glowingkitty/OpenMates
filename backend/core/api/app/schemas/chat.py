@@ -15,6 +15,11 @@ class EncryptedMessageBase(BaseModel):
     role: Literal['user', 'assistant', 'system']
     encrypted_category: Optional[str] = None # Encrypted category, only if role is 'assistant'
     encrypted_sender_name: Optional[str] = None # Encrypted sender name
+    encrypted_model_name: Optional[str] = None # Encrypted model name (assistant only)
+    encrypted_thinking_content: Optional[str] = None # Encrypted thinking content (assistant only)
+    encrypted_thinking_signature: Optional[str] = None # Encrypted thinking signature (assistant only)
+    has_thinking: Optional[bool] = None # Non-encrypted metadata for UI rendering
+    thinking_token_count: Optional[int] = None # Non-encrypted metadata for cost tracking
 
 class AIHistoryMessage(MessageBase):
     """
@@ -46,11 +51,12 @@ class ChatInDB(BaseModel): # Represents the structure in Directus 'chats' table
     encrypted_title: Optional[str] = None # Encrypted with chat-specific key
     messages_v: int
     title_v: int
-    last_edited_overall_timestamp: datetime # Updated if chat's messages or any user's draft for this chat changes
+    last_edited_overall_timestamp: datetime # Updated when messages are sent to this chat (for sorting). Drafts do NOT update this timestamp.
     unread_count: int
     created_at: datetime
     updated_at: datetime
     last_message_timestamp: Optional[datetime] = None
+    pinned: Optional[bool] = None # Whether this chat is pinned
 
 # New DraftInDB model for the 'drafts' table
 class DraftInDB(BaseModel):
@@ -93,6 +99,20 @@ class CachedChatListItemData(BaseModel):
     encrypted_chat_key: Optional[str] = None  # Encrypted chat-specific key for decryption
     encrypted_icon: Optional[str] = None  # Encrypted icon name from Lucide library
     encrypted_category: Optional[str] = None  # Encrypted category name
+    encrypted_chat_summary: Optional[str] = None  # Encrypted 2-3 sentence summary of chat (encrypted with chat-specific key)
+    encrypted_chat_tags: Optional[str] = None  # Encrypted array of max 10 tags (encrypted as base64 string with chat-specific key)
+    encrypted_follow_up_request_suggestions: Optional[str] = None  # Encrypted array of 6 follow-up suggestions (encrypted as base64 string with chat-specific key)
+    encrypted_active_focus_id: Optional[str] = None  # Encrypted ID of active focus (encrypted with chat-specific key)
+    last_message_timestamp: Optional[int] = None  # Unix timestamp of most recent completed message
+    pinned: Optional[bool] = None  # Whether this chat is pinned
+    # Disclaimer tracking for hardcoded advice disclaimers
+    last_disclaimer_type: Optional[str] = None  # "financial", "medical", "legal", or "mental_health"
+    last_disclaimer_timestamp: Optional[int] = None  # Unix timestamp when last disclaimer was injected
+    # Sharing fields
+    is_shared: Optional[bool] = None
+    is_private: Optional[bool] = None
+    # user_id is the owner of the chat
+    user_id: Optional[str] = None
     # draft_json is removed as it's now user-specific and in a different cache key
 
 class CachedUserDraftData(BaseModel):
@@ -114,6 +134,7 @@ class MessageInCache(BaseModel):
     category: Optional[str] = None
     sender_name: Optional[str] = None
     encrypted_content: str  # Content encrypted with encryption_key_user_server (Vault)
+    model_name: Optional[str] = None  # Added: AI model name for assistant messages
     status: Literal['sending', 'sent', 'error', 'streaming', 'delivered', 'synced']
     created_at: int
 
@@ -182,6 +203,7 @@ class ClientChatComponentVersions(BaseModel):
 class ChatSyncData(BaseModel):
     """Data for a single chat in the initial_sync_response."""
     chat_id: str
+    user_id: Optional[str] = None # Owner/creator of the chat
     versions: ClientChatComponentVersions # Changed from CachedChatVersions
     draft_v: Optional[int] = None # User-specific draft version for THIS user, for the client (can be redundant if client uses versions.draft_v)
     last_edited_overall_timestamp: int
@@ -190,11 +212,16 @@ class ChatSyncData(BaseModel):
     updated_at: int
     encrypted_title: Optional[str] = None # Encrypted title from cache
     encrypted_draft_md: Optional[str] = None # Encrypted markdown for the user's draft
+    encrypted_draft_preview: Optional[str] = None # Encrypted preview text for the user's draft (shown in chat list)
     encrypted_chat_key: Optional[str] = None # Encrypted chat-specific key for decryption
     encrypted_icon: Optional[str] = None # Encrypted icon name from Lucide library
     encrypted_category: Optional[str] = None # Encrypted category name
     unread_count: Optional[int] = None
     messages: Optional[List[EncryptedMessageResponse]] = None # List of encrypted messages, typically for priority chat
+    # Sharing fields - synced from server to client for cross-device consistency
+    is_shared: Optional[bool] = None # Whether this chat has been shared (share link generated)
+    is_private: Optional[bool] = None # Whether this chat is private (not shared). Defaults to false (shareable) to enable offline sharing.
+    pinned: Optional[bool] = None # Whether this chat is pinned
 
 class InitialSyncResponsePayloadSchema(BaseModel):
     """Structure of the 'initial_sync_response' payload."""

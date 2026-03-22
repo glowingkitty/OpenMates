@@ -1,0 +1,208 @@
+what_to_study:
+  context: Focus mode name for what to study
+  en: What to study
+  de: Was studieren
+  zh: 学什么
+  es: Qué estudiar
+  fr: Que étudier
+  pt: O que estudar
+  ru: Что изучать
+  ja: 何を学ぶか
+  ko: 무엇을 공부할지
+  it: Cosa studiare
+  tr: Ne çalışılmalı
+  vi: Học gì
+  id: Apa yang harus dipelajari
+  pl: Co studiować
+  nl: Wat te studeren
+  ar: ماذا تدرس
+  hi: क्या पढ़ना है
+  th: เรียนอะไร
+  cs: Co studovat
+  sv: Vad ska man studera
+  he: מה ללמוד
+  verified_by_human:
+    - en
+    - de
+what_to_study.description:
+  context: Description for what to study focus mode
+  en: Find the right degree and field of study.
+  de: Finde den richtigen Abschluss und Studienbereich.
+  zh: 找到合适的学位和研究领域。
+  es: Encuentra el título y campo de estudio ideal.
+  fr: Trouvez le bon diplôme et domaine d'études.
+  pt: Encontre o diploma e área de estudo ideais.
+  ru: Найдите подходящую степень и область обучения.
+  ja: 適切な学位と研究分野を見つける。
+  ko: 적합한 학위와 연구 분야를 찾으세요.
+  it: Trova il titolo di studio e il campo giusto.
+  tr: Doğru derece ve çalışma alanını bulun.
+  vi: Tìm bằng cấp và lĩnh vực học tập phù hợp.
+  id: Temukan gelar dan bidang studi yang tepat.
+  pl: Znajdź odpowiedni stopień i kierunek studiów.
+  nl: Vind de juiste opleiding en studierichting.
+  ar: اعثر على الشهادة ومجال الدراسة المناسبين.
+  hi: सही डिग्री और अध्ययन क्षेत्र खोजें।
+  th: ค้นหาปริญญาและสาขาวิชาที่เหมาะสม
+  cs: Najděte správný titul a obor studia.
+  sv: Hitta rätt examen och studieområde.
+  he: מציאת התואר ותחום הלימודים המתאימים.
+  verified_by_human:
+    - en
+    - de
+learn_topic:
+  context: Focus mode name for learn topic
+  en: Learn topic
+  de: Thema lernen
+  zh: 学习主题
+  es: Aprender tema
+  fr: Apprendre un sujet
+  pt: Aprender tópico
+  ru: Изучить тему
+  ja: トピックを学ぶ
+  ko: 주제 학습
+  it: Impara argomento
+  tr: Konu öğren
+  vi: Học chủ đề
+  id: Pelajari topik
+  pl: Naucz się tematu
+  nl: Onderwerp leren
+  ar: تعلم الموضوع
+  hi: विषय सीखें
+  th: เรียนรู้หัวข้อ
+  cs: Naučit se téma
+  sv: Lär dig ämne
+  he: למידת נושא
+  verified_by_human:
+    - en
+    - de
+learn_topic.description:
+  context: Description for learn topic focus mode
+  en: Learn with adaptive lessons and reminders.
+  de: Lerne mit adaptiven Lektionen und Erinnerungen.
+  zh: 通过自适应课程和提醒进行学习。
+  es: Aprende con lecciones adaptativas y recordatorios.
+  fr: Apprenez avec des leçons adaptatives et rappels.
+  pt: Aprenda com lições adaptativas e lembretes.
+  ru: Учитесь с адаптивными уроками и напоминаниями.
+  ja: 適応型レッスンとリマインダーで学ぶ。
+  ko: 적응형 수업과 알림으로 학습하세요.
+  it: Impara con lezioni adattive e promemoria.
+  tr: Uyarlamalı dersler ve hatırlatıcılarla öğrenin.
+  vi: Học với bài học thích ứng và nhắc nhở.
+  id: Belajar dengan pelajaran adaptif dan pengingat.
+  pl: Ucz się z lekcjami adaptacyjnymi i przypomnieniami.
+  nl: Leer met adaptieve lessen en herinneringen.
+  ar: تعلّم بدروس تكيفية وتذكيرات بالمراجعة.
+  hi: अनुकूली पाठों और अनुस्मारकों के साथ सीखें।
+  th: เรียนรู้ด้วยบทเรียนแบบปรับตัวและการแจ้งเตือน
+  cs: Učte se s adaptivními lekcemi a připomínkami.
+  sv: Lär dig med adaptiva lektioner och påminnelser.
+  he: למידה באמצעות שיעורים אדפטיביים ותזכורות.
+  verified_by_human:
+    - en
+    - de
+test_knowledge:
+  context: Focus mode name for test knowledge
+  en: Test knowledge
+  de: Wissen testen
+  zh: 测试知识
+  es: Probar conocimiento
+  fr: Tester les connaissances
+  pt: Testar conhecimento
+  ru: Проверить знания
+  ja: 知識をテスト
+  ko: 지식 테스트
+  it: Testa conoscenza
+  tr: Bilgiyi test et
+  vi: Kiểm tra kiến thức
+  id: Uji pengetahuan
+  pl: Przetestuj wiedzę
+  nl: Kennis testen
+  ar: اختبار المعرفة
+  hi: ज्ञान का परीक्षण करें
+  th: ทดสอบความรู้
+  cs: Otestovat znalosti
+  sv: Testa kunskap
+  he: בחינת ידע
+  verified_by_human:
+    - en
+    - de
+test_knowledge.description:
+  context: Description for test knowledge focus mode
+  en: Test your knowledge with quiz-style questions.
+  de: Teste dein Wissen mit Quiz-Fragen.
+  zh: 通过测验式问题测试你的知识。
+  es: Pon a prueba tu conocimiento con un quiz.
+  fr: Testez vos connaissances avec des questions quiz.
+  pt: Teste seus conhecimentos com perguntas de quiz.
+  ru: Проверьте знания с помощью вопросов-викторин.
+  ja: クイズ形式の質問で知識をテスト。
+  ko: 퀴즈 형식의 질문으로 지식을 테스트하세요.
+  it: Metti alla prova le conoscenze con un quiz.
+  tr: Bilginizi sınav tarzı sorularla test edin.
+  vi: Kiểm tra kiến thức với câu hỏi dạng quiz.
+  id: Uji pengetahuan Anda dengan pertanyaan kuis.
+  pl: Sprawdź wiedzę za pomocą pytań quizowych.
+  nl: Test je kennis met quizvragen.
+  ar: اختبر معرفتك بأسئلة على شكل اختبار.
+  hi: क्विज़ शैली के प्रश्नों से अपना ज्ञान परखें।
+  th: ทดสอบความรู้ด้วยคำถามแบบควิซ
+  cs: Otestujte znalosti pomocí kvízových otázek.
+  sv: Testa dina kunskaper med quizfrågor.
+  he: בחינת הידע שלך באמצעות שאלות בסגנון חידון.
+  verified_by_human:
+    - en
+    - de
+socratic_questioning:
+  context: Focus mode name for socratic questioning
+  en: Socratic questioning
+  de: Sokratisches Fragen
+  zh: 苏格拉底式提问
+  es: Cuestionamiento socrático
+  fr: Questionnement socratique
+  pt: Questionamento socrático
+  ru: Сократовский вопрос
+  ja: ソクラテス式質問
+  ko: 소크라테스식 질문
+  it: Domanda socratica
+  tr: Sokratik sorgulama
+  vi: Câu hỏi Socrates
+  id: Pertanyaan sokratik
+  pl: Pytanie sokratejskie
+  nl: Socratische vraagstelling
+  ar: السؤال السقراطي
+  hi: सुकरातीय प्रश्न
+  th: การตั้งคำถามแบบโสกราตีส
+  cs: Sokratovské dotazování
+  sv: Sokratisk frågeställning
+  he: שאילת שאלות סוקרטית
+  verified_by_human:
+    - en
+    - de
+socratic_questioning.description:
+  context: Description for socratic questioning focus mode
+  en: Deepen understanding through guided questions.
+  de: Vertiefe Verständnis durch gezielte Fragen.
+  zh: 通过引导式提问加深理解。
+  es: Profundiza tu comprensión con preguntas guiadas.
+  fr: Approfondissez votre compréhension par des questions.
+  pt: Aprofunde a compreensão com perguntas guiadas.
+  ru: Углубите понимание через направленные вопросы.
+  ja: ガイド付き質問で理解を深める。
+  ko: 안내 질문을 통해 이해를 심화하세요.
+  it: Approfondisci la comprensione con domande guidate.
+  tr: Yönlendirici sorularla anlayışınızı derinleştirin.
+  vi: Hiểu sâu hơn thông qua câu hỏi hướng dẫn.
+  id: Perdalam pemahaman melalui pertanyaan terarah.
+  pl: Pogłęb zrozumienie przez ukierunkowane pytania.
+  nl: Verdiep begrip door begeleide vragen.
+  ar: عمّق فهمك من خلال الأسئلة الموجّهة.
+  hi: मार्गदर्शित प्रश्नों से समझ को गहरा करें।
+  th: เพิ่มความเข้าใจผ่านคำถามนำทาง
+  cs: Prohloubte porozumění prostřednictvím otázek.
+  sv: Fördjupa förståelsen genom guidade frågor.
+  he: העמקת ההבנה באמצעות שאלות מונחות.
+  verified_by_human:
+    - en
+    - de

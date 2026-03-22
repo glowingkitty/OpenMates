@@ -1,0 +1,4187 @@
+search:
+  context: Search skill label
+  en: Search
+  de: Suchen
+  zh: 搜索
+  es: Buscar
+  fr: Rechercher
+  pt: Pesquisar
+  ru: Поиск
+  ja: 検索
+  ko: 검색
+  it: Cerca
+  tr: Ara
+  vi: Tìm kiếm
+  id: Cari
+  pl: Szukaj
+  nl: Zoeken
+  ar: ابحث
+  hi: खोज
+  th: ค้นหา
+  cs: Hledat
+  sv: Sök
+  he: חיפוש
+  verified_by_human: []
+transcript:
+  context: Transcript skill label
+  en: Transcript
+  de: Transkript
+  zh: 转录
+  es: Transcripción
+  fr: Transcription
+  pt: Transcrição
+  ru: Транскрипт
+  ja: 文字起こし
+  ko: 자막
+  it: Trascrizione
+  tr: Transkript
+  vi: Bản ghi
+  id: Transkrip
+  pl: Transkrypcja
+  nl: Transcript
+  ar: النص
+  hi: प्रतिलिपि
+  th: สำเนา
+  cs: Přepis
+  sv: Transkription
+  he: תמלול
+  verified_by_human: []
+processing:
+  context: Status text when skill is processing
+  en: Processing...
+  de: Wird verarbeitet...
+  zh: 处理中...
+  es: Procesando...
+  fr: Traitement en cours...
+  pt: Processando...
+  ru: Обработка...
+  ja: 処理中...
+  ko: 처리 중...
+  it: Elaborazione in corso...
+  tr: İşleniyor...
+  vi: Đang xử lý...
+  id: Memproses...
+  pl: Przetwarzanie...
+  nl: Verwerking...
+  ar: جاري المعالجة...
+  hi: प्रक्रिया जारी है...
+  th: กำลังประมวลผล...
+  cs: Zpracování...
+  sv: Bearbetar...
+  he: מעבד...
+  verified_by_human: []
+completed:
+  context: Status text when skill execution is completed
+  en: Completed
+  de: Abgeschlossen
+  zh: 已完成
+  es: Completado
+  fr: Complété
+  pt: Concluído
+  ru: Завершено
+  ja: 完了
+  ko: 완료됨
+  it: Completato
+  tr: Tamamlandı
+  vi: Hoàn thành
+  id: Selesai
+  pl: Zakończone
+  nl: Voltooid
+  ar: مكتمل
+  hi: पूर्ण
+  th: เสร็จสิ้น
+  cs: Dokončeno
+  sv: Slutförd
+  he: הושלם
+  verified_by_human: []
+via:
+  context: Used in 'query via Brave Search'
+  en: via
+  de: über
+  zh: 通过
+  es: mediante
+  fr: via
+  pt: via
+  ru: через
+  ja: 経由
+  ko: 통해
+  it: tramite
+  tr: aracılığıyla
+  vi: qua
+  id: melalui
+  pl: poprzez
+  nl: via
+  ar: عبر
+  hi: के माध्यम से
+  th: ผ่าน
+  cs: přes
+  sv: via
+  he: באמצעות
+  verified_by_human: []
+more_results:
+  context: Text showing additional results count, e.g. '+ 9 more'
+  en: + {count} more
+  de: "+ {count} weitere"
+  zh: "+ {count} 更多"
+  es: "+ {count} más"
+  fr: "+ {count} autres"
+  pt: "+ {count} mais"
+  ru: "+ {count} ещё"
+  ja: "+ {count} その他"
+  ko: "+ {count} 더"
+  it: "+ {count} altri"
+  tr: "+ {count} daha"
+  vi: "+ {count} thêm"
+  id: "+ {count} lagi"
+  pl: "+ {count} więcej"
+  nl: "+ {count} meer"
+  ar: "+ {count} أكثر"
+  hi: "+ {count} अधिक"
+  th: "+ {count} เพิ่มเติม"
+  cs: "+ {count} dalších"
+  sv: "+ {count} fler"
+  he: "ועוד {count}"
+  verified_by_human: []
+search_no_results:
+  context: Shown in search embed preview when the search completed but returned zero results
+  en: 0 results found
+  de: 0 Ergebnisse gefunden
+  zh: 找到 0 个结果
+  es: 0 resultados encontrados
+  fr: 0 résultats trouvés
+  pt: 0 resultados encontrados
+  ru: 0 результатов найдено
+  ja: 0 件の結果
+  ko: 검색 결과 0건
+  it: 0 risultati trovati
+  tr: 0 sonuç bulundu
+  vi: Tìm thấy 0 kết quả
+  id: 0 hasil ditemukan
+  pl: Znaleziono 0 wyników
+  nl: 0 resultaten gevonden
+  ar: لم يتم العثور على نتائج
+  hi: 0 परिणाम मिले
+  th: พบ 0 ผลลัพธ์
+  cs: Nalezeno 0 výsledků
+  sv: 0 resultat hittade
+  he: נמצאו 0 תוצאות
+  verified_by_human: []
+open_search_results:
+  context: Button label to open search results in fullscreen
+  en: Open search results
+  de: Suchergebnisse öffnen
+  zh: 打开搜索结果
+  es: Abrir resultados de búsqueda
+  fr: Ouvrir les résultats de recherche
+  pt: Abrir resultados de busca
+  ru: Открыть результаты поиска
+  ja: 検索結果を開く
+  ko: 검색 결과 열기
+  it: Apri risultati ricerca
+  tr: Arama sonuçlarını aç
+  vi: Mở kết quả tìm kiếm
+  id: Buka hasil pencarian
+  pl: Otwórz wyniki wyszukiwania
+  nl: Zoekresultaten openen
+  ar: فتح نتائج البحث
+  hi: खोज परिणाम खोलें
+  th: เปิดผลการค้นหา
+  cs: Otevřít výsledky hledání
+  sv: Öppna sökresultat
+  he: פתיחת תוצאות חיפוש
+  verified_by_human: []
+stop:
+  context: Button label to stop skill execution
+  en: Stop
+  de: Stopp
+  zh: 停止
+  es: Detener
+  fr: Arrêter
+  pt: Parar
+  ru: Остановить
+  ja: 停止
+  ko: 중지
+  it: Ferma
+  tr: Durdur
+  vi: Dừng
+  id: Berhenti
+  pl: Zatrzymaj
+  nl: Stoppen
+  ar: إيقاف
+  hi: रोकें
+  th: หยุด
+  cs: Zastavit
+  sv: Stoppa
+  he: עצירה
+  verified_by_human: []
+share:
+  context: Button label to share skill results
+  en: Share
+  de: Teilen
+  zh: 分享
+  es: Compartir
+  fr: Partager
+  pt: Compartilhar
+  ru: Поделиться
+  ja: 共有
+  ko: 공유
+  it: Condividi
+  tr: Paylaş
+  vi: Chia sẻ
+  id: Bagikan
+  pl: Udostępnij
+  nl: Delen
+  ar: مشاركة
+  hi: साझा करें
+  th: แชร์
+  cs: Sdílet
+  sv: Dela
+  he: שיתוף
+  verified_by_human: []
+exit_fullscreen:
+  context: Button label to exit fullscreen view
+  en: Exit fullscreen
+  de: Vollbildmodus beenden
+  zh: 退出全屏
+  es: Salir del modo pantalla completa
+  fr: Quitter le mode plein écran
+  pt: Sair do modo tela cheia
+  ru: Выйти из полноэкранного режима
+  ja: 全画面終了
+  ko: 전체 화면 종료
+  it: Esci dalla modalità a schermo intero
+  tr: Tam ekrandan çık
+  vi: Thoát chế độ toàn màn hình
+  id: Keluar dari layar penuh
+  pl: Wyjdź z trybu pełnoekranowego
+  nl: Vollscherm afsluiten
+  ar: خروج من وضع الملء
+  hi: पूर्णस्क्रीन से बाहर निकलें
+  th: ออกจากโหมดเต็มจอ
+  cs: Ukončit režim celé obrazovky
+  sv: Avsluta helskärmsläge
+  he: יציאה ממסך מלא
+  verified_by_human: []
+open_on_provider:
+  context: Button label to open results on provider website, e.g. 'Open on Brave Search'
+  en: Open on {provider}
+  de: Auf {provider} öffnen
+  zh: 在 {provider} 上打开
+  es: Abrir en {provider}
+  fr: Ouvrir sur {provider}
+  pt: Abrir em {provider}
+  ru: Открыть на {provider}
+  ja: "{provider}で開く"
+  ko: "{provider}에서 열기"
+  it: Apri su {provider}
+  tr: "{provider} üzerinde aç"
+  vi: Mở trên {provider}
+  id: Buka di {provider}
+  pl: Otwórz na {provider}
+  nl: Openen op {provider}
+  ar: "فتح على {provider}"
+  hi: "{provider} पर खोलें"
+  th: "เปิดบน {provider}"
+  cs: "Otevřít na {provider}"
+  sv: "Öppna på {provider}"
+  he: "פתיחה ב-{provider}"
+  verified_by_human: []
+open_on_youtube:
+  context: Button label to open video on YouTube
+  en: Open on YouTube
+  de: Auf YouTube öffnen
+  zh: 在 YouTube 上打开
+  es: Abrir en YouTube
+  fr: Ouvrir sur YouTube
+  pt: Abrir no YouTube
+  ru: Открыть на YouTube
+  ja: YouTubeで開く
+  ko: YouTube에서 열기
+  it: Apri su YouTube
+  tr: YouTube'da aç
+  vi: Mở trên YouTube
+  id: Buka di YouTube
+  pl: Otwórz na YouTube
+  nl: Openen op YouTube
+  ar: فتح على YouTube
+  hi: YouTube पर खोलें
+  th: เปิดบน YouTube
+  cs: Otevřít na YouTube
+  sv: Öppna på YouTube
+  he: פתיחה ב-YouTube
+  verified_by_human: []
+tip_creator:
+  context: Button label to tip the video creator
+  en: Tip Creator
+  de: Ersteller unterstützen
+  zh: 打赏创作者
+  es: Apoyar al creador
+  fr: Soutenir le créateur
+  pt: Apoiar o criador
+  ru: Поддержать создателя
+  ja: クリエイターにチップ
+  ko: 제작자에게 팁
+  it: Supporta il creatore
+  tr: İçerik üreticisine bahşiş
+  vi: Tặng tiền cho người tạo
+  id: Beri tip kepada pembuat
+  pl: Wsparcie twórcy
+  nl: Tip de maker
+  ar: دعم المنشئ
+  hi: निर्माता को टिप दें
+  th: ให้ทิปผู้สร้าง
+  cs: Podpořit tvůrce
+  sv: Dricks till skaparen
+  he: מתן טיפ ליוצר
+  verified_by_human: []
+code_snippet:
+  context: Default filename for code embeds when no filename is provided
+  en: Code snippet
+  de: Code-Ausschnitt
+  zh: 代码片段
+  es: Fragmento de código
+  fr: Extrait de code
+  pt: Trecho de código
+  ru: Фрагмент кода
+  ja: コードスニペット
+  ko: 코드 스니펫
+  it: Frammento di codice
+  tr: Kod parçası
+  vi: Đoạn mã
+  id: Potongan kode
+  pl: Fragment kodu
+  nl: Codefragment
+  ar: مقتطف من الكود
+  hi: कोड स्निपेट
+  th: ตัวอย่างโค้ด
+  cs: Úryvek kódu
+  sv: Kodstycke
+  he: קטע קוד
+  verified_by_human: []
+code_line_singular:
+  context: Singular form of 'line' for code embeds, e.g. 'line'
+  en: line
+  de: Zeile
+  zh: 行
+  es: línea
+  fr: ligne
+  pt: linha
+  ru: строка
+  ja: 行
+  ko: 줄
+  it: riga
+  tr: satır
+  vi: dòng
+  id: baris
+  pl: linia
+  nl: regel
+  ar: سطر
+  hi: पंक्ति
+  th: บรรทัด
+  cs: řádek
+  sv: rad
+  he: שורה
+  verified_by_human: []
+code_line_plural:
+  context: Plural form of 'line' for code embeds, e.g. 'lines'
+  en: lines
+  de: Zeilen
+  zh: 行
+  es: líneas
+  fr: lignes
+  pt: linhas
+  ru: строк
+  ja: 行
+  ko: 줄
+  it: righe
+  tr: satır
+  vi: dòng
+  id: baris
+  pl: linii
+  nl: regels
+  ar: أسطر
+  hi: पंक्तियाँ
+  th: บรรทัด
+  cs: řádků
+  sv: rader
+  he: שורות
+  verified_by_human: []
+code_info:
+  context: Text showing line count and language for code embeds, e.g. '5 lines, Python' or '1 line'
+  en: "{lineCount} {lineCountText}, {language}"
+  de: "{lineCount} {lineCountText}, {language}"
+  zh: "{lineCount} {lineCountText}，{language}"
+  es: "{lineCount} {lineCountText}, {language}"
+  fr: "{lineCount} {lineCountText}, {language}"
+  pt: "{lineCount} {lineCountText}, {language}"
+  ru: "{lineCount} {lineCountText}, {language}"
+  ja: "{lineCount} {lineCountText}、{language}"
+  ko: "{lineCount} {lineCountText}, {language}"
+  it: "{lineCount} {lineCountText}, {language}"
+  tr: "{lineCount} {lineCountText}, {language}"
+  vi: "{lineCount} {lineCountText}, {language}"
+  id: "{lineCount} {lineCountText}, {language}"
+  pl: "{lineCount} {lineCountText}, {language}"
+  nl: "{lineCount} {lineCountText}, {language}"
+  ar: "{lineCount} {lineCountText}، {language}"
+  hi: "{lineCount} {lineCountText}, {language}"
+  th: "{lineCount} {lineCountText}, {language}"
+  cs: "{lineCount} {lineCountText}, {language}"
+  sv: "{lineCount} {lineCountText}, {language}"
+  he: "{lineCount} {lineCountText}, {language}"
+  verified_by_human: []
+document_snippet:
+  context: Default title for document embeds when no title is provided
+  en: Document
+  de: Dokument
+  zh: 文档
+  es: Documento
+  fr: Document
+  pt: Documento
+  ru: Документ
+  ja: ドキュメント
+  ko: 문서
+  it: Documento
+  tr: Belge
+  vi: Tài liệu
+  id: Dokumen
+  pl: Dokument
+  nl: Document
+  ar: مستند
+  hi: दस्तावेज़
+  th: เอกสาร
+  cs: Dokument
+  sv: Dokument
+  he: מסמך
+  verified_by_human: []
+document_word_singular:
+  context: Singular form of 'word' for document embeds, e.g. 'word'
+  en: word
+  de: Wort
+  zh: 词
+  es: palabra
+  fr: mot
+  pt: palavra
+  ru: слово
+  ja: 語
+  ko: 단어
+  it: parola
+  tr: kelime
+  vi: từ
+  id: kata
+  pl: słowo
+  nl: woord
+  ar: كلمة
+  hi: शब्द
+  th: คำ
+  cs: slovo
+  sv: ord
+  he: מילה
+  verified_by_human: []
+document_word_plural:
+  context: Plural form of 'word' for document embeds, e.g. 'words'
+  en: words
+  de: Wörter
+  zh: 词
+  es: palabras
+  fr: mots
+  pt: palavras
+  ru: слов
+  ja: 語
+  ko: 단어
+  it: parole
+  tr: kelime
+  vi: từ
+  id: kata
+  pl: słów
+  nl: woorden
+  ar: كلمات
+  hi: शब्द
+  th: คำ
+  cs: slov
+  sv: ord
+  he: מילים
+  verified_by_human: []
+document_generating:
+  context: Status text when document is being generated
+  en: Generating document...
+  de: Dokument wird erstellt...
+  zh: 正在生成文档...
+  es: Generando documento...
+  fr: Génération du document...
+  pt: Gerando documento...
+  ru: Создание документа...
+  ja: ドキュメントを生成中...
+  ko: 문서 생성 중...
+  it: Generazione documento...
+  tr: Belge oluşturuluyor...
+  vi: Đang tạo tài liệu...
+  id: Membuat dokumen...
+  pl: Generowanie dokumentu...
+  nl: Document genereren...
+  ar: جاري إنشاء المستند...
+  hi: दस्तावेज़ बनाया जा रहा है...
+  th: กำลังสร้างเอกสาร...
+  cs: Generování dokumentu...
+  sv: Genererar dokument...
+  he: מפיק מסמך...
+  verified_by_human: []
+document_no_content:
+  context: Message shown when no document content is available
+  en: No document content available.
+  de: Kein Dokumentinhalt verfügbar.
+  zh: 没有可用的文档内容。
+  es: No hay contenido de documento disponible.
+  fr: Aucun contenu de document disponible.
+  pt: Nenhum conteúdo de documento disponível.
+  ru: Содержимое документа недоступно.
+  ja: ドキュメントの内容がありません。
+  ko: 문서 내용이 없습니다.
+  it: Nessun contenuto del documento disponibile.
+  tr: Belge içeriği mevcut değil.
+  vi: Không có nội dung tài liệu nào.
+  id: Tidak ada konten dokumen tersedia.
+  pl: Brak dostępnej treści dokumentu.
+  nl: Geen documentinhoud beschikbaar.
+  ar: لا يوجد محتوى مستند متاح.
+  hi: कोई दस्तावेज़ सामग्री उपलब्ध नहीं है।
+  th: ไม่มีเนื้อหาเอกสารที่พร้อมใช้งาน
+  cs: Žádný obsah dokumentu není k dispozici.
+  sv: Inget dokumentinnehåll tillgängligt.
+  he: אין תוכן מסמך זמין.
+  verified_by_human: []
+table:
+  context: Default title for table/sheet embeds when no title is provided
+  en: Table
+  de: Tabelle
+  zh: 表格
+  es: Tabla
+  fr: Tableau
+  pt: Tabela
+  ru: Таблица
+  ja: テーブル
+  ko: 표
+  it: Tabella
+  tr: Tablo
+  vi: Bảng
+  id: Tabel
+  pl: Tabela
+  nl: Tabel
+  ar: جدول
+  hi: तालिका
+  th: ตาราง
+  cs: Tabulka
+  sv: Tabell
+  he: טבלה
+  verified_by_human: []
+error:
+  context: Status text when skill execution has an error
+  en: Error
+  de: Fehler
+  zh: 错误
+  es: Error
+  fr: Erreur
+  pt: Erro
+  ru: Ошибка
+  ja: エラー
+  ko: 오류
+  it: Errore
+  tr: Hata
+  vi: Lỗi
+  id: Kesalahan
+  pl: Błąd
+  nl: Fout
+  ar: خطأ
+  hi: त्रुटि
+  th: ข้อผิดพลาด
+  cs: Chyba
+  sv: Fel
+  he: שגיאה
+  verified_by_human: []
+cancelled:
+  context: Status text when skill execution was cancelled by user
+  en: Cancelled
+  de: Abgebrochen
+  zh: 已取消
+  es: Cancelado
+  fr: Annulé
+  pt: Cancelado
+  ru: Отменено
+  ja: キャンセル済み
+  ko: 취소됨
+  it: Annullato
+  tr: İptal edildi
+  vi: Đã hủy
+  id: Dibatalkan
+  pl: Anulowane
+  nl: Geannuleerd
+  ar: تم الإلغاء
+  hi: रद्द किया गया
+  th: ยกเลิกแล้ว
+  cs: Zrušeno
+  sv: Avbruten
+  he: בוטל
+  verified_by_human: []
+video_transcript:
+  context: Video transcript skill label
+  en: Transcript
+  de: Transkript
+  zh: 转录
+  es: Transcripción
+  fr: Transcription
+  pt: Transcrição
+  ru: Транскрипт
+  ja: 文字起こし
+  ko: 자막
+  it: Trascrizione
+  tr: Transkript
+  vi: Bản ghi
+  id: Transkrip
+  pl: Transkrypcja
+  nl: Transcript
+  ar: النص
+  hi: प्रतिलिपि
+  th: สำเนา
+  cs: Přepis
+  sv: Transkription
+  he: תמלול
+  verified_by_human: []
+web_read:
+  context: Web Read skill label
+  en: Read
+  de: Lesen
+  zh: 阅读
+  es: Leer
+  fr: Lire
+  pt: Ler
+  ru: Чтение
+  ja: 読む
+  ko: 읽기
+  it: Leggi
+  tr: Oku
+  vi: Đọc
+  id: Baca
+  pl: Czytaj
+  nl: Lezen
+  ar: قراءة
+  hi: पढ़ें
+  th: อ่าน
+  cs: Přečíst
+  sv: Läs
+  he: קריאה
+  verified_by_human: []
+web_read_full_view:
+  context: Label above the open website button in web read fullscreen
+  en: "Full viewing experience:"
+  de: "Vollständige Ansicht:"
+  zh: 完整查看体验：
+  es: "Experiencia de visualización completa:"
+  fr: "Expérience de visualisation complète :"
+  pt: "Experiência de visualização completa:"
+  ru: "Полный просмотр:"
+  ja: フル表示：
+  ko: "전체 보기 경험:"
+  it: "Esperienza di visualizzazione completa:"
+  tr: "Tam görüntüleme deneyimi:"
+  vi: "Trải nghiệm xem đầy đủ:"
+  id: "Pengalaman tampilan lengkap:"
+  pl: "Pełne doświadczenie przeglądania:"
+  nl: "Volledige weergave-ervaring:"
+  ar: "تجربة العرض الكاملة:"
+  hi: "पूर्ण देखने का अनुभव:"
+  th: "ประสบการณ์การดูเต็มรูปแบบ:"
+  cs: "Plná prohlížecí zkušenost:"
+  sv: "Fullständig visningsupplevelse:"
+  he: "חוויית צפייה מלאה:"
+  verified_by_human: []
+web_read_text_preview:
+  context: Label above markdown content in web read fullscreen
+  en: "Article preview,"
+  de: "Artikelvorschau,"
+  zh: 文章预览，
+  es: "Vista previa del artículo,"
+  fr: "Aperçu de l'article,"
+  pt: "Visualização do artigo,"
+  ru: "Предпросмотр статьи,"
+  ja: 記事のプレビュー、
+  ko: "기사 미리보기,"
+  it: "Anteprima dell'articolo,"
+  tr: "Makale önizlemesi,"
+  vi: "Xem trước bài viết,"
+  id: "Pratinjau artikel,"
+  pl: "Podgląd artykułu,"
+  nl: "Artikelvoorbeeld,"
+  ar: "معاينة المقالة،"
+  hi: "लेख पूर्वावलोकन,"
+  th: "ตัวอย่างบทความ,"
+  cs: "Náhled článku,"
+  sv: "Artikelförhandsgranskning,"
+  he: תצוגה מקדימה של המאמר,
+  verified_by_human: []
+web_read_no_content:
+  context: Message shown when no content is available for web read
+  en: No content available.
+  de: Kein Inhalt verfügbar.
+  zh: 没有可用的内容。
+  es: No hay contenido disponible.
+  fr: Aucun contenu disponible.
+  pt: Nenhum conteúdo disponível.
+  ru: Контент недоступен.
+  ja: コンテンツがありません。
+  ko: 사용 가능한 콘텐츠가 없습니다.
+  it: Nessun contenuto disponibile.
+  tr: İçerik mevcut değil.
+  vi: Không có nội dung nào.
+  id: Tidak ada konten tersedia.
+  pl: Brak dostępnej treści.
+  nl: Geen inhoud beschikbaar.
+  ar: لا يوجد محتوى متاح.
+  hi: कोई सामग्री उपलब्ध नहीं है।
+  th: ไม่มีเนื้อหาที่พร้อมใช้งาน
+  cs: Žádný obsah není k dispozici.
+  sv: Inget innehåll tillgängligt.
+  he: אין תוכן זמין.
+  verified_by_human: []
+web_read_loading_content:
+  context: Message shown when web read content is still loading
+  en: Loading content...
+  de: Inhalt wird geladen...
+  zh: 正在加载内容...
+  es: Cargando contenido...
+  fr: Chargement du contenu...
+  pt: Carregando conteúdo...
+  ru: Загрузка контента...
+  ja: コンテンツを読み込み中...
+  ko: 콘텐츠 로드 중...
+  it: Caricamento contenuto...
+  tr: İçerik yükleniyor...
+  vi: Đang tải nội dung...
+  id: Memuat konten...
+  pl: Ładowanie treści...
+  nl: Inhoud laden...
+  ar: جاري تحميل المحتوى...
+  hi: सामग्री लोड हो रही है...
+  th: กำลังโหลดเนื้อหา...
+  cs: Načítání obsahu...
+  sv: Laddar innehåll...
+  he: טוען תוכן...
+  verified_by_human: []
+video_views:
+  context: View count for videos, e.g. '1.5M views'
+  en: "{count} views"
+  de: "{count} Aufrufe"
+  zh: "{count} 次观看"
+  es: "{count} vistas"
+  fr: "{count} vues"
+  pt: "{count} visualizações"
+  ru: "{count} просмотров"
+  ja: "{count} 回視聴"
+  ko: "조회수 {count}회"
+  it: "{count} visualizzazioni"
+  tr: "{count} görüntüleme"
+  vi: "{count} lượt xem"
+  id: "{count} penayangan"
+  pl: "{count} wyświetleń"
+  nl: "{count} weergaven"
+  ar: "{count} مشاهدة"
+  hi: "{count} व्यूज"
+  th: "การดู {count} ครั้ง"
+  cs: "{count} zhlédnutí"
+  sv: "{count} visningar"
+  he: "{count} צפיות"
+  verified_by_human: []
+video_likes:
+  context: Like count for videos, e.g. '68K likes'
+  en: "{count} likes"
+  de: "{count} Likes"
+  zh: "{count} 个赞"
+  es: "{count} me gusta"
+  fr: "{count} j'aime"
+  pt: "{count} curtidas"
+  ru: "{count} лайков"
+  ja: "{count} いいね"
+  ko: "좋아요 {count}개"
+  it: "{count} mi piace"
+  tr: "{count} beğeni"
+  vi: "{count} lượt thích"
+  id: "{count} suka"
+  pl: "{count} polubień"
+  nl: "{count} likes"
+  ar: "{count} إعجاب"
+  hi: "{count} पसंद"
+  th: "{count} ถูกใจ"
+  cs: "{count} líbí se mi"
+  sv: "{count} gillar"
+  he: "{count} לייקים"
+  verified_by_human: []
+date_today:
+  context: Relative date for today
+  en: Today
+  de: Heute
+  zh: 今天
+  es: Hoy
+  fr: Aujourd'hui
+  pt: Hoje
+  ru: Сегодня
+  ja: 今日
+  ko: 오늘
+  it: Oggi
+  tr: Bugün
+  vi: Hôm nay
+  id: Hari ini
+  pl: Dzisiaj
+  nl: Vandaag
+  ar: اليوم
+  hi: आज
+  th: วันนี้
+  cs: Dnes
+  sv: Idag
+  he: היום
+  verified_by_human: []
+date_yesterday:
+  context: Relative date for yesterday
+  en: Yesterday
+  de: Gestern
+  zh: 昨天
+  es: Ayer
+  fr: Hier
+  pt: Ontem
+  ru: Вчера
+  ja: 昨日
+  ko: 어제
+  it: Ieri
+  tr: Dün
+  vi: Hôm qua
+  id: Kemarin
+  pl: Wczoraj
+  nl: Gisteren
+  ar: أمس
+  hi: कल
+  th: เมื่อวาน
+  cs: Včera
+  sv: Igår
+  he: אתמול
+  verified_by_human: []
+date_days_ago:
+  context: Relative date for N days ago
+  en: "{count} days ago"
+  de: "vor {count} Tagen"
+  zh: "{count} 天前"
+  es: "hace {count} días"
+  fr: "il y a {count} jours"
+  pt: "há {count} dias"
+  ru: "{count} дней назад"
+  ja: "{count} 日前"
+  ko: "{count}일 전"
+  it: "{count} giorni fa"
+  tr: "{count} gün önce"
+  vi: "{count} ngày trước"
+  id: "{count} hari yang lalu"
+  pl: "{count} dni temu"
+  nl: "{count} dagen geleden"
+  ar: "منذ {count} أيام"
+  hi: "{count} दिन पहले"
+  th: "{count} วันที่แล้ว"
+  cs: "před {count} dny"
+  sv: "för {count} dagar sedan"
+  he: "לפני {count} ימים"
+  verified_by_human: []
+date_weeks_ago:
+  context: Relative date for N weeks ago
+  en: "{count} weeks ago"
+  de: "vor {count} Wochen"
+  zh: "{count} 周前"
+  es: "hace {count} semanas"
+  fr: "il y a {count} semaines"
+  pt: "há {count} semanas"
+  ru: "{count} недель назад"
+  ja: "{count} 週間前"
+  ko: "{count}주 전"
+  it: "{count} settimane fa"
+  tr: "{count} hafta önce"
+  vi: "{count} tuần trước"
+  id: "{count} minggu yang lalu"
+  pl: "{count} tygodni temu"
+  nl: "{count} weken geleden"
+  ar: "منذ {count} أسابيع"
+  hi: "{count} सप्ताह पहले"
+  th: "{count} สัปดาห์ที่แล้ว"
+  cs: "před {count} týdny"
+  sv: "för {count} veckor sedan"
+  he: "לפני {count} שבועות"
+  verified_by_human: []
+date_months_ago:
+  context: Relative date for N months ago
+  en: "{count} months ago"
+  de: "vor {count} Monaten"
+  zh: "{count} 个月前"
+  es: "hace {count} meses"
+  fr: "il y a {count} mois"
+  pt: "há {count} meses"
+  ru: "{count} месяцев назад"
+  ja: "{count} ヶ月前"
+  ko: "{count}개월 전"
+  it: "{count} mesi fa"
+  tr: "{count} ay önce"
+  vi: "{count} tháng trước"
+  id: "{count} bulan yang lalu"
+  pl: "{count} miesięcy temu"
+  nl: "{count} maanden geleden"
+  ar: "منذ {count} أشهر"
+  hi: "{count} महीने पहले"
+  th: "{count} เดือนที่แล้ว"
+  cs: "před {count} měsíci"
+  sv: "för {count} månader sedan"
+  he: "לפני {count} חודשים"
+  verified_by_human: []
+date_years_ago:
+  context: Relative date for N years ago
+  en: "{count} years ago"
+  de: "vor {count} Jahren"
+  zh: "{count} 年前"
+  es: "hace {count} años"
+  fr: "il y a {count} ans"
+  pt: "há {count} anos"
+  ru: "{count} лет назад"
+  ja: "{count} 年前"
+  ko: "{count}년 전"
+  it: "{count} anni fa"
+  tr: "{count} yıl önce"
+  vi: "{count} năm trước"
+  id: "{count} tahun yang lalu"
+  pl: "{count} lat temu"
+  nl: "{count} jaar geleden"
+  ar: "منذ {count} سنوات"
+  hi: "{count} साल पहले"
+  th: "{count} ปีที่แล้ว"
+  cs: "před {count} lety"
+  sv: "för {count} år sedan"
+  he: "לפני {count} שנים"
+  verified_by_human: []
+video_play:
+  context: Button label to play video
+  en: Play video
+  de: Video abspielen
+  zh: 播放视频
+  es: Reproducir video
+  fr: Lire la vidéo
+  pt: Reproduzir vídeo
+  ru: Воспроизвести видео
+  ja: 動画を再生
+  ko: 동영상 재생
+  it: Riproduci video
+  tr: Videoyu oynat
+  vi: Phát video
+  id: Putar video
+  pl: Odtwórz wideo
+  nl: Video afspelen
+  ar: تشغيل الفيديو
+  hi: वीडियो चलाएं
+  th: เล่นวิดีโอ
+  cs: Přehrát video
+  sv: Spela upp video
+  he: נגן וידאו
+  verified_by_human: []
+video_pip:
+  context: Button label for picture-in-picture mode
+  en: Picture-in-picture
+  de: Bild-in-Bild
+  zh: 画中画
+  es: Imagen en imagen
+  fr: Image dans l'image
+  pt: Picture-in-picture
+  ru: Картинка в картинке
+  ja: ピクチャーインピクチャー
+  ko: 화면 속 화면
+  it: Picture-in-picture
+  tr: Resim içinde resim
+  vi: Hình trong hình
+  id: Gambar dalam gambar
+  pl: Obraz w obrazie
+  nl: Beeld-in-beeld
+  ar: صورة داخل صورة
+  hi: पिक्चर-इन-पिक्चर
+  th: ภาพซ้อนภาพ
+  cs: Obraz v obraze
+  sv: Bild-i-bild
+  he: תמונה בתוך תמונה
+  verified_by_human: []
+get_docs:
+  context: Get Docs skill label for code app
+  en: Get Docs
+  de: Docs abrufen
+  zh: 获取文档
+  es: Obtener documentación
+  fr: Obtenir la documentation
+  pt: Obter documentação
+  ru: Получить документацию
+  ja: ドキュメントを取得
+  ko: 문서 가져오기
+  it: Ottieni documentazione
+  tr: Belgeleri al
+  vi: Lấy tài liệu
+  id: Dapatkan dokumentasi
+  pl: Pobierz dokumentację
+  nl: Documentatie ophalen
+  ar: الحصول على الوثائق
+  hi: डॉक्स प्राप्त करें
+  th: รับเอกสาร
+  cs: Získat dokumentaci
+  sv: Hämta dokumentation
+  he: קבלת תיעוד
+  verified_by_human:
+    - en
+    - de
+get_docs_full_view:
+  context: Label above the open Context7 button in get docs fullscreen
+  en: "Full documentation experience:"
+  de: "Vollständige Dokumentation:"
+  zh: 完整文档体验：
+  es: "Experiencia de documentación completa:"
+  fr: "Expérience de documentation complète :"
+  pt: "Experiência de documentação completa:"
+  ru: "Полная документация:"
+  ja: 完全なドキュメント表示：
+  ko: "전체 문서 경험:"
+  it: "Esperienza di documentazione completa:"
+  tr: "Tam dokümantasyon deneyimi:"
+  vi: "Trải nghiệm tài liệu đầy đủ:"
+  id: "Pengalaman dokumentasi lengkap:"
+  pl: "Pełne doświadczenie dokumentacji:"
+  nl: "Volledige documentatie-ervaring:"
+  ar: "تجربة التوثيق الكاملة:"
+  hi: "पूर्ण दस्तावेज़ अनुभव:"
+  th: "ประสบการณ์เอกสารเต็มรูปแบบ:"
+  cs: "Plná dokumentační zkušenost:"
+  sv: "Fullständig dokumentationsupplevelse:"
+  he: "חוויית תיעוד מלאה:"
+  verified_by_human:
+    - en
+    - de
+get_docs_preview:
+  context: Label above markdown content in get docs fullscreen
+  en: "Documentation preview,"
+  de: "Dokumentationsvorschau,"
+  zh: 文档预览，
+  es: "Vista previa de documentación,"
+  fr: "Aperçu de la documentation,"
+  pt: "Visualização da documentação,"
+  ru: "Предпросмотр документации,"
+  ja: ドキュメントのプレビュー、
+  ko: "문서 미리보기,"
+  it: "Anteprima della documentazione,"
+  tr: "Dokümantasyon önizlemesi,"
+  vi: "Xem trước tài liệu,"
+  id: "Pratinjau dokumentasi,"
+  pl: "Podgląd dokumentacji,"
+  nl: "Documentatievoorbeeld,"
+  ar: "معاينة التوثيق،"
+  hi: "दस्तावेज़ पूर्वावलोकन,"
+  th: "ตัวอย่างเอกสาร,"
+  cs: "Náhled dokumentace,"
+  sv: "Dokumentationsförhandsgranskning,"
+  he: תצוגה מקדימה של התיעוד,
+  verified_by_human:
+    - en
+    - de
+get_docs_no_content:
+  context: Message shown when no documentation content is available
+  en: No documentation available.
+  de: Keine Dokumentation verfügbar.
+  zh: 没有可用的文档。
+  es: No hay documentación disponible.
+  fr: Aucune documentation disponible.
+  pt: Nenhuma documentação disponível.
+  ru: Документация недоступна.
+  ja: ドキュメントがありません。
+  ko: 사용 가능한 문서가 없습니다.
+  it: Nessuna documentazione disponibile.
+  tr: Dokümantasyon mevcut değil.
+  vi: Không có tài liệu nào.
+  id: Tidak ada dokumentasi tersedia.
+  pl: Brak dostępnej dokumentacji.
+  nl: Geen documentatie beschikbaar.
+  ar: لا يوجد توثيق متاح.
+  hi: कोई दस्तावेज़ उपलब्ध नहीं है।
+  th: ไม่มีเอกสารที่พร้อมใช้งาน
+  cs: Žádná dokumentace není k dispozici.
+  sv: Ingen dokumentation tillgänglig.
+  he: אין תיעוד זמין.
+  verified_by_human:
+    - en
+    - de
+get_docs_loading:
+  context: Message shown when documentation is loading
+  en: Loading documentation...
+  de: Dokumentation wird geladen...
+  zh: 正在加载文档...
+  es: Cargando documentación...
+  fr: Chargement de la documentation...
+  pt: Carregando documentação...
+  ru: Загрузка документации...
+  ja: ドキュメントを読み込み中...
+  ko: 문서 로드 중...
+  it: Caricamento documentazione...
+  tr: Dokümantasyon yükleniyor...
+  vi: Đang tải tài liệu...
+  id: Memuat dokumentasi...
+  pl: Ładowanie dokumentacji...
+  nl: Documentatie laden...
+  ar: جاري تحميل التوثيق...
+  hi: दस्तावेज़ लोड हो रहा है...
+  th: กำลังโหลดเอกสาร...
+  cs: Načítání dokumentace...
+  sv: Laddar dokumentation...
+  he: טוען תיעוד...
+  verified_by_human:
+    - en
+    - de
+reminder.scheduling:
+  context: Status text when reminder is being scheduled
+  en: Scheduling...
+  de: Wird geplant...
+  zh: 正在安排...
+  es: Programando...
+  fr: Planification en cours...
+  pt: Agendando...
+  ru: Планирование...
+  ja: スケジュール中...
+  ko: 예약 중...
+  it: Pianificazione in corso...
+  tr: Planlanıyor...
+  vi: Đang lên lịch...
+  id: Menjadwalkan...
+  pl: Planowanie...
+  nl: Plannen...
+  ar: جاري الجدولة...
+  hi: शेड्यूल हो रहा है...
+  th: กำลังกำหนดเวลา...
+  cs: Plánování...
+  sv: Schemalägger...
+  he: מתזמן...
+  verified_by_human: [en, de]
+reminder.error:
+  context: Status text when reminder has an error
+  en: Error
+  de: Fehler
+  zh: 错误
+  es: Error
+  fr: Erreur
+  pt: Erro
+  ru: Ошибка
+  ja: エラー
+  ko: 오류
+  it: Errore
+  tr: Hata
+  vi: Lỗi
+  id: Kesalahan
+  pl: Błąd
+  nl: Fout
+  ar: خطأ
+  hi: त्रुटि
+  th: ข้อผิดพลาด
+  cs: Chyba
+  sv: Fel
+  he: שגיאה
+  verified_by_human: [en, de]
+reminder.new_chat:
+  context: Badge text for reminder targeting a new chat
+  en: New chat
+  de: Neuer Chat
+  zh: 新聊天
+  es: Chat nuevo
+  fr: Nouvelle conversation
+  pt: Novo chat
+  ru: Новый чат
+  ja: 新しいチャット
+  ko: 새 채팅
+  it: Nuova chat
+  tr: Yeni sohbet
+  vi: Cuộc trò chuyện mới
+  id: Obrolan baru
+  pl: Nowy czat
+  nl: Nieuwe chat
+  ar: محادثة جديدة
+  hi: नई चैट
+  th: แชทใหม่
+  cs: Nový chat
+  sv: Ny chatt
+  he: "צ'אט חדש"
+  verified_by_human: [en, de]
+reminder.existing_chat:
+  context: Badge text for reminder targeting the existing chat
+  en: This chat
+  de: Dieser Chat
+  zh: 此聊天
+  es: Este chat
+  fr: Cette conversation
+  pt: Este chat
+  ru: Этот чат
+  ja: このチャット
+  ko: 이 채팅
+  it: Questa chat
+  tr: Bu sohbet
+  vi: Cuộc trò chuyện này
+  id: Obrolan ini
+  pl: Ten czat
+  nl: Deze chat
+  ar: هذه المحادثة
+  hi: यह चैट
+  th: แชทนี้
+  cs: Tento chat
+  sv: Den här chatten
+  he: "צ'אט זה"
+  verified_by_human: [en, de]
+reminder.repeating:
+  context: Badge text for repeating reminders
+  en: Repeating
+  de: Wiederkehrend
+  zh: 重复
+  es: Repetitivo
+  fr: Répétitif
+  pt: Repetitivo
+  ru: Повторяющийся
+  ja: 繰り返し
+  ko: 반복
+  it: Ripetuto
+  tr: Tekrarlanan
+  vi: Lặp lại
+  id: Berulang
+  pl: Powtarzające się
+  nl: Herhalend
+  ar: متكرر
+  hi: दोहराव
+  th: ทำซ้ำ
+  cs: Opakující se
+  sv: Återkommande
+  he: חוזר
+  verified_by_human: [en, de]
+reminder.error_generic:
+  context: Generic error message for reminder embed
+  en: Failed to schedule reminder
+  de: Erinnerung konnte nicht geplant werden
+  zh: 无法安排提醒
+  es: No se pudo programar el recordatorio
+  fr: Impossible de planifier le rappel
+  pt: Falha ao agendar lembrete
+  ru: Не удалось запланировать напоминание
+  ja: リマインダーのスケジュールに失敗しました
+  ko: 알림 예약 실패
+  it: Impossibile pianificare il promemoria
+  tr: Hatırlatıcı planlanamadı
+  vi: Không thể lên lịch nhắc nhở
+  id: Gagal menjadwalkan pengingat
+  pl: Nie udało się zaplanować przypomnienia
+  nl: Herinnering plannen mislukt
+  ar: فشل في جدولة التذكير
+  hi: अनुस्मारक शेड्यूल करने में विफल
+  th: ไม่สามารถกำหนดเวลาการแจ้งเตือนได้
+  cs: Nepodařilo se naplánovat připomínku
+  sv: Det gick inte att schemalägga påminnelse
+  he: תזמון התזכורת נכשל
+  verified_by_human: [en, de]
+reminder.cancelled:
+  context: Status text when reminder is cancelled
+  en: Cancelled
+  de: Abgebrochen
+  zh: 已取消
+  es: Cancelado
+  fr: Annulé
+  pt: Cancelado
+  ru: Отменено
+  ja: キャンセル済み
+  ko: 취소됨
+  it: Annullato
+  tr: İptal edildi
+  vi: Đã hủy
+  id: Dibatalkan
+  pl: Anulowane
+  nl: Geannuleerd
+  ar: ملغى
+  hi: रद्द किया गया
+  th: ยกเลิกแล้ว
+  cs: Zrušeno
+  sv: Avbrutet
+  he: בוטל
+  verified_by_human: [en, de]
+reminder.cancelled_message:
+  context: Message shown when reminder has been cancelled
+  en: This reminder has been cancelled and will not fire.
+  de: Diese Erinnerung wurde abgebrochen und wird nicht ausgelöst.
+  zh: 此提醒已取消，不会触发。
+  es: Este recordatorio ha sido cancelado y no se activará.
+  fr: Ce rappel a été annulé et ne se déclenchera pas.
+  pt: Este lembrete foi cancelado e não será disparado.
+  ru: Это напоминание отменено и не сработает.
+  ja: このリマインダーはキャンセルされ、発火しません。
+  ko: 이 알림은 취소되었으며 실행되지 않습니다.
+  it: Questo promemoria è stato annullato e non verrà attivato.
+  tr: Bu hatırlatıcı iptal edildi ve tetiklenmeyecek.
+  vi: Nhắc nhở này đã bị hủy và sẽ không được kích hoạt.
+  id: Pengingat ini telah dibatalkan dan tidak akan aktif.
+  pl: To przypomnienie zostało anulowane i nie zostanie uruchomione.
+  nl: Deze herinnering is geannuleerd en zal niet worden geactiveerd.
+  ar: تم إلغاء هذا التذكير ولن يتم تشغيله.
+  hi: यह अनुस्मारक रद्द कर दिया गया है और सक्रिय नहीं होगा।
+  th: การแจ้งเตือนนี้ถูกยกเลิกและจะไม่ทำงาน
+  cs: Tato připomínka byla zrušena a nebude spuštěna.
+  sv: Denna påminnelse har avbrutits och kommer inte att utlösas.
+  he: תזכורת זו בוטלה ולא תופעל.
+  verified_by_human: [en, de]
+reminder.scheduled_for:
+  context: Label above the trigger time in fullscreen
+  en: Scheduled for
+  de: Geplant für
+  zh: 预定于
+  es: Programado para
+  fr: Prévu pour
+  pt: Agendado para
+  ru: Запланировано на
+  ja: 予定時刻
+  ko: 예정 시간
+  it: Pianificato per
+  tr: Planlandığı tarih
+  vi: Đã lên lịch cho
+  id: Dijadwalkan untuk
+  pl: Zaplanowane na
+  nl: Gepland voor
+  ar: مجدول ل
+  hi: के लिए निर्धारित
+  th: กำหนดไว้สำหรับ
+  cs: Naplánováno na
+  sv: Schemalagd för
+  he: מתוזמן ל-
+  verified_by_human: [en, de]
+reminder.target_type:
+  context: Label for target type in fullscreen
+  en: Target
+  de: Ziel
+  zh: 目标
+  es: Destino
+  fr: Cible
+  pt: Destino
+  ru: Цель
+  ja: ターゲット
+  ko: 대상
+  it: Destinazione
+  tr: Hedef
+  vi: Mục tiêu
+  id: Target
+  pl: Cel
+  nl: Doel
+  ar: الهدف
+  hi: लक्ष्य
+  th: เป้าหมาย
+  cs: Cíl
+  sv: Mål
+  he: יעד
+  verified_by_human: [en, de]
+reminder.yes:
+  context: Yes for boolean values
+  en: "Yes"
+  de: Ja
+  zh: 是
+  es: Sí
+  fr: Oui
+  pt: Sim
+  ru: Да
+  ja: はい
+  ko: 예
+  it: Sì
+  tr: Evet
+  vi: Có
+  id: Ya
+  pl: Tak
+  nl: Ja
+  ar: نعم
+  hi: हां
+  th: ใช่
+  cs: Ano
+  sv: Ja
+  he: כן
+  verified_by_human: [en, de]
+reminder.no:
+  context: No for boolean values
+  en: "No"
+  de: Nein
+  zh: 否
+  es: No
+  fr: Non
+  pt: Não
+  ru: Нет
+  ja: いいえ
+  ko: 아니오
+  it: No
+  tr: Hayır
+  vi: Không
+  id: Tidak
+  pl: Nie
+  nl: Nee
+  ar: لا
+  hi: नहीं
+  th: ไม่
+  cs: Ne
+  sv: Nej
+  he: לא
+  verified_by_human: [en, de]
+reminder.id:
+  context: Label for reminder ID
+  en: Reminder ID
+  de: Erinnerungs-ID
+  zh: 提醒 ID
+  es: ID del recordatorio
+  fr: ID du rappel
+  pt: ID do lembrete
+  ru: ID напоминания
+  ja: リマインダーID
+  ko: 알림 ID
+  it: ID promemoria
+  tr: Hatırlatıcı ID
+  vi: ID nhắc nhở
+  id: ID pengingat
+  pl: ID przypomnienia
+  nl: Herinnerings-ID
+  ar: معرف التذكير
+  hi: अनुस्मारक आईडी
+  th: ID การแจ้งเตือน
+  cs: ID připomínky
+  sv: Påminnelse-ID
+  he: מזהה תזכורת
+  verified_by_human: [en, de]
+reminder.cancel:
+  context: Button text to cancel a reminder
+  en: Cancel Reminder
+  de: Erinnerung abbrechen
+  zh: 取消提醒
+  es: Cancelar recordatorio
+  fr: Annuler le rappel
+  pt: Cancelar lembrete
+  ru: Отменить напоминание
+  ja: リマインダーをキャンセル
+  ko: 알림 취소
+  it: Annulla promemoria
+  tr: Hatırlatıcıyı iptal et
+  vi: Hủy nhắc nhở
+  id: Batalkan pengingat
+  pl: Anuluj przypomnienie
+  nl: Herinnering annuleren
+  ar: إلغاء التذكير
+  hi: अनुस्मारक रद्द करें
+  th: ยกเลิกการแจ้งเตือน
+  cs: Zrušit připomínku
+  sv: Avbryt påminnelse
+  he: ביטול תזכורת
+  verified_by_human: [en, de]
+reminder.cancelling:
+  context: Button text while cancelling a reminder
+  en: Cancelling...
+  de: Wird abgebrochen...
+  zh: 正在取消...
+  es: Cancelando...
+  fr: Annulation en cours...
+  pt: Cancelando...
+  ru: Отмена...
+  ja: キャンセル中...
+  ko: 취소 중...
+  it: Annullamento in corso...
+  tr: İptal ediliyor...
+  vi: Đang hủy...
+  id: Membatalkan...
+  pl: Anulowanie...
+  nl: Annuleren...
+  ar: جاري الإلغاء...
+  hi: रद्द किया जा रहा है...
+  th: กำลังยกเลิก...
+  cs: Rušení...
+  sv: Avbryter...
+  he: מבטל...
+  verified_by_human: [en, de]
+reminder.cancel_success:
+  context: Notification when reminder is successfully cancelled
+  en: Reminder cancelled
+  de: Erinnerung abgebrochen
+  zh: 提醒已取消
+  es: Recordatorio cancelado
+  fr: Rappel annulé
+  pt: Lembrete cancelado
+  ru: Напоминание отменено
+  ja: リマインダーがキャンセルされました
+  ko: 알림이 취소되었습니다
+  it: Promemoria annullato
+  tr: Hatırlatıcı iptal edildi
+  vi: Đã hủy nhắc nhở
+  id: Pengingat dibatalkan
+  pl: Przypomnienie anulowane
+  nl: Herinnering geannuleerd
+  ar: تم إلغاء التذكير
+  hi: अनुस्मारक रद्द किया गया
+  th: ยกเลิกการแจ้งเตือนแล้ว
+  cs: Připomínka zrušena
+  sv: Påminnelse avbruten
+  he: התזכורת בוטלה
+  verified_by_human: [en, de]
+reminder.cancel_error:
+  context: Notification when reminder cancellation fails
+  en: Failed to cancel reminder
+  de: Erinnerung konnte nicht abgebrochen werden
+  zh: 无法取消提醒
+  es: No se pudo cancelar el recordatorio
+  fr: Impossible d'annuler le rappel
+  pt: Falha ao cancelar lembrete
+  ru: Не удалось отменить напоминание
+  ja: リマインダーのキャンセルに失敗しました
+  ko: 알림 취소 실패
+  it: Impossibile annullare il promemoria
+  tr: Hatırlatıcı iptal edilemedi
+  vi: Không thể hủy nhắc nhở
+  id: Gagal membatalkan pengingat
+  pl: Nie udało się anulować przypomnienia
+  nl: Herinnering annuleren mislukt
+  ar: فشل في إلغاء التذكير
+  hi: अनुस्मारक रद्द करने में विफल
+  th: ไม่สามารถยกเลิกการแจ้งเตือนได้
+  cs: Nepodařilo se zrušit připomínku
+  sv: Det gick inte att avbryta påminnelse
+  he: ביטול התזכורת נכשל
+  verified_by_human: [en, de]
+reminder.already_fired:
+  context: Notice when reminder has already fired
+  en: This reminder has already fired
+  de: Diese Erinnerung wurde bereits ausgelöst
+  zh: 此提醒已触发
+  es: Este recordatorio ya se ha activado
+  fr: Ce rappel a déjà été déclenché
+  pt: Este lembrete já foi disparado
+  ru: Это напоминание уже сработало
+  ja: このリマインダーは既に発火しました
+  ko: 이 알림은 이미 실행되었습니다
+  it: Questo promemoria è già stato attivato
+  tr: Bu hatırlatıcı zaten tetiklendi
+  vi: Nhắc nhở này đã được kích hoạt
+  id: Pengingat ini sudah aktif
+  pl: To przypomnienie już zostało uruchomione
+  nl: Deze herinnering is al geactiveerd
+  ar: هذا التذكير قد تم تشغيله بالفعل
+  hi: यह अनुस्मारक पहले ही सक्रिय हो चुका है
+  th: การแจ้งเตือนนี้ได้ทำงานแล้ว
+  cs: Tato připomínka již byla spuštěna
+  sv: Denna påminnelse har redan utlösts
+  he: תזכורת זו כבר הופעלה
+  verified_by_human: [en, de]
+connection:
+  context: Singular label for a travel connection result
+  en: connection
+  de: Verbindung
+  zh: 连接
+  es: conexión
+  fr: connexion
+  pt: conexão
+  ru: соединение
+  ja: 接続
+  ko: 연결
+  it: connessione
+  tr: bağlantı
+  vi: kết nối
+  id: koneksi
+  pl: połączenie
+  nl: verbinding
+  ar: اتصال
+  hi: कनेक्शन
+  th: การเชื่อมต่อ
+  cs: spojení
+  sv: förbindelse
+  he: חיבור
+  verified_by_human: [en, de]
+connections:
+  context: Plural label for travel connection results
+  en: connections
+  de: Verbindungen
+  zh: 连接
+  es: conexiones
+  fr: connexions
+  pt: conexões
+  ru: соединений
+  ja: 接続
+  ko: 연결
+  it: connessioni
+  tr: bağlantılar
+  vi: kết nối
+  id: koneksi
+  pl: połączenia
+  nl: verbindingen
+  ar: اتصالات
+  hi: कनेक्शन
+  th: การเชื่อมต่อ
+  cs: spojení
+  sv: förbindelser
+  he: חיבורים
+  verified_by_human: [en, de]
+from:
+  context: Price prefix, e.g. 'from EUR 330'
+  en: from
+  de: ab
+  zh: 从
+  es: desde
+  fr: "à partir de"
+  pt: "a partir de"
+  ru: от
+  ja: から
+  ko: 부터
+  it: da
+  tr: den itibaren
+  vi: từ
+  id: dari
+  pl: od
+  nl: vanaf
+  ar: من
+  hi: से
+  th: จาก
+  cs: od
+  sv: från
+  he: מ-
+  verified_by_human: [en, de]
+search_failed:
+  context: Error title when a skill search fails
+  en: Search failed
+  de: Suche fehlgeschlagen
+  zh: 搜索失败
+  es: Búsqueda fallida
+  fr: Recherche échouée
+  pt: Pesquisa falhou
+  ru: Поиск не удался
+  ja: 検索に失敗しました
+  ko: 검색 실패
+  it: Ricerca fallita
+  tr: Arama başarısız
+  vi: Tìm kiếm thất bại
+  id: Pencarian gagal
+  pl: Wyszukiwanie nie powiodło się
+  nl: Zoeken mislukt
+  ar: فشل البحث
+  hi: खोज विफल
+  th: การค้นหาล้มเหลว
+  cs: Hledání selhalo
+  sv: Sökningen misslyckades
+  he: החיפוש נכשל
+  verified_by_human: [en, de]
+loading:
+  context: Loading state text while results are being fetched
+  en: Loading...
+  de: Laden...
+  zh: 加载中...
+  es: Cargando...
+  fr: Chargement...
+  pt: Carregando...
+  ru: Загрузка...
+  ja: 読み込み中...
+  ko: 로딩 중...
+  it: Caricamento...
+  tr: Yükleniyor...
+  vi: Đang tải...
+  id: Memuat...
+  pl: Ładowanie...
+  nl: Laden...
+  ar: جاري التحميل...
+  hi: लोड हो रहा है...
+  th: กำลังโหลด...
+  cs: Načítání...
+  sv: Laddar...
+  he: טוען...
+  verified_by_human: [en, de]
+no_results:
+  context: Message when no results were found
+  en: No connections found.
+  de: Keine Verbindungen gefunden.
+  zh: 未找到连接。
+  es: No se encontraron conexiones.
+  fr: Aucune connexion trouvée.
+  pt: Nenhuma conexão encontrada.
+  ru: Соединения не найдены.
+  ja: 接続が見つかりません。
+  ko: 연결을 찾을 수 없습니다.
+  it: Nessuna connessione trovata.
+  tr: Bağlantı bulunamadı.
+  vi: Không tìm thấy kết nối.
+  id: Tidak ada koneksi ditemukan.
+  pl: Nie znaleziono połączeń.
+  nl: Geen verbindingen gevonden.
+  ar: لم يتم العثور على اتصالات.
+  hi: कोई कनेक्शन नहीं मिला।
+  th: ไม่พบการเชื่อมต่อ
+  cs: Nebyly nalezeny žádné spoje.
+  sv: Inga förbindelser hittades.
+  he: לא נמצאו חיבורים.
+  verified_by_human: [en, de]
+book_on:
+  context: CTA button text, e.g. 'Book on Google Flights'
+  en: Book on {provider}
+  de: Buchen auf {provider}
+  zh: 在{provider}上预订
+  es: Reservar en {provider}
+  fr: Réserver sur {provider}
+  pt: Reservar no {provider}
+  ru: Забронировать на {provider}
+  ja: "{provider}で予約"
+  ko: "{provider}에서 예약"
+  it: Prenota su {provider}
+  tr: "{provider} üzerinden rezerve et"
+  vi: Đặt trên {provider}
+  id: Pesan di {provider}
+  pl: Zarezerwuj na {provider}
+  nl: Boek op {provider}
+  ar: احجز على {provider}
+  hi: "{provider} पर बुक करें"
+  th: จองบน {provider}
+  cs: Rezervovat na {provider}
+  sv: Boka på {provider}
+  he: "הזמנה ב-{provider}"
+  verified_by_human: [en, de]
+open_google_flights:
+  context: CTA button text when no direct airline booking URL is available
+  en: Open Google Flights
+  de: Google Flights öffnen
+  zh: 打开 Google Flights
+  es: Abrir Google Flights
+  fr: Ouvrir Google Flights
+  pt: Abrir Google Flights
+  ru: Открыть Google Flights
+  ja: Google Flightsを開く
+  ko: Google Flights 열기
+  it: Apri Google Flights
+  tr: Google Flights'ı aç
+  vi: Mở Google Flights
+  id: Buka Google Flights
+  pl: Otwórz Google Flights
+  nl: Google Flights openen
+  ar: افتح Google Flights
+  hi: Google Flights खोलें
+  th: เปิด Google Flights
+  cs: Otevřít Google Flights
+  sv: Öppna Google Flights
+  he: פתיחת Google Flights
+  verified_by_human: [en, de]
+copied_to_clipboard:
+  context: Notification shown when content has been copied to clipboard
+  en: Copied to clipboard
+  de: Kopiert
+  zh: 已复制
+  es: Copiado al portapapeles
+  fr: Copié
+  pt: Copiado para a área de transferência
+  ru: Скопировано в буфер обмена
+  ja: クリップボードにコピーしました
+  ko: 클립보드에 복사됨
+  it: Copiato negli appunti
+  tr: Panoya kopyalandı
+  vi: Đã sao chép vào clipboard
+  id: Disalin ke clipboard
+  pl: Skopiowano do schowka
+  nl: Naar klembord gekopieerd
+  ar: تم النسخ إلى الحافظة
+  hi: क्लिपबोर्ड पर कॉपी किया गया
+  th: คัดลอกไปยังคลิปบอร์ดแล้ว
+  cs: Zkopírováno do schránky
+  sv: Kopierat till urklipp
+  he: הועתק ללוח
+  verified_by_human: []
+copy_failed:
+  context: Notification shown when copying to clipboard fails
+  en: Failed to copy to clipboard
+  de: Kopieren fehlgeschlagen
+  zh: 复制失败
+  es: Error al copiar
+  fr: Échec de la copie
+  pt: Falha ao copiar
+  ru: Не удалось скопировать
+  ja: コピーに失敗しました
+  ko: 복사 실패
+  it: Copia fallita
+  tr: Kopyalama başarısız
+  vi: Không thể sao chép
+  id: Gagal menyalin
+  pl: Nie udało się skopiować
+  nl: Kopiëren mislukt
+  ar: فشل النسخ
+  hi: कॉपी करने में विफल
+  th: คัดลอกไม่สำเร็จ
+  cs: Kopírování se nezdařilo
+  sv: Kopiering misslyckades
+  he: ההעתקה ללוח נכשלה
+  verified_by_human: []
+download_itinerary:
+  context: Button label to download travel itinerary as PDF
+  en: Download itinerary
+  de: Reiseplan herunterladen
+  zh: 下载行程
+  es: Descargar itinerario
+  fr: "Télécharger l'itinéraire"
+  pt: Baixar itinerário
+  ru: Скачать маршрут
+  ja: 旅程をダウンロード
+  ko: 여행 일정 다운로드
+  it: Scarica itinerario
+  tr: Güzergahı indir
+  vi: Tải hành trình
+  id: Unduh rencana perjalanan
+  pl: Pobierz plan podróży
+  nl: Reisplan downloaden
+  ar: تحميل خط السير
+  hi: यात्रा कार्यक्रम डाउनलोड करें
+  th: ดาวน์โหลดกำหนดการเดินทาง
+  cs: Stáhnout itinerář
+  sv: Ladda ner resplan
+  he: הורדת מסלול הטיול
+  verified_by_human: [en, de]
+image_generate:
+  context: Image generate skill label shown in BasicInfosBar - shows the skill name "Generate"
+  en: Generate
+  de: Generieren
+  zh: 生成
+  es: Generar
+  fr: Générer
+  pt: Gerar
+  ru: Генерация
+  ja: 生成
+  ko: 생성
+  it: Genera
+  tr: Oluştur
+  vi: Tạo
+  id: Buat
+  pl: Generuj
+  nl: Genereren
+  ar: إنشاء
+  hi: बनाएं
+  th: สร้าง
+  cs: Generovat
+  sv: Generera
+  he: יצירה
+  verified_by_human: []
+image_generate_draft:
+  context: Image generate draft skill label shown in BasicInfosBar - shows the skill name "Generate Draft"
+  en: Generate Draft
+  de: Entwurf generieren
+  zh: 生成草稿
+  es: Generar borrador
+  fr: "Générer un brouillon"
+  pt: Gerar rascunho
+  ru: Генерация черновика
+  ja: 下書き生成
+  ko: 초안 생성
+  it: Genera bozza
+  tr: Taslak oluştur
+  vi: "Tạo bản nháp"
+  id: Buat draf
+  pl: "Generuj szkic"
+  nl: Concept genereren
+  ar: إنشاء مسودة
+  hi: ड्राफ्ट बनाएं
+  th: สร้างแบบร่าง
+  cs: "Generovat návrh"
+  sv: Generera utkast
+  he: יצירת טיוטה
+  verified_by_human: []
+image_generate.error:
+  context: Error message when image generation fails
+  en: Image generation failed
+  de: Bildgenerierung fehlgeschlagen
+  zh: 图片生成失败
+  es: La generación de imagen falló
+  fr: "La génération d'image a échoué"
+  pt: Falha na geração de imagem
+  ru: Ошибка генерации изображения
+  ja: 画像生成に失敗しました
+  ko: 이미지 생성 실패
+  it: Generazione immagine fallita
+  tr: Görsel oluşturma başarısız
+  vi: Tạo hình ảnh thất bại
+  id: Pembuatan gambar gagal
+  pl: Generowanie obrazu nie powiodło się
+  nl: Afbeelding genereren mislukt
+  ar: فشل إنشاء الصورة
+  hi: चित्र बनाना विफल रहा
+  th: สร้างรูปภาพล้มเหลว
+  cs: Generování obrázku selhalo
+  sv: Bildgenerering misslyckades
+  he: יצירת התמונה נכשלה
+  verified_by_human: []
+image_generate.loading:
+  context: Loading text while image is being decrypted
+  en: Loading image...
+  de: Bild wird geladen...
+  zh: 正在加载图片...
+  es: Cargando imagen...
+  fr: "Chargement de l'image..."
+  pt: Carregando imagem...
+  ru: Загрузка изображения...
+  ja: 画像を読み込み中...
+  ko: 이미지 로딩 중...
+  it: Caricamento immagine...
+  tr: Görsel yükleniyor...
+  vi: Đang tải hình ảnh...
+  id: Memuat gambar...
+  pl: Ładowanie obrazu...
+  nl: Afbeelding laden...
+  ar: جاري تحميل الصورة...
+  hi: चित्र लोड हो रहा है...
+  th: กำลังโหลดรูปภาพ...
+  cs: Načítání obrázku...
+  sv: Laddar bild...
+  he: טוען תמונה...
+  verified_by_human: []
+image_generate.prompt_label:
+  context: Label for the prompt field in image fullscreen view
+  en: Prompt
+  de: Eingabe
+  zh: 提示
+  es: Indicación
+  fr: Invite
+  pt: Prompt
+  ru: Промпт
+  ja: プロンプト
+  ko: 프롬프트
+  it: Prompt
+  tr: İstem
+  vi: Lời nhắc
+  id: Prompt
+  pl: Prompt
+  nl: Prompt
+  ar: التعليمات
+  hi: प्रॉम्प्ट
+  th: คำสั่ง
+  cs: Výzva
+  sv: Prompt
+  he: פרומפט
+  verified_by_human: []
+image_generate.model_label:
+  context: Label for model name in image fullscreen view
+  en: Model
+  de: Modell
+  zh: 模型
+  es: Modelo
+  fr: Modèle
+  pt: Modelo
+  ru: Модель
+  ja: モデル
+  ko: 모델
+  it: Modello
+  tr: Model
+  vi: Mô hình
+  id: Model
+  pl: Model
+  nl: Model
+  ar: النموذج
+  hi: मॉडल
+  th: โมเดล
+  cs: Model
+  sv: Modell
+  he: מודל
+  verified_by_human: []
+image_generate.aspect_ratio:
+  context: Label for aspect ratio in image fullscreen view
+  en: Aspect Ratio
+  de: Seitenverhältnis
+  zh: 宽高比
+  es: Relación de aspecto
+  fr: "Rapport d'aspect"
+  pt: Proporção
+  ru: Соотношение сторон
+  ja: アスペクト比
+  ko: 종횡비
+  it: Rapporto aspetto
+  tr: En boy oranı
+  vi: Tỷ lệ khung hình
+  id: Rasio aspek
+  pl: Proporcje
+  nl: Beeldverhouding
+  ar: نسبة العرض إلى الارتفاع
+  hi: पक्षानुपात
+  th: อัตราส่วนภาพ
+  cs: Poměr stran
+  sv: Bildförhållande
+  he: יחס גובה-רוחב
+  verified_by_human: []
+image_generate.resolution:
+  context: Label for resolution in image fullscreen view
+  en: Resolution
+  de: Auflösung
+  zh: 分辨率
+  es: Resolución
+  fr: Résolution
+  pt: Resolução
+  ru: Разрешение
+  ja: 解像度
+  ko: 해상도
+  it: Risoluzione
+  tr: Çözünürlük
+  vi: Độ phân giải
+  id: Resolusi
+  pl: Rozdzielczość
+  nl: Resolutie
+  ar: الدقة
+  hi: संकल्प
+  th: ความละเอียด
+  cs: Rozlišení
+  sv: Upplösning
+  he: רזולוציה
+  verified_by_human: []
+image_generate.download:
+  context: Button label to download the original image
+  en: Download Original
+  de: Original herunterladen
+  zh: 下载原始文件
+  es: Descargar original
+  fr: "Télécharger l'original"
+  pt: Baixar original
+  ru: Скачать оригинал
+  ja: オリジナルをダウンロード
+  ko: 원본 다운로드
+  it: Scarica originale
+  tr: Orijinali indir
+  vi: Tải bản gốc
+  id: Unduh asli
+  pl: Pobierz oryginał
+  nl: Origineel downloaden
+  ar: تحميل الأصلي
+  hi: मूल डाउनलोड करें
+  th: ดาวน์โหลดต้นฉบับ
+  cs: Stáhnout originál
+  sv: Ladda ner original
+  he: הורדת המקור
+  verified_by_human: []
+image_generate.generated_by:
+  context: Text shown above the prompt card in fullscreen view, followed by the model name. E.g. "Generated by Gemini 3 Pro"
+  en: Generated by
+  de: Generiert von
+  zh: 生成方
+  es: Generado por
+  fr: Généré par
+  pt: Gerado por
+  ru: Сгенерировано
+  ja: 生成モデル
+  ko: 생성 모델
+  it: Generato da
+  tr: Oluşturan
+  vi: Được tạo bởi
+  id: Dibuat oleh
+  pl: Wygenerowano przez
+  nl: Gegenereerd door
+  ar: تم الإنشاء بواسطة
+  hi: द्वारा उत्पन्न
+  th: สร้างโดย
+  cs: Vygenerováno pomocí
+  sv: Genererat av
+  he: נוצר על ידי
+  verified_by_human: []
+image_generate.generating_via:
+  context: Text shown in the preview card during image generation, followed by the model name and a colon. E.g. "Generating via FLUX Schnell:"
+  en: Generating via
+  de: Generierung via
+  zh: 通过生成
+  es: Generando vía
+  fr: Génération via
+  pt: Gerando via
+  ru: Генерация через
+  ja: 生成中
+  ko: 생성 중
+  it: Generazione tramite
+  tr: Oluşturuluyor
+  vi: Đang tạo qua
+  id: Membuat via
+  pl: Generowanie przez
+  nl: Genereren via
+  ar: الإنشاء عبر
+  hi: के माध्यम से बनाना
+  th: กำลังสร้างผ่าน
+  cs: Generování přes
+  sv: Genererar via
+  he: יוצר באמצעות
+  verified_by_human: []
+image_generate.open_full_size:
+  context: Tooltip shown when hovering over the image in fullscreen view - clicking opens the full-size image in a new browser tab
+  en: Open full size image
+  de: Bild in voller Größe öffnen
+  zh: 查看完整尺寸图片
+  es: Abrir imagen en tamaño completo
+  fr: Ouvrir l'image en taille réelle
+  pt: Abrir imagem em tamanho real
+  ru: Открыть изображение в полном размере
+  ja: フルサイズの画像を開く
+  ko: 전체 크기 이미지 열기
+  it: Apri immagine a dimensione piena
+  tr: Tam boyut görseli aç
+  vi: Mở ảnh kích thước đầy đủ
+  id: Buka gambar ukuran penuh
+  pl: Otwórz obraz w pełnym rozmiarze
+  nl: Afbeelding op volledige grootte openen
+  ar: فتح الصورة بالحجم الكامل
+  hi: पूर्ण आकार की छवि खोलें
+  th: เปิดรูปภาพขนาดเต็ม
+  cs: Otevřít obrázek v plné velikosti
+  sv: Öppna bild i full storlek
+  he: פתיחת תמונה בגודל מלא
+  verified_by_human: []
+context_menu.view:
+  context: Context menu action to open embed in fullscreen view
+  en: View
+  de: Anzeigen
+  zh: 查看
+  es: Ver
+  fr: Voir
+  pt: Ver
+  ru: Просмотр
+  ja: 表示
+  ko: 보기
+  it: Visualizza
+  tr: Görüntüle
+  vi: Xem
+  id: Lihat
+  pl: Wyświetl
+  nl: Bekijken
+  ar: عرض
+  hi: देखें
+  th: ดู
+  cs: Zobrazit
+  sv: Visa
+  he: תצוגה
+  verified_by_human: []
+context_menu.share:
+  context: Context menu action to share an embed
+  en: Share
+  de: Teilen
+  zh: 分享
+  es: Compartir
+  fr: Partager
+  pt: Compartilhar
+  ru: Поделиться
+  ja: 共有
+  ko: 공유
+  it: Condividi
+  tr: Paylaş
+  vi: Chia sẻ
+  id: Bagikan
+  pl: Udostępnij
+  nl: Delen
+  ar: مشاركة
+  hi: साझा करें
+  th: แชร์
+  cs: Sdílet
+  sv: Dela
+  he: שיתוף
+  verified_by_human: []
+context_menu.copy:
+  context: Context menu action to copy embed content
+  en: Copy
+  de: Kopieren
+  zh: 复制
+  es: Copiar
+  fr: Copier
+  pt: Copiar
+  ru: Копировать
+  ja: コピー
+  ko: 복사
+  it: Copia
+  tr: Kopyala
+  vi: Sao chép
+  id: Salin
+  pl: Kopiuj
+  nl: Kopiëren
+  ar: نسخ
+  hi: कॉपी करें
+  th: คัดลอก
+  cs: Kopírovat
+  sv: Kopiera
+  he: העתקה
+  verified_by_human: []
+context_menu.download:
+  context: Context menu action to download embed content
+  en: Download
+  de: Herunterladen
+  zh: 下载
+  es: Descargar
+  fr: Télécharger
+  pt: Baixar
+  ru: Скачать
+  ja: ダウンロード
+  ko: 다운로드
+  it: Scarica
+  tr: İndir
+  vi: Tải xuống
+  id: Unduh
+  pl: Pobierz
+  nl: Downloaden
+  ar: تحميل
+  hi: डाउनलोड करें
+  th: ดาวน์โหลด
+  cs: Stáhnout
+  sv: Ladda ner
+  he: הורדה
+  verified_by_human: []
+context_menu.deactivate:
+  context: Context menu action to deactivate a focus mode
+  en: Deactivate
+  de: Deaktivieren
+  zh: 停用
+  es: Desactivar
+  fr: Désactiver
+  pt: Desativar
+  ru: Деактивировать
+  ja: 無効化
+  ko: 비활성화
+  it: Disattiva
+  tr: Devre dışı bırak
+  vi: Tắt
+  id: Nonaktifkan
+  pl: Dezaktywuj
+  nl: Deactiveren
+  ar: إلغاء التفعيل
+  hi: निष्क्रिय करें
+  th: ปิดใช้งาน
+  cs: Deaktivovat
+  sv: Inaktivera
+  he: השבתה
+  verified_by_human: []
+context_menu.details:
+  context: Context menu action to view focus mode details in app store
+  en: Details
+  de: Details
+  zh: 详情
+  es: Detalles
+  fr: Détails
+  pt: Detalhes
+  ru: Подробности
+  ja: 詳細
+  ko: 상세정보
+  it: Dettagli
+  tr: Ayrıntılar
+  vi: Chi tiết
+  id: Detail
+  pl: Szczegóły
+  nl: Details
+  ar: تفاصيل
+  hi: विवरण
+  th: รายละเอียด
+  cs: Podrobnosti
+  sv: Detaljer
+  he: פרטים
+  verified_by_human: []
+focus_mode.active_banner:
+  context: Fixed header banner text shown in ActiveChat when a focus mode is active for the current chat. Short label indicating an active focus session.
+  en: Focus active
+  de: Fokus aktiv
+  zh: 专注模式激活中
+  es: Enfoque activo
+  fr: Mode focus actif
+  pt: Foco ativo
+  ru: Фокус активен
+  ja: フォーカス中
+  ko: 포커스 활성
+  it: Focus attivo
+  tr: Odak aktif
+  vi: Đang tập trung
+  id: Fokus aktif
+  pl: Skupienie aktywne
+  nl: Focus actief
+  ar: التركيز نشط
+  hi: फोकस सक्रिय
+  th: โฟกัสใช้งาน
+  cs: Zaměření aktivní
+  sv: Fokus aktivt
+  he: מיקוד פעיל
+  verified_by_human: []
+focus_mode.focus_on:
+  context: Trailing label in the focus mode pill shown above the message input. Displayed after the focus mode name, e.g. "Career Insights focus on". Kept short.
+  en: focus on
+  de: fokus aktiv
+  zh: 专注中
+  es: enfoque activo
+  fr: focus actif
+  pt: foco ativo
+  ru: фокус активен
+  ja: フォーカス中
+  ko: 포커스 켜짐
+  it: focus attivo
+  tr: odak açık
+  vi: đang tập trung
+  id: fokus aktif
+  pl: skupienie włączone
+  nl: focus aan
+  ar: تركيز نشط
+  hi: फोकस चालू
+  th: โฟกัสเปิดอยู่
+  cs: zaměření aktivní
+  sv: fokus aktivt
+  he: מתמקד ב-
+  verified_by_human: []
+focus_mode.activated:
+  context: Status text shown on focus mode embed after activation completes
+  en: Focus activated
+  de: Fokus aktiviert
+  zh: 专注模式已激活
+  es: Enfoque activado
+  fr: Mode focus activé
+  pt: Foco ativado
+  ru: Фокус активирован
+  ja: フォーカスモード有効
+  ko: 포커스 활성화됨
+  it: Focus attivato
+  tr: Odak etkinleştirildi
+  vi: Đã kích hoạt chế độ tập trung
+  id: Fokus diaktifkan
+  pl: Tryb skupienia aktywowany
+  nl: Focus geactiveerd
+  ar: تم تفعيل وضع التركيز
+  hi: फोकस मोड सक्रिय
+  th: เปิดใช้งานโหมดโฟกัสแล้ว
+  cs: Režim zaměření aktivován
+  sv: Fokusläge aktiverat
+  he: מצב מיקוד הופעל
+  verified_by_human: []
+focus_mode.activating:
+  context: Status text shown during focus mode countdown. {seconds} is replaced with the remaining seconds.
+  en: "Activate in {seconds} sec ..."
+  de: "Aktivierung in {seconds} Sek. ..."
+  zh: "{seconds} 秒后激活 ..."
+  es: "Activar en {seconds} seg ..."
+  fr: "Activation dans {seconds} sec ..."
+  pt: "Ativar em {seconds} seg ..."
+  ru: "Активация через {seconds} сек ..."
+  ja: "{seconds} 秒後に有効化 ..."
+  ko: "{seconds}초 후 활성화 ..."
+  it: "Attivazione tra {seconds} sec ..."
+  tr: "{seconds} sn içinde etkinleştir ..."
+  vi: "Kích hoạt sau {seconds} giây ..."
+  id: "Aktifkan dalam {seconds} detik ..."
+  pl: "Aktywacja za {seconds} sek ..."
+  nl: "Activeren over {seconds} sec ..."
+  ar: "تفعيل خلال {seconds} ثانية ..."
+  hi: "{seconds} सेकंड में सक्रिय करें ..."
+  th: "เปิดใช้งานใน {seconds} วินาที ..."
+  cs: "Aktivace za {seconds} s ..."
+  sv: "Aktiveras om {seconds} sek ..."
+  he: "הפעלה בעוד {seconds} שניות..."
+  verified_by_human: []
+focus_mode.reject_hint:
+  context: "Helper text below the focus mode card during countdown explaining how to prevent activation. Uses \\n for line break."
+  en: "Click or press ESC to prevent focus mode &\ncontinue regular chat"
+  de: "Klicken oder ESC drücken um Fokus-Modus zu verhindern &\nnormal weiterzuchatten"
+  zh: "点击或按 ESC 取消专注模式 &\n继续常规聊天"
+  es: "Haz clic o pulsa ESC para cancelar el modo enfoque &\ny continuar el chat normal"
+  fr: "Cliquez ou appuyez sur ESC pour annuler le mode focus &\net continuer la conversation"
+  pt: "Clique ou pressione ESC para cancelar o modo foco &\ne continuar o chat normal"
+  ru: "Нажмите или ESC чтобы отменить режим фокуса &\nи продолжить обычный чат"
+  ja: "クリックまたはESCでフォーカスモードを解除 &\n通常チャットを続ける"
+  ko: "클릭하거나 ESC를 눌러 포커스 모드를 취소하고 &\n일반 채팅을 계속하세요"
+  it: "Clicca o premi ESC per annullare il focus &\ne continuare la chat normale"
+  tr: "Odak modunu iptal etmek için tıklayın veya ESC tuşuna basın &\nnormal sohbete devam edin"
+  vi: "Nhấp hoặc nhấn ESC để hủy chế độ tập trung &\nvà tiếp tục trò chuyện bình thường"
+  id: "Klik atau tekan ESC untuk membatalkan mode fokus &\ndan lanjutkan obrolan biasa"
+  pl: "Kliknij lub naciśnij ESC, aby anulować tryb skupienia &\ni kontynuować zwykły czat"
+  nl: "Klik of druk op ESC om focusmodus te annuleren &\nen door te gaan met de normale chat"
+  ar: "انقر أو اضغط ESC لإلغاء وضع التركيز &\nومتابعة الدردشة العادية"
+  hi: "फोकस मोड रद्द करने के लिए क्लिक करें या ESC दबाएं &\nऔर सामान्य चैट जारी रखें"
+  th: "คลิกหรือกด ESC เพื่อยกเลิกโหมดโฟกัส &\nและดำเนินการแชทปกติต่อ"
+  cs: "Klikněte nebo stiskněte ESC pro zrušení režimu zaměření &\na pokračujte v běžném chatu"
+  sv: "Klicka eller tryck ESC för att avbryta fokusläge &\noch fortsätta vanlig chatt"
+  he: |
+    יש ללחוץ או להקיש על ESC כדי למנוע את מצב המיקוד &
+    להמשיך בצ'אט רגיל
+  verified_by_human: []
+days:
+  context: Label for number of days (e.g., "22 / 31 days")
+  en: days
+  de: Tage
+  zh: 天
+  es: días
+  fr: jours
+  pt: dias
+  ru: дней
+  ja: 日
+  ko: 일
+  it: giorni
+  tr: gün
+  vi: ngày
+  id: hari
+  pl: dni
+  nl: dagen
+  ar: أيام
+  hi: दिन
+  th: วัน
+  cs: dní
+  sv: dagar
+  he: ימים
+  verified_by_human: [en, de]
+cheapest:
+  context: Label for the cheapest price in a price calendar
+  en: Cheapest
+  de: Günstigster
+  zh: 最便宜
+  es: Más barato
+  fr: Le moins cher
+  pt: Mais barato
+  ru: Самый дешёвый
+  ja: 最安値
+  ko: 최저가
+  it: Più economico
+  tr: En ucuz
+  vi: Rẻ nhất
+  id: Termurah
+  pl: Najtańszy
+  nl: Goedkoopst
+  ar: الأرخص
+  hi: सबसे सस्ता
+  th: ถูกที่สุด
+  cs: Nejlevnější
+  sv: Billigast
+  he: הכי זול
+  verified_by_human: [en, de]
+most_expensive:
+  context: Label for the most expensive price in a price calendar
+  en: Most expensive
+  de: Teuerster
+  zh: 最贵
+  es: Más caro
+  fr: Le plus cher
+  pt: Mais caro
+  ru: Самый дорогой
+  ja: 最高値
+  ko: 최고가
+  it: Più costoso
+  tr: En pahalı
+  vi: Đắt nhất
+  id: Termahal
+  pl: Najdroższy
+  nl: Duurste
+  ar: الأغلى
+  hi: सबसे महंगा
+  th: แพงที่สุด
+  cs: Nejdražší
+  sv: Dyrast
+  he: הכי יקר
+  verified_by_human: [en, de]
+coverage:
+  context: Label for data coverage (how many days have price data)
+  en: Coverage
+  de: Abdeckung
+  zh: 覆盖范围
+  es: Cobertura
+  fr: Couverture
+  pt: Cobertura
+  ru: Покрытие
+  ja: カバー率
+  ko: 커버리지
+  it: Copertura
+  tr: Kapsam
+  vi: Phạm vi
+  id: Cakupan
+  pl: Pokrycie
+  nl: Dekking
+  ar: التغطية
+  hi: कवरेज
+  th: ความครอบคลุม
+  cs: Pokrytí
+  sv: Täckning
+  he: כיסוי
+  verified_by_human: [en, de]
+no_price_data:
+  context: Message shown when no price data is available for a route
+  en: No price data available for this route
+  de: Keine Preisdaten für diese Strecke verfügbar
+  zh: 此航线暂无价格数据
+  es: No hay datos de precios disponibles para esta ruta
+  fr: Aucune donnée de prix disponible pour cet itinéraire
+  pt: Nenhum dado de preço disponível para esta rota
+  ru: Нет данных о ценах для этого маршрута
+  ja: このルートの料金データはありません
+  ko: 이 노선의 가격 데이터가 없습니다
+  it: Nessun dato di prezzo disponibile per questa tratta
+  tr: Bu rota için fiyat verisi bulunamadı
+  vi: Không có dữ liệu giá cho tuyến này
+  id: Tidak ada data harga untuk rute ini
+  pl: Brak danych cenowych dla tej trasy
+  nl: Geen prijsgegevens beschikbaar voor deze route
+  ar: لا توجد بيانات أسعار لهذا المسار
+  hi: इस मार्ग के लिए कोई मूल्य डेटा उपलब्ध नहीं है
+  th: ไม่มีข้อมูลราคาสำหรับเส้นทางนี้
+  cs: Pro tuto trasu nejsou k dispozici cenové údaje
+  sv: Inga prisuppgifter tillgängliga för denna rutt
+  he: אין נתוני מחירים זמינים למסלול זה
+  verified_by_human: [en, de]
+price_calendar_note:
+  context: Footnote explaining that price calendar prices are cached estimates
+  en: Prices are cached estimates (~48h old). Search specific dates for live pricing.
+  de: Preise sind zwischengespeicherte Schätzungen (~48h alt). Suche nach konkreten Daten für aktuelle Preise.
+  zh: 价格为缓存估算（约48小时前）。搜索具体日期以获取实时价格。
+  es: Los precios son estimaciones en caché (~48h). Busca fechas específicas para precios en tiempo real.
+  fr: Les prix sont des estimations en cache (~48h). Recherchez des dates spécifiques pour des tarifs en direct.
+  pt: Os preços são estimativas em cache (~48h). Pesquise datas específicas para preços em tempo real.
+  ru: Цены — кэшированные оценки (~48ч). Ищите конкретные даты для актуальных цен.
+  ja: 価格はキャッシュされた推定値（約48時間前）です。最新の価格は特定の日付で検索してください。
+  ko: 가격은 캐시된 추정값(~48시간 전)입니다. 실시간 요금은 특정 날짜로 검색하세요.
+  it: I prezzi sono stime memorizzate (~48h). Cerca date specifiche per prezzi aggiornati.
+  tr: Fiyatlar önbelleğe alınmış tahminlerdir (~48 saat). Güncel fiyatlar için belirli tarihleri arayın.
+  vi: Giá là ước tính được lưu bộ nhớ đệm (~48 giờ). Tìm kiếm ngày cụ thể để có giá trực tiếp.
+  id: Harga adalah perkiraan cache (~48 jam). Cari tanggal tertentu untuk harga terkini.
+  pl: Ceny to szacunki z pamięci podręcznej (~48h). Wyszukaj konkretne daty, aby uzyskać aktualne ceny.
+  nl: Prijzen zijn geschatte cachewaarden (~48u). Zoek specifieke datums voor actuele prijzen.
+  ar: الأسعار تقديرات مخزنة مؤقتاً (~48 ساعة). ابحث عن تواريخ محددة للحصول على أسعار حية.
+  hi: कीमतें कैश्ड अनुमान हैं (~48 घंटे पुरानी)। लाइव मूल्य के लिए विशिष्ट तिथियाँ खोजें।
+  th: ราคาเป็นการประมาณจากแคช (~48 ชม.) ค้นหาวันที่เฉพาะเพื่อดูราคาแบบเรียลไทม์
+  cs: Ceny jsou odhadované z mezipaměti (~48 h). Pro aktuální ceny vyhledejte konkrétní data.
+  sv: Priser är cachade uppskattningar (~48 tim). Sök specifika datum för aktuella priser.
+  he: המחירים הם הערכות שמורות (מלפני כ-48 שעות). יש לחפש תאריכים ספציפיים למחירים עדכניים.
+  verified_by_human: [en, de]
+get_booking_link:
+  context: CTA button text for on-demand booking URL lookup (before loading)
+  en: Get booking link
+  de: Buchungslink laden
+  zh: 获取预订链接
+  es: Obtener enlace de reserva
+  fr: Obtenir le lien de réservation
+  pt: Obter link de reserva
+  ru: Получить ссылку на бронирование
+  ja: 予約リンクを取得
+  ko: 예약 링크 가져오기
+  it: Ottieni link di prenotazione
+  tr: Rezervasyon bağlantısını al
+  vi: Lấy liên kết đặt phòng
+  id: Dapatkan tautan pemesanan
+  pl: Pobierz link do rezerwacji
+  nl: Boekingslink ophalen
+  ar: الحصول على رابط الحجز
+  hi: बुकिंग लिंक प्राप्त करें
+  th: รับลิงก์จอง
+  cs: Získat odkaz na rezervaci
+  sv: Hämta bokningslänk
+  he: קבלת קישור להזמנה
+  verified_by_human: [en, de]
+loading_booking:
+  context: CTA button text while fetching booking URL from server
+  en: Loading booking link...
+  de: Buchungslink wird geladen...
+  zh: 正在加载预订链接...
+  es: Cargando enlace de reserva...
+  fr: Chargement du lien de réservation...
+  pt: Carregando link de reserva...
+  ru: Загрузка ссылки на бронирование...
+  ja: 予約リンクを読み込み中...
+  ko: 예약 링크 로딩 중...
+  it: Caricamento link di prenotazione...
+  tr: Rezervasyon bağlantısı yükleniyor...
+  vi: Đang tải liên kết đặt phòng...
+  id: Memuat tautan pemesanan...
+  pl: Ładowanie linku do rezerwacji...
+  nl: Boekingslink laden...
+  ar: جاري تحميل رابط الحجز...
+  hi: बुकिंग लिंक लोड हो रहा है...
+  th: กำลังโหลดลิงก์จอง...
+  cs: Načítání odkazu na rezervaci...
+  sv: Laddar bokningslänk...
+  he: טוען קישור להזמנה...
+  verified_by_human: [en, de]
+booking_link_failed:
+  context: Error notification shown when booking link lookup fails
+  en: Could not load booking link. Try searching on Google Flights instead.
+  de: Buchungslink konnte nicht geladen werden. Versuche stattdessen eine Suche auf Google Flights.
+  zh: 无法加载预订链接。请尝试在 Google Flights 上搜索。
+  es: No se pudo cargar el enlace de reserva. Intenta buscar en Google Flights.
+  fr: Impossible de charger le lien de réservation. Essayez de chercher sur Google Flights.
+  pt: Não foi possível carregar o link de reserva. Tente pesquisar no Google Flights.
+  ru: Не удалось загрузить ссылку на бронирование. Попробуйте поиск на Google Flights.
+  ja: 予約リンクを読み込めませんでした。Google Flightsで検索してみてください。
+  ko: 예약 링크를 불러올 수 없습니다. Google Flights에서 검색해 보세요.
+  it: Impossibile caricare il link di prenotazione. Prova a cercare su Google Flights.
+  tr: Rezervasyon bağlantısı yüklenemedi. Bunun yerine Google Flights'ta aramayı deneyin.
+  vi: Không thể tải liên kết đặt phòng. Hãy thử tìm kiếm trên Google Flights.
+  id: Tidak dapat memuat tautan pemesanan. Coba cari di Google Flights.
+  pl: Nie udało się załadować linku do rezerwacji. Spróbuj wyszukać na Google Flights.
+  nl: Boekingslink kon niet worden geladen. Probeer te zoeken op Google Flights.
+  ar: تعذر تحميل رابط الحجز. حاول البحث في Google Flights بدلاً من ذلك.
+  hi: बुकिंग लिंक लोड नहीं हो सका। इसके बजाय Google Flights पर खोजने का प्रयास करें।
+  th: ไม่สามารถโหลดลิงก์จองได้ ลองค้นหาใน Google Flights แทน
+  cs: Nepodařilo se načíst odkaz na rezervaci. Zkuste vyhledat na Google Flights.
+  sv: Kunde inte ladda bokningslänk. Prova att söka på Google Flights istället.
+  he: לא ניתן היה לטעון את קישור ההזמנה. כדאי לנסות לחפש ב-Google Flights במקום.
+  verified_by_human: [en, de]
+stay:
+  context: Singular label for a travel stay/accommodation result
+  en: stay
+  de: Unterkunft
+  zh: 住宿
+  es: alojamiento
+  fr: hébergement
+  pt: estadia
+  ru: проживание
+  ja: 宿泊施設
+  ko: 숙소
+  it: alloggio
+  tr: konaklama
+  vi: chỗ ở
+  id: penginapan
+  pl: nocleg
+  nl: verblijf
+  ar: إقامة
+  hi: ठहरने की जगह
+  th: ที่พัก
+  cs: ubytování
+  sv: boende
+  he: מקום אירוח
+  verified_by_human: [en, de]
+stays:
+  context: Plural label for travel stay/accommodation results
+  en: stays
+  de: Unterkünfte
+  zh: 住宿
+  es: alojamientos
+  fr: hébergements
+  pt: estadias
+  ru: проживания
+  ja: 宿泊施設
+  ko: 숙소
+  it: alloggi
+  tr: konaklamalar
+  vi: chỗ ở
+  id: penginapan
+  pl: noclegi
+  nl: verblijven
+  ar: إقامات
+  hi: ठहरने की जगहें
+  th: ที่พัก
+  cs: ubytování
+  sv: boenden
+  he: מקומות אירוח
+  verified_by_human: [en, de]
+per_night:
+  context: Price suffix for nightly rate, e.g. 'EUR 120 /night'
+  en: /night
+  de: /Nacht
+  zh: /晚
+  es: /noche
+  fr: /nuit
+  pt: /noite
+  ru: /ночь
+  ja: /泊
+  ko: /박
+  it: /notte
+  tr: /gece
+  vi: /đêm
+  id: /malam
+  pl: /noc
+  nl: /nacht
+  ar: /ليلة
+  hi: /रात
+  th: /คืน
+  cs: /noc
+  sv: /natt
+  he: /לילה
+  verified_by_human: [en, de]
+night:
+  context: Singular label for one night, e.g. '1 night'
+  en: night
+  de: Nacht
+  zh: 晚
+  es: noche
+  fr: nuit
+  pt: noite
+  ru: ночь
+  ja: 泊
+  ko: 박
+  it: notte
+  tr: gece
+  vi: đêm
+  id: malam
+  pl: noc
+  nl: nacht
+  ar: ليلة
+  hi: रात
+  th: คืน
+  cs: noc
+  sv: natt
+  he: לילה
+  verified_by_human: [en, de]
+total:
+  context: Label for total price, e.g. 'EUR 360 total'
+  en: total
+  de: gesamt
+  zh: 总计
+  es: total
+  fr: total
+  pt: total
+  ru: всего
+  ja: 合計
+  ko: 합계
+  it: totale
+  tr: toplam
+  vi: tổng
+  id: total
+  pl: łącznie
+  nl: totaal
+  ar: إجمالي
+  hi: कुल
+  th: ทั้งหมด
+  cs: celkem
+  sv: totalt
+  he: 'סה"כ'
+  verified_by_human: [en, de]
+no_stays_found:
+  context: Message when no accommodation results were found
+  en: No stays found.
+  de: Keine Unterkünfte gefunden.
+  zh: 未找到住宿。
+  es: No se encontraron alojamientos.
+  fr: Aucun hébergement trouvé.
+  pt: Nenhuma estadia encontrada.
+  ru: Проживание не найдено.
+  ja: 宿泊施設が見つかりません。
+  ko: 숙소를 찾을 수 없습니다.
+  it: Nessun alloggio trovato.
+  tr: Konaklama bulunamadı.
+  vi: Không tìm thấy chỗ ở.
+  id: Tidak ada penginapan ditemukan.
+  pl: Nie znaleziono noclegów.
+  nl: Geen verblijven gevonden.
+  ar: لم يتم العثور على إقامات.
+  hi: कोई ठहरने की जगह नहीं मिली।
+  th: ไม่พบที่พัก
+  cs: Nebylo nalezeno žádné ubytování.
+  sv: Inga boenden hittades.
+  he: לא נמצאו מקומות אירוח.
+  verified_by_human: [en, de]
+free_cancellation:
+  context: Badge text for hotels with free cancellation
+  en: Free cancellation
+  de: Kostenlose Stornierung
+  zh: 免费取消
+  es: Cancelación gratuita
+  fr: Annulation gratuite
+  pt: Cancelamento grátis
+  ru: Бесплатная отмена
+  ja: 無料キャンセル
+  ko: 무료 취소
+  it: Cancellazione gratuita
+  tr: Ücretsiz iptal
+  vi: Hủy miễn phí
+  id: Pembatalan gratis
+  pl: Bezpłatne anulowanie
+  nl: Gratis annulering
+  ar: إلغاء مجاني
+  hi: मुफ़्त रद्दीकरण
+  th: ยกเลิกฟรี
+  cs: Bezplatné storno
+  sv: Gratis avbokning
+  he: ביטול בחינם
+  verified_by_human: [en, de]
+eco_certified:
+  context: Badge text for eco-certified hotels
+  en: Eco-certified
+  de: Umweltzertifiziert
+  zh: 环保认证
+  es: Eco-certificado
+  fr: Éco-certifié
+  pt: Eco-certificado
+  ru: Эко-сертифицировано
+  ja: エコ認証
+  ko: 친환경 인증
+  it: Eco-certificato
+  tr: Çevre sertifikalı
+  vi: Chứng nhận sinh thái
+  id: Bersertifikat ramah lingkungan
+  pl: Eko-certyfikat
+  nl: Eco-gecertificeerd
+  ar: شهادة بيئية
+  hi: इको-प्रमाणित
+  th: ได้รับการรับรองด้านสิ่งแวดล้อม
+  cs: Ekologicky certifikováno
+  sv: Miljöcertifierat
+  he: מוסמך אקולוגית
+  verified_by_human: [en, de]
+check_in:
+  context: Label for hotel check-in time
+  en: Check-in
+  de: Check-in
+  zh: 入住
+  es: Check-in
+  fr: Arrivée
+  pt: Check-in
+  ru: Заезд
+  ja: チェックイン
+  ko: 체크인
+  it: Check-in
+  tr: Giriş
+  vi: Nhận phòng
+  id: Check-in
+  pl: Zameldowanie
+  nl: Inchecken
+  ar: تسجيل الوصول
+  hi: चेक-इन
+  th: เช็คอิน
+  cs: Příjezd
+  sv: Incheckning
+  he: "צ'ק-אין"
+  verified_by_human: [en, de]
+check_out:
+  context: Label for hotel check-out time
+  en: Check-out
+  de: Check-out
+  zh: 退房
+  es: Check-out
+  fr: Départ
+  pt: Check-out
+  ru: Выезд
+  ja: チェックアウト
+  ko: 체크아웃
+  it: Check-out
+  tr: Çıkış
+  vi: Trả phòng
+  id: Check-out
+  pl: Wymeldowanie
+  nl: Uitchecken
+  ar: تسجيل المغادرة
+  hi: चेक-आउट
+  th: เช็คเอาท์
+  cs: Odjezd
+  sv: Utcheckning
+  he: "צ'ק-אאוט"
+  verified_by_human: [en, de]
+nearby:
+  context: Section heading for nearby places around a hotel
+  en: Nearby
+  de: In der Nähe
+  zh: 附近
+  es: Cercano
+  fr: À proximité
+  pt: Próximo
+  ru: Рядом
+  ja: 周辺
+  ko: 주변
+  it: Nelle vicinanze
+  tr: Yakında
+  vi: Gần đây
+  id: Terdekat
+  pl: W pobliżu
+  nl: In de buurt
+  ar: قريب
+  hi: आस-पास
+  th: ใกล้เคียง
+  cs: V okolí
+  sv: I närheten
+  he: בסביבה
+  verified_by_human: [en, de]
+view_on_google_hotels:
+  context: CTA button text to view a hotel on Google Hotels
+  en: View on Google Hotels
+  de: Auf Google Hotels ansehen
+  zh: 在 Google Hotels 上查看
+  es: Ver en Google Hotels
+  fr: Voir sur Google Hotels
+  pt: Ver no Google Hotels
+  ru: Смотреть на Google Hotels
+  ja: Google Hotelsで見る
+  ko: Google Hotels에서 보기
+  it: Vedi su Google Hotels
+  tr: Google Hotels'de görüntüle
+  vi: Xem trên Google Hotels
+  id: Lihat di Google Hotels
+  pl: Zobacz na Google Hotels
+  nl: Bekijken op Google Hotels
+  ar: عرض على Google Hotels
+  hi: Google Hotels पर देखें
+  th: ดูบน Google Hotels
+  cs: Zobrazit na Google Hotels
+  sv: Visa på Google Hotels
+  he: צפייה ב-Google Hotels
+  verified_by_human: [en, de]
+view_on_meetup:
+  context: CTA button text to open an event on Meetup.com
+  en: View on Meetup
+  de: Auf Meetup ansehen
+  zh: 在 Meetup 上查看
+  es: Ver en Meetup
+  fr: Voir sur Meetup
+  pt: Ver no Meetup
+  ru: Смотреть на Meetup
+  ja: Meetupで見る
+  ko: Meetup에서 보기
+  it: Vedi su Meetup
+  tr: Meetup'ta görüntüle
+  vi: Xem trên Meetup
+  id: Lihat di Meetup
+  pl: Zobacz na Meetup
+  nl: Bekijken op Meetup
+  ar: عرض على Meetup
+  hi: Meetup पर देखें
+  th: ดูบน Meetup
+  cs: Zobrazit na Meetup
+  sv: Visa på Meetup
+  verified_by_human: []
+focus_mode.context_menu.stop:
+  context: Context menu button to stop an activated focus mode session
+  en: Stop
+  de: Stoppen
+  zh: 停止
+  es: Detener
+  fr: Arrêter
+  pt: Parar
+  ru: Остановить
+  ja: 停止
+  ko: 중지
+  it: Ferma
+  tr: Durdur
+  vi: Dừng
+  id: Hentikan
+  pl: Zatrzymaj
+  nl: Stoppen
+  ar: إيقاف
+  hi: रोकें
+  th: หยุด
+  cs: Zastavit
+  sv: Stoppa
+  he: עצירה
+  verified_by_human: []
+focus_mode.context_menu.cancel:
+  context: Context menu button to cancel a focus mode that hasn't been activated
+  en: Cancel
+  de: Abbrechen
+  zh: 取消
+  es: Cancelar
+  fr: Annuler
+  pt: Cancelar
+  ru: Отмена
+  ja: キャンセル
+  ko: 취소
+  it: Annulla
+  tr: İptal
+  vi: Hủy
+  id: Batal
+  pl: Anuluj
+  nl: Annuleren
+  ar: إلغاء
+  hi: रद्द करें
+  th: ยกเลิก
+  cs: Zrušit
+  sv: Avbryt
+  he: ביטול
+  verified_by_human: []
+loading_map:
+  context: Loading placeholder text while map is being initialized
+  en: Loading map...
+  de: Karte wird geladen...
+  zh: 正在加载地图...
+  es: Cargando mapa...
+  fr: Chargement de la carte...
+  pt: Carregando mapa...
+  ru: Загрузка карты...
+  ja: 地図を読み込み中...
+  ko: 지도 로딩 중...
+  it: Caricamento mappa...
+  tr: Harita yükleniyor...
+  vi: Đang tải bản đồ...
+  id: Memuat peta...
+  pl: Ładowanie mapy...
+  nl: Kaart laden...
+  ar: جاري تحميل الخريطة...
+  hi: मानचित्र लोड हो रहा है...
+  th: กำลังโหลดแผนที่...
+  cs: Načítání mapy...
+  sv: Laddar karta...
+  he: טוען מפה...
+  verified_by_human: []
+place:
+  context: Singular noun for map search results count (e.g. "1 place")
+  en: place
+  de: Ort
+  zh: 个地点
+  es: lugar
+  fr: lieu
+  pt: local
+  ru: место
+  ja: 件
+  ko: 곳
+  it: luogo
+  tr: yer
+  vi: địa điểm
+  id: tempat
+  pl: miejsce
+  nl: plaats
+  ar: مكان
+  hi: स्थान
+  th: สถานที่
+  cs: místo
+  sv: plats
+  he: מקום
+  verified_by_human: []
+places:
+  context: Plural noun for map search results count (e.g. "5 places")
+  en: places
+  de: Orte
+  zh: 个地点
+  es: lugares
+  fr: lieux
+  pt: locais
+  ru: мест
+  ja: 件
+  ko: 곳
+  it: luoghi
+  tr: yer
+  vi: địa điểm
+  id: tempat
+  pl: miejsc
+  nl: plaatsen
+  ar: أماكن
+  hi: स्थान
+  th: สถานที่
+  cs: míst
+  sv: platser
+  he: מקומות
+  verified_by_human: []
+youtube_video:
+  context: Fallback title when a YouTube video has no display title
+  en: YouTube video
+  de: YouTube-Video
+  zh: YouTube 视频
+  es: Video de YouTube
+  fr: Vidéo YouTube
+  pt: Vídeo do YouTube
+  ru: Видео YouTube
+  ja: YouTube動画
+  ko: YouTube 동영상
+  it: Video YouTube
+  tr: YouTube videosu
+  vi: Video YouTube
+  id: Video YouTube
+  pl: Film YouTube
+  nl: YouTube-video
+  ar: فيديو يوتيوب
+  hi: YouTube वीडियो
+  th: วิดีโอ YouTube
+  cs: Video na YouTube
+  sv: YouTube-video
+  he: סרטון YouTube
+  verified_by_human: []
+video_by:
+  context: Prefix text before channel name in video metadata (e.g. "by ChannelName")
+  en: by
+  de: von
+  zh: 来自
+  es: por
+  fr: par
+  pt: por
+  ru: от
+  ja: 投稿者
+  ko: 게시자
+  it: di
+  tr: tarafından
+  vi: bởi
+  id: oleh
+  pl: od
+  nl: door
+  ar: بواسطة
+  hi: द्वारा
+  th: โดย
+  cs: od
+  sv: av
+  he: מאת
+  verified_by_human: []
+video_uploaded:
+  context: Label after formatted date in video metadata (e.g. "Jan 1, 2024 uploaded")
+  en: uploaded
+  de: hochgeladen
+  zh: 上传
+  es: subido
+  fr: publié
+  pt: enviado
+  ru: загружено
+  ja: アップロード
+  ko: 업로드됨
+  it: caricato
+  tr: yüklendi
+  vi: đã tải lên
+  id: diunggah
+  pl: przesłano
+  nl: geüpload
+  ar: تم الرفع
+  hi: अपलोड किया गया
+  th: อัปโหลดเมื่อ
+  cs: nahráno
+  sv: uppladdad
+  he: הועלה בתאריך
+  verified_by_human: []
+
+pii_hide:
+  context: Tooltip/aria-label for the PII toggle button inside a fullscreen embed (code, doc, sheet) when sensitive data is currently visible — clicking will hide it
+  en: Hide sensitive data
+  de: Sensible Daten ausblenden
+
+  he: הסתרת נתונים רגישים
+pii_show:
+  context: Tooltip/aria-label for the PII toggle button inside a fullscreen embed (code, doc, sheet) when sensitive data is currently hidden — clicking will reveal it
+  en: Show sensitive data
+  de: Sensible Daten anzeigen
+
+  he: הצגת נתונים רגישים
+maps_location:
+  context: Maps Location skill label shown in BasicInfosBar
+  en: Location
+  de: Standort
+  zh: 位置
+  es: Ubicación
+  fr: Emplacement
+  pt: Localização
+  ru: Местоположение
+  ja: 場所
+  ko: 위치
+  it: Posizione
+  tr: Konum
+  vi: Vị trí
+  id: Lokasi
+  pl: Lokalizacja
+  nl: Locatie
+  ar: الموقع
+  hi: स्थान
+  th: ตำแหน่ง
+  cs: Poloha
+  sv: Plats
+  he: מיקום
+  verified_by_human: []
+
+maps_location.open_in_google_maps:
+  context: Button label to open a selected location in Google Maps
+  en: Open in Google Maps
+  de: In Google Maps öffnen
+  zh: 在 Google 地图中打开
+  es: Abrir en Google Maps
+  fr: Ouvrir dans Google Maps
+  pt: Abrir no Google Maps
+  ru: Открыть в Google Maps
+  ja: Google マップで開く
+  ko: Google 지도에서 열기
+  it: Apri in Google Maps
+  tr: Google Maps'te aç
+  vi: Mở trong Google Maps
+  id: Buka di Google Maps
+  pl: Otwórz w Google Maps
+  nl: Openen in Google Maps
+  ar: فتح في خرائط Google
+  hi: Google Maps में खोलें
+  th: เปิดใน Google Maps
+  cs: Otevřít v Google Maps
+  sv: Öppna i Google Maps
+  he: פתיחה ב-Google Maps
+  verified_by_human: []
+
+maps_location.coordinates:
+  context: Label for the coordinates section in maps location fullscreen
+  en: Coordinates
+  de: Koordinaten
+  zh: 坐标
+  es: Coordenadas
+  fr: Coordonnées
+  pt: Coordenadas
+  ru: Координаты
+  ja: 座標
+  ko: 좌표
+  it: Coordinate
+  tr: Koordinatlar
+  vi: Tọa độ
+  id: Koordinat
+  pl: Współrzędne
+  nl: Coördinaten
+  ar: الإحداثيات
+  hi: निर्देशांक
+  th: พิกัด
+  cs: Souřadnice
+  sv: Koordinater
+  he: קואורדינטות
+  verified_by_human: []
+
+maps_location.loading_map:
+  context: Loading text while the map image is being fetched
+  en: Loading map...
+  de: Karte wird geladen...
+  zh: 正在加载地图...
+  es: Cargando mapa...
+  fr: Chargement de la carte...
+  pt: Carregando mapa...
+  ru: Загрузка карты...
+  ja: 地図を読み込み中...
+  ko: 지도 로딩 중...
+  it: Caricamento mappa...
+  tr: Harita yükleniyor...
+  vi: Đang tải bản đồ...
+  id: Memuat peta...
+  pl: Ładowanie mapy...
+  nl: Kaart laden...
+  ar: جاري تحميل الخريطة...
+  hi: मानचित्र लोड हो रहा है...
+  th: กำลังโหลดแผนที่...
+  cs: Načítání mapy...
+  sv: Laddar karta...
+  he: טוען מפה...
+  verified_by_human: []
+
+maps_location.nearby:
+  context: Small label shown above the address in a location embed when the user had imprecise/privacy mode on (indicates the pin was randomised within an area, not exact)
+  en: Nearby
+  de: In der Nähe
+  zh: 附近
+  es: Cerca de
+  fr: À proximité
+  pt: Perto de
+  ru: Рядом
+  ja: 近く
+  ko: 근처
+  it: Vicino a
+  tr: Yakınında
+  vi: Gần đây
+  id: Terdekat
+  pl: W pobliżu
+  nl: In de buurt
+  ar: بالقرب من
+  hi: पास में
+  th: ใกล้เคียง
+  cs: V blízkosti
+  sv: I närheten av
+  he: בסביבה
+  verified_by_human: []
+
+health.doctor_with_slots:
+  context: Singular label in the health appointment search preview card — "1 doctor available"
+  en: doctor available
+  de: Arzt verfügbar
+  zh: 位医生可预约
+  es: médico disponible
+  fr: médecin disponible
+  pt: médico disponível
+  ru: врач доступен
+  ja: 医師が利用可能
+  ko: 의사 이용 가능
+  it: medico disponibile
+  tr: doktor mevcut
+  vi: bác sĩ có lịch trống
+  id: dokter tersedia
+  pl: lekarz dostępny
+  nl: arts beschikbaar
+  ar: طبيب متاح
+  hi: डॉक्टर उपलब्ध
+  th: แพทย์ว่าง
+  cs: lékař k dispozici
+  sv: läkare tillgänglig
+  he: רופא זמין
+  verified_by_human: []
+
+health.doctors_with_slots:
+  context: Plural label in the health appointment search preview card — "3 doctors available"
+  en: doctors available
+  de: Ärzte verfügbar
+  zh: 位医生可预约
+  es: médicos disponibles
+  fr: médecins disponibles
+  pt: médicos disponíveis
+  ru: врачи доступны
+  ja: 医師が利用可能
+  ko: 의사 이용 가능
+  it: medici disponibili
+  tr: doktor mevcut
+  vi: bác sĩ có lịch trống
+  id: dokter tersedia
+  pl: lekarze dostępni
+  nl: artsen beschikbaar
+  ar: أطباء متاحون
+  hi: डॉक्टर उपलब्ध हैं
+  th: แพทย์ว่าง
+  cs: lékaři k dispozici
+  sv: läkare tillgängliga
+  he: רופאים זמינים
+  verified_by_human: []
+
+health.book_slot:
+  context: Button label to book a specific appointment slot on the health appointment fullscreen card
+  en: Book
+  de: Buchen
+  zh: 预约
+  es: Reservar
+  fr: Réserver
+  pt: Reservar
+  ru: Записаться
+  ja: 予約
+  ko: 예약
+  it: Prenota
+  tr: Rezervasyon yap
+  vi: Đặt lịch
+  id: Pesan
+  pl: Zarezerwuj
+  nl: Boeken
+  ar: احجز
+  hi: बुक करें
+  th: จอง
+  cs: Rezervovat
+  sv: Boka
+  he: הזמנה
+  verified_by_human: []
+
+health.view_practice:
+  context: Link label to view the doctor's practice page on Doctolib
+  en: View practice
+  de: Praxis ansehen
+  zh: 查看诊所
+  es: Ver consulta
+  fr: Voir le cabinet
+  pt: Ver consultório
+  ru: Посмотреть практику
+  ja: 診療所を見る
+  ko: 의원 보기
+  it: Vedi studio
+  tr: Kliniği gör
+  vi: Xem phòng khám
+  id: Lihat praktik
+  pl: Zobacz praktykę
+  nl: Praktijk bekijken
+  ar: عرض العيادة
+  hi: प्रैक्टिस देखें
+  th: ดูคลินิก
+  cs: Zobrazit praxi
+  sv: Visa praktik
+  he: צפייה במרפאה
+  verified_by_human: []
+
+health.no_slots_available:
+  context: Shown on a doctor card when no appointment slots were found
+  en: No slots available
+  de: Keine Termine verfügbar
+  zh: 暂无可用时间段
+  es: Sin citas disponibles
+  fr: Aucun créneau disponible
+  pt: Sem horários disponíveis
+  ru: Нет доступных слотов
+  ja: 空きスロットなし
+  ko: 이용 가능한 슬롯 없음
+  it: Nessun posto disponibile
+  tr: Müsait slot yok
+  vi: Không có lịch trống
+  id: Tidak ada slot tersedia
+  pl: Brak dostępnych terminów
+  nl: Geen slots beschikbaar
+  ar: لا توجد مواعيد متاحة
+  hi: कोई स्लॉट उपलब्ध नहीं
+  th: ไม่มีช่วงเวลาว่าง
+  cs: Žádné dostupné termíny
+  sv: Inga lediga tider
+  he: אין תורים פנויים
+  verified_by_human: []
+
+health.next_slot:
+  context: Label for the next available appointment slot time on a doctor card
+  en: Next available
+  de: Nächster Termin
+  zh: 下一个可用时间
+  es: Próxima disponibilidad
+  fr: Prochain disponible
+  pt: Próximo disponível
+  ru: Ближайший доступный
+  ja: 次の空き時間
+  ko: 다음 이용 가능
+  it: Prossimo disponibile
+  tr: Sonraki müsait
+  vi: Lịch trống tiếp theo
+  id: Berikutnya tersedia
+  pl: Następny dostępny
+  nl: Volgende beschikbaar
+  ar: التالي المتاح
+  hi: अगला उपलब्ध
+  th: ถัดไปที่ว่าง
+  cs: Příští dostupný
+  sv: Nästa tillgänglig
+  he: התור הפנוי הבא
+  verified_by_human: []
+
+health.telehealth:
+  context: Badge label shown on a doctor card when the doctor offers telehealth / video consultations
+  en: Telehealth
+  de: Telemedizin
+  zh: 远程医疗
+  es: Telemedicina
+  fr: Téléconsultation
+  pt: Telemedicina
+  ru: Телемедицина
+  ja: テレヘルス
+  ko: 원격 진료
+  it: Telemedicina
+  tr: Tele sağlık
+  vi: Khám từ xa
+  id: Telemedisin
+  pl: Telemedycyna
+  nl: Telezorg
+  ar: الرعاية الصحية عن بُعد
+  hi: टेलीहेल्थ
+  th: ทางไกล
+  cs: Telemedicína
+  sv: Telemedicin
+  he: ייעוץ מרחוק
+  verified_by_human: []
+
+health.book_on_doctolib:
+  context: Button label linking to the doctor's live availability page on Doctolib where the user can book an appointment themselves
+  en: Book on Doctolib
+  de: Auf Doctolib buchen
+  zh: 在 Doctolib 预约
+  es: Reservar en Doctolib
+  fr: Réserver sur Doctolib
+  pt: Reservar no Doctolib
+  ru: Забронировать на Doctolib
+  ja: Doctolib で予約
+  ko: Doctolib에서 예약
+  it: Prenota su Doctolib
+  tr: Doctolib'de rezervasyon yap
+  vi: Đặt lịch trên Doctolib
+  id: Pesan di Doctolib
+  pl: Zarezerwuj na Doctolib
+  nl: Boek op Doctolib
+  ar: احجز على Doctolib
+  hi: Doctolib पर बुक करें
+  th: จองบน Doctolib
+  cs: Rezervovat na Doctolib
+  sv: Boka på Doctolib
+  he: הזמנה ב-Doctolib
+  verified_by_human: []
+
+health.slots_may_be_outdated:
+  context: Disclaimer shown below the slot time chips on the doctor appointment fullscreen, warning that the displayed times may no longer be available
+  en: These times may no longer be available. Check current availability on Doctolib.
+  de: Diese Termine sind möglicherweise nicht mehr verfügbar. Aktuelle Verfügbarkeit auf Doctolib prüfen.
+  zh: 这些时间段可能已不再可用。请在 Doctolib 上查看最新可用性。
+  es: Estas horas podrían no estar disponibles. Consulta la disponibilidad actual en Doctolib.
+  fr: Ces créneaux peuvent ne plus être disponibles. Vérifiez la disponibilité actuelle sur Doctolib.
+  pt: Estes horários podem não estar mais disponíveis. Verifique a disponibilidade atual no Doctolib.
+  ru: Эти время могут быть недоступны. Проверьте актуальное расписание на Doctolib.
+  ja: これらの時間帯はすでに利用できない場合があります。Doctolib で最新の空き状況を確認してください。
+  ko: 이 시간대는 더 이상 이용 가능하지 않을 수 있습니다. Doctolib에서 현재 가용 여부를 확인하세요.
+  it: Questi orari potrebbero non essere più disponibili. Controlla la disponibilità attuale su Doctolib.
+  tr: Bu saatler artık mevcut olmayabilir. Doctolib'de güncel uygunluğu kontrol edin.
+  vi: Các thời điểm này có thể không còn khả dụng. Kiểm tra tình trạng hiện tại trên Doctolib.
+  id: Waktu ini mungkin tidak lagi tersedia. Periksa ketersediaan terkini di Doctolib.
+  pl: Te terminy mogą być już niedostępne. Sprawdź aktualną dostępność na Doctolib.
+  nl: Deze tijden zijn mogelijk niet meer beschikbaar. Controleer de huidige beschikbaarheid op Doctolib.
+  ar: قد لا تكون هذه الأوقات متاحة بعد الآن. تحقق من التوفر الحالي على Doctolib.
+  hi: ये समय अब उपलब्ध नहीं हो सकते। Doctolib पर वर्तमान उपलब्धता जांचें।
+  th: เวลาเหล่านี้อาจไม่มีให้บริการอีกต่อไป ตรวจสอบเวลาว่างล่าสุดบน Doctolib
+  cs: Tyto termíny již nemusí být dostupné. Zkontrolujte aktuální dostupnost na Doctolib.
+  sv: Dessa tider kanske inte längre är tillgängliga. Kontrollera aktuell tillgänglighet på Doctolib.
+  he: ייתכן שזמנים אלו כבר לא פנויים. בדוק זמינות עדכנית ב-Doctolib.
+  verified_by_human: []
+
+health.no_appointments_found:
+  context: Empty state message in the health appointment search fullscreen when no results are found
+  en: No appointments found.
+  de: Keine Termine gefunden.
+  zh: 未找到预约。
+  es: No se encontraron citas.
+  fr: Aucun rendez-vous trouvé.
+  pt: Nenhuma consulta encontrada.
+  ru: Записи не найдены.
+  ja: 予約が見つかりません。
+  ko: 예약을 찾을 수 없습니다.
+  it: Nessun appuntamento trovato.
+  tr: Randevu bulunamadı.
+  vi: Không tìm thấy cuộc hẹn.
+  id: Tidak ada janji ditemukan.
+  pl: Nie znaleziono wizyt.
+  nl: Geen afspraken gevonden.
+  ar: لم يتم العثور على مواعيد.
+  hi: कोई अपॉइंटमेंट नहीं मिला।
+  th: ไม่พบการนัดหมาย
+  cs: Žádné termíny nenalezeny.
+  sv: Inga bokningar hittades.
+  he: לא נמצאו תורים.
+  verified_by_human: []
+shopping.product:
+  context: Singular label for a shopping product result
+  en: product
+  de: Produkt
+  zh: 产品
+  es: producto
+  fr: produit
+  pt: produto
+  ru: продукт
+  ja: 商品
+  ko: 제품
+  it: prodotto
+  tr: ürün
+  vi: sản phẩm
+  id: produk
+  pl: produkt
+  nl: product
+  ar: منتج
+  hi: उत्पाद
+  th: สินค้า
+  cs: produkt
+  sv: produkt
+  he: מוצר
+  verified_by_human: [en, de]
+shopping.products:
+  context: Plural label for shopping product results
+  en: products
+  de: Produkte
+  zh: 产品
+  es: productos
+  fr: produits
+  pt: produtos
+  ru: продукты
+  ja: 商品
+  ko: 제품
+  it: prodotti
+  tr: ürünler
+  vi: sản phẩm
+  id: produk
+  pl: produkty
+  nl: producten
+  ar: منتجات
+  hi: उत्पाद
+  th: สินค้า
+  cs: produkty
+  sv: produkter
+  he: מוצרים
+  verified_by_human: [en, de]
+shopping.sale:
+  context: Badge label for products on sale / reduced price
+  en: Sale
+  de: Angebot
+  zh: 特价
+  es: Oferta
+  fr: Soldes
+  pt: Promoção
+  ru: Скидка
+  ja: セール
+  ko: 세일
+  it: Offerta
+  tr: İndirim
+  vi: Giảm giá
+  id: Diskon
+  pl: Przecena
+  nl: Aanbieding
+  ar: خصم
+  hi: बिक्री
+  th: ลดราคา
+  cs: Sleva
+  sv: Rea
+  he: מבצע
+  verified_by_human: [en, de]
+shopping.new:
+  context: Badge label for newly listed products
+  en: New
+  de: Neu
+  zh: 新品
+  es: Nuevo
+  fr: Nouveau
+  pt: Novo
+  ru: Новинка
+  ja: 新着
+  ko: 신상품
+  it: Nuovo
+  tr: Yeni
+  vi: Mới
+  id: Baru
+  pl: Nowy
+  nl: Nieuw
+  ar: جديد
+  hi: नया
+  th: ใหม่
+  cs: Nový
+  sv: Ny
+  he: חדש
+  verified_by_human: [en, de]
+shopping.price_unavailable:
+  context: Text shown when product price is not available
+  en: Price unavailable
+  de: Preis nicht verfügbar
+  zh: 价格不可用
+  es: Precio no disponible
+  fr: Prix indisponible
+  pt: Preço indisponível
+  ru: Цена недоступна
+  ja: 価格不明
+  ko: 가격 없음
+  it: Prezzo non disponibile
+  tr: Fiyat mevcut değil
+  vi: Không có giá
+  id: Harga tidak tersedia
+  pl: Cena niedostępna
+  nl: Prijs niet beschikbaar
+  ar: السعر غير متاح
+  hi: कीमत उपलब्ध नहीं
+  th: ไม่มีราคา
+  cs: Cena není dostupná
+  sv: Pris ej tillgängligt
+  he: מחיר לא זמין
+  verified_by_human: [en, de]
+shopping.no_results:
+  context: Message when no products were found
+  en: No products found.
+  de: Keine Produkte gefunden.
+  zh: 未找到产品。
+  es: No se encontraron productos.
+  fr: Aucun produit trouvé.
+  pt: Nenhum produto encontrado.
+  ru: Продукты не найдены.
+  ja: 商品が見つかりません。
+  ko: 제품을 찾을 수 없습니다.
+  it: Nessun prodotto trovato.
+  tr: Ürün bulunamadı.
+  vi: Không tìm thấy sản phẩm.
+  id: Tidak ada produk ditemukan.
+  pl: Nie znaleziono produktów.
+  nl: Geen producten gevonden.
+  ar: لم يتم العثور على منتجات.
+  hi: कोई उत्पाद नहीं मिला।
+  th: ไม่พบสินค้า
+  cs: Žádné produkty nenalezeny.
+  sv: Inga produkter hittades.
+  he: לא נמצאו מוצרים.
+  verified_by_human: [en, de]
+shopping.search_products:
+  context: Shopping search products skill label shown in BasicInfosBar
+  en: Search
+  de: Suchen
+  zh: 搜索
+  es: Buscar
+  fr: Rechercher
+  pt: Pesquisar
+  ru: Поиск
+  ja: 検索
+  ko: 검색
+  it: Cerca
+  tr: Ara
+  vi: Tìm kiếm
+  id: Cari
+  pl: Szukaj
+  nl: Zoeken
+  ar: بحث
+  hi: खोजें
+  th: ค้นหา
+  cs: Hledat
+  sv: Sök
+  he: חיפוש
+  verified_by_human: [en, de]
+
+math.calculate:
+  context: Math Calculate skill label shown in BasicInfosBar
+  en: Calculate
+  de: Berechnen
+  zh: 计算
+  es: Calcular
+  fr: Calculer
+  pt: Calcular
+  ru: Вычислить
+  ja: 計算
+  ko: 계산
+  it: Calcola
+  tr: Hesapla
+  vi: Tính toán
+  id: Hitung
+  pl: Oblicz
+  nl: Berekenen
+  ar: احسب
+  hi: गणना करें
+  th: คำนวณ
+  cs: Vypočítat
+  sv: Beräkna
+  he: חישוב
+  verified_by_human: []
+
+math.plot:
+  context: Math Plot embed label shown in BasicInfosBar
+  en: Plot
+  de: Grafik
+  zh: 绘图
+  es: Graficar
+  fr: Tracer
+  pt: Plotar
+  ru: График
+  ja: グラフ
+  ko: 그래프
+  it: Grafico
+  tr: Grafik
+  vi: Vẽ đồ thị
+  id: Grafik
+  pl: Wykres
+  nl: Plot
+  ar: رسم بياني
+  hi: ग्राफ
+  th: พล็อต
+  cs: Graf
+  sv: Graf
+  he: שרטוט
+  verified_by_human: []
+
+mail.email:
+  context: Mail draft embed label shown in BasicInfosBar
+  en: Email Draft
+  de: E-Mail-Entwurf
+  zh: 邮件草稿
+  es: Borrador de correo
+  fr: Brouillon d'e-mail
+  pt: Rascunho de e-mail
+  ru: Черновик письма
+  ja: メール下書き
+  ko: 이메일 초안
+  it: Bozza email
+  tr: E-posta taslagi
+  vi: Ban nhap email
+  id: Draf email
+  pl: Szkic e-maila
+  nl: E-mailconcept
+  ar: مسودة بريد
+  hi: ईमेल ड्राफ्ट
+  th: ฉบับร่างอีเมล
+  cs: Koncept e-mailu
+  sv: E-postutkast
+  he: טיוטת אימייל
+  verified_by_human: []
+
+mail.to:
+  context: Label for email recipient field in mail embed
+  en: To
+  de: An
+  zh: 收件人
+  es: Para
+  fr: A
+  pt: Para
+  ru: Кому
+  ja: 宛先
+  ko: 받는 사람
+  it: A
+  tr: Alici
+  vi: Nguoi nhan
+  id: Kepada
+  pl: Do
+  nl: Aan
+  ar: إلى
+  hi: प्राप्तकर्ता
+  th: ถึง
+  cs: Komu
+  sv: Till
+  he: אל
+  verified_by_human: []
+
+mail.subject:
+  context: Label for email subject field in mail embed
+  en: Subject
+  de: Betreff
+  zh: 主题
+  es: Asunto
+  fr: Objet
+  pt: Assunto
+  ru: Тема
+  ja: 件名
+  ko: 제목
+  it: Oggetto
+  tr: Konu
+  vi: Chu de
+  id: Subjek
+  pl: Temat
+  nl: Onderwerp
+  ar: الموضوع
+  hi: विषय
+  th: หัวเรื่อง
+  cs: Predmet
+  sv: Amne
+  he: נושא
+  verified_by_human: []
+
+mail.content:
+  context: Label for email body content in mail embed
+  en: Content
+  de: Inhalt
+  zh: 正文
+  es: Contenido
+  fr: Contenu
+  pt: Conteudo
+  ru: Содержимое
+  ja: 本文
+  ko: 본문
+  it: Contenuto
+  tr: Icerik
+  vi: Noi dung
+  id: Konten
+  pl: Tresc
+  nl: Inhoud
+  ar: المحتوى
+  hi: सामग्री
+  th: เนื้อหา
+  cs: Obsah
+  sv: Innehall
+  he: תוכן
+  verified_by_human: []
+
+mail.footer:
+  context: Label for reusable footer/signature in mail embed
+  en: Footer
+  de: Signatur
+  zh: 页脚
+  es: Firma
+  fr: Signature
+  pt: Rodape
+  ru: Подпись
+  ja: フッター
+  ko: 푸터
+  it: Firma
+  tr: Imza
+  vi: Chu ky
+  id: Footer
+  pl: Stopka
+  nl: Footer
+  ar: التذييل
+  hi: फ़ुटर
+  th: ส่วนท้าย
+  cs: Podpis
+  sv: Sidfot
+  he: חתימה
+  verified_by_human: []
+
+mail.empty_content:
+  context: Empty state text when no email body content is present
+  en: No email content yet.
+  de: Noch kein E-Mail-Inhalt.
+  zh: 暂无邮件正文。
+  es: Aun no hay contenido del correo.
+  fr: Aucun contenu d'e-mail pour le moment.
+  pt: Ainda sem conteudo de email.
+  ru: Пока нет содержимого письма.
+  ja: まだメール本文がありません。
+  ko: 아직 이메일 본문이 없습니다.
+  it: Nessun contenuto email al momento.
+  tr: Henuz e-posta icerigi yok.
+  vi: Chua co noi dung email.
+  id: Belum ada konten email.
+  pl: Brak tresci e-maila.
+  nl: Nog geen e-mailinhoud.
+  ar: لا يوجد محتوى بريد بعد.
+  hi: अभी ईमेल सामग्री उपलब्ध नहीं है।
+  th: ยังไม่มีเนื้อหาอีเมล
+  cs: Zatim zadny obsah e-mailu.
+  sv: Inget e-postinnehall an.
+  he: עדיין אין תוכן אימייל.
+  verified_by_human: []
+
+mail.open_mail_client:
+  context: CTA text for opening the drafted email in the user's mail client
+  en: Open in Mail App
+  de: In Mail-App offnen
+  zh: 在邮件应用中打开
+  es: Abrir en app de correo
+  fr: Ouvrir dans l'appli e-mail
+  pt: Abrir no app de e-mail
+  ru: Открыть в почтовом приложении
+  ja: メールアプリで開く
+  ko: 메일 앱에서 열기
+  it: Apri nell'app mail
+  tr: Mail uygulamasinda ac
+  vi: Mo trong ung dung mail
+  id: Buka di aplikasi mail
+  pl: Otworz w aplikacji poczty
+  nl: Openen in mailapp
+  ar: افتح في تطبيق البريد
+  hi: मेल ऐप में खोलें
+  th: เปิดในแอปเมล
+  cs: Otevrit v e-mailove aplikaci
+  sv: Oppna i e-postappen
+  he: פתח באפליקציית הדואר
+  verified_by_human: []
+
+mail.copied:
+  context: Notification shown when mail draft is copied
+  en: Email draft copied.
+  de: E-Mail-Entwurf kopiert.
+  zh: 邮件草稿已复制。
+  es: Borrador de correo copiado.
+  fr: Brouillon d'e-mail copie.
+  pt: Rascunho de e-mail copiado.
+  ru: Черновик письма скопирован.
+  ja: メール下書きをコピーしました。
+  ko: 이메일 초안을 복사했습니다.
+  it: Bozza email copiata.
+  tr: E-posta taslagi kopyalandi.
+  vi: Da sao chep ban nhap email.
+  id: Draf email disalin.
+  pl: Szkic e-maila skopiowany.
+  nl: E-mailconcept gekopieerd.
+  ar: تم نسخ مسودة البريد.
+  hi: ईमेल ड्राफ्ट कॉपी हो गया।
+  th: คัดลอกฉบับร่างอีเมลแล้ว
+  cs: Koncept e-mailu zkopirovan.
+  sv: E-postutkast kopierat.
+  he: טיוטת האימייל הועתקה.
+  verified_by_human: []
+
+mail.copy_failed:
+  context: Notification shown when copying mail draft fails
+  en: Failed to copy email draft.
+  de: E-Mail-Entwurf konnte nicht kopiert werden.
+  zh: 复制邮件草稿失败。
+  es: No se pudo copiar el borrador del correo.
+  fr: Impossible de copier le brouillon d'e-mail.
+  pt: Falha ao copiar o rascunho de e-mail.
+  ru: Не удалось скопировать черновик письма.
+  ja: メール下書きのコピーに失敗しました。
+  ko: 이메일 초안 복사에 실패했습니다.
+  it: Impossibile copiare la bozza email.
+  tr: E-posta taslagi kopyalanamadi.
+  vi: Sao chep ban nhap email that bai.
+  id: Gagal menyalin draf email.
+  pl: Nie udalo sie skopiowac szkicu e-maila.
+  nl: E-mailconcept kopieren mislukt.
+  ar: فشل نسخ مسودة البريد.
+  hi: ईमेल ड्राफ्ट कॉपी नहीं हो सका।
+  th: คัดลอกฉบับร่างอีเมลไม่สำเร็จ
+  cs: Kopirovani konceptu e-mailu se nezdarilo.
+  sv: Det gick inte att kopiera e-postutkastet.
+  he: ההעתקה של טיוטת האימייל נכשלה.
+  verified_by_human: []
+
+image_search:
+  context: Image Search skill label shown in BasicInfosBar
+  en: Image Search
+  de: Bildersuche
+  zh: 图片搜索
+  es: Búsqueda de imágenes
+  fr: Recherche d'images
+  pt: Pesquisa de imagens
+  ru: Поиск изображений
+  ja: 画像検索
+  ko: 이미지 검색
+  it: Ricerca immagini
+  tr: Görsel arama
+  vi: Tìm kiếm hình ảnh
+  id: Pencarian gambar
+  pl: Wyszukiwanie obrazów
+  nl: Afbeeldingen zoeken
+  ar: البحث عن صور
+  hi: छवि खोज
+  th: ค้นหาภาพ
+  cs: Vyhledávání obrázků
+  sv: Bildsökning
+  he: חיפוש תמונות
+  verified_by_human: []
+
+image_search.searching:
+  context: Subtitle shown while image search is processing
+  en: Searching for images...
+  de: Bilder werden gesucht...
+  zh: 正在搜索图片...
+  es: Buscando imágenes...
+  fr: Recherche d'images en cours...
+  pt: Pesquisando imagens...
+  ru: Поиск изображений...
+  ja: 画像を検索中...
+  ko: 이미지 검색 중...
+  it: Ricerca immagini in corso...
+  tr: Görseller aranıyor...
+  vi: Đang tìm kiếm hình ảnh...
+  id: Mencari gambar...
+  pl: Wyszukiwanie obrazów...
+  nl: Zoeken naar afbeeldingen...
+  ar: جارٍ البحث عن صور...
+  hi: छवियाँ खोजी जा रही हैं...
+  th: กำลังค้นหาภาพ...
+  cs: Vyhledávám obrázky...
+  sv: Söker efter bilder...
+  he: מחפש תמונות...
+  verified_by_human: []
+
+image_search.results_count:
+  context: Subtitle shown after image search finishes, {count} is number of images found
+  en: "{count} images found"
+  de: "{count} Bilder gefunden"
+  zh: 找到 {count} 张图片
+  es: "{count} imágenes encontradas"
+  fr: "{count} images trouvées"
+  pt: "{count} imagens encontradas"
+  ru: "Найдено {count} изображений"
+  ja: "{count} 枚の画像が見つかりました"
+  ko: "이미지 {count}개 발견"
+  it: "{count} immagini trovate"
+  tr: "{count} görsel bulundu"
+  vi: "Tìm thấy {count} hình ảnh"
+  id: "{count} gambar ditemukan"
+  pl: "Znaleziono {count} obrazów"
+  nl: "{count} afbeeldingen gevonden"
+  ar: "تم العثور على {count} صورة"
+  hi: "{count} छवियाँ मिलीं"
+  th: "พบ {count} ภาพ"
+  cs: "Nalezeno {count} obrázků"
+  sv: "{count} bilder hittades"
+  he: "נמצאו {count} תמונות"
+  verified_by_human: []
+
+image_search.view_source:
+  context: Link label to view the source page of an image result
+  en: View source
+  de: Quelle ansehen
+  zh: 查看来源
+  es: Ver fuente
+  fr: Voir la source
+  pt: Ver fonte
+  ru: Просмотреть источник
+  ja: ソースを見る
+  ko: 출처 보기
+  it: Vedi fonte
+  tr: Kaynağı görüntüle
+  vi: Xem nguồn
+  id: Lihat sumber
+  pl: Zobacz źródło
+  nl: Bron bekijken
+  ar: عرض المصدر
+  hi: स्रोत देखें
+  th: ดูแหล่งที่มา
+  cs: Zobrazit zdroj
+  sv: Visa källa
+  he: הצג מקור
+  verified_by_human: []
+
+image_search.open_image:
+  context: Link label to open a full-size image in a new tab
+  en: Open image
+  de: Bild öffnen
+  zh: 打开图片
+  es: Abrir imagen
+  fr: Ouvrir l'image
+  pt: Abrir imagem
+  ru: Открыть изображение
+  ja: 画像を開く
+  ko: 이미지 열기
+  it: Apri immagine
+  tr: Görseli aç
+  vi: Mở hình ảnh
+  id: Buka gambar
+  pl: Otwórz obraz
+  nl: Afbeelding openen
+  ar: فتح الصورة
+  hi: छवि खोलें
+  th: เปิดภาพ
+  cs: Otevřít obrázek
+  sv: Öppna bild
+  he: פתח תמונה
+  verified_by_human: []
+
+image_search.reverse_search:
+  context: Button label to do reverse image search on a result image
+  en: Reverse search
+  de: Rückwärtssuche
+  zh: 反向搜索
+  es: Búsqueda inversa
+  fr: Recherche inversée
+  pt: Busca reversa
+  ru: Обратный поиск
+  ja: 逆画像検索
+  ko: 역방향 검색
+  it: Ricerca inversa
+  tr: Ters arama
+  vi: Tìm kiếm ngược
+  id: Pencarian terbalik
+  pl: Wyszukiwanie wsteczne
+  nl: Achterwaarts zoeken
+  ar: البحث العكسي
+  hi: रिवर्स सर्च
+  th: ค้นหาย้อนกลับ
+  cs: Zpětné vyhledávání
+  sv: Omvänd sökning
+  he: חיפוש הפוך
+  verified_by_human: []
+
+image_search.error:
+  context: Error message shown when image search fails
+  en: Image search failed
+  de: Bildersuche fehlgeschlagen
+  zh: 图片搜索失败
+  es: La búsqueda de imágenes falló
+  fr: La recherche d'images a échoué
+  pt: A pesquisa de imagens falhou
+  ru: Поиск изображений не удался
+  ja: 画像検索に失敗しました
+  ko: 이미지 검색 실패
+  it: Ricerca immagini fallita
+  tr: Görsel arama başarısız
+  vi: Tìm kiếm hình ảnh thất bại
+  id: Pencarian gambar gagal
+  pl: Wyszukiwanie obrazów nie powiodło się
+  nl: Afbeeldingen zoeken mislukt
+  ar: فشل البحث عن الصور
+  hi: छवि खोज विफल रही
+  th: การค้นหาภาพล้มเหลว
+  cs: Vyhledávání obrázků selhalo
+  sv: Bildsökning misslyckades
+  he: חיפוש תמונות נכשל
+  verified_by_human: []
+
+image_search.error_title:
+  context: Title shown when image search fails (short heading above error message)
+  en: Search failed
+  de: Suche fehlgeschlagen
+  zh: 搜索失败
+  es: Búsqueda fallida
+  fr: Recherche échouée
+  pt: Pesquisa falhou
+  ru: Поиск не удался
+  ja: 検索に失敗しました
+  ko: 검색 실패
+  it: Ricerca fallita
+  tr: Arama başarısız
+  vi: Tìm kiếm thất bại
+  id: Pencarian gagal
+  pl: Wyszukiwanie nieudane
+  nl: Zoeken mislukt
+  ar: فشل البحث
+  hi: खोज विफल रही
+  th: การค้นหาล้มเหลว
+  cs: Hledání selhalo
+  sv: Sökning misslyckades
+  he: החיפוש נכשל
+  verified_by_human: []
+
+reviews:
+  context: Label shown after a numeric count of user ratings for a place (e.g. "1,234 reviews")
+  en: reviews
+  de: Bewertungen
+  zh: 条评价
+  es: reseñas
+  fr: avis
+  pt: avaliações
+  ru: отзывов
+  ja: 件のレビュー
+  ko: 리뷰
+  it: recensioni
+  tr: değerlendirme
+  vi: đánh giá
+  id: ulasan
+  pl: opinii
+  nl: beoordelingen
+  ar: تقييم
+  hi: समीक्षाएं
+  th: รีวิว
+  cs: hodnocení
+  sv: recensioner
+  he: ביקורות
+  verified_by_human: []
+
+image_search.more_results:
+  context: Text shown after a count of remaining image search results not displayed (e.g. "+ 5 more")
+  en: more
+  de: mehr
+  zh: 更多
+  es: más
+  fr: plus
+  pt: mais
+  ru: ещё
+  ja: さらに
+  ko: 더보기
+  it: altri
+  tr: daha fazla
+  vi: thêm
+  id: lainnya
+  pl: więcej
+  nl: meer
+  ar: المزيد
+  hi: और
+  th: เพิ่มเติม
+  cs: více
+  sv: fler
+  he: עוד
+  verified_by_human: []

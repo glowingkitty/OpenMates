@@ -4,6 +4,7 @@
     import { Editor } from '@tiptap/core';
     import { createEventDispatcher } from 'svelte';
     import { tooltip } from '../../actions/tooltip';
+    import { fade } from 'svelte/transition';
     import { text } from '@repo/ui'; // Use text store
     import { chatSyncService } from '../../services/chatSyncService'; // Import chatSyncService
 
@@ -17,7 +18,16 @@
         flushSaveDraft
     } from '../../services/draftService';
     import { recordingState, updateRecordingState } from './recordingStore';
+    import { pendingNotificationReplyStore } from '../../stores/pendingNotificationReplyStore';
+    import { pendingMentionStore } from '../../stores/pendingMentionStore';
+    import { getMatesById } from '../../data/matesMetadata';
+    import { appSkillsStore } from '../../stores/appSkillsStore';
+    import { appSettingsMemoriesStore } from '../../stores/appSettingsMemoriesStore';
     import { aiTypingStore, type AITypingStatus } from '../../stores/aiTypingStore';
+    import { authStore } from '../../stores/authStore'; // Import auth store to check authentication status
+    import { userProfile } from '../../stores/userProfile'; // Import user profile to check credit balance
+    import { settingsDeepLink } from '../../stores/settingsDeepLinkStore'; // For billing deeplink
+    import { panelState } from '../../stores/panelStateStore'; // For opening settings panel
 
     // Config & Extensions
     import { getEditorExtensions } from './editorConfig';
@@ -26,10 +36,15 @@
     import CameraView from './CameraView.svelte';
     import RecordAudio from './RecordAudio.svelte'; // Import type for ref
     import MapsView from './MapsView.svelte';
+    import SketchView from './SketchView.svelte';
     import PressAndHoldMenu from './in_message_previews/PressAndHoldMenu.svelte';
     import ActionButtons from './ActionButtons.svelte';
     import KeyboardShortcuts from '../KeyboardShortcuts.svelte';
+    import Toggle from '../Toggle.svelte';
     import { Decoration, DecorationSet } from 'prosemirror-view';
+    import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
+    import type { Content } from '@tiptap/core';
+    import type { FocusModeMetadata } from '../../types/apps';
 
     // Utils
     import {
@@ -37,25 +52,26 @@
         isContentEmptyExceptMention,
         getInitialContent
     } from './utils';
-    
+
     // Unified parser imports
     import { parse_message } from '../../message_parsing/parse_message';
-    import { tipTapToCanonicalMarkdown } from '../../message_parsing/serializers';
-    import { generateUUID } from '../../message_parsing/utils';
-    import { isDesktop } from '../../utils/platform';
+    import { tipTapToCanonicalMarkdown, parseEmbedClipboardData } from '../../message_parsing/serializers';
     
-    // URL metadata service
-    import { 
-        fetchUrlMetadata, 
-        createJsonEmbedCodeBlock, 
-        createWebsiteMetadataFromUrl,
-        extractUrlFromJsonEmbedBlock
-    } from './services/urlMetadataService';
+    // URL metadata service - creates proper embeds with embed_id for LLM context
+    import { createEmbedFromUrl } from './services/urlMetadataService';
+    // Code embed service - creates proper embeds for pasted code/text
+    import { createCodeEmbedFromPastedText, detectLanguageFromVSCode, detectLanguageFromContent } from './services/codeEmbedService';
+    import { generateUUID } from '../../message_parsing/utils';
 
     // Handlers
     import { handleSend } from './handlers/sendHandlers';
+    import MentionDropdown from './MentionDropdown.svelte';
     import {
-        processFiles,
+        extractMentionQuery,
+        type AnyMentionResult,
+        type MateMentionResult
+    } from './services/mentionSearchService';
+    import {
         handleDrop as handleFileDrop,
         handleDragOver as handleFileDragOver,
         handleDragLeave as handleFileDragLeave,
@@ -64,10 +80,11 @@
         extractChatLinkFromYAML
     } from './fileHandlers';
     import {
-        insertVideo,
+        // insertVideo, // Disabled: video upload not yet supported — re-enable with handleVideoRecorded
         insertImage,
         insertRecording,
-        insertMap
+        insertMap,
+        retryTranscription
     } from './embedHandlers';
     import {
         handleEmbedInteraction as handleMenuEmbedInteraction,
@@ -82,7 +99,41 @@
         handleRecordTouchEnd as handleRecordTouchEndLogic,
         handleStopRecordingCleanup
     } from './handlers/recordingHandlers';
-    import { handleKeyboardShortcut } from './handlers/keyboardShortcutHandler';
+    
+    // PII Detection
+    import { detectPII, type PIIMatch, type PIIDetectionOptions, type PersonalDataForDetection } from './services/piiDetectionService';
+    import PIIWarningBanner from './PIIWarningBanner.svelte';
+    // Privacy settings store — controls master toggle, per-category toggles, and personal data entries
+    import { personalDataStore, type PersonalDataEntry, type PIIDetectionSettings } from '../../stores/personalDataStore';
+    import { get } from 'svelte/store';
+    // Draft audio chat tracking — links usage entries to pre-allocated UUIDs for unsent recordings
+    import { markChatIdAsDraftAudio, unmarkChatIdAsDraftAudio } from '../../stores/draftAudioChatStore';
+    import { draftEditorUIState } from '../../services/drafts/draftState';
+    // Deferred send while uploading — tracks messages queued waiting for embed uploads to complete
+    import {
+        markEmbedFinished,
+        markEmbedError,
+        getReadyPendingSend,
+        removePendingSend,
+        findPendingSendByEmbedId,
+    } from '../../stores/pendingUploadStore';
+    import { embedStore } from '../../services/embedStore';
+
+    /** Unclosed block from streaming semantics analysis (code blocks, tables, URLs, etc.) */
+    interface UnclosedBlock {
+        type: string;
+        startLine: number;
+        content: string;
+        tokenStartCol?: number;
+        tokenEndCol?: number;
+    }
+
+    /** Minimal TipTap document structure returned by parse_message() */
+    interface ParsedTipTapDoc {
+        type: string;
+        content?: { type: string; content?: { type: string; attrs?: Record<string, unknown> }[] }[];
+        _streamingData?: { unclosedBlocks: UnclosedBlock[] };
+    }
 
     const dispatch = createEventDispatcher();
 
@@ -93,13 +144,53 @@
         hasContent?: boolean;
         showActionButtons?: boolean;
         isFocused?: boolean;
+        /** Whether the map location selector is currently open.
+         *  Bindable so the parent (ActiveChat) can hide NewChatSuggestions
+         *  while the map overlay is active. */
+        isMapsOpen?: boolean;
+        /**
+         * Focus pill props — passed from ActiveChat when a focus mode is active.
+         * The pill is rendered absolutely inside the message-field, and the field
+         * increases padding-top to prevent text collision.
+         */
+        activeFocusId?: string | null;
+        activeFocusAppId?: string | null;
+        activeFocusModeMetadata?: FocusModeMetadata | null;
+        /**
+         * Bounding rect of the parent ActiveChat container (the full-width card),
+         * passed from ActiveChat so that when MessageInput is in fullscreen mode
+         * it can use `position: fixed` anchored to the container card.
+         * Updated by ActiveChat on every container resize.
+         */
+        containerRect?: DOMRect | null;
+        /** Called when user clicks the non-toggle area of the pill (deep-links to focus settings). */
+        onFocusPillDeepLink?: () => void;
+        /** Called after the 1-second deactivation timer elapses (no undo). */
+        onFocusPillDeactivate?: () => void;
+        /**
+         * Incognito pill props — passed from ActiveChat when an incognito chat is active.
+         * The pill is rendered inside the message-field alongside the focus pill.
+         * isIncognitoMode=true shows the pill; toggle calls onIncognitoPillDeactivate.
+         */
+        isIncognitoMode?: boolean;
+        /** Called when user clicks the toggle on the incognito pill to disable incognito mode. */
+        onIncognitoPillDeactivate?: () => void;
     }
     let { 
         currentChatId = undefined,
         isFullscreen = $bindable(false),
         hasContent = $bindable(false),
         showActionButtons = true,
-        isFocused = $bindable(false)
+        isFocused = $bindable(false),
+        isMapsOpen = $bindable(false),
+        containerRect = null,
+        activeFocusId = null,
+        activeFocusAppId = null,
+        activeFocusModeMetadata = null,
+        onFocusPillDeepLink = undefined,
+        onFocusPillDeactivate = undefined,
+        isIncognitoMode = false,
+        onIncognitoPillDeactivate = undefined
     }: Props = $props();
 
     // --- Refs ---
@@ -110,39 +201,285 @@
     let editorElement = $state<HTMLElement | undefined>(undefined);
     let scrollableContent: HTMLElement;
     let messageInputWrapper: HTMLElement;
-    // Type the ref using the component's type
     let recordAudioComponent = $state<RecordAudio>();
 
     // --- Local UI State ---
     let showCamera = $state(false);
     let showMaps = $state(false);
+    let showSketch = $state(false);
+    // Keep the bindable isMapsOpen prop in sync with the local showMaps state so
+    // the parent (ActiveChat) can react to the map overlay opening/closing.
+    $effect(() => { isMapsOpen = showMaps; });
+    // Tracks whether files are being dragged over the message field.
+    // When true, the drop overlay ("Drop files to upload") is shown.
+    let isDragging = $state(false);
+
+    // --- Focus Pill State ---
+    // Whether the toggle has been clicked and we are waiting 1 second before deactivating.
+    // If user clicks toggle again within that second, we cancel (undo).
+    let focusPillDeactivating = $state(false);
+    let focusPillDeactivateTimer: ReturnType<typeof setTimeout> | null = null;
+
+    // Derived: pill is visible when focus is active AND we are not in the middle of fading away.
+    // Once deactivation fires (timer elapses), activeFocusId becomes null upstream, hiding the pill.
+    let showFocusPill = $derived(!!activeFocusId);
+
+    // --- Incognito Pill State ---
+    // Visible when the current chat is an incognito chat. Toggle calls onIncognitoPillDeactivate.
+    let showIncognitoPill = $derived(!!isIncognitoMode);
+
+    // Icon name derived from the focus mode metadata (strip ".svg" suffix).
+    let focusPillIconName = $derived(
+        activeFocusModeMetadata?.icon_image
+            ? activeFocusModeMetadata.icon_image.replace(/\.svg$/i, '')
+            : null
+    );
+
+    /**
+     * Handle toggle click: start a 1-second deactivation timer.
+     * If toggle is clicked again while timer is running, cancel it (undo).
+     */
+    function handleFocusPillToggle() {
+        if (focusPillDeactivating) {
+            // Undo: cancel the pending deactivation
+            if (focusPillDeactivateTimer !== null) {
+                clearTimeout(focusPillDeactivateTimer);
+                focusPillDeactivateTimer = null;
+            }
+            focusPillDeactivating = false;
+        } else {
+            // Start deactivation countdown
+            focusPillDeactivating = true;
+            focusPillDeactivateTimer = setTimeout(() => {
+                focusPillDeactivateTimer = null;
+                focusPillDeactivating = false;
+                onFocusPillDeactivate?.();
+            }, 1000);
+        }
+    }
+
+    /**
+     * Handle click on the pill body (non-toggle area): open focus mode settings.
+     */
+    function handleFocusPillClick() {
+        onFocusPillDeepLink?.();
+    }
+
+    /**
+     * Handle click on the incognito pill toggle: immediately disable incognito mode.
+     * Unlike the focus pill, there is no countdown — the toggle is a direct on/off switch.
+     */
+    function handleIncognitoPillToggle() {
+        onIncognitoPillDeactivate?.();
+    }
+
+    // Location precision setting — read from personalDataStore (persisted, encrypted).
+    // When impreciseByDefault=true, MapsView opens in area mode (privacy-first default).
+    let locationSettingsState = $state({ impreciseByDefault: true });
+    // Performance: Cache PII store reads to avoid calling get() on every detection run.
+    // Updated via store subscriptions; detection reads from cache instead of stores.
+    let cachedPIISettings: PIIDetectionSettings | null = null;
+    let cachedPIIEnabledEntries: PersonalDataEntry[] | null = null;
+    personalDataStore.locationSettings.subscribe((s) => { locationSettingsState = s; });
+    // Performance: Subscribe to PII-related stores so runPIIDetectionImmediate() reads
+    // from cache instead of calling get() on every invocation.
+    personalDataStore.settings.subscribe((s) => { cachedPIISettings = s; });
+    personalDataStore.enabledEntries.subscribe((entries) => { cachedPIIEnabledEntries = entries; });
+    let defaultImprecise = $derived(locationSettingsState.impreciseByDefault);
     let isMessageFieldFocused = $state(false);
+
+    // --- Mention Dropdown State ---
+    let showMentionDropdown = $state(false);
+    let mentionQuery = $state('');
+
+    let mentionDropdownY = $state(0);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
     let isScrollable = $state(false);
     let showMenu = $state(false);
     let menuX = $state(0);
     let menuY = $state(0);
     let selectedEmbedId: string | null = null;
     let menuType = $state<'default' | 'pdf' | 'web'>('default');
-    let selectedNode = $state<{ node: any; pos: number } | null>(null);
+    let selectedNode = $state<{ node: ProseMirrorNode; pos: number } | null>(null);
     let isMenuInteraction = false;
     let previousHeight = 0;
+
+    const MESSAGE_FIELD_MIN_HEIGHT = 100;
+    const MESSAGE_FIELD_MIN_HEIGHT_COMPACT = 60;
+    const MESSAGE_FIELD_MAX_HEIGHT = 350;
+    const MESSAGE_FIELD_MAPS_HEIGHT = 400;
+    const MESSAGE_FIELD_FULLSCREEN_FALLBACK_VH = 0.65;
+    const MESSAGE_FIELD_TRANSITION_DURATION_MS = 300;
+    const MESSAGE_FIELD_TRANSITION_BUFFER_MS = 70;
+    const FULLSCREEN_TOP_GUTTER_PX = 20;
+    let panelHeightTransitionOverride = $state<string | null>(null);
+    let suppressHeightChangeDispatch = $state(false);
     
     // Computed state for showing action buttons
-    // Shows when prop is true OR when field is focused
-    let shouldShowActionButtons = $derived(showActionButtons || isMessageFieldFocused);
+    // In extended/fullscreen mode: always visible (no tap required).
+    // In minimized mode: shows when prop is true OR when field is focused OR when recording is in progress.
+    // CRITICAL: Keep action buttons visible while record button is pressed or recording
+    // is active — otherwise the onmouseup/touchend handlers on the record button are
+    // removed from the DOM before they can fire (because the editor blur clears
+    // isMessageFieldFocused after 150ms, hiding ActionButtons mid-interaction).
+    let shouldShowActionButtons = $derived(
+        isFullscreen ||
+        showActionButtons ||
+        isMessageFieldFocused ||
+        $recordingState.isRecordButtonPressed ||
+        $recordingState.showRecordAudioUI
+    );
+
+    // Single-tap feedback: briefly highlight the inline "Press & hold to record" label
+    // in ActionButtons (and force it visible even when there's text in the editor).
+    // Set to true when showRecordHint fires AND mic is granted; auto-resets after 1.5s.
+    let highlightPressHold = $state(false);
+    let highlightTimeout: ReturnType<typeof setTimeout> | null = null;
+    $effect(() => {
+        // React to showRecordHint changing to true while mic is already granted
+        if ($recordingState.showRecordHint && $recordingState.micPermissionState === 'granted') {
+            highlightPressHold = true;
+            clearTimeout(highlightTimeout ?? undefined);
+            highlightTimeout = setTimeout(() => { highlightPressHold = false; }, 1500);
+        }
+    });
 
     // --- Original Markdown Tracking ---
     let originalMarkdown = '';
     let isUpdatingFromMarkdown = false;
     let isConvertingEmbeds = false;
 
+    // --- Credits State ---
+    // True when the user is authenticated but has zero credits.
+    // Checked client-side against the synced userProfile store — no server request needed.
+    let hasNoCredits = $derived($authStore.isAuthenticated && $userProfile.credits === 0);
+
     // --- AI Task State ---
     let activeAITaskId = $state<string | null>(null);
-    let currentTypingStatus: AITypingStatus = { isTyping: false, category: null, chatId: null, userMessageId: null, aiMessageId: null };
+    // CRITICAL: Must use $state() for Svelte 5 reactivity - otherwise store subscription updates
+    // won't trigger re-evaluation of reactive statements that depend on this variable
+    let currentTypingStatus = $state<AITypingStatus>({ isTyping: false, category: null, chatId: null, userMessageId: null, aiMessageId: null });
+    let queuedMessageText = $state<string | null>(null); // Message text when a message is queued
+    let awaitingAITaskStart = $state(false); // Optimistic stop button immediately after send
+    let cancelRequestedWhileAwaiting = $state(false); // If user clicks stop before task_id exists
+    let awaitingAITaskTimeoutId: NodeJS.Timeout | null = null;
     
     // --- Backspace State ---
     let isBackspaceOperation = false; // Flag to prevent immediate re-grouping after backspace
- 
+    
+    // --- URL ignore list for embed re-conversion guard ---
+    // When the user right-clicks a web/video embed and selects "Paste as text", we add
+    // the original URL to this set so detectClosedUrls will not auto-convert it back to
+    // an embed on the next editor update.  The set is cleared when the user sends the
+    // message or completely clears the message input field.
+    let ignoredEmbedUrls = $state<Set<string>>(new Set());
+    
+    // --- Text-change guard for handleEditorUpdate ---
+    // Tracks the last text content processed by handleEditorUpdate.
+    // On iOS Firefox, double-tap to select text fires spurious `input` events that
+    // ProseMirror interprets as content changes, triggering TipTap's onUpdate even
+    // though only the selection changed. Without this guard, each false onUpdate runs
+    // heavy operations (markdown serialization, unified parsing, PII detection) and
+    // dispatches empty transactions (editor.view.dispatch(state.tr)) which cause
+    // further DOM mutations → more input events → an infinite feedback loop that
+    // crashes performance.
+    let lastEditorUpdateText = '';
+    
+    // --- Blur timeout tracking ---
+    let blurTimeoutId: NodeJS.Timeout | null = null; // Track blur timeout to cancel it if focus is regained
+    
+    // --- Initial mount tracking ---
+    let isInitialMount = $state(true); // Flag to prevent auto-focus during initial mount
+    let mountCompleteTimeout: NodeJS.Timeout | null = null; // Track when mount is complete
+    
+    // --- PII Detection State ---
+    // Tracks detected PII matches for highlighting and the warning banner
+    let detectedPII = $state<PIIMatch[]>([]);
+    // Set of PII match IDs that user has clicked to exclude from replacement
+    // These won't be replaced when sending and won't be highlighted
+    let piiExclusions = $state<Set<string>>(new Set());
+    // Cache of current PII Decoration objects to merge with unclosed-block decorations.
+    // Stored separately so they survive when applyHighlightingColors rebuilds the decoration set.
+    let currentPIIDecorations: Decoration[] = [];
+    // Cache the last text we ran PII detection on to skip redundant work
+    let lastPIIText = '';
+    // Debounce timer for PII detection - safety net fallback for edge cases
+    let piiDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+    // Fallback debounce: if no delimiter is typed for this long, run detection anyway.
+    // This catches edge cases like slow typing followed by an immediate send.
+    const PII_DEBOUNCE_MS = 800;
+    // Characters that trigger immediate PII detection (natural word/token boundaries).
+    // PII patterns like emails, phone numbers, and API keys are only fully formed
+    // after the user types a delimiter, so we detect at these boundaries instead of
+    // running 16+ regex patterns on every single keystroke.
+    const PII_TRIGGER_CHARS = new Set([' ', ',', '.', '\n', '/', ')', ']', '}', ';', ':', '\t']);
+    // Flag set by paste handlers to force immediate PII detection on next editor update.
+    // Paste events inject complete content (possibly containing PII) so detection should
+    // not wait for a delimiter character.
+    let piiPasteDetectionPending = false;
+    
+    // --- Heavy Parsing Debounce ---
+    // handleUnifiedParsing and updateOriginalMarkdown are expensive:
+    //   - updateOriginalMarkdown serializes the full TipTap document tree to markdown
+    //   - handleUnifiedParsing runs the full message parser + regex URL detection + decorations
+    // Running these on every keystroke is wasteful — most characters don't change
+    // the parsing result. Instead, we use the same boundary-trigger pattern as PII
+    // detection: run immediately on delimiter chars and paste, debounce fallback otherwise.
+    let heavyParsingDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const HEAVY_PARSING_DEBOUNCE_MS = 400; // Safety-net fallback (shorter than PII since it affects UX)
+    // Re-use PII_TRIGGER_CHARS for consistency — these mark natural word/token boundaries
+    // where parsing results are most likely to change (e.g. URL closed by space, code fence closed)
+    
+    /**
+     * Schedule or immediately run the heavy parsing operations.
+     * Immediate on delimiter characters and paste events (content is "complete");
+     * debounced fallback for regular typing.
+     */
+    function scheduleHeavyParsing(editor: Editor, text: string, forcedByPaste: boolean) {
+        const lastChar = text.length > 0 ? text[text.length - 1] : '';
+        const isDelimiter = PII_TRIGGER_CHARS.has(lastChar);
+        
+        if (forcedByPaste || isDelimiter) {
+            // Delimiter typed or paste — content is at a natural boundary, parse now
+            if (heavyParsingDebounceTimer) { clearTimeout(heavyParsingDebounceTimer); heavyParsingDebounceTimer = null; }
+            runHeavyParsing(editor);
+        } else {
+            // Regular character — debounce to avoid parsing on every keystroke
+            if (heavyParsingDebounceTimer) { clearTimeout(heavyParsingDebounceTimer); }
+            heavyParsingDebounceTimer = setTimeout(() => {
+                heavyParsingDebounceTimer = null;
+                if (editor && !editor.isDestroyed) {
+                    runHeavyParsing(editor);
+                }
+            }, HEAVY_PARSING_DEBOUNCE_MS);
+        }
+    }
+    
+    /**
+     * Run the heavy parsing operations immediately.
+     * Called at word boundaries and when the debounce timer fires.
+     */
+    function runHeavyParsing(editor: Editor) {
+        // Update original markdown tracking (serializes editor → markdown)
+        updateOriginalMarkdown(editor);
+        // Run unified parser for write mode (handles unclosed-block decorations)
+        handleUnifiedParsing(editor);
+    }
+    
+    /**
+     * Flush any pending heavy parsing immediately.
+     * Called before sending a message to ensure decorations and markdown are up-to-date.
+     */
+    function flushHeavyParsing(editor: Editor) {
+        if (heavyParsingDebounceTimer) {
+            clearTimeout(heavyParsingDebounceTimer);
+            heavyParsingDebounceTimer = null;
+        }
+        if (editor && !editor.isDestroyed) {
+            runHeavyParsing(editor);
+        }
+    }
+
     // --- Unified Parsing Handler ---
     function handleUnifiedParsing(editor: Editor) {
         try {
@@ -186,11 +523,34 @@
                 // Apply highlighting colors for unclosed blocks
                 applyHighlightingColors(editor, parsedDoc._streamingData.unclosedBlocks);
             } else {
-                console.debug('[MessageInput] No unclosed blocks found, current markdown:', editor.getText());
-                // Clear decorations when no unclosed blocks
-                currentDecorationSet = DecorationSet.empty;
-                if (decorationPropsSet && editor?.view) {
+                // No unclosed blocks — update decoration set only if it actually changed.
+                // Avoid dispatching empty transactions when nothing changed, as these cause
+                // DOM mutations that can trigger cascading input events on iOS Firefox.
+                const prevDecorationSet = currentDecorationSet;
+                if (currentPIIDecorations.length > 0) {
+                    const { state: st } = editor;
+                    currentDecorationSet = DecorationSet.create(st.doc, currentPIIDecorations);
+                } else {
+                    currentDecorationSet = DecorationSet.empty;
+                }
+                // Only dispatch a transaction to refresh decorations if the set actually changed
+                const decorationsChanged = prevDecorationSet !== currentDecorationSet;
+                if (decorationsChanged && decorationPropsSet && editor?.view) {
                     editor.view.dispatch(editor.state.tr);
+                }
+                
+                // Check if the parsed document contains preview embeds (closed code blocks)
+                // If so, update the editor content to show the rendered embed preview
+                if (parsedDoc && parsedDoc.content && hasPreviewEmbeds(parsedDoc)) {
+                    console.debug('[MessageInput] Found preview embeds, updating editor with parsed document');
+                    // Set flag to prevent originalMarkdown update during this content change
+                    isConvertingEmbeds = true;
+                    try {
+                        editor.chain().setContent(parsedDoc, { emitUpdate: false }).run();
+                        console.debug('[MessageInput] Updated editor with preview embeds');
+                    } finally {
+                        isConvertingEmbeds = false;
+                    }
                 }
             }
             
@@ -201,8 +561,34 @@
     }
     
     /**
+     * Check if a parsed document contains preview embeds (closed code blocks, tables, etc.)
+     * Preview embeds have contentRef starting with 'preview:'
+     */
+    function hasPreviewEmbeds(doc: ParsedTipTapDoc): boolean {
+        if (!doc || !doc.content) return false;
+        
+        for (const node of doc.content) {
+            // Check if this node is a paragraph containing an embed
+            if (node.type === 'paragraph' && node.content) {
+                for (const child of node.content) {
+                    if (child.type === 'embed' && child.attrs?.contentRef?.startsWith('preview:')) {
+                        return true;
+                    }
+                }
+            }
+            // Check for direct embed nodes (shouldn't happen but be safe)
+            if (node.type === 'embed' && node.attrs?.contentRef?.startsWith('preview:')) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    /**
      * Detect URLs that have become "closed" and should be processed for metadata
      * A URL is considered closed when it has whitespace (space or newline) after it
+     * This function properly handles multiple URLs pasted together by detecting all URLs
+     * that are followed by whitespace in the recent content
      */
     function detectClosedUrls(editor: Editor): Array<{url: string, startPos: number, endPos: number}> {
         const closedUrls: Array<{url: string, startPos: number, endPos: number}> = [];
@@ -212,14 +598,8 @@
         const sourceText = originalMarkdown || editor.getText();
         const lastChar = sourceText.slice(-1);
         
-        console.debug('[MessageInput] detectClosedUrls using source:', {
-            usingOriginalMarkdown: !!originalMarkdown,
-            sourceLength: sourceText.length,
-            lastChar: lastChar,
-            preview: sourceText.substring(0, 100) + (sourceText.length > 100 ? '...' : '')
-        });
-        
         // Only check for closed URLs if the user just typed a space or newline
+        // This ensures we only process URLs when they're actually "closed" (followed by whitespace)
         if (lastChar !== ' ' && lastChar !== '\n') {
             return closedUrls;
         }
@@ -231,7 +611,7 @@
         const codeBlockPatterns = [
             /```json_embed\n[\s\S]*?\n```/g,           // json_embed blocks
             /```document_html\n[\s\S]*?\n```/g,        // document_html blocks
-            /```[\w]*[:\w\/\.]*\n[\s\S]*?\n```/g       // regular code blocks (with optional language and path)
+            /```[\w]*[:\w/.]*\n[\s\S]*?\n```/g       // regular code blocks (with optional language and path)
         ];
         
         for (const pattern of codeBlockPatterns) {
@@ -242,64 +622,116 @@
                     start: blockMatch.index,
                     end: blockMatch.index + blockMatch[0].length
                 });
-                console.debug('[MessageInput] Found code block to exclude:', {
-                    start: blockMatch.index,
-                    end: blockMatch.index + blockMatch[0].length,
-                    content: blockMatch[0].substring(0, 50) + '...'
-                });
             }
         }
         
-        console.debug('[MessageInput] Total code block ranges to exclude:', codeBlockRanges.length);
-        
-        // Find URLs in the source text that end just before the space/newline
+        // Find all URLs in the source text
+        // We'll check each one to see if it's closed (followed by whitespace) and recently added
         const urlRegex = /https?:\/\/[^\s]+/g;
         let match;
         
         // Reset regex lastIndex to ensure we get all matches
         urlRegex.lastIndex = 0;
         
+        // Track all URLs and their positions
+        const allUrls: Array<{url: string, startPos: number, endPos: number}> = [];
+        
         while ((match = urlRegex.exec(sourceText)) !== null) {
             const url = match[0];
             const urlStart = match.index!;
             const urlEnd = urlStart + url.length;
             
-            // Check if this URL ends just before where we typed the space/newline
-            // For multiple URLs, we need to check if ANY URL was just closed
-            const isRecentlyClosed = (
-                // URL ends exactly where we typed the space/newline (last URL scenario)
-                urlEnd === sourceText.length - 1 ||
-                // OR URL is followed by the character we just typed (space/newline) - handle multiple URLs
-                (urlEnd < sourceText.length && 
-                 (sourceText[urlEnd] === ' ' || sourceText[urlEnd] === '\n') &&
-                 urlEnd >= sourceText.length - 50) // Within last 50 chars for recent typing (more lenient)
+            // Check if this URL is inside any code block - skip if it is
+            const isInsideCodeBlock = codeBlockRanges.some(range => 
+                urlStart >= range.start && urlEnd <= range.end
             );
             
-            if (isRecentlyClosed && (lastChar === ' ' || lastChar === '\n')) {
-                console.debug('[MessageInput] Found newly closed URL:', url, 'at position', urlStart, '-', urlEnd);
-                
-                // Check if this URL is inside any code block
-                const isInsideCodeBlock = codeBlockRanges.some(range => 
-                    urlStart >= range.start && urlEnd <= range.end
-                );
-                
-                if (!isInsideCodeBlock) {
-                    closedUrls.push({
-                        url,
-                        startPos: urlStart,
-                        endPos: urlEnd
-                    });
-                } else {
-                    console.debug('[MessageInput] URL is inside a code block, skipping processing:', url);
-                }
+            if (!isInsideCodeBlock && !ignoredEmbedUrls.has(url)) {
+                allUrls.push({
+                    url,
+                    startPos: urlStart,
+                    endPos: urlEnd
+                });
+            }
+        }
+        
+        // Now check which URLs are "closed" (followed by whitespace)
+        // For multiple URLs pasted together, we need to detect all that are followed by space/newline
+        // and are in the recent content (within a reasonable distance from the end)
+        // Use a more generous threshold to handle multiple long URLs pasted together
+        const recentContentThreshold = Math.max(500, sourceText.length * 0.3); // At least 500 chars or 30% of content
+        
+        for (const urlInfo of allUrls) {
+            const { url, startPos, endPos } = urlInfo;
+            
+            // Check if URL is followed by whitespace (space or newline)
+            // This indicates the URL is "closed" and ready for processing
+            const charAfterUrl = sourceText[endPos];
+            const isFollowedByWhitespace = charAfterUrl === ' ' || charAfterUrl === '\n';
+            
+            // Check if this URL is in the recent content area
+            // This helps us focus on URLs that were just pasted/typed, not old ones
+            const distanceFromEnd = sourceText.length - endPos;
+            const isInRecentContent = distanceFromEnd <= recentContentThreshold;
+            
+            // Check if URL is part of a sentence (has non-whitespace text before it)
+            // URLs that are part of sentences like "summarize {url}" should NOT be converted to embeds
+            // Only standalone URLs (at start of text, after newline, after only whitespace, or after another URL) should be converted
+            const textBeforeUrl = sourceText.substring(0, startPos);
+            const trimmedBeforeUrl = textBeforeUrl.trim();
+            
+            // Check if the text before the URL is just another URL (for handling multiple URLs pasted together)
+            // This allows "url1 url2 " to convert both URLs
+            const urlRegexBefore = /https?:\/\/[^\s]+$/;
+            const textBeforeTrimmed = textBeforeUrl.trimEnd();
+            const isAfterAnotherUrl = urlRegexBefore.test(textBeforeTrimmed);
+            
+            // A URL is standalone if:
+            // 1. There's no non-whitespace content before it (at start or after only whitespace)
+            // 2. It's after a newline
+            // 3. It's after another URL (for multiple URLs pasted together)
+            const isStandaloneUrl = trimmedBeforeUrl.length === 0 || textBeforeUrl.endsWith('\n') || isAfterAnotherUrl;
+            
+            // A URL is considered "recently closed" and ready for conversion if:
+            // 1. It's followed by whitespace (closed)
+            // 2. It's in the recent content area (likely just pasted/typed)
+            // 3. The last character of the text is whitespace (user just closed something)
+            // 4. It's a standalone URL (not part of a sentence)
+            const isRecentlyClosed = isFollowedByWhitespace && isInRecentContent && (lastChar === ' ' || lastChar === '\n') && isStandaloneUrl;
+            
+            if (isRecentlyClosed) {
+                closedUrls.push({
+                    url,
+                    startPos,
+                    endPos
+                });
             }
         }
         
         return closedUrls;
     }
     
+    // NOTE: Code block detection and embed creation is handled SERVER-SIDE
+    // When user sends a message with code blocks:
+    // 1. Client sends raw markdown (with code blocks as-is)
+    // 2. Server extracts code blocks and creates embeds
+    // 3. Server sends embed data back to client for encrypted storage
+    // 4. Server replaces code blocks with embed references in stored message
+    // This avoids client-side complexity and draft serialization issues
+    
     /**
-     * Process closed URLs by fetching metadata and storing them for the unified parser
+     * Process closed URLs by creating proper embeds with embed_id.
+     * 
+     * This function:
+     * 1. Fetches metadata from preview server (website or YouTube)
+     * 2. Creates proper embeds with embed_id stored in EmbedStore
+     * 3. Replaces URLs with embed references: {"type": "...", "embed_id": "..."}
+     * 
+     * The embeds will be:
+     * - Extracted by extractEmbedReferences() when message is sent
+     * - Loaded from EmbedStore and sent to server
+     * - Cached server-side for LLM inference
+     * - Resolved for AI context building
      */
     async function processClosedUrls(editor: Editor, closedUrls: Array<{url: string, startPos: number, endPos: number}>) {
         console.debug('[MessageInput] Processing closed URLs:', closedUrls);
@@ -310,49 +742,44 @@
         isConvertingEmbeds = true;
         
         try {
-            // Fetch metadata for all URLs in parallel to improve performance
-            const metadataPromises = closedUrls.map(async (urlInfo) => {
+            // Create embeds for all URLs in parallel to improve performance
+            // This fetches metadata and stores embeds in EmbedStore
+            const embedPromises = closedUrls.map(async (urlInfo) => {
                 try {
-                    console.info('[MessageInput] Fetching metadata for URL:', urlInfo.url);
-                    const metadata = await fetchUrlMetadata(urlInfo.url);
-                    return { urlInfo, metadata };
+                    console.info('[MessageInput] Creating embed for URL:', urlInfo.url);
+                    const embedResult = await createEmbedFromUrl(urlInfo.url);
+                    return { urlInfo, embedResult };
                 } catch (error) {
-                    console.warn('[MessageInput] Error fetching metadata for URL:', urlInfo.url, error);
-                    return { urlInfo, metadata: null };
+                    console.error('[MessageInput] Error creating embed for URL:', urlInfo.url, error);
+                    return { urlInfo, embedResult: null };
                 }
             });
             
-            const metadataResults = await Promise.all(metadataPromises);
+            const embedResults = await Promise.all(embedPromises);
             
-            // Replace URLs with json_embed blocks in the preserved markdown content
-            // This ensures existing json_embed blocks are maintained
+            // Replace URLs with embed reference blocks in the preserved markdown content
             // Process URLs from end to beginning to maintain position integrity when replacing
-            const sortedResults = [...metadataResults].sort((a, b) => b.urlInfo.startPos - a.urlInfo.startPos);
+            const sortedResults = [...embedResults].sort((a, b) => b.urlInfo.startPos - a.urlInfo.startPos);
             let currentText = originalMarkdown || editor.getText();
             
-            for (const { urlInfo, metadata } of sortedResults) {
+            for (const { urlInfo, embedResult } of sortedResults) {
+                if (!embedResult) {
+                    console.warn('[MessageInput] Skipping URL - embed creation failed:', urlInfo.url);
+                    continue;
+                }
+                
                 try {
-                    // Always create json_embed block, regardless of metadata fetch success
-                    let websiteMetadata;
-                    if (metadata) {
-                        // Use the fetched metadata directly
-                        websiteMetadata = metadata;
-                        console.info('[MessageInput] Successfully fetched metadata for URL:', {
-                            url: urlInfo.url,
-                            title: metadata.title?.substring(0, 50) + '...' || 'No title'
-                        });
-                    } else {
-                        // Create minimal metadata with URL only (metadata fetch failed)
-                        websiteMetadata = createWebsiteMetadataFromUrl(urlInfo.url);
-                        console.info('[MessageInput] Metadata fetch failed, storing URL only in json_embed:', urlInfo.url);
-                    }
+                    console.info('[MessageInput] Successfully created embed for URL:', {
+                        url: urlInfo.url,
+                        embed_id: embedResult.embed_id,
+                        type: embedResult.type
+                    });
                     
-                    // Replace URL with json_embed block in text content
-                    const jsonEmbedBlock = createJsonEmbedCodeBlock(websiteMetadata);
+                    // Replace URL with embed reference block in text content
                     const beforeUrl = currentText.substring(0, urlInfo.startPos);
                     const afterUrl = currentText.substring(urlInfo.endPos);
                     
-                    // Ensure proper newline spacing around the json_embed block
+                    // Ensure proper newline spacing around the embed reference block
                     let processedBeforeUrl = beforeUrl;
                     let processedAfterUrl = afterUrl;
                     
@@ -363,8 +790,6 @@
                     
                     // ALWAYS ensure single newline after the block if there's content after
                     // This prevents the text from being on the same line as the closing fence
-                    // The createJsonEmbedCodeBlock already includes a trailing newline, so we need to ensure
-                    // there's proper separation when there's content after
                     if (processedAfterUrl.length > 0) {
                         // Only trim if there's actual content (not just whitespace)
                         // Don't remove the space the user just typed!
@@ -377,11 +802,12 @@
                         // If it's just whitespace (like a single space), keep it as-is
                     }
                     
-                    currentText = processedBeforeUrl + jsonEmbedBlock + processedAfterUrl;
+                    currentText = processedBeforeUrl + embedResult.embedReference + processedAfterUrl;
                     
-                    console.debug('[MessageInput] Replaced URL with json_embed block in text:', {
+                    console.debug('[MessageInput] Replaced URL with embed reference:', {
                         url: urlInfo.url,
-                        hasMetadata: !!metadata
+                        embed_id: embedResult.embed_id,
+                        type: embedResult.type
                     });
                     
                 } catch (error) {
@@ -390,10 +816,10 @@
             }
             
             // Update the original markdown and then re-parse with unified parser
-            console.debug('[MessageInput] Updated originalMarkdown with new json_embed blocks:', {
+            console.debug('[MessageInput] Updated originalMarkdown with embed references:', {
                 previousLength: originalMarkdown?.length || 0,
                 newLength: currentText.length,
-                hasJsonEmbed: currentText.includes('```json_embed'),
+                hasEmbedRef: currentText.includes('"embed_id"'),
                 preview: currentText.substring(0, 100) + (currentText.length > 100 ? '...' : '')
             });
             originalMarkdown = currentText;
@@ -406,6 +832,13 @@
                 // Use chain().setContent(content, { emitUpdate: false }).run() to match the working draft loading pattern
                 editor.chain().setContent(parsedDoc, { emitUpdate: false }).run();
                 console.debug('[MessageInput] Updated editor with unified parser result');
+                
+                // After embed conversion, the URL text that may have triggered a PII
+                // false positive is gone from the editor. Invalidate the PII text cache
+                // and re-run detection so the stale banner (e.g. "Found 1 phone number"
+                // from a URL path segment) is cleared.
+                lastPIIText = '';
+                runPIIDetectionImmediate(editor);
             }
             
         } finally {
@@ -461,21 +894,10 @@
                 // This should preserve embed nodes as json_embed blocks
                 const serializedMarkdown = tipTapToCanonicalMarkdown(editor.getJSON());
                 originalMarkdown = serializedMarkdown;
-                
-                console.debug('[MessageInput] Updated original markdown via TipTap serialization:', { 
-                    length: originalMarkdown.length,
-                    preview: originalMarkdown.substring(0, 100),
-                    hasJsonEmbed: originalMarkdown.includes('```json_embed')
-                });
             } catch (error) {
                 console.warn('[MessageInput] Error serializing TipTap content, falling back to plain text:', error);
                 // Fallback to plain text if serialization fails
                 originalMarkdown = editor.getText();
-                
-                console.debug('[MessageInput] Updated original markdown (fallback):', { 
-                    length: originalMarkdown.length,
-                    preview: originalMarkdown.substring(0, 100)
-                });
             }
         }
     }
@@ -485,10 +907,6 @@
      * This returns the user's actual typed content without TipTap conversion artifacts
      */
     function getOriginalMarkdownForSending(): string {
-        console.debug('[MessageInput] Getting original markdown for sending:', {
-            length: originalMarkdown.length,
-            preview: originalMarkdown.substring(0, 100)
-        });
         return originalMarkdown;
     }
 
@@ -496,9 +914,8 @@
      * Apply TipTap decorations to highlight unclosed blocks in write mode
      * Uses TipTap's native decoration system to avoid DOM conflicts
      */
-    function applyHighlightingColors(editor: Editor, unclosedBlocks: any[]) {
-        console.debug('[MessageInput] Applying TipTap decorations for unclosed blocks:', 
-            unclosedBlocks.map(block => ({ type: block.type, startLine: block.startLine })));
+    function applyHighlightingColors(editor: Editor, unclosedBlocks: UnclosedBlock[]) {
+        // Debug: unclosed blocks for decoration (logged only at info level to reduce keystroke overhead)
 
         const { state, view } = editor;
         const { doc } = state;
@@ -534,16 +951,25 @@
                     case 'code': className = 'unclosed-block-code'; break;
                     case 'table': className = 'unclosed-block-table'; break;
                     case 'document_html': className = 'unclosed-block-html'; break;
-                    case 'url':
+                    case 'url': {
                         // Check if this is a YouTube URL from the block content
-                        if (block.content && /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)/.test(block.content)) {
+                        // Use the same pattern as EMBED_PATTERNS.YOUTUBE_URL for consistency
+                        // Note: This is a fallback - YouTube URLs should be detected as 'video' type in streamingSemantics
+                        // Matches: youtube.com, www.youtube.com, m.youtube.com (mobile), youtu.be
+                        // Supports: /watch?v=, /embed/, /shorts/, /v/ (legacy) formats
+                        const youtubePattern = /(?:https?:\/\/)?(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+                        if (block.content && youtubePattern.test(block.content)) {
                             className = 'unclosed-block-video';
+                            console.debug('[MessageInput] Detected YouTube URL in url block, using video highlight color (red):', block.content.substring(0, 50));
                         } else {
                             className = 'unclosed-block-url';
                         }
                         break;
+                    }
                     case 'video':
+                        // YouTube videos should always use red color (#A70B09)
                         className = 'unclosed-block-video';
+                        console.debug('[MessageInput] Video block detected, using video highlight color (red):', block.content?.substring(0, 50));
                         break;
                     case 'markdown':
                         className = 'unclosed-block-markdown';
@@ -577,10 +1003,44 @@
                 }
 
                 if (block.type === 'url' || block.type === 'video') {
+                    // Check if URL is part of a sentence - if so, skip highlighting
+                    // URLs that are part of sentences like "summarize {url}" should NOT be highlighted
+                    // Only standalone URLs should be highlighted
+                    const url = block.content;
+                    let urlStartPos: number;
+                    
+                    if (typeof block.tokenStartCol === 'number') {
+                        urlStartPos = startLineOffset + block.tokenStartCol;
+                    } else {
+                        const startIndex = text.indexOf(url, startLineOffset);
+                        if (startIndex === -1) continue; // URL not found, skip
+                        urlStartPos = startIndex;
+                    }
+                    
+                    // Check if URL is standalone (not part of a sentence)
+                    const textBeforeUrl = text.substring(0, urlStartPos);
+                    const trimmedBeforeUrl = textBeforeUrl.trim();
+                    
+                    // Check if the text before the URL is just another URL (for handling multiple URLs pasted together)
+                    const urlRegexBefore = /https?:\/\/[^\s]+$/;
+                    const textBeforeTrimmed = textBeforeUrl.trimEnd();
+                    const isAfterAnotherUrl = urlRegexBefore.test(textBeforeTrimmed);
+                    
+                    // A URL is standalone if:
+                    // 1. There's no non-whitespace content before it (at start or after only whitespace)
+                    // 2. It's after a newline
+                    // 3. It's after another URL (for multiple URLs pasted together)
+                    const isStandaloneUrl = trimmedBeforeUrl.length === 0 || textBeforeUrl.endsWith('\n') || isAfterAnotherUrl;
+                    
+                    // Only highlight standalone URLs - skip URLs that are part of sentences
+                    if (!isStandaloneUrl) {
+                        continue;
+                    }
+                    
                     // Use precise character positions when available (preferred)
-                    if (typeof (block as any).tokenStartCol === 'number' && typeof (block as any).tokenEndCol === 'number') {
-                        const tokenStartCol = (block as any).tokenStartCol as number;
-                        const tokenEndCol = (block as any).tokenEndCol as number;
+                    if (typeof block.tokenStartCol === 'number' && typeof block.tokenEndCol === 'number') {
+                        const tokenStartCol = block.tokenStartCol as number;
+                        const tokenEndCol = block.tokenEndCol as number;
                         const from = clampToDoc(startLineOffset + tokenStartCol + 1);
                         const to = clampToDoc(startLineOffset + tokenEndCol + 1);
                         if (from < to) {
@@ -588,7 +1048,6 @@
                         }
                     } else {
                         // Fallback to indexOf method for backwards compatibility
-                        const url = block.content;
                         const startIndex = text.indexOf(url, startLineOffset);
                         if (startIndex !== -1) {
                             const endIndex = startIndex + url.length;
@@ -640,9 +1099,9 @@
                 }
 
                 // Markdown token highlighting: use tokenStartCol/tokenEndCol when present
-                if (block.type === 'markdown' && typeof (block as any).tokenStartCol === 'number' && typeof (block as any).tokenEndCol === 'number') {
-                    const tokenStartCol = (block as any).tokenStartCol as number;
-                    const tokenEndCol = (block as any).tokenEndCol as number;
+                if (block.type === 'markdown' && typeof block.tokenStartCol === 'number' && typeof block.tokenEndCol === 'number') {
+                    const tokenStartCol = block.tokenStartCol as number;
+                    const tokenEndCol = block.tokenEndCol as number;
                     const from = clampToDoc(startLineOffset + tokenStartCol + 1);
                     const to = clampToDoc(startLineOffset + tokenEndCol + 1);
                     if (from < to) decorations.push({ from, to, className, type: block.type });
@@ -656,19 +1115,24 @@
                 if (from < to) decorations.push({ from, to, className, type: block.type });
             }
 
-            console.debug('[MessageInput] Created decorations:', decorations, 'from unclosedBlocks:', unclosedBlocks);
+            // Decorations created from unclosed blocks (omit per-keystroke logging for performance)
 
-            const tipTapDecorations = decorations.map(dec =>
-                Decoration.inline(dec.from, dec.to, {
+            const tipTapDecorations = decorations.map(dec => {
+                // For URLs/videos, use inclusiveEnd: false to prevent highlighting beyond the URL
+                // For other block types, use inclusiveEnd: true to include the end position
+                const isUrlOrVideo = dec.type === 'url' || dec.type === 'video';
+                return Decoration.inline(dec.from, dec.to, {
                     class: dec.className,
                     'data-block-type': dec.type
                 }, {
                     inclusiveStart: false,
-                    inclusiveEnd: true
-                })
-            );
+                    inclusiveEnd: !isUrlOrVideo // URLs/videos: false, others: true
+                });
+            });
 
-            currentDecorationSet = DecorationSet.create(doc, tipTapDecorations);
+            // Merge unclosed-block decorations with PII decorations so both are visible
+            const allDecorations = [...tipTapDecorations, ...currentPIIDecorations];
+            currentDecorationSet = DecorationSet.create(doc, allDecorations);
             if (!decorationPropsSet) {
                 view.setProps({
                     decorations: () => currentDecorationSet ?? DecorationSet.empty,
@@ -676,7 +1140,6 @@
                 decorationPropsSet = true;
             }
             // Always dispatch to refresh (also clears when empty)
-            console.debug('[MessageInput] Dispatching transaction with decorations:', tipTapDecorations.length > 0 ? tipTapDecorations : 'empty');
             view.dispatch(state.tr);
 
         } catch (error) {
@@ -702,12 +1165,6 @@
                 const containerWidth = scrollContainer.offsetWidth;
                 const isMobile = containerWidth < 450;
                 
-                console.debug('[MessageInput] Updating embed group layout:', {
-                    containerWidth,
-                    isMobile,
-                    threshold: 450
-                });
-                
                 // Apply mobile class only when container is narrow
                 // Desktop is the default layout (no class needed)
                 if (isMobile) {
@@ -729,7 +1186,7 @@
             embedGroupResizeObserver.disconnect();
         }
         
-        embedGroupResizeObserver = new ResizeObserver((entries) => {
+        embedGroupResizeObserver = new ResizeObserver((_entries) => {
             // Debounce the layout updates to avoid excessive recalculations
             clearTimeout(layoutUpdateTimeout);
             layoutUpdateTimeout = setTimeout(() => {
@@ -754,7 +1211,7 @@
                 embedGroupResizeObserver.observe(container as HTMLElement);
             });
             
-            console.debug('[MessageInput] Observing', scrollContainers.length, 'embed group containers for resize');
+            // Performance: removed per-keystroke console.debug for embed group observer count
         } catch (error) {
             console.error('[MessageInput] Error setting up embed group observers:', error);
         }
@@ -763,8 +1220,78 @@
     // Debounce timeout for layout updates
     let layoutUpdateTimeout: NodeJS.Timeout;
  
+    /**
+     * Inline style for the message-field div.
+     * In narrow fullscreen (<1024px, containerRect available): position:fixed covering the chat card,
+     *   leaving 20px visible at top so the user can tap outside to dismiss.
+     * In fullscreen (fallback, no containerRect yet): height 65dvh.
+     * In maps/camera overlay open (non-fullscreen only): fixed height 400px.
+     * Default: auto height, max 350px.
+     *
+     * IMPORTANT: In fullscreen mode, we always use an explicit pixel height (never `height: auto`)
+     * so that Svelte transitions on absolutely-positioned children (e.g. MapsView's slide transition)
+     * can correctly measure the container height via getComputedStyle. With `height: auto` on a
+     * `position: fixed` element, getComputedStyle may return `0px` synchronously before the browser
+     * has performed a layout pass, causing the slide animation to animate to 0 height and Leaflet
+     * to initialise in a zero-height container (making the map invisible).
+     */
+    let messagePanelStyle = $derived((() => {
+        // Fullscreen checks run first so that opening maps/camera while the field
+        // is expanded does NOT collapse it back to 400px. The map/camera overlays
+        // use `position:absolute; inset:0` and fill whatever height the field has,
+        // so they work correctly inside a fullscreen container too.
+        if (isFullscreen && containerRect && typeof window !== 'undefined') {
+            // Cover the chat card, leaving 20px visible at top so the user can still tap
+            // outside to dismiss. Uses position:fixed anchored to containerRect so it works
+            // correctly even when sidebars are open.
+            // max-width:none overrides .message-input-container > * { max-width: 629px }.
+            // Use an explicit pixel height (containerRect.height - 20) instead of `height:auto`
+            // so that Svelte transitions on child overlays (MapsView, CameraView) can measure
+            // the container height correctly via getComputedStyle before the browser layout pass.
+            const top    = containerRect.top + FULLSCREEN_TOP_GUTTER_PX;
+            const bottom = window.innerHeight - containerRect.bottom;
+            const left   = containerRect.left;
+            const right  = window.innerWidth - containerRect.right;
+            const height = containerRect.height - FULLSCREEN_TOP_GUTTER_PX;
+            return [
+                'position: fixed',
+                `left: ${left}px`,
+                `top: ${top}px`,
+                `right: ${right}px`,
+                `bottom: ${bottom}px`,
+                'width: auto',
+                `height: ${height}px`,
+                'max-height: none',
+                'max-width: none',
+                'z-index: 200',
+                'border-radius: 20px',
+            ].join('; ') + ';';
+        }
+        if (isFullscreen) {
+            // Fallback when containerRect is not yet available (initial render edge case).
+            return `height: ${MESSAGE_FIELD_FULLSCREEN_FALLBACK_VH * 100}dvh; max-height: ${MESSAGE_FIELD_FULLSCREEN_FALLBACK_VH * 100}dvh;`;
+        }
+        // Maps/camera/sketch overlay open (non-fullscreen only): grow to fixed height so the
+        // overlay fills edge-to-edge. When closing, we fall through to the default below
+        // which correctly restores `height: auto` without affecting fullscreen state.
+        if (showMaps || showCamera || showSketch) {
+            return `height: ${MESSAGE_FIELD_MAPS_HEIGHT}px; max-height: ${MESSAGE_FIELD_MAPS_HEIGHT}px;`;
+        }
+        return `height: auto; max-height: ${MESSAGE_FIELD_MAX_HEIGHT}px;`;
+    })());
+
+    // In fullscreen the scrollable content area fills the panel height minus the action buttons row (~120px).
+    let messagePanelScrollableStyle = $derived(
+        isFullscreen
+            ? 'max-height: calc(100% - 120px);'
+            : 'max-height: 250px;'
+    );
+
     // --- Lifecycle ---
     let languageChangeHandler: () => void;
+    // Handles embedUpdated events from chatSyncService for in-editor (draft) embeds
+    // whose background processing fails (e.g. PDF OCR error) before the message is sent.
+    let embedUpdatedFromServerHandler: ((event: Event) => void) | null = null;
     let resizeObserver: ResizeObserver;
     let embedGroupResizeObserver: ResizeObserver;
     // ProseMirror decorations plumbing
@@ -788,10 +1315,95 @@
             onUpdate: handleEditorUpdate,
             editorProps: {
                 // Handle paste events at the ProseMirror level to intercept before default handling
-                handlePaste: (view, event, slice) => {
-                    // Check for chat YAML with embedded link (highest priority)
+                handlePaste: (view, event, _slice) => {
+                    // ── Embed paste detection (highest priority) ───────────────────────
+                    // Two detection paths:
+                    //
+                    // Path A (Chromium / Firefox): "application/x-openmates-embed" MIME
+                    //   type written by writeEmbedToClipboard(). Contains the full embed
+                    //   JSON directly.
+                    //
+                    // Path B (Safari): Safari silently drops non-allowlisted MIME types,
+                    //   so "application/x-openmates-embed" is never written. Instead we
+                    //   embed the JSON in a hidden <meta name="x-openmates-embed"> tag
+                    //   inside the "text/html" clipboard entry (which Safari does allow).
+                    //   We decode the base64 content attribute to recover the JSON.
+                    //
+                    // Single embed copy: JSON is an EmbedClipboardData object.
+                    // Message copy (with embeds): JSON is an EmbedClipboardData array.
+                    // In both cases we insert embed node(s) into the editor and prevent
+                    // default paste. For message copy we also let the text flow through
+                    // by re-triggering a plain-text paste after the embeds.
+
+                    // Try Path A first (Chromium/Firefox).
+                    let embedJson = event.clipboardData?.getData('application/x-openmates-embed') || '';
+
+                    // Try Path B (Safari) if Path A gave nothing.
+                    if (!embedJson) {
+                        const htmlContent = event.clipboardData?.getData('text/html') || '';
+                        if (htmlContent) {
+                            // Look for <meta name="x-openmates-embed" content="...">
+                            const metaMatch = htmlContent.match(/<meta\s[^>]*name="x-openmates-embed"[^>]*content="([^"]*)"[^>]*>/i)
+                                          || htmlContent.match(/<meta\s[^>]*content="([^"]*)"[^>]*name="x-openmates-embed"[^>]*>/i);
+                            if (metaMatch) {
+                                try {
+                                    // Decode base64 → UTF-8 JSON
+                                    embedJson = decodeURIComponent(escape(atob(metaMatch[1])));
+                                    console.debug('[MessageInput] Extracted embed JSON from text/html meta tag (Safari path)');
+                                } catch (decodeErr) {
+                                    console.warn('[MessageInput] Failed to decode embed JSON from meta tag:', decodeErr);
+                                }
+                            }
+                        }
+                    }
+
+                    if (embedJson) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        try {
+                            const parsed = JSON.parse(embedJson);
+                            // Normalise: single object → wrap in array
+                            const embedDataList = Array.isArray(parsed) ? parsed : [parsed];
+
+                            for (const embedData of embedDataList) {
+                                const attrs = parseEmbedClipboardData(embedData);
+                                editor.commands.insertContent([
+                                    { type: 'embed', attrs },
+                                    { type: 'text', text: ' ' },
+                                ]);
+                            }
+
+                            // For message-copy (array), also paste the accompanying text so
+                            // any prose around the embeds is preserved. We deliberately skip
+                            // this for single-embed copy (the user only wanted the card).
+                            if (Array.isArray(parsed)) {
+                                const msgText = event.clipboardData?.getData('text/plain');
+                                if (msgText) {
+                                    // Strip embed markdown blocks from the text to avoid
+                                    // double-representation — the live cards already carry the content.
+                                    const strippedText = msgText
+                                        .replace(/```json[\s\S]*?```/g, '')
+                                        .trim();
+                                    if (strippedText) {
+                                        editor.commands.insertContent(strippedText + ' ');
+                                    }
+                                }
+                            }
+
+                            editor.commands.focus('end');
+                            hasContent = !isContentEmptyExceptMention(editor);
+                            console.debug('[MessageInput] Pasted embed(s) from clipboard:', embedDataList.length);
+                        } catch (err) {
+                            console.warn('[MessageInput] Failed to parse embed clipboard data, falling through to default paste:', err);
+                            // Fall through — allow the default paste to handle it
+                        }
+                        return true;
+                    }
+
                     const text = event.clipboardData?.getData('text/plain');
+                    
                     if (text) {
+                        // Check for chat YAML with embedded link (highest priority)
                         const chatLink = extractChatLinkFromYAML(text);
                         if (chatLink) {
                             // We found a chat link in YAML format
@@ -800,6 +1412,113 @@
                             event.stopPropagation();
                             editor.commands.insertContent(chatLink + ' ');
                             console.debug('[MessageInput] Pasted chat link from YAML (via editorProps):', chatLink);
+                            return true; // Prevent default paste handling
+                        }
+                        
+                        // Check for multi-line text - create a proper code embed for readability
+                        // This ensures pasted logs, errors, code snippets, etc. are formatted as code blocks
+                        // and stored in EmbedStore (encrypted, synced to server)
+                        const isMultiLine = text.includes('\n');
+                        const isAlreadyCodeBlock = text.trim().startsWith('```');
+                        
+                        if (isMultiLine && !isAlreadyCodeBlock) {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            
+                            // Check for VS Code editor data to detect the programming language
+                            // VS Code includes a 'vscode-editor-data' MIME type with JSON containing the 'mode' (language)
+                            const vsCodeEditorData = event.clipboardData?.getData('vscode-editor-data') || null;
+                            
+                            if (!$authStore.isAuthenticated) {
+                                // Unauthenticated / demo mode: EmbedStore is unavailable (no encryption keys).
+                                // Insert a preview embed node with the code stored inline in the node `code`
+                                // attribute — GroupRenderer reads this directly without EmbedStore.
+                                const vsCodeLang = detectLanguageFromVSCode(vsCodeEditorData);
+                                const language = vsCodeLang || detectLanguageFromContent(text) || 'text';
+                                const embedId = generateUUID();
+                                const lineCount = text.split('\n').length;
+                                
+                                console.debug('[MessageInput] Demo mode — inserting inline code embed:', {
+                                    language, lineCount, embedId
+                                });
+                                
+                                editor.commands.insertContent({
+                                    type: 'embed',
+                                    attrs: {
+                                        id: embedId,
+                                        type: 'code-code',
+                                        status: 'finished',
+                                        // "preview:code:" prefix tells GroupRenderer to read code from item.code attr
+                                        contentRef: `preview:code:${embedId}`,
+                                        code: text,
+                                        language,
+                                        lineCount,
+                                    }
+                                });
+                                editor.commands.insertContent(' ');
+                                editor.commands.focus('end');
+                                hasContent = !isContentEmptyExceptMention(editor);
+                                return true;
+                            }
+                            
+                            // Authenticated path: create a proper embed in EmbedStore (async).
+                            // This follows the same pattern as URL embeds.
+                            // Pass VS Code editor data for automatic language detection.
+                            createCodeEmbedFromPastedText({ text, vsCodeEditorData }).then(async (embedResult) => {
+                                console.info('[MessageInput] Created code embed for pasted text:', {
+                                    embed_id: embedResult.embed_id,
+                                    lineCount: text.split('\n').length,
+                                    charCount: text.length
+                                });
+                                
+                                // Re-read originalMarkdown from the editor's current state to avoid
+                                // stale-closure race conditions. When the user pastes, deletes, and
+                                // pastes again quickly, multiple async promises can complete out of order.
+                                // Each promise must base its append on the CURRENT editor content — not
+                                // on the value of originalMarkdown that was captured when the paste fired.
+                                // Also guard against duplicate embed references (idempotency).
+                                updateOriginalMarkdown(editor);
+                                
+                                // Guard against duplicate: if this embed_id is already in originalMarkdown
+                                // (e.g. a previous resolution of the same paste already wrote it), skip.
+                                if (originalMarkdown.includes(embedResult.embed_id)) {
+                                    console.debug('[MessageInput] Code embed already in originalMarkdown, skipping duplicate insertion:', embedResult.embed_id);
+                                    return;
+                                }
+                                
+                                // Update originalMarkdown with the embed reference
+                                const currentMarkdown = originalMarkdown || '';
+                                originalMarkdown = currentMarkdown + (currentMarkdown ? '\n' : '') + embedResult.embedReference;
+                                
+                                // Parse and render the updated markdown with the embed reference
+                                const parsedDoc = parse_message(originalMarkdown, 'write', { 
+                                    unifiedParsingEnabled: true 
+                                });
+                                
+                                if (parsedDoc && parsedDoc.content) {
+                                    isConvertingEmbeds = true;
+                                    try {
+                                        editor.chain().setContent(parsedDoc, { emitUpdate: false }).run();
+                                        // Move cursor to end after inserting
+                                        editor.commands.focus('end');
+                                    } finally {
+                                        isConvertingEmbeds = false;
+                                    }
+                                }
+                                
+                                // Update hasContent state
+                                hasContent = !isContentEmptyExceptMention(editor);
+                                
+                                console.debug('[MessageInput] Inserted code embed reference:', {
+                                    embed_id: embedResult.embed_id,
+                                    originalMarkdownLength: originalMarkdown.length
+                                });
+                            }).catch((error) => {
+                                console.error('[MessageInput] Failed to create code embed:', error);
+                                // Fallback: insert as plain text if embed creation fails
+                                editor.commands.insertContent(text);
+                            });
+                            
                             return true; // Prevent default paste handling
                         }
                     }
@@ -816,11 +1535,57 @@
                         }
                     }
                     
-                    // No special handling needed - allow default paste
+                    // Check for a standalone URL paste (single URL with optional surrounding
+                    // whitespace).  When detected we immediately trigger embed conversion —
+                    // no need for the user to type a trailing space.
+                    // We only do this when:
+                    //   1. The pasted text is (after trimming) a single URL.
+                    //   2. The URL is not in the ignore list (user previously chose "paste as text").
+                    //   3. The user is authenticated (unauthenticated path has no EmbedStore).
+                    const trimmedText = text ? text.trim() : '';
+                    const standaloneUrlRegex = /^https?:\/\/[^\s]+$/;
+                    if (
+                        trimmedText &&
+                        standaloneUrlRegex.test(trimmedText) &&
+                        !ignoredEmbedUrls.has(trimmedText) &&
+                        $authStore.isAuthenticated
+                    ) {
+                        // Let TipTap insert the text first (return false = default paste),
+                        // then immediately schedule embed processing on the next tick so
+                        // the editor content is already updated when we read it.
+                        // We use a flag so scheduleHeavyParsing in handleEditorUpdate
+                        // triggers processClosedUrls immediately (same as typing a space).
+                        piiPasteDetectionPending = true;
+                        // Schedule immediate URL conversion after the paste is committed.
+                        // We insert a trailing space after the URL to trigger detectClosedUrls
+                        // (which looks for whitespace after the URL), then remove it once
+                        // processClosedUrls has replaced the URL with an embed block.
+                        // The whole operation happens in a single tick so the user never
+                        // sees the trailing space in the editor.
+                        tick().then(() => {
+                            if (!editor || editor.isDestroyed) return;
+                            // Insert a trailing space to satisfy the "closed URL" detection
+                            editor.commands.insertContent(' ');
+                            // The space triggers handleEditorUpdate → scheduleHeavyParsing
+                            // → runHeavyParsing → handleUnifiedParsing → detectClosedUrls
+                            // → processClosedUrls, which replaces the URL+space with the embed.
+                        });
+                        return false;
+                    }
+
+                    // No special handling needed - allow default paste.
+                    // Flag for immediate PII detection on the next editor update,
+                    // since pasted text may contain complete PII patterns.
+                    piiPasteDetectionPending = true;
                     return false;
                 }
             }
         });
+
+        // Explicitly blur the editor on mount to prevent auto-focus on page load
+        // This ensures the editor doesn't automatically get focus when the page loads
+        editor.commands.blur();
+        console.debug('[MessageInput] Blurred editor on mount to prevent auto-focus');
 
         initializeDraftService(editor);
         hasContent = !isContentEmptyExceptMention(editor);
@@ -833,24 +1598,67 @@
         // Setup embed group layout observers
         setupEmbedGroupResizeObserver();
 
+        // Initial height calculation (immediate)
+        updateHeight();
+        
+        // Aggressively prevent auto-focus during initial mount phase
+        // TipTap or the browser might try to focus the editor multiple times
+        const preventAutoFocus = () => {
+            if (editor && !editor.isDestroyed && editor.isFocused && isInitialMount) {
+                editor.commands.blur();
+                console.debug('[MessageInput] Prevented auto-focus during initial mount');
+            }
+        };
+        
+        // Try to blur immediately
+        preventAutoFocus();
+        
         tick().then(() => {
-            updateHeight();
+            updateHeight(); // Update again after tick
             updateEmbedGroupLayouts(); // Initial layout check
+            preventAutoFocus(); // Blur again after tick
         });
+        
+        // Force height update after a short delay to ensure proper rendering
+        setTimeout(() => {
+            updateHeight();
+            preventAutoFocus(); // Blur again after short delay
+        }, 100);
+        
+        // Mark mount as complete after a longer delay to allow all async operations to finish
+        // This ensures we don't prevent legitimate user-initiated focus after page load
+        mountCompleteTimeout = setTimeout(() => {
+            isInitialMount = false;
+            console.debug('[MessageInput] Initial mount phase complete - focus prevention disabled');
+        }, 500);
 
         // AI Task related updates
         updateActiveAITaskStatus(); // Initial check
         chatSyncService.addEventListener('aiTaskInitiated', handleAiTaskOrChatChange);
-        chatSyncService.addEventListener('aiTaskEnded', handleAiTaskOrChatChange);
+        chatSyncService.addEventListener('aiTaskEnded', handleAiTaskEnded as EventListener);
+        chatSyncService.addEventListener('messageQueued', handleMessageQueued as EventListener);
         // Consider 'aiTaskCancellationAcknowledged' for more granular UI if needed
 
         const unsubscribeAiTyping = aiTypingStore.subscribe(value => {
             currentTypingStatus = value;
         });
+
+        // Subscribe to the text store so that when the locale JSON finishes loading
+        // (which is async — svelte-i18n fetches it after editor mount), we force TipTap
+        // to re-evaluate its placeholder() callback with the now-resolved translation.
+        // Without this, the placeholder keeps showing "[T:enter_message.placeholder.touch]"
+        // for several seconds on page load because CustomPlaceholder calls get(text) at
+        // TipTap init time, before the locale fetch completes.
+        const unsubscribeText = text.subscribe(() => {
+            if (editor && !editor.isDestroyed) {
+                editor.view.dispatch(editor.state.tr);
+            }
+        });
  
         return () => {
             cleanup();
             unsubscribeAiTyping();
+            unsubscribeText();
         };
     });
  
@@ -860,64 +1668,584 @@
         // (if any) are cleaned up here or in the onMount return.
         // For chatSyncService listeners, they are added in onMount and should be cleaned up in its return.
         // The unsubscribeAiTyping is also handled there.
+        
+        // Clean up PII detection state
+        if (piiDebounceTimer) { clearTimeout(piiDebounceTimer); piiDebounceTimer = null; }
+        currentPIIDecorations = [];
+        lastPIIText = '';
+        
+        // Clean up heavy parsing debounce timer
+        if (heavyParsingDebounceTimer) { clearTimeout(heavyParsingDebounceTimer); heavyParsingDebounceTimer = null; }
     });
 
     // --- Editor Lifecycle Handlers ---
     function handleEditorFocus({ editor }: { editor: Editor }) {
+        // Prevent auto-focus during initial mount phase
+        // Only allow focus if it's user-initiated (not during initial mount)
+        if (isInitialMount) {
+            console.debug('[MessageInput] Blocking auto-focus during initial mount phase');
+            editor.commands.blur();
+            return; // Exit early to prevent focus during mount
+        }
+        
+        // Cancel any pending blur timeout - focus was regained
+        if (blurTimeoutId) {
+            clearTimeout(blurTimeoutId);
+            blurTimeoutId = null;
+            console.debug('[MessageInput] Cancelled pending blur timeout - focus regained');
+        }
+        
         isMessageFieldFocused = true;
         isFocused = true; // Update bindable prop for parent components
         if (editor.isEmpty) {
             editor.commands.setContent(getInitialContent(), { emitUpdate: false });
             editor.commands.focus('end');
         }
+        
+        // Re-check mention trigger when focus is regained
+        // This ensures the dropdown reappears if cursor is right after '@'
+        checkMentionTrigger(editor);
     }
 
     function handleEditorBlur({ editor }: { editor: Editor }) {
-        isMessageFieldFocused = false;
-        isFocused = false; // Update bindable prop for parent components
-        setTimeout(() => {
-            if (isMenuInteraction) return;
-            flushSaveDraft();
-            if (isContentEmptyExceptMention(editor)) {
-                editor.commands.setContent(getInitialContent());
-                hasContent = false;
+        // Cancel any existing blur timeout before creating a new one
+        if (blurTimeoutId) {
+            clearTimeout(blurTimeoutId);
+            blurTimeoutId = null;
+        }
+        
+        // Use a small delay before updating focus state to avoid false blurs
+        // This prevents suggestions from disappearing when clicking on the editor
+        // or when clicking on UI elements that should maintain focus
+        blurTimeoutId = setTimeout(() => {
+            blurTimeoutId = null; // Clear the timeout ID
+            // Check if editor is still actually blurred (not refocused)
+            // This prevents race conditions where focus is regained quickly
+            if (editor && !editor.isDestroyed && !editor.isFocused && !isMenuInteraction) {
+                isMessageFieldFocused = false;
+                isFocused = false; // Update bindable prop for parent components
+                
+                // Close the mention dropdown when editor loses focus
+                // It will reopen when focus is regained if cursor is after '@'
+                showMentionDropdown = false;
+                mentionQuery = '';
+                
+                flushSaveDraft();
+                // Only reset to initial content if the editor is TRULY empty (no content at all)
+                // Do NOT reset if it contains mentions - those are valid draft content
+                // that should be preserved even though they can't be sent alone
+                if (editor.isEmpty) {
+                    editor.commands.setContent(getInitialContent());
+                    hasContent = false;
+                }
+            } else if (isMenuInteraction) {
+                // If it's a menu interaction, don't update focus state
+                return;
             }
-        }, 100);
+        }, 150); // Slightly longer delay to allow for quick focus regains
+    }
+
+    /**
+     * Check for @ mention trigger and update the dropdown state.
+     * Shows the mention dropdown when user types @ at start of word.
+     */
+    function checkMentionTrigger(editor: Editor) {
+        const { from } = editor.state.selection;
+
+        // Performance: Short-circuit when we know the dropdown isn't showing and
+        // the user hasn't typed '@'. The full textBetween + extractMentionQuery
+        // path is only needed when an '@' character is nearby or the dropdown is
+        // already visible (user may be backspacing out of a mention).
+        if (!showMentionDropdown) {
+            // Quick check: look at a small window around the cursor for '@'
+            const quickText = editor.state.doc.textBetween(
+                Math.max(0, from - 50), from, '\n'
+            );
+            if (!quickText.includes('@')) {
+                return;
+            }
+        }
+
+        // Get text from document start to cursor position using ProseMirror's textBetween
+        // This properly handles the document structure and gives us the actual character position
+        const textBeforeCursor = editor.state.doc.textBetween(0, from, '\n');
+
+        // Extract the query after @ if we're in mention mode
+        // Pass full length as cursor position since we only have text up to cursor
+        const query = extractMentionQuery(textBeforeCursor, textBeforeCursor.length);
+
+        if (query !== null) {
+            // We're in mention mode - show dropdown
+            mentionQuery = query;
+
+            // Calculate dropdown position based on cursor/caret
+            // The dropdown is OUTSIDE .message-field but INSIDE .message-input-wrapper
+            // Position it at the top of the wrapper (above the entire message field)
+            // The dropdown is horizontally centered via CSS transform
+            if (messageInputWrapper) {
+                const wrapperRect = messageInputWrapper.getBoundingClientRect();
+                // Position dropdown at the top of the wrapper + small gap
+                // Since we use bottom positioning and the dropdown is in the wrapper,
+                // bottom: wrapperHeight + gap positions it above the wrapper
+                mentionDropdownY = wrapperRect.height + 8;
+            }
+
+            showMentionDropdown = true;
+        } else {
+            // Not in mention mode - hide dropdown
+            showMentionDropdown = false;
+            mentionQuery = '';
+        }
+    }
+
+    /**
+     * Handle selection of a mention result from the dropdown.
+     * Replaces the @query with a styled mention node (for models) or mention syntax (for others).
+     */
+    function handleMentionSelectCallback(result: AnyMentionResult) {
+        if (!editor) return;
+
+        const { from } = editor.state.selection;
+
+        // Calculate the range to replace (from @ to cursor)
+        // IMPORTANT: textBetween gives us a string, but deleteRange expects document positions.
+        // We need to get text ONLY up to cursor position, then find @ in that substring.
+        // The string length will match the character offset from start of content.
+        const textBeforeCursor = editor.state.doc.textBetween(0, from, '\n');
+        const atIndexInText = textBeforeCursor.lastIndexOf('@');
+
+        console.info('[MentionSelect] DEBUG: Starting mention selection', {
+            resultType: result.type,
+            resultId: result.id,
+            from,
+            textBeforeCursor,
+            atIndexInText
+        });
+
+        if (atIndexInText === -1) {
+            console.warn('[MentionSelect] DEBUG: @ not found in text before cursor!');
+            return;
+        }
+
+        // Calculate the actual document position of the @ character
+        // The cursor is at 'from', and we typed (textBeforeCursor.length - atIndexInText) chars including @
+        // So @ is at: from - (textBeforeCursor.length - atIndexInText)
+        const charsAfterAt = textBeforeCursor.length - atIndexInText;
+        const atDocPosition = from - charsAfterAt;
+
+        console.info('[MentionSelect] DEBUG: Calculated positions', {
+            charsAfterAt,
+            atDocPosition,
+            deleteRange: { from: atDocPosition, to: from }
+        });
+
+        // Insert the appropriate content based on result type
+        // CRITICAL: Combine deleteRange and insert into a SINGLE chain to preserve cursor position
+        if (result.type === 'model_alias') {
+            // Use the BestModelMention node for alias shortcuts (@best, @fast)
+            // Shows @Best or @Fast in editor, serializes to @best-model:alias_id
+            const aliasResult = result as import('./services/mentionSearchService').ModelAliasMentionResult;
+            editor
+                .chain()
+                .focus()
+                .deleteRange({ from: atDocPosition, to: from })
+                .setBestModelMention({
+                    category: aliasResult.aliasId,
+                    displayName: aliasResult.mentionDisplayName
+                })
+                .insertContent(' ')
+                .run();
+        } else if (result.type === 'model') {
+            // Use the custom AI model mention node for visual display
+            // Shows hyphenated name (e.g., "Claude-4.5-Opus") but serializes to @ai-model:id
+            editor
+                .chain()
+                .focus()
+                .deleteRange({ from: atDocPosition, to: from })
+                .setAIModelMention({
+                    modelId: result.id,
+                    displayName: result.mentionDisplayName
+                })
+                .insertContent(' ')
+                .run();
+            
+            // Debug: Log the editor state after insertion
+            console.info('[MentionSelect] DEBUG: After model insertion, editor JSON:', 
+                JSON.stringify(editor.getJSON(), null, 2)
+            );
+        } else if (result.type === 'mate') {
+            // Use the mate node which shows @Name with gradient color
+            // Shows @Sophia but serializes to @mate:id
+            const mateResult = result as MateMentionResult;
+            editor
+                .chain()
+                .focus()
+                .deleteRange({ from: atDocPosition, to: from })
+                .setMate({
+                    name: mateResult.id, // mate id like "software_development"
+                    displayName: mateResult.mentionDisplayName, // e.g., "Sophia"
+                    id: crypto.randomUUID(),
+                    colorStart: mateResult.colorStart,
+                    colorEnd: mateResult.colorEnd
+                })
+                .insertContent(' ')
+                .run();
+        } else {
+            // Use generic mention node for skills, focus modes, and settings/memories
+            // Shows @Code-Get-Docs, @Web-Research, @Code-Projects but serializes to backend syntax
+            // Extract color gradient for the app-specific styling
+            const genericResult = result as import('./services/mentionSearchService').SkillMentionResult | import('./services/mentionSearchService').FocusModeMentionResult | import('./services/mentionSearchService').SettingsMemoryMentionResult | import('./services/mentionSearchService').SettingsMemoryEntryMentionResult;
+            editor
+                .chain()
+                .focus()
+                .deleteRange({ from: atDocPosition, to: from })
+                .setGenericMention({
+                    mentionType: result.type as 'skill' | 'focus_mode' | 'settings_memory' | 'settings_memory_entry',
+                    displayName: result.mentionDisplayName,
+                    mentionSyntax: result.mentionSyntax,
+                    colorStart: genericResult.colorStart,
+                    colorEnd: genericResult.colorEnd
+                })
+                .insertContent(' ')
+                .run();
+        }
+
+        // Close dropdown
+        showMentionDropdown = false;
+        mentionQuery = '';
+    }
+
+    /**
+     * Handle closing the mention dropdown.
+     */
+    function handleMentionClose() {
+        showMentionDropdown = false;
+        mentionQuery = '';
+    }
+    
+    // =============================================================================
+    // PII Detection and Highlighting
+    // =============================================================================
+    
+    /**
+     * Hybrid PII detection trigger: runs detection at natural word/token boundaries
+     * (delimiter characters) instead of on every keystroke. This avoids running 16+
+     * regex patterns per character while still catching PII at the exact moment it
+     * becomes complete (e.g. after the space following an email address).
+     *
+     * Three trigger modes:
+     * 1. **Delimiter**: Immediate detection when user types a delimiter char (space,
+     *    comma, dot, newline, slash, etc.) — these mark the end of a token/word.
+     * 2. **Paste**: Immediate detection after paste events (content arrives complete).
+     * 3. **Debounce fallback**: If no delimiter is typed for PII_DEBOUNCE_MS, run
+     *    detection anyway as a safety net (e.g. slow typing then clicking Send).
+     *
+     * For immediate needs (e.g. exclusion changes), use runPIIDetectionImmediate().
+     */
+    function runPIIDetection(editor: Editor, forcedByPaste = false, currentText?: string) {
+        if (!editor || editor.isDestroyed) return;
+        
+        const text = currentText ?? editor.getText();
+        
+        // Skip if text hasn't changed (e.g. cursor movement, selection change)
+        if (text === lastPIIText) return;
+        
+        // If text was cleared, update immediately (no need to debounce cleanup)
+        if (!text || text.trim().length === 0) {
+            if (piiDebounceTimer) { clearTimeout(piiDebounceTimer); piiDebounceTimer = null; }
+            lastPIIText = text;
+            detectedPII = [];
+            currentPIIDecorations = [];
+            return;
+        }
+        
+        // Performance optimization: Only run PII detection immediately on paste.
+        // On delimiter keystrokes (space, comma, etc.), heavy parsing already runs
+        // immediately — stacking PII detection on top causes input lag. The debounce
+        // timer still fires after PII_DEBOUNCE_MS as a safety net.
+        if (forcedByPaste) {
+            // Paste: content arrives complete, detect immediately
+            if (piiDebounceTimer) { clearTimeout(piiDebounceTimer); piiDebounceTimer = null; }
+            runPIIDetectionImmediate(editor);
+        } else {
+            // Regular typing and delimiters: debounce to avoid stacking with heavy parsing.
+            // PII_DEBOUNCE_MS (800ms) ensures detection runs shortly after the user pauses.
+            if (piiDebounceTimer) { clearTimeout(piiDebounceTimer); }
+            piiDebounceTimer = setTimeout(() => {
+                piiDebounceTimer = null;
+                runPIIDetectionImmediate(editor);
+            }, PII_DEBOUNCE_MS);
+        }
+    }
+    
+    /**
+     * Run PII detection immediately (no debounce).
+     * Used when the debounce timer fires and when the user interacts with PII
+     * UI (exclusions, undo-all).
+     * 
+     * After building PII decorations, calls rebuildDecorationSet() to merge
+     * them into the visible decoration set alongside any unclosed-block
+     * decorations that applyHighlightingColors previously created.
+     * 
+     * Optimization: skips re-detection if text hasn't changed since last run.
+     */
+    function runPIIDetectionImmediate(editor: Editor) {
+        if (!editor || editor.isDestroyed) return;
+        
+        const text = editor.getText();
+        
+        // Skip if text hasn't changed (e.g. cursor movement, selection change)
+        if (text === lastPIIText) return;
+        lastPIIText = text;
+        
+        if (!text || text.trim().length === 0) {
+            detectedPII = [];
+            currentPIIDecorations = [];
+            return;
+        }
+        
+        // Performance: Read from cached store values (updated via subscription)
+        // instead of calling get() on every detection run.
+        const piiSettings: PIIDetectionSettings = cachedPIISettings ?? get(personalDataStore.settings);
+        
+        // If master toggle is off, skip all PII detection
+        if (!piiSettings.masterEnabled) {
+            detectedPII = [];
+            currentPIIDecorations = [];
+            return;
+        }
+        
+        // Build the set of disabled categories (categories where the toggle is OFF)
+        const disabledCategories = new Set<string>();
+        for (const [category, enabled] of Object.entries(piiSettings.categories)) {
+            if (!enabled) disabledCategories.add(category);
+        }
+        
+        // Performance: Read from cached store values instead of get()
+        const enabledEntries: PersonalDataEntry[] = cachedPIIEnabledEntries ?? get(personalDataStore.enabledEntries);
+        const personalDataForDetection: PersonalDataForDetection[] = enabledEntries.map(
+            (entry) => {
+                const result: PersonalDataForDetection = {
+                    id: entry.id,
+                    textToHide: entry.textToHide,
+                    replaceWith: entry.replaceWith,
+                };
+                // For address entries, include individual address lines as additional search texts
+                if (entry.type === 'address' && entry.addressLines) {
+                    const additionalTexts: string[] = [];
+                    if (entry.addressLines.street) additionalTexts.push(entry.addressLines.street);
+                    if (entry.addressLines.city) additionalTexts.push(entry.addressLines.city);
+                    result.additionalTexts = additionalTexts;
+                }
+                return result;
+            },
+        );
+        
+        // Build detection options with category filtering and personal data entries
+        const detectionOptions: PIIDetectionOptions = {
+            excludedIds: piiExclusions,
+            disabledCategories,
+            personalDataEntries: personalDataForDetection,
+        };
+        
+        // Detect PII with full store-aware options
+        const matches = detectPII(text, detectionOptions);
+        detectedPII = matches;
+        
+        if (matches.length > 0) {
+            console.debug('[MessageInput] PII detected:', matches.length, 'matches');
+            buildPIIDecorations(editor, matches);
+        } else {
+            currentPIIDecorations = [];
+        }
+        
+        // Rebuild the full decoration set so PII highlights become visible.
+        // rebuildDecorationSet merges currentPIIDecorations into the view and
+        // dispatches a transaction to refresh the display.
+        rebuildDecorationSet(editor);
+    }
+    
+    /**
+     * Build PII Decoration objects and store them in currentPIIDecorations.
+     * These are merged into the main decoration set by applyHighlightingColors
+     * or directly when no unclosed blocks exist.
+     */
+    function buildPIIDecorations(editor: Editor, matches: PIIMatch[]) {
+        const { doc } = editor.state;
+        
+        try {
+            currentPIIDecorations = matches.map(match => {
+                // TipTap positions are 1-indexed, text positions are 0-indexed
+                const from = Math.max(1, Math.min(match.startIndex + 1, doc.content.size));
+                const to = Math.max(1, Math.min(match.endIndex + 1, doc.content.size));
+                
+                // All PII types use the same orange/amber bold text style (matches ReadOnlyMessage .pii-revealed).
+                // The data-pii-type attribute is kept for tooltip display and click handling.
+                return Decoration.inline(from, to, {
+                    class: 'pii-highlight',
+                    'data-pii-id': match.id,
+                    'data-pii-type': match.type,
+                    title: `Click to keep original (${match.type.toLowerCase().replace(/_/g, ' ')})`
+                });
+            });
+        } catch (error) {
+            console.error('[MessageInput] Error building PII decorations:', error);
+            currentPIIDecorations = [];
+        }
+    }
+    
+    /**
+     * Handle click on a PII decoration to exclude it from replacement.
+     * Called when user clicks on highlighted sensitive data.
+     */
+    function handlePIIClick(matchId: string) {
+        // Add to exclusions set
+        piiExclusions = new Set([...piiExclusions, matchId]);
+        // Invalidate last text cache so detection re-runs immediately
+        lastPIIText = '';
+        
+        // Re-run detection immediately (no debounce) and rebuild decorations
+        if (editor && !editor.isDestroyed) {
+            runPIIDetectionImmediate(editor);
+            // Rebuild the full decoration set with updated PII decorations
+            rebuildDecorationSet(editor);
+        }
+        
+        console.debug('[MessageInput] PII exclusion added:', matchId);
+    }
+    
+    /**
+     * Handle "Undo All" from the PII warning banner.
+     * Excludes all detected PII so nothing gets replaced on send.
+     */
+    function handlePIIUndoAll() {
+        // Mark all current detections as excluded
+        const newExclusions = new Set(piiExclusions);
+        for (const match of detectedPII) {
+            newExclusions.add(match.id);
+        }
+        piiExclusions = newExclusions;
+        
+        // Clear detected PII and decorations
+        detectedPII = [];
+        currentPIIDecorations = [];
+        lastPIIText = '';
+        
+        // Rebuild decoration set without PII decorations
+        if (editor && !editor.isDestroyed) {
+            rebuildDecorationSet(editor);
+        }
+        
+        console.debug('[MessageInput] All PII exclusions applied, user chose to keep original text');
+    }
+    
+    /**
+     * Rebuild the currentDecorationSet from scratch using the current PII decorations.
+     * Called after PII exclusions change to immediately update the view.
+     */
+    function rebuildDecorationSet(editor: Editor) {
+        const { state, view } = editor;
+        if (currentPIIDecorations.length > 0) {
+            // Re-run the unified parser to get unclosed-block decorations, then merge
+            // For simplicity, just rebuild with PII only - the next editor update
+            // will call handleUnifiedParsing which merges both
+            currentDecorationSet = DecorationSet.create(state.doc, currentPIIDecorations);
+        } else {
+            currentDecorationSet = DecorationSet.empty;
+        }
+        if (!decorationPropsSet) {
+            view.setProps({
+                decorations: () => currentDecorationSet ?? DecorationSet.empty,
+            });
+            decorationPropsSet = true;
+        }
+        view.dispatch(state.tr);
     }
 
     function handleEditorUpdate({ editor }: { editor: Editor }) {
+        // --- Text-change guard ---
+        // On iOS Firefox, double-tap to select text fires spurious `input` events
+        // that ProseMirror treats as content changes, triggering onUpdate even though
+        // only the selection changed. The heavy operations below (markdown serialization,
+        // unified parsing, PII detection) plus the empty transaction dispatches they
+        // perform would create an infinite feedback loop crashing performance.
+        // Guard: compare current plain text to last processed text and bail early
+        // for selection-only changes. checkMentionTrigger still runs because it
+        // depends on cursor position, not content.
+        const currentText = editor.getText();
+        const textActuallyChanged = currentText !== lastEditorUpdateText;
+        
+        if (textActuallyChanged) {
+            lastEditorUpdateText = currentText;
+        }
+        
         const newHasContent = !isContentEmptyExceptMention(editor);
         if (hasContent !== newHasContent) {
             hasContent = newHasContent;
             if (!newHasContent) {
                 console.debug("[MessageInput] Content cleared, triggering draft deletion.");
+                // Clear PII detections and exclusions when content is cleared
+                detectedPII = [];
+                piiExclusions = new Set();
+                currentPIIDecorations = [];
+                lastPIIText = '';
+                // Clear the URL ignore list — field is empty so start fresh
+                ignoredEmbedUrls = new Set();
             }
         }
         
-        // Update original markdown tracking
-        updateOriginalMarkdown(editor);
+        // Skip all heavy processing if only the selection changed (no content change).
+        // This prevents the infinite loop on iOS Firefox where empty transaction
+        // dispatches cause further spurious input events.
+        if (!textActuallyChanged) {
+            // Still check mention trigger (depends on cursor position, not content)
+            checkMentionTrigger(editor);
+            return;
+        }
         
         // Always trigger save/delete operation - the draft service handles both scenarios
         triggerSaveDraft(currentChatId);
 
-        // Use unified parser for write mode
-        handleUnifiedParsing(editor);
+        // Performance: Stagger PII detection and heavy parsing on delimiter keystrokes.
+        // Both are expensive — running them simultaneously on every space/comma causes
+        // noticeable input lag. Strategy:
+        //   - Heavy parsing runs immediately on delimiters (needed for URL detection/embeds)
+        //   - PII detection runs immediately ONLY on paste (content arrives complete)
+        //   - On delimiters, PII detection stays on its 800ms debounce timer
+        // This halves synchronous work on delimiter keystrokes while keeping paste instant.
+        const wasPaste = piiPasteDetectionPending;
+        piiPasteDetectionPending = false;
+        
+        // PII Detection: immediate only on paste events; delimiter-triggered detection
+        // uses the debounce fallback to avoid stacking with heavy parsing.
+        runPIIDetection(editor, wasPaste, currentText);
+
+        // Heavy parsing (markdown serialization + unified parser + decorations):
+        // Runs immediately on delimiter characters and paste, with a 400ms fallback
+        // timer for regular characters.
+        scheduleHeavyParsing(editor, currentText, wasPaste);
 
         // Dispatch live text change event so parent components can react on each keystroke
         // This enables precise, character-by-character search in new chat suggestions
         try {
-            const liveText = editor.getText();
-            console.debug('[MessageInput] Dispatching textchange event:', { text: liveText, length: liveText.length });
-            dispatch('textchange', { text: liveText });
+            dispatch('textchange', { text: currentText });
         } catch (err) {
             console.error('[MessageInput] Failed to dispatch textchange event:', err);
         }
 
+        // Check for @ mention trigger and update dropdown state
+        checkMentionTrigger(editor);
+
         tick().then(() => {
             checkScrollable();
             updateHeight();
-            updateEmbedGroupLayouts(); // Update embed group layouts when content changes
-            observeEmbedGroupContainers(); // Re-observe any new embed groups
+            // Performance: Only run embed group DOM queries if embeds might exist.
+            // These call querySelectorAll('.web-website-preview-group') on every keystroke,
+            // which is wasted work when the editor has no embed nodes.
+            if (editorElement?.querySelector('[data-embed-id]')) {
+                updateEmbedGroupLayouts();
+                observeEmbedGroupContainers();
+            }
         });
     }
 
@@ -925,35 +2253,190 @@
     function setupEventListeners() {
         document.addEventListener('embedclick', handleEmbedClick as EventListener);
         document.addEventListener('mateclick', handleMateClick as EventListener);
+        // Listen for right-click / long-press context menu events from UnifiedEmbedPreview
+        // inside group embeds rendered in the compose editor. The event bubbles up from the
+        // embed component and we catch it here to open PressAndHoldMenu.
+        editorElement?.addEventListener('embed-context-menu', handleEmbedContextMenu as EventListener);
         editorElement?.addEventListener('paste', handlePaste);
         editorElement?.addEventListener('custom-send-message', handleSendMessage as EventListener);
+        editorElement?.addEventListener('custom-sign-up-click', handleSignUpClick as EventListener); // Handle Enter key for unauthenticated users
         editorElement?.addEventListener('keydown', handleKeyDown);
         editorElement?.addEventListener('codefullscreen', handleCodeFullscreen as EventListener);
+        editorElement?.addEventListener('imagefullscreen', handleImageFullscreen as EventListener);
+        editorElement?.addEventListener('pdffullscreen', handlePdfFullscreen as EventListener);
+        editorElement?.addEventListener('recordingfullscreen', handleRecordingFullscreen as EventListener);
+        editorElement?.addEventListener('retryrecordingtranscription', handleRetryRecordingTranscription as EventListener);
+        document.addEventListener('updaterecordingtranscript', handleUpdateRecordingTranscript as EventListener);
+        editorElement?.addEventListener('click', handleEditorClick); // For PII click handling
+        // Listen for stop-button upload cancellations from image embeds.
+        // This event is dispatched by Embed.ts after the embed node is deleted so
+        // we can update the draft and originalMarkdown even when getText() is
+        // unchanged (e.g. the editor contained only the uploading image with no text).
+        editorElement?.addEventListener('embed-upload-cancelled', handleEmbedUploadCancelled as EventListener);
         window.addEventListener('saveDraftBeforeSwitch', flushSaveDraft);
         window.addEventListener('beforeunload', handleBeforeUnload);
+        window.addEventListener('focusInput', handleFocusInput as EventListener);
+        // Deferred send: fires when an upload/transcription finishes so we can auto-dispatch
+        // pending sends that were queued while embeds were in-flight.
+        window.addEventListener('embedUploadFinished', handleEmbedUploadFinished as EventListener);
         document.addEventListener('visibilitychange', handleVisibilityChange);
         document.addEventListener('embed-group-backspace', handleEmbedGroupBackspace as EventListener);
+        messageInputWrapper?.addEventListener('mousedown', handleMessageWrapperMouseDown);
+        // Handler for language change - updates placeholder text when language switches
         languageChangeHandler = () => {
-            if (editor && !editor.isDestroyed) editor.view.dispatch(editor.view.state.tr);
+            if (editor && !editor.isDestroyed) {
+                // Use a small delay to ensure translations are fully loaded
+                // The language-changed event is dispatched after waitLocale() completes,
+                // but we add a small delay to ensure the text store has the new translations
+                setTimeout(() => {
+                    if (editor && !editor.isDestroyed) {
+                        // Force the placeholder to update by triggering a view update
+                        // The placeholder extension uses the reactive text store which will have the new language
+                        const { state, view } = editor;
+                        
+                        // Create a transaction that doesn't change content but forces a view update
+                        // This will cause the placeholder extension to re-evaluate its placeholder function
+                        const tr = state.tr;
+                        view.dispatch(tr);
+                        
+                        // Also update the placeholder attribute directly if the editor is empty
+                        // This ensures the placeholder text is immediately visible in the new language
+                        if (isContentEmptyExceptMention(editor)) {
+                            // Get the current placeholder text using the text store
+                            const key = (typeof window !== 'undefined' && 
+                                        (('ontouchstart' in window) || navigator.maxTouchPoints > 0)) ?
+                                'enter_message.placeholder.touch' :
+                                'enter_message.placeholder.desktop';
+                            const newPlaceholderText = $text(key);
+                            
+                            // Update the placeholder data attribute on the editor element
+                            // TipTap's placeholder extension uses this attribute for display
+                            const editorDom = editor.view.dom;
+                            if (editorDom) {
+                                const placeholderElement = editorDom.querySelector('p.is-editor-empty');
+                                if (placeholderElement) {
+                                    placeholderElement.setAttribute('data-placeholder', newPlaceholderText);
+                                }
+                            }
+                            
+                            console.debug('[MessageInput] Updated placeholder text after language change:', newPlaceholderText);
+                        }
+                    }
+                }, 50); // Small delay to ensure translations are loaded
+            }
         };
+        
+        // Listen to both language-changed and language-changed-complete events
+        // language-changed-complete is dispatched after a short delay to ensure all components have updated
         window.addEventListener('language-changed', languageChangeHandler);
+        window.addEventListener('language-changed-complete', languageChangeHandler);
+
+        // Listen for embedUpdated events from chatSyncService to catch in-editor embed
+        // status changes (e.g. PDF OCR failure). When a background task fails, the server
+        // sends send_embed_data with status='error' and chat_id=null (embed not yet sent).
+        // ActiveChat.svelte only handles embeds that belong to an already-sent message,
+        // so we must handle the draft/compose-area case here.
+        // We match by uploadEmbedId (server-assigned UUID) stored on the TipTap embed node.
+        embedUpdatedFromServerHandler = (event: Event) => {
+            const detail = (event as CustomEvent).detail as {
+                embed_id: string;
+                chat_id: string | null;
+                status: string;
+            };
+            const { embed_id, chat_id, status } = detail;
+
+            // Only handle embeds that are still in the compose area (chat_id is null/undefined).
+            // Embeds that are part of a sent message are handled by ActiveChat.svelte.
+            if (chat_id || !editor || editor.isDestroyed) return;
+
+            // Walk the TipTap document looking for an embed node whose uploadEmbedId
+            // matches the server-assigned embed_id we just received.
+            // Use descendants() instead of forEach() — forEach only walks top-level nodes,
+            // but embed nodes can be nested inside paragraphs or other container nodes.
+            let targetPos: number | null = null;
+            editor.state.doc.descendants((node, pos) => {
+                if (targetPos !== null) return false; // stop traversal once found
+                if (node.type.name === 'embed' && node.attrs.uploadEmbedId === embed_id) {
+                    targetPos = pos;
+                    return false; // stop traversal
+                }
+            });
+
+            if (targetPos === null) return; // No matching draft embed — nothing to do.
+
+            if (status === 'error') {
+                // Update the TipTap node attrs so PDFEmbedPreview shows the error state.
+                const tr = editor.state.tr.setNodeMarkup(targetPos, undefined, {
+                    ...editor.state.doc.nodeAt(targetPos)?.attrs,
+                    status: 'error',
+                });
+                editor.view.dispatch(tr);
+                console.info(
+                    `[MessageInput] PDF embed ${embed_id} OCR failed — updated in-editor node to error state`
+                );
+            } else if (status === 'finished') {
+                // OCR completed successfully — update the in-editor node so
+                // PDFEmbedPreview transitions from "Reading PDF…" to the page count.
+                // Preserve all existing attrs (filename, pageCount, etc.) and only
+                // update the status field.
+                const tr = editor.state.tr.setNodeMarkup(targetPos, undefined, {
+                    ...editor.state.doc.nodeAt(targetPos)?.attrs,
+                    status: 'finished',
+                });
+                editor.view.dispatch(tr);
+                console.info(
+                    `[MessageInput] PDF embed ${embed_id} OCR finished — updated in-editor node to finished state`
+                );
+            }
+        };
+        chatSyncService.addEventListener('embedUpdated', embedUpdatedFromServerHandler);
     }
 
     function cleanup() {
         resizeObserver?.disconnect();
         embedGroupResizeObserver?.disconnect();
         clearTimeout(layoutUpdateTimeout);
+        // Clear any pending blur timeout
+        if (blurTimeoutId) {
+            clearTimeout(blurTimeoutId);
+            blurTimeoutId = null;
+        }
+        // Clear mount complete timeout
+        if (mountCompleteTimeout) {
+            clearTimeout(mountCompleteTimeout);
+            mountCompleteTimeout = null;
+        }
         document.removeEventListener('embedclick', handleEmbedClick as EventListener);
         document.removeEventListener('mateclick', handleMateClick as EventListener);
+        editorElement?.removeEventListener('embed-context-menu', handleEmbedContextMenu as EventListener);
         editorElement?.removeEventListener('paste', handlePaste);
         editorElement?.removeEventListener('custom-send-message', handleSendMessage as EventListener);
+        editorElement?.removeEventListener('custom-sign-up-click', handleSignUpClick as EventListener);
         editorElement?.removeEventListener('keydown', handleKeyDown);
         editorElement?.removeEventListener('codefullscreen', handleCodeFullscreen as EventListener);
+        editorElement?.removeEventListener('imagefullscreen', handleImageFullscreen as EventListener);
+        editorElement?.removeEventListener('pdffullscreen', handlePdfFullscreen as EventListener);
+        editorElement?.removeEventListener('recordingfullscreen', handleRecordingFullscreen as EventListener);
+        editorElement?.removeEventListener('retryrecordingtranscription', handleRetryRecordingTranscription as EventListener);
+        document.removeEventListener('updaterecordingtranscript', handleUpdateRecordingTranscript as EventListener);
+        editorElement?.removeEventListener('click', handleEditorClick);
+        editorElement?.removeEventListener('embed-upload-cancelled', handleEmbedUploadCancelled as EventListener);
         window.removeEventListener('saveDraftBeforeSwitch', flushSaveDraft);
         window.removeEventListener('beforeunload', handleBeforeUnload);
+        window.removeEventListener('focusInput', handleFocusInput as EventListener);
+        window.removeEventListener('embedUploadFinished', handleEmbedUploadFinished as EventListener);
         document.removeEventListener('visibilitychange', handleVisibilityChange);
         document.removeEventListener('embed-group-backspace', handleEmbedGroupBackspace as EventListener);
+        messageInputWrapper?.removeEventListener('mousedown', handleMessageWrapperMouseDown);
         window.removeEventListener('language-changed', languageChangeHandler);
+        window.removeEventListener('language-changed-complete', languageChangeHandler);
+        chatSyncService.removeEventListener('aiTaskInitiated', handleAiTaskOrChatChange);
+        chatSyncService.removeEventListener('aiTaskEnded', handleAiTaskEnded as EventListener);
+        chatSyncService.removeEventListener('messageQueued', handleMessageQueued as EventListener);
+        if (embedUpdatedFromServerHandler) {
+            chatSyncService.removeEventListener('embedUpdated', embedUpdatedFromServerHandler);
+            embedUpdatedFromServerHandler = null;
+        }
         cleanupDraftService();
         if (editor && !editor.isDestroyed) editor.destroy();
         handleStopRecordingCleanup();
@@ -962,26 +2445,218 @@
     // --- AI Task Status Update ---
     function updateActiveAITaskStatus() {
         if (currentChatId && chatSyncService) {
-            activeAITaskId = chatSyncService.getActiveAITaskIdForChat(currentChatId);
+            const taskId = chatSyncService.getActiveAITaskIdForChat(currentChatId);
+            console.debug('[MessageInput] updateActiveAITaskStatus:', {
+                currentChatId,
+                taskId,
+                previousTaskId: activeAITaskId,
+                allActiveTasks: Array.from(chatSyncService.activeAITasks.entries())
+            });
+            activeAITaskId = taskId;
+
+            // If we now have a task id, clear optimistic pending state
+            if (taskId) {
+                awaitingAITaskStart = false;
+                cancelRequestedWhileAwaiting = false;
+                if (awaitingAITaskTimeoutId) {
+                    clearTimeout(awaitingAITaskTimeoutId);
+                    awaitingAITaskTimeoutId = null;
+                }
+            }
         } else {
+            console.debug('[MessageInput] updateActiveAITaskStatus: No chatId or chatSyncService', {
+                currentChatId,
+                hasChatSyncService: !!chatSyncService
+            });
             activeAITaskId = null;
+            awaitingAITaskStart = false;
+            cancelRequestedWhileAwaiting = false;
+            if (awaitingAITaskTimeoutId) {
+                clearTimeout(awaitingAITaskTimeoutId);
+                awaitingAITaskTimeoutId = null;
+            }
         }
     }
 
     function handleAiTaskOrChatChange() {
+        console.debug('[MessageInput] handleAiTaskOrChatChange called');
         updateActiveAITaskStatus();
+
+        // If the user clicked stop before we had a task id, cancel as soon as it's known
+        if (cancelRequestedWhileAwaiting && activeAITaskId) {
+            const taskId = activeAITaskId;
+            console.info('[MessageInput] Cancelling AI task that started after user requested stop:', taskId);
+            // Clear UI immediately
+            cancelRequestedWhileAwaiting = false;
+            awaitingAITaskStart = false;
+            activeAITaskId = null;
+            void chatSyncService.sendCancelAiTask(taskId, currentChatId ?? undefined);
+        }
     }
 
+    /**
+     * Handle AI task ended event - fade out stop button when task completes
+     */
+    function handleAiTaskEnded(event: CustomEvent) {
+        const { chatId, taskId } = event.detail;
+        console.debug('[MessageInput] handleAiTaskEnded received:', {
+            chatId,
+            taskId,
+            currentChatId,
+            matches: chatId === currentChatId
+        });
+        // Only update if this is for the current chat
+        if (chatId === currentChatId) {
+            console.debug('[MessageInput] AI task ended for current chat, updating UI');
+            updateActiveAITaskStatus();
+            // Clear queued message text when task ends
+            queuedMessageText = null;
+        }
+    }
+
+    /**
+     * Handle AI task cancellation with optimistic UI updates.
+     * Immediately hides the stop button and clears typing indicator for instant feedback,
+     * then sends the cancellation request to the backend.
+     */
     async function handleCancelAITask() {
-        if (activeAITaskId) {
-            console.info(`[MessageInput] Requesting cancellation for AI task: ${activeAITaskId}`);
-            await chatSyncService.sendCancelAiTask(activeAITaskId);
-            // Optionally, set a "cancelling..." UI state here
-            // The button will disappear once the 'aiTaskEnded' event is received and processed.
+        // If the task isn't known yet, still allow immediate UX: hide button and cancel as soon as task starts
+        if (!activeAITaskId && awaitingAITaskStart) {
+            console.info('[MessageInput] Stop clicked before task id is known; will cancel as soon as task starts');
+            cancelRequestedWhileAwaiting = true;
+            awaitingAITaskStart = false; // Hide button immediately
+            if (awaitingAITaskTimeoutId) {
+                clearTimeout(awaitingAITaskTimeoutId);
+                awaitingAITaskTimeoutId = null;
+            }
+            return;
+        }
+
+        if (activeAITaskId && currentChatId) {
+            const taskId = activeAITaskId;
+            console.info(`[MessageInput] Requesting cancellation for AI task: ${taskId}`);
+            
+            // Optimistic UI update: immediately hide the stop button
+            // This provides instant feedback before backend confirmation
+            activeAITaskId = null;
+            
+            // Optimistic state update: clear activeAITasks Map to prevent new messages from being queued
+            // This ensures the frontend state matches what we're trying to do (cancel the task)
+            if (chatSyncService && currentChatId) {
+                const taskInfo = chatSyncService.activeAITasks.get(currentChatId);
+                if (taskInfo && taskInfo.taskId === taskId) {
+                    chatSyncService.activeAITasks.delete(currentChatId);
+                    console.debug('[MessageInput] Optimistically cleared activeAITasks entry on cancel');
+                }
+            }
+            
+            // Optimistic UI update: immediately clear typing indicator
+            // Use clearTypingForChat since we only have taskId, not message_id
+            // (aiMessageId in the store is set to message_id, not task_id)
+            if (currentTypingStatus?.isTyping && 
+                currentTypingStatus.chatId === currentChatId) {
+                console.debug('[MessageInput] Optimistically clearing typing indicator on cancel for chat', currentChatId);
+                aiTypingStore.clearTypingForChat(currentChatId);
+            }
+            
+            // Clear any queued message text
+            queuedMessageText = null;
+            
+            // OPTIMISTIC: Immediately cancel all processing embed cards for this chat.
+            // Without this, embed cards stay stuck on "Processing..." until the server
+            // confirms the cancellation (which can take several seconds). By cancelling them
+            // in the embedStore immediately, UnifiedEmbedPreview gets "cancelled" status
+            // right away so the user sees "Canceled" instantly instead of waiting.
+            try {
+                const { embedStore } = await import('../../services/embedStore');
+                const cancelledEmbedIds = embedStore.cancelProcessingEmbeds(currentChatId);
+                // Dispatch embedUpdated events for each cancelled embed so UnifiedEmbedPreview re-renders
+                for (const embedId of cancelledEmbedIds) {
+                    chatSyncService.dispatchEvent(
+                        new CustomEvent('embedUpdated', {
+                            detail: {
+                                embed_id: embedId,
+                                chat_id: currentChatId,
+                                status: 'cancelled',
+                            },
+                        }),
+                    );
+                }
+                if (cancelledEmbedIds.length > 0) {
+                    console.info(`[MessageInput] Optimistically cancelled ${cancelledEmbedIds.length} processing embed(s) for chat ${currentChatId}`);
+                }
+            } catch (err) {
+                console.warn('[MessageInput] Failed to optimistically cancel processing embeds:', err);
+            }
+
+            // OPTIMISTIC: Immediately fire aiTaskEnded so ActiveChat stops the thinking animation
+            // and clears the progressive processing phase. Without this, the thinking animation
+            // keeps spinning until the backend confirms cancellation. The backend will also fire
+            // aiTaskEnded when it confirms, but that second fire is harmless (idempotent).
+            chatSyncService.dispatchEvent(
+                new CustomEvent('aiTaskEnded', {
+                    detail: {
+                        chatId: currentChatId,
+                        taskId: taskId,
+                        status: 'cancelled',
+                    },
+                }),
+            );
+            console.debug('[MessageInput] Optimistically dispatched aiTaskEnded (cancelled) for immediate thinking/phase cleanup');
+            
+            // Send cancellation request to backend
+            // The backend will confirm via 'aiTaskEnded' event, which will trigger final cleanup
+            // Pass currentChatId so server can clear active task marker immediately
+            await chatSyncService.sendCancelAiTask(taskId, currentChatId);
+        }
+    }
+    
+    /**
+     * Handle message queued event - shows message in MessageInput instead of notification
+     */
+    function handleMessageQueued(event: CustomEvent) {
+        const { chat_id, message, active_task_id } = event.detail;
+        
+        // Only show if this is for the current chat
+        if (chat_id === currentChatId) {
+            console.debug('[MessageInput] Message queued for current chat:', {
+                chatId: chat_id,
+                activeTaskId: active_task_id,
+                message
+            });
+            
+            // Show the queued message text in the UI
+            queuedMessageText = message || $text('enter_message.message_queued');
+            
+            // Auto-hide after 7 seconds
+            setTimeout(() => {
+                queuedMessageText = null;
+            }, 7000);
         }
     }
  
     // --- Specific Event Handlers ---
+    
+    /**
+     * Handle clicks in the editor to detect clicks on PII highlights.
+     * When a user clicks on a highlighted PII item, we exclude it from replacement.
+     */
+    function handleEditorClick(event: MouseEvent) {
+        const target = event.target as HTMLElement;
+        
+        // Check if the clicked element is a PII highlight
+        if (target.classList.contains('pii-highlight') || target.closest('.pii-highlight')) {
+            const piiElement = target.classList.contains('pii-highlight') ? target : target.closest('.pii-highlight') as HTMLElement;
+            const piiId = piiElement?.getAttribute('data-pii-id');
+            
+            if (piiId) {
+                event.preventDefault();
+                event.stopPropagation();
+                handlePIIClick(piiId);
+            }
+        }
+    }
+    
     function handleEmbedClick(event: CustomEvent) { // Use built-in CustomEvent
         const result = handleMenuEmbedInteraction(event, editor, event.detail.id);
         if (result) {
@@ -993,9 +2668,88 @@
             isMenuInteraction = false; showMenu = false; selectedNode = null; selectedEmbedId = null;
         }
     }
+
+    /**
+     * Handle right-click / long-press context menu events from UnifiedEmbedPreview
+     * inside the compose editor (write mode). UnifiedEmbedPreview dispatches
+     * 'embed-context-menu' with bubbles:true but MessageInput has no listener for it,
+     * causing the native browser menu to be suppressed with nothing shown instead.
+     *
+     * This handler finds the matching TipTap node by embed ID, then opens the
+     * PressAndHoldMenu at the pointer position (relative to .message-field).
+     */
+    function handleEmbedContextMenu(event: Event) {
+        const customEvent = event as CustomEvent;
+        const { embedId, rect, x, y } = customEvent.detail ?? {};
+
+        if (!embedId || !editor || editor.isDestroyed) return;
+
+        // Stop propagation so the event doesn't re-trigger anything else
+        customEvent.stopPropagation?.();
+
+        // Find the matching TipTap node by embed ID
+        let foundNode: { node: ProseMirrorNode; pos: number } | null = null;
+        editor.state.doc.descendants((node: ProseMirrorNode, pos: number) => {
+            if (foundNode) return false;
+            // Match by id attr (used by inline embeds) or by contentRef containing embed ID
+            if (node.attrs?.id === embedId ||
+                (node.attrs?.contentRef && node.attrs.contentRef.includes(embedId))) {
+                foundNode = { node, pos };
+                return false;
+            }
+            return true;
+        });
+
+        if (!foundNode) {
+            console.warn('[MessageInput] embed-context-menu: no TipTap node found for embedId:', embedId);
+            return;
+        }
+
+        // Calculate menu position relative to .message-field container
+        const messageField = editorElement?.closest('.message-field') as HTMLElement | null;
+        if (!messageField) return;
+
+        const containerRect = messageField.getBoundingClientRect();
+
+        let calcMenuX: number;
+        let calcMenuY: number;
+
+        if (typeof x === 'number' && typeof y === 'number') {
+            // Use the actual pointer position (right-click coords) relative to the container
+            calcMenuX = x - containerRect.left;
+            calcMenuY = y - containerRect.top;
+        } else if (rect) {
+            // Fall back to the embed element rect centre if no pointer coords (e.g. long-press)
+            calcMenuX = rect.left - containerRect.left + rect.width / 2;
+            calcMenuY = rect.top - containerRect.top;
+        } else {
+            return; // Cannot position menu without coordinates
+        }
+
+        // Determine menu type from the node attrs
+        const nodeAttrs = (foundNode as { node: ProseMirrorNode; pos: number }).node.attrs ?? {};
+        let resolvedMenuType: 'default' | 'pdf' | 'web' = 'default';
+        if (nodeAttrs.type === 'website' || nodeAttrs.type === 'web') {
+            resolvedMenuType = 'web';
+        } else if (nodeAttrs.type === 'pdf') {
+            resolvedMenuType = 'pdf';
+        }
+
+        isMenuInteraction = true;
+        menuX = calcMenuX;
+        menuY = calcMenuY;
+        selectedEmbedId = embedId;
+        menuType = resolvedMenuType;
+        selectedNode = foundNode as { node: ProseMirrorNode; pos: number };
+        showMenu = true;
+
+        console.debug('[MessageInput] Opened embed context menu via embed-context-menu event:', {
+            embedId, calcMenuX, calcMenuY, menuType: resolvedMenuType
+        });
+    }
     function handleMateClick(event: CustomEvent) { dispatch('mateclick', { id: event.detail.id }); }
     async function handlePaste(event: ClipboardEvent) {
-        await handleFilePaste(event, editor);
+        await handleFilePaste(event, editor, $authStore.isAuthenticated);
         tick().then(() => {
             hasContent = !isContentEmptyExceptMention(editor);
             updateEmbedGroupLayouts();
@@ -1024,7 +2778,9 @@
     function handleJsonCodeBlockBackspace(event: KeyboardEvent) {
         if (!editor) return;
         
-        const { from, to } = editor.state.selection;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
+
+        const { from, to: _to } = editor.state.selection;
         
         // Check for json_embed blocks first (new format)
         const textBeforeCursor = editor.state.doc.textBetween(Math.max(0, from - 300), from);
@@ -1082,12 +2838,56 @@
                     }
                     return;
                 }
-            } catch (error) {
+            } catch (_error) {
                 console.debug('[MessageInput] Not a valid json_embed block, using default backspace');
             }
         }
     }
     function handleCodeFullscreen(event: CustomEvent) { dispatch('codefullscreen', event.detail); }
+    function handleImageFullscreen(event: CustomEvent) { dispatch('imagefullscreen', event.detail); }
+    function handlePdfFullscreen(event: CustomEvent) { dispatch('pdffullscreen', event.detail); }
+    function handleRecordingFullscreen(event: CustomEvent) { dispatch('recordingfullscreen', event.detail); }
+
+    /**
+     * Handle retry transcription events bubbled up from RecordingEmbedPreview via
+     * RecordingRenderer.ts. The event carries the embedId; we pass it along with
+     * the live editor reference to retryTranscription() which re-runs only the
+     * transcription step using the already-uploaded S3 data.
+     */
+    function handleRetryRecordingTranscription(event: CustomEvent) {
+        const { embedId } = event.detail as { embedId: string };
+        if (!editor || editor.isDestroyed || !embedId) return;
+        retryTranscription(editor, embedId).catch((err) => {
+            console.error('[MessageInput] retryTranscription failed:', err);
+        });
+    }
+
+    /**
+     * Handle transcript edit events from RecordingEmbedFullscreen (pre-send context).
+     * Fired on document by ActiveChat.svelte.handleRecordingTranscriptChange() when the
+     * user edits the AI-generated transcript in the fullscreen view.
+     * Updates the embed node's transcript attr so the edited text is saved on send.
+     */
+    function handleUpdateRecordingTranscript(event: CustomEvent) {
+        const { embedId, transcript } = event.detail as { embedId: string; transcript: string };
+        if (!editor || editor.isDestroyed || !embedId) return;
+
+        const { state, dispatch } = editor.view;
+        const tr = state.tr;
+        let found = false;
+        state.doc.descendants((node, pos) => {
+            if (node.type.name === 'embed' && node.attrs.id === embedId) {
+                tr.setNodeMarkup(pos, undefined, { ...node.attrs, transcript });
+                found = true;
+                return false;
+            }
+            return true;
+        });
+        if (found) {
+            dispatch(tr);
+            console.debug('[MessageInput] Updated recording embed transcript for:', embedId);
+        }
+    }
     function handleBeforeUnload() { if (hasContent) flushSaveDraft(); }
     function handleVisibilityChange() { if (document.visibilityState === 'hidden' && hasContent) flushSaveDraft(); }
     function handleResize() { checkScrollable(); updateHeight(); }
@@ -1100,9 +2900,105 @@
         isBackspaceOperation = true;
     }
 
+    /**
+     * Handle the embed-upload-cancelled event dispatched by Embed.ts when the user
+     * presses Stop on an uploading image.
+     *
+     * WHY THIS IS NEEDED:
+     * The normal draft-save path (handleEditorUpdate → triggerSaveDraft) is guarded
+     * by a text-change check:
+     *   if (!textActuallyChanged) return; // skip heavy work
+     * When the editor contains only an uploading image (no text), removing the embed
+     * node does NOT change editor.getText() — it was empty before and stays empty
+     * after. The guard therefore skips triggerSaveDraft, leaving the draft preview
+     * in Chat.svelte stale (it still shows "[Image]" after the stop button was pressed).
+     *
+     * This handler is called AFTER deleteRange has already run (the embed is gone),
+     * so we:
+     *  1. Rebuild originalMarkdown from the current (updated) editor state.
+     *  2. Force-save the draft (or delete it if the editor is now empty), bypassing
+     *     the text-change guard.
+     *  3. Update hasContent so the UI (send button, fullscreen button) reflects the
+     *     new empty state.
+     */
+    function handleEmbedUploadCancelled(event: CustomEvent) {
+        const { embedId } = event.detail ?? {};
+        console.debug('[MessageInput] Embed upload cancelled, forcing draft update:', embedId);
+
+        if (!editor || editor.isDestroyed) return;
+
+        // Rebuild originalMarkdown from the now-updated editor state.
+        // isConvertingEmbeds is deliberately NOT set — we are reading the document
+        // after deletion, not mid-conversion, so the guard must NOT block the update.
+        updateOriginalMarkdown(editor);
+
+        // Update content tracking so the send button and fullscreen button hide/show correctly.
+        hasContent = !isContentEmptyExceptMention(editor);
+        // Keep the text-change guard in sync so the next legitimate editor update
+        // doesn't incorrectly think text hasn't changed.
+        lastEditorUpdateText = editor.getText();
+
+        // Force a draft save (or deletion) even though getText() may not have changed.
+        // triggerSaveDraft is debounced — it will read the editor state at fire time.
+        triggerSaveDraft(currentChatId);
+    }
+
+    /**
+     * Prevent blur when clicking on UI elements within the message input wrapper
+     * This allows users to click on action buttons and other controls without losing focus
+     * Also ensures clicks on the editor itself maintain focus properly
+     */
+    function handleMessageWrapperMouseDown(event: MouseEvent) {
+        const target = event.target as HTMLElement;
+        
+        // When MapsView is open, its overlay sits inside .message-field and contains
+        // its own interactive elements (search input, buttons, map).
+        // Do NOT steal focus from them — let clicks inside the maps overlay pass through
+        // naturally so the search input and other controls are reachable.
+        if (showMaps && target.closest('.maps-overlay')) {
+            console.debug('[MessageInput] Click inside MapsView overlay, skipping editor focus logic');
+            return;
+        }
+        
+        // Allow blur for interactive elements like buttons (outside suggestions)
+        // But check if it's a suggestion button - those should maintain editor focus
+        const isSuggestionButton = target.closest('.suggestion-item');
+        if ((target.closest('button') || target.closest('[role="button"]')) && !isSuggestionButton) {
+            console.debug('[MessageInput] Click on button detected, allowing default behavior');
+            return;
+        }
+        
+        // If clicking on the editor itself, ensure it gets focus
+        if (editor?.view.dom.contains(target)) {
+            // Click is on the editor - ensure it's focused
+            // Use a small delay to ensure the focus event fires after any potential blur
+            setTimeout(() => {
+                if (editor && !editor.isDestroyed && !editor.isFocused) {
+                    editor.commands.focus('end');
+                    console.debug('[MessageInput] Ensuring editor focus after click on editor');
+                }
+            }, 10);
+            return;
+        }
+        
+        // Check if click is within the message-input-wrapper but outside editor
+        if (messageInputWrapper?.contains(target) && !editor?.view.dom.contains(target)) {
+            // This is a click on the wrapper UI (action buttons area, etc.)
+            // Keep the editor focused by preventing default blur
+            event.preventDefault();
+            console.debug('[MessageInput] Click on wrapper UI detected, keeping editor focused');
+            
+            // Re-focus the editor
+            if (editor && !editor.isDestroyed) {
+                editor.commands.focus('end');
+            }
+        }
+    }
+
     // --- UI Update Functions ---
     function updateHeight() {
         if (!messageInputWrapper) return;
+        if (suppressHeightChangeDispatch || isFullscreen) return;
         const currentHeight = messageInputWrapper.offsetHeight;
         if (currentHeight !== previousHeight) {
             previousHeight = currentHeight;
@@ -1110,27 +3006,129 @@
         }
     }
     function checkScrollable() { if (scrollableContent) isScrollable = scrollableContent.scrollHeight > scrollableContent.clientHeight; }
-    function toggleFullscreen() {
-        isFullscreen = !isFullscreen;
-        dispatch('fullscreenToggle', isFullscreen);
-        tick().then(checkScrollable);
+
+    function getCollapsedTargetHeight(): number {
+        if (showMaps || showCamera) return MESSAGE_FIELD_MAPS_HEIGHT;
+        const minHeight = shouldShowActionButtons ? MESSAGE_FIELD_MIN_HEIGHT : MESSAGE_FIELD_MIN_HEIGHT_COMPACT;
+        const messageField = messageInputWrapper?.querySelector('.message-field') as HTMLElement | null;
+        const measuredContentHeight = messageField?.scrollHeight ?? minHeight;
+        return Math.min(Math.max(measuredContentHeight, minHeight), MESSAGE_FIELD_MAX_HEIGHT);
+    }
+
+    function getFullscreenTargetHeight(): number {
+        if (containerRect && typeof window !== 'undefined') {
+            return Math.max(containerRect.height - FULLSCREEN_TOP_GUTTER_PX, MESSAGE_FIELD_MIN_HEIGHT);
+        }
+        if (typeof window !== 'undefined') {
+            return Math.max(Math.round(window.innerHeight * MESSAGE_FIELD_FULLSCREEN_FALLBACK_VH), MESSAGE_FIELD_MIN_HEIGHT);
+        }
+        return Math.max(MESSAGE_FIELD_MAPS_HEIGHT, MESSAGE_FIELD_MIN_HEIGHT);
+    }
+
+    async function waitForMessageFieldHeightTransition(messageField: HTMLElement): Promise<void> {
+        const fallbackMs = MESSAGE_FIELD_TRANSITION_DURATION_MS + MESSAGE_FIELD_TRANSITION_BUFFER_MS;
+        await new Promise<void>((resolve) => {
+            let settled = false;
+            const settle = () => {
+                if (settled) return;
+                settled = true;
+                messageField.removeEventListener('transitionend', onTransitionEnd);
+                resolve();
+            };
+            const onTransitionEnd = (event: TransitionEvent) => {
+                if (event.target !== messageField) return;
+                const animatedProps = new Set(['height', 'max-height', 'top', 'right', 'bottom', 'left', 'transform']);
+                if (!animatedProps.has(event.propertyName)) return;
+                settle();
+            };
+            messageField.addEventListener('transitionend', onTransitionEnd);
+            setTimeout(settle, fallbackMs);
+        });
+    }
+
+    async function toggleFullscreen() {
+        const messageField = messageInputWrapper?.querySelector('.message-field') as HTMLElement | null;
+        if (!messageField) {
+            isFullscreen = !isFullscreen;
+            dispatch('fullscreenToggle', isFullscreen);
+            tick().then(checkScrollable);
+            return;
+        }
+
+        const wasFullscreen = isFullscreen;
+        suppressHeightChangeDispatch = true;
+
+        try {
+            if (!wasFullscreen && containerRect && typeof window !== 'undefined') {
+                const firstRect = messageField.getBoundingClientRect();
+
+                isFullscreen = true;
+                dispatch('fullscreenToggle', isFullscreen);
+                await tick();
+
+                const lastRect = messageField.getBoundingClientRect();
+                const deltaX = firstRect.left - lastRect.left;
+                const deltaY = firstRect.top - lastRect.top;
+                const scaleX = lastRect.width > 0 ? firstRect.width / lastRect.width : 1;
+                const scaleY = lastRect.height > 0 ? firstRect.height / lastRect.height : 1;
+
+                messageField.style.transition = 'none';
+                messageField.style.transformOrigin = 'top left';
+                messageField.style.transform = `translate(${deltaX}px, ${deltaY}px) scale(${scaleX}, ${scaleY})`;
+                void messageField.getBoundingClientRect();
+
+                messageField.style.transition = `transform ${MESSAGE_FIELD_TRANSITION_DURATION_MS}ms ease-in-out, border-radius ${MESSAGE_FIELD_TRANSITION_DURATION_MS}ms ease-in-out`;
+                messageField.style.transform = 'translate(0px, 0px) scale(1, 1)';
+
+                await waitForMessageFieldHeightTransition(messageField);
+                messageField.style.transition = '';
+                messageField.style.transform = '';
+                messageField.style.transformOrigin = '';
+                checkScrollable();
+                return;
+            }
+
+            const startHeight = Math.round(messageField.getBoundingClientRect().height);
+            panelHeightTransitionOverride = `height: ${startHeight}px; max-height: ${startHeight}px;`;
+            await tick();
+
+            isFullscreen = !isFullscreen;
+            dispatch('fullscreenToggle', isFullscreen);
+
+            await tick();
+            const targetHeight = isFullscreen ? getFullscreenTargetHeight() : getCollapsedTargetHeight();
+            panelHeightTransitionOverride = `height: ${targetHeight}px; max-height: ${targetHeight}px;`;
+
+            await waitForMessageFieldHeightTransition(messageField);
+            panelHeightTransitionOverride = null;
+            checkScrollable();
+        } finally {
+            suppressHeightChangeDispatch = false;
+        }
     }
 
     // --- Action Handlers (delegating to imported handlers) ---
     // File/Camera/Location handlers remain the same as previous step
 
     async function handleDrop(event: DragEvent) {
-        await handleFileDrop(event, editorElement, editor);
+        isDragging = false; // Hide drop overlay when files are dropped
+        await handleFileDrop(event, editorElement, editor, $authStore.isAuthenticated);
         tick().then(() => {
             hasContent = !isContentEmptyExceptMention(editor);
             updateEmbedGroupLayouts();
             observeEmbedGroupContainers();
         });
     }
-    function handleDragOver(event: DragEvent) { handleFileDragOver(event, editorElement); }
-    function handleDragLeave(event: DragEvent) { handleFileDragLeave(event, editorElement); }
+    function handleDragOver(event: DragEvent) {
+        isDragging = true; // Show drop overlay when files are dragged over
+        handleFileDragOver(event, editorElement);
+    }
+    function handleDragLeave(event: DragEvent) {
+        isDragging = false; // Hide drop overlay when drag leaves
+        handleFileDragLeave(event, editorElement);
+    }
     async function onFileSelected(event: Event) {
-        await handleFileSelectedEvent(event, editor);
+        await handleFileSelectedEvent(event, editor, $authStore.isAuthenticated);
         tick().then(() => {
             hasContent = !isContentEmptyExceptMention(editor);
             updateEmbedGroupLayouts();
@@ -1141,59 +3139,571 @@
         const isMobile = window.matchMedia('(max-width: 768px), (pointer: coarse)').matches && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
         if (isMobile) cameraInput?.click(); else showCamera = true;
     }
-    async function handlePhotoCaptured(event: CustomEvent<{ blob: Blob, previewUrl: string }>) {
-        const { blob, previewUrl } = event.detail;
-        const file = new File([blob], `camera_${Date.now()}.jpg`, { type: 'image/jpeg' });
-        showCamera = false; await tick();
-        await insertImage(editor, file, true, previewUrl);
+    /**
+     * Handle a photo captured from the CameraView (desktop webcam overlay).
+     * Routes through insertImage — same embed pipeline as file picker uploads.
+     * The previewUrl is an object URL for the resized preview blob; insertImage
+     * will call resizeImage internally when only previewUrl (no originalUrl) is given,
+     * so we skip the redundant blob URL and let it generate fresh URLs from the file.
+     */
+    async function handlePhotoCaptured(event: CustomEvent<{ blob: Blob, previewUrl?: string }>) {
+        const { blob } = event.detail;
+        // Use the blob's MIME type to preserve PNG/JPEG/HEIC from native camera
+        const mimeType = blob.type || 'image/jpeg';
+        const ext = mimeType.includes('png') ? 'png' : mimeType.includes('webp') ? 'webp' : 'jpg';
+        const file = new File([blob], `camera_${Date.now()}.${ext}`, { type: mimeType });
+        showCamera = false;
+        await tick();
+        // isRecording=false: camera photos are not recordings; isAuthenticated controls upload path
+        await insertImage(editor, file, false, undefined, undefined, $authStore.isAuthenticated);
         hasContent = true;
+        tick().then(() => {
+            updateEmbedGroupLayouts();
+            observeEmbedGroupContainers();
+        });
     }
-    async function handleVideoRecorded(event: CustomEvent<{ blob: Blob, duration: string }>) {
-        const { blob, duration } = event.detail;
-        const file = new File([blob], `video_${Date.now()}.webm`, { type: 'video/webm' });
-        showCamera = false; await tick();
-        await insertVideo(editor, file, duration, true);
-        hasContent = true;
-    }
-    async function handleAudioRecorded(event: CustomEvent<{ blob: Blob, duration: number }>) {
-        const { blob, duration } = event.detail;
-        const url = URL.createObjectURL(blob);
-        const filename = `audio_${Date.now()}.webm`;
+    /* VIDEO RECORDING DISABLED — re-enable when video upload support is added.
+     * To re-enable:
+     *   1. Uncomment this function.
+     *   2. Re-add `on:videorecorded={handleVideoRecorded}` to <CameraView> in the template.
+     *   3. Restore `video/*` in the cameraInput accept attribute.
+     *
+     * async function handleVideoRecorded(event: CustomEvent<{ blob: Blob, duration: string }>) {
+     *     const { blob, duration } = event.detail;
+     *     const mimeType = blob.type || 'video/webm';
+     *     const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
+     *     const file = new File([blob], `camera_${Date.now()}.${ext}`, { type: mimeType });
+     *     showCamera = false;
+     *     await tick();
+     *     await insertVideo(editor, file, duration, false);
+     *     hasContent = true;
+     *     tick().then(() => {
+     *         updateEmbedGroupLayouts();
+     *         observeEmbedGroupContainers();
+     *     });
+     * }
+     */
+    async function handleAudioRecorded(event: CustomEvent<{ blob: Blob, duration: number, mimeType: string }>) {
+        const { blob, duration, mimeType } = event.detail;
         const formattedDuration = formatDuration(duration);
         if (editor.isEmpty) { editor.commands.setContent(getInitialContent()); await tick(); }
-        insertRecording(editor, url, filename, formattedDuration);
+
+        // Determine the chat_id to associate with this recording's usage entry.
+        //
+        // For existing chats: use currentChatId directly.
+        //
+        // For new (not yet sent) chats: pre-allocate a UUID now so the usage entry can be
+        // linked to a chat even before the user presses Send. We store it in:
+        //   1. draftEditorUIState.currentChatId — so handleSend() reuses the same UUID when
+        //      the user eventually sends (this is the existing draft chat mechanism).
+        //   2. draftAudioChatStore (localStorage) — so SettingsUsage can identify the entry
+        //      as an "Unsent draft" if the user never sends.
+        //
+        // If the user sends later, the chat UUID becomes a real chat and the draft marker is
+        // cleared. If they never send, the usage entry stays linked to the pre-allocated UUID
+        // which will have is_deleted=true in the overview (not in Directus chats table) and be
+        // displayed as "Unsent draft" instead of "Deleted chat".
+        let chatIdForRecording: string | undefined;
+        if (currentChatId) {
+            // Recording inside an existing chat — use its ID directly.
+            chatIdForRecording = currentChatId;
+        } else if ($authStore.isAuthenticated) {
+            // New chat context: check if a draft chat UUID was already allocated (e.g. from
+            // a previous recording this session), otherwise generate a fresh one.
+            const draftState = get(draftEditorUIState);
+            let draftChatId = draftState.currentChatId ?? null;
+            if (!draftChatId) {
+                draftChatId = crypto.randomUUID();
+                // Write into draftEditorUIState so handleSend() picks it up as the chat UUID.
+                draftEditorUIState.update((s) => ({ ...s, currentChatId: draftChatId }));
+                console.debug('[MessageInput] Pre-allocated draft chat UUID for audio recording:', draftChatId);
+            }
+            // Mark as draft-audio in localStorage so SettingsUsage shows "Unsent draft".
+            markChatIdAsDraftAudio(draftChatId);
+            chatIdForRecording = draftChatId;
+        }
+        // insertRecording() uploads to server + triggers Mistral Voxtral transcription in parallel.
+        // It does NOT need a pre-created blob URL — it creates its own internally.
+        await insertRecording(editor, blob, mimeType, formattedDuration, $authStore.isAuthenticated, chatIdForRecording);
         hasContent = true;
         handleStopRecordingCleanup(); // Called here after recording is inserted
     }
     function handleLocationClick() { showMaps = true; }
-    async function handleLocationSelected(event: CustomEvent<{ type: string; attrs: any }>) {
-        showMaps = false; await tick();
+
+    /** Open the sketch canvas overlay. */
+    function handleSketchClick() {
+        showSketch = true;
+    }
+
+    /**
+     * Handle sketch captured from SketchView.
+     * Converts the canvas PNG Blob to a File and passes it to insertImage(),
+     * same pipeline as camera photo capture.
+     *
+     * Future: when sketch embed type is implemented, also save the raw canvas
+     * ImageData / SVG path data as a "sketch" embed so the user can re-open
+     * and edit the drawing later.
+     */
+    async function handleSketchCaptured(event: CustomEvent<{ blob: Blob }>) {
+        const { blob } = event.detail;
+        const file = new File([blob], `sketch_${Date.now()}.jpg`, { type: 'image/jpeg' });
+        showSketch = false;
+        await tick();
+        await insertImage(editor, file, false, undefined, undefined, $authStore.isAuthenticated);
+        hasContent = true;
+        tick().then(() => {
+            updateEmbedGroupLayouts();
+            observeEmbedGroupContainers();
+        });
+    }
+
+    async function handleLocationSelected(event: CustomEvent<{ type: string; attrs: Record<string, unknown> }>) {
+        showMaps = false;
+        await tick();
         if (editor.isEmpty) { editor.commands.setContent(getInitialContent()); await tick(); }
-        insertMap(editor, event.detail);
+
+        const previewData = event.detail;
+        if (!previewData?.attrs) return;
+
+        // insertMap() stores the location data in EmbedStore and inserts the embed node.
+        // The embed node is serialized on send as {"type":"location","embed_id":"..."}
+        // which the backend uses to inject location context into the LLM prompt.
+        await insertMap(editor, previewData);
         hasContent = true;
     }
+    /**
+     * Determines whether the currently selected embed supports "Paste as text".
+     *
+     * Returns true for text-based embeds only:
+     * - Website embeds (menuType === 'web' or node.type === 'website'/'web')
+     * - Video URL embeds (isYouTube or node.attrs.type === 'video')
+     * - Code/text embeds (node.attrs.type starts with 'code')
+     * - Recording embeds that have a completed transcript
+     *
+     * Never shows for image, PDF, location, or other binary embeds.
+     */
+    let showPasteAsText = $derived((() => {
+        if (!selectedNode) return false;
+        const attrs = selectedNode.node?.attrs ?? {};
+        const nodeTypeName: string = selectedNode.node?.type?.name ?? '';
+
+        // Website or YouTube video URL embeds: menuType === 'web' or isYouTube flag
+        if (menuType === 'web' || attrs.isYouTube) return true;
+
+        // Any embed with a type attribute of 'video' (non-YouTube video URLs)
+        if (attrs.type === 'video') return true;
+
+        // Code or text embeds (pasted text or code files)
+        // type is 'code-code' for pasted code, or nodeTypeName may reflect other types
+        if (typeof attrs.type === 'string' && attrs.type.startsWith('code')) return true;
+
+        // Recording embeds: only show when transcript is available (status === 'finished')
+        if (attrs.type === 'recording' && attrs.status === 'finished' && attrs.transcript) return true;
+
+        // Suppress linting warning about unused variable
+        void nodeTypeName;
+
+        return false;
+    })());
+
+    /**
+     * Extracts plain text from a text-based embed node.
+     *
+     * - Website/video URL: returns the URL string
+     * - Code embed with preview: returns inline code from node.attrs.code
+     * - Code embed with embed: fetches from EmbedStore and returns the code content
+     * - Recording: returns the transcript text
+     *
+     * Returns null if the text cannot be determined.
+     */
+    async function getEmbedTextContent(node: ProseMirrorNode): Promise<string | null> {
+        const attrs = node.attrs ?? {};
+
+        // Recording embed: use the transcript directly
+        if (attrs.type === 'recording') {
+            return (attrs.transcript as string) || null;
+        }
+
+        // Website or video URL embed: return the URL
+        if (menuType === 'web' || attrs.isYouTube || attrs.type === 'video' || attrs.type === 'website') {
+            if (attrs.isYouTube && attrs.videoId) {
+                return `https://www.youtube.com/watch?v=${attrs.videoId}`;
+            }
+            return (attrs.url as string) || (attrs.src as string) || null;
+        }
+
+        // Code embed: return inline code (preview mode) or fetch from EmbedStore
+        if (typeof attrs.type === 'string' && attrs.type.startsWith('code')) {
+            // Preview mode: code is stored inline in the node attributes
+            const contentRef = attrs.contentRef as string | null;
+            if (contentRef?.startsWith('preview:code:') && attrs.code) {
+                return attrs.code as string;
+            }
+            // Authenticated mode: fetch from EmbedStore by contentRef
+            if (contentRef?.startsWith('embed:')) {
+                try {
+                    const embedData = await embedStore.get(contentRef);
+                    if (embedData) {
+                        // TOON-decoded data has a 'code' or 'content' field
+                        return (embedData.code as string) || (embedData.content as string) || null;
+                    }
+                } catch (err) {
+                    console.error('[MessageInput] Failed to fetch embed text content from EmbedStore:', err);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Handle "Paste as text" action from the PressAndHoldMenu.
+     *
+     * Extracts the text content from the selected embed, deletes the embed node
+     * (including its server/IndexedDB records), and inserts the plain text at
+     * the same position in the message input.
+     */
+    async function handlePasteAsText() {
+        if (!selectedNode || !editor || editor.isDestroyed) {
+            showMenu = false;
+            isMenuInteraction = false;
+            selectedNode = null;
+            selectedEmbedId = null;
+            return;
+        }
+
+        const { node, pos } = selectedNode;
+        const attrs = node.attrs ?? {};
+
+        try {
+            // Extract text content before deleting the embed
+            const textContent = await getEmbedTextContent(node);
+
+            if (!textContent) {
+                console.warn('[MessageInput] Paste as text: no text content found for embed', attrs);
+                showMenu = false;
+                isMenuInteraction = false;
+                selectedNode = null;
+                selectedEmbedId = null;
+                return;
+            }
+
+            console.info('[MessageInput] Paste as text: replacing embed with text', {
+                type: attrs.type,
+                textLength: textContent.length,
+                preview: textContent.substring(0, 50)
+            });
+
+            // For web / video URL embeds: add the URL to the ignore list so that
+            // detectClosedUrls does not immediately re-convert it back to an embed on
+            // the next editor update cycle (e.g. when the user presses Space or types
+            // another character after the restored URL).
+            if (menuType === 'web' || attrs.isYouTube || attrs.type === 'video' || attrs.type === 'website') {
+                const urlToIgnore = textContent.trim();
+                if (urlToIgnore) {
+                    ignoredEmbedUrls = new Set([...ignoredEmbedUrls, urlToIgnore]);
+                    console.debug('[MessageInput] Added URL to ignoredEmbedUrls:', urlToIgnore);
+                }
+            }
+
+            // For recording embeds, delete the server-side audio file (same as delete action)
+            if (attrs.type === 'recording') {
+                if (attrs.id) {
+                    const { cancelUpload: cancelUp } = await import('./embedHandlers');
+                    cancelUp(attrs.id);
+                }
+                if (attrs.id && (attrs.uploadEmbedId || attrs.id)) {
+                    const { deleteDraftEmbed } = await import('./embedHandlers');
+                    deleteDraftEmbed(attrs.uploadEmbedId ?? attrs.id);
+                }
+            }
+
+            // For code embeds in EmbedStore, we don't need to explicitly delete —
+            // they will be garbage collected as draft embeds are not tied to sent messages.
+            // However for consistency, if there's an uploadEmbedId, delete from server.
+            if (typeof attrs.type === 'string' && attrs.type.startsWith('code')) {
+                if (attrs.id) {
+                    const { cancelUpload: cancelUp } = await import('./embedHandlers');
+                    cancelUp(attrs.id);
+                }
+            }
+
+            // Delete the embed node from the editor
+            editor
+                .chain()
+                .focus()
+                .deleteRange({ from: pos, to: pos + node.nodeSize })
+                .run();
+
+            // Insert the text at the same position (the deletion shifted content,
+            // so we use the same pos which now points to where the embed was)
+            // Use insertContentAt to place the text exactly where the embed was
+            editor.commands.insertContentAt(pos, textContent);
+
+            await tick();
+            hasContent = !isContentEmptyExceptMention(editor);
+
+            // Rebuild originalMarkdown so the draft reflects the text replacement
+            updateOriginalMarkdown(editor);
+            lastEditorUpdateText = editor.getText();
+            triggerSaveDraft(currentChatId);
+
+            console.debug('[MessageInput] Paste as text: embed replaced with text successfully');
+        } catch (err) {
+            console.error('[MessageInput] Paste as text failed:', err);
+        } finally {
+            showMenu = false;
+            isMenuInteraction = false;
+            selectedNode = null;
+            selectedEmbedId = null;
+        }
+    }
+
     async function handleMenuAction(action: string) {
+        if (action === 'pasteastext') {
+            await handlePasteAsText();
+            return;
+        }
         await handleMenuActionTrigger(action, selectedNode, editor, dispatch, selectedEmbedId);
         showMenu = false; isMenuInteraction = false; selectedNode = null; selectedEmbedId = null;
         if (action === 'delete') {
-            await tick(); hasContent = !isContentEmptyExceptMention(editor);
+            await tick();
+            hasContent = !isContentEmptyExceptMention(editor);
+            // Rebuild originalMarkdown from the updated editor state and force a draft save.
+            // The textActuallyChanged guard in handleEditorUpdate skips triggerSaveDraft when
+            // getText() doesn't change (e.g. editor had only an embed with no text). Without
+            // this, the draft preview in the sidebar still shows "[Image]" / "[PDF]" after
+            // the embed is removed via the context menu.
+            updateOriginalMarkdown(editor);
+            lastEditorUpdateText = editor.getText();
+            triggerSaveDraft(currentChatId);
         }
     }
-    function handleFileSelect() { fileInput.multiple = true; fileInput.click(); }
+    function handleFileSelect() {
+        // Cancel any pending blur timeout so the action buttons stay visible after the
+        // OS file picker opens. Without this, the editor blur fires before the file picker
+        // opens and collapses the action buttons bar.
+        if (blurTimeoutId) {
+            clearTimeout(blurTimeoutId);
+            blurTimeoutId = null;
+        }
+        isMessageFieldFocused = true;
+        fileInput.multiple = true;
+        fileInput.click();
+    }
+    /**
+     * Handle the global embedUploadFinished event dispatched by embedHandlers.ts
+     * when an upload/transcription/processing step completes or errors out.
+     *
+     * This is the trigger for the deferred-send path:
+     *   1. Find the pending send that was waiting for this embed (across ALL chats).
+     *   2. Mark the embed as finished in pendingUploadStore.
+     *   3. If all blocking embeds are done, execute the deferred send using
+     *      executeDeferredSend() — which reconstructs markdown from the snapshotted
+     *      editor JSON + EmbedStore data. No live TipTap editor is needed.
+     *
+     * IMPORTANT: This handler works globally — the user may have navigated to a
+     * different chat. The deferred send fires regardless of which chat is active.
+     */
+    async function handleEmbedUploadFinished(event: CustomEvent) {
+        const { embedId, status } = event.detail as { embedId: string; status: string };
+        if (!embedId) return;
+
+        // Find which chat this embed belongs to (searches ALL pending sends across all chats)
+        const found = findPendingSendByEmbedId(embedId);
+        if (!found) return; // Not waiting on any deferred send
+
+        const { chatId, context } = found;
+
+        if (status === 'error') {
+            markEmbedError(chatId, embedId);
+            console.warn(`[MessageInput] Embed ${embedId.slice(-6)} errored — deferred send for chat ${chatId.slice(-6)} blocked`);
+            return;
+        }
+
+        // Mark finished and check if the pending send is now ready
+        const updatedCtx = markEmbedFinished(chatId, embedId);
+        if (!updatedCtx) return;
+
+        // Only auto-dispatch if all blocking embeds are done
+        const readyCtx = getReadyPendingSend(chatId);
+        if (!readyCtx || readyCtx.pendingId !== context.pendingId) return;
+
+        console.info(
+            `[MessageInput] All uploads finished for deferred send ${readyCtx.pendingId} in chat ${chatId.slice(-6)} — executing deferred send`
+        );
+
+        // Remove from store before firing to prevent double-dispatch
+        removePendingSend(chatId, readyCtx.pendingId);
+
+        // Execute the deferred send. This does NOT need the live editor — it
+        // reconstructs markdown from the snapshotted editor JSON + EmbedStore data.
+        try {
+            const { executeDeferredSend } = await import('./handlers/sendHandlers');
+            await executeDeferredSend(readyCtx);
+        } catch (err) {
+            console.error(
+                `[MessageInput] executeDeferredSend failed for chat ${chatId.slice(-6)}:`,
+                err
+            );
+        }
+    }
+
     function handleSendMessage() {
-        handleSend(
+        // Guard: if there's no content, do nothing (handles edge cases where button
+        // is visible but editor is actually empty).
+        if (!hasContent) return;
+
+        // Hide the send button immediately on first press — this is the primary
+        // mechanism preventing double-sends. The button disappears before any async
+        // work begins, so subsequent taps have no button to press. The editor is
+        // cleared by handleSend shortly after, keeping this consistent.
+        hasContent = false;
+
+        // Flush any debounced heavy parsing so originalMarkdown is fully up-to-date
+        if (editor && !editor.isDestroyed) {
+            flushHeavyParsing(editor);
+        }
+        // Optimistically show stop button immediately after sending
+        awaitingAITaskStart = true;
+        cancelRequestedWhileAwaiting = false;
+        if (awaitingAITaskTimeoutId) {
+            clearTimeout(awaitingAITaskTimeoutId);
+        }
+        // If the backend never starts a task (e.g., network issues), don't leave stop button stuck
+        awaitingAITaskTimeoutId = setTimeout(() => {
+            if (awaitingAITaskStart && !activeAITaskId) {
+                console.warn('[MessageInput] Timed out waiting for AI task to start; hiding stop button');
+                awaitingAITaskStart = false;
+                cancelRequestedWhileAwaiting = false;
+            }
+            awaitingAITaskTimeoutId = null;
+        }, 15000);
+
+        // If a draft audio UUID was pre-allocated for this new chat, clear the "unsent draft"
+        // marker now that the user is sending. The chat UUID is about to become a real chat,
+        // so the usage entry should display under the chat title, not as "Unsent draft".
+        if (!currentChatId) {
+            const draftState = get(draftEditorUIState);
+            if (draftState.currentChatId) {
+                unmarkChatIdAsDraftAudio(draftState.currentChatId);
+            }
+        }
+
+        void handleSend(
             editor,
             dispatch,
             (value) => (hasContent = value),
-            currentChatId
+            currentChatId,
+            piiExclusions // Pass PII exclusions so excluded matches are not replaced
         );
+        
+        // Clear PII state after sending
+        detectedPII = [];
+        piiExclusions = new Set();
+        // Clear the URL ignore list — a new message starts with a clean slate
+        ignoredEmbedUrls = new Set();
     }
 
-    function handleInsertSpace() {
+    /**
+     * Handle "Sign up" button click for non-authenticated users
+     * Saves the current draft message to sessionStorage so it can be restored after signup
+     * Clears the editor content after saving to prevent search in new chat suggestions
+     */
+    /**
+     * Open the billing / buy-credits settings panel when a zero-credit authenticated
+     * user clicks the "Buy credits" button in the action bar.
+     */
+    function handleBuyCreditsClick() {
+        console.info('[MessageInput] User clicked Buy credits — opening billing/buy-credits settings');
+        settingsDeepLink.set('billing/buy-credits');
+        panelState.openSettings();
+    }
+
+    async function handleSignUpClick() {
+        if (!editor || editor.isDestroyed) {
+            console.warn('[MessageInput] Cannot save draft for sign-up - editor not available');
+            // Still open signup interface even if draft can't be saved
+            window.dispatchEvent(new CustomEvent('openSignupInterface'));
+            return;
+        }
+
+        // Get the current markdown content from the editor
+        const editorContent = editor.getJSON();
+        const markdown = tipTapToCanonicalMarkdown(editorContent);
+        
+        // Only save if there's actual content (not just empty or mention)
+        if (markdown && markdown.trim().length > 0 && !isContentEmptyExceptMention(editor)) {
+            // Save draft to sessionStorage with chat ID and markdown content
+            const draftData = {
+                chatId: currentChatId || 'new-chat', // Use 'new-chat' if no chat ID
+                markdown: markdown,
+                timestamp: Date.now()
+            };
+            
+            try {
+                sessionStorage.setItem('pendingDraftAfterSignup', JSON.stringify(draftData));
+                console.debug('[MessageInput] Saved draft to sessionStorage for restoration after signup:', {
+                    chatId: draftData.chatId,
+                    markdownLength: markdown.length,
+                    preview: markdown.substring(0, 50) + '...'
+                });
+            } catch (error) {
+                console.error('[MessageInput] Failed to save draft to sessionStorage:', error);
+            }
+        }
+
+        // Clear the editor content after saving to prevent search in new chat suggestions
+        // This ensures that if the user interrupts the signup process, the field is empty
+        await clearMessageField(false); // Don't focus after clearing
+        originalMarkdown = ''; // Clear markdown tracking
+        lastEditorUpdateText = ''; // Reset text-change guard
+        hasContent = false; // Update content state
+        
+        // Manually dispatch textchange event with empty text to clear liveInputText in ActiveChat
+        // This ensures follow-up suggestions show properly when user returns from signup flow
+        // The clearMessageField function uses clearContent(false) which doesn't trigger update events
+        try {
+            dispatch('textchange', { text: '' });
+            console.debug('[MessageInput] Dispatched textchange event with empty text to clear liveInputText');
+        } catch (err) {
+            console.error('[MessageInput] Failed to dispatch textchange event after clearing:', err);
+        }
+        
+        console.debug('[MessageInput] Cleared editor content after saving draft for sign-up');
+
+        // Open the signup interface directly with alpha disclaimer
+        window.dispatchEvent(new CustomEvent('openSignupInterface'));
+    }
+
+    function _handleInsertSpace() {
         if (editor && !editor.isDestroyed) {
             editor.commands.insertContent(' ');
         }
     }
+
+    /**
+     * Handle Shift+Enter keyboard shortcut to focus the message input field
+     * This is called from the KeyboardShortcuts component when Shift+Enter is pressed
+     */
+    function handleFocusInput() {
+        console.debug('[MessageInput] handleFocusInput called from KeyboardShortcuts');
+        
+        if (!editor || editor.isDestroyed) {
+            console.warn('[MessageInput] handleFocusInput: editor is not available or destroyed');
+            return;
+        }
+        
+        try {
+            console.info('[MessageInput] Focusing editor due to Shift+Enter shortcut');
+            editor.commands.focus('end');
+            isMessageFieldFocused = true; // Update UI state
+            console.debug('[MessageInput] Editor focused successfully');
+        } catch (error) {
+            console.error('[MessageInput] Error focusing editor:', error);
+        }
+    }
+
     function handleRecordingLayoutChange(event: CustomEvent<{ active: boolean }>) {
         updateRecordingState({ isRecordingActive: event.detail.active });
         tick().then(updateHeight);
@@ -1204,19 +3714,30 @@
     function onRecordMouseDown(event: CustomEvent<{ originalEvent: MouseEvent }>) {
         handleRecordMouseDownLogic(event.detail.originalEvent);
     }
-    function onRecordMouseUp(event: CustomEvent<{ originalEvent: MouseEvent }>) {
-        // Pass the component ref to the logic handler
+    async function onRecordMouseUp(_event: CustomEvent<{ originalEvent: MouseEvent }>) {
+        // Wait for Svelte to render RecordAudio (bind:this is set after the #if block mounts).
+        // If the user releases exactly when the 200ms hold timer fires, showRecordAudioUI
+        // becomes true but the DOM update hasn't committed yet, so recordAudioComponent is
+        // still undefined. tick() ensures the component ref is available before we call stop().
+        await tick();
         handleRecordMouseUpLogic(recordAudioComponent);
     }
-    function onRecordMouseLeave(event: CustomEvent<{ originalEvent: MouseEvent }>) {
-        // Pass the component ref to the logic handler
+    async function onRecordMouseLeave(_event: CustomEvent<{ originalEvent: MouseEvent }>) {
+        // When the recording overlay is active, the overlay covers the mic button and
+        // the browser fires a synthetic mouseleave. Ignore it — RecordAudio's own
+        // document-level listeners handle all stop/cancel logic from this point.
+        if ($recordingState.showRecordAudioUI) return;
+
+        // Same tick() reasoning as onRecordMouseUp — component ref may not be set yet.
+        await tick();
         handleRecordMouseLeaveLogic(recordAudioComponent);
     }
     function onRecordTouchStart(event: CustomEvent<{ originalEvent: TouchEvent }>) {
         handleRecordTouchStartLogic(event.detail.originalEvent);
     }
-    function onRecordTouchEnd(event: CustomEvent<{ originalEvent: TouchEvent }>) {
-        // Pass the component ref to the logic handler
+    async function onRecordTouchEnd(_event: CustomEvent<{ originalEvent: TouchEvent }>) {
+        // Same tick() reasoning as onRecordMouseUp.
+        await tick();
         handleRecordTouchEndLogic(recordAudioComponent);
     }
 
@@ -1224,11 +3745,28 @@
     // --- Public API ---
     export function focus() { if (editor && !editor.isDestroyed) editor.commands.focus('end'); }
     export function setSuggestionText(text: string) {
+        console.debug('[MessageInput] setSuggestionText called with:', text);
+        console.debug('[MessageInput] editor available:', !!editor);
+        console.debug('[MessageInput] editor destroyed:', editor?.isDestroyed);
+        
         if (editor && !editor.isDestroyed) {
-            editor.commands.setContent(`<p>${text}</p>`);
+            console.debug('[MessageInput] Inserting suggestion text at cursor position');
+            // Insert at cursor position rather than replacing the entire content.
+            // This preserves embeds and other content already in the editor.
+            // If the editor is empty, focus to the end first so the text lands in
+            // the right paragraph; if there's existing content the cursor is already
+            // where the user last clicked.
+            if (editor.isEmpty) {
+                editor.commands.focus('end');
+            }
+            editor.commands.insertContent(text);
             hasContent = true;
+            lastEditorUpdateText = editor.getText(); // Sync text-change guard after external content set
             updateOriginalMarkdown(editor);
             editor.commands.focus('end');
+            console.debug('[MessageInput] Suggestion text inserted at cursor successfully');
+        } else {
+            console.warn('[MessageInput] setSuggestionText: editor not available or destroyed');
         }
     }
     export function getTextContent(): string {
@@ -1237,38 +3775,82 @@
         }
         return '';
     }
-    export function setDraftContent(chatId: string | null, draftContent: any | null, version: number, shouldFocus: boolean = true) {
+    export function setDraftContent(chatId: string | null, draftContent: Content | null, version: number, shouldFocus: boolean = false) {
+        // CRITICAL: setCurrentChatContext already sets the editor content (to draftContent or initial content)
+        // So we don't need to clear it again if draftContent is null - that would trigger unnecessary update events
+        // The setCurrentChatContext function handles setting the editor content with emitUpdate: false to prevent triggering saves
         setCurrentChatContext(chatId, draftContent, version);
         
-        // If draftContent is null, it means the draft was deleted on another device
-        // We need to clear the editor content
-        if (draftContent === null && editor) {
-            console.debug("[MessageInput] Received null draft from sync, clearing editor content");
-            editor.commands.setContent(getInitialContent());
-            hasContent = false;
-            originalMarkdown = ''; // Clear markdown tracking
-        } else if (editor) {
-            // Always update hasContent state when there's draft content, regardless of shouldFocus
+        // Reset text-change guard so next editor update processes fully after content swap
+        lastEditorUpdateText = editor ? editor.getText() : '';
+        
+        // Update local state based on the editor content after setCurrentChatContext
+        if (editor) {
+            // Always update hasContent state based on current editor content
             hasContent = !isContentEmptyExceptMention(editor);
-            updateOriginalMarkdown(editor); // Update markdown tracking
             
+            // Only update originalMarkdown if there's actual content
+            // For demo chats with no draft, we don't want to set originalMarkdown
+            if (draftContent !== null) {
+                updateOriginalMarkdown(editor); // Update markdown tracking
+            } else {
+                originalMarkdown = ''; // Clear markdown tracking for chats with no draft
+            }
+            
+            // Only focus if explicitly requested - default is false to prevent unwanted auto-focus
+            // Users should manually click on the input field when they want to type
             if (shouldFocus) {
                 editor.commands.focus('end');
+                console.debug('[MessageInput] Focused editor after setDraftContent (explicitly requested)');
+            } else {
+                console.debug('[MessageInput] Skipped focus after setDraftContent (user must click to focus)');
             }
         }
     }
-    export function clearMessageField(shouldFocus: boolean = true) {
-        clearEditorAndResetDraftState(shouldFocus);
+    /**
+     * Clears the message input field.
+     * @param shouldFocus - Whether to focus the editor after clearing
+     * @param preserveContext - If true, preserves the current chat context (doesn't delete drafts)
+     *                          Used when switching to a chat that has no draft - we just clear the editor
+     *                          without deleting the previous chat's draft.
+     */
+    export async function clearMessageField(shouldFocus: boolean = true, preserveContext: boolean = false) {
+        await clearEditorAndResetDraftState(shouldFocus, preserveContext);
         hasContent = false;
         originalMarkdown = ''; // Clear markdown tracking
+        lastEditorUpdateText = ''; // Reset text-change guard so next update processes fully
+        ignoredEmbedUrls = new Set(); // Clear the URL ignore list when the field is fully cleared
     }
     export function getOriginalMarkdown(): string {
+        // Flush any pending heavy parsing to ensure originalMarkdown is up-to-date
+        // before the caller reads it (e.g. before sending a message)
+        if (editor && !editor.isDestroyed) {
+            flushHeavyParsing(editor);
+        }
         return getOriginalMarkdownForSending();
+    }
+    export function setOriginalMarkdown(markdown: string) {
+        originalMarkdown = markdown;
+        console.debug('[MessageInput] Set original markdown from draft:', {
+            length: markdown.length,
+            preview: markdown.substring(0, 100)
+        });
     }
 
     // --- Reactive Calculations using Svelte 5 runes ---
-    let containerStyle = $derived(isFullscreen ? `height: calc(100vh - 100px); max-height: calc(100vh - 120px); height: calc(100dvh - 100px); max-height: calc(100dvh - 120px);` : 'height: auto; max-height: 350px;');
-    let scrollableStyle = $derived(isFullscreen ? `max-height: calc(100vh - 190px); max-height: calc(100dvh - 190px);` : 'max-height: 250px;');
+    // When the map overlay is open the field must be tall enough to show the map.
+    // We use a fixed height so the editor sits below the map controls and the
+    // message-field container grows, making the map fill edge-to-edge.
+    // When the map overlay or camera overlay is open, grow the container to a fixed height
+    // so the overlay fills edge-to-edge (same as maps). Without this the desktop camera
+    // view renders at a tiny default height.
+    // These aliases exist so the template references remain unchanged.
+    let containerStyle = $derived(
+        panelHeightTransitionOverride
+            ? `${messagePanelStyle} ${panelHeightTransitionOverride}`
+            : messagePanelStyle
+    );
+    let scrollableStyle = $derived(messagePanelScrollableStyle);
     
     // Convert reactive statement with side effects to $effect
     $effect(() => {
@@ -1291,28 +3873,227 @@
     let previousChatId: string | undefined = undefined;
     
     // React to chat ID changes to save drafts when switching chats using $effect
+    // CRITICAL: Save the previous chat's draft BEFORE the context switches
+    // This prevents draft loss when quickly switching between chats
     $effect(() => {
-        if (currentChatId !== previousChatId && previousChatId !== undefined && hasContent) {
+        if (currentChatId !== previousChatId && previousChatId !== undefined) {
             console.debug(`[MessageInput] Chat ID changed from ${previousChatId} to ${currentChatId}, flushing draft for previous chat`);
+            // CRITICAL: Flush draft for the PREVIOUS chat before switching
+            // Use the previous chat ID explicitly to ensure we save the right draft
+            // The draft service will use the current state's chatId, so we need to ensure it's still set
             flushSaveDraft(); // Save draft for the previous chat before switching
+            // Small delay to ensure the save completes before context switch
+            setTimeout(() => {
+                console.debug(`[MessageInput] Draft flush completed for previous chat ${previousChatId}`);
+            }, 100);
+            
+            // Reset PII detection state for the new chat.
+            // Without this, stale PII matches from the previous chat persist
+            // (the "Sensitive data detected" banner stays visible even when the
+            // new chat's editor is empty or contains no PII).
+            detectedPII = [];
+            piiExclusions = new Set();
+            currentPIIDecorations = [];
+            lastPIIText = '';
+            if (piiDebounceTimer) { clearTimeout(piiDebounceTimer); piiDebounceTimer = null; }
         }
         previousChatId = currentChatId;
     });
     
-    // Update active AI task status when currentChatId changes using $effect
+    // Update active AI task status when currentChatId changes using $effect.
+    // IMPORTANT: Must call updateActiveAITaskStatus() even when currentChatId is undefined
+    // (e.g. when navigating to a new chat) so that stale stop-button state is cleared.
     $effect(() => {
-        if (currentChatId !== undefined && chatSyncService) {
+        // Access currentChatId so Svelte tracks it as a dependency
+        const _chatId = currentChatId;
+        if (chatSyncService) {
             updateActiveAITaskStatus();
+        }
+    });
+
+    // Check for pending notification reply when chat ID changes.
+    // If the user typed a reply in a notification and hit send, the text
+    // was stored in pendingNotificationReplyStore. We pick it up here,
+    // populate the editor, and focus it so the user can review and send.
+    $effect(() => {
+        if (currentChatId && editor && !editor.isDestroyed) {
+            const pendingReply = pendingNotificationReplyStore.consume(currentChatId);
+            if (pendingReply) {
+                console.debug('[MessageInput] Populating editor with pending notification reply:', pendingReply);
+                tick().then(() => {
+                    if (editor && !editor.isDestroyed) {
+                        editor.commands.setContent(`<p>${pendingReply}</p>`);
+                        editor.commands.focus('end');
+                        hasContent = true;
+                    }
+                });
+            }
+        }
+    });
+
+    // Watch for a pending mention (from suggestion clicks or "Chat with this mate" panel).
+    // When pendingMentionStore is set, we insert the mention chip at the START of the
+    // editor so it appears before any body text. This is important for suggestion clicks
+    // where the body text is already in the editor — placing the @mention first produces
+    // "@Travel-Search Show me flights..." instead of "Show me flights...@Travel-Search",
+    // which avoids false PII detection (an @mention at the end looks like an email).
+    $effect(() => {
+        const mention = $pendingMentionStore;
+        if (mention && editor && !editor.isDestroyed) {
+            console.debug('[MessageInput] Inserting pending mention:', mention);
+            pendingMentionStore.set(null);
+            tick().then(() => {
+                if (!editor || editor.isDestroyed) return;
+                // Insert at the start so the mention precedes any existing body text.
+                editor.commands.focus('start');
+
+                // Parse "@mate:{mateId}" to extract the id
+                const mateMatch = mention.match(/^@mate:(.+)$/);
+                if (mateMatch) {
+                    const mateId = mateMatch[1];
+                    const matesById = getMatesById();
+                    const mate = matesById[mateId];
+                    if (mate) {
+                        // Use the same .setMate() path as the mention dropdown for consistent rendering
+                        // Capitalise the English name (first search_names entry) as the display name,
+                        // matching how mentionSearchService builds mentionDisplayName.
+                        const displayName = mate.search_names[0]
+                            ? mate.search_names[0].split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+                            : mateId;
+                        editor
+                            .chain()
+                            .focus()
+                            .setMate({
+                                name: mateId,
+                                displayName,
+                                id: crypto.randomUUID(),
+                                colorStart: mate.color_start,
+                                colorEnd: mate.color_end,
+                            })
+                            .insertContent(' ')
+                            .run();
+                    } else {
+                        // Unknown mate id — fall back to plain text insertion
+                        console.warn('[MessageInput] Unknown mate id from pendingMentionStore:', mateId);
+                        editor.commands.insertContent(mention + ' ');
+                    }
+                } else {
+                    // Skill, focus mode, or memory-category mention — render as a styled GenericMention chip.
+                    // Syntax:
+                    // - "@skill:{appId}:{skillId}"
+                    // - "@focus:{appId}:{focusModeId}"
+                    // - "@memory:{appId}:{memoryCategoryId}:{memoryType}"
+                    const skillMatch = mention.match(/^@skill:([^:]+):(.+)$/);
+                    const focusMatch = mention.match(/^@focus:([^:]+):(.+)$/);
+                    const memoryMatch = mention.match(/^@memory:([^:]+):([^:]+):(.+)$/);
+                    // @memory-entry:appId:categoryId:entryId — direct reference to a specific entry
+                    const memoryEntryMatch = mention.match(/^@memory-entry:([^:]+):([^:]+):(.+)$/);
+
+                    if (skillMatch || focusMatch || memoryMatch || memoryEntryMatch) {
+                        const isSkill = !!skillMatch;
+                        const isFocus = !!focusMatch;
+                        const isMemoryEntry = !!memoryEntryMatch;
+                        const matchGroups = (skillMatch || focusMatch || memoryMatch || memoryEntryMatch)!;
+                        const targetAppId = matchGroups[1];
+                        const targetItemId = matchGroups[2];
+                        const apps = appSkillsStore.getState().apps;
+                        const app = apps[targetAppId];
+
+                        if (app) {
+                            // Build mentionDisplayName matching mentionSearchService format:
+                            // "AppName-ItemName" e.g. "Code-Get-Docs" or "Jobs-Career-Insights"
+                            // For memory entries: "AppName-CategoryName-EntryTitle"
+                            const capitalizeWords = (s: string) =>
+                                s.split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join('-');
+                            const appDisplay = capitalizeWords(targetAppId);
+                            const itemDisplay = capitalizeWords(targetItemId.replace(/_/g, '-'));
+                            let displayName = `${appDisplay}-${itemDisplay}`;
+
+                            // For memory entries, try to include the entry title
+                            if (isMemoryEntry) {
+                                const entryId = matchGroups[3];
+                                // Look up entry title from the store
+                                const smStore = get(appSettingsMemoriesStore);
+                                const appEntriesByGroup = smStore.entriesByApp.get(targetAppId) || {};
+                                const catEntries = appEntriesByGroup[targetItemId] ?? [];
+                                const found = catEntries.find((e: { id: string }) => e.id === entryId);
+                                if (found) {
+                                    const entryValue = (found as { item_value?: Record<string, unknown> }).item_value;
+                                    // Try to find entry title from is_title field or first string value
+                                    const cat = app.settings_and_memories?.find((c: { id: string }) => c.id === targetItemId);
+                                    const titleField = cat?.schema_definition?.properties
+                                        ? Object.entries(cat.schema_definition.properties).find(
+                                            ([, p]: [string, { is_title?: boolean }]) => p.is_title
+                                        )?.[0]
+                                        : undefined;
+                                    let entryTitle = '';
+                                    if (titleField && entryValue?.[titleField]) {
+                                        entryTitle = String(entryValue[titleField]);
+                                    } else if (entryValue) {
+                                        for (const [key, value] of Object.entries(entryValue)) {
+                                            if (!key.startsWith('_') && key !== 'settings_group' && typeof value === 'string' && value.trim()) {
+                                                entryTitle = value;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    if (entryTitle) {
+                                        displayName = `${appDisplay}-${itemDisplay}-${capitalizeWords(entryTitle.replace(/\s+/g, '-'))}`;
+                                    }
+                                }
+                            }
+
+                            // Settings & memories mentions use the dedicated memory gradient,
+                            // not the app's icon gradient, for visual consistency with the memory icon style.
+                            const isMemory = !!memoryMatch || isMemoryEntry;
+                            const MEMORY_GRADIENT_START = '#dd03b5';
+                            const MEMORY_GRADIENT_END = '#cb00a5';
+
+                            editor
+                                .chain()
+                                .focus()
+                                .setGenericMention({
+                                    mentionType: isSkill ? 'skill' : (isFocus ? 'focus_mode' : (isMemoryEntry ? 'settings_memory_entry' : 'settings_memory')),
+                                    displayName,
+                                    mentionSyntax: mention,
+                                    colorStart: isMemory ? MEMORY_GRADIENT_START : app.icon_colorgradient?.start,
+                                    colorEnd: isMemory ? MEMORY_GRADIENT_END : app.icon_colorgradient?.end,
+                                })
+                                .insertContent(' ')
+                                .run();
+                        } else {
+                            // App not found in metadata — fall back to plain text
+                            console.warn('[MessageInput] Unknown app in pendingMentionStore:', targetAppId);
+                            editor.commands.insertContent(mention + ' ');
+                        }
+                    } else {
+                        // Unknown mention format — insert as plain text
+                        editor.commands.insertContent(mention + ' ');
+                    }
+                }
+
+                hasContent = true;
+                lastEditorUpdateText = editor.getText();
+                updateOriginalMarkdown(editor);
+                editor.commands.focus('end');
+            });
         }
     });
  
 </script>
  
 <!-- Template -->
-<div bind:this={messageInputWrapper} class="message-input-wrapper">
+<div bind:this={messageInputWrapper} class="message-input-wrapper" role="none" onmousedown={handleMessageWrapperMouseDown} data-action="message-input">
+    <!-- PII Warning Banner - shown when sensitive data is detected in the input -->
+    <PIIWarningBanner 
+        matches={detectedPII}
+        onUndoAll={handlePIIUndoAll}
+    />
+    
     <div
-        class="message-field {isMessageFieldFocused ? 'focused' : ''} {$recordingState.isRecordingActive ? 'recording-active' : ''} {!shouldShowActionButtons ? 'compact' : ''}"
-        class:drag-over={editorElement?.classList.contains('drag-over')}
+        class="message-field {isMessageFieldFocused ? 'focused' : ''} {$recordingState.isRecordingActive ? 'recording-active' : ''} {!shouldShowActionButtons ? 'compact' : ''} {showMaps ? 'maps-open' : ''} {isFullscreen ? 'fullscreen-expanded' : ''}"
+        class:drag-over={isDragging}
+        class:has-focus-pill={showFocusPill || showIncognitoPill}
         style={containerStyle}
         ondragover={handleDragOver}
         ondragleave={handleDragLeave}
@@ -1321,17 +4102,106 @@
         aria-multiline="true"
         tabindex="0"
     >
-        {#if isScrollable || isFullscreen}
+        <!-- Focus mode pill: shown when a focus mode is active.
+             Absolutely positioned at the top of the message-field; the field gets extra
+             padding-top (via .has-focus-pill) so text input does not collide with the pill.
+             Left side (button) deep-links to focus settings; right side (toggle) deactivates
+             after a 1-second timer with undo if the toggle is clicked again within that second. -->
+        {#if showFocusPill}
+            <div
+                class="focus-pill"
+                style="--focus-pill-gradient: var(--color-app-{activeFocusAppId}, linear-gradient(135deg, #5856d6, #a78bfa))"
+                transition:fade={{ duration: 200 }}
+            >
+                <!-- Clickable left side: icon + label → opens focus settings -->
+                <button
+                    class="focus-pill-body"
+                    onclick={handleFocusPillClick}
+                    aria-label={$text('embeds.focus_mode.active_banner')}
+                >
+                    {#if focusPillIconName}
+                        <span
+                            class="focus-pill-icon"
+                            style="--icon-url: var(--icon-url-{focusPillIconName})"
+                            aria-hidden="true"
+                        ></span>
+                    {/if}
+                    <span class="focus-pill-label">
+                        {#if activeFocusModeMetadata}
+                            {$text(activeFocusModeMetadata.name_translation_key)}
+                        {:else}
+                            {$text('embeds.focus_mode.active_banner')}
+                        {/if}
+                    </span>
+                    <span class="focus-pill-on-text">{$text('embeds.focus_mode.focus_on')}</span>
+                </button>
+                <!-- Toggle: click to start 1s deactivation countdown (click again to undo).
+                     stopPropagation on the wrapper prevents clicks from reaching the pill-body button. -->
+                <!-- svelte-ignore a11y_click_events_have_key_events -->
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                <div class="focus-pill-toggle" onclick={(e) => e.stopPropagation()}>
+                    <Toggle
+                        checked={!focusPillDeactivating}
+                        on:change={handleFocusPillToggle}
+                    />
+                </div>
+            </div>
+        {/if}
+
+        <!-- Incognito mode pill: shown when the active chat is an incognito chat.
+             Same position and structure as the focus pill. The toggle immediately
+             disables incognito mode (no countdown — toggle is a direct on/off switch).
+             Uses a fixed dark privacy gradient distinct from category gradients. -->
+        {#if showIncognitoPill}
+            <div
+                class="focus-pill incognito-pill"
+                transition:fade={{ duration: 200 }}
+            >
+                <!-- Left side: anonym icon + "Incognito Mode" label (non-interactive display) -->
+                <div class="focus-pill-body incognito-pill-body" aria-label={$text('settings.incognito_mode_active')}>
+                    <span class="focus-pill-icon incognito-pill-icon" aria-hidden="true"></span>
+                    <span class="focus-pill-label">{$text('settings.incognito_mode_active')}</span>
+                </div>
+                <!-- Toggle: immediately disables incognito mode -->
+                <!-- svelte-ignore a11y_click_events_have_key_events -->
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                <div class="focus-pill-toggle" onclick={(e) => e.stopPropagation()}>
+                    <Toggle
+                        checked={true}
+                        on:change={handleIncognitoPillToggle}
+                    />
+                </div>
+            </div>
+        {/if}
+
+        <!-- Drop overlay: shown when user drags files over the message field.
+             Uses the existing icon_files icon and a localised label. -->
+        {#if isDragging}
+            <div class="drop-overlay" aria-hidden="true">
+                <span class="drop-overlay-icon clickable-icon icon_files"></span>
+                <span class="drop-overlay-text">{$text('enter_message.attachments.drop_files')}</span>
+            </div>
+        {/if}
+
+        <!-- Fullscreen expand/collapse button: visible when focused, has content, or an overlay is open.
+             Shows icon_fullscreen to expand, icon_minimize to collapse.
+             On wide screens (≥1024px), expand breaks the field into the embed panel area.
+             On narrow screens, expand grows the field height to 65dvh.
+             Hidden when overlays are open — each overlay renders its own maximize button
+             in the top-right corner so the button stays visible above the overlay content. -->
+        {#if (isFullscreen || hasContent || isMessageFieldFocused) && !showCamera && !showSketch && !showMaps}
             <button
-                class="clickable-icon icon_fullscreen fullscreen-button"
+                class="clickable-icon {isFullscreen ? 'icon_minimize' : 'icon_fullscreen'} fullscreen-button"
                 onclick={toggleFullscreen}
-                aria-label={isFullscreen ? $text('enter_message.fullscreen.exit_fullscreen.text') : $text('enter_message.fullscreen.enter_fullscreen.text')}
+                aria-label={isFullscreen ? $text('enter_message.fullscreen.exit_fullscreen') : $text('enter_message.fullscreen.enter_fullscreen')}
                 use:tooltip
             ></button>
         {/if}
 
-        <input bind:this={fileInput} type="file" onchange={onFileSelected} style="display: none" multiple accept="*/*" />
-        <input bind:this={cameraInput} type="file" accept="image/*,video/*" capture="environment" onchange={onFileSelected} style="display: none" />
+        <!-- Supported: images, PDFs (authenticated only — server-side OCR pipeline), and code/text files. Extensions mirror isCodeOrTextFile() in utils/fileHelpers.ts. -->
+        <input bind:this={fileInput} type="file" onchange={onFileSelected} style="display: none" multiple accept="image/*,.pdf,application/pdf,.py,.js,.ts,.html,.css,.json,.svelte,.java,.cpp,.c,.h,.hpp,.rs,.go,.rb,.php,.swift,.kt,.txt,.md,.xml,.yaml,.yml,.sh,.bash,.sql,.vue,.jsx,.tsx,.scss,.less,.sass,Dockerfile" />
+        <!-- Video capture disabled: video upload not yet supported. Remove video/* when re-enabling. -->
+        <input bind:this={cameraInput} type="file" accept="image/*" capture="environment" onchange={onFileSelected} style="display: none" />
 
         <div class="scrollable-content" bind:this={scrollableContent} style={scrollableStyle}>
             <div class="content-wrapper">
@@ -1340,45 +4210,94 @@
         </div>
 
         {#if showCamera}
-            <CameraView bind:videoElement on:close={() => showCamera = false} on:focusEditor={focus} on:photocaptured={handlePhotoCaptured} on:videorecorded={handleVideoRecorded} />
+            <!-- on:videorecorded removed — video recording disabled until upload support is added -->
+            <CameraView
+                bind:videoElement
+                {isFullscreen}
+                on:close={() => showCamera = false}
+                on:focusEditor={focus}
+                on:photocaptured={handlePhotoCaptured}
+                on:toggleFullscreen={toggleFullscreen}
+            />
         {/if}
 
-        <!-- Action Buttons Component or Cancel Button -->
+        {#if showSketch}
+            <SketchView
+                {isFullscreen}
+                on:close={() => { showSketch = false; focus(); }}
+                on:sketchcaptured={handleSketchCaptured}
+                on:toggleFullscreen={toggleFullscreen}
+            />
+        {/if}
+
+        <!-- Action Buttons Component: fades in when input is focused, fades out when unfocused.
+             The wrapper div has zero height and no layout impact; ActionButtons is absolutely
+             positioned inside the parent .message-field, so the wrapper is transparent to layout. -->
         {#if shouldShowActionButtons}
-            {#if activeAITaskId}
-                <div class="action-buttons-container cancel-mode-active">
-                    <button
-                        class="button primary cancel-ai-button"
-                        onclick={handleCancelAITask}
-                        use:tooltip
-                        title={$text('enter_message.stop.text')}
-                        aria-label={$text('enter_message.stop.text')}
-                    >
-                        <span class="icon icon_stop"></span>
-                        <span>{$text('enter_message.stop.text')}</span>
-                    </button>
-                </div>
-            {:else}
+            <div class="action-buttons-fade-wrapper" transition:fade={{ duration: 250 }}>
                 <ActionButtons
                     showSendButton={hasContent}
+                    isAuthenticated={$authStore.isAuthenticated}
+                    {hasNoCredits}
                     isRecordButtonPressed={$recordingState.isRecordButtonPressed}
-                    showRecordHint={$recordingState.showRecordHint}
-                    micPermissionGranted={$recordingState.micPermissionGranted}
+                    micPermissionState={$recordingState.micPermissionState}
+                    {highlightPressHold}
+                    isSketchOpen={showSketch}
                     on:fileSelect={handleFileSelect}
                     on:locationClick={handleLocationClick}
                     on:cameraClick={handleCameraClick}
+                    on:sketchClick={handleSketchClick}
                     on:sendMessage={handleSendMessage}
+                    on:signUpClick={handleSignUpClick}
+                    on:buyCreditsClick={handleBuyCreditsClick}
                     on:recordMouseDown={onRecordMouseDown}
                     on:recordMouseUp={onRecordMouseUp}
                     on:recordMouseLeave={onRecordMouseLeave}
                     on:recordTouchStart={onRecordTouchStart}
                     on:recordTouchEnd={onRecordTouchEnd}
                 />
-            {/if}
+            </div>
+        {/if}
+
+        <!-- Queued Message Indicator - shown when a message is queued due to active AI task -->
+        {#if queuedMessageText}
+            <div class="queued-message-indicator" transition:fade={{ duration: 200 }}>
+                {queuedMessageText}
+            </div>
+        {/if}
+
+        <!-- Mic permission hint — shown below action buttons.
+             · denied → always-visible error telling user to unblock in settings
+             · prompt/unknown + showRecordHint → timed hint to allow mic access
+             · granted + single tap → handled by highlightPressHold prop on ActionButtons
+               (no separate hint div needed; the inline label flashes instead) -->
+        {#if $recordingState.micPermissionState === 'denied'}
+            <div class="queued-message-indicator mic-permission-hint mic-permission-blocked" transition:fade={{ duration: 200 }}>
+                {$text('enter_message.record_audio.microphone_blocked')}
+            </div>
+        {:else if $recordingState.showRecordHint && $recordingState.micPermissionState !== 'granted'}
+            <div class="queued-message-indicator mic-permission-hint" transition:fade={{ duration: 200 }}>
+                {$text('enter_message.record_audio.allow_microphone_access')}
+            </div>
+        {/if}
+
+        <!-- Stop Processing Icon - shown when AI task is active -->
+        <!-- Debug: activeAITaskId = {activeAITaskId}, currentChatId = {currentChatId} -->
+        {#if activeAITaskId || awaitingAITaskStart}
+            <button
+                class="stop-processing-button {hasContent ? 'shifted-left' : ''}"
+                onclick={handleCancelAITask}
+                use:tooltip
+                title={$text('enter_message.stop')}
+                aria-label={$text('enter_message.stop')}
+                transition:fade={{ duration: 300 }}
+            >
+                <span class="clickable-icon icon_stop_processing"></span>
+            </button>
         {/if}
  
         {#if showMenu}
-            <PressAndHoldMenu x={menuX} y={menuY} show={showMenu} type={menuType} isYouTube={selectedNode?.node?.attrs?.isYouTube || false} on:close={() => { showMenu = false; isMenuInteraction = false; selectedNode = null; selectedEmbedId = null; }} on:delete={() => handleMenuAction('delete')} on:download={() => handleMenuAction('download')} on:view={() => handleMenuAction('view')} on:copy={() => handleMenuAction('copy')} />
+            <PressAndHoldMenu x={menuX} y={menuY} show={showMenu} type={menuType} isYouTube={selectedNode?.node?.attrs?.isYouTube || false} showPasteAsText={showPasteAsText} on:close={() => { showMenu = false; isMenuInteraction = false; selectedNode = null; selectedEmbedId = null; }} on:delete={() => handleMenuAction('delete')} on:download={() => handleMenuAction('download')} on:view={() => handleMenuAction('view')} on:copy={() => handleMenuAction('copy')} on:pasteastext={() => handleMenuAction('pasteastext')} />
         {/if}
 
         {#if $recordingState.showRecordAudioUI}
@@ -1394,9 +4313,26 @@
         {/if}
 
         {#if showMaps}
-            <MapsView on:close={() => showMaps = false} on:locationselected={handleLocationSelected} />
+            <MapsView
+                defaultImprecise={defaultImprecise}
+                {isFullscreen}
+                on:close={() => showMaps = false}
+                on:locationselected={handleLocationSelected}
+                on:toggleFullscreen={toggleFullscreen}
+            />
         {/if}
     </div>
+
+    <!-- @ Mention Dropdown for AI model, mate, skill, focus mode, and settings/memories selection -->
+    <!-- IMPORTANT: This must be OUTSIDE .message-field but INSIDE .message-input-wrapper -->
+    <!-- .message-field has overflow:hidden which would clip the dropdown if placed inside -->
+    <MentionDropdown
+        bind:show={showMentionDropdown}
+        query={mentionQuery}
+        positionY={mentionDropdownY}
+        onselect={handleMentionSelectCallback}
+        onclose={handleMentionClose}
+    />
 </div>
 
 <!-- Keyboard Shortcuts Listener -->
@@ -1406,7 +4342,7 @@
      - on:cancelRecording
      - on:insertSpace
 -->
-<KeyboardShortcuts />
+<KeyboardShortcuts on:focusInput={handleFocusInput} />
 
 <style>
     @import './MessageInput.styles.css';

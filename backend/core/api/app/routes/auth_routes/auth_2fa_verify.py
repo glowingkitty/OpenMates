@@ -1,9 +1,7 @@
-from fastapi import APIRouter, Depends, Request, Response, HTTPException, status
+from fastapi import APIRouter, Depends, Request
 import logging
 import pyotp
-import time
 import hashlib # Added for temporary hash generation
-from typing import Optional, Dict, Any
 
 # Import schemas
 from backend.core.api.app.schemas.auth_2fa import VerifyDevice2FARequest, VerifyDevice2FAResponse
@@ -88,7 +86,7 @@ async def verify_device_2fa(
         user_id = user_data.get("user_id") # We know user_id exists from the is_auth check
 
         # Regenerate device hash with actual user_id for accurate logging and storage
-        device_hash, os_name, country_code, city, region, latitude, longitude = generate_device_fingerprint_hash(request, user_id)
+        device_hash, connection_hash, os_name, country_code, city, region, latitude, longitude = generate_device_fingerprint_hash(request, user_id)
         stable_hash = device_hash # Update stable_hash with the user-salted one
         device_location_str = f"{city}, {country_code}" if city and country_code else country_code or "Unknown" # Update location string
 
@@ -161,6 +159,15 @@ async def verify_device_2fa(
         else:
             logger.error(f"Failed to add/update device hash {stable_hash[:8]}... for user {user_id}: {update_msg}")
             # Continue even if DB update fails, as the user has successfully verified.
+
+        # Update last_session_country after successful device verification
+        # This ensures the new country is stored so it won't trigger re-auth again on next session check
+        if country_code and country_code not in ("Local", "Unknown", None):
+            try:
+                await cache_service.update_user(user_id, {"last_session_country": country_code})
+                logger.debug(f"Updated last_session_country to {country_code} for user {user_id[:6]}... after 2FA device verification.")
+            except Exception as e:
+                logger.error(f"Failed to update last_session_country for user {user_id}: {e}", exc_info=True)
 
         # Log successful verification for compliance without IP (only failed attempts keep IP)
         compliance_service.log_auth_event_safe(

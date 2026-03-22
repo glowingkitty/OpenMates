@@ -1,0 +1,88 @@
+/*
+ * Settings Panel — Shared Styles
+ *
+ * Reusable CSS classes for settings components. Import this in +layout.svelte
+ * alongside the other global CSS files. These classes replace duplicated inline
+ * <style> blocks that appeared across many settings sub-components.
+ *
+ * Patterns covered:
+ *  - .settings-description       — info/description text block
+ *  - .settings-description-text  — paragraph inside a description block
+ *  - .settings-gradient-link     — gradient-colored text link
+ *  - .settings-card              — centered card with light background & shadow
+ *  - .settings-error             — error message box
+ *  - .settings-note              — italic footnote/compliance text
+ */
+
+/* ── Description blocks (privacy, billing, etc.) ────────────────────────── */
+
+.settings-description {
+  padding: 10px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings-description-text {
+  font-size: 16px;
+  color: var(--color-grey-100);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ── Gradient text link (privacy policy, etc.) ──────────────────────────── */
+
+.settings-gradient-link {
+  font-size: 16px;
+  font-weight: 700;
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.settings-gradient-link:hover {
+  opacity: 0.8;
+}
+
+/* ── Info / balance card (billing, etc.) ─────────────────────────────────── */
+
+.settings-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 20px;
+  background: var(--color-grey-10);
+  border-radius: var(--border-radius-medium);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* ── Error message box ──────────────────────────────────────────────────── */
+
+.settings-error {
+  background: var(--color-error-light);
+  color: var(--color-error);
+  padding: 12px;
+  border-radius: var(--border-radius-medium);
+  font-size: 13px;
+  border: 1px solid color-mix(in srgb, var(--color-error) 30%, transparent);
+  margin-top: 8px;
+}
+
+/* ── Compliance / footnote text ─────────────────────────────────────────── */
+
+.settings-note {
+  padding: 10px 16px;
+}
+
+.settings-note p {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-grey-60);
+  line-height: 1.5;
+  margin: 0;
+  font-style: italic;
+}

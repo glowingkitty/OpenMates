@@ -11,9 +11,13 @@ changes to the documentation (to keep the documentation up to date).
 
 <script lang="ts">
     import { text } from '@repo/ui';
-    import { createEventDispatcher, onMount } from 'svelte';
+    import { createEventDispatcher } from 'svelte';
     import SettingsItem from '../SettingsItem.svelte';
     import SettingsSoftwareUpdate from './server/SettingsSoftwareUpdate.svelte';
+    import SettingsCommunitySuggestions from './server/SettingsCommunitySuggestions.svelte';
+    import SettingsStats from './server/SettingsStats.svelte';
+    import SettingsGiftCardGenerator from './server/SettingsGiftCardGenerator.svelte';
+    import SettingsTests from './server/SettingsTests.svelte';
 
     const dispatch = createEventDispatcher();
     
@@ -24,18 +28,91 @@ changes to the documentation (to keep the documentation up to date).
     function showSoftwareUpdateSettings(event = null) {
         // Stop propagation to prevent the event from bubbling up
         if (event) event.stopPropagation();
-        
+
         currentView = 'softwareUpdate';
         childComponent = SettingsSoftwareUpdate;
-        
+
         dispatch('openSettings', {
-            settingsPath: 'server/software-update', 
+            settingsPath: 'server/software-update',
             direction: 'forward',
             icon: 'download',
-            title: $text('settings.software_updates.text'),
+            title: $text('settings.software_updates'),
             translationKey: 'settings.software_updates'
         });
-        
+
+        scrollToTop();
+    }
+
+    function showCommunitySuggestions(event = null) {
+        if (event) event.stopPropagation();
+
+        currentView = 'communitySuggestions';
+        childComponent = SettingsCommunitySuggestions;
+
+        dispatch('openSettings', {
+            settingsPath: 'server/community-suggestions',
+            direction: 'forward',
+            icon: 'users',
+            title: $text('settings.server.community_suggestions'),
+            translationKey: 'settings.server.community_suggestions'
+        });
+
+        scrollToTop();
+    }
+
+    function showStatsSettings(event = null) {
+        if (event) event.stopPropagation();
+
+        currentView = 'stats';
+        childComponent = SettingsStats;
+
+        dispatch('openSettings', {
+            settingsPath: 'server/stats',
+            direction: 'forward',
+            icon: 'usage',
+            title: $text('settings.server.stats'),
+            translationKey: 'settings.server.stats'
+        });
+
+        scrollToTop();
+    }
+
+    function showGiftCardGenerator(event = null) {
+        if (event) event.stopPropagation();
+
+        currentView = 'giftCards';
+        childComponent = SettingsGiftCardGenerator;
+
+        dispatch('openSettings', {
+            settingsPath: 'server/gift-cards',
+            direction: 'forward',
+            icon: 'gift_cards',
+            title: $text('settings.server.gift_cards'),
+            translationKey: 'settings.server.gift_cards'
+        });
+
+        scrollToTop();
+    }
+
+
+    function showTestsSettings(event = null) {
+        if (event) event.stopPropagation();
+
+        currentView = 'tests';
+        childComponent = SettingsTests;
+
+        dispatch('openSettings', {
+            settingsPath: 'server/tests',
+            direction: 'forward',
+            icon: 'check',
+            title: $text('settings.server.tests'),
+            translationKey: 'settings.server.tests'
+        });
+
+        scrollToTop();
+    }
+
+    function scrollToTop() {
         // Find settings content element and scroll to top
         const settingsContent = document.querySelector('.settings-content-wrapper');
         if (settingsContent) {
@@ -57,12 +134,56 @@ changes to the documentation (to keep the documentation up to date).
 </script>
 
 {#if currentView === 'main'}
-    <SettingsItem 
+    <SettingsItem
         icon="download"
-        title={$text('settings.software_updates.text')}
+        title={$text('settings.software_updates')}
         onClick={() => showSoftwareUpdateSettings()}
     />
+    <SettingsItem
+        icon="users"
+        title={$text('settings.server.community_suggestions')}
+        subtitleTop="Manage demo chats from community-shared conversations"
+        onClick={() => showCommunitySuggestions()}
+    />
+    <SettingsItem
+        icon="usage"
+        title={$text('settings.server.stats')}
+        subtitleTop="View global server usage and growth metrics"
+        onClick={() => showStatsSettings()}
+    />
+    <SettingsItem
+        icon="gift_cards"
+        title={$text('settings.server.gift_cards')}
+        subtitleTop={$text('settings.server.gift_cards.subtitle')}
+        onClick={() => showGiftCardGenerator()}
+    />
+    <SettingsItem
+        icon="check"
+        title={$text('settings.server.tests')}
+        subtitleTop={$text('settings.server.tests.subtitle')}
+        onClick={() => showTestsSettings()}
+    />
 {:else if currentView === 'softwareUpdate' && childComponent}
+    {@const Component = childComponent}
+    <Component
+        on:back={handleBack}
+    />
+{:else if currentView === 'communitySuggestions' && childComponent}
+    {@const Component = childComponent}
+    <Component
+        on:back={handleBack}
+    />
+{:else if currentView === 'stats' && childComponent}
+    {@const Component = childComponent}
+    <Component
+        on:back={handleBack}
+    />
+{:else if currentView === 'giftCards' && childComponent}
+    {@const Component = childComponent}
+    <Component
+        on:back={handleBack}
+    />
+{:else if currentView === 'tests' && childComponent}
     {@const Component = childComponent}
     <Component
         on:back={handleBack}

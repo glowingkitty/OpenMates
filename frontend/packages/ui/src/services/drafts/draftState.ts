@@ -1,6 +1,5 @@
 import { writable } from 'svelte/store';
 import type { DraftEditorState } from './draftTypes'; // Updated to DraftEditorState
-import type { TiptapJSON } from '../../types/chat'; // Import TiptapJSON
 
 export const initialDraftEditorState: DraftEditorState = {
 	currentChatId: null, // This will store the chat_id for the draft being edited
@@ -8,6 +7,8 @@ export const initialDraftEditorState: DraftEditorState = {
 	hasUnsavedChanges: false,
 	newlyCreatedChatIdToSelect: null,
 	lastSavedContentMarkdown: null, // Stores the cleartext markdown of the last successfully saved draft
+	isSwitchingContext: false, // Flag to prevent draft deletion during context switching
+	isSaveInProgress: false, // Lock to prevent concurrent draft saves from creating duplicate chats
 };
 
 export const draftEditorUIState = writable<DraftEditorState>(initialDraftEditorState); // Renamed for clarity

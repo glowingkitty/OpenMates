@@ -1,1 +1,165 @@
-Coming soon - the privacy settings will be available here.
+<!--
+Privacy Settings - Main page for privacy-related settings
+Sections: Anonymization, Auto Deletion
+
+Based on Figma design: settings/privacy (node 1895:20576)
+-->
+
+<script lang="ts">
+    import { createEventDispatcher, onMount } from 'svelte';
+    import { text } from '@repo/ui';
+    import SettingsItem from '../SettingsItem.svelte';
+    import { personalDataStore } from '../../stores/personalDataStore';
+
+    const dispatch = createEventDispatcher();
+
+    // ─── Load from encrypted storage on mount ────────────────────────────────
+
+    onMount(() => {
+        personalDataStore.loadFromStorage();
+    });
+
+    // ─── PII Detection Settings (Anonymization section) ──────────────────────
+    // Read master toggle and "hide personal data" enabled state from the store
+    let piiSettings = $state({ masterEnabled: true, categories: {} as Record<string, boolean> });
+    personalDataStore.settings.subscribe((s) => { piiSettings = s; });
+
+    let hidePersonalDataEnabled = $derived(piiSettings.masterEnabled);
+
+    // ─── Location / Maps Toggle ──────────────────────────────────────────────
+    // Read from encrypted personalDataStore so the setting persists across sessions.
+    // impreciseByDefault=true means area mode is the default (privacy-first).
+    let locationSettings = $state({ impreciseByDefault: true });
+    personalDataStore.locationSettings.subscribe((s) => { locationSettings = s; });
+    // nearbyByDefault is the UI-facing toggle:
+    //   checked=true  → "Nearby by default" is ON  → impreciseByDefault=true
+    let nearbyByDefault = $derived(locationSettings.impreciseByDefault);
+
+    // ─── Navigation Handlers ─────────────────────────────────────────────────
+
+    /**
+     * Navigate to the "Hide personal data" sub-page where users manage
+     * names, addresses, birthdays, custom entries, and auto-detection toggles.
+     */
+    function navigateToHidePersonalData() {
+        dispatch('openSettings', {
+            settingsPath: 'privacy/hide-personal-data',
+            direction: 'forward',
+            icon: 'privacy',
+            title: $text('settings.privacy.hide_personal_data')
+        });
+    }
+
+    /**
+     * Navigate to the auto-deletion editing sub-page for a specific category.
+     */
+    function navigateToAutoDeletion(category: string) {
+        dispatch('openSettings', {
+            settingsPath: `privacy/auto-deletion/${category}`,
+            direction: 'forward',
+            icon: 'delete',
+            title: $text(`settings.privacy.auto_deletion.${category}`)
+        });
+    }
+</script>
+
+<!-- Privacy Policy Link (description text is shown in the gradient banner header above) -->
+<div class="settings-description">
+    <a
+        href="/legal/privacy"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="settings-gradient-link"
+    >
+        {$text('settings.privacy.open_privacy_policy')}
+    </a>
+</div>
+
+<!-- ─── Anonymization Section ─────────────────────────────────────────────── -->
+<SettingsItem
+    type="heading"
+    icon="anonym"
+    title={$text('settings.privacy.anonymization')}
+/>
+
+<!-- Hide personal data — navigates to sub-page, has toggle -->
+<SettingsItem
+    type="subsubmenu"
+    icon="anonym"
+    subtitleTop={$text('settings.privacy.hide_personal_data.chats')}
+    title={$text('settings.privacy.hide_personal_data')}
+    hasToggle={true}
+    checked={hidePersonalDataEnabled}
+    onClick={navigateToHidePersonalData}
+/>
+
+<!-- Nearby by default (Maps/Location) -->
+<SettingsItem
+    type="subsubmenu"
+    icon="maps"
+    subtitleTop={$text('settings.privacy.maps_location')}
+    title={$text('settings.privacy.nearby_by_default')}
+    hasToggle={true}
+    checked={nearbyByDefault}
+    onClick={() => personalDataStore.updateLocationSettings({ impreciseByDefault: !locationSettings.impreciseByDefault })}
+/>
+
+<!-- ─── Auto Deletion Section ─────────────────────────────────────────────── -->
+<SettingsItem
+    type="heading"
+    icon="delete"
+    title={$text('settings.privacy.auto_deletion')}
+/>
+
+<!-- Chats — editable, has modify button -->
+<SettingsItem
+    type="subsubmenu"
+    icon="chat"
+    subtitleTop={$text('settings.privacy.auto_deletion.chats')}
+    title={$text('settings.privacy.auto_deletion.chats.value')}
+    hasModifyButton={true}
+    onModifyClick={() => navigateToAutoDeletion('chats')}
+/>
+
+<!-- Files — editable, has modify button -->
+<SettingsItem
+    type="subsubmenu"
+    icon="files"
+    subtitleTop={$text('settings.privacy.auto_deletion.files')}
+    title={$text('settings.privacy.auto_deletion.files.value')}
+    hasModifyButton={true}
+    onModifyClick={() => navigateToAutoDeletion('files')}
+/>
+
+<!-- Usage data — editable, has modify button -->
+<SettingsItem
+    type="subsubmenu"
+    icon="usage"
+    subtitleTop={$text('settings.privacy.auto_deletion.usage_data')}
+    title={$text('settings.privacy.auto_deletion.usage_data.value')}
+    hasModifyButton={true}
+    onModifyClick={() => navigateToAutoDeletion('usage_data')}
+/>
+
+<!-- Compliance logs — NOT editable, no modify button -->
+<SettingsItem
+    type="subsubmenu"
+    icon="log"
+    subtitleTop={$text('settings.privacy.auto_deletion.compliance_logs')}
+    title={$text('settings.privacy.auto_deletion.compliance_logs.value')}
+/>
+
+<!-- Invoices — NOT editable, no modify button -->
+<SettingsItem
+    type="subsubmenu"
+    icon="billing"
+    subtitleTop={$text('settings.privacy.auto_deletion.invoices')}
+    title={$text('settings.privacy.auto_deletion.invoices.value')}
+/>
+
+<!-- Compliance note — uses global .settings-note from settings.css -->
+<div class="settings-note">
+    <p>{$text('settings.privacy.auto_deletion.compliance_note')}</p>
+</div>
+
+<!-- All styles moved to global settings.css: .settings-description, .settings-gradient-link, .settings-note -->

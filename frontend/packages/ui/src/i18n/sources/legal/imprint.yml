@@ -1,0 +1,207 @@
+title:
+  context: Title of the legal imprint page
+  en: Legal Notice (Imprint)
+  de: Impressum
+  zh: 版本说明
+  es: Aviso legal
+  fr: Mentions légales
+  pt: Aviso Legal (Imprint)
+  ru: Правовое уведомление (Импрессум)
+  ja: インプリント
+  ko: 법적 고지 (임프린트)
+  it: Avviso legale (Imprint)
+  tr: Yasal Bildirim (Künye)
+  vi: Thông báo pháp lý (Imprint)
+  id: Pemberitahuan Hukum (Imprint)
+  pl: Nota prawna (Impressum)
+  nl: Wettelijke kennisgeving (Impressum)
+  ar: الإشعار القانوني (بيانات الناشر)
+  hi: कानूनी सूचना (इंप्रिंट)
+  th: ประกาศทางกฎหมาย (Imprint)
+  cs: Právní oznámení (Imprint)
+  sv: Juridiskt meddelande (Impressum)
+  verified_by_human: []
+information_tmg:
+  context: Legal information section header
+  en: Information according to § 5 TMG
+  de: Angaben gemäß § 5 TMG
+  zh: 根据 § 5 TMG 的信息
+  es: Información según § 5 TMG
+  fr: Informations selon § 5 TMG
+  pt: Informações de acordo com § 5 TMG
+  ru: Информация в соответствии с § 5 TMG
+  ja: TMG第5条に基づく情報
+  ko: § 5 TMG에 따른 정보
+  it: Informazioni ai sensi del § 5 TMG
+  tr: § 5 TMG'ye göre bilgiler
+  vi: Thông tin theo § 5 TMG
+  id: Informasi sesuai § 5 TMG
+  pl: Informacje zgodnie z § 5 TMG
+  nl: Informatie conform § 5 TMG
+  ar: معلومات وفق § 5 TMG
+  hi: § 5 TMG के अनुसार जानकारी
+  th: ข้อมูลตาม § 5 TMG
+  cs: Informace dle § 5 TMG
+  sv: Information enligt § 5 TMG
+  verified_by_human: []
+contact:
+  context: Contact section header in imprint
+  en: Contact
+  de: Kontakt
+  zh: 联系方式
+  es: Contacto
+  fr: Contact
+  pt: Contato
+  ru: Контакт
+  ja: お問い合わせ
+  ko: 연락처
+  it: Contatto
+  tr: İletişim
+  vi: Liên hệ
+  id: Kontak
+  pl: Kontakt
+  nl: Contact
+  ar: اتصل بنا
+  hi: संपर्क
+  th: ติดต่อ
+  cs: Kontakt
+  sv: Kontakt
+  verified_by_human: []
+email:
+  context: Email label in contact section
+  en: Email
+  de: E-Mail
+  zh: 电子邮件
+  es: Correo electrónico
+  fr: E-mail
+  pt: E-mail
+  ru: Электронная почта
+  ja: メール
+  ko: 이메일
+  it: E-mail
+  tr: E-posta
+  vi: Email
+  id: Email
+  pl: E-mail
+  nl: E-mail
+  ar: البريد الإلكتروني
+  hi: ईमेल
+  th: อีเมล
+  cs: E-mail
+  sv: E-post
+  verified_by_human: []
+follow_up_1:
+  context: Follow-up suggestion for imprint
+  en: Why does German law require an Imprint?
+  de: Warum erfordert das deutsche Recht ein Impressum?
+  zh: 为什么德国法律要求提供版本说明？
+  es: ¿Por qué la ley alemana requiere un aviso legal?
+  fr: Pourquoi la loi allemande exige-t-elle un avis légal ?
+  pt: Por que a lei alemã exige um Imprint?
+  ru: Почему немецкое законодательство требует импрессума?
+  ja: なぜドイツの法律でインプリントが必要なのですか？
+  ko: 독일 법은 왜 임프린트를 요구하나요?
+  it: Perché la legge tedesca richiede un Imprint?
+  tr: Alman hukuku neden bir Künyeyi zorunlu kılıyor?
+  vi: Tại sao luật Đức yêu cầu Imprint?
+  id: Mengapa hukum Jerman mewajibkan Imprint?
+  pl: Dlaczego prawo niemieckie wymaga Impressum?
+  nl: Waarom vereist de Duitse wet een Impressum?
+  ar: لماذا يشترط القانون الألماني توفير بيانات الناشر؟
+  hi: जर्मन कानून इंप्रिंट क्यों अनिवार्य करता है?
+  th: ทำไมกฎหมายเยอรมันถึงกำหนดให้มี Imprint?
+  cs: Proč německý zákon vyžaduje Imprint?
+  sv: Varför kräver tysk lag ett Impressum?
+  verified_by_human: []
+follow_up_2:
+  context: Follow-up suggestion for imprint
+  en: How can I contact your legal team?
+  de: Wie kann ich Ihr Rechtsteam kontaktieren?
+  zh: 如何联系您的法律团队？
+  es: ¿Cómo puedo contactar a su equipo legal?
+  fr: Comment puis-je contacter votre équipe juridique ?
+  pt: Como posso contatar sua equipe jurídica?
+  ru: Как связаться с вашей юридической командой?
+  ja: 法務チームにはどのように連絡できますか？
+  ko: 법무팀에 어떻게 연락할 수 있나요?
+  it: Come posso contattare il vostro team legale?
+  tr: Hukuk ekibinizle nasıl iletişime geçebilirim?
+  vi: Làm thế nào để liên hệ với đội ngũ pháp lý của bạn?
+  id: Bagaimana cara menghubungi tim hukum Anda?
+  pl: Jak mogę skontaktować się z Waszym zespołem prawnym?
+  nl: Hoe kan ik contact opnemen met uw juridisch team?
+  ar: كيف يمكنني التواصل مع فريقكم القانوني؟
+  hi: आपकी कानूनी टीम से कैसे संपर्क करूं?
+  th: ฉันจะติดต่อทีมกฎหมายของคุณได้อย่างไร?
+  cs: Jak mohu kontaktovat váš právní tým?
+  sv: Hur kan jag kontakta ert juridiska team?
+  verified_by_human: []
+follow_up_3:
+  context: Follow-up suggestion for imprint
+  en: What open source licenses do you use?
+  de: Welche Open-Source-Lizenzen verwenden Sie?
+  zh: 您使用哪些开源许可证？
+  es: ¿Qué licencias de código abierto utilizan?
+  fr: Quelles licences open source utilisez-vous ?
+  pt: Quais licenças de código aberto vocês usam?
+  ru: Какие лицензии открытого исходного кода вы используете?
+  ja: どのオープンソースライセンスを使用していますか？
+  ko: 어떤 오픈소스 라이선스를 사용하나요?
+  it: Quali licenze open source utilizzate?
+  tr: Hangi açık kaynak lisanslarını kullanıyorsunuz?
+  vi: Bạn sử dụng giấy phép mã nguồn mở nào?
+  id: Lisensi open source apa yang Anda gunakan?
+  pl: Jakich licencji open source używacie?
+  nl: Welke open source licenties gebruiken jullie?
+  ar: ما هي تراخيص المصدر المفتوح التي تستخدمونها؟
+  hi: आप कौन से ओपन सोर्स लाइसेंस उपयोग करते हैं?
+  th: คุณใช้ใบอนุญาตโอเพ่นซอร์สใดบ้าง?
+  cs: Jaké open source licence používáte?
+  sv: Vilka öppen källkodslicenser använder ni?
+  verified_by_human: []
+follow_up_4:
+  context: Follow-up suggestion for imprint
+  en: Where is your company registered?
+  de: Wo ist Ihr Unternehmen registriert?
+  zh: 您的公司在哪里注册？
+  es: ¿Dónde está registrada su empresa?
+  fr: Où votre entreprise est-elle enregistrée ?
+  pt: Onde sua empresa está registrada?
+  ru: Где зарегистрирована ваша компания?
+  ja: 会社はどこに登録されていますか？
+  ko: 회사는 어디에 등록되어 있나요?
+  it: Dove è registrata la vostra azienda?
+  tr: Şirketiniz nerede kayıtlı?
+  vi: Công ty của bạn đăng ký ở đâu?
+  id: Di mana perusahaan Anda terdaftar?
+  pl: Gdzie jest zarejestrowana Wasza firma?
+  nl: Waar is uw bedrijf geregistreerd?
+  ar: أين تم تسجيل شركتكم؟
+  hi: आपकी कंपनी कहाँ पंजीकृत है?
+  th: บริษัทของคุณจดทะเบียนที่ไหน?
+  cs: Kde je vaše společnost registrována?
+  sv: Var är ert företag registrerat?
+  verified_by_human: []
+follow_up_5:
+  context: Follow-up suggestion for imprint
+  en: Who is the legal representative?
+  de: Wer ist der gesetzliche Vertreter?
+  zh: 法定代表人是谁？
+  es: ¿Quién es el representante legal?
+  fr: Qui est le représentant légal ?
+  pt: Quem é o representante legal?
+  ru: Кто является законным представителем?
+  ja: 法定代理人は誰ですか？
+  ko: 법적 대표자는 누구인가요?
+  it: Chi è il rappresentante legale?
+  tr: Yasal temsilci kimdir?
+  vi: Ai là đại diện pháp lý?
+  id: Siapa perwakilan hukumnya?
+  pl: Kto jest przedstawicielem prawnym?
+  nl: Wie is de wettelijke vertegenwoordiger?
+  ar: من هو الممثل القانوني؟
+  hi: कानूनी प्रतिनिधि कौन है?
+  th: ใครคือตัวแทนทางกฎหมาย?
+  cs: Kdo je zákonným zástupcem?
+  sv: Vem är den juridiska representanten?
+  verified_by_human: []

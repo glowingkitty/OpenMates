@@ -1,0 +1,668 @@
+<!--
+  frontend/packages/ui/src/components/embeds/web/WebsiteEmbedFullscreen.svelte
+  
+  Fullscreen view for Website embeds.
+  Uses UnifiedEmbedFullscreen as base and provides website-specific content.
+  
+  Design based on Figma: https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3643-50967
+  
+  Features:
+  - Receives metadata from WebsiteEmbedPreview when user clicks to open fullscreen
+  - Proxies images through preview server for privacy and optimization
+  
+  Layout Structure:
+  - Header image (large rounded preview)
+  - Favicon + Title
+  - Date metadata
+  - "Open on [hostname]" CTA button
+  - Description text
+  - Snippets section with quote-decorated cards
+  
+  Bottom bar shows:
+  - Web app gradient icon
+  - Favicon + truncated title
+-->
+
+<script lang="ts">
+  import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import { handleImageError } from '../../../utils/offlineImageHandler';
+  import { proxyFavicon, proxyImage, MAX_WIDTH_HEADER_IMAGE } from '../../../utils/imageProxy';
+  
+  /**
+   * Props for website embed fullscreen
+   */
+  interface Props {
+    /** Website URL */
+    url: string;
+    /** Website title */
+    title?: string;
+    /** Website description */
+    description?: string;
+    /** Favicon URL */
+    favicon?: string;
+    /** Preview image URL */
+    image?: string;
+    /** Extra snippets from backend TOON (pipe-delimited string or array) */
+    extra_snippets?: string | string[];
+    /** Meta URL favicon (alternative source) */
+    meta_url_favicon?: string;
+    /** Thumbnail original (alternative image source) */
+    thumbnail_original?: string;
+    /** Close handler */
+    onClose: () => void;
+    /** Optional: Embed ID for sharing (from embed:{embed_id} contentRef) */
+    embedId?: string;
+    /** Optional: Date when data was fetched */
+    dataDate?: string;
+    /** Whether there is a previous embed to navigate to */
+    hasPreviousEmbed?: boolean;
+    /** Whether there is a next embed to navigate to */
+    hasNextEmbed?: boolean;
+    /** Handler to navigate to the previous embed */
+    onNavigatePrevious?: () => void;
+    /** Handler to navigate to the next embed */
+    onNavigateNext?: () => void;
+    /** Direction of navigation ('previous' | 'next') — set transiently during prev/next transitions */
+    navigateDirection?: 'previous' | 'next';
+    /** Whether to show the "chat" button to restore chat visibility (ultra-wide forceOverlayMode) */
+    showChatButton?: boolean;
+    /** Callback when user clicks the "chat" button to restore chat visibility */
+    onShowChat?: () => void;
+  }
+  
+  let {
+    url,
+    title,
+    description,
+    favicon,
+    image,
+    extra_snippets,
+    meta_url_favicon,
+    thumbnail_original,
+    onClose,
+    embedId,
+    dataDate,
+    hasPreviousEmbed = false,
+    hasNextEmbed = false,
+    onNavigatePrevious,
+    onNavigateNext,
+    navigateDirection,
+    showChatButton = false,
+    onShowChat
+  }: Props = $props();
+  
+  // ===========================================
+  // HTML Tag Stripping (Client-side fallback)
+  // ===========================================
+  // NOTE: HTML tags should be stripped server-side during search processing.
+  // This client-side function is a FALLBACK for legacy data or edge cases.
+  
+  /**
+   * Strip HTML tags from text to prevent rendering raw HTML in the UI.
+   * This is a FALLBACK - the backend should strip tags before sending data.
+   * Handles tags like <strong>, <em>, <b>, <i>, <a>, <span>, etc.
+   * Also decodes common HTML entities.
+   * 
+   * @param text - Text that may contain HTML tags
+   * @returns Clean text with all HTML tags removed
+   */
+  function stripHtmlTags(text: string | undefined): string {
+    if (!text) return '';
+    
+    // Remove all HTML tags using regex
+    let cleaned = text.replace(/<[^>]*>/g, '');
+    
+    // Decode common HTML entities
+    cleaned = cleaned
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&apos;/g, "'");
+    
+    // Clean up extra whitespace that might result from removed tags
+    cleaned = cleaned.replace(/\s+/g, ' ').trim();
+    
+    return cleaned;
+  }
+  
+  // Debug: Log all props when component is initialized
+  // This helps trace data flow issues with extra_snippets and page_age
+  $effect(() => {
+    console.debug('[WebsiteEmbedFullscreen] Props received:', {
+      url,
+      title,
+      description,
+      image,
+      extra_snippets,
+      extra_snippets_type: typeof extra_snippets,
+      extra_snippets_length: typeof extra_snippets === 'string' ? extra_snippets.length : (Array.isArray(extra_snippets) ? extra_snippets.length : 'N/A'),
+      dataDate,
+      embedId
+    });
+  });
+  
+  /**
+   * Parse extra_snippets from backend TOON format:
+   * - Pipe-delimited string: "snippet1|snippet2|snippet3"
+   * - Or already an array: ["snippet1", "snippet2"]
+   * Returns a normalized array of snippet strings
+   * 
+   * Note: Brave Search sometimes includes a " *" marker at the end of snippets
+   * which indicates truncated content - we preserve this as-is.
+   */
+  let snippets = $derived.by(() => {
+    console.debug('[WebsiteEmbedFullscreen] Processing extra_snippets:', {
+      type: typeof extra_snippets,
+      value: extra_snippets,
+      isArray: Array.isArray(extra_snippets)
+    });
+    
+    if (!extra_snippets) {
+      console.debug('[WebsiteEmbedFullscreen] No extra_snippets provided');
+      return [];
+    }
+    
+    // If it's already an array, use it directly
+    if (Array.isArray(extra_snippets)) {
+      console.debug('[WebsiteEmbedFullscreen] Using extra_snippets array:', extra_snippets.length, 'items');
+      return extra_snippets;
+    }
+    
+    // If it's a pipe-delimited string, split it
+    if (typeof extra_snippets === 'string' && extra_snippets.trim()) {
+      const parsed = extra_snippets.split('|').filter(s => s.trim());
+      console.debug('[WebsiteEmbedFullscreen] Parsed extra_snippets string:', parsed.length, 'items', parsed);
+      return parsed;
+    }
+    
+    console.debug('[WebsiteEmbedFullscreen] extra_snippets is empty or invalid');
+    return [];
+  });
+  
+  /**
+   * Extract the main domain from a hostname, stripping subdomains.
+   * Examples:
+   * - www.theverge.com → theverge.com
+   * - docs.openai.com → openai.com
+   * - api.example.co.uk → example.co.uk
+   * 
+   * Handles common two-part TLDs like .co.uk, .com.au, .co.nz, etc.
+   */
+  function getMainDomain(fullHostname: string): string {
+    const parts = fullHostname.split('.');
+    
+    // If 2 or fewer parts, return as-is (already a main domain)
+    if (parts.length <= 2) {
+      return fullHostname;
+    }
+    
+    // Check for common two-part TLDs (e.g., .co.uk, .com.au, .co.nz, .org.uk)
+    // These need 3 parts: domain + two-part TLD
+    const twoPartTLDs = ['co.uk', 'com.au', 'co.nz', 'org.uk', 'com.br', 'co.jp', 'co.kr', 'co.in', 'com.mx', 'com.cn'];
+    const lastTwoParts = parts.slice(-2).join('.');
+    
+    if (twoPartTLDs.includes(lastTwoParts)) {
+      // Take last 3 parts (domain + two-part TLD)
+      return parts.slice(-3).join('.');
+    }
+    
+    // Default: take last 2 parts (domain + single TLD)
+    return parts.slice(-2).join('.');
+  }
+  
+  // Get display values
+  let hostname = $derived(() => {
+    try {
+      const fullHostname = new URL(url).hostname;
+      return getMainDomain(fullHostname);
+    } catch {
+      return url;
+    }
+  });
+  
+  let displayTitle = $derived(title || hostname());
+  let displayDescription = $derived(description || '');
+  
+  // Strip HTML tags as fallback (backend should already strip them)
+  // This ensures clean text display even for legacy data
+  let cleanedDescription = $derived(stripHtmlTags(displayDescription));
+  
+  // Strip HTML tags from each snippet as fallback
+  let cleanedSnippets = $derived(snippets.map(snippet => stripHtmlTags(snippet)));
+  
+  // Favicon URL with fallback chain
+  let faviconUrl = $derived(
+    meta_url_favicon || 
+    favicon || 
+    proxyFavicon(url)
+  );
+  
+  // Header image URL - proxy through preview server with max_width for optimization
+  // The header image container is max 511px wide, so we request 1024px for retina displays
+  // Note: We only proxy if we have an actual image URL (not the webpage URL itself)
+  // If no image URL is available, we simply don't show a header image
+  
+  let imageUrl = $derived.by(() => {
+    const originalImageUrl = thumbnail_original || image;
+    if (!originalImageUrl) {
+      return null;
+    }
+    // Proxy through preview server with max_width to optimize image size
+    // This also provides caching and privacy benefits
+    return proxyImage(originalImageUrl, MAX_WIDTH_HEADER_IMAGE);
+  });
+  
+  /**
+   * Parse relative time strings from Brave Search API (e.g., "2 weeks ago", "3 days ago")
+   * and convert to actual Date objects.
+   * 
+   * Brave Search returns human-readable strings, not ISO dates, so we need to parse them.
+   * 
+   * @param relativeTime - String like "2 weeks ago", "3 days ago", "1 month ago"
+   * @returns Date object or null if parsing fails
+   */
+  function parseRelativeTime(relativeTime: string): Date | null {
+    if (!relativeTime || typeof relativeTime !== 'string') {
+      return null;
+    }
+    
+    const trimmed = relativeTime.trim().toLowerCase();
+    
+    // Try to parse as ISO date first (fallback for any ISO dates)
+    const isoDate = new Date(relativeTime);
+    if (!isNaN(isoDate.getTime())) {
+      return isoDate;
+    }
+    
+    // Parse relative time patterns like "2 weeks ago", "3 days ago", etc.
+    // Patterns: X second(s)/minute(s)/hour(s)/day(s)/week(s)/month(s)/year(s) ago
+    const relativePattern = /^(\d+)\s+(second|minute|hour|day|week|month|year)s?\s+ago$/i;
+    const match = trimmed.match(relativePattern);
+    
+    if (!match) {
+      // Handle special cases
+      if (trimmed === 'yesterday') {
+        const date = new Date();
+        date.setDate(date.getDate() - 1);
+        return date;
+      }
+      if (trimmed === 'today' || trimmed === 'just now') {
+        return new Date();
+      }
+      
+      console.debug('[WebsiteEmbedFullscreen] Could not parse relative time:', relativeTime);
+      return null;
+    }
+    
+    const amount = parseInt(match[1], 10);
+    const unit = match[2].toLowerCase();
+    const now = new Date();
+    
+    switch (unit) {
+      case 'second':
+        now.setSeconds(now.getSeconds() - amount);
+        break;
+      case 'minute':
+        now.setMinutes(now.getMinutes() - amount);
+        break;
+      case 'hour':
+        now.setHours(now.getHours() - amount);
+        break;
+      case 'day':
+        now.setDate(now.getDate() - amount);
+        break;
+      case 'week':
+        now.setDate(now.getDate() - (amount * 7));
+        break;
+      case 'month':
+        now.setMonth(now.getMonth() - amount);
+        break;
+      case 'year':
+        now.setFullYear(now.getFullYear() - amount);
+        break;
+      default:
+        return null;
+    }
+    
+    return now;
+  }
+  
+  // Format the data date for display (e.g., "Data from 2025/01/05")
+  // Only shows a date when dataDate is explicitly provided (e.g., from web search results)
+  // Returns null when no date is available - we don't want to mislead users by showing
+  // the current date when we don't actually know when the data was fetched
+  //
+  // Brave Search API returns relative time strings like "2 weeks ago", "3 days ago"
+  // which we parse into actual dates and display in YYYY/MM/DD format
+  let formattedDate = $derived(() => {
+    if (!dataDate) {
+      // No date provided - don't show anything rather than showing potentially incorrect date
+      return null;
+    }
+    
+    try {
+      // Parse the relative time string from Brave Search (e.g., "2 weeks ago")
+      const date = parseRelativeTime(dataDate);
+      
+      if (!date) {
+        console.debug('[WebsiteEmbedFullscreen] Could not parse dataDate:', dataDate);
+        return null;
+      }
+      
+      // Format as YYYY/MM/DD - language-neutral format
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `Data from ${year}/${month}/${day}`;
+    } catch (error) {
+      console.warn('[WebsiteEmbedFullscreen] Error parsing dataDate:', dataDate, error);
+      return null;
+    }
+  });
+  
+  // Handle opening website in new tab
+  function handleOpenInNewTab() {
+    if (url) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  }
+  
+  // Share is handled by UnifiedEmbedFullscreen's built-in share handler
+  // which uses currentEmbedId, appId, and skillId to construct the embed
+  // share context and properly opens the settings panel (including on mobile).
+  
+  // Track image loading error to hide broken images
+  let imageError = $state(false);
+</script>
+
+<!-- 
+  WebsiteEmbedFullscreen uses UnifiedEmbedFullscreen as base
+  Title is set to empty string because we display the title in the content area
+  
+  Layout matches Figma design:
+  - Large header image at top
+  - Favicon + Title + Date
+  - CTA button
+  - Description
+  - Snippets with quote cards
+-->
+<UnifiedEmbedFullscreen
+  appId="web"
+  skillId="website"
+  embedHeaderTitle={displayTitle}
+  embedHeaderSubtitle={formattedDate() ?? undefined}
+  embedHeaderFaviconUrl={faviconUrl}
+  skillIconName="website"
+  {onClose}
+  currentEmbedId={embedId}
+  {hasPreviousEmbed}
+  {hasNextEmbed}
+  {onNavigatePrevious}
+  {onNavigateNext}
+  {navigateDirection}
+  {showChatButton}
+  {onShowChat}
+>
+  {#snippet embedHeaderCta()}
+    <!-- CTA Button - "Open on [hostname]" -->
+    <button class="cta-button" onclick={handleOpenInNewTab}>
+      Open on {hostname()}
+    </button>
+  {/snippet}
+
+  <!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
+  {#snippet content(_)}
+    <div class="website-fullscreen-content">
+      <!-- Header Image - large rounded preview at top -->
+      {#if imageUrl && !imageError}
+        <div class="header-image-container">
+          <img 
+            src={imageUrl} 
+            alt={displayTitle}
+            class="header-image"
+            loading="lazy"
+            crossorigin="anonymous"
+            onerror={(e) => { imageError = true; handleImageError(e.currentTarget as HTMLImageElement); }}
+          />
+        </div>
+      {/if}
+      
+      <!-- Description - rendered as plain text (HTML tags stripped server-side, client fallback) -->
+      {#if cleanedDescription}
+        <p class="description">{cleanedDescription}</p>
+      {/if}
+      
+      <!-- Snippets Section -->
+      {#if snippets.length > 0}
+        <div class="snippets-section">
+          <h2 class="snippets-title">Snippets</h2>
+          <div class="snippets-source">via Brave Search</div>
+          
+          <div class="snippets-list">
+            {#each cleanedSnippets as snippet}
+              <div class="snippet-card">
+                <!-- Opening quote icon (bottom-left) - uses quote.svg from icons system -->
+                <div class="quote-icon quote-open clickable-icon icon_quote"></div>
+                
+                <!-- Closing quote icon (top-right) - rotated 180deg -->
+                <div class="quote-icon quote-close clickable-icon icon_quote"></div>
+                
+                <p class="snippet-text">{snippet}</p>
+              </div>
+            {/each}
+          </div>
+        </div>
+      {/if}
+    </div>
+  {/snippet}
+</UnifiedEmbedFullscreen>
+
+<style>
+  /* ===========================================
+     Website Fullscreen Content Container
+     =========================================== */
+  
+  .website-fullscreen-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 40px 40px;
+    max-width: 600px;
+    margin: 0 auto;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  
+  /* ===========================================
+     Header Image
+     =========================================== */
+  
+  .header-image-container {
+    width: 100%;
+    max-width: 511px;
+    border-radius: 30px;
+    overflow: hidden;
+    margin-bottom: 24px;
+    background-color: var(--color-grey-30);
+  }
+  
+  .header-image {
+    width: 100%;
+    height: auto;
+    min-height: 168px;
+    max-height: 250px;
+    display: block;
+    object-fit: cover;
+  }
+  
+  /* ===========================================
+     CTA Button
+     =========================================== */
+  
+  .cta-button {
+    background-color: var(--color-button-primary);
+    color: white;
+    border: none;
+    border-radius: 15px;
+    padding: 12px 24px;
+    font-family: 'Lexend Deca', sans-serif;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.15s;
+    min-width: 200px;
+  }
+  
+  .cta-button:hover {
+    background-color: var(--color-button-primary-hover);
+    transform: translateY(-1px);
+  }
+  
+  .cta-button:active {
+    background-color: var(--color-button-primary-pressed);
+    transform: translateY(0);
+  }
+  
+  /* ===========================================
+     Description
+     =========================================== */
+  
+  .description {
+    font-family: 'Lexend Deca', sans-serif;
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--color-grey-100);
+    line-height: 1.5;
+    width: 100%;
+    max-width: 500px;
+    margin: 0 0 32px 0;
+    word-break: break-word;
+  }
+  
+  /* ===========================================
+     Snippets Section
+     =========================================== */
+  
+  .snippets-section {
+    width: 100%;
+    max-width: 500px;
+  }
+  
+  .snippets-title {
+    font-family: 'Lexend Deca', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--color-grey-100);
+    margin: 0 0 4px 0;
+  }
+  
+  .snippets-source {
+    font-family: 'Lexend Deca', sans-serif;
+    font-weight: 700;
+    color: #858585;
+    margin-bottom: 16px;
+  }
+  
+  .snippets-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  /* ===========================================
+     Snippet Card
+     =========================================== */
+  
+  .snippet-card {
+    position: relative;
+    background-color: var(--color-grey-0);
+    border-radius: 30px;
+    padding: 24px 50px;
+    min-height: 60px;
+  }
+  
+  /* Quote icons positioning - uses CSS mask with quote.svg from icons system */
+  .quote-icon {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    /* Override default clickable-icon color to black */
+    background: var(--color-grey-100) !important;
+    cursor: default;
+  }
+  
+  .quote-open {
+    left: 12px;
+    bottom: 12px;
+  }
+  
+  .quote-close {
+    right: 12px;
+    top: 12px;
+    /* Rotate 180 degrees to create closing quote appearance */
+    transform: rotate(180deg);
+  }
+  
+  .snippet-text {
+    font-family: 'Lexend Deca', sans-serif;
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--color-grey-100);
+    line-height: 1.5;
+    margin: 0;
+    word-break: break-word;
+  }
+  
+  /* ===========================================
+     Responsive Adjustments
+     =========================================== */
+  
+  /* Smaller screens */
+  @container fullscreen (max-width: 600px) {
+    .website-fullscreen-content {
+      padding: 20px 20px 30px;
+    }
+    
+    .header-image-container {
+      border-radius: 20px;
+    }
+    
+    .cta-button {
+      padding: 10px 20px;
+      min-width: 160px;
+    }
+    
+    .snippets-title {
+      font-size: 18px;
+    }
+    
+    .snippet-card {
+      padding: 20px 50px;
+      border-radius: 20px;
+    }
+  }
+  
+  /* Very small screens */
+  @container fullscreen (max-width: 400px) {
+    .website-fullscreen-content {
+      padding: 16px 16px 24px;
+    }
+    
+    .header-image {
+      min-height: 120px;
+      max-height: 180px;
+    }
+    
+    .snippet-card {
+      padding: 16px 40px;
+    }
+    
+    .quote-icon {
+      width: 16px;
+      height: 16px;
+    }
+  }
+</style>

@@ -1,0 +1,444 @@
+bookmarks:
+  context: Settings/memory name for bookmarks
+  en: Bookmarks
+  de: Lesezeichen
+  zh: 书签
+  es: Marcadores
+  fr: Signets
+  pt: Marcadores
+  ru: Закладки
+  ja: ブックマーク
+  ko: 북마크
+  it: Segnalibri
+  tr: Yer imleri
+  vi: Dấu trang
+  id: Bookmark
+  pl: Zakładki
+  nl: Bladwijzers
+  ar: الإشارات المرجعية
+  hi: बुकमार्क
+  th: ที่คั่นหนังสือ
+  cs: Záložky
+  sv: Bokmärken
+  he: סימניות
+  verified_by_human:
+    - en
+    - de
+bookmarks.description:
+  context: Description for bookmarks settings/memory
+  en: Your bookmarked websites
+  de: Deine gespeicherten Websites
+  zh: 你收藏的网站
+  es: Tus sitios web marcados
+  fr: Vos sites web enregistrés
+  pt: Seus sites marcados
+  ru: Ваши сохраненные веб-сайты
+  ja: ブックマークしたウェブサイト
+  ko: 북마크한 웹사이트
+  it: I tuoi siti web salvati
+  tr: Yer imleriniz
+  vi: Các trang web đã đánh dấu của bạn
+  id: Situs web yang Anda tandai
+  pl: Twoje zapisane strony internetowe
+  nl: Je bladwijzer-websites
+  ar: مواقع الويب المفضلة لديك
+  hi: आपकी बुकमार्क की गई वेबसाइटें
+  th: เว็บไซต์ที่คุณบุ๊กมาร์กไว้
+  cs: Vaše uložené webové stránky
+  sv: Dina bokmärkta webbplatser
+  he: האתרים ששמרת בסימניות
+  verified_by_human:
+    - en
+    - de
+favorite_websites:
+  context: Settings/memory name for favorite websites
+  en: Favorite websites
+  de: Lieblings-Websites
+  zh: 收藏网站
+  es: Sitios web favoritos
+  fr: Sites web favoris
+  pt: Sites favoritos
+  ru: Любимые веб-сайты
+  ja: お気に入りのウェブサイト
+  ko: 즐겨찾는 웹사이트
+  it: Siti web preferiti
+  tr: Favori web siteleri
+  vi: Trang web yêu thích
+  id: Situs web favorit
+  pl: Ulubione strony internetowe
+  nl: Favoriete websites
+  ar: المواقع المفضلة
+  hi: पसंदीदा वेबसाइटें
+  th: เว็บไซต์โปรด
+  cs: Oblíbené webové stránky
+  sv: Favoritwebbplatser
+  he: אתרים מועדפים
+  verified_by_human:
+    - en
+    - de
+favorite_websites.description:
+  context: Description for favorite websites settings/memory
+  en: Your favorite websites for quick access
+  de: Deine Lieblings-Websites für schnellen Zugriff
+  zh: 你最喜欢的网站，方便快速访问
+  es: Tus sitios web favoritos para acceso rápido
+  fr: Vos sites web favoris pour un accès rapide
+  pt: Seus sites favoritos para acesso rápido
+  ru: Ваши любимые веб-сайты для быстрого доступа
+  ja: クイックアクセスのためのお気に入りのウェブサイト
+  ko: 빠른 액세스를 위한 즐겨찾는 웹사이트
+  it: I tuoi siti web preferiti per accesso rapido
+  tr: Hızlı erişim için favori web siteleriniz
+  vi: Các trang web yêu thích của bạn để truy cập nhanh
+  id: Situs web favorit Anda untuk akses cepat
+  pl: Twoje ulubione strony internetowe do szybkiego dostępu
+  nl: Je favoriete websites voor snelle toegang
+  ar: مواقع الويب المفضلة لديك للوصول السريع
+  hi: त्वरित पहुंच के लिए आपकी पसंदीदा वेबसाइटें
+  th: เว็บไซต์โปรดของคุณสำหรับการเข้าถึงอย่างรวดเร็ว
+  cs: Vaše oblíbené webové stránky pro rychlý přístup
+  sv: Dina favoritwebbplatser för snabb åtkomst
+  he: האתרים המועדפים עליך לגישה מהירה
+  verified_by_human:
+    - en
+    - de
+read_later:
+  context: Settings/memory name for read later
+  en: Read later
+  de: Später lesen
+  zh: 稍后阅读
+  es: Leer más tarde
+  fr: Lire plus tard
+  pt: Ler depois
+  ru: Прочитать позже
+  ja: 後で読む
+  ko: 나중에 읽기
+  it: Leggi dopo
+  tr: Daha sonra oku
+  vi: Đọc sau
+  id: Baca nanti
+  pl: Przeczytaj później
+  nl: Later lezen
+  ar: اقرأ لاحقًا
+  hi: बाद में पढ़ें
+  th: อ่านภายหลัง
+  cs: Přečíst později
+  sv: Läs senare
+  he: לקרוא אחר כך
+  verified_by_human:
+    - en
+    - de
+read_later.description:
+  context: Description for read later settings/memory
+  en: Websites and articles saved for later
+  de: Websites und Artikel für später gespeichert
+  zh: 为稍后阅读而保存的网站和文章
+  es: Sitios y artículos guardados para después
+  fr: Sites et articles enregistrés pour plus tard
+  pt: Sites e artigos salvos para depois
+  ru: Сайты и статьи, сохраненные на потом
+  ja: 後で読むために保存したサイトと記事
+  ko: 나중에 읽기 위해 저장된 사이트 및 기사
+  it: Siti e articoli salvati per dopo
+  tr: Daha sonra okumak için kaydedilen siteler
+  vi: Các trang web và bài viết đã lưu
+  id: Situs dan artikel yang disimpan untuk nanti
+  pl: Strony i artykuły zapisane na później
+  nl: Websites en artikelen opgeslagen voor later
+  ar: المواقع والمقالات المحفوظة للقراءة لاحقًا
+  hi: बाद में पढ़ने के लिए सहेजे गए साइट और लेख
+  th: เว็บไซต์และบทความที่บันทึกไว้สำหรับอ่านทีหลัง
+  cs: Stránky a články uložené na později
+  sv: Webbplatser och artiklar sparade för senare
+  he: אתרים ומאמרים שנשמרו להמשך
+  verified_by_human:
+    - en
+    - de
+
+# Example entries shown to non-authenticated users to illustrate what each category stores
+
+bookmarks.example_1:
+  context: Example entry for bookmarks (a developer website)
+  en: github.com
+  de: github.com
+  zh: github.com
+  es: github.com
+  fr: github.com
+  pt: github.com
+  ru: github.com
+  ja: github.com
+  ko: github.com
+  it: github.com
+  tr: github.com
+  vi: github.com
+  id: github.com
+  pl: github.com
+  nl: github.com
+  ar: github.com
+  hi: github.com
+  th: github.com
+  cs: github.com
+  sv: github.com
+  he: github.com
+  verified_by_human:
+    - en
+    - de
+bookmarks.example_2:
+  context: Example entry for bookmarks (a developer docs website)
+  en: developer.mozilla.org
+  de: developer.mozilla.org
+  zh: developer.mozilla.org
+  es: developer.mozilla.org
+  fr: developer.mozilla.org
+  pt: developer.mozilla.org
+  ru: developer.mozilla.org
+  ja: developer.mozilla.org
+  ko: developer.mozilla.org
+  it: developer.mozilla.org
+  tr: developer.mozilla.org
+  vi: developer.mozilla.org
+  id: developer.mozilla.org
+  pl: developer.mozilla.org
+  nl: developer.mozilla.org
+  ar: developer.mozilla.org
+  hi: developer.mozilla.org
+  th: developer.mozilla.org
+  cs: developer.mozilla.org
+  sv: developer.mozilla.org
+  he: developer.mozilla.org
+  verified_by_human:
+    - en
+    - de
+bookmarks.example_3:
+  context: Example entry for bookmarks (a tech news website)
+  en: news.ycombinator.com
+  de: news.ycombinator.com
+  zh: news.ycombinator.com
+  es: news.ycombinator.com
+  fr: news.ycombinator.com
+  pt: news.ycombinator.com
+  ru: news.ycombinator.com
+  ja: news.ycombinator.com
+  ko: news.ycombinator.com
+  it: news.ycombinator.com
+  tr: news.ycombinator.com
+  vi: news.ycombinator.com
+  id: news.ycombinator.com
+  pl: news.ycombinator.com
+  nl: news.ycombinator.com
+  ar: news.ycombinator.com
+  hi: news.ycombinator.com
+  th: news.ycombinator.com
+  cs: news.ycombinator.com
+  sv: news.ycombinator.com
+  he: news.ycombinator.com
+  verified_by_human:
+    - en
+    - de
+favorite_websites.example_1:
+  context: Example entry for favorite websites
+  en: reddit.com
+  de: reddit.com
+  zh: reddit.com
+  es: reddit.com
+  fr: reddit.com
+  pt: reddit.com
+  ru: reddit.com
+  ja: reddit.com
+  ko: reddit.com
+  it: reddit.com
+  tr: reddit.com
+  vi: reddit.com
+  id: reddit.com
+  pl: reddit.com
+  nl: reddit.com
+  ar: reddit.com
+  hi: reddit.com
+  th: reddit.com
+  cs: reddit.com
+  sv: reddit.com
+  he: reddit.com
+  verified_by_human:
+    - en
+    - de
+favorite_websites.example_2:
+  context: Example entry for favorite websites
+  en: medium.com
+  de: medium.com
+  zh: medium.com
+  es: medium.com
+  fr: medium.com
+  pt: medium.com
+  ru: medium.com
+  ja: medium.com
+  ko: medium.com
+  it: medium.com
+  tr: medium.com
+  vi: medium.com
+  id: medium.com
+  pl: medium.com
+  nl: medium.com
+  ar: medium.com
+  hi: medium.com
+  th: medium.com
+  cs: medium.com
+  sv: medium.com
+  he: medium.com
+  verified_by_human:
+    - en
+    - de
+favorite_websites.example_3:
+  context: Example entry for favorite websites
+  en: stackoverflow.com
+  de: stackoverflow.com
+  zh: stackoverflow.com
+  es: stackoverflow.com
+  fr: stackoverflow.com
+  pt: stackoverflow.com
+  ru: stackoverflow.com
+  ja: stackoverflow.com
+  ko: stackoverflow.com
+  it: stackoverflow.com
+  tr: stackoverflow.com
+  vi: stackoverflow.com
+  id: stackoverflow.com
+  pl: stackoverflow.com
+  nl: stackoverflow.com
+  ar: stackoverflow.com
+  hi: stackoverflow.com
+  th: stackoverflow.com
+  cs: stackoverflow.com
+  sv: stackoverflow.com
+  he: stackoverflow.com
+  verified_by_human:
+    - en
+    - de
+read_later.example_1:
+  context: Example entry for read later (a type of article)
+  en: Interesting AI research paper
+  de: Interessantes KI-Forschungspapier
+  zh: 有趣的AI研究论文
+  es: Artículo interesante sobre investigación en IA
+  fr: Article de recherche IA intéressant
+  pt: Artigo interessante de pesquisa em IA
+  ru: Интересная статья об исследовании ИИ
+  ja: 興味深いAI研究論文
+  ko: 흥미로운 AI 연구 논문
+  it: Articolo di ricerca AI interessante
+  tr: İlginç yapay zeka araştırma makalesi
+  vi: Bài nghiên cứu AI thú vị
+  id: Makalah penelitian AI yang menarik
+  pl: Ciekawy artykuł o badaniach AI
+  nl: Interessant AI-onderzoeksartikel
+  ar: ورقة بحثية مثيرة عن الذكاء الاصطناعي
+  hi: दिलचस्प AI शोध पत्र
+  th: บทความวิจัย AI ที่น่าสนใจ
+  cs: Zajímavý výzkumný článek o AI
+  sv: Intressant AI-forskningsartikel
+  he: מאמר מחקר מעניין בנושא בינה מלאכותית
+  verified_by_human:
+    - en
+    - de
+read_later.example_2:
+  context: Example entry for read later (a type of article)
+  en: Design patterns article
+  de: Artikel über Design-Patterns
+  zh: 设计模式文章
+  es: Artículo sobre patrones de diseño
+  fr: Article sur les design patterns
+  pt: Artigo sobre padrões de design
+  ru: Статья о паттернах проектирования
+  ja: デザインパターンの記事
+  ko: 디자인 패턴 기사
+  it: Articolo sui design pattern
+  tr: Tasarım kalıpları makalesi
+  vi: Bài viết về mẫu thiết kế
+  id: Artikel pola desain
+  pl: Artykuł o wzorcach projektowych
+  nl: Artikel over design patterns
+  ar: مقال عن أنماط التصميم
+  hi: डिज़ाइन पैटर्न लेख
+  th: บทความเกี่ยวกับรูปแบบการออกแบบ
+  cs: Článek o návrhových vzorech
+  sv: Artikel om designmönster
+  he: מאמר על תבניות עיצוב
+  verified_by_human:
+    - en
+    - de
+read_later.example_3:
+  context: Example entry for read later (a type of blog post)
+  en: Tech blog post
+  de: Tech-Blogbeitrag
+  zh: 技术博客文章
+  es: Publicación de blog de tecnología
+  fr: Article de blog tech
+  pt: Post de blog de tecnologia
+  ru: Пост в техноблоге
+  ja: テックブログ記事
+  ko: 기술 블로그 게시물
+  it: Post del blog tech
+  tr: Teknoloji blog yazısı
+  vi: Bài viết blog công nghệ
+  id: Postingan blog teknologi
+  pl: Wpis na blogu technologicznym
+  nl: Techblogbericht
+  ar: مقال مدونة تقنية
+  hi: टेक ब्लॉग पोस्ट
+  th: บทความบล็อกเทคโนโลยี
+  cs: Příspěvek na tech blogu
+  sv: Teknikblogg-inlägg
+  he: פוסט בבלוג טכנולוגי
+  verified_by_human:
+    - en
+    - de
+
+# Structured example entries for example_entries in app.yml
+
+read_later.example_1.notes:
+  context: Example value for notes in read_later
+  en: Interesting article about AI
+  de: Interessanter Artikel über KI
+  zh: 关于人工智能的有趣文章
+  es: Artículo interesante sobre IA
+  fr: Article intéressant sur l'IA
+  pt: Artigo interessante sobre IA
+  ru: Интересная статья об ИИ
+  ja: AIについての興味深い記事
+  ko: AI에 대한 흥미로운 기사
+  it: Articolo interessante sull'IA
+  tr: Yapay zeka hakkında ilginç makale
+  vi: Bài viết thú vị về AI
+  id: Artikel menarik tentang AI
+  pl: Ciekawy artykuł o AI
+  nl: Interessant artikel over AI
+  ar: مقال مثير عن الذكاء الاصطناعي
+  hi: AI के बारे में दिलचस्प लेख
+  th: บทความที่น่าสนใจเกี่ยวกับ AI
+  cs: Zajímavý článek o AI
+  sv: Intressant artikel om AI
+  he: מאמר מעניין על בינה מלאכותית
+  verified_by_human: []
+read_later.example_2.notes:
+  context: Example value for notes in read_later
+  en: Tutorial on web development
+  de: Tutorial zur Webentwicklung
+  zh: 关于Web开发的教程
+  es: Tutorial sobre desarrollo web
+  fr: Tutoriel sur le développement web
+  pt: Tutorial sobre desenvolvimento web
+  ru: Руководство по веб-разработке
+  ja: Web開発のチュートリアル
+  ko: 웹 개발 튜토리얼
+  it: Tutorial sullo sviluppo web
+  tr: Web geliştirme öğreticisi
+  vi: Hướng dẫn phát triển web
+  id: Tutorial pengembangan web
+  pl: Samouczek o tworzeniu stron
+  nl: Tutorial over webontwikkeling
+  ar: دليل تعليمي عن تطوير الويب
+  hi: वेब डेवलपमेंट पर ट्यूटोरियल
+  th: บทเรียนเกี่ยวกับการพัฒนาเว็บ
+  cs: Tutoriál o vývoji webu
+  sv: Handledning om webbutveckling
+  he: מדריך לפיתוח אתרים
+  verified_by_human: []

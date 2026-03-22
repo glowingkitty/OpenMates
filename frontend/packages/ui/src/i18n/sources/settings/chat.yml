@@ -1,0 +1,263 @@
+# Chat settings translations
+# Used in Settings > Chat menu
+# Namespace: settings, key prefix: chat (from filename)
+# Keys should NOT include "chat." prefix - the build script adds it automatically
+# All keys must be at root level with flat dot-notation, only language codes (en, de, etc.) are nested
+description:
+  context: Short description shown in the chat settings page gradient banner header
+  en: Customize notifications and chat behaviour
+  de: Benachrichtigungen und Chat-Verhalten anpassen
+  zh: 自定义通知和聊天行为
+  es: Personaliza las notificaciones y el comportamiento del chat
+  fr: Personnalisez les notifications et le comportement du chat
+  pt: ""
+  ru: ""
+  ja: 通知とチャットの動作をカスタマイズする
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: تخصيص الإشعارات وسلوك الدردشة
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: "התאמה אישית של התראות והתנהגות הצ'אט"
+  verified_by_human: []
+
+# Settings > Chat menu item (becomes settings.chat.text)
+chat:
+  context: Chat settings menu title
+  en: Chat
+  de: Chat
+  ar: الدردشة
+
+  # Notifications submenu (becomes settings.chat.notifications.text)
+  he: "צ'אט"
+notifications:
+  context: Notifications submenu title
+  en: Notifications
+  de: Benachrichtigungen
+  ar: الإشعارات
+
+  he: התראות
+ai_app_settings:
+  context: Link title in chat settings that opens the AI app settings page
+  en: AI App Settings
+  de: KI-App-Einstellungen
+  ar: إعدادات تطبيق الذكاء الاصطناعي
+
+  he: הגדרות אפליקציית AI
+ai_app_settings_info:
+  context: Helper text for AI app settings link explaining where to find more chat preferences
+  en: Find more chat preferences in AI app settings
+  de: Weitere Chat-Einstellungen finden Sie in den KI-App-Einstellungen
+  ar: اعثر على المزيد من تفضيلات الدردشة في إعدادات تطبيق الذكاء الاصطناعي
+
+  he: אפשר למצוא העדפות צ'אט נוספות בהגדרות אפליקציית ה-AI
+notifications.enabled:
+  context: Status text when notifications are enabled
+  en: Enabled
+  de: Aktiviert
+  ar: مفعّل
+
+  he: פעיל
+notifications.disabled:
+  context: Status text when notifications are disabled
+  en: Disabled
+  de: Deaktiviert
+  ar: معطّل
+
+  he: מושבת
+notifications.blocked:
+  context: Status text when notifications are blocked by browser
+  en: Blocked by browser
+  de: Vom Browser blockiert
+  ar: محجوب بواسطة المتصفح
+
+  he: חסום על ידי הדפדפן
+notifications.enable:
+  context: Push notifications toggle title
+  en: Push Notifications
+  de: Push-Benachrichtigungen
+  ar: إشعارات الدفع
+
+  he: התראות Push
+notifications.permission_granted:
+  context: Permission status when granted
+  en: Permission granted
+  de: Berechtigung erteilt
+  ar: تم منح الإذن
+
+  he: ניתנה הרשאה
+notifications.permission_denied:
+  context: Permission status when denied
+  en: Permission denied in browser settings
+  de: Berechtigung in Browser-Einstellungen verweigert
+  ar: تم رفض الإذن في إعدادات المتصفح
+
+  he: ההרשאה נדחתה בהגדרות הדפדפן
+notifications.permission_default:
+  context: Permission status when not yet requested
+  en: Permission not yet requested
+  de: Berechtigung noch nicht angefragt
+  ar: لم يُطلب الإذن بعد
+
+  he: טרם התבקשה הרשאה
+notifications.not_supported:
+  context: Warning when push notifications are not supported
+  en: Push notifications are not supported on this browser or device.
+  de: Push-Benachrichtigungen werden auf diesem Browser oder Gerät nicht unterstützt.
+  ar: إشعارات الدفع غير مدعومة على هذا المتصفح أو الجهاز.
+
+  he: התראות Push אינן נתמכות בדפדפן או במכשיר זה.
+notifications.pwa_install_title:
+  context: Title shown on iOS Safari when push requires PWA installation
+  en: Add to Home Screen to Enable Notifications
+  de: Zum Home-Bildschirm hinzufügen, um Benachrichtigungen zu aktivieren
+  ar: أضف إلى الشاشة الرئيسية لتفعيل الإشعارات
+
+  he: הוספה למסך הבית כדי להפעיל התראות
+notifications.pwa_install_desc:
+  context: Description explaining why PWA installation is needed for push notifications
+  en: "Push notifications require the app to be installed on your device. Follow these steps:"
+  de: "Push-Benachrichtigungen erfordern, dass die App auf Ihrem Gerät installiert ist. Folgen Sie diesen Schritten:"
+  ar: "تتطلب إشعارات الدفع تثبيت التطبيق على جهازك. اتبع هذه الخطوات:"
+
+  he: "התראות Push דורשות שהאפליקציה תהיה מותקנת במכשיר שלך. בצע את השלבים הבאים:"
+notifications.denied_info:
+  context: Info text when permission is denied
+  en: To enable notifications, please allow them in your browser settings and refresh the page.
+  de: Um Benachrichtigungen zu aktivieren, erlauben Sie diese bitte in Ihren Browser-Einstellungen und aktualisieren Sie die Seite.
+  ar: لتفعيل الإشعارات، يرجى السماح بها في إعدادات المتصفح وإعادة تحميل الصفحة.
+
+  he: כדי להפעיל התראות, יש לאשר אותן בהגדרות הדפדפן ולרענן את הדף.
+notifications.categories:
+  context: Section title for notification categories
+  en: Notification Types
+  de: Benachrichtigungstypen
+  ar: أنواع الإشعارات
+
+  he: סוגי התראות
+notifications.new_messages:
+  context: New messages notification toggle
+  en: New Messages
+  de: Neue Nachrichten
+  ar: رسائل جديدة
+
+  he: הודעות חדשות
+notifications.new_messages_desc:
+  context: Description for new messages notifications
+  en: When an assistant completes a response
+  de: Wenn ein Assistent eine Antwort abgeschlossen hat
+  ar: عندما يكمل المساعد ردًا
+
+  he: כאשר עוזר משלים תגובה
+notifications.server_events:
+  context: Server events notification toggle
+  en: Server Events
+  de: Server-Ereignisse
+  ar: أحداث الخادم
+
+  he: אירועי שרת
+notifications.server_events_desc:
+  context: Description for server event notifications
+  en: Connection issues and maintenance alerts
+  de: Verbindungsprobleme und Wartungsmeldungen
+  ar: مشاكل الاتصال وتنبيهات الصيانة
+
+  he: בעיות חיבור והתראות תחזוקה
+notifications.software_updates:
+  context: Software updates notification toggle
+  en: Software Updates
+  de: Software-Updates
+  ar: تحديثات البرنامج
+
+  he: עדכוני תוכנה
+notifications.software_updates_desc:
+  context: Description for software update notifications
+  en: When new versions are available
+  de: Wenn neue Versionen verfügbar sind
+  ar: عند توفر إصدارات جديدة
+
+  # Email notifications section
+  he: כאשר גרסאות חדשות זמינות
+notifications.email_section:
+  context: Section title for email notifications
+  en: Email Notifications
+  de: E-Mail-Benachrichtigungen
+  ar: إشعارات البريد الإلكتروني
+
+  he: התראות באימייל
+notifications.email_enable:
+  context: Email notifications toggle title
+  en: Email Notifications
+  de: E-Mail-Benachrichtigungen
+  ar: إشعارات البريد الإلكتروني
+
+  he: התראות באימייל
+notifications.email_enable_desc:
+  context: Description for email notifications toggle
+  en: Receive emails when you're offline
+  de: E-Mails erhalten, wenn Sie offline sind
+  ar: استلام رسائل بريد إلكتروني عند عدم الاتصال
+
+  he: קבלת אימיילים כשאינך מחובר
+notifications.email_address:
+  context: Email address input label
+  en: Notification Email
+  de: Benachrichtigungs-E-Mail
+  ar: بريد الإشعارات
+
+  he: אימייל להתראות
+notifications.email_address_placeholder:
+  context: Email address input placeholder
+  en: Enter email address
+  de: E-Mail-Adresse eingeben
+  ar: أدخل عنوان البريد الإلكتروني
+
+  he: הזנת כתובת אימייל
+notifications.email_address_desc:
+  context: Description for notification email field
+  en: Where to send notifications (can differ from login email)
+  de: Wohin Benachrichtigungen gesendet werden (kann von der Login-E-Mail abweichen)
+  ar: مكان إرسال الإشعارات (يمكن أن يختلف عن بريد تسجيل الدخول)
+
+  he: לאן לשלוח התראות (יכול להיות שונה מאימייל ההתחברות)
+notifications.email_ai_responses:
+  context: AI responses notification toggle
+  en: AI Responses
+  de: KI-Antworten
+  ar: ردود الذكاء الاصطناعي
+
+  he: תגובות בינה מלאכותית
+notifications.email_ai_responses_desc:
+  context: Description for AI responses email notifications
+  en: When an assistant completes a response while you're away
+  de: Wenn ein Assistent eine Antwort abschließt, während Sie abwesend sind
+  ar: عندما يكمل المساعد الرد أثناء غيابك
+
+  he: כאשר עוזר משלים תגובה בזמן שאינך נמצא
+notifications.email_how_it_works:
+  context: Info banner explaining how email notifications work
+  en: Email notifications are only sent when you're not actively using OpenMates on any device.
+  de: E-Mail-Benachrichtigungen werden nur gesendet, wenn Sie OpenMates auf keinem Gerät aktiv nutzen.
+  ar: يتم إرسال إشعارات البريد الإلكتروني فقط عندما لا تستخدم OpenMates بنشاط على أي جهاز.
+
+  he: התראות באימייל נשלחות רק כשאינך משתמש באופן פעיל ב-OpenMates באף מכשיר.
+notifications.email_invalid:
+  context: Error message for invalid email
+  en: Please enter a valid email address
+  de: Bitte geben Sie eine gültige E-Mail-Adresse ein
+  ar: يرجى إدخال عنوان بريد إلكتروني صالح
+
+  he: נא להזין כתובת אימייל תקינה
+notifications.email_saving:
+  context: Status text while saving email settings
+  en: Saving...
+  de: Wird gespeichert...
+  ar: جاري الحفظ...
+  he: שומר...

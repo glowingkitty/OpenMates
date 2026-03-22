@@ -1,0 +1,319 @@
+# Notifications translations
+# Used for system notifications, chat message notifications, and notification permission UI
+# Note: Chat settings translations are in settings/chat.yml (settings.chat.* keys)
+# All keys must be at root level with flat dot-notation, only language codes (en, de, etc.) are nested
+
+# Auto-logout notifications
+auto_logout.title:
+  context: Title for auto logout notification
+  en: Auto logout
+  de: Automatische Abmeldung
+
+  he: התנתקות אוטומטית
+auto_logout.consider_stay_logged_in:
+  context: Message suggesting to enable stay logged in
+  en: "Consider activating 'Stay logged in'."
+  de: "Erwägen Sie, 'Eingeloggt bleiben' zu aktivieren."
+
+  he: "כדאי להפעיל את 'הישאר מחובר'."
+auto_logout.during_login:
+  context: Secondary message about when to enable the setting
+  en: During login, to remain connected.
+  de: Beim Einloggen, um verbunden zu bleiben.
+
+# Connection problem notifications
+  he: במהלך ההתחברות, כדי להישאר מחובר.
+connection.title:
+  context: Title for connection problem notification
+  en: "Can't connect to server."
+  de: "Verbindung zum Server nicht möglich."
+
+  he: לא ניתן להתחבר לשרת.
+connection.trying_to_reconnect:
+  context: Message about reconnection attempt
+  en: Trying to reconnect for {seconds} seconds.
+  de: Versuche seit {seconds} Sekunden die Verbindung wiederherzustellen.
+
+  he: "מנסה להתחבר מחדש במשך {seconds} שניות."
+connection.offline_mode:
+  context: Secondary message about offline mode activation
+  en: Else Offline Mode will be activated.
+  de: Andernfalls wird der Offline-Modus aktiviert.
+
+  he: אחרת, מצב לא מקוון יופעל.
+connection.offline_banner:
+  context: Message shown in the notification when the device loses network connectivity
+  en: You are offline. Your chats are still available.
+  de: Du bist offline. Deine Chats sind weiterhin verfügbar.
+
+  he: "אין חיבור לאינטרנט. הצ'אטים שלך עדיין זמינים."
+connection.offline_banner.title:
+  context: Title for the offline notification shown when the device loses network connectivity
+  en: You are offline
+  de: Du bist offline
+
+  he: אין חיבור לאינטרנט
+connection.tap_to_reconnect:
+  context: Action button text on the offline notification, lets the user manually trigger a reconnection attempt
+  en: Tap to reconnect
+  de: Zum Wiederverbinden tippen
+
+  he: הקש להתחברות מחדש
+connection.reconnecting.title:
+  context: Title shown on the notification while a reconnection attempt is in progress
+  en: Reconnecting...
+  de: Verbindung wird hergestellt...
+
+  he: מתחבר מחדש...
+connection.reconnecting:
+  context: Message shown on the notification while a reconnection attempt is in progress
+  en: Attempting to reconnect to the server.
+  de: Verbindung zum Server wird hergestellt.
+
+  he: מנסה להתחבר מחדש לשרת.
+connection.reconnected:
+  context: Message shown in the success notification when the server connection is restored after an offline period
+  en: Connection to server restored.
+  de: Verbindung zum Server wiederhergestellt.
+  he: החיבור לשרת חודש.
+  verified_by_human: []
+
+connection.reconnected.title:
+  context: Title for the success notification shown briefly when the server connection is restored
+  en: Reconnected
+  de: Wieder verbunden
+  he: מחובר מחדש
+  verified_by_human: []
+
+# Software update notifications
+software_update.title:
+  context: Title for software update notification
+  en: Software update available
+  de: Software-Update verfügbar
+
+  he: עדכון תוכנה זמין
+software_update.new_version:
+  context: Message about new version availability
+  en: OpenMates {version} is available now.
+  de: OpenMates {version} ist jetzt verfügbar.
+
+  he: "OpenMates {version} זמינה כעת."
+software_update.check_settings:
+  context: Secondary message about where to install update
+  en: Check your server settings to install it.
+  de: Überprüfen Sie Ihre Server-Einstellungen zur Installation.
+
+# Web app version update notifications (shown when SvelteKit detects a new deployment)
+  he: בדוק את הגדרות השרת כדי להתקין אותו.
+software_update.web_app_available:
+  context: Primary message shown in the notification when a new web app version is detected
+  en: A new version is available. It will load on your next navigation.
+  de: Eine neue Version ist verfügbar. Sie wird bei der nächsten Navigation geladen.
+
+  he: גרסה חדשה זמינה. היא תיטען במעבר הבא בין דפים.
+software_update.refresh_now:
+  context: Action button label to immediately refresh the page and load the new version
+  en: Refresh now
+  de: Jetzt aktualisieren
+
+# Chat message notifications
+  he: רענן כעת
+chat_message.new_ai_response:
+  context: Default message for new AI response notification
+  en: New AI response ready
+  de: Neue KI-Antwort bereit
+
+  he: תגובת AI חדשה מוכנה
+click_to_respond:
+  context: Button text for reply action in chat notification
+  en: Click here to respond
+  de: Hier klicken zum Antworten
+
+# Push notification permission banner
+  he: לחץ כאן כדי להגיב
+push.banner_title:
+  context: Title for the push notification permission banner
+  en: Want to receive notifications when your assistant responds?
+  de: Möchten Sie Benachrichtigungen erhalten, wenn Ihr Assistent antwortet?
+
+  he: "רוצה לקבל התראות כשהעוזר שלך מגיב?"
+push.banner_subtitle:
+  context: Subtitle explaining the benefit
+  en: "Even when you're not in the app."
+  de: "Auch wenn Sie nicht in der App sind."
+
+  he: גם כשאינך באפליקציה.
+push.enable_btn:
+  context: Button to enable notifications
+  en: Enable Notifications
+  de: Benachrichtigungen aktivieren
+
+  he: הפעל התראות
+push.not_yet_btn:
+  context: Button to dismiss the banner temporarily
+  en: Not Yet
+  de: Noch nicht
+
+  he: לא כרגע
+push.requesting:
+  context: Loading state while requesting permission
+  en: Requesting...
+  de: Wird angefragt...
+
+  he: מבקש...
+push.ios_install_title:
+  context: Title for iOS PWA installation instructions
+  en: Install OpenMates First
+  de: Installieren Sie zuerst OpenMates
+
+  he: התקן את OpenMates תחילה
+push.ios_install_step1:
+  context: Step 1 for iOS installation
+  en: 1. Tap the Share button in Safari
+  de: 1. Tippen Sie auf die Teilen-Schaltfläche in Safari
+
+  he: 1. הקש על כפתור השיתוף ב-Safari
+push.ios_install_step2:
+  context: Step 2 for iOS installation
+  en: 2. Select "Add to Home Screen"
+  de: 2. Wählen Sie "Zum Home-Bildschirm"
+
+  he: "2. בחר ב-\"הוסף למסך הבית\""
+push.ios_install_step3:
+  context: Step 3 for iOS installation
+  en: 3. Open OpenMates from your home screen
+  de: 3. Öffnen Sie OpenMates vom Home-Bildschirm
+
+  he: 3. פתח את OpenMates ממסך הבית
+push.ios_install_step4:
+  context: Step 4 for iOS installation
+  en: 4. Then you can enable notifications
+  de: 4. Dann können Sie Benachrichtigungen aktivieren
+  he: 4. לאחר מכן תוכל להפעיל התראות
+
+# Security reminder notification (shown after login when user has no 2FA/passkey)
+security_reminder.title:
+  context: Title for the security reminder notification shown after login when user has no 2FA or passkey configured
+  en: Security Reminder
+  de: Sicherheitshinweis
+  zh: 安全提醒
+  es: Recordatorio de seguridad
+  fr: Rappel de sécurité
+  pt: Lembrete de segurança
+  ru: Напоминание о безопасности
+  ja: セキュリティリマインダー
+  ko: 보안 알림
+  it: Promemoria di sicurezza
+  tr: Güvenlik hatırlatması
+  vi: Nhắc nhở bảo mật
+  id: Pengingat keamanan
+  pl: Przypomnienie o bezpieczeństwie
+  nl: Beveiligingsherinnering
+  ar: تذكير أمني
+  hi: सुरक्षा अनुस्मारक
+  th: การแจ้งเตือนความปลอดภัย
+  cs: Bezpečnostní připomínka
+  sv: Säkerhetspåminnelse
+  he: תזכורת אבטחה
+  verified_by_human: []
+
+security_reminder.message:
+  context: Message in the security reminder notification prompting the user to set up 2FA or passkey
+  en: Properly secure your account by setting up 2FA or a passkey.
+  de: Sichern Sie Ihr Konto richtig ab, indem Sie 2FA oder einen Passkey einrichten.
+  zh: 通过设置两步验证或通行密钥来正确保护您的账户。
+  es: Proteja correctamente su cuenta configurando 2FA o una clave de acceso.
+  fr: Sécurisez correctement votre compte en configurant la 2FA ou une clé d'accès.
+  pt: Proteja adequadamente sua conta configurando 2FA ou uma chave de acesso.
+  ru: Надёжно защитите свой аккаунт, настроив двухфакторную аутентификацию или ключ доступа.
+  ja: 二要素認証またはパスキーを設定して、アカウントを適切に保護してください。
+  ko: 2FA 또는 패스키를 설정하여 계정을 올바르게 보호하세요.
+  it: Proteggi correttamente il tuo account configurando la 2FA o una passkey.
+  tr: 2FA veya bir geçiş anahtarı ayarlayarak hesabınızı düzgün şekilde güvence altına alın.
+  vi: Bảo mật tài khoản đúng cách bằng cách thiết lập 2FA hoặc passkey.
+  id: Amankan akun Anda dengan benar dengan mengatur 2FA atau passkey.
+  pl: Prawidłowo zabezpiecz swoje konto, konfigurując 2FA lub klucz dostępu.
+  nl: Beveilig uw account goed door 2FA of een passkey in te stellen.
+  ar: قم بتأمين حسابك بشكل صحيح عن طريق إعداد المصادقة الثنائية أو مفتاح المرور.
+  hi: 2FA या पासकी सेट करके अपने खाते को ठीक से सुरक्षित करें।
+  th: รักษาความปลอดภัยบัญชีของคุณอย่างเหมาะสมโดยตั้งค่า 2FA หรือ Passkey
+  cs: Řádně zabezpečte svůj účet nastavením 2FA nebo přístupového klíče.
+  sv: Säkra ditt konto ordentligt genom att ställa in 2FA eller en nyckel.
+  he: אבטח את חשבונך כראוי על ידי הגדרת אימות דו-שלבי או מפתח גישה.
+  verified_by_human: []
+
+security_reminder.action:
+  context: Action button label on the security reminder notification that opens security settings
+  en: Open security settings
+  de: Sicherheitseinstellungen öffnen
+  zh: 打开安全设置
+  es: Abrir ajustes de seguridad
+  fr: Ouvrir les paramètres de sécurité
+  pt: Abrir configurações de segurança
+  ru: Открыть настройки безопасности
+  ja: セキュリティ設定を開く
+  ko: 보안 설정 열기
+  it: Apri impostazioni di sicurezza
+  tr: Güvenlik ayarlarını aç
+  vi: Mở cài đặt bảo mật
+  id: Buka pengaturan keamanan
+  pl: Otwórz ustawienia bezpieczeństwa
+  nl: Beveiligingsinstellingen openen
+  ar: فتح إعدادات الأمان
+  hi: सुरक्षा सेटिंग्स खोलें
+  th: เปิดการตั้งค่าความปลอดภัย
+  cs: Otevřít nastavení zabezpečení
+  sv: Öppna säkerhetsinställningar
+  he: פתח הגדרות אבטחה
+  verified_by_human: []
+
+# Credits depleted notification (shown when user balance transitions from >0 to 0)
+credits_depleted.message:
+  context: Persistent notification message shown when user runs out of credits. Credits are needed for all chats and app skills.
+  en: You ran out of credits. Buy more to continue using OpenMates.
+  de: Dein Guthaben ist aufgebraucht. Kaufe mehr, um OpenMates weiter zu nutzen.
+  zh: 您的点数已用完。购买更多以继续使用 OpenMates。
+  es: Te has quedado sin créditos. Compra más para seguir usando OpenMates.
+  fr: Vous avez épuisé vos crédits. Achetez-en plus pour continuer à utiliser OpenMates.
+  pt: Você ficou sem créditos. Compre mais para continuar usando o OpenMates.
+  ru: У вас закончились кредиты. Купите ещё, чтобы продолжить использование OpenMates.
+  ja: クレジットが不足しています。OpenMates を引き続き使用するにはクレジットを購入してください。
+  ko: 크레딧이 부족합니다. OpenMates를 계속 사용하려면 더 구매하세요.
+  it: Hai esaurito i crediti. Acquistane altri per continuare a usare OpenMates.
+  tr: Krediniz tükendi. OpenMates'i kullanmaya devam etmek için daha fazla satın alın.
+  vi: Bạn đã hết tín dụng. Mua thêm để tiếp tục sử dụng OpenMates.
+  id: Kredit Anda habis. Beli lebih banyak untuk melanjutkan penggunaan OpenMates.
+  pl: Twoje kredyty się skończyły. Kup więcej, aby kontynuować korzystanie z OpenMates.
+  nl: Je hebt geen credits meer. Koop er meer om OpenMates te blijven gebruiken.
+  ar: لقد نفد رصيدك. اشترِ المزيد لمواصلة استخدام OpenMates.
+  hi: आपके क्रेडिट समाप्त हो गए। OpenMates का उपयोग जारी रखने के लिए और खरीदें।
+  th: เครดิตของคุณหมดแล้ว ซื้อเพิ่มเพื่อใช้ OpenMates ต่อไป
+  cs: Vyčerpali jste kredity. Zakupte další pro pokračování v používání OpenMates.
+  sv: Du har slut på krediter. Köp mer för att fortsätta använda OpenMates.
+  he: נגמרו לך הקרדיטים. רכוש עוד כדי להמשיך להשתמש ב-OpenMates.
+  verified_by_human: []
+
+credits_depleted.buy_credits:
+  context: Action button label on the credits depleted notification that opens the buy credits page
+  en: Buy Credits
+  de: Credits kaufen
+  zh: 购买积分
+  es: Comprar Créditos
+  fr: Acheter des Crédits
+  pt: Comprar Créditos
+  ru: Купить Кредиты
+  ja: クレジットを購入
+  ko: 크레딧 구매
+  it: Acquista Crediti
+  tr: Kredi Satın Al
+  vi: Mua tín dụng
+  id: Beli Kredit
+  pl: Kup Kredyty
+  nl: Credits Kopen
+  ar: شراء الاعتمادات
+  hi: क्रेडिट खरीदें
+  th: ซื้อเครดิต
+  cs: Koupit Kredity
+  sv: Köp Krediter
+  he: קניית קרדיטים
+  verified_by_human: []

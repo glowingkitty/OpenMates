@@ -1,0 +1,55 @@
+# Compliance log ingestion config for Promtail.
+#
+# This file is loaded alongside promtail-config.yaml via --config.file.glob.
+# It defines its own `clients` block so each job can push to a stream-specific
+# OpenObserve Loki-compat URL:
+#   /api/default/<stream_name>/loki/api/v1/push
+# The URL path segment acts as the OO stream name, bypassing the global "default" stream.
+#
+# Architecture:
+#   - audit-compliance  → 2-year OO retention (GDPR / BSI §34 BDSG)
+#   - financial-compliance → 10-year OO retention (AO §147 / HGB §257)
+# OO stream-level retention is configured by compliance_log_backup_task in main.py,
+# which retries until the stream exists (auto-created by OO on first ingest).
+#
+# References: docs/architecture/compliance-logging.md
+
+server:
+  http_listen_port: 0
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions-compliance.yaml
+
+# Audit compliance logs → OO stream "audit-compliance"
+# Stream-specific push URL creates the named stream in OO automatically.
+clients:
+  - url: http://openobserve:5080/api/default/audit-compliance/loki/api/v1/push
+    basic_auth:
+      username: "${OPENOBSERVE_ROOT_EMAIL}"
+      password: "${OPENOBSERVE_ROOT_PASSWORD}"
+
+scrape_configs:
+  # Audit compliance logs (2-year retention — GDPR / BSI §34 BDSG)
+  # Events: auth, user creation, consents, account/chat deletions, data access
+  - job_name: audit-compliance-logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: audit-compliance-logs
+          __path__: /var/log/api/audit-compliance.log
+    pipeline_stages:
+      # Drop empty lines — OO returns HTTP 400 "empty log line" otherwise
+      - drop:
+          expression: '^\s*$'
+      - json:
+          expressions:
+            timestamp: timestamp
+            event_type: event_type
+            user_id: user_id
+            status: status
+      - labels:
+          event_type:
+          user_id:
+          status:

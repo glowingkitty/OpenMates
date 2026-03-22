@@ -1,0 +1,135 @@
+# deployment/upload_server/Caddyfile
+#
+# Production Caddyfile template for the OpenMates Upload Server VM.
+#
+# DO NOT EDIT PLACEHOLDERS MANUALLY — use the render script instead:
+#   python scripts/render-deploy-config.py deployment/upload_server/Caddyfile
+#
+# Or render and apply directly on the server:
+#   python scripts/render-deploy-config.py deployment/upload_server/Caddyfile \
+#     | sudo tee /etc/caddy/Caddyfile > /dev/null
+#   sudo systemctl reload caddy
+#
+# WHAT THIS DOES:
+#   - Terminates TLS via Let's Encrypt for the single upload domain
+#   - Accepts requests only from the prod (openmates.org) or dev (app.dev.openmates.org)
+#     web apps, identified by the Origin header
+#   - Injects X-Target-Env header ("prod" or "dev") so FastAPI picks the correct
+#     CORE_API_URL and INTERNAL_API_SHARED_TOKEN pair for that request
+#   - Proxies /health and /v1/upload/* to the upload container on localhost:8000
+#   - Adds security headers (HSTS, nosniff, etc.)
+#   - Blocks all requests with a missing or unrecognised Origin
+#
+# SECURITY:
+#   - Only /health and /v1/upload/* are routed — everything else is aborted
+#   - The upload container is only exposed on localhost (127.0.0.1:8000)
+#   - X-Target-Env is set by Caddy (trusted), never by the client
+#   - CORS is handled by the upload service itself (FastAPI middleware)
+#   - Self-hosters: replace the Origin values below with your own app domains
+
+{
+	# Email for ACME account (Let's Encrypt certificate issuance)
+	email ${DEPLOY_ACME_EMAIL}
+}
+
+${DEPLOY_UPLOAD_DOMAIN} {
+	log {
+		output file /var/log/caddy/${DEPLOY_UPLOAD_DOMAIN}.log {
+			roll_size 100mb
+			roll_keep 10
+			roll_keep_for 720h # 30 days
+		}
+		format json
+		level INFO
+	}
+
+	encode gzip zstd
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "geolocation=(), microphone=(), camera=(), interest-cohort=()"
+		-Server
+		# Content Security Policy (partial — safe subset with no risk of breaking the upload service)
+		# object-src: blocks Flash/Java applets (legacy plugin-based attack vectors)
+		# base-uri:   prevents <base> tag injection attacks (base tag hijacking)
+		# frame-ancestors: blocks clickjacking (redundant with X-Frame-Options, adds defence-in-depth)
+		Content-Security-Policy "object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+	}
+
+	# Health endpoint — always accessible, no origin check needed
+	@upload_health path /health
+	handle @upload_health {
+		reverse_proxy localhost:8000 {
+			header_up Host {http.request.host}
+		}
+	}
+
+	# Admin endpoints — served by the isolated admin-sidecar container (port 8001).
+	# The main app-uploads container (port 8000) does NOT have Docker socket access.
+	# Access is controlled by the X-Admin-Log-Key header inside the sidecar itself.
+	# Only reachable server-to-server (no browser Origin header expected here).
+	@admin_paths path /admin/*
+	handle @admin_paths {
+		reverse_proxy localhost:8001 {
+			header_up Host {http.request.host}
+		}
+	}
+
+	# Requests from the production web app (openmates.org)
+	# Self-hosters: replace with your production app domain
+	@prod_origin expression {header.Origin} == "https://openmates.org"
+	handle @prod_origin {
+		@upload_api path /v1/upload/*
+		@upload_options method OPTIONS
+		route {
+			handle @upload_options {
+				reverse_proxy localhost:8000 {
+					header_up Host {http.request.host}
+					header_up X-Target-Env "prod"
+				}
+			}
+			handle @upload_api {
+				reverse_proxy localhost:8000 {
+					header_up Host {http.request.host}
+					header_up X-Target-Env "prod"
+				}
+			}
+			handle {
+				abort
+			}
+		}
+	}
+
+	# Requests from the dev web app (app.dev.openmates.org)
+	# Self-hosters: replace with your dev app domain
+	@dev_origin expression {header.Origin} == "https://app.dev.openmates.org"
+	handle @dev_origin {
+		@upload_api path /v1/upload/*
+		@upload_options method OPTIONS
+		route {
+			handle @upload_options {
+				reverse_proxy localhost:8000 {
+					header_up Host {http.request.host}
+					header_up X-Target-Env "dev"
+				}
+			}
+			handle @upload_api {
+				reverse_proxy localhost:8000 {
+					header_up Host {http.request.host}
+					header_up X-Target-Env "dev"
+				}
+			}
+			handle {
+				abort
+			}
+		}
+	}
+
+	# Block everything else — missing or unrecognised Origin
+	handle {
+		abort
+	}
+}

@@ -22,15 +22,15 @@ async def logout(
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
     encryption_service: EncryptionService = Depends(get_encryption_service), # Add EncryptionService
-    refresh_token: Optional[str] = Cookie(None, alias="auth_refresh_token"),
-    directus_refresh_token: Optional[str] = Cookie(None)  # Also try original directus name
+    refresh_token: Optional[str] = Cookie(None, alias="auth_refresh_token", include_in_schema=False),  # Hidden from API docs - internal use only
+    directus_refresh_token: Optional[str] = Cookie(None, include_in_schema=False)  # Also try original directus name - hidden from API docs
 ):
     """
     Log out the current user by clearing session cookies, invalidating the session,
     and persisting cached drafts to Directus.
     """
     # Add clear request log at INFO level
-    logger.info(f"Processing logout request")
+    logger.info("Processing logout request")
     
     try:
         # Use either our renamed cookie or the original directus cookie
@@ -56,6 +56,19 @@ async def logout(
             # await cache_service.delete(user_key) # No longer needed
             logger.info(f"Removed session cache for token {token_hash[:6]}...{token_hash[-6:]}")
 
+            # Log logout compliance event (GDPR-compatible: no IP stored for routine logouts)
+            if user_id:
+                device_hash, _, _, _, _, _, _, _ = generate_device_fingerprint_hash(request, user_id=user_id)
+                compliance_service = ComplianceService()
+                compliance_service.log_auth_event_safe(
+                    event_type="logout",
+                    user_id=user_id,
+                    device_fingerprint=device_hash,
+                    location="",
+                    status="success",
+                    details={"token_hash_prefix": token_hash[:6]}
+                )
+
             # If we have the user_id, persist drafts and then check if this was the last active device
             if user_id:
                 user_tokens_key = f"user_tokens:{user_id}"
@@ -70,6 +83,7 @@ async def logout(
 
                 if is_last_device_logout:
                     logger.info(f"User {user_id[:6]}... logging out. Last active session. Persisting drafts.")
+                    draft_tasks = []
                     try:
                         all_user_chat_ids = await cache_service.get_chat_ids_versions(user_id)
                         if all_user_chat_ids:
@@ -80,13 +94,13 @@ async def logout(
                             if not cached_draft_data:
                                 continue
 
-                            encrypted_content, version = cached_draft_data
+                            encrypted_content, version, _ = cached_draft_data
                             if encrypted_content is None and version == 0:
                                 logger.debug(f"Skipping empty/initial draft for user {user_id[:6]}..., chat {chat_id_to_check} (last device).")
                                 continue
 
                             logger.debug(f"Dispatching persistence task for user {user_id[:6]}..., chat {chat_id_to_check}, version {version} (last device).")
-                            celery_app.send_task(
+                            task_result = celery_app.send_task(
                                 name='app.tasks.persistence_tasks.persist_chat_and_draft_on_logout',
                                 kwargs={
                                     'hashed_user_id': hashlib.sha256(user_id.encode()).hexdigest(), # Hash user_id
@@ -96,11 +110,41 @@ async def logout(
                                 },
                                 queue='persistence'
                             )
-                            # Note: Cache deletion is now handled *inside* the Celery task upon successful persistence.
+                            draft_tasks.append(task_result)
+                            logger.debug(f"Queued draft persistence task {task_result.id} for chat {chat_id_to_check}")
                     except Exception as e_dispatch:
                         logger.error(f"Error dispatching draft persistence tasks for user {user_id[:6]}... on last device logout: {e_dispatch}", exc_info=True)
 
-                    # Last device cache cleanup
+                    # CRITICAL: Wait for draft persistence tasks to complete before deleting cache
+                    # This ensures drafts are persisted to Directus before cache deletion
+                    if draft_tasks:
+                        logger.info(f"Waiting for {len(draft_tasks)} draft persistence task(s) to complete before deleting cache...")
+                        import asyncio
+                        # Wait up to 10 seconds for tasks to complete
+                        max_wait_time = 10.0
+                        start_time = time.time()
+                        for task_result in draft_tasks:
+                            try:
+                                # Check task status with timeout
+                                elapsed = time.time() - start_time
+                                remaining_time = max(0, max_wait_time - elapsed)
+                                if remaining_time <= 0:
+                                    logger.warning("Timeout waiting for draft persistence tasks. Proceeding with cache deletion.")
+                                    break
+                                
+                                # Use asyncio.to_thread to run blocking get() call in thread pool
+                                # This allows us to wait for task completion without blocking the event loop
+                                await asyncio.to_thread(task_result.get, timeout=remaining_time)
+                                logger.debug(f"Draft persistence task {task_result.id} completed")
+                            except Exception as task_error:
+                                logger.warning(f"Draft persistence task {task_result.id} may not have completed: {task_error}")
+                        
+                        elapsed = time.time() - start_time
+                        logger.info(f"Waited {elapsed:.2f}s for draft persistence tasks. Proceeding with cache deletion.")
+                    else:
+                        logger.debug("No draft persistence tasks to wait for.")
+
+                    # Last device cache cleanup (AFTER drafts are persisted)
                     if await cache_service.has_pending_orders(user_id):
                         logger.warning(f"User {user_id[:6]}... has pending orders. Skipping user cache deletion on last device logout.")
                     else:
@@ -143,13 +187,13 @@ async def logout_all(
     response: Response,
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
-    refresh_token: Optional[str] = Cookie(None, alias="auth_refresh_token"),
+    refresh_token: Optional[str] = Cookie(None, alias="auth_refresh_token", include_in_schema=False),  # Hidden from API docs - internal use only
     directus_refresh_token: Optional[str] = Cookie(None)
 ):
     """
     Log out all sessions for the current user
     """
-    logger.info(f"Processing logout-all request")
+    logger.info("Processing logout-all request")
     
     try:
         # Use either our renamed cookie or the original directus cookie
@@ -170,7 +214,7 @@ async def logout_all(
         user_id = await cache_service.get(user_key)
         
         if not user_id:
-            logger.warning(f"User ID not found in cache for logout-all request")
+            logger.warning("User ID not found in cache for logout-all request")
             
             # Try to get user information from Directus by refreshing the token
             success, auth_data, message = await directus_service.refresh_token(refresh_token)
@@ -194,6 +238,18 @@ async def logout_all(
                 await cache_service.delete_user_cache(user_id)
                 await cache_service.clear_user_cache_primed_flag(user_id) # Clear primed flag
                 logger.info(f"Cleared all user-related cache (including primed_flag) for user {user_id[:6]}... (logout all)")
+
+            # Log logout-all compliance event (GDPR-compatible: no IP stored)
+            if user_id:
+                compliance_service = ComplianceService()
+                compliance_service.log_auth_event_safe(
+                    event_type="logout_all",
+                    user_id=user_id,
+                    device_fingerprint="all_devices",
+                    location="",
+                    status="success",
+                    details={}
+                )
         
         # Clear all auth cookies for this session regardless of server response
         for cookie in request.cookies:
@@ -223,7 +279,7 @@ async def policy_violation_logout(
     response: Response,
     cache_service: CacheService = Depends(get_cache_service),
     compliance_service: ComplianceService = Depends(get_compliance_service),
-    refresh_token: Optional[str] = Cookie(None, alias="auth_refresh_token")
+    refresh_token: Optional[str] = Cookie(None, alias="auth_refresh_token", include_in_schema=False)  # Hidden from API docs - internal use only
 ):
     """
     Special logout endpoint for policy violations - aggressively cleans up all user data
@@ -239,7 +295,7 @@ async def policy_violation_logout(
         body = await request.json()
         reason = body.get("reason", "unknown")
         details = body.get("details", {})
-    except:
+    except Exception:
         reason = "unknown"
         details = {}
     
@@ -249,7 +305,7 @@ async def policy_violation_logout(
             key=cookie_name,
             httponly=True,
             secure=True,
-            samesite="strict"
+            samesite="lax"  # Match the setting used when creating cookies
         )
     
     # If we have a refresh token, get user data and clean up thoroughly
@@ -261,9 +317,9 @@ async def policy_violation_logout(
         session_data = await cache_service.get(session_key)
         if session_data and "user_id" in session_data:
             user_id = session_data["user_id"]
-            
+
             # Generate device hash using the retrieved user_id
-            device_hash, _, _, _, _, _, _ = generate_device_fingerprint_hash(request, user_id=user_id)
+            device_hash, _, _, _, _, _, _, _ = generate_device_fingerprint_hash(request, user_id=user_id)
 
             # Log the policy violation logout
             compliance_service.log_account_deletion(

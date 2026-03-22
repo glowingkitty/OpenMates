@@ -10,6 +10,7 @@
     import { getApiEndpoint, apiEndpoints } from '../config/api';
     import * as cryptoService from '../services/cryptoService';
     import { updateProfile } from '../stores/userProfile';
+    import { getSessionId } from '../utils/sessionId';
 
     const dispatch = createEventDispatcher();
 
@@ -94,7 +95,9 @@
                     hashed_email,
                     lookup_hash,
                     email_encryption_key, // Include client-derived key for email decryption
-                    login_method: 'recovery_key' // Explicitly indicate this is a recovery key login
+                    login_method: 'recovery_key', // Explicitly indicate this is a recovery key login
+                    session_id: getSessionId(), // Add sessionId for device fingerprint uniqueness
+                    stay_logged_in: stayLoggedIn // Send stay logged in preference
                 }),
                 credentials: 'include'
             });
@@ -105,10 +108,10 @@
                 // Recovery key login successful
                 await handleSuccessfulLogin(data);
             } else {
-                if (data.message === 'login.recovery_key_wrong.text') {
-                    errorMessage = $text('login.recovery_key_wrong.text');
+                if (data.message === 'login.recovery_key_wrong') {
+                    errorMessage = $text('login.recovery_key_wrong');
                 } else {
-                    errorMessage = data.message || $text('login.recovery_key_wrong.text');
+                    errorMessage = data.message || $text('login.recovery_key_wrong');
                 }
             }
         } catch (error) {
@@ -121,76 +124,135 @@
 
     // Handle successful login
     async function handleSuccessfulLogin(data: any) {
-        // Decrypt and save master key - similar to password login but using recovery key
-        if (data.user && data.user.encrypted_key && data.user.salt) {
-            try {
-                // For recovery key login, we need to decrypt the master key using the recovery key
-                // The server should provide the same encrypted_key and salt as for password login
-                const saltString = atob(data.user.salt);
-                const salt = new Uint8Array(saltString.length);
-                for (let i = 0; i < saltString.length; i++) {
-                    salt[i] = saltString.charCodeAt(i);
-                }
-                
-                // Use the recovery key to derive the wrapping key (similar to password)
-                const wrappingKey = await cryptoService.deriveKeyFromPassword(recoveryKey, salt);
-                const masterKey = cryptoService.decryptKey(data.user.encrypted_key, wrappingKey);
-
-                if (masterKey) {
-                    // Save master key to storage (respect stayLoggedIn preference)
-                    cryptoService.saveKeyToSession(masterKey, stayLoggedIn);
-                    console.debug(`Master key decrypted and saved to ${stayLoggedIn ? 'local' : 'session'} storage.`);
-                    
-                    // Save email encrypted with master key for payment processing
-                    const emailStoredSuccessfully = cryptoService.saveEmailEncryptedWithMasterKey(email, stayLoggedIn);
-                    if (!emailStoredSuccessfully) {
-                        console.error('Failed to encrypt and store email with master key during recovery key login');
-                    } else {
-                        console.debug('Email encrypted and stored with master key for payment processing');
-                    }
-                    
-                    // Update user profile with received data
-                    const userProfileData = {
-                        username: data.user.username || '',
-                        profile_image_url: data.user.profile_image_url || null,
-                        credits: data.user.credits || 0,
-                        is_admin: data.user.is_admin || false,
-                        last_opened: data.user.last_opened || '',
-                        tfa_app_name: data.user.tfa_app_name || null,
-                        tfa_enabled: data.user.tfa_enabled || false,
-                        consent_privacy_and_apps_default_settings: data.user.consent_privacy_and_apps_default_settings || false,
-                        consent_mates_default_settings: data.user.consent_mates_default_settings || false,
-                        language: data.user.language || 'en',
-                        darkmode: data.user.darkmode || false
-                    };
-                    
-                    // Update the user profile store
-                    updateProfile(userProfileData);
-                    console.debug('User profile updated with login data:', userProfileData);
-                    
-                    // Check if user is in signup flow based on last_opened path
-                    const inSignupFlow = data.user?.last_opened?.startsWith('/signup/') || false;
-                    console.debug('Login success (recovery key), in signup flow:', inSignupFlow);
-                    
-                    // Clear sensitive data
-                    recoveryKey = '';
-                    
-                    // Dispatch success event
-                    dispatch('loginSuccess', {
-                        user: data.user,
-                        inSignupFlow: inSignupFlow,
-                        recoveryKeyUsed: true
-                    });
-                } else {
-                    errorMessage = 'Failed to decrypt master key with recovery key. Please verify your recovery key.';
-                }
-            } catch (e) {
-                console.error('Error during recovery key login processing:', e);
-                errorMessage = 'Error decrypting master key with recovery key. Please try again.';
-            }
+        console.debug('[EnterRecoveryKey] handleSuccessfulLogin called with data:', {
+            hasUser: !!data.user,
+            hasEncryptedKey: !!data.user?.encrypted_key,
+            hasSalt: !!data.user?.salt,
+            hasKeyIv: !!data.user?.key_iv,
+            hasWsToken: !!data.ws_token
+        });
+        
+        // CRITICAL: Store WebSocket token FIRST before any auth state changes
+        // This must happen before calling setAuthenticatedState to prevent race conditions
+        if (data.ws_token) {
+            const { setWebSocketToken } = await import('../utils/cookies');
+            setWebSocketToken(data.ws_token);
+            console.debug('[EnterRecoveryKey] WebSocket token stored from login response');
         } else {
-            // If no user data or missing encryption data, show error
-            errorMessage = 'Invalid recovery key or missing encryption data from server.';
+            console.warn('[EnterRecoveryKey] No ws_token in login response - WebSocket connection may fail on Safari/iPad');
+        }
+        
+        // CRITICAL: Validate required data for master key decryption
+        // If any required field is missing, show error instead of silently failing
+        if (!data.user) {
+            console.error('[EnterRecoveryKey] CRITICAL: Login response missing user object!');
+            errorMessage = $text('login.login_failed');
+            return;
+        }
+        
+        if (!data.user.encrypted_key) {
+            console.error('[EnterRecoveryKey] CRITICAL: Login response missing encrypted_key! User object keys:', Object.keys(data.user));
+            errorMessage = $text('login.login_failed');
+            return;
+        }
+        
+        if (!data.user.salt) {
+            console.error('[EnterRecoveryKey] CRITICAL: Login response missing salt! User object keys:', Object.keys(data.user));
+            errorMessage = $text('login.login_failed');
+            return;
+        }
+        
+        // Decrypt and save master key - similar to password login but using recovery key (Web Crypto API)
+        try {
+            // Decode salt from base64
+            console.debug('[EnterRecoveryKey] Decoding salt from base64...');
+            const saltString = atob(data.user.salt);
+            const salt = new Uint8Array(saltString.length);
+            for (let i = 0; i < saltString.length; i++) {
+                salt[i] = saltString.charCodeAt(i);
+            }
+
+            // Use the recovery key to derive the wrapping key (similar to password)
+            console.debug('[EnterRecoveryKey] Deriving wrapping key from recovery key...');
+            const wrappingKey = await cryptoService.deriveKeyFromPassword(recoveryKey, salt);
+
+            // Unwrap master key with IV (Web Crypto API)
+            const keyIv = data.user.key_iv || ''; // IV for key unwrapping
+            console.debug('[EnterRecoveryKey] Decrypting master key...');
+            const masterKey = await cryptoService.decryptKey(data.user.encrypted_key, keyIv, wrappingKey);
+
+            if (!masterKey) {
+                console.error('[EnterRecoveryKey] Master key decryption returned null/undefined');
+                errorMessage = 'Failed to decrypt master key with recovery key. Please verify your recovery key.';
+                return;
+            }
+            
+            // Save extractable master key to IndexedDB
+            // Extractable keys allow wrapping for recovery keys while still using Web Crypto API
+            // Pass stayLoggedIn to ensure key is cleared on tab/browser close if user didn't check "Stay logged in"
+            // CRITICAL: Wrap in try-catch to handle IndexedDB failures (e.g., blocked by other tabs)
+            console.debug('[EnterRecoveryKey] Saving master key to IndexedDB...');
+            try {
+                await cryptoService.saveKeyToSession(masterKey, stayLoggedIn);
+                console.debug('[EnterRecoveryKey] Master key unwrapped with recovery key and saved to IndexedDB (extractable).');
+            } catch (saveError) {
+                // IndexedDB can fail for various reasons:
+                // - Browser in private/incognito mode with IndexedDB disabled
+                // - Storage quota exceeded
+                // - Database corruption
+                // - Firefox-specific bugs with IndexedDB
+                console.error('[EnterRecoveryKey] CRITICAL: Failed to save master key to IndexedDB!', saveError);
+                errorMessage = 'Failed to save login data. Please try refreshing the page or using a different browser.';
+                return;
+            }
+
+            // Save email encrypted with master key for payment processing
+            const emailStoredSuccessfully = await cryptoService.saveEmailEncryptedWithMasterKey(email, false);
+            if (!emailStoredSuccessfully) {
+                console.error('[EnterRecoveryKey] Failed to encrypt and store email with master key during recovery key login');
+                // Don't block login for this - it's not critical
+            } else {
+                console.debug('[EnterRecoveryKey] Email encrypted and stored with master key for payment processing');
+            }
+            
+            // Update user profile with received data
+            const userProfileData = {
+                username: data.user.username || '',
+                profile_image_url: data.user.profile_image_url || null,
+                credits: data.user.credits || 0,
+                is_admin: data.user.is_admin || false,
+                last_opened: data.user.last_opened || '',
+                tfa_app_name: data.user.tfa_app_name || null,
+                tfa_enabled: data.user.tfa_enabled || false,
+                consent_privacy_and_apps_default_settings: data.user.consent_privacy_and_apps_default_settings || false,
+                consent_mates_default_settings: data.user.consent_mates_default_settings || false,
+                language: data.user.language || 'en',
+                darkmode: data.user.darkmode || false
+            };
+            
+            // Update the user profile store
+            updateProfile(userProfileData);
+            console.debug('[EnterRecoveryKey] User profile updated with login data:', userProfileData);
+            
+            // Check if user is in signup flow based on last_opened path
+            // Import isSignupPath helper for checking signup paths
+            const { isSignupPath } = await import('../stores/signupState');
+            const inSignupFlow = isSignupPath(data.user?.last_opened) || false;
+            console.debug('[EnterRecoveryKey] Login success (recovery key), in signup flow:', inSignupFlow);
+            
+            // Clear sensitive data
+            recoveryKey = '';
+            
+            // Dispatch success event
+            console.debug('[EnterRecoveryKey] Dispatching loginSuccess event');
+            dispatch('loginSuccess', {
+                user: data.user,
+                inSignupFlow: inSignupFlow,
+                recoveryKeyUsed: true
+            });
+        } catch (e) {
+            console.error('[EnterRecoveryKey] Error during recovery key login processing:', e);
+            errorMessage = 'Error decrypting master key with recovery key. Please try again.';
         }
     }
 
@@ -228,7 +290,7 @@
     </div>
 
     <p class="recovery-key-text">
-        {@html $text('login.use_for_emergencies_only.text')}
+        {@html $text('login.use_for_emergencies_only')}
     </p>
 
     <form onsubmit={handleSubmit}>
@@ -240,7 +302,7 @@
                     type="password"
                     bind:value={recoveryKey}
                     oninput={handleRecoveryKeyInput}
-                    placeholder={$text('login.recoverykey_placeholder.text')}
+                    placeholder={$text('login.recoverykey_placeholder')}
                     autocomplete="off"
                     class:error={!!errorMessage}
                     style="font-family: monospace;"
@@ -248,7 +310,6 @@
                 {#if errorMessage}
                     <InputWarning
                         message={errorMessage}
-                        target={recoveryKeyInput}
                     />
                 {/if}
             </div>
@@ -262,7 +323,7 @@
             {#if isLoading}
                 <span class="loading-spinner"></span>
             {:else}
-                {$text('login.login_button.text')}
+                {$text('login.login_button')}
             {/if}
         </button>
     </form>
@@ -273,7 +334,7 @@
         <div>
             <button class="login-option-button" onclick={handleBackToEmail}>
                 <span class="clickable-icon icon_user"></span>
-                <mark>{$text('login.login_with_another_account.text')}</mark>
+                <mark>{$text('login.login_with_another_account')}</mark>
             </button>
         </div>
 
@@ -281,7 +342,7 @@
         <div>
             <button class="login-option-button" onclick={handleSwitchToPasswordAndTfa}>
                 <span class="clickable-icon icon_password"></span>
-                <mark>{$text('login.login_with_password_and_tfa.text')}</mark>
+                <mark>{$text('login.login_with_password_and_tfa')}</mark>
             </button>
         </div>
     </div>

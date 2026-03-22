@@ -10,9 +10,9 @@ step_7_top_content_svelte:
     settings_explainer:
         type: 'text'
         text:
-            - $text('signup.settings.text')
-            - $text('signup.default_settings_balance.text')
-            - $text('signup.click_toggle_to_open_settings.text')
+            - $text('signup.settings')
+            - $text('signup.default_settings_balance')
+            - $text('signup.click_toggle_to_open_settings')
         purpose:
             - 'Explains how the default settings balance is set and how to modify the settings.'
         bigger_context:
@@ -25,10 +25,10 @@ step_7_top_content_svelte:
     settings_block:
         type: 'settings_block'
         text:
-            - $text('signup.default_settings.text')
-            - $text('settings.privacy.text')
-            - $text('settings.apps.text')
-            - $text('settings.interface.text')
+            - $text('signup.default_settings')
+            - $text('settings.privacy')
+            - $text('settings.app_store')
+            - $text('settings.interface')
         purpose:
             - 'Quick access to Privacy, Apps and Interface settings.'
         processing:
@@ -68,7 +68,7 @@ step_7_top_content_svelte:
             activeSettingsPath = null;
             // Reset the toggle to true when closing
             if (settingsPath === 'privacy') privacyToggleOn = true;
-            if (settingsPath === 'apps') appsToggleOn = true;
+            if (settingsPath === 'app_store') appsToggleOn = true;
             if (settingsPath === 'interface') interfaceToggleOn = true;
             return;
         }
@@ -79,7 +79,7 @@ step_7_top_content_svelte:
         // Update toggle state based on which item was clicked
         // Toggle OFF when opening the settings
         if (settingsPath === 'privacy') privacyToggleOn = false;
-        else if (settingsPath === 'apps') appsToggleOn = false;
+        else if (settingsPath === 'app_store') appsToggleOn = false;
         else if (settingsPath === 'interface') interfaceToggleOn = false;
         
         // First set the deep link path to navigate to specific settings
@@ -116,25 +116,25 @@ step_7_top_content_svelte:
 <div class="content">
     <div class="signup-header">
         <div class="icon header_size settings"></div>
-        <h2 class="signup-menu-title">{@html $text('signup.settings.text')}</h2>
+        <h2 class="signup-menu-title">{@html $text('signup.settings')}</h2>
     </div>
     
     <div class="text-block">
-        {@html $text('signup.default_settings_balance.text')}
+        {@html $text('signup.default_settings_balance')}
         <span class="break-line"></span>
         <span class="break-line mobile-hidden"></span>
-        <mark>{@html $text('signup.click_toggle_to_open_settings.text')}</mark>
+        <mark>{@html $text('signup.click_toggle_to_open_settings')}</mark>
     </div>
     
     <div class="settings-block">
         <div class="settings-header">
-            <div class="default-settings-text">{@html $text('signup.default_settings.text')}</div>
+            <div class="default-settings-text">{@html $text('signup.default_settings')}</div>
         </div>
 
         <SettingsItem 
             type="submenu" 
             icon="privacy" 
-            title={$text('settings.privacy.text')}
+            title={$text('settings.privacy')}
             onClick={() => handleSettingsClick('privacy')}
             hasToggle={true}
             checked={privacyToggleOn}
@@ -142,17 +142,17 @@ step_7_top_content_svelte:
         />
         <SettingsItem 
             type="submenu" 
-            icon="apps" 
-            title={$text('settings.apps.text')}
-            onClick={() => handleSettingsClick('apps')}
+            icon="app_store" 
+            title={$text('settings.app_store')}
+            onClick={() => handleSettingsClick('app_store')}
             hasToggle={true}
             checked={appsToggleOn}
-            on:toggleClick={(e) => handleToggleClick('apps', e.detail)}
+            on:toggleClick={(e) => handleToggleClick('app_store', e.detail)}
         />
         <SettingsItem 
             type="submenu" 
             icon="interface" 
-            title={$text('settings.interface.text')}
+            title={$text('settings.interface')}
             onClick={() => handleSettingsClick('interface')}
             hasToggle={true}
             checked={interfaceToggleOn}

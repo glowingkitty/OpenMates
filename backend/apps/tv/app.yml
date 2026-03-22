@@ -1,0 +1,185 @@
+name_translation_key: tv
+description_translation_key: tv.description
+icon_image: |
+  tv.svg
+category: personal
+last_updated: "2025-11-12"
+settings_and_memories:
+  - id: watched_movies
+    name_translation_key: tv.watched_movies
+    description_translation_key: tv.watched_movies.description
+    icon_image: movies.svg
+    type: list
+    stage: production
+    example_translation_keys:
+      - "tv.watched_movies.example_1"
+      - "tv.watched_movies.example_2"
+    example_entries:
+      - title: "tv.watched_movies.example_1.title"
+        year: 2010
+        director: "Christopher Nolan"
+        rating: 4.8
+        notes: "tv.watched_movies.example_1.notes"
+      - title: "tv.watched_movies.example_2.title"
+        year: 2019
+        director: "Bong Joon-ho"
+        rating: 4.9
+        notes: "tv.watched_movies.example_2.notes"
+    schema:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Movie title
+          is_title: true
+        year:
+          type: integer
+          description: Release year
+        director:
+          type: string
+          description: Director name(s)
+        rating:
+          type: number
+          description: User's rating (0-10)
+        tmdb_id:
+          type: integer
+          description: The Movie Database (TMDb) ID
+        notes:
+          type: string
+          description: Personal notes
+          multiline: true
+        genre:
+          type: array
+          items:
+            type: string
+          description: TV show genres
+      required:
+        - title
+  - id: watched_tv_shows
+    name_translation_key: tv.watched_tv_shows
+    description_translation_key: tv.watched_tv_shows.description
+    icon_image: tv.svg
+    type: list
+    stage: production
+    example_translation_keys:
+      - "tv.watched_tv_shows.example_1"
+      - "tv.watched_tv_shows.example_2"
+    example_entries:
+      - title: "tv.watched_tv_shows.example_1.title"
+        year: 2008
+        status: "completed"
+        seasons_watched: 5
+        latest_episode: "S05E16"
+        rating: 5
+        notes: "tv.watched_tv_shows.example_1.notes"
+      - title: "tv.watched_tv_shows.example_2.title"
+        year: 2022
+        status: "watching"
+        seasons_watched: 3
+        latest_episode: "S03E10"
+        rating: 4.7
+        notes: "tv.watched_tv_shows.example_2.notes"
+    schema:
+      type: object
+      properties:
+        title:
+          type: string
+          description: TV show title
+          is_title: true
+        year:
+          type: integer
+          description: Year started airing
+        tmdb_id:
+          type: integer
+          description: The Movie Database (TMDb) ID
+        status:
+          type: string
+          enum:
+            - watching
+            - completed
+            - on_hold
+            - dropped
+          description: Current watching status
+          is_subtitle: true
+        seasons_watched:
+          type: integer
+          description: Number of seasons completed
+        latest_episode:
+          type: string
+          description: Latest episode watched (e.g., S03E05)
+        rating:
+          type: number
+          description: User's rating (0-10)
+        notes:
+          type: string
+          description: Personal notes
+          multiline: true
+        genre:
+          type: array
+          items:
+            type: string
+          description: TV show genres
+      required:
+        - title
+  - id: to_watch_list
+    name_translation_key: tv.to_watch_list
+    description_translation_key: tv.to_watch_list.description
+    icon_image: task.svg
+    type: list
+    stage: production
+    example_translation_keys:
+      - "tv.to_watch_list.example_1"
+      - "tv.to_watch_list.example_2"
+    example_entries:
+      - title: "tv.to_watch_list.example_1.title"
+        year: 2023
+        type: "movie"
+        priority: "high"
+        reason: "tv.to_watch_list.example_1.reason"
+      - title: "tv.to_watch_list.example_2.title"
+        year: 2022
+        type: "tv_show"
+        priority: "medium"
+        reason: "tv.to_watch_list.example_2.reason"
+    schema:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Movie or show title
+          is_title: true
+        year:
+          type: integer
+          description: Release year
+        type:
+          type: string
+          enum:
+            - movie
+            - tv_show
+          description: Movie or TV show
+        tmdb_id:
+          type: integer
+          description: The Movie Database (TMDb) ID
+        director:
+          type: string
+          description: Director (for movies)
+        priority:
+          type: string
+          enum:
+            - high
+            - medium
+            - low
+          description: Priority level
+        genre:
+          type: array
+          items:
+            type: string
+          description: Genres
+        reason:
+          type: string
+          description: Why you want to watch it
+          multiline: true
+      required:
+        - title
+        - type
+skills: []

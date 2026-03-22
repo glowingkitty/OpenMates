@@ -1,7 +1,4 @@
 <script lang="ts">
-    import { get } from 'svelte/store';
-    import { fly, fade, slide } from 'svelte/transition';
-    import { cubicOut } from 'svelte/easing';
     import { text } from '@repo/ui'; // Reverted to original import path based on feedback
     import { panelState } from '../../stores/panelStateStore';
     import { getWebsiteUrl, routes } from '../../config/links';
@@ -12,7 +9,7 @@
     let { 
         activeSettingsView = 'main',
         activeSubMenuIcon = '',
-        activeSubMenuTitle = ''
+        _activeSubMenuTitle = ''
     }: {
         activeSettingsView?: string;
         activeSubMenuIcon?: string;
@@ -21,8 +18,9 @@
 
     // --- Internal State ---
     let navigationPath: string[] = [];
-    let breadcrumbLabel = $text('settings.settings.text');
+    let breadcrumbLabel = $text('settings.settings');
     let fullBreadcrumbLabel = '';
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
     let shortBreadcrumbLabel = '';
     let navButtonElement;
     let showSubmenuInfo = false; // Derived from activeSettingsView
@@ -49,7 +47,7 @@
                 const style = window.getComputedStyle(document.body);
                 const fontWeight = style.getPropertyValue('--font-weight-bold') || '700';
                 context.font = `${fontWeight} ${font}`;
-            } catch (e) {
+            } catch (_e) {
                 console.warn('Could not get computed style, using default font weight');
             }
         }
@@ -102,7 +100,7 @@
     // Function to update breadcrumb label based on navigation path
     function updateBreadcrumbLabel() {
         if (navigationPath.length <= 0) {
-            breadcrumbLabel = $text('settings.settings.text');
+            breadcrumbLabel = $text('settings.settings');
             fullBreadcrumbLabel = breadcrumbLabel;
             return;
         }
@@ -111,12 +109,12 @@
         const pathLabels = [];
 
         // Always start with "Settings"
-        pathLabels.push($text('settings.settings.text'));
+        pathLabels.push($text('settings.settings'));
 
         // Add each path segment's translated name (except the last one which is current view)
         for (let i = 0; i < navigationPath.length - 1; i++) {
             const segment = navigationPath[i];
-            const translationKey = `settings.${segment}.text`;
+            const translationKey = `settings.${segment}`;
             pathLabels.push($text(translationKey));
         }
 
@@ -142,8 +140,14 @@
         if (navigationPath.length > 1) {
             // Go back one level
             const previousPath = navigationPath.slice(0, -1).join('/');
-            const parentIcon = navigationPath[0]; // Icon of the parent section
-            const parentTitle = $text(`settings.${parentIcon}.text`);
+            // Use the last segment of the previous path as the icon (e.g., "security" for "account/security")
+            // This ensures the correct icon is shown when navigating back
+            const previousPathSegments = previousPath.split('/');
+            const parentIcon = previousPathSegments[previousPathSegments.length - 1];
+            // Build translation key for the previous path to get the correct title
+            const translationKeyParts = previousPathSegments.map(segment => segment.replace(/-/g, '_'));
+            const parentTitleKey = `settings.${translationKeyParts.join('.')}`;
+            const parentTitle = $text(parentTitleKey);
             dispatchNavigate(previousPath, 'backward', parentIcon, parentTitle);
         } else {
             // Go back to main view
@@ -176,7 +180,7 @@
         } else {
             // Reset when back to main view
             navigationPath = [];
-            breadcrumbLabel = $text('settings.settings.text');
+            breadcrumbLabel = $text('settings.settings');
             fullBreadcrumbLabel = breadcrumbLabel; // Reset full label
             currentHelpLink = baseHelpLink;
             navButtonLeft = false;
@@ -202,10 +206,10 @@
     });
 
     // Subscribe to both text and navigation store to handle language updates using Svelte 5 runes
-    let breadcrumbs = $derived($settingsNavigationStore.breadcrumbs.map(crumb => ({
+    let _breadcrumbs = $derived($settingsNavigationStore.breadcrumbs.map(crumb => ({
         ...crumb,
         // Apply translations to breadcrumb titles
-        title: crumb.translationKey ? $text(crumb.translationKey + '.text') : crumb.title
+        title: crumb.translationKey ? $text(crumb.translationKey) : crumb.title
     })));
 
     // Make breadcrumbLabel reactive to text store changes using Svelte 5 runes
@@ -224,7 +228,7 @@
             <button
                 class="nav-button left"
                 onclick={goBack}
-                aria-label={$text('settings.back.text')}
+                aria-label={$text('settings.back')}
                 bind:this={navButtonElement}
             >
                 <span class="icon icon_arrow_left"></span>
@@ -251,7 +255,7 @@
             target="_blank"
             rel="noopener noreferrer"
             class="nav-button right help-button"
-            aria-label={$text('documentation.open_documentation.text')}
+            aria-label={$text('documentation.open_documentation')}
             use:tooltip
         >
             <span class="icon icon_help"></span>
@@ -259,7 +263,7 @@
          <button
             class="nav-button right close-button"
             onclick={handleCloseMenu}
-            aria-label={$text('activity.close.text')}
+            aria-label={$text('activity.close')}
             use:tooltip
         >
             <span class="icon icon_close"></span>
@@ -278,14 +282,7 @@
         display: flex;
         flex-direction: column;
         border-bottom: 1px solid var(--color-grey-30);
-        position: relative;
         min-height: 30px;
-    }
-
-    .header-content {
-        width: 100%;
-        position: relative;
-        transition: all 0.3s ease;
     }
 
     .settings-header.submenu-active {
@@ -390,33 +387,4 @@
         font-size: 16px; /* Adjust icon size */
     }
 
-    /* Styles for dimming the active chat container (These should be in Settings.svelte) */
-    /*
-    :global(.active-chat-container) {
-        transition: opacity 0.3s ease;
-    }
-
-    :global(.active-chat-container.dimmed) {
-        opacity: 0.3;
-    }
-    */
-
-    /* Styles for adjusting chat container margin when settings is open (These should be in Settings.svelte) */
-    /*
-    :global(.chat-container) {
-        transition: gap 0.3s ease;
-    }
-
-    @media (min-width: 1100px) {
-        :global(.chat-container.menu-open) {
-            gap: 20px;
-        }
-    }
-
-    @media (max-width: 1099px) {
-        :global(.chat-container.menu-open) {
-            gap: 0px;
-        }
-    }
-    */
 </style>

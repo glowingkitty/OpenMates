@@ -3,6 +3,7 @@ import time
 import logging
 import json
 import httpx # Import httpx
+from datetime import datetime, timezone
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
 
@@ -11,20 +12,49 @@ from typing import List, Dict, Any, Optional
 from backend.core.api.app.services.directus.auth_methods import (
     get_auth_lock, clear_tokens, validate_token, login_admin, ensure_auth_token
 )
-from backend.core.api.app.services.directus.api_methods import _make_api_request, create_item # Import create_item
+from backend.core.api.app.services.directus.api_methods import _make_api_request, create_item, delete_item, delete_items # Import delete methods
 from backend.core.api.app.services.directus.invite_methods import get_invite_code, get_all_invite_codes, consume_invite_code
+from backend.core.api.app.services.directus.gift_card_methods import (
+    get_gift_card_by_code, 
+    get_all_gift_cards, 
+    redeem_gift_card,
+    create_gift_card,
+    record_gift_card_redemption,
+    get_user_redeemed_gift_cards,
+    get_user_purchased_gift_cards
+)
 from backend.core.api.app.services.directus.chat_methods import ChatMethods # Import ChatMethods class
 # from backend.core.api.app.services.directus.app_memory_methods import AppMemoryMethods # Old import, replaced
 from backend.core.api.app.services.directus.app_settings_and_memories_methods import AppSettingsAndMemoriesMethods # New import
 from backend.core.api.app.services.directus.usage import UsageMethods # Corrected import
+from backend.core.api.app.services.directus.analytics_methods import AnalyticsMethods
+from backend.core.api.app.services.directus.embed_methods import EmbedMethods # Import EmbedMethods class
+from backend.core.api.app.services.directus.demo_chat_methods import DemoChatMethods # Import DemoChatMethods class
+from backend.core.api.app.services.directus.admin_methods import AdminMethods # Import AdminMethods class
+
+from backend.core.api.app.services.directus.health_event_methods import HealthEventMethods # Import HealthEventMethods class
+from backend.core.api.app.services.directus.user_daily_inspiration_methods import UserDailyInspirationMethods # Import UserDailyInspirationMethods class
+from backend.core.api.app.services.directus.daily_inspiration_pool_methods import DailyInspirationPoolMethods  # Pool of cleartext inspirations for default selection
+from backend.core.api.app.services.directus.daily_inspiration_defaults_methods import DailyInspirationDefaultsMethods  # Daily-selected top 3 per language
 from backend.core.api.app.services.directus.user.user_creation import create_user
 from backend.core.api.app.services.directus.user.user_authentication import login_user, login_user_with_lookup_hash, logout_user, logout_all_sessions, refresh_token
-from backend.core.api.app.services.directus.user.user_lookup import get_user_by_hashed_email, get_total_users_count, get_active_users_since, get_user_fields_direct, authenticate_user_by_lookup_hash, add_user_lookup_hash
+from backend.core.api.app.services.directus.user.user_lookup import get_user_by_hashed_email, get_user_by_hashed_username, hash_username, get_total_users_count, get_active_users_since, get_completed_signups_count, get_user_fields_direct, authenticate_user_by_lookup_hash, add_user_lookup_hash, get_user_by_subscription_id
 from backend.core.api.app.services.directus.user.user_profile import get_user_profile, get_tfa_backup_code_hashes
 from backend.core.api.app.services.directus.user.delete_user import delete_user
 from backend.core.api.app.services.directus.user.update_user import update_user
 # Import device management methods
 from backend.core.api.app.services.directus.user.device_management import add_user_device_hash, get_user_device_hashes # Updated imports
+# Import API key device management methods
+from backend.core.api.app.services.directus.api_key_device_methods import (
+    get_api_key_device_by_hash,
+    create_api_key_device,
+    update_api_key_device_last_access,
+    get_api_key_devices,
+    approve_api_key_device,
+    revoke_api_key_device,
+    get_pending_api_key_devices,
+    update_api_key_device_name
+)
 
 logger = logging.getLogger(__name__)
 
@@ -36,8 +66,8 @@ class DirectusService:
     def __init__(self, cache_service: CacheService = None, encryption_service: EncryptionService = None): # Added encryption_service parameter
         self.base_url = os.getenv("CMS_URL", "http://cms:8055")
         self.token = os.getenv("DIRECTUS_TOKEN")
-        self.admin_email = os.getenv("ADMIN_EMAIL")
-        self.admin_password = os.getenv("ADMIN_PASSWORD")
+        self.admin_email = os.getenv("DATABASE_ADMIN_EMAIL")
+        self.admin_password = os.getenv("DATABASE_ADMIN_PASSWORD")
         self.auth_token = None
         self.admin_token = None
         self._auth_lock = None
@@ -59,33 +89,65 @@ class DirectusService:
         # Initialize method groups
         self.app_settings_and_memories = AppSettingsAndMemoriesMethods(self) # New combined methods
         self.usage = UsageMethods(self, self.encryption_service)
+        self.analytics = AnalyticsMethods(self) # Anonymous analytics methods
         self.chat = ChatMethods(self) # Initialize ChatMethods
+        self.embed = EmbedMethods(self) # Initialize EmbedMethods
+        self.demo_chat = DemoChatMethods(self) # Initialize DemoChatMethods
+        self.admin = AdminMethods(self) # Initialize AdminMethods
+        self.health_event = HealthEventMethods(self) # Initialize HealthEventMethods for historical health tracking
+
+        self.user_daily_inspiration = UserDailyInspirationMethods(self) # User-specific received daily inspirations
+        self.inspiration_pool = DailyInspirationPoolMethods(self)  # Cleartext pool of inspirations for default selection
+        self.inspiration_defaults = DailyInspirationDefaultsMethods(self)  # Daily-selected top 3 per language
+        
+        # Initialize server stats service
+        from backend.core.api.app.services.server_stats_service import ServerStatsService
+        self.stats = ServerStatsService(self.cache, self)
 
     async def close(self):
         """Close the httpx client."""
         await self._client.aclose()
         logger.info("DirectusService httpx client closed.")
 
-    async def get_items(self, collection, params=None, no_cache=True):
+    async def get_items(
+        self,
+        collection,
+        params=None,
+        no_cache=True,
+        return_none_on_403: bool = False,
+        admin_required: bool = False
+    ):
         """
         Fetch items from a Directus collection with optional query params.
         Returns the list of items directly.
         
         For sensitive collections like 'directus_users', ensures admin token is used.
         """
-        url = f"{self.base_url}/items/{collection}"
+        # System collections are accessed directly, not via /items/
+        # mapping directus_users -> /users, directus_roles -> /roles, etc.
+        if collection.startswith('directus_'):
+            system_path = collection.replace('directus_', '')
+            url = f"{self.base_url}/{system_path}"
+        elif collection == 'users':
+            url = f"{self.base_url}/users"
+        else:
+            url = f"{self.base_url}/items/{collection}"
         
         # For sensitive collections like directus_users, ensure we use admin token
-        sensitive_collections = ['directus_users', 'directus_roles', 'directus_permissions']
+        # user_passkeys contains user_id which requires admin permissions
+        # usage collection contains encrypted user data and requires admin permissions
+        # directus_sessions is a system collection that requires admin permissions
+        sensitive_collections = ['users', 'directus_users', 'directus_roles', 'directus_permissions', 'user_passkeys', 'usage', 'directus_sessions']
         
-        if collection in sensitive_collections:
+        if admin_required or collection in sensitive_collections:
             # Ensure we have a valid admin token for sensitive collections
             admin_token = await self.ensure_auth_token(admin_required=True)
             if not admin_token:
-                logger.error(f"Failed to get admin token for sensitive collection: {collection}")
+                # This is critical because callers explicitly requested admin access.
+                logger.error(f"Failed to get admin token for collection: {collection}")
                 return []
             headers = {"Authorization": f"Bearer {admin_token}"}
-            logger.info(f"Using admin token for sensitive collection: {collection}")
+            logger.info(f"Using admin token for collection: {collection}")
         else:
             # Use regular token for non-sensitive collections
             headers = {"Authorization": f"Bearer {self.token}"} if self.token else {}
@@ -105,8 +167,18 @@ class DirectusService:
         if "filter" in current_params and isinstance(current_params["filter"], dict):
             current_params["filter"] = json.dumps(current_params["filter"])
         
-        if "sort" in current_params and isinstance(current_params["sort"], list):
-            current_params["sort"] = json.dumps(current_params["sort"])
+        # Directus accepts sort as a string for single field sorting
+        # For multiple fields, Directus expects comma-separated string or multiple sort[] parameters
+        # Never JSON-encode sort as an array - Directus doesn't handle that format in query strings
+        if "sort" in current_params:
+            # Ensure sort is always a string, never a list or other type
+            if isinstance(current_params["sort"], list):
+                # Convert list to comma-separated string (Directus format for multiple sorts)
+                current_params["sort"] = ",".join(str(s) for s in current_params["sort"])
+            else:
+                # Ensure it's a string (convert if needed)
+                current_params["sort"] = str(current_params["sort"])
+            logger.debug(f"Directus get_items sort parameter: '{current_params['sort']}' (type: {type(current_params['sort']).__name__})")
         
         # _make_api_request returns an httpx.Response object.
         response_obj = await self._make_api_request("GET", url, headers=headers, params=current_params)
@@ -129,6 +201,20 @@ class DirectusService:
                 else:
                     logger.warning(f"Directus get_items for '{collection}': Unexpected JSON structure. Response JSON: {response_json}")
                     return []
+            elif response_obj.status_code == 403:
+                # Log detailed error for 403 Forbidden
+                try:
+                    error_json = response_obj.json()
+                    error_detail = error_json.get("errors", [{}])[0].get("message", "Unknown permission error")
+                    logger.error(f"Directus get_items for '{collection}': Permission denied (403). Error: {error_detail}. Params: {current_params}")
+                    # Log the actual URL that was requested for debugging
+                    logger.error(f"Directus get_items for '{collection}': Request URL would be: {url}?{chr(38).join(f'{k}={v}' for k, v in current_params.items())}")
+                except Exception:
+                    logger.error(f"Directus get_items for '{collection}': Permission denied (403). Response text: {response_obj.text[:500]}")
+                # Returning None here allows callers to detect permission errors and retry with safer field sets.
+                if return_none_on_403:
+                    return None
+                return []
             else:
                 logger.warning(f"Directus get_items for '{collection}' failed with status {response_obj.status_code}. Response text: {response_obj.text[:200]}")
                 return []
@@ -139,7 +225,7 @@ class DirectusService:
     # Item creation method
     create_item = create_item # Assign the imported method
 
-    async def create_encryption_key(self, hashed_user_id: str, login_method: str, encrypted_key: str, salt: str) -> bool:
+    async def create_encryption_key(self, hashed_user_id: str, login_method: str, encrypted_key: str, salt: str, key_iv: Optional[str] = None) -> bool:
         """
         Creates a new record in the encryption_keys collection.
         """
@@ -149,6 +235,8 @@ class DirectusService:
             "encrypted_key": encrypted_key,
             "salt": salt,
         }
+        if key_iv:
+            payload["key_iv"] = key_iv
         try:
             created_item = await self.create_item("encryption_keys", payload)
             if created_item:
@@ -163,12 +251,12 @@ class DirectusService:
 
     async def get_encryption_key(self, hashed_user_id: str, login_method: str) -> Optional[Dict[str, str]]:
         """
-        Retrieves the encrypted key and salt for a user and login method.
+        Retrieves the encrypted key, salt, and IV for a user and login method.
         """
         params = {
             "filter[hashed_user_id][_eq]": hashed_user_id,
             "filter[login_method][_eq]": login_method,
-            "fields": "encrypted_key,salt",
+            "fields": "encrypted_key,salt,key_iv",
             "limit": 1
         }
         try:
@@ -180,15 +268,639 @@ class DirectusService:
             logger.error(f"Exception getting encryption key for hashed_user_id: {hashed_user_id}: {e}", exc_info=True)
             return None
 
-    async def _update_item(self, collection: str, item_id: str, data: Dict[str, Any], params: Optional[Dict] = None) -> Optional[Dict]:
+    async def delete_encryption_key(self, hashed_user_id: str, login_method: str) -> bool:
+        """
+        Deletes an encryption key record by hashed_user_id and login_method.
+        
+        Args:
+            hashed_user_id: SHA256 hash of the user's UUID
+            login_method: The login method (e.g., 'api_key_{key_hash}', 'passkey_{credential_id_hash}')
+            
+        Returns:
+            True if deleted successfully, False otherwise
+        """
+        try:
+            # First find the encryption key record
+            encryption_key = await self.get_encryption_key(hashed_user_id, login_method)
+            if not encryption_key:
+                logger.warning(f"Encryption key not found for deletion: hashed_user_id={hashed_user_id[:8]}..., login_method={login_method}")
+                return False
+            
+            # Get the record ID (Directus auto-generates IDs, we need to query by fields to get ID)
+            params = {
+                "filter[hashed_user_id][_eq]": hashed_user_id,
+                "filter[login_method][_eq]": login_method,
+                "fields": "id",
+                "limit": 1
+            }
+            items = await self.get_items("encryption_keys", params)
+            if not items or len(items) == 0:
+                logger.warning(f"Encryption key record not found for deletion: hashed_user_id={hashed_user_id[:8]}..., login_method={login_method}")
+                return False
+            
+            encryption_key_id = items[0].get("id")
+            if not encryption_key_id:
+                logger.error(f"Encryption key record missing ID: hashed_user_id={hashed_user_id[:8]}..., login_method={login_method}")
+                return False
+            
+            # Delete the encryption key record
+            success = await self.delete_item("encryption_keys", encryption_key_id)
+            if success:
+                logger.info(f"Successfully deleted encryption key for hashed_user_id={hashed_user_id[:8]}..., login_method={login_method}")
+            return success
+        except Exception as e:
+            logger.error(f"Exception deleting encryption key for hashed_user_id={hashed_user_id[:8]}..., login_method={login_method}: {e}", exc_info=True)
+            return False
+
+    async def get_any_passkey_encryption_key(self, hashed_user_id: str) -> Optional[Dict[str, str]]:
+        """
+        Retrieves ANY valid passkey encryption key for a user.
+        Used when we know the user authenticated via passkey but don't have the specific credential ID hash.
+        """
+        params = {
+            "filter[hashed_user_id][_eq]": hashed_user_id,
+            "filter[login_method][_starts_with]": "passkey_",
+            "fields": "encrypted_key,salt,key_iv",
+            "limit": 1
+        }
+        try:
+            items = await self.get_items("encryption_keys", params)
+            if items:
+                return items[0]
+            return None
+        except Exception as e:
+            logger.error(f"Exception getting any passkey encryption key for hashed_user_id: {hashed_user_id}: {e}", exc_info=True)
+            return None
+
+    # Passkey management methods
+    async def create_passkey(
+        self,
+        hashed_user_id: str,
+        user_id: str,
+        credential_id: str,
+        public_key_cose_b64: str,
+        aaguid: str,
+        public_key_jwk: Optional[Dict[str, Any]] = None,
+        encrypted_device_name: Optional[str] = None
+    ) -> bool:
+        """
+        Creates a new passkey record in the user_passkeys collection.
+        
+        Args:
+            hashed_user_id: SHA256 hash of the user's UUID (for privacy-preserving lookups)
+            user_id: Direct reference to user_id for efficient lookups
+            credential_id: Base64-encoded credential ID from WebAuthn
+            public_key_cose_b64: Public key in COSE format (base64-encoded CBOR bytes) - REQUIRED for py_webauthn
+            aaguid: Authenticator Attestation Globally Unique Identifier
+            public_key_jwk: Public key in JWK format (optional, for backward compatibility)
+            encrypted_device_name: Optional encrypted user-friendly device name
+            
+        Returns:
+            True if passkey was created successfully, False otherwise
+        """
+        # Get current Unix timestamp (integer) for all timestamp fields
+        # registered_at, created_at, and updated_at will all be the same value
+        # since the passkey is being registered/created right now
+        current_timestamp = int(time.time())
+        
+        payload = {
+            "hashed_user_id": hashed_user_id,
+            "user_id": user_id,
+            "credential_id": credential_id,
+            "public_key_cose": public_key_cose_b64,
+            "aaguid": aaguid,
+            "sign_count": 0,
+            "usage_count": 0,
+            "registered_at": current_timestamp,
+            "created_at": current_timestamp,
+            "updated_at": current_timestamp,
+        }
+        if public_key_jwk:
+            payload["public_key_jwk"] = public_key_jwk
+        if encrypted_device_name:
+            payload["encrypted_device_name"] = encrypted_device_name
+        
+        try:
+            created_item = await self.create_item("user_passkeys", payload)
+            if created_item:
+                logger.info(f"Successfully created passkey for hashed_user_id: {hashed_user_id[:8]}...")
+                return True
+            else:
+                logger.error(f"Failed to create passkey for hashed_user_id: {hashed_user_id[:8]}... - no item returned.")
+                return False
+        except Exception as e:
+            logger.error(f"Exception creating passkey for hashed_user_id: {hashed_user_id[:8]}...: {e}", exc_info=True)
+            return False
+
+    async def get_passkey_by_credential_id(self, credential_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Retrieves a passkey by its credential ID.
+        
+        Args:
+            credential_id: Base64-encoded credential ID
+            
+        Returns:
+            Passkey record if found, None otherwise (includes hashed_user_id and user_id)
+        """
+        params = {
+            "filter[credential_id][_eq]": credential_id,
+            "fields": "id,hashed_user_id,user_id,credential_id,public_key_cose,public_key_jwk,aaguid,sign_count,encrypted_device_name,registered_at,last_used_at",
+            "limit": 1
+        }
+        try:
+            items = await self.get_items("user_passkeys", params)
+            if items:
+                return items[0]
+            return None
+        except Exception as e:
+            logger.error(f"Exception getting passkey by credential_id: {e}", exc_info=True)
+            return None
+
+    async def update_passkey_sign_count(
+        self,
+        passkey_id: str,
+        new_sign_count: int
+    ) -> bool:
+        """
+        Updates the sign_count, usage_count, and last_used_at timestamp for a passkey.
+        
+        sign_count comes from the WebAuthn authenticator (many authenticators always return 0,
+        so it's only useful for clone detection, not for tracking actual usage).
+        usage_count is our own counter that reliably tracks how many times the passkey was used.
+        
+        Args:
+            passkey_id: The passkey record ID
+            new_sign_count: The new sign count value from the authenticator
+            
+        Returns:
+            True if update was successful, False otherwise
+        """
+        # Use Unix timestamp (integer) for consistency with create_passkey
+        # Directus will convert this to ISO format when returning via API
+        current_timestamp = int(time.time())
+        
+        # First, get current usage_count to increment it
+        try:
+            current_passkey = await self.get_item("user_passkeys", passkey_id, {"fields": "usage_count"})
+            current_usage_count = current_passkey.get("usage_count", 0) if current_passkey else 0
+        except Exception:
+            current_usage_count = 0
+        
+        update_data = {
+            "sign_count": new_sign_count,
+            "usage_count": current_usage_count + 1,
+            "last_used_at": current_timestamp
+        }
+        try:
+            updated_item = await self.update_item("user_passkeys", passkey_id, update_data)
+            if updated_item:
+                logger.info(f"Successfully updated sign_count for passkey {passkey_id[:6]}... to {new_sign_count}")
+                return True
+            else:
+                logger.error(f"Failed to update sign_count for passkey {passkey_id[:6]}...")
+                return False
+        except Exception as e:
+            logger.error(f"Exception updating passkey sign_count: {e}", exc_info=True)
+            return False
+
+    async def update_passkey_device_name(
+        self,
+        passkey_id: str,
+        encrypted_device_name: str
+    ) -> bool:
+        """
+        Updates the encrypted device name for a passkey.
+        
+        Args:
+            passkey_id: The passkey record ID
+            encrypted_device_name: The new encrypted device name
+            
+        Returns:
+            True if update was successful, False otherwise
+        """
+        update_data = {
+            "encrypted_device_name": encrypted_device_name
+        }
+        try:
+            updated_item = await self.update_item("user_passkeys", passkey_id, update_data)
+            if updated_item:
+                logger.info(f"Successfully updated device name for passkey {passkey_id[:6]}...")
+                return True
+            else:
+                logger.error(f"Failed to update device name for passkey {passkey_id[:6]}...")
+                return False
+        except Exception as e:
+            logger.error(f"Exception updating passkey device name: {e}", exc_info=True)
+            return False
+
+    async def delete_passkey(self, passkey_id: str) -> bool:
+        """
+        Deletes a passkey record.
+        
+        Args:
+            passkey_id: The passkey record ID
+            
+        Returns:
+            True if deletion was successful, False otherwise
+        """
+        try:
+            success = await self.delete_item("user_passkeys", passkey_id)
+            if success:
+                logger.info(f"Successfully deleted passkey {passkey_id[:6]}...")
+                return True
+            else:
+                logger.error(f"Failed to delete passkey {passkey_id[:6]}...")
+                return False
+        except Exception as e:
+            logger.error(f"Exception deleting passkey: {e}", exc_info=True)
+            return False
+
+    async def get_user_passkeys(self, hashed_user_id: str) -> List[Dict[str, Any]]:
+        """
+        Retrieves all passkeys for a user by hashed_user_id.
+        
+        Args:
+            hashed_user_id: SHA256 hash of the user's UUID
+            
+        Returns:
+            List of passkey records (includes encrypted_device_name)
+        """
+        params = {
+            "filter[hashed_user_id][_eq]": hashed_user_id,
+            "fields": "id,credential_id,encrypted_device_name,registered_at,last_used_at,sign_count,usage_count",
+            "sort": "-last_used_at"  # Most recently used first
+        }
+        try:
+            items = await self.get_items("user_passkeys", params)
+            return items if items else []
+        except Exception as e:
+            logger.error(f"Exception getting user passkeys for hashed_user_id {hashed_user_id[:8]}...: {e}", exc_info=True)
+            return []
+
+    async def get_user_passkeys_by_user_id(self, user_id: str) -> List[Dict[str, Any]]:
+        """
+        Retrieves all passkeys for a user by user_id (UUID).
+        Queries directly by user_id field for efficient lookups.
+        Only returns essential fields needed for the settings UI.
+        
+        Args:
+            user_id: The user's UUID
+            
+        Returns:
+            List of passkey records with only essential fields:
+            - id (for rename/delete operations)
+            - encrypted_device_name (for display, client decrypts)
+            - registered_at (registration timestamp)
+            - last_used_at (last usage timestamp)
+            - sign_count (WebAuthn authenticator counter, for clone detection)
+            - usage_count (application-level usage counter for display)
+        """
+        params = {
+            "filter[user_id][_eq]": user_id,
+            "fields": "id,encrypted_device_name,registered_at,last_used_at,sign_count,usage_count",
+            "sort": "-last_used_at"  # Most recently used first
+        }
+        try:
+            items = await self.get_items("user_passkeys", params)
+            return items if items else []
+        except Exception as e:
+            logger.error(f"Exception getting user passkeys for user_id {user_id[:8]}...: {e}", exc_info=True)
+            return []
+
+    async def get_user_id_from_hashed_user_id(self, hashed_user_id: str) -> Optional[str]:
+        """
+        Gets user_id from hashed_user_id by querying user_passkeys table.
+        This is a reverse lookup - finds which user has this hashed_user_id.
+        
+        This is used for resident credential (passwordless) passkey login where we only have
+        the credential_id and need to find the user.
+        
+        Args:
+            hashed_user_id: SHA256 hash of the user's UUID
+            
+        Returns:
+            user_id if found, None otherwise
+            
+        Note: This implementation queries user_passkeys table by indexed hashed_user_id field,
+        which is much more efficient than batch-querying all users.
+        """
+        logger.debug(f"Attempting to get user_id from hashed_user_id: {hashed_user_id[:8]}...")
+        try:
+            # Query user_passkeys table with indexed hashed_user_id field (single query!)
+            params = {
+                "filter[hashed_user_id][_eq]": hashed_user_id,
+                "fields": "user_id",  # Get user_id directly
+                "limit": 1
+            }
+            passkeys = await self.get_items("user_passkeys", params=params, no_cache=True)
+            
+            if passkeys and len(passkeys) > 0:
+                user_id = passkeys[0].get("user_id")
+                if user_id:
+                    logger.debug(f"Found user_id {user_id[:6]}... for hashed_user_id {hashed_user_id[:8]}...")
+                    return user_id
+                else:
+                    logger.warning(f"user_passkeys record found but user_id is missing for hashed_user_id: {hashed_user_id[:8]}...")
+                    return None
+            else:
+                logger.warning(f"No passkey found for hashed_user_id: {hashed_user_id[:8]}...")
+                return None
+        except Exception as e:
+            logger.error(f"Exception getting user_id from hashed_user_id {hashed_user_id[:8]}...: {e}", exc_info=True)
+            return None
+
+    # =========================================================================
+    # Account Recovery Helper Methods
+    # =========================================================================
+    
+    async def get_encryption_keys_by_user(self, hashed_user_id: str) -> List[Dict[str, Any]]:
+        """
+        Retrieves all encryption keys for a user by hashed_user_id.
+        Used during account recovery to check what login methods exist.
+        
+        Args:
+            hashed_user_id: SHA256 hash of the user's UUID
+            
+        Returns:
+            List of encryption key records with login_method info
+        """
+        params = {
+            "filter[hashed_user_id][_eq]": hashed_user_id,
+            "fields": "id,login_method,salt"
+        }
+        try:
+            items = await self.get_items("encryption_keys", params)
+            return items if items else []
+        except Exception as e:
+            logger.error(f"Exception getting encryption keys for hashed_user_id {hashed_user_id[:8]}...: {e}", exc_info=True)
+            return []
+    
+    async def delete_encryption_keys_by_user(self, hashed_user_id: str) -> bool:
+        """
+        Deletes ALL encryption keys for a user.
+        Used during full account reset to clear old login methods.
+        
+        Args:
+            hashed_user_id: SHA256 hash of the user's UUID
+            
+        Returns:
+            True if all deletions successful, False if any failed
+        """
+        try:
+            # Get all encryption keys for this user
+            encryption_keys = await self.get_encryption_keys_by_user(hashed_user_id)
+            
+            if not encryption_keys:
+                logger.info(f"No encryption keys found to delete for hashed_user_id: {hashed_user_id[:8]}...")
+                return True
+            
+            # Delete each encryption key
+            success_count = 0
+            for key in encryption_keys:
+                key_id = key.get("id")
+                if key_id:
+                    try:
+                        deleted = await self.delete_item("encryption_keys", key_id)
+                        if deleted:
+                            success_count += 1
+                            logger.debug(f"Deleted encryption key {key_id} for hashed_user_id: {hashed_user_id[:8]}...")
+                    except Exception as e:
+                        logger.error(f"Failed to delete encryption key {key_id}: {e}")
+            
+            logger.info(f"Deleted {success_count}/{len(encryption_keys)} encryption keys for hashed_user_id: {hashed_user_id[:8]}...")
+            return success_count == len(encryption_keys)
+            
+        except Exception as e:
+            logger.error(f"Exception deleting encryption keys for hashed_user_id {hashed_user_id[:8]}...: {e}", exc_info=True)
+            return False
+    
+    async def delete_all_passkeys_by_user(self, hashed_user_id: str) -> bool:
+        """
+        Deletes ALL passkeys for a user.
+        Used during full account reset to clear old passkey credentials.
+        
+        Args:
+            hashed_user_id: SHA256 hash of the user's UUID
+            
+        Returns:
+            True if all deletions successful, False if any failed
+        """
+        try:
+            # Get all passkeys for this user
+            passkeys = await self.get_user_passkeys(hashed_user_id)
+            
+            if not passkeys:
+                logger.info(f"No passkeys found to delete for hashed_user_id: {hashed_user_id[:8]}...")
+                return True
+            
+            # Delete each passkey
+            success_count = 0
+            for passkey in passkeys:
+                passkey_id = passkey.get("id")
+                if passkey_id:
+                    try:
+                        deleted = await self.delete_item("user_passkeys", passkey_id)
+                        if deleted:
+                            success_count += 1
+                            logger.debug(f"Deleted passkey {passkey_id} for hashed_user_id: {hashed_user_id[:8]}...")
+                    except Exception as e:
+                        logger.error(f"Failed to delete passkey {passkey_id}: {e}")
+            
+            logger.info(f"Deleted {success_count}/{len(passkeys)} passkeys for hashed_user_id: {hashed_user_id[:8]}...")
+            return success_count == len(passkeys)
+            
+        except Exception as e:
+            logger.error(f"Exception deleting passkeys for hashed_user_id {hashed_user_id[:8]}...: {e}", exc_info=True)
+            return False
+
+    async def get_user_api_keys_by_user_id(self, user_id: str) -> List[Dict[str, Any]]:
+        """
+        Retrieves all API keys for a user by user_id (UUID).
+        Queries directly by user_id field for efficient lookups.
+        
+        Args:
+            user_id: The user's UUID
+            
+        Returns:
+            List of API key records with fields:
+            - id (for delete operations)
+            - key_hash (for validation)
+            - encrypted_key_prefix (client decrypts for display)
+            - encrypted_name (client decrypts for display)
+            - expires_at (expiration timestamp)
+            - last_used_at (last usage timestamp)
+            - created_at (creation timestamp)
+        """
+        params = {
+            "filter[user_id][_eq]": user_id,
+            "fields": "id,key_hash,encrypted_key_prefix,encrypted_name,expires_at,last_used_at,created_at",
+            "sort": "-created_at"  # Most recently created first
+        }
+        try:
+            items = await self.get_items("api_keys", params)
+            return items if items else []
+        except Exception as e:
+            logger.error(f"Exception getting user API keys for user_id {user_id[:8]}...: {e}", exc_info=True)
+            return []
+
+    async def get_api_key_by_hash(self, key_hash: str) -> Optional[Dict[str, Any]]:
+        """
+        Retrieves an API key by its hash (for authentication).
+        
+        Args:
+            key_hash: SHA-256 hash of the API key
+            
+        Returns:
+            API key record if found, None otherwise
+        """
+        params = {
+            "filter[key_hash][_eq]": key_hash,
+            "fields": "id,user_id,hashed_user_id,key_hash,encrypted_name,expires_at,last_used_at",
+            "limit": 1
+        }
+        try:
+            items = await self.get_items("api_keys", params)
+            if items:
+                return items[0]
+            return None
+        except Exception as e:
+            logger.error(f"Exception getting API key by hash: {e}", exc_info=True)
+            return None
+
+    async def create_api_key(
+        self,
+        user_id: str,
+        hashed_user_id: str,
+        key_hash: str,
+        encrypted_key_prefix: str,
+        encrypted_name: str,
+        expires_at: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Creates a new API key record in the api_keys collection.
+        
+        Args:
+            user_id: The user's UUID
+            hashed_user_id: SHA256 hash of user_id
+            key_hash: SHA-256 hash of the full API key
+            encrypted_key_prefix: Client-side encrypted key prefix
+            encrypted_name: Client-side encrypted API key name
+            expires_at: Optional expiration timestamp (ISO format)
+            
+        Returns:
+            Created API key record if successful, None otherwise
+        """
+        # Set created_at and updated_at timestamps (ISO format for Directus timestamp fields)
+        from datetime import datetime, timezone
+        current_timestamp = datetime.now(timezone.utc).isoformat()
+        
+        payload = {
+            "user_id": user_id,
+            "hashed_user_id": hashed_user_id,
+            "key_hash": key_hash,
+            "encrypted_key_prefix": encrypted_key_prefix,
+            "encrypted_name": encrypted_name,
+            "created_at": current_timestamp,
+            "updated_at": current_timestamp,
+        }
+        if expires_at:
+            payload["expires_at"] = expires_at
+        
+        try:
+            success, created_item = await self.create_item("api_keys", payload)
+            if success and created_item:
+                logger.info(f"Successfully created API key for user {user_id}")
+                return created_item
+            else:
+                logger.error(f"Failed to create API key for user {user_id} - no item returned.")
+                return None
+        except Exception as e:
+            logger.error(f"Exception creating API key for user {user_id}: {e}", exc_info=True)
+            return None
+
+    async def delete_api_key(self, api_key_id: str) -> bool:
+        """
+        Deletes an API key by its ID.
+        
+        Args:
+            api_key_id: The API key record ID
+            
+        Returns:
+            True if deleted successfully, False otherwise
+        """
+        try:
+            success = await self.delete_item("api_keys", api_key_id)
+            if success:
+                logger.info(f"Successfully deleted API key {api_key_id}")
+            return success
+        except Exception as e:
+            logger.error(f"Exception deleting API key {api_key_id}: {e}", exc_info=True)
+            return False
+
+    async def update_api_key_last_used(self, key_hash: str, last_used_at: Optional[str] = None) -> bool:
+        """
+        Updates the last_used_at timestamp for an API key.
+        
+        Args:
+            key_hash: SHA-256 hash of the API key
+            last_used_at: Optional ISO timestamp to set; defaults to current UTC time
+            
+        Returns:
+            True if updated successfully, False otherwise
+        """
+        try:
+            # First get the API key to find its ID
+            api_key = await self.get_api_key_by_hash(key_hash)
+            if not api_key:
+                logger.warning(f"API key not found for hash update: {key_hash[:16]}...")
+                return False
+            
+            api_key_id = api_key.get("id")
+            if not api_key_id:
+                logger.error(f"API key record missing ID: {key_hash[:16]}...")
+                return False
+            
+            # Use provided timestamp or generate current UTC time
+            timestamp = last_used_at or datetime.now(timezone.utc).isoformat()
+            update_data = {"last_used_at": timestamp}
+            updated = await self._update_item("api_keys", api_key_id, update_data)
+            if updated:
+                logger.debug(f"Updated api_key {api_key_id} last_used_at -> {timestamp}")
+            else:
+                logger.warning(f"Failed to update last_used_at for api_key {api_key_id}")
+            return updated is not None
+        except Exception as e:
+            logger.error(f"Exception updating API key last_used_at for hash {key_hash[:16]}...: {e}", exc_info=True)
+            return False
+
+    async def _update_item(self, collection: str, item_id: str, data: Dict[str, Any], params: Optional[Dict] = None, admin_required: bool = False) -> Optional[Dict]:
         """
         Internal helper to update an item in a Directus collection by its ID.
         Handles authentication and retries.
         """
-        url = f"{self.base_url}/items/{collection}/{item_id}"
-        
+        # System collections are accessed directly, not via /items/
+        if collection.startswith('directus_'):
+            system_path = collection.replace('directus_', '')
+            url = f"{self.base_url}/{system_path}/{item_id}"
+        elif collection == 'users':
+            url = f"{self.base_url}/users/{item_id}"
+        else:
+            url = f"{self.base_url}/items/{collection}/{item_id}"
+
+        # For sensitive collections or when explicitly requested, use admin token
+        sensitive_collections = ['users', 'directus_users', 'directus_roles', 'directus_permissions', 'user_passkeys', 'usage', 'directus_sessions', 'demo_chats']
+        headers = {}
+        if admin_required or collection in sensitive_collections:
+            # Ensure we have a valid admin token for sensitive collections
+            admin_token = await self.ensure_auth_token(admin_required=True)
+            if not admin_token:
+                logger.error(f"Failed to get admin token for updating item in collection: {collection}")
+                return None
+            headers = {"Authorization": f"Bearer {admin_token}"}
+            logger.info(f"Using admin token for updating item in collection: {collection}")
+
         response_obj = await self._make_api_request(
-            "PATCH", url, json=data, params=params
+            "PATCH", url, headers=headers, json=data, params=params
         )
 
         # _make_api_request returns httpx.Response object or None on error
@@ -229,7 +941,14 @@ class DirectusService:
         Handles authentication and retries.
         Returns True if deletion was successful (204 No Content), False otherwise.
         """
-        url = f"{self.base_url}/items/{collection}/{item_id}"
+        # System collections are accessed directly, not via /items/
+        if collection.startswith('directus_'):
+            system_path = collection.replace('directus_', '')
+            url = f"{self.base_url}/{system_path}/{item_id}"
+        elif collection == 'users':
+            url = f"{self.base_url}/users/{item_id}"
+        else:
+            url = f"{self.base_url}/items/{collection}/{item_id}"
         
         response_obj = await self._make_api_request(
             "DELETE", url, params=params
@@ -247,8 +966,70 @@ class DirectusService:
             logger.error(f"API request to delete item {item_id} in collection {collection} failed (request layer).")
             return False
 
-    # Assign the internal helper to the class
-    delete_item = _delete_item
+    # Assign the API methods to the class
+    delete_item = delete_item
+    delete_items = delete_items
+
+    async def bulk_delete_items(self, collection: str, item_ids: List[str], params: Optional[Dict] = None) -> bool:
+        """
+        Bulk delete multiple items from a Directus collection in a single HTTP request.
+        This is more efficient than deleting items one by one.
+        
+        Args:
+            collection: The name of the Directus collection
+            item_ids: List of item IDs to delete
+            params: Optional query parameters
+            
+        Returns:
+            True if all items were successfully deleted, False otherwise
+        """
+        if not item_ids:
+            logger.warning(f"bulk_delete_items called with empty item_ids list for collection {collection}")
+            return True  # Nothing to delete is considered success
+        
+        url = f"{self.base_url}/items/{collection}"
+        
+        # Get authentication token
+        token = await self.ensure_auth_token()
+        if not token:
+            logger.error("Failed to get authentication token for bulk delete")
+            return False
+        
+        # Prepare headers and body
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+        body = json.dumps({"keys": item_ids})
+        
+        try:
+            # Use httpx's generic request() method which supports content for DELETE
+            # The convenience method delete() doesn't support json/content parameters
+            response_obj = await self._client.request(
+                "DELETE",
+                url,
+                content=body,
+                headers=headers,
+                params=params,
+                timeout=3.0
+            )
+            
+            if response_obj.status_code == 204:  # No Content - success
+                logger.info(f"Successfully bulk deleted {len(item_ids)} items from collection {collection}")
+                return True
+            else:
+                logger.error(
+                    f"Failed to bulk delete {len(item_ids)} items from collection {collection}. "
+                    f"Status: {response_obj.status_code}, Response: {response_obj.text[:200]}"
+                )
+                return False
+                
+        except Exception as e:
+            logger.error(
+                f"Exception during bulk delete of {len(item_ids)} items in collection {collection}: {e}",
+                exc_info=True
+            )
+            return False
 
     # Authentication methods
     get_auth_lock = get_auth_lock
@@ -265,6 +1046,15 @@ class DirectusService:
     get_all_invite_codes = get_all_invite_codes
     consume_invite_code = consume_invite_code # Assign the imported method
     
+    # Gift card methods
+    get_gift_card_by_code = get_gift_card_by_code
+    get_all_gift_cards = get_all_gift_cards
+    redeem_gift_card = redeem_gift_card
+    create_gift_card = create_gift_card
+    record_gift_card_redemption = record_gift_card_redemption
+    get_user_redeemed_gift_cards = get_user_redeemed_gift_cards
+    get_user_purchased_gift_cards = get_user_purchased_gift_cards
+    
     # User management methods
     create_user = create_user
     login_user = login_user
@@ -272,8 +1062,11 @@ class DirectusService:
     logout_user = logout_user
     logout_all_sessions = logout_all_sessions
     get_user_by_hashed_email = get_user_by_hashed_email
+    get_user_by_hashed_username = get_user_by_hashed_username
+    hash_username = hash_username
     refresh_token = refresh_token
     get_total_users_count = get_total_users_count
+    get_completed_signups_count = get_completed_signups_count
     get_active_users_since = get_active_users_since
     delete_user = delete_user
     update_user = update_user
@@ -287,10 +1080,21 @@ class DirectusService:
     get_encryption_key = get_encryption_key
     authenticate_user_by_lookup_hash = authenticate_user_by_lookup_hash
     add_user_lookup_hash = add_user_lookup_hash
+    get_user_by_subscription_id = get_user_by_subscription_id
 
     # Device management methods
     add_user_device_hash = add_user_device_hash # Updated
     get_user_device_hashes = get_user_device_hashes # Updated
+    
+    # API key device management methods
+    get_api_key_device_by_hash = get_api_key_device_by_hash
+    create_api_key_device = create_api_key_device
+    update_api_key_device_last_access = update_api_key_device_last_access
+    get_api_key_devices = get_api_key_devices
+    approve_api_key_device = approve_api_key_device
+    revoke_api_key_device = revoke_api_key_device
+    get_pending_api_key_devices = get_pending_api_key_devices
+    update_api_key_device_name = update_api_key_device_name
 
     # Chat methods are accessed via self.chat.method_name
     # e.g., await self.chat.get_chat_metadata(chat_id)

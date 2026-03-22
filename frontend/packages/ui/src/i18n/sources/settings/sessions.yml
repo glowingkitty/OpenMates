@@ -1,0 +1,373 @@
+# Active Sessions Settings Translations
+# Used in SettingsSessions.svelte and SettingsSecurity.svelte
+# Architecture: docs/architecture/device-sessions.md
+
+title:
+  context: Title for the active sessions settings page
+  en: Active Sessions
+  de: Aktive Sitzungen
+
+description:
+  context: Description shown at the top of the active sessions page
+  en: Manage your active sessions across all devices. You can remove individual sessions or log out from all devices at once.
+  de: Verwalte deine aktiven Sitzungen auf allen Geräten. Du kannst einzelne Sitzungen entfernen oder dich von allen Geräten gleichzeitig abmelden.
+
+description_short:
+  context: Short subtitle shown in the security menu for the sessions entry
+  en: Manage your connected devices
+  de: Verbundene Geräte verwalten
+
+loading:
+  context: Loading state message while sessions are being fetched
+  en: Loading sessions...
+  de: Sitzungen werden geladen...
+
+no_sessions:
+  context: Empty state message when no sessions are found
+  en: No active sessions found.
+  de: Keine aktiven Sitzungen gefunden.
+
+this_device:
+  context: Badge label indicating the current device session
+  en: This device
+  de: Dieses Gerät
+
+unknown_device:
+  context: Fallback device name when device cannot be identified
+  en: Unknown device
+  de: Unbekanntes Gerät
+
+unknown_location:
+  context: Fallback location text when location is not available
+  en: Unknown location
+  de: Unbekannter Standort
+
+logged_in:
+  context: Label for the login time detail row
+  en: Logged in
+  de: Angemeldet
+
+session_type:
+  context: Label for the session type detail row (stay logged in vs session-only)
+  en: Session type
+  de: Sitzungstyp
+
+staying_logged_in:
+  context: Value when user chose to stay logged in (persistent session)
+  en: Stay logged in
+  de: Angemeldet bleiben
+
+session_only:
+  context: Value when session expires on browser close
+  en: Session only
+  de: Nur Sitzung
+
+remove:
+  context: Button text to remove/revoke a single session
+  en: Remove
+  de: Entfernen
+
+removing:
+  context: Button text while a session removal is in progress
+  en: Removing...
+  de: Wird entfernt...
+
+confirm_remove:
+  context: Confirmation dialog text before removing a session
+  en: Remove this session? The device will be logged out immediately.
+  de: Diese Sitzung entfernen? Das Gerät wird sofort abgemeldet.
+
+logout_all_others:
+  context: Button text to log out all other devices except current
+  en: Log out all other devices
+  de: Alle anderen Geräte abmelden
+
+confirm_logout_others:
+  context: Confirmation dialog text before logging out all other devices
+  en: Log out all other devices? They will need to log in again.
+  de: Alle anderen Geräte abmelden? Sie müssen sich erneut anmelden.
+
+logout_all_devices:
+  context: Button text to log out from all devices including current (nuclear option)
+  en: Log out on all devices
+  de: Von allen Geräten abmelden
+
+confirm_logout_all:
+  context: Confirmation dialog text before logging out all devices
+  en: Log out on all devices? This will also log you out of this device and clear all trusted devices. Every future login will require re-authentication.
+  de: Von allen Geräten abmelden? Dies meldet dich auch von diesem Gerät ab und löscht alle vertrauenswürdigen Geräte. Jede zukünftige Anmeldung erfordert eine erneute Authentifizierung.
+
+logout_all_hint:
+  context: Warning hint text below the logout-all button
+  en: This will also clear all trusted devices. Every future login will require full re-authentication.
+  de: Dies löscht auch alle vertrauenswürdigen Geräte. Jede zukünftige Anmeldung erfordert vollständige Neu-Authentifizierung.
+
+processing:
+  context: Button text while a bulk logout operation is in progress
+  en: Processing...
+  de: Wird verarbeitet...
+
+just_now:
+  context: Relative time label for events that happened less than a minute ago
+  en: Just now
+  de: Gerade eben
+
+minute_ago:
+  context: Relative time label for exactly 1 minute ago
+  en: 1 minute ago
+  de: Vor 1 Minute
+
+minutes_ago:
+  context: Relative time label for N minutes ago (placeholder {n} is replaced with the number)
+  en: "{n} minutes ago"
+  de: "Vor {n} Minuten"
+
+hour_ago:
+  context: Relative time label for exactly 1 hour ago
+  en: 1 hour ago
+  de: Vor 1 Stunde
+
+hours_ago:
+  context: Relative time label for N hours ago (placeholder {n} is replaced with the number)
+  en: "{n} hours ago"
+  de: "Vor {n} Stunden"
+
+day_ago:
+  context: Relative time label for exactly 1 day ago
+  en: 1 day ago
+  de: Vor 1 Tag
+
+days_ago:
+  context: Relative time label for N days ago (placeholder {n} is replaced with the number)
+  en: "{n} days ago"
+  de: "Vor {n} Tagen"
+
+# ---------------------------------------------------------------------------
+# Magic Pair Login — Initiating device (SettingsSessionsPairInitiate)
+# ---------------------------------------------------------------------------
+
+pair_initiate_title:
+  context: Title for the "log in from another device" initiation page
+  en: Log In from Another Device
+  de: Von einem anderen Gerät anmelden
+
+pair_initiate_description:
+  context: Description shown on the pair initiation page
+  en: Scan the QR code or enter the code below on your new device to log in.
+  de: Scanne den QR-Code oder gib den Code unten auf deinem neuen Gerät ein, um dich anzumelden.
+
+pair_code_label:
+  context: Label above the 6-character pair code
+  en: Pair code
+  de: Kopplungscode
+
+pair_url_label:
+  context: Label for the URL section showing the full pair URL
+  en: Or open this link
+  de: Oder diesen Link öffnen
+
+pair_auto_logout_label:
+  context: Label for the auto-logout timer selector on the pair initiation page
+  en: Auto-logout after
+  de: Automatisch abmelden nach
+
+pair_auto_logout_none:
+  context: Option for no auto-logout in the selector
+  en: Never (manual logout only)
+  de: Nie (nur manuell abmelden)
+
+pair_auto_logout_30m:
+  context: Option for 30-minute auto-logout
+  en: 30 minutes
+  de: 30 Minuten
+
+pair_auto_logout_1h:
+  context: Option for 1-hour auto-logout
+  en: 1 hour
+  de: 1 Stunde
+
+pair_auto_logout_4h:
+  context: Option for 4-hour auto-logout
+  en: 4 hours
+  de: 4 Stunden
+
+pair_auto_logout_8h:
+  context: Option for 8-hour auto-logout
+  en: 8 hours
+  de: 8 Stunden
+
+pair_auto_logout_24h:
+  context: Option for 24-hour auto-logout
+  en: 24 hours
+  de: 24 Stunden
+
+pair_waiting:
+  context: Status shown while waiting for the other device to scan the code
+  en: Waiting for the other device…
+  de: Warte auf das andere Gerät…
+
+pair_generating:
+  context: Status shown while generating the pair code
+  en: Generating code…
+  de: Code wird generiert…
+
+pair_expired:
+  context: Status shown when the pair code has expired
+  en: Code expired
+  de: Code abgelaufen
+
+pair_refresh:
+  context: Button to generate a new pair code after expiry
+  en: Generate a new code
+  de: Neuen Code generieren
+
+pair_copy_link:
+  context: Button to copy the pair URL to clipboard
+  en: Copy link
+  de: Link kopieren
+
+pair_copied:
+  context: Brief confirmation after the link was copied
+  en: Copied!
+  de: Kopiert!
+
+# ---------------------------------------------------------------------------
+# Magic Pair Login — Authorizing device (SettingsSessionsConfirmPair)
+# ---------------------------------------------------------------------------
+
+pair_confirm_title:
+  context: Title shown on the authorizing device when confirming a pairing request
+  en: Confirm Device Login
+  de: Geräteanmeldung bestätigen
+
+pair_confirm_description:
+  context: Description shown on the authorizing device, prompting review of the requesting device info
+  en: A new device is requesting access. Review the details below before allowing.
+  de: Ein neues Gerät bittet um Zugang. Überprüfe die Details, bevor du zulässt.
+
+pair_confirm_requesting_device:
+  context: Section label showing the requesting device details
+  en: Requesting device
+  de: Anfragendes Gerät
+
+pair_confirm_allow:
+  context: Button to allow/authorize the pairing request
+  en: Allow
+  de: Erlauben
+
+pair_confirm_deny:
+  context: Button to deny the pairing request
+  en: Deny
+  de: Ablehnen
+
+pair_confirm_allowing:
+  context: Button state while authorization is in progress
+  en: Authorizing…
+  de: Wird autorisiert…
+
+pair_confirm_show_pin:
+  context: Label for the PIN section shown to the authorizing user after allowing
+  en: Share this PIN with the other device
+  de: Diesen PIN dem anderen Gerät mitteilen
+
+pair_confirm_pin_hint:
+  context: Hint shown below the PIN explaining it must be entered on the new device
+  en: Enter this PIN on the new device to complete login.
+  de: Gib diesen PIN auf dem neuen Gerät ein, um die Anmeldung abzuschließen.
+
+pair_confirm_auto_logout_label:
+  context: Label for the auto-logout option shown to the authorizing device before approving
+  en: Auto-logout on the new device after
+  de: Automatische Abmeldung auf dem neuen Gerät nach
+
+pair_confirm_denied:
+  context: Message shown after the request was denied
+  en: Request denied.
+  de: Anfrage abgelehnt.
+
+pair_confirm_error:
+  context: Generic error shown when authorization fails
+  en: Authorization failed. Please try again.
+  de: Autorisierung fehlgeschlagen. Bitte versuche es erneut.
+
+pair_invalid_token:
+  context: Error when the pair token is invalid or not found
+  en: This pair code is invalid or has expired. Ask the other device to generate a new code.
+  de: Dieser Kopplungscode ist ungültig oder abgelaufen. Bitte das andere Gerät, einen neuen Code zu generieren.
+
+# ---------------------------------------------------------------------------
+# Magic Pair Login — Completing device (PIN entry on new device)
+# ---------------------------------------------------------------------------
+
+pair_enter_pin_title:
+  context: Title for the PIN entry step on the initiating device
+  en: Enter PIN
+  de: PIN eingeben
+
+pair_enter_pin_description:
+  context: Description for the PIN entry step
+  en: Enter the 6-digit PIN shown on your other device.
+  de: Gib den 6-stelligen PIN ein, der auf deinem anderen Gerät angezeigt wird.
+
+pair_pin_placeholder:
+  context: Placeholder for the PIN input field
+  en: "000000"
+  de: "000000"
+
+pair_login:
+  context: Button to complete login after entering PIN
+  en: Log in
+  de: Anmelden
+
+pair_logging_in:
+  context: Button state while login is in progress
+  en: Logging in…
+  de: Anmeldung läuft…
+
+pair_pin_error:
+  context: Error when the PIN is incorrect
+  en: Incorrect PIN. {n} attempt(s) remaining.
+  de: Falscher PIN. Noch {n} Versuch(e).
+
+pair_pin_locked:
+  context: Error when too many wrong PIN attempts have been made
+  en: Too many incorrect attempts. This pair code is now invalid.
+  de: Zu viele falsche Versuche. Dieser Kopplungscode ist jetzt ungültig.
+
+# ---------------------------------------------------------------------------
+# Magic Pair Login — Restricted session banner
+# ---------------------------------------------------------------------------
+
+pair_restricted_banner:
+  context: Banner shown at the top of the screen during a restricted pair session
+  en: Restricted session — logged in from {device}
+  de: Eingeschränkte Sitzung — angemeldet von {device}
+
+pair_restricted_banner_no_device:
+  context: Banner shown when the authorizer device name is not available
+  en: Restricted session
+  de: Eingeschränkte Sitzung
+
+pair_restricted_auto_logout:
+  context: Timer shown in the restricted session banner (auto-logout countdown)
+  en: Auto-logout in {time}
+  de: Automatische Abmeldung in {time}
+
+# ---------------------------------------------------------------------------
+# Magic Pair Login — "Log in from another device" entry point
+# ---------------------------------------------------------------------------
+
+pair_login_from_device_title:
+  context: Title for the entry point on the Sessions page and Login page
+  en: Log In from Another Device
+  de: Von einem anderen Gerät anmelden
+
+pair_login_from_device_description:
+  context: Short description for the entry point
+  en: Use a QR code or short code to log in without a password.
+  de: Nutze einen QR-Code oder Kurzcode, um dich ohne Passwort anzumelden.
+
+pair_login_from_device_button:
+  context: Button label to start the pair login flow
+  en: Set up code
+  de: Code einrichten

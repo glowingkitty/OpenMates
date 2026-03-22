@@ -1,0 +1,1296 @@
+# backend/core/api/app/routes/admin.py
+"""
+REST API endpoints for server administration functionality.
+"""
+
+import logging
+import os
+import random
+import string
+from typing import Dict, Any, List, Optional
+from fastapi import APIRouter, HTTPException, Request, Depends
+from pydantic import BaseModel, Field, field_validator
+
+from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.limiter import limiter
+from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user, get_cache_service
+from backend.core.api.app.models.user import User
+from backend.core.api.app.services.cache import CacheService
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(
+    prefix="/v1/admin",
+    tags=["Admin"]
+)
+
+# --- Dependency to get services from app.state ---
+
+def get_directus_service(request: Request) -> DirectusService:
+    if not hasattr(request.app.state, 'directus_service'):
+        logger.error("DirectusService not found in app.state")
+        raise HTTPException(status_code=500, detail="Internal configuration error")
+    return request.app.state.directus_service
+
+async def require_admin(
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service)
+) -> User:
+    """Dependency to ensure user has admin privileges"""
+    is_admin = await directus_service.admin.is_user_admin(current_user.id)
+    if not is_admin:
+        raise HTTPException(status_code=403, detail="Admin privileges required")
+    return current_user
+
+# --- Request/Response Models ---
+
+class BecomeAdminRequest(BaseModel):
+    """Request model for becoming admin using token"""
+    token: str
+
+class ApproveDemoChatRequest(BaseModel):
+    """Request model for approving a demo chat"""
+    demo_chat_id: str  # UUID of the demo_chats entry
+    chat_id: str  # The original chat_id (for verification)
+    replace_demo_chat_id: str | None = None  # Optional: UUID of demo chat to replace (if at limit)
+    demo_chat_category: str = "for_everyone"  # Target audience: "for_everyone" (default, max 6) or "for_developers" (max 4)
+
+class UpdateDemoChatCategoryRequest(BaseModel):
+    """Request model for updating a demo chat's category"""
+    demo_chat_category: str  # New category: "for_everyone" or "for_developers"
+
+class RejectSuggestionRequest(BaseModel):
+    """Request model for rejecting a community suggestion"""
+    demo_chat_id: str  # UUID of the demo_chats entry
+    chat_id: str  # The original chat_id (for updating the chats table)
+
+class GenerateGiftCardsRequest(BaseModel):
+    """Request model for admin gift card generation.
+    
+    Allows admins to generate one or more gift card codes with a specified
+    credit value, optional custom prefix (replaces first segment of XXXX-XXXX-XXXX),
+    and optional admin notes.
+    """
+    credits_value: int = Field(..., ge=1, le=50000, description="Credit value for each gift card (1-50,000)")
+    count: int = Field(default=1, ge=1, le=100, description="Number of gift cards to generate (1-100)")
+    prefix: Optional[str] = Field(default=None, max_length=4, description="Optional custom prefix (max 4 chars, replaces first segment)")
+    notes: Optional[str] = Field(default=None, max_length=500, description="Optional admin notes for these gift cards")
+
+    @field_validator('prefix')
+    @classmethod
+    def validate_prefix(cls, v: Optional[str]) -> Optional[str]:
+        if v is None or v == '':
+            return None
+        v = v.upper().strip()
+        # Charset must match the gift card generation charset:
+        # Uppercase letters (excluding O, I) + digits (excluding 0, 1)
+        valid_charset = set(
+            string.ascii_uppercase.replace('O', '').replace('I', '')
+            + string.digits.replace('0', '').replace('1', '')
+        )
+        if not all(c in valid_charset for c in v):
+            raise ValueError(
+                'Prefix must only contain uppercase letters (A-Z excluding O, I) '
+                'and digits (2-9). Ambiguous characters (0, O, I, 1) are not allowed.'
+            )
+        if len(v) < 1 or len(v) > 4:
+            raise ValueError('Prefix must be 1-4 characters long')
+        return v
+
+class GenerateGiftCardsResponse(BaseModel):
+    """Response model for admin gift card generation."""
+    success: bool
+    gift_cards: List[Dict[str, Any]]  # List of {code, credits_value, created_at}
+    count: int
+    message: str
+
+class AdminGiftCardItem(BaseModel):
+    """A single gift card item returned in the admin list."""
+    id: str
+    code: str
+    credits_value: int
+    created_at: Optional[str] = None
+    notes: Optional[str] = None
+    purchased_at: Optional[str] = None  # None = admin-generated, set = user-purchased
+
+class AdminGiftCardListResponse(BaseModel):
+    """Response model for the admin gift card list endpoint."""
+    success: bool
+    gift_cards: List[AdminGiftCardItem]
+    count: int
+
+# --- Endpoints ---
+
+@router.post("/become-admin")
+@limiter.limit("5/minute")  # Strict rate limiting for admin creation
+async def become_admin(
+    request: Request,
+    payload: BecomeAdminRequest,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service)
+) -> Dict[str, Any]:
+    """
+    Grant admin privileges using a temporary token.
+
+    This endpoint is used by the /settings/server/become-admin route
+    when a server admin uses the docker exec command to generate an admin token.
+    """
+    try:
+        # Validate the admin token
+        is_valid = await directus_service.admin.validate_admin_token(payload.token)
+        if not is_valid:
+            logger.warning(f"Invalid admin token used by user {current_user.id}")
+            raise HTTPException(status_code=400, detail="Invalid or expired admin token")
+
+        # Grant admin privileges
+        success = await directus_service.admin.make_user_admin(current_user.id)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to grant admin privileges")
+
+        logger.info(f"Granted admin privileges to user {current_user.id}")
+
+        return {
+            "success": True,
+            "message": "Admin privileges granted successfully"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in become admin: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to process admin request")
+
+@router.get("/community-suggestions")
+@limiter.limit("30/minute")
+async def get_community_suggestions(
+    request: Request,
+    admin_user: User = Depends(require_admin),
+    directus_service: DirectusService = Depends(get_directus_service)
+) -> Dict[str, Any]:
+    """
+    Get pending community chat suggestions for admin review.
+
+    Returns demo_chats entries with status='pending_approval'.
+    These are chats that were shared with the community and are pending admin approval.
+    The metadata is decrypted using the demo_chats vault key for display.
+    """
+    try:
+        import json
+        
+        # Get all pending demo chats (status='pending_approval')
+        pending_demos = await directus_service.demo_chat.get_pending_demo_chats()
+        
+        suggestions = []
+        for demo in pending_demos:
+            demo_chat_item = demo  # demo is already the full item with 'id' field
+            chat_id = demo.get("original_chat_id")
+            
+            # Get metadata from cleartext fields
+            title = demo.get("title")
+            summary = demo.get("summary")
+            category = demo.get("category")
+            icon = demo.get("icon")
+            
+            # Parse follow-up suggestions from cleartext JSON
+            follow_up_suggestions = []
+            if demo.get("follow_up_suggestions"):
+                try:
+                    follow_up_suggestions = json.loads(demo["follow_up_suggestions"])
+                except Exception as e:
+                    logger.warning(f"Failed to parse follow-up suggestions for pending demo {demo_chat_item['id']}: {e}")
+            
+            # No encryption_key field anymore with zero-knowledge architecture
+            encryption_key = None
+            
+            suggestions.append({
+                "demo_chat_id": demo_chat_item["id"],  # UUID of the demo_chats entry
+                "chat_id": chat_id,
+                "title": title or "Untitled Chat",
+                "summary": summary,
+                "category": category,
+                "icon": icon,
+                "follow_up_suggestions": follow_up_suggestions,
+                "shared_at": demo.get("created_at"),
+                "share_link": f"/share/chat/{chat_id}",
+                "encryption_key": encryption_key,  # The chat encryption key for approval
+                "status": demo.get("status")
+            })
+        
+        return {
+            "suggestions": suggestions,
+            "count": len(suggestions)
+        }
+    
+    except Exception as e:
+        logger.error(f"Error getting community suggestions: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to get community suggestions")
+
+@router.post("/approve-demo-chat")
+@limiter.limit("10/hour")  # Limit demo chat approvals
+async def approve_demo_chat(
+    request: Request,
+    payload: ApproveDemoChatRequest,
+    admin_user: User = Depends(require_admin),
+    directus_service: DirectusService = Depends(get_directus_service)
+) -> Dict[str, Any]:
+    """
+    Approve a pending demo chat for translation and publication.
+
+    Updates an existing demo_chat entry (status='pending_approval') to
+    status='translating' and triggers the translation task.
+    
+    Enforces a limit of 10 published demo chats total (6 for_everyone + 4 for_developers).
+    Admin selects the demo_chat_category ("for_everyone" or "for_developers") during approval.
+    """
+    try:
+        from datetime import datetime, timezone
+        
+        # Validate demo_chat_category
+        if payload.demo_chat_category not in ("for_everyone", "for_developers"):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid demo_chat_category: {payload.demo_chat_category}. Must be 'for_everyone' or 'for_developers'."
+            )
+        
+        # Category-specific limits: 6 for "for_everyone", 4 for "for_developers"
+        CATEGORY_LIMITS = {"for_everyone": 6, "for_developers": 4}
+        category_limit = CATEGORY_LIMITS[payload.demo_chat_category]
+        
+        # Verify the pending demo_chat exists (payload.demo_chat_id is the UUID)
+        demo_chats = await directus_service.get_items("demo_chats", {
+            "filter": {"id": {"_eq": payload.demo_chat_id}},
+            "limit": 1
+        })
+        demo_chat = demo_chats[0] if demo_chats else None
+        if not demo_chat:
+            raise HTTPException(status_code=404, detail="Demo chat not found")
+        
+        # Verify it's in pending status
+        if demo_chat.get("status") != "pending_approval":
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Demo chat is not pending approval (current status: {demo_chat.get('status')})"
+            )
+        
+        # Verify the chat_id matches the demo_chat entry
+        if demo_chat.get("original_chat_id") != payload.chat_id:
+            raise HTTPException(status_code=400, detail="Chat ID mismatch")
+
+        # Note: No need to verify the original chat still exists.
+        # The demo_chat entry already contains all content needed for translation,
+        # independent of whether the original user chat was deleted.
+
+        # Check current published demo chat count for the selected category
+        # Query Directus directly to avoid cache format issues
+        current_demos = await directus_service.get_items("demo_chats", {
+            "filter": {
+                "is_active": {"_eq": True},
+                "status": {"_eq": "published"}
+            },
+            "sort": "-created_at"
+        })
+        current_demos = current_demos or []
+        # Filter demos by the target category
+        category_demos = [d for d in current_demos if d.get("demo_chat_category") == payload.demo_chat_category]
+        
+        if len(category_demos) >= category_limit:
+            # Determine which demo to replace (from the same category)
+            demo_to_remove_id = None
+            
+            if payload.replace_demo_chat_id:
+                # Admin specified which demo to replace - validate it exists in current demos
+                demo_ids = [d["id"] for d in current_demos]
+                if payload.replace_demo_chat_id not in demo_ids:
+                    raise HTTPException(
+                        status_code=400, 
+                        detail="Specified replacement demo chat not found or not currently published"
+                    )
+                demo_to_remove_id = payload.replace_demo_chat_id
+                logger.info(f"Admin selected demo chat {demo_to_remove_id} for replacement")
+            else:
+                # No replacement specified - fall back to oldest demo in the same category
+                category_demos.sort(key=lambda x: x.get("created_at", ""))
+                demo_to_remove_id = category_demos[0]["id"]
+                logger.info(f"No replacement specified, defaulting to oldest '{payload.demo_chat_category}' demo chat {demo_to_remove_id}")
+            
+            logger.info(f"Deleting demo chat {demo_to_remove_id} to make room for new demo")
+            
+            # Batch delete all related data using filters
+            # Note: Directus batch delete uses filter parameters
+            await directus_service.delete_items("demo_messages", {"demo_chat_id": {"_eq": demo_to_remove_id}}, admin_required=True)
+            await directus_service.delete_items("demo_embeds", {"demo_chat_id": {"_eq": demo_to_remove_id}}, admin_required=True)
+            await directus_service.delete_items("demo_chat_translations", {"demo_chat_id": {"_eq": demo_to_remove_id}}, admin_required=True)
+            
+            # Finally, delete the demo_chat entry itself
+            await directus_service.delete_item("demo_chats", demo_to_remove_id, admin_required=True)
+            logger.info(f"Deleted demo chat {demo_to_remove_id} and all related data")
+        
+        # Update the demo_chat entry: status -> 'translating', approved_by_admin -> admin UUID, demo_chat_category
+        updates = {
+            "status": "translating",
+            "approved_by_admin": admin_user.id,  # Store admin UUID
+            "approved_at": datetime.now(timezone.utc).isoformat(),
+            "demo_chat_category": payload.demo_chat_category  # Store target audience category
+        }
+        
+        result = await directus_service.update_item("demo_chats", payload.demo_chat_id, updates, admin_required=True)
+        if not result:
+            raise HTTPException(status_code=500, detail="Failed to update demo chat status")
+        
+        # Trigger translation task (pass UUID, not demo_id string)
+        from backend.core.api.app.tasks.demo_tasks import translate_demo_chat_task
+        translate_demo_chat_task.delay(payload.demo_chat_id, admin_user_id=admin_user.id)
+        
+        logger.info(f"Admin {admin_user.id} approved demo chat {payload.demo_chat_id} for chat {payload.chat_id}. Translation task triggered.")
+        
+        return {
+            "success": True,
+            "demo_chat_id": payload.demo_chat_id,
+            "message": "Demo chat approved and translation process started"
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error approving demo chat: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to approve demo chat")
+
+@router.post("/reject-suggestion")
+@limiter.limit("30/minute")
+async def reject_suggestion(
+    request: Request,
+    payload: RejectSuggestionRequest,
+    admin_user: User = Depends(require_admin),
+    directus_service: DirectusService = Depends(get_directus_service)
+) -> Dict[str, Any]:
+    """
+    Reject a pending community suggestion.
+    
+    This deletes the pending demo_chat entry and all related data (messages, embeds, translations)
+    and sets share_with_community to False on the original chat so it won't be re-submitted.
+    
+    CRITICAL: All related data must be deleted to prevent orphaned foreign key references.
+    """
+    try:
+        demo_chat_id = payload.demo_chat_id
+        
+        logger.info(f"Admin {admin_user.id} rejecting demo_chat {demo_chat_id}")
+        
+        # Batch delete all related data using filters (CRITICAL: must happen BEFORE deleting demo_chat)
+        # 1. Delete demo_messages
+        messages_deleted = await directus_service.delete_items(
+            "demo_messages",
+            {"demo_chat_id": {"_eq": demo_chat_id}},
+            admin_required=True
+        )
+        logger.info(f"Deleted {messages_deleted} demo_messages for demo_chat {demo_chat_id}")
+        
+        # 2. Delete demo_embeds
+        embeds_deleted = await directus_service.delete_items(
+            "demo_embeds",
+            {"demo_chat_id": {"_eq": demo_chat_id}},
+            admin_required=True
+        )
+        logger.info(f"Deleted {embeds_deleted} demo_embeds for demo_chat {demo_chat_id}")
+        
+        # 3. Delete demo_chat_translations
+        translations_deleted = await directus_service.delete_items(
+            "demo_chat_translations",
+            {"demo_chat_id": {"_eq": demo_chat_id}},
+            admin_required=True
+        )
+        logger.info(f"Deleted {translations_deleted} demo_chat_translations for demo_chat {demo_chat_id}")
+        
+        # 4. Finally, delete the demo_chat entry itself
+        success = await directus_service.delete_item("demo_chats", demo_chat_id, admin_required=True)
+        if not success:
+            raise HTTPException(status_code=404, detail="Demo chat not found")
+        
+        logger.info(f"Admin {admin_user.id} deleted demo chat {demo_chat_id} and all related data")
+        
+        # 5. Update the original chat to remove from community suggestions
+        # This prevents it from being re-submitted
+        await directus_service.update_item(
+            "chats", 
+            payload.chat_id, 
+            {"share_with_community": False}
+        )
+        
+        logger.info(f"Admin {admin_user.id} rejected community suggestion demo_chat_id={payload.demo_chat_id} for chat {payload.chat_id}")
+        
+        return {
+            "success": True,
+            "message": "Suggestion rejected successfully",
+            "deleted_counts": {
+                "messages": messages_deleted,
+                "embeds": embeds_deleted,
+                "translations": translations_deleted
+            }
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error rejecting community suggestion: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to reject suggestion")
+
+@router.get("/demo-chats")
+@limiter.limit("30/minute")
+async def get_admin_demo_chats(
+    request: Request,
+    admin_user: User = Depends(require_admin),
+    directus_service: DirectusService = Depends(get_directus_service)
+) -> Dict[str, Any]:
+    """
+    Get all demo chats for admin management.
+    """
+    try:
+        # Get language for enrichment
+        lang = request.query_params.get("lang", "en")
+        demo_chats = await directus_service.demo_chat.get_all_active_demo_chats(approved_only=False)
+        
+        # Enrich with language-specific metadata
+        enriched_demos = []
+        
+        for demo in demo_chats:
+            demo_chat_id = demo["id"]  # UUID
+            
+            # Get translation for this language
+            translation_params = {
+                "filter": {
+                    "demo_chat_id": {"_eq": demo_chat_id},
+                    "language": {"_eq": lang}
+                },
+                "limit": 1
+            }
+            translations = await directus_service.get_items("demo_chat_translations", translation_params)
+            translation = translations[0] if translations else None
+            
+            # Fallback to English if translation not found
+            if not translation and lang != "en":
+                translation_params["filter"]["language"] = {"_eq": "en"}
+                translations = await directus_service.get_items("demo_chat_translations", translation_params)
+                translation = translations[0] if translations else None
+            
+            # Get translation metadata (stored as cleartext)
+            title = None
+            summary = None
+            if translation:
+                title = translation.get("title")
+                summary = translation.get("summary")
+            
+            # Fallback to original metadata if translation not found
+            if not title:
+                title = demo.get("title")
+            
+            if not summary:
+                summary = demo.get("summary")
+
+            # Get category, icon, and demo_chat_category from original demo entry (stored as cleartext)
+            category = demo.get("category")
+            icon = demo.get("icon")
+            demo_chat_category = demo.get("demo_chat_category", "for_everyone")
+            
+            demo["title"] = title or "Demo Chat"
+            demo["summary"] = summary
+            demo["category"] = category
+            demo["icon"] = icon
+            demo["demo_chat_category"] = demo_chat_category
+            
+            enriched_demos.append(demo)
+
+        return {
+            "demo_chats": enriched_demos,
+            "count": len(enriched_demos),
+            "limit": 10,
+            "category_limits": {"for_everyone": 6, "for_developers": 4}
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting admin demo chats: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to get demo chats")
+
+@router.delete("/demo-chat/{demo_chat_id}")
+@limiter.limit("10/hour")
+async def delete_demo_chat(
+    request: Request,
+    demo_chat_id: str,  # UUID parameter
+    admin_user: User = Depends(require_admin),
+    directus_service: DirectusService = Depends(get_directus_service)
+) -> Dict[str, Any]:
+    """
+    Delete a demo chat and all related data (messages, embeds, translations).
+    """
+    try:
+        # Batch delete all related data using filters
+        await directus_service.delete_items("demo_messages", {"demo_chat_id": {"_eq": demo_chat_id}}, admin_required=True)
+        await directus_service.delete_items("demo_embeds", {"demo_chat_id": {"_eq": demo_chat_id}}, admin_required=True)
+        await directus_service.delete_items("demo_chat_translations", {"demo_chat_id": {"_eq": demo_chat_id}}, admin_required=True)
+        
+        # Finally, delete the demo_chat entry itself
+        success = await directus_service.delete_item("demo_chats", demo_chat_id, admin_required=True)
+        if not success:
+            raise HTTPException(status_code=404, detail="Demo chat not found")
+
+        logger.info(f"Admin {admin_user.id} deleted demo chat {demo_chat_id} and all related data")
+        
+        # Clear cache after deletion
+        await directus_service.cache.clear_demo_chats_cache()
+
+        return {
+            "success": True,
+            "message": "Demo chat deleted successfully"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting demo chat: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to delete demo chat")
+
+@router.patch("/demo-chat/{demo_chat_id}/category")
+@limiter.limit("30/minute")
+async def update_demo_chat_category(
+    request: Request,
+    demo_chat_id: str,
+    payload: UpdateDemoChatCategoryRequest,
+    admin_user: User = Depends(require_admin),
+    directus_service: DirectusService = Depends(get_directus_service)
+) -> Dict[str, Any]:
+    """
+    Update the demo_chat_category of an existing published demo chat.
+    
+    Enforces per-category limits (6 for_everyone, 4 for_developers).
+    If the target category is already at its limit, the request is rejected.
+    """
+    try:
+        new_category = payload.demo_chat_category
+        if new_category not in ("for_everyone", "for_developers"):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid demo_chat_category: {new_category}. Must be 'for_everyone' or 'for_developers'."
+            )
+
+        # Verify the demo chat exists and is published or translating
+        demo_chats = await directus_service.get_items("demo_chats", {
+            "filter": {"id": {"_eq": demo_chat_id}},
+            "limit": 1
+        })
+        demo_chat = demo_chats[0] if demo_chats else None
+        if not demo_chat:
+            raise HTTPException(status_code=404, detail="Demo chat not found")
+
+        current_category = demo_chat.get("demo_chat_category", "for_everyone")
+        if current_category == new_category:
+            return {
+                "success": True,
+                "message": "Category unchanged",
+                "demo_chat_category": new_category
+            }
+
+        # Check that the target category has room (excluding this demo from the count)
+        # Query Directus directly to avoid cache format issues
+        CATEGORY_LIMITS = {"for_everyone": 6, "for_developers": 4}
+        published_demos = await directus_service.get_items("demo_chats", {
+            "filter": {
+                "is_active": {"_eq": True},
+                "status": {"_eq": "published"},
+                "demo_chat_category": {"_eq": new_category},
+                "id": {"_neq": demo_chat_id}
+            }
+        })
+        target_category_count = len(published_demos) if published_demos else 0
+
+        if target_category_count >= CATEGORY_LIMITS[new_category]:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Category '{new_category}' is already at its limit of {CATEGORY_LIMITS[new_category]}. Remove a demo from that category first."
+            )
+
+        # Update the category
+        result = await directus_service.update_item(
+            "demo_chats", demo_chat_id,
+            {"demo_chat_category": new_category},
+            admin_required=True
+        )
+        if not result:
+            raise HTTPException(status_code=500, detail="Failed to update demo chat category")
+
+        # Clear cache so clients pick up the change
+        await directus_service.cache.clear_demo_chats_cache()
+
+        logger.info(f"Admin {admin_user.id} changed demo chat {demo_chat_id} category from '{current_category}' to '{new_category}'")
+
+        return {
+            "success": True,
+            "message": f"Category updated to '{new_category}'",
+            "demo_chat_category": new_category
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating demo chat category: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to update demo chat category")
+
+@router.get("/server-stats")
+@limiter.limit("30/minute")
+async def get_server_stats(
+    request: Request,
+    admin_user: User = Depends(require_admin),
+    directus_service: DirectusService = Depends(get_directus_service)
+) -> Dict[str, Any]:
+    """
+    Get server statistics for the admin dashboard.
+    Returns:
+    - daily/monthly server stats (last 30 days / 12 months)
+    - web analytics daily (last 30 days)
+    - signup funnel daily (last 30 days)
+    - app analytics daily (last 30 days)
+    All collections fetched in parallel for performance.
+    """
+    try:
+        import asyncio
+        from datetime import datetime
+
+        # Fetch all collections in parallel — avoids sequential round-trips to Directus
+        (
+            daily_stats,
+            monthly_stats,
+            web_analytics_daily,
+            signup_funnel_daily,
+            app_analytics_daily,
+        ) = await asyncio.gather(
+            # 1. Last 30 daily server stats records
+            directus_service.get_items(
+                "server_stats_global_daily",
+                params={"sort": "-date", "limit": 30}
+            ),
+            # 2. Last 12 monthly server stats records
+            directus_service.get_items(
+                "server_stats_global_monthly",
+                params={"sort": "-year_month", "limit": 12}
+            ),
+            # 3. Last 30 days of web traffic analytics
+            directus_service.get_items(
+                "web_analytics_daily",
+                params={"sort": "-date", "limit": 30}
+            ),
+            # 4. Last 30 days of signup funnel data
+            directus_service.get_items(
+                "signup_funnel_daily",
+                params={"sort": "-date", "limit": 30}
+            ),
+            # 5. Last 30 days of app analytics aggregates
+            directus_service.get_items(
+                "app_analytics_daily",
+                params={"sort": "-date", "limit": 30}
+            ),
+        )
+
+        # Current totals — prefer latest pre-aggregated daily record
+        current_stats = daily_stats[0] if daily_stats else {}
+
+        # Fetch newsletter subscriber count (confirmed subscribers only)
+        newsletter_subscribers_count = 0
+        try:
+            from backend.core.api.app.routes.newsletter import get_total_newsletter_subscribers_count
+            newsletter_subscribers_count = await get_total_newsletter_subscribers_count(directus_service)
+        except Exception as e:
+            logger.error(f"Error fetching newsletter subscribers count: {e}", exc_info=True)
+
+        return {
+            "current": current_stats,
+            "daily_history": daily_stats,
+            "monthly_history": monthly_stats,
+            "web_analytics_daily": web_analytics_daily,
+            "signup_funnel_daily": signup_funnel_daily,
+            "app_analytics_daily": app_analytics_daily,
+            "newsletter_subscribers_count": newsletter_subscribers_count,
+            "timestamp": datetime.now().isoformat()
+        }
+
+    except Exception as e:
+        logger.error(f"Error fetching server stats: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch server statistics")
+
+
+# --- Gift Card Code Generation ---
+# Charset: uppercase letters (excluding ambiguous O, I) + digits (excluding ambiguous 0, 1)
+# This matches the canonical charset used in payments.py for consistency
+GIFT_CARD_CHARSET = (
+    string.ascii_uppercase.replace('O', '').replace('I', '')
+    + string.digits.replace('0', '').replace('1', '')
+)
+
+
+def generate_gift_card_code(prefix: Optional[str] = None) -> str:
+    """
+    Generate a unique gift card code in the format XXXX-XXXX-XXXX.
+    Uses uppercase letters and digits, excluding ambiguous characters (0, O, I, 1).
+    
+    If a prefix is provided (1-4 chars), it replaces the first segment.
+    The prefix is right-padded with random chars to always produce a 4-char first segment.
+    Example: prefix='XM' -> 'XMAB-XXXX-XXXX'
+    
+    Args:
+        prefix: Optional custom prefix (1-4 chars, from the valid charset)
+        
+    Returns:
+        A gift card code string in XXXX-XXXX-XXXX format
+    """
+    if prefix:
+        # Prefix replaces start of first segment, pad remainder with random chars
+        prefix = prefix.upper()
+        remaining = 4 - len(prefix)
+        part1 = prefix + ''.join(random.choices(GIFT_CARD_CHARSET, k=remaining))
+    else:
+        part1 = ''.join(random.choices(GIFT_CARD_CHARSET, k=4))
+    
+    part2 = ''.join(random.choices(GIFT_CARD_CHARSET, k=4))
+    part3 = ''.join(random.choices(GIFT_CARD_CHARSET, k=4))
+    
+    return f"{part1}-{part2}-{part3}"
+
+
+@router.post("/generate-gift-cards", response_model=GenerateGiftCardsResponse)
+@limiter.limit("10/minute")
+async def admin_generate_gift_cards(
+    request: Request,
+    payload: GenerateGiftCardsRequest,
+    admin_user: User = Depends(require_admin),
+    directus_service: DirectusService = Depends(get_directus_service)
+) -> Dict[str, Any]:
+    """
+    Generate one or more gift card codes with a specified credit value.
+    
+    Admin-only endpoint. Creates gift cards in the database and returns
+    the generated codes. Supports optional custom prefix for the first
+    segment of the XXXX-XXXX-XXXX format and optional admin notes.
+    
+    Security: Protected by require_admin dependency which validates
+    the user is in the server_admins collection with is_active=True.
+    """
+    try:
+        generated_cards: List[Dict[str, Any]] = []
+        max_retries = 3  # Max retries per code in case of collision
+        
+        logger.info(
+            f"Admin {admin_user.id} generating {payload.count} gift card(s) "
+            f"with {payload.credits_value} credits each"
+            f"{f', prefix={payload.prefix}' if payload.prefix else ''}"
+        )
+        
+        for i in range(payload.count):
+            # Generate a unique code, retry on collision
+            code = None
+            for attempt in range(max_retries):
+                candidate = generate_gift_card_code(prefix=payload.prefix)
+                
+                # Check for collision by looking up the code
+                existing = await directus_service.get_gift_card_by_code(candidate)
+                if existing is None:
+                    code = candidate
+                    break
+                else:
+                    logger.warning(
+                        f"Gift card code collision on attempt {attempt + 1}: {candidate}. Retrying..."
+                    )
+            
+            if code is None:
+                logger.error(f"Failed to generate unique gift card code after {max_retries} retries")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to generate unique code for card {i + 1}. Please try again."
+                )
+            
+            # Create the gift card in Directus (no purchaser since admin-generated)
+            created_card = await directus_service.create_gift_card(
+                code=code,
+                credits_value=payload.credits_value,
+                purchaser_user_id_hash=None  # Admin-generated, not purchased
+            )
+            
+            if not created_card:
+                logger.error(f"Failed to create gift card with code: {code}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to create gift card {i + 1} in database. Please try again."
+                )
+            
+            # Add notes to the gift card if provided
+            # Notes are stored directly in the gift_cards table
+            if payload.notes:
+                try:
+                    await directus_service.update_item(
+                        "gift_cards",
+                        created_card["id"],
+                        {"notes": payload.notes}
+                    )
+                except Exception as notes_err:
+                    # Non-critical: log but don't fail the whole operation
+                    logger.warning(f"Failed to add notes to gift card {code}: {notes_err}")
+            
+            generated_cards.append({
+                "code": code,
+                "credits_value": payload.credits_value,
+                "created_at": created_card.get("created_at", "")
+            })
+        
+        logger.info(
+            f"Admin {admin_user.id} successfully generated {len(generated_cards)} gift card(s) "
+            f"with {payload.credits_value} credits each"
+        )
+        
+        return {
+            "success": True,
+            "gift_cards": generated_cards,
+            "count": len(generated_cards),
+            "message": f"Successfully generated {len(generated_cards)} gift card(s)"
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating gift cards: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to generate gift cards")
+
+
+@router.get("/gift-cards", response_model=AdminGiftCardListResponse)
+@limiter.limit("30/minute")
+async def admin_list_gift_cards(
+    request: Request,
+    admin_user: User = Depends(require_admin),
+    directus_service: DirectusService = Depends(get_directus_service)
+) -> Dict[str, Any]:
+    """
+    List all active (unredeemed) gift cards on the server.
+
+    Admin-only endpoint. Returns all gift cards currently in the database.
+    Redeemed cards are deleted on redemption, so all returned cards are still valid.
+
+    Security: Protected by require_admin dependency.
+    """
+    try:
+        cards = await directus_service.get_all_gift_cards()
+
+        # Normalise to the response model shape
+        gift_cards = [
+            {
+                "id": str(card.get("id", "")),
+                "code": card.get("code", ""),
+                "credits_value": card.get("credits_value", 0),
+                "created_at": card.get("created_at") or "",
+                "notes": card.get("notes") or None,
+                "purchased_at": card.get("purchased_at") or None,
+            }
+            for card in cards
+        ]
+
+        # Sort newest first so freshly generated cards appear at the top
+        gift_cards.sort(key=lambda c: c.get("created_at", ""), reverse=True)
+
+        logger.info(
+            f"Admin {admin_user.id} listed {len(gift_cards)} active gift card(s)"
+        )
+
+        return {
+            "success": True,
+            "gift_cards": gift_cards,
+            "count": len(gift_cards),
+        }
+
+    except Exception as e:
+        logger.error(f"Error listing gift cards: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to list gift cards")
+
+
+
+# --- Compression Threshold Admin Override ---
+# Architecture: See docs/architecture/chat-compression.md
+# Allows admins to set a custom compression trigger threshold (in tokens)
+# that overrides the default 100k threshold for their own account only.
+# This is stored in Redis and read by the AI worker during compression checks.
+
+ADMIN_COMPRESSION_THRESHOLD_CACHE_KEY = "admin:compression_threshold_override"
+
+
+class CompressionThresholdRequest(BaseModel):
+    """Request body for setting the admin compression threshold override."""
+    threshold: int = Field(
+        ...,
+        ge=1000,
+        le=500000,
+        description="Compression trigger threshold in estimated tokens (1000-500000)"
+    )
+
+
+class CompressionThresholdResponse(BaseModel):
+    """Response for compression threshold operations."""
+    success: bool = Field(default=True)
+    threshold: Optional[int] = Field(
+        None, description="Current threshold override (null if using default)"
+    )
+    default_threshold: int = Field(
+        default=100000, description="Default compression threshold"
+    )
+
+
+@router.get("/compression-threshold", response_model=CompressionThresholdResponse)
+@limiter.limit("30/minute")
+async def get_compression_threshold(
+    request: Request,
+    admin_user: User = Depends(require_admin),
+    cache_service: CacheService = Depends(get_cache_service),
+):
+    """Get the admin's current compression threshold override."""
+    try:
+        raw = await cache_service.redis.hget(
+            ADMIN_COMPRESSION_THRESHOLD_CACHE_KEY, admin_user.id
+        )
+        threshold = int(raw) if raw else None
+        return CompressionThresholdResponse(
+            success=True,
+            threshold=threshold,
+            default_threshold=100000,
+        )
+    except Exception as e:
+        logger.error(f"Error getting compression threshold: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to get compression threshold")
+
+
+@router.post("/compression-threshold", response_model=CompressionThresholdResponse)
+@limiter.limit("10/minute")
+async def set_compression_threshold(
+    request: Request,
+    body: CompressionThresholdRequest,
+    admin_user: User = Depends(require_admin),
+    cache_service: CacheService = Depends(get_cache_service),
+):
+    """Set a custom compression threshold override for the admin's account."""
+    try:
+        await cache_service.redis.hset(
+            ADMIN_COMPRESSION_THRESHOLD_CACHE_KEY, admin_user.id, str(body.threshold)
+        )
+        logger.info(
+            f"Admin {admin_user.id} set compression threshold to {body.threshold} tokens"
+        )
+        return CompressionThresholdResponse(
+            success=True,
+            threshold=body.threshold,
+            default_threshold=100000,
+        )
+    except Exception as e:
+        logger.error(f"Error setting compression threshold: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to set compression threshold")
+
+
+@router.delete("/compression-threshold", response_model=CompressionThresholdResponse)
+@limiter.limit("10/minute")
+async def delete_compression_threshold(
+    request: Request,
+    admin_user: User = Depends(require_admin),
+    cache_service: CacheService = Depends(get_cache_service),
+):
+    """Remove the admin's compression threshold override (revert to default)."""
+    try:
+        await cache_service.redis.hdel(
+            ADMIN_COMPRESSION_THRESHOLD_CACHE_KEY, admin_user.id
+        )
+        logger.info(f"Admin {admin_user.id} removed compression threshold override")
+        return CompressionThresholdResponse(
+            success=True,
+            threshold=None,
+            default_threshold=100000,
+        )
+    except Exception as e:
+        logger.error(f"Error deleting compression threshold: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to delete compression threshold")
+
+
+# =============================================================================
+# Test Results API — Admin-only endpoints for viewing test results and
+# triggering out-of-schedule test runs from the settings dashboard.
+#
+# Test results live as JSON files on disk (written by scripts/run-tests.sh and
+# scripts/run-tests-daily.sh). No database model needed — this endpoint reads
+# the existing files directly.
+#
+# Architecture: File-based test results, no DB persistence.
+# See scripts/run-tests.sh and scripts/run-tests-daily.sh for the file format.
+# =============================================================================
+
+# Cache key for tracking whether a manual test run is currently in progress
+MANUAL_TEST_RUN_CACHE_KEY = "admin:manual_test_run"
+# How long to keep the "in progress" flag before it auto-expires (seconds)
+MANUAL_TEST_RUN_TTL_SECONDS = 3600  # 1 hour max
+
+
+class TestResultsResponse(BaseModel):
+    """Response model for GET /v1/admin/test-results."""
+    has_results: bool = Field(description="Whether any test results are available")
+    last_run: Optional[Dict[str, Any]] = Field(None, description="Full last-run.json data")
+    last_run_timestamp: Optional[str] = Field(None, description="ISO timestamp of last run")
+    next_scheduled_run_utc: str = Field(description="ISO timestamp of next scheduled daily run (03:00 UTC)")
+    hours_until_next_run: float = Field(description="Hours until next scheduled daily run")
+    is_running: bool = Field(False, description="Whether a test run is currently in progress")
+    run_started_at: Optional[str] = Field(None, description="ISO timestamp when current run started (if running)")
+
+
+class TriggerTestRunResponse(BaseModel):
+    """Response model for POST /v1/admin/tests/run."""
+    success: bool = Field(description="Whether the test run was triggered")
+    message: str = Field(description="Status message")
+    already_running: bool = Field(False, description="True if a run was already in progress")
+
+
+def _get_project_root():
+    """Get the project root directory (works both on host and inside Docker)."""
+    import pathlib
+    # Walk up from this file to find the project root. Inside Docker the app
+    # is mounted at /app, so we look for the test-results or scripts directory
+    # as a project root indicator.
+    candidate = pathlib.Path(__file__).resolve()
+    for parent in candidate.parents:
+        if (parent / "scripts").is_dir() or (parent / "test-results").is_dir():
+            return parent
+    # Fallback: inside Docker /app is always the project root
+    return pathlib.Path("/app")
+
+
+def _compute_next_daily_run_utc() -> tuple:
+    """
+    Compute the next daily test run time (03:00 UTC).
+    Returns (iso_timestamp, hours_until).
+    """
+    from datetime import datetime, timezone, timedelta
+
+    now = datetime.now(timezone.utc)
+    # Next 03:00 UTC
+    today_run = now.replace(hour=3, minute=0, second=0, microsecond=0)
+    if now >= today_run:
+        next_run = today_run + timedelta(days=1)
+    else:
+        next_run = today_run
+
+    hours_until = (next_run - now).total_seconds() / 3600
+    return next_run.isoformat(), round(hours_until, 1)
+
+
+@router.get("/test-results", response_model=TestResultsResponse)
+@limiter.limit("30/minute")
+async def get_test_results(
+    request: Request,
+    admin_user: User = Depends(require_admin),
+    cache_service: CacheService = Depends(get_cache_service),
+) -> TestResultsResponse:
+    """
+    Get the latest test run results and scheduling info.
+
+    Reads test-results/last-run.json from disk and computes scheduling metadata.
+    Admin-only endpoint.
+    """
+    import json
+    project_root = _get_project_root()
+    last_run_path = project_root / "test-results" / "last-run.json"
+
+    next_run_utc, hours_until = _compute_next_daily_run_utc()
+
+    # Check if a manual run is in progress.
+    # The Redis flag is set when a run is triggered and has a 1-hour TTL.
+    # However, the sidecar may finish (or fail) much sooner. To avoid stale
+    # "running" state, we cross-check with the sidecar's actual status and
+    # clear the Redis flag if the sidecar reports the run is no longer active.
+    is_running = False
+    run_started_at = None
+    try:
+        run_data = await cache_service.redis.hgetall(MANUAL_TEST_RUN_CACHE_KEY)
+        if run_data and run_data.get("status") == "running":
+            is_running = True
+            run_started_at = run_data.get("started_at")
+
+            # Cross-check with sidecar: if sidecar says idle, clear stale flag
+            try:
+                import httpx
+                sidecar_url = os.environ.get("CORE_SIDECAR_URL", "http://core-admin-sidecar:8001")
+                sidecar_key = os.environ.get("SECRET__CORE_SERVER__ADMIN_LOG_API_KEY", "")
+                async with httpx.AsyncClient(timeout=3.0) as client:
+                    status_resp = await client.get(
+                        f"{sidecar_url}/admin/run-tests/status",
+                        headers={"X-Admin-Log-Key": sidecar_key},
+                    )
+                if status_resp.status_code == 200:
+                    sidecar_data = status_resp.json()
+                    sidecar_status = sidecar_data.get("status", "")
+                    if sidecar_status != "in_progress":
+                        # Sidecar is idle — run finished or failed; clear stale flag
+                        logger.info("Sidecar reports idle but Redis flag was 'running' — clearing stale flag")
+                        await cache_service.redis.delete(MANUAL_TEST_RUN_CACHE_KEY)
+                        is_running = False
+                        run_started_at = None
+            except Exception as sidecar_err:
+                # If we can't reach the sidecar, keep the Redis state as-is
+                logger.debug(f"Could not verify sidecar status: {sidecar_err}")
+    except Exception as e:
+        logger.warning(f"Failed to check test run status from cache: {e}")
+
+    if not last_run_path.exists():
+        return TestResultsResponse(
+            has_results=False,
+            last_run=None,
+            last_run_timestamp=None,
+            next_scheduled_run_utc=next_run_utc,
+            hours_until_next_run=hours_until,
+            is_running=is_running,
+            run_started_at=run_started_at,
+        )
+
+    try:
+        with open(last_run_path, "r") as f:
+            last_run = json.load(f)
+
+        last_run_timestamp = last_run.get("run_id")
+
+        return TestResultsResponse(
+            has_results=True,
+            last_run=last_run,
+            last_run_timestamp=last_run_timestamp,
+            next_scheduled_run_utc=next_run_utc,
+            hours_until_next_run=hours_until,
+            is_running=is_running,
+            run_started_at=run_started_at,
+        )
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse last-run.json: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to parse test results file")
+    except Exception as e:
+        logger.error(f"Failed to read test results: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to read test results")
+
+
+@router.post("/tests/run", response_model=TriggerTestRunResponse)
+@limiter.limit("5/minute")
+async def trigger_test_run(
+    request: Request,
+    admin_user: User = Depends(require_admin),
+    cache_service: CacheService = Depends(get_cache_service),
+) -> TriggerTestRunResponse:
+    """
+    Trigger an out-of-schedule full test run via the admin sidecar.
+
+    The sidecar executes scripts/run-tests-daily.sh on the host filesystem
+    (where Node.js, pnpm, pytest, and Docker CLI are available). The --force
+    flag is passed to skip the 24h commit-activity gate.
+    Only one run can be active at a time.
+    Admin-only endpoint.
+    """
+    import httpx
+    from datetime import datetime, timezone
+
+    # Check if a run is already in progress
+    try:
+        run_data = await cache_service.redis.hgetall(MANUAL_TEST_RUN_CACHE_KEY)
+        if run_data and run_data.get("status") == "running":
+            return TriggerTestRunResponse(
+                success=False,
+                message="A test run is already in progress",
+                already_running=True,
+            )
+    except Exception as e:
+        logger.warning(f"Failed to check test run status: {e}")
+
+    # Mark run as in progress
+    started_at = datetime.now(timezone.utc).isoformat()
+    try:
+        await cache_service.redis.hset(MANUAL_TEST_RUN_CACHE_KEY, mapping={
+            "status": "running",
+            "started_at": started_at,
+            "triggered_by": admin_user.id,
+        })
+        await cache_service.redis.expire(MANUAL_TEST_RUN_CACHE_KEY, MANUAL_TEST_RUN_TTL_SECONDS)
+    except Exception as e:
+        logger.warning(f"Failed to set test run status in cache: {e}")
+
+    # Trigger test run via the admin sidecar HTTP endpoint.
+    # The sidecar runs the script on the host filesystem where all tools exist.
+    # Manual triggers always use --force to skip the commit-activity gate.
+    sidecar_url = os.environ.get("CORE_SIDECAR_URL", "http://core-admin-sidecar:8001")
+    sidecar_key = os.environ.get("SECRET__CORE_SERVER__ADMIN_LOG_API_KEY", "")
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.post(
+                f"{sidecar_url}/admin/run-tests",
+                params={"force": "true"},
+                headers={"X-Admin-Log-Key": sidecar_key},
+            )
+            if resp.status_code == 409:
+                return TriggerTestRunResponse(
+                    success=False,
+                    message="A test run is already in progress on the sidecar",
+                    already_running=True,
+                )
+            if resp.status_code != 202:
+                raise Exception(f"Sidecar returned {resp.status_code}: {resp.text[:200]}")
+    except httpx.ConnectError:
+        logger.error("Failed to connect to admin sidecar at %s", sidecar_url)
+        try:
+            await cache_service.redis.delete(MANUAL_TEST_RUN_CACHE_KEY)
+        except Exception:
+            pass
+        raise HTTPException(
+            status_code=503,
+            detail="Admin sidecar not reachable. Ensure core-admin-sidecar container is running.",
+        )
+    except Exception as e:
+        logger.error(f"Failed to trigger test run via sidecar: {e}", exc_info=True)
+        try:
+            await cache_service.redis.delete(MANUAL_TEST_RUN_CACHE_KEY)
+        except Exception:
+            pass
+        raise HTTPException(status_code=500, detail=f"Failed to trigger test run: {e}")
+
+    logger.info(f"Manual test run triggered via sidecar by admin {admin_user.id}")
+
+    # Notify admin that the test run has started.
+    # This is non-fatal — a missing email must not break the trigger response.
+    try:
+        admin_email = os.environ.get("ADMIN_NOTIFY_EMAIL") or os.environ.get("SERVER_OWNER_EMAIL")
+        if admin_email:
+            import subprocess as _subprocess
+            git_sha, git_branch = "unknown", "unknown"
+            try:
+                git_sha = _subprocess.check_output(
+                    ["git", "rev-parse", "--short", "HEAD"],
+                    stderr=_subprocess.DEVNULL, text=True,
+                ).strip()
+                git_branch = _subprocess.check_output(
+                    ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                    stderr=_subprocess.DEVNULL, text=True,
+                ).strip()
+            except Exception:
+                pass
+            from backend.core.api.app.tasks.celery_config import app as celery_app
+            server_environment = os.environ.get("SERVER_ENVIRONMENT", "development")
+            celery_app.send_task(
+                name="app.tasks.email_tasks.test_run_started_email_task.send_test_run_started",
+                args=[admin_email, "Manual (admin)", git_sha, git_branch, started_at, server_environment],
+                queue="email",
+            )
+            logger.info(
+                "Dispatched test run started email for manual trigger (environment=%s)",
+                server_environment,
+            )
+        else:
+            logger.warning(
+                "ADMIN_NOTIFY_EMAIL / SERVER_OWNER_EMAIL not set — "
+                "skipping test run started email"
+            )
+    except Exception as email_err:
+        logger.warning(f"Could not dispatch test run started email: {email_err}")
+
+    return TriggerTestRunResponse(
+        success=True,
+        message="Test run started on the host. Results will appear once the run completes.",
+        already_running=False,
+    )

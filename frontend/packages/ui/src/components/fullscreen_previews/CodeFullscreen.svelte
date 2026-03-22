@@ -1,7 +1,7 @@
 <script lang="ts">
     import hljs from 'highlight.js';
     import { onMount } from 'svelte';
-    import { fade, scale } from 'svelte/transition';
+    import { scale } from 'svelte/transition';
     import { cubicOut } from 'svelte/easing';
     import { _ } from 'svelte-i18n';
     
@@ -75,7 +75,7 @@
         <button 
             class="close-button clickable-icon icon_fullscreen" 
             onclick={handleClose}
-            aria-label={$_('enter_message.exit_fullscreen.text')}
+            aria-label={$_('enter_message.exit_fullscreen')}
         ></button>
 
         <!-- Code content area -->

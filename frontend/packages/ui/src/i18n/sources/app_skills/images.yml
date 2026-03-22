@@ -1,0 +1,647 @@
+view:
+  context: Skill name shown on uploaded image embed card in read-only message display
+  en: Image
+  de: Bild
+  zh: 图片
+  es: Imagen
+  fr: Image
+  pt: Imagem
+  ru: Изображение
+  ja: 画像
+  ko: 이미지
+  it: Immagine
+  tr: Görsel
+  vi: Hình ảnh
+  id: Gambar
+  pl: Obraz
+  nl: Afbeelding
+  ar: صورة
+  hi: छवि
+  th: รูปภาพ
+  cs: Obrázek
+  sv: Bild
+  he: תמונה
+  verified_by_human:
+    - en
+    - de
+
+view.skill_title:
+  context: Skill title shown on the images/view skill-use embed card (the AI's "View" action result, not the original upload)
+  en: View
+  de: Ansicht
+  zh: 查看
+  es: Ver
+  fr: Voir
+  pt: Visualizar
+  ru: Просмотр
+  ja: 表示
+  ko: 보기
+  it: Visualizza
+  tr: Görüntüle
+  vi: Xem
+  id: Lihat
+  pl: Widok
+  nl: Bekijken
+  ar: عرض
+  hi: देखें
+  th: ดู
+  cs: Zobrazit
+  sv: Visa
+  he: צפייה
+  verified_by_human:
+    - en
+
+view.description:
+  context: Description shown below the skill name on uploaded image embed card
+  en: Uploaded image
+  de: Hochgeladenes Bild
+  zh: 已上传的图片
+  es: Imagen subida
+  fr: Image téléversée
+  pt: Imagem carregada
+  ru: Загруженное изображение
+  ja: アップロードした画像
+  ko: 업로드한 이미지
+  it: Immagine caricata
+  tr: Yüklenen görsel
+  vi: Hình ảnh đã tải lên
+  id: Gambar yang diunggah
+  pl: Przesłany obraz
+  nl: Geüploade afbeelding
+  ar: صورة مرفوعة
+  hi: अपलोड की गई छवि
+  th: รูปภาพที่อัปโหลด
+  cs: Nahraný obrázek
+  sv: Uppladdad bild
+  he: תמונה שהועלתה
+  verified_by_human:
+    - en
+    - de
+
+view.uploading:
+  context: Status text shown on image embed card while the image is being uploaded
+  en: "Uploading\u2026"
+  de: "Wird hochgeladen\u2026"
+  zh: "上传中\u2026"
+  es: "Subiendo\u2026"
+  fr: "Chargement\u2026"
+  pt: "Enviando\u2026"
+  ru: "Загружается\u2026"
+  ja: "アップロード中\u2026"
+  ko: "업로드 중\u2026"
+  it: "Caricamento\u2026"
+  tr: "Y\u00fckleniyor\u2026"
+  vi: "\u0110ang t\u1ea3i l\u00ean\u2026"
+  id: "Mengunggah\u2026"
+  pl: "Przesy\u0142anie\u2026"
+  nl: "Uploaden\u2026"
+  ar: "\u062c\u0627\u0631\u064a \u0627\u0644\u062a\u062d\u0645\u064a\u0644\u2026"
+  hi: "\u0905\u092a\u0932\u094b\u0921 \u0939\u094b \u0930\u0939\u093e \u0939\u0948\u2026"
+  th: "\u0e01\u0e33\u0e25\u0e31\u0e07\u0e2d\u0e31\u0e1b\u0e42\u0e2b\u0e25\u0e14\u2026"
+  cs: "Nahr\u00e1v\u00e1n\u00ed\u2026"
+  sv: "Laddar upp\u2026"
+  he: מעלה...
+  verified_by_human:
+    - en
+
+view.upload_failed:
+  context: Status text shown on image embed card when the upload has failed
+  en: Upload failed
+  de: Upload fehlgeschlagen
+  zh: 上传失败
+  es: Error al subir
+  fr: "Erreur d'envoi"
+  pt: Falha no envio
+  ru: "Ошибка загрузки"
+  ja: アップロード失敗
+  ko: 업로드 실패
+  it: Caricamento fallito
+  tr: "Y\u00fckleme ba\u015far\u0131s\u0131z"
+  vi: "T\u1ea3i l\u00ean th\u1ea5t b\u1ea1i"
+  id: Gagal mengunggah
+  pl: "B\u0142\u0105d przesy\u0142ania"
+  nl: Uploaden mislukt
+  ar: "\u0641\u0634\u0644 \u0627\u0644\u062a\u062d\u0645\u064a\u0644"
+  hi: "\u0905\u092a\u0932\u094b\u0921 \u0935\u093f\u092b\u0932"
+  th: "\u0e2d\u0e31\u0e1b\u0e42\u0e2b\u0e25\u0e14\u0e25\u0e49\u0e21\u0e40\u0e2b\u0e25\u0e27"
+  cs: "Nahr\u00e1v\u00e1n\u00ed selhalo"
+  sv: Uppladdning misslyckades
+  he: העלאה נכשלה
+  verified_by_human:
+    - en
+
+view.viewing:
+  context: Status text shown on image embed card while the AI is viewing/analysing the image (skill is executing)
+  en: "Viewing\u2026"
+  de: "Wird angesehen\u2026"
+  zh: "\u67e5\u770b\u4e2d\u2026"
+  es: "Viendo\u2026"
+  fr: "Visionnage\u2026"
+  pt: "Visualizando\u2026"
+  ru: "\u041f\u0440\u043e\u0441\u043c\u043e\u0442\u0440\u2026"
+  ja: "\u78ba\u8a8d\u4e2d\u2026"
+  ko: "\ubcf4\ub294 \uc911\u2026"
+  it: "Visualizzazione\u2026"
+  tr: "G\u00f6r\u00fcnt\u00fcleniyor\u2026"
+  vi: "\u0110ang xem\u2026"
+  id: "Melihat\u2026"
+  pl: "Wy\u015bwietlanie\u2026"
+  nl: "Bekijken\u2026"
+  ar: "\u062c\u0627\u0631\u064a \u0627\u0644\u0639\u0631\u0636\u2026"
+  hi: "\u0926\u0947\u0916\u093e \u091c\u093e \u0930\u0939\u093e \u0939\u0948\u2026"
+  th: "\u0e01\u0e33\u0e25\u0e31\u0e07\u0e14\u0e39\u2026"
+  cs: "Prohl\u00ed\u017een\u00ed\u2026"
+  sv: "Visas\u2026"
+  he: צופה...
+  verified_by_human:
+    - en
+
+view.ai_generated:
+  context: Label shown on an uploaded image embed when the AI detection service has determined the image is AI-generated (probability > 0.7)
+  en: AI generated
+  de: KI-generiert
+  zh: AI 生成
+  es: Generado por IA
+  fr: Généré par IA
+  pt: Gerado por IA
+  ru: Создано ИИ
+  ja: AI生成
+  ko: AI 생성
+  it: Generato da IA
+  tr: Yapay Zeka Üretimi
+  vi: Do AI tạo ra
+  id: Dibuat AI
+  pl: Wygenerowane przez AI
+  nl: AI-gegenereerd
+  ar: مُنشأ بالذكاء الاصطناعي
+  hi: AI जनित
+  th: สร้างโดย AI
+  cs: Generováno AI
+  sv: AI-genererad
+  he: נוצר על ידי AI
+  verified_by_human:
+    - en
+
+view.signup_to_upload:
+  context: Status text shown on image embed card when user is not authenticated (demo mode)
+  en: "Signup to upload\u2026"
+  de: "Registrieren zum Hochladen\u2026"
+  zh: "\u767b\u5f55\u4ee5\u4e0a\u4f20\u2026"
+  es: "Iniciar sesi\u00f3n para subir\u2026"
+  fr: "Connectez-vous pour envoyer\u2026"
+  pt: "Fa\u00e7a login para enviar\u2026"
+  ru: "\u0412\u043e\u0439\u0434\u0438\u0442\u0435 \u0434\u043b\u044f \u0437\u0430\u0433\u0440\u0443\u0437\u043a\u0438\u2026"
+  ja: "\u30a2\u30c3\u30d7\u30ed\u30fc\u30c9\u3059\u308b\u306b\u306f\u30ed\u30b0\u30a4\u30f3\u2026"
+  ko: "\uc5c5\ub85c\ub4dc\ud558\ub824\uba74 \ub85c\uadf8\uc778\u2026"
+  it: "Accedi per caricare\u2026"
+  tr: "Y\u00fcklemek i\u00e7in giri\u015f yap\u0131n\u2026"
+  vi: "\u0110\u0103ng nh\u1eadp \u0111\u1ec3 t\u1ea3i l\u00ean\u2026"
+  id: "Masuk untuk mengunggah\u2026"
+  pl: "Zaloguj si\u0119 aby przes\u0142a\u0107\u2026"
+  nl: "Log in om te uploaden\u2026"
+  ar: "\u0633\u062c\u0644 \u0627\u0644\u062f\u062e\u0648\u0644 \u0644\u0644\u062a\u062d\u0645\u064a\u0644\u2026"
+  hi: "\u0905\u092a\u0932\u094b\u0921 \u0915\u0930\u0928\u0947 \u0915\u0947 \u0932\u093f\u090f \u0932\u0949\u0917\u093f\u0928 \u0915\u0930\u0947\u0902\u2026"
+  th: "\u0e40\u0e02\u0e49\u0e32\u0e2a\u0e39\u0e48\u0e23\u0e30\u0e1a\u0e1a\u0e40\u0e1e\u0e37\u0e48\u0e2d\u0e2d\u0e31\u0e1b\u0e42\u0e2b\u0e25\u0e14\u2026"
+  cs: "P\u0159ihla\u0161te se pro nahr\u00e1n\u00ed\u2026"
+  sv: "Logga in f\u00f6r att ladda upp\u2026"
+  he: יש להירשם כדי להעלות...
+  verified_by_human:
+    - en
+
+generate:
+  context: Skill name for image generation
+  en: Generate
+  de: Generieren
+  zh: 生成
+  es: Generar
+  fr: Générer
+  pt: Gerar
+  ru: Генерировать
+  ja: 生成
+  ko: 생성
+  it: Genera
+  tr: Oluştur
+  vi: Tạo
+  id: Hasilkan
+  pl: Generuj
+  nl: Genereren
+  ar: إنشاء
+  hi: उत्पन्न करें
+  th: สร้าง
+  cs: Generovat
+  sv: Generera
+  he: יצירה
+  verified_by_human:
+    - en
+    - de
+generate.description:
+  context: Description for image generation skill
+  en: Create images from a prompt and/or images.
+  de: Bilder aus einem Prompt und/oder Bildern erstellen.
+  zh: 基于提示和/或图像生成图像。
+  es: Crea imágenes a partir de un prompt y/o imágenes.
+  fr: Créez des images à partir d'un prompt et/ou d'images.
+  pt: Crie imagens a partir de um prompt e/ou imagens.
+  ru: Создайте изображения из запроса и/или изображений.
+  ja: プロンプトや画像から画像を生成。
+  ko: 프롬프트 및/또는 이미지에서 이미지 생성.
+  it: Crea immagini da un prompt e/o immagini.
+  tr: Bir prompttan ve/veya görsellerden resim oluşturun.
+  vi: Tạo hình ảnh từ prompt và/hoặc hình ảnh.
+  id: Buat gambar dari prompt dan/atau gambar.
+  pl: Twórz obrazy z promptu i/lub obrazów.
+  nl: Maak afbeeldingen van een prompt en/of afbeeldingen.
+  ar: أنشئ صورًا من مطالبة و/أو صور.
+  hi: प्रॉम्प्ट और/या छवियों से छवियां बनाएं।
+  th: สร้างภาพจากคำแนะนำและ/หรือภาพ
+  cs: Vytvořte obrázky z výzvy a/nebo obrázků.
+  sv: Skapa bilder från en prompt och/eller bilder.
+  he: יצירת תמונות מהנחיה ו/או מתמונות.
+  verified_by_human:
+    - en
+    - de
+
+generate.how_to_use.1:
+  context: Example instruction for image generation skill - landscape
+  en: Generate a sunset over a mountain lake in watercolor style
+  de: Generiere einen Sonnenuntergang über einem Bergsee im Aquarellstil
+  zh: 生成一幅水彩风格的山湖日落画
+  es: Genera un atardecer sobre un lago de montaña en estilo acuarela
+  fr: Génère un coucher de soleil sur un lac de montagne en style aquarelle
+  pt: Gere um pôr do sol sobre um lago de montanha em estilo aquarela
+  ru: Сгенерируй закат над горным озером в стиле акварели
+  ja: 水彩スタイルで山の湖に沈む夕日を生成して
+  ko: 수채화 스타일로 산속 호수 위의 일몰을 생성해줘
+  it: Genera un tramonto su un lago di montagna in stile acquerello
+  tr: Suluboya tarzında bir dağ gölü üzerinde gün batımı oluştur
+  vi: Tạo hình hoàng hôn trên hồ núi theo phong cách màu nước
+  id: Buat gambar matahari terbenam di atas danau pegunungan dengan gaya cat air
+  pl: Wygeneruj zachód słońca nad jeziorem górskim w stylu akwareli
+  nl: Genereer een zonsondergang over een bergmeer in aquarelstijl
+  ar: أنشئ صورة غروب فوق بحيرة جبلية بأسلوب الألوان المائية
+  hi: वॉटरकलर शैली में पहाड़ी झील पर सूर्यास्त की छवि बनाएं
+  th: สร้างภาพพระอาทิตย์ตกเหนือทะเลสาบบนภูเขาในสไตล์สีน้ำ
+  cs: Vygeneruj západ slunce nad horským jezerem ve stylu akvarelu
+  sv: Generera en solnedgång över en bergssjö i akvarellstil
+  he: צור שקיעה מעל אגם הררי בסגנון צבעי מים
+  verified_by_human: [en, de]
+
+generate.how_to_use.2:
+  context: Example instruction for image generation skill - logo design
+  en: "Create a minimalist logo for a coffee shop called 'Bean & Brew'"
+  de: "Erstelle ein minimalistisches Logo für ein Café namens 'Bean & Brew'"
+  zh: "为一家名为'Bean & Brew'的咖啡店创建一个极简风格的Logo"
+  es: "Crea un logotipo minimalista para una cafetería llamada 'Bean & Brew'"
+  fr: "Crée un logo minimaliste pour un café appelé 'Bean & Brew'"
+  pt: "Crie um logotipo minimalista para uma cafeteria chamada 'Bean & Brew'"
+  ru: "Создай минималистичный логотип для кофейни 'Bean & Brew'"
+  ja: "'Bean & Brew'というコーヒーショップのミニマリストなロゴを作成して"
+  ko: "'Bean & Brew'라는 커피숍의 미니멀한 로고를 만들어줘"
+  it: "Crea un logo minimalista per un caffè chiamato 'Bean & Brew'"
+  tr: "'Bean & Brew' adlı bir kafe için minimalist bir logo oluştur"
+  vi: "Tạo logo tối giản cho quán cà phê có tên 'Bean & Brew'"
+  id: "Buat logo minimalis untuk kedai kopi bernama 'Bean & Brew'"
+  pl: "Stwórz minimalistyczne logo dla kawiarni o nazwie 'Bean & Brew'"
+  nl: "Maak een minimalistisch logo voor een koffieshop genaamd 'Bean & Brew'"
+  ar: "أنشئ شعارًا بسيطًا لمقهى يسمى 'Bean & Brew'"
+  hi: "'Bean & Brew' नाम की कॉफी शॉप के लिए एक मिनिमलिस्ट लोगो बनाएं"
+  th: "สร้างโลโก้แบบมินิมอลสำหรับร้านกาแฟชื่อ 'Bean & Brew'"
+  cs: "Vytvoř minimalistické logo pro kavárnu s názvem 'Bean & Brew'"
+  sv: "Skapa en minimalistisk logotyp för ett kafé som heter 'Bean & Brew'"
+  he: "צור לוגו מינימליסטי לבית קפה בשם 'Bean & Brew'"
+  verified_by_human: [en, de]
+
+generate.how_to_use.3:
+  context: Example instruction for image generation skill - interior scene
+  en: Generate a cozy reading nook with warm lighting and bookshelves
+  de: Generiere eine gemütliche Leseecke mit warmem Licht und Bücherregalen
+  zh: 生成一个温馨的阅读角落，配有暖色灯光和书架
+  es: Genera un acogedor rincón de lectura con iluminación cálida y estanterías
+  fr: Génère un coin lecture cosy avec un éclairage chaleureux et des étagères
+  pt: Gere um cantinho de leitura aconchegante com iluminação quente e estantes
+  ru: Сгенерируй уютный уголок для чтения с тёплым освещением и книжными полками
+  ja: 暖かい照明と本棚のある居心地の良い読書スペースを生成して
+  ko: 따뜻한 조명과 책장이 있는 아늑한 독서 공간을 생성해줘
+  it: Genera un angolo lettura accogliente con illuminazione calda e librerie
+  tr: Sıcak aydınlatma ve kitaplıklarla rahat bir okuma köşesi oluştur
+  vi: Tạo một góc đọc sách ấm cúng với ánh sáng ấm và giá sách
+  id: Buat sudut baca yang nyaman dengan pencahayaan hangat dan rak buku
+  pl: Wygeneruj przytulny kącik do czytania z ciepłym oświetleniem i regałami
+  nl: Genereer een gezellig leeshoekje met warme verlichting en boekenplanken
+  ar: أنشئ زاوية قراءة مريحة مع إضاءة دافئة ورفوف كتب
+  hi: गर्म रोशनी और बुकशेल्फ़ के साथ एक आरामदायक रीडिंग कॉर्नर बनाएं
+  th: สร้างมุมอ่านหนังสือที่อบอุ่นพร้อมแสงไฟอบอุ่นและชั้นหนังสือ
+  cs: Vygeneruj útulný čtecí koutek s teplým osvětlením a knihovnami
+  sv: Generera en mysig läshörna med varm belysning och bokhyllor
+  he: צור פינת קריאה נעימה עם תאורה חמה ומדפי ספרים
+  verified_by_human: [en, de]
+
+generate_draft:
+  context: Skill name for draft image generation
+  en: Generate Draft
+  de: Entwurf generieren
+  zh: 生成草图
+  es: Generar borrador
+  fr: Générer un brouillon
+  pt: Gerar rascunho
+  ru: Генерировать черновик
+  ja: 下書きを生成
+  ko: 초안 생성
+  it: Genera bozza
+  tr: Taslak oluştur
+  vi: Tạo bản thảo
+  id: Hasilkan draf
+  pl: Generuj wersję roboczą
+  nl: Concept genereren
+  ar: إنشاء مسودة
+  hi: ड्राफ्ट उत्पन्न करें
+  th: สร้างฉบับร่าง
+  cs: Generovat koncept
+  sv: Generera utkast
+  he: יצירת טיוטה
+  verified_by_human:
+    - en
+    - de
+
+generate_draft.description:
+  context: Description for draft image generation skill
+  en: Quickly generate a draft image.
+  de: Schnell ein Entwurfsbild generieren.
+  zh: 快速生成草图图像。
+  es: Generar rápidamente una imagen de borrador.
+  fr: Générez rapidement une image de brouillon.
+  pt: Gere rapidamente uma imagem de rascunho.
+  ru: Быстро сгенерируйте черновик изображения.
+  ja: 下書き画像を素早く生成する。
+  ko: 초안 이미지를 빠르게 생성합니다.
+  it: Genera rapidamente un'immagine bozza.
+  tr: Hızlı bir şekilde taslak görüntü oluşturun.
+  vi: Nhanh chóng tạo một hình ảnh bản thảo.
+  id: Hasilkan gambar draf dengan cepat.
+  pl: Szybko generuj obraz wersji roboczej.
+  nl: Snel een conceptafbeelding genereren.
+  ar: إنشاء صورة مسودة بسرعة.
+  hi: जल्दी से एक ड्राफ्ट छवि उत्पन्न करें।
+  th: สร้างภาพฉบับร่างอย่างรวดเร็ว
+  cs: Rychle generovat koncept obrázku.
+  sv: Generera snabbt en utkastbild.
+  he: יצירה מהירה של טיוטת תמונה.
+  verified_by_human:
+    - en
+    - de
+
+generate_draft.how_to_use.1:
+  context: Example instruction for draft image generation skill - fun concept
+  en: Quick draft of a cat wearing a space helmet
+  de: Schneller Entwurf einer Katze mit Weltraumhelm
+  zh: 快速草图：一只戴着太空头盔的猫
+  es: Borrador rápido de un gato usando un casco espacial
+  fr: Brouillon rapide d'un chat portant un casque spatial
+  pt: Rascunho rápido de um gato usando um capacete espacial
+  ru: Быстрый набросок кота в космическом шлеме
+  ja: 宇宙ヘルメットをかぶった猫の簡単な下書き
+  ko: 우주 헬멧을 쓴 고양이의 빠른 초안
+  it: Bozza veloce di un gatto con un casco spaziale
+  tr: Uzay kaskı takan bir kedinin hızlı taslağı
+  vi: Phác thảo nhanh một con mèo đội mũ bảo hiểm vũ trụ
+  id: Draf cepat kucing memakai helm luar angkasa
+  pl: Szybki szkic kota w hełmie kosmicznym
+  nl: Snel concept van een kat met een ruimtehelm
+  ar: مسودة سريعة لقطة ترتدي خوذة فضائية
+  hi: स्पेस हेलमेट पहने बिल्ली का त्वरित ड्राफ्ट
+  th: ร่างเร็วของแมวสวมหมวกอวกาศ
+  cs: Rychlý náčrt kočky s kosmickou helmou
+  sv: Snabbt utkast av en katt med rymdhjälm
+  he: טיוטה מהירה של חתול חובש קסדת חלל
+  verified_by_human: [en, de]
+
+generate_draft.how_to_use.2:
+  context: Example instruction for draft image generation skill - UI mockup
+  en: Sketch a layout for a mobile app login screen
+  de: Skizziere ein Layout für einen Anmeldebildschirm einer App
+  zh: 为手机应用登录界面绘制一个布局草图
+  es: Dibuja un boceto del diseño de una pantalla de inicio de sesión de una app
+  fr: Esquisse une mise en page pour un écran de connexion d'application mobile
+  pt: Esboce um layout para uma tela de login de aplicativo móvel
+  ru: Набросай макет экрана входа в мобильное приложение
+  ja: モバイルアプリのログイン画面のレイアウトをスケッチして
+  ko: 모바일 앱 로그인 화면의 레이아웃을 스케치해줘
+  it: Disegna un layout per una schermata di accesso di un'app mobile
+  tr: Mobil uygulama giriş ekranı için bir düzen taslağı çiz
+  vi: Phác thảo bố cục cho màn hình đăng nhập ứng dụng di động
+  id: Sketsa tata letak untuk layar login aplikasi seluler
+  pl: Naszkicuj układ ekranu logowania aplikacji mobilnej
+  nl: Schets een lay-out voor een inlogscherm van een mobiele app
+  ar: ارسم تخطيطًا لشاشة تسجيل دخول تطبيق جوال
+  hi: मोबाइल ऐप लॉगिन स्क्रीन के लिए एक लेआउट स्केच करें
+  th: ร่างเลย์เอาต์สำหรับหน้าจอเข้าสู่ระบบแอปมือถือ
+  cs: Nakresli rozložení přihlašovací obrazovky mobilní aplikace
+  sv: Skissa en layout för en inloggningsskärm i en mobilapp
+  he: שרטט פריסה למסך התחברות של אפליקציה לנייד
+  verified_by_human: [en, de]
+
+generate_draft.how_to_use.3:
+  context: Example instruction for draft image generation skill - illustration
+  en: Draft a simple illustration of a tree in four seasons
+  de: Entwirf eine einfache Illustration eines Baums in vier Jahreszeiten
+  zh: 画一幅简单的四季树木插画草图
+  es: Haz un borrador de una ilustración simple de un árbol en cuatro estaciones
+  fr: Fais un brouillon d'une illustration simple d'un arbre en quatre saisons
+  pt: Faça um rascunho de uma ilustração simples de uma árvore nas quatro estações
+  ru: Набросай простую иллюстрацию дерева в четырёх временах года
+  ja: 四季の木のシンプルなイラストの下書きを作成して
+  ko: 사계절 나무의 간단한 일러스트 초안을 그려줘
+  it: Fai una bozza di un'illustrazione semplice di un albero nelle quattro stagioni
+  tr: Dört mevsimde bir ağacın basit bir çizim taslağını yap
+  vi: Phác thảo một hình minh họa đơn giản về một cái cây qua bốn mùa
+  id: Buat draf ilustrasi sederhana pohon dalam empat musim
+  pl: Naszkicuj prostą ilustrację drzewa w czterech porach roku
+  nl: Maak een concept van een eenvoudige illustratie van een boom in vier seizoenen
+  ar: ارسم مسودة رسم توضيحي بسيط لشجرة في أربعة فصول
+  hi: चार मौसमों में एक पेड़ का सरल चित्रण ड्राफ्ट करें
+  th: ร่างภาพประกอบง่ายๆ ของต้นไม้ในสี่ฤดูกาล
+  cs: Nakresli jednoduchý náčrt stromu ve čtyřech ročních obdobích
+  sv: Gör ett utkast av en enkel illustration av ett träd i fyra årstider
+  he: צור טיוטה של איור פשוט של עץ בארבע עונות
+  verified_by_human: [en, de]
+
+vectorize:
+  context: Skill name for raster-to-SVG vectorization
+  en: Vectorize
+  de: Vektorisieren
+  zh: 矢量化
+  es: Vectorizar
+  fr: Vectoriser
+  pt: Vetorizar
+  ru: Векторизовать
+  ja: ベクター化
+  ko: 벡터화
+  it: Vettorizza
+  tr: Vektörleştir
+  vi: Chuyển thành vector
+  id: Vektorkan
+  pl: Wektoryzuj
+  nl: Vectoriseren
+  ar: تحويل إلى متجه
+  hi: वेक्टराइज़ करें
+  th: แปลงเป็นเวกเตอร์
+  cs: Vektorizovat
+  sv: Vektorisera
+  he: וקטוריזציה
+  verified_by_human:
+    - en
+    - de
+
+vectorize.description:
+  context: Description for the raster-to-SVG vectorization skill
+  en: Convert raster images into scalable SVG vector files.
+  de: Rasterbilder in skalierbare SVG-Vektordateien umwandeln.
+  zh: 将光栅图像转换为可缩放的 SVG 矢量文件。
+  es: Convierte imágenes raster en archivos vectoriales SVG escalables.
+  fr: Convertissez des images raster en fichiers vectoriels SVG scalables.
+  pt: Converta imagens raster em arquivos vetoriais SVG escaláveis.
+  ru: Конвертируйте растровые изображения в масштабируемые SVG-файлы.
+  ja: ラスター画像をスケーラブルなSVGベクターファイルに変換します。
+  ko: 래스터 이미지를 확장 가능한 SVG 벡터 파일로 변환합니다.
+  it: Converti immagini raster in file vettoriali SVG scalabili.
+  tr: Raster görüntüleri ölçeklenebilir SVG vektör dosyalarına dönüştürün.
+  vi: Chuyển đổi hình ảnh raster thành tệp vector SVG có thể mở rộng.
+  id: Konversi gambar raster menjadi file vektor SVG yang dapat diskalakan.
+  pl: Przekształć obrazy rastrowe w skalowalne pliki wektorowe SVG.
+  nl: Converteer rasterafbeeldingen naar schaalbare SVG-vectorbestanden.
+  ar: حوّل الصور النقطية إلى ملفات متجهة SVG قابلة للتوسع.
+  hi: रास्टर छवियों को स्केलेबल SVG वेक्टर फ़ाइलों में बदलें।
+  th: แปลงภาพ raster ให้เป็นไฟล์เวกเตอร์ SVG ที่ขยายได้
+  cs: Převeďte rastrové obrázky na škálovatelné SVG vektorové soubory.
+  sv: Konvertera rasterbilder till skalbara SVG-vektorfiler.
+  he: המרת תמונות רסטר לקובצי וקטור SVG הניתנים להגדלה.
+  verified_by_human: []
+
+vectorize.how_to_use.1:
+  context: Example instruction for vectorize skill - logo
+  en: Vectorize my company logo so I can scale it without losing quality
+  de: Vektorisiere mein Firmenlogo, damit ich es ohne Qualitätsverlust skalieren kann
+  zh: 将我的公司 Logo 矢量化，以便无损缩放
+  es: Vectoriza mi logotipo corporativo para que pueda escalarlo sin perder calidad
+  fr: Vectorise mon logo d'entreprise pour pouvoir le redimensionner sans perte de qualité
+  pt: Vetorize meu logotipo da empresa para que eu possa escaloná-lo sem perder qualidade
+  ru: Векторизуй логотип моей компании, чтобы я мог масштабировать его без потери качества
+  ja: 品質を落とさずにスケールできるよう、会社のロゴをベクター化して
+  ko: 품질 손실 없이 확대할 수 있도록 회사 로고를 벡터화해줘
+  it: Vettorizza il mio logo aziendale per poterlo scalare senza perdita di qualità
+  tr: Kalite kaybı olmadan ölçekleyebilmem için şirket logomu vektörleştir
+  vi: Chuyển logo công ty của tôi thành vector để có thể phóng to mà không mất chất lượng
+  id: Vektorkan logo perusahaan saya agar bisa diskalakan tanpa kehilangan kualitas
+  pl: Wektoryzuj logo mojej firmy, żebym mógł je skalować bez utraty jakości
+  nl: Vectoriseer mijn bedrijfslogo zodat ik het zonder kwaliteitsverlies kan schalen
+  ar: حوّل شعار شركتي إلى متجه حتى أتمكن من تغيير حجمه دون فقدان الجودة
+  hi: मेरी कंपनी के लोगो को वेक्टराइज़ करें ताकि मैं इसे बिना गुणवत्ता खोए स्केल कर सकूं
+  th: แปลงโลโก้บริษัทของฉันเป็นเวกเตอร์เพื่อให้ขยายได้โดยไม่สูญเสียคุณภาพ
+  cs: Vektorizuj logo mé firmy, abych ho mohl škálovat bez ztráty kvality
+  sv: Vektorisera min företagslogotyp så att jag kan skala den utan kvalitetsförlust
+  he: הפוך את לוגו החברה שלי לווקטור כדי שאוכל להגדיל אותו מבלי לאבד איכות
+  verified_by_human: [en, de]
+
+vectorize.how_to_use.2:
+  context: Example instruction for vectorize skill - hand-drawn sketch
+  en: Turn this hand-drawn sketch into a clean SVG vector illustration
+  de: Verwandle diese handgezeichnete Skizze in eine saubere SVG-Vektorillustration
+  zh: 将这张手绘草图转换为干净的 SVG 矢量插图
+  es: Convierte este boceto dibujado a mano en una ilustración vectorial SVG limpia
+  fr: Transforme ce croquis dessiné à la main en une illustration vectorielle SVG propre
+  pt: Transforme este esboço desenhado à mão em uma ilustração vetorial SVG limpa
+  ru: Преврати этот нарисованный от руки эскиз в чистую SVG-векторную иллюстрацию
+  ja: この手描きのスケッチをきれいなSVGベクターイラストに変換して
+  ko: 이 손으로 그린 스케치를 깔끔한 SVG 벡터 일러스트로 변환해줘
+  it: Trasforma questo schizzo disegnato a mano in una illustrazione vettoriale SVG pulita
+  tr: Bu el çizimi taslağı temiz bir SVG vektör çizimine dönüştür
+  vi: Chuyển bản phác thảo vẽ tay này thành hình minh họa vector SVG sạch sẽ
+  id: Ubah sketsa buatan tangan ini menjadi ilustrasi vektor SVG yang bersih
+  pl: Zamień ten ręcznie narysowany szkic w czystą ilustrację wektorową SVG
+  nl: Verander deze handgetekende schets in een nette SVG-vectorillustratie
+  ar: حوّل هذه الرسمة اليدوية إلى رسم توضيحي متجه SVG نظيف
+  hi: इस हाथ से बनाए गए स्केच को एक साफ SVG वेक्टर इलस्ट्रेशन में बदलें
+  th: แปลงภาพร่างที่วาดด้วยมือนี้ให้เป็นภาพประกอบเวกเตอร์ SVG ที่สะอาด
+  cs: Přeměň tento ručně kreslený náčrt v čistou SVG vektorovou ilustraci
+  sv: Förvandla den här handritade skissen till en ren SVG-vektorillustration
+  he: הפוך את הסקיצה הידנית הזו לאיור וקטורי SVG נקי
+  verified_by_human: [en, de]
+
+vectorize.how_to_use.3:
+  context: Example instruction for vectorize skill - icon conversion
+  en: Convert this PNG icon into SVG so it looks sharp at any size
+  de: Konvertiere dieses PNG-Icon in SVG, damit es in jeder Größe scharf aussieht
+  zh: 将这个 PNG 图标转换为 SVG，使其在任何尺寸下都清晰
+  es: Convierte este ícono PNG a SVG para que se vea nítido en cualquier tamaño
+  fr: Convertis cette icône PNG en SVG pour qu'elle soit nette à n'importe quelle taille
+  pt: Converta este ícone PNG em SVG para que fique nítido em qualquer tamanho
+  ru: Конвертируй эту иконку PNG в SVG, чтобы она была чёткой при любом размере
+  ja: このPNGアイコンをSVGに変換して、どのサイズでも鮮明に見えるようにして
+  ko: 이 PNG 아이콘을 SVG로 변환해서 어떤 크기에서도 선명하게 보이게 해줘
+  it: Converti questa icona PNG in SVG in modo che appaia nitida a qualsiasi dimensione
+  tr: Bu PNG simgesini SVG'ye dönüştür, böylece her boyutta keskin görünsün
+  vi: Chuyển đổi icon PNG này sang SVG để trông sắc nét ở mọi kích thước
+  id: Konversikan ikon PNG ini ke SVG agar terlihat tajam di ukuran mana pun
+  pl: Przekonwertuj tę ikonę PNG na SVG, żeby wyglądała ostro w każdym rozmiarze
+  nl: Converteer dit PNG-pictogram naar SVG zodat het scherp is op elke grootte
+  ar: حوّل هذه الأيقونة PNG إلى SVG لتبدو واضحة في أي حجم
+  hi: इस PNG आइकन को SVG में बदलें ताकि यह किसी भी आकार में तेज दिखे
+  th: แปลงไอคอน PNG นี้เป็น SVG เพื่อให้ดูคมชัดในทุกขนาด
+  cs: Převeď tuto PNG ikonu na SVG, aby vypadala ostře v jakékoliv velikosti
+  sv: Konvertera den här PNG-ikonen till SVG så att den ser skarp ut i alla storlekar
+  he: המר את אייקון ה-PNG הזה ל-SVG כדי שייראה חד בכל גודל
+  verified_by_human: [en, de]
+
+search:
+  context: Skill name for image search
+  en: Search
+  de: Suchen
+  zh: 搜索
+  es: Buscar
+  fr: Rechercher
+  pt: Pesquisar
+  ru: Поиск
+  ja: 検索
+  ko: 검색
+  it: Cerca
+  tr: Ara
+  vi: Tìm kiếm
+  id: Cari
+  pl: Szukaj
+  nl: Zoeken
+  ar: ابحث
+  hi: खोज
+  th: ค้นหา
+  cs: Hledat
+  sv: Sök
+  he: חיפוש
+  verified_by_human:
+    - en
+    - de
+
+search.description:
+  context: Description for image search skill
+  en: Search for images by text or find similar images.
+  de: Bilder per Text suchen oder ähnliche Bilder finden.
+  zh: 通过文字搜索图片或找到相似图片。
+  es: Busca imágenes por texto o encuentra imágenes similares.
+  fr: Recherchez des images par texte ou trouvez des images similaires.
+  pt: Pesquise imagens por texto ou encontre imagens semelhantes.
+  ru: Ищите изображения по тексту или находите похожие изображения.
+  ja: テキストで画像を検索したり、類似画像を見つけたりします。
+  ko: 텍스트로 이미지를 검색하거나 유사한 이미지를 찾습니다.
+  it: Cerca immagini per testo o trova immagini simili.
+  tr: Metinle görsel ara veya benzer görseller bul.
+  vi: Tìm kiếm hình ảnh bằng văn bản hoặc tìm hình ảnh tương tự.
+  id: Cari gambar dengan teks atau temukan gambar serupa.
+  pl: Szukaj obrazów po tekście lub znajdź podobne obrazy.
+  nl: Zoek afbeeldingen op tekst of vind vergelijkbare afbeeldingen.
+  ar: ابحث عن الصور بالنص أو اعثر على صور مشابهة.
+  hi: टेक्स्ट द्वारा चित्र खोजें या समान चित्र खोजें।
+  th: ค้นหารูปภาพด้วยข้อความหรือค้นหารูปภาพที่คล้ายกัน
+  cs: Hledejte obrázky podle textu nebo najděte podobné obrázky.
+  sv: Sök efter bilder med text eller hitta liknande bilder.
+  he: חיפוש תמונות לפי טקסט או מציאת תמונות דומות.
+  verified_by_human:
+    - en
+    - de

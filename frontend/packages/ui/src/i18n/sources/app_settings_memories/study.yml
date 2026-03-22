@@ -1,0 +1,310 @@
+learning_goals:
+  context: Settings/memory name for learning goals
+  en: Learning Goals
+  de: Lernziele
+  zh: 学习目标
+  es: Objetivos de aprendizaje
+  fr: Objectifs d'apprentissage
+  pt: Objetivos de aprendizado
+  ru: Цели обучения
+  ja: 学習目標
+  ko: 학습 목표
+  it: Obiettivi di apprendimento
+  tr: Öğrenme hedefleri
+  vi: Mục tiêu học tập
+  id: Tujuan pembelajaran
+  pl: Cele uczenia się
+  nl: Leerdoelen
+  ar: أهداف التعلم
+  hi: सीखने के लक्ष्य
+  th: เป้าหมายการเรียนรู้
+  cs: Učební cíle
+  sv: Lärandemål
+  he: יעדי למידה
+  verified_by_human:
+    - en
+    - de
+learning_goals.description:
+  context: Description for learning goals settings/memory
+  en: Your learning objectives and topics to master
+  de: Deine Lernziele und Themen zum Beherrschen
+  zh: 你的学习目标和想要掌握的主题
+  es: Tus objetivos de aprendizaje y temas a dominar
+  fr: Vos objectifs d'apprentissage et sujets à maîtriser
+  pt: Seus objetivos de aprendizado e tópicos a dominar
+  ru: Ваши цели обучения и темы для освоения
+  ja: 学習目標と習得したいトピック
+  ko: 학습 목표와 숙달하고 싶은 주제
+  it: I tuoi obiettivi di apprendimento e argomenti
+  tr: Öğrenme hedefleriniz ve ustalaşmak istediğiniz konular
+  vi: Mục tiêu học tập và chủ đề muốn thành thạo
+  id: Tujuan pembelajaran dan topik yang ingin dikuasai
+  pl: Twoje cele uczenia się i tematy do opanowania
+  nl: Je leerdoelen en onderwerpen om te beheersen
+  ar: أهداف التعلم والمواضيع التي تريد إتقانها
+  hi: आपके सीखने के उद्देश्य और विषय
+  th: วัตถุประสงค์การเรียนรู้และหัวข้อที่ต้องการเชี่ยวชาญ
+  cs: Vaše učební cíle a témata ke zvládnutí
+  sv: Dina lärandemål och ämnen att bemästra
+  he: יעדי הלמידה שלך ונושאים להתמקצעות
+  verified_by_human:
+    - en
+    - de
+education_history:
+  context: Settings/memory name for education history
+  en: Education History
+  de: Bildungsgeschichte
+  zh: 教育历史
+  es: Historial educativo
+  fr: Historique de l'éducation
+  pt: Histórico educacional
+  ru: История образования
+  ja: 教育履歴
+  ko: 교육 이력
+  it: Storia dell'istruzione
+  tr: Eğitim geçmişi
+  vi: Lịch sử giáo dục
+  id: Riwayat pendidikan
+  pl: Historia edukacji
+  nl: Onderwijsgeschiedenis
+  ar: تاريخ التعليم
+  hi: शिक्षा इतिहास
+  th: ประวัติการศึกษา
+  cs: Vzdělávací historie
+  sv: Utbildningshistorik
+  he: היסטוריית השכלה
+  verified_by_human:
+    - en
+    - de
+education_history.description:
+  context: Description for education history settings/memory
+  en: Your academic background and certifications
+  de: Dein akademischer Hintergrund und Zertifikate
+  zh: 你的学术背景和证书
+  es: Tu formación académica y certificaciones
+  fr: Votre parcours académique et certifications
+  pt: Seu histórico acadêmico e certificações
+  ru: Ваше академическое образование и сертификаты
+  ja: 学歴と資格
+  ko: 학력 및 자격증
+  it: Il tuo background accademico e certificazioni
+  tr: Akademik geçmişiniz ve sertifikalarınız
+  vi: Nền tảng học vấn và chứng chỉ của bạn
+  id: Latar belakang akademik dan sertifikasi Anda
+  pl: Twoje wykształcenie i certyfikaty
+  nl: Je academische achtergrond en certificeringen
+  ar: خلفيتك الأكاديمية والشهادات
+  hi: आपकी शैक्षणिक पृष्ठभूमि और प्रमाणपत्र
+  th: ประวัติการศึกษาและใบรับรองของคุณ
+  cs: Vaše akademické zázemí a certifikace
+  sv: Din akademiska bakgrund och certifieringar
+  he: הרקע האקדמי וההסמכות שלך
+  verified_by_human:
+    - en
+    - de
+career_interests:
+  context: Settings/memory name for career interests
+  en: Career Interests
+  de: Karriereinteressen
+  zh: 职业兴趣
+  es: Intereses profesionales
+  fr: Intérêts professionnels
+  pt: Interesses profissionais
+  ru: Карьерные интересы
+  ja: キャリアの興味
+  ko: 직업 관심사
+  it: Interessi di carriera
+  tr: Kariyer ilgileri
+  vi: Sở thích nghề nghiệp
+  id: Minat karier
+  pl: Zainteresowania zawodowe
+  nl: Carrièrebelangen
+  ar: الاهتمامات المهنية
+  hi: करियर रुचियां
+  th: ความสนใจในอาชีพ
+  cs: Kariérní zájmy
+  sv: Karriärintressen
+  he: תחומי עניין בקריירה
+  verified_by_human:
+    - en
+    - de
+career_interests.description:
+  context: Description for career interests settings/memory
+  en: Your career goals and professional aspirations
+  de: Deine Karriereziele und beruflichen Bestrebungen
+  zh: 你的职业目标和专业抱负
+  es: Tus objetivos y aspiraciones profesionales
+  fr: Vos objectifs et aspirations professionnelles
+  pt: Seus objetivos e aspirações profissionais
+  ru: Ваши карьерные цели и устремления
+  ja: キャリア目標と職業的願望
+  ko: 직업 목표와 전문적 포부
+  it: I tuoi obiettivi e aspirazioni professionali
+  tr: Kariyer hedefleriniz ve profesyonel istekleriniz
+  vi: Mục tiêu nghề nghiệp và nguyện vọng chuyên nghiệp
+  id: Tujuan karier dan aspirasi profesional Anda
+  pl: Twoje cele zawodowe i aspiracje zawodowe
+  nl: Je carrièredoelen en professionele aspiraties
+  ar: أهدافك المهنية وتطلعاتك المهنية
+  hi: आपके करियर लक्ष्य और पेशेवर आकांक्षाएं
+  th: เป้าหมายอาชีพและความปรารถนาในอาชีพของคุณ
+  cs: Vaše kariérní cíle a profesní aspirace
+  sv: Dina karriärmål och professionella ambitioner
+  he: יעדי הקריירה והשאיפות המקצועיות שלך
+  verified_by_human:
+    - en
+    - de
+
+# Example entries shown to non-authenticated users to illustrate what each category stores
+
+learning_goals.example_1:
+  context: Example entry for learning goals (a language goal)
+  en: Spanish B2 level
+  de: Spanisch B2-Niveau
+  zh: 西班牙语B2水平
+  es: Español nivel B2
+  fr: Espagnol niveau B2
+  pt: Espanhol nível B2
+  ru: Испанский уровень B2
+  ja: スペイン語B2レベル
+  ko: 스페인어 B2 레벨
+  it: Spagnolo livello B2
+  tr: İspanyolca B2 seviyesi
+  vi: Tiếng Tây Ban Nha B2
+  id: Bahasa Spanyol tingkat B2
+  pl: Hiszpański poziom B2
+  nl: Spaans B2-niveau
+  ar: الإسبانية مستوى B2
+  hi: स्पेनिश B2 स्तर
+  th: ภาษาสเปนระดับ B2
+  cs: Španělština úroveň B2
+  sv: Spanska B2-nivå
+  he: ספרדית ברמת B2
+  verified_by_human: [en, de]
+
+learning_goals.example_2:
+  context: Example entry for learning goals (a technical skill)
+  en: Data Science basics
+  de: Data Science Grundlagen
+  zh: 数据科学基础
+  es: Fundamentos de ciencia de datos
+  fr: Bases de la science des données
+  pt: Fundamentos de ciência de dados
+  ru: Основы Data Science
+  ja: データサイエンスの基礎
+  ko: 데이터 사이언스 기초
+  it: Basi di Data Science
+  tr: Veri Bilimi temelleri
+  vi: Cơ bản về Khoa học dữ liệu
+  id: Dasar-dasar Data Science
+  pl: Podstawy Data Science
+  nl: Data Science basis
+  ar: أساسيات علوم البيانات
+  hi: डेटा साइंस मूल बातें
+  th: พื้นฐาน Data Science
+  cs: Základy Data Science
+  sv: Data Science grunderna
+  he: יסודות מדעי הנתונים
+  verified_by_human: [en, de]
+
+# example_entries translation keys for learning_goals
+
+learning_goals.example_1.topic:
+  context: Example topic for learning goals
+  en: Data Science
+  de: Data Science
+  zh: 数据科学
+  es: Ciencia de datos
+  fr: Science des données
+  pt: Ciência de dados
+  ru: Наука о данных
+  ja: データサイエンス
+  ko: 데이터 사이언스
+  it: Scienza dei dati
+  tr: Veri Bilimi
+  vi: Khoa học dữ liệu
+  id: Ilmu Data
+  pl: Nauka o danych
+  nl: Datawetenschap
+  ar: علوم البيانات
+  hi: डेटा साइंस
+  th: วิทยาศาสตร์ข้อมูล
+  cs: Datová věda
+  sv: Datavetenskap
+  he: מדעי הנתונים
+  verified_by_human: []
+
+learning_goals.example_1.notes:
+  context: Example notes for learning goal Data Science
+  en: Focus on Python pandas and data visualization
+  de: Fokus auf Python Pandas und Datenvisualisierung
+  zh: 专注于Python pandas和数据可视化
+  es: Enfoque en Python pandas y visualización de datos
+  fr: Concentrez-vous sur Python pandas et la visualisation de données
+  pt: Foco em Python pandas e visualização de dados
+  ru: Упор на Python pandas и визуализацию данных
+  ja: Python pandasとデータ可視化に集中
+  ko: Python pandas와 데이터 시각화에 집중
+  it: Focus su Python pandas e visualizzazione dati
+  tr: Python pandas ve veri görselleştirmeye odaklanma
+  vi: Tập trung vào Python pandas và trực quan hóa dữ liệu
+  id: Fokus pada Python pandas dan visualisasi data
+  pl: Skupienie na Python pandas i wizualizacji danych
+  nl: Focus op Python pandas en datavisualisatie
+  ar: التركيز على Python pandas وتصور البيانات
+  hi: Python pandas और डेटा विज़ुअलाइज़ेशन पर ध्यान केंद्रित करें
+  th: มุ่งเน้นที่ Python pandas และการแสดงผลข้อมูล
+  cs: Zaměření na Python pandas a vizualizaci dat
+  sv: Fokus på Python pandas och datavisualisering
+  he: התמקדות ב-Python pandas והמחשת נתונים
+  verified_by_human: []
+
+learning_goals.example_2.topic:
+  context: Example topic for learning goals
+  en: Spanish Language
+  de: Spanische Sprache
+  zh: 西班牙语
+  es: Idioma español
+  fr: Langue espagnole
+  pt: Língua espanhola
+  ru: Испанский язык
+  ja: スペイン語
+  ko: 스페인어
+  it: Lingua spagnola
+  tr: İspanyolca
+  vi: Tiếng Tây Ban Nha
+  id: Bahasa Spanyol
+  pl: Język hiszpański
+  nl: Spaanse taal
+  ar: اللغة الإسبانية
+  hi: स्पेनिश भाषा
+  th: ภาษาสเปน
+  cs: Španělský jazyk
+  sv: Spanska språket
+  he: שפה ספרדית
+  verified_by_human: []
+
+learning_goals.example_2.notes:
+  context: Example notes for learning goal Spanish Language
+  en: Aim for conversational level by summer
+  de: Konversationsniveau bis zum Sommer anstreben
+  zh: 目标在夏天前达到会话水平
+  es: Apuntar a nivel conversacional para el verano
+  fr: Viser le niveau conversationnel d'ici l'été
+  pt: Alcançar nível conversacional até o verão
+  ru: Стремиться к разговорному уровню к лету
+  ja: 夏までに会話レベルを目指す
+  ko: 여름까지 회화 수준 달성 목표
+  it: Puntare al livello conversazionale entro l'estate
+  tr: Yaz aylarına kadar konuşma seviyesine ulaşmayı hedefleme
+  vi: Hướng tới trình độ giao tiếp trước mùa hè
+  id: Targetkan tingkat percakapan sebelum musim panas
+  pl: Cel - poziom konwersacyjny do lata
+  nl: Streven naar gespreksniveau tegen de zomer
+  ar: السعي للوصول إلى مستوى المحادثة بحلول الصيف
+  hi: गर्मियों तक बातचीत स्तर का लक्ष्य रखें
+  th: ตั้งเป้าหมายระดับสนทนาภายในฤดูร้อน
+  cs: Cíl dosáhnout konverzační úrovně do léta
+  sv: Sikta på konversationsnivå till sommaren
+  he: לשאוף לרמת שיחה עד הקיץ
+  verified_by_human: []

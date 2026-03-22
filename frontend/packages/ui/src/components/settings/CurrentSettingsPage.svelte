@@ -1,12 +1,12 @@
 
 <script lang="ts">
     import { text } from '@repo/ui';
-    import { fly } from 'svelte/transition';
     import { cubicOut } from 'svelte/easing';
     import { userProfile } from '../../stores/userProfile';
-    import { webSocketService } from '../../services/websocketService';
+    import { authStore } from '../../stores/authStore';
+    import { incognitoMode } from '../../stores/incognitoModeStore'; // Import incognito mode store
     import SettingsItem from '../SettingsItem.svelte';
-    import { createEventDispatcher, onMount, tick } from 'svelte';
+    import { createEventDispatcher, tick } from 'svelte';
     import type { SvelteComponent } from 'svelte';
 
     // Props using Svelte 5 runes
@@ -14,17 +14,26 @@
         activeSettingsView = 'main',
         direction = 'forward',
         username = '',
+        accountId = null,
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         isInSignupMode = false,
         settingsViews = {},
         isIncognitoEnabled = $bindable(false),
         isGuestEnabled = $bindable(false),
         isOfflineEnabled = $bindable(false),
         menuItemsCount = $bindable(0),
-        sliderElement = null
+        sliderElement = null,
+        isMenuVisible = false,
+        paymentEnabled = true,
+        // When true (default), renders the docked profile avatar + username + credits inline.
+        // Set to false when a SettingsMainHeader gradient banner is rendered above, so the
+        // profile section is not duplicated.
+        showProfileHeader = true,
     }: {
         activeSettingsView?: string;
         direction?: string;
         username?: string;
+        accountId?: string | null;
         isInSignupMode?: boolean;
         settingsViews?: Record<string, typeof SvelteComponent>;
         isIncognitoEnabled?: boolean;
@@ -32,68 +41,91 @@
         isOfflineEnabled?: boolean;
         menuItemsCount?: number;
         sliderElement?: HTMLDivElement | null;
+        isMenuVisible?: boolean;
+        paymentEnabled?: boolean;
+        showProfileHeader?: boolean;
     } = $props();
+    
+    // State for docked profile visibility
+    // Show after a delay to match the original profile container animation (400ms)
+    let showDockedProfile = $state(false);
+    let dockedProfileTimeout: ReturnType<typeof setTimeout> | null = null;
+    
+    $effect(() => {
+        // Clear any existing timeout
+        if (dockedProfileTimeout) {
+            clearTimeout(dockedProfileTimeout);
+            dockedProfileTimeout = null;
+        }
+        
+        // Only show profile on main settings view
+        // Hide immediately for all sub-settings views (including when opened via deep link)
+        if (isMenuVisible && activeSettingsView === 'main') {
+            // Delay fade-in to match original profile animation timing (400ms transition)
+            dockedProfileTimeout = setTimeout(() => {
+                showDockedProfile = true;
+            }, 400);
+        } else {
+            // Hide immediately when menu closes or view changes to any non-main view
+            showDockedProfile = false;
+        }
+        
+        return () => {
+            if (dockedProfileTimeout) {
+                clearTimeout(dockedProfileTimeout);
+            }
+        };
+    });
+    
+    let isAuthenticated = $derived($authStore.isAuthenticated);
+    let profileImageUrl = $derived($userProfile.profile_image_url);
+    
+    // Local state for incognito toggle that syncs with store
+    let incognitoToggleChecked = $state(false);
+    
+    // Guard to prevent the onClick handler from firing twice in the same tick.
+    // Toggle.svelte uses bind:checked on a checkbox inside a <label>, and SettingsItem wraps
+    // it in a div with its own onclick. In Safari and some other browsers this can trigger
+    // the parent onClick callback twice (once from the toggle-container div click, once from
+    // the label/input synthetic click), causing a double-toggle where deactivation immediately
+    // re-activates incognito mode.
+    let incognitoClickInProgress = $state(false);
+    
+    // Sync local toggle state with store.
+    // Note: we only sync FROM the store TO local state (not the other way around).
+    // The local state is the source of truth for the UI; the store is updated explicitly
+    // in the onClick handler.
+    $effect(() => {
+        incognitoToggleChecked = $incognitoMode;
+    });
     
     // Calculate the actual count of menu items for height adjustment using Svelte 5 runes
     $effect(() => {
-        // Count all settings items plus logout
-        const settingsCount = Object.keys(settingsViews).length + 1;
+        // Count only top-level settings items (exclude nested routes like app_store/web, billing/buy-credits, etc.)
+        // This matches what's actually displayed in the main menu (filtered by isTopLevelView)
+        const topLevelSettingsCount = Object.keys(settingsViews).filter(key => isTopLevelView(key)).length;
+        // Add 1 for logout button (only shown for authenticated users, but we count it for consistent height)
+        const settingsCount = topLevelSettingsCount + 1;
         // Quick settings are currently commented out (TODO), so don't reduce height in signup mode
         // This ensures consistent height and prevents content cutoff
         const quickSettingsCount = 3; // Keep consistent height regardless of signup mode
         menuItemsCount = settingsCount + quickSettingsCount;
     });
 
-    // Animation parameters - now direction-aware
-    const getFlyParams = (isIn: boolean, dir: string) => {
+    /**
+     * Simple slide-in transition for settings views.
+     * Only the incoming view is animated - the old view is immediately hidden.
+     * This avoids all visual glitches from overlapping views.
+     */
+    function slideIn(node: Element, { dir }: { dir: string }) {
+        const duration = 200; // Fast, snappy animation
+        const x = dir === 'forward' ? 250 : -250;
+        
         return {
-            duration: 400,
-            x: dir === 'forward' ? 
-                (isIn ? 300 : -300) : 
-                (isIn ? -300 : 300),
-            easing: cubicOut
+            duration,
+            easing: cubicOut,
+            css: (t: number) => `transform: translateX(${(1 - t) * x}px);`
         };
-    };
-
-    // Track views that should be present in the DOM
-    let visibleViews = $state(new Set([activeSettingsView]));
-    // Track the previous active view for transitions
-    let previousView = $state(activeSettingsView);
-    
-    // Keep track of transition state
-    let inTransition = false;
-
-    // Handle view changes reactively using Svelte 5 runes
-    $effect(() => {
-        if (activeSettingsView && activeSettingsView !== previousView) {
-            handleViewChange(activeSettingsView);
-        }
-    });
-
-    // Function to properly manage view transitions
-    async function handleViewChange(newView: string) {
-        inTransition = true;
-        
-        // Keep track of the previous view for proper transitions
-        const oldView = previousView;
-        previousView = newView;
-        
-        // Add both the current and previous view to the visible set
-        visibleViews.add(oldView);
-        visibleViews.add(newView);
-        
-        // Force reactivity
-        visibleViews = new Set([...visibleViews]);
-        
-        // Schedule cleanup after the animation completes
-        setTimeout(() => {
-            if (inTransition && oldView !== newView) {
-                // Clean up the old view if it's not the current view
-                visibleViews.delete(oldView);
-                visibleViews = new Set([...visibleViews]);
-                inTransition = false;
-            }
-        }, getFlyParams(true, direction).duration + 50); // Add a small buffer
     }
 
     const dispatch = createEventDispatcher();
@@ -105,12 +137,13 @@
     function showSettingsView(viewName, event) {
         // Stop propagation to prevent document click handler from closing menu
         if (event) event.stopPropagation();
-        
+
+        const isLogsView = viewName === 'logs';
         dispatch('openSettings', { 
             settingsPath: viewName, 
             direction: 'forward',
-            icon: viewName,
-            title: $text(`settings.${viewName}.text`)
+            icon: isLogsView ? 'server' : viewName,
+            title: isLogsView ? 'Logs' : $text(`settings.${viewName}`)
         });
         
         // Find settings content element and scroll to top
@@ -124,127 +157,257 @@
         }
     }
     
+    // Routes that are accessible only via deep link (e.g. from the chat context menu)
+    // and must NOT appear in the settings nav sidebar.
+    const DEEPLINK_ONLY_VIEWS = new Set(['fork']);
+
     // Add function to filter out nested views from main menu
     function isTopLevelView(key: string): boolean {
-        return !key.includes('/');
+        return !key.includes('/') && !DEEPLINK_ONLY_VIEWS.has(key);
     }
 
     function handleLogout() {
         dispatch('logout');
     }
-    
-    // Called when an animation is complete
-    function handleAnimationComplete(view) {
-        // Only remove if it's not the active view
-        if (view !== activeSettingsView) {
-            visibleViews.delete(view);
-            visibleViews = new Set([...visibleViews]);
-        }
-    }
-    
-    // Make sure we initialize with the right view
-    onMount(() => {
-        visibleViews = new Set([activeSettingsView]);
-        previousView = activeSettingsView;
-
-        // REMOVED: Duplicate handler for 'user_credits_updated'
-        // The parent Settings.svelte already handles this event and updates the store
-        // No need to register the same handler here (was causing duplicate execution)
-        
-        return () => {
-            // Cleanup if needed
-        };
-    });
 
     // Get credits from userProfile store using Svelte 5 runes
     let credits = $derived($userProfile.credits || 0);
+    let isAdminUser = $derived($userProfile.is_admin === true);
+    
+    /**
+     * Track measured content height for submenu views.
+     * This is updated by a ResizeObserver that watches the active content element.
+     */
+    let measuredContentHeight = $state<number | null>(null);
+    
+    /**
+     * Measure the active content height using ResizeObserver.
+     * This ensures the slider adapts to the actual content height for all submenu views.
+     */
+    $effect(() => {
+        if (!sliderElement || activeSettingsView === 'main') {
+            measuredContentHeight = null;
+            return;
+        }
+        
+        let resizeObserver: ResizeObserver | null = null;
+        let isActive = true; // Track if this effect instance is still active
+        
+        // Wait for DOM to update
+        tick().then(() => {
+            // Check if effect is still active (not cleaned up)
+            if (!isActive || !sliderElement) {
+                return;
+            }
+            
+            const activeContent = sliderElement.querySelector('.settings-items.active, .settings-submenu-content.active');
+            if (!activeContent) {
+                measuredContentHeight = null;
+                return;
+            }
+            
+            // Measure initial height
+            measuredContentHeight = activeContent.scrollHeight;
+            
+            // Use ResizeObserver to track height changes
+            resizeObserver = new ResizeObserver((entries) => {
+                // Only update if this effect instance is still active
+                if (isActive) {
+                    for (const entry of entries) {
+                        measuredContentHeight = entry.target.scrollHeight;
+                    }
+                }
+            });
+            
+            resizeObserver.observe(activeContent);
+        });
+        
+        // Cleanup on unmount or view change
+        return () => {
+            isActive = false; // Mark as inactive
+            if (resizeObserver) {
+                resizeObserver.disconnect();
+            }
+        };
+    });
+    
+    /**
+     * Calculate min-height for settings-content-slider based on active view.
+     * 
+     * **Main menu**: Uses calculated height based on menu items count.
+     * **Submenu views**: Uses measured content height to adapt to actual content
+     * (e.g., app store, interface, language settings).
+     * 
+     * **Why measure content height?**
+     * Submenu content is absolutely positioned for slide animations, so it doesn't
+     * contribute to the parent's height. By measuring the actual content height,
+     * we ensure the slider is exactly tall enough without creating excessive gaps.
+     * 
+     * This prevents content cutoff and excessive spacing when viewing submenus.
+     */
+    let sliderMinHeight = $derived.by(() => {
+        // For main menu, use calculated height based on menu items
+        if (activeSettingsView === 'main') {
+            return `${menuItemsCount * 50 + 140}px`;
+        }
+        // For submenu views, use measured content height if available
+        // Fallback to a reasonable default if measurement hasn't completed yet
+        if (measuredContentHeight !== null && measuredContentHeight > 0) {
+            return `${measuredContentHeight}px`;
+        }
+        // Temporary fallback while measuring (prevents layout shift)
+        return '500px';
+    });
 </script>
 
-<div class="settings-content-slider" style="min-height: {menuItemsCount * 50 + 140}px;" bind:this={sliderElement}>
-	<!-- Main user info header that slides with settings items -->
-	{#if visibleViews.has('main')}
-
-        <!-- Main settings items -->
+<div class="settings-content-slider" style="min-height: {sliderMinHeight};" bind:this={sliderElement}>
+	<!-- Main settings menu - shown only when active -->
+	{#if activeSettingsView === 'main'}
         <div 
-            class="settings-items"
-            class:active={activeSettingsView === 'main'}
-            in:fly={getFlyParams(true, direction)}
-            out:fly={getFlyParams(false, direction)}
-            style="z-index: {activeSettingsView === 'main' ? 2 : 1};"
-            onoutroend={() => handleAnimationComplete('main')}
+            class="settings-items active"
+            in:slideIn={{ dir: direction }}
         >
-            <div class="user-info-container">
-                <div class="username">{username}</div>
-                <div class="credits-container">
-                    <span class="credits-icon"></span>
-                    <div class="credits-text">
-                        <span class="credits-amount"><mark>{$text('settings.credits_amount.text').replace('{credits_amount}', credits.toString())}</mark></span>
+            <!-- Profile header: docked avatar + username + credits.
+                 Hidden when showProfileHeader=false (e.g. SettingsMainHeader gradient banner
+                 is already rendered above by Settings.svelte, so we skip it here). -->
+            {#if showProfileHeader}
+                <!-- Profile container that scrolls with content (appears after 400ms delay) -->
+                {#if showDockedProfile}
+                    <div class="profile-container-docked">
+                        {#if !isAuthenticated}
+                            <div class="profile-picture language-icon-container">
+                                <!-- Show user icon when menu is open (same behavior as original profile container) -->
+                                <div class="clickable-icon icon_user"></div>
+                            </div>
+                        {:else}
+                            <div
+                                class="profile-picture"
+                                style={profileImageUrl ? `background-image: url(${profileImageUrl})` : ''}
+                            >
+                                {#if !profileImageUrl}
+                                    <div class="default-user-icon"></div>
+                                {/if}
+                            </div>
+                        {/if}
+                    </div>
+                {/if}
+                <div class="user-info-container">
+                    <div class="username" class:shifted={!paymentEnabled}>{username || 'Guest'}</div>
+                    <!-- Credits container - hidden visually when payment is disabled (self-hosted) but maintains layout space -->
+                    <div class="credits-container" class:hidden={!paymentEnabled}>
+                        <span class="credits-icon"></span>
+                        <div class="credits-text">
+                            <span class="credits-amount"><mark>{$text('settings.credits_amount').replace('{credits_amount}', credits.toString())}</mark></span>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <!-- Quick Settings - Only show when not in signup process -->
-            {#if !isInSignupMode}
-                <!-- TODO: unhide again once features implemented -->
-                <!-- <SettingsItem 
-                    type="quickaction" 
-                    icon="subsetting_icon subsetting_icon_incognito"
-                    title={$text('settings.incognito.text')}
-                    hasToggle={true}
-                    bind:checked={isIncognitoEnabled}
-                    onClick={() => handleQuickSettingClick('incognito')}
-                />
-                <SettingsItem 
-                    type="quickaction" 
-                    icon="subsetting_icon subsetting_icon_guest"
-                    title={$text('settings.guest.text')}
-                    hasToggle={true}
-                    bind:checked={isGuestEnabled}
-                    onClick={() => handleQuickSettingClick('guest')}
-                />
-                <SettingsItem 
-                    type="quickaction" 
-                    icon="subsetting_icon subsetting_icon_offline"
-                    title={$text('settings.offline.text')}
-                    hasToggle={true}
-                    bind:checked={isOfflineEnabled}
-                    onClick={() => handleQuickSettingClick('offline')}
-                /> -->
+            {/if}
+            
+            <!-- Incognito mode toggle - appears above Usage like language toggles -->
+            <!-- Only show for authenticated users -->
+            {#if isAuthenticated}
+                <div data-testid="incognito-toggle-wrapper">
+                    <SettingsItem
+                        type="quickaction"
+                        icon="subsetting_icon incognito"
+                        title={$text('settings.incognito')}
+                        hasToggle={true}
+                        checked={incognitoToggleChecked}
+                        onClick={async () => {
+                            // Guard against double-fire: in Safari, clicking the toggle can trigger
+                            // onClick twice in the same tick (once from the toggle-container div,
+                            // once from the label's synthetic click event). Without this guard,
+                            // deactivation would immediately re-activate incognito mode.
+                            if (incognitoClickInProgress) {
+                                return;
+                            }
+                            incognitoClickInProgress = true;
+                            // Reset the guard after the current microtask queue is flushed.
+                            // Using Promise.resolve() ensures the guard is active for any synchronous
+                            // re-entrant calls but resets before the next user interaction.
+                            Promise.resolve().then(() => { incognitoClickInProgress = false; });
+
+                            // Read the intended new value from the store (source of truth).
+                            // We read from the store (not incognitoToggleChecked) because the Toggle's
+                            // bind:checked may have already flipped the local state before onClick fires.
+                            const currentValue = $incognitoMode;
+                            const newValue = !currentValue;
+
+                            // CRITICAL: If mode is currently ON and we're turning it OFF, just toggle it off.
+                            // Don't show the info screen when turning off.
+                            if (currentValue && !newValue) {
+                                // Update local state immediately for responsive UI
+                                incognitoToggleChecked = false;
+
+                                // Update store (handles deletion of incognito chats when disabling)
+                                await incognitoMode.set(false);
+
+                                // Dispatch to parent for any additional handling
+                                handleQuickSettingClick('incognito');
+                                return; // Exit early - don't navigate to info screen
+                            }
+
+                            // If mode is currently OFF and we're turning it ON:
+                            // - If the user has already seen the explainer before, activate immediately.
+                            // - Otherwise show the info/explainer screen first so the user confirms.
+                            if (newValue) {
+                                if ($userProfile.incognito_explainer_seen) {
+                                    // User already confirmed the explainer before — activate immediately.
+                                    await incognitoMode.set(true);
+                                    incognitoToggleChecked = true;
+                                } else {
+                                    // First time — show explainer. Keep toggle OFF until user confirms.
+                                    // The Toggle's bind:checked may have already flipped it to true (optimistic),
+                                    // so we reset it here to wait for confirmation.
+                                    incognitoToggleChecked = false;
+
+                                    // Navigate to incognito info submenu - user will confirm activation there
+                                    showSettingsView('incognito/info', null);
+                                }
+                            }
+
+                            // Dispatch to parent for any additional handling
+                            handleQuickSettingClick('incognito');
+                        }}
+                    />
+                </div>
             {/if}
 
             <!-- Regular Settings -->
-            {#each Object.entries(settingsViews).filter(([key, _]) => isTopLevelView(key)) as [key, _]}
+            {#each Object.entries(settingsViews).filter(([key]) => isTopLevelView(key) && (key !== 'logs' || isAdminUser)) as [key]}
                 <SettingsItem 
-                    icon={key} 
-                    title={$text(`settings.${key}.text`)} 
+                    icon={key === 'logs' ? 'server' : key}
+                    title={key === 'logs' ? 'Logs' : $text(`settings.${key}`)}
                     onClick={() => showSettingsView(key, null)} 
                 />
             {/each}
 
-            <SettingsItem 
-                icon="subsetting_icon subsetting_icon_logout" 
-                title={$text('settings.logout.text')} 
-                onClick={handleLogout} 
-            />
+            <!-- Only show logout button for authenticated users -->
+            {#if username}
+                <SettingsItem 
+                    icon="subsetting_icon logout" 
+                    title={$text('settings.logout')} 
+                    onClick={handleLogout} 
+                />
+            {/if}
         </div>
     {/if}
     
-    <!-- Render only needed subsettings views -->
+    <!-- Render only the active subsettings view -->
     {#each Object.entries(settingsViews) as [key, component]}
         {@const Component = component}
-        {#if visibleViews.has(key)}
+        {#if activeSettingsView === key}
             <div 
-                class="settings-submenu-content"
-                class:active={activeSettingsView === key}
-                in:fly={getFlyParams(true, direction)}
-                out:fly={getFlyParams(false, direction)}
-                style="z-index: {activeSettingsView === key ? 2 : 1};"
-                onoutroend={() => handleAnimationComplete(key)}
+                class="settings-submenu-content active"
+                in:slideIn={{ dir: direction }}
             >
                 <Component 
-                    on:openSettings={event => {
-                        // Bubble up nested view change events
-                        dispatch('openSettings', event.detail);
-                    }}
+                    activeSettingsView={key}
+                    accountId={accountId}
+                    on:openSettings={(event: CustomEvent) => dispatch('openSettings', event.detail)}
+                    on:navigateBack={() => dispatch('navigateBack')}
+                    on:chatSelected={(event: CustomEvent) => dispatch('chatSelected', event.detail)}
+                    on:closeSettings={() => dispatch('closeSettings')}
                 />
             </div>
         {/if}
@@ -252,8 +415,62 @@
 </div>
 
 <style>
+    .profile-container-docked {
+        position: absolute;
+        left: 10px;
+        width: 50px;
+        height: 50px;
+        z-index: 1;
+        /* Disable pointer events and cursor to make it non-clickable */
+        pointer-events: none;
+        cursor: default;
+        /* This container scrolls naturally with the content since it's in normal flow */
+    }
+    
+    .profile-container-docked .profile-picture {
+        border-radius: 50%;
+        width: 100%;
+        height: 100%;
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-color: var(--color-grey-20);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .profile-container-docked .language-icon-container {
+        background-color: var(--color-primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .profile-container-docked .language-icon-container .clickable-icon {
+        width: 25px;
+        height: 25px;
+        background-color: white;
+    }
+    
+    .profile-container-docked .default-user-icon {
+        width: 32px;
+        height: 32px;
+        -webkit-mask-image: url('@openmates/ui/static/icons/user.svg');
+        -webkit-mask-size: contain;
+        -webkit-mask-position: center;
+        -webkit-mask-repeat: no-repeat;
+        mask-image: url('@openmates/ui/static/icons/user.svg');
+        mask-size: contain;
+        mask-position: center;
+        mask-repeat: no-repeat;
+        background-color: var(--color-grey-60);
+    }
+
     .user-info-container {
-        margin-left: 85px;
+        /* Logical property: indent text to clear the avatar on the inline-start side */
+        margin-inline-start: 85px;
         display: flex;
         flex-direction: column;
         gap: 4px;
@@ -264,12 +481,24 @@
         font-size: 22px;
         font-weight: 500;
         color: var(--color-grey-100);
+        transition: transform 0.3s ease;
+    }
+
+    /* Move username down when credits are hidden to fill the space */
+    /* Credits container height: icon (19px) + gap (8px) + text line-height (~20px) = ~47px */
+    .username.shifted {
+        transform: translateY(13px);
     }
 
     .credits-container {
         display: flex;
         align-items: center;
         gap: 8px;
+    }
+
+    /* Hide credits visually when payment is disabled (self-hosted) while maintaining layout space */
+    .credits-container.hidden {
+        visibility: hidden;
     }
 
     .credits-text {
@@ -300,8 +529,8 @@
         position: relative;
         width: 100%;
         overflow: hidden;
-        padding-top: 10px;
-        /* min-height now set dynamically via style attribute */
+        padding-top: 0px; /* Removed padding to eliminate top gap */
+        /* min-height now set dynamically via style attribute based on content height */
     }
     
     .settings-items, 
@@ -309,16 +538,18 @@
         position: absolute;
         left: 0;
         width: 100%;
-        opacity: 0;
         pointer-events: none;
-        transform: translateX(-300px);
-        transition: opacity 0.3s ease, transform 0.4s cubic-bezier(0.215, 0.61, 0.355, 1);
+        /* 
+         * Background ensures content behind doesn't show through during transitions.
+         * The custom flyFade Svelte transition handles opacity and transform animations.
+         * Do NOT add CSS transition properties - they conflict with Svelte's JS transitions.
+         */
+        background-color: var(--color-grey-20);
     }
     
     .settings-items.active,
     .settings-submenu-content.active {
-        opacity: 1;
         pointer-events: auto;
-        transform: translateX(0);
     }
+
 </style>

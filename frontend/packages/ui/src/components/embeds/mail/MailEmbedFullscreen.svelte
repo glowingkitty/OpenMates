@@ -1,0 +1,222 @@
+<!--
+  Purpose: Fullscreen mail draft view with copy and open-mail-client actions.
+  Architecture: Uses unified fullscreen embed shell with optional PII reveal toggle.
+  Architecture: docs/architecture/embeds.md
+  Tests: N/A
+-->
+
+<script lang="ts">
+  import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import { text } from '@repo/ui';
+  import { notificationStore } from '../../../stores/notificationStore';
+  import { copyToClipboard } from '../../../utils/clipboardUtils';
+  import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
+  import type { PIIMapping } from '../../../types/chat';
+
+  interface Props {
+    receiver?: string;
+    subject?: string;
+    content?: string;
+    footer?: string;
+    onClose: () => void;
+    embedId?: string;
+    hasPreviousEmbed?: boolean;
+    hasNextEmbed?: boolean;
+    onNavigatePrevious?: () => void;
+    onNavigateNext?: () => void;
+    navigateDirection?: 'previous' | 'next';
+    showChatButton?: boolean;
+    onShowChat?: () => void;
+    piiMappings?: PIIMapping[];
+    piiRevealed?: boolean;
+  }
+
+  let {
+    receiver = '',
+    subject = '',
+    content = '',
+    footer = '',
+    onClose,
+    embedId,
+    hasPreviousEmbed = false,
+    hasNextEmbed = false,
+    onNavigatePrevious,
+    onNavigateNext,
+    navigateDirection,
+    showChatButton = false,
+    onShowChat,
+    piiMappings = [],
+    piiRevealed = false,
+  }: Props = $props();
+
+  let localPiiRevealed = $state(false);
+  $effect(() => {
+    localPiiRevealed = piiRevealed;
+  });
+
+  let hasPII = $derived(piiMappings.length > 0);
+
+  function applyPIIMode(value: string): string {
+    if (!value || !hasPII) return value;
+    if (localPiiRevealed) return restorePIIInText(value, piiMappings);
+    return replacePIIOriginalsWithPlaceholders(value, piiMappings);
+  }
+
+  let safeReceiver = $derived(applyPIIMode(receiver));
+  let safeSubject = $derived(applyPIIMode(subject));
+  let safeContent = $derived(applyPIIMode(content));
+  let safeFooter = $derived(applyPIIMode(footer));
+
+  let mailBody = $derived.by(() => {
+    if (safeFooter && safeContent) return `${safeContent}\n\n${safeFooter}`;
+    return safeContent || safeFooter || '';
+  });
+
+  let mailtoUrl = $derived.by(() => {
+    const to = encodeURIComponent(safeReceiver || '');
+    const draftSubject = encodeURIComponent(safeSubject || '');
+    const body = encodeURIComponent(mailBody || '');
+    return `mailto:${to}?subject=${draftSubject}&body=${body}`;
+  });
+
+  function togglePII() {
+    localPiiRevealed = !localPiiRevealed;
+  }
+
+  async function handleCopy() {
+    const draft = [
+      `${$text('embeds.mail.to')}: ${safeReceiver || ''}`,
+      `${$text('embeds.mail.subject')}: ${safeSubject || ''}`,
+      '',
+      safeContent || '',
+      safeFooter ? `\n${safeFooter}` : '',
+    ].join('\n').trim();
+
+    const result = await copyToClipboard(draft);
+    if (result.success) {
+      notificationStore.success($text('embeds.mail.copied'));
+      return;
+    }
+    notificationStore.error($text('embeds.mail.copy_failed'));
+  }
+
+  function handleOpenMailClient() {
+    window.location.href = mailtoUrl;
+  }
+</script>
+
+<UnifiedEmbedFullscreen
+  appId="mail"
+  skillId="email"
+  skillIconName="mail"
+  embedHeaderTitle={safeSubject || $text('embeds.mail.email')}
+  embedHeaderSubtitle={safeReceiver ? `${$text('embeds.mail.to')}: ${safeReceiver}` : undefined}
+  onClose={onClose}
+  onCopy={handleCopy}
+  currentEmbedId={embedId}
+  {hasPreviousEmbed}
+  {hasNextEmbed}
+  {onNavigatePrevious}
+  {onNavigateNext}
+  {navigateDirection}
+  {showChatButton}
+  {onShowChat}
+  showPIIToggle={hasPII}
+  piiRevealed={localPiiRevealed}
+  onTogglePII={togglePII}
+>
+  {#snippet embedHeaderCta()}
+    <button class="open-mail-btn" onclick={handleOpenMailClient}>
+      {$text('embeds.mail.open_mail_client')}
+    </button>
+  {/snippet}
+
+  {#snippet content()}
+    <div class="mail-fullscreen-content">
+      <section class="mail-field">
+        <div class="label">{$text('embeds.mail.to')}</div>
+        <div class="value">{safeReceiver || '—'}</div>
+      </section>
+
+      <section class="mail-field">
+        <div class="label">{$text('embeds.mail.subject')}</div>
+        <div class="value">{safeSubject || '—'}</div>
+      </section>
+
+      <section class="mail-field">
+        <div class="label">{$text('embeds.mail.content')}</div>
+        <div class="body">{safeContent || $text('embeds.mail.empty_content')}</div>
+      </section>
+
+      {#if safeFooter}
+        <section class="mail-field">
+          <div class="label">{$text('embeds.mail.footer')}</div>
+          <div class="body footer">{safeFooter}</div>
+        </section>
+      {/if}
+    </div>
+  {/snippet}
+</UnifiedEmbedFullscreen>
+
+<style>
+  .open-mail-btn {
+    border: none;
+    border-radius: 999px;
+    padding: 10px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.28);
+    cursor: pointer;
+  }
+
+  .open-mail-btn:hover {
+    background: rgba(0, 0, 0, 0.42);
+  }
+
+  .mail-fullscreen-content {
+    margin: 72px 12px 100px;
+    padding: 16px;
+    border-radius: 14px;
+    background: var(--color-grey-10);
+    border: 1px solid var(--color-grey-25);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .mail-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-font-secondary);
+    font-weight: 700;
+  }
+
+  .value,
+  .body {
+    font-size: 14px;
+    color: var(--color-font-primary);
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .body {
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: var(--color-grey-5);
+    border: 1px solid var(--color-grey-20);
+    min-height: 44px;
+  }
+
+  .footer {
+    font-style: italic;
+  }
+</style>

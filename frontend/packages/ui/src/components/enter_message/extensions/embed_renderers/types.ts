@@ -24,8 +24,9 @@ export interface EmbedRenderer {
   /**
    * Render the embed content into the provided content element
    * @param context - Rendering context with attributes and DOM elements
+   * @returns void or Promise<void> for async rendering (e.g., loading from EmbedStore)
    */
-  render(context: EmbedRenderContext): void;
+  render(context: EmbedRenderContext): void | Promise<void>;
   
   /**
    * Convert embed back to canonical markdown when user presses backspace

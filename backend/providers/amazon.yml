@@ -1,0 +1,23 @@
+# backend/providers/amazon.yml
+#
+# Configuration for Amazon provider.
+# Used by the Shopping app for searching Amazon marketplace products via SerpAPI.
+
+provider_id: "amazon"
+name: "Amazon"
+description: "Amazon marketplace product search for products across multiple countries and categories."
+logo_svg: "icons/amazon.svg"
+region: "US" # Amazon HQ is in Seattle, US
+
+
+# API access
+# Amazon product search is provided via SerpAPI's Amazon Search API.
+# Authentication uses SERPAPI_KEY stored in Vault.
+# See backend/shared/providers/serpapi.py for the shared credential loader.
+# See backend/apps/shopping/providers/amazon_provider.py for the shopping integration.
+
+# SerpAPI Amazon Search pricing:
+# - Free plan: 100 searches/month
+# - Hobby plan: $50/month for 5,000 searches
+# - Business plan: $130/month for 15,000 searches
+# See docs/architecture/shopping-app.md for cost analysis.

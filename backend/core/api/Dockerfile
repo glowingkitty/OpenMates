@@ -2,15 +2,16 @@
 # This Dockerfile sets up the Python environment, copies the application code,
 # and prepares the container to run the Uvicorn server.
 
-FROM python:3.9-slim
+FROM python:3.13-slim
 
 # Set the working directory in the container
 # PYTHONPATH will be set to /app, and the 'backend' module will reside in /app/backend
 WORKDIR /app
 
 # Install system dependencies required by the application
+# git is needed for installing packages from GitHub (e.g., toon-format)
 RUN apt-get update && \
-    apt-get install -y curl && \
+    apt-get install -y curl git && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 

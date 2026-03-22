@@ -5,7 +5,8 @@ logger = logging.getLogger(__name__)
 async def update_user(self, user_id: str, update_data: dict) -> bool:
     """
     Update a user's data in Directus using the centralized _make_api_request method.
-    Updates the cache first to avoid unnecessary database reads.
+    CACHE-FIRST STRATEGY: Updates cache first, then Directus.
+    Cache is the source of truth for reads, Directus is for persistence.
     
     Parameters:
     - user_id: ID of the user to update
@@ -16,21 +17,28 @@ async def update_user(self, user_id: str, update_data: dict) -> bool:
     """
     logger.debug(f"Attempting to update user {user_id} in Directus.")
 
-    # Step 1: Update the cached user profile first (if it exists)
-    # This avoids an unnecessary database read on the next get_user_profile() call
-    cache_key = f"user_profile:{user_id}"
+    # Step 1: CACHE-FIRST - Update cache FIRST with new data
+    # This ensures cache is always the source of truth for reads
+    # Cache is updated even if it doesn't exist yet (creates minimal entry)
+    cache_key = f"{self.cache.USER_KEY_PREFIX}{user_id}"
     try:
-        cached_profile = await self.cache.get(cache_key)
-        if cached_profile:
-            # Update the cached profile with new data
-            cached_profile.update(update_data)
-            # Re-cache the updated profile
-            await self.cache.set(cache_key, cached_profile, ttl=21600)  # 6 hours TTL
-            logger.debug(f"Updated cached user profile for user {user_id}")
+        # Try to get existing cache data
+        existing_cache = await self.cache.get(cache_key)
+        
+        if existing_cache and isinstance(existing_cache, dict):
+            # Cache exists - update it with new data
+            existing_cache.update(update_data)
+            await self.cache.set(cache_key, existing_cache, ttl=self.cache.USER_TTL)
+            logger.debug(f"Updated existing cache FIRST for user {user_id} with fields: {list(update_data.keys())}")
         else:
-            logger.debug(f"No cached profile found for user {user_id}, will be fetched on next read")
+            # Cache doesn't exist - create minimal entry with just the update data
+            # This ensures cache-first strategy: cache is always updated before Directus
+            # Include user_id in the cache entry for consistency
+            minimal_cache_entry = {"user_id": user_id, "id": user_id, **update_data}
+            await self.cache.set(cache_key, minimal_cache_entry, ttl=self.cache.USER_TTL)
+            logger.debug(f"Created new cache entry FIRST for user {user_id} with fields: {list(update_data.keys())}")
     except Exception as cache_error:
-        logger.warning(f"Failed to update cached profile for user {user_id}: {cache_error}")
+        logger.warning(f"Failed to update cache for user {user_id}: {cache_error}")
         # Continue with Directus update even if cache update fails
     
     # Step 2: Update Directus database

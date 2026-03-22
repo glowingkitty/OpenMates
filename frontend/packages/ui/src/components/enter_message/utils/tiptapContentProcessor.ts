@@ -1,11 +1,16 @@
 // frontend/packages/ui/src/components/enter_message/utils/tiptapContentProcessor.ts
 
+interface TiptapMark {
+    type: string;
+    attrs?: Record<string, unknown>;
+}
+
 interface TiptapNode {
     type: string;
-    attrs?: Record<string, any>;
+    attrs?: Record<string, unknown>;
     content?: TiptapNode[];
     text?: string;
-    marks?: any[]; // Define more specifically if needed
+    marks?: TiptapMark[];
 }
 
 interface TiptapDoc {
@@ -15,7 +20,12 @@ interface TiptapDoc {
 
 // Regex for standalone URLs (simplified, adjust as needed for precision)
 // This regex looks for URLs that are not already part of markdown links or image tags
-const standaloneUrlRegex = /(?<!\]\()(?<!src=")(https?:\/\/[^\s]+\.[a-zA-Z]{2,}(\/\S*)?)/g;
+// Matches URLs with protocol AND common video platform URLs without protocol.
+// This is more targeted than matching all URLs without protocol to avoid false positives.
+// Matches:
+// - URLs with protocol: https://example.com/path, http://site.com
+// - YouTube URLs without protocol: youtube.com/watch?v=..., youtu.be/VIDEO_ID, www.youtube.com/...
+const standaloneUrlRegex = /(?<!\]\()(?<!src=")(?:https?:\/\/[^\s]+\.[a-zA-Z]{2,}(\/\S*)?|(?<![/\w@])(?:(?:www\.|m\.)?youtube\.com\/(?:watch\?v=|embed\/|shorts\/|v\/)[^\s\])"'<>]+|youtu\.be\/[^\s\])"'<>]+))/g;
 
 
 // Regex for markdown code blocks
@@ -26,10 +36,18 @@ function processTextNodeForEmbeds(textNode: TiptapNode): TiptapNode[] {
     let lastIndex = 0;
     let text = textNode.text || '';
 
+    // IMPORTANT: If this text node already has a link mark, it's part of a markdown link [text](url)
+    // Skip URL processing entirely to preserve the inline link format
+    const hasLinkMark = textNode.marks && textNode.marks.some((mark: TiptapMark) => mark.type === 'link');
+    if (hasLinkMark) {
+        // This is already a link - don't convert URLs to embeds
+        return [textNode];
+    }
+
     // First, process for code blocks as they are more distinct
     let match;
     while ((match = markdownCodeBlockRegex.exec(text)) !== null) {
-        const [fullMatch, lang, codeContent] = match;
+        const [fullMatch, lang, _codeContent] = match;
         const matchStart = match.index;
         const matchEnd = matchStart + fullMatch.length;
 
@@ -58,8 +76,9 @@ function processTextNodeForEmbeds(textNode: TiptapNode): TiptapNode[] {
 
 
     // Then, process the remaining text for URLs
+    // Only process URLs that are not part of markdown links
     while ((match = standaloneUrlRegex.exec(text)) !== null) {
-        const url = match[0];
+        let url = match[0];
         const matchStart = match.index;
         const matchEnd = matchStart + url.length;
 
@@ -68,9 +87,16 @@ function processTextNodeForEmbeds(textNode: TiptapNode): TiptapNode[] {
             newNodes.push({ ...textNode, text: text.substring(lastIndex, matchStart) });
         }
         
+        // Normalize URL by adding https:// if protocol is missing
+        if (!/^https?:\/\//i.test(url)) {
+            url = `https://${url}`;
+        }
+        
         // Add embed node using the correct schema
         // Basic check to avoid embedding YouTube URLs as generic web embed if they should be video embed
-        const youtubeRegex = /(?:https?:\/\/)?(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?v=|v\/|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+        // Matches: youtube.com, www.youtube.com, m.youtube.com (mobile), youtu.be
+        // Supports: /watch?v=, /embed/, /shorts/, /v/ (legacy) formats
+        const youtubeRegex = /(?:https?:\/\/)?(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
         if (!youtubeRegex.test(url)) {
              newNodes.push({
                 type: 'embed',

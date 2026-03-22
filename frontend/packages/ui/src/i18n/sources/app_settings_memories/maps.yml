@@ -1,0 +1,235 @@
+favorite_places:
+  context: Settings/memory name for favorite places in Maps app
+  en: Favorite places
+  de: Lieblingsorte
+  zh: 收藏地点
+  es: Lugares favoritos
+  fr: Lieux favoris
+  pt: Lugares favoritos
+  ru: Избранные места
+  ja: お気に入りの場所
+  ko: 즐겨찾는 장소
+  it: Luoghi preferiti
+  tr: Favori yerler
+  vi: Địa điểm yêu thích
+  id: Tempat favorit
+  pl: Ulubione miejsca
+  nl: Favoriete plaatsen
+  ar: الأماكن المفضلة
+  hi: पसंदीदा स्थान
+  th: สถานที่โปรด
+  cs: Oblíbená místa
+  sv: Favoritplatser
+  he: מקומות מועדפים
+  verified_by_human:
+    - en
+    - de
+favorite_places.description:
+  context: Description for favorite places setting in Maps app
+  en: Your saved favorite places for quick access.
+  de: Deine gespeicherten Lieblingsorte.
+  zh: 您保存的收藏地点，方便快速访问。
+  es: Tus lugares favoritos guardados para acceso rápido.
+  fr: Vos lieux favoris enregistrés pour un accès rapide.
+  pt: Seus lugares favoritos salvos para acesso rápido.
+  ru: Ваши сохраненные избранные места для быстрого доступа.
+  ja: クイックアクセスのための保存されたお気に入りの場所。
+  ko: 빠른 액세스를 위한 저장된 즐겨찾는 장소.
+  it: I tuoi luoghi preferiti salvati per un accesso rapido.
+  tr: Hızlı erişim için kaydedilmiş favori yerleriniz.
+  vi: Các địa điểm yêu thích đã lưu của bạn.
+  id: Tempat favorit yang disimpan untuk akses cepat.
+  pl: Twoje zapisane ulubione miejsca do szybkiego dostępu.
+  nl: Je opgeslagen favoriete plaatsen voor snelle toegang.
+  ar: الأماكن المفضلة المحفوظة للوصول السريع.
+  hi: त्वरित पहुंच के लिए आपके सहेजे गए पसंदीदा स्थान।
+  th: สถานที่โปรดที่บันทึกไว้สำหรับการเข้าถึงอย่างรวดเร็ว
+  cs: Vaše uložená oblíbená místa pro rychlý přístup.
+  sv: Dina sparade favoritplatser för snabb åtkomst.
+  he: המקומות המועדפים ששמרת לגישה מהירה.
+  verified_by_human:
+    - en
+    - de
+
+# Example entries shown to non-authenticated users to illustrate what each category stores
+
+favorite_places.example_1:
+  context: Example entry for favorite places (home location)
+  en: Home
+  de: Zuhause
+  zh: 家
+  es: Casa
+  fr: Maison
+  pt: Casa
+  ru: Дом
+  ja: 自宅
+  ko: 집
+  it: Casa
+  tr: Ev
+  vi: Nhà
+  id: Rumah
+  pl: Dom
+  nl: Thuis
+  ar: المنزل
+  hi: घर
+  th: บ้าน
+  cs: Domov
+  sv: Hem
+  he: בית
+  verified_by_human:
+    - en
+    - de
+favorite_places.example_2:
+  context: Example entry for favorite places (work location)
+  en: Office
+  de: Büro
+  zh: 办公室
+  es: Oficina
+  fr: Bureau
+  pt: Escritório
+  ru: Офис
+  ja: オフィス
+  ko: 사무실
+  it: Ufficio
+  tr: Ofis
+  vi: Văn phòng
+  id: Kantor
+  pl: Biuro
+  nl: Kantoor
+  ar: المكتب
+  hi: कार्यालय
+  th: ออฟฟิศ
+  cs: Kancelář
+  sv: Kontor
+  he: משרד
+  verified_by_human:
+    - en
+    - de
+favorite_places.example_3:
+  context: Example entry for favorite places (a casual spot)
+  en: Favorite coffee shop
+  de: Lieblingscafé
+  zh: 最爱的咖啡店
+  es: Cafetería favorita
+  fr: Café préféré
+  pt: Cafeteria favorita
+  ru: Любимая кофейня
+  ja: お気に入りのカフェ
+  ko: 단골 카페
+  it: Bar preferito
+  tr: Favori kahve dükkanı
+  vi: Quán cà phê yêu thích
+  id: Kedai kopi favorit
+  pl: Ulubiona kawiarnia
+  nl: Favoriete koffiebar
+  ar: المقهى المفضل
+  hi: पसंदीदा कॉफी शॉप
+  th: ร้านกาแฟโปรด
+  cs: Oblíbená kavárna
+  sv: Favoritkafé
+  he: בית הקפה המועדף
+  verified_by_human:
+    - en
+    - de
+
+# example_entries translation keys for favorite_places
+
+favorite_places.example_1.name:
+  context: Example place name for favorite places
+  en: Central Park
+  de: Central Park
+  zh: 中央公园
+  es: Central Park
+  fr: Central Park
+  pt: Central Park
+  ru: Центральный парк
+  ja: セントラルパーク
+  ko: 센트럴 파크
+  it: Central Park
+  tr: Central Park
+  vi: Công viên Trung tâm
+  id: Central Park
+  pl: Central Park
+  nl: Central Park
+  ar: سنترال بارك
+  hi: सेंट्रल पार्क
+  th: เซ็นทรัลพาร์ค
+  cs: Central Park
+  sv: Central Park
+  he: סנטרל פארק
+  verified_by_human: []
+
+favorite_places.example_1.address:
+  context: Example address for favorite place Central Park
+  en: New York, NY 10024
+  de: New York, NY 10024
+  zh: 纽约，NY 10024
+  es: Nueva York, NY 10024
+  fr: New York, NY 10024
+  pt: Nova York, NY 10024
+  ru: Нью-Йорк, NY 10024
+  ja: ニューヨーク、NY 10024
+  ko: 뉴욕, NY 10024
+  it: New York, NY 10024
+  tr: New York, NY 10024
+  vi: New York, NY 10024
+  id: New York, NY 10024
+  pl: Nowy Jork, NY 10024
+  nl: New York, NY 10024
+  ar: نيويورك، NY 10024
+  hi: न्यूयॉर्क, NY 10024
+  th: นิวยอร์ก, NY 10024
+  cs: New York, NY 10024
+  sv: New York, NY 10024
+  he: ניו יורק, NY 10024
+  verified_by_human: []
+
+favorite_places.example_2.name:
+  context: Example place name for favorite places
+  en: Eiffel Tower
+  de: Eiffelturm
+  zh: 埃菲尔铁塔
+  es: Torre Eiffel
+  fr: Tour Eiffel
+  pt: Torre Eiffel
+  ru: Эйфелева башня
+  ja: エッフェル塔
+  ko: 에펠탑
+  it: Torre Eiffel
+  tr: Eyfel Kulesi
+  vi: Tháp Eiffel
+  id: Menara Eiffel
+  pl: Wieża Eiffla
+  nl: Eiffeltoren
+  ar: برج إيفل
+  hi: एफिल टावर
+  th: หอไอเฟล
+  cs: Eiffelova věž
+  sv: Eiffeltornet
+  he: מגדל אייפל
+  verified_by_human: []
+
+favorite_places.example_2.address:
+  context: Example address for favorite place Eiffel Tower
+  en: Champ de Mars, 75007 Paris
+  de: Champ de Mars, 75007 Paris
+  zh: 战神广场，75007 巴黎
+  es: Campo de Marte, 75007 París
+  fr: Champ de Mars, 75007 Paris
+  pt: Champ de Mars, 75007 Paris
+  ru: Марсово поле, 75007 Париж
+  ja: シャン・ド・マルス、75007 パリ
+  ko: 샹 드 마르스, 75007 파리
+  it: Campo di Marte, 75007 Parigi
+  tr: Champ de Mars, 75007 Paris
+  vi: Champ de Mars, 75007 Paris
+  id: Champ de Mars, 75007 Paris
+  pl: Pole Marsowe, 75007 Paryż
+  nl: Champ de Mars, 75007 Parijs
+  ar: ساحة المريخ، 75007 باريس
+  hi: शां दे मार्स, 75007 पेरिस
+  th: ชองป์ เดอ มาร์ส, 75007 ปารีส
+  cs: Champ de Mars, 75007 Paříž
+  sv: Champ de Mars, 75007 Paris
+  he: שאן דה מארס, 75007 פריז
+  verified_by_human: []

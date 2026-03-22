@@ -1,490 +1,246 @@
-# Security architecture
+# Security Architecture Overview
 
-> This is the planned architecture. Keep in mind there can still be differences to the current state of the code.
+> Zero-knowledge architecture where the server never sees passwords, emails, or encryption keys.
+
+## Core Security Principles
+
+- **Server = encrypted storage only**: Stores encrypted blobs it cannot decrypt by default
+- **Dual-Mode Encryption**: Standard user data is **Client-Side Encrypted** (Zero-Knowledge). Server-generated files (images, PDFs) use **Server-Managed Encryption** (Vault) for functionality.
+- **Client-side encryption**: Most sensitive data encrypted before leaving user's device
+- **Multiple login methods**: Password, passkey, recovery key support with individual wrapped keys
+- **Granular key isolation**: Separate encryption keys for chats, apps, emails, embeds
+- **Password requires 2FA**: Password authentication always requires two-factor authentication - they are set up together and cannot exist independently
+
+## Security Controls Summary
+
+| Category              | Status         | Details                                        | Documentation                                   |
+| --------------------- | -------------- | ---------------------------------------------- | ----------------------------------------------- |
+| **Authentication**    | ✅ 6/8         | Zero-knowledge login, 2FA mandatory            | [Signup & Login](./signup-and-auth.md)          |
+| **Encryption**        | ✅ 7/7         | AES-256-GCM, Client-Managed & Server-Managed   | [Encryption Tiers](#encryption-tiers-dual-mode) |
+| **S3 File Access**    | ✅ Implemented | Private bucket + presigned URLs (15-min TTL)   | [S3 Access Control](#s3-file-access-control)    |
+| **Email Privacy**     | ✅ Implemented | Client-side encrypted storage                  | [Email Privacy](./email-privacy.md)             |
+| **PII Anonymization** | ✅ Implemented | Client-side detection, placeholder replacement | [PII Anonymization](./pii-protection.md)        |
+| **Device Management** | 🔄 Planned     | QR login, remote logout                        | [Device Management](./device-sessions.md)       |
+| **Passkey Support**   | ✅ Implemented | WebAuthn with PRF extension                    | [Passkeys](./passkeys.md)                       |
+
+## Encryption Tiers (Dual-Mode)
+
+OpenMates implements a hybrid encryption model to balance maximum privacy with the practical needs of AI-powered features and long-running server tasks.
+
+### 1. Client-Managed (Zero-Knowledge)
+
+**Used for**: Chat messages, most app data, profile settings, email content.
+
+- **Key Location**: User's device (never sent to server).
+- **Security**: The server stores only encrypted blobs. Even with physical access to the database or a compromise of the backend, the server cannot read this data.
+- **Limitation**: The server cannot process this data in the background (e.g., AI cannot analyze a client-side encrypted chat history while the user is offline).
+
+### 2. Server-Managed (Vault-Hybrid)
+
+**Used for**: Server-generated files (Images, PDFs, Videos), long-running task outputs.
+
+- **Key Location**: Encrypted by a unique AES key, which is then **wrapped by HashiCorp Vault** using a user-specific key ID.
+- **Security**: Data is encrypted at rest in S3 (private bucket — no anonymous access) and Directus. The server can temporarily "unwrap" the key to process the file (e.g., AI modifying a previously generated image, or generating a download stream).
+- **Reasoning**: Necessary for long-running tasks that complete while the user is offline. Without this, the user would need to stay online with an open browser to encrypt the final result of a 30-second image generation.
+
+---
+
+## S3 File Access Control
+
+All user-uploaded and server-generated files in the **chatfiles bucket** are stored with **private ACL** — no anonymous or public S3 access is permitted. Both encrypted uploads and server-generated encrypted files use this bucket.
+
+> Profile images use a separate bucket with public-read ACL and contain no sensitive data (unencrypted thumbnails).
+
+### Client-Side File Access (Presigned URLs)
+
+When the frontend needs to display a file (image, audio, PDF), it uses a short-lived presigned URL:
+
+1. **Client requests a presigned URL**: `GET /v1/embeds/presigned-url?s3_key=<key>` (authenticated via session cookie or API key, rate-limited to 120 req/min)
+2. **API validates** the user is authenticated, then calls S3 to generate a **15-minute presigned URL**
+3. **Client fetches the encrypted blob** directly from S3 using the presigned URL
+4. **Client decrypts** using the AES key stored locally (Client-Managed) or unwrapped from Vault (Server-Managed)
+5. **On 403 (expired URL)**: the frontend automatically retries with a fresh presigned URL — the existing in-memory blob cache prevents redundant fetches
+
+The presigned URL grants temporary read access to a single S3 object. It does not reveal the encryption key or bypass decryption — the blob at that URL is still AES-256-GCM encrypted.
+
+### Server-Side File Access (Internal API)
+
+Skills and background tasks (running in separate containers) access S3 via an internal endpoint that uses server-side AWS credentials — they never receive presigned URLs or plaintext keys from the client:
+
+- `GET /internal/s3/download?s3_key=<key>` — returns the raw encrypted bytes to the calling skill
+- Skills then unwrap the AES key from Vault and decrypt in-memory
+- This endpoint is internal-only (not exposed through the public API gateway)
+
+### Audio Transcription Security
+
+The audio transcription skill (`transcribe_skill.py`) follows the same Vault-Transit pattern as images and PDFs:
+
+- Client sends `vault_wrapped_aes_key` (not a plaintext AES key)
+- The `apps_api.py` handler resolves the user's `vault_key_id` from cache/Directus and injects it as `_user_vault_key_id`
+- The skill unwraps the AES key from Vault using the user's key ID, then decrypts the audio blob obtained via the internal S3 download endpoint
+
+This prevents the client from ever transmitting a raw encryption key over the network.
+
+### Architecture Diagram (S3 Access)
+
+```
+Client (Browser)                     API Server                    S3 (Private Bucket)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                                      │
+GET /v1/embeds/presigned-url ───────→ │ Validates auth
+                                      │ Calls S3 GeneratePresignedUrl (15 min TTL)
+         ← presigned URL ─────────── │
+                                      │
+GET <presigned S3 URL> ────────────────────────────────────────────────────────────→
+         ← encrypted blob ←───────────────────────────────────────────────────────
+                                      │
+Decrypt with local AES key            │
+(Web Crypto API, never leaves device) │
+
+
+Skill Container                       API Server (Internal)         S3 (Private Bucket)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                                      │
+GET /internal/s3/download?key=… ────→ │ Uses server AWS credentials
+                                      │ Calls S3 GetObject
+         ← encrypted bytes ────────  │ ←─────────────────────────────────────────
+                                      │
+Vault.unwrap(vault_wrapped_aes_key)   │
+Decrypt bytes in memory               │
+```
+
+### Key Implementation Files
+
+- **[`backend/core/api/app/routes/embeds_api.py`](../../backend/core/api/app/routes/embeds_api.py)**: `GET /v1/embeds/presigned-url` endpoint
+- **[`backend/core/api/app/routes/internal_api.py`](../../backend/core/api/app/routes/internal_api.py)**: `GET /internal/s3/download` endpoint
+- **[`backend/core/api/app/services/s3/config.py`](../../backend/core/api/app/services/s3/config.py)**: Bucket ACL configuration (`private`)
+- **[`frontend/packages/ui/src/services/presignedUrlService.ts`](../../frontend/packages/ui/src/services/presignedUrlService.ts)**: Client presigned URL fetch + 403 retry logic
+
+---
 
 ## Zero-Knowledge Authentication
 
-Our system uses a zero-knowledge authentication model: the server never sees passwords, passkeys, backup codes, or encryption keys in plaintext. Authentication requires both server-side verification of cryptographic hashes and client-side ability to decrypt the master key.
+OpenMates uses zero-knowledge authentication where servers never see passwords, emails, or encryption keys in plaintext.
 
-### Key Principles
+### How Authentication Works
 
-- **Server = encrypted storage only**: It stores blobs it cannot decrypt
-- **Dual verification authentication**:
-  1. Server-side: Verifies the provided lookup hash exists in the user’s registered lookup hashes
-  1. Client-side: Successful login requires successful decryption of the master key
-- **No plaintext credential verification**: The server never receives or verifies plaintext credentials
-- **Two-step user identification**:
-  1. First, the server locates the user record using the email hash
-  1. Then, it verifies authentication by checking if the provided lookup hash exists in the user’s registered lookup hashes
-- **Privacy-preserving lookups**: Server uses cryptographic hashes, never plaintext identifiers
-- **Multiple login methods per user**: Users are encouraged to register multiple secure login options
+**Client-Side (User's Device)**:
 
-## Email Encryption Architecture
+1. Derives `lookup_hash = SHA256(password + salt)`
+2. Sends only the hash to server (never plaintext password)
+3. Decrypts master key locally to verify authentication
 
-**Implementation**: [`frontend/packages/ui/src/services/cryptoService.ts`](../../frontend/packages/ui/src/services/cryptoService.ts) (client-side) and [`backend/core/api/app/routes/auth_routes/auth_2fa_setup.py`](../../backend/core/api/app/routes/auth_routes/auth_2fa_setup.py) (server-side)
+**Server-Side**:
 
-### Storage Schema
+1. Locates user by `hashed_email = SHA256(email)`
+2. Verifies `lookup_hash` exists in user's registered hashes
+3. Never sees or stores plaintext credentials
 
-- **user_email_salt**: Plaintext salt unique per user
-- **encrypted_email**: Client-side encrypted email address
-- **hashed_email**: SHA256(email) for uniqueness checks and user lookup
-- **lookup_hash**: SHA256(login_secret + salt) for authentication
+### Security Result
 
-### Key Derivation
+Even if servers are compromised, attackers only get useless hashes without access to:
 
-```javascript
-// Client-side only
-email_encryption_key = SHA256(email + user_email_salt)
+- User passwords (only hashes stored)
+- Email addresses (encrypted with user keys)
+- Chat content (encrypted with user keys)
+- Master encryption keys (never transmitted)
+
+### Password + 2FA Requirement
+
+Password authentication **always requires 2FA** to be enabled. When a user sets up a password:
+
+1. User enters and confirms new password
+2. If 2FA is not already enabled, user MUST complete 2FA setup first
+3. Password is ONLY saved to server AFTER 2FA setup completes successfully
+4. If user cancels 2FA setup, password is NOT saved - both must succeed together
+
+This ensures that password-based authentication is always protected by a second factor, preventing unauthorized access even if the password is compromised.
+
+**Implementation**: [`frontend/packages/ui/src/components/settings/security/SettingsPassword.svelte`](../../frontend/packages/ui/src/components/settings/security/SettingsPassword.svelte)
+
+**Implementation**: [`backend/core/api/app/routes/auth_routes/auth_login.py`](../../backend/core/api/app/routes/auth_routes/auth_login.py) and [`frontend/packages/ui/src/services/cryptoService.ts`](../../frontend/packages/ui/src/services/cryptoService.ts)
+
+## Architecture Diagram
+
+### Client-Managed Flow (Default)
+
+```
+User's Device (🔐 Encrypted)     |     Server (🔒 Encrypted Blobs Only)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━│━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                                  │
+Password → Derives Hash ───────→ │ Verifies Hash (never sees password)
+           (stays local)          │
+                                  │
+Email → Encrypts ─────────────→ │ Stores encrypted blob (can't read)
+        (with user salt)          │
+                                  │
+Master Key → Encrypts Data ───→ │ Stores encrypted chats/apps (can't decrypt)
+            (stays local)         │
 ```
 
-### Login Flow with Email Decryption
-
-1. User enters email + password/passkey
-2. Client derives lookup_hash = SHA256(email + login_secret)
-3. Client derives email_encryption_key = SHA256(email + user_email_salt)
-4. Client sends { lookup_hash, email_encryption_key } to server
-5. Server finds user by lookup_hash
-6. Server temporarily decrypts email: decrypt(encrypted_email, email_encryption_key)
-7. Server sends notification email about new device login (if device is new)
-8. Server immediately discards encryption key
-9. Returns session token to client
-
-### Security Properties
-
-- Server never persistently stores email encryption keys
-- Email plaintext never persists on server
-- Each user has unique salt preventing key reuse across users
-- Server gets temporary decryption capability only during active login
-- Authentication fails if wrong credentials (email decryption produces invalid result)
-
-## Invoice Privacy Protection
-
-### Customer Identification
-
-- Account ID: 7-character human-readable identifier (e.g., “K7M9P2S”) included on invoices
-- account_id: Stored in plaintext in the user record on the server; used for invoices and customer support
-- Invoice schema: Contains account ID in plaintext, never email addresses
-
-### German Legal Compliance
-
-- Account IDs on invoices satisfy German business record requirements
-- Personal email addresses are not exposed on invoices or in accounting systems
-- Account IDs are non-sequential and randomly generated, providing privacy protection
-- Customer support can locate users directly via account ID lookup
-
-## User Signup
-
-**Implementation**: 
-- **Frontend**: [`frontend/packages/ui/src/components/Login.svelte`](../../frontend/packages/ui/src/components/Login.svelte) and [`frontend/packages/ui/src/services/cryptoService.ts`](../../frontend/packages/ui/src/services/cryptoService.ts)
-- **Backend**: [`backend/core/api/app/routes/auth_routes/auth_login.py`](../../backend/core/api/app/routes/auth_routes/auth_login.py)
-
-- The client:
-  - Generates a unique master encryption key
-  - Generates user_email_salt (random, unique per user)
-  - Encrypts email: encrypted_email = encrypt(email, SHA256(email + user_email_salt))
-  - Encrypts master key (wrapped key) using the selected login method (e.g., password or passkey)
-- Computes:
-  - email_hash = SHA256(email)
-  - lookup_hash = SHA256(login_secret + salt)
-  login_secret = password, passkey PRF value, or recovery key
-- Sends to server:
-  - email_hash, encrypted_email, user_email_salt
-  - lookup_hash
-  - Wrapped master encryption key
-  - Login method type (password, passkey, or recovery_key)
-- The server:
-  - Stores encrypted email and salt
-  - Stores email_hash as an indexed field for fast login lookup
-  - Adds lookup_hash to the user's user_lookup_hashes array
-  - Associates the wrapped encryption key with that lookup_hash and method
-  - Generates and stores a unique account_id for invoice/accounting use
-  - (If method is password) Requires the user to:
-    - Set up OTP-based 2FA (e.g., TOTP via Google Authenticator)
-
-
-## Login Flow
-
-**Implementation**: 
-- **Backend**: [`backend/core/api/app/routes/auth_routes/auth_login.py`](../../backend/core/api/app/routes/auth_routes/auth_login.py)
-- **Frontend**: [`frontend/packages/ui/src/components/Login.svelte`](../../frontend/packages/ui/src/components/Login.svelte) and [`frontend/packages/ui/src/services/cryptoService.ts`](../../frontend/packages/ui/src/services/cryptoService.ts)
-
-Three supported login methods:
-
-- Password (+ 2FA) ✅ **IMPLEMENTED**
-- Passkey ⚠️ **PLANNED** (not yet implemented)
-- Recovery Key (offline fallback, stored securely by the user) ⚠️ **PLANNED** (not yet implemented)
-
-❗ Backup codes do not provide direct access. They are used only as a temporary second factor in combination with a password.
-
-### Backup Code Flow (used with password):
-
-- Client submits:
-  - email_hash
-  - lookup_hash = SHA256(password + salt)
-  - backup_code instead of otp_code
-- Server:
-  - Verifies password lookup_hash
-  - Verifies one-time backup code (marks it as used)
-  - If valid, proceeds as with password + otp login
-
-### Recovery Key Flow (standalone full-access login):
-
-**Status**: ⚠️ **NOT YET IMPLEMENTED** - This is planned functionality for offline recovery.
-
-**Planned Implementation**: Future recovery key system (to be created)
-
-- lookup_hash = SHA256(recovery_key + salt)
-- Recovery key will unlock its own wrapped master key directly (like passkeys or passwords)
-
-
-### Backup Codes
-
-- Backup codes are used as a second factor during password login, in place of the OTP code
-- Characteristics:
-  - Single-use by default
-  - Cannot decrypt the master key by themselves
-  - When used, mark as consumed and log the event
-- Generated during:
-  - Initial password + 2FA setup
-  - Manually by the user later in settings
-
-
-### Recovery Key
-
-- A secure, standalone login credential designed for emergency access (loss of password & passkeys)
-- Characteristics:
-  - Acts like a login method
-  - Derives a lookup_hash = SHA256(recovery_key + salt)
-  - Has its own wrapped master key and Argon2 salt
-  - Not rate-limited as aggressively as backup codes, but recommended to be stored securely offline
-  - Only shown once and never retrievable again
-  - Can be revoked by the user (deleting its associated lookup_hash entry)
-
-
-### 🔁 Multiple login methods per user
-
-Each login method has:
-
-- Its own lookup_hash
-- Its own wrapped master key
-- Its own Argon2 salt
-
-Valid methods include:
-
-- password (with OTP or backup code)
-- passkey
-- recovery_key
-
-
-
-### Passkey (WebAuthn)
-
-**Status**: ⚠️ **NOT YET IMPLEMENTED** - This is planned functionality for passwordless authentication.
-
-**Planned Implementation**: Future WebAuthn integration (to be created)
-
-- We will use the WebAuthn PRF extension to derive a passkey secret client-side
-- lookup_hash = SHA256(passkey_prf_secret + salt)
-- Like all methods, this will generate a unique wrapped master key and salt
-
-
-### Magic login link
-
-**Status**: ⚠️ **NOT YET IMPLEMENTED** - This is planned functionality for VSCode extension, CLI, and public computer login.
-
-**Planned Implementation**: Future magic link system (to be created)
-
-Will be used to login in VSCode extension, CLI and also shows up as alternative login option for public computers in login interface where email is showing up.
-Will require both devices to enter a random 3 character key that shows up on the other device, before login is possible.
-
-### **Step 1: Device Requests Authentication**
-
-**VSCode Extension:**
-
-1. User opens extension for first time → shows “Login Required”
-2. User clicks “Login” button
-3. Extension generates unique request token
-4. Extension displays authentication dialog with:
-- Clickable link: `https://app.openmates.org/#pair=abc123def456`
-- QR code of the same URL
-- “Waiting for authentication…” spinner
-
-**CLI:**
-
-1. User runs `myapp login`
-2. CLI generates unique request token
-3. CLI displays in terminal:
-   
-   ```
-   To login, visit this link or scan the QR code:
-   
-   https://app.openmates.org/#pair=abc123def456
-   
-   [ASCII QR CODE]
-   
-   Waiting for authentication...
-   ```
-
-Both devices start polling server: `GET /api/auth/poll/{request_token}`
-
-### **Step 2: Browser Authentication**
-
-1. User visits pairing URL (clicks link or scans QR on mobile)
-2. Browser loads: `https://app.openmates.org/#pair=abc123def456`
-3. If user not logged in → redirects to login page first
-4. After login, browser shows device authorization page:
-   
-   ```
-   Authorize device access?
-	 
-	 Warning: the device will have full access to your account! Keep in mind that no OpenMates related support will ever ask you to login or for your login credentials.
-   
-   Device: VSCode Extension (or CLI)
-   Platform: Windows/macOS/Linux
-   IP: 192.168.1.100
-   Time: 2:34 PM
-   
-   [Authorize] [Cancel]
-   ```
-
-### **Step 3: Crypto Material Encryption**
-
-1. User clicks “Authorize”
-2. Browser generates random 6-digit code: “482751”
-3. Browser encrypts crypto bundle using the code
-4. Browser uploads to server: `POST /api/auth/complete/{request_token}`
-5. Browser shows completion page with “Enter this code: {code} (expires in 2 minutes)
-
-### **Step 4: Device Receives Authentication**
-
-**VSCode Extension:**
-1. Extension’s polling detects encrypted bundle is ready
-2. Extension shows input dialog: “Enter 6-digit code from browser:”
-3. User enters “482751”
-4. Extension downloads and decrypts bundle
-5. Extension shows “Login successful!” and proceeds to main interface
-
-**CLI:**
-1. CLI’s polling detects encrypted bundle is ready  
-2. CLI prompts: `Enter 6-digit code from browser: `
-3. User types “482751” and presses Enter
-4. CLI downloads and decrypts bundle
-5. CLI shows “✓ Login successful!” and proceeds
-
-### **Step 5: Cleanup**
-
-1. Server deletes encrypted bundle and request token
-2. Both devices now have full crypto materials and can operate normally
-
-### Security Properties
-
-- **No email/account ID required** on device - completely privacy-preserving
-- **Same UX for both platforms** - consistent user experience
-- **Cross-device/cross-platform** - works between any combinations
-- **Zero-knowledge maintained** - server never sees decrypted materials
-- **Time-bounded** - request tokens and codes expire quickly
-- **User authorization** - explicit consent for each device pairing
-
-This gives you a seamless, privacy-first authentication flow that works identically across all your applications!​​​​​​​​​​​​​​​​
-
-
-## Chats
-
-**Implementation**: [`frontend/packages/ui/src/services/cryptoService.ts`](../../frontend/packages/ui/src/services/cryptoService.ts) and [`frontend/packages/ui/src/services/db.ts`](../../frontend/packages/ui/src/services/db.ts)
-
-- Each chat has its own symmetric encryption_key_chat
-- Chat keys are encrypted with the user's decrypted encryption_key_user_local and uploaded
-- Messages are AES-encrypted/decrypted on the client
-
-
-
-## API Keys
-
-**Status**: ⚠️ **NOT YET IMPLEMENTED** - This is planned functionality for developer API access.
-
-**Planned Implementation**: Future API key management system (to be created)
-
-- API keys authenticate without requiring the user email on each request; the API key alone serves as credential
-- For each API key, the server will store:
-  - api_key_hash = SHA256(api_key) for lookup
-  - wrapped master key encrypted with Argon2 derived from the API key
-  - Argon2 salt
-  - Status (active, revoked)
-  - Allowed IP addresses list
-  - Pending IP addresses list awaiting user confirmation
-  - Metadata (creation date, last used date, label, etc.)
-- On each API request, server will look up API key by hash
-- If request originates from an unknown IP, access will be blocked and the IP added to pending list
-- User will receive notification in the web UI and must explicitly approve the new IP before requests from it are accepted
-- After IP approval, subsequent requests from the IP will be accepted seamlessly
-- This approach will provide strong protection against unauthorized API key usage, balancing usability and security
-- API keys will allow loading the wrapped master key and encrypted user data; client-side SDK will decrypt data using the API key
-
-
-
-## App Skills
-
-**Status**: ⚠️ **NOT YET IMPLEMENTED** - This is planned functionality for app skills integration.
-
-**Planned Implementation**: Future app skills system (to be created)
-
-- If user hasn't explicitly used an app skill via @skill, manual confirmation will be required for sensitive skills (skills which can cause huge financial costs or harm if not executed with clear consent of user. Example: Send email, Generate video, Delete server, etc.)
-- All input/output data will be encrypted client-side and shown in the UI
-- App skill output will be filtered via a safety LLM to detect prompt injection and misuse
-
-
-
-## App Settings & Memories
-
-**Status**: ⚠️ **NOT YET IMPLEMENTED** - This is planned functionality for app-specific settings and memories.
-
-**Planned Implementation**: Future app settings and memories system (to be created)
-
-- Each app the user uses will have its own encryption_key_user_app
-- This key will be generated on first use and encrypted with the user's master encryption key
-- App settings & memories will be encrypted client-side before being uploaded
-
-
-
-## Terms Explained
-
-### email_hash
-
-- SHA256(email)
-- Used to look up the user record
-- Plaintext email is never used in auth flows
-
-### lookup_hash
-
-- SHA256(login_secret + salt)
-- Unique per login method
-- Stored in the user’s user_lookup_hashes array
-
-### user_lookup_hashes
-
-- A list of accepted lookup_hash values
-- One for each login method (password, passkey, recovery key, API key)
-
-### login_secret
-
-- The secret used to derive the wrapped key
-- Can be:
-  - Password
-  - WebAuthn PRF value
-  - Recovery key
-  - API key
-
-### wrapped_master_key
-
-- The user’s master encryption key, encrypted with a key derived from login_secret via Argon2
-- Stored alongside the lookup_hash and login_method_type
-
-### encryption_key_user_local
-
-- Generated client-side at signup
-- Decrypted locally after login and used to encrypt/decrypt all user data
-
-### encryption_key_user_server
-
-- Stored in HashiCorp Vault
-- Used only to encrypt server-visible data: credits and other low sensitivity data
-
-### encryption_key_chat
-
-- AES key used for chat encryption, generated client-side per chat
-
-### encryption_key_user_app
-
-- App-specific key for settings/memories, encrypted using encryption_key_user_local
-
-### email_encryption_key
-
-- SHA256(email + user_email_salt)
-- Derived client-side for email encryption/decryption
-- Sent temporarily to server only during login for notification emails
-
-### user_email_salt
-
-- Random salt unique per user, stored in plaintext on server
-- Used to derive email encryption key and prevent key reuse across users
-
-### account_id
-
-- 7-character human-readable identifier (e.g., “K7MA9P2”)
-- Stored in plaintext in the user record
-- Used on invoices and for support lookups
-
-## Safety Layers
-
-### Pre-processing
-
-**Implementation**: [`backend/apps/ai/processing/preprocessor.py`](../../backend/apps/ai/processing/preprocessor.py)
-
-Each input request is passed through a lightweight LLM with output:
-
-- harmful_or_illegal_request_chance
-- category
-- selected_llm
-
-### Post-processing
-
-**Status**: ⚠️ **NOT YET IMPLEMENTED** - This is planned functionality that is still on the todo list.
-
-**Planned Implementation**: Future dedicated post-processing module (to be created)
-
-The final LLM output is planned to be analyzed for:
-
-- follow_up_user_message_suggestions
-- new_chat_user_message_suggestions
-- harmful_or_illegal_response_chance (0–10)
-- If >6: output is suppressed with:
-  > "Sorry, I think my response was problematic. Could you rephrase and elaborate your request?"
-
-### App Skill Output Security Scan
-
-**Status**: ⚠️ **NOT YET IMPLEMENTED** - This is planned functionality for when app skills are implemented.
-
-**Planned Implementation**: Future app skills security module (to be created)
-
-- prompt_injection_attack_chance evaluated per app skill output
-- If >6:
-  > "Content replaced with this security warning. Reason: Security scan revealed high chance of prompt injection attack."
-
-### Server Error Handling
-
-**Implementation**: [`backend/core/api/app/routes/websockets.py`](../../backend/core/api/app/routes/websockets.py) and WebSocket handlers
-
-If server fails:
-
-> "Sorry, an error occurred while I was processing your request. Be assured: the OpenMates team will be informed. Please try again later."
-
-### Assumptions & Consequences
-
-1. - **Assumption:** Our server will get hacked eventually, our database will get exposed eventually.
-   - **Consequence:** Store user data e2ee so that attackers can’t do anything useful with the data. Even email addresses are client-side encrypted with user-controlled keys.
-
-2. - **Assumption:** Governments will request user data and we won’t be able to verify if the reason is ethically right and truthful.
-   - **Consequence:** Protect sensitive user data at rest using e2ee with user-controlled keys. If we don’t have the encryption keys, we can’t hand them out. Also, no storing of logs beyond the minimum required for account security reasons.
-
-3. - **Assumption:** Users will eventually succeed in accessing system prompts for every LLM-powered software.
-   - **Consequence:** Embrace it. Project is open source, so everyone can see the prompt parts anyway. Detecting prompt injection attacks and refusing to reply in such cases is only part of the security architecture. More important when building the system prompt: data minimization. Only include strictly needed data and use function calling to access additional data.
-
-## Implementation Files
-
-### Backend Security Implementation
-- **[`backend/core/api/app/utils/encryption.py`](../../backend/core/api/app/utils/encryption.py)**: Core encryption service using HashiCorp Vault
-- **[`backend/core/api/app/routes/auth_routes/auth_login.py`](../../backend/core/api/app/routes/auth_routes/auth_login.py)**: Zero-knowledge authentication implementation
-- **[`backend/core/api/app/routes/auth_routes/auth_2fa_setup.py`](../../backend/core/api/app/routes/auth_routes/auth_2fa_setup.py)**: 2FA setup with email decryption
-- **[`backend/core/api/app/services/directus/user/user_authentication.py`](../../backend/core/api/app/services/directus/user/user_authentication.py)**: User authentication service
-- **[`backend/core/api/app/services/directus/user/user_profile.py`](../../backend/core/api/app/services/directus/user/user_profile.py)**: User profile management
-
-### Frontend Security Implementation
-- **[`frontend/packages/ui/src/services/cryptoService.ts`](../../frontend/packages/ui/src/services/cryptoService.ts)**: Client-side encryption/decryption service
-- **[`frontend/packages/ui/src/services/db.ts`](../../frontend/packages/ui/src/services/db.ts)**: Local database with encryption
-- **[`frontend/packages/ui/src/components/Login.svelte`](../../frontend/packages/ui/src/components/Login.svelte)**: Main login component with authentication flow
-- **[`frontend/packages/ui/src/components/PasswordAndTfaOtp.svelte`](../../frontend/packages/ui/src/components/PasswordAndTfaOtp.svelte)**: Password and 2FA components
-- **[`frontend/packages/ui/src/components/EnterBackupCode.svelte`](../../frontend/packages/ui/src/components/EnterBackupCode.svelte)**: Backup code entry component
-
-### WebSocket Security Handlers
-- **[`backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py`](../../backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py)**: Encrypted metadata handling
-- **[`backend/core/api/app/routes/handlers/websocket_handlers/ai_response_completed_handler.py`](../../backend/core/api/app/routes/handlers/websocket_handlers/ai_response_completed_handler.py)**: AI response completion with encryption
+### Server-Managed Flow (Generated Files)
+
+```
+User's Device (🔓 Plaintext)      |     Server (🔑 Vault Wrapped)       |  S3 (🔒 Private)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━│━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━│━━━━━━━━━━━━━━━━━
+                                   │                                      │
+Requests AI Generation ────────→ │ 1. Dispatches long-running task      │
+                                   │ 2. Task generates file (e.g. Image)  │
+                                   │ 3. Generates random AES key          │
+                                   │ 4. Encrypts file with AES key        │
+                                   │ 5. Wraps AES key with Vault (User-ID)│
+                                   │ 6. Stores encrypted file ──────────→ │ ACL: private
+                                   │                                      │
+GET /v1/embeds/presigned-url ────→ │ 7. Generates 15-min presigned URL   │
+         ← presigned URL ────────  │                                      │
+Fetches encrypted blob via URL ──────────────────────────────────────────→│
+         ← encrypted blob ←───────────────────────────────────────────────│
+Vault.unwrap → Decrypt locally    │                                      │
+```
+
+## Implementation Guide
+
+### New to OpenMates Security?
+
+1. **Authentication flows**: Start with [Signup & Login](./signup-and-auth.md)
+2. **Client-side encryption**: See [Zero-Knowledge Storage](./zero-knowledge-storage.md)
+3. **Email privacy**: Check [Email Privacy](./email-privacy.md)
+4. **Device management**: Review [Device & Session Management](./device-sessions.md)
+5. **Passkey implementation**: See [Passkeys](./passkeys.md)
+
+### Working on Specific Features?
+
+- **User signup/login**: [Signup & Login](./signup-and-auth.md) + `backend/core/api/app/routes/auth_routes/auth_login.py`
+- **Chat encryption**: [Zero-Knowledge Storage](./zero-knowledge-storage.md) + `frontend/packages/ui/src/services/cryptoService.ts`
+- **Email handling**: [Email Privacy](./email-privacy.md) + `backend/core/api/app/utils/encryption.py`
+- **Session security**: [Device Management](./device-sessions.md) + WebSocket handlers
+
+## Key Implementation Files
+
+### Frontend Security
+
+- **[`frontend/packages/ui/src/services/cryptoService.ts`](../../frontend/packages/ui/src/services/cryptoService.ts)**: Core client-side encryption/decryption
+- **[`frontend/packages/ui/src/services/presignedUrlService.ts`](../../frontend/packages/ui/src/services/presignedUrlService.ts)**: Presigned URL fetching with 403 retry logic
+- **[`frontend/packages/ui/src/services/db.ts`](../../frontend/packages/ui/src/services/db.ts)**: Local encrypted database operations
+- **[`frontend/packages/ui/src/components/Login.svelte`](../../frontend/packages/ui/src/components/Login.svelte)**: Authentication interface
+
+### Backend Security
+
+- **[`backend/core/api/app/routes/auth_routes/auth_login.py`](../../backend/core/api/app/routes/auth_routes/auth_login.py)**: Zero-knowledge authentication
+- **[`backend/core/api/app/utils/encryption.py`](../../backend/core/api/app/utils/encryption.py)**: Server-side encryption utilities (Vault)
+- **[`backend/core/api/app/routes/auth_routes/auth_passkey.py`](../../backend/core/api/app/routes/auth_routes/auth_passkey.py)**: WebAuthn passkey implementation
+- **[`backend/core/api/app/routes/embeds_api.py`](../../backend/core/api/app/routes/embeds_api.py)**: Presigned URL endpoint for client file access
+- **[`backend/core/api/app/routes/internal_api.py`](../../backend/core/api/app/routes/internal_api.py)**: Internal S3 download endpoint for skills/tasks
+- **[`backend/core/api/app/services/s3/config.py`](../../backend/core/api/app/services/s3/config.py)**: S3 bucket ACL configuration
+
+### Safety & AI Security
+
+- **[`backend/apps/ai/processing/preprocessor.py`](../../backend/apps/ai/processing/preprocessor.py)**: Request safety analysis
+- **[Prompt Injection Protection](./prompt-injection.md)**: LLM safety architecture
+- **[LLM Hallucination Mitigation](./hallucination-mitigation.md)**: Controls to reduce fabricated URLs, tool-result hallucinations, and planned improvements
+
+## Security Design Assumptions
+
+1. **Servers will be compromised**: Store all user data encrypted with user-controlled keys
+2. **Government data requests**: Zero-knowledge design means we can't decrypt user data even under legal pressure
+3. **Prompt injection attacks**: Embrace transparency, use defense-in-depth, minimize data exposure in prompts

@@ -1,0 +1,45 @@
+# Tabloid / boulevard media domain blocklist.
+#
+# These domains are excluded from search results when filter_tabloids=true (default).
+# Users can disable filtering by explicitly requesting tabloid/boulevard sources,
+# which causes the LLM to set filter_tabloids=false.
+#
+# To add a domain: add the bare domain (no https://, no www. prefix).
+# Matching: any URL whose hostname ends with the listed domain is filtered
+# (e.g., "bild.de" matches www.bild.de, m.bild.de, sport.bild.de).
+#
+# Used by: news-search, web-search skills
+# Loaded by: backend/shared/python_utils/domain_filter.py
+
+domains:
+  # --- German-language tabloids / boulevard ---
+  - bild.de
+  - express.de
+  - tz.de
+  - merkur.de
+  - bz-berlin.de
+  - mopo.de
+  - tag24.de
+  - berliner-kurier.de
+
+  # --- UK tabloids ---
+  - thesun.co.uk
+  - dailymail.co.uk
+  - mirror.co.uk
+  - dailystar.co.uk
+  - express.co.uk
+
+  # --- US tabloids ---
+  - nypost.com
+  - pagesix.com
+  - tmz.com
+  - thesun.com
+
+  # --- Austrian tabloids ---
+  - oe24.at
+  - heute.at
+  - krone.at
+
+  # --- Swiss tabloids ---
+  - 20min.ch
+  - blick.ch

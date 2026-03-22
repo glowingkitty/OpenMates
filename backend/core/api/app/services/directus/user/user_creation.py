@@ -1,11 +1,12 @@
 import logging
 import json
-import uuid
 import time
-import os
 import random
 import string
 from typing import Dict, Any, Optional, Tuple
+
+# hash_username is a standalone helper — imported here to avoid circular imports
+from backend.core.api.app.services.directus.user.user_lookup import hash_username
 
 
 
@@ -60,6 +61,7 @@ async def _generate_unique_account_id(self, max_attempts: int = 10) -> Optional[
 async def create_user(self,
                       username: str,
                       encrypted_email: str = None,
+                      encrypted_email_with_master_key: str = None,
                       user_email_salt: str = None,
                       lookup_hash: str = None,
                       hashed_email: str = None,
@@ -96,6 +98,11 @@ async def create_user(self,
         # Create a password for Directus by hashing the directus_email
         directus_password = await self.encryption_service.hash_email(directus_email)
         
+        # Compute a stable, case-insensitive hash of the username for uniqueness lookups.
+        # This mirrors the hashed_email approach: we never store plaintext usernames
+        # server-side, but we need a way to quickly check for conflicts.
+        username_hash = hash_username(username)
+
         # Encrypt username and credit balance with the user's key
         encrypted_username, key_version = await self.encryption_service.encrypt_with_user_key(username, vault_key_id)
         encrypted_credit_balance, _ = await self.encryption_service.encrypt_with_user_key("0", vault_key_id)
@@ -124,6 +131,7 @@ async def create_user(self,
             "vault_key_id": vault_key_id,
             "vault_key_version": key_version,
             "encrypted_email_address": encrypted_email,
+            "encrypted_email_with_master_key": encrypted_email_with_master_key,  # For passwordless passkey login
             "encrypted_username": encrypted_username,
             "encrypted_credit_balance": encrypted_credit_balance,
             "encrypted_devices": encrypted_devices,
@@ -132,6 +140,7 @@ async def create_user(self,
             "language": language,
             "darkmode": darkmode,
             "hashed_email": hashed_email,  # Store the client-provided hashed email
+            "hashed_username": username_hash,  # Lowercase SHA-256 hash for server-wide uniqueness checks
             "user_email_salt": user_email_salt,  # Store the client-provided email salt
             "lookup_hashes": [lookup_hash],  # Store the client-provided lookup hash in an array
             "account_id": account_id  # Store the generated account ID
@@ -144,39 +153,19 @@ async def create_user(self,
         if response.status_code == 200:
             created_user = response.json().get("data")
             
+            # Update server stats
+            try:
+                # Increment daily registration counter
+                if hasattr(self, 'cache_service') and self.cache_service:
+                    await self.cache_service.increment_stat("new_users_registered")
+            except Exception as stats_err:
+                logger.error(f"Error updating server stats after user creation: {stats_err}")
+
             # Update the require_invite_code cache if needed
-            signup_limit = int(os.getenv("SIGNUP_LIMIT", "0"))
-            if signup_limit > 0:
-                try:
-                    # Get the total user count after creating this user
-                    total_users = await self.get_total_users_count()
-                    require_invite_code = total_users >= signup_limit
-                    
-                    # Update the cache with the new value
-                    from backend.core.api.app.services.cache import CacheService
-                    cache_service = CacheService()
-                    await cache_service.set("require_invite_code", require_invite_code, ttl=172800)  # Cache for 48 hours
-                    
-                    logger.info(f"Updated require_invite_code cache after user creation: limit={signup_limit}, users={total_users}, required={require_invite_code}")
-                    
-                    # Check if we've reached a user signup milestone
-                    try:
-                        # Import Celery app to dispatch milestone check task
-                        from backend.core.api.app.tasks.celery_config import app as celery_app
-                        
-                        # Dispatch milestone check task asynchronously
-                        celery_app.send_task(
-                            name='app.tasks.email_tasks.milestone_checker_task.check_and_notify_milestone',
-                            kwargs={"total_users": total_users},
-                            queue='email'
-                        )
-                        logger.info(f"Dispatched milestone check task for {total_users} users")
-                    except Exception as milestone_err:
-                        logger.error(f"Error dispatching milestone check task: {milestone_err}", exc_info=True)
-                        # Continue with user creation even if milestone task dispatch fails
-                        
-                except Exception as e:
-                    logger.error(f"Error updating require_invite_code cache after user creation: {e}")
+            # Note: We don't update the cache here because the user hasn't completed signup yet
+            # (last_opened is still a signup path). The cache will be updated when they complete
+            # payment/signup and last_opened is set to '/chat/new' or a chat ID.
+            # This ensures we only count completed signups, not just registered users.
             
             return True, created_user, "User created successfully"
         else:

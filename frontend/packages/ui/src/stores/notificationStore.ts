@@ -2,17 +2,82 @@
 /**
  * @file notificationStore.ts
  * @description Svelte store for managing and displaying global notifications (toasts/alerts).
+ *
+ * Notification Types:
+ * - info: General informational notifications
+ * - success: Success confirmations
+ * - warning: Warning alerts
+ * - error: Error messages
+ * - auto_logout: User session expiration warnings
+ * - connection: Server connection status
+ * - software_update: Available software updates
+ * - chat_message: New chat message notifications (with reply input)
  */
-import { writable } from 'svelte/store';
+import { writable } from "svelte/store";
 
-export type NotificationType = 'info' | 'success' | 'warning' | 'error';
+/**
+ * Notification types supported by the system
+ * - Basic types: info, success, warning, error
+ * - System types: auto_logout, connection, software_update
+ * - Chat types: chat_message (with embedded reply input)
+ */
+export type NotificationType =
+  | "info"
+  | "success"
+  | "warning"
+  | "error"
+  | "auto_logout"
+  | "connection"
+  | "software_update"
+  | "chat_message"
+  | "backup_reminder";
 
+/**
+ * Notification interface
+ * Extended to support the new notification design with:
+ * - title: Header text (e.g., "Auto logout", "Can't connect to server")
+ * - message: Primary message (highlighted in primary color)
+ * - messageSecondary: Secondary message (in bold font color)
+ * - chatId: For chat_message notifications, the chat ID to reply to
+ * - avatarUrl: For chat_message notifications, the avatar image URL
+ * - onAction: Optional callback for an action button (e.g., "Tap to reconnect")
+ * - actionLabel: Label text for the action button
+ */
 export interface Notification {
   id: string;
   type: NotificationType;
+  title?: string; // Header title text
+  message: string; // Primary message (displayed in primary color)
+  messageSecondary?: string; // Secondary message (displayed in bold)
+  duration?: number; // Duration in ms, if undefined, notification is persistent until dismissed
+  dismissible?: boolean; // Whether the notification can be dismissed by the user
+
+  // Action button support (e.g., "Tap to reconnect" on connection notifications)
+  onAction?: () => void; // Callback when action button is clicked
+  actionLabel?: string; // Label text for the action button
+
+  // Chat message notification specific fields
+  chatId?: string; // The chat ID for reply functionality
+  chatTitle?: string; // The chat title to display
+  avatarUrl?: string; // Avatar image URL for chat message notifications
+  category?: string; // Mate category for profile image (e.g., 'software_development')
+}
+
+/**
+ * Options for creating a notification
+ */
+export interface NotificationOptions {
+  title?: string;
   message: string;
-  duration?: number; // Optional: duration in ms, if undefined, notification is persistent until dismissed
-  dismissible?: boolean; // Optional: whether the notification can be dismissed by the user
+  messageSecondary?: string;
+  duration?: number;
+  dismissible?: boolean;
+  onAction?: () => void; // Optional callback for action button
+  actionLabel?: string; // Label text for the action button
+  chatId?: string;
+  chatTitle?: string;
+  avatarUrl?: string;
+  category?: string;
 }
 
 export interface NotificationState {
@@ -27,60 +92,272 @@ const { subscribe, update } = writable<NotificationState>(initialState);
 
 let notificationIdCounter = 0;
 
+// Track auto-dismiss timeouts so they can be paused/cancelled per notification
+const autoDismissTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
 export const notificationStore = {
   subscribe,
+
+  /**
+   * Add a notification with full options support
+   */
   addNotification: (
     type: NotificationType,
     message: string,
-    duration: number = 5000, // Default duration 5 seconds
-    dismissible: boolean = true
+    duration: number = 5000,
+    dismissible: boolean = true,
   ) => {
     const id = `notification-${notificationIdCounter++}`;
-    const newNotification: Notification = { id, type, message, duration, dismissible };
+    const newNotification: Notification = {
+      id,
+      type,
+      message,
+      duration,
+      dismissible,
+    };
 
-    update(state => {
+    update((state) => {
       return {
         notifications: [...state.notifications, newNotification],
       };
     });
 
     if (duration) {
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         notificationStore.removeNotification(id);
       }, duration);
+      autoDismissTimers.set(id, timer);
     }
-    return id; // Return ID in case manual removal is needed earlier
+    return id;
   },
-  removeNotification: (id: string) => {
-    update(state => {
+
+  /**
+   * Add a notification with extended options (new design support)
+   */
+  addNotificationWithOptions: (
+    type: NotificationType,
+    options: NotificationOptions,
+  ) => {
+    const id = `notification-${notificationIdCounter++}`;
+    const newNotification: Notification = {
+      id,
+      type,
+      ...options,
+      duration: options.duration ?? 5000,
+      dismissible: options.dismissible ?? true,
+    };
+
+    update((state) => {
       return {
-        notifications: state.notifications.filter(n => n.id !== id),
+        notifications: [...state.notifications, newNotification],
+      };
+    });
+
+    if (newNotification.duration) {
+      const timer = setTimeout(() => {
+        notificationStore.removeNotification(id);
+      }, newNotification.duration);
+      autoDismissTimers.set(id, timer);
+    }
+    return id;
+  },
+
+  /**
+   * Update an existing notification's properties in-place.
+   * Useful for changing message text, action button, etc. without dismiss/re-add flicker.
+   */
+  updateNotification: (id: string, changes: Partial<NotificationOptions>) => {
+    update((state) => {
+      return {
+        notifications: state.notifications.map((n) =>
+          n.id === id ? { ...n, ...changes } : n,
+        ),
       };
     });
   },
+
+  /**
+   * Cancel the auto-dismiss timer for a notification (e.g., when user clicks/taps).
+   * The notification will remain visible until explicitly dismissed.
+   */
+  cancelAutoDismiss: (id: string) => {
+    const timer = autoDismissTimers.get(id);
+    if (timer) {
+      clearTimeout(timer);
+      autoDismissTimers.delete(id);
+    }
+  },
+
+  removeNotification: (id: string) => {
+    // Clean up any pending auto-dismiss timer
+    const timer = autoDismissTimers.get(id);
+    if (timer) {
+      clearTimeout(timer);
+      autoDismissTimers.delete(id);
+    }
+    update((state) => {
+      return {
+        notifications: state.notifications.filter((n) => n.id !== id),
+      };
+    });
+  },
+
   clearAllNotifications: () => {
-    update(state => {
+    // Clean up all auto-dismiss timers
+    autoDismissTimers.forEach((timer) => clearTimeout(timer));
+    autoDismissTimers.clear();
+    update(() => {
       return {
         notifications: [],
       };
     });
   },
-  // Convenience methods
+
+  // Basic convenience methods (legacy API)
   info: (message: string, duration?: number, dismissible?: boolean) =>
-    notificationStore.addNotification('info', message, duration, dismissible),
+    notificationStore.addNotification("info", message, duration, dismissible),
   success: (message: string, duration?: number, dismissible?: boolean) =>
-    notificationStore.addNotification('success', message, duration, dismissible),
+    notificationStore.addNotification(
+      "success",
+      message,
+      duration,
+      dismissible,
+    ),
   warning: (message: string, duration?: number, dismissible?: boolean) =>
-    notificationStore.addNotification('warning', message, duration ?? 7000, dismissible), // Longer default for warnings
+    notificationStore.addNotification(
+      "warning",
+      message,
+      duration ?? 7000,
+      dismissible,
+    ),
   error: (message: string, duration?: number, dismissible?: boolean) =>
-    notificationStore.addNotification('error', message, duration ?? 10000, dismissible ?? true), // Longer default for errors, always dismissible
+    notificationStore.addNotification(
+      "error",
+      message,
+      duration ?? 10000,
+      dismissible ?? true,
+    ),
+
+  // Extended notification methods (new design)
+
+  /**
+   * Show auto-logout notification
+   * @param message Primary message (e.g., "Enable 'Stay logged in' during login to prevent this.")
+   * @param messageSecondary Secondary message (optional)
+   * @param duration Duration in ms (default 7000)
+   * @param title Custom title (default "You have been logged out")
+   */
+  autoLogout: (
+    message: string,
+    messageSecondary?: string,
+    duration?: number,
+    title?: string,
+  ) =>
+    notificationStore.addNotificationWithOptions("auto_logout", {
+      title: title ?? "You have been logged out",
+      message,
+      messageSecondary,
+      duration: duration ?? 7000,
+    }),
+
+  /**
+   * Show connection status notification
+   * @param message Primary message (e.g., "Trying to reconnect for 30 seconds.")
+   * @param messageSecondary Secondary message (e.g., "Else Offline Mode will be activated.")
+   */
+  connection: (message: string, messageSecondary?: string, duration?: number) =>
+    notificationStore.addNotificationWithOptions("connection", {
+      title: "Can't connect to server.",
+      message,
+      messageSecondary,
+      duration: duration ?? 0, // Persistent until connection restored
+      dismissible: true,
+    }),
+
+  /**
+   * Show software update notification
+   * @param message Primary message (e.g., "A new version is available.")
+   * @param options Optional overrides for secondary message, duration, action button, etc.
+   */
+  softwareUpdate: (
+    message: string,
+    options?: {
+      messageSecondary?: string;
+      duration?: number;
+      onAction?: () => void;
+      actionLabel?: string;
+      dismissible?: boolean;
+    },
+  ) =>
+    notificationStore.addNotificationWithOptions("software_update", {
+      title: "Software update available",
+      message,
+      messageSecondary: options?.messageSecondary,
+      duration: options?.duration ?? 0, // Persistent by default for update notifications
+      dismissible: options?.dismissible ?? true,
+      onAction: options?.onAction,
+      actionLabel: options?.actionLabel,
+    }),
+
+  /**
+   * Show a persistent backup reminder notification with an "Export now" action button.
+   * Dismissing the notification should also update backup_reminder_dismissed_at server-side
+   * (handled by the caller via the onAction / dismiss callback).
+   *
+   * @param message Primary message (e.g. "Your last backup was 31 days ago.")
+   * @param onExport Callback invoked when user clicks "Export now" — should open export settings
+   * @param onDismiss Callback invoked when user dismisses — should update backup_reminder_dismissed_at
+   */
+  backupReminder: (
+    message: string,
+    onExport: () => void,
+    onDismiss?: () => void,
+  ) =>
+    notificationStore.addNotificationWithOptions("backup_reminder", {
+      title: "Back up your data",
+      message,
+      duration: 0, // Persistent — user must explicitly dismiss or act
+      dismissible: true,
+      onAction: onExport,
+      actionLabel: "Export now",
+      // onDismiss is not a built-in Notification field, but the caller wraps removeNotification
+    }),
+
+  /**
+   * Show chat message notification for background chats
+   * @param chatId The chat ID for reply functionality
+   * @param chatTitle The chat title to display
+   * @param message The message preview text
+   * @param avatarUrl Optional avatar URL
+   */
+  chatMessage: (
+    chatId: string,
+    chatTitle: string,
+    message: string,
+    avatarUrl?: string,
+    category?: string,
+  ) =>
+    notificationStore.addNotificationWithOptions("chat_message", {
+      title: chatTitle,
+      message,
+      chatId,
+      chatTitle,
+      avatarUrl,
+      category,
+      duration: 10000, // 10 seconds - enough time to read the preview and decide to reply
+      dismissible: true,
+    }),
 };
 
 // Example Usage:
 // import { notificationStore } from './notificationStore';
+//
+// // Legacy API (still works)
 // notificationStore.success('Profile updated successfully!');
 // notificationStore.error('Failed to save changes. Please try again.');
 //
-// In a Svelte component (e.g., a Toaster.svelte component):
-// import { notificationStore } from './notificationStore';
-// $: notifications = $notificationStore.notifications;
+// // New design API
+// notificationStore.autoLogout("Consider activating 'Stay logged in'.", "During login, to remain connected.");
+// notificationStore.connection("Trying to reconnect for 30 seconds.", "Else Offline Mode will be activated.");
+// notificationStore.softwareUpdate("A new version is available.", { actionLabel: "Refresh now", onAction: () => {} });
+// notificationStore.chatMessage("chat-123", "Offline Whisper iOS Integration", "As promised, here the updated code...");

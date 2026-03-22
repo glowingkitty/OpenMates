@@ -6,6 +6,26 @@ from datetime import datetime
 from typing import Dict, Any, Optional, Tuple, List # Add List import
 
 
+def hash_username(username: str) -> str:
+    """
+    Produce a stable, case-insensitive SHA-256 hash (base64) of a username.
+
+    The username is lower-cased before hashing so that "Alice" and "alice"
+    resolve to the same hash, making uniqueness checks case-insensitive.
+    This mirrors the hashed_email approach used for email uniqueness.
+
+    Args:
+        username: The plaintext username (not yet normalised by the caller).
+
+    Returns:
+        Base64-encoded SHA-256 hash string suitable for storage in hashed_username.
+    """
+    normalised = username.lower().strip()
+    username_bytes = normalised.encode("utf-8")
+    digest = hashlib.sha256(username_bytes).digest()
+    return base64.b64encode(digest).decode("utf-8")
+
+
 logger = logging.getLogger(__name__)
 
 async def get_total_users_count(self) -> int:
@@ -87,6 +107,88 @@ async def get_active_users_since(self, timestamp: int) -> int:
         logger.error(f"Error getting active users: {str(e)}")
         return 0
 
+async def get_completed_signups_count(self) -> int:
+    """
+    Get the count of users who have completed signup and payment processing.
+    
+    This counts users where last_opened indicates they completed signup:
+    - last_opened starts with '/chat/' (includes '/chat/new' after payment/signup completion)
+    - last_opened is a UUID (chat ID format, indicating they opened a chat)
+    
+    This excludes:
+    - Users still in signup flow (last_opened starts with '/signup/')
+    - Users with null/empty last_opened
+    - Users with special values like 'demo-for-everyone'
+    
+    This is more accurate than counting all registered users, as it excludes users who
+    abandoned signup before completing payment.
+    
+    Returns:
+        The count of users who completed signup as an integer
+    """
+    import re
+    
+    try:
+        # First, get all users with non-null last_opened that don't start with '/signup/'
+        # We can't use regex in Directus filters, so we'll filter in Python
+        url = f"{self.base_url}/users"
+        params = {
+            "limit": -1,  # Get all users (we'll filter in Python)
+            "fields": "id,last_opened,is_admin",
+            "filter": json.dumps({
+                "_and": [
+                    {
+                        "last_opened": {
+                            "_nnull": True  # last_opened is not null
+                        }
+                    },
+                    {
+                        "last_opened": {
+                            "_nstarts_with": "/signup/"  # Does not start with '/signup/'
+                        }
+                    }
+                ]
+            })
+        }
+        
+        response = await self._make_api_request("GET", url, params=params)
+        
+        if response.status_code == 200:
+            data = response.json()
+            users = data.get("data", [])
+            
+            # Filter users in Python to count only those who completed signup
+            # Count users where last_opened:
+            # - Starts with '/chat/' (includes '/chat/new')
+            # - OR is a UUID (chat ID format: 8-4-4-4-12 hex digits)
+            uuid_pattern = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.IGNORECASE)
+            
+            completed_count = 0
+            for user in users:
+                # Skip admin users
+                if user.get("is_admin", False):
+                    continue
+                
+                last_opened = user.get("last_opened")
+                if not last_opened:
+                    continue
+                
+                # Count if it starts with '/chat/' or is a UUID
+                if last_opened.startswith("/chat/") or uuid_pattern.match(last_opened):
+                    completed_count += 1
+            
+            logger.debug(f"Completed signups count: {completed_count}")
+            return completed_count
+        else:
+            error_msg = f"Failed to get completed signups count: {response.status_code} - {response.text}"
+            logger.error(error_msg)
+            return 0
+            
+    except Exception as e:
+        error_msg = f"Error getting completed signups count: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        return 0
+
 
 async def get_user_by_hashed_email(self, hashed_email: str) -> Tuple[bool, Optional[Dict[str, Any]], str]:
     """
@@ -121,6 +223,65 @@ async def get_user_by_hashed_email(self, hashed_email: str) -> Tuple[bool, Optio
         logger.error(error_msg, exc_info=True)
         return False, None, error_msg
 
+async def get_user_by_hashed_username(
+    self,
+    hashed_username: str,
+    exclude_user_id: Optional[str] = None,
+) -> Tuple[bool, Optional[Dict[str, Any]], str]:
+    """
+    Find a user by their hashed username (server-wide uniqueness check).
+
+    Used at signup and at username-change time to detect conflicts before
+    writing a new username to the database.
+
+    Args:
+        hashed_username: Base64-encoded SHA-256 hash of the lowercased username
+                         (produced by ``hash_username()`` in this module).
+        exclude_user_id: When provided, any matching user with this ID is
+                         ignored.  Used during a username-change request so
+                         that keeping the *same* username does not trigger a
+                         false conflict.
+
+    Returns:
+        (True, user_data, "User found")   — username is already taken.
+        (False, None, "User not found")   — username is available.
+        (False, None, <error_msg>)        — Directus query failed.
+    """
+    try:
+        url = f"{self.base_url}/users"
+        params = {"filter": json.dumps({"hashed_username": {"_eq": hashed_username}})}
+
+        response = await self._make_api_request("GET", url, params=params)
+
+        if response.status_code == 200:
+            data = response.json()
+            users = data.get("data", [])
+
+            if not users:
+                logger.debug("No user found with matching hashed_username")
+                return False, None, "User not found"
+
+            # Filter out the requesting user if we are checking during an update
+            if exclude_user_id:
+                users = [u for u in users if u.get("id") != exclude_user_id]
+
+            if not users:
+                # Only match was the current user — username is still available
+                return False, None, "User not found"
+
+            logger.info("Found user with matching hashed_username")
+            return True, users[0], "User found"
+        else:
+            error_msg = f"Failed to query user by hashed_username: {response.status_code} - {response.text}"
+            logger.error(error_msg)
+            return False, None, error_msg
+
+    except Exception as e:
+        error_msg = f"Error querying user by hashed_username: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        return False, None, error_msg
+
+
 async def authenticate_user_by_lookup_hash(self, hashed_email: str, lookup_hash: str) -> Tuple[bool, Optional[Dict[str, Any]], str]:
     """
     Authenticate a user by first finding them with hashed_email and then checking if the lookup_hash is in their lookup_hashes array.
@@ -141,7 +302,7 @@ async def authenticate_user_by_lookup_hash(self, hashed_email: str, lookup_hash:
             
             if not users or len(users) == 0:
                 logger.info(f"No user found with matching hashed email")
-                return False, None, "login.email_or_password_wrong.text"
+                return False, None, "login.email_or_password_wrong"
                 
             user = users[0]
             user_id = user.get("id")
@@ -153,7 +314,7 @@ async def authenticate_user_by_lookup_hash(self, hashed_email: str, lookup_hash:
                 return True, user, "Authentication successful"
             else:
                 logger.warning(f"Invalid lookup hash for user {user_id}")
-                return False, None, "login.email_or_password_wrong.text"
+                return False, None, "login.email_or_password_wrong"
         else:
             error_msg = f"Failed to query user by hashed email: {response.status_code} - {response.text}"
             logger.error(error_msg)
@@ -286,4 +447,44 @@ async def get_user_fields_direct(self, user_id: str, fields: List[str]) -> Optio
 
     except Exception as e:
         logger.error(f"Error in get_user_fields_direct for user {user_id}: {str(e)}", exc_info=True)
+        return None
+
+async def get_user_by_subscription_id(self, subscription_id: str) -> Optional[Dict[str, Any]]:
+    """
+    Find a user by their Stripe subscription ID.
+    
+    Args:
+        subscription_id: The Stripe subscription ID
+        
+    Returns:
+        User data dictionary or None if not found
+    """
+    try:
+        logger.info(f"Looking up user by subscription_id: {subscription_id}")
+        
+        # Query Directus for user with this subscription_id
+        url = f"{self.base_url}/users"
+        params = {
+            "filter[stripe_subscription_id][_eq]": subscription_id,
+            "limit": 1
+        }
+        
+        response = await self._make_api_request("GET", url, params=params)
+        
+        if response.status_code != 200:
+            logger.error(f"Failed to query user by subscription_id: {response.status_code} - {response.text}")
+            return None
+        
+        data = response.json().get("data", [])
+        
+        if not data:
+            logger.warning(f"No user found with subscription_id: {subscription_id}")
+            return None
+        
+        user_data = data[0]
+        logger.info(f"Found user {user_data.get('id')} for subscription_id: {subscription_id}")
+        return user_data
+        
+    except Exception as e:
+        logger.error(f"Error finding user by subscription_id {subscription_id}: {str(e)}", exc_info=True)
         return None

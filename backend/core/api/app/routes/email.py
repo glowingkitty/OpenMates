@@ -73,7 +73,8 @@ async def preview_confirm_email(
     lang: str = Query("en", description="Language code for translations"),
     darkmode: bool = Query(False, description="Enable dark mode for the email"),
     code: str = Query("123456", description="Verification code"),
-    username: str = Query("User", description="Username to display in the email")
+    username: str = Query("User", description="Username to display in the email"),
+    email: str = Query("preview@example.com", description="Email address for blocklist link")
 ):
     """
     Preview the email confirmation template
@@ -83,7 +84,8 @@ async def preview_confirm_email(
         template_name="confirm-email",
         lang=lang,
         code=code,
-        username=username
+        username=username,
+        recipient_email=email  # Use recipient_email as it's the standard field name for blocklist URL generation
     )
 
 @router.get("/purchase-confirmation", response_class=HTMLResponse)
@@ -131,7 +133,7 @@ async def preview_new_device_login(
         # The ip_address query param is less reliable but kept for potential logging/context.
         # We'll use the fingerprint object for location data.
         # For preview, we don't have a user_id, so use a placeholder.
-        device_hash, os_name, country_code, city, region, latitude, longitude = generate_device_fingerprint_hash(request, user_id="preview_user")
+        device_hash, connection_hash, os_name, country_code, city, region, latitude, longitude = generate_device_fingerprint_hash(request, user_id="preview_user")
         
         # Construct location name similar to how it's done in auth_2fa_verify
         location_name = f"{city}, {country_code}" if city and country_code else country_code or "Unknown"
@@ -276,3 +278,145 @@ async def preview_recovery_key_used(
     except Exception as e:
         logger.error(f"Preview Error: Failed to prepare/render recovery-key-used: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error generating preview: {str(e)}")
+
+
+@router.get("/newsletter-confirmation-request", response_class=HTMLResponse)
+async def preview_newsletter_confirmation_request(
+    request: Request,
+    lang: str = Query("en", description="Language code for translations"),
+    darkmode: bool = Query(False, description="Enable dark mode for the email"),
+    confirmation_token: str = Query("sample-token-12345", description="Confirmation token for the subscription link"),
+    email: str = Query("preview@example.com", description="Email address for block-email link")
+):
+    """
+    Preview the newsletter confirmation request email template.
+    """
+    import os
+    from urllib.parse import quote
+    
+    try:
+        # Get base URL for confirmation links from shared config
+        from backend.core.api.app.services.email.config_loader import load_shared_urls
+        shared_urls = load_shared_urls()
+        
+        # Determine environment (development or production)
+        is_dev = os.getenv("ENVIRONMENT", "production").lower() in ("development", "dev", "test") or \
+                 "localhost" in os.getenv("WEBAPP_URL", "").lower()
+        env_name = "development" if is_dev else "production"
+        
+        # Get webapp URL from shared config
+        base_url = shared_urls.get('urls', {}).get('base', {}).get('webapp', {}).get(env_name)
+        
+        # Fallback to environment variable or default
+        if not base_url:
+            base_url = os.getenv("WEBAPP_URL", "https://openmates.org" if not is_dev else "http://localhost:5173")
+        
+        if not base_url.startswith("http"):
+            base_url = f"https://{base_url}"
+        
+        # Build confirmation URL using settings deep link format (like refund links)
+        # Format: {base_url}/#settings/newsletter/confirm/{token}
+        confirm_url = f"{base_url}/#settings/newsletter/confirm/{confirmation_token}"
+        
+        # Build block-email URL instead of newsletter unsubscribe URL
+        # The "Never message me again" link should block ALL emails, not just unsubscribe from newsletter
+        # Format: {base_url}/#settings/email/block/{encoded_email}
+        encoded_email = quote(email.lower().strip())
+        block_email_url = f"{base_url}/#settings/email/block/{encoded_email}"
+        
+        return await _process_email_template(
+            request=request,
+            template_name="newsletter-confirmation-request",
+            lang=lang,
+            confirm_url=confirm_url,
+            unsubscribe_url=block_email_url  # Use block-email URL instead of newsletter unsubscribe
+        )
+    except Exception as e:
+        logger.error(f"Preview Error: Failed to prepare/render newsletter-confirmation-request: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error generating preview: {str(e)}")
+
+
+@router.get("/newsletter-confirmed", response_class=HTMLResponse)
+async def preview_newsletter_confirmed(
+    request: Request,
+    lang: str = Query("en", description="Language code for translations"),
+    darkmode: bool = Query(False, description="Enable dark mode for the email")
+):
+    """
+    Preview the newsletter confirmed email template.
+    """
+    import os
+    
+    try:
+        # Get social media links (from environment or defaults)
+        instagram_url = "https://instagram.com/openmates_official"
+        mastodon_url = "https://mastodon.social/@openmates"
+        
+        return await _process_email_template(
+            request=request,
+            template_name="newsletter-confirmed",
+            lang=lang,
+            instagram_url=instagram_url,
+            mastodon_url=mastodon_url
+        )
+    except Exception as e:
+        logger.error(f"Preview Error: Failed to prepare/render newsletter-confirmed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error generating preview: {str(e)}")
+
+
+@router.get("/issue-report", response_class=HTMLResponse)
+async def preview_issue_report(
+    request: Request,
+    lang: str = Query("en", description="Language code for translations"),
+    darkmode: bool = Query(True, description="Enable dark mode for the email"),
+    issue_title: str = Query("Sample Issue Title", description="Title of the reported issue"),
+    issue_description: str = Query("This is a sample issue description with multiple lines.\n\nIt demonstrates how the issue report email will look.", description="Description of the reported issue"),
+    chat_or_embed_url: str = Query("https://example.com/chat/123", description="Optional URL to a chat or embed related to the issue"),
+    timestamp: str = Query(None, description="Timestamp when the issue was reported"),
+    estimated_location: str = Query("Berlin, DE", description="Estimated geographic location based on IP address")
+):
+    """
+    Preview the issue report email template.
+    """
+    from datetime import datetime, timezone
+    
+    try:
+        # Use provided timestamp or generate current one
+        if not timestamp:
+            timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S %Z')
+        
+        return await _process_email_template(
+            request=request,
+            template_name="issue_report",
+            lang=lang,
+            issue_title=issue_title,
+            issue_description=issue_description,
+            chat_or_embed_url=chat_or_embed_url or "Not provided",
+            timestamp=timestamp,
+            estimated_location=estimated_location
+        )
+    except Exception as e:
+        logger.error(f"Preview Error: Failed to prepare/render issue-report: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error generating preview: {str(e)}")
+
+
+@router.get("/community-share-notification", response_class=HTMLResponse)
+async def preview_community_share_notification(
+    request: Request,
+    lang: str = Query("en", description="Language code for translations"),
+    darkmode: bool = Query(True, description="Enable dark mode for the email"),
+    chat_title: str = Query("Sample Chat Title", description="Title of the shared chat"),
+    chat_summary: str = Query("This is a sample chat summary explaining the interesting parts of the conversation.", description="Summary of the chat"),
+    share_link: str = Query("https://openmates.org/share/chat/123#key=abc", description="The full share link")
+):
+    """
+    Preview the community share notification email template
+    """
+    return await _process_email_template(
+        request=request,
+        template_name="community_share_notification",
+        lang=lang,
+        chat_title=chat_title,
+        chat_summary=chat_summary,
+        share_link=share_link
+    )

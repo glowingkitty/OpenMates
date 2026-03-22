@@ -1,0 +1,514 @@
+appointments:
+  context: Settings/memory name for appointments
+  en: Appointments
+  de: Termine
+  zh: 预约
+  es: Citas
+  fr: Rendez-vous
+  pt: Consultas
+  ru: Назначения
+  ja: 予約
+  ko: 예약
+  it: Appuntamenti
+  tr: Randevular
+  vi: Cuộc hẹn
+  id: Janji temu
+  pl: Wizyty
+  nl: Afspraken
+  ar: المواعيد
+  hi: अपॉइंटमेंट
+  th: นัดหมาย
+  cs: Schůzky
+  sv: Bokningar
+  he: תורים
+  verified_by_human:
+    - en
+    - de
+appointments.description:
+  context: Description for appointments settings/memory
+  en: Your medical appointments and visits.
+  de: Deine medizinischen Termine und Besuche.
+  zh: 你的医疗预约和访问。
+  es: Tus citas y visitas médicas.
+  fr: Vos rendez-vous et visites médicaux.
+  pt: Suas consultas e visitas médicas.
+  ru: Ваши медицинские назначения и визиты.
+  ja: あなたの医療予約と訪問。
+  ko: 당신의 의료 예약과 방문.
+  it: I tuoi appuntamenti e visite mediche.
+  tr: Tıbbi randevularınız ve ziyaretleriniz.
+  vi: Các cuộc hẹn và thăm khám y tế của bạn.
+  id: Janji temu dan kunjungan medis Anda.
+  pl: Twoje wizyty i terminy medyczne.
+  nl: Je medische afspraken en bezoeken.
+  ar: مواعيدك وزياراتك الطبية.
+  hi: आपकी चिकित्सा अपॉइंटमेंट और यात्राएं।
+  th: นัดหมายและการพบแพทย์ของคุณ
+  cs: Vaše lékařské schůzky a návštěvy.
+  sv: Dina medicinska bokningar och besök.
+  he: התורים והביקורים הרפואיים שלך.
+  verified_by_human:
+    - en
+    - de
+medical_history:
+  context: Settings/memory name for medical history
+  en: Medical History
+  de: Krankengeschichte
+  zh: 病史
+  es: Historial médico
+  fr: Antécédents médicaux
+  pt: Histórico médico
+  ru: Медицинская история
+  ja: 病歴
+  ko: 병력
+  it: Storia medica
+  tr: Tıbbi geçmiş
+  vi: Lịch sử y tế
+  id: Riwayat medis
+  pl: Historia medyczna
+  nl: Medische geschiedenis
+  ar: التاريخ الطبي
+  hi: चिकित्सा इतिहास
+  th: ประวัติการรักษา
+  cs: Lékařská historie
+  sv: Medicinsk historik
+  he: היסטוריה רפואית
+  verified_by_human:
+    - en
+    - de
+medical_history.description:
+  context: Description for medical history settings/memory
+  en: Past surgeries, conditions & allergies.
+  de: Vergangene OPs, Erkrankungen & Allergien.
+  zh: 过去的手术、疾病和过敏。
+  es: Cirugías pasadas, condiciones y alergias.
+  fr: Chirurgies passées, conditions et allergies.
+  pt: Cirurgias passadas, condições e alergias.
+  ru: Прошлые операции, состояния и аллергии.
+  ja: 過去の手術、疾患、アレルギー。
+  ko: 과거 수술, 질환 및 알레르기.
+  it: Interventi passati, condizioni e allergie.
+  tr: Geçmiş ameliyatlar, durumlar ve alerjiler.
+  vi: Phẫu thuật, tình trạng và dị ứng trong quá khứ.
+  id: Operasi, kondisi, dan alergi masa lalu.
+  pl: Przeszłe operacje, schorzenia i alergie.
+  nl: Eerdere operaties, aandoeningen en allergieën.
+  ar: العمليات والحالات والحساسيات السابقة.
+  hi: पिछली सर्जरी, स्थितियां और एलर्जी।
+  th: การผ่าตัด ภาวะสุขภาพ และการแพ้ในอดีต
+  cs: Minulé operace, stavy a alergie.
+  sv: Tidigare operationer, tillstånd och allergier.
+  he: ניתוחי עבר, מצבים רפואיים ואלרגיות.
+  verified_by_human:
+    - en
+    - de
+symptoms_log:
+  context: Settings/memory name for symptoms log
+  en: Symptoms Log
+  de: Symptomprotokoll
+  zh: 症状日志
+  es: Registro de síntomas
+  fr: Journal des symptômes
+  pt: Registro de sintomas
+  ru: Журнал симптомов
+  ja: 症状ログ
+  ko: 증상 로그
+  it: Registro sintomi
+  tr: Semptom günlüğü
+  vi: Nhật ký triệu chứng
+  id: Log gejala
+  pl: Dziennik objawów
+  nl: Symptomenlogboek
+  ar: سجل الأعراض
+  hi: लक्षण लॉग
+  th: บันทึกอาการ
+  cs: Záznam příznaků
+  sv: Symptomlogg
+  he: יומן תסמינים
+  verified_by_human:
+    - en
+    - de
+symptoms_log.description:
+  context: Description for symptoms log settings/memory
+  en: Track symptoms with dates and details.
+  de: Verfolge Symptome mit Daten und Details.
+  zh: 跟踪症状及日期和详情。
+  es: Rastrea síntomas con fechas y detalles.
+  fr: Suivez les symptômes avec dates et détails.
+  pt: Acompanhe sintomas com datas e detalhes.
+  ru: Отслеживайте симптомы с датами и деталями.
+  ja: 日付と詳細で症状を追跡。
+  ko: 날짜와 세부 정보로 증상 추적.
+  it: Traccia sintomi con date e dettagli.
+  tr: Tarih ve detaylarla semptomları takip edin.
+  vi: Theo dõi triệu chứng với ngày và chi tiết.
+  id: Lacak gejala dengan tanggal dan detail.
+  pl: Śledź objawy z datami i szczegółami.
+  nl: Volg symptomen met data en details.
+  ar: تتبع الأعراض مع التواريخ والتفاصيل.
+  hi: तारीखों और विवरण के साथ लक्षण ट्रैक करें।
+  th: ติดตามอาการพร้อมวันที่และรายละเอียด
+  cs: Sledujte příznaky s daty a podrobnostmi.
+  sv: Spåra symptom med datum och detaljer.
+  he: מעקב אחר תסמינים עם תאריכים ופרטים.
+  verified_by_human:
+    - en
+    - de
+sleep_diary:
+  context: Settings/memory name for sleep diary
+  en: Sleep Diary
+  de: Schlafprotokoll
+  zh: 睡眠日记
+  es: Diario de sueño
+  fr: Journal du sommeil
+  pt: Diário de sono
+  ru: Дневник сна
+  ja: 睡眠日記
+  ko: 수면 일기
+  it: Diario del sonno
+  tr: Uyku günlüğü
+  vi: Nhật ký giấc ngủ
+  id: Buku harian tidur
+  pl: Dziennik snu
+  nl: Slaapdagboek
+  ar: مذكرات النوم
+  hi: नींद डायरी
+  th: ไดอารี่การนอนหลับ
+  cs: Deník spánku
+  sv: Sömnjournal
+  he: יומן שינה
+  verified_by_human:
+    - en
+    - de
+sleep_diary.description:
+  context: Description for sleep diary settings/memory
+  en: Track sleep patterns and quality.
+  de: Verfolge Schlafmuster und Qualität.
+  zh: 跟踪睡眠模式和质量。
+  es: Rastrea patrones y calidad del sueño.
+  fr: Suivez les modèles et la qualité du sommeil.
+  pt: Acompanhe padrões e qualidade do sono.
+  ru: Отслеживайте режимы и качество сна.
+  ja: 睡眠パターンと質を追跡。
+  ko: 수면 패턴과 품질 추적.
+  it: Traccia modelli e qualità del sonno.
+  tr: Uyku kalıplarını ve kalitesini takip edin.
+  vi: Theo dõi mô hình và chất lượng giấc ngủ.
+  id: Lacak pola dan kualitas tidur.
+  pl: Śledź wzorce i jakość snu.
+  nl: Volg slaappatronen en kwaliteit.
+  ar: تتبع أنماط النوم وجودته.
+  hi: नींद के पैटर्न और गुणवत्ता ट्रैक करें।
+  th: ติดตามรูปแบบและคุณภาพการนอนหลับ
+  cs: Sledujte spánkové vzorce a kvalitu.
+  sv: Spåra sömnmönster och kvalitet.
+  he: מעקב אחר דפוסי שינה ואיכות השינה.
+  verified_by_human:
+    - en
+    - de
+
+# Example entries shown to non-authenticated users to illustrate what each category stores
+
+appointments.example_1:
+  context: Example entry for appointments (a type of doctor visit)
+  en: Dentist Dr. Mueller
+  de: Zahnarzt Dr. Mueller
+  zh: 牙医 Mueller 医生
+  es: Dentista Dr. Mueller
+  fr: Dentiste Dr. Mueller
+  pt: Dentista Dr. Mueller
+  ru: Стоматолог доктор Mueller
+  ja: 歯科医 Mueller 先生
+  ko: 치과의사 Mueller 박사
+  it: Dentista Dr. Mueller
+  tr: Diş hekimi Dr. Mueller
+  vi: Nha sĩ Dr. Mueller
+  id: Dokter gigi Dr. Mueller
+  pl: Dentysta Dr. Mueller
+  nl: Tandarts Dr. Mueller
+  ar: طبيب أسنان Dr. Mueller
+  hi: दंत चिकित्सक Dr. Mueller
+  th: ทันตแพทย์ Dr. Mueller
+  cs: Zubař Dr. Mueller
+  sv: Tandläkare Dr. Mueller
+  he: 'רופא שיניים ד"ר מילר'
+  verified_by_human: [en, de]
+
+appointments.example_2:
+  context: Example entry for appointments (a routine checkup)
+  en: Eye exam checkup
+  de: Augenuntersuchung
+  zh: 眼科检查
+  es: Examen de la vista
+  fr: Examen de la vue
+  pt: Exame oftalmológico
+  ru: Проверка зрения
+  ja: 眼科検診
+  ko: 안과 검진
+  it: Visita oculistica
+  tr: Göz muayenesi
+  vi: Kiểm tra mắt
+  id: Pemeriksaan mata
+  pl: Badanie wzroku
+  nl: Oogcontrole
+  ar: فحص العيون
+  hi: आंखों की जांच
+  th: ตรวจสายตา
+  cs: Oční vyšetření
+  sv: Ögonundersökning
+  he: בדיקת עיניים תקופתית
+  verified_by_human: [en, de]
+
+medical_history.example_1:
+  context: Example entry for medical history (an allergy)
+  en: Penicillin allergy
+  de: Penicillin-Allergie
+  zh: 青霉素过敏
+  es: Alergia a la penicilina
+  fr: Allergie à la pénicilline
+  pt: Alergia à penicilina
+  ru: Аллергия на пенициллин
+  ja: ペニシリンアレルギー
+  ko: 페니실린 알레르기
+  it: Allergia alla penicillina
+  tr: Penisilin alerjisi
+  vi: Dị ứng penicillin
+  id: Alergi penisilin
+  pl: Alergia na penicylinę
+  nl: Penicilline-allergie
+  ar: حساسية البنسلين
+  hi: पेनिसिलिन एलर्जी
+  th: แพ้ยาเพนิซิลลิน
+  cs: Alergie na penicilin
+  sv: Penicillinallergi
+  he: אלרגיה לפניצילין
+  verified_by_human: [en, de]
+
+medical_history.example_2:
+  context: Example entry for medical history (a surgery)
+  en: Knee surgery 2023
+  de: Knieoperation 2023
+  zh: 2023年膝关节手术
+  es: Cirugía de rodilla 2023
+  fr: Chirurgie du genou 2023
+  pt: Cirurgia no joelho 2023
+  ru: Операция на колене 2023
+  ja: 膝の手術 2023
+  ko: 무릎 수술 2023
+  it: Chirurgia al ginocchio 2023
+  tr: Diz ameliyatı 2023
+  vi: Phẫu thuật đầu gối 2023
+  id: Operasi lutut 2023
+  pl: Operacja kolana 2023
+  nl: Knieoperatie 2023
+  ar: جراحة الركبة 2023
+  hi: घुटने की सर्जरी 2023
+  th: ผ่าตัดเข่า 2023
+  cs: Operace kolena 2023
+  sv: Knäoperation 2023
+  he: ניתוח ברך 2023
+  verified_by_human: [en, de]
+
+# Structured example entries for appointments
+
+appointments.example_1.where:
+  context: Example value for where in appointments
+  en: City Hospital
+  de: Stadtkrankenhaus
+  zh: 市立医院
+  es: Hospital de la Ciudad
+  fr: Hôpital de la ville
+  pt: Hospital da Cidade
+  ru: Городская больница
+  ja: 市立病院
+  ko: 시립병원
+  it: Ospedale Cittadino
+  tr: Şehir Hastanesi
+  vi: Bệnh viện Thành phố
+  id: Rumah Sakit Kota
+  pl: Szpital Miejski
+  nl: Stadsziekenhuis
+  ar: مستشفى المدينة
+  hi: सिटी अस्पताल
+  th: โรงพยาบาลเมือง
+  cs: Městská nemocnice
+  sv: Stadssjukhuset
+  he: בית החולים העירוני
+  verified_by_human: []
+
+appointments.example_1.notes:
+  context: Example value for notes in appointments
+  en: Annual check-up
+  de: Jährliche Vorsorgeuntersuchung
+  zh: 年度体检
+  es: Chequeo anual
+  fr: Bilan de santé annuel
+  pt: Exame anual
+  ru: Ежегодный осмотр
+  ja: 年次健康診断
+  ko: 연간 건강검진
+  it: Visita annuale di controllo
+  tr: Yıllık kontrol muayenesi
+  vi: Khám sức khỏe định kỳ hàng năm
+  id: Pemeriksaan kesehatan tahunan
+  pl: Coroczne badanie kontrolne
+  nl: Jaarlijkse controle
+  ar: فحص سنوي
+  hi: वार्षिक स्वास्थ्य जांच
+  th: ตรวจสุขภาพประจำปี
+  cs: Roční preventivní prohlídka
+  sv: Årlig hälsokontroll
+  he: בדיקה שנתית
+  verified_by_human: []
+
+appointments.example_2.where:
+  context: Example value for where in appointments
+  en: Downtown Dental
+  de: Zahnarztpraxis Innenstadt
+  zh: 市中心牙科诊所
+  es: Clínica Dental del Centro
+  fr: Cabinet dentaire du centre-ville
+  pt: Clínica Dentária do Centro
+  ru: Стоматология в центре города
+  ja: ダウンタウン歯科
+  ko: 시내 치과
+  it: Studio Dentistico Centro
+  tr: Şehir Merkezi Diş Kliniği
+  vi: Nha khoa Trung tâm
+  id: Klinik Gigi Pusat Kota
+  pl: Gabinet Dentystyczny Centrum
+  nl: Tandartspraktijk Centrum
+  ar: عيادة أسنان وسط المدينة
+  hi: डाउनटाउन डेंटल
+  th: คลินิกทันตกรรมใจกลางเมือง
+  cs: Zubní klinika v centru
+  sv: Tandkliniken i centrum
+  he: מרפאת שיניים במרכז העיר
+  verified_by_human: []
+
+appointments.example_2.notes:
+  context: Example value for notes in appointments
+  en: Teeth cleaning
+  de: Zahnreinigung
+  zh: 洗牙
+  es: Limpieza dental
+  fr: Nettoyage dentaire
+  pt: Limpeza dentária
+  ru: Чистка зубов
+  ja: 歯のクリーニング
+  ko: 치아 스케일링
+  it: Pulizia dei denti
+  tr: Diş temizliği
+  vi: Lấy cao răng
+  id: Pembersihan gigi
+  pl: Czyszczenie zębów
+  nl: Tandreiniging
+  ar: تنظيف الأسنان
+  hi: दांतों की सफाई
+  th: ขูดหินปูน
+  cs: Čištění zubů
+  sv: Tandrengöring
+  he: ניקוי שיניים
+  verified_by_human: []
+
+# Structured example entries for medical_history
+
+medical_history.example_1.name:
+  context: Example value for name in medical_history
+  en: Peanut Allergy
+  de: Erdnussallergie
+  zh: 花生过敏
+  es: Alergia al cacahuete
+  fr: Allergie aux arachides
+  pt: Alergia a amendoim
+  ru: Аллергия на арахис
+  ja: ピーナッツアレルギー
+  ko: 땅콩 알레르기
+  it: Allergia alle arachidi
+  tr: Fıstık alerjisi
+  vi: Dị ứng đậu phộng
+  id: Alergi kacang tanah
+  pl: Alergia na orzeszki ziemne
+  nl: Pinda-allergie
+  ar: حساسية الفول السوداني
+  hi: मूंगफली एलर्जी
+  th: แพ้ถั่วลิสง
+  cs: Alergie na arašídy
+  sv: Jordnötsallergi
+  he: אלרגיה לבוטנים
+  verified_by_human: []
+
+medical_history.example_1.details:
+  context: Example value for details in medical_history
+  en: Severe allergic reaction, carry EpiPen
+  de: Schwere allergische Reaktion, EpiPen mitführen
+  zh: 严重过敏反应，随身携带肾上腺素笔
+  es: Reacción alérgica grave, llevar EpiPen
+  fr: Réaction allergique grave, porter un EpiPen
+  pt: Reação alérgica grave, portar EpiPen
+  ru: Тяжёлая аллергическая реакция, носить ЭпиПен
+  ja: 重度のアレルギー反応、エピペン携帯
+  ko: 심각한 알레르기 반응, 에피펜 휴대
+  it: Reazione allergica grave, portare EpiPen
+  tr: Ciddi alerjik reaksiyon, EpiPen taşı
+  vi: Phản ứng dị ứng nghiêm trọng, mang theo EpiPen
+  id: Reaksi alergi parah, bawa EpiPen
+  pl: Ciężka reakcja alergiczna, nosić EpiPen
+  nl: Ernstige allergische reactie, EpiPen bij zich dragen
+  ar: رد فعل تحسسي شديد، حمل حقنة إبينفرين
+  hi: गंभीर एलर्जी प्रतिक्रिया, एपिपेन रखें
+  th: อาการแพ้รุนแรง พกเข็มฉีดอะดรีนาลีน
+  cs: Těžká alergická reakce, nosit EpiPen
+  sv: Allvarlig allergisk reaktion, bär EpiPen
+  he: תגובה אלרגית חמורה, נושא אפיפן
+  verified_by_human: []
+
+medical_history.example_2.name:
+  context: Example value for name in medical_history
+  en: COVID-19 Vaccine
+  de: COVID-19-Impfung
+  zh: 新冠疫苗
+  es: Vacuna COVID-19
+  fr: Vaccin COVID-19
+  pt: Vacina COVID-19
+  ru: Вакцина от COVID-19
+  ja: COVID-19ワクチン
+  ko: 코로나19 백신
+  it: Vaccino COVID-19
+  tr: COVID-19 Aşısı
+  vi: Vắc-xin COVID-19
+  id: Vaksin COVID-19
+  pl: Szczepionka COVID-19
+  nl: COVID-19-vaccin
+  ar: لقاح كوفيد-19
+  hi: कोविड-19 टीका
+  th: วัคซีนโควิด-19
+  cs: Očkování COVID-19
+  sv: COVID-19-vaccin
+  he: חיסון קורונה
+  verified_by_human: []
+
+medical_history.example_2.details:
+  context: Example value for details in medical_history
+  en: Pfizer booster shot
+  de: Pfizer-Auffrischungsimpfung
+  zh: 辉瑞加强针
+  es: Dosis de refuerzo de Pfizer
+  fr: Dose de rappel Pfizer
+  pt: Dose de reforço da Pfizer
+  ru: Бустерная доза Pfizer
+  ja: ファイザーブースター接種
+  ko: 화이자 부스터 접종
+  it: Dose di richiamo Pfizer
+  tr: Pfizer hatırlatma dozu
+  vi: Mũi tăng cường Pfizer
+  id: Booster Pfizer
+  pl: Dawka przypominająca Pfizer
+  nl: Pfizer-boostervaccinatie
+  ar: جرعة معززة من فايزر
+  hi: फाइज़र बूस्टर शॉट
+  th: เข็มกระตุ้นไฟเซอร์
+  cs: Posilovací dávka Pfizer
+  sv: Pfizer boosterdos
+  he: מנת דחף של פייזר
+  verified_by_human: []

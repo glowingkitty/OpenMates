@@ -147,16 +147,16 @@ images:
 
   google:
 
-    imagen_3:
+    gemini_3_pro_image_preview:
 
-      api_name: ?
+      api_name: gemini-3-pro-image-preview
       input_types:
         - text
       output_types:
         - image
 
       per_image:
-        price: 0.04
+        price: 0.134
         currency: USD
 
 video:

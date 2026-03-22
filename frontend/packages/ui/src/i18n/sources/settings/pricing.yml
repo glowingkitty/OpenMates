@@ -1,0 +1,216 @@
+packages_heading:
+  context: Section heading for credit packages on the Pricing page
+  en: Credit Packages
+  de: Kreditpakete
+  zh: 积分套餐
+  es: Paquetes de Créditos
+  fr: Forfaits de Crédits
+  pt: ""
+  ru: ""
+  ja: クレジットパッケージ
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: باقات الرصيد
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: חבילות קרדיטים
+  verified_by_human: []
+recommended:
+  context: Badge label for the recommended credit package
+  en: Recommended
+  de: Empfohlen
+  zh: 推荐
+  es: Recomendado
+  fr: Recommandé
+  pt: ""
+  ru: ""
+  ja: おすすめ
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: موصى به
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: מומלץ
+  verified_by_human: []
+bonus_credits:
+  context: Label for bonus credits that come with a monthly auto top-up subscription
+  en: bonus/mo with Auto Top-Up
+  de: Bonus/Mo mit Auto-Aufladen
+  zh: 自动充值附赠积分/月
+  es: bonus/mes con Recarga Automática
+  fr: bonus/mois avec Rechargement Auto
+  pt: ""
+  ru: ""
+  ja: 自動チャージ付きボーナス/月
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: رصيد إضافي/شهري مع التعبئة التلقائية
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: בונוס/חודש עם טעינה אוטומטית
+  verified_by_human: []
+vat_note:
+  context: Small footnote on the Pricing page indicating prices are excluding VAT
+  en: All prices excluding VAT. Prices in EUR and USD.
+  de: Alle Preise exkl. MwSt. Preise in EUR und USD.
+  zh: 所有价格不含增值税。价格以欧元和美元计。
+  es: Todos los precios sin IVA. Precios en EUR y USD.
+  fr: Tous les prix hors TVA. Prix en EUR et USD.
+  pt: ""
+  ru: ""
+  ja: すべての価格は税抜きです。EUR・USD表示。
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: جميع الأسعار لا تشمل ضريبة القيمة المضافة. الأسعار باليورو والدولار الأمريكي.
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: "כל המחירים אינם כוללים מע\"מ. מחירים ב-EUR וב-USD."
+  verified_by_human: []
+explore_heading:
+  context: Section heading for the App Store exploration links on the Pricing page
+  en: Explore App Skills & Costs
+  de: App-Skills & Kosten erkunden
+  zh: 探索应用技能与费用
+  es: Explorar habilidades de apps y costos
+  fr: Explorer les compétences d'apps et les coûts
+  pt: ""
+  ru: ""
+  ja: アプリスキルとコストを探る
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: استكشاف مهارات التطبيق والتكاليف
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: גלה יכולות ועלויות
+  verified_by_human: []
+ai_ask_skill:
+  context: Title for the AI Ask skill link on the Pricing page
+  en: AI Ask
+  de: KI Fragen
+  zh: AI 问答
+  es: AI Ask
+  fr: IA Demander
+  pt: ""
+  ru: ""
+  ja: AI Ask
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: الاستعلام بالذكاء الاصطناعي
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: AI Ask
+  verified_by_human: []
+ai_ask_subtitle:
+  context: Subtitle for the AI Ask skill link on the Pricing page — explains it is the main cost driver
+  en: Biggest cost factor — explore model pricing
+  de: Größter Kostenfaktor — Modellpreise erkunden
+  zh: 最大费用因素 — 探索模型定价
+  es: Mayor factor de costo — explorar precios de modelos
+  fr: Plus grand facteur de coût — explorer la tarification des modèles
+  pt: ""
+  ru: ""
+  ja: 最大コスト要因 — モデル料金を確認
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: أكبر عامل تكلفة — استكشاف تسعير النموذج
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: גורם העלות העיקרי — גלה את מחירי המודלים
+  verified_by_human: []
+browse_app_store:
+  context: Title for the App Store link on the Pricing page
+  en: Browse App Store
+  de: App Store durchsuchen
+  zh: 浏览应用商店
+  es: Explorar App Store
+  fr: Parcourir l'App Store
+  pt: ""
+  ru: ""
+  ja: アプリストアを閲覧
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: تصفح متجر التطبيقات
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: עיון בחנות האפליקציות
+  verified_by_human: []
+browse_app_store_subtitle:
+  context: Subtitle for the App Store link on the Pricing page — tells user they can see per-skill pricing
+  en: See pricing for all available skills
+  de: Preise für alle verfügbaren Skills einsehen
+  zh: 查看所有可用技能的定价
+  es: Ver precios de todas las habilidades disponibles
+  fr: Voir les prix de toutes les compétences disponibles
+  pt: ""
+  ru: ""
+  ja: 利用可能なすべてのスキルの料金を確認
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: اطلع على أسعار جميع المهارات المتاحة
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: צפה במחירים של כל היכולות הזמינות
+  verified_by_human: []

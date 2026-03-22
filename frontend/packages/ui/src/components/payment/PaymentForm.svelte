@@ -1,29 +1,33 @@
 <script lang="ts">
     import { text } from '@repo/ui';
-    import InputWarning from '../common/InputWarning.svelte';
-    import { getWebsiteUrl, routes } from '../../config/links';
     import { fade } from 'svelte/transition';
-    import { createEventDispatcher, onMount } from 'svelte';
+    import { createEventDispatcher } from 'svelte';
 
     // Props using Svelte 5 runes
     let { 
         purchasePrice = 20,
         currency = 'EUR',
-        userEmail = null,
+        _userEmail = null,
+        requireConsent = true,
+        isSupportContribution = false,
         hasConsentedToLimitedRefund = false,
         validationErrors = null,
         paymentError = null,
         isPaymentElementComplete = $bindable(false),
         isLoading = false,
         isButtonCooldown = false,
-        stripe = null,
-        elements = null,
-        clientSecret = null,
-        darkmode = false
+        _stripe = null,
+        _elements = null,
+        _clientSecret = null,
+        fallbackUrl = null,
+        fallbackButtonLabel = null,
+        _darkmode = false
     }: {
         purchasePrice?: number;
         currency?: string;
         userEmail?: string | null;
+        requireConsent?: boolean;
+        isSupportContribution?: boolean;
         hasConsentedToLimitedRefund?: boolean;
         validationErrors?: string | null;
         paymentError?: string | null;
@@ -33,10 +37,13 @@
         stripe?: any;
         elements?: any;
         clientSecret?: string | null;
+        fallbackUrl?: string | null;
+        fallbackButtonLabel?: string | null;
         darkmode?: boolean;
     } = $props();
 
     // Track if form was submitted
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
     let attemptedSubmit = false;
 
     // Event dispatcher for parent communication
@@ -60,7 +67,13 @@
     }
 
     // Derived state for button enable/disable using Svelte 5 runes
-    let canSubmit = $derived(hasConsentedToLimitedRefund && isPaymentElementComplete && !validationErrors && !paymentError);
+    let canSubmit = $derived(
+        !fallbackUrl &&
+        (!requireConsent || hasConsentedToLimitedRefund) &&
+        isPaymentElementComplete &&
+        !validationErrors &&
+        !paymentError
+    );
     
     // Allow parent to set payment failed state
     export function setPaymentFailed(message?: string) {
@@ -70,31 +83,52 @@
 
 <div class="payment-form" in:fade={{ duration: 300 }}>
     <form onsubmit={handleSubmit}>
-        <button
-            type="submit"
-            class="buy-button"
-            disabled={!canSubmit || isLoading || isButtonCooldown}
-        >
-            {#if isLoading}
-                {$text('login.loading.text')}
-            {:else}
-                {$text('signup.buy_for.text').replace(
-                    '{currency}', currency
-                ).replace(
-                    '{amount}', purchasePrice.toString()
-                )}
-            {/if}
-        </button>
+        {#if paymentError}
+            <div class="error-message" role="alert">
+                {paymentError}
+            </div>
+        {/if}
+        
+        {#if validationErrors}
+            <div class="error-message" role="alert">
+                {validationErrors}
+            </div>
+        {/if}
+        
+        {#if fallbackUrl}
+            <button
+                type="button"
+                class="buy-button"
+                disabled={isLoading || isButtonCooldown}
+                onclick={() => window.location.assign(fallbackUrl)}
+            >
+                {fallbackButtonLabel || 'Continue on Stripe'}
+            </button>
+        {:else}
+            <button
+                type="submit"
+                class="buy-button"
+                disabled={!canSubmit || isLoading || isButtonCooldown}
+            >
+                {#if isLoading}
+                    {$text('login.loading')}
+                {:else}
+                    {(isSupportContribution ? $text('signup.send_amount') : $text('signup.buy_for'))
+                        .replace('{currency}', currency)
+                        .replace('{amount}', (purchasePrice / 100).toString())}
+                {/if}
+            </button>
+        {/if}
         
         <p class="vat-info color-grey-60">
-            {@html $text('signup.vat_info.text')}
+            {@html $text('signup.vat_info')}
         </p>
     </form>
     
     <div class="bottom-container">
         <button type="button" class="text-button" onclick={handleSecurePaymentInfoClick}>
             <span class="clickable-icon icon_lock inline-lock-icon"></span>
-            {@html $text('signup.secured_and_powered_by.text').replace('{provider}', 'Stripe')}
+            {@html $text('signup.secured_and_powered_by').replace('{provider}', 'Stripe')}
         </button>
     </div>
 </div>
@@ -134,6 +168,17 @@
         text-align: center;
         margin-top: 10px;
         margin-bottom: 10px;
+    }
+
+    .error-message {
+        background-color: var(--color-error-bg, #fee);
+        color: var(--color-error-text, #c00);
+        padding: 12px 16px;
+        border-radius: 8px;
+        margin-bottom: 16px;
+        font-size: 14px;
+        line-height: 1.5;
+        border: 1px solid var(--color-error-border, #fcc);
     }
 
 </style>

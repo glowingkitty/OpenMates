@@ -1,52 +1,431 @@
-name: |
-  Travel
-description: |
-  Plan, book and manage your trips.
+name_translation_key: travel
+description_translation_key: travel.description
 icon_image: |
   travel.svg
-icon_colorgradient:
-  start: |
-    #059DB3
-  end: |
-    #13DAF5
-
+category: personal
+last_updated: "2026-03-06"
+# Embed type definitions — single source of truth for frontend embed routing.
+embed_types:
+  - id: search_connections
+    category: app-skill-use
+    skill_id: search_connections
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: true
+    child_type: connection
+    child_frontend_type: travel-connection
+    groupable: true
+    preview_component: travel/TravelSearchEmbedPreview.svelte
+    fullscreen_component: travel/TravelSearchEmbedFullscreen.svelte
+    child_preview_component: travel/TravelConnectionEmbedPreview.svelte
+    child_fullscreen_component: travel/TravelConnectionEmbedFullscreen.svelte
+    icon: search
+    gradient_var: "--color-app-travel"
+    i18n_namespace: embeds.travel.search_connections
+  - id: search_stays
+    category: app-skill-use
+    skill_id: search_stays
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: true
+    child_type: stay
+    child_frontend_type: travel-stay
+    groupable: false
+    preview_component: travel/TravelStaysEmbedPreview.svelte
+    fullscreen_component: travel/TravelStaysEmbedFullscreen.svelte
+    child_preview_component: travel/TravelStayEmbedPreview.svelte
+    child_fullscreen_component: travel/TravelStayEmbedFullscreen.svelte
+    icon: search
+    gradient_var: "--color-app-travel"
+    i18n_namespace: embeds.travel.search_stays
+  - id: price_calendar
+    category: app-skill-use
+    skill_id: price_calendar
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    preview_component: travel/TravelPriceCalendarEmbedPreview.svelte
+    fullscreen_component: travel/TravelPriceCalendarEmbedFullscreen.svelte
+    icon: calendar
+    gradient_var: "--color-app-travel"
+    i18n_namespace: embeds.travel.price_calendar
+  - id: flight_details
+    category: app-skill-use
+    skill_id: get_flight
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    preview_component: travel/TravelFlightDetailsEmbedPreview.svelte
+    fullscreen_component: travel/TravelFlightDetailsEmbedFullscreen.svelte
+    icon: travel
+    gradient_var: "--color-app-travel"
+    i18n_namespace: embeds.travel.flight_details
 settings_and_memories:
-  - id: upcoming_trips # Unique key for this memory field
-    name: "Upcoming Trips" # User-friendly name for UI
-    description: "Details about your planned future trips."
-    type: list # Data type: string, number, boolean, list, dict
-    schema: # Optional: More detailed schema for complex types (e.g., list of objects, specific dict keys)
-      type: object # For a list of trip objects
-      properties:
-        destination: { type: string, description: "City or country" }
-        start_date: { type: string, format: date, description: "YYYY-MM-DD" }
-        end_date: { type: string, format: date, description: "YYYY-MM-DD" }
-        notes: { type: string, description: "Additional notes" }
-      required: [destination, start_date]
-
-  - id: preferred_airline
-    name: "Preferred Airline"
-    description: "Your favorite airline for booking flights."
-    type: string
-
-  - id: interests
-    name: "Interests"
-    description: "Your interests related to travel. For example, hiking, museums, good city planning examples, etc."
+  # Trips: Planned or past trips with destination and dates
+  - id: trips
+    name_translation_key: travel.trips
+    description_translation_key: travel.trips.description
+    icon_image: travel.svg
     type: list
-
-
+    stage: production
+    example_translation_keys:
+      - "travel.trips.example_1"
+      - "travel.trips.example_2"
+    example_entries:
+      - destination: "travel.trips.example_1.destination"
+        start_date: "2025-09-01"
+        end_date: "2025-09-14"
+        notes: "travel.trips.example_1.notes"
+      - destination: "travel.trips.example_2.destination"
+        start_date: "2025-06-15"
+        end_date: "2025-06-22"
+        notes: "travel.trips.example_2.notes"
+    schema:
+      type: object
+      properties:
+        destination:
+          type: string
+          description: City or country
+          is_title: true
+        start_date:
+          type: string
+          format: date
+          description: Start date (YYYY-MM-DD)
+          is_subtitle: true
+        end_date:
+          type: string
+          format: date
+          description: End date (YYYY-MM-DD)
+        notes:
+          type: string
+          description: Additional notes about the trip
+          multiline: true
+      required:
+        - destination
+  # Preferred airlines: Airlines the user prefers to fly with
+  - id: preferred_airlines
+    name_translation_key: travel.preferred_airlines
+    description_translation_key: travel.preferred_airlines.description
+    icon_image: travel.svg
+    type: list
+    stage: production
+    example_translation_keys:
+      - "travel.preferred_airlines.example_1"
+      - "travel.preferred_airlines.example_2"
+    example_entries:
+      - name: "travel.preferred_airlines.example_1.name"
+      - name: "travel.preferred_airlines.example_2.name"
+    schema:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Airline name (e.g., Lufthansa, British Airways)
+          is_title: true
+      required:
+        - name
+  # Preferred transport methods: How the user prefers to travel
+  - id: preferred_transport_methods
+    name_translation_key: travel.preferred_transport_methods
+    description_translation_key: travel.preferred_transport_methods.description
+    icon_image: travel.svg
+    type: list
+    stage: production
+    example_translation_keys:
+      - "travel.preferred_transport_methods.example_1"
+      - "travel.preferred_transport_methods.example_2"
+    example_entries:
+      - method: "train"
+      - method: "bike"
+    schema:
+      type: object
+      properties:
+        method:
+          type: string
+          description: Transport method
+          enum:
+            - bike
+            - public_transport
+            - train
+            - plane
+            - car
+            - walking
+          is_title: true
+      required:
+        - method
+  # Preferred Activities: Activities and experiences the user enjoys at travel destinations
+  # (e.g., visiting beaches, exploring museums, hiking, trying local cuisine)
+  # NOT for transport preferences or flight bookings — those are in preferred_transport_methods / preferred_airlines
+  - id: preferred_activities
+    name_translation_key: travel.preferred_activities
+    description_translation_key: travel.preferred_activities.description
+    icon_image: planning.svg
+    type: list
+    stage: production
+    example_translation_keys:
+      - "travel.preferred_activities.example_1"
+      - "travel.preferred_activities.example_2"
+    example_entries:
+      - name: "travel.preferred_activities.example_1.name"
+      - name: "travel.preferred_activities.example_2.name"
+    schema:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Activity or experience enjoyed at travel destinations (e.g., visiting beaches, exploring museums, hiking, trying local food)
+          is_title: true
+      required:
+        - name
 skills:
-
-  - id: |
-      search_connections
-    name: |
-      Search connections
-    description: |
-      Searches for connections between two locations, via trains, planes, public transport, biking, by car or walking.
-    stage: |
-      planning
-    class_path: |
-      skills.search_connections.SearchConnectionsSkill
+  - id: search_connections
+    name_translation_key: app_skills.travel.search_connections
+    description_translation_key: app_skills.travel.search_connections.description
+    icon_image: travel.svg
+    preprocessor_hint: >
+      Search specific flight/train connections for a particular date with details (airlines, times, stops, durations).
+      Use when user specifies an exact travel date. Costs 25 credits per search.
+    stage: production
+    class_path: backend.apps.travel.skills.search_connections.SearchConnectionsSkill
+    pricing:
+      per_unit:
+        credits: 25
     providers:
-      - "Citymapper" #public transport
-      - "Lyko.tech" #? or directly separate apis from train / mobility providers?
+      - Google
+    exclude_fields_for_llm:
+      - type
+      - hash
+      - carrier_code
+      - segments
+      - booking_token
+      - booking_context
+    suggestions_follow_up_requests:
+      - Search for cheaper dates
+      - Show only direct flights
+      - Search for trains instead
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          description: >
+            Array of connection search requests. Each request searches for
+            transport connections for a complete trip (one-way, round trip,
+            or multi-stop).
+          items:
+            type: object
+            properties:
+              legs:
+                type: array
+                description: >
+                  Ordered list of trip legs. One-way trip = 1 leg.
+                  Round trip = 2 legs (outbound + return). Multi-stop = N legs.
+                  Each leg specifies an origin, destination, and departure date.
+                items:
+                  type: object
+                  properties:
+                    origin:
+                      type: string
+                      description: >
+                        Origin city or location name (e.g. "Munich", "London Heathrow",
+                        "Berlin"). The system resolves this to airport codes or
+                        coordinates internally.
+                    destination:
+                      type: string
+                      description: Destination city or location name.
+                    date:
+                      type: string
+                      description: Departure date in YYYY-MM-DD format.
+                  required:
+                    - origin
+                    - destination
+                    - date
+              transport_methods:
+                type: array
+                description: >
+                  Transport types to search. Currently supported: ["airplane"].
+                  Future: "train", "bus", "boat".
+                items:
+                  type: string
+                  enum:
+                    - airplane
+                    - train
+                    - bus
+                    - boat
+                default:
+                  - airplane
+              passengers:
+                type: integer
+                description: Number of adult passengers.
+                default: 1
+              travel_class:
+                type: string
+                description: Cabin class for flights.
+                enum:
+                  - economy
+                  - premium_economy
+                  - business
+                  - first
+                default: economy
+              max_results:
+                type: integer
+                description: Maximum number of connection options to return per transport method.
+                default: 6
+              non_stop_only:
+                type: boolean
+                description: If true, only return direct/non-stop connections.
+                default: false
+              currency:
+                type: string
+                description: Preferred currency for prices (ISO 4217 code).
+                default: EUR
+              sort_by:
+                type: string
+                description: >
+                  How to sort the results. Options: "price_asc" (cheapest first,
+                  default), "price_desc" (most expensive first), "duration_asc"
+                  (shortest first), "duration_desc" (longest first),
+                  "departure_asc" (earliest departure first), "departure_desc"
+                  (latest departure first), "stops_asc" (fewest stops first),
+                  "stops_desc" (most stops first).
+                enum:
+                  - price_asc
+                  - price_desc
+                  - duration_asc
+                  - duration_desc
+                  - departure_asc
+                  - departure_desc
+                  - stops_asc
+                  - stops_desc
+                default: price_asc
+            required:
+              - legs
+      required:
+        - requests
+
+  # -----------------------------------------------------------------------
+  # Search Stays – hotel / hostel / accommodation search via Google Hotels
+  # -----------------------------------------------------------------------
+  - id: search_stays
+    name_translation_key: app_skills.travel.search_stays
+    description_translation_key: app_skills.travel.search_stays.description
+    icon_image: home.svg
+    stage: production
+    class_path: backend.apps.travel.skills.search_stays.SearchStaysSkill
+    pricing:
+      per_unit:
+        credits: 25
+    providers:
+      - Google
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          description: >
+            Array of stay search requests. Each request searches for
+            accommodation at a specific destination for given dates.
+          items:
+            type: object
+            properties:
+              query:
+                type: string
+                description: >
+                  Search query describing the destination or property
+                  (e.g. "Hotels in Paris", "Hostels near Eiffel Tower",
+                  "Barcelona beachfront hotel").
+              check_in_date:
+                type: string
+                description: >
+                  Check-in date in YYYY-MM-DD format (e.g. "2026-03-15").
+              check_out_date:
+                type: string
+                description: >
+                  Check-out date in YYYY-MM-DD format (e.g. "2026-03-18").
+              adults:
+                type: integer
+                description: Number of adult guests.
+                default: 2
+              children:
+                type: integer
+                description: Number of children.
+                default: 0
+              currency:
+                type: string
+                description: >
+                  Price currency (ISO 4217 code, e.g. "EUR", "USD").
+                default: EUR
+              sort_by:
+                type: string
+                description: >
+                  Sort order for results. Options: "relevance" (default),
+                  "price_asc" (lowest price first), "rating_desc"
+                  (highest rated first), "reviews_desc" (most reviewed).
+                default: relevance
+              min_price:
+                type: number
+                description: Minimum nightly price filter.
+              max_price:
+                type: number
+                description: Maximum nightly price filter.
+              hotel_class:
+                type: string
+                description: >
+                  Comma-separated star rating filter (e.g. "3,4,5"
+                  for 3-star and above).
+              max_results:
+                type: integer
+                description: Maximum number of results to return.
+                default: 10
+            required:
+              - query
+              - check_in_date
+              - check_out_date
+      required:
+        - requests
+
+  # -----------------------------------------------------------------------
+  # Get Flight — Flightradar24 real flight track + enrichment metadata
+  # -----------------------------------------------------------------------
+  - id: get_flight
+    name_translation_key: app_skills.travel.get_flight
+    description_translation_key: app_skills.travel.get_flight.description
+    icon_image: travel.svg
+    stage: production
+    preprocessor_hint: >
+      Fetch the real GPS flight track and actual departure/landing times for a specific
+      completed/past flight. Use when the user asks to see how a flight actually went,
+      the real flight path on a map, or actual timing and runway info. Requires the IATA
+      flight number (e.g. 'LH2472') and the departure date. Costs 7 credits per lookup.
+    class_path: backend.apps.travel.skills.get_flight.GetFlightSkill
+    pricing:
+      per_unit:
+        credits: 7
+    providers:
+      - Flightradar24
+    tool_schema:
+      type: object
+      properties:
+        flight_number:
+          type: string
+          description: >
+            IATA flight number including the carrier code prefix
+            (e.g. 'LH2472', 'BA234', 'AF447'). Do NOT include spaces.
+        departure_date:
+          type: string
+          description: >
+            Departure date in YYYY-MM-DD format (e.g. '2026-03-05').
+            Must be a past/completed date — live tracking is not supported.
+        origin_iata:
+          type: string
+          description: >
+            Optional IATA code of the departure airport (e.g. 'MUC').
+            Used for disambiguation when a flight number has multiple legs.
+        destination_iata:
+          type: string
+          description: >
+            Optional IATA code of the destination airport (e.g. 'LHR').
+            Used for diversion detection.
+      required:
+        - flight_number
+        - departure_date

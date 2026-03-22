@@ -1,0 +1,159 @@
+# Shopping app — REWE online supermarket product search
+#
+# Searches the REWE online shop for products with live prices.
+# Uses a Playwright-harvested cookie pool stored in Vault to authenticate
+# requests to the REWE API, which requires an active session for pricing.
+# All API calls are routed through a residential proxy because the Cloudflare
+# cf_clearance cookie is IP-bound to the session that harvested it.
+#
+# Provider: REWE (shop.rewe.de)
+# Pricing data: market-specific, scoped to Berlin (PLZ 10115) by default
+
+name_translation_key: shopping
+description_translation_key: shopping.description
+icon_image: |
+  shopping.svg
+category: lifestyle
+last_updated: "2026-02-22"
+# Embed type definitions — single source of truth for frontend embed routing.
+embed_types:
+  - id: search_products
+    category: app-skill-use
+    skill_id: search_products
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: true
+    child_type: website
+    child_frontend_type: web-website
+    groupable: false
+    preview_component: shopping/ShoppingSearchEmbedPreview.svelte
+    fullscreen_component: shopping/ShoppingSearchEmbedFullscreen.svelte
+    icon: shopping
+    gradient_var: "--color-app-shopping"
+    i18n_namespace: embeds.shopping.search_products
+skills:
+  # -----------------------------------------------------------------------
+  # Search Products — search REWE online shop for products with live prices
+  # -----------------------------------------------------------------------
+  - id: search_products
+    name_translation_key: app_skills.shopping.search_products
+    description_translation_key: app_skills.shopping.search_products.description
+    icon_image: shopping.svg
+    preprocessor_hint: >
+      Search products on REWE or Amazon with real-time prices.
+      Returns products with prices, ratings, badges, and purchase links.
+      Costs 10 credits per search. Best for grocery price comparisons and shopping lists.
+    stage: production
+    class_path: backend.apps.shopping.skills.search_products.SearchProductsSkill
+    pricing:
+      per_unit:
+        credits: 10
+    providers:
+      - REWE
+      - Amazon
+    exclude_fields_for_llm:
+      - type
+      - product_id
+      - image_url
+      - category_ids
+      - order_limit
+      - search_rank
+    suggestions_follow_up_requests:
+      - Filter for organic products only
+      - Show the cheapest option
+      - Find similar products at a lower price
+      - Add to shopping list
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          description: >
+            Array of product search requests. Each request searches for
+            products matching a query on the REWE online shop.
+          items:
+            type: object
+            properties:
+              query:
+                type: string
+                description: >
+                  Search query, e.g. "bio joghurt", "coffee grinder", "wireless mouse".
+              provider:
+                type: string
+                description: >
+                  Product provider. "REWE" searches the German REWE supermarket.
+                  "Amazon" searches Amazon marketplace products via SerpAPI.
+                enum:
+                  - REWE
+                  - Amazon
+                default: REWE
+              max_results:
+                type: integer
+                description: Maximum number of products to return (1-20, default 10).
+                default: 10
+              sort:
+                type: string
+                description: >
+                  Sort order for results.
+                  REWE supports: relevance, price_asc, price_desc, new.
+                  Amazon supports: relevance, price_asc, price_desc, review_rank,
+                  newest, best_sellers.
+                enum:
+                  - relevance
+                  - price_asc
+                  - price_desc
+                  - new
+                  - review_rank
+                  - newest
+                  - best_sellers
+                default: relevance
+              service_type:
+                type: string
+                description: >
+                  REWE-only fulfilment type. "DELIVERY" for home delivery (default).
+                  "CLICK_AND_COLLECT" for store pickup. Ignored for Amazon.
+                enum:
+                  - DELIVERY
+                  - CLICK_AND_COLLECT
+                default: DELIVERY
+              country:
+                type: string
+                description: >
+                  Amazon-only marketplace country code. Example: us, uk, de, fr,
+                  it, es, ca, au, jp, in, br, mx, nl, sg, se, pl.
+                  If omitted, inferred from user language/locale with fallback to us.
+              department:
+                type: string
+                description: >
+                  Amazon-only category filter. Example: electronics, computers,
+                  fashion, home, books, sports, toys, beauty, grocery, automotive,
+                  health, music, movies, tools, office, pet_supplies, video_games, baby.
+                enum:
+                  - electronics
+                  - computers
+                  - fashion
+                  - home
+                  - books
+                  - sports
+                  - toys
+                  - beauty
+                  - grocery
+                  - automotive
+                  - health
+                  - music
+                  - movies
+                  - tools
+                  - office
+                  - pet_supplies
+                  - video_games
+                  - baby
+              min_price:
+                type: number
+                description: Amazon-only minimum price filter (client-side after fetch).
+              max_price:
+                type: number
+                description: Amazon-only maximum price filter (client-side after fetch).
+            required:
+              - query
+      required:
+        - requests

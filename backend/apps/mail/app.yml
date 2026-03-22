@@ -1,0 +1,88 @@
+name_translation_key: mail
+description_translation_key: mail.description
+icon_image: |
+  mail.svg
+category: work
+stage: production
+last_updated: "2026-03-04"
+settings_and_memories:
+  - id: writing_styles
+    name_translation_key: mail.writing_styles
+    description_translation_key: mail.writing_styles.description
+    icon_image: mail.svg
+    type: list
+    stage: production
+    example_translation_keys:
+      - "mail.writing_styles.example_1"
+      - "mail.writing_styles.example_2"
+      - "mail.writing_styles.example_3"
+    example_entries:
+      - title: "mail.writing_styles.example_1.title"
+        description: "mail.writing_styles.example_1.description"
+        when_to_use: "mail.writing_styles.example_1.when_to_use"
+        footer: "mail.writing_styles.example_1.footer"
+      - title: "mail.writing_styles.example_2.title"
+        description: "mail.writing_styles.example_2.description"
+        when_to_use: "mail.writing_styles.example_2.when_to_use"
+        footer: "mail.writing_styles.example_2.footer"
+    schema:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Style name (e.g., Formal business, Friendly follow-up)
+          is_title: true
+        description:
+          type: string
+          description: Free-text description of this writing style (tone, verbosity, greeting, closing, special preferences)
+          is_subtitle: true
+          multiline: true
+        when_to_use:
+          type: string
+          description: When this style should be applied (e.g., client outreach, internal updates, support replies)
+          multiline: true
+        footer:
+          type: string
+          description: Optional footer/signature text to append when this style is used
+          multiline: true
+      required:
+        - title
+        - description
+embed_types:
+  - id: email
+    category: direct
+    frontend_type: mail-email
+    backend_type: mail
+    has_children: false
+    groupable: true
+    preview_component: mail/MailEmbedPreview.svelte
+    fullscreen_component: mail/MailEmbedFullscreen.svelte
+    icon: mail
+    gradient_var: "--color-app-mail"
+    i18n_namespace: embeds.mail.email
+    content_fields:
+      - name: receiver
+        type: string
+        required: true
+      - name: subject
+        type: string
+      - name: content
+        type: string
+        required: true
+      - name: footer
+        type: string
+instructions:
+  - instruction: |
+      **Email Drafting (Mail App)**
+      When the user asks to draft, write, compose, or send an email, output the draft inside:
+      ```email
+      to: <recipient>
+      subject: <subject line>
+      content:
+      <plain text email body>
+      footer:
+      <optional signature/footer>
+      ```
+      Keep the body as plain text (no HTML). Include footer only when helpful.
+      If the user has writing style preferences loaded in context (from mail app settings), apply the matching style's tone, verbosity, and footer accordingly.
+skills: []

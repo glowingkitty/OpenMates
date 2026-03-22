@@ -5,24 +5,48 @@
 provider_id: "mistral"
 name: "Mistral AI"
 description: "AI models and services from Mistral AI."
-logo_svg: "logos/mistral.svg" # Path for UI, relative to a common logos directory
+logo_svg: "logos/mistral.svg" # Path for UI, relative to logos directory
 
 models:
   - id: "mistral-small-latest" # Official model ID
     name: "Mistral Small"
-    description: "Mistral AI's fast and cost-effective model, optimized for low latency."
+    description: >-
+      Mistral AI's fast and cost-effective model, optimized for low latency.
+    country_origin: "FR" # ISO 3166-1 alpha-2 country code for model origin (France)
+    for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
+    release_date: "2025-03-15" # Model release date (Mistral Small 3.2 release)
+    allow_auto_select: true
+    external_ids: # Mapping to external leaderboard IDs for cross-referencing
+      lmarena: "mistral-small-latest"
+      openrouter: "mistralai/mistral-small-3.2-24b-instruct"
     input_types:
       - text
       - image
     output_types:
       - text
-    # Full reference for API calls would be "mistral/mistral-small-latest" (or similar based on client)
+    default_server: "mistral" # Default to direct Mistral API
+    servers:
+      - id: "mistral"
+        name: "Mistral"
+        model_id: "mistral-small-latest" # Direct Mistral API model ID
+        region: "EU" # Server region for UI display (Mistral is EU-based)
+      # Google Vertex AI removed — Mistral on Vertex AI requires rawPredict/streamRawPredict
+      # endpoint, but our google client uses the Gemini SDK (genai.Client) which only supports
+      # Google's own models. This caused 404 NOT_FOUND errors. A dedicated Vertex AI Mistral
+      # client (using mistralai[gcp] SDK) would be needed to re-enable this.
+      - id: "openrouter"
+        name: "OpenRouter"
+        # OpenRouter model identifier
+        model_id: "mistralai/mistral-small-3.2-24b-instruct"
+        region: "US" # Server region for UI display
+    # Full reference for API calls would be "mistral/mistral-small-latest"
+    # (or similar based on client)
     pricing: # Model-specific base pricing (example structure)
-      tokens: 
+      tokens:
         input:
-          per_credit_unit: 3000 # 1 credit per 3,000 input tokens
+          per_credit_unit: 3300 # 1 credit per 3,300 input tokens
         output:
-          per_credit_unit: 1000  # 1 credit per 1,000 output tokens
+          per_credit_unit: 1100 # 1 credit per 1,100 output tokens
     costs:
       input_per_million_token:
         price: 0.10
@@ -35,18 +59,37 @@ models:
 
   - id: "mistral-medium-latest" # Official model ID
     name: "Mistral Medium"
-    description: "State-of-the-art performance. Simplified enterprise deployments. Cost-efficient."
+    description: >-
+      State-of-the-art performance. Simplified enterprise deployments.
+      Cost-efficient.
+    country_origin: "FR" # ISO 3166-1 alpha-2 country code for model origin (France)
+    for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
+    release_date: "2025-05-01" # Model release date (Mistral Medium 3.1 release)
+    allow_auto_select: true
+    external_ids: # Mapping to external leaderboard IDs for cross-referencing
+      lmarena: "mistral-medium-3.1"
+      openrouter: "mistralai/mistral-medium-3.1"
     input_types:
       - text
       - image
     output_types:
       - text
+    default_server: "mistral" # Default to direct Mistral API
+    servers:
+      - id: "mistral"
+        name: "Mistral"
+        model_id: "mistral-medium-latest" # Direct Mistral API model ID
+        region: "EU" # Server region for UI display (Mistral is EU-based)
+      - id: "openrouter"
+        name: "OpenRouter"
+        model_id: "mistralai/mistral-medium-3.1" # OpenRouter model identifier
+        region: "US" # Server region for UI display
     pricing:
-      tokens: 
+      tokens:
         input:
-          per_credit_unit: 1000 # 1 credit per 1,000 input tokens
+          per_credit_unit: 850 # 1 credit per 850 input tokens
         output:
-          per_credit_unit: 200  # 1 credit per 200 output tokens
+          per_credit_unit: 170 # 1 credit per 170 output tokens
     costs:
       input_per_million_token:
         price: 0.40
@@ -57,16 +100,138 @@ models:
         currency: USD
         max_context: 128000
 
+  - id: "ministral-8b-2512" # Official model ID - Ministral 3 8B
+    name: "Ministral 3 8B"
+    description: >-
+      A powerful and efficient model offering best-in-class text generation
+      with excellent speed. Ideal for preprocessing and postprocessing tasks.
+    country_origin: "FR" # ISO 3166-1 alpha-2 country code for model origin (France)
+    for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
+    release_date: "2025-12-01" # Model release date (derived from model ID suffix 2512)
+    allow_auto_select: false # Not for auto-selection - for preprocessing/postprocessing only
+    external_ids: # Mapping to external leaderboard IDs for cross-referencing
+      lmarena: "ministral-8b-2512"
+      openrouter: "mistralai/ministral-8b-2512"
+    input_types:
+      - text
+      - image
+    output_types:
+      - text
+    default_server: "mistral" # Default to direct Mistral API
+    servers:
+      - id: "mistral"
+        name: "Mistral"
+        model_id: "ministral-8b-2512" # Direct Mistral API model ID
+        region: "EU" # Server region for UI display (Mistral is EU-based)
+      - id: "openrouter"
+        name: "OpenRouter"
+        # OpenRouter model identifier
+        model_id: "mistralai/ministral-8b-2512"
+        region: "US" # Server region for UI display
+    pricing:
+      tokens:
+        input:
+          per_credit_unit: 2222 # 1 credit per ~2222 input tokens (calculated from $0.15/M)
+        output:
+          per_credit_unit: 2222 # 1 credit per ~2222 output tokens (calculated from $0.15/M)
+    costs:
+      input_per_million_token:
+        price: 0.15
+        currency: USD
+        max_context: 128000 # Max context window
+      output_per_million_token:
+        price: 0.15
+        currency: USD
+        max_context: 128000
+
+  - id: "voxtral-mini-2602" # Official model ID — Mistral Voxtral Mini audio transcription model
+    name: "Voxtral Mini"
+    description: >-
+      Mistral AI's compact audio transcription model. Converts speech to text
+      with high accuracy across multiple languages. Optimised for short voice
+      notes and recordings at the lowest cost.
+    country_origin: "FR" # ISO 3166-1 alpha-2 country code for model origin (France)
+    for_app_skill: "audio.transcribe" # Used by the audio transcription skill
+    release_date: "2026-02-26" # voxtral-mini-2602 release date (Feb 2026)
+    allow_auto_select: false # Audio model — not for text auto-selection
+    input_types:
+      - audio
+    output_types:
+      - text
+    default_server: "mistral"
+    servers:
+      - id: "mistral"
+        name: "Mistral"
+        model_id: "voxtral-mini-2602"
+        region: "EU"
+    pricing:
+      per_minute: 3 # 3 credits per minute of audio ($0.003/min × 3x markup)
+    costs:
+      per_minute:
+        price: 0.003
+        currency: USD
+
+  - id: "devstral-2512" # Official model ID
+    name: "Devstral 2"
+    description: >-
+      Our frontier code agents model for solving software engineering tasks;
+      excels at using tools to explore codebases, editing multiple files and
+      power software engineering agents.
+    country_origin: "FR" # ISO 3166-1 alpha-2 country code for model origin (France)
+    for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
+    release_date: "2025-12-01" # Model release date (derived from model ID suffix 2512)
+    allow_auto_select: true
+    external_ids: # Mapping to external leaderboard IDs for cross-referencing
+      lmarena: "devstral-2512"
+      openrouter: "mistralai/devstral-2512"
+    input_types:
+      - text
+    output_types:
+      - text
+    default_server: "mistral" # Default to direct Mistral API
+    servers:
+      - id: "mistral"
+        name: "Mistral"
+        model_id: "devstral-2512" # Direct Mistral API model ID
+        region: "EU" # Server region for UI display (Mistral is EU-based)
+      - id: "openrouter"
+        name: "OpenRouter"
+        # OpenRouter model identifier
+        model_id: "mistralai/devstral-2512"
+        region: "US" # Server region for UI display
+    pricing:
+      tokens:
+        input:
+          # 1 credit per 850 input tokens (calculated from $0.4/M tokens)
+          per_credit_unit: 850
+        output:
+          # 1 credit per 170 output tokens (calculated from $2/M tokens)
+          per_credit_unit: 170
+    costs:
+      input_per_million_token:
+        price: 0.40
+        currency: USD
+        max_context: 256000 # Max context window: 256k tokens
+      output_per_million_token:
+        price: 2.00
+        currency: USD
+        max_context: 256000
+    features:
+      max_output_tokens: 128000
+      tool_use: true
+      streaming: true
+      agents: true
 
 # Pricing Formula:
 # 1. Cost per token = (your_cost_usd_per_million * markup) / 1,000,000
 # 2. Tokens per credit = credit_value_usd / cost_per_token
-# 
+#
 # Where:
 # - credit_value_usd = 0.001 (110 USD / 110,000 credits)
 # - markup = 3 (3x your cost)
 #
-# Simplified: tokens_per_credit = 0.001 / ((your_cost_per_million * 3) / 1,000,000)
+# Simplified: tokens_per_credit = 0.001 /
+# ((your_cost_per_million * 3) / 1,000,000)
 # Or even simpler: tokens_per_credit = 333.33 / your_cost_per_million
 #
 # Examples:

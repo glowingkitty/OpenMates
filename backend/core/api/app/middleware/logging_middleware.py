@@ -3,19 +3,102 @@
 # including detailed error logging, client context, and metrics tracking.
 # It ensures that response bodies are correctly handled and passed to the client
 # even when inspected by the middleware.
+#
+# Architecture context: request_id is stored in both request.state (for handlers)
+# and contextvars (for automatic log injection + Celery header propagation).
+# See docs/architecture/logging-and-monitoring.md
 
+import hashlib
 import time
 import logging
-import uuid
-import json # Added for parsing JSON response bodies
-from typing import Optional # Added for type hinting
+import json
+import traceback
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
-from backend.core.api.app.services.metrics import MetricsService
+from backend.core.api.app.utils.request_context import generate_request_id
+
+# Maximum number of error fingerprints stored in Redis.
+# Oldest (lowest score) entries are trimmed when this limit is exceeded.
+MAX_ERROR_FINGERPRINTS = 500
+
+# Redis key for the sorted set of error fingerprints (score = occurrence count)
+REDIS_ERROR_FINGERPRINTS_KEY = "debug:error_fingerprints"
 
 logger = logging.getLogger(__name__)
+
+
+def _compute_error_fingerprint(exc: Exception) -> tuple[str, str]:
+    """
+    Compute a short fingerprint for an exception to enable error aggregation.
+
+    The fingerprint is a 12-character hex prefix of SHA-256 over the canonical
+    key: '<exc_type>:<filename>:<function>:<lineno>'. This lets us group errors
+    by root cause regardless of the specific error message (which may vary per
+    request).
+
+    Returns:
+        (fingerprint, exc_type) — both are safe strings for use as metric labels.
+    """
+    exc_type = type(exc).__name__
+
+    # Extract the innermost frame from the traceback for the most specific location
+    tb = exc.__traceback__
+    filename = "<unknown>"
+    funcname = "<unknown>"
+    lineno = 0
+    if tb is not None:
+        frames = traceback.extract_tb(tb)
+        if frames:
+            last = frames[-1]
+            filename = last.filename.split("/")[-1]  # basename only, no full path
+            funcname = last.name
+            lineno = last.lineno
+
+    canonical = f"{exc_type}:{filename}:{funcname}:{lineno}"
+    digest = hashlib.sha256(canonical.encode()).hexdigest()[:12]
+    return digest, exc_type
+
+
+async def _record_error_fingerprint(
+    request: Request,
+    fingerprint: str,
+    exc_type: str,
+    canonical_key: str,
+) -> None:
+    """
+    Record an error fingerprint in:
+      1. The Redis sorted set (score = occurrence count) for top-N queries.
+      2. The Prometheus counter via MetricsService.
+
+    Both are best-effort — failures are logged as debug and do not affect
+    the normal exception re-raise path.
+    """
+    # Prometheus counter
+    try:
+        metrics_service = request.app.state.metrics_service
+        metrics_service.track_error_fingerprint(fingerprint, exc_type)
+    except Exception as metrics_err:
+        logger.debug(f"[FINGERPRINT] Failed to increment Prometheus counter: {metrics_err}")
+
+    # Redis sorted set: ZINCRBY increments score (count) by 1.
+    # We store the canonical key as the member so it's human-readable in the API.
+    try:
+        cache_service = request.app.state.cache_service
+        client = await cache_service.client
+        await client.zincrby(REDIS_ERROR_FINGERPRINTS_KEY, 1, f"{fingerprint}|{canonical_key}")
+        # Trim to MAX_ERROR_FINGERPRINTS to cap memory usage (remove lowest-score entries)
+        current_size = await client.zcard(REDIS_ERROR_FINGERPRINTS_KEY)
+        if current_size > MAX_ERROR_FINGERPRINTS:
+            await client.zremrangebyrank(
+                REDIS_ERROR_FINGERPRINTS_KEY,
+                0,
+                current_size - MAX_ERROR_FINGERPRINTS - 1,
+            )
+    except Exception as redis_err:
+        logger.debug(f"[FINGERPRINT] Failed to record fingerprint in Redis: {redis_err}")
+
 
 class LoggingMiddleware(BaseHTTPMiddleware):
     def __init__(self, app: ASGIApp): 
@@ -27,8 +110,9 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         ]
         
     async def dispatch(self, request: Request, call_next):
-        # Add request ID to request state for potential use in handlers
-        request_id = str(uuid.uuid4())
+        # Generate request_id and store in both contextvars (for automatic log
+        # injection and Celery propagation) and request.state (for handlers).
+        request_id = generate_request_id()
         request.state.request_id = request_id
         
         # Skip metrics tracking for excluded paths
@@ -175,6 +259,26 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                 extra=extra_exception_data,
                 exc_info=True # This provides the full traceback
             )
+
+            # Compute and record the error fingerprint for aggregation.
+            # This is best-effort and must not block or swallow the exception.
+            try:
+                fingerprint, exc_type = _compute_error_fingerprint(e)
+                tb = e.__traceback__
+                filename, funcname, lineno = "<unknown>", "<unknown>", 0
+                if tb is not None:
+                    frames = traceback.extract_tb(tb)
+                    if frames:
+                        last = frames[-1]
+                        filename = last.filename.split("/")[-1]
+                        funcname = last.name
+                        lineno = last.lineno
+                canonical_key = f"{exc_type}:{filename}:{funcname}:{lineno}"
+                await _record_error_fingerprint(request, fingerprint, exc_type, canonical_key)
+                extra_exception_data["error_fingerprint"] = fingerprint
+            except Exception as fp_err:
+                logger.debug(f"[FINGERPRINT] Failed to compute/record fingerprint: {fp_err}")
+
             # Re-raise the exception. FastAPI's default error handling will convert it
             # to a 500 Internal Server Error response.
             raise

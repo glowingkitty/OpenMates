@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Request, Query
 from fastapi.responses import StreamingResponse
 from backend.core.api.app.services.pdf.credit_note import CreditNoteTemplateService
+from backend.core.api.app.services.limiter import limiter
 import io
 
 router = APIRouter(
@@ -10,6 +11,7 @@ router = APIRouter(
 credit_note_template_service = CreditNoteTemplateService()
 
 @router.post("/generate")
+@limiter.limit("30/minute")  # Prevent abuse of credit note generation
 async def generate_credit_note(request: Request, lang: str = Query("en"), currency: str = Query("eur")):
     try:
         credit_note_data = await request.json()
@@ -28,7 +30,9 @@ async def generate_credit_note(request: Request, lang: str = Query("en"), curren
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/preview")
+@limiter.limit("60/minute")  # Preview endpoint - less sensitive, allow higher rate
 async def preview_credit_note(
+    request: Request,
     total_credits: int, 
     unused_credits: int, 
     lang: str = Query("en"), 
@@ -58,7 +62,7 @@ async def preview_credit_note(
             # "receiver_country": "Germany",
             "receiver_email": "user@domain.com",
             # "receiver_vat": "DE9882931",
-            "qr_code_url": "https://app.openmates.org/settings/usage",
+            "qr_code_url": "https://openmates.org/settings/usage",
             "total_credits": valid_total_credits,
             "unused_credits": unused_credits,
             "card_name": "Visa",

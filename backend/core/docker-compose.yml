@@ -9,7 +9,7 @@ services:
   api:
     container_name: api
     build:
-      context: ../../  # Changed: Build context is now the project root
+      context: ../../ # Changed: Build context is now the project root
       dockerfile: backend/core/api/Dockerfile # Path to Dockerfile from new context
     restart: unless-stopped
     env_file: ../../.env
@@ -20,7 +20,7 @@ services:
       DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
       DRAGONFLY_URL: "cache:6379"
       VAULT_URL: "http://vault:8200"
-      MONITORING_URL: "http://prometheus:9090"
+      MONITORING_URL: "http://openobserve:5080"
       TRANSLATIONS_DIR: "/translations"
       DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
       INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
@@ -33,17 +33,23 @@ services:
       # Mount for logs, assuming application logs to /app/logs
       - ./api/logs:/app/logs
       - ../../frontend/packages/ui/src/i18n/locales:/translations
+      # Mount entire i18n directory (includes sources YAML files and languages.json)
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
       - ../../shared:/shared
       - vault-setup-data:/vault-data
       # Added: Mount backend config directory to /config in container
       - ../../backend/config:/config
+      # Added: Mount .cursor directory for debug logging
+      - ../../.cursor:/app/.cursor
+      # Mount test-results directory for admin test results API endpoint
+      - ../../test-results:/app/test-results
     networks:
       - openmates
     depends_on:
       cache:
         condition: service_healthy
       vault-setup:
-        condition: service_started 
+        condition: service_completed_successfully
       cms-setup:
         condition: service_completed_successfully
     healthcheck:
@@ -63,8 +69,8 @@ services:
     environment:
       KEY: "${DIRECTUS_SECRET}"
       SECRET: "${DIRECTUS_SECRET}"
-      ADMIN_EMAIL: "${ADMIN_EMAIL}"
-      ADMIN_PASSWORD: "${ADMIN_PASSWORD}"
+      ADMIN_EMAIL: "${DATABASE_ADMIN_EMAIL}"
+      ADMIN_PASSWORD: "${DATABASE_ADMIN_PASSWORD}"
       DB_CLIENT: "pg"
       DB_HOST: "cms-database"
       DB_PORT: "5432"
@@ -80,6 +86,9 @@ services:
       REDIS_PORT: "6379"
       REDIS_PASSWORD: "${DRAGONFLY_PASSWORD}"
       REDIS_USERNAME: "default"
+      # Directus refresh token lifetime — must match the cookie/cache TTL for stay_logged_in users.
+      # Default is 7 days which is too short for 30-day "stay logged in" sessions.
+      REFRESH_TOKEN_TTL: "30d"
       # Allow clients to bypass Directus cache using Cache-Control: no-store
       CACHE_SKIP_ALLOWED: "true"
       # Automatically purge cache on data manipulation for real-time updates
@@ -122,8 +131,8 @@ services:
       dockerfile: Dockerfile
     env_file: ../../.env
     environment:
-      ADMIN_EMAIL: ${ADMIN_EMAIL}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      ADMIN_EMAIL: ${DATABASE_ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${DATABASE_ADMIN_PASSWORD}
       DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
       SCHEMAS_DIR: "/usr/src/app/schemas"
     volumes:
@@ -140,6 +149,8 @@ services:
   #########################################################################
   ##### Task Management (Celery)
   #########################################################################
+  # Shared task worker for core API tasks (email, user_init, persistence)
+  # App-specific tasks are handled by dedicated app workers (app-ai-worker, app-images-worker, etc.)
   task-worker:
     container_name: task-worker
     build:
@@ -156,15 +167,39 @@ services:
       TRANSLATIONS_DIR: "/translations"
       DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
       VAULT_URL: "http://vault:8200"
+      CELERY_QUEUES: "email,user_init,persistence,health_check,server_stats,demo,e2e_tests,reminder,push" # Used by celery_config to determine which services to initialize
+      CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}" # Maximum concurrent processes (default: 10)
+      CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}" # Minimum concurrent processes (default: 3)
+      CELERY_METRICS_PORT: "9101" # Port for prometheus_client metrics server — scraped by Prometheus
+      # E2E test configuration - set these env vars to enable automated testing
+      # Note: SECRET__CORE_SERVER__ADMIN_LOG_API_KEY is loaded from env_file (../../.env).
+      # Do NOT explicitly set it here — compose variable interpolation would resolve
+      # against backend/core/.env (which doesn't exist), overwriting the real value.
+      # This key is needed by Celery task run_daily_all_tests to auth with the sidecar.
+      E2E_TEST_DEV_ENABLED: "${E2E_TEST_DEV_ENABLED:-true}"
+      E2E_TEST_DEV_BASE_URL: "${E2E_TEST_DEV_BASE_URL:-https://app.dev.openmates.org}"
+      E2E_TEST_PROD_ENABLED: "${E2E_TEST_PROD_ENABLED:-false}"
+      E2E_TEST_PROD_BASE_URL: "${E2E_TEST_PROD_BASE_URL:-https://openmates.org}"
     command: >
       sh -c "chown celeryuser:celeryuser /vault-data && \
-             gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info"
+             mkdir -p /app/logs /app/backend/core/api/logs && \
+             chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
+             chmod -R 777 /app/logs /app/backend/core/api/logs && \
+             gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+             --loglevel=info \
+             --queues=email,user_init,persistence,health_check,server_stats,demo,e2e_tests,reminder,push \
+             --autoscale=${CELERY_AUTOSCALE_MAX},${CELERY_AUTOSCALE_MIN} \
+             --max-tasks-per-child=50 \
+             --max-memory-per-child=600000 \
+             --prefetch-multiplier=1"
     volumes:
       - ../../backend:/app/backend # Mounts host:backend to /app/backend
       # backend/apps and backend/shared are now accessible via /app/backend/apps and /app/backend/shared
       - ./api/logs:/app/logs # This maps host:backend/core/api/logs to /app/logs
       - vault-setup-data:/vault-data
       - ../../frontend/packages/ui/src/i18n/locales:/translations
+      # Mount entire i18n directory (includes sources YAML files and languages.json)
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
       - ../../shared:/shared # Added missing mount for /shared directory
       # Note: ../../shared:/shared was present, but backend/shared is more specific for python code.
       # If /shared is for other types of shared assets, it can remain.
@@ -198,14 +233,16 @@ services:
       - ./api/logs:/app/logs # This maps host:backend/core/api/logs to /app/logs
       - celerybeat-schedule-data:/celerybeat-data
       - ../../frontend/packages/ui/src/i18n/locales:/translations
+      # Mount entire i18n directory (includes sources YAML files and languages.json)
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
       - ../../shared:/shared
     networks:
       - openmates
     depends_on:
       cache:
         condition: service_healthy
-      task-worker:
-        condition: service_started # Corrected: Added condition
+      vault-setup:
+        condition: service_completed_successfully
       cms-setup:
         condition: service_completed_successfully
 
@@ -237,6 +274,17 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
     volumes:
       - ../../backend:/app/backend # Mounts host:backend to /app/backend
+      # Mount apps directory for hot-reloading during development
+      # This overrides the code copied during Docker build
+      - ../../backend/apps:/app/apps
+      # Mount shared config directory for pricing.yml and urls.yml
+      - ../../shared:/shared
+      # Mount Vault token data (created by vault-setup service)
+      - vault-setup-data:/vault-data
+      # Mount i18n directory for TranslationService (required for metadata endpoint)
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      # Mount entire i18n directory (includes sources YAML files and languages.json)
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
     networks:
       - openmates
     depends_on:
@@ -244,15 +292,1062 @@ services:
         condition: service_healthy
       vault-setup: # Ensures Vault is unsealed and ready
         condition: service_started
-      cms-setup:   # Ensures Directus schemas are applied if AI app uses them
+      cms-setup: # Ensures Directus schemas are applied if AI app uses them
         condition: service_completed_successfully
     healthcheck:
       # AI_APP_INTERNAL_PORT is 8000 as per Dockerfile ENV and CMD
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      # Using Python-based health check since curl is not installed in the base image
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 30s # Give app time to start before first healthcheck
+
+  app-web:
+    container_name: app-web
+    build:
+      context: ../../
+      dockerfile: backend/apps/Dockerfile.base
+      args:
+        APP_NAME: web
+    restart: unless-stopped
+    env_file: ../../.env # Project root .env
+    environment:
+      # PYTHONPATH is set in Dockerfile.base
+      APP_NAME: "web" # For Dockerfile.base ARG and base_main.py
+      WEB_APP_INTERNAL_PORT: "8000" # For base_main.py. Uvicorn in Dockerfile.base CMD also uses 8000.
+      # APP_ID is derived by BaseApp, not needed as env var.
+      CMS_URL: "http://cms:8055"
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      DRAGONFLY_URL: "cache:6379"
+      DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+      INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
+      VAULT_URL: "http://vault:8200"
+      PROVIDER_CONFIG_DIR: "/app_config/providers"
+      BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - ../../backend:/app/backend # Mounts host:backend to /app/backend
+      # Mount apps directory for hot-reloading during development
+      # This overrides the code copied during Docker build
+      - ../../backend/apps:/app/apps
+      # Mount shared config directory for pricing.yml and urls.yml
+      - ../../shared:/shared
+      # Mount Vault token data (created by vault-setup service)
+      - vault-setup-data:/vault-data
+      # Mount i18n directory for TranslationService (required for metadata endpoint)
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      # Mount entire i18n directory (includes sources YAML files and languages.json)
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
+    networks:
+      - openmates
+    depends_on:
+      cache:
+        condition: service_healthy
+      vault-setup: # Ensures Vault is unsealed and ready
+        condition: service_started
+      cms-setup: # Ensures Directus schemas are applied if web app uses them
+        condition: service_completed_successfully
+    healthcheck:
+      # WEB_APP_INTERNAL_PORT is 8000 as per Dockerfile ENV and CMD
+      # Using Python-based health check since curl is not installed in the base image
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s # Give app time to start before first healthcheck
+
+  app-videos:
+    container_name: app-videos
+    build:
+      context: ../../
+      dockerfile: backend/apps/Dockerfile.base
+      args:
+        APP_NAME: videos
+    restart: unless-stopped
+    env_file: ../../.env # Project root .env
+    environment:
+      # PYTHONPATH is set in Dockerfile.base
+      APP_NAME: "videos" # For Dockerfile.base ARG and base_main.py
+      VIDEOS_APP_INTERNAL_PORT: "8000" # For base_main.py. Uvicorn in Dockerfile.base CMD also uses 8000.
+      # APP_ID is derived by BaseApp, not needed as env var.
+      CMS_URL: "http://cms:8055"
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      DRAGONFLY_URL: "cache:6379"
+      DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+      INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
+      VAULT_URL: "http://vault:8200"
+      PROVIDER_CONFIG_DIR: "/app_config/providers"
+      BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - ../../backend:/app/backend # Mounts host:backend to /app/backend
+      # Mount apps directory for hot-reloading during development
+      # This overrides the code copied during Docker build
+      - ../../backend/apps:/app/apps
+      # Mount shared config directory for pricing.yml and urls.yml
+      - ../../shared:/shared
+      # Mount Vault token data (created by vault-setup service)
+      - vault-setup-data:/vault-data
+      # Mount i18n directory for TranslationService (required for metadata endpoint)
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      # Mount entire i18n directory (includes sources YAML files and languages.json)
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
+    networks:
+      - openmates
+    depends_on:
+      cache:
+        condition: service_healthy
+      vault-setup: # Ensures Vault is unsealed and ready
+        condition: service_started
+      cms-setup: # Ensures Directus schemas are applied if videos app uses them
+        condition: service_completed_successfully
+    healthcheck:
+      # VIDEOS_APP_INTERNAL_PORT is 8000 as per Dockerfile ENV and CMD
+      # Using Python-based health check since curl is not installed in the base image
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s # Give app time to start before first healthcheck
+
+  app-audio:
+    container_name: app-audio
+    build:
+      context: ../../
+      dockerfile: backend/apps/Dockerfile.base
+      args:
+        APP_NAME: audio
+    restart: unless-stopped
+    env_file: ../../.env # Project root .env
+    environment:
+      # PYTHONPATH is set in Dockerfile.base
+      APP_NAME: "audio" # For Dockerfile.base ARG and base_main.py
+      AUDIO_APP_INTERNAL_PORT: "8000" # For base_main.py. Uvicorn in Dockerfile.base CMD also uses 8000.
+      CMS_URL: "http://cms:8055"
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      DRAGONFLY_URL: "cache:6379"
+      DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+      INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
+      VAULT_URL: "http://vault:8200"
+      PROVIDER_CONFIG_DIR: "/app_config/providers"
+      BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - ../../backend:/app/backend # Mounts host:backend to /app/backend
+      - ../../backend/apps:/app/apps
+      - ../../shared:/shared
+      - vault-setup-data:/vault-data
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
+    networks:
+      - openmates
+    depends_on:
+      cache:
+        condition: service_healthy
+      vault-setup:
+        condition: service_started
+      cms-setup:
+        condition: service_completed_successfully
+    healthcheck:
+      # AUDIO_APP_INTERNAL_PORT is 8000 as per Dockerfile ENV and CMD
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  app-news:
+    container_name: app-news
+    build:
+      context: ../../
+      dockerfile: backend/apps/Dockerfile.base
+      args:
+        APP_NAME: news
+    restart: unless-stopped
+    env_file: ../../.env # Project root .env
+    environment:
+      # PYTHONPATH is set in Dockerfile.base
+      APP_NAME: "news" # For Dockerfile.base ARG and base_main.py
+      NEWS_APP_INTERNAL_PORT: "8000" # For base_main.py. Uvicorn in Dockerfile.base CMD also uses 8000.
+      # APP_ID is derived by BaseApp, not needed as env var.
+      CMS_URL: "http://cms:8055"
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      DRAGONFLY_URL: "cache:6379"
+      DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+      INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
+      VAULT_URL: "http://vault:8200"
+      PROVIDER_CONFIG_DIR: "/app_config/providers"
+      BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - ../../backend:/app/backend # Mounts host:backend to /app/backend
+      # Mount apps directory for hot-reloading during development
+      # This overrides the code copied during Docker build
+      - ../../backend/apps:/app/apps
+      # Mount shared config directory for pricing.yml and urls.yml
+      - ../../shared:/shared
+      # Mount Vault token data (created by vault-setup service)
+      - vault-setup-data:/vault-data
+      # Mount i18n directory for TranslationService (required for metadata endpoint)
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      # Mount entire i18n directory (includes sources YAML files and languages.json)
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
+    networks:
+      - openmates
+    depends_on:
+      cache:
+        condition: service_healthy
+      vault-setup: # Ensures Vault is unsealed and ready
+        condition: service_started
+      cms-setup: # Ensures Directus schemas are applied if news app uses them
+        condition: service_completed_successfully
+    healthcheck:
+      # NEWS_APP_INTERNAL_PORT is 8000 as per Dockerfile ENV and CMD
+      # Using Python-based health check since curl is not installed in the base image
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s # Give app time to start before first healthcheck
+
+  app-events:
+    container_name: app-events
+    build:
+      context: ../../
+      dockerfile: backend/apps/Dockerfile.base
+      args:
+        APP_NAME: events
+    restart: unless-stopped
+    env_file: ../../.env # Project root .env
+    environment:
+      # PYTHONPATH is set in Dockerfile.base
+      APP_NAME: "events" # For Dockerfile.base ARG and base_main.py
+      EVENTS_APP_INTERNAL_PORT: "8000" # For base_main.py. Uvicorn in Dockerfile.base CMD also uses 8000.
+      CMS_URL: "http://cms:8055"
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      DRAGONFLY_URL: "cache:6379"
+      DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+      INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
+      VAULT_URL: "http://vault:8200"
+      PROVIDER_CONFIG_DIR: "/app_config/providers"
+      BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - ../../backend:/app/backend # Mounts host:backend to /app/backend
+      # Mount apps directory for hot-reloading during development
+      # This overrides the code copied during Docker build
+      - ../../backend/apps:/app/apps
+      # Mount shared config directory for pricing.yml and urls.yml
+      - ../../shared:/shared
+      # Mount Vault token data (created by vault-setup service)
+      - vault-setup-data:/vault-data
+      # Mount i18n directory for TranslationService (required for metadata endpoint)
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      # Mount entire i18n directory (includes sources YAML files and languages.json)
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
+    networks:
+      - openmates
+    depends_on:
+      cache:
+        condition: service_healthy
+      vault-setup: # Ensures Vault is unsealed and ready
+        condition: service_started
+      cms-setup: # Ensures Directus schemas are applied if events app uses them
+        condition: service_completed_successfully
+    healthcheck:
+      # EVENTS_APP_INTERNAL_PORT is 8000 as per Dockerfile ENV and CMD
+      # Using Python-based health check since curl is not installed in the base image
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s # Give app time to start before first healthcheck
+
+  app-maps:
+    container_name: app-maps
+    build:
+      context: ../../
+      dockerfile: backend/apps/Dockerfile.base
+      args:
+        APP_NAME: maps
+    restart: unless-stopped
+    env_file: ../../.env # Project root .env
+    environment:
+      # PYTHONPATH is set in Dockerfile.base
+      APP_NAME: "maps" # For Dockerfile.base ARG and base_main.py
+      MAPS_APP_INTERNAL_PORT: "8000" # For base_main.py. Uvicorn in Dockerfile.base CMD also uses 8000.
+      # APP_ID is derived by BaseApp, not needed as env var.
+      CMS_URL: "http://cms:8055"
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      DRAGONFLY_URL: "cache:6379"
+      DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+      INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
+      VAULT_URL: "http://vault:8200"
+      PROVIDER_CONFIG_DIR: "/app_config/providers"
+      BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - ../../backend:/app/backend # Mounts host:backend to /app/backend
+      # Mount apps directory for hot-reloading during development
+      # This overrides the code copied during Docker build
+      - ../../backend/apps:/app/apps
+      # Mount shared config directory for pricing.yml and urls.yml
+      - ../../shared:/shared
+      # Mount Vault token data (created by vault-setup service)
+      - vault-setup-data:/vault-data
+      # Mount i18n directory for TranslationService (required for metadata endpoint)
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      # Mount entire i18n directory (includes sources YAML files and languages.json)
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
+    networks:
+      - openmates
+    depends_on:
+      cache:
+        condition: service_healthy
+      vault-setup: # Ensures Vault is unsealed and ready
+        condition: service_started
+      cms-setup: # Ensures Directus schemas are applied if maps app uses them
+        condition: service_completed_successfully
+    healthcheck:
+      # MAPS_APP_INTERNAL_PORT is 8000 as per Dockerfile ENV and CMD
+      # Using Python-based health check since curl is not installed in the base image
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s # Give app time to start before first healthcheck
+
+  app-travel:
+    container_name: app-travel
+    build:
+      context: ../../
+      dockerfile: backend/apps/Dockerfile.base
+      args:
+        APP_NAME: travel
+    restart: unless-stopped
+    env_file: ../../.env # Project root .env
+    environment:
+      APP_NAME: "travel"
+      TRAVEL_APP_INTERNAL_PORT: "8000"
+      CMS_URL: "http://cms:8055"
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      DRAGONFLY_URL: "cache:6379"
+      DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+      INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
+      VAULT_URL: "http://vault:8200"
+      PROVIDER_CONFIG_DIR: "/app_config/providers"
+      BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - ../../backend:/app/backend
+      - ../../backend/apps:/app/apps
+      - ../../backend/apps/travel:/app/travel
+      - ../../shared:/shared
+      - vault-setup-data:/vault-data
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
+    networks:
+      - openmates
+    depends_on:
+      cache:
+        condition: service_healthy
+      vault-setup:
+        condition: service_started
+      cms-setup:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s # Give app time to start before first healthcheck
+
+  app-health:
+    container_name: app-health
+    build:
+      context: ../../
+      dockerfile: backend/apps/Dockerfile.base
+      args:
+        APP_NAME: health
+    restart: unless-stopped
+    env_file: ../../.env # Project root .env
+    environment:
+      APP_NAME: "health"
+      HEALTH_APP_INTERNAL_PORT: "8000"
+      CMS_URL: "http://cms:8055"
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      DRAGONFLY_URL: "cache:6379"
+      DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+      INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
+      VAULT_URL: "http://vault:8200"
+      PROVIDER_CONFIG_DIR: "/app_config/providers"
+      BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - ../../backend:/app/backend
+      - ../../backend/apps:/app/apps
+      - ../../backend/apps/health:/app/health
+      - ../../shared:/shared
+      - vault-setup-data:/vault-data
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
+    networks:
+      - openmates
+    depends_on:
+      cache:
+        condition: service_healthy
+      vault-setup:
+        condition: service_started
+      cms-setup:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s # Give app time to start before first healthcheck
+
+  app-shopping:
+    container_name: app-shopping
+    build:
+      context: ../../
+      dockerfile: backend/apps/Dockerfile.base
+      args:
+        APP_NAME: shopping
+    restart: unless-stopped
+    env_file: ../../.env # Project root .env
+    environment:
+      APP_NAME: "shopping"
+      SHOPPING_APP_INTERNAL_PORT: "8000"
+      CMS_URL: "http://cms:8055"
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      DRAGONFLY_URL: "cache:6379"
+      DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+      INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
+      VAULT_URL: "http://vault:8200"
+      PROVIDER_CONFIG_DIR: "/app_config/providers"
+      BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - ../../backend:/app/backend
+      - ../../backend/apps:/app/apps
+      - ../../backend/apps/shopping:/app/shopping
+      - ../../shared:/shared
+      - vault-setup-data:/vault-data
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
+    networks:
+      - openmates
+    depends_on:
+      cache:
+        condition: service_healthy
+      vault-setup:
+        condition: service_started
+      cms-setup:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s # Give app time to start before first healthcheck
+
+  app-code:
+    container_name: app-code
+    build:
+      context: ../../
+      dockerfile: backend/apps/Dockerfile.base
+      args:
+        APP_NAME: code
+    restart: unless-stopped
+    env_file: ../../.env # Project root .env
+    environment:
+      # PYTHONPATH is set in Dockerfile.base
+      APP_NAME: "code" # For Dockerfile.base ARG and base_main.py
+      CODE_APP_INTERNAL_PORT: "8000" # For base_main.py. Uvicorn in Dockerfile.base CMD also uses 8000.
+      # APP_ID is derived by BaseApp, not needed as env var.
+      CMS_URL: "http://cms:8055"
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      DRAGONFLY_URL: "cache:6379"
+      DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+      INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
+      VAULT_URL: "http://vault:8200"
+      PROVIDER_CONFIG_DIR: "/app_config/providers"
+      BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - ../../backend:/app/backend # Mounts host:backend to /app/backend
+      # Mount apps directory for hot-reloading during development
+      # This overrides the code copied during Docker build
+      - ../../backend/apps:/app/apps
+      # Mount shared config directory for pricing.yml and urls.yml
+      - ../../shared:/shared
+      # Mount Vault token data (created by vault-setup service)
+      - vault-setup-data:/vault-data
+      # Mount i18n directory for TranslationService (required for metadata endpoint)
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      # Mount entire i18n directory (includes sources YAML files and languages.json)
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
+    networks:
+      - openmates
+    depends_on:
+      cache:
+        condition: service_healthy
+      vault-setup: # Ensures Vault is unsealed and ready
+        condition: service_started
+      cms-setup: # Ensures Directus schemas are applied if code app uses them
+        condition: service_completed_successfully
+    healthcheck:
+      # CODE_APP_INTERNAL_PORT is 8000 as per Dockerfile ENV and CMD
+      # Using Python-based health check since curl is not installed in the base image
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  app-docs:
+    container_name: app-docs
+    build:
+      context: ../../
+      dockerfile: backend/apps/Dockerfile.base
+      args:
+        APP_NAME: docs
+    restart: unless-stopped
+    env_file: ../../.env
+    environment:
+      APP_NAME: "docs"
+      DOCS_APP_INTERNAL_PORT: "8000"
+      CMS_URL: "http://cms:8055"
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      DRAGONFLY_URL: "cache:6379"
+      DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+      INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
+      VAULT_URL: "http://vault:8200"
+      PROVIDER_CONFIG_DIR: "/app_config/providers"
+      BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - ../../backend:/app/backend
+      - ../../backend/apps:/app/apps
+      - ../../shared:/shared
+      - vault-setup-data:/vault-data
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
+    networks:
+      - openmates
+    depends_on:
+      cache:
+        condition: service_healthy
+      vault-setup:
+        condition: service_started
+      cms-setup:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  app-mail:
+    container_name: app-mail
+    build:
+      context: ../../
+      dockerfile: backend/apps/Dockerfile.base
+      args:
+        APP_NAME: mail
+    restart: unless-stopped
+    env_file: ../../.env
+    environment:
+      APP_NAME: "mail"
+      MAIL_APP_INTERNAL_PORT: "8000"
+      CMS_URL: "http://cms:8055"
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      DRAGONFLY_URL: "cache:6379"
+      DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+      INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
+      VAULT_URL: "http://vault:8200"
+      PROVIDER_CONFIG_DIR: "/app_config/providers"
+      BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - ../../backend:/app/backend
+      - ../../backend/apps:/app/apps
+      - ../../shared:/shared
+      - vault-setup-data:/vault-data
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
+    networks:
+      - openmates
+    depends_on:
+      cache:
+        condition: service_healthy
+      vault-setup:
+        condition: service_started
+      cms-setup:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  app-images:
+    container_name: app-images
+    build:
+      context: ../../
+      dockerfile: backend/apps/Dockerfile.base
+      args:
+        APP_NAME: images
+    restart: unless-stopped
+    env_file: ../../.env
+    environment:
+      APP_NAME: "images"
+      IMAGES_APP_INTERNAL_PORT: "8000"
+      CMS_URL: "http://cms:8055"
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      DRAGONFLY_URL: "cache:6379"
+      DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+      INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
+      VAULT_URL: "http://vault:8200"
+      PROVIDER_CONFIG_DIR: "/app_config/providers"
+      BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - ../../backend:/app/backend
+      - ../../backend/apps:/app/apps
+      - ../../backend/apps/images:/app/images
+      - ../../shared:/shared
+      - vault-setup-data:/vault-data
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
+    networks:
+      - openmates
+    depends_on:
+      cache:
+        condition: service_healthy
+      vault-setup:
+        condition: service_started
+      cms-setup:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s # Give app time to start before first healthcheck
+
+  app-reminder:
+    container_name: app-reminder
+    build:
+      context: ../../
+      dockerfile: backend/apps/Dockerfile.base
+      args:
+        APP_NAME: reminder
+    restart: unless-stopped
+    env_file: ../../.env
+    environment:
+      APP_NAME: "reminder"
+      REMINDER_APP_INTERNAL_PORT: "8000"
+      CMS_URL: "http://cms:8055"
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      DRAGONFLY_URL: "cache:6379"
+      DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+      INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
+      VAULT_URL: "http://vault:8200"
+      PROVIDER_CONFIG_DIR: "/app_config/providers"
+      BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - ../../backend:/app/backend
+      - ../../backend/apps:/app/apps
+      - ../../backend/apps/reminder:/app/reminder
+      - ../../shared:/shared
+      - vault-setup-data:/vault-data
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
+    networks:
+      - openmates
+    depends_on:
+      cache:
+        condition: service_healthy
+      vault-setup:
+        condition: service_started
+      cms-setup:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  app-jobs:
+    container_name: app-jobs
+    build:
+      context: ../../
+      dockerfile: backend/apps/Dockerfile.base
+      args:
+        APP_NAME: jobs
+    restart: unless-stopped
+    env_file: ../../.env
+    environment:
+      APP_NAME: "jobs"
+      JOBS_APP_INTERNAL_PORT: "8000"
+      CMS_URL: "http://cms:8055"
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      DRAGONFLY_URL: "cache:6379"
+      DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+      INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
+      VAULT_URL: "http://vault:8200"
+      PROVIDER_CONFIG_DIR: "/app_config/providers"
+      BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - ../../backend:/app/backend
+      - ../../backend/apps:/app/apps
+      - ../../shared:/shared
+      - vault-setup-data:/vault-data
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
+    networks:
+      - openmates
+    depends_on:
+      cache:
+        condition: service_healthy
+      vault-setup:
+        condition: service_started
+      cms-setup:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Celery worker for AI app tasks
+  app-ai-worker:
+    container_name: app-ai-worker
+    build:
+      context: ./api
+      dockerfile: Dockerfile.celery
+    restart: unless-stopped
+    user: root
+    env_file: ../../.env
+    environment:
+      PYTHONPATH: "/app"
+      PYTHONDONTWRITEBYTECODE: "1" # Prevent Python from writing .pyc files for hot reloading
+      CMS_URL: "http://cms:8055"
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      DRAGONFLY_URL: "cache:6379"
+      TRANSLATIONS_DIR: "/translations"
+      DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+      VAULT_URL: "http://vault:8200"
+      PROVIDER_CONFIG_DIR: "/app_config/providers"
+      BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      CELERY_QUEUES: "app_ai" # Used by celery_config to determine which services to initialize
+      CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}" # Maximum concurrent processes (default: 10)
+      CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}" # Minimum concurrent processes (default: 3)
+      CELERY_METRICS_PORT: "9102" # Port for prometheus_client metrics server — scraped by Prometheus
+    command: >
+      sh -c "chown celeryuser:celeryuser /vault-data && \
+             mkdir -p /app/logs /app/backend/core/api/logs && \
+             chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
+             chmod -R 777 /app/logs /app/backend/core/api/logs && \
+             gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+             --loglevel=info \
+             --queues=app_ai \
+             --autoscale=${CELERY_AUTOSCALE_MAX},${CELERY_AUTOSCALE_MIN} \
+             --max-tasks-per-child=50 \
+             --max-memory-per-child=600000 \
+             --prefetch-multiplier=1 \
+             --autoreload"
+    volumes:
+      - ../../backend:/app/backend # Mounts host:backend to /app/backend
+      # Mount apps directory for hot-reloading during development
+      # This overrides the code copied during Docker build
+      - ../../backend/apps:/app/apps
+      - ./api/logs:/app/logs
+      - vault-setup-data:/vault-data
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      # Mount entire i18n directory (includes sources YAML files and languages.json)
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
+      - ../../shared:/shared
+    networks:
+      - openmates
+    depends_on:
+      cache:
+        condition: service_healthy
+      vault-setup:
+        condition: service_started
+      cms-setup:
+        condition: service_completed_successfully
+
+  # Celery worker for Images app tasks
+  app-images-worker:
+    container_name: app-images-worker
+    build:
+      context: ./api
+      dockerfile: Dockerfile.celery
+    restart: unless-stopped
+    user: root
+    env_file: ../../.env
+    environment:
+      PYTHONPATH: "/app"
+      PYTHONDONTWRITEBYTECODE: "1" # Prevent Python from writing .pyc files for hot reloading
+      CMS_URL: "http://cms:8055"
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      DRAGONFLY_URL: "cache:6379"
+      TRANSLATIONS_DIR: "/translations"
+      DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+      VAULT_URL: "http://vault:8200"
+      PROVIDER_CONFIG_DIR: "/app_config/providers"
+      BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      CELERY_QUEUES: "app_images" # Used by celery_config to determine which services to initialize
+      CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}" # Maximum concurrent processes (default: 10)
+      CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}" # Minimum concurrent processes (default: 3)
+      CELERY_METRICS_PORT: "9103" # Port for prometheus_client metrics server — scraped by Prometheus
+    command: >
+      sh -c "chown celeryuser:celeryuser /vault-data && \
+             mkdir -p /app/logs /app/backend/core/api/logs && \
+             chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
+             chmod -R 777 /app/logs /app/backend/core/api/logs && \
+             gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+             --loglevel=info \
+             --queues=app_images \
+             --autoscale=${CELERY_AUTOSCALE_MAX},${CELERY_AUTOSCALE_MIN} \
+             --max-tasks-per-child=50 \
+             --max-memory-per-child=600000 \
+             --prefetch-multiplier=1 \
+             --autoreload"
+    volumes:
+      - ../../backend:/app/backend # Mounts host:backend to /app/backend
+      # Mount apps directory for hot-reloading during development
+      # This overrides the code copied during Docker build
+      - ../../backend/apps:/app/apps
+      - ./api/logs:/app/logs
+      - vault-setup-data:/vault-data
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      # Mount entire i18n directory (includes sources YAML files and languages.json)
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
+      - ../../shared:/shared
+    networks:
+      - openmates
+    depends_on:
+      cache:
+        condition: service_healthy
+      vault-setup:
+        condition: service_started
+      cms-setup:
+        condition: service_completed_successfully
+
+  app-pdf:
+    container_name: app-pdf
+    build:
+      context: ../../
+      dockerfile: backend/apps/Dockerfile.base
+      args:
+        APP_NAME: pdf
+    restart: unless-stopped
+    env_file: ../../.env
+    environment:
+      APP_NAME: "pdf"
+      PDF_APP_INTERNAL_PORT: "8000"
+      CMS_URL: "http://cms:8055"
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      DRAGONFLY_URL: "cache:6379"
+      DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+      INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
+      VAULT_URL: "http://vault:8200"
+      PROVIDER_CONFIG_DIR: "/app_config/providers"
+      BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - ../../backend:/app/backend
+      - ../../backend/apps:/app/apps
+      - ../../backend/apps/pdf:/app/pdf
+      - ../../shared:/shared
+      - vault-setup-data:/vault-data
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
+    networks:
+      - openmates
+    depends_on:
+      cache:
+        condition: service_healthy
+      vault-setup:
+        condition: service_started
+      cms-setup:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Celery worker for PDF processing tasks (OCR, screenshots, TOC detection)
+  app-pdf-worker:
+    container_name: app-pdf-worker
+    build:
+      context: ./api
+      dockerfile: Dockerfile.celery
+    restart: unless-stopped
+    user: root
+    env_file: ../../.env
+    environment:
+      PYTHONPATH: "/app"
+      PYTHONDONTWRITEBYTECODE: "1"
+      CMS_URL: "http://cms:8055"
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      DRAGONFLY_URL: "cache:6379"
+      TRANSLATIONS_DIR: "/translations"
+      DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+      VAULT_URL: "http://vault:8200"
+      PROVIDER_CONFIG_DIR: "/app_config/providers"
+      BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      CELERY_QUEUES: "app_pdf"
+      CELERY_AUTOSCALE_MAX: "4" # PDF processing is CPU/memory intensive — cap concurrency
+      CELERY_AUTOSCALE_MIN: "1"
+      CELERY_METRICS_PORT: "9104" # Port for prometheus_client metrics server — scraped by Prometheus
+    command: >
+      sh -c "chown celeryuser:celeryuser /vault-data && \
+             mkdir -p /app/logs /app/backend/core/api/logs && \
+             chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
+             chmod -R 777 /app/logs /app/backend/core/api/logs && \
+             gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+             --loglevel=info \
+             --queues=app_pdf \
+             --autoscale=4,1 \
+             --max-tasks-per-child=10 \
+             --max-memory-per-child=1000000 \
+             --prefetch-multiplier=1 \
+             --autoreload"
+    volumes:
+      - ../../backend:/app/backend
+      - ../../backend/apps:/app/apps
+      - ./api/logs:/app/logs
+      - vault-setup-data:/vault-data
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
+      - ../../shared:/shared
+    networks:
+      - openmates
+    depends_on:
+      cache:
+        condition: service_healthy
+      vault-setup:
+        condition: service_started
+      cms-setup:
+        condition: service_completed_successfully
 
   #########################################################################
   ##### In-Memory Cache (Dragonfly)
@@ -267,13 +1362,16 @@ services:
       - cache-data:/data
     command:
       - "--maxmemory"
-      - "3000mb"
+      - "${CACHE_MAX_MEMORY:-3000mb}"
+      - "--proactor_threads"
+      - "${CACHE_THREADS:-8}"
       - "--requirepass"
-      - "${DRAGONFLY_PASSWORD}"  # Use environment variable or default password
+      - "${DRAGONFLY_PASSWORD}"
     deploy:
       resources:
         limits:
-          memory: 3.2G
+          cpus: "1.0"
+          memory: ${CACHE_MEMORY_LIMIT:-3.2G}
     networks:
       - openmates
     healthcheck:
@@ -316,10 +1414,10 @@ services:
     environment:
       VAULT_ADDR: "http://vault:8200"
       VAULT_LOG_LEVEL: "debug"
-      VAULT_AUTO_UNSEAL: "true"  # Set to "false" to disable auto-unsealing
+      VAULT_AUTO_UNSEAL: "true" # Set to "false" to disable auto-unsealing
     volumes:
       - ./vault/setup:/app
-      - vault-setup-data:/app/data  # Persistent storage for tokens and keys
+      - vault-setup-data:/app/data # Persistent storage for tokens and keys
     networks:
       - openmates
     depends_on:
@@ -336,12 +1434,54 @@ services:
              echo 'Setup complete.'"
 
   #########################################################################
-  ##### Monitoring (Prometheus/Grafana/Loki)
+  ##### Monitoring (OpenObserve)
   #########################################################################
+  openobserve:
+    container_name: openobserve
+    # Pinned to v0.70.0-rc3 (2026-03-09) — upgraded from v0.60.4 because the data volume already had
+    # schema migrations from a newer version (m20260214_000001_create_incident_events_table),
+    # causing a startup panic. v0.70.0-rc3 is the latest available build that includes those migrations.
+    # Do NOT use :latest — unintended upgrades can break the Loki-compat and Prometheus remote_write APIs.
+    image: public.ecr.aws/zinclabs/openobserve:v0.70.0-rc3
+    restart: unless-stopped
+    env_file: ../../.env
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 768M
+    environment:
+      ZO_ROOT_USER_EMAIL: "${OPENOBSERVE_ROOT_EMAIL}"
+      ZO_ROOT_USER_PASSWORD: "${OPENOBSERVE_ROOT_PASSWORD}"
+      ZO_DATA_DIR: "/data"
+      ZO_HTTP_PORT: "5080"
+      ZO_TELEMETRY: "false"
+      # Retention policy for operational log/metric streams (API logs, container logs, Prometheus metrics).
+      # Compliance log streams (audit-compliance, financial-compliance) have stream-level overrides
+      # configured via the OpenObserve API on startup (see backend/core/api/main.py compliance_log_backup_task).
+      # Legal basis: operational logs have no mandatory minimum; 14 days covers incident investigation windows.
+      ZO_COMPACT_DATA_RETENTION_DAYS: "14"
+    volumes:
+      - openobserve-data:/data
+    networks:
+      - openmates
+    healthcheck:
+      # OpenObserve uses a distroless image (no curl/wget/shell).
+      # We test TCP reachability by attempting an HTTP GET via /dev/tcp
+      # from a busybox shell injected as the health-check image alternative.
+      # Since no other service requires service_healthy on openobserve,
+      # HEALTHCHECK NONE (disable) keeps docker ps clean without false "unhealthy".
+      disable: true
+
   prometheus:
     container_name: prometheus
     image: prom/prometheus:v3.2.1
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
     volumes:
       - ./monitoring/prometheus:/etc/prometheus
       - prometheus-data:/prometheus
@@ -350,7 +1490,6 @@ services:
       - "--storage.tsdb.path=/prometheus"
       - "--web.console.libraries=/usr/share/prometheus/console_libraries"
       - "--web.console.templates=/usr/share/prometheus/consoles"
-    # Ports removed for base config
     networks:
       - openmates
     healthcheck:
@@ -358,8 +1497,33 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-    labels:
-      - "promtail.scrape=true"
+
+  alertmanager:
+    container_name: alertmanager
+    image: prom/alertmanager:v0.31.1
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 64M
+    volumes:
+      - ./monitoring/alertmanager:/etc/alertmanager
+    command:
+      - sh
+      - -c
+      - |
+        sed "s|\${INTERNAL_API_SHARED_TOKEN}|${INTERNAL_API_SHARED_TOKEN}|g" /etc/alertmanager/alertmanager.yml > /tmp/alertmanager.runtime.yml
+        exec /bin/alertmanager --config.file=/tmp/alertmanager.runtime.yml --storage.path=/alertmanager
+    environment:
+      INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
+    networks:
+      - openmates
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9093/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # System monitoring containers
   cadvisor:
@@ -367,6 +1531,16 @@ services:
     image: gcr.io/cadvisor/cadvisor:v0.47.2
     restart: unless-stopped
     privileged: true
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+    command:
+      - "--housekeeping_interval=30s"
+      - "--docker_only=true"
+      - "--disable_metrics=advtcp,cpu_topology,cpuset,hugetlb,memory_numa,process,referenced_memory,resctrl,sched,tcp,udp"
+      - "--store_container_labels=false"
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
@@ -381,69 +1555,61 @@ services:
       timeout: 10s
       retries: 3
 
-  loki:
-    container_name: loki
-    image: grafana/loki:3.4.2
-    restart: unless-stopped
-    user: "0" # Run as root to avoid permission issues
-    volumes:
-      - ./monitoring/loki:/etc/loki
-      - loki-data:/loki
-      - loki-wal:/wal # Add volume for WAL data
-    command:
-      - "-config.file=/etc/loki/loki-config.yaml"
-      - "-validation.allow-structured-metadata=false" # Disable structured metadata check
-    networks:
-      - openmates
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3100/ready"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    labels:
-      - "promtail.scrape=true"
-
   promtail:
     container_name: promtail
     image: grafana/promtail:3.4.2
     restart: unless-stopped
-    env_file: ../../.env # Add env_file to access SERVER_ENVIRONMENT
+    env_file: ../../.env
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
     volumes:
       - ./monitoring/promtail:/etc/promtail
-      - /var/run/docker.sock:/var/run/docker.sock:ro # Mount Docker socket for service discovery
-      - ./api/logs:/var/log/api:ro  # Make sure this path exists
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./api/logs:/var/log/api:ro
     command:
       - "-config.file=/etc/promtail/promtail-config.yaml"
+      - "-config.expand-env=true"
     depends_on:
-      - loki
+      - openobserve
     networks:
       - openmates
-
-  grafana:
-    container_name: grafana
-    image: grafana/grafana:11.5.2
-    restart: unless-stopped
-    volumes:
-      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
-      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
-      - grafana-data:/var/lib/grafana
-    environment:
-      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
-      GF_USERS_ALLOW_SIGN_UP: "false"
-      GF_INSTALL_PLUGINS: "grafana-clock-panel,grafana-piechart-panel"
-      GF_SERVER_DOMAIN: "localhost"
-      GF_SMTP_ENABLED: "false"
-    networks:
-      - openmates
-    depends_on:
-      - prometheus
-      - loki
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+  # Grafana removed — the UI dashboard was unused and consumed ~220 MB RAM.
+  # Prometheus, Loki, and Promtail remain as they are actively used by the backend.
+  # To re-enable Grafana, uncomment the block below and add grafana-data volume back.
+  # grafana:
+  #   container_name: grafana
+  #   image: grafana/grafana:11.5.2
+  #   restart: unless-stopped
+  #   volumes:
+  #     - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+  #     - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+  #     - grafana-data:/var/lib/grafana
+  #   environment:
+  #     GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+  #     GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+  #     GF_USERS_ALLOW_SIGN_UP: "false"
+  #     GF_INSTALL_PLUGINS: "grafana-clock-panel,grafana-piechart-panel"
+  #     GF_SERVER_DOMAIN: "localhost"
+  #     GF_SMTP_ENABLED: "false"
+  #   networks:
+  #     - openmates
+  #   depends_on:
+  #     - prometheus
+  #     - loki
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: "0.5"
+  #         memory: 256M
+  #   healthcheck:
+  #     test:
+  #       ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
 
   # #########################################################################
   # ##### Backup Service (S3)
@@ -474,30 +1640,166 @@ services:
   #     - cms
   #     - vault
 
-  # #########################################################################
-  # ##### Updater Service
-  # #########################################################################
-  # updater-service:
-  #   container_name: updater-service
+  #########################################################################
+  ##### Admin Sidecar (update orchestrator + log access)
+  #########################################################################
+  # Provides /admin/update (git pull + build + restart), /admin/logs,
+  # and /admin/version for the core server stack.
+  # Reuses the same admin_sidecar codebase as upload/preview sidecars.
+  # See docs/architecture/software-updates.md
+  admin-sidecar:
+    container_name: core-admin-sidecar
+    build:
+      # Build context is project root so Dockerfile can COPY backend/admin_sidecar/
+      context: ../../
+      dockerfile: backend/admin_sidecar/Dockerfile
+    restart: unless-stopped
+    environment:
+      # Admin authentication — matches SECRET__CORE_SERVER__ADMIN_LOG_API_KEY
+      ADMIN_LOG_API_KEY: "${SECRET__CORE_SERVER__ADMIN_LOG_API_KEY:-}"
+
+      # Docker Compose project to query and manage
+      COMPOSE_PROJECT: "openmates"
+
+      # Path to the compose file (relative to GIT_WORK_DIR)
+      COMPOSE_FILE: "backend/core/docker-compose.yml"
+
+      # Which services are queryable via /admin/logs
+      SERVICES_ALLOWED: "api,task-worker,task-scheduler,cache,admin-sidecar"
+
+      # Build and restart ALL services (core server has 28+ containers)
+      # This enables "smart grouping": build all → swap all at once (~30s downtime)
+      SERVICE_UPDATE_ALL: "true"
+
+      # Still need a target for single-service fallback and status reporting
+      SERVICE_UPDATE_TARGET: "api"
+
+      # Extra services to restart after main update (re-init secrets, schema)
+      SERVICE_UPDATE_EXTRAS: "vault-setup,cms-setup"
+
+      # Optional: clear Dragonfly cache volume during update for clean restart
+      CLEAR_CACHE_ON_UPDATE: "${CLEAR_CACHE_ON_UPDATE:-true}"
+      CACHE_VOLUME_NAME: "openmates-cache-data"
+
+      # Git repository root on the host (where `git pull` runs)
+      GIT_WORK_DIR: "${GIT_WORK_DIR}"
+
+      # Needed by scripts/_daily_runner_helper.py to dispatch test summary email
+      # via the internal API (POST /internal/dispatch-test-summary-email)
+      ADMIN_NOTIFY_EMAIL: "${ADMIN_NOTIFY_EMAIL:-}"
+      INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
+
+      PORT: "8001"
+    # Bind to localhost only — the core API calls it via Docker network
+    ports:
+      - "127.0.0.1:8001:8001"
+    volumes:
+      # Docker socket — this container needs it for docker compose commands
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Mount the project root so `git pull` and `docker compose` can run
+      - type: bind
+        source: "${GIT_WORK_DIR}"
+        target: "${GIT_WORK_DIR}"
+    group_add:
+      # Add the docker group so this container can access the Docker socket
+      # Find the GID with: stat -c %g /var/run/docker.sock
+      - "${DOCKER_GID:-999}"
+    networks:
+      - openmates
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.25"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 5s
+      retries: 3
+
+  #########################################################################
+  ##### Frontend Webapp (Static SvelteKit Build)
+  #########################################################################
+  # webapp:
+  #   container_name: webapp
   #   build:
-  #     context: ./updater
-  #     dockerfile: Dockerfile
+  #     context: ../../  # Build context is project root
+  #     dockerfile: frontend/apps/web_app/Dockerfile
   #   restart: unless-stopped
-  #   env_file: ../../.env
-  #   environment:
-  #     PYTHONPATH: "/app"
-  #   volumes:
-  #     - ./updater:/app
-  #     - /var/run/docker.sock:/var/run/docker.sock
   #   ports:
-  #     - "3010:3010"
+  #     - "5173:5173"
   #   networks:
   #     - openmates
   #   healthcheck:
-  #     test: ["CMD", "curl", "-f", "http://localhost:3010/health"]
+  #     test: ["CMD", "wget", "-q", "--spider", "http://localhost:5173/"]
   #     interval: 30s
   #     timeout: 10s
   #     retries: 3
+  #     start_period: 10s
+
+  #########################################################################
+  ##### Preview Server (Image/Favicon Proxy & URL Metadata)
+  #########################################################################
+  # NOTE: NEEDS TO BE ADDED AND ADAPTED TO SELF HOSTING (not just accept openmates.org but the main domain of server)
+
+  app-math:
+    container_name: app-math
+    build:
+      context: ../../
+      dockerfile: backend/apps/Dockerfile.base
+      args:
+        APP_NAME: math
+    restart: unless-stopped
+    env_file: ../../.env # Project root .env
+    environment:
+      # PYTHONPATH is set in Dockerfile.base
+      APP_NAME: "math" # For Dockerfile.base ARG and base_main.py
+      MATH_APP_INTERNAL_PORT: "8000" # For base_main.py. Uvicorn in Dockerfile.base CMD also uses 8000.
+      # APP_ID is derived by BaseApp, not needed as env var.
+      CMS_URL: "http://cms:8055"
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      DRAGONFLY_URL: "cache:6379"
+      DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+      INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
+      VAULT_URL: "http://vault:8200"
+      PROVIDER_CONFIG_DIR: "/app_config/providers"
+      BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - ../../backend:/app/backend # Mounts host:backend to /app/backend
+      # Mount apps directory for hot-reloading during development
+      - ../../backend/apps:/app/apps
+      # Mount shared config directory for pricing.yml and urls.yml
+      - ../../shared:/shared
+      # Mount Vault token data (created by vault-setup service)
+      - vault-setup-data:/vault-data
+      # Mount i18n directory for TranslationService (required for metadata endpoint)
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      # Mount entire i18n directory (includes sources YAML files and languages.json)
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
+    networks:
+      - openmates
+    depends_on:
+      cache:
+        condition: service_healthy
+      vault-setup: # Ensures Vault is unsealed and ready
+        condition: service_started
+      cms-setup: # Ensures Directus schemas are applied
+        condition: service_completed_successfully
+    healthcheck:
+      # Using Python-based health check since curl is not installed in the base image
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s # Give app extra time to start (sympy import is slow on first load)
 
 networks:
   openmates:
@@ -511,15 +1813,13 @@ volumes:
     name: openmates-cache-data
   prometheus-data:
     name: openmates-prometheus-data
-  loki-data:
-    name: openmates-loki-data
-  loki-wal:
-    name: openmates-loki-wal # Add volume for WAL data
-  grafana-data:
-    name: openmates-grafana-data
+  openobserve-data:
+    name: openmates-openobserve-data
   vault-data:
     name: openmates-vault-data
   vault-setup-data:
     name: openmates-vault-setup-data
   celerybeat-schedule-data: # Define the named volume
     name: openmates-celerybeat-schedule-data
+  preview-cache: # Used by preview server in this stack
+    name: openmates-preview-cache

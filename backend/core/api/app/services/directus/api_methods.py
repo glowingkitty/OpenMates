@@ -1,4 +1,3 @@
-import httpx
 import logging
 import asyncio
 from fastapi import HTTPException
@@ -50,38 +49,155 @@ async def _make_api_request(self, method, url, headers=None, **kwargs):
     raise HTTPException(status_code=500, detail="Maximum retry attempts reached")
 
 
-async def create_item(self, collection: str, payload: dict):
-   """
-   Creates a new item in a specified Directus collection.
+async def create_item(self, collection: str, payload: dict, admin_required: bool = False):
+    """
+    Creates a new item in a specified Directus collection.
 
-   Args:
-       self: The DirectusService instance.
-       collection: The name of the collection to create the item in.
-       payload: A dictionary containing the item data to be created.
+    Args:
+        self: The DirectusService instance.
+        collection: The name of the collection to create the item in.
+        payload: A dictionary containing the item data to be created.
+        admin_required: Whether to use admin authentication for this request.
+            Use True for internal/analytics collections that require admin privileges.
 
-   Returns:
-       A tuple (bool, dict): (True, created_item_data) on success,
-                              (False, error_details) on failure.
-   """
-   url = f"{self.base_url}/items/{collection}"
-   logger.info(f"Attempting to create item in collection '{collection}'")
+    Returns:
+        A tuple (bool, dict): (True, created_item_data) on success,
+                               (False, error_details) on failure.
+    """
+    url = f"{self.base_url}/items/{collection}"
+    logger.info(f"Attempting to create item in collection '{collection}'")
 
-   try:
-       # Use the internal _make_api_request helper for the POST request
-       response = await self._make_api_request("POST", url, json=payload)
+    try:
+        headers = {}
+        if admin_required:
+            # Use admin token for collections that require elevated privileges
+            # (e.g. analytics, server_stats, signup_funnel collections)
+            token = await self.login_admin()
+            headers["Authorization"] = f"Bearer {token}"
 
-       # Check if the request was successful (status code 2xx)
-       if 200 <= response.status_code < 300:
-           created_item = response.json().get("data")
-           logger.info(f"Successfully created item in '{collection}'. ID: {created_item.get('id') if created_item else 'N/A'}")
-           return True, created_item
-       else:
-           # Log error if creation failed
-           error_details = {"status_code": response.status_code, "text": response.text}
-           logger.error(f"Failed to create item in '{collection}'. Status: {response.status_code}, Response: {response.text}")
-           return False, error_details
+        # Use the internal _make_api_request helper for the POST request
+        response = await self._make_api_request("POST", url, headers=headers, json=payload)
 
-   except Exception as e:
-       # Log any exception during the process
-       logger.error(f"Exception during item creation in '{collection}': {str(e)}", exc_info=True)
-       return False, {"error": str(e)}
+        # Check if the request was successful (status code 2xx)
+        if 200 <= response.status_code < 300:
+            created_item = response.json().get("data")
+            logger.info(f"Successfully created item in '{collection}'. ID: {created_item.get('id') if created_item else 'N/A'}")
+            return True, created_item
+        else:
+            # Log error if creation failed
+            error_details = {"status_code": response.status_code, "text": response.text}
+            logger.error(f"Failed to create item in '{collection}'. Status: {response.status_code}, Response: {response.text}")
+            return False, error_details
+
+    except Exception as e:
+        # Log any exception during the process
+        logger.error(f"Exception during item creation in '{collection}': {str(e)}", exc_info=True)
+        return False, {"error": str(e)}
+
+
+async def delete_item(self, collection: str, item_id: str, admin_required: bool = False):
+    """
+    Delete a single item from a Directus collection by ID.
+    
+    Args:
+        collection: The name of the collection
+        item_id: The ID of the item to delete
+        admin_required: Whether admin authentication is required
+        
+    Returns:
+        bool: True if deletion succeeded, False otherwise
+    """
+    url = f"{self.base_url}/items/{collection}/{item_id}"
+    
+    try:
+        headers = {}
+        if admin_required:
+            token = await self.login_admin()
+            headers["Authorization"] = f"Bearer {token}"
+        
+        response = await self._make_api_request("DELETE", url, headers=headers)
+        
+        if 200 <= response.status_code < 300:
+            logger.info(f"Successfully deleted item {item_id} from '{collection}'")
+            return True
+        else:
+            logger.error(f"Failed to delete item {item_id} from '{collection}'. Status: {response.status_code}, Response: {response.text}")
+            return False
+            
+    except Exception as e:
+        logger.error(f"Exception during item deletion from '{collection}': {str(e)}", exc_info=True)
+        return False
+
+
+async def delete_items(self, collection: str, filter_dict: dict, admin_required: bool = False):
+    """
+    Batch delete items from a Directus collection using a filter.
+    
+    Directus does not support filter-based DELETE requests directly.
+    This method first fetches item IDs matching the filter, then batch deletes them
+    using DELETE /items/:collection with an array of IDs in the request body.
+
+    Args:
+        collection: The name of the collection
+        filter_dict: Filter dictionary (e.g., {"demo_chat_id": {"_eq": "uuid"}})
+        admin_required: Whether admin authentication is required
+
+    Returns:
+        int: Number of items deleted
+    """
+    import json
+
+    url = f"{self.base_url}/items/{collection}"
+
+    try:
+        headers = {}
+        if admin_required:
+            token = await self.login_admin()
+            headers["Authorization"] = f"Bearer {token}"
+
+        # Step 1: Fetch IDs of items matching the filter
+        fetch_params = {
+            "filter": json.dumps(filter_dict),
+            "fields": "id",
+            "limit": -1  # Fetch all matching items
+        }
+
+        fetch_response = await self._make_api_request("GET", url, headers=headers, params=fetch_params)
+
+        if not (200 <= fetch_response.status_code < 300):
+            logger.error(f"Failed to fetch items for batch delete from '{collection}'. Status: {fetch_response.status_code}, Response: {fetch_response.text}")
+            return 0
+
+        items = fetch_response.json().get("data", [])
+        if not items:
+            logger.info(f"No items found in '{collection}' matching filter {filter_dict}, nothing to delete")
+            return 0
+
+        item_ids = [item["id"] for item in items if "id" in item]
+        if not item_ids:
+            logger.info(f"No valid IDs found in '{collection}' matching filter {filter_dict}")
+            return 0
+
+        logger.info(f"Found {len(item_ids)} items in '{collection}' to delete")
+
+        # Step 2: Delete each item individually
+        # NOTE: httpx's AsyncClient.delete() does not support request bodies (json/content),
+        # so we cannot use Directus batch delete (DELETE with JSON array body).
+        # Instead, we delete items one by one using the single-item delete endpoint.
+        deleted_count = 0
+        for item_id in item_ids:
+            delete_url = f"{url}/{item_id}"
+            delete_response = await self._make_api_request("DELETE", delete_url, headers=headers)
+
+            if 200 <= delete_response.status_code < 300:
+                deleted_count += 1
+            else:
+                logger.error(f"Failed to delete item {item_id} from '{collection}'. Status: {delete_response.status_code}")
+
+        logger.info(f"Successfully deleted {deleted_count}/{len(item_ids)} items from '{collection}' with filter {filter_dict}")
+        return deleted_count
+
+    except Exception as e:
+        logger.error(f"Exception during batch deletion from '{collection}': {str(e)}", exc_info=True)
+        return 0
+

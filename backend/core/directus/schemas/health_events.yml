@@ -1,0 +1,52 @@
+# health_events.yml
+# Stores health status change events for historical tracking.
+# This table records when services transition between health states (e.g., healthy → unhealthy).
+# Event-based storage is efficient: we only store on status changes, not every health check.
+
+health_events:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+
+    service_type:
+      type: string
+      length: 20
+      note: "[Indexed] Type of service: 'provider', 'app', 'external'"
+
+    service_id:
+      type: string
+      length: 100
+      note: "[Indexed] Service identifier (e.g., 'openrouter', 'ai', 'stripe')"
+
+    previous_status:
+      type: string
+      length: 20
+      nullable: true
+      note: "Status before this event: 'healthy', 'unhealthy', 'degraded', or null for initial status"
+
+    new_status:
+      type: string
+      length: 20
+      note: "New status: 'healthy', 'unhealthy', 'degraded'"
+
+    error_message:
+      type: string
+      length: 255
+      nullable: true
+      note: "Sanitized error message if new_status is unhealthy (null if healthy)"
+
+    response_time_ms:
+      type: float
+      nullable: true
+      note: "Response time in milliseconds at time of status change"
+
+    duration_seconds:
+      type: integer
+      nullable: true
+      note: "Duration of previous status in seconds. Populated when status changes from a known previous state."
+
+    created_at:
+      type: timestamp
+      note: "[Indexed] Timestamp when this status change occurred. Used for time-range queries."

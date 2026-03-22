@@ -1,23 +1,22 @@
 from fastapi import APIRouter, Depends, Request, Response
 import logging
-import time
 import hashlib
-import os
-import base64
-from typing import Optional
 from backend.core.api.app.schemas.auth import SetupPasswordRequest, SetupPasswordResponse
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.metrics import MetricsService
 from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.limiter import limiter
-from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip, get_geo_data_from_ip
-from backend.core.api.app.utils.invite_code import validate_invite_code
+from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip
+from backend.core.api.app.utils.invite_code import validate_invite_code, get_signup_requirements
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_metrics_service, get_compliance_service, get_encryption_service
 from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin, validate_username
+from backend.core.api.app.services.directus.user.user_lookup import hash_username
 from backend.core.api.app.routes.auth_routes.auth_login import finalize_login_session
 from backend.core.api.app.schemas.auth import LoginRequest
+from backend.core.api.app.utils.newsletter_utils import update_newsletter_registration_status
+from backend.core.api.app.tasks.celery_config import app as celery_app
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -43,36 +42,25 @@ async def setup_password(
         invite_code = setup_request.invite_code
         code_data = None
         
-        # Check if invite code is required based on SIGNUP_LIMIT
-        signup_limit = int(os.getenv("SIGNUP_LIMIT", "0"))
-        require_invite_code = True
-        
-        if signup_limit > 0:
-            # Check if we have this value cached
-            cached_require_invite_code = await cache_service.get("require_invite_code")
-            if cached_require_invite_code is not None:
-                require_invite_code = cached_require_invite_code
-            else:
-                # Get the total user count and compare with SIGNUP_LIMIT
-                total_users = await directus_service.get_total_users_count()
-                require_invite_code = total_users >= signup_limit
-                # Cache this value for quick access
-                await cache_service.set("require_invite_code", require_invite_code, ttl=172800)  # Cache for 48 hours
-                
-            logger.info(f"Invite code requirement check: limit={signup_limit}, required={require_invite_code}")
+        # Get signup requirements based on server edition and configuration
+        # For self-hosted: domain restriction OR invite code required
+        # For non-self-hosted: use SIGNUP_LIMIT logic
+        require_invite_code, require_domain_restriction, _allowed_domains = await get_signup_requirements(
+            directus_service, cache_service
+        )
         
         # If invite code is required, validate it
         if require_invite_code:
             # First, validate that the invite code is still valid
             is_valid, message, code_data = await validate_invite_code(invite_code, directus_service, cache_service)
             if not is_valid:
-                logger.warning(f"Invalid invite code used in password setup")
+                logger.warning("Invalid invite code used in password setup")
                 return SetupPasswordResponse(
                     success=False,
                     message="Invalid invite code. Please go back and start again."
                 )
         else:
-            logger.info(f"Invite code not required, skipping validation")
+            logger.info("Invite code not required, skipping validation")
 
         # Check if email was verified by looking for verification data in cache
         # Use hashed_email for lookup instead of plaintext email
@@ -80,13 +68,13 @@ async def setup_password(
         verification_data = await cache_service.get(verification_cache_key)
         
         if not verification_data:
-            logger.warning(f"Password setup attempted without email verification")
+            logger.warning("Password setup attempted without email verification")
             return SetupPasswordResponse(
                 success=False,
                 message="Email verification required. Please verify your email first."
             )
 
-        # Validate username
+        # Validate username format
         username_valid, username_error = validate_username(setup_request.username)
         if not username_valid:
             logger.warning(f"Invalid username format: {username_error}")
@@ -95,11 +83,21 @@ async def setup_password(
                 message=f"Invalid username: {username_error}"
             )
 
+        # Check username uniqueness server-wide (case-insensitive via SHA-256 hash)
+        hashed_username = hash_username(setup_request.username)
+        username_taken, _, _ = await directus_service.get_user_by_hashed_username(hashed_username)
+        if username_taken:
+            logger.warning("Signup rejected: username already taken")
+            return SetupPasswordResponse(
+                success=False,
+                message="This username is already taken. Please choose another one."
+            )
+
         # Check if user already exists
         # Use the hashed_email provided in the request for lookup
         exists_result, existing_user, _ = await directus_service.get_user_by_hashed_email(setup_request.hashed_email)
         if exists_result and existing_user:
-            logger.warning(f"Attempted to register with existing email")
+            logger.warning("Attempted to register with existing email")
             return SetupPasswordResponse(
                 success=False,
                 message="This email is already registered. Please log in instead."
@@ -132,6 +130,23 @@ async def setup_password(
         user_id = user_data.get("id")
         vault_key_id = user_data.get("vault_key_id")
 
+        # Update newsletter subscriber status if this email was subscribed.
+        # The Directus user record has just been created (signup_completed=False at this point),
+        # so the status is "signup_incomplete". This is updated to "signup_complete" when the
+        # user completes the full signup flow (handled by auth_login.py early-step reset logic).
+        try:
+            await update_newsletter_registration_status(
+                hashed_email=setup_request.hashed_email,
+                status="signup_incomplete",
+                directus_service=directus_service,
+            )
+        except Exception as newsletter_status_err:
+            # Non-critical — log but do not block account creation
+            logger.error(
+                f"Failed to update newsletter registration status for new user {user_id}: {newsletter_status_err}",
+                exc_info=True,
+            )
+
         # Create encryption key record
         try:
             hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
@@ -139,7 +154,8 @@ async def setup_password(
                 hashed_user_id=hashed_user_id,
                 login_method='password',
                 encrypted_key=setup_request.encrypted_master_key,
-                salt=setup_request.salt
+                salt=setup_request.salt,
+                key_iv=setup_request.key_iv
             )
             if success:
                 logger.info(f"Successfully created encryption key record for user {user_id}")
@@ -160,7 +176,8 @@ async def setup_password(
         logger.info(f"Lookup hash was added during user creation for user {user_id}")
 
         # Generate device fingerprint and add to connected devices
-        device_hash, os_name, country_code, city, region, latitude, longitude = generate_device_fingerprint_hash(request, user_id)
+        # Note: connection_hash will be None since no session_id is available during signup
+        device_hash, connection_hash, os_name, country_code, city, region, latitude, longitude = generate_device_fingerprint_hash(request, user_id)
         await directus_service.add_user_device_hash(user_id, device_hash)
 
         # --- Handle Gifted Credits ---
@@ -212,6 +229,12 @@ async def setup_password(
         metrics_service.track_user_creation()
         metrics_service.update_active_users(1, 1)
 
+        # Track signup funnel: password setup completed
+        try:
+            await cache_service.increment_stat("signup_step_auth_password_setup")
+        except Exception as stats_err:
+            logger.warning(f"Failed to increment auth_password_setup funnel stat: {stats_err}")
+
         # Log compliance event
         compliance_service.log_user_creation(
             user_id=user_id,
@@ -223,6 +246,23 @@ async def setup_password(
 
         # Log successful account creation
         event_logger.info(f"User account created successfully - ID: {user_id}")
+
+        # Send 'Account created' confirmation email
+        try:
+            if verification_data and verification_data.get("email"):
+                celery_app.send_task(
+                    name='app.tasks.email_tasks.account_created_email_task.send_account_created_email',
+                    kwargs={
+                        'email': verification_data.get("email"),
+                        'account_id': user_data.get("account_id"),
+                        'language': setup_request.language,
+                        'darkmode': setup_request.darkmode
+                    },
+                    queue='email'
+                )
+                logger.info(f"Account created email task submitted for user {user_id}")
+        except Exception as email_err:
+            logger.error(f"Failed to submit account created email task for user {user_id}: {email_err}")
 
         # Login the user to get cookies for authentication
         # We need to use the hashed email and lookup hash for authentication
@@ -284,7 +324,21 @@ async def setup_password(
             "invoice_counter": 0,  # Initialize invoice counter to 0
             "lookup_hashes": user_profile.get("lookup_hashes", []),
             "account_id": user_data.get("account_id"),  # From the original user_data
-            "user_email_salt": setup_request.user_email_salt  # Include the salt
+            "user_email_salt": setup_request.user_email_salt,  # Include the salt
+            # Monthly subscription fields (cleartext fields, not sensitive)
+            "stripe_customer_id": user_profile.get("stripe_customer_id"),
+            "stripe_subscription_id": user_profile.get("stripe_subscription_id"),
+            "subscription_status": user_profile.get("subscription_status"),
+            "subscription_credits": user_profile.get("subscription_credits"),
+            "subscription_currency": user_profile.get("subscription_currency"),
+            "next_billing_date": user_profile.get("next_billing_date"),
+            # Keep encrypted payment method ID encrypted
+            "encrypted_payment_method_id": user_profile.get("encrypted_payment_method_id"),
+            # Low balance auto top-up fields (cleartext configuration fields)
+            "auto_topup_low_balance_enabled": user_profile.get("auto_topup_low_balance_enabled", False),
+            "auto_topup_low_balance_threshold": user_profile.get("auto_topup_low_balance_threshold"),
+            "auto_topup_low_balance_amount": user_profile.get("auto_topup_low_balance_amount"),
+            "auto_topup_low_balance_currency": user_profile.get("auto_topup_low_balance_currency")
         }
         
         # Remove gifted_credits_for_signup if it's None or 0 before caching
@@ -300,13 +354,16 @@ async def setup_password(
         
         # Create a mock LoginRequest object for finalize_login_session
         # We need this because finalize_login_session expects login_data for email decryption
+        # Note: session_id is None during signup - it will be provided by the client on subsequent logins
         mock_login_data = LoginRequest(
             hashed_email=setup_request.hashed_email,
             lookup_hash=setup_request.lookup_hash,
+            session_id=None,  # No session_id during signup - connection_hash will be None
             email_encryption_key=None,  # Not available during signup
             tfa_code=None,
             code_type=None,
-            login_method="password"
+            login_method="password",
+            stay_logged_in=False  # Default to short session for signup
         )
         
         await finalize_login_session(
@@ -323,7 +380,8 @@ async def setup_password(
             device_location_str=device_location_str,
             latitude=latitude,
             longitude=longitude,
-            login_data=mock_login_data  # Pass the mock login_data
+            login_data=mock_login_data,  # Pass the mock login_data
+            country_code=country_code  # Pass country code for session-level location tracking
         )
         
         # Add gifted credits to user data if applicable

@@ -50,7 +50,6 @@
     <mj-text align="center" color="#ffffff" font-size="14px" line-height="1.2">
       {{ t.email.made_in_eu.text }}
     </mj-text>
-    <!-- EU Image - centered, 60x60 -->
-    <mj-image width="60px" height="60px" src="icons/eu.png" align="center" />
+    <mj-image width="60px" height="60px" src="icons/eu.png" align="center" alt="European Union flag" css-class="email-icon-60" />
   </mj-column>
 </mj-section>
