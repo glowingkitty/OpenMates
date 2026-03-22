@@ -552,8 +552,13 @@ def _get_dirty_files() -> set[str]:
 
     Handles all porcelain v1 status formats including renames/copies
     (e.g., "R  old -> new") and quoted paths.
+
+    Uses -uall to list individual files inside untracked directories,
+    so that new files tracked by a session can be matched by path.
+    Without -uall, git collapses untracked dirs to "?? dir/" and
+    individual file paths never appear in the dirty set.
     """
-    rc, stdout, _ = _run_cmd(["git", "status", "--porcelain"])
+    rc, stdout, _ = _run_cmd(["git", "status", "--porcelain", "-uall"])
     dirty = set()
     if rc != 0 or not stdout:
         return dirty
