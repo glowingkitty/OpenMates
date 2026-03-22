@@ -375,6 +375,7 @@ async def setup_password(
             compliance_service=compliance_service,
             directus_service=directus_service,
             current_device_hash=device_hash,
+            connection_hash=None,  # No session_id during signup, so no connection_hash
             client_ip=client_ip,
             encryption_service=encryption_service,
             device_location_str=device_location_str,
