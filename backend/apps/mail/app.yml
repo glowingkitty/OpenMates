@@ -48,25 +48,6 @@ settings_and_memories:
       required:
         - title
         - description
-  - id: proton_bridge_connection
-    name_translation_key: mail.proton_bridge_connection
-    description_translation_key: mail.proton_bridge_connection.description
-    icon_image: mail.svg
-    type: list
-    stage: production
-    schema:
-      type: object
-      properties:
-        title:
-          type: string
-          description: Connected Proton Mail Bridge account label
-          is_title: true
-        description:
-          type: string
-          description: Connection details and scope information
-          is_subtitle: true
-      required:
-        - title
 embed_types:
   - id: email
     category: direct

@@ -555,9 +555,6 @@ async def get_apps_metadata(
                     logger.debug(f"Skipping memory field '{field.id}' from app '{app_id}' - stage '{field_stage}' not compatible with '{server_environment}' environment")
                     continue
 
-                if app_id == "mail" and field.id == "proton_bridge_connection" and not protonmail_user_allowed:
-                    continue
-                
                 field_name = resolve_translation(
                     translation_service,
                     field.name_translation_key,

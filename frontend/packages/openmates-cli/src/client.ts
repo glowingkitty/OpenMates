@@ -267,13 +267,6 @@ export const MEMORY_TYPE_REGISTRY: Record<string, MemoryTypeDef> = {
       footer: { type: "string" },
     },
   },
-  "mail/proton_bridge_connection": {
-    appId: "mail",
-    itemType: "proton_bridge_connection",
-    entryType: "list",
-    required: ["title"],
-    properties: { title: { type: "string" }, description: { type: "string" } },
-  },
   "maps/favorite_places": {
     appId: "maps",
     itemType: "favorite_places",
