@@ -15,6 +15,7 @@ from backend.core.api.app.services.test_results_service import (
     _read_json_file,
     _cache,
     _cache_timestamps,
+    categorize_test,
     get_daily_trend,
     get_categorized_test_summary,
     get_flaky_tests,
@@ -29,6 +30,7 @@ from backend.core.api.app.services.status_aggregator import (
     _get_external_group,
     _normalize_status,
     build_health_groups,
+    build_health_groups_summary,
     compute_overall_status,
     filter_public_status_health_data,
     strip_admin_fields_from_tests,
@@ -293,7 +295,8 @@ class TestCategorizedSummary:
         assert chat_history[-2]["has_run"] is False
         assert chat_history[-2]["tone"] is None
 
-    def test_categories_only_include_playwright_tests(self, tmp_path, monkeypatch):
+    def test_categories_include_all_suites(self, tmp_path, monkeypatch):
+        """All suites are categorized — playwright by spec name, vitest/pytest by path."""
         last_run = {
             "run_id": f"{_iso_day(0)}T13:15:25Z",
             "summary": {"total": 3, "passed": 2, "failed": 1, "skipped": 0},
@@ -306,7 +309,7 @@ class TestCategorizedSummary:
                 "vitest": {
                     "tests": [
                         {"name": "statusPage.test.ts", "file": "statusPage.test.ts", "status": "failed"},
-                        {"name": "store.test.ts", "file": "store.test.ts", "status": "passed"},
+                        {"name": "stores/store.test.ts", "file": "stores/store.test.ts", "status": "passed"},
                     ]
                 },
             }
@@ -320,8 +323,20 @@ class TestCategorizedSummary:
 
         summary = get_categorized_test_summary(is_admin=True)
 
-        assert list(summary["categories"].keys()) == ["Chat"]
+        # Playwright categories use plain names
+        assert "Chat" in summary["categories"]
         assert summary["categories"]["Chat"]["total"] == 1
+        assert summary["categories"]["Chat"]["suite"] == "playwright"
+
+        # Vitest categories are prefixed with "vitest:"
+        assert "vitest:Stores" in summary["categories"]
+        assert summary["categories"]["vitest:Stores"]["total"] == 1
+        assert summary["categories"]["vitest:Stores"]["display_name"] == "Stores"
+
+        # Uncategorized vitest tests go to "vitest:Other"
+        assert "vitest:Other" in summary["categories"]
+        assert summary["categories"]["vitest:Other"]["total"] == 1
+
         assert summary["suites"]["vitest"]["total"] == 2
 
 
@@ -447,6 +462,55 @@ class TestBuildHealthGroups:
         groups = build_health_groups(health_data, {}, is_admin=True)
         assert "services" in groups[0]
         assert groups[0]["services"][0]["error_message"] == "timeout"
+
+
+class TestBuildHealthGroupsSummary:
+    def test_returns_groups_without_services(self):
+        health_data = {
+            "providers": {"openai": {"status": "healthy"}},
+            "apps": {"web": {"status": "healthy"}},
+            "external_services": {"stripe": {"status": "healthy"}},
+        }
+        groups = build_health_groups_summary(health_data, {})
+        for group in groups:
+            assert "group_name" in group
+            assert "display_name" in group
+            assert "status" in group
+            assert "service_count" in group
+            assert "timeline_30d" in group
+            # Summary should NOT include services[]
+            assert "services" not in group
+
+    def test_computes_worst_status(self):
+        health_data = {
+            "providers": {
+                "openai": {"status": "healthy"},
+                "anthropic": {"status": "unhealthy"},
+            },
+            "apps": {},
+            "external_services": {},
+        }
+        groups = build_health_groups_summary(health_data, {})
+        ai_group = next(g for g in groups if g["group_name"] == "ai_providers")
+        assert ai_group["status"] == "down"
+        assert ai_group["service_count"] == 2
+
+
+class TestCategorizeTestMultiSuite:
+    def test_playwright_categorization(self):
+        assert categorize_test("chat-flow.spec.ts", "playwright") == "Chat"
+        assert categorize_test("signup.spec.ts", "playwright") == "Auth & Signup"
+        assert categorize_test("unknown.spec.ts", "playwright") == "Other"
+
+    def test_vitest_categorization(self):
+        assert categorize_test("components/Button.test.ts", "vitest") == "Components"
+        assert categorize_test("stores/auth.test.ts", "vitest") == "Stores"
+        assert categorize_test("random.test.ts", "vitest") == "Other"
+
+    def test_pytest_categorization(self):
+        assert categorize_test("test_rest_api_status.py", "pytest_unit") == "API"
+        assert categorize_test("test_model_response.py", "pytest_unit") == "AI & Models"
+        assert categorize_test("test_random.py", "pytest_unit") == "Other"
 
 
 class TestFilterPublicStatusHealthData:

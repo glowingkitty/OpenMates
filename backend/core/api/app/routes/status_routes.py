@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
@@ -20,11 +20,15 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.services.status_aggregator import (
+    GROUP_DISPLAY_NAMES,
     build_all_service_daily_statuses,
+    build_current_issues,
     build_health_groups,
+    build_health_groups_summary,
     compute_overall_daily_timeline,
     compute_overall_status,
     gather_health_data,
+    get_group_service_info,
     filter_public_status_health_data,
     strip_admin_fields_from_incidents,
     strip_admin_fields_from_tests,
@@ -116,11 +120,33 @@ async def get_status(
         "is_admin": is_admin,
     }
 
-    # Health data (always needed for overall_status)
+    # Health data (always needed for overall_status and current_issues)
     health_data = filter_public_status_health_data(await gather_health_data(request))
     response["overall_status"] = compute_overall_status(health_data)
 
-    # Build per-service 30-day timelines (needed for health groups and overall timeline)
+    # Current issues overview — unhealthy services + failed tests (always included)
+    service_issues = build_current_issues(health_data, is_admin=is_admin)
+    # Add failed test names from latest run
+    test_issues: List[Dict[str, Any]] = []
+    latest_detail = get_latest_run_detail()
+    if latest_detail:
+        for suite_name, suite_data in latest_detail.get("suites", {}).items():
+            for test in suite_data.get("tests", []):
+                if test.get("status") == "failed":
+                    entry: Dict[str, Any] = {
+                        "suite": suite_name,
+                        "name": test.get("name") or test.get("file", ""),
+                        "file": test.get("file", ""),
+                    }
+                    if is_admin:
+                        entry["error"] = test.get("error")
+                    test_issues.append(entry)
+    response["current_issues"] = {
+        "services": service_issues,
+        "failed_tests": test_issues,
+    }
+
+    # Build per-service 30-day timelines (needed for group-level timelines and overall timeline)
     service_timelines: Dict[str, Any] = {}
     if "health" in sections or "timeline" in sections:
         try:
@@ -138,52 +164,27 @@ async def get_status(
     if "timeline" in sections:
         response["overall_timeline_30d"] = compute_overall_daily_timeline(service_timelines)
 
-    # Health groups with per-service and per-group timelines
+    # Health groups — summary only (no services[], those load lazily via /v1/status/health?group=)
     if "health" in sections:
         response["health"] = {
-            "groups": build_health_groups(
-                health_data, service_timelines, is_admin=is_admin,
-            ),
+            "groups": build_health_groups_summary(health_data, service_timelines),
         }
 
-    # Tests — all data visible to all users (error messages gated by is_admin in categorized_test_summary)
+    # Tests — summary only (suite-level counts + timelines, no per-test data or categories)
     if "tests" in sections:
         test_summary = get_latest_run_summary()
         if test_summary:
             test_section = dict(test_summary)
             test_section["trend"] = get_daily_trend(days=30)
-            latest_run_detail = get_latest_run_detail()
-            per_test_history = get_per_test_history(days=30)
-            # Add per-suite 30-day history
+            # Add per-suite 30-day timeline (lightweight: pass_rate per day)
             suite_history = get_per_suite_daily_history(days=30)
             for suite in test_section.get("suites", []):
                 suite["timeline_30d"] = suite_history.get(suite["name"], [])
-                detail_suite = (latest_run_detail or {}).get("suites", {}).get(suite["name"], {})
-                suite_tests = []
-                for test in detail_suite.get("tests", []):
-                    test_entry = dict(test)
-                    test_entry["last_run"] = test.get("run_id") or test_section.get("latest_run", {}).get("timestamp")
-                    test_entry["history_30d"] = per_test_history.get(test.get("file") or test.get("name", ""), [])
-                    if not is_admin:
-                        test_entry.pop("error", None)
-                    suite_tests.append(test_entry)
-                suite["tests"] = suite_tests
-            # Add categorized breakdown (all users see categories + test names; admin sees errors)
-            categorized = get_categorized_test_summary(is_admin=True)  # Always include test names
-            # Strip error fields for non-admin
-            if not is_admin:
-                for cat_data in categorized.get("categories", {}).values():
-                    if cat_data.get("tests"):
-                        for test in cat_data["tests"]:
-                            test.pop("error", None)
-            test_section["categories"] = categorized.get("categories", {})
-            for suite in test_section.get("suites", []):
-                suite["categories"] = categorized.get("categories", {}) if suite.get("name") == "playwright" else {}
             response["tests"] = test_section
         else:
             response["tests"] = {
                 "overall_status": "unknown", "latest_run": None,
-                "suites": [], "trend": [], "categories": {},
+                "suites": [], "trend": [],
             }
 
     # Incidents — 30-day window
@@ -237,9 +238,33 @@ async def get_status_health_detail(
         raise HTTPException(status_code=403, detail="detail=full requires admin authentication")
 
     health_data = filter_public_status_health_data(await gather_health_data(request))
-    # Always pass is_admin=True to build_health_groups to get services[]
-    # Then strip admin fields if not admin
-    all_groups = build_health_groups(health_data, {}, is_admin=True)
+
+    # Get group→service mapping to scope the timeline query
+    group_info = get_group_service_info(health_data)
+    if group not in group_info:
+        # Group might exist but have no services — check if it's a valid group name
+        if group not in GROUP_DISPLAY_NAMES:
+            raise HTTPException(status_code=404, detail=f"Group '{group}' not found")
+
+    # Build per-service timelines scoped to this group only
+    service_timelines: Dict[str, Any] = {}
+    info = group_info.get(group)
+    if info:
+        try:
+            directus = DirectusService(cache_service=CacheService())
+            try:
+                service_timelines = await build_all_service_daily_statuses(
+                    directus, health_data, days=30,
+                    service_type_filter=info["service_type"],
+                    service_ids_filter=info["service_ids"],
+                )
+            finally:
+                await directus.close()
+        except Exception as e:
+            logger.error(f"[STATUS] Error building group timelines for {group}: {e}", exc_info=True)
+
+    # Build full group with services[] and per-service timelines
+    all_groups = build_health_groups(health_data, service_timelines, is_admin=True)
 
     target_group = None
     for g in all_groups:
@@ -258,6 +283,7 @@ async def get_status_health_detail(
                     "id": s["id"],
                     "name": s["name"],
                     "status": s["status"],
+                    "timeline_30d": s.get("timeline_30d", []),
                 }
                 for s in target_group["services"]
             ]
@@ -273,6 +299,10 @@ async def get_status_tests_detail(
         default=None,
         description="Filter by suite name: playwright, vitest, pytest_unit.",
     ),
+    category: Optional[str] = Query(
+        default=None,
+        description="Filter by test category name (e.g., 'Chat', 'Auth & Signup'). Only applies to playwright suite.",
+    ),
     detail: str = Query(
         default="summary",
         description="Detail level: summary or full (admin only).",
@@ -280,11 +310,11 @@ async def get_status_tests_detail(
     current_user: Optional[User] = Depends(get_current_user_optional),
 ):
     """
-    Get detailed test results, optionally filtered by suite.
+    Get detailed test results for a suite, with per-test histories and categories.
     Called when a user expands a test suite on the status page.
 
-    Summary: pass/fail/skip counts per suite.
-    Full (admin): individual test rows with error messages.
+    Returns individual tests with history_30d, and category breakdown for playwright.
+    Admin additionally gets error messages.
     """
     if detail not in VALID_DETAIL_LEVELS:
         raise HTTPException(status_code=400, detail=f"detail must be one of: {', '.join(VALID_DETAIL_LEVELS)}")
@@ -298,15 +328,51 @@ async def get_status_tests_detail(
     if not test_detail:
         return {"run_id": None, "suites": {}, "summary": {}}
 
-    # Get flaky tests
-    flaky = get_flaky_tests()
-
     result = dict(test_detail)
-    result["flaky_tests"] = flaky
+
+    # Add per-test 30-day histories
+    per_test_history = get_per_test_history(days=30)
+    test_summary = get_latest_run_summary()
+    if result.get("suites") and isinstance(result["suites"], dict):
+        for suite_name, suite_data in result["suites"].items():
+            for test in suite_data.get("tests", []):
+                test_key = test.get("file") or test.get("name", "")
+                test["history_30d"] = per_test_history.get(test_key, [])
+                test["last_run"] = test.get("run_id") or (
+                    test_summary.get("latest_run", {}).get("timestamp") if test_summary else None
+                )
+
+    # Add categorized breakdown filtered to the requested suite
+    categorized = get_categorized_test_summary(is_admin=True)
+    all_categories = categorized.get("categories", {})
+
+    # Filter categories to the requested suite
+    categories = {}
+    for cat_key, cat_data in all_categories.items():
+        cat_suite = cat_data.get("suite", "playwright")
+        if suite and cat_suite != suite:
+            continue
+        # Use display_name as key for frontend (strip suite prefix)
+        display_key = cat_data.get("display_name", cat_key)
+        categories[display_key] = cat_data
+
+    # Filter to specific category if requested
+    if category and categories:
+        categories = {k: v for k, v in categories.items() if k == category}
+
+    result["categories"] = categories
+
+    # Get flaky tests
+    result["flaky_tests"] = get_flaky_tests()
 
     # Strip error messages for non-admin
-    if not is_admin or detail != "full":
+    if not is_admin:
         result = strip_admin_fields_from_tests(result)
+        # Also strip errors from categories
+        for cat_data in result.get("categories", {}).values():
+            if cat_data.get("tests"):
+                for test in cat_data["tests"]:
+                    test.pop("error", None)
 
     return result
 

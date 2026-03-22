@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 import logging
 from datetime import date, datetime, timedelta, timezone
-from typing import Any, Dict, List, Set
+from typing import Any, Dict, List, Optional, Set
 
 logger = logging.getLogger(__name__)
 
@@ -196,19 +196,26 @@ async def build_all_service_daily_statuses(
     directus_service,
     health_data: Dict[str, Dict[str, Any]],
     days: int = 30,
+    service_type_filter: Optional[str] = None,
+    service_ids_filter: Optional[Set[str]] = None,
 ) -> Dict[str, List[Dict[str, str]]]:
     """
     Build per-service 30-day daily status from health transition events.
 
     Returns dict keyed by "service_type/service_id" → [{date, status}, ...] (30 entries).
     Uses single bulk query for all events, then fills gaps per service.
+
+    Args:
+        service_type_filter: Only include services of this type (provider, app, external).
+        service_ids_filter: Only include services with these IDs (within the type filter).
     """
     since_ts = int((datetime.now(timezone.utc) - timedelta(days=days)).timestamp())
     dates = _generate_date_range(days)
 
-    # Single query: all events across all services
+    # Query events — scoped when filter is provided
     events = await directus_service.health_event.get_health_history(
         since_timestamp=since_ts,
+        service_type=service_type_filter,
         limit=1000,
     )
 
@@ -220,11 +227,15 @@ async def build_all_service_daily_statuses(
         key = f"{stype}/{sid}"
         events_by_service.setdefault(key, []).append(event)
 
-    # Build current status lookup from Redis data
+    # Build current status lookup from Redis data (applying filters)
     current_statuses: Dict[str, str] = {}
     type_map = {"providers": "provider", "apps": "app", "external_services": "external"}
     for category, stype in type_map.items():
+        if service_type_filter and stype != service_type_filter:
+            continue
         for sid, data in health_data.get(category, {}).items():
+            if service_ids_filter and sid not in service_ids_filter:
+                continue
             current_statuses[f"{stype}/{sid}"] = _normalize_status(data.get("status", "unknown"))
 
     # Build per-service timeline
@@ -299,6 +310,96 @@ def compute_overall_daily_timeline(
 
 
 # ─── Health groups with timelines ────────────────────────────────────────────
+
+
+def build_health_groups_summary(
+    health_data: Dict[str, Dict[str, Any]],
+    service_timelines: Dict[str, List[Dict[str, str]]],
+) -> List[Dict[str, Any]]:
+    """
+    Build lightweight group summaries for the main /v1/status endpoint.
+
+    Returns group_name, display_name, status, service_count, and group-level timeline_30d.
+    Does NOT include services[] — those are loaded lazily via /v1/status/health?group=.
+    """
+    groups: Dict[str, List[str]] = {}  # group_name → list of normalized statuses
+    group_service_keys: Dict[str, List[str]] = {}
+    group_service_counts: Dict[str, int] = {}
+
+    # AI providers
+    for provider_id, data in health_data.get("providers", {}).items():
+        group_name = "ai_providers"
+        svc_key = f"provider/{provider_id}"
+        groups.setdefault(group_name, []).append(
+            _normalize_status(data.get("status", "unknown"))
+        )
+        group_service_keys.setdefault(group_name, []).append(svc_key)
+        group_service_counts[group_name] = group_service_counts.get(group_name, 0) + 1
+
+    # Applications
+    for app_id, data in health_data.get("apps", {}).items():
+        group_name = "apps"
+        svc_key = f"app/{app_id}"
+        groups.setdefault(group_name, []).append(
+            _normalize_status(data.get("status", "unknown"))
+        )
+        group_service_keys.setdefault(group_name, []).append(svc_key)
+        group_service_counts[group_name] = group_service_counts.get(group_name, 0) + 1
+
+    # External services (grouped by type)
+    for service_id, data in health_data.get("external_services", {}).items():
+        group_name = _get_external_group(service_id)
+        svc_key = f"external/{service_id}"
+        groups.setdefault(group_name, []).append(
+            _normalize_status(data.get("status", "unknown"))
+        )
+        group_service_keys.setdefault(group_name, []).append(svc_key)
+        group_service_counts[group_name] = group_service_counts.get(group_name, 0) + 1
+
+    result = []
+    for group_name in sorted(groups.keys()):
+        statuses = groups[group_name]
+        group_tl = compute_group_daily_timeline(
+            service_timelines, group_service_keys.get(group_name, [])
+        )
+        result.append({
+            "group_name": group_name,
+            "display_name": GROUP_DISPLAY_NAMES.get(group_name, group_name.replace("_", " ").title()),
+            "status": _worst_status(set(statuses)),
+            "service_count": group_service_counts.get(group_name, 0),
+            "timeline_30d": group_tl,
+        })
+
+    return result
+
+
+def get_group_service_info(
+    health_data: Dict[str, Dict[str, Any]],
+) -> Dict[str, Dict[str, Any]]:
+    """
+    Return mapping from group_name → {service_type, service_ids} for use in filtered queries.
+    """
+    result: Dict[str, Dict[str, Any]] = {}
+
+    # AI providers
+    provider_ids = set(health_data.get("providers", {}).keys())
+    if provider_ids:
+        result["ai_providers"] = {"service_type": "provider", "service_ids": provider_ids}
+
+    # Applications
+    app_ids = set(health_data.get("apps", {}).keys())
+    if app_ids:
+        result["apps"] = {"service_type": "app", "service_ids": app_ids}
+
+    # External services (grouped by type)
+    ext_groups: Dict[str, Set[str]] = {}
+    for service_id in health_data.get("external_services", {}).keys():
+        group_name = _get_external_group(service_id)
+        ext_groups.setdefault(group_name, set()).add(service_id)
+    for group_name, svc_ids in ext_groups.items():
+        result[group_name] = {"service_type": "external", "service_ids": svc_ids}
+
+    return result
 
 
 def build_health_groups(
@@ -435,6 +536,58 @@ def strip_admin_fields_from_tests(test_data: Dict[str, Any]) -> Dict[str, Any]:
         ]
 
     return result
+
+
+def build_current_issues(
+    health_data: Dict[str, Dict[str, Any]],
+    is_admin: bool = False,
+) -> List[Dict[str, Any]]:
+    """
+    Build a list of current issues (unhealthy/degraded services) for the overview.
+    Admin users see error messages. Public users see status only.
+    """
+    issues: List[Dict[str, Any]] = []
+
+    type_map = {
+        "providers": ("provider", "ai_providers"),
+        "external_services": ("external", None),  # group determined dynamically
+    }
+
+    for category, (stype, default_group) in type_map.items():
+        for sid, data in health_data.get(category, {}).items():
+            status = _normalize_status(data.get("status", "unknown"))
+            if status in ("down", "degraded"):
+                group = default_group or _get_external_group(sid)
+                issue: Dict[str, Any] = {
+                    "service_type": stype,
+                    "service_id": sid,
+                    "name": sid.replace("_", " ").title(),
+                    "group": GROUP_DISPLAY_NAMES.get(group, group),
+                    "status": status,
+                }
+                if is_admin:
+                    issue["error_message"] = data.get("last_error")
+                    issue["last_check"] = data.get("last_check")
+                issues.append(issue)
+
+    # Apps
+    for app_id, data in health_data.get("apps", {}).items():
+        status = _normalize_status(data.get("status", "unknown"))
+        if status in ("down", "degraded"):
+            issue = {
+                "service_type": "app",
+                "service_id": app_id,
+                "name": app_id.replace("_", " ").title(),
+                "group": "Applications",
+                "status": status,
+            }
+            if is_admin:
+                issue["last_check"] = data.get("last_check")
+            issues.append(issue)
+
+    # Sort by severity (down first, then degraded)
+    issues.sort(key=lambda i: (0 if i["status"] == "down" else 1, i["name"]))
+    return issues
 
 
 def strip_admin_fields_from_incidents(events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:

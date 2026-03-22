@@ -371,8 +371,8 @@ def get_per_test_history(days: int = 30) -> Dict[str, List[Dict[str, Any]]]:
     return history
 
 
-# Test categories based on spec naming conventions
-TEST_CATEGORIES = {
+# Test categories based on spec naming conventions (Playwright E2E)
+PLAYWRIGHT_CATEGORIES = {
     "Auth & Signup": ["account-recovery", "backup-code", "multi-session", "recovery-key", "signup", "session-revoke"],
     "Chat": ["chat-flow", "chat-management", "chat-scroll", "chat-search", "daily-inspiration-chat", "fork-conversation", "hidden-chats", "import-chats", "message-sync", "background-chat"],
     "Payment": ["buy-credits", "saved-payment", "settings-buy-credits"],
@@ -385,11 +385,37 @@ TEST_CATEGORIES = {
     "Accessibility": ["a11y-"],
 }
 
+# Backward compatibility alias
+TEST_CATEGORIES = PLAYWRIGHT_CATEGORIES
 
-def categorize_test(test_name: str) -> str:
-    """Determine which category a test belongs to based on its name."""
+# Frontend unit test categories (vitest) based on file paths
+VITEST_CATEGORIES = {
+    "Components": ["components/"],
+    "Stores": ["stores/"],
+    "Services": ["services/"],
+    "Utils": ["utils/"],
+}
+
+# Backend unit test categories (pytest) based on test file names
+PYTEST_CATEGORIES = {
+    "API": ["test_rest_api"],
+    "Services": ["test_status_service", "test_cache", "test_health"],
+    "AI & Models": ["test_model", "test_ai"],
+}
+
+# Suite name → category mapping
+_SUITE_CATEGORIES: Dict[str, Dict[str, List[str]]] = {
+    PLAYWRIGHT_SUITE_NAME: PLAYWRIGHT_CATEGORIES,
+    "vitest": VITEST_CATEGORIES,
+    "pytest_unit": PYTEST_CATEGORIES,
+}
+
+
+def categorize_test(test_name: str, suite_name: str = PLAYWRIGHT_SUITE_NAME) -> str:
+    """Determine which category a test belongs to based on its name and suite."""
+    categories = _SUITE_CATEGORIES.get(suite_name, PLAYWRIGHT_CATEGORIES)
     name_lower = test_name.lower()
-    for category, prefixes in TEST_CATEGORIES.items():
+    for category, prefixes in categories.items():
         for prefix in prefixes:
             if prefix.lower() in name_lower:
                 return category
@@ -416,6 +442,9 @@ def get_categorized_test_summary(is_admin: bool = False) -> Dict[str, Any]:
     categories: Dict[str, Dict[str, Any]] = {}
     suites_info: Dict[str, Dict[str, Any]] = {}
 
+    # Track which suite each category belongs to (for history computation)
+    category_suite_map: Dict[str, str] = {}
+
     for suite_name, suite_data in data.get("suites", {}).items():
         tests = suite_data.get("tests", [])
         suite_passed = sum(1 for t in tests if t.get("status") == "passed")
@@ -429,24 +458,27 @@ def get_categorized_test_summary(is_admin: bool = False) -> Dict[str, Any]:
             "status": "failing" if suite_failed > 0 else "passing",
         }
 
-        if suite_name != PLAYWRIGHT_SUITE_NAME:
-            continue
-
+        # Categorize tests for ALL suites (not just playwright)
         for test in tests:
             # Use file as canonical name for Playwright, name for others
             test_key = test.get("file") or test.get("name", "")
             display_name = test.get("name") or test.get("file", "")
-            category = categorize_test(test_key)
+            category = categorize_test(test_key, suite_name)
+            # Prefix category with suite for non-playwright to avoid name collisions
+            full_cat_key = category if suite_name == PLAYWRIGHT_SUITE_NAME else f"{suite_name}:{category}"
             status = test.get("status", "unknown")
 
-            if category not in categories:
-                categories[category] = {
+            if full_cat_key not in categories:
+                categories[full_cat_key] = {
                     "total": 0, "passed": 0, "failed": 0, "skipped": 0,
+                    "suite": suite_name,
+                    "display_name": category,
                     "tests": [] if is_admin else None,
                     "history": [],  # 30-day pass rate per day
                 }
+                category_suite_map[full_cat_key] = suite_name
 
-            cat = categories[category]
+            cat = categories[full_cat_key]
             cat["total"] += 1
             if status == "passed":
                 cat["passed"] += 1
@@ -469,14 +501,15 @@ def get_categorized_test_summary(is_admin: bool = False) -> Dict[str, Any]:
 
     # Compute per-category 30-day pass rate history
     for cat_name, cat_data in categories.items():
+        cat_suite = category_suite_map.get(cat_name, PLAYWRIGHT_SUITE_NAME)
         # Collect all test keys in this category
         cat_test_names = []
         for suite_name, suite_data in data.get("suites", {}).items():
-            if suite_name != PLAYWRIGHT_SUITE_NAME:
+            if suite_name != cat_suite:
                 continue
             for test in suite_data.get("tests", []):
                 test_key = test.get("file") or test.get("name", "")
-                if categorize_test(test_key) == cat_name:
+                if categorize_test(test_key, suite_name) == cat_data.get("display_name", cat_name):
                     cat_test_names.append(test_key)
 
         # Build per-day pass rate

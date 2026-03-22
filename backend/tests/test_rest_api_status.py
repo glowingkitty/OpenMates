@@ -70,8 +70,8 @@ def test_status_summary_includes_health_groups():
             assert "status" in group
             assert "service_count" in group
             assert group["status"] in ("operational", "degraded", "down", "unknown")
-            assert "services" in group
-            assert isinstance(group["services"], list)
+            # Summary response no longer includes services[] (loaded lazily)
+            assert "services" not in group
 
 
 @pytest.mark.integration
@@ -217,11 +217,13 @@ def test_status_health_detail_returns_services():
         assert isinstance(data["services"], list)
         assert len(data["services"]) > 0
 
-        # Non-admin: services should not have error details
+        # Non-admin: services have id, name, status, timeline but no error details
         for service in data["services"]:
             assert "id" in service
             assert "name" in service
             assert "status" in service
+            assert "timeline_30d" in service
+            assert isinstance(service["timeline_30d"], list)
             assert "error_message" not in service
             assert "response_time_ms" not in service
 
