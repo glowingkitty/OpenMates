@@ -46,7 +46,7 @@ If a Playwright test encounters a completely unexpected screen, stop and ask the
 
 ## Rule 6: Pre-PR Test Gate
 
-Before any `dev` → `main` PR: run `./scripts/run-tests.sh --all`, verify `test-results/last-run.json` shows all passed within last 30 minutes.
+Before any `dev` → `main` PR: run `python3 scripts/run_tests.py`, verify `test-results/last-run.json` shows all passed within last 30 minutes.
 
 ## Test Locations
 

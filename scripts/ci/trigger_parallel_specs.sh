@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# =============================================================================
+# DEPRECATED: Use python3 scripts/run_tests.py --suite playwright instead.
+# This script is kept for backward compatibility but will be removed.
+# =============================================================================
+#
 # scripts/ci/trigger_parallel_specs.sh
 #
 # Triggers one GitHub Actions workflow run per Playwright spec file.
@@ -10,14 +15,14 @@
 #   ./scripts/ci/trigger_parallel_specs.sh --no-mocks          # Real LLMs, no recording
 #   ./scripts/ci/trigger_parallel_specs.sh --spec chat-flow.spec.ts  # Single spec
 #
-# Each spec is assigned an account (1-10) in round-robin to avoid session collisions.
+# Each spec is assigned an account (1-20) in round-robin to avoid session collisions.
 
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 WORKFLOW="daily-tests.yml"
 BRANCH="dev"
-MAX_ACCOUNTS=10
+MAX_ACCOUNTS=20
 USE_MOCKS="true"
 RECORD_FIXTURES="false"
 SINGLE_SPEC=""

@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # =============================================================================
-# OpenMates Daily Automated Test Runner
+# DEPRECATED: Use python3 scripts/run_tests.py --daily instead.
+# This script is kept for backward compatibility but will be removed.
+# =============================================================================
+#
+# OpenMates Daily Automated Test Runner (LEGACY)
 #
 # Runs all tests once per day (only if git commits were made in the last 24h),
 # saves separate pass/fail log files, then dispatches a single summary email

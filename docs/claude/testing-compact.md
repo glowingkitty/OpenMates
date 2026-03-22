@@ -9,7 +9,7 @@ Full reference: `sessions.py context --doc testing`
 - **R3** E2E: plan in natural language first, get approval, then code. Read `chat-flow.spec.ts` as template
 - **R4** Wait ~150s for Vercel after push. Check with `vercel ls` — must show "Ready"
 - **R5** Unexpected screen in Playwright? Stop and ask user
-- **R6** Pre-PR: run `./scripts/run-tests.sh --all`, verify last-run.json all passed
+- **R6** Pre-PR: run `python3 scripts/run_tests.py`, verify last-run.json all passed
 - **R7** New auth/payment/user features MUST have E2E test proposal
 - **R8** Prefer Playwright specs over Firecrawl for verification
 - **R9** Test with sidebar closed (<=1440px). Cold-boot verify (clear IndexedDB+localStorage)
@@ -34,5 +34,6 @@ Full reference: `sessions.py context --doc testing`
 | Backend auth       | `pytest backend/tests/test_auth_endpoints.py -v`    |
 | Backend logic      | `pytest backend/apps/<app>/tests/`                  |
 | Frontend component | `npm run test:unit -- <component>.test.ts`          |
-| Full user flow     | Playwright E2E via Docker                           |
+| Full user flow     | `python3 scripts/run_tests.py --suite playwright`   |
+| Single E2E spec    | `python3 scripts/run_tests.py --spec <name>.spec.ts`|
 | Any push to dev    | Daily test runner covers all suites automatically   |

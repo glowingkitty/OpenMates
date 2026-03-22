@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # =============================================================================
-# OpenMates Test Runner
+# DEPRECATED: Use python3 scripts/run_tests.py instead.
+# This script is kept for backward compatibility but will be removed.
+# =============================================================================
+#
+# OpenMates Test Runner (LEGACY)
 #
 # Orchestrates all test suites (vitest, pytest, Playwright) and produces
 # a single JSON results file at test-results/run-<timestamp>.json plus

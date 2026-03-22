@@ -51,18 +51,23 @@ docker compose --env-file .env -f docker-compose.playwright.yml run --rm \
 
 ---
 
-## Test Runner (`scripts/run-tests.sh`)
+## Test Runner (`scripts/run_tests.py`)
 
 ```bash
-./scripts/run-tests.sh --suite vitest          # Unit tests only
-./scripts/run-tests.sh --suite pytest           # Pytest only
-./scripts/run-tests.sh                          # All suites (5 parallel workers)
-./scripts/run-tests.sh --all                    # Including pytest integration
-./scripts/run-tests.sh --only-failed            # Rerun failures
-./scripts/run-tests.sh --suite playwright --workers 2
+python3 scripts/run_tests.py --suite vitest           # Unit tests only (local)
+python3 scripts/run_tests.py --suite pytest            # Pytest only (local)
+python3 scripts/run_tests.py                           # Full suite (local + GitHub Actions)
+python3 scripts/run_tests.py --only-failed             # Rerun failures
+python3 scripts/run_tests.py --spec chat-flow.spec.ts  # Single Playwright spec
+python3 scripts/run_tests.py --suite playwright        # All E2E specs via GitHub Actions
+python3 scripts/run_tests.py --daily                   # Cron mode (commit gate, emails)
+python3 scripts/run_tests.py --daily --force           # Skip commit check
+python3 scripts/run_tests.py --max-concurrent 10       # Override batch size (default: 20)
+python3 scripts/run_tests.py --no-fail-fast            # Run all batches even on failure
+python3 scripts/run_tests.py --dry-run                 # Show what would run
 ```
 
-Multi-account parallel Playwright: assigns specs round-robin to 5 worker slots with separate test accounts (`OPENMATES_TEST_ACCOUNT_1_EMAIL` through `5`).
+Playwright specs are dispatched to GitHub Actions (`playwright-spec.yml`) in batches of 20 concurrent runners, each with a separate test account (`OPENMATES_TEST_ACCOUNT_1_EMAIL` through `20`). Batch-level fail-fast: current batch finishes, then stops if any failures.
 
 Output: `test-results/run-<timestamp>.json` and `test-results/last-run.json`
 

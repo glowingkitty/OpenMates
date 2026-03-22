@@ -4269,65 +4269,24 @@ def cmd_task_track(args: argparse.Namespace) -> None:
 
 
 def cmd_trigger_tests(args: argparse.Namespace) -> None:
-    """Trigger the GitHub Actions daily test workflow via gh CLI."""
+    """Trigger tests via the unified run_tests.py orchestrator."""
     suite = getattr(args, "suite", "all") or "all"
     env = getattr(args, "env", "development") or "development"
-    watch = getattr(args, "watch", False)
 
-    # Check gh is installed
-    rc, _, stderr = _run_cmd(["gh", "--version"])
-    if rc != 0:
-        print("ERROR: 'gh' CLI not found. Install: https://cli.github.com/", file=sys.stderr)
+    run_tests_script = PROJECT_ROOT / "scripts" / "run_tests.py"
+    if not run_tests_script.is_file():
+        print("ERROR: scripts/run_tests.py not found.", file=sys.stderr)
         sys.exit(1)
 
-    # Check authentication
-    rc, _, _ = _run_cmd(["gh", "auth", "status"])
-    if rc != 0:
-        print("ERROR: Not authenticated with gh. Run: gh auth login", file=sys.stderr)
-        sys.exit(1)
+    cmd = [sys.executable, str(run_tests_script)]
+    if suite != "all":
+        cmd += ["--suite", suite]
+    if env != "development":
+        cmd += ["--environment", env]
 
-    # Trigger the workflow
-    print(f"Triggering daily-tests workflow (suite={suite}, environment={env})...")
-    rc, stdout, stderr = _run_cmd([
-        "gh", "workflow", "run", "daily-tests.yml",
-        "--ref", "dev",
-        "-f", f"suite={suite}",
-        "-f", f"environment={env}",
-    ], cwd=str(PROJECT_ROOT))
-
-    if rc != 0:
-        print(f"ERROR: Failed to trigger workflow: {stderr}", file=sys.stderr)
-        sys.exit(1)
-
-    print("Workflow triggered successfully.")
-
-    # Wait briefly for GitHub to register the run, then show URL
-    import time as _time
-    _time.sleep(5)
-    rc, stdout, _ = _run_cmd([
-        "gh", "run", "list",
-        "--workflow=daily-tests.yml",
-        "--limit=1",
-        "--json", "databaseId,status,url",
-    ], cwd=str(PROJECT_ROOT))
-
-    if rc == 0 and stdout.strip():
-        try:
-            import json as _json
-            runs = _json.loads(stdout)
-            if runs:
-                run = runs[0]
-                print(f"Run URL: {run.get('url', 'unknown')}")
-                print(f"Status:  {run.get('status', 'unknown')}")
-
-                if watch:
-                    run_id = run.get("databaseId")
-                    if run_id:
-                        print(f"\nWatching run {run_id}...")
-                        os.system(f"gh run watch {run_id}")
-        except Exception:
-            if stdout:
-                print(stdout)
+    print(f"Running tests via run_tests.py (suite={suite}, environment={env})...")
+    rc = subprocess.call(cmd, cwd=str(PROJECT_ROOT))
+    sys.exit(rc)
 
 
 def cmd_debug_vercel(args: argparse.Namespace) -> None:

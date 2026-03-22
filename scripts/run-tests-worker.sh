@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Playwright Worker Script
+# DEPRECATED: Replaced by python3 scripts/run_tests.py.
+# This script is kept for backward compatibility but will be removed.
+# =============================================================================
+#
+# Playwright Worker Script (LEGACY)
 #
 # Called by run-tests.sh for each worker slot. Runs assigned spec files
 # sequentially in a Docker container with the slot's test account credentials.
