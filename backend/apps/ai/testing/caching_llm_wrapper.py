@@ -63,8 +63,8 @@ def wrap_provider_with_cache(
         cache: Shared ApiResponseCache instance
     """
 
-    async def cached_provider(**kwargs: Any) -> AsyncIterator[str]:
-        # Fast path: no mock mode → call real provider directly
+    # Streaming wrapper (async generator — uses yield)
+    async def _cached_stream(**kwargs: Any) -> AsyncIterator[str]:
         if not is_mock_active():
             async for chunk in provider_fn(**kwargs):
                 yield chunk
@@ -74,7 +74,6 @@ def wrap_provider_with_cache(
         model = kwargs.get("model", "unknown")
         category = f"llm/{model}"
 
-        # Build fingerprint from LLM call parameters
         messages = kwargs.get("messages", [])
         tools = kwargs.get("tools")
         temperature = kwargs.get("temperature")
@@ -96,10 +95,8 @@ def wrap_provider_with_cache(
             response_type = response_data.get("type", "stream")
 
             if response_type == "structured":
-                # Structured response (tool calls, JSON) — yield as single chunk
                 yield response_body
             else:
-                # Stream response — simulate chunked delivery
                 delay = STREAM_SPEED_PROFILES.get(DEFAULT_STREAM_SPEED, 0)
                 for chunk in _split_into_chunks(response_body, CHARS_PER_CHUNK):
                     yield chunk
@@ -126,54 +123,82 @@ def wrap_provider_with_cache(
             all_chunks.append(chunk)
             yield chunk
 
-        # Reconstruct full response from chunks
-        full_response = "".join(all_chunks)
+        _save_to_cache(cache, group_id, category, fingerprint, all_chunks, kwargs)
 
-        # Determine response type
-        # If response contains JSON-like structured data (tool calls), mark as structured
-        response_type = "stream"
-        try:
-            parsed = json.loads(full_response)
-            if isinstance(parsed, dict) and ("tool_calls" in parsed or "function_call" in parsed):
-                response_type = "structured"
-        except (json.JSONDecodeError, TypeError):
-            pass
+    # Non-streaming wrapper (regular coroutine — returns awaitable result)
+    async def _cached_non_stream(**kwargs: Any) -> Any:
+        if not is_mock_active():
+            return await provider_fn(**kwargs)
 
-        # Build request summary for debugging
-        request_summary = {
-            "model": model,
-            "messages_count": len(messages),
-            "tools_count": len(tools) if tools else 0,
-            "temperature": temperature,
-            "tool_choice": tool_choice,
-        }
-        # Include a preview of the last user message for debugging
-        if messages:
-            last_msg = messages[-1] if messages else {}
-            content = last_msg.get("content", "")
-            if isinstance(content, str) and len(content) > 200:
-                content = content[:200] + "..."
-            request_summary["last_message_preview"] = {
-                "role": last_msg.get("role", ""),
-                "content": content,
-            }
+        # Mock/record mode with stream=False: not supported yet, fall through to real provider
+        logger.debug("[LiveMock] Non-streaming mock not implemented, calling real provider")
+        return await provider_fn(**kwargs)
 
-        # Build response data
-        response_data = {
-            "type": response_type,
-            "body": full_response,
-            "chunk_count": len(all_chunks),
-        }
-
-        cache.save(
-            group_id=group_id,
-            category=category,
-            fingerprint=fingerprint,
-            request_summary=request_summary,
-            response_data=response_data,
-        )
+    # Dispatcher: returns the right type based on stream kwarg.
+    # When stream=False, provider returns a regular awaitable (UnifiedResponse).
+    # When stream=True (default), provider returns an async iterator of chunks.
+    # The dispatcher preserves this contract so health checks (stream=False) can await.
+    def cached_provider(**kwargs: Any) -> Any:
+        if kwargs.get("stream", True):
+            return _cached_stream(**kwargs)
+        return _cached_non_stream(**kwargs)
 
     return cached_provider
+
+
+def _save_to_cache(
+    cache: ApiResponseCache,
+    group_id: str,
+    category: str,
+    fingerprint: str,
+    all_chunks: List[str],
+    kwargs: dict,
+) -> None:
+    """Save collected LLM response chunks to the cache for future replay."""
+    full_response = "".join(all_chunks)
+
+    # Determine response type
+    response_type = "stream"
+    try:
+        parsed = json.loads(full_response)
+        if isinstance(parsed, dict) and ("tool_calls" in parsed or "function_call" in parsed):
+            response_type = "structured"
+    except (json.JSONDecodeError, TypeError):
+        pass
+
+    # Build request summary for debugging
+    messages = kwargs.get("messages", [])
+    tools = kwargs.get("tools")
+    request_summary: dict = {
+        "model": kwargs.get("model", "unknown"),
+        "messages_count": len(messages),
+        "tools_count": len(tools) if tools else 0,
+        "temperature": kwargs.get("temperature"),
+        "tool_choice": kwargs.get("tool_choice"),
+    }
+    if messages:
+        last_msg = messages[-1]
+        content = last_msg.get("content", "")
+        if isinstance(content, str) and len(content) > 200:
+            content = content[:200] + "..."
+        request_summary["last_message_preview"] = {
+            "role": last_msg.get("role", ""),
+            "content": content,
+        }
+
+    response_data = {
+        "type": response_type,
+        "body": full_response,
+        "chunk_count": len(all_chunks),
+    }
+
+    cache.save(
+        group_id=group_id,
+        category=category,
+        fingerprint=fingerprint,
+        request_summary=request_summary,
+        response_data=response_data,
+    )
 
 
 def _split_into_chunks(text: str, chunk_size: int) -> List[str]:

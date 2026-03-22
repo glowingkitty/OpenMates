@@ -98,7 +98,11 @@
     import { settingsMenuVisible } from '../components/Settings.svelte'; // Import settingsMenuVisible store to control Settings visibility
     import { chatDebugStore } from '../stores/chatDebugStore';
     import { videoIframeStore } from '../stores/videoIframeStore'; // For standalone VideoIframe component with CSS-based PiP
-    import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, translateDemoChat, getAllCommunityDemoChats, communityDemoStore } from '../demo_chats'; // Import demo chat utilities
+    import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isDemoChat, isLegalChat, translateDemoChat, getAllCommunityDemoChats, communityDemoStore } from '../demo_chats'; // Import demo chat utilities
+    import ChatContextMenu from './chats/ChatContextMenu.svelte'; // Context menu for resume chat cards
+    import { copyChatToClipboard } from '../services/chatExportService'; // For context menu copy action
+    import { downloadChatAsZip } from '../services/zipExportService'; // For context menu download action
+    import { notificationStore } from '../stores/notificationStore'; // For context menu action feedback
     import { convertDemoChatToChat } from '../demo_chats/convertToChat'; // Import conversion function
     import { incognitoChatService } from '../services/incognitoChatService'; // Import incognito chat service
     import { incognitoMode } from '../stores/incognitoModeStore'; // Import incognito mode store
@@ -2251,6 +2255,179 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // show the "Credits needed..." label + user message preview instead of category circle + title.
     let resumeChatIsCreditsError = $state(false);
     let resumeChatUserMessagePreview = $state<string | null>(null);
+
+    // ─── Resume Card Context Menu ────────────────────────────────────
+    // Right-click / long-press context menu for resume chat cards on welcome screen
+    let resumeCardContextMenuShow = $state(false);
+    let resumeCardContextMenuX = $state(0);
+    let resumeCardContextMenuY = $state(0);
+    let resumeCardContextMenuChat = $state<Chat | null>(null);
+    let resumeCardContextMenuDownloading = $state(false);
+
+    function handleResumeCardContextMenu(event: MouseEvent, chat: Chat) {
+        event.preventDefault();
+        event.stopPropagation();
+        resumeCardContextMenuX = event.clientX;
+        resumeCardContextMenuY = event.clientY;
+        resumeCardContextMenuChat = chat;
+        resumeCardContextMenuShow = true;
+    }
+
+    // Long-press support for touch devices
+    let resumeCardTouchTimer: number | undefined;
+    let resumeCardTouchStartX = 0;
+    let resumeCardTouchStartY = 0;
+
+    function handleResumeCardTouchStart(event: TouchEvent, chat: Chat) {
+        if (event.touches.length !== 1) return;
+        const touch = event.touches[0];
+        resumeCardTouchStartX = touch.clientX;
+        resumeCardTouchStartY = touch.clientY;
+        resumeCardTouchTimer = window.setTimeout(() => {
+            resumeCardContextMenuX = resumeCardTouchStartX;
+            resumeCardContextMenuY = resumeCardTouchStartY;
+            resumeCardContextMenuChat = chat;
+            resumeCardContextMenuShow = true;
+            if (navigator.vibrate) navigator.vibrate(50);
+        }, 500);
+    }
+
+    function handleResumeCardTouchMove(event: TouchEvent) {
+        if (!resumeCardTouchTimer) return;
+        const touch = event.touches[0];
+        const dx = Math.abs(touch.clientX - resumeCardTouchStartX);
+        const dy = Math.abs(touch.clientY - resumeCardTouchStartY);
+        if (dx > 10 || dy > 10) {
+            clearTimeout(resumeCardTouchTimer);
+            resumeCardTouchTimer = undefined;
+        }
+    }
+
+    function handleResumeCardTouchEnd(event: TouchEvent) {
+        if (resumeCardContextMenuShow) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        if (resumeCardTouchTimer) {
+            clearTimeout(resumeCardTouchTimer);
+            resumeCardTouchTimer = undefined;
+        }
+    }
+
+    /** Handle context menu actions for resume chat cards */
+    async function handleResumeCardContextMenuAction(event: CustomEvent<string>) {
+        const action = event.detail;
+        const chat = resumeCardContextMenuChat;
+        if (!chat) { resumeCardContextMenuShow = false; return; }
+
+        switch (action) {
+            case 'close':
+                resumeCardContextMenuShow = false;
+                break;
+            case 'download': {
+                resumeCardContextMenuDownloading = true;
+                try {
+                    const messages = await chatDB.getMessages(chat.chat_id);
+                    await downloadChatAsZip(chat, messages);
+                } catch (err) {
+                    console.error('[ActiveChat] Download failed:', err);
+                    notificationStore.error('Download failed');
+                } finally {
+                    resumeCardContextMenuDownloading = false;
+                    resumeCardContextMenuShow = false;
+                }
+                break;
+            }
+            case 'copy': {
+                try {
+                    const messages = await chatDB.getMessages(chat.chat_id);
+                    await copyChatToClipboard(chat, messages);
+                    notificationStore.success('Chat copied to clipboard');
+                } catch (err) {
+                    console.error('[ActiveChat] Copy failed:', err);
+                    notificationStore.error('Copy failed');
+                }
+                resumeCardContextMenuShow = false;
+                break;
+            }
+            case 'delete': {
+                // Demo/legal chats: hide via userProfile; regular chats: delete from DB
+                if (isDemoChat(chat.chat_id) || isLegalChat(chat.chat_id)) {
+                    if (!$authStore.isAuthenticated) {
+                        notificationStore.error('Please sign up to customize your experience');
+                        resumeCardContextMenuShow = false;
+                        return;
+                    }
+                    const currentHidden = $userProfile.hidden_demo_chats || [];
+                    if (!currentHidden.includes(chat.chat_id)) {
+                        const updatedHidden = [...currentHidden, chat.chat_id];
+                        userProfile.update(profile => ({ ...profile, hidden_demo_chats: updatedHidden }));
+                        const { userDB: udb } = await import('../services/userDB');
+                        await udb.updateUserData({ hidden_demo_chats: updatedHidden });
+                        notificationStore.success('Chat hidden successfully');
+                    }
+                } else {
+                    // Delete regular chat — mirrors Chat.svelte handleDeleteChat
+                    try {
+                        const chatIdToDelete = chat.chat_id;
+                        // Delete from IndexedDB first (optimistic)
+                        await chatDB.deleteChat(chatIdToDelete);
+                        // Dispatch chatDeleted for UI update
+                        chatSyncService.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id: chatIdToDelete } }));
+                        // Send server-side delete via WebSocket
+                        chatSyncService.sendDeleteChat(chatIdToDelete);
+                        notificationStore.success('Chat deleted');
+                        // Clear resume card if it was the deleted chat
+                        if (resumeChatData?.chat_id === chatIdToDelete) {
+                            resumeChatData = null;
+                        }
+                        // Remove from recentChats array
+                        recentChats = recentChats.filter(rc => rc.chat.chat_id !== chatIdToDelete);
+                    } catch (err) {
+                        console.error('[ActiveChat] Delete failed:', err);
+                        notificationStore.error('Failed to delete chat');
+                    }
+                }
+                resumeCardContextMenuShow = false;
+                break;
+            }
+            case 'hide': {
+                // Dispatch to the existing hide infrastructure
+                window.dispatchEvent(new CustomEvent('resumeCardHideChat', { detail: chat.chat_id }));
+                resumeCardContextMenuShow = false;
+                break;
+            }
+            case 'unhide': {
+                window.dispatchEvent(new CustomEvent('resumeCardUnhideChat', { detail: chat.chat_id }));
+                resumeCardContextMenuShow = false;
+                break;
+            }
+            case 'pin': {
+                window.dispatchEvent(new CustomEvent('resumeCardPinChat', { detail: chat.chat_id }));
+                resumeCardContextMenuShow = false;
+                break;
+            }
+            case 'unpin': {
+                window.dispatchEvent(new CustomEvent('resumeCardUnpinChat', { detail: chat.chat_id }));
+                resumeCardContextMenuShow = false;
+                break;
+            }
+            case 'markUnread': {
+                window.dispatchEvent(new CustomEvent('resumeCardMarkUnread', { detail: chat.chat_id }));
+                resumeCardContextMenuShow = false;
+                break;
+            }
+            case 'markRead': {
+                window.dispatchEvent(new CustomEvent('resumeCardMarkRead', { detail: chat.chat_id }));
+                resumeCardContextMenuShow = false;
+                break;
+            }
+            default:
+                // enterSelectMode, selectChat, unselect — not applicable on welcome screen
+                resumeCardContextMenuShow = false;
+                break;
+        }
+    }
 
     // ─── Recent Chats Horizontal Scroll ────────────────────────────────
     // Additional recent chats shown alongside the primary resume card in
@@ -8950,6 +9127,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                     gradientColors
                                                 )}
                                                 onclick={handleResumeLastChat}
+                                                oncontextmenu={(e) => { if (resumeChatData) handleResumeCardContextMenu(e, resumeChatData); }}
+                                                ontouchstart={(e) => { if (resumeChatData) handleResumeCardTouchStart(e, resumeChatData); }}
+                                                ontouchmove={handleResumeCardTouchMove}
+                                                ontouchend={handleResumeCardTouchEnd}
                                                 onmouseenter={handleResumeLargeCardMouseEnter}
                                                 onmousemove={handleResumeLargeCardMouseMove}
                                                 onmouseleave={handleResumeLargeCardMouseLeave}
@@ -8986,6 +9167,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                             <button
                                                 class="resume-chat-card"
                                                 onclick={handleResumeLastChat}
+                                                oncontextmenu={(e) => { if (resumeChatData) handleResumeCardContextMenu(e, resumeChatData); }}
+                                                ontouchstart={(e) => { if (resumeChatData) handleResumeCardTouchStart(e, resumeChatData); }}
+                                                ontouchmove={handleResumeCardTouchMove}
+                                                ontouchend={handleResumeCardTouchEnd}
                                                 type="button"
                                             >
                                                 {#if resumeChatIsCreditsError}
@@ -9040,6 +9225,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                 type="button"
                                                 style={cardStyle}
                                                 onclick={() => handleOpenRecentChat(meta.chat)}
+                                                oncontextmenu={(e) => handleResumeCardContextMenu(e, meta.chat)}
+                                                ontouchstart={(e) => handleResumeCardTouchStart(e, meta.chat)}
+                                                ontouchmove={handleResumeCardTouchMove}
+                                                ontouchend={handleResumeCardTouchEnd}
                                                 onmouseenter={(e) => tilt?.onMouseEnter(e)}
                                                 onmousemove={(e) => tilt?.onMouseMove(e)}
                                                 onmouseleave={() => tilt?.onMouseLeave()}
@@ -9075,6 +9264,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                             <button
                                                 class="resume-chat-card"
                                                 onclick={() => handleOpenRecentChat(meta.chat)}
+                                                oncontextmenu={(e) => handleResumeCardContextMenu(e, meta.chat)}
+                                                ontouchstart={(e) => handleResumeCardTouchStart(e, meta.chat)}
+                                                ontouchmove={handleResumeCardTouchMove}
+                                                ontouchend={handleResumeCardTouchEnd}
                                                 type="button"
                                             >
                                                 <div
@@ -9132,6 +9325,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                 type="button"
                                                 style={cardStyle}
                                                 onclick={() => handleOpenRecentChat(meta.chat)}
+                                                oncontextmenu={(e) => handleResumeCardContextMenu(e, meta.chat)}
+                                                ontouchstart={(e) => handleResumeCardTouchStart(e, meta.chat)}
+                                                ontouchmove={handleResumeCardTouchMove}
+                                                ontouchend={handleResumeCardTouchEnd}
                                                 onmouseenter={(e) => tilt?.onMouseEnter(e)}
                                                 onmousemove={(e) => tilt?.onMouseMove(e)}
                                                 onmouseleave={() => tilt?.onMouseLeave()}
@@ -9167,6 +9364,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                             <button
                                                 class="resume-chat-card"
                                                 onclick={() => handleOpenRecentChat(meta.chat)}
+                                                oncontextmenu={(e) => handleResumeCardContextMenu(e, meta.chat)}
+                                                ontouchstart={(e) => handleResumeCardTouchStart(e, meta.chat)}
+                                                ontouchmove={handleResumeCardTouchMove}
+                                                ontouchend={handleResumeCardTouchEnd}
                                                 type="button"
                                             >
                                                 <div
@@ -10333,6 +10534,33 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         handleFocusModeDetailsNavigation(focusModeContextMenuFocusId, focusModeContextMenuAppId);
     }}
 />
+
+<!-- Resume Card Context Menu (right-click / long-press on welcome screen chat cards) -->
+{#if resumeCardContextMenuShow && resumeCardContextMenuChat}
+    <ChatContextMenu
+        x={resumeCardContextMenuX}
+        y={resumeCardContextMenuY}
+        show={resumeCardContextMenuShow}
+        chat={resumeCardContextMenuChat}
+        hideDelete={false}
+        hideCopy={false}
+        hideDownload={false}
+        downloading={resumeCardContextMenuDownloading}
+        on:close={handleResumeCardContextMenuAction}
+        on:download={handleResumeCardContextMenuAction}
+        on:copy={handleResumeCardContextMenuAction}
+        on:hide={handleResumeCardContextMenuAction}
+        on:unhide={handleResumeCardContextMenuAction}
+        on:pin={handleResumeCardContextMenuAction}
+        on:unpin={handleResumeCardContextMenuAction}
+        on:markUnread={handleResumeCardContextMenuAction}
+        on:markRead={handleResumeCardContextMenuAction}
+        on:delete={handleResumeCardContextMenuAction}
+        on:enterSelectMode={handleResumeCardContextMenuAction}
+        on:unselect={handleResumeCardContextMenuAction}
+        on:selectChat={handleResumeCardContextMenuAction}
+    />
+{/if}
 
 <style>
     /* 
