@@ -317,7 +317,7 @@
     };
 
     // Minimal result shapes for fullscreen embed components (mirrors local interfaces there).
-    type WebSearchResult = {
+    type ActiveChatWebSearchResult = {
         embed_id: string;
         url: string;
         title?: string;
@@ -327,9 +327,19 @@
         description?: string;
         extra_snippets?: string | string[];
         page_age?: string;
+        isVideo: boolean;
+        video_id?: string;
+        channel_name?: string;
+        channel_id?: string;
+        channel_thumbnail?: string;
+        duration_seconds?: number;
+        duration_formatted?: string;
+        view_count?: number;
+        like_count?: number;
+        published_at?: string;
     };
 
-    type NewsSearchResult = {
+    type ActiveChatNewsSearchResult = {
         embed_id: string;
         url: string;
         title?: string;
@@ -338,7 +348,7 @@
         description?: string;
     };
 
-    type VideoSearchResult = {
+    type ActiveChatVideoSearchResult = {
         embed_id: string;
         url: string;
         title?: string;
@@ -350,7 +360,7 @@
         duration?: string;
     };
 
-    type PlaceSearchResult = {
+    type ActiveChatPlaceSearchResult = {
         embed_id: string;
         displayName?: string;
         formattedAddress?: string;
@@ -361,7 +371,7 @@
         placeId?: string;
     };
 
-    type WebReadResult = {
+    type ActiveChatWebReadResult = {
         type: string;
         url: string;
         title?: string;
@@ -377,11 +387,11 @@
         app_id: 'web';
         skill_id: 'read';
         status: WebSearchSkillPreviewData['status'];
-        results: WebReadResult[];
+        results: ActiveChatWebReadResult[];
         url?: string;
     };
 
-    type TravelConnectionResult = {
+    type ActiveChatTravelConnectionResult = {
         embed_id: string;
         type?: string;
         transport_method?: string;
@@ -1045,36 +1055,36 @@
     }
 
     // Normalize embed result arrays for fullscreen components with strict prop types.
-    function getWebSearchResults(results?: unknown[]): WebSearchResult[] {
-        return Array.isArray(results) ? (results as WebSearchResult[]) : [];
+    function getWebSearchResults(results?: unknown[]): ActiveChatWebSearchResult[] {
+        return Array.isArray(results) ? (results as ActiveChatWebSearchResult[]) : [];
     }
 
-    function getNewsSearchResults(results?: unknown[]): NewsSearchResult[] {
-        return Array.isArray(results) ? (results as NewsSearchResult[]) : [];
+    function getNewsSearchResults(results?: unknown[]): ActiveChatNewsSearchResult[] {
+        return Array.isArray(results) ? (results as ActiveChatNewsSearchResult[]) : [];
     }
 
-    function getVideoSearchResults(results?: unknown[]): VideoSearchResult[] {
-        return Array.isArray(results) ? (results as VideoSearchResult[]) : [];
+    function getVideoSearchResults(results?: unknown[]): ActiveChatVideoSearchResult[] {
+        return Array.isArray(results) ? (results as ActiveChatVideoSearchResult[]) : [];
     }
 
-    function getPlaceSearchResults(results?: unknown[]): PlaceSearchResult[] {
-        return Array.isArray(results) ? (results as PlaceSearchResult[]) : [];
+    function getPlaceSearchResults(results?: unknown[]): ActiveChatPlaceSearchResult[] {
+        return Array.isArray(results) ? (results as ActiveChatPlaceSearchResult[]) : [];
     }
 
     function getVideoTranscriptResults(results?: unknown[]): VideoTranscriptResult[] {
         return Array.isArray(results) ? (results as VideoTranscriptResult[]) : [];
     }
 
-    function getWebReadResults(results?: unknown[]): WebReadResult[] {
-        return Array.isArray(results) ? (results as WebReadResult[]) : [];
+    function getWebReadResults(results?: unknown[]): ActiveChatWebReadResult[] {
+        return Array.isArray(results) ? (results as ActiveChatWebReadResult[]) : [];
     }
 
     function getCodeDocsResults(results?: unknown[]): CodeGetDocsResult[] {
         return Array.isArray(results) ? (results as CodeGetDocsResult[]) : [];
     }
 
-    function getTravelConnectionResults(results?: unknown[]): TravelConnectionResult[] {
-        return Array.isArray(results) ? (results as TravelConnectionResult[]) : [];
+    function getTravelConnectionResults(results?: unknown[]): ActiveChatTravelConnectionResult[] {
+        return Array.isArray(results) ? (results as ActiveChatTravelConnectionResult[]) : [];
     }
 
     // Coerce skill preview status to embed status.
@@ -3212,19 +3222,23 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      * Emits --orb-color-a / --orb-color-b CSS custom properties consumed by
      * the living gradient orb animation (same system as ChatHeader + DailyInspirationBanner).
      */
-    function getResumeLargeCardStyle(
-        backgroundStyle: string,
+    function getResumeCardGradientStyle(
         orbColors?: { start: string; end: string } | null,
     ): string {
-        const parts = [backgroundStyle];
-        if (orbColors) {
-            parts.push(`--orb-color-a: ${orbColors.start}`);
-            parts.push(`--orb-color-b: ${orbColors.end}`);
-        } else {
-            // Primary blue fallback
-            parts.push('--orb-color-a: #4867cd');
-            parts.push('--orb-color-b: #a0beff');
-        }
+        const start = orbColors?.start ?? '#4867cd';
+        const end = orbColors?.end ?? '#a0beff';
+
+        return [
+            `background: linear-gradient(135deg, ${start}, ${end})`,
+            `--orb-color-a: ${start}`,
+            `--orb-color-b: ${end}`,
+        ].join('; ');
+    }
+
+    function getResumeLargeCardStyle(
+        orbColors?: { start: string; end: string } | null,
+    ): string {
+        const parts = [getResumeCardGradientStyle(orbColors)];
         if (resumeLargeCardTiltTransform) {
             parts.push(`transform: ${resumeLargeCardTiltTransform}`);
         }
@@ -9126,12 +9140,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                 bind:this={resumeLargeCardElement}
                                                 class="resume-chat-large-card"
                                                 class:hovering={isResumeLargeCardHovering}
-                                                style={getResumeLargeCardStyle(
-                                                    gradientColors
-                                                        ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})`
-                                                        : 'background: var(--color-primary)',
-                                                    gradientColors
-                                                )}
+                                                style={getResumeLargeCardStyle(gradientColors)}
                                                 onclick={handleResumeLastChat}
                                                 oncontextmenu={(e) => { if (resumeChatData) handleResumeCardContextMenu(e, resumeChatData); }}
                                                 ontouchstart={(e) => { if (resumeChatData) handleResumeCardTouchStart(e, resumeChatData); }}
@@ -9170,8 +9179,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                         {:else}
                                             <!-- Compact card: short screens or credits-error state -->
                                             {@const ChevronRight = getLucideIcon('chevron-right')}
+                                            {@const compactCategory = resumeChatCategory || 'general_knowledge'}
+                                            {@const compactGradientColors = getCategoryGradientColors(compactCategory)}
+                                            {@const compactIconName = getValidIconName(resumeChatIcon || '', compactCategory)}
+                                            {@const CompactIconComponent = getLucideIcon(compactIconName)}
                                             <button
                                                 class="resume-chat-card"
+                                                style={getResumeCardGradientStyle(compactGradientColors)}
                                                 onclick={handleResumeLastChat}
                                                 oncontextmenu={(e) => { if (resumeChatData) handleResumeCardContextMenu(e, resumeChatData); }}
                                                 ontouchstart={(e) => { if (resumeChatData) handleResumeCardTouchStart(e, resumeChatData); }}
@@ -9179,6 +9193,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                 ontouchend={handleResumeCardTouchEnd}
                                                 type="button"
                                             >
+                                                <div class="resume-chat-card-orbs" aria-hidden="true">
+                                                    <div class="resume-chat-card-orb resume-chat-card-orb-1"></div>
+                                                    <div class="resume-chat-card-orb resume-chat-card-orb-2"></div>
+                                                    <div class="resume-chat-card-orb resume-chat-card-orb-3"></div>
+                                                </div>
                                                 {#if resumeChatIsCreditsError}
                                                     <div class="resume-chat-content resume-chat-credits-content">
                                                         <span class="resume-chat-credits-label">{$text('chat.credits_needed')}</span>
@@ -9187,16 +9206,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                         {/if}
                                                     </div>
                                                 {:else}
-                                                    {@const category = resumeChatCategory || 'general_knowledge'}
-                                                    {@const gradientColors = getCategoryGradientColors(category)}
-                                                    {@const iconName = getValidIconName(resumeChatIcon || '', category)}
-                                                    {@const IconComponent = getLucideIcon(iconName)}
                                                     <div
                                                         class="resume-chat-category-circle"
-                                                        style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: #cccccc'}
+                                                        style={compactGradientColors ? `background: linear-gradient(135deg, ${compactGradientColors.start}, ${compactGradientColors.end})` : 'background: rgba(255, 255, 255, 0.22)'}
                                                     >
                                                         <div class="resume-chat-category-icon">
-                                                            <IconComponent size={16} color="white" />
+                                                            <CompactIconComponent size={16} color="white" />
                                                         </div>
                                                     </div>
                                                     <div class="resume-chat-content">
@@ -9204,7 +9219,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                     </div>
                                                 {/if}
                                                 <div class="resume-chat-arrow">
-                                                    <ChevronRight size={16} color="var(--color-grey-50)" />
+                                                    <ChevronRight size={16} color="rgba(255, 255, 255, 0.88)" />
                                                 </div>
                                             </button>
                                         {/if}
@@ -9218,9 +9233,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                         {@const iconName = getValidIconName(meta.icon || '', category)}
                                         {@const IconComponent = getLucideIcon(iconName)}
                                         {#if isTallViewport}
-                                            {@const bgStyle = gradientColors
-                                                ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end}); --orb-color-a: ${gradientColors.start}; --orb-color-b: ${gradientColors.end}`
-                                                : 'background: var(--color-primary); --orb-color-a: #4867cd; --orb-color-b: #a0beff'}
+                                            {@const bgStyle = getResumeCardGradientStyle(gradientColors)}
                                             {@const cardStyle = tilt?.tiltTransform
                                                 ? `${bgStyle}; transform: ${tilt.tiltTransform}`
                                                 : bgStyle}
@@ -9269,6 +9282,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                             {@const ChevronRight = getLucideIcon('chevron-right')}
                                             <button
                                                 class="resume-chat-card"
+                                                style={getResumeCardGradientStyle(gradientColors)}
                                                 onclick={() => handleOpenRecentChat(meta.chat)}
                                                 oncontextmenu={(e) => handleResumeCardContextMenu(e, meta.chat)}
                                                 ontouchstart={(e) => handleResumeCardTouchStart(e, meta.chat)}
@@ -9276,9 +9290,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                 ontouchend={handleResumeCardTouchEnd}
                                                 type="button"
                                             >
+                                                <div class="resume-chat-card-orbs" aria-hidden="true">
+                                                    <div class="resume-chat-card-orb resume-chat-card-orb-1"></div>
+                                                    <div class="resume-chat-card-orb resume-chat-card-orb-2"></div>
+                                                    <div class="resume-chat-card-orb resume-chat-card-orb-3"></div>
+                                                </div>
                                                 <div
                                                     class="resume-chat-category-circle"
-                                                    style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: #cccccc'}
+                                                    style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: rgba(255, 255, 255, 0.22)'}
                                                 >
                                                     <div class="resume-chat-category-icon">
                                                         <IconComponent size={16} color="white" />
@@ -9288,7 +9307,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                     <span class="resume-chat-title">{meta.title || $text('chat.untitled_chat')}</span>
                                                 </div>
                                                 <div class="resume-chat-arrow">
-                                                    <ChevronRight size={16} color="var(--color-grey-50)" />
+                                                    <ChevronRight size={16} color="rgba(255, 255, 255, 0.88)" />
                                                 </div>
                                             </button>
                                         {/if}
@@ -9298,6 +9317,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     {#if ($userProfile.total_chat_count ?? 0) > ((resumeChatData ? 1 : 0) + recentChats.length)}
                                         <button
                                             class="recent-chat-overflow"
+                                            class:compact={!isTallViewport}
                                             type="button"
                                             onclick={() => panelState.toggleChats()}
                                         >
@@ -9318,9 +9338,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                         {@const iconName = getValidIconName(meta.icon || '', category)}
                                         {@const IconComponent = getLucideIcon(iconName)}
                                         {#if isTallViewport}
-                                            {@const bgStyle = gradientColors
-                                                ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end}); --orb-color-a: ${gradientColors.start}; --orb-color-b: ${gradientColors.end}`
-                                                : 'background: var(--color-primary); --orb-color-a: #4867cd; --orb-color-b: #a0beff'}
+                                            {@const bgStyle = getResumeCardGradientStyle(gradientColors)}
                                             {@const cardStyle = tilt?.tiltTransform
                                                 ? `${bgStyle}; transform: ${tilt.tiltTransform}`
                                                 : bgStyle}
@@ -9369,6 +9387,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                             {@const ChevronRight = getLucideIcon('chevron-right')}
                                             <button
                                                 class="resume-chat-card"
+                                                style={getResumeCardGradientStyle(gradientColors)}
                                                 onclick={() => handleOpenRecentChat(meta.chat)}
                                                 oncontextmenu={(e) => handleResumeCardContextMenu(e, meta.chat)}
                                                 ontouchstart={(e) => handleResumeCardTouchStart(e, meta.chat)}
@@ -9376,9 +9395,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                 ontouchend={handleResumeCardTouchEnd}
                                                 type="button"
                                             >
+                                                <div class="resume-chat-card-orbs" aria-hidden="true">
+                                                    <div class="resume-chat-card-orb resume-chat-card-orb-1"></div>
+                                                    <div class="resume-chat-card-orb resume-chat-card-orb-2"></div>
+                                                    <div class="resume-chat-card-orb resume-chat-card-orb-3"></div>
+                                                </div>
                                                 <div
                                                     class="resume-chat-category-circle"
-                                                    style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: #cccccc'}
+                                                    style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: rgba(255, 255, 255, 0.22)'}
                                                 >
                                                     <div class="resume-chat-category-icon">
                                                         <IconComponent size={16} color="white" />
@@ -9388,7 +9412,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                     <span class="resume-chat-title">{meta.title || $text('chat.untitled_chat')}</span>
                                                 </div>
                                                 <div class="resume-chat-arrow">
-                                                    <ChevronRight size={16} color="var(--color-grey-50)" />
+                                                    <ChevronRight size={16} color="rgba(255, 255, 255, 0.88)" />
                                                 </div>
                                             </button>
                                         {/if}
@@ -9681,7 +9705,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             query={embedFullscreenData.decodedContent?.query || ''}
                             provider={embedFullscreenData.decodedContent?.provider || 'Brave'}
                             embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
-                            results={getWebSearchResults(embedFullscreenData.decodedContent?.results)}
+                            results={getWebSearchResults(embedFullscreenData.decodedContent?.results) as any}
                             status={normalizeEmbedStatus(embedFullscreenData.embedData?.status ?? embedFullscreenData.decodedContent?.status)}
                             errorMessage={typeof embedFullscreenData.decodedContent?.error === 'string' ? embedFullscreenData.decodedContent.error : ''}
                             embedId={embedFullscreenData.embedId}
@@ -11150,6 +11174,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         width: 56px;
         min-width: 56px;
         height: 200px;
+        margin-top: 16px;
         border-radius: 20px;
         background: var(--color-grey-20, rgba(0, 0, 0, 0.07));
         border: 1.5px dashed var(--color-grey-40);
@@ -11162,6 +11187,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         pointer-events: auto;
     }
 
+    .recent-chat-overflow.compact {
+        width: clamp(54px, 15vw, 66px);
+        min-width: clamp(54px, 15vw, 66px);
+        height: 72px;
+        border-radius: 24px;
+        padding: 0 10px;
+        font-size: 13px;
+        line-height: 1;
+    }
+
     .recent-chat-overflow:hover {
         background: var(--color-grey-30, rgba(0, 0, 0, 0.12));
         color: var(--color-grey-80);
@@ -11170,43 +11205,129 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     /* Resume chat card - shown in center-content below welcome greeting */
     .resume-chat-card {
+        position: relative;
         display: flex;
         align-items: center;
         gap: 12px;
         width: 100%;
         max-width: 400px;
-        padding: 12px 16px;
+        min-height: 72px;
+        padding: 14px 16px;
         margin-top: 16px;
-        background-color: var(--color-grey-10);
-        border: 1px solid var(--color-grey-30);
-        border-radius: 12px;
+        background-color: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 22px;
         cursor: pointer;
-        transition: all 0.2s ease;
+        overflow: hidden;
+        isolation: isolate;
+        box-shadow:
+            0 8px 24px rgba(0, 0, 0, 0.16),
+            0 2px 6px rgba(0, 0, 0, 0.1);
+        transition:
+            transform 0.15s ease-out,
+            box-shadow 0.2s ease-out,
+            border-color 0.2s ease;
         text-align: left;
         pointer-events: auto; /* Re-enable clicks (parent center-content has pointer-events: none) */
     }
 
     .resume-chat-card:hover {
-        background-color: var(--color-grey-15);
-        border-color: var(--color-grey-40);
+        background-color: transparent;
+        border-color: rgba(255, 255, 255, 0.24);
         transform: translateY(-1px);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        box-shadow:
+            0 10px 28px rgba(0, 0, 0, 0.18),
+            0 3px 8px rgba(0, 0, 0, 0.12);
     }
 
     .resume-chat-card:active {
-        transform: translateY(0);
-        box-shadow: none;
+        background-color: transparent;
+        transform: scale(0.98);
+        box-shadow:
+            0 4px 12px rgba(0, 0, 0, 0.12),
+            0 1px 3px rgba(0, 0, 0, 0.08);
+        filter: none;
+    }
+
+    .resume-chat-card:focus {
+        outline: 2px solid rgba(255, 255, 255, 0.5);
+        outline-offset: 2px;
+    }
+
+    .resume-chat-card > :not(.resume-chat-card-orbs) {
+        position: relative;
+        z-index: 1;
+    }
+
+    .resume-chat-card-orbs {
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        overflow: hidden;
+        border-radius: 22px;
+        pointer-events: none;
+    }
+
+    .resume-chat-card-orb {
+        position: absolute;
+        background: radial-gradient(
+            ellipse at center,
+            var(--orb-color-b) 0%,
+            var(--orb-color-b) 40%,
+            transparent 82%
+        );
+        filter: blur(18px);
+        opacity: 0.34;
+        will-change: transform, border-radius;
+    }
+
+    .resume-chat-card-orb-1 {
+        top: -50px;
+        left: -48px;
+        width: 170px;
+        height: 140px;
+        animation:
+            orbMorph1 11s ease-in-out infinite,
+            resumeOrbDrift1 19s ease-in-out infinite;
+    }
+
+    .resume-chat-card-orb-2 {
+        right: -46px;
+        bottom: -58px;
+        width: 168px;
+        height: 138px;
+        animation:
+            orbMorph2 13s ease-in-out infinite,
+            resumeOrbDrift2 23s ease-in-out infinite;
+    }
+
+    .resume-chat-card-orb-3 {
+        top: -26px;
+        left: 42%;
+        width: 120px;
+        height: 104px;
+        opacity: 0.3;
+        animation:
+            orbMorph3 17s ease-in-out infinite,
+            resumeOrbDrift3 29s ease-in-out infinite;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .resume-chat-card-orb {
+            animation: none !important;
+        }
     }
 
     /* Category gradient circle matching Chat.svelte sidebar design */
     .resume-chat-category-circle {
-        width: 28px;
-        height: 28px;
+        width: 34px;
+        height: 34px;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+        border: 1px solid rgba(255, 255, 255, 0.2);
         flex-shrink: 0;
     }
 
@@ -11232,13 +11353,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     .resume-chat-credits-label {
         font-size: 14px;
-        color: var(--color-grey-60);
+        color: rgba(255, 255, 255, 0.78);
     }
 
     .resume-chat-credits-preview {
         font-size: 15px;
-        font-weight: 500;
-        color: var(--color-grey-90);
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.96);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -11248,12 +11369,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     .resume-chat-title {
         font-size: 15px;
-        font-weight: 500;
-        color: var(--color-grey-90);
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.96);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
         display: block;
+        text-shadow: 0 1px 4px rgba(0, 0, 0, 0.22);
     }
 
     .resume-chat-arrow {
@@ -11261,7 +11383,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
-        opacity: 0.5;
+        opacity: 0.82;
     }
 
     /* ===========================================
