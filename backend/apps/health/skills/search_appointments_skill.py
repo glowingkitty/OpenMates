@@ -44,6 +44,8 @@ from urllib.parse import urlencode
 
 import httpx
 
+from backend.shared.testing.caching_http_transport import create_http_client
+
 if TYPE_CHECKING:
     from backend.core.api.app.utils.secrets_manager import SecretsManager
 
@@ -1564,7 +1566,7 @@ class SearchAppointmentsSkill(BaseSkill):
             last_error: Optional[str] = None
 
             for attempt in range(DOCTOLIB_MAX_RETRIES):
-                async with httpx.AsyncClient(**client_kwargs) as client:
+                async with create_http_client("doctolib", **client_kwargs) as client:
                     request_id, results, error = await _process_single_doctolib_request(client, req)
 
                 if not error:
@@ -1593,7 +1595,7 @@ class SearchAppointmentsSkill(BaseSkill):
                 "timeout": httpx.Timeout(30.0, connect=10.0),
                 "follow_redirects": True,
             }
-            async with httpx.AsyncClient(**jameda_kwargs) as client:
+            async with create_http_client("jameda", **jameda_kwargs) as client:
                 return await _process_single_jameda_request(client, req)
 
         async def _process(req: Dict[str, Any], **kwargs) -> Tuple[str, List[Dict[str, Any]], Optional[str]]:

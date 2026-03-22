@@ -818,6 +818,30 @@ async def _async_process_ai_skill_ask_task(
                         from backend.apps.ai.testing.fixture_recorder import FixtureRecorder
                         _fixture_recorder = FixtureRecorder(_test_marker[1], request_data)
 
+    # Detect <<<TEST_LIVE_MOCK:group_id>>> or <<<TEST_LIVE_RECORD:group_id>>> markers.
+    # Unlike TEST_MOCK (which skips the pipeline entirely), live mock runs the FULL
+    # pipeline but intercepts external API calls (LLM providers, skill HTTP requests)
+    # with cached record-and-replay responses. This tests everything except the parts
+    # that cost money.
+    # SECURITY: Only works when SERVER_ENVIRONMENT != "production" AND MOCK_EXTERNAL_APIS=true.
+    if os.getenv("MOCK_EXTERNAL_APIS") == "true" and not _test_marker:
+        from backend.shared.testing.mock_context import detect_live_marker, strip_live_marker, activate_mock_mode
+        if request_data.message_history:
+            last_user_msg = next(
+                (m for m in reversed(request_data.message_history) if m.role == "user"),
+                None,
+            )
+            if last_user_msg:
+                _live_marker = detect_live_marker(last_user_msg.content)
+                if _live_marker:
+                    live_mode, live_group = _live_marker
+                    last_user_msg.content = strip_live_marker(last_user_msg.content)
+                    activate_mock_mode(live_mode, live_group)
+                    logger.info(
+                        f"[Task ID: {task_id}] LIVE {live_mode.upper()}: "
+                        f"group='{live_group}' — full pipeline with cached API responses"
+                    )
+
     # --- MOCK BRANCH: Skip compression + preprocessing + main processing ---
     # When a TEST_MOCK marker is detected, replay pre-recorded fixture data and jump
     # directly to postprocessing. All variables that postprocessing depends on are set
@@ -2315,5 +2339,12 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
             })
         raise Ignore()
     finally:
+        # Clean up live mock context vars (no-op if not activated)
+        if os.getenv("MOCK_EXTERNAL_APIS") == "true":
+            try:
+                from backend.shared.testing.mock_context import deactivate_mock_mode
+                deactivate_mock_mode()
+            except ImportError:
+                pass
         loop.close()
         logger.info(f"[Task ID: {task_id}] Async event loop closed.")

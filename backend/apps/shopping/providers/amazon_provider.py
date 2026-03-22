@@ -18,6 +18,7 @@ from typing import Any, Dict, List, Optional, TYPE_CHECKING
 import httpx
 
 from backend.shared.providers.serpapi import SERPAPI_BASE, get_serpapi_key_async
+from backend.shared.testing.caching_http_transport import create_http_client
 
 if TYPE_CHECKING:
     from backend.core.api.app.utils.secrets_manager import SecretsManager
@@ -269,7 +270,7 @@ async def search_products(
     )
 
     try:
-        async with httpx.AsyncClient(timeout=40.0) as client:
+        async with create_http_client("amazon_serpapi", timeout=40.0) as client:
             response = await client.get(SERPAPI_BASE, params=params)
         response.raise_for_status()
     except httpx.HTTPError as exc:

@@ -7,8 +7,9 @@
 # Architecture context: See docs/architecture/e2e-test-mock-replay.md
 #
 # Modules:
-#   mock_replay.py       - Marker detection, fixture loading, Redis stream replay
-#   fixture_recorder.py  - Records real LLM/skill responses as fixture files
+#   mock_replay.py          - Marker detection, fixture loading, Redis stream replay
+#   fixture_recorder.py     - Records real LLM/skill responses as fixture files
+#   caching_llm_wrapper.py  - LLM provider caching for live mock mode (full pipeline)
 #
 # Security:
 #   All mock functionality is gated on SERVER_ENVIRONMENT != "production".

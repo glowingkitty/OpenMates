@@ -197,6 +197,27 @@ def _build_provider_registry() -> Dict[str, Any]:
             )
     
     logger.info(f"Provider registry built with {len(registry)} server providers from YAML configs: {sorted(registry.keys())}")
+
+    # Live mock system: wrap each provider with caching when MOCK_EXTERNAL_APIS=true.
+    # The wrapper checks mock_mode_var per-request — if "off", calls real provider directly
+    # with zero overhead. Only activates for requests with TEST_LIVE_MOCK/RECORD markers.
+    if os.getenv("MOCK_EXTERNAL_APIS") == "true" and os.getenv("SERVER_ENVIRONMENT", "production") != "production":
+        try:
+            from backend.apps.ai.testing.caching_llm_wrapper import wrap_provider_with_cache
+            from backend.shared.testing.api_response_cache import get_shared_cache
+
+            cache = get_shared_cache()
+            wrapped_count = 0
+            for server_id in list(registry.keys()):
+                registry[server_id] = wrap_provider_with_cache(registry[server_id], cache)
+                wrapped_count += 1
+            logger.info(
+                f"[LiveMock] Wrapped {wrapped_count} LLM provider(s) with caching "
+                f"(activated per-request via TEST_LIVE_MOCK/RECORD markers)"
+            )
+        except ImportError as e:
+            logger.warning(f"[LiveMock] Could not import caching wrapper: {e}")
+
     return registry
 
 

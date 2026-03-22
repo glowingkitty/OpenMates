@@ -20,6 +20,7 @@ import httpx
 from typing import Dict, Any, List, Optional
 
 from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.shared.testing.caching_http_transport import create_http_client
 
 logger = logging.getLogger(__name__)
 
@@ -327,7 +328,7 @@ async def search_web(
     logger.debug(f"Performing Brave web search: query='{query}', count={count}, country={country}, api_key_length={len(api_key)}, api_key_preview={masked_key}")
     
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with create_http_client("brave", timeout=30.0) as client:
             response = await _request_with_429_retry(
                 client=client, url=url, params=params, headers=headers,
                 query=query, search_type="web"
@@ -519,7 +520,7 @@ async def search_videos(
     logger.debug(f"Performing Brave video search: query='{query}', count={count}, country={country}, api_key_length={len(api_key)}, api_key_preview={masked_key}")
     
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with create_http_client("brave", timeout=30.0) as client:
             response = await _request_with_429_retry(
                 client=client, url=url, params=params, headers=headers,
                 query=query, search_type="video"
@@ -691,7 +692,7 @@ async def search_news(
     logger.debug(f"Performing Brave news search: query='{query}', count={count}, country={country}, api_key_length={len(api_key)}, api_key_preview={masked_key}")
     
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with create_http_client("brave", timeout=30.0) as client:
             response = await _request_with_429_retry(
                 client=client, url=url, params=params, headers=headers,
                 query=query, search_type="news"
@@ -850,7 +851,7 @@ async def search_images(
     )
 
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with create_http_client("brave", timeout=30.0) as client:
             response = await _request_with_429_retry(
                 client=client, url=url, params=params, headers=headers,
                 query=query, search_type="images"

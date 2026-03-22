@@ -34,6 +34,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
 
+from backend.shared.testing.caching_http_transport import create_http_client
 from backend.shared.python_utils.geo_utils import CITY_COORDS
 
 logger = logging.getLogger(__name__)
@@ -400,7 +401,8 @@ async def search_events_async(
     t0 = time.time()
 
     try:
-        async with httpx.AsyncClient(
+        async with create_http_client(
+            "meetup",
             proxy=proxy_url,
             timeout=20.0,
             follow_redirects=True,
@@ -525,7 +527,8 @@ async def _enrich_events_with_image_urls_async(
 
     semaphore = asyncio.Semaphore(_IMAGE_FETCH_CONCURRENCY)
 
-    async with httpx.AsyncClient(
+    async with create_http_client(
+        "meetup",
         proxy=proxy_url,
         timeout=_IMAGE_FETCH_TIMEOUT_SECONDS,
         follow_redirects=True,

@@ -805,6 +805,55 @@ function withRecordMarker(message: string, fixtureId: string): string {
 	return `${message} <<<TEST_RECORD:${fixtureId}>>>`;
 }
 
+/**
+ * Append a <<<TEST_LIVE_MOCK:group_id>>> marker to a chat message when E2E_USE_LIVE_MOCKS is set.
+ *
+ * Unlike withMockMarker (which skips the entire pipeline and replays a fixture),
+ * live mock mode runs the FULL processing pipeline (preprocessing, main inference,
+ * postprocessing, billing) but intercepts external API calls (LLM providers, skill
+ * HTTP requests) with cached record-and-replay responses. This tests everything
+ * except the parts that cost money.
+ *
+ * The group_id namespaces cached responses so different test flows don't collide
+ * (e.g., "web_search_flow", "travel_search_flow").
+ *
+ * @param message  The chat message text to send
+ * @param groupId  Namespace for cached API responses (e.g., "web_search_flow")
+ * @returns        Message text with live mock/record marker appended
+ *
+ * @example
+ *   await page.keyboard.type(withLiveMockMarker('Search for flights to Paris', 'travel_search'));
+ */
+function withLiveMockMarker(message: string, groupId: string): string {
+	if (process.env.E2E_RECORD_LIVE_FIXTURES) {
+		// Record mode: run real APIs and cache responses for future replay
+		return `${message} <<<TEST_LIVE_RECORD:${groupId}>>>`;
+	}
+	if (process.env.E2E_USE_LIVE_MOCKS) {
+		// Replay mode: use cached API responses (zero cost)
+		return `${message} <<<TEST_LIVE_MOCK:${groupId}>>>`;
+	}
+	// No env var set: send message without marker (real APIs, real costs)
+	return message;
+}
+
+/**
+ * Append a <<<TEST_LIVE_RECORD:group_id>>> marker to a chat message.
+ *
+ * Used to record real API responses for live mock replay. The test runs the full
+ * pipeline with real APIs, but the backend caches all external API responses
+ * (LLM calls, skill HTTP requests) as JSON files for future replay.
+ *
+ * After recording, the cached responses can be replayed with withLiveMockMarker().
+ *
+ * @param message  The chat message text to send
+ * @param groupId  Namespace for cached API responses
+ * @returns        Message text with live record marker appended
+ */
+function withLiveRecordMarker(message: string, groupId: string): string {
+	return `${message} <<<TEST_LIVE_RECORD:${groupId}>>>`;
+}
+
 module.exports = {
 	ARTIFACTS_DIRNAME,
 	PREVIOUS_RUN_DIRNAME,
@@ -823,4 +872,6 @@ module.exports = {
 	getE2EDebugUrl,
 	withMockMarker,
 	withRecordMarker,
+	withLiveMockMarker,
+	withLiveRecordMarker,
 };

@@ -9,8 +9,7 @@ import html
 import re
 from typing import Any, Dict, List, Tuple
 
-import httpx
-
+from backend.shared.testing.caching_http_transport import create_http_client
 
 BASE_URL = "https://bachtrack.com"
 DEFAULT_TIMEOUT_SECONDS = 25.0
@@ -67,7 +66,7 @@ async def search_events_async(
     section_slug = _get_section_slug(categories)
     search_url = f"{BASE_URL}/{section_slug}/city={city_slug}"
 
-    async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT_SECONDS, follow_redirects=True) as client:
+    async with create_http_client("bachtrack", timeout=DEFAULT_TIMEOUT_SECONDS, follow_redirects=True) as client:
         response = await client.get(search_url, headers=REQUEST_HEADERS)
     response.raise_for_status()
     page = response.text

@@ -9,8 +9,7 @@ import time
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urljoin
 
-import httpx
-
+from backend.shared.testing.caching_http_transport import create_http_client
 
 BASE_URL = "https://www.berliner-philharmoniker.de"
 SEARCH_URL = f"{BASE_URL}/filter/search/collections/performance_1/documents/search"
@@ -71,7 +70,7 @@ async def search_events_async(
         "page": "1",
     }
 
-    async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT_SECONDS, follow_redirects=True) as client:
+    async with create_http_client("berlin_philharmonic", timeout=DEFAULT_TIMEOUT_SECONDS, follow_redirects=True) as client:
         response = await client.get(SEARCH_URL, headers=headers, params=params)
     response.raise_for_status()
     payload = response.json()

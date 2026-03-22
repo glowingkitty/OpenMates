@@ -51,7 +51,7 @@ import time
 from dataclasses import asdict, dataclass
 from typing import Any, Optional, TYPE_CHECKING
 
-import httpx
+from backend.shared.testing.caching_http_transport import create_http_client
 
 if TYPE_CHECKING:
     from backend.core.api.app.utils.secrets_manager import SecretsManager
@@ -462,7 +462,8 @@ async def search_products(
     # Execute request (follow redirects: shop.rewe.de → www.rewe.de)
     # NOTE: httpx ≥ 0.20 removed the `proxies` dict kwarg. Use `proxy=` (single URL)
     # for a single proxy URL; omit the kwarg entirely when no proxy is configured.
-    async with httpx.AsyncClient(
+    async with create_http_client(
+        "rewe",
         follow_redirects=True,
         timeout=20.0,
         **({"proxy": proxy_url} if proxy_url else {}),
