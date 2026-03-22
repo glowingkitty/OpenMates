@@ -42,7 +42,7 @@ api.openmates.org {
 	# --- Request Routing ---
 
 	# Define matchers
-	@health_path path /health /v1/health /v1/health/* /v1/server # Health check and server info endpoints (public, no auth required)
+	@health_path path /health /v1/health /v1/health/* /v1/server /v1/status /v1/status/* # Health check, server info, and status page endpoints (public, no auth required)
 	@webapp_paths path /v1/auth/* /v1/payments/* # Webapp paths that require Origin check
 	@webapp_origin header Origin https://openmates.org
 	@options_method method OPTIONS # Renamed for clarity
@@ -154,9 +154,9 @@ api.openmates.org {
 		method OPTIONS
 	}
 
-	# Health API endpoints OPTIONS (for /v1/health/* subpaths like /history and /incidents)
+	# Health/Status API endpoints OPTIONS (for /v1/health/* and /v1/status/* subpaths)
 	@health_api_options {
-		path /v1/health/*
+		path /v1/health/* /v1/status /v1/status/*
 		method OPTIONS
 	}
 
