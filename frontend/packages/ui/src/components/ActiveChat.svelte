@@ -2327,7 +2327,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             case 'download': {
                 resumeCardContextMenuDownloading = true;
                 try {
-                    const messages = await chatDB.getMessages(chat.chat_id);
+                    const messages = await chatDB.getMessagesForChat(chat.chat_id);
                     await downloadChatAsZip(chat, messages);
                 } catch (err) {
                     console.error('[ActiveChat] Download failed:', err);
@@ -2340,7 +2340,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
             case 'copy': {
                 try {
-                    const messages = await chatDB.getMessages(chat.chat_id);
+                    const messages = await chatDB.getMessagesForChat(chat.chat_id);
                     await copyChatToClipboard(chat, messages);
                     notificationStore.success('Chat copied to clipboard');
                 } catch (err) {
