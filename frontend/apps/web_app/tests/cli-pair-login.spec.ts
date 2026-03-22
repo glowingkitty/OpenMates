@@ -36,6 +36,8 @@ const {
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
+const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+
 /**
  * Resolve the CLI entry point. Inside the Playwright Docker container the CLI
  * dist is mounted at /workspace/cli/dist/cli.js. When running locally (e.g.
@@ -232,66 +234,6 @@ async function runCliCommand(
 			resolve({ code, stdout: stdoutChunks.join(''), stderr: stderrChunks.join('') });
 		});
 	});
-}
-
-/**
- * Login to the test account via the web app UI.
- * Reused from chat-search-flow.spec.ts pattern.
- */
-async function loginToTestAccount(
-	page: any,
-	logCheckpoint: (msg: string) => void,
-	takeStepScreenshot: (page: any, label: string) => Promise<void>
-): Promise<void> {
-	await page.goto(getE2EDebugUrl('/'));
-	await takeStepScreenshot(page, 'home');
-
-	const headerLoginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
-	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
-	await headerLoginButton.click();
-
-	const emailInput = page.locator('#login-email-input');
-	await expect(emailInput).toBeVisible({ timeout: 15000 });
-	await emailInput.fill(TEST_EMAIL);
-	await page.getByRole('button', { name: /continue/i }).click();
-	logCheckpoint('Entered email and clicked continue.');
-
-	const passwordInput = page.locator('#login-password-input');
-	await expect(passwordInput).toBeVisible({ timeout: 15000 });
-	await passwordInput.fill(TEST_PASSWORD);
-
-	const otpInput = page.locator('#login-otp-input');
-	await expect(otpInput).toBeVisible({ timeout: 15000 });
-
-	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
-	const errorMessage = page
-		.locator('.error-message, [class*="error"]')
-		.filter({ hasText: /wrong|invalid|incorrect/i });
-
-	let loginSuccess = false;
-	for (let attempt = 1; attempt <= 3 && !loginSuccess; attempt++) {
-		const otpCode = generateTotp(TEST_OTP_KEY);
-		await otpInput.fill(otpCode);
-		logCheckpoint(`Generated and entered OTP (attempt ${attempt}).`);
-		await submitLoginButton.click();
-
-		try {
-			await expect(otpInput).not.toBeVisible({ timeout: 8000 });
-			loginSuccess = true;
-		} catch {
-			const hasError = await errorMessage.isVisible();
-			if (hasError && attempt < 3) {
-				logCheckpoint(`OTP attempt ${attempt} failed, waiting for new TOTP window...`);
-				await page.waitForTimeout(31000);
-				await otpInput.fill('');
-			} else if (!hasError) {
-				loginSuccess = true;
-			}
-		}
-	}
-
-	await page.waitForURL(/chat/, { timeout: 20000 });
-	logCheckpoint('Login successful — on chat page.');
 }
 
 // ---------------------------------------------------------------------------

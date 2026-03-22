@@ -35,72 +35,11 @@ const {
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
+const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
 // ─── Shared login helper ─────────────────────────────────────────────────────
-
-/**
- * Log in with email + password + TOTP 2FA.
- * Fixes the TOTP race condition by waiting until we're well into the current
- * 30-second window before generating a code (avoids boundary expiry on submission).
- */
-async function loginToTestAccount(
-	page: any,
-	logCheckpoint: (msg: string, meta?: Record<string, unknown>) => void,
-	takeStepScreenshot: (page: any, label: string) => Promise<void>
-): Promise<void> {
-	await page.goto(getE2EDebugUrl('/'));
-	await takeStepScreenshot(page, 'home');
-
-	const headerLoginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
-	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
-	await headerLoginButton.click();
-
-	const emailInput = page.locator('#login-email-input');
-	await expect(emailInput).toBeVisible({ timeout: 10000 });
-	await emailInput.fill(TEST_EMAIL);
-	await page.locator('#login-continue-button').click();
-
-	const passwordInput = page.locator('#login-password-input');
-	await expect(passwordInput).toBeVisible({ timeout: 15000 });
-	await passwordInput.fill(TEST_PASSWORD);
-
-	const otpInput = page.locator('#login-otp-input');
-	await expect(otpInput).toBeVisible({ timeout: 15000 });
-
-	const submitLoginButton = page.locator('#login-submit-button');
-
-	let loginSuccess = false;
-	for (let attempt = 1; attempt <= 3 && !loginSuccess; attempt++) {
-		// Wait until we're well into the current TOTP window to avoid boundary expiry
-		const secondsIntoWindow = Math.floor(Date.now() / 1000) % 30;
-		if (secondsIntoWindow > 27) {
-			const msToWait = (30 - secondsIntoWindow) * 1000 + 3000;
-			logCheckpoint(`Waiting ${msToWait}ms for fresh TOTP window (attempt ${attempt})...`);
-			await page.waitForTimeout(msToWait);
-		}
-
-		const otpCode = generateTotp(TEST_OTP_KEY);
-		await otpInput.fill(otpCode);
-		await submitLoginButton.click();
-		try {
-			await page.waitForURL(/chat/, { timeout: 12000 });
-			await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 12000 });
-			loginSuccess = true;
-		} catch {
-			if (attempt < 3) {
-				await page.waitForTimeout(3000);
-				await otpInput.fill('');
-			}
-		}
-	}
-	if (!loginSuccess) {
-		await takeStepScreenshot(page, 'login-failed');
-		throw new Error('Login failed after 3 OTP attempts');
-	}
-	await page.waitForURL(/chat/, { timeout: 20000 });
-	logCheckpoint('Logged in.');
-}
 
 // ─── Navigate to API Keys settings page ─────────────────────────────────────
 

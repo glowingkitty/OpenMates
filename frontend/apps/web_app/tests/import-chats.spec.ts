@@ -21,6 +21,8 @@ const {
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
+const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
 const IMPORT_CHAT_TITLE_1 = 'Playwright Import Test Chat 1';
@@ -46,51 +48,6 @@ test.afterEach(async ({}, testInfo: any) => {
 		console.error('\n--- END DEBUG INFO ---\n');
 	}
 });
-
-async function loginToTestAccount(page: any): Promise<void> {
-	await page.goto(getE2EDebugUrl('/'));
-
-	const headerLoginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
-	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
-	await headerLoginButton.click();
-
-	const standaloneLoginButton = page.getByRole('button', { name: /^login$/i });
-	if (await standaloneLoginButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-		await standaloneLoginButton.click();
-	}
-
-	const emailInput = page.locator(
-		'#login-email-input'
-	);
-	await expect(emailInput.first()).toBeVisible({ timeout: 15000 });
-	await emailInput.first().fill(TEST_EMAIL);
-	await page.getByRole('button', { name: /continue/i }).click();
-
-	const passwordInput = page.locator('#login-password-input');
-	const otpInput = page.locator('#login-otp-input');
-	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
-
-	await expect(passwordInput).toBeVisible({ timeout: 15000 });
-	await expect(otpInput).toBeVisible({ timeout: 15000 });
-
-	let loginSuccess = false;
-	for (let attempt = 1; attempt <= 3 && !loginSuccess; attempt++) {
-		await passwordInput.fill(TEST_PASSWORD);
-		await otpInput.fill(generateTotp(TEST_OTP_KEY));
-		await submitLoginButton.click();
-
-		try {
-			await expect(page.locator('.chat-container.authenticated')).toBeVisible({ timeout: 10000 });
-			loginSuccess = true;
-		} catch {
-			if (attempt < 3) {
-				await page.waitForTimeout(2000);
-			}
-		}
-	}
-
-	expect(loginSuccess, 'Login should succeed within 3 attempts').toBe(true);
-}
 
 async function openImportSettings(page: any): Promise<void> {
 	const settingsMenuButton = page.locator('.profile-container[role="button"]');
@@ -153,7 +110,7 @@ test('imports chats from ZIP in account settings and shows success results', asy
 	const screenshot = createStepScreenshotter(log, { filenamePrefix: 'import-chats' });
 	await archiveExistingScreenshots(log);
 
-	await loginToTestAccount(page);
+	await loginToTestAccount(page, log, screenshot);
 	log('Logged in to test account.');
 	await screenshot(page, 'logged-in');
 

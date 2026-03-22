@@ -44,71 +44,9 @@ const {
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
+const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
-
-async function loginToTestAccount(
-	page: any,
-	logCheckpoint: (msg: string, meta?: Record<string, unknown>) => void,
-	takeStepScreenshot: (page: any, label: string) => Promise<void>
-): Promise<void> {
-	await page.goto(getE2EDebugUrl('/'));
-	await takeStepScreenshot(page, 'home');
-
-	const headerLoginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
-	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
-	await headerLoginButton.click();
-
-	const emailInput = page.locator('#login-email-input');
-	await expect(emailInput).toBeVisible({ timeout: 10000 });
-	await emailInput.fill(TEST_EMAIL);
-	await page.locator('#login-continue-button').click();
-
-	const passwordInput = page.locator('#login-password-input');
-	await expect(passwordInput).toBeVisible({ timeout: 15000 });
-	await passwordInput.fill(TEST_PASSWORD);
-
-	const otpInput = page.locator('#login-otp-input');
-	await expect(otpInput).toBeVisible({ timeout: 15000 });
-
-	const submitLoginButton = page.locator('#login-submit-button');
-	let loginSuccess = false;
-	for (let attempt = 1; attempt <= 5 && !loginSuccess; attempt++) {
-		// Wait until well into the current TOTP window to avoid boundary expiry.
-		// Guard expanded from 27s to 24s: if we are in the last 6 seconds of a window,
-		// wait for the window to roll over plus a 5s buffer. This absorbs:
-		//   - Network latency to the TOTP server (~1-2s)
-		//   - Clock skew between test runner and server (~1s)
-		//   - Execution time for fill + click (~1s)
-		// Previous 3s buffer was too tight at 03:00 UTC under CI load.
-		const secondsIntoWindow = Math.floor(Date.now() / 1000) % 30;
-		if (secondsIntoWindow > 24) {
-			const msToWait = (30 - secondsIntoWindow) * 1000 + 5000;
-			logCheckpoint(`Waiting ${msToWait}ms for fresh TOTP window (attempt ${attempt})...`);
-			await page.waitForTimeout(msToWait);
-		}
-		const otpCode = generateTotp(TEST_OTP_KEY);
-		await otpInput.fill(otpCode);
-		await submitLoginButton.click();
-		try {
-			await page.waitForURL(/chat/, { timeout: 12000 });
-			await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 12000 });
-			loginSuccess = true;
-		} catch {
-			if (attempt < 5) {
-				// Wait for the next TOTP window before retrying
-				const nowSecs = Math.floor(Date.now() / 1000) % 30;
-				const msToNextWindow = (30 - nowSecs) * 1000 + 5000;
-				await page.waitForTimeout(Math.min(msToNextWindow, 35000));
-				await otpInput.fill('');
-			}
-		}
-	}
-	if (!loginSuccess) {
-		throw new Error('Login failed after 5 OTP attempts');
-	}
-	await page.waitForURL(/chat/, { timeout: 20000 });
-	logCheckpoint('Logged in.');
-}
 
 // ---------------------------------------------------------------------------
 // Test 1: Navigate to Buy Credits → verify tiers → click tier → payment form

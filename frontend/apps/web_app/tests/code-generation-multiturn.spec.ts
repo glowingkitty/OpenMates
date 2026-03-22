@@ -20,6 +20,8 @@ const {
 	withMockMarker
 } = require('./signup-flow-helpers');
 
+const { loginToTestAccount, startNewChat, sendMessage, deleteActiveChat } = require('./helpers/chat-test-helpers');
+
 /**
  * Multi-turn code generation E2E test.
  *
@@ -53,114 +55,6 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 function setupPageListeners(page: any) {
 	attachConsoleListeners(page);
 	attachNetworkListeners(page);
-}
-
-/**
- * Log in with email + password + TOTP 2FA (3-attempt retry for OTP timing).
- */
-async function loginToTestAccount(page: any, log: any, screenshot: any) {
-	await page.goto(getE2EDebugUrl('/'));
-	await screenshot(page, 'login-home');
-
-	const headerLoginButton = page.getByRole('button', {
-		name: /login.*sign up|sign up/i
-	});
-	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
-	await headerLoginButton.click();
-	await page.waitForTimeout(1000); // Wait for login dialog animation
-	await screenshot(page, 'login-dialog');
-
-	const emailInput = page.locator('#login-email-input');
-	await expect(emailInput).toBeVisible({ timeout: 10000 });
-	await emailInput.fill(TEST_EMAIL);
-	log(`Filled email: "${TEST_EMAIL}"`);
-
-	// Wait for debounced email validation to complete (800ms debounce + processing)
-	await page.waitForTimeout(1500);
-	await screenshot(page, 'login-email-filled');
-
-	// Wait for the Continue button to become enabled (form validation is async)
-	const continueButton = page.getByRole('button', { name: /continue/i });
-	await expect(continueButton).toBeEnabled({ timeout: 15000 });
-	await continueButton.click();
-	log('Entered email and clicked continue.');
-
-	const passwordInput = page.locator('#login-password-input');
-	await expect(passwordInput).toBeVisible({ timeout: 15000 });
-	await passwordInput.fill(TEST_PASSWORD);
-
-	const otpInput = page.locator('#login-otp-input');
-	await expect(otpInput).toBeVisible({ timeout: 15000 });
-
-	const submitButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
-
-	let loginSuccess = false;
-	for (let attempt = 1; attempt <= 3 && !loginSuccess; attempt++) {
-		// Wait until we're well into the current TOTP window to avoid boundary expiry
-		const secondsIntoWindow = Math.floor(Date.now() / 1000) % 30;
-		if (secondsIntoWindow > 27) {
-			const msToWait = (30 - secondsIntoWindow) * 1000 + 3000;
-			log(`Waiting ${msToWait}ms for fresh TOTP window (attempt ${attempt})...`);
-			await page.waitForTimeout(msToWait);
-		}
-		const otpCode = generateTotp(TEST_OTP_KEY);
-		await otpInput.fill(otpCode);
-		log(`Entered OTP (attempt ${attempt}).`);
-
-		await expect(submitButton).toBeVisible();
-		await submitButton.click();
-
-		try {
-			await page.waitForURL(/chat/, { timeout: 15000 });
-			loginSuccess = true;
-			log('Login successful.');
-		} catch {
-			if (attempt < 3) {
-				log(`OTP attempt ${attempt} failed, retrying...`);
-				await page.waitForTimeout(3000);
-				await otpInput.fill('');
-			} else {
-				throw new Error('Login failed after 3 OTP attempts');
-			}
-		}
-	}
-
-	await page.waitForTimeout(3000);
-	const messageEditor = page.getByTestId('message-editor');
-	await expect(messageEditor).toBeVisible({ timeout: 20000 });
-	log('Chat interface loaded.');
-}
-
-/**
- * Start a new chat by clicking the New Chat button.
- */
-async function startNewChat(page: any, log: any) {
-	await page.waitForTimeout(1000);
-	// data-testid="new-chat-button" on the ActiveChat new-chat CTA button
-	const button = page.getByTestId('new-chat-button').first();
-	if (await button.isVisible({ timeout: 3000 }).catch(() => false)) {
-		log('Found New Chat button (data-testid).');
-		await button.click();
-		await page.waitForTimeout(2000);
-		return;
-	}
-	log('WARNING: Could not find New Chat button — may already be in a new chat.');
-}
-
-/**
- * Send a message via the TipTap editor and wait for chat ID to appear in URL.
- */
-async function sendMessage(page: any, message: string, log: any) {
-	const editor = page.getByTestId('message-editor');
-	await expect(editor).toBeVisible({ timeout: 10000 });
-	await editor.click();
-	await page.keyboard.type(message);
-	log(`Typed: "${message.substring(0, 80)}..."`);
-
-	const sendButton = page.locator('[data-action="send-message"]');
-	await expect(sendButton).toBeEnabled({ timeout: 5000 });
-	await sendButton.click();
-	log('Clicked send.');
 }
 
 /**
@@ -300,32 +194,6 @@ async function assertNoJsonEmbedLeaks(page: any, messageIndex: number, log: any)
 	log(`Message ${messageIndex}: no JSON embed leaks.`);
 }
 
-/**
- * Delete the active chat via right-click context menu.
- */
-async function deleteActiveChat(page: any, log: any) {
-	// Ensure sidebar is open
-	const sidebarToggle = page.locator('[data-testid="sidebar-toggle"]');
-	if (await sidebarToggle.isVisible().catch(() => false)) {
-		await sidebarToggle.click();
-		await page.waitForTimeout(500);
-	}
-
-	const activeChatItem = page.locator('.chat-item-wrapper.active');
-	if (!(await activeChatItem.isVisible().catch(() => false))) {
-		log('No active chat to delete.');
-		return;
-	}
-
-	await activeChatItem.click({ button: 'right' });
-	const deleteButton = page.locator('.menu-item.delete');
-	await expect(deleteButton).toBeVisible({ timeout: 5000 });
-	await deleteButton.click(); // Enter confirm mode
-	await deleteButton.click(); // Confirm deletion
-	await expect(activeChatItem).not.toBeVisible({ timeout: 10000 });
-	log('Chat deleted.');
-}
-
 // ─── Test ─────────────────────────────────────────────────────────────────────
 
 test('multi-turn code generation: iterative improvements with code embed verification', async ({
@@ -372,7 +240,9 @@ test('multi-turn code generation: iterative improvements with code embed verific
 				'Show the complete code in a single code block.',
 			'code_gen_turn1'
 		),
-		log
+		log,
+		screenshot,
+		'turn1'
 	);
 
 	// Wait for a real chat ID in URL (UUID format, not "demo-for-everyone")
@@ -432,7 +302,9 @@ test('multi-turn code generation: iterative improvements with code embed verific
 				'Show the complete updated file.',
 			'code_gen_turn2'
 		),
-		log
+		log,
+		screenshot,
+		'turn2'
 	);
 
 	const turn2Index = await waitForNewAssistantMessage(page, countBeforeTurn2, log);
@@ -493,7 +365,9 @@ test('multi-turn code generation: iterative improvements with code embed verific
 				'Show the complete updated file.',
 			'code_gen_turn3'
 		),
-		log
+		log,
+		screenshot,
+		'turn3'
 	);
 
 	const turn3Index = await waitForNewAssistantMessage(page, countBeforeTurn3, log);
@@ -574,7 +448,7 @@ test('multi-turn code generation: iterative improvements with code embed verific
 	// ══════════════════════════════════════════════════════════════════════
 	// STEP 6: Cleanup
 	// ══════════════════════════════════════════════════════════════════════
-	await deleteActiveChat(page, log);
+	await deleteActiveChat(page, log, screenshot, 'cleanup');
 
 	log(`Test completed successfully. Chat ${chatId} was created and deleted.`);
 });

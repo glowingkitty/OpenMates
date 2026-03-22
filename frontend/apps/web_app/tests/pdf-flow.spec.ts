@@ -87,6 +87,8 @@ const {
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
+const { loginToTestAccount, deleteActiveChat } = require('./helpers/chat-test-helpers');
+
 // ─── Log buckets ─────────────────────────────────────────────────────────────
 const consoleLogs: string[] = [];
 const warnErrorLogs: Array<{ timestamp: string; type: string; text: string }> = [];
@@ -156,99 +158,6 @@ function saveWarnErrorLogs(testId: string, phase: string): void {
 }
 
 /**
- * Login to the test account with email, password, and 2FA OTP.
- * Checks "Stay logged in" so encryption keys are persisted in IndexedDB
- * (required for PDF preview image decryption after reload/relogin).
- */
-async function loginToTestAccount(
-	page: any,
-	logCheckpoint: (msg: string, meta?: Record<string, unknown>) => void,
-	takeStepScreenshot: (page: any, label: string) => Promise<void>
-): Promise<void> {
-	await page.goto(getE2EDebugUrl('/'));
-	await takeStepScreenshot(page, 'home');
-
-	const headerLoginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
-	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
-	await headerLoginButton.click();
-	await takeStepScreenshot(page, 'login-dialog');
-
-	const emailInput = page.locator('#login-email-input');
-	await expect(emailInput).toBeVisible({ timeout: 15000 });
-	await emailInput.fill(TEST_EMAIL);
-
-	// Enable "Stay logged in" — required so IndexedDB encryption keys survive
-	// page reloads and re-logins, enabling PDF preview image decryption.
-	const stayLoggedInLabel = page.locator(
-		'label.toggle[for="stayLoggedIn"], label.toggle:has(#stayLoggedIn)'
-	);
-	try {
-		await stayLoggedInLabel.waitFor({ state: 'visible', timeout: 3000 });
-		const checkbox = page.locator('#stayLoggedIn');
-		const isChecked = await checkbox.evaluate((el: HTMLInputElement) => el.checked);
-		if (!isChecked) {
-			await stayLoggedInLabel.click();
-			logCheckpoint('Clicked "Stay logged in" toggle.');
-		} else {
-			logCheckpoint('"Stay logged in" toggle was already on.');
-		}
-	} catch {
-		logCheckpoint('Could not find "Stay logged in" toggle — proceeding without it.');
-	}
-
-	await page.getByRole('button', { name: /continue/i }).click();
-	logCheckpoint('Entered email and clicked continue.');
-
-	const passwordInput = page.locator('#login-password-input');
-	await expect(passwordInput).toBeVisible({ timeout: 15000 });
-	await passwordInput.fill(TEST_PASSWORD);
-	await takeStepScreenshot(page, 'password-entered');
-
-	const otpInput = page.locator('#login-otp-input');
-	await expect(otpInput).toBeVisible({ timeout: 15000 });
-
-	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
-	const errorMessage = page
-		.locator('.error-message, [class*="error"]')
-		.filter({ hasText: /wrong|invalid|incorrect/i });
-
-	let loginSuccess = false;
-	for (let attempt = 1; attempt <= 3 && !loginSuccess; attempt++) {
-		const otpCode = generateTotp(TEST_OTP_KEY);
-		await otpInput.fill(otpCode);
-		logCheckpoint(`Generated and entered OTP (attempt ${attempt}).`);
-		if (attempt === 1) {
-			await takeStepScreenshot(page, 'otp-entered');
-		}
-
-		await expect(submitLoginButton).toBeVisible();
-		await submitLoginButton.click();
-		logCheckpoint('Submitted login form.');
-
-		try {
-			await expect(otpInput).not.toBeVisible({ timeout: 15000 });
-			loginSuccess = true;
-			logCheckpoint('Login dialog closed, login successful.');
-		} catch {
-			const hasError = await errorMessage.isVisible().catch(() => false);
-			if (hasError && attempt < 3) {
-				logCheckpoint(`OTP attempt ${attempt} failed, retrying with fresh code...`);
-				await page.waitForTimeout(2000);
-			} else if (attempt === 3) {
-				throw new Error('Login failed after 3 OTP attempts');
-			}
-		}
-	}
-
-	logCheckpoint('Waiting for chat interface to load...');
-	await page.waitForTimeout(3000);
-
-	const messageEditor = page.locator('.editor-content.prose');
-	await expect(messageEditor).toBeVisible({ timeout: 20000 });
-	logCheckpoint('Chat interface loaded - message editor visible.');
-}
-
-/**
  * Open a new chat by clicking the .icon_create button if available.
  */
 async function openNewChat(page: any, logCheckpoint: (msg: string) => void): Promise<void> {
@@ -276,32 +185,6 @@ async function attachFiles(
 	logCheckpoint(`Attaching ${filePaths.length} file(s): ${filePaths.join(', ')}`);
 	await fileInput.setInputFiles(filePaths);
 	logCheckpoint('Files attached via setInputFiles().');
-}
-
-/**
- * Delete the active chat via context menu (best-effort cleanup).
- */
-async function deleteActiveChat(page: any, logCheckpoint: (msg: string) => void): Promise<void> {
-	try {
-		const activeChatItem = page.locator('.chat-item-wrapper.active');
-		if (!(await activeChatItem.isVisible({ timeout: 5000 }).catch(() => false))) {
-			logCheckpoint('No active chat item visible - skipping cleanup.');
-			return;
-		}
-
-		await activeChatItem.click({ button: 'right' });
-		const deleteButton = page.locator('.menu-item.delete');
-		if (!(await deleteButton.isVisible({ timeout: 3000 }).catch(() => false))) {
-			logCheckpoint('Delete button not visible - skipping cleanup.');
-			await page.keyboard.press('Escape');
-			return;
-		}
-		await deleteButton.click();
-		await deleteButton.click();
-		logCheckpoint('Chat deleted.');
-	} catch (error) {
-		logCheckpoint(`Cleanup failed (non-fatal): ${error}`);
-	}
 }
 
 /**
@@ -828,7 +711,7 @@ test('pdf: upload, AI reads and answers, embeds persist through reload and relog
 	// ========================================================================
 	// PHASE 6: Delete the chat
 	// ========================================================================
-	await deleteActiveChat(page, log);
+	await deleteActiveChat(page, log, screenshot, 'cleanup');
 	log(`Final console warn/error count: ${warnErrorLogs.length}`);
 	saveWarnErrorLogs('pdf', 'final');
 	log('PDF flow test completed successfully.');
