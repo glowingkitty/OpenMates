@@ -130,10 +130,35 @@ export async function loadDefaultInspirations(
   try {
     const { allowIndexedDB = true } = options;
 
-    const ogExample =
+    const urlParams =
       typeof window !== "undefined"
-        ? new URLSearchParams(window.location.search).get("og_example")
+        ? new URLSearchParams(window.location.search)
         : null;
+
+    // --- Media mode: ?media=1&inspirations=none|fixed ---
+    // none  → skip loading entirely (banner stays hidden)
+    // fixed → load OG fixture inspirations for deterministic capture
+    if (urlParams?.get("media") === "1") {
+      const inspirationsParam = urlParams.get("inspirations");
+      if (inspirationsParam === "none") {
+        console.debug(`${LOG_PREFIX} Media mode: inspirations=none — skipping`);
+        return;
+      }
+      if (inspirationsParam === "fixed") {
+        const fixtureInspirations = getOgExampleInspirations("shared_chat_cuttlefish");
+        if (fixtureInspirations.length > 0) {
+          dailyInspirationStore.setInspirations(fixtureInspirations, {
+            personalized: false,
+          });
+          console.debug(
+            `${LOG_PREFIX} Media mode: loaded ${fixtureInspirations.length} fixed inspiration(s)`,
+          );
+        }
+        return;
+      }
+    }
+
+    const ogExample = urlParams?.get("og_example") ?? null;
 
     if (ogExample) {
       const fixtureInspirations = getOgExampleInspirations(ogExample);

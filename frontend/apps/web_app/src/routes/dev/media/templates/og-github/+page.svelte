@@ -4,12 +4,10 @@
   Left side: Logo + headline + feature bullet points.
   Right side: Phone (front) + Laptop (behind, extending off-canvas right).
 
-  Device screens show the real app UI via MockAppScreen:
-    - Phone: new chat screen with suggestion cards
-    - Laptop: existing chat with sidebar + messages
-
-  Content is loaded from YAML scenario files for reproducibility.
-  Screenshots are captured by Playwright using the .media-ready sentinel.
+  Device screens load the REAL app via iframes in media mode (?media=1).
+  The app renders with deterministic content (seeded suggestions, forced sidebar state)
+  and emits .media-app-ready when painted. DeviceIframe detects this and signals ready
+  to MediaCanvas, which sets .media-ready for Playwright capture.
 
   Usage (Playwright):
     await page.setViewportSize({ width: 1200, height: 630 });
@@ -20,45 +18,22 @@
   Architecture: docs/media-generation.md
 -->
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { browser } from '$app/environment';
 	import MediaCanvas from '../../components/MediaCanvas.svelte';
 	import BrandHeader from '../../components/BrandHeader.svelte';
 	import DevicePhone from '../../components/DevicePhone.svelte';
 	import DeviceLaptop from '../../components/DeviceLaptop.svelte';
-	import MockAppScreen from '../../components/MockAppScreen.svelte';
-	import { loadScenario, loadTemplateConfig } from '../../data/loader';
-	import type { MediaMessage } from '../../data/types';
+	import DeviceIframe from '../../components/DeviceIframe.svelte';
+	import { loadTemplateConfig } from '../../data/loader';
 
 	// Load template config from YAML
 	const config = loadTemplateConfig('og-github');
 	const phoneConfig = config.phone!;
 	const laptopConfig = config.laptop!;
 
-	// Load scenario for chat mode devices
-	let laptopMessages = $state<MediaMessage[]>([]);
-	let ready = $state(false);
-
-	onMount(() => {
-		if (!browser) return;
-
-		const params = new URL(window.location.href).searchParams;
-
-		// Load messages for the laptop (chat mode)
-		if (laptopConfig.screen === 'chat' && laptopConfig.scenario) {
-			const scenarioId = params.get('scenario') || laptopConfig.scenario;
-			try {
-				const scenario = loadScenario(scenarioId);
-				laptopMessages = scenario.messages;
-			} catch (e) {
-				console.error('Failed to load scenario:', e);
-				const scenario = loadScenario('cuttlefish-chat');
-				laptopMessages = scenario.messages;
-			}
-		}
-
-		ready = true;
-	});
+	// Track iframe ready states — MediaCanvas gets ready=true when ALL iframes report
+	let phoneReady = $state(false);
+	let laptopReady = $state(false);
+	let ready = $derived(phoneReady && laptopReady);
 </script>
 
 <MediaCanvas width={config.width} height={config.height} {ready} borderRadius={16}>
@@ -73,47 +48,43 @@
 				/>
 			</div>
 
-			<!-- Right: Device mockups -->
+			<!-- Right: Device mockups with real app iframes -->
 			<div class="og-right">
-				{#if ready}
-					<!-- Laptop (behind, partially off-canvas right) -->
-					<div class="og-laptop-wrap">
-						<DeviceLaptop
-							screenWidth={laptopConfig.screen_width}
-							screenHeight={laptopConfig.screen_height}
-						>
-							{#snippet screen()}
-								<MockAppScreen
-									mode={laptopConfig.screen || 'chat'}
-									messages={laptopMessages}
-									scale={laptopConfig.scale}
-									containerWidth={laptopConfig.screen_width}
-									containerHeight={laptopConfig.screen_height}
-									showSidebar={laptopConfig.show_sidebar ?? true}
-									chatTitle={laptopConfig.chat_title || 'Cuttlefish Colors'}
-									chatCategory={laptopConfig.chat_category || 'general_knowledge'}
-								/>
-							{/snippet}
-						</DeviceLaptop>
-					</div>
+				<!-- Laptop (behind, partially off-canvas right) -->
+				<div class="og-laptop-wrap">
+					<DeviceLaptop
+						screenWidth={laptopConfig.screen_width}
+						screenHeight={laptopConfig.screen_height}
+					>
+						{#snippet screen()}
+							<DeviceIframe
+								src={laptopConfig.iframe_src || '/?media=1&seed=42&sidebar=open'}
+								width={laptopConfig.screen_width ?? 560}
+								height={laptopConfig.screen_height ?? 340}
+								scale={laptopConfig.scale ?? 0.58}
+								onready={() => { laptopReady = true; }}
+							/>
+						{/snippet}
+					</DeviceLaptop>
+				</div>
 
-					<!-- Phone (front, overlapping laptop) -->
-					<div class="og-phone-wrap">
-						<DevicePhone
-							screenWidth={phoneConfig.screen_width}
-							screenHeight={phoneConfig.screen_height}
-						>
-							{#snippet screen()}
-								<MockAppScreen
-									mode={phoneConfig.screen || 'new-chat'}
-									scale={phoneConfig.scale}
-									containerWidth={phoneConfig.screen_width}
-									containerHeight={phoneConfig.screen_height}
-								/>
-							{/snippet}
-						</DevicePhone>
-					</div>
-				{/if}
+				<!-- Phone (front, overlapping laptop) -->
+				<div class="og-phone-wrap">
+					<DevicePhone
+						screenWidth={phoneConfig.screen_width}
+						screenHeight={phoneConfig.screen_height}
+					>
+						{#snippet screen()}
+							<DeviceIframe
+								src={phoneConfig.iframe_src || '/?media=1&seed=42&sidebar=closed'}
+								width={phoneConfig.screen_width ?? 220}
+								height={phoneConfig.screen_height ?? 430}
+								scale={phoneConfig.scale ?? 0.52}
+								onready={() => { phoneReady = true; }}
+							/>
+						{/snippet}
+					</DevicePhone>
+				</div>
 			</div>
 		</div>
 	{/snippet}

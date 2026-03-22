@@ -53,6 +53,7 @@ export interface MediaTemplateConfig {
 	pages?: number;
 	brand?: BrandConfig;
 	phone?: {
+		iframe_src?: string;
 		scenario?: string;
 		screen?: 'new-chat' | 'chat';
 		screen_width?: number;
@@ -63,6 +64,7 @@ export interface MediaTemplateConfig {
 		chat_category?: string;
 	};
 	laptop?: {
+		iframe_src?: string;
 		scenario?: string;
 		screen?: 'new-chat' | 'chat';
 		screen_width?: number;
@@ -81,6 +83,7 @@ export interface SlideConfig {
 	headline?: string;
 	subtitle?: string;
 	scenario?: string;
+	iframe_src?: string;
 	device?: 'phone' | 'laptop';
 	features?: string[];
 	cta_text?: string;

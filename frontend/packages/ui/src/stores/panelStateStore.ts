@@ -6,10 +6,25 @@ import { isMobileView, loginInterfaceOpen } from "./uiStateStore";
 
 type ActivityHistoryUserIntent = "auto" | "closed" | "open";
 
+// --- Media mode sidebar override (?media=1&sidebar=open|closed) ---
+// Read once at module init. When set, overrides all other sidebar logic.
+const _mediaForceSidebar: "open" | "closed" | null = (() => {
+  if (typeof window === "undefined") return null;
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("media") !== "1") return null;
+  const val = params.get("sidebar");
+  if (val === "open" || val === "closed") return val;
+  return null;
+})();
+
 // --- Internal Writable Stores ---
-const _isActivityHistoryOpen = writable<boolean>(false);
+const _isActivityHistoryOpen = writable<boolean>(
+  _mediaForceSidebar === "open" ? true : false,
+);
 const _isSettingsOpen = writable<boolean>(false);
-const _activityHistoryUserIntent = writable<ActivityHistoryUserIntent>("auto");
+const _activityHistoryUserIntent = writable<ActivityHistoryUserIntent>(
+  _mediaForceSidebar === "open" ? "open" : _mediaForceSidebar === "closed" ? "closed" : "auto",
+);
 let _suppressNextAutoOpenFromLoginClose = false;
 
 // --- Actions ---
@@ -160,6 +175,10 @@ const intendedActivityHistoryOpen = derived(
     $loginInterfaceOpen,
     $activityHistoryUserIntent,
   ]) => {
+    // Media mode override — ignore all other conditions
+    if (_mediaForceSidebar !== null) {
+      return _mediaForceSidebar === "open";
+    }
     // CHANGED: Allow non-authenticated users to see the sidebar (with demo chats)
     // Only close during signup process (NOT during logout - keep panel open to show demo chats)
     if ($isInSignupProcess) {

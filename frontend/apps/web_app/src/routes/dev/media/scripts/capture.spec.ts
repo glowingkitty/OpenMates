@@ -1,10 +1,13 @@
 /**
  * Playwright capture script for media generation templates.
  *
- * Navigates to each template, waits for the .media-ready sentinel,
- * and captures screenshots at the exact template dimensions.
+ * Templates now use iframes that load the real app in media mode (?media=1).
+ * Each iframe waits for .media-app-ready, then the parent template sets
+ * .media-ready for Playwright to detect.
  *
- * For carousel templates, iterates all slides via ?slide=N.
+ * For authenticated screenshots (sidebar with real chats), set these env vars:
+ *   OPENMATES_MEDIA_ACCOUNT_EMAIL, OPENMATES_MEDIA_ACCOUNT_PASSWORD, OPENMATES_MEDIA_ACCOUNT_OTP_KEY
+ * The script will log in before capturing, and iframes inherit the session cookie.
  *
  * Usage:
  *   # Capture all templates:
@@ -15,9 +18,6 @@
  *
  *   # Custom output directory:
  *   OUTPUT_DIR=./marketing npx playwright test src/routes/dev/media/scripts/capture.spec.ts
- *
- *   # Use a custom scenario:
- *   SCENARIO=code-review-chat npx playwright test --grep "og-github" ...
  *
  *   # Record video of a template (for animated templates):
  *   RECORD_VIDEO=1 npx playwright test --grep "instagram-story" ...
@@ -31,9 +31,10 @@ import fs from 'fs';
 
 const BASE_URL = process.env.MEDIA_BASE_URL || 'https://app.dev.openmates.org';
 const OUTPUT_DIR = process.env.OUTPUT_DIR || path.join(process.cwd(), 'media-output');
-const SCENARIO = process.env.SCENARIO || '';
 const RECORD_VIDEO = process.env.RECORD_VIDEO === '1';
-const WAIT_TIMEOUT = 15_000;
+
+// Longer timeout — iframe-based templates load the full app inside each device frame
+const WAIT_TIMEOUT = 30_000;
 
 /** Template definitions with dimensions and special handling */
 const TEMPLATES = [
@@ -66,11 +67,10 @@ for (const tmpl of TEMPLATES) {
 				const page = await context.newPage();
 				await page.setViewportSize({ width: tmpl.width, height: tmpl.height });
 
-				const scenarioParam = SCENARIO ? `&scenario=${SCENARIO}` : '';
-				await page.goto(`${BASE_URL}/dev/media/templates/${tmpl.id}?slide=${i}${scenarioParam}`);
+				await page.goto(`${BASE_URL}/dev/media/templates/${tmpl.id}?slide=${i}`);
 				await page.waitForSelector('.media-ready', { timeout: WAIT_TIMEOUT });
-				// Allow markdown-it to render
-				await page.waitForTimeout(1000);
+				// Extra wait for iframe content to fully paint
+				await page.waitForTimeout(2000);
 
 				await page.screenshot({
 					path: path.join(OUTPUT_DIR, `${tmpl.id}-slide-${i}.png`),
@@ -94,11 +94,10 @@ for (const tmpl of TEMPLATES) {
 			const page = await context.newPage();
 			await page.setViewportSize({ width: tmpl.width, height: tmpl.height });
 
-			const scenarioParam = SCENARIO ? `?scenario=${SCENARIO}` : '';
-			await page.goto(`${BASE_URL}/dev/media/templates/${tmpl.id}${scenarioParam}`);
+			await page.goto(`${BASE_URL}/dev/media/templates/${tmpl.id}`);
 			await page.waitForSelector('.media-ready', { timeout: WAIT_TIMEOUT });
-			// Allow markdown-it to render
-			await page.waitForTimeout(1000);
+			// Extra wait for iframe content to fully paint
+			await page.waitForTimeout(2000);
 
 			await page.screenshot({
 				path: path.join(OUTPUT_DIR, `${tmpl.id}.png`),

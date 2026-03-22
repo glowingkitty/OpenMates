@@ -1,49 +1,26 @@
 <!--
   OG Social Template — 1200x630px Open Graph image for Twitter/LinkedIn/Facebook.
 
-  Same layout as og-github but with different default scenarios.
-  Override via ?scenario= query parameter.
+  Same layout as og-github but with different default seeds for varied content.
+  Device screens load the real app via iframes in media mode (?media=1).
 
   Architecture: docs/media-generation.md
 -->
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { browser } from '$app/environment';
 	import MediaCanvas from '../../components/MediaCanvas.svelte';
 	import BrandHeader from '../../components/BrandHeader.svelte';
 	import DevicePhone from '../../components/DevicePhone.svelte';
 	import DeviceLaptop from '../../components/DeviceLaptop.svelte';
-	import MockChatFeed from '../../components/MockChatFeed.svelte';
-	import { loadScenario, loadTemplateConfig } from '../../data/loader';
-	import type { MediaMessage } from '../../data/types';
+	import DeviceIframe from '../../components/DeviceIframe.svelte';
+	import { loadTemplateConfig } from '../../data/loader';
 
 	const config = loadTemplateConfig('og-social');
 	const phoneConfig = config.phone!;
 	const laptopConfig = config.laptop!;
 
-	let phoneMessages = $state<MediaMessage[]>([]);
-	let laptopMessages = $state<MediaMessage[]>([]);
-	let ready = $state(false);
-
-	onMount(() => {
-		if (!browser) return;
-
-		const params = new URL(window.location.href).searchParams;
-		const phoneScenarioId = params.get('phone-scenario') || phoneConfig.scenario;
-		const laptopScenarioId = params.get('laptop-scenario') || laptopConfig.scenario;
-
-		try {
-			phoneMessages = loadScenario(phoneScenarioId).messages;
-			laptopMessages = loadScenario(laptopScenarioId).messages;
-		} catch (e) {
-			console.error('Failed to load scenario:', e);
-			const fallback = loadScenario('cuttlefish-chat').messages;
-			phoneMessages = fallback;
-			laptopMessages = fallback;
-		}
-
-		ready = true;
-	});
+	let phoneReady = $state(false);
+	let laptopReady = $state(false);
+	let ready = $derived(phoneReady && laptopReady);
 </script>
 
 <MediaCanvas width={config.width} height={config.height} {ready} borderRadius={16}>
@@ -58,37 +35,39 @@
 			</div>
 
 			<div class="og-right">
-				{#if phoneMessages.length > 0}
-					<div class="og-laptop-wrap">
-						<DeviceLaptop
-							screenWidth={laptopConfig.screen_width}
-							screenHeight={laptopConfig.screen_height}
-						>
-							{#snippet screen()}
-								<MockChatFeed
-									messages={laptopMessages}
-									scale={laptopConfig.scale}
-									containerWidth={laptopConfig.screen_width}
-								/>
-							{/snippet}
-						</DeviceLaptop>
-					</div>
+				<div class="og-laptop-wrap">
+					<DeviceLaptop
+						screenWidth={laptopConfig.screen_width}
+						screenHeight={laptopConfig.screen_height}
+					>
+						{#snippet screen()}
+							<DeviceIframe
+								src={laptopConfig.iframe_src || '/?media=1&seed=99&sidebar=open'}
+								width={laptopConfig.screen_width ?? 560}
+								height={laptopConfig.screen_height ?? 340}
+								scale={laptopConfig.scale ?? 0.58}
+								onready={() => { laptopReady = true; }}
+							/>
+						{/snippet}
+					</DeviceLaptop>
+				</div>
 
-					<div class="og-phone-wrap">
-						<DevicePhone
-							screenWidth={phoneConfig.screen_width}
-							screenHeight={phoneConfig.screen_height}
-						>
-							{#snippet screen()}
-								<MockChatFeed
-									messages={phoneMessages}
-									scale={phoneConfig.scale}
-									containerWidth={phoneConfig.screen_width}
-								/>
-							{/snippet}
-						</DevicePhone>
-					</div>
-				{/if}
+				<div class="og-phone-wrap">
+					<DevicePhone
+						screenWidth={phoneConfig.screen_width}
+						screenHeight={phoneConfig.screen_height}
+					>
+						{#snippet screen()}
+							<DeviceIframe
+								src={phoneConfig.iframe_src || '/?media=1&seed=99&sidebar=closed'}
+								width={phoneConfig.screen_width ?? 220}
+								height={phoneConfig.screen_height ?? 430}
+								scale={phoneConfig.scale ?? 0.52}
+								onready={() => { phoneReady = true; }}
+							/>
+						{/snippet}
+					</DevicePhone>
+				</div>
 			</div>
 		</div>
 	{/snippet}

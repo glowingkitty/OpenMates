@@ -2,40 +2,24 @@
   Instagram Story Template — 1080x1920px vertical format.
 
   Full-height layout with brand header at top, large phone mockup center.
+  Phone screen loads the real app via iframe in media mode.
 
   Architecture: docs/media-generation.md
 -->
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { browser } from '$app/environment';
 	import MediaCanvas from '../../components/MediaCanvas.svelte';
 	import BrandHeader from '../../components/BrandHeader.svelte';
 	import DevicePhone from '../../components/DevicePhone.svelte';
-	import MockChatFeed from '../../components/MockChatFeed.svelte';
-	import { loadScenario, loadTemplateConfig } from '../../data/loader';
-	import type { MediaMessage } from '../../data/types';
+	import DeviceIframe from '../../components/DeviceIframe.svelte';
+	import { loadTemplateConfig } from '../../data/loader';
 
 	const config = loadTemplateConfig('instagram-story');
 	const phoneConfig = config.phone!;
 
-	let messages = $state<MediaMessage[]>([]);
-	let ready = $state(false);
-
-	onMount(() => {
-		if (!browser) return;
-		const params = new URL(window.location.href).searchParams;
-		const scenarioId = params.get('scenario') || phoneConfig.scenario;
-
-		try {
-			messages = loadScenario(scenarioId).messages;
-		} catch {
-			messages = loadScenario('cuttlefish-chat').messages;
-		}
-		ready = true;
-	});
+	let phoneReady = $state(false);
 </script>
 
-<MediaCanvas width={config.width} height={config.height} {ready}>
+<MediaCanvas width={config.width} height={config.height} ready={phoneReady}>
 	{#snippet content()}
 		<div class="story-layout">
 			<div class="story-header">
@@ -49,20 +33,20 @@
 			</div>
 
 			<div class="story-device">
-				{#if messages.length > 0}
-					<DevicePhone
-						screenWidth={phoneConfig.screen_width}
-						screenHeight={phoneConfig.screen_height}
-					>
-						{#snippet screen()}
-							<MockChatFeed
-								{messages}
-								scale={phoneConfig.scale}
-								containerWidth={phoneConfig.screen_width}
-							/>
-						{/snippet}
-					</DevicePhone>
-				{/if}
+				<DevicePhone
+					screenWidth={phoneConfig.screen_width}
+					screenHeight={phoneConfig.screen_height}
+				>
+					{#snippet screen()}
+						<DeviceIframe
+							src={phoneConfig.iframe_src || '/?media=1&seed=42&sidebar=closed'}
+							width={phoneConfig.screen_width ?? 340}
+							height={phoneConfig.screen_height ?? 680}
+							scale={phoneConfig.scale ?? 0.6}
+							onready={() => { phoneReady = true; }}
+						/>
+					{/snippet}
+				</DevicePhone>
 			</div>
 
 			<div class="story-footer">

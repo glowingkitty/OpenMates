@@ -58,7 +58,8 @@
 	import {
 		checkAndClearMasterKeyOnLoad,
 		isProgrammaticHashUpdate,
-		isProgrammaticEmbedHashUpdate
+		isProgrammaticEmbedHashUpdate,
+		cryptoReady
 	} from '@repo/ui';
 	import { pushNotificationService } from '@repo/ui';
 	import { rehydratePairSession, registerPairLogoutCallback, pendingPairToken } from '@repo/ui';
@@ -667,7 +668,8 @@
 		// For authenticated users: new chat window
 		// Exception: ?og=1 skips the demo-for-everyone redirect so the welcome screen
 		// (with daily inspiration + for-everyone card) stays visible — used by /dev/og-image iframes.
-		const isOgMode = browser && new URLSearchParams(window.location.search).get('og') === '1';
+		const ogMediaParams = browser ? new URLSearchParams(window.location.search) : null;
+		const isOgMode = ogMediaParams?.get('og') === '1' || ogMediaParams?.get('media') === '1';
 		if (!$activeChatStore && activeChat) {
 			if (!$authStore.isAuthenticated && !isOgMode) {
 				// Non-auth: load demo-for-everyone
@@ -892,11 +894,17 @@
 			await checkAuth(undefined, true);
 		});
 
-		// --- OG image mode (?og=1) ---
-		// When loaded inside /dev/og-image iframes, add a body class so CSS can hide
-		// dev-only UI (development server label, report issue button).
-		if (browser && new URLSearchParams(window.location.search).get('og') === '1') {
+		// --- Media mode (?media=1) / OG image mode (?og=1) ---
+		// When loaded inside /dev/media iframes, add body classes so CSS can hide
+		// non-essential UI (notifications, cookie banner, login overlay, footer, etc.).
+		// ?media=1 is a superset of ?og=1 — both skip demo-for-everyone and hide dev UI.
+		const searchParams = new URLSearchParams(window.location.search);
+		const isMediaMode = searchParams.get('media') === '1';
+		if (browser && (isMediaMode || searchParams.get('og') === '1')) {
 			document.body.classList.add('og-mode');
+		}
+		if (browser && isMediaMode) {
+			document.body.classList.add('media-mode');
 		}
 
 		// --- Developer Console activation via /#console-on ---
@@ -1479,19 +1487,21 @@
 			);
 		}
 
-		// CRITICAL: Start IndexedDB initialization IMMEDIATELY in parallel (non-blocking)
-		// This ensures DB is ready when sync data arrives, but doesn't block anything
-		// Note: Demo chats are now loaded from static bundle, not IndexedDB
-		let dbInitPromise: Promise<void> | null = null;
+		// PERF: Start IndexedDB + chat key decryption IMMEDIATELY in parallel.
+		// cryptoReady = chatDB.init() → loadChatKeysFromDatabase() — resolves once
+		// per page load. Running it alongside initialize() (auth check) means IDB is
+		// warm and chat keys are decrypted by the time startPhasedSync() needs them.
+		// Also collects a version map during the cursor pass, letting startPhasedSync()
+		// skip a redundant getAllChats() IDB scan.
+		let cryptoReadyPromise: Promise<void> | null = null;
 		if (isAuth) {
-			console.debug('[+page.svelte] Starting IndexedDB initialization (non-blocking)...');
-			dbInitPromise = chatDB
-				.init()
+			console.debug('[+page.svelte] Starting cryptoReady (IDB init + key loading) in parallel with auth...');
+			cryptoReadyPromise = cryptoReady
 				.then(() => {
-					console.debug('[+page.svelte] ✅ IndexedDB initialized and ready');
+					console.debug('[+page.svelte] ✅ cryptoReady resolved — IDB warm, chat keys loaded');
 				})
 				.catch((error) => {
-					console.error('[+page.svelte] ❌ IndexedDB initialization failed:', error);
+					console.error('[+page.svelte] ❌ cryptoReady failed:', error);
 				});
 		}
 
@@ -1678,8 +1688,14 @@
 		}
 
 		// Initialize authentication state (panelState will react to this)
-		await initialize(); // Call the imported initialize function
-		console.debug('[+page.svelte] initialize() finished');
+		// PERF: Await initialize() and cryptoReady in parallel so IDB + key loading
+		// completes alongside the auth check instead of after it.
+		if (cryptoReadyPromise) {
+			await Promise.all([initialize(), cryptoReadyPromise]);
+		} else {
+			await initialize();
+		}
+		console.debug('[+page.svelte] initialize() finished (cryptoReady resolved in parallel)');
 
 		// NOW safe to consume the shared chat redirect flag from sessionStorage.
 		// checkAuth() (called inside initialize()) has already had a chance to read it.
@@ -1877,9 +1893,9 @@
 		// On login, server state will be used (via handleSyncCompleteAndLoadChat)
 		// CRITICAL: URL hash chat has priority - skip last opened chat if hash is present or deep link processed
 		// Use originalHashChatId and deepLinkProcessed flags (read before anything could modify it)
-		if ($authStore.isAuthenticated && dbInitPromise && !originalHashChatId && !deepLinkProcessed) {
+		if ($authStore.isAuthenticated && cryptoReadyPromise && !originalHashChatId && !deepLinkProcessed) {
 			// Only load last opened chat if we don't have a chat hash
-			dbInitPromise.then(async () => {
+			cryptoReadyPromise.then(async () => {
 				// Double-check original hash still applies (shouldn't change, but be safe)
 				if (originalHashChatId || deepLinkProcessed) {
 					console.debug(
@@ -2120,6 +2136,19 @@
 		window.addEventListener('pageshow', handleBfcacheRestore);
 
 		console.debug('[+page.svelte] onMount finished');
+
+		// --- Media mode ready signal ---
+		// After all initialization, wait for fonts to load then signal that the app
+		// is ready for screenshot capture. The parent iframe (DeviceIframe) watches
+		// for this class via MutationObserver.
+		if (browser && document.body.classList.contains('media-mode')) {
+			// Wait for fonts + one animation frame for paint to settle
+			await document.fonts.ready;
+			requestAnimationFrame(() => {
+				document.body.classList.add('media-app-ready');
+				console.debug('[+page.svelte] media-app-ready signal emitted');
+			});
+		}
 	});
 
 	// Cleanup function for onDestroy
@@ -2160,11 +2189,14 @@
 	 * we should restore their most recent draft instead of overwriting with the demo chat.
 	 */
 	async function loadDemoWelcomeChat() {
-		// OG image mode: skip demo-for-everyone so the welcome screen stays visible
+		// OG/media mode: skip demo-for-everyone so the welcome screen stays visible
 		// This guards ALL callers (onNoHash, handleChatDeepLink, etc.)
-		if (browser && new URLSearchParams(window.location.search).get('og') === '1') {
-			console.debug('[+page.svelte] loadDemoWelcomeChat: og=1 mode, skipping demo-for-everyone');
-			return;
+		if (browser) {
+			const params = new URLSearchParams(window.location.search);
+			if (params.get('og') === '1' || params.get('media') === '1') {
+				console.debug('[+page.svelte] loadDemoWelcomeChat: og/media mode, skipping demo-for-everyone');
+				return;
+			}
 		}
 		console.debug('[+page.svelte] loadDemoWelcomeChat called for non-authenticated user');
 
@@ -2909,5 +2941,27 @@
 	/* Report issue button wrapper — icon_bug class is unique to that button */
 	:global(body.og-mode .new-chat-button-wrapper:has(.icon_bug)) {
 		display: none;
+	}
+
+	/* ── Media mode (?media=1) — superset of og-mode ──────────────────── */
+	/* Hide all non-essential UI for pixel-perfect screenshot capture.
+	   The real app renders inside iframes in /dev/media device mockups. */
+	:global(body.media-mode .notification-container) {
+		display: none !important;
+	}
+	:global(body.media-mode .cookie-banner) {
+		display: none !important;
+	}
+	:global(body.media-mode .keyboard-shortcuts-hint) {
+		display: none !important;
+	}
+	:global(body.media-mode .footer) {
+		display: none !important;
+	}
+	:global(body.media-mode .dev-console) {
+		display: none !important;
+	}
+	:global(body.media-mode .login-interface) {
+		display: none !important;
 	}
 </style>

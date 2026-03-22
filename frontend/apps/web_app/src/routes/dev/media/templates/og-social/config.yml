@@ -16,13 +16,13 @@ brand:
     - "Fair pay per use"
 
 phone:
-  scenario: cooking-chat
+  iframe_src: "/?media=1&seed=99&sidebar=closed&inspirations=fixed"
   screen_width: 220
   screen_height: 430
   scale: 0.52
 
 laptop:
-  scenario: code-review-chat
+  iframe_src: "/?media=1&seed=99&sidebar=open&inspirations=none"
   screen_width: 560
   screen_height: 340
   scale: 0.58

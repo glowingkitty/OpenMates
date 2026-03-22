@@ -10,17 +10,17 @@ slides:
   - type: hero
     headline: "Meet your digital team mates"
     subtitle: "AI for everyone."
-    scenario: cuttlefish-chat
+    iframe_src: "/?media=1&seed=42&sidebar=closed&inspirations=fixed"
     device: phone
 
   - type: chat
     headline: "Ask anything"
-    scenario: cuttlefish-chat
+    iframe_src: "/?media=1&seed=42&sidebar=closed&inspirations=none"
     device: phone
 
   - type: chat
     headline: "Get code help"
-    scenario: code-review-chat
+    iframe_src: "/?media=1&seed=77&sidebar=open&inspirations=none"
     device: laptop
 
   - type: feature

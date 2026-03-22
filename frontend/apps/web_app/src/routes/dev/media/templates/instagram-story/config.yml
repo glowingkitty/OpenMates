@@ -16,7 +16,7 @@ brand:
     - "Privacy first"
 
 phone:
-  scenario: cuttlefish-chat
+  iframe_src: "/?media=1&seed=42&sidebar=closed&inspirations=none"
   screen_width: 340
   screen_height: 680
   scale: 0.6

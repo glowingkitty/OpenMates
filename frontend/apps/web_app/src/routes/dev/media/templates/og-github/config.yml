@@ -16,17 +16,14 @@ brand:
     - "Fair pay per use"
 
 phone:
-  screen: new-chat
+  iframe_src: "/?media=1&seed=42&sidebar=closed&inspirations=fixed"
   screen_width: 220
   screen_height: 430
   scale: 0.52
 
 laptop:
-  screen: chat
-  scenario: cuttlefish-chat
+  iframe_src: "/?media=1&seed=42&sidebar=open&inspirations=none"
+  # For chat view: append #chat-id={uuid} at runtime (from seeded media account)
   screen_width: 560
   screen_height: 340
   scale: 0.58
-  show_sidebar: true
-  chat_title: "Cuttlefish Colors"
-  chat_category: "general_knowledge"

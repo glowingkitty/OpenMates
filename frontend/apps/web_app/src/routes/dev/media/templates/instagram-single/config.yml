@@ -13,7 +13,7 @@ brand:
   features: []
 
 phone:
-  scenario: cuttlefish-chat
+  iframe_src: "/?media=1&seed=42&sidebar=closed&inspirations=fixed"
   screen_width: 280
   screen_height: 560
   scale: 0.55

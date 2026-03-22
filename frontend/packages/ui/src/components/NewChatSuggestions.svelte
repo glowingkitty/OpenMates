@@ -164,13 +164,41 @@
   }
 
   /**
+   * Mulberry32 seeded PRNG — returns a function that produces deterministic
+   * floats in [0, 1) for the given seed. Used in media mode (?media=1&seed=N)
+   * so suggestion card order is reproducible across captures.
+   */
+  function mulberry32(seed: number): () => number {
+    let s = seed | 0;
+    return () => {
+      s = (s + 0x6d2b79f5) | 0;
+      let t = Math.imul(s ^ (s >>> 15), 1 | s);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  /** Read the ?seed=N media mode param (returns null if not in media mode) */
+  const mediaSeed = typeof window !== 'undefined'
+    ? (() => {
+        const p = new URLSearchParams(window.location.search);
+        if (p.get('media') !== '1') return null;
+        const s = p.get('seed');
+        return s !== null ? parseInt(s, 10) : null;
+      })()
+    : null;
+
+  /**
    * Shuffle an array using Fisher-Yates algorithm.
+   * When a media seed is set, uses a deterministic PRNG so the same seed
+   * always produces the same card order.
    * @returns A new shuffled array (original is not modified)
    */
   function shuffleArray<T>(array: T[]): T[] {
+    const rng = mediaSeed !== null ? mulberry32(mediaSeed) : Math.random;
     const shuffled = [...array];
     for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
+      const j = Math.floor(rng() * (i + 1));
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
     }
     return shuffled;

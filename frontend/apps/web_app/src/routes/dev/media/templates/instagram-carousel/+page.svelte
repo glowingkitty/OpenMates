@@ -6,6 +6,9 @@
     - Arrow buttons in the preview
     - Playwright script iterates all slides automatically
 
+  Device slides load the real app via iframes in media mode.
+  Non-device slides (feature, cta) render statically.
+
   Architecture: docs/media-generation.md
 -->
 <script lang="ts">
@@ -15,19 +18,23 @@
 	import BrandHeader from '../../components/BrandHeader.svelte';
 	import DevicePhone from '../../components/DevicePhone.svelte';
 	import DeviceLaptop from '../../components/DeviceLaptop.svelte';
-	import MockChatFeed from '../../components/MockChatFeed.svelte';
-	import { loadScenario, loadTemplateConfig } from '../../data/loader';
-	import type { MediaMessage, SlideConfig } from '../../data/types';
+	import DeviceIframe from '../../components/DeviceIframe.svelte';
+	import { loadTemplateConfig } from '../../data/loader';
 
 	const config = loadTemplateConfig('instagram-carousel');
 	const slides = config.slides || [];
 
 	let currentSlide = $state(0);
-	let ready = $state(false);
-	let scenarioCache = $state<Record<string, MediaMessage[]>>({});
+	let iframeReady = $state(false);
 
 	let slide = $derived(slides[currentSlide]);
 	let totalSlides = $derived(slides.length);
+
+	// Slides with devices need iframe ready signal; static slides are immediately ready
+	let needsIframe = $derived(
+		slide && (slide.type === 'hero' || slide.type === 'chat') && slide.iframe_src
+	);
+	let ready = $derived(needsIframe ? iframeReady : true);
 
 	onMount(() => {
 		if (!browser) return;
@@ -38,17 +45,10 @@
 			currentSlide = Math.max(0, Math.min(parseInt(slideParam) - 1, slides.length - 1));
 		}
 
-		// Pre-load all scenarios
-		const scenarioIds = new Set(slides.filter(s => s.scenario).map(s => s.scenario!));
-		for (const id of scenarioIds) {
-			try {
-				scenarioCache[id] = loadScenario(id).messages;
-			} catch (e) {
-				console.error(`Failed to load scenario ${id}:`, e);
-			}
+		// For static slides, mark ready immediately
+		if (!needsIframe) {
+			iframeReady = true;
 		}
-
-		ready = true;
 	});
 
 	function goNext() {
@@ -75,14 +75,16 @@
 							headlineSize="2.5rem"
 							showFeatures={false}
 						/>
-						{#if slide.scenario && scenarioCache[slide.scenario]}
+						{#if slide.iframe_src}
 							<div class="slide-device-center">
 								<DevicePhone screenWidth={260} screenHeight={500}>
 									{#snippet screen()}
-										<MockChatFeed
-											messages={scenarioCache[slide.scenario!]}
+										<DeviceIframe
+											src={slide.iframe_src}
+											width={260}
+											height={500}
 											scale={0.52}
-											containerWidth={260}
+											onready={() => { iframeReady = true; }}
 										/>
 									{/snippet}
 								</DevicePhone>
@@ -93,25 +95,29 @@
 				{:else if slide.type === 'chat'}
 					<div class="slide-chat">
 						<h2 class="slide-headline">{slide.headline || ''}</h2>
-						{#if slide.scenario && scenarioCache[slide.scenario]}
+						{#if slide.iframe_src}
 							<div class="slide-device-center">
 								{#if slide.device === 'laptop'}
 									<DeviceLaptop screenWidth={480} screenHeight={300}>
 										{#snippet screen()}
-											<MockChatFeed
-												messages={scenarioCache[slide.scenario!]}
+											<DeviceIframe
+												src={slide.iframe_src}
+												width={480}
+												height={300}
 												scale={0.5}
-												containerWidth={480}
+												onready={() => { iframeReady = true; }}
 											/>
 										{/snippet}
 									</DeviceLaptop>
 								{:else}
 									<DevicePhone screenWidth={280} screenHeight={540}>
 										{#snippet screen()}
-											<MockChatFeed
-												messages={scenarioCache[slide.scenario!]}
+											<DeviceIframe
+												src={slide.iframe_src}
+												width={280}
+												height={540}
 												scale={0.55}
-												containerWidth={280}
+												onready={() => { iframeReady = true; }}
 											/>
 										{/snippet}
 									</DevicePhone>
