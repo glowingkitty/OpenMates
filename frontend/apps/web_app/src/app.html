@@ -10,33 +10,15 @@
 		<link rel="manifest" href="%sveltekit.assets%/manifest.json" />
 		<!-- maximum-scale=5 allows users (and accessibility tools) to zoom up to 5x while still
 			 preventing iOS Safari from auto-zooming on input focus (all inputs use font-size >= 1rem = 16px).
-			 WCAG 2.1 SC 1.4.4 requires content to be resizable up to 200% without loss of functionality.
-			 interactive-widget=resizes-content tells Android Chrome to resize the layout viewport when
-			 the virtual keyboard opens (no-op on iOS Safari which doesn't support this yet). -->
-		<meta
-			name="viewport"
-			content="width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover, interactive-widget=resizes-content"
-		/>
-		<!-- theme-color is updated by the early theme bootstrap script so Safari chrome
-		     matches the app's resolved theme (stored setting or OS fallback), not just the
-		     browser's current color-scheme media query. -->
-		<meta name="theme-color" content="#ffffff" />
-		<style>
-			html {
-				background-color: #ffffff;
-				color-scheme: light;
-			}
-
-			html[data-theme='dark'] {
-				background-color: #171717;
-				color-scheme: dark;
-			}
-
-			body {
-				background-color: inherit;
-				min-height: 100%;
-			}
-		</style>
+			 WCAG 2.1 SC 1.4.4 requires content to be resizable up to 200% without loss of functionality. -->
+		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+		<!-- theme-color: two variants so iOS Safari colors the status bar + bottom indicator
+		     to match the app background (--color-grey-0) in both light and dark mode.
+		     Without media queries, a single hardcoded value causes a mismatch when the OS
+		     theme differs from the value — e.g. dark #171717 tag in light mode shows dark
+		     chrome around a white app, and vice-versa. -->
+		<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+		<meta name="theme-color" content="#171717" media="(prefers-color-scheme: dark)" />
 
 		<!-- Anti-flicker: apply data-theme before first paint so --color-grey-0 resolves
 		     to the correct value immediately. Without this, dark-mode users see a white
@@ -45,8 +27,6 @@
 			(function () {
 				try {
 					var mode = localStorage.getItem('theme_mode');
-					var themeColorMeta = document.querySelector('meta[name="theme-color"]');
-					var themeColors = { light: '#ffffff', dark: '#171717' };
 					var theme = 'light';
 					if (mode === 'dark') {
 						theme = 'dark';
@@ -57,11 +37,6 @@
 						}
 					}
 					document.documentElement.setAttribute('data-theme', theme);
-					document.documentElement.style.backgroundColor = themeColors[theme];
-					document.documentElement.style.colorScheme = theme;
-					if (themeColorMeta) {
-						themeColorMeta.setAttribute('content', themeColors[theme]);
-					}
 				} catch (e) {
 					// localStorage may be blocked (private browsing / security policy); safe to ignore
 				}

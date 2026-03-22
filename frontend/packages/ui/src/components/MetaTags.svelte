@@ -113,13 +113,12 @@
     <meta name="twitter:image" content={image} />
 
     <!-- Additional Meta Tags -->
-    <!-- This MUST match the viewport tag in app.html — svelte:head replaces it on hydration.
-         maximum-scale=5: allows zoom for accessibility (WCAG 2.1 SC 1.4.4) while all inputs
-         use font-size >= 1rem (16px) to prevent iOS auto-zoom on focus.
-         viewport-fit=cover: extends content into safe areas (notch/home indicator).
-         interactive-widget=resizes-content: tells Android Chrome to resize the layout viewport
-         when the virtual keyboard opens (no-op on iOS Safari). -->
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover, interactive-widget=resizes-content" />
+    <!-- maximum-scale=1 prevents iOS Safari/Firefox from auto-zooming when focusing inputs.
+         Without it, iOS zooms in on input focus and stays zoomed after keyboard dismiss.
+         iOS 10+ still allows manual pinch-zoom even with maximum-scale=1, so accessibility is preserved.
+         This MUST match the viewport tag in app.html - if this tag lacks maximum-scale=1,
+         it overrides app.html when svelte:head mounts, removing the zoom protection. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, shrink-to-fit=no" />
     <link rel="canonical" href={url} />
 
     <!-- JSON-LD for rich snippets -->

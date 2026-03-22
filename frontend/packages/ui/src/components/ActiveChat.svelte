@@ -3175,14 +3175,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Initialised at mount and kept in sync via resize listener in onMount below.
     let viewportHeight = $state(typeof window !== 'undefined' ? window.innerHeight : 800);
 
-    // iOS Safari keyboard offset: the layout viewport doesn't resize when the virtual
-    // keyboard opens — only visualViewport shrinks.  We track the difference and shrink
-    // .active-chat-container by that amount so the absolutely-positioned message input
-    // (bottom: 0) stays above the keyboard.  Applied only on touch devices while the
-    // message input is focused; a 50 px threshold filters out iPad split-view noise and
-    // Safari URL-bar changes.
-    let keyboardOffset = $state(0);
-
     /** Keep viewportHeight reactive on window resize. Registered/cleaned up in onMount. */
     function handleViewportResize() {
         // iOS Safari keyboard open/close can emit transient resize values that
@@ -3580,38 +3572,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let hideWelcomeForKeyboard = $derived(
         messageInputFocused && (isTouchEnvironment || isEffectivelyNarrow || suggestionsWouldOverlapWelcome)
     );
-
-    // ── iOS Safari keyboard offset via visualViewport ──────────────────
-    // Attaches a visualViewport resize listener while the input is focused on a
-    // touch device.  When the virtual keyboard opens, visualViewport.height shrinks
-    // while window.innerHeight stays the same — the difference is the keyboard
-    // height.  We expose it as --keyboard-offset on .active-chat-container so the
-    // absolutely-positioned input wrapper stays above the keyboard.
-    $effect(() => {
-        // Only activate on touch devices while the message input is focused
-        if (!messageInputFocused || !isTouchEnvironment) {
-            keyboardOffset = 0;
-            return;
-        }
-
-        const vv = window.visualViewport;
-        if (!vv) return;
-
-        const update = () => {
-            const offset = Math.round(window.innerHeight - vv.height);
-            // Threshold: real keyboards are ≥ 200 px; ignore URL-bar / split-view noise
-            keyboardOffset = offset > 50 ? offset : 0;
-        };
-
-        // Run once immediately (keyboard may already be open when input gains focus)
-        update();
-        vv.addEventListener('resize', update);
-
-        return () => {
-            vv.removeEventListener('resize', update);
-            keyboardOffset = 0;
-        };
-    });
 
     // Effective chat width: The actual width of the chat area
     // In side-by-side mode, the chat is constrained to 400px regardless of container width
@@ -8960,18 +8920,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     });
 </script>
 
-<div
+<div 
     class="active-chat-container"
     class:ai-typing={isAssistantTyping}
-    class:dimmed={isDimmed}
-    class:login-mode={!showChat}
+    class:dimmed={isDimmed} 
+    class:login-mode={!showChat} 
     class:scaled={activeScaling}
     class:narrow={isEffectivelyNarrow}
     class:medium={isMedium && !showSideBySideLayout}
     class:wide={isWide && !showSideBySideLayout}
     class:extra-wide={isExtraWide}
     class:side-by-side-active={showSideBySideLayout}
-    style:--keyboard-offset="{keyboardOffset}px"
     bind:clientWidth={containerWidth}
     bind:this={activeChatContainerEl}
 >
@@ -9234,6 +9193,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                 ontouchend={handleResumeCardTouchEnd}
                                                 type="button"
                                             >
+                                                <div class="resume-chat-card-orbs" aria-hidden="true">
+                                                    <div class="resume-chat-card-orb resume-chat-card-orb-1"></div>
+                                                    <div class="resume-chat-card-orb resume-chat-card-orb-2"></div>
+                                                    <div class="resume-chat-card-orb resume-chat-card-orb-3"></div>
+                                                </div>
                                                 {#if resumeChatIsCreditsError}
                                                     <div class="resume-chat-content resume-chat-credits-content">
                                                         <span class="resume-chat-credits-label">{$text('chat.credits_needed')}</span>
@@ -9242,8 +9206,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                         {/if}
                                                     </div>
                                                 {:else}
-                                                    <div class="resume-chat-compact-icon">
-                                                        <CompactIconComponent size={18} color="rgba(255, 255, 255, 0.92)" />
+                                                    <div
+                                                        class="resume-chat-category-circle"
+                                                        style={compactGradientColors ? `background: linear-gradient(135deg, ${compactGradientColors.start}, ${compactGradientColors.end})` : 'background: rgba(255, 255, 255, 0.22)'}
+                                                    >
+                                                        <div class="resume-chat-category-icon">
+                                                            <CompactIconComponent size={16} color="white" />
+                                                        </div>
                                                     </div>
                                                     <div class="resume-chat-content">
                                                         <span class="resume-chat-title">{resumeChatTitle || 'Untitled Chat'}</span>
@@ -9321,8 +9290,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                 ontouchend={handleResumeCardTouchEnd}
                                                 type="button"
                                             >
-                                                <div class="resume-chat-compact-icon">
-                                                    <IconComponent size={18} color="rgba(255, 255, 255, 0.92)" />
+                                                <div class="resume-chat-card-orbs" aria-hidden="true">
+                                                    <div class="resume-chat-card-orb resume-chat-card-orb-1"></div>
+                                                    <div class="resume-chat-card-orb resume-chat-card-orb-2"></div>
+                                                    <div class="resume-chat-card-orb resume-chat-card-orb-3"></div>
+                                                </div>
+                                                <div
+                                                    class="resume-chat-category-circle"
+                                                    style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: rgba(255, 255, 255, 0.22)'}
+                                                >
+                                                    <div class="resume-chat-category-icon">
+                                                        <IconComponent size={16} color="white" />
+                                                    </div>
                                                 </div>
                                                 <div class="resume-chat-content">
                                                     <span class="resume-chat-title">{meta.title || $text('chat.untitled_chat')}</span>
@@ -9416,8 +9395,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                 ontouchend={handleResumeCardTouchEnd}
                                                 type="button"
                                             >
-                                                <div class="resume-chat-compact-icon">
-                                                    <IconComponent size={18} color="rgba(255, 255, 255, 0.92)" />
+                                                <div class="resume-chat-card-orbs" aria-hidden="true">
+                                                    <div class="resume-chat-card-orb resume-chat-card-orb-1"></div>
+                                                    <div class="resume-chat-card-orb resume-chat-card-orb-2"></div>
+                                                    <div class="resume-chat-card-orb resume-chat-card-orb-3"></div>
+                                                </div>
+                                                <div
+                                                    class="resume-chat-category-circle"
+                                                    style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: rgba(255, 255, 255, 0.22)'}
+                                                >
+                                                    <div class="resume-chat-category-icon">
+                                                        <IconComponent size={16} color="white" />
+                                                    </div>
                                                 </div>
                                                 <div class="resume-chat-content">
                                                     <span class="resume-chat-title">{meta.title || $text('chat.untitled_chat')}</span>
@@ -10621,11 +10610,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         flex-grow: 1;
         position: relative;
         min-height: 0;
-        /* --keyboard-offset is set via inline style from the visualViewport $effect.
-         * On iOS Safari the layout viewport doesn't shrink when the virtual keyboard
-         * opens, so we subtract the keyboard height here.  When --keyboard-offset is
-         * 0px (default / desktop / keyboard closed) this evaluates to 100%. */
-        height: calc(100% - var(--keyboard-offset, 0px));
+        height: 100%;
         box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
         transition: opacity 0.3s ease, box-shadow 0.6s ease;
         overflow: hidden;
@@ -11205,8 +11190,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     .recent-chat-overflow.compact {
         width: clamp(54px, 15vw, 66px);
         min-width: clamp(54px, 15vw, 66px);
-        height: 44px;
-        border-radius: 18px;
+        height: 72px;
+        border-radius: 24px;
         padding: 0 10px;
         font-size: 13px;
         line-height: 1;
@@ -11226,24 +11211,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         gap: 12px;
         width: 100%;
         max-width: 400px;
-        min-height: 44px;
-        padding: 10px 16px;
+        min-height: 72px;
+        padding: 14px 16px;
         margin-top: 16px;
         background-color: transparent;
         border: 1px solid rgba(255, 255, 255, 0.14);
-        border-radius: 20px;
+        border-radius: 22px;
         cursor: pointer;
         overflow: hidden;
+        isolation: isolate;
         box-shadow:
             0 8px 24px rgba(0, 0, 0, 0.16),
             0 2px 6px rgba(0, 0, 0, 0.1);
         transition:
-            background-position 0.25s ease,
             transform 0.15s ease-out,
             box-shadow 0.2s ease-out,
             border-color 0.2s ease;
-        background-size: 140% 140%;
-        background-position: 0% 50%;
         text-align: left;
         pointer-events: auto; /* Re-enable clicks (parent center-content has pointer-events: none) */
     }
@@ -11251,7 +11234,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     .resume-chat-card:hover {
         background-color: transparent;
         border-color: rgba(255, 255, 255, 0.24);
-        background-position: 100% 50%;
         transform: translateY(-1px);
         box-shadow:
             0 10px 28px rgba(0, 0, 0, 0.18),
@@ -11272,20 +11254,89 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         outline-offset: 2px;
     }
 
-    .resume-chat-compact-icon {
-        width: 18px;
-        min-width: 18px;
-        height: 18px;
+    .resume-chat-card > :not(.resume-chat-card-orbs) {
+        position: relative;
+        z-index: 1;
+    }
+
+    .resume-chat-card-orbs {
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        overflow: hidden;
+        border-radius: 22px;
+        pointer-events: none;
+    }
+
+    .resume-chat-card-orb {
+        position: absolute;
+        background: radial-gradient(
+            ellipse at center,
+            var(--orb-color-b) 0%,
+            var(--orb-color-b) 40%,
+            transparent 82%
+        );
+        filter: blur(18px);
+        opacity: 0.34;
+        will-change: transform, border-radius;
+    }
+
+    .resume-chat-card-orb-1 {
+        top: -50px;
+        left: -48px;
+        width: 170px;
+        height: 140px;
+        animation:
+            orbMorph1 11s ease-in-out infinite,
+            resumeOrbDrift1 19s ease-in-out infinite;
+    }
+
+    .resume-chat-card-orb-2 {
+        right: -46px;
+        bottom: -58px;
+        width: 168px;
+        height: 138px;
+        animation:
+            orbMorph2 13s ease-in-out infinite,
+            resumeOrbDrift2 23s ease-in-out infinite;
+    }
+
+    .resume-chat-card-orb-3 {
+        top: -26px;
+        left: 42%;
+        width: 120px;
+        height: 104px;
+        opacity: 0.3;
+        animation:
+            orbMorph3 17s ease-in-out infinite,
+            resumeOrbDrift3 29s ease-in-out infinite;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .resume-chat-card-orb {
+            animation: none !important;
+        }
+    }
+
+    /* Category gradient circle matching Chat.svelte sidebar design */
+    .resume-chat-category-circle {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+        border: 1px solid rgba(255, 255, 255, 0.2);
         flex-shrink: 0;
-        opacity: 0.96;
     }
 
-    .resume-chat-compact-icon :global(svg) {
-        width: 18px;
-        height: 18px;
+    .resume-chat-category-icon {
+        width: 16px;
+        height: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .resume-chat-content {
