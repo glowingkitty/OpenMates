@@ -69,6 +69,7 @@
     let error = $state('');
     let statusData: StatusResponse | null = $state(null);
     let isAdmin = $state(false);
+    let adminChecked = false;
 
     // Component refs for injecting detail data
     let groupCardRefs: Record<string, ServiceGroupCard> = {};
@@ -76,9 +77,10 @@
     let incidentListRef: IncidentList | null = $state(null);
 
     // --- API helpers ---
-    async function fetchJson(path: string): Promise<any> {
+    async function fetchJson(path: string, withCredentials = false): Promise<any> {
         const url = getApiEndpoint(path);
-        const res = await fetch(url, { credentials: 'include' });
+        const opts: RequestInit = withCredentials ? { credentials: 'include' } : {};
+        const res = await fetch(url, opts);
         if (!res.ok) {
             if (res.status === 403) return null;
             throw new Error(`${res.status} ${res.statusText}`);
@@ -88,10 +90,20 @@
 
     async function loadSummary() {
         try {
+            // Summary fetch: no credentials (public endpoint, wildcard CORS)
             const data = await fetchJson('/v1/status');
             if (data) {
                 statusData = data;
-                isAdmin = data.is_admin ?? false;
+                // Detect admin by trying a credentialed probe (only once)
+                if (!adminChecked) {
+                    adminChecked = true;
+                    try {
+                        const probe = await fetchJson('/v1/status?section=health&detail=full', true);
+                        isAdmin = probe?.is_admin ?? false;
+                    } catch {
+                        isAdmin = false;
+                    }
+                }
             }
             error = '';
         } catch (e) {
@@ -103,11 +115,13 @@
     }
 
     // --- Detail fetch handlers ---
+    // Detail requests use credentials only when admin (so CORS works via FastAPI, not wildcard)
     async function handleGroupExpand(groupName: string) {
         try {
             const detail = isAdmin ? 'full' : 'summary';
             const data = await fetchJson(
-                `/v1/status/health?group=${encodeURIComponent(groupName)}&detail=${detail}`
+                `/v1/status/health?group=${encodeURIComponent(groupName)}&detail=${detail}`,
+                isAdmin,
             );
             if (data?.services && groupCardRefs[groupName]) {
                 groupCardRefs[groupName].setDetail(data.services);
@@ -121,7 +135,8 @@
         try {
             const detail = isAdmin ? 'full' : 'summary';
             const data = await fetchJson(
-                `/v1/status/tests?suite=${encodeURIComponent(suiteName)}&detail=${detail}`
+                `/v1/status/tests?suite=${encodeURIComponent(suiteName)}&detail=${detail}`,
+                isAdmin,
             );
             if (data?.suites?.[suiteName]?.tests && suiteCardRefs[suiteName]) {
                 suiteCardRefs[suiteName].setDetail(data.suites[suiteName].tests);
@@ -134,7 +149,7 @@
     async function handleIncidentsExpand() {
         try {
             const detail = isAdmin ? 'full' : 'summary';
-            const data = await fetchJson(`/v1/status/incidents?detail=${detail}`);
+            const data = await fetchJson(`/v1/status/incidents?detail=${detail}`, isAdmin);
             if (data?.events && incidentListRef) {
                 incidentListRef.setEvents(data.events);
             }
