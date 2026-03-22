@@ -60,6 +60,57 @@ const STATUS_PAYLOAD = {
 				failed: 1,
 				skipped: 0,
 				flaky: 0,
+				categories: {
+					'Auth & Signup': {
+						total: 2,
+						passed: 1,
+						failed: 1,
+						skipped: 0,
+						pass_rate: 50,
+						history: [
+							{
+								date: '2026-03-21',
+								pass_rate: 0,
+								total: 2,
+								passed: 0,
+								failed: 0,
+								not_run: 2,
+								has_run: false,
+								run_at: null,
+								tone: null
+							},
+							{
+								date: '2026-03-22',
+								pass_rate: 50,
+								total: 2,
+								passed: 1,
+								failed: 0,
+								not_run: 1,
+								has_run: true,
+								run_at: '2026-03-22T13:15:25Z',
+								tone: 75
+							}
+						],
+						tests: [
+							{
+								name: 'signup-flow.spec.ts',
+								file: 'signup-flow.spec.ts',
+								suite: 'playwright',
+								status: 'passed',
+								last_run: '2026-03-22T13:15:25Z',
+								history_30d: [
+									{ date: '2026-03-21', status: 'not_run', has_run: false, run_at: null },
+									{
+										date: '2026-03-22',
+										status: 'passed',
+										has_run: true,
+										run_at: '2026-03-22T13:15:25Z'
+									}
+								]
+							}
+						]
+					}
+				},
 				timeline_30d: [
 					{
 						date: '2026-03-21',
@@ -108,49 +159,7 @@ const STATUS_PAYLOAD = {
 				passed: 1,
 				failed: 1,
 				skipped: 0,
-				pass_rate: 50,
-				history: [
-					{
-						date: '2026-03-21',
-						pass_rate: 0,
-						total: 2,
-						passed: 0,
-						failed: 0,
-						not_run: 2,
-						has_run: false,
-						run_at: null,
-						tone: null
-					},
-					{
-						date: '2026-03-22',
-						pass_rate: 50,
-						total: 2,
-						passed: 1,
-						failed: 0,
-						not_run: 1,
-						has_run: true,
-						run_at: '2026-03-22T13:15:25Z',
-						tone: 75
-					}
-				],
-				tests: [
-					{
-						name: 'signup-flow.spec.ts',
-						file: 'signup-flow.spec.ts',
-						suite: 'playwright',
-						status: 'passed',
-						last_run: '2026-03-22T13:15:25Z',
-						history_30d: [
-							{ date: '2026-03-21', status: 'not_run', has_run: false, run_at: null },
-							{
-								date: '2026-03-22',
-								status: 'passed',
-								has_run: true,
-								run_at: '2026-03-22T13:15:25Z'
-							}
-						]
-					}
-				]
+				pass_rate: 50
 			}
 		}
 	},

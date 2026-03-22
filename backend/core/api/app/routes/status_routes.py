@@ -30,6 +30,7 @@ from backend.core.api.app.services.status_aggregator import (
     strip_admin_fields_from_tests,
 )
 from backend.core.api.app.services.test_results_service import (
+    get_per_test_history,
     get_categorized_test_summary,
     get_daily_trend,
     get_flaky_tests,
@@ -151,10 +152,22 @@ async def get_status(
         if test_summary:
             test_section = dict(test_summary)
             test_section["trend"] = get_daily_trend(days=30)
+            latest_run_detail = get_latest_run_detail()
+            per_test_history = get_per_test_history(days=30)
             # Add per-suite 30-day history
             suite_history = get_per_suite_daily_history(days=30)
             for suite in test_section.get("suites", []):
                 suite["timeline_30d"] = suite_history.get(suite["name"], [])
+                detail_suite = (latest_run_detail or {}).get("suites", {}).get(suite["name"], {})
+                suite_tests = []
+                for test in detail_suite.get("tests", []):
+                    test_entry = dict(test)
+                    test_entry["last_run"] = test.get("run_id") or test_section.get("latest_run", {}).get("timestamp")
+                    test_entry["history_30d"] = per_test_history.get(test.get("file") or test.get("name", ""), [])
+                    if not is_admin:
+                        test_entry.pop("error", None)
+                    suite_tests.append(test_entry)
+                suite["tests"] = suite_tests
             # Add categorized breakdown (all users see categories + test names; admin sees errors)
             categorized = get_categorized_test_summary(is_admin=True)  # Always include test names
             # Strip error fields for non-admin
@@ -164,6 +177,8 @@ async def get_status(
                         for test in cat_data["tests"]:
                             test.pop("error", None)
             test_section["categories"] = categorized.get("categories", {})
+            for suite in test_section.get("suites", []):
+                suite["categories"] = categorized.get("categories", {}) if suite.get("name") == "playwright" else {}
             response["tests"] = test_section
         else:
             response["tests"] = {
@@ -221,10 +236,10 @@ async def get_status_health_detail(
     if detail == "full" and not is_admin:
         raise HTTPException(status_code=403, detail="detail=full requires admin authentication")
 
-    health_data = await gather_health_data(request)
+    health_data = filter_public_status_health_data(await gather_health_data(request))
     # Always pass is_admin=True to build_health_groups to get services[]
     # Then strip admin fields if not admin
-    all_groups = build_health_groups(health_data, is_admin=True)
+    all_groups = build_health_groups(health_data, {}, is_admin=True)
 
     target_group = None
     for g in all_groups:

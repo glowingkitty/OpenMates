@@ -293,6 +293,37 @@ class TestCategorizedSummary:
         assert chat_history[-2]["has_run"] is False
         assert chat_history[-2]["tone"] is None
 
+    def test_categories_only_include_playwright_tests(self, tmp_path, monkeypatch):
+        last_run = {
+            "run_id": f"{_iso_day(0)}T13:15:25Z",
+            "summary": {"total": 3, "passed": 2, "failed": 1, "skipped": 0},
+            "suites": {
+                "playwright": {
+                    "tests": [
+                        {"name": "chat-flow.spec.ts", "file": "chat-flow.spec.ts", "status": "passed"},
+                    ]
+                },
+                "vitest": {
+                    "tests": [
+                        {"name": "statusPage.test.ts", "file": "statusPage.test.ts", "status": "failed"},
+                        {"name": "store.test.ts", "file": "store.test.ts", "status": "passed"},
+                    ]
+                },
+            }
+        }
+        (tmp_path / "last-run.json").write_text(json.dumps(last_run))
+        _write_daily_run(tmp_path, 0, last_run)
+        monkeypatch.setattr(
+            "backend.core.api.app.services.test_results_service.TEST_RESULTS_DIR",
+            str(tmp_path),
+        )
+
+        summary = get_categorized_test_summary(is_admin=True)
+
+        assert list(summary["categories"].keys()) == ["Chat"]
+        assert summary["categories"]["Chat"]["total"] == 1
+        assert summary["suites"]["vitest"]["total"] == 2
+
 
 class TestGetFlakyTests:
     def test_reads_flaky_history(self, tmp_path, monkeypatch):

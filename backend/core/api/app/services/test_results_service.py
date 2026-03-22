@@ -25,6 +25,7 @@ _cache_timestamps: Dict[str, float] = {}
 CACHE_TTL_SECONDS = 60
 NO_RUN_STATUS = "not_run"
 NOT_RUN_TONE_WEIGHT = 0.5
+PLAYWRIGHT_SUITE_NAME = "playwright"
 
 
 def _get_cached(key: str) -> Optional[Any]:
@@ -428,6 +429,9 @@ def get_categorized_test_summary(is_admin: bool = False) -> Dict[str, Any]:
             "status": "failing" if suite_failed > 0 else "passing",
         }
 
+        if suite_name != PLAYWRIGHT_SUITE_NAME:
+            continue
+
         for test in tests:
             # Use file as canonical name for Playwright, name for others
             test_key = test.get("file") or test.get("name", "")
@@ -468,6 +472,8 @@ def get_categorized_test_summary(is_admin: bool = False) -> Dict[str, Any]:
         # Collect all test keys in this category
         cat_test_names = []
         for suite_name, suite_data in data.get("suites", {}).items():
+            if suite_name != PLAYWRIGHT_SUITE_NAME:
+                continue
             for test in suite_data.get("tests", []):
                 test_key = test.get("file") or test.get("name", "")
                 if categorize_test(test_key) == cat_name:

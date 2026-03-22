@@ -336,8 +336,8 @@
 				{#each data.tests.suites as suite (suite.name)}
 					{@const hasCats =
 						suite.name === 'playwright' &&
-						data.tests.categories &&
-						Object.keys(data.tests.categories).length > 0}
+						suite.categories &&
+						Object.keys(suite.categories).length > 0}
 					{@const suiteTimelineKey = `suite-${suite.name}`}
 					<div class="item">
 						<button
@@ -377,7 +377,7 @@
 						{#if exp[`s-${suite.name}`]}
 							<div class="sub">
 								{#if hasCats}
-									{#each Object.entries(data.tests.categories as Record<string, any>).sort( (a, b) => a[0].localeCompare(b[0]) ) as [catName, cat]}
+									{#each Object.entries(suite.categories as Record<string, any>).sort( (a, b) => a[0].localeCompare(b[0]) ) as [catName, cat]}
 										{@const categoryTimelineKey = `category-${tid(catName)}`}
 										<div class="item nested">
 											<button
@@ -470,8 +470,60 @@
 											{/if}
 										</div>
 									{/each}
+								{:else if suite.tests?.length}
+									{#each suite.tests as test}
+										{@const testTimelineKey = `test-${suite.name}-${tid(test.file ?? test.name)}`}
+										<div class="item nested">
+											<div class="item-head static">
+												<span
+													class="dot xs"
+													style="background:{test.status === 'passed'
+														? '#22c55e'
+														: test.status === 'failed'
+															? '#ef4444'
+															: 'var(--color-grey-50)'}"
+												></span>
+												<span class="label mono">{test.name || test.file}</span>
+												<span
+													class="slbl"
+													style="color:{test.status === 'passed'
+														? '#22c55e'
+														: test.status === 'failed'
+															? '#ef4444'
+															: 'var(--color-grey-50)'}">{test.status}</span
+												>
+												{#if test.last_run}<span class="tdate"
+														>{fd(test.last_run.slice(0, 10))}</span
+													>{/if}
+											</div>
+											{#if test.history_30d?.length}
+												<div class="tl" data-testid={`status-timeline-${testTimelineKey}`}>
+													{#each test.history_30d as d}
+														<button
+															type="button"
+															class="seg"
+															class:selected={isSelectedTimeline(testTimelineKey, d)}
+															style="background:{timelineColor(d)}"
+															title={timelineTitle(d)}
+															aria-label={timelineTitle(d)}
+															onclick={() => selectTimeline(testTimelineKey, d)}
+															onfocus={() => selectTimeline(testTimelineKey, d)}
+														></button>
+													{/each}
+												</div>
+												{#if selectedTimeline?.key === testTimelineKey}
+													<div class="tl-detail" data-testid="status-timeline-detail">
+														{selectedTimeline.text}
+													</div>
+												{/if}
+											{/if}
+											{#if data.is_admin && test.error}
+												<div class="errd">{test.error}</div>
+											{/if}
+										</div>
+									{/each}
 								{:else}
-									<p class="meta" style="padding:0.5rem 0">No category breakdown available.</p>
+									<p class="meta" style="padding:0.5rem 0">No test details available.</p>
 								{/if}
 							</div>
 						{/if}
@@ -483,7 +535,7 @@
 					{@const trendTimelineKey = 'tests-trend'}
 					<div class="item">
 						<div class="item-head static">
-							<span class="label">Daily Pass Rate (30d)</span>
+							<span class="label">Daily Pass Rate (All Suites, 30d)</span>
 						</div>
 						<div class="tl" data-testid={`status-timeline-${trendTimelineKey}`}>
 							{#each data.tests.trend as d}
