@@ -98,129 +98,167 @@ Progress tracked in `test-results/progress.txt`.
 
 ---
 
-## E2E Mock/Replay System (LLM & App Skills)
+## Unified Skill Spec Architecture
 
-Many E2E specs trigger real LLM inference and external API calls (web search, travel, etc.), which cost money per run. The mock/replay system lets tests use pre-recorded responses instead, controlled by the `E2E_USE_MOCKS` env var.
+Each app skill has a single `skill-{app}-{skill}.spec.ts` file that validates the complete lifecycle in 4 sequential phases:
+
+### The 4-Phase Pattern
+
+```
+Phase 1: Embed preview     → /dev/preview/embeds/{app} renders (no login, static mock data)
+Phase 2: CLI direct command → openmates apps {app} {skill} --json returns results
+Phase 3: CLI chat send      → openmates chats new "message" triggers the skill
+Phase 4: Web UI chat        → login → send → verify embed → fullscreen → cleanup
+```
+
+### Existing Skill Specs
+
+| Spec File | App | Skill | Has CLI Phase? |
+|-----------|-----|-------|:-:|
+| `skill-web-search.spec.ts` | web | search | Yes |
+| `skill-web-read.spec.ts` | web | read | Yes |
+| `skill-videos-search.spec.ts` | videos | search | Yes |
+| `skill-videos-transcript.spec.ts` | videos | get_transcript | Yes |
+| `skill-images-search.spec.ts` | images | search | Yes |
+| `skill-news-search.spec.ts` | news | search | Yes |
+| `skill-travel-connections.spec.ts` | travel | search_connections | Yes |
+| `skill-travel-stays.spec.ts` | travel | search_stays | Yes |
+| `skill-maps-search.spec.ts` | maps | search | Yes |
+| `skill-math-calculate.spec.ts` | math | calculate | Yes |
+| `skill-events-search.spec.ts` | events | search | Yes |
+| `skill-shopping-search.spec.ts` | shopping | search_products | Yes |
+| `skill-health-appointments.spec.ts` | health | search_appointments | Yes |
+| `skill-code-docs.spec.ts` | code | get_docs | Yes |
+| `skill-reminder-set.spec.ts` | reminder | set-reminder | No (stateful) |
+
+### Shared Test Helpers
+
+Located in `tests/helpers/`. All parameters are optional with sensible defaults.
+
+**`chat-test-helpers.ts`** — Chat interaction helpers:
+- `loginToTestAccount(page, logCheckpoint?, takeStepScreenshot?)` — email/password/OTP login with retry
+- `startNewChat(page, logCheckpoint?)` — click new chat button (handles sidebar-closed)
+- `sendMessage(page, message, logCheckpoint?, takeStepScreenshot?, stepLabel?)` — type + send
+- `deleteActiveChat(page, logCheckpoint?, takeStepScreenshot?, stepLabel?)` — context menu delete
+
+**`cli-test-helpers.ts`** — CLI process helpers:
+- `runCli(apiUrl, args, timeoutMs?)` — spawn CLI, capture stdout/stderr
+- `deriveApiUrl(baseUrl)` — convert Playwright base URL to API URL
+- `parseCliJson(result)` — parse and validate CLI JSON output
+
+**`embed-test-helpers.ts`** — Embed assertion helpers:
+- `verifyEmbedPreviewPage(page, app, logCheckpoint)` — Phase 1 full check
+- `waitForEmbedFinished(page, appId, skillId, timeout?)` — wait for `data-status="finished"`
+- `openFullscreen(page, embedLocator)` — click → overlay visible
+- `verifySearchGrid(overlay, minResults?)` — `.search-template-grid` has N+ cards
+- `closeFullscreen(page, overlay)` — minimize button → verify hidden
+
+---
+
+## Live Mock System (LLM & HTTP Caching)
+
+The live mock system runs the **full backend pipeline** (preprocessing, inference, skill execution, postprocessing, billing) but intercepts external API calls with cached record-and-replay responses. This tests everything except the parts that cost money.
+
+**Important:** Always use `withLiveMockMarker()`. Never use the old `withMockMarker()` which skips the entire pipeline.
 
 ### How It Works
 
-1. **Marker in message text**: When `E2E_USE_MOCKS=1`, the `withMockMarker()` helper appends a `<<<TEST_MOCK:fixture_id>>>` marker to the chat message
-2. **Backend detects marker**: In `ask_skill_task.py`, the marker is detected and stripped before processing
-3. **Fixture replay**: Instead of calling the real LLM/skill APIs, pre-recorded events are published to the same Redis channels
-4. **Everything else is real**: WebSocket, encryption, billing preflight, postprocessing, persistence, frontend rendering — all unchanged
+1. **Marker in message text**: `withLiveMockMarker()` appends `<<<TEST_LIVE_MOCK:group_id>>>` or `<<<TEST_LIVE_RECORD:group_id>>>` to the message
+2. **Backend detects marker**: `mock_context.py` sets per-request context vars (`mock_mode_var`, `mock_group_var`)
+3. **LLM calls intercepted**: `caching_llm_wrapper.py` wraps provider functions — cache hit returns stored response, cache miss in record mode calls real API and saves
+4. **HTTP calls intercepted**: `caching_http_transport.py` wraps httpx — same cache-or-record pattern
+5. **Everything else is real**: WebSocket, encryption, preprocessing, postprocessing, billing, persistence, frontend rendering — all unchanged
 
-### What's Mocked vs Real
+### What's Cached vs Real
 
-| Layer | Mock Mode | Real Mode |
-|-------|-----------|-----------|
+| Layer | Live Mock Mode | Real Mode |
+|-------|----------------|-----------|
 | WebSocket, encryption, IndexedDB | **Real** | Real |
-| Preprocessing LLM call (title, category, model) | Mocked (fixture data) | Real |
-| Credit check & billing preflight | **Real** (validates fixture's model ID) | Real |
-| **LLM provider API call** | **Mocked** — fixture stream chunks | Real |
-| **Skill external APIs** (Brave, YouTube, etc.) | **Mocked** — fixture skill results | Real |
+| Preprocessing (title, category, model selection) | **Real** | Real |
+| Credit check & billing | **Real** | Real |
+| **LLM provider API call** | **Cached** — replay from `api_cache/` | Real |
+| **Skill HTTP requests** (Brave, Doctolib, REWE, etc.) | **Cached** — replay from `api_cache/` | Real |
 | Postprocessing (suggestions, persistence) | **Real** | Real |
 
-### Running Tests in Mock Mode
+### Running Tests
 
 ```bash
-# With mocks (zero API cost):
-docker compose --env-file .env -f docker-compose.playwright.yml run --rm \
-  -e E2E_USE_MOCKS=1 \
-  -e PLAYWRIGHT_TEST_FILE="chat-flow.spec.ts" playwright
+# Record cached responses (first run per skill — hits real APIs):
+E2E_RECORD_LIVE_FIXTURES=1 npx playwright test skill-web-search.spec.ts
 
-# Without mocks (real APIs, full integration):
-docker compose --env-file .env -f docker-compose.playwright.yml run --rm \
-  -e PLAYWRIGHT_TEST_FILE="chat-flow.spec.ts" playwright
+# Replay cached responses (subsequent runs / CI — zero API cost):
+E2E_USE_LIVE_MOCKS=1 npx playwright test skill-web-search.spec.ts
+
+# Real APIs (full integration, real costs):
+npx playwright test skill-web-search.spec.ts
 ```
 
-### Multi-Turn Conversations
+### Cache Storage
 
-Each message in a multi-turn chat gets its own fixture ID. Each turn maps to a separate Celery task, so each needs its own recorded response:
+Cached responses are stored in `backend/apps/ai/testing/api_cache/`:
 
-```typescript
-await page.keyboard.type(withMockMarker('Write a function', 'code_gen_turn1'));
-// ... wait for response ...
-await page.keyboard.type(withMockMarker('Add error handling', 'code_gen_turn2'));
-// ... wait for response ...
-await page.keyboard.type(withMockMarker('Refactor to class', 'code_gen_turn3'));
+```
+api_cache/
+├── {group_id}/
+│   ├── llm__openai/
+│   │   └── {fingerprint}.json
+│   ├── llm__claude/
+│   │   └── {fingerprint}.json
+│   └── brave__search/
+│       └── {fingerprint}.json
 ```
 
-### Speed Profiles
-
-Fixtures include a `speed_profile` that controls simulated streaming speed. Override per-test via the marker:
-
-| Profile | Delay | Use case |
-|---------|-------|----------|
-| `instant` | 0ms | CI (default) — fastest execution |
-| `fast` | 5ms/chunk | Simulates ~500 tps (Cerebras, Groq) |
-| `medium` | 20ms/chunk | Simulates ~150 tps (GPT-4o, Sonnet) |
-| `slow` | 50ms/chunk | Simulates ~60 tps — for streaming UX tests |
-
-```typescript
-// Override speed for streaming behavior tests:
-withMockMarker('Explain gravity', 'chat_scroll_test', 'slow')
-// → appends <<<TEST_MOCK:chat_scroll_test:slow>>>
-```
-
-### Recording New Fixtures
-
-To record a real response as a fixture:
-
-1. Use `withRecordMarker()` in the spec (or manually add `<<<TEST_RECORD:fixture_id>>>` to the message)
-2. Run the test against real APIs — the backend captures all events and saves to `backend/apps/ai/testing/fixtures/{fixture_id}.json`
-3. Switch back to `withMockMarker()` for subsequent runs
-
-```typescript
-// One-time recording:
-await page.keyboard.type(withRecordMarker('Capital of Germany?', 'chat_flow_capital'));
-// → runs real LLM, saves fixture to backend/apps/ai/testing/fixtures/chat_flow_capital.json
-
-// Then switch to mock for all future runs:
-await page.keyboard.type(withMockMarker('Capital of Germany?', 'chat_flow_capital'));
-```
-
-### Fixture File Format
-
-Fixtures are JSON files in `backend/apps/ai/testing/fixtures/`:
-
+Each cache file contains:
 ```json
 {
-  "fixture_id": "chat_flow_capital",
-  "speed_profile": "instant",
-  "preprocessing": {
-    "can_proceed": true,
-    "category": "general_knowledge",
-    "title": "Capital of Germany",
-    "selected_model_id": "anthropic/claude-sonnet-4-20250514",
-    "steps": [...]
-  },
-  "response": "The capital of Germany is Berlin.",
-  "skill_executions": [],
-  "usage": { "prompt_tokens": 150, "completion_tokens": 12 }
+  "fingerprint": "abc123def456",
+  "category": "llm/openai",
+  "group_id": "web_search_cli",
+  "recorded_at": "2026-03-22T12:00:00Z",
+  "request": { "model": "...", "messages_count": 5, "last_message_preview": {...} },
+  "response": { "type": "stream", "body": "Full response text...", "chunk_count": 42 }
 }
 ```
 
-Fixtures store only the full `response` text. Stream chunks are generated at replay time by splitting at sentence/paragraph boundaries. This keeps fixtures small and human-editable.
+### Fingerprinting
+
+Request fingerprinting ensures deterministic cache hits. Volatile fields (API keys, timestamps, request IDs) are excluded from the hash.
+
+**LLM calls**: Hash of model + messages + tools + temperature + tool_choice
+**HTTP calls**: Hash of method + host + path + sorted query params + normalized body
+
+### Group IDs
+
+Each test uses a unique `group_id` to namespace cached responses:
+
+```typescript
+withLiveMockMarker('Search for AI news', 'news_search_web')  // group_id = "news_search_web"
+withLiveMockMarker('Search for AI news', 'news_search_cli')  // group_id = "news_search_cli"
+```
+
+Convention: `{app}_{skill}_{context}` where context is `web`, `cli`, or a descriptive name.
 
 ### Security
 
+- Live mock mode requires `MOCK_EXTERNAL_APIS=true` env var
 - Mock markers are **ignored in production** (`SERVER_ENVIRONMENT == "production"`)
-- The testing module is never imported in production environments
-- Fixture files contain only recorded AI responses, no secrets
+- The testing modules are never imported in production environments
+- Cache files contain only recorded API responses, no secrets
 
 ### Key Files
 
 | File | Purpose |
 |------|---------|
-| `backend/apps/ai/testing/mock_replay.py` | Marker detection, fixture loading, Redis replay |
-| `backend/apps/ai/testing/fixture_recorder.py` | Records real responses as fixture files |
-| `backend/apps/ai/testing/fixtures/` | Fixture JSON files |
-| `backend/apps/ai/tasks/ask_skill_task.py` | Interception point (~40 lines) |
-| `frontend/apps/web_app/tests/signup-flow-helpers.ts` | `withMockMarker()`, `withRecordMarker()` |
+| `backend/shared/testing/api_response_cache.py` | Cache storage, fingerprinting, load/save |
+| `backend/shared/testing/mock_context.py` | Marker detection, per-request context vars |
+| `backend/shared/testing/caching_http_transport.py` | httpx transport wrapper for HTTP caching |
+| `backend/apps/ai/testing/caching_llm_wrapper.py` | LLM provider wrapper for response caching |
+| `backend/apps/ai/testing/api_cache/` | Cached response JSON files |
+| `frontend/apps/web_app/tests/signup-flow-helpers.ts` | `withLiveMockMarker()`, `withLiveRecordMarker()` |
 
-### Instrumented Specs
+### Legacy Fixture System
 
-All specs that send chat messages are instrumented with `withMockMarker()`. Fixtures must be recorded before mock mode works for each spec. See the fixture ID in each spec's `withMockMarker()` call.
+The old `withMockMarker()` / fixture replay system still exists in `backend/apps/ai/testing/mock_replay.py` and `fixtures/` for backward compatibility. It skips the entire pipeline and replays pre-recorded Redis events. **Do not use it for new tests** — use `withLiveMockMarker()` instead.
 
 ---
 

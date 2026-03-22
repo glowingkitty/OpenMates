@@ -6,7 +6,7 @@ Full reference: `sessions.py context --doc testing`
 
 - **R1** Never create tests without user consent. Suggest first, wait for approval
 - **R2** Test behavior, not implementation. AAA pattern. Descriptive names
-- **R3** E2E: plan in natural language first, get approval, then code. Read `chat-flow.spec.ts` as template
+- **R3** E2E: plan in natural language first, get approval, then code. Use `skill-*.spec.ts` as template for skill tests, `chat-flow.spec.ts` for chat tests
 - **R4** Wait ~150s for Vercel after push. Check with `vercel ls` — must show "Ready"
 - **R5** Unexpected screen in Playwright? Stop and ask user
 - **R6** Pre-PR: run `python3 scripts/run_tests.py`, verify last-run.json all passed
@@ -17,14 +17,19 @@ Full reference: `sessions.py context --doc testing`
 - **R11** Use `data-testid` for E2E selectors. Format: `{domain}-{element}[-{variant}]`
 - **R12** Use `sessions.py check-tests --session <ID>` to discover existing tests
 
+- **R13** Use shared helpers from `tests/helpers/`. Never copy-paste `loginToTestAccount`/`sendMessage`/`deleteActiveChat` into specs
+- **R14** Skill tests use `withLiveMockMarker()` (full pipeline, cached APIs). Never `withMockMarker()` (skips pipeline)
+
 ## Test Locations
 
-| Type            | Location                        | Naming               |
-| --------------- | ------------------------------- | -------------------- |
-| Python unit     | `backend/apps/<app>/tests/`     | `test_*.py`          |
-| TypeScript unit | `frontend/**/src/**/__tests__/` | `*.test.ts`          |
-| Playwright E2E  | `frontend/apps/web_app/tests/`  | `*.spec.ts`          |
-| REST API        | `backend/tests/`                | `test_rest_api_*.py` |
+| Type            | Location                        | Naming                        |
+| --------------- | ------------------------------- | ----------------------------- |
+| Python unit     | `backend/apps/<app>/tests/`     | `test_*.py`                   |
+| TypeScript unit | `frontend/**/src/**/__tests__/` | `*.test.ts`                   |
+| Playwright E2E  | `frontend/apps/web_app/tests/`  | `*.spec.ts`                   |
+| Skill E2E       | `frontend/apps/web_app/tests/`  | `skill-{app}-{skill}.spec.ts` |
+| Test helpers    | `frontend/apps/web_app/tests/helpers/` | `*-test-helpers.ts`    |
+| REST API        | `backend/tests/`                | `test_rest_api_*.py`          |
 
 ## What to Run After Changes
 

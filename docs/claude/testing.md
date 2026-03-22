@@ -24,7 +24,7 @@ Never create test files without the user's explicit consent. When you see a test
 Before writing any Playwright spec:
 
 1. Write the test plan in natural language, get user approval
-2. Read `chat-flow.spec.ts` as the baseline template
+2. Read a `skill-*.spec.ts` file as the baseline template for skill tests, or `chat-flow.spec.ts` for general chat tests
 3. Investigate DOM interactions for complex components
 4. If a spec fails and you need to debug interactively, use Firecrawl browser to investigate
 
@@ -35,6 +35,29 @@ Key Playwright patterns:
 - Use `page.keyboard.type()` for TipTap editor — never `fill()`
 - Never click editor content area after inserting an embed (triggers fullscreen)
 - ALL specs MUST run via Docker — never `npx playwright test` locally
+
+### Unified Skill Spec Structure
+
+Each app skill has a single `skill-{app}-{skill}.spec.ts` file with 4 sequential test phases:
+
+1. **Embed preview** — verifies `/dev/preview/embeds/{app}` renders correctly (no login needed)
+2. **CLI direct command** — `openmates apps {app} {skill} --json` returns valid results
+3. **CLI chat send** — `openmates chats new "message"` triggers the skill via chat
+4. **Web UI chat** — login → send message → verify embed renders → open fullscreen → cleanup
+
+All chat phases use `withLiveMockMarker()` — the full backend pipeline always runs, only external API calls (LLM + HTTP) are cached. **Never use `withMockMarker()` which skips the pipeline.**
+
+### Shared Test Helpers
+
+Use the shared helpers in `tests/helpers/` — **never** copy-paste login/chat functions into individual specs:
+
+```typescript
+const { loginToTestAccount, startNewChat, sendMessage, deleteActiveChat } = require('./helpers/chat-test-helpers');
+const { runCli, deriveApiUrl, parseCliJson } = require('./helpers/cli-test-helpers');
+const { verifyEmbedPreviewPage, waitForEmbedFinished, openFullscreen, verifySearchGrid, closeFullscreen } = require('./helpers/embed-test-helpers');
+```
+
+All parameters in chat helpers are optional with defaults — `loginToTestAccount(page)` works for simple cases.
 
 ## Rule 4: Wait for Vercel Before E2E
 
@@ -50,12 +73,14 @@ Before any `dev` → `main` PR: run `python3 scripts/run_tests.py`, verify `test
 
 ## Test Locations
 
-| Type            | Location                                               | Naming               |
-| --------------- | ------------------------------------------------------ | -------------------- |
-| Python unit     | `backend/apps/<app>/tests/` or `backend/core/*/tests/` | `test_*.py`          |
-| TypeScript unit | `frontend/packages/ui/src/**/__tests__/`               | `*.test.ts`          |
-| Playwright E2E  | `frontend/apps/web_app/tests/`                         | `*.spec.ts`          |
-| REST API        | `backend/tests/`                                       | `test_rest_api_*.py` |
+| Type            | Location                                               | Naming                         |
+| --------------- | ------------------------------------------------------ | ------------------------------ |
+| Python unit     | `backend/apps/<app>/tests/` or `backend/core/*/tests/` | `test_*.py`                    |
+| TypeScript unit | `frontend/packages/ui/src/**/__tests__/`               | `*.test.ts`                    |
+| Playwright E2E  | `frontend/apps/web_app/tests/`                         | `*.spec.ts`                    |
+| Skill E2E       | `frontend/apps/web_app/tests/`                         | `skill-{app}-{skill}.spec.ts`  |
+| Test helpers    | `frontend/apps/web_app/tests/helpers/`                 | `*-test-helpers.ts`            |
+| REST API        | `backend/tests/`                                       | `test_rest_api_*.py`           |
 
 ## Rule 7: New Features Require E2E Test Proposal (CRITICAL)
 
