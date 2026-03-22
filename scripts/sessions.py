@@ -85,6 +85,7 @@ TAG_TO_DOCS: dict[str, list[str]] = {
     "test": ["testing-compact.md"],
     "i18n": ["i18n.md", "manage-translations.md"],
     "figma": ["figma-to-code.md"],
+    "settings": ["settings-ui-compact.md"],
     "embed": ["embed-types.md"],
     "api": ["add-api.md"],
     "planning": ["planning-compact.md"],

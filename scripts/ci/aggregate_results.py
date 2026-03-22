@@ -88,6 +88,13 @@ def main():
         # Don't exit 1: no artifacts means the suites were skipped intentionally
         return
 
+    # --- Count flaky tests ---
+    flaky_count = 0
+    for suite_data in suites.values():
+        for t in suite_data.get("tests", []):
+            if t.get("flaky"):
+                flaky_count += 1
+
     # --- Write aggregate result ---
     os.makedirs("test-results", exist_ok=True)
     result = {
@@ -95,12 +102,18 @@ def main():
         "git_sha": git_sha,
         "git_branch": git_branch,
         "duration_seconds": 0,
-        "summary": {"total": total, "passed": passed, "failed": failed, "skipped": skipped},
+        "summary": {
+            "total": total, "passed": passed, "failed": failed,
+            "skipped": skipped, "flaky": flaky_count,
+        },
         "suites": suites,
         "environment": "development",
     }
     with open("test-results/last-run.json", "w") as f:
         json.dump(result, f, indent=2)
+
+    # --- Update flaky history ---
+    _update_flaky_history(suites)
 
     # --- Send webhook notification ---
     if api_url and webhook_key:
@@ -117,6 +130,39 @@ def main():
         sys.exit(1)
 
 
+def _update_flaky_history(suites: dict) -> None:
+    """Track flaky test occurrences over time in flaky-history.json."""
+    history_path = "test-results/flaky-history.json"
+    try:
+        with open(history_path) as f:
+            history = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        history = {"tests": {}}
+
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    # Track all Playwright tests in this run (for total_runs count)
+    pw_suite = suites.get("playwright", {})
+    for t in pw_suite.get("tests", []):
+        key = f"{t.get('file', '?')}::{t.get('name', '?')}"
+        entry = history["tests"].setdefault(key, {
+            "flaky_count": 0, "total_runs": 0,
+            "last_flaky_date": None, "last_error": None,
+        })
+        entry["total_runs"] += 1
+
+        if t.get("flaky"):
+            entry["flaky_count"] += 1
+            entry["last_flaky_date"] = today
+            entry["last_error"] = (t.get("flaky_error") or "")[:200]
+
+    try:
+        with open(history_path, "w") as f:
+            json.dump(history, f, indent=2)
+    except Exception as e:
+        print(f"WARNING: Failed to write flaky history: {e}", file=sys.stderr)
+
+
 def _build_message(result: dict, run_url: str) -> str:
     """Build a concise message for the webhook chat."""
     summary = result["summary"]
@@ -124,12 +170,25 @@ def _build_message(result: dict, run_url: str) -> str:
     branch = result["git_branch"]
     run_link = f"\nRun: {run_url}" if run_url else ""
 
+    # Collect flaky tests across all suites
+    flaky_lines = []
+    for suite_name, suite_data in result["suites"].items():
+        for t in suite_data.get("tests", []):
+            if t.get("flaky"):
+                name = t.get("file") or t.get("name") or "?"
+                retries = t.get("retries", 1)
+                flaky_lines.append(f"- [{suite_name}] {name} (passed after {retries} retry)")
+
+    flaky_suffix = ""
+    if flaky_lines:
+        flaky_suffix = f"\n\nFlaky tests ({len(flaky_lines)}):\n" + "\n".join(flaky_lines[:10])
+
     if summary["failed"] == 0:
         suites_ran = list(result["suites"].keys())
         return (
             f"Daily test run passed: {summary['passed']}/{summary['total']} tests passed. "
             f"Suites: {', '.join(suites_ran)}. "
-            f"Commit: {sha_short} on {branch}.{run_link}"
+            f"Commit: {sha_short} on {branch}.{run_link}{flaky_suffix}"
         )
 
     # Build failure details
@@ -144,7 +203,7 @@ def _build_message(result: dict, run_url: str) -> str:
     return (
         f"Daily test run FAILED: {summary['failed']} of {summary['total']} tests failed. "
         f"Commit: {sha_short} on {branch}.{run_link}\n\n"
-        f"Failed tests:\n" + "\n".join(failed_lines[:30])
+        f"Failed tests:\n" + "\n".join(failed_lines[:30]) + flaky_suffix
     )
 
 
@@ -254,14 +313,28 @@ def _merge_playwright(paths: list) -> dict:
         except Exception as e:
             print(f"WARNING: Failed to parse Playwright results from {path}: {e}", file=sys.stderr)
 
-    # Deduplicate retries: when retries > 0, Playwright produces multiple results
-    # per test. Keep only the last result per (file, name) — the retry outcome is
-    # authoritative (retry comes after initial attempt in execution order).
-    seen = {}
+    # Detect flaky tests and deduplicate retries.
+    # When retries > 0, Playwright produces multiple results per test.
+    # A test is "flaky" if it failed on first attempt but passed on retry.
+    # Keep only the last result per (file, name) — the retry outcome is authoritative.
+    results_by_key = {}
     for t in all_tests:
         key = (t["file"], t["name"])
-        seen[key] = t
-    deduped = list(seen.values())
+        results_by_key.setdefault(key, []).append(t)
+
+    deduped = []
+    for key, results in results_by_key.items():
+        final = results[-1]  # last result is authoritative
+        if len(results) > 1:
+            # Multiple results = test was retried
+            first_failed = results[0]["status"] == "failed"
+            final_passed = final["status"] == "passed"
+            final["retries"] = len(results) - 1
+            final["flaky"] = first_failed and final_passed
+            if final["flaky"]:
+                # Preserve the original error for flaky tracking
+                final["flaky_error"] = results[0].get("error")
+        deduped.append(final)
 
     if not deduped:
         status = "error"

@@ -1,5 +1,5 @@
 <!--
-    Settings UI Elements Preview — Storybook-like page showing all 13 canonical
+    Settings UI Elements Preview — Storybook-like page showing all 29 canonical
     settings UI elements from the Figma design system.
 
     Accessible at /dev/preview/settings (dev-only, blocked in production).
@@ -7,8 +7,13 @@
 
     Sections:
     A. SettingsItem variants (5 types from SettingsItem.svelte)
-    B. Settings form elements (7 types from settings/elements/)
+    B. Settings form elements (8 types from settings/elements/)
     C. Search & sort bar (from SearchSortBar.svelte)
+    D. Action buttons (SettingsButton, SettingsButtonGroup)
+    E. Feedback & status (SettingsProgressBar, SettingsLoadingState, SettingsBadge)
+    F. Data display (SettingsCard, SettingsDetailRow, SettingsBalanceDisplay, SettingsCodeBlock)
+    G. Confirmation & navigation (SettingsConfirmBlock, SettingsPageHeader, SettingsAvatar, SettingsCheckboxList)
+    H. Layout primitives (SettingsDivider, SettingsGradientLink, SettingsPageContainer)
 -->
 <script lang="ts">
 	import SettingsItem from '@repo/ui/components/SettingsItem.svelte';
@@ -21,7 +26,23 @@
 		SettingsConsentToggle,
 		SettingsQuote,
 		SettingsTabs,
-		SettingsInfoBox
+		SettingsInfoBox,
+		SettingsButton,
+		SettingsButtonGroup,
+		SettingsProgressBar,
+		SettingsLoadingState,
+		SettingsBadge,
+		SettingsCard,
+		SettingsDetailRow,
+		SettingsBalanceDisplay,
+		SettingsCodeBlock,
+		SettingsConfirmBlock,
+		SettingsPageHeader,
+		SettingsAvatar,
+		SettingsCheckboxList,
+		SettingsDivider,
+		SettingsGradientLink,
+		SettingsPageContainer
 	} from '@repo/ui/components/settings/elements';
 
 	// --- State for interactive demos ---
@@ -82,6 +103,20 @@
 		time: 'Time tracking: 12 hours logged across 3 projects.',
 		chat: 'Chat activity: 23 conversations this month.'
 	};
+
+	// --- State for Section D–H demos ---
+	let confirmDangerChecked = $state(false);
+	let checkboxOptions = $state([
+		{ id: 'chats', label: 'Chat History', description: '23 conversations', icon: 'chat', checked: true },
+		{ id: 'files', label: 'Uploaded Files', description: '12 files, 45 MB', icon: 'files', checked: true },
+		{ id: 'settings', label: 'Account Settings', description: 'Preferences and configuration', icon: 'settings', checked: false }
+	]);
+
+	const demoRecoveryCodes = `A1B2-C3D4-E5F6
+G7H8-I9J0-K1L2
+M3N4-O5P6-Q7R8
+S9T0-U1V2-W3X4
+Y5Z6-A7B8-C9D0`;
 
 	// Theme toggle
 	let isDark = $state(false);
@@ -467,6 +502,418 @@
 				<div class="element-demo">
 					<SearchSortBar bind:searchQuery bind:sortBy searchPlaceholder="Search" {sortOptions} />
 					<div class="state-display">search: "{searchQuery}" | sort: "{sortBy}"</div>
+				</div>
+			</div>
+		</section>
+
+		<!-- ============================================= -->
+		<!-- SECTION D: Action Buttons                     -->
+		<!-- ============================================= -->
+		<section class="element-section">
+			<h2 class="section-title">D. Action Buttons</h2>
+			<p class="section-description">
+				Button and button-group components from <code>settings/elements/</code>.
+			</p>
+
+			<!-- 14. SettingsButton -->
+			<div class="element-block">
+				<div class="element-header">
+					<h3>14. Button</h3>
+					<span class="element-tag new">SettingsButton</span>
+				</div>
+				<p class="element-purpose">
+					Action button in 4 variants (primary, danger, secondary, ghost) and 2 sizes (md, sm).
+					Supports disabled, loading, and fullWidth states.
+				</p>
+				<div class="element-demo">
+					<h4 class="variant-label">All variants (md)</h4>
+					<div style="display: flex; gap: 0.5rem; flex-wrap: wrap; padding: 0.5rem 0.625rem;">
+						<SettingsButton variant="primary" onClick={() => alert('Primary clicked')}>Primary</SettingsButton>
+						<SettingsButton variant="danger" onClick={() => alert('Danger clicked')}>Danger</SettingsButton>
+						<SettingsButton variant="secondary" onClick={() => alert('Secondary clicked')}>Secondary</SettingsButton>
+						<SettingsButton variant="ghost" onClick={() => alert('Ghost clicked')}>Ghost</SettingsButton>
+					</div>
+				</div>
+				<div class="element-demo">
+					<h4 class="variant-label">Small size (sm)</h4>
+					<div style="display: flex; gap: 0.5rem; flex-wrap: wrap; padding: 0.5rem 0.625rem;">
+						<SettingsButton variant="primary" size="sm">Small Primary</SettingsButton>
+						<SettingsButton variant="secondary" size="sm">Small Secondary</SettingsButton>
+					</div>
+				</div>
+				<div class="element-demo">
+					<h4 class="variant-label">Disabled & loading</h4>
+					<div style="display: flex; gap: 0.5rem; flex-wrap: wrap; padding: 0.5rem 0.625rem;">
+						<SettingsButton variant="primary" disabled={true}>Disabled</SettingsButton>
+						<SettingsButton variant="primary" loading={true}>Loading...</SettingsButton>
+					</div>
+				</div>
+				<div class="element-demo">
+					<h4 class="variant-label">Full width</h4>
+					<div style="padding: 0.5rem 0.625rem;">
+						<SettingsButton variant="primary" fullWidth={true}>Full Width Button</SettingsButton>
+					</div>
+				</div>
+			</div>
+
+			<!-- 15. SettingsButtonGroup -->
+			<div class="element-block">
+				<div class="element-header">
+					<h3>15. Button Group</h3>
+					<span class="element-tag new">SettingsButtonGroup</span>
+				</div>
+				<p class="element-purpose">
+					Groups buttons with configurable alignment: left, center, right, or space-between.
+				</p>
+				<div class="element-demo">
+					<h4 class="variant-label">align="right" (default)</h4>
+					<SettingsButtonGroup align="right">
+						<SettingsButton variant="ghost" onClick={() => {}}>Cancel</SettingsButton>
+						<SettingsButton variant="primary" onClick={() => {}}>Save</SettingsButton>
+					</SettingsButtonGroup>
+				</div>
+				<div class="element-demo">
+					<h4 class="variant-label">align="space-between"</h4>
+					<SettingsButtonGroup align="space-between">
+						<SettingsButton variant="danger" onClick={() => {}}>Delete</SettingsButton>
+						<SettingsButton variant="primary" onClick={() => {}}>Confirm</SettingsButton>
+					</SettingsButtonGroup>
+				</div>
+			</div>
+		</section>
+
+		<!-- ============================================= -->
+		<!-- SECTION E: Feedback & Status                  -->
+		<!-- ============================================= -->
+		<section class="element-section">
+			<h2 class="section-title">E. Feedback & Status</h2>
+			<p class="section-description">
+				Progress bars, loading states, and badges from <code>settings/elements/</code>.
+			</p>
+
+			<!-- 16. SettingsProgressBar -->
+			<div class="element-block">
+				<div class="element-header">
+					<h3>16. Progress Bar</h3>
+					<span class="element-tag new">SettingsProgressBar</span>
+				</div>
+				<p class="element-purpose">
+					Horizontal progress indicator in 3 variants: default, warning, success.
+					Optionally shows label and percentage text.
+				</p>
+				<div class="element-demo">
+					<h4 class="variant-label">Default (65%)</h4>
+					<div style="padding: 0.5rem 0.625rem;">
+						<SettingsProgressBar value={65} label="Storage" showPercent={true} />
+					</div>
+				</div>
+				<div class="element-demo">
+					<h4 class="variant-label">Warning (90%)</h4>
+					<div style="padding: 0.5rem 0.625rem;">
+						<SettingsProgressBar value={90} variant="warning" label="Credits" showPercent={true} />
+					</div>
+				</div>
+				<div class="element-demo">
+					<h4 class="variant-label">Success (100%)</h4>
+					<div style="padding: 0.5rem 0.625rem;">
+						<SettingsProgressBar value={100} variant="success" />
+					</div>
+				</div>
+			</div>
+
+			<!-- 17. SettingsLoadingState -->
+			<div class="element-block">
+				<div class="element-header">
+					<h3>17. Loading State</h3>
+					<span class="element-tag new">SettingsLoadingState</span>
+				</div>
+				<p class="element-purpose">
+					Placeholder states for loading, empty data, and generation-in-progress scenarios.
+				</p>
+				<div class="element-demo">
+					<h4 class="variant-label">Spinner</h4>
+					<SettingsLoadingState variant="spinner" text="Loading sessions..." />
+				</div>
+				<div class="element-demo">
+					<h4 class="variant-label">Empty</h4>
+					<SettingsLoadingState variant="empty" text="No passkeys found" hint="Add a passkey to secure your account" />
+				</div>
+				<div class="element-demo">
+					<h4 class="variant-label">Generating</h4>
+					<SettingsLoadingState variant="generating" text="Generating recovery key..." />
+				</div>
+			</div>
+
+			<!-- 18. SettingsBadge -->
+			<div class="element-block">
+				<div class="element-header">
+					<h3>18. Badge</h3>
+					<span class="element-tag new">SettingsBadge</span>
+				</div>
+				<p class="element-purpose">
+					Small status labels in 5 variants: info, success, warning, danger, neutral.
+				</p>
+				<div class="element-demo">
+					<div style="display: flex; gap: 0.5rem; flex-wrap: wrap; padding: 0.5rem 0.625rem;">
+						<SettingsBadge variant="info" text="Synced" />
+						<SettingsBadge variant="success" text="Active" />
+						<SettingsBadge variant="warning" text="Expiring" />
+						<SettingsBadge variant="danger" text="Revoked" />
+						<SettingsBadge variant="neutral" text="Draft" />
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<!-- ============================================= -->
+		<!-- SECTION F: Data Display                       -->
+		<!-- ============================================= -->
+		<section class="element-section">
+			<h2 class="section-title">F. Data Display</h2>
+			<p class="section-description">
+				Cards, detail rows, balance display, and code blocks from <code>settings/elements/</code>.
+			</p>
+
+			<!-- 19. SettingsCard + SettingsDetailRow -->
+			<div class="element-block">
+				<div class="element-header">
+					<h3>19. Card with Detail Rows</h3>
+					<span class="element-tag new">SettingsCard</span>
+					<span class="element-tag new">SettingsDetailRow</span>
+				</div>
+				<p class="element-purpose">
+					Card container with optional variant (default, highlighted, current).
+					SettingsDetailRow renders label-value pairs inside cards.
+				</p>
+				<div class="element-demo">
+					<h4 class="variant-label">Default card</h4>
+					<div style="padding: 0.5rem 0.625rem;">
+						<SettingsCard>
+							<SettingsDetailRow label="Device" value="MacBook Pro" />
+							<SettingsDetailRow label="IP Address" value="192.168.1.xxx" muted={true} />
+							<SettingsDetailRow label="Last Active" value="2 hours ago" />
+						</SettingsCard>
+					</div>
+				</div>
+				<div class="element-demo">
+					<h4 class="variant-label">Highlighted card</h4>
+					<div style="padding: 0.5rem 0.625rem;">
+						<SettingsCard variant="highlighted" highlightColor="var(--color-primary-start, #4867cd)">
+							<SettingsDetailRow label="Plan" value="Pro" highlight={true} />
+							<SettingsDetailRow label="Renewal" value="Apr 15, 2026" />
+						</SettingsCard>
+					</div>
+				</div>
+				<div class="element-demo">
+					<h4 class="variant-label">Current card</h4>
+					<div style="padding: 0.5rem 0.625rem;">
+						<SettingsCard variant="current">
+							<SettingsDetailRow label="Session" value="This device" highlight={true} />
+							<SettingsDetailRow label="Browser" value="Chrome 125" />
+						</SettingsCard>
+					</div>
+				</div>
+			</div>
+
+			<!-- 20. SettingsBalanceDisplay -->
+			<div class="element-block">
+				<div class="element-header">
+					<h3>20. Balance Display</h3>
+					<span class="element-tag new">SettingsBalanceDisplay</span>
+				</div>
+				<p class="element-purpose">
+					Large-format balance/credit counter with icon and label.
+				</p>
+				<div class="element-demo">
+					<div style="padding: 0.5rem 0.625rem;">
+						<SettingsBalanceDisplay amount="1,250" label="Credits remaining" icon="coin" />
+					</div>
+				</div>
+			</div>
+
+			<!-- 21. SettingsCodeBlock -->
+			<div class="element-block">
+				<div class="element-header">
+					<h3>21. Code Block</h3>
+					<span class="element-tag new">SettingsCodeBlock</span>
+				</div>
+				<p class="element-purpose">
+					Monospace code display with optional copy button and max height.
+					Useful for recovery codes, API keys, or configuration snippets.
+				</p>
+				<div class="element-demo">
+					<div style="padding: 0.5rem 0.625rem;">
+						<SettingsCodeBlock code={demoRecoveryCodes} copyable={true} maxHeight="8rem" />
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<!-- ============================================= -->
+		<!-- SECTION G: Confirmation & Navigation          -->
+		<!-- ============================================= -->
+		<section class="element-section">
+			<h2 class="section-title">G. Confirmation & Navigation</h2>
+			<p class="section-description">
+				Page headers, confirm blocks, avatars, and checkbox lists from <code>settings/elements/</code>.
+			</p>
+
+			<!-- 22. SettingsPageHeader -->
+			<div class="element-block">
+				<div class="element-header">
+					<h3>22. Page Header</h3>
+					<span class="element-tag new">SettingsPageHeader</span>
+				</div>
+				<p class="element-purpose">
+					Top-of-page title with optional description text. Used at the start of settings sub-pages.
+				</p>
+				<div class="element-demo">
+					<SettingsPageHeader
+						title="Export Account Data"
+						description="Download a copy of your data including chats, settings, and uploaded files."
+					/>
+				</div>
+			</div>
+
+			<!-- 23. SettingsConfirmBlock -->
+			<div class="element-block">
+				<div class="element-header">
+					<h3>23. Confirm Block</h3>
+					<span class="element-tag new">SettingsConfirmBlock</span>
+				</div>
+				<p class="element-purpose">
+					Confirmation checkbox with warning text. Used before destructive or important actions.
+					Available in danger and warning variants.
+				</p>
+				<div class="element-demo">
+					<h4 class="variant-label">Danger variant</h4>
+					<SettingsConfirmBlock
+						variant="danger"
+						warningText="This action cannot be undone. All your data will be permanently deleted."
+						confirmLabel="I understand and want to delete my account"
+						bind:checked={confirmDangerChecked}
+					/>
+					<div class="state-display">checked: {confirmDangerChecked}</div>
+				</div>
+				<div class="element-demo">
+					<h4 class="variant-label">Warning variant</h4>
+					<SettingsConfirmBlock
+						variant="warning"
+						warningText="Changing your email will require re-verification. You will be logged out of all devices."
+						confirmLabel="I want to change my email address"
+					/>
+				</div>
+			</div>
+
+			<!-- 24. SettingsAvatar -->
+			<div class="element-block">
+				<div class="element-header">
+					<h3>24. Avatar</h3>
+					<span class="element-tag new">SettingsAvatar</span>
+				</div>
+				<p class="element-purpose">
+					User avatar in 3 sizes (sm, md, lg). Shows placeholder initials when no image is provided.
+					Optionally editable with an edit overlay.
+				</p>
+				<div class="element-demo">
+					<h4 class="variant-label">Placeholder (lg)</h4>
+					<div style="padding: 0.5rem 0.625rem;">
+						<SettingsAvatar size="lg" placeholder="OM" />
+					</div>
+				</div>
+				<div class="element-demo">
+					<h4 class="variant-label">With image (md)</h4>
+					<div style="padding: 0.5rem 0.625rem;">
+						<SettingsAvatar src="https://api.dicebear.com/7.x/avataaars/svg?seed=OpenMates" size="md" />
+					</div>
+				</div>
+			</div>
+
+			<!-- 25. SettingsCheckboxList -->
+			<div class="element-block">
+				<div class="element-header">
+					<h3>25. Checkbox List</h3>
+					<span class="element-tag new">SettingsCheckboxList</span>
+				</div>
+				<p class="element-purpose">
+					List of checkboxes with labels, descriptions, and icons. Options are bindable for
+					two-way state updates. Useful for bulk selection (export, permissions, etc.).
+				</p>
+				<div class="element-demo">
+					<SettingsCheckboxList bind:options={checkboxOptions} />
+					<div class="state-display">
+						selected: {checkboxOptions.filter(o => o.checked).map(o => o.id).join(', ') || 'none'}
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<!-- ============================================= -->
+		<!-- SECTION H: Layout Primitives                  -->
+		<!-- ============================================= -->
+		<section class="element-section">
+			<h2 class="section-title">H. Layout Primitives</h2>
+			<p class="section-description">
+				Dividers, gradient links, and page container from <code>settings/elements/</code>.
+			</p>
+
+			<!-- 26. SettingsDivider -->
+			<div class="element-block">
+				<div class="element-header">
+					<h3>26. Divider</h3>
+					<span class="element-tag new">SettingsDivider</span>
+				</div>
+				<p class="element-purpose">
+					Horizontal separator in 3 spacing sizes (sm, md, lg). Used between logical groups
+					of settings elements.
+				</p>
+				<div class="element-demo">
+					<div style="padding: 0.5rem 0.625rem;">
+						<p style="margin: 0; font-size: 0.8125rem; color: var(--color-grey-60, #888);">Content above (sm spacing)</p>
+						<SettingsDivider spacing="sm" />
+						<p style="margin: 0; font-size: 0.8125rem; color: var(--color-grey-60, #888);">Content between (md spacing)</p>
+						<SettingsDivider spacing="md" />
+						<p style="margin: 0; font-size: 0.8125rem; color: var(--color-grey-60, #888);">Content between (lg spacing)</p>
+						<SettingsDivider spacing="lg" />
+						<p style="margin: 0; font-size: 0.8125rem; color: var(--color-grey-60, #888);">Content below</p>
+					</div>
+				</div>
+			</div>
+
+			<!-- 27. SettingsGradientLink -->
+			<div class="element-block">
+				<div class="element-header">
+					<h3>27. Gradient Link</h3>
+					<span class="element-tag new">SettingsGradientLink</span>
+				</div>
+				<p class="element-purpose">
+					Text link styled with the OpenMates primary gradient. Can be a standard href link
+					or a click-handler button.
+				</p>
+				<div class="element-demo">
+					<div style="display: flex; flex-direction: column; gap: 0.75rem; padding: 0.5rem 0.625rem;">
+						<SettingsGradientLink href="#">View Privacy Policy</SettingsGradientLink>
+						<SettingsGradientLink onClick={() => alert('Download started')}>Download Invoice</SettingsGradientLink>
+					</div>
+				</div>
+			</div>
+
+			<!-- 28. SettingsPageContainer -->
+			<div class="element-block">
+				<div class="element-header">
+					<h3>28. Page Container</h3>
+					<span class="element-tag new">SettingsPageContainer</span>
+				</div>
+				<p class="element-purpose">
+					Top-level wrapper that constrains settings page content to a max width (narrow, default,
+					wide). This preview page itself uses its own container, so a nested demo is shown below.
+				</p>
+				<div class="element-demo">
+					<SettingsPageContainer maxWidth="narrow">
+						<p style="margin: 0; font-size: 0.8125rem; color: var(--color-grey-60, #888); text-align: center;">
+							This content is inside a <code>SettingsPageContainer</code> with <code>maxWidth="narrow"</code>.
+						</p>
+					</SettingsPageContainer>
 				</div>
 			</div>
 		</section>

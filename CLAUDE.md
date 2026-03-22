@@ -162,7 +162,9 @@ Before writing any new function, class, model, or component — **search for exi
 | `backend/shared/providers/`            | Pure API wrappers (no skill-specific code) |
 | `frontend/packages/ui/src/utils/`      | Frontend shared utilities                  |
 | `frontend/packages/ui/src/components/` | Shared Svelte components                   |
+| `settings/elements/`                   | Settings UI components (29 canonical)      |
 
+- **Settings pages:** All visual elements MUST use canonical components from `settings/elements/`. No custom inline CSS. Preview: `/dev/preview/settings`. Guidelines: `docs/architecture/settings-ui.md`.
 - **Embed components:** Always use `UnifiedEmbedPreview.svelte` / `UnifiedEmbedFullscreen.svelte` as base.
 - **External images:** Use `proxyImage()` / `proxyFavicon()` from `imageProxy.ts`.
 - **Architecture decisions:** Write once in `docs/architecture/`, reference in code.
