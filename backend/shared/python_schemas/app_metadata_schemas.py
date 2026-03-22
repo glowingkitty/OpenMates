@@ -40,8 +40,13 @@ class ProviderRef(BaseModel):
     with additional metadata. When a provider uses web scraping or other methods
     that don't require an API key, set no_api_key=True so the skill isn't filtered
     out by is_skill_available().
+
+    Use display_name when the internal provider (used for API key lookup) differs
+    from the user-facing brand. Example: SerpAPI provides Google Flights data, so
+    name="SerpAPI" (for key lookup) but display_name="Google" (shown in app store).
     """
-    name: str
+    name: str = Field(description="Internal provider identifier used for API key lookups (e.g., 'serpapi', 'brave').")
+    display_name: Optional[str] = Field(default=None, description="User-facing provider name shown in the app store (e.g., 'Google'). Defaults to name if not set.")
     no_api_key: bool = Field(default=False, description="If true, this provider does not require an API key (e.g., web scrapers). The skill will be considered available without checking for credentials.")
 
 
