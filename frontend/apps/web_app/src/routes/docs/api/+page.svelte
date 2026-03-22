@@ -211,11 +211,11 @@
             Interactive documentation for the OpenMates REST API.
             {#if $authStore.isAuthenticated}
                 <span class="auth-status authenticated">
-                    Authenticated - API requests will use your credentials
+                    Authenticated — API requests will use your credentials
                 </span>
             {:else}
                 <span class="auth-status">
-                    <a href="/">Log in</a> to use "Try it out" with your API key
+                    <a href="/">Open Chat</a> and sign in to use "Try it out" with your API key
                 </span>
             {/if}
         </p>
@@ -247,6 +247,9 @@
     .api-docs {
         max-width: 100%;
         min-height: calc(100vh - 200px);
+        padding: 1.5rem;
+        min-width: 0;
+        overflow-x: hidden;
     }
     
     .api-header {

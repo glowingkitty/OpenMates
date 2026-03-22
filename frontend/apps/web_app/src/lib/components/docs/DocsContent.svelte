@@ -183,6 +183,9 @@
 <style>
     .docs-article {
         position: relative;
+        min-width: 0;
+        overflow-x: hidden;
+        padding: 1.5rem;
     }
     
     .docs-toolbar {
@@ -268,6 +271,8 @@
     
     .docs-content-body {
         /* Markdown content styles */
+        min-width: 0;
+        overflow-x: hidden;
     }
     
     .docs-content-body h1 {
@@ -377,6 +382,8 @@
         width: 100%;
         border-collapse: collapse;
         margin-bottom: 1rem;
+        display: block;
+        overflow-x: auto;
     }
     
     .docs-content-body :global(th),

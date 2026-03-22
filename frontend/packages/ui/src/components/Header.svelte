@@ -343,19 +343,16 @@
                     </div>
                 {/if}
                 
-                <!-- Right section: docs mode shows "Back to chats" link; webapp shows Login/Signup -->
-                <!-- Always render to maintain header height, but hide visually when not needed -->
+                <!-- Center section: docs mode shows Docs/Chat tab toggle -->
                 {#if docsMode}
-                    <div class="right-section">
-                        <a
-                            href="/"
-                            class="back-to-chats-link"
-                            aria-label={$text('documentation.back_to_chats')}
-                        >
-                            {$text('documentation.back_to_chats')}
-                        </a>
+                    <div class="docs-tabs">
+                        <a href="/docs" class="docs-tab active">{$text('documentation.tabs.docs')}</a>
+                        <a href="/" class="docs-tab">{$text('documentation.tabs.chat')}</a>
                     </div>
-                {:else}
+                {/if}
+
+                <!-- Right section: webapp shows Login/Signup when not authenticated -->
+                {#if !docsMode}
                     <div
                         class="right-section"
                         class:hidden={context !== 'webapp' || $authStore.isAuthenticated || $loginInterfaceOpen}
@@ -747,22 +744,47 @@
         box-shadow: none;
     }
 
-    /* "Back to chats" link shown in docs mode instead of Login/Signup */
-    .back-to-chats-link {
+    /* Docs/Chat tab toggle — centered in header when in docs mode */
+    .docs-tabs {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        background-color: var(--color-grey-20);
+        border-radius: 10px;
+        padding: 3px;
+        /* Center in header using absolute positioning so left/right sections aren't affected */
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    .docs-tab {
         display: inline-flex;
         align-items: center;
-        padding: 8px 12px;
+        padding: 6px 16px;
         border-radius: 8px;
         text-decoration: none;
-        color: var(--color-font-primary);
-        font-size: 0.875rem;
+        color: var(--color-font-secondary);
+        font-size: 0.8125rem;
         font-weight: 500;
-        opacity: 0.75;
-        transition: opacity 0.15s ease;
+        transition: all 0.15s ease;
         white-space: nowrap;
     }
 
-    .back-to-chats-link:hover {
-        opacity: 1;
+    .docs-tab:hover {
+        color: var(--color-font-primary);
+    }
+
+    .docs-tab.active {
+        background-color: var(--color-grey-0);
+        color: var(--color-font-primary);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    @media (max-width: 600px) {
+        .docs-tabs {
+            position: static;
+            transform: none;
+        }
     }
 </style>

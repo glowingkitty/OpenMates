@@ -47,10 +47,13 @@
 		margin: 0 auto;
 		padding: 12px 0 2rem;
 		box-sizing: border-box;
+		min-width: 0;
+		overflow-x: hidden;
 	}
 
 	.docs-message {
 		padding: 0 1rem;
+		min-width: 0;
 	}
 
 	/* Remove the speech bubble tail for docs — cleaner look for long content */
@@ -62,6 +65,8 @@
 	.docs-message :global(.mate-message-content) {
 		filter: none;
 		margin-inline-end: 0;
+		min-width: 0;
+		overflow-x: auto;
 	}
 
 	/* Prevent the openmates_official mate-profile AI badge from showing */

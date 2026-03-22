@@ -55,7 +55,9 @@
 		<ul class="brand-features">
 			{#each features as feature}
 				<li style="font-size: {featureSize};">
-					<span class="brand-check">&#x2714;</span>
+					<svg class="brand-check" viewBox="0 0 24 24" fill="none" stroke="#28c840" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+						<polyline points="20 6 9 17 4 12"></polyline>
+					</svg>
 					{feature}
 				</li>
 			{/each}
@@ -129,9 +131,8 @@
 	}
 
 	.brand-check {
-		color: #28c840;
-		font-size: 1.25rem;
+		width: 1.25rem;
+		height: 1.25rem;
 		flex-shrink: 0;
-		line-height: 1;
 	}
 </style>

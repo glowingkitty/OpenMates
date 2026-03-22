@@ -14,7 +14,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
 	import { page } from '$app/state';
-	import { Header } from '@repo/ui';
+	import { Header, Settings, authStore } from '@repo/ui';
 	import DocsSidebar from '$lib/components/docs/DocsSidebar.svelte';
 	import { docsPanelState } from '$lib/stores/docsPanelState';
 
@@ -92,7 +92,7 @@
 <div class="main-content" class:menu-closed={!isSidebarOpen} class:initial-load={isInitialLoad}>
 	<Header
 		context="webapp"
-		isLoggedIn={false}
+		isLoggedIn={$authStore.isAuthenticated}
 		docsMode={true}
 		onToggleSidebar={() => docsPanelState.toggle()}
 		{isSidebarOpen}
@@ -102,6 +102,9 @@
 			<div class="active-docs-container">
 				{@render children()}
 			</div>
+		</div>
+		<div class="settings-wrapper">
+			<Settings isLoggedIn={$authStore.isAuthenticated} />
 		</div>
 	</div>
 </div>
@@ -216,6 +219,12 @@
 
 	.active-docs-container::-webkit-scrollbar-thumb:hover {
 		background-color: var(--color-grey-50);
+	}
+
+	.settings-wrapper {
+		display: flex;
+		align-items: flex-start;
+		min-width: fit-content;
 	}
 
 	/* Mobile styles */

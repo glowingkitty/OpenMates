@@ -16,7 +16,7 @@
 	 */
 	import { page } from '$app/state';
 	import { untrack } from 'svelte';
-	import { text, getCategoryGradientColors, getLucideIcon } from '@repo/ui';
+	import { text, getCategoryGradientColors, getLucideIcon, SearchBar } from '@repo/ui';
 	import docsData from '$lib/generated/docs-data.json';
 	import type { DocFolder, DocFile, DocsData } from '$lib/types/docs';
 	import { getDocCategoryInfo, DOCS_FOLDER_ICON } from '$lib/utils/docsCategoryMap';
@@ -31,7 +31,7 @@
 
 	// Search state
 	let searchQuery = $state('');
-	let searchInputRef = $state<HTMLInputElement | null>(null);
+	let isSearchBarVisible = $state(false);
 
 	// Track expanded folders
 	let expandedFolders = $state<Set<string>>(new Set());
@@ -143,14 +143,23 @@
 		return clean.length > maxLen ? clean.substring(0, maxLen) + '...' : clean;
 	}
 
+	function handleSearchQuery(query: string) {
+		searchQuery = query;
+	}
+
+	function handleSearchClose() {
+		searchQuery = '';
+		isSearchBarVisible = false;
+	}
+
+	function openDocsSearch() {
+		isSearchBarVisible = true;
+	}
+
 	function handleKeydown(event: KeyboardEvent) {
 		if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
 			event.preventDefault();
-			searchInputRef?.focus();
-		}
-		if (event.key === 'Escape' && searchQuery) {
-			searchQuery = '';
-			searchInputRef?.blur();
+			openDocsSearch();
 		}
 	}
 
@@ -167,48 +176,21 @@
 <div class="sidebar-wrapper">
 	<!-- Top bar: search + close button -->
 	<div class="top-bar">
-		<div class="search-container">
-			<svg
-				class="search-icon"
-				width="16"
-				height="16"
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="2"
-			>
-				<circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
-			</svg>
-			<input
-				bind:this={searchInputRef}
-				bind:value={searchQuery}
-				type="text"
-				class="search-input"
-				placeholder={$text('documentation.search.placeholder')}
-			/>
-			{#if searchQuery}
-				<button
-					class="clear-btn"
-					aria-label="Clear search"
-					onclick={() => {
-						searchQuery = '';
-					}}
-				>
-					<svg
-						width="14"
-						height="14"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-					>
-						<path d="M18 6 6 18M6 6l12 12" />
-					</svg>
-				</button>
-			{:else}
-				<kbd class="shortcut-badge">⌘K</kbd>
-			{/if}
-		</div>
+		{#if isSearchBarVisible}
+			<div class="search-bar-wrapper">
+				<SearchBar
+					onSearch={handleSearchQuery}
+					onClose={handleSearchClose}
+					initialQuery={searchQuery}
+				/>
+			</div>
+		{:else}
+			<button
+				class="clickable-icon icon_search top-button"
+				aria-label="Search"
+				onclick={openDocsSearch}
+			></button>
+		{/if}
 		<button class="close-btn" onclick={onClose} aria-label="Close sidebar">
 			<svg
 				width="20"
@@ -442,62 +424,21 @@
 		flex-shrink: 0;
 	}
 
-	.search-container {
+	.search-bar-wrapper {
 		flex: 1;
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		background-color: var(--color-grey-10);
-		border-radius: 8px;
-		padding: 0.5rem 0.75rem;
-		border: 1px solid var(--color-grey-30);
-		transition: border-color 0.15s ease;
-	}
-
-	.search-container:focus-within {
-		border-color: var(--color-primary);
-	}
-
-	.search-icon {
-		color: var(--color-font-secondary);
-		flex-shrink: 0;
-	}
-
-	.search-input {
-		flex: 1;
-		background: none;
-		border: none;
-		color: var(--color-font-primary);
-		font-size: 0.875rem;
 		min-width: 0;
 	}
 
-	.search-input::placeholder {
-		color: var(--color-font-secondary);
+	.top-button {
+		flex-shrink: 0;
+		width: 24px;
+		height: 24px;
+		opacity: 0.5;
+		transition: opacity 0.15s ease;
 	}
 
-	.shortcut-badge {
-		font-size: 0.65rem;
-		padding: 0.15rem 0.35rem;
-		border-radius: 4px;
-		background-color: var(--color-grey-30);
-		color: var(--color-font-secondary);
-		font-family: inherit;
-		white-space: nowrap;
-	}
-
-	.clear-btn {
-		background: none;
-		border: none;
-		cursor: pointer;
-		color: var(--color-font-secondary);
-		padding: 2px;
-		display: flex;
-		border-radius: 4px;
-	}
-
-	.clear-btn:hover {
-		color: var(--color-font-primary);
+	.top-button:hover {
+		opacity: 1;
 	}
 
 	.close-btn {

@@ -286,3 +286,51 @@ back_to_chats:
   sv: ""
   he: חזרה לצ'אטים
   verified_by_human: []
+tabs.docs:
+  context: Tab label for the documentation tab in the header navigation toggle
+  en: Docs
+  de: Docs
+  zh: 文档
+  es: Docs
+  fr: Docs
+  pt: ""
+  ru: ""
+  ja: ドキュメント
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: תיעוד
+  verified_by_human: []
+tabs.chat:
+  context: Tab label for the chat tab in the header navigation toggle
+  en: Chat
+  de: Chat
+  zh: 聊天
+  es: Chat
+  fr: Chat
+  pt: ""
+  ru: ""
+  ja: チャット
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: צ'אט
+  verified_by_human: []
