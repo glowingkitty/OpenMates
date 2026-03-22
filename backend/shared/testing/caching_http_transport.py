@@ -104,6 +104,11 @@ class CachingHTTPTransport(httpx.AsyncBaseTransport):
         )
         response = await self._real_transport.handle_async_request(request)
 
+        # Read the response stream fully before accessing content.
+        # The real transport returns a streaming response — we must call .read()
+        # to buffer it before accessing .content.
+        await response.aread()
+
         # Read response body
         response_body = response.content.decode("utf-8", errors="replace")
 
