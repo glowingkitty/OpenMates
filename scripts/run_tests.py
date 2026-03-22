@@ -53,7 +53,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 RESULTS_DIR = PROJECT_ROOT / "test-results"
 SPEC_DIR = PROJECT_ROOT / "frontend" / "apps" / "web_app" / "tests"
 LOCKFILE = Path("/tmp/openmates-daily-tests.lock")
-WORKFLOW_NAME = "daily-tests.yml"
+WORKFLOW_NAME = "playwright-spec.yml"
 GH_REPO = "glowingkitty/OpenMates"
 GH_BRANCH = "dev"
 MAX_ACCOUNTS = 20
@@ -197,15 +197,14 @@ class GitHubActionsClient:
         # Record the latest run ID before dispatch so we can find the new one
         pre_ids = self._recent_run_ids(limit=5)
 
-        # daily-tests.yml accepts: suite, spec, environment
-        # When spec is set, only batch 0 runs (single account), others skip.
+        # playwright-spec.yml: lightweight 1-job workflow per spec
         rc = subprocess.run(
             ["gh", "workflow", "run", WORKFLOW_NAME,
              "--repo", GH_REPO,
              "--ref", GH_BRANCH,
-             "-f", "suite=playwright",
              "-f", f"spec={spec}",
-             "-f", "environment=development"],
+             "-f", f"account={account}",
+             "-f", f"use_mocks={'true' if use_mocks else 'false'}"],
             capture_output=True, text=True,
         )
         if rc.returncode != 0:
@@ -452,13 +451,10 @@ class BatchRunner:
 
             # Try to download artifact for error details
             if status == "failed":
-                # daily-tests.yml names artifacts: playwright-results-0 (batch 0 for single-spec)
-                art_path = self.client.download_artifact(rid, "playwright-results-0", artifact_dir)
+                # playwright-spec.yml artifact name: playwright-{spec}
+                art_path = self.client.download_artifact(rid, f"playwright-{spec}", artifact_dir)
                 if art_path:
-                    # daily-tests.yml: playwright-0.json; playwright-spec.yml: playwright.json
-                    pw_json = art_path / "playwright-0.json"
-                    if not pw_json.is_file():
-                        pw_json = art_path / "playwright.json"
+                    pw_json = art_path / "playwright.json"
                     if pw_json.is_file():
                         error = self._extract_error_from_playwright_json(pw_json) or error
 
