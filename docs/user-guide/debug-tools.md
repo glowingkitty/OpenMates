@@ -305,6 +305,6 @@ When debugging sync issues, compare data from both sources:
 
 ## Related Documentation
 
-- [Sync Architecture](../architecture/sync.md) - How the 3-phase sync system works
-- [Zero-Knowledge Storage](../architecture/zero-knowledge-storage.md) - How encryption affects debugging
-- [Logging](../architecture/logging.md) - Server-side logging for debugging
+- [Sync Architecture](../architecture/data/sync.md) - How the 3-phase sync system works
+- [Zero-Knowledge Storage](../architecture/core/zero-knowledge-storage.md) - How encryption affects debugging
+- [Logging](../architecture/infrastructure/logging.md) - Server-side logging for debugging

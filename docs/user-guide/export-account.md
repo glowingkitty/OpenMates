@@ -727,7 +727,7 @@ When support for uploaded images and files is added:
 ## Related Documentation
 
 - [Account Deletion Architecture](../planned/delete-account.md) - Similar authentication flow
-- [Security Architecture](../architecture/security.md) - Encryption and authentication
+- [Security Architecture](../architecture/core/security.md) - Encryption and authentication
 - [Chat Export Service](../frontend/packages/ui/src/services/chatExportService.ts) - Existing chat export
 - [ZIP Export Service](../frontend/packages/ui/src/services/zipExportService.ts) - Existing ZIP creation
 - [Cache Architecture](../architecture/README.md) - IndexedDB patterns

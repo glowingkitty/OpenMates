@@ -298,6 +298,6 @@ The notification system serves as an alternative to social media and email for u
 
 ## Read Next
 
-- [Sync Architecture](../architecture/sync.md) - How chat data is synchronized
-- [Message Processing](../architecture/message-processing.md) - How AI messages are processed
-- [Web App Architecture](../architecture/web-app.md) - Overall web app structure
+- [Sync Architecture](../architecture/data/sync.md) - How chat data is synchronized
+- [Message Processing](../architecture/messaging/message-processing.md) - How AI messages are processed
+- [Web App Architecture](../architecture/frontend/web-app.md) - Overall web app structure

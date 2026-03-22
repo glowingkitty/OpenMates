@@ -95,8 +95,8 @@ Each draft edit increments the version number, enabling conflict detection and r
 
 **Related Architecture:**
 
-- [Message Input Field](../architecture/message-input-field.md) - MessageInput component architecture
-- [Chat Sync Architecture](../architecture/sync.md) - Overall sync system design
+- [Message Input Field](../architecture/messaging/message-input-field.md) - MessageInput component architecture
+- [Chat Sync Architecture](../architecture/data/sync.md) - Overall sync system design
 
 **Related Features:**
 

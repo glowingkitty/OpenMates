@@ -211,7 +211,7 @@ For production use, consider these additional steps:
    ```
 
 3. **Use the configuration**:
-   See [deployment/README.md](../architecture/servers.md) for detailed instructions.
+   See [deployment/README.md](../architecture/core/servers.md) for detailed instructions.
 
 ### Security Considerations
 
@@ -374,4 +374,4 @@ This will:
 
 ## License & Contributing
 
-OpenMates is licensed under AGPL v3. Contributions welcome! See [contributing.md](../contributing/contributing.md) for guidelines.
+OpenMates is licensed under AGPL v3. Contributions welcome! See [contributing.md](../architecture/contributing/contributing.md) for guidelines.

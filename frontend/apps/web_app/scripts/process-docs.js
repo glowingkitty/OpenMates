@@ -134,68 +134,61 @@ function shouldIgnore(relativePath, ignorePatterns) {
  */
 function processMarkdownContent(content, filePath) {
     let processedContent = content;
-    
+
+    // GitHub branch: use DOCS_GITHUB_BRANCH env var, or detect from Vercel/dev environment
+    const githubBranch = process.env.DOCS_GITHUB_BRANCH
+        || (process.env.VERCEL_GIT_COMMIT_REF === 'dev' ? 'dev' : null)
+        || (process.env.NODE_ENV === 'development' ? 'dev' : 'main');
+
     // Fix relative code file links - convert to GitHub links
-    // Pattern: [text](./file.js) -> [text](https://github.com/glowingkitty/OpenMates/blob/main/file.js)
+    // Pattern: [text](./file.js) -> [text](https://github.com/glowingkitty/OpenMates/blob/<branch>/file.js)
     const codeExtensions = 'js|ts|py|java|cpp|c|h|go|rs|php|rb|swift|kt|scala|r|sql|sh|bash|yaml|yml|json|xml|html|css|scss|sass|less|vue|svelte|jsx|tsx';
     const codeFileRegex = new RegExp(
         `\\[([^\\]]+)\\]\\(([^)]+\\.(${codeExtensions}))\\)`,
         'g'
     );
-    
-    processedContent = processedContent.replace(codeFileRegex, (match, linkText, filePath) => {
+
+    processedContent = processedContent.replace(codeFileRegex, (match, linkText, codePath) => {
         // Skip absolute URLs
-        if (filePath.startsWith('http') || filePath.startsWith('/')) {
+        if (codePath.startsWith('http') || codePath.startsWith('/')) {
             return match;
         }
-        
-        // Clean up relative path
-        let cleanPath = filePath;
-        while (cleanPath.includes('../')) {
-            cleanPath = cleanPath.replace('../', '');
-        }
-        cleanPath = cleanPath.replace(/\.\//g, '');
-        cleanPath = cleanPath.replace(/\\/g, '/');
-        
-        const githubUrl = `https://github.com/glowingkitty/OpenMates/blob/main/${cleanPath}`;
+
+        // Resolve relative path properly using the current file's directory
+        const currentDir = path.dirname(filePath);
+        const resolved = path.normalize(path.join(currentDir, codePath)).replace(/\\/g, '/');
+        // Remove any leading docs/ prefix — code files are relative to project root
+        // The filePath is relative to DOCS_ROOT, so ../backend/ from docs/architecture/core/
+        // resolves to something like "backend/..." after normalization
+        const cleanPath = resolved.replace(/^(\.\.\/)+/, '');
+
+        const githubUrl = `https://github.com/glowingkitty/OpenMates/blob/${githubBranch}/${cleanPath}`;
         return `[${linkText}](${githubUrl})`;
     });
-    
+
     // Fix relative markdown links - convert to website routes
     // Pattern: [text](./other-file.md) -> [text](/docs/architecture/other-file)
+    // Supports multi-level relative paths (../../user-guide/apps/code.md)
     processedContent = processedContent.replace(
-        /\[([^\]]+)\]\(([^)]+\.md)\)/g,
+        /\[([^\]]+)\]\(([^)]+\.md(?:#[^)]*)?)\)/g,
         (match, linkText, mdPath) => {
             // Skip absolute URLs
             if (mdPath.startsWith('http') || mdPath.startsWith('/')) {
                 return match;
             }
-            
-            // Get current file's directory
-            const currentDir = path.dirname(filePath).replace(/\\/g, '/');
-            
-            // Resolve the relative path
-            let resolvedPath;
-            if (mdPath.startsWith('./')) {
-                resolvedPath = currentDir 
-                    ? `${currentDir}/${mdPath.replace('./', '').replace('.md', '')}`
-                    : mdPath.replace('./', '').replace('.md', '');
-            } else if (mdPath.startsWith('../')) {
-                // Go up one directory
-                const parentDir = currentDir.split('/').slice(0, -1).join('/');
-                resolvedPath = parentDir 
-                    ? `${parentDir}/${mdPath.replace('../', '').replace('.md', '')}`
-                    : mdPath.replace('../', '').replace('.md', '');
-            } else {
-                resolvedPath = currentDir 
-                    ? `${currentDir}/${mdPath.replace('.md', '')}`
-                    : mdPath.replace('.md', '');
-            }
-            
-            // Clean up path
-            resolvedPath = resolvedPath.replace(/\\/g, '/').replace(/\/+/g, '/').replace(/^\//, '');
-            
-            return `[${linkText}](/docs/${resolvedPath})`;
+
+            // Separate anchor fragment from path
+            const [pathPart, ...anchorParts] = mdPath.split('#');
+            const anchor = anchorParts.length ? `#${anchorParts.join('#')}` : '';
+
+            // Resolve relative path using Node's path module for proper multi-level handling
+            const currentDir = path.dirname(filePath);
+            const resolved = path.normalize(path.join(currentDir, pathPart)).replace(/\\/g, '/');
+
+            // Remove .md extension and clean up
+            let resolvedPath = resolved.replace(/\.md$/, '').replace(/\/+/g, '/').replace(/^\//, '');
+
+            return `[${linkText}](/docs/${resolvedPath}${anchor})`;
         }
     );
     

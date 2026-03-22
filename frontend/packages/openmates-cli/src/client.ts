@@ -3018,6 +3018,72 @@ export class OpenMatesClient {
   private getLocalDeviceName(): string {
     return `${CLI_DEVICE_NAME_PREFIX} (${platform()} ${release()})`;
   }
+
+  // -------------------------------------------------------------------------
+  // Docs (public, no auth required)
+  // -------------------------------------------------------------------------
+
+  /** Fetch the full documentation tree structure. */
+  async listDocs(): Promise<DocsTree> {
+    const response = await this.http.get<DocsTree>("/v1/docs");
+    if (!response.ok) {
+      throw new Error(`Failed to list docs: HTTP ${response.status}`);
+    }
+    return response.data;
+  }
+
+  /** Fetch a single document's raw markdown by slug. */
+  async getDoc(slug: string): Promise<string> {
+    const url = `/v1/docs/${encodeURIComponent(slug)}`;
+    const response = await this.http.get<string>(url);
+    if (!response.ok) {
+      throw new Error(
+        response.status === 404
+          ? `Document not found: ${slug}`
+          : `Failed to get doc: HTTP ${response.status}`,
+      );
+    }
+    // The response is plain text markdown
+    return typeof response.data === "string"
+      ? response.data
+      : JSON.stringify(response.data);
+  }
+
+  /** Search docs by query string. Returns matching docs with snippets. */
+  async searchDocs(query: string): Promise<DocsSearchResult[]> {
+    const url = `/v1/docs/search?q=${encodeURIComponent(query)}`;
+    const response = await this.http.get<DocsSearchResult[]>(url);
+    if (!response.ok) {
+      throw new Error(`Failed to search docs: HTTP ${response.status}`);
+    }
+    return response.data;
+  }
+}
+
+// Docs types
+export interface DocsTree {
+  folders: DocsFolder[];
+  files: DocsFile[];
+}
+
+export interface DocsFolder {
+  path: string;
+  title: string;
+  folders: DocsFolder[];
+  files: DocsFile[];
+}
+
+export interface DocsFile {
+  slug: string;
+  title: string;
+  filename: string;
+  wordCount: number;
+}
+
+export interface DocsSearchResult {
+  slug: string;
+  title: string;
+  snippet: string;
 }
 
 // ---------------------------------------------------------------------------

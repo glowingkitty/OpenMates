@@ -20,6 +20,10 @@ import {
   type DecryptedEmbed,
   type DailyInspiration,
   type DecryptedNewChatSuggestion,
+  type DocsTree,
+  type DocsFolder,
+  type DocsFile,
+  type DocsSearchResult,
 } from "./client.js";
 import type { StreamEvent } from "./ws.js";
 
@@ -106,13 +110,22 @@ async function main(): Promise<void> {
       printServerHelp();
       return;
     }
+    if (command === "docs") {
+      printDocsHelp();
+      return;
+    }
     printHelp();
     return;
   }
 
-  // Server commands don't need login or the client
+  // Server and docs commands don't need login
   if (command === "server") {
     await handleServer(subcommand, rest, parsed.flags);
+    return;
+  }
+
+  if (command === "docs") {
+    await handleDocs(client, subcommand, rest, parsed.flags);
     return;
   }
 
@@ -3701,6 +3714,7 @@ Commands:
   openmates inspirations [--lang <code>] [--json]   Daily inspirations
   openmates newchatsuggestions [--limit <n>] [--json]   Personalized new chat suggestions
   openmates server [--help]                   Server management (install, start, stop, ...)
+  openmates docs [--help]                     Browse, search, and download documentation
 
 Flags:
   --json          Output raw JSON instead of formatted output
@@ -3956,6 +3970,156 @@ Examples:
   openmates settings memories list --app-id code
   openmates settings memories create --app-id code --item-type preferred_tech --data '{"name":"Python","proficiency":"advanced"}'
   openmates settings memories delete --id <uuid>`);
+}
+
+// ---------------------------------------------------------------------------
+// Docs
+// ---------------------------------------------------------------------------
+
+async function handleDocs(
+  client: OpenMatesClient,
+  subcommand: string | undefined,
+  rest: string[],
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  if (!subcommand || subcommand === "help" || flags.help === true) {
+    printDocsHelp();
+    return;
+  }
+
+  if (subcommand === "list") {
+    const tree = await client.listDocs();
+    if (flags.json === true) {
+      printJson(tree);
+    } else {
+      printDocsTree(tree);
+    }
+    return;
+  }
+
+  if (subcommand === "search") {
+    const query = rest.join(" ").trim();
+    if (!query) {
+      console.error("Error: provide a search query.");
+      console.error("Usage: openmates docs search <query>");
+      process.exit(1);
+    }
+    const results = await client.searchDocs(query);
+    if (flags.json === true) {
+      printJson(results);
+    } else if (results.length === 0) {
+      console.log(`No results for "${query}".`);
+    } else {
+      console.log(`Found ${results.length} result(s) for "${query}":\n`);
+      for (const r of results) {
+        console.log(`  \x1b[1m${r.title}\x1b[0m`);
+        console.log(`  \x1b[2m${r.slug}\x1b[0m`);
+        console.log(`  ${r.snippet}\n`);
+      }
+    }
+    return;
+  }
+
+  if (subcommand === "show") {
+    const slug = rest[0];
+    if (!slug) {
+      console.error("Error: provide a doc slug.");
+      console.error("Usage: openmates docs show <slug>");
+      process.exit(1);
+    }
+    const content = await client.getDoc(slug);
+    console.log(content);
+    return;
+  }
+
+  if (subcommand === "download") {
+    const { writeFile, mkdir } = await import("node:fs/promises");
+    const { join, dirname } = await import("node:path");
+
+    if (flags.all === true) {
+      // Download all docs
+      const outputDir =
+        typeof flags.output === "string" ? flags.output : "./openmates-docs";
+      const tree = await client.listDocs();
+      const slugs = collectSlugs(tree);
+      await mkdir(outputDir, { recursive: true });
+      let count = 0;
+      for (const slug of slugs) {
+        const content = await client.getDoc(slug);
+        const filePath = join(outputDir, `${slug}.md`);
+        await mkdir(dirname(filePath), { recursive: true });
+        await writeFile(filePath, content, "utf-8");
+        count++;
+        process.stderr.write(`\r  Downloaded ${count}/${slugs.length}`);
+      }
+      process.stderr.write("\n");
+      console.log(`Downloaded ${count} docs to ${outputDir}/`);
+      return;
+    }
+
+    const slug = rest[0];
+    if (!slug) {
+      console.error(
+        "Error: provide a doc slug or --all to download everything.",
+      );
+      console.error("Usage: openmates docs download <slug> [--output <path>]");
+      console.error("       openmates docs download --all [--output <dir>]");
+      process.exit(1);
+    }
+    const content = await client.getDoc(slug);
+    const filename = typeof flags.output === "string" ? flags.output : `${slug.split("/").pop()}.md`;
+    await writeFile(filename, content, "utf-8");
+    console.log(`Saved to ${filename}`);
+    return;
+  }
+
+  console.error(`Unknown docs subcommand '${subcommand}'.`);
+  printDocsHelp();
+  process.exit(1);
+}
+
+/** Collect all file slugs from a docs tree recursively. */
+function collectSlugs(tree: DocsTree): string[] {
+  const slugs: string[] = [];
+  for (const file of tree.files) {
+    slugs.push(file.slug);
+  }
+  for (const folder of tree.folders) {
+    slugs.push(...collectSlugs(folder));
+  }
+  return slugs;
+}
+
+/** Print the docs tree to terminal with indentation. */
+function printDocsTree(tree: DocsTree, indent = 0): void {
+  const prefix = "  ".repeat(indent);
+  for (const folder of tree.folders) {
+    console.log(`${prefix}\x1b[1m${folder.title}\x1b[0m/`);
+    printDocsTree(folder, indent + 1);
+  }
+  for (const file of tree.files) {
+    console.log(
+      `${prefix}  ${file.title} \x1b[2m(${file.slug})\x1b[0m`,
+    );
+  }
+}
+
+function printDocsHelp(): void {
+  console.log(`Docs commands:
+  openmates docs list [--json]                   List all documentation
+  openmates docs search <query> [--json]         Search docs by keyword
+  openmates docs show <slug>                     Display a doc in the terminal
+  openmates docs download <slug> [--output <p>]  Download a doc as .md file
+  openmates docs download --all [--output <dir>] Download all docs
+
+No login required — docs are public.
+
+Examples:
+  openmates docs list
+  openmates docs search "encryption"
+  openmates docs show user-guide/getting-started
+  openmates docs download architecture/core/security
+  openmates docs download --all --output ./docs`);
 }
 
 main().catch((error) => {
