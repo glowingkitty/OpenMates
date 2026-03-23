@@ -525,7 +525,7 @@
   } = $props();
 
   // Add reactive statement to handle height changes using $derived (Svelte 5 runes mode)
-  let containerStyle = $derived(`bottom: ${messageInputHeight-30}px`);
+  let containerStyle = $derived(`bottom: ${Math.max(0, messageInputHeight - 30)}px`);
 
   // PII visibility: derive whether PII is revealed for the current chat.
   // Default is false (hidden) — user must explicitly toggle to reveal sensitive data.

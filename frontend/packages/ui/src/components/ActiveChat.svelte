@@ -9394,7 +9394,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
                      <ChatHistory
                          bind:this={chatHistoryRef}
-                         messageInputHeight={isFullscreen ? 0 : messageInputHeight + 40}
+                         messageInputHeight={0}
                          containerWidth={effectiveChatWidth}
                          currentChatId={currentChat?.chat_id}
                          {processingPhase}
@@ -11574,10 +11574,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     .chat-wrapper:not(.fullscreen) .message-input-wrapper { /* Changed from .message-input-container */
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
+        /* Flex child instead of position:absolute — this lets iOS Safari's
+         * virtual keyboard push the input up naturally via dvh + flex layout,
+         * instead of the input being anchored behind the keyboard. */
+        flex-shrink: 0;
+        width: 100%;
     }
     
 
@@ -11693,10 +11694,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     .active-chat-container.narrow .chat-wrapper.fullscreen .message-input-wrapper,
     .active-chat-container.medium .chat-wrapper.fullscreen .message-input-wrapper,
     .active-chat-container.wide .chat-wrapper.fullscreen .message-input-wrapper {
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
+        flex-shrink: 0;
         width: 100%;
         /* padding for message-input-container is already 15px */
     }
@@ -11707,7 +11705,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         flex-direction: column;
         flex: 1;
         min-width: 0;
-        height: 100%;
+        min-height: 0; /* Allow flex to shrink below content height (required for iOS keyboard) */
         overflow: hidden;
         container-type: inline-size;
         container-name: chat-side;
