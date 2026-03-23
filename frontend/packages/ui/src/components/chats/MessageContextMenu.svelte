@@ -18,6 +18,7 @@
         onSelect?: () => void;
         onDelete?: () => void;
         onFork?: () => void;        // Callback to open the fork conversation settings panel
+        onEdit?: () => void;        // Callback to enter edit mode for a user message
         disableDelete?: boolean; // When true, shows delete button greyed out (e.g., first message in chat)
         disableFork?: boolean;   // When true, fork is disabled (e.g., incognito chat)
         messageId?: string;
@@ -33,6 +34,7 @@
         onSelect,
         onDelete,
         onFork,
+        onEdit,
         disableDelete = false,
         disableFork = false,
         messageId = undefined,
@@ -177,7 +179,7 @@
     }
 
     // Unified handler for menu actions
-    function handleAction(action: 'copy' | 'select' | 'delete' | 'fork', event: Event) {
+    function handleAction(action: 'copy' | 'select' | 'delete' | 'fork' | 'edit', event: Event) {
         event.stopPropagation();
         event.preventDefault();
         
@@ -185,6 +187,7 @@
         
         if (action === 'copy') onCopy?.();
         if (action === 'select') onSelect?.();
+        if (action === 'edit') onEdit?.();
         if (action === 'fork') {
             if (!disableFork) onFork?.();
         }
@@ -274,6 +277,16 @@
             >
                 <div class="clickable-icon icon_select"></div>
                 {$text('chats.context_menu.select')}
+            </button>
+        {/if}
+
+        {#if onEdit}
+            <button
+                class="menu-item edit"
+                onclick={(event) => handleAction('edit', event)}
+            >
+                <div class="clickable-icon icon_edit"></div>
+                {$text('chats.context_menu.edit')}
             </button>
         {/if}
 

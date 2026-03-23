@@ -16,6 +16,7 @@
   import { getModelDisplayName, getModelByNameOrId } from '../utils/modelDisplayName';
   import { getMatesById } from '../data/matesMetadata';
 import { reportIssueStore } from '../stores/reportIssueStore';
+import { startEdit } from '../stores/editMessageStore';
 import { messageHighlightStore, searchTextHighlightStore } from '../stores/messageHighlightStore';
 import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadStore';
   import { chatDB } from '../services/db';
@@ -705,6 +706,21 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       settingsDeepLink.set(`app_store/ai/skill/ask/model/${modelMeta.id}`);
       panelState.openSettings();
     }
+  }
+
+  /**
+   * Enter edit mode for this user message.
+   * Populates the message input with the original content and dims all
+   * messages from this point onward via editMessageStore.
+   */
+  function handleEdit() {
+    if (!messageId || !currentChatId || role !== 'user') return;
+    const content = typeof original_message?.content === 'string'
+      ? original_message.content : '';
+    const createdAt = original_message?.created_at ?? 0;
+    startEdit(currentChatId, messageId, content, createdAt);
+    showMessageMenu = false;
+    console.debug('[ChatMessage] Edit started for message:', messageId);
   }
 
   /**
@@ -2278,6 +2294,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
            onSelect={handleSelectMessage}
            onDelete={messageId && !isFirstMessage ? handleDeleteMessage : undefined}
            disableDelete={isFirstMessage}
+           onEdit={role === 'user' && messageId ? handleEdit : undefined}
            onFork={handleFork}
            disableFork={isForkDisabled}
            {messageId}
