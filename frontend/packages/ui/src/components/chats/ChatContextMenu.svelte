@@ -37,7 +37,7 @@
     }: Props = $props();
 
     const dispatch: {
-        (e: 'close' | 'delete' | 'download' | 'copy' | 'hide' | 'unhide' | 'enterSelectMode' | 'unselect' | 'selectChat' | 'pin' | 'unpin' | 'markUnread' | 'markRead', detail: string): void;
+        (e: 'close' | 'delete' | 'download' | 'copy' | 'hide' | 'unhide' | 'enterSelectMode' | 'unselect' | 'selectChat' | 'pin' | 'unpin' | 'markUnread' | 'markRead' | 'share', detail: string): void;
     } = createEventDispatcher();
     
     // Derive if chat is currently unread (has unread_count > 0)
@@ -499,6 +499,22 @@
                 </button>
             {/if}
 
+            {#if chat && !chat.is_incognito && !isPublicChat(chat.chat_id)}
+                <button
+                    class="menu-item share"
+                    class:disabled={!$authStore.isAuthenticated}
+                    disabled={!$authStore.isAuthenticated}
+                    onclick={(event) => {
+                        if ($authStore.isAuthenticated) {
+                            handleButtonClick('share', event);
+                        }
+                    }}
+                >
+                    <div class="clickable-icon icon_share"></div>
+                    {$text('chats.context_menu.share')}
+                </button>
+            {/if}
+
             {#if chat && !chat.is_incognito && !chat.is_hidden && !isPublicChat(chat.chat_id)}
                 <button
                     class="menu-item hide"
@@ -786,6 +802,14 @@
 
     .menu-item.unselect .clickable-icon {
         background: var(--color-grey-60);
+    }
+
+    .menu-item.share {
+        color: var(--color-primary);
+    }
+
+    .menu-item.share .clickable-icon {
+        background: var(--color-primary);
     }
 
     /* Hide and unhide buttons use default text and icon colors for better visibility */

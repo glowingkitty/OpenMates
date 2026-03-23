@@ -20,6 +20,7 @@ import { createEmbedFromUrl } from "../services/urlMetadataService"; // Import U
 import { authStore } from "../../../stores/authStore"; // Import authStore for authentication check
 import { appSettingsMemoriesPermissionStore } from "../../../stores/appSettingsMemoriesPermissionStore"; // For auto-dismissing permission dialog
 import { forcedLogoutInProgress } from "../../../stores/signupState";
+import { editMessageStore, cancelEdit } from "../../../stores/editMessageStore";
 import { notificationStore } from "../../../stores/notificationStore";
 import {
   detectPII,
@@ -1345,6 +1346,36 @@ export async function handleSend(
     // Always blur after sending to make input compact and show assistant response
     resetEditorContent(editor, false); // Force blur (false = don't keep focus)
 
+    // ─── Edit mode: delete messages from edit point before re-sending ───
+    // When the user edits a previous message, we need to delete all messages
+    // from that point onward (inclusive) so the backend sees a clean history.
+    const editState = get(editMessageStore);
+    const isEditSend = !!(editState && editState.chatId === chatIdToUse);
+    let editCreatedAt: number | undefined;
+    if (isEditSend && editState) {
+      editCreatedAt = editState.createdAt;
+      try {
+        const allMessages = await chatDB.getMessagesForChat(chatIdToUse);
+        allMessages.sort((a, b) => (a.created_at ?? 0) - (b.created_at ?? 0));
+        // Find the index of the edited message by ID for precision
+        const editIdx = allMessages.findIndex(m => m.message_id === editState.messageId);
+        const startIdx = editIdx >= 0 ? editIdx : allMessages.findIndex(m => (m.created_at ?? 0) >= editState.createdAt);
+        if (startIdx >= 0) {
+          const messagesToDelete = allMessages.slice(startIdx);
+          console.debug(`[handleSend] Edit mode: deleting ${messagesToDelete.length} messages from index ${startIdx}`);
+          for (const msg of messagesToDelete) {
+            await chatDB.deleteMessage(msg.message_id);
+            chatSyncService.sendDeleteMessage(chatIdToUse, msg.message_id).catch(err => {
+              console.warn('[handleSend] Edit mode: failed to delete message from server:', msg.message_id, err);
+            });
+          }
+        }
+      } catch (err) {
+        console.error('[handleSend] Edit mode: failed to delete messages:', err);
+      }
+      cancelEdit();
+    }
+
     // Dispatch for UI update (ActiveChat will pick this up)
     // The messagePayload is already defined and includes the correct chat_id
     // If it's a new chat (isNewChatCreation is true) OR we're using an existing draft chat,
@@ -1352,6 +1383,8 @@ export async function handleSend(
     dispatch("sendMessage", {
       message: messagePayload,
       newChat: isNewChatCreation || isUsingDraftChat ? chatToUpdate : undefined,
+      isEditSend,
+      editCreatedAt,
     });
 
     // chatToUpdate should be the definitive version of the chat from the DB

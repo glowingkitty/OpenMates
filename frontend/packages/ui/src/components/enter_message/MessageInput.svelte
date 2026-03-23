@@ -19,6 +19,7 @@
     } from '../../services/draftService';
     import { recordingState, updateRecordingState } from './recordingStore';
     import { pendingNotificationReplyStore } from '../../stores/pendingNotificationReplyStore';
+    import { editMessageStore, cancelEdit } from '../../stores/editMessageStore';
     import { pendingMentionStore } from '../../stores/pendingMentionStore';
     import { getMatesById } from '../../data/matesMetadata';
     import { appSkillsStore } from '../../stores/appSkillsStore';
@@ -4009,6 +4010,38 @@
         }
     });
 
+    // Watch for edit mode activation. When the user clicks "Edit" on a message,
+    // editMessageStore is populated with the message content. We load it into the
+    // TipTap editor so the user can modify and re-send.
+    $effect(() => {
+        const editState = $editMessageStore;
+        if (editState && editState.chatId === currentChatId && editor && !editor.isDestroyed) {
+            console.debug('[MessageInput] Populating editor with edit message content');
+            tick().then(() => {
+                if (!editor || editor.isDestroyed) return;
+                // Set the markdown content as plain text in a paragraph.
+                // The send flow will process it the same as any new message.
+                const escapedContent = editState.messageContent
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/\n/g, '<br>');
+                editor.commands.setContent(`<p>${escapedContent}</p>`);
+                editor.commands.focus('end');
+                hasContent = true;
+            });
+        }
+    });
+
+    // Cancel edit mode when switching to a different chat
+    $effect(() => {
+        currentChatId; // track dependency
+        const editState = $editMessageStore;
+        if (editState && editState.chatId !== currentChatId) {
+            cancelEdit();
+        }
+    });
+
     // Watch for a pending mention (from suggestion clicks or "Chat with this mate" panel).
     // When pendingMentionStore is set, we insert the mention chip at the START of the
     // editor so it appears before any body text. This is important for suggestion clicks
@@ -4162,8 +4195,31 @@
  
 <!-- Template -->
 <div bind:this={messageInputWrapper} class="message-input-wrapper" role="none" onmousedown={handleMessageWrapperMouseDown} data-action="message-input">
+    <!-- Edit mode banner — shown when user is editing a previous message -->
+    {#if $editMessageStore && $editMessageStore.chatId === currentChatId}
+        <div class="edit-banner">
+            <span class="edit-banner-text">
+                <span class="clickable-icon icon_edit edit-banner-icon"></span>
+                {$text('chats.edit_banner.editing')}
+            </span>
+            <button
+                class="edit-banner-cancel"
+                onclick={() => {
+                    cancelEdit();
+                    if (editor && !editor.isDestroyed) {
+                        editor.commands.clearContent();
+                        hasContent = false;
+                    }
+                }}
+                aria-label={$text('chats.edit_banner.cancel')}
+            >
+                <span class="clickable-icon icon_close edit-banner-close-icon"></span>
+            </button>
+        </div>
+    {/if}
+
     <!-- PII Warning Banner - shown when sensitive data is detected in the input -->
-    <PIIWarningBanner 
+    <PIIWarningBanner
         matches={detectedPII}
         onUndoAll={handlePIIUndoAll}
     />
@@ -4433,4 +4489,48 @@
 <style>
     @import './MessageInput.styles.css';
     @import './EmbeddPreview.styles.css';
+
+    /* Edit message banner — shown above the editor when editing a previous message */
+    .edit-banner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 6px 12px;
+        background: var(--color-grey-10, rgba(255, 255, 255, 0.06));
+        border-radius: 8px 8px 0 0;
+        margin: 0 8px;
+    }
+
+    .edit-banner-text {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        color: var(--color-font-secondary);
+    }
+
+    .edit-banner-icon {
+        width: 14px;
+        height: 14px;
+        background: var(--color-font-secondary);
+    }
+
+    .edit-banner-cancel {
+        all: unset;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        padding: 4px;
+        border-radius: 4px;
+    }
+
+    .edit-banner-cancel:hover {
+        background: var(--color-grey-20, rgba(255, 255, 255, 0.1));
+    }
+
+    .edit-banner-close-icon {
+        width: 14px;
+        height: 14px;
+        background: var(--color-font-secondary);
+    }
 </style>

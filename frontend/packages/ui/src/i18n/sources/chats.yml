@@ -395,6 +395,11 @@ context_menu.hide:
   he: הסתרה
   verified_by_human: []
 
+context_menu.share:
+  context: Menu option to share a chat (opens the share settings deep link)
+  en: Share
+  verified_by_human: []
+
 hidden_chats.unlock:
   context: Button to unlock hidden chats
   en: Unlock hidden chats
@@ -2184,6 +2189,81 @@ context_menu.fork:
   cs: Rozvětvit
   sv: Förgrena
   he: פיצול
+  verified_by_human: []
+
+context_menu.edit:
+  context: Message context menu option to edit a user message and resend it — short label, 1 word
+  en: Edit
+  de: Bearbeiten
+  zh: 编辑
+  es: Editar
+  fr: Modifier
+  pt: Editar
+  ru: Изменить
+  ja: 編集
+  ko: 편집
+  it: Modifica
+  tr: Düzenle
+  vi: Chỉnh sửa
+  id: Edit
+  pl: Edytuj
+  nl: Bewerken
+  ar: تعديل
+  hi: संपादित करें
+  th: แก้ไข
+  cs: Upravit
+  sv: Redigera
+  he: עריכה
+  verified_by_human: []
+
+edit_banner.editing:
+  context: Banner text shown above the message input when editing a previous message
+  en: Editing message
+  de: Nachricht bearbeiten
+  zh: 编辑消息
+  es: Editando mensaje
+  fr: Modification du message
+  pt: Editando mensagem
+  ru: Редактирование сообщения
+  ja: メッセージを編集中
+  ko: 메시지 편집 중
+  it: Modifica messaggio
+  tr: Mesaj düzenleniyor
+  vi: Đang chỉnh sửa tin nhắn
+  id: Mengedit pesan
+  pl: Edytowanie wiadomości
+  nl: Bericht bewerken
+  ar: تعديل الرسالة
+  hi: संदेश संपादित कर रहे हैं
+  th: กำลังแก้ไขข้อความ
+  cs: Úprava zprávy
+  sv: Redigerar meddelande
+  he: עריכת הודעה
+  verified_by_human: []
+
+edit_banner.cancel:
+  context: Accessible label for the cancel button on the edit message banner
+  en: Cancel editing
+  de: Bearbeitung abbrechen
+  zh: 取消编辑
+  es: Cancelar edición
+  fr: Annuler la modification
+  pt: Cancelar edição
+  ru: Отменить редактирование
+  ja: 編集をキャンセル
+  ko: 편집 취소
+  it: Annulla modifica
+  tr: Düzenlemeyi iptal et
+  vi: Hủy chỉnh sửa
+  id: Batalkan edit
+  pl: Anuluj edycję
+  nl: Bewerking annuleren
+  ar: إلغاء التعديل
+  hi: संपादन रद्द करें
+  th: ยกเลิกการแก้ไข
+  cs: Zrušit úpravu
+  sv: Avbryt redigering
+  he: ביטול עריכה
   verified_by_human: []
 
 fork.title:

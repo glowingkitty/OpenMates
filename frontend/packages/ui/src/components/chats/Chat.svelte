@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Chat, TiptapJSON, Message } from '../../types/chat';
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy, tick } from 'svelte';
   import { chatSyncService } from '../../services/chatSyncService';
   import { chatDB } from '../../services/db';
   import { chatKeyManager } from '../../services/encryption/ChatKeyManager';
@@ -33,6 +33,10 @@
   import { matesMetadata } from '../../data/matesMetadata'; // For mate name lookup in mentions
   import { appSkillsStore } from '../../stores/appSkillsStore'; // For skill/focus/memory name lookup in mentions
   import { skillPreviewService } from '../../services/skillPreviewService'; // For tracking skill usage in background chats
+  import { settingsDeepLink } from '../../stores/settingsDeepLinkStore'; // For opening settings to specific page (share)
+  import { settingsMenuVisible } from '../Settings.svelte'; // For controlling Settings visibility
+  import { panelState } from '../../stores/panelStateStore'; // For opening settings panel
+  import { activeChatStore } from '../../stores/activeChatStore'; // For setting active chat before share
   
   // Import Lucide icons dynamically
   import * as LucideIcons from '@lucide/svelte';
@@ -1219,6 +1223,9 @@
       case 'markRead':
         handleMarkRead();
         break;
+      case 'share':
+        handleShareChat();
+        break;
       default:
         console.warn('[Chat] Unknown context menu action:', action);
     }
@@ -1748,6 +1755,26 @@
   }
 
   /**
+   * Open the share settings deep link for this chat.
+   * Sets the active chat in the store so SettingsShare knows which chat to share,
+   * then opens the settings panel navigated to the share submenu.
+   */
+  async function handleShareChat() {
+    if (!chat) return;
+
+    activeChatStore.setActiveChat(chat.chat_id);
+    settingsMenuVisible.set(true);
+    panelState.openSettings();
+
+    // Wait for DOM to update before setting the deep link
+    await tick();
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    settingsDeepLink.set('shared/share');
+    showContextMenu = false;
+  }
+
+  /**
    * Delete chat handler
    * Expected behavior for DEMO CHATS:
    * - Add chat to hidden_demo_chats in user profile
@@ -2125,6 +2152,7 @@
     on:markUnread={handleContextMenuAction}
     on:markRead={handleContextMenuAction}
     on:delete={handleContextMenuAction}
+    on:share={handleContextMenuAction}
     on:enterSelectMode={handleContextMenuAction}
     on:unselect={handleContextMenuAction}
     on:selectChat={handleContextMenuAction}

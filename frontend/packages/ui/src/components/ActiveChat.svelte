@@ -4784,7 +4784,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      * }
      */
     async function handleSendMessage(event: CustomEvent) {
-        const { message, newChat } = event.detail as { message: ChatMessageModel, newChat?: Chat };
+        const { message, newChat, isEditSend, editCreatedAt } = event.detail as {
+            message: ChatMessageModel,
+            newChat?: Chat,
+            isEditSend?: boolean,
+            editCreatedAt?: number,
+        };
+
+        // Edit mode: truncate currentMessages to remove messages from the edit point
+        if (isEditSend && editCreatedAt !== undefined && currentChat?.chat_id) {
+            currentMessages = currentMessages.filter(
+                m => (m.original_message?.created_at ?? m.created_at ?? 0) < editCreatedAt
+            );
+            console.debug('[ActiveChat] Edit mode: truncated messages before edit point, remaining:', currentMessages.length);
+        }
 
         // Hide follow-up suggestions until new ones are received
         followUpSuggestions = [];
