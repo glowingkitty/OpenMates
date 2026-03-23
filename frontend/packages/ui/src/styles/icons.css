@@ -255,6 +255,11 @@ div.clickable-icon {
   mask-image: url("@openmates/ui/static/icons/minimize.svg");
 }
 
+.clickable-icon.icon_modify {
+  -webkit-mask-image: url("@openmates/ui/static/icons/modify.svg");
+  mask-image: url("@openmates/ui/static/icons/modify.svg");
+}
+
 .clickable-icon.icon_delete {
   -webkit-mask-image: url("@openmates/ui/static/icons/delete.svg");
   mask-image: url("@openmates/ui/static/icons/delete.svg");

@@ -4199,7 +4199,7 @@
     {#if $editMessageStore && $editMessageStore.chatId === currentChatId}
         <div class="edit-banner">
             <span class="edit-banner-text">
-                <span class="clickable-icon icon_edit edit-banner-icon"></span>
+                <span class="clickable-icon icon_modify edit-banner-icon"></span>
                 {$text('chats.edit_banner.editing')}
             </span>
             <button

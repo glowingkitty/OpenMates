@@ -285,7 +285,7 @@
                 class="menu-item edit"
                 onclick={(event) => handleAction('edit', event)}
             >
-                <div class="clickable-icon icon_edit"></div>
+                <div class="clickable-icon icon_modify"></div>
                 {$text('chats.context_menu.edit')}
             </button>
         {/if}
