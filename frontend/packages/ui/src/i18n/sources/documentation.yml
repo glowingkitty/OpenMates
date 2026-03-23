@@ -310,6 +310,126 @@ tabs.docs:
   sv: ""
   he: תיעוד
   verified_by_human: []
+actions.share:
+  context: Tooltip for the share button on docs pages - copies the page URL to clipboard
+  en: Share page
+  de: Seite teilen
+  zh: 分享页面
+  es: Compartir página
+  fr: Partager la page
+  pt: ""
+  ru: ""
+  ja: ページを共有
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: שתף דף
+  verified_by_human: []
+actions.share_copied:
+  context: Toast notification shown after copying the docs page URL to clipboard
+  en: Link copied to clipboard
+  de: Link in die Zwischenablage kopiert
+  zh: 链接已复制到剪贴板
+  es: Enlace copiado al portapapeles
+  fr: Lien copié dans le presse-papier
+  pt: ""
+  ru: ""
+  ja: リンクをクリップボードにコピーしました
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: הקישור הועתק ללוח
+  verified_by_human: []
+actions.download_pdf:
+  context: Tooltip for the download as PDF button on docs pages
+  en: Download as PDF
+  de: Als PDF herunterladen
+  zh: 下载为 PDF
+  es: Descargar como PDF
+  fr: Télécharger en PDF
+  pt: ""
+  ru: ""
+  ja: PDFとしてダウンロード
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: הורד כ-PDF
+  verified_by_human: []
+actions.report_issue:
+  context: Tooltip for the report issue button on docs pages
+  en: Report issue
+  de: Problem melden
+  zh: 报告问题
+  es: Reportar problema
+  fr: Signaler un problème
+  pt: ""
+  ru: ""
+  ja: 問題を報告
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: דווח על בעיה
+  verified_by_human: []
+actions.ask_question:
+  context: Placeholder text for the message input on docs pages
+  en: Ask about this documentation...
+  de: Frage zu dieser Dokumentation stellen...
+  zh: 询问有关此文档的问题...
+  es: Preguntar sobre esta documentación...
+  fr: Poser une question sur cette documentation...
+  pt: ""
+  ru: ""
+  ja: このドキュメントについて質問...
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: שאל על התיעוד הזה...
+  verified_by_human: []
 tabs.chat:
   context: Tab label for the chat tab in the header navigation toggle
   en: Chat

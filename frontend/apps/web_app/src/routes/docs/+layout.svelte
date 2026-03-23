@@ -14,9 +14,15 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
 	import { page } from '$app/state';
-	import { Header, Settings, authStore } from '@repo/ui';
+	import { Header, Settings, authStore, panelState } from '@repo/ui';
 	import DocsSidebar from '$lib/components/docs/DocsSidebar.svelte';
+	import DocsMessageInput from '$lib/components/docs/DocsMessageInput.svelte';
 	import { docsPanelState } from '$lib/stores/docsPanelState';
+
+	let isSettingsOpen = $state(false);
+	const unsubSettings = panelState.subscribe((s: { isSettingsOpen: boolean }) => {
+		isSettingsOpen = s.isSettingsOpen;
+	});
 
 	let { children } = $props();
 
@@ -78,6 +84,7 @@
 
 	onDestroy(() => {
 		unsubscribe();
+		unsubSettings();
 	});
 </script>
 
@@ -97,10 +104,13 @@
 		onToggleSidebar={() => docsPanelState.toggle()}
 		{isSidebarOpen}
 	/>
-	<div class="docs-container">
+	<div class="docs-container" class:menu-open={isSettingsOpen}>
 		<div class="docs-wrapper">
 			<div class="active-docs-container">
-				{@render children()}
+				<div class="docs-content-scroll">
+					{@render children()}
+				</div>
+				<DocsMessageInput />
 			</div>
 		</div>
 		<div class="settings-wrapper">
@@ -180,14 +190,36 @@
 		flex-direction: row;
 		height: calc(100vh - 82px);
 		height: calc(100dvh - 82px);
+		gap: 0px;
 		padding: 10px;
 		padding-inline-end: 20px;
+	}
+
+	/* Settings gap — matches chat page .chat-container.menu-open */
+	@media (min-width: 1100px) {
+		.docs-container {
+			transition: gap 0.3s ease;
+		}
+		.docs-container.menu-open {
+			gap: 20px;
+		}
+	}
+
+	@media (max-width: 1099px) {
+		.docs-container.menu-open {
+			gap: 0px;
+		}
 	}
 
 	.docs-wrapper {
 		flex: 1;
 		display: flex;
 		min-width: 0;
+	}
+
+	.docs-wrapper,
+	.settings-wrapper {
+		transition: opacity 0.3s ease;
 	}
 
 	.active-docs-container {
@@ -198,26 +230,35 @@
 		min-height: 0;
 		height: 100%;
 		box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
+		display: flex;
+		flex-direction: column;
+		overflow: hidden;
+	}
+
+	/* Scrollable content area — fills remaining space above future message input */
+	.docs-content-scroll {
+		flex: 1;
 		overflow-y: auto;
 		overflow-x: hidden;
+		min-height: 0;
 	}
 
 	/* Scrollbar styling matching main chat */
-	.active-docs-container::-webkit-scrollbar {
+	.docs-content-scroll::-webkit-scrollbar {
 		width: 8px;
 	}
 
-	.active-docs-container::-webkit-scrollbar-track {
+	.docs-content-scroll::-webkit-scrollbar-track {
 		background: transparent;
 	}
 
-	.active-docs-container::-webkit-scrollbar-thumb {
+	.docs-content-scroll::-webkit-scrollbar-thumb {
 		background-color: var(--color-grey-40);
 		border-radius: 4px;
 		border: 2px solid transparent;
 	}
 
-	.active-docs-container::-webkit-scrollbar-thumb:hover {
+	.docs-content-scroll::-webkit-scrollbar-thumb:hover {
 		background-color: var(--color-grey-50);
 	}
 
@@ -233,6 +274,7 @@
 			padding-inline-end: 10px;
 			height: calc(100vh - 75px);
 			height: calc(100dvh - 75px);
+			gap: 0px;
 		}
 
 		.sidebar {

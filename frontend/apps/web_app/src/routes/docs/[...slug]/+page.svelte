@@ -15,6 +15,7 @@
     import { page } from '$app/state';
     import { ChatHeader, text } from '@repo/ui';
     import DocsMessage from '$lib/components/docs/DocsMessage.svelte';
+    import DocsActionBar from '$lib/components/docs/DocsActionBar.svelte';
     import docsData from '$lib/generated/docs-data.json';
     import type { DocFile, DocFolder, DocStructure } from '$lib/types/docs';
     import { getDocCategoryInfo } from '$lib/utils/docsCategoryMap';
@@ -101,6 +102,7 @@
 {#if pageData?.type === 'file'}
     {@const file = pageData.data as DocFile}
     <div class="docs-page-content">
+        <DocsActionBar title={file.title} />
         <ChatHeader
             title={file.title}
             category={catInfo.category}
@@ -152,6 +154,7 @@
 <style>
     .docs-page-content {
         min-height: 100%;
+        position: relative;
     }
 
     .folder-index {

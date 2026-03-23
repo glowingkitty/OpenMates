@@ -2373,6 +2373,19 @@
 				history.replaceState(null, '', '/');
 				notFoundPathStore.set(failedPath);
 			},
+			onMessage: async (messageText: string, autoSend: boolean) => {
+				deepLinkProcessed = true;
+				console.debug('[+page.svelte] onMessage deep link:', { autoSend, length: messageText.length });
+				// Store message for MessageInput to pick up via custom event
+				// ActiveChat will be in new-chat mode (no hash = welcome screen)
+				activeChatStore.clearActiveChat();
+				// Dispatch after a short delay to let ActiveChat mount and render MessageInput
+				setTimeout(() => {
+					window.dispatchEvent(new CustomEvent('docsMessagePrefill', {
+						detail: { text: messageText, autoSend }
+					}));
+				}, 500);
+			},
 			onPair: (token: string) => {
 				// Set the token store BEFORE navigating so SettingsSessionsConfirmPair reads it on mount.
 				pendingPairToken.set(token);

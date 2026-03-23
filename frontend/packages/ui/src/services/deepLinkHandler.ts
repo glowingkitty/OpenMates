@@ -19,6 +19,7 @@ export type DeepLinkType =
   | "signup"
   | "embed"
   | "pair"
+  | "message"
   | "not_found"
   | "unknown";
 
@@ -42,6 +43,8 @@ export interface DeepLinkHandlers {
   onEmbed?: (embedId: string) => Promise<void>;
   /** Handler for /#pair=TOKEN deep links — opens the confirm-pair settings page */
   onPair?: (token: string) => void;
+  /** Handler for /#message=<text> deep links — pre-fills message input, auto-sends if same-origin */
+  onMessage?: (text: string, autoSend: boolean) => Promise<void>;
   /** Handler for /#404=<encodedPath> deep links — shows the Not404Screen */
   onNotFound?: (failedPath: string) => void;
   onNoHash?: () => Promise<void>; // Handler for when no hash is present
@@ -157,6 +160,16 @@ export function parseDeepLink(
     };
   }
 
+  // Message deep links: #message={encodedText}
+  // Used by docs pages to pre-fill the chat message input and optionally auto-send.
+  if (normalizedHash.startsWith("#message=")) {
+    const messageText = decodeURIComponent(normalizedHash.slice("#message=".length));
+    return {
+      type: "message",
+      data: { text: messageText },
+    };
+  }
+
   // 404 not-found deep links: #404={encodedPath}
   // Produced when the SPA is loaded for an unknown URL path via the catch-all rewrite.
   if (normalizedHash.startsWith("#404=")) {
@@ -261,6 +274,24 @@ export async function processDeepLink(
         const failedPath = decodeURIComponent(parsed.data?.failedPath ?? "");
         handlers.onNotFound(failedPath);
         return { type: "not_found", processed: true };
+      }
+      break;
+    }
+
+    case "message": {
+      if (handlers.onMessage) {
+        // Same-origin check: only auto-send if a sessionStorage flag was set by our docs pages
+        const autoSend = typeof sessionStorage !== "undefined" &&
+          sessionStorage.getItem("docs_auto_send") === "true";
+        if (autoSend) {
+          sessionStorage.removeItem("docs_auto_send");
+        }
+        await handlers.onMessage(parsed.data.text, autoSend);
+        // Clear hash after processing
+        if (typeof window !== "undefined") {
+          replaceState(window.location.pathname + window.location.search, {});
+        }
+        return { type: "message", processed: true };
       }
       break;
     }

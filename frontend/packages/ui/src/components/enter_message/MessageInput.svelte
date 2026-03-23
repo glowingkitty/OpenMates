@@ -1693,11 +1693,26 @@
                 editor.view.dispatch(editor.state.tr);
             }
         });
- 
+
+        // Listen for docs page deep link prefill events (/#message= handler in +page.svelte)
+        function handleDocsPrefill(event: Event) {
+            const { text: msgText, autoSend } = (event as CustomEvent).detail;
+            if (!editor || editor.isDestroyed || !msgText) return;
+            editor.commands.setContent(`<p>${msgText.replace(/\n/g, '<br>')}</p>`);
+            hasContent = true;
+            editor.commands.focus('end');
+            if (autoSend) {
+                // Short delay to let the editor render the content
+                setTimeout(() => handleSendMessage(), 100);
+            }
+        }
+        window.addEventListener('docsMessagePrefill', handleDocsPrefill);
+
         return () => {
             cleanup();
             unsubscribeAiTyping();
             unsubscribeText();
+            window.removeEventListener('docsMessagePrefill', handleDocsPrefill);
         };
     });
  

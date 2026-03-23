@@ -174,35 +174,28 @@
 <svelte:window on:keydown={handleKeydown} />
 
 <div class="sidebar-wrapper">
-	<!-- Top bar: search + close button -->
-	<div class="top-bar">
+	<!-- Top buttons container — matches Chats.svelte .top-buttons-container -->
+	<div class="top-buttons-container">
 		{#if isSearchBarVisible}
-			<div class="search-bar-wrapper">
-				<SearchBar
-					onSearch={handleSearchQuery}
-					onClose={handleSearchClose}
-					initialQuery={searchQuery}
-				/>
-			</div>
+			<SearchBar
+				onSearch={handleSearchQuery}
+				onClose={handleSearchClose}
+				initialQuery={searchQuery}
+			/>
 		{:else}
-			<button
-				class="clickable-icon icon_search top-button"
-				aria-label="Search"
-				onclick={openDocsSearch}
-			></button>
+			<div class="top-buttons">
+				<button
+					class="clickable-icon icon_search top-button"
+					aria-label="Search"
+					onclick={openDocsSearch}
+				></button>
+				<button
+					class="clickable-icon icon_close top-button right"
+					aria-label="Close sidebar"
+					onclick={onClose}
+				></button>
+			</div>
 		{/if}
-		<button class="close-btn" onclick={onClose} aria-label="Close sidebar">
-			<svg
-				width="20"
-				height="20"
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="2"
-			>
-				<path d="M18 6 6 18M6 6l12 12" />
-			</svg>
-		</button>
 	</div>
 
 	<!-- Scrollable content -->
@@ -251,18 +244,21 @@
 				<div class="nav-separator"></div>
 			{/if}
 
-			<!-- API Reference special link -->
+			<!-- API Reference link — uses gradient circle like all other items -->
+			{@const apiCatInfo = getDocCategoryInfo('api')}
+			{@const apiGradColors = getCategoryGradientColors(apiCatInfo.category)}
+			{@const ApiIcon = getLucideIcon(apiCatInfo.icon)}
 			<a
 				href="/docs/api"
-				class="doc-item api-item"
+				class="doc-item"
 				class:active={currentPath === '/docs/api' || currentPath === '/docs/api/'}
 			>
-				<div class="doc-icon-simple">
-					<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-						<path
-							d="M4.75 1A1.75 1.75 0 003 2.75v10.5c0 .966.784 1.75 1.75 1.75h6.5A1.75 1.75 0 0013 13.25v-10.5A1.75 1.75 0 0011.25 1h-6.5zM4.5 2.75a.25.25 0 01.25-.25h6.5a.25.25 0 01.25.25v10.5a.25.25 0 01-.25.25h-6.5a.25.25 0 01-.25-.25V2.75zM6 5a.75.75 0 000 1.5h4A.75.75 0 0010 5H6zm0 3a.75.75 0 000 1.5h4A.75.75 0 0010 8H6zm0 3a.75.75 0 000 1.5h4a.75.75 0 000-1.5H6z"
-						/>
-					</svg>
+				<div
+					class="doc-icon-circle"
+					style="background: linear-gradient(135deg, {apiGradColors?.start ??
+						'#6366f1'}, {apiGradColors?.end ?? '#4f46e5'});"
+				>
+					{#if ApiIcon}<ApiIcon size={14} color="white" strokeWidth={2} />{/if}
 				</div>
 				<div class="doc-content">
 					<span class="doc-title">{$text('documentation.api_reference')}</span>
@@ -414,50 +410,29 @@
 		background-color: var(--color-grey-20);
 	}
 
-	/* Top bar: search + close */
-	.top-bar {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		padding: 0.75rem;
-		border-bottom: 1px solid var(--color-grey-30);
+	/* Top buttons container — matches Chats.svelte .top-buttons-container */
+	.top-buttons-container {
 		flex-shrink: 0;
+		z-index: 10;
+		background-color: var(--color-grey-20);
+		padding: 16px 20px;
+		border-bottom: 1px solid var(--color-grey-30);
 	}
 
-	.search-bar-wrapper {
-		flex: 1;
-		min-width: 0;
+	.top-buttons {
+		position: relative;
+		height: 32px;
+		display: flex;
+		justify-content: flex-end;
 	}
 
 	.top-button {
-		flex-shrink: 0;
-		width: 24px;
-		height: 24px;
-		opacity: 0.5;
-		transition: opacity 0.15s ease;
-	}
-
-	.top-button:hover {
-		opacity: 1;
-	}
-
-	.close-btn {
-		background: none;
-		border: none;
-		cursor: pointer;
-		color: var(--color-font-secondary);
-		padding: 0.25rem;
-		border-radius: 6px;
 		display: flex;
 		align-items: center;
-		justify-content: center;
-		flex-shrink: 0;
-		transition: all 0.15s ease;
 	}
 
-	.close-btn:hover {
-		background-color: var(--color-grey-30);
-		color: var(--color-font-primary);
+	.top-button.right {
+		margin-inline-start: auto;
 	}
 
 	/* Scrollable nav area */
@@ -534,16 +509,6 @@
 		justify-content: center;
 	}
 
-	.doc-icon-simple {
-		width: 28px;
-		height: 28px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		flex-shrink: 0;
-		color: var(--color-font-secondary);
-	}
-
 	.doc-content {
 		display: flex;
 		flex-direction: column;
@@ -565,11 +530,6 @@
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
-	}
-
-	/* API item special style */
-	.api-item {
-		font-weight: 500;
 	}
 
 	/* Folder groups — matches chat time groups */

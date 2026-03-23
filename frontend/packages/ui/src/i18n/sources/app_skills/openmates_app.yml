@@ -47,3 +47,103 @@ share_usecase.description:
   sv: Dela ditt användningsfall anonymt.
   he: שתף את מקרה השימוש שלך ב-OpenMates באופן אנונימי.
   verified_by_human: []
+
+get_docs:
+  context: Skill name for retrieving an OpenMates documentation page
+  en: Get Documentation
+  de: Dokumentation abrufen
+  zh: 获取文档
+  es: Obtener documentación
+  fr: Obtenir la documentation
+  pt: ""
+  ru: ""
+  ja: ドキュメントを取得
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: קבל תיעוד
+  verified_by_human: []
+
+get_docs.description:
+  context: Description for the get documentation skill — retrieves a specific OpenMates docs page
+  en: Retrieve a specific OpenMates documentation page.
+  de: Rufe eine bestimmte OpenMates-Dokumentationsseite ab.
+  zh: 获取特定的 OpenMates 文档页面。
+  es: Obtener una página específica de documentación de OpenMates.
+  fr: Récupérer une page de documentation OpenMates spécifique.
+  pt: ""
+  ru: ""
+  ja: 特定のOpenMatesドキュメントページを取得します。
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: אחזר דף תיעוד ספציפי של OpenMates.
+  verified_by_human: []
+
+search_docs:
+  context: Skill name for searching across OpenMates documentation
+  en: Search Documentation
+  de: Dokumentation durchsuchen
+  zh: 搜索文档
+  es: Buscar documentación
+  fr: Rechercher la documentation
+  pt: ""
+  ru: ""
+  ja: ドキュメントを検索
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: חפש בתיעוד
+  verified_by_human: []
+
+search_docs.description:
+  context: Description for the search documentation skill — searches across all OpenMates docs
+  en: Search across all OpenMates documentation.
+  de: Durchsuche die gesamte OpenMates-Dokumentation.
+  zh: 搜索所有 OpenMates 文档。
+  es: Buscar en toda la documentación de OpenMates.
+  fr: Rechercher dans toute la documentation OpenMates.
+  pt: ""
+  ru: ""
+  ja: すべてのOpenMatesドキュメントを検索します。
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: חפש בכל התיעוד של OpenMates.
+  verified_by_human: []
