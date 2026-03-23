@@ -11737,25 +11737,26 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         container-name: chat-side;
     }
 
-    /* Scroll navigation buttons - round, icon-only, subtle grey.
+    /* Scroll navigation buttons - wide touch-friendly strips at top/bottom edge.
+       The visible icon stays centered; the hit area extends horizontally for easy touch/click.
        Overrides global button styles from buttons.css (padding, min-width, height, shadow, etc.) */
     .scroll-nav-button {
         position: absolute;
         left: 50%;
         transform: translateX(-50%);
         z-index: 2;
-        width: 32px;
-        height: 32px;
-        min-width: 32px;
-        border-radius: 50%;
+        width: 120px;
+        height: 36px;
+        min-width: unset;
+        border-radius: 18px;
         border: none;
-        background-color: var(--color-grey-20);
+        background-color: transparent;
         cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
         opacity: 0.7;
-        transition: opacity 0.2s ease;
+        transition: opacity 0.2s ease, background-color 0.2s ease;
         padding: 0;
         margin: 0;
         filter: none;
@@ -11774,11 +11775,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     .scroll-to-top-button {
-        top: 50px;
+        top: 18px;
     }
 
     .scroll-to-bottom-button {
-        bottom: 80px;
+        bottom: 0px;
     }
 
     /* Dropdown arrow icon using CSS mask (reuses existing dropdown.svg) */

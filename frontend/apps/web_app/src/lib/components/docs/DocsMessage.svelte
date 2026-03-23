@@ -3,10 +3,9 @@
 	 * DocsMessage Component
 	 *
 	 * Renders documentation content styled as a single assistant chat message.
-	 * Uses ReadOnlyMessage for TipTap-based markdown rendering, wrapped in
-	 * the same visual structure as ChatMessage (avatar + sender name + bubble).
-	 * The message uses the OpenMates logo (openmates_official) as the avatar,
-	 * and respects the same content max-width as ChatHistory for readable line lengths.
+	 * Reuses the same classes as the regular chat: chat-history-content for
+	 * width-limiting (from ChatHistory.svelte), and chat-message/mate-profile/
+	 * mate-message-content for message rendering (from ChatMessage).
 	 *
 	 * Architecture: docs/architecture/docs-web-app.md
 	 * Test: N/A — visual component, tested via E2E
@@ -23,8 +22,8 @@
 	let { content, category: _category }: Props = $props();
 </script>
 
-<div class="docs-message-wrapper">
-	<div class="docs-message chat-message assistant">
+<div class="chat-history-content has-messages has-header">
+	<div class="chat-message assistant docs-message">
 		<!-- OpenMates logo avatar — same as demo-for-everyone intro chat -->
 		<div class="mate-profile openmates_official" style="animation: none; opacity: 1;"></div>
 
@@ -40,8 +39,8 @@
 </div>
 
 <style>
-	/* Width-limiting wrapper — mirrors .chat-history-content in ChatHistory.svelte */
-	.docs-message-wrapper {
+	/* Reuse chat-history-content width-limiting from ChatHistory.svelte */
+	.chat-history-content {
 		width: 100%;
 		max-width: var(--chat-content-max-width, 1000px);
 		margin: 0 auto;

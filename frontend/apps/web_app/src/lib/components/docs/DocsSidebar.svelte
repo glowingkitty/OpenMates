@@ -344,6 +344,10 @@
 							{#each folder.folders as subfolder (subfolder.path)}
 								{@const subIsExpanded = expandedFolders.has(subfolder.path)}
 								{@const subContainsActive = folderContainsActive(subfolder)}
+								{@const subFolderIcon = DOCS_FOLDER_ICON[subfolder.path] || 'folder'}
+								{@const subCatInfo = getDocCategoryInfo(subfolder.path)}
+								{@const subGradColors = getCategoryGradientColors(subCatInfo.category)}
+								{@const SubFolderIcon = getLucideIcon(subFolderIcon)}
 
 								<button
 									class="sub-folder-header"
@@ -351,8 +355,15 @@
 									onclick={() => toggleFolder(subfolder.path)}
 									aria-expanded={subIsExpanded}
 								>
+									<div
+										class="doc-icon-circle sub-folder-circle"
+										style="background: linear-gradient(135deg, {subGradColors?.start ?? '#6366f1'}, {subGradColors?.end ?? '#4f46e5'});"
+									>
+										{#if SubFolderIcon}<SubFolderIcon size={12} color="white" strokeWidth={2} />{/if}
+									</div>
+									<span class="sub-folder-title">{subfolder.title}</span>
 									<svg
-										class="chevron"
+										class="chevron sub-folder-chevron"
 										class:expanded={subIsExpanded}
 										width="10"
 										height="10"
@@ -363,7 +374,6 @@
 									>
 										<path d="M6 4l4 4-4 4" />
 									</svg>
-									<span class="sub-folder-title">{subfolder.title}</span>
 								</button>
 
 								{#if subIsExpanded}
@@ -588,18 +598,19 @@
 		gap: 2px;
 	}
 
+	/* Sub-folder header — matches doc-item layout with gradient circle + left-aligned text */
 	.sub-folder-header {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
+		gap: 0.75rem;
 		width: 100%;
-		padding: 0.375rem 0.75rem;
+		padding: 0.5rem 0.75rem;
 		padding-inline-start: 1.5rem;
 		background: none;
 		border: none;
 		cursor: pointer;
 		text-align: start;
-		border-radius: 8px;
+		border-radius: 10px;
 		transition: background-color 0.15s ease;
 	}
 
@@ -611,14 +622,26 @@
 		color: var(--color-primary);
 	}
 
+	.sub-folder-circle {
+		width: 24px;
+		height: 24px;
+	}
+
 	.sub-folder-title {
+		flex: 1;
 		font-size: 0.8125rem;
 		font-weight: 500;
 		color: var(--color-font-secondary);
+		text-align: start;
 	}
 
 	.sub-folder-header.contains-active .sub-folder-title {
 		color: var(--color-primary);
+	}
+
+	.sub-folder-chevron {
+		flex-shrink: 0;
+		margin-inline-start: auto;
 	}
 
 	.nav-separator {

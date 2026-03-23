@@ -101,19 +101,21 @@
 
 {#if pageData?.type === 'file'}
     {@const file = pageData.data as DocFile}
-    <div class="docs-page-content">
-        <DocsActionBar title={file.title} />
-        <ChatHeader
-            title={file.title}
-            category={catInfo.category}
-            icon={catInfo.icon}
-            summary={summary}
-        />
-        <DocsMessage
-            content={file.originalMarkdown}
-            category={catInfo.category}
-        />
-    </div>
+    {#key currentSlug}
+        <div class="docs-page-content">
+            <DocsActionBar title={file.title} />
+            <ChatHeader
+                title={file.title}
+                category={catInfo.category}
+                icon={catInfo.icon}
+                summary={summary}
+            />
+            <DocsMessage
+                content={file.originalMarkdown}
+                category={catInfo.category}
+            />
+        </div>
+    {/key}
 {:else if pageData?.type === 'folder'}
     {@const folder = pageData.data as DocFolder}
     <div class="docs-page-content">
