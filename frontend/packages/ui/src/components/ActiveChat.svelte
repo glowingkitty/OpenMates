@@ -10616,15 +10616,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         transition: opacity 0.3s ease, box-shadow 0.6s ease;
         overflow: hidden;
         box-sizing: border-box;
-        /* isolation: isolate creates a stacking context so z-index: -1 pseudo-elements
-         * sit between the element's background and its content (visible as a border ring) */
-        isolation: isolate;
     }
 
     /* ===========================================
        Rainbow border ring + outer glow while AI is typing
        Uses @property --chat-gradient-angle to animate the conic-gradient rotation
        (same technique as ThinkingSection — smooth gradient spin, no transform artifacts)
+
+       Overlay approach: the ring is painted ON TOP of content via ::after at
+       z-index: 10 with pointer-events: none.  A CSS mask cuts out the interior
+       so only a 2px ring is visible.  This avoids the old isolation/z-index:-1
+       technique where child elements flush to the edges would cover the ring.
        =========================================== */
 
     @property --chat-gradient-angle {
@@ -10633,47 +10635,42 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         inherits: false;
     }
 
-    /* ::before — rotating rainbow ring behind the container.
+    /* ::after — rotating rainbow ring painted ON TOP of all content.
      * Always present but invisible (opacity: 0) until .ai-typing is added.
-     * filter: blur(2px) softens the ring into a smooth Apple Intelligence-style glow. */
-    .active-chat-container::before {
+     * pointer-events: none so it never blocks clicks on content underneath.
+     * CSS mask subtracts the inner area, leaving only a 2px border ring visible. */
+    .active-chat-container::after {
         content: '';
         position: absolute;
-        inset: -2px;
-        border-radius: 19px; /* container 17px + 2px inset */
+        inset: 0;
+        border-radius: 17px;
         background: conic-gradient(
             from var(--chat-gradient-angle, 0deg),
             #ff2d55, #ff6b2b, #ffd60a,
             #30d158, #32ade6, #bf5af2,
             #ff2d55
         );
-        z-index: -1;
+        z-index: 10;
+        pointer-events: none;
         opacity: 0;
-        filter: blur(2px);
+        filter: blur(1.5px);
         animation: chat-rainbow-spin 3s linear infinite;
-    }
-
-    .active-chat-container.ai-typing::before {
-        opacity: 1;
-    }
-
-    /* ::after — interior fill mask. Covers the gradient except for a 2px ring at the edge.
-     * Same background as the container so the rainbow only shows as a border ring. */
-    .active-chat-container::after {
-        content: '';
-        position: absolute;
-        inset: 2px;
-        border-radius: 15px; /* container 17px - 2px inset */
-        background: transparent;
-        z-index: -1;
+        /* Ring mask: the padding creates the ring thickness (2px).
+         * The two gradient layers + exclude composite subtract the content-box
+         * from the border-box, leaving only the padded ring area visible. */
+        padding: 2px;
+        -webkit-mask:
+            linear-gradient(#fff 0 0) content-box,
+            linear-gradient(#fff 0 0);
+        -webkit-mask-composite: xor;
+        mask:
+            linear-gradient(#fff 0 0) content-box,
+            linear-gradient(#fff 0 0);
+        mask-composite: exclude;
     }
 
     .active-chat-container.ai-typing::after {
-        background: var(--color-grey-20);
-    }
-
-    :global(.dark) .active-chat-container.ai-typing::after {
-        background: var(--color-grey-20);
+        opacity: 1;
     }
 
     @keyframes chat-rainbow-spin {
@@ -11059,9 +11056,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         color: var(--color-grey-60);
         min-height: 76px;
         padding: 22px 16px 6px;
-        /* Inset by 6px on each side so the gradient background doesn't overlay
-           the rainbow glow border ring (2px ring + 2px blur) on .active-chat-container */
-        margin: 0 6px;
         font-style: italic;
         /* Gradient background so the text remains readable when positioned over chat messages.
            Uses the active chat background color (--color-grey-20) fading from transparent at the top

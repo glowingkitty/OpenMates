@@ -4499,7 +4499,7 @@ export function initDebugUtils(): void {
           if (wrapper && !wrapper.querySelector('.typing-indicator.debug-injected')) {
             const indicator = document.createElement('div');
             indicator.className = 'typing-indicator status-typing debug-injected';
-            indicator.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:2px;text-align:center;font-size:1rem;color:var(--color-grey-60);min-height:76px;padding:22px 16px 6px;margin:0 6px;font-style:italic;position:relative;z-index:1;';
+            indicator.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:2px;text-align:center;font-size:1rem;color:var(--color-grey-60);min-height:76px;padding:22px 16px 6px;font-style:italic;position:relative;z-index:1;';
             const line1 = document.createElement('span');
             line1.className = 'indicator-primary-line';
             line1.textContent = 'Assistant is typing...';
