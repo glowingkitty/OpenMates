@@ -265,10 +265,13 @@
           {/if}
         </div>
       {:else if status === 'finished'}
-        <!-- Finished but no thumbnails: show query + provider -->
+        <!-- Finished but no thumbnails -->
         <div class="text-content">
           <span class="search-query">{query}</span>
           <span class="search-provider">{$text('embeds.via')} {provider}</span>
+          {#if isLoadingChildren}
+            <span class="loading-text">{$text('embeds.loading')}</span>
+          {/if}
         </div>
       {:else}
         <!-- Processing: show query + provider -->
@@ -396,6 +399,12 @@
 
   .favicon:first-child {
     margin-left: 0;
+  }
+
+  .loading-text {
+    font-size: 14px;
+    color: var(--color-grey-70, #555);
+    font-weight: 500;
   }
 
   .remaining-count {

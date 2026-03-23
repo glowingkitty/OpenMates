@@ -102,6 +102,7 @@
   let localResults = $state<EventResult[]>([]);
   let localTaskId = $state<string | undefined>(undefined);
   let localSkillTaskId = $state<string | undefined>(undefined);
+  let isLoadingChildren = $state(false);
 
   // Initialize local state from props
   $effect(() => {
@@ -160,8 +161,9 @@
           const childEmbedIds: string[] = typeof embedIds === 'string'
             ? (embedIds as string).split('|').filter((eid: string) => eid.length > 0)
             : Array.isArray(embedIds) ? (embedIds as string[]) : [];
-          if (childEmbedIds.length > 0) {
+          if (childEmbedIds.length > 0 && !isLoadingChildren) {
             console.debug(`[EventsSearchEmbedPreview] Loading child embeds for count (${childEmbedIds.length} embed_ids)`);
+            isLoadingChildren = true;
             loadChildEmbedCount(childEmbedIds);
           }
         }
@@ -186,6 +188,8 @@
     } catch (error) {
       console.warn('[EventsSearchEmbedPreview] Error loading child embeds for count:', error);
       // Continue without results — preview will just show query/provider without count
+    } finally {
+      isLoadingChildren = false;
     }
   }
 
@@ -250,12 +254,16 @@
       <!-- Provider subtitle -->
       <div class="search-provider">{viaProvider}</div>
 
-      <!-- Finished state: show event count -->
-      {#if status === 'finished' && eventCount > 0}
+      <!-- Finished state: show event count or loading -->
+      {#if status === 'finished'}
         <div class="search-results-info">
-          <span class="event-count">
-            {$text('embeds.more_results').replace('{count}', String(eventCount))}
-          </span>
+          {#if eventCount > 0}
+            <span class="event-count">
+              {$text('embeds.more_results').replace('{count}', String(eventCount))}
+            </span>
+          {:else if isLoadingChildren}
+            <span class="loading-text">{$text('embeds.loading')}</span>
+          {/if}
         </div>
       {/if}
     </div>
@@ -326,6 +334,13 @@
 
   .events-search-details.mobile .search-results-info {
     margin-top: 2px;
+  }
+
+  /* Loading text (shown while child embeds are being fetched) */
+  .loading-text {
+    font-size: 14px;
+    color: var(--color-grey-70);
+    font-weight: 500;
   }
 
   /* Event count badge */
