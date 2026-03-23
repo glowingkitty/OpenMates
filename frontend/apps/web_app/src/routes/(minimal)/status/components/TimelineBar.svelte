@@ -12,7 +12,7 @@
 		entries,
 		timelineKey,
 		testid = '',
-		height = '',
+		height = '1.1rem',
 		selected = $bindable<SelectedTimeline | null>(null),
 		showLabels = false,
 		enableIntraDay = false,
@@ -74,7 +74,7 @@
 
 	function handleSegmentClick(entry: TimelineEntry) {
 		select(entry);
-		if (enableIntraDay && entry.has_run !== false) {
+		if (enableIntraDay) {
 			loadIntraDay(entry.date);
 		}
 	}
@@ -193,8 +193,6 @@
 	.tl {
 		display: flex;
 		gap: 1px;
-		/* height set via inline style prop (default 1.1rem) */
-		min-height: 0.8rem;
 		border-radius: 4px;
 		overflow: hidden;
 		background: var(--color-grey-20);

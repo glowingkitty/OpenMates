@@ -98,14 +98,16 @@
 		{/if}
 
 		<!-- Functionalities (expandable with lazy detail) -->
-		{#if data.functionalities?.length}
-			<section class="card">
-				<h2>Functionalities</h2>
+		<section class="card">
+			<h2>Functionalities</h2>
+			{#if data.functionalities?.length}
 				{#each data.functionalities as func (func.name)}
 					<FunctionalityGroup functionality={func} isAdmin={data.is_admin} bind:selected />
 				{/each}
-			</section>
-		{/if}
+			{:else}
+				<p class="empty-note">No E2E test data available yet. Functionalities populate after the daily test run.</p>
+			{/if}
+		</section>
 
 		<!-- Incidents -->
 		{#if data.incidents}
@@ -146,6 +148,12 @@
 		color: var(--color-font-secondary);
 	}
 	.err { color: var(--color-error); }
+	.empty-note {
+		font-size: 0.78rem;
+		color: var(--color-font-secondary);
+		padding: 0.25rem 0;
+		margin: 0;
+	}
 	.card {
 		margin-top: 1rem;
 		background: var(--color-grey-0);
