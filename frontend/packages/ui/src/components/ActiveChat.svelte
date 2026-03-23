@@ -2472,7 +2472,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         if (!$authStore.isAuthenticated) return;
         try {
             await chatDB.init();
-            let chats: Chat[] = chatListCache.getCache(false) ?? await chatDB.getAllChats();
+            // Always read from IndexedDB — chatListCache is designed for sidebar
+            // (Chats.svelte) remount performance, not the welcome screen. Using
+            // the cache here causes stale sort order when returning from a chat.
+            let chats: Chat[] = await chatDB.getAllChats();
             const filteredChats = chats.filter((c) => !isPublicChat(c.chat_id));
             const sorted = sortChats(filteredChats, []);
 
