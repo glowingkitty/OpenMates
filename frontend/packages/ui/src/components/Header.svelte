@@ -254,7 +254,7 @@
                     <!-- In webapp mode: hide when login interface is open, during signup, or when chats panel is open -->
                     <div 
                         class="menu-button-container"
-                        class:hidden={!docsMode && (context !== 'webapp' || $isInSignupProcess || $loginInterfaceOpen || $panelState.isActivityHistoryOpen)}
+                        class:hidden={(docsMode && isSidebarOpen) || (!docsMode && (context !== 'webapp' || $isInSignupProcess || $loginInterfaceOpen || $panelState.isActivityHistoryOpen))}
                     >
                         <button
                             class="clickable-icon icon_menu"

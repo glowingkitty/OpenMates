@@ -1,10 +1,10 @@
 <script lang="ts">
 	/**
-	 * DocsActionBar — floating action buttons for docs pages.
+	 * DocsActionBar — top action buttons for docs pages.
 	 *
-	 * Provides share (copy URL), download as PDF, and report issue buttons.
-	 * Positioned at top-right of the docs content area, matching ActiveChat's
-	 * top-button pattern.
+	 * Reuses the same left-buttons > new-chat-button-wrapper pattern from
+	 * ActiveChat.svelte for design consistency. Provides share (copy URL),
+	 * download as PDF, and report issue buttons.
 	 *
 	 * Architecture: docs/architecture/docs-web-app.md
 	 */
@@ -22,7 +22,6 @@
 			await navigator.clipboard.writeText(window.location.href);
 			notificationStore.success($text('documentation.actions.share_copied'), 2000);
 		} catch {
-			// Fallback for browsers that don't support clipboard API
 			const input = document.createElement('input');
 			input.value = window.location.href;
 			document.body.appendChild(input);
@@ -45,98 +44,81 @@
 	}
 </script>
 
-<div class="docs-action-bar">
-	<button
-		class="action-btn"
-		title={$text('documentation.actions.share')}
-		onclick={handleShare}
-	>
-		<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-			<path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-			<polyline points="16 6 12 2 8 6" />
-			<line x1="12" y1="2" x2="12" y2="15" />
-		</svg>
-	</button>
-	<button
-		class="action-btn"
-		title={$text('documentation.actions.download_pdf')}
-		onclick={handleDownloadPdf}
-	>
-		<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-			<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-			<polyline points="7 10 12 15 17 10" />
-			<line x1="12" y1="15" x2="12" y2="3" />
-		</svg>
-	</button>
-	<button
-		class="action-btn"
-		title={$text('documentation.actions.report_issue')}
-		onclick={handleReportIssue}
-	>
-		<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-			<circle cx="12" cy="12" r="10" />
-			<line x1="12" y1="8" x2="12" y2="12" />
-			<line x1="12" y1="16" x2="12.01" y2="16" />
-		</svg>
-	</button>
+<div class="top-buttons">
+	<div class="left-buttons">
+		<div class="new-chat-button-wrapper">
+			<button
+				class="clickable-icon icon_share top-button"
+				title={$text('documentation.actions.share')}
+				onclick={handleShare}
+			></button>
+		</div>
+		<div class="new-chat-button-wrapper">
+			<button
+				class="clickable-icon icon_download top-button"
+				title={$text('documentation.actions.download_pdf')}
+				onclick={handleDownloadPdf}
+			></button>
+		</div>
+		<div class="new-chat-button-wrapper">
+			<button
+				class="clickable-icon icon_bug top-button"
+				title={$text('documentation.actions.report_issue')}
+				onclick={handleReportIssue}
+			></button>
+		</div>
+	</div>
 </div>
 
 <style>
-	.docs-action-bar {
+	/* Reuses ActiveChat's top-buttons / left-buttons / new-chat-button-wrapper pattern */
+	.top-buttons {
 		position: absolute;
-		top: 12px;
-		inset-inline-end: 12px;
-		z-index: 5;
+		top: 15px;
+		inset-inline-start: 15px;
 		display: flex;
-		gap: 4px;
-		padding: 4px;
-		border-radius: 10px;
-		background-color: color-mix(in srgb, var(--color-grey-20) 80%, transparent);
-		backdrop-filter: blur(8px);
-		-webkit-backdrop-filter: blur(8px);
+		z-index: 5;
 	}
 
-	.action-btn {
+	.left-buttons {
+		display: flex;
+		gap: 10px;
+	}
+
+	.new-chat-button-wrapper {
+		background-color: var(--color-grey-10);
+		border-radius: 40px;
+		padding: 8px;
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 32px;
-		height: 32px;
-		border: none;
-		border-radius: 8px;
-		background: none;
-		color: var(--color-font-secondary);
+		transition: transform 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
 		cursor: pointer;
-		transition: all 0.15s ease;
 	}
 
-	.action-btn:hover {
-		background-color: var(--color-grey-30);
-		color: var(--color-font-primary);
+	.new-chat-button-wrapper:hover {
+		transform: scale(1.08);
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 	}
 
-	/* Hide action bar in print mode */
+	.new-chat-button-wrapper:active {
+		transform: scale(0.95);
+		box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+	}
+
+	/* Mobile: smaller position offset */
+	@media (max-width: 730px) {
+		.top-buttons {
+			top: 10px;
+			inset-inline-start: 10px;
+		}
+	}
+
+	/* Hide in print mode */
 	@media print {
-		.docs-action-bar {
+		.top-buttons {
 			display: none;
-		}
-	}
-
-	/* Mobile: smaller buttons */
-	@media (max-width: 600px) {
-		.docs-action-bar {
-			top: 8px;
-			inset-inline-end: 8px;
-		}
-
-		.action-btn {
-			width: 28px;
-			height: 28px;
-		}
-
-		.action-btn svg {
-			width: 14px;
-			height: 14px;
 		}
 	}
 </style>
