@@ -619,3 +619,357 @@ def get_categorized_test_summary(is_admin: bool = False) -> Dict[str, Any]:
 
     _set_cached(cached_key, result)
     return result
+
+
+# ─── V2: Functionality-based summaries for new status page ───────────────────
+# Maps test results into user-facing functionality groups (Signup, Login, Chat, etc.)
+# with 30-day timelines and sub-category drill-down.
+
+
+def _categorize_test_to_functionality(
+    test_key: str,
+    functionality_map: Dict[str, List[str]],
+) -> Optional[str]:
+    """Match a test file/name to a functionality group. Returns None if no match."""
+    name_lower = test_key.lower()
+    for func_name, patterns in functionality_map.items():
+        for pattern in patterns:
+            if pattern.lower() in name_lower:
+                return func_name
+    return None
+
+
+def _categorize_test_to_sub_category(
+    test_key: str,
+    sub_categories: Dict[str, List[str]],
+) -> Optional[str]:
+    """Match a test file/name to a sub-category within a functionality."""
+    name_lower = test_key.lower()
+    for sub_name, patterns in sub_categories.items():
+        for pattern in patterns:
+            if pattern.lower() in name_lower:
+                return sub_name
+    return None
+
+
+def get_functionality_summaries(days: int = 30) -> List[Dict[str, Any]]:
+    """
+    Build functionality-level summaries for the status page.
+
+    Groups Playwright tests by user-facing functionality (Signup, Login, Chat, etc.)
+    and computes 30-day timelines with pass rates per day.
+
+    Returns list of {name, status, pass_rate, total, passed, failed, timeline_30d}.
+    """
+    from backend.core.api.app.services.status_aggregator import (
+        FUNCTIONALITY_MAP,
+        _pass_rate_to_status,
+    )
+
+    cache_key = f"functionality_summaries:{days}"
+    cached = _get_cached(cache_key)
+    if cached is not None:
+        return cached
+
+    data = _read_json_file(os.path.join(TEST_RESULTS_DIR, "last-run.json"))
+    if not data:
+        return []
+
+    per_test_hist = get_per_test_history(days=days)
+
+    # Collect tests per functionality (only Playwright)
+    func_tests: Dict[str, List[str]] = {name: [] for name in FUNCTIONALITY_MAP}
+    func_current: Dict[str, Dict[str, int]] = {
+        name: {"passed": 0, "failed": 0, "total": 0} for name in FUNCTIONALITY_MAP
+    }
+
+    playwright_suite = data.get("suites", {}).get(PLAYWRIGHT_SUITE_NAME)
+    if playwright_suite:
+        for test in playwright_suite.get("tests", []):
+            test_key = test.get("file") or test.get("name", "")
+            func_name = _categorize_test_to_functionality(test_key, FUNCTIONALITY_MAP)
+            if func_name and func_name in func_tests:
+                func_tests[func_name].append(test_key)
+                func_current[func_name]["total"] += 1
+                if test.get("status") == "passed":
+                    func_current[func_name]["passed"] += 1
+                elif test.get("status") == "failed":
+                    func_current[func_name]["failed"] += 1
+
+    # Build per-functionality 30-day timeline
+    date_range = _generate_date_range(days)
+    summaries = []
+
+    for func_name in FUNCTIONALITY_MAP:
+        test_keys = func_tests[func_name]
+        current = func_current[func_name]
+
+        if current["total"] == 0:
+            continue
+
+        pass_rate = round(current["passed"] / current["total"] * 100) if current["total"] > 0 else 0
+
+        # Build daily timeline
+        timeline = []
+        for date_str in date_range:
+            day_passed = 0
+            day_failed = 0
+            day_total = 0
+            has_run = False
+            run_at = None
+
+            for tkey in test_keys:
+                for entry in per_test_hist.get(tkey, []):
+                    if entry.get("date") == date_str:
+                        if entry.get("status") == "passed":
+                            day_passed += 1
+                            day_total += 1
+                            has_run = True
+                        elif entry.get("status") == "failed":
+                            day_failed += 1
+                            day_total += 1
+                            has_run = True
+                        if not run_at and entry.get("run_at"):
+                            run_at = entry["run_at"]
+                        break
+
+            expected_total = len(test_keys)
+            not_run = max(expected_total - day_total, 0)
+            day_pass_rate = round(day_passed / expected_total * 100) if expected_total > 0 else 0
+
+            timeline.append({
+                "date": date_str,
+                "pass_rate": day_pass_rate,
+                "total": expected_total,
+                "passed": day_passed,
+                "failed": day_failed,
+                "not_run": not_run,
+                "has_run": has_run,
+                "run_at": run_at,
+                "tone": _compute_tone_score(day_passed, day_failed, not_run),
+            })
+
+        summaries.append({
+            "name": func_name,
+            "status": _pass_rate_to_status(pass_rate),
+            "pass_rate": pass_rate,
+            "total": current["total"],
+            "passed": current["passed"],
+            "failed": current["failed"],
+            "timeline_30d": timeline,
+        })
+
+    _set_cached(cache_key, summaries)
+    return summaries
+
+
+def get_functionality_detail(
+    name: str,
+    is_admin: bool = False,
+    days: int = 30,
+) -> Optional[Dict[str, Any]]:
+    """
+    Build detailed functionality data for the /v1/status/functionalities?name=<name> endpoint.
+
+    Returns sub-category timelines and individual tests per sub-category.
+    """
+    from backend.core.api.app.services.status_aggregator import (
+        FUNCTIONALITY_MAP,
+        FUNCTIONALITY_SUB_CATEGORIES,
+        _pass_rate_to_status,
+    )
+
+    if name not in FUNCTIONALITY_MAP:
+        return None
+
+    cache_key = f"functionality_detail:{name}:{is_admin}:{days}"
+    cached = _get_cached(cache_key)
+    if cached is not None:
+        return cached
+
+    data = _read_json_file(os.path.join(TEST_RESULTS_DIR, "last-run.json"))
+    if not data:
+        return None
+
+    per_test_hist = get_per_test_history(days=days)
+    patterns = FUNCTIONALITY_MAP[name]
+    sub_cats = FUNCTIONALITY_SUB_CATEGORIES.get(name, {})
+    date_range = _generate_date_range(days)
+
+    # Collect tests matching this functionality
+    func_tests: List[Dict[str, Any]] = []
+    playwright_suite = data.get("suites", {}).get(PLAYWRIGHT_SUITE_NAME)
+    if playwright_suite:
+        for test in playwright_suite.get("tests", []):
+            test_key = test.get("file") or test.get("name", "")
+            matched = _categorize_test_to_functionality(test_key, {name: patterns})
+            if matched:
+                test_entry: Dict[str, Any] = {
+                    "name": test.get("name") or test.get("file", ""),
+                    "file": test_key,
+                    "status": test.get("status", "unknown"),
+                    "last_run": data.get("run_id", ""),
+                    "history_30d": per_test_hist.get(test_key, []),
+                }
+                if is_admin:
+                    test_entry["error"] = test.get("error")
+                # Determine sub-category
+                if sub_cats:
+                    test_entry["sub_category"] = _categorize_test_to_sub_category(
+                        test_key, sub_cats
+                    ) or "Other"
+                func_tests.append(test_entry)
+
+    # Build sub-category timelines
+    sub_category_data = []
+    if sub_cats:
+        for sub_name, sub_patterns in sub_cats.items():
+            sub_test_keys = [
+                t["file"] for t in func_tests
+                if t.get("sub_category") == sub_name
+            ]
+            if not sub_test_keys:
+                continue
+
+            # Current stats
+            sub_passed = sum(1 for t in func_tests if t.get("sub_category") == sub_name and t["status"] == "passed")
+            sub_failed = sum(1 for t in func_tests if t.get("sub_category") == sub_name and t["status"] == "failed")
+            sub_total = len(sub_test_keys)
+            sub_pass_rate = round(sub_passed / sub_total * 100) if sub_total > 0 else 0
+
+            # 30-day timeline for this sub-category
+            sub_timeline = []
+            for date_str in date_range:
+                day_passed = 0
+                day_failed = 0
+                day_total_run = 0
+                has_run = False
+                run_at = None
+
+                for tkey in sub_test_keys:
+                    for entry in per_test_hist.get(tkey, []):
+                        if entry.get("date") == date_str:
+                            if entry.get("status") == "passed":
+                                day_passed += 1
+                                day_total_run += 1
+                                has_run = True
+                            elif entry.get("status") == "failed":
+                                day_failed += 1
+                                day_total_run += 1
+                                has_run = True
+                            if not run_at and entry.get("run_at"):
+                                run_at = entry["run_at"]
+                            break
+
+                expected = len(sub_test_keys)
+                not_run = max(expected - day_total_run, 0)
+                day_pr = round(day_passed / expected * 100) if expected > 0 else 0
+
+                sub_timeline.append({
+                    "date": date_str,
+                    "pass_rate": day_pr,
+                    "total": expected,
+                    "passed": day_passed,
+                    "failed": day_failed,
+                    "not_run": not_run,
+                    "has_run": has_run,
+                    "run_at": run_at,
+                    "tone": _compute_tone_score(day_passed, day_failed, not_run),
+                })
+
+            sub_category_data.append({
+                "name": sub_name,
+                "pass_rate": sub_pass_rate,
+                "total": sub_total,
+                "passed": sub_passed,
+                "failed": sub_failed,
+                "status": _pass_rate_to_status(sub_pass_rate),
+                "timeline_30d": sub_timeline,
+            })
+
+    # Overall summary for the functionality
+    total = len(func_tests)
+    passed = sum(1 for t in func_tests if t["status"] == "passed")
+    failed = sum(1 for t in func_tests if t["status"] == "failed")
+    pass_rate = round(passed / total * 100) if total > 0 else 0
+
+    result: Dict[str, Any] = {
+        "name": name,
+        "status": _pass_rate_to_status(pass_rate),
+        "pass_rate": pass_rate,
+        "total": total,
+        "passed": passed,
+        "failed": failed,
+        "tests": func_tests,
+        "sub_categories": sub_category_data if sub_category_data else None,
+    }
+
+    _set_cached(cache_key, result)
+    return result
+
+
+def get_intra_day_runs_hourly(
+    target_date: str,
+    source: Optional[str] = None,
+    source_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Load intra-day run data grouped by hour for the hourly sub-timeline.
+
+    For functionality source: groups test runs by hour and computes per-hour aggregates.
+    For service source: returns health check entries grouped by hour.
+
+    Args:
+        target_date: Date in YYYY-MM-DD format.
+        source: "functionality" or "service" (optional filter context).
+        source_id: Functionality name or service ID (optional filter context).
+    """
+    cache_key = f"intra_day_hourly:{target_date}:{source}:{source_id}"
+    cached = _get_cached(cache_key)
+    if cached is not None:
+        return cached
+
+    # Load all runs for this date
+    runs = get_intra_day_runs(target_date)
+
+    # Group runs by hour
+    hours_map: Dict[int, List[Dict[str, Any]]] = {}
+    for run in runs:
+        timestamp = run.get("timestamp", "")
+        # Parse hour from ISO timestamp: "2026-03-22T03:00:00Z" → 3
+        try:
+            hour = int(timestamp[11:13]) if len(timestamp) >= 13 else 0
+        except (ValueError, IndexError):
+            hour = 0
+        hours_map.setdefault(hour, []).append(run)
+
+    # Build hourly aggregates
+    hours = []
+    for hour in sorted(hours_map.keys()):
+        hour_runs = hours_map[hour]
+        total = sum(r["summary"]["total"] for r in hour_runs)
+        passed_count = sum(r["summary"]["passed"] for r in hour_runs)
+        failed_count = sum(r["summary"]["failed"] for r in hour_runs)
+        skipped_count = sum(r["summary"].get("skipped", 0) for r in hour_runs)
+
+        hours.append({
+            "hour": hour,
+            "run_count": len(hour_runs),
+            "summary": {
+                "total": total,
+                "passed": passed_count,
+                "failed": failed_count,
+                "skipped": skipped_count,
+            },
+            "runs": hour_runs,
+        })
+
+    result = {
+        "date": target_date,
+        "source": source,
+        "id": source_id,
+        "hours": hours,
+    }
+
+    _set_cached(cache_key, result)
+    return result

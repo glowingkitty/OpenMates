@@ -1,7 +1,7 @@
 <!--
-    Status Page — /status
-    Orchestrator component. Fetches summary data and delegates rendering to child components.
-    Detail data (per-service timelines, per-test histories) loads lazily on expand.
+    Status Page — /status (v2)
+    Three sections: Services (infrastructure), Apps (expandable), Functionalities (test-based).
+    Detail data loads lazily on expand. Auto-refreshes every 60 seconds.
     Architecture: docs/architecture/infrastructure/status-page.md
     Tests: frontend/apps/web_app/tests/status-page.spec.ts
 -->
@@ -10,24 +10,17 @@
 	import { browser } from '$app/environment';
 	import type { StatusSummary, SelectedTimeline } from './components/types';
 	import { fetchSummary } from './components/api';
-	import { timelineColor, timelineTitle } from './components/utils';
 	import StatusHeader from './components/StatusHeader.svelte';
 	import TimelineBar from './components/TimelineBar.svelte';
-	import CurrentIssues from './components/CurrentIssues.svelte';
-	import ServiceGroup from './components/ServiceGroup.svelte';
-	import TestSuite from './components/TestSuite.svelte';
+	import ExpandableIssues from './components/ExpandableIssues.svelte';
+	import InfraServices from './components/InfraServices.svelte';
+	import AppGroup from './components/AppGroup.svelte';
+	import FunctionalityGroup from './components/FunctionalityGroup.svelte';
 
 	let loading = $state(true);
 	let error = $state('');
 	let data: StatusSummary | null = $state(null);
 	let selected: SelectedTimeline | null = $state(null);
-
-	const trendEntries = $derived(
-		(data?.tests?.trend ?? []).map((d) => ({
-			...d,
-			pass_rate: (d.total ?? 0) > 0 ? Math.round(((d.passed ?? 0) / (d.total ?? 1)) * 100) : 0
-		}))
-	);
 
 	async function load() {
 		try {
@@ -61,11 +54,13 @@
 	{:else if error}
 		<p class="msg err">{error}</p>
 	{:else if data}
-		<!-- Current Issues overview (unhealthy services + failed tests with admin errors) -->
+		<!-- Current Issues (first 5 with expand) -->
 		{#if data.current_issues}
-			<CurrentIssues
+			<ExpandableIssues
 				services={data.current_issues.services}
+				servicesTotal={data.current_issues.services_total}
 				failedTests={data.current_issues.failed_tests}
+				failedTestsTotal={data.current_issues.failed_tests_total}
 				isAdmin={data.is_admin}
 			/>
 		{/if}
@@ -84,47 +79,31 @@
 			</section>
 		{/if}
 
-		<!-- Services -->
-		{#if data.health?.groups?.length}
+		<!-- Services (flat infrastructure) -->
+		{#if data.services?.length}
 			<section class="card">
 				<h2>Services</h2>
-				{#each data.health.groups as group (group.group_name)}
-					<ServiceGroup {group} isAdmin={data.is_admin} bind:selected />
+				<InfraServices services={data.services} bind:selected />
+			</section>
+		{/if}
+
+		<!-- Apps (expandable with lazy detail) -->
+		{#if data.apps?.length}
+			<section class="card">
+				<h2>Apps</h2>
+				{#each data.apps as app (app.id)}
+					<AppGroup {app} isAdmin={data.is_admin} bind:selected />
 				{/each}
 			</section>
 		{/if}
 
-		<!-- Tests -->
-		{#if data.tests}
+		<!-- Functionalities (expandable with lazy detail) -->
+		{#if data.functionalities?.length}
 			<section class="card">
-				<div class="card-hdr">
-					<h2>Tests</h2>
-					{#if data.tests.latest_run}
-						<span class="meta">
-							{data.tests.latest_run.summary.passed ?? 0}/{data.tests.latest_run.summary.total ?? 0} passed
-						</span>
-					{/if}
-				</div>
-
-				{#each data.tests.suites as suite (suite.name)}
-					<TestSuite {suite} isAdmin={data.is_admin} bind:selected />
+				<h2>Functionalities</h2>
+				{#each data.functionalities as func (func.name)}
+					<FunctionalityGroup functionality={func} isAdmin={data.is_admin} bind:selected />
 				{/each}
-
-				<!-- Overall trend -->
-				{#if trendEntries.length >= 2}
-					<div class="item">
-						<div class="item-head static">
-							<span class="label">Daily Pass Rate (All Suites, 30d)</span>
-						</div>
-						<TimelineBar
-							entries={trendEntries}
-							timelineKey="tests-trend"
-							bind:selected
-							showLabels
-							enableIntraDay
-						/>
-					</div>
-				{/if}
 			</section>
 		{/if}
 
@@ -179,22 +158,6 @@
 		font-size: 0.95rem;
 		font-weight: 600;
 	}
-	.card-hdr {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		margin-bottom: 0.6rem;
-	}
-	.card-hdr h2 { margin-bottom: 0; }
-	.meta {
-		font-size: 0.78rem;
-		color: var(--color-font-secondary);
-	}
-	.item {
-		border-top: 1px solid var(--color-grey-15);
-		padding: 0.5rem 0 0.4rem;
-	}
-	.item:first-child { border-top: none; }
 	.item-head {
 		display: flex;
 		align-items: center;
@@ -202,7 +165,6 @@
 		width: 100%;
 		font-size: 0.85rem;
 		color: var(--color-font-primary);
-		margin-bottom: 0.3rem;
 	}
 	.label {
 		flex: 1;
