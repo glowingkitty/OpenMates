@@ -11001,7 +11001,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
          * Center vertically in the space below the daily inspiration banner.
          * Offset of 80px keeps welcome content clear of top-left actions.
          */
-        top: calc(50% + 80px);
+        top: calc(58% + 80px);
         left: 50%;
         transform: translate(-50%, -50%);
         text-align: center;
@@ -11217,7 +11217,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         max-width: 400px;
         min-height: 44px;
         padding: 10px 16px;
-        margin-top: 16px;
         background-color: transparent;
         border: 1px solid rgba(255, 255, 255, 0.14);
         border-radius: 20px;
@@ -11357,7 +11356,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         scale: 1;
         /* Re-enable pointer events (parent center-content has pointer-events: none) */
         pointer-events: auto;
-        margin-top: 16px;
         /* Shadow matching ChatEmbedPreview */
         box-shadow:
             0 8px 24px rgba(0, 0, 0, 0.16),
