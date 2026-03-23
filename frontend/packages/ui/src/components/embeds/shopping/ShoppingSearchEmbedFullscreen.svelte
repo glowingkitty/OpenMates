@@ -96,7 +96,9 @@
 
   let localQuery = $state('');
   let localProvider = $state('REWE');
-  let localEmbedIds = $state<string | string[] | undefined>(undefined);
+  // embedIdsOverride: only set by handleEmbedDataUpdated during streaming;
+  // falls back to the raw embedIds prop so it's available at mount time.
+  let embedIdsOverride = $state<string | string[] | undefined>(undefined);
   let localResults = $state<unknown[]>([]);
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('finished');
   let localErrorMessage = $state('');
@@ -104,7 +106,6 @@
   $effect(() => {
     localQuery = queryProp || '';
     localProvider = providerProp || 'REWE';
-    localEmbedIds = embedIds;
     localResults = resultsProp || [];
     localStatus = statusProp || 'finished';
     localErrorMessage = errorMessageProp || '';
@@ -112,7 +113,7 @@
 
   let query = $derived(localQuery);
   let provider = $derived(localProvider);
-  let embedIdsValue = $derived(localEmbedIds);
+  let embedIdsValue = $derived(embedIdsOverride ?? embedIds);
   let legacyResults = $derived(localResults);
 
   function asString(value: unknown): string | undefined {
@@ -224,7 +225,7 @@
     const content = data.decodedContent;
     if (typeof content.query === 'string') localQuery = content.query;
     if (typeof content.provider === 'string') localProvider = content.provider;
-    if (content.embed_ids) localEmbedIds = content.embed_ids as string | string[];
+    if (content.embed_ids) embedIdsOverride = content.embed_ids as string | string[];
     if (Array.isArray(content.results)) localResults = content.results;
     if (typeof content.error === 'string') localErrorMessage = content.error;
   }

@@ -805,7 +805,7 @@
     if (embedIds) {
       loadChildEmbeds();
     }
-    
+
     // Trigger opening animation.
     // Also reset scroll to top: on mobile, browsers can initialise a scrollable
     // container at a non-zero offset (e.g. after keyboard events), which would
@@ -821,7 +821,16 @@
       });
     });
   });
-  
+
+  // Defensive: re-trigger loadChildEmbeds when embedIds changes from undefined to a value.
+  // This guards against Svelte 5 timing issues where a parent component routes embedIds
+  // through $state(undefined) → $effect → $derived, making it undefined at mount time.
+  $effect(() => {
+    if (embedIds && loadedChildren.length === 0 && !isLoadingChildren) {
+      loadChildEmbeds();
+    }
+  });
+
   onDestroy(() => {
     window.removeEventListener('globalChatSelected', handleChatSelected);
     

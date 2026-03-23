@@ -93,19 +93,22 @@
   }: Props = $props();
 
   // Local reactive state for streaming updates
-  let localEmbedIds = $state<string | string[] | undefined>(undefined);
+  // embedIdsOverride: only set by handleEmbedDataUpdated during streaming;
+  // falls back to the raw embedIds prop so it's available at mount time
+  // (avoiding the Svelte 5 $effect timing bug where $state(undefined) + $effect
+  //  causes embedIds to be undefined when UnifiedEmbedFullscreen mounts).
+  let embedIdsOverride = $state<string | string[] | undefined>(undefined);
   let localResults = $state<unknown[]>([]);
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('finished');
   let localErrorMessage = $state('');
 
   $effect(() => {
-    localEmbedIds = embedIds;
     localResults = resultsProp || [];
     localStatus = statusProp || 'finished';
     localErrorMessage = errorMessageProp || '';
   });
 
-  let embedIdsValue = $derived(localEmbedIds);
+  let embedIdsValue = $derived(embedIdsOverride ?? embedIds);
   let legacyResults = $derived(localResults);
 
   function asString(value: unknown): string | undefined {
@@ -244,7 +247,7 @@
       localStatus = data.status;
     }
     const content = data.decodedContent;
-    if (content.embed_ids) localEmbedIds = content.embed_ids as string | string[];
+    if (content.embed_ids) embedIdsOverride = content.embed_ids as string | string[];
     if (Array.isArray(content.results)) localResults = content.results as unknown[];
     if (typeof content.error === 'string') localErrorMessage = content.error;
   }
