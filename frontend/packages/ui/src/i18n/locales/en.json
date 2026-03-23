@@ -722,12 +722,6 @@
         "example_3": {
           "text": "Follow-up and reminders"
         }
-      },
-      "proton_bridge_connection": {
-        "text": "Proton Bridge Connection",
-        "description": {
-          "text": "Shows the configured Proton Mail Bridge account used for mail search."
-        }
       }
     },
     "maps": {
@@ -1463,6 +1457,18 @@
         "text": "Share Use Case",
         "description": {
           "text": "Share your OpenMates use case anonymously."
+        }
+      },
+      "get_docs": {
+        "text": "Get Documentation",
+        "description": {
+          "text": "Retrieve a specific OpenMates documentation page."
+        }
+      },
+      "search_docs": {
+        "text": "Search Documentation",
+        "description": {
+          "text": "Search across all OpenMates documentation."
         }
       }
     },
@@ -2571,6 +2577,9 @@
       "hide": {
         "text": "Hide"
       },
+      "share": {
+        "text": "Share"
+      },
       "credits": {
         "text": "credits"
       },
@@ -2588,6 +2597,9 @@
       },
       "fork": {
         "text": "Fork"
+      },
+      "edit": {
+        "text": "Edit"
       }
     },
     "hidden_chats": {
@@ -2807,6 +2819,14 @@
     },
     "active_chat": {
       "text": "Active chat"
+    },
+    "edit_banner": {
+      "editing": {
+        "text": "Editing message"
+      },
+      "cancel": {
+        "text": "Cancel editing"
+      }
     },
     "fork": {
       "title": {
@@ -3117,6 +3137,31 @@
     },
     "back_to_chats": {
       "text": "Back to chats"
+    },
+    "tabs": {
+      "docs": {
+        "text": "Docs"
+      },
+      "chat": {
+        "text": "Chat"
+      }
+    },
+    "actions": {
+      "share": {
+        "text": "Share page"
+      },
+      "share_copied": {
+        "text": "Link copied to clipboard"
+      },
+      "download_pdf": {
+        "text": "Download as PDF"
+      },
+      "report_issue": {
+        "text": "Report issue"
+      },
+      "ask_question": {
+        "text": "Ask about this documentation..."
+      }
     }
   },
   "email": {
