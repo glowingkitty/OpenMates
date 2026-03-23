@@ -113,9 +113,14 @@
 
   onMount(() => {
     if (!wrapperEl) return;
+    console.debug('[EmbedPreviewLarge] Mounted', { embedRef, carouselIndex, width: wrapperEl.offsetWidth });
     const ro = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        isExpanded = entry.contentRect.width > 400;
+        const newExpanded = entry.contentRect.width > 400;
+        if (newExpanded !== isExpanded) {
+          console.debug('[EmbedPreviewLarge] ResizeObserver', { embedRef, width: entry.contentRect.width, isExpanded: newExpanded });
+        }
+        isExpanded = newExpanded;
       }
     });
     ro.observe(wrapperEl);

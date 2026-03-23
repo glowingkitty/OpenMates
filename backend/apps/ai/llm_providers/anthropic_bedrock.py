@@ -90,7 +90,8 @@ async def invoke_bedrock_api(
         
         if not anthropic_messages:
             err_msg = "Message history is empty after processing."
-            if stream: raise ValueError(err_msg)
+            if stream:
+                raise ValueError(err_msg)
             return UnifiedAnthropicResponse(task_id=task_id, model_id=model_id, success=False, error_message=err_msg)
 
         anthropic_tools = _map_tools_to_anthropic_format(tools)
@@ -100,7 +101,7 @@ async def invoke_bedrock_api(
             "anthropic_version": "bedrock-2023-05-31",
             "messages": anthropic_messages,
             "temperature": temperature,
-            "max_tokens": max_tokens or 4096
+            "max_tokens": max_tokens or 16384
         }
         
         if system_prompt:
@@ -124,7 +125,8 @@ async def invoke_bedrock_api(
     except Exception as e:
         err_msg = f"Error during AWS Bedrock request preparation: {e}"
         logger.error(f"{log_prefix} {err_msg}", exc_info=True)
-        if stream: raise ValueError(err_msg)
+        if stream:
+            raise ValueError(err_msg)
         return UnifiedAnthropicResponse(task_id=task_id, model_id=model_id, success=False, error_message=err_msg)
 
 
@@ -302,6 +304,13 @@ async def _iterate_bedrock_stream_response(
                     
                     elif chunk_data.get("type") == "message_delta":
                         delta = chunk_data.get("delta", {})
+                        # Check stop_reason for truncation/blocking detection
+                        stop_reason = delta.get("stop_reason")
+                        if stop_reason and stop_reason not in ("end_turn", "tool_use"):
+                            logger.warning(f"{log_prefix} Response ended with stop_reason='{stop_reason}'")
+                            if stop_reason == "max_tokens":
+                                yield "\n\n---\n*This response was cut short because it reached the model's maximum output length. You can ask the AI to continue.*"
+
                         if "usage" in delta:
                             usage_data = delta["usage"]
                             usage = AnthropicUsageMetadata(
