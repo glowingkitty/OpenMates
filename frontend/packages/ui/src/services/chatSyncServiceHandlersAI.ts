@@ -3816,6 +3816,26 @@ export async function handleSendEmbedDataImpl(
       `[ChatSyncService:AI] Error handling send_embed_data for embed ${embedData.embed_id}:`,
       error,
     );
+
+    // CRITICAL FIX: Still dispatch embedUpdated so the UI transitions out of "processing".
+    // Without this, a transient failure (chat-key race, encryption error) leaves the embed
+    // stuck at "processing" forever — the WebSocket event was consumed and won't be re-sent.
+    // The stale-recovery timer in UnifiedEmbedPreview will re-request from the server later,
+    // but updating the UI status immediately prevents the infinite shimmer.
+    if (embedData.status && embedData.status !== "processing") {
+      serviceInstance.dispatchEvent(
+        new CustomEvent("embedUpdated", {
+          detail: {
+            embed_id: embedData.embed_id,
+            chat_id: embedData.chat_id,
+            message_id: embedData.message_id,
+            status: embedData.status,
+            child_embed_ids: embedData.embed_ids,
+            isProcessing: false,
+          },
+        }),
+      );
+    }
   }
 }
 

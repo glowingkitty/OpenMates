@@ -2736,10 +2736,10 @@ class EmbedService:
                 }
 
                 # CRITICAL FIX: Send BEFORE updating cache to avoid duplicate prevention blocking
-                # The send_embed_data_to_client with check_cache_status=True will check if cache 
+                # The send_embed_data_to_client with check_cache_status=True will check if cache
                 # already has status=finished and skip. We need to send first, then update cache.
                 # This ensures the client receives the parent embed data with embed_ids (child embeds)
-                await self.send_embed_data_to_client(
+                send_ok = await self.send_embed_data_to_client(
                     embed_id=embed_id,
                     embed_type="app_skill_use",
                     content_toon=parent_content_toon,  # PLAINTEXT TOON
@@ -2758,11 +2758,17 @@ class EmbedService:
                     app_id=app_id,
                     skill_id=skill_id
                 )
+                if not send_ok:
+                    logger.error(
+                        f"{log_prefix} [EMBED_EVENT] FAILED to publish send_embed_data for composite embed {embed_id} "
+                        f"(status=finished, children={len(child_embed_ids)}). Client will not receive the finalized embed — "
+                        f"relying on client-side stale recovery (request_embed after 5s)."
+                    )
 
                 # Update cache AFTER sending (overwrites placeholder with finished status)
                 await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
 
-                logger.info(f"{log_prefix} Updated embed {embed_id} with {len(child_embed_ids)} child embeds")
+                logger.info(f"{log_prefix} Updated embed {embed_id} with {len(child_embed_ids)} child embeds (send_ok={send_ok})")
 
                 # Schedule fallback persistence for parent and all child embeds
                 # This ensures embeds are persisted even if the client doesn't send store_embed
@@ -2851,7 +2857,7 @@ class EmbedService:
 
                 # CRITICAL FIX: Send BEFORE updating cache to avoid duplicate prevention blocking
                 # This ensures the client receives the embed data before cache is marked as finished
-                await self.send_embed_data_to_client(
+                send_ok = await self.send_embed_data_to_client(
                     embed_id=embed_id,
                     embed_type="app_skill_use",
                     content_toon=content_toon,  # PLAINTEXT TOON
@@ -2866,11 +2872,17 @@ class EmbedService:
                     updated_at=updated_at,
                     log_prefix=log_prefix
                 )
+                if not send_ok:
+                    logger.error(
+                        f"{log_prefix} [EMBED_EVENT] FAILED to publish send_embed_data for single embed {embed_id} "
+                        f"(status=finished). Client will not receive the finalized embed — "
+                        f"relying on client-side stale recovery (request_embed after 5s)."
+                    )
 
                 # Update cache AFTER sending (overwrites placeholder with finished status)
                 await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
 
-                logger.info(f"{log_prefix} Updated single embed {embed_id}")
+                logger.info(f"{log_prefix} Updated single embed {embed_id} (send_ok={send_ok})")
 
                 # Schedule fallback persistence for single embed
                 self._schedule_embed_persistence_fallback(embed_id)
