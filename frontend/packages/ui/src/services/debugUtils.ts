@@ -17,6 +17,8 @@
  *   window.debug.logs(20)                  — last N console logs (filter: logs(20, 'error'))
  *   window.debug.errors(50)                — last N errors+warnings (survives noise)
  *   await window.debug.state()             — current store state snapshot
+ *   window.debug.animation('ai_is_typing_on')  — test rainbow glow + typing indicator
+ *   window.debug.animation('ai_is_typing_off') — stop the animation
  *
  * Architecture context: See docs/architecture/embed-encryption.md
  */
@@ -3949,7 +3951,10 @@ function showDebugHelp(): void {
       "  Diagnostics:\n" +
       "  window.debug.logs(n?, level?)             — show last N logs (default 20), filter by level\n" +
       "  window.debug.errors(n?)                   — show last N errors+warnings (default 50)\n" +
-      "  window.debug.state()                      — dump current store state summary\n",
+      "  window.debug.state()                      — dump current store state summary\n\n" +
+      "  Animations:\n" +
+      "  window.debug.animation('ai_is_typing_on') — activate rainbow glow + typing indicator\n" +
+      "  window.debug.animation('ai_is_typing_off')— deactivate rainbow glow + typing indicator\n",
     "color: #4CAF50; font-weight: bold; font-size: 14px;",
     "color: #ccc; font-size: 12px;",
   );
@@ -4472,6 +4477,60 @@ export function initDebugUtils(): void {
 
     /** Inspect app settings and memories with decryption health check */
     settingsAndMemories: () => debugSettingsAndMemories(),
+
+    /**
+     * Manually trigger UI animations for testing.
+     * Usage:
+     *   window.debug.animation('ai_is_typing_on')   — activate rainbow glow + typing indicator
+     *   window.debug.animation('ai_is_typing_off')  — deactivate rainbow glow + typing indicator
+     */
+    animation: (name: string) => {
+      const container = document.querySelector('.active-chat-container');
+      if (!container) {
+        console.error('[debug.animation] No .active-chat-container found');
+        return;
+      }
+
+      switch (name) {
+        case 'ai_is_typing_on': {
+          container.classList.add('ai-typing');
+          // Inject a typing indicator if one doesn't already exist
+          const wrapper = container.querySelector('.message-input-wrapper');
+          if (wrapper && !wrapper.querySelector('.typing-indicator.debug-injected')) {
+            const indicator = document.createElement('div');
+            indicator.className = 'typing-indicator status-typing debug-injected';
+            indicator.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:2px;text-align:center;font-size:1rem;color:var(--color-grey-60);min-height:76px;padding:22px 16px 6px;margin:0 6px;font-style:italic;position:relative;z-index:1;';
+            const line1 = document.createElement('span');
+            line1.className = 'indicator-primary-line';
+            line1.textContent = 'Assistant is typing...';
+            const line2 = document.createElement('span');
+            line2.className = 'indicator-secondary-line';
+            line2.textContent = 'Powered by Debug Model';
+            line2.style.cssText = 'font-size:0.7rem;opacity:0.8;';
+            const line3 = document.createElement('span');
+            line3.className = 'indicator-tertiary-line';
+            line3.textContent = 'via Debug Provider 🇪🇺';
+            line3.style.cssText = 'font-size:0.65rem;opacity:0.65;';
+            indicator.append(line1, line2, line3);
+            wrapper.insertBefore(indicator, wrapper.firstChild);
+          }
+          console.log('[debug.animation] ai_is_typing_on — rainbow glow + typing indicator active');
+          break;
+        }
+        case 'ai_is_typing_off': {
+          container.classList.remove('ai-typing');
+          // Remove debug-injected typing indicator
+          const debugIndicator = container.querySelector('.typing-indicator.debug-injected');
+          if (debugIndicator) debugIndicator.remove();
+          console.log('[debug.animation] ai_is_typing_off — rainbow glow + typing indicator removed');
+          break;
+        }
+        default:
+          console.error(
+            `[debug.animation] Unknown animation "${name}". Available: ai_is_typing_on, ai_is_typing_off`
+          );
+      }
+    },
   });
 
   (window as unknown as Record<string, unknown>).debug = debugFn;

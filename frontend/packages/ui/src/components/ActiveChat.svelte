@@ -11059,6 +11059,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         color: var(--color-grey-60);
         min-height: 76px;
         padding: 22px 16px 6px;
+        /* Inset by 6px on each side so the gradient background doesn't overlay
+           the rainbow glow border ring (2px ring + 2px blur) on .active-chat-container */
+        margin: 0 6px;
         font-style: italic;
         /* Gradient background so the text remains readable when positioned over chat messages.
            Uses the active chat background color (--color-grey-20) fading from transparent at the top
