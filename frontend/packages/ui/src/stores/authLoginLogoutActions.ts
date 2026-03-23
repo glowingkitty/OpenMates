@@ -284,6 +284,7 @@ export async function login(
             }
 
             updateProfile({
+              user_id: (data.user as any).id || null,
               username: data.user.username,
               profile_image_url: data.user.profile_image_url,
               tfa_app_name: data.user.tfa_app_name,

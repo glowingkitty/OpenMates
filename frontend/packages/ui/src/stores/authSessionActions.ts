@@ -622,6 +622,7 @@ export async function checkAuth(
             : userLanguage;
 
         updateProfile({
+          user_id: (data.user as any).id || null,
           username: data.user.username,
           profile_image_url: data.user.profile_image_url,
           tfa_app_name: data.user.tfa_app_name,
@@ -633,6 +634,7 @@ export async function checkAuth(
           consent_mates_default_settings: consent_mates,
           language: effectiveLanguage,
           darkmode: userDarkMode,
+          timezone: data.user.timezone || null,
           // Low balance auto top-up fields
           auto_topup_low_balance_enabled:
             data.user.auto_topup_low_balance_enabled ?? false,

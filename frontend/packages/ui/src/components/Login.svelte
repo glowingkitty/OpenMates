@@ -1037,6 +1037,7 @@
                 
                 const { updateProfile } = await import('../stores/userProfile');
                 const userProfileData = {
+                    user_id: userData.id || null,
                     username: userData.username || '',
                     profile_image_url: userData.profile_image_url || null,
                     credits: userData.credits || 0,
@@ -1048,6 +1049,7 @@
                     consent_mates_default_settings: userData.consent_mates_default_settings || false,
                     language: userData.language || 'en',
                     darkmode: userData.darkmode || false,
+                    timezone: userData.timezone || null,
                     // Low balance auto top-up fields
                     auto_topup_low_balance_enabled: userData.auto_topup_low_balance_enabled ?? false,
                     auto_topup_low_balance_threshold: userData.auto_topup_low_balance_threshold,
@@ -1571,6 +1573,7 @@
                 
                 const { updateProfile } = await import('../stores/userProfile');
                 const userProfileData = {
+                    user_id: userData.id || null,
                     username: userData.username || '',
                     profile_image_url: userData.profile_image_url || null,
                     credits: userData.credits || 0,
@@ -1582,6 +1585,7 @@
                     consent_mates_default_settings: userData.consent_mates_default_settings || false,
                     language: userData.language || 'en',
                     darkmode: userData.darkmode || false,
+                    timezone: userData.timezone || null,
                     // Low balance auto top-up fields
                     auto_topup_low_balance_enabled: userData.auto_topup_low_balance_enabled ?? false,
                     auto_topup_low_balance_threshold: userData.auto_topup_low_balance_threshold,

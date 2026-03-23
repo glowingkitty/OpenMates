@@ -126,35 +126,45 @@ class UserDatabaseService {
 
               checkRequest.onsuccess = (event) => {
                 const db = (event.target as IDBOpenDBRequest).result;
-                const transaction = db.transaction(
-                  [this.STORE_NAME],
-                  "readonly",
-                );
-                const store = transaction.objectStore(this.STORE_NAME);
-                const countRequest = store.count();
+                try {
+                  const transaction = db.transaction(
+                    [this.STORE_NAME],
+                    "readonly",
+                  );
+                  const store = transaction.objectStore(this.STORE_NAME);
+                  const countRequest = store.count();
 
-                countRequest.onsuccess = () => {
-                  const recordCount = countRequest.result;
-                  if (recordCount > 0) {
-                    console.warn(
-                      "[UserDatabase] ORPHANED DATABASE DETECTED: No master key but found",
-                      recordCount,
-                      "user records",
-                    );
-                    console.warn(
-                      "[UserDatabase] Setting cleanup marker and forcedLogoutInProgress=true",
-                    );
-                    if (typeof localStorage !== "undefined") {
-                      localStorage.setItem("openmates_needs_cleanup", "true");
+                  countRequest.onsuccess = () => {
+                    const recordCount = countRequest.result;
+                    if (recordCount > 0) {
+                      console.warn(
+                        "[UserDatabase] ORPHANED DATABASE DETECTED: No master key but found",
+                        recordCount,
+                        "user records",
+                      );
+                      console.warn(
+                        "[UserDatabase] Setting cleanup marker and forcedLogoutInProgress=true",
+                      );
+                      if (typeof localStorage !== "undefined") {
+                        localStorage.setItem("openmates_needs_cleanup", "true");
+                      }
+                      setForcedLogoutInProgress();
                     }
-                    setForcedLogoutInProgress();
-                  }
-                  db.close();
-                };
+                    db.close();
+                  };
 
-                countRequest.onerror = () => {
+                  countRequest.onerror = () => {
+                    db.close();
+                  };
+                } catch (e) {
+                  // NotFoundError: object store doesn't exist yet (DB needs migration).
+                  // Close and let normal init() handle the upgrade — not an orphan scenario.
+                  console.warn(
+                    "[UserDatabase] Orphan check skipped: object store not found (DB needs migration)",
+                    e,
+                  );
                   db.close();
-                };
+                }
               };
 
               checkRequest.onerror = () => {
