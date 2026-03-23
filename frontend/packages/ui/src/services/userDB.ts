@@ -109,69 +109,96 @@ class UserDatabaseService {
         );
         setForcedLogoutInProgress();
       } else {
-        // Check if master key is missing but database was previously initialized
-        const { getKeyFromStorage } = await import("./cryptoService");
-        const hasMasterKey = await getKeyFromStorage();
+        // FIX 2 (ported from ChatDB): Skip orphan detection for a short window
+        // after a page resume event (visibilitychange / pageshow). On mobile,
+        // init() can be called before memory key stores have re-initialized.
+        const {
+          lastResumeTimestamp,
+          RESUME_ORPHAN_GRACE_MS,
+        } = await import("../stores/signupState");
+        const timeSinceResume =
+          lastResumeTimestamp > 0
+            ? Date.now() - lastResumeTimestamp
+            : Infinity;
 
-        if (!hasMasterKey) {
-          const dbInitialized =
-            typeof localStorage !== "undefined" &&
-            localStorage.getItem("openmates_user_db_initialized") === "true";
+        if (timeSinceResume < RESUME_ORPHAN_GRACE_MS) {
+          console.warn(
+            `[UserDatabase] Skipping orphan detection: within ${RESUME_ORPHAN_GRACE_MS}ms resume grace period (${Math.round(timeSinceResume)}ms since resume)`,
+          );
+        } else {
+          // Check if master key is missing but database was previously initialized
+          const { getKeyFromStorage } = await import("./cryptoService");
+          const hasMasterKey = await getKeyFromStorage();
 
-          if (dbInitialized) {
-            // Try to open database and check if it contains user data
-            // Only trigger cleanup if there are actual user records
-            try {
-              const checkRequest = indexedDB.open(this.DB_NAME, this.VERSION);
+          if (!hasMasterKey) {
+            const dbInitialized =
+              typeof localStorage !== "undefined" &&
+              localStorage.getItem("openmates_user_db_initialized") === "true";
 
-              checkRequest.onsuccess = (event) => {
-                const db = (event.target as IDBOpenDBRequest).result;
-                try {
-                  const transaction = db.transaction(
-                    [this.STORE_NAME],
-                    "readonly",
-                  );
-                  const store = transaction.objectStore(this.STORE_NAME);
-                  const countRequest = store.count();
+            if (dbInitialized) {
+              // Try to open database and check if it contains MEANINGFUL user data.
+              // Only trigger cleanup if a real user ID exists — not just
+              // default/empty profile records written before authentication.
+              // Default records (username="", user_id=null) are written by
+              // updateProfile() during initial page load and do NOT indicate
+              // orphaned data from a previous authenticated session.
+              try {
+                const checkRequest = indexedDB.open(this.DB_NAME, this.VERSION);
 
-                  countRequest.onsuccess = () => {
-                    const recordCount = countRequest.result;
-                    if (recordCount > 0) {
-                      console.warn(
-                        "[UserDatabase] ORPHANED DATABASE DETECTED: No master key but found",
-                        recordCount,
-                        "user records",
-                      );
-                      console.warn(
-                        "[UserDatabase] Setting cleanup marker and forcedLogoutInProgress=true",
-                      );
-                      if (typeof localStorage !== "undefined") {
-                        localStorage.setItem("openmates_needs_cleanup", "true");
+                checkRequest.onsuccess = (event) => {
+                  const db = (event.target as IDBOpenDBRequest).result;
+                  try {
+                    const transaction = db.transaction(
+                      [this.STORE_NAME],
+                      "readonly",
+                    );
+                    const store = transaction.objectStore(this.STORE_NAME);
+                    const idRequest = store.get("id");
+
+                    idRequest.onsuccess = () => {
+                      if (idRequest.result) {
+                        console.warn(
+                          "[UserDatabase] ORPHANED DATABASE DETECTED: No master key but found user ID:",
+                          idRequest.result,
+                        );
+                        console.warn(
+                          "[UserDatabase] Setting cleanup marker and forcedLogoutInProgress=true",
+                        );
+                        if (typeof localStorage !== "undefined") {
+                          localStorage.setItem(
+                            "openmates_needs_cleanup",
+                            "true",
+                          );
+                        }
+                        setForcedLogoutInProgress();
+                      } else {
+                        console.debug(
+                          "[UserDatabase] Orphan check: no user ID found — skipping (default/empty records only)",
+                        );
                       }
-                      setForcedLogoutInProgress();
-                    }
-                    db.close();
-                  };
+                      db.close();
+                    };
 
-                  countRequest.onerror = () => {
+                    idRequest.onerror = () => {
+                      db.close();
+                    };
+                  } catch (e) {
+                    // NotFoundError: object store doesn't exist yet (DB needs migration).
+                    // Close and let normal init() handle the upgrade — not an orphan scenario.
+                    console.warn(
+                      "[UserDatabase] Orphan check skipped: object store not found (DB needs migration)",
+                      e,
+                    );
                     db.close();
-                  };
-                } catch (e) {
-                  // NotFoundError: object store doesn't exist yet (DB needs migration).
-                  // Close and let normal init() handle the upgrade — not an orphan scenario.
-                  console.warn(
-                    "[UserDatabase] Orphan check skipped: object store not found (DB needs migration)",
-                    e,
-                  );
-                  db.close();
-                }
-              };
+                  }
+                };
 
-              checkRequest.onerror = () => {
-                // Database doesn't exist or can't be opened, no cleanup needed
-              };
-            } catch {
-              // Error checking database, assume no cleanup needed
+                checkRequest.onerror = () => {
+                  // Database doesn't exist or can't be opened, no cleanup needed
+                };
+              } catch {
+                // Error checking database, assume no cleanup needed
+              }
             }
           }
         }

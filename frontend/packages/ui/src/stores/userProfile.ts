@@ -1,4 +1,4 @@
-import { writable } from "svelte/store";
+import { get, writable } from "svelte/store";
 import { userDB } from "../services/userDB";
 import { pushNotificationStore } from "./pushNotificationStore";
 
@@ -181,8 +181,13 @@ export function updateProfile(profile: Partial<UserProfile>): void {
     ...profile,
   }));
 
-  // Persist to IndexedDB
-  userDB.updateUserData(profile);
+  // Only persist to IndexedDB if we have meaningful user data.
+  // This prevents writing default/empty records before login,
+  // which would trigger false orphan detection on a fresh DB.
+  const merged = get(userProfile);
+  if (merged.user_id || merged.username) {
+    userDB.updateUserData(profile);
+  }
 }
 
 // Add getter for components that need user data
