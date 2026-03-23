@@ -30,6 +30,10 @@
   /** Number of suggestion cards to show in the scrollable row */
   const VISIBLE_COUNT = 10;
 
+  /** Minimum word count for suggestion body text (after stripping prefix).
+   *  Suggestions with fewer words are too vague and get filtered out. */
+  const MIN_BODY_WORDS = 4;
+
   let {
     onSuggestionClick,
     messageInputContent = ''
@@ -415,7 +419,9 @@
           encrypted: s.encrypted,
           id: s.id
         };
-      });
+      })
+      // Filter out suggestions with too few words in the body text
+      .filter(s => s.body.split(/\s+/).filter(Boolean).length >= MIN_BODY_WORDS);
 
     // Apply search filter when query is active
     const filtered = filterQuery

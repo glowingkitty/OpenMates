@@ -140,6 +140,11 @@ def sanitize_suggestions(
 
     PREFIX_RE = re.compile(r"^\[([^\]]+)\]\s*")
 
+    # Minimum word count for suggestion body text (after stripping the prefix).
+    # Suggestions with fewer words are too vague (e.g. "Quantum computing") and
+    # should be dropped in favor of action-oriented phrases ("Explain quantum computing basics").
+    MIN_BODY_WORDS = 4
+
     cleaned = []
     for raw in suggestions:
         if not isinstance(raw, str) or not raw.strip():
@@ -150,6 +155,14 @@ def sanitize_suggestions(
             prefix = m.group(1).strip()
             body = raw[m.end():].strip()
 
+            # Drop suggestions whose body text is too short (fewer than MIN_BODY_WORDS words)
+            if len(body.split()) < MIN_BODY_WORDS:
+                logger.debug(
+                    f"[Task ID: {task_id}] [PostProcessor] Dropped suggestion with "
+                    f"<{MIN_BODY_WORDS} words in body: '[{prefix}] {body}'"
+                )
+                continue
+
             if prefix in all_valid_compound or prefix in app_only_valid:
                 # Valid prefix — keep as-is
                 cleaned.append(raw.strip())
@@ -159,16 +172,20 @@ def sanitize_suggestions(
                     f"[Task ID: {task_id}] [PostProcessor] Replaced unknown prefix "
                     f"'[{prefix}]' with [ai] fallback. Body: '{body[:60]}'"
                 )
-                if body:
-                    cleaned.append(f"[ai] {body}")
+                cleaned.append(f"[ai] {body}")
         else:
             # No prefix — prepend [ai] as fallback (every suggestion must have a prefix)
             body = raw.strip()
-            if body:
+            if body and len(body.split()) >= MIN_BODY_WORDS:
                 logger.debug(
                     f"[Task ID: {task_id}] [PostProcessor] Added [ai] prefix to unprefixed suggestion: '{body[:60]}'"
                 )
                 cleaned.append(f"[ai] {body}")
+            elif body:
+                logger.debug(
+                    f"[Task ID: {task_id}] [PostProcessor] Dropped unprefixed suggestion with "
+                    f"<{MIN_BODY_WORDS} words: '{body}'"
+                )
 
     return cleaned
 
@@ -184,8 +201,8 @@ def sanitize_suggestions(
 
 class PostProcessingResult(BaseModel):
     """Result from post-processing stage"""
-    follow_up_request_suggestions: List[str] = Field(default_factory=list, description="6 follow-up suggestions (max 5 words each)")
-    new_chat_request_suggestions: List[str] = Field(default_factory=list, description="6 new chat suggestions (max 5 words each)")
+    follow_up_request_suggestions: List[str] = Field(default_factory=list, description="6 follow-up suggestions (action-verb focused, min 4 words each)")
+    new_chat_request_suggestions: List[str] = Field(default_factory=list, description="6 new chat suggestions (action-verb focused, min 4 words each)")
     harmful_response: float = Field(default=0.0, description="Score 0-10 for harmful response detection")
     top_recommended_apps_for_user: List[str] = Field(default_factory=list, description="Top 5 recommended app IDs for this user based on conversation context")
     chat_summary: Optional[str] = Field(None, description="Updated chat summary (max 20 words) including the latest exchange")
@@ -341,6 +358,11 @@ async def handle_postprocessing(
         "The full conversation history is provided below. "
         "Generate contextual follow-up suggestions that encourage deeper engagement and exploration. "
         "Generate new chat suggestions that are related but explore new angles.\n\n"
+        "CRITICAL — Action-verb style: Every suggestion body (the text after the [prefix]) MUST start with "
+        "a strong action verb (Search, Compare, Explain, Write, Find, Create, Show, List, Teach, Help, "
+        "Analyze, Summarize, Plan, Design, Build, Describe, Calculate, etc.). "
+        "NEVER produce noun-only or adjective-only suggestions (e.g. 'Quantum physics' or 'Latest AI news'). "
+        "Every suggestion body must be at least 4 words long.\n\n"
         f"Conversation tags: {chat_tags_str}"
         f"{available_apps_context}"
         f"{skills_context}{focus_context}{memory_prefix_context}"
