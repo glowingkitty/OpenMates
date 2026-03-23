@@ -1712,15 +1712,85 @@ async def _check_vercel_domain_health(domain: str) -> Dict[str, Any]:
     return health_data
 
 
+async def _check_api_server_health() -> Dict[str, Any]:
+    """
+    Check API server reachability via external HTTP ping.
+
+    Pings api.dev.openmates.org (dev) or api.openmates.org (prod) from outside
+    to verify the API server is accessible to users.
+    """
+    api_domain = os.getenv("API_SERVER_DOMAIN", "")
+    logger.info(f"Health check: Checking API server '{api_domain}'...")
+    cache_service = CacheService()
+    response_time_ms = 0.0
+
+    if not api_domain:
+        logger.info("Health check: Skipping API server health check (API_SERVER_DOMAIN not configured)")
+        return {"status": "skipped", "last_check": int(time.time()), "last_error": None}
+
+    try:
+        start_time = time.time()
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(f"https://{api_domain}/health", follow_redirects=True)
+            response_time_ms = (time.time() - start_time) * 1000
+
+            if response.status_code < 400:
+                status = "healthy"
+                last_error = None
+                logger.info(f"Health check: API server '{api_domain}' is healthy ({response_time_ms:.1f}ms)")
+            else:
+                status = "unhealthy"
+                last_error = _sanitize_error_message(f"HTTP {response.status_code}")
+                logger.error(f"Health check: API server '{api_domain}' returned {response.status_code}")
+
+    except httpx.TimeoutException:
+        response_time_ms = (time.time() - start_time) * 1000
+        status = "unhealthy"
+        last_error = "timeout"
+        logger.error(f"Health check: API server '{api_domain}' timeout")
+    except Exception as e:
+        response_time_ms = (time.time() - start_time) * 1000
+        status = "unhealthy"
+        last_error = _sanitize_error_message(str(e))
+        logger.error(f"Health check: API server '{api_domain}' error: {e}")
+
+    cache_key = f"{HEALTH_CHECK_EXTERNAL_CACHE_KEY_PREFIX}api_server"
+    current_timestamp = int(time.time())
+
+    await _record_health_event_if_changed(
+        service_type="external",
+        service_id="api_server",
+        new_status=status,
+        error_message=last_error,
+        response_time_ms=response_time_ms
+    )
+
+    health_data = {
+        "status": status,
+        "last_check": current_timestamp,
+        "last_error": last_error,
+        "response_times_ms": {str(current_timestamp): round(response_time_ms, 2)} if response_time_ms else {}
+    }
+
+    try:
+        client = await cache_service.client
+        if client:
+            await client.set(cache_key, json.dumps(health_data), ex=HEALTH_CHECK_CACHE_TTL)
+    except Exception as e:
+        logger.error(f"Health check: Failed to store API server health status in cache: {e}")
+
+    return health_data
+
+
 @app.task(name="health_check.check_all_apps", bind=True)
 def check_all_apps_health(self):
     """
     Periodic task to check health of all app services (API and workers).
     This task is scheduled by Celery Beat.
-    
+
     Checks app APIs and workers every 5 minutes.
     Only checks apps that are discovered and enabled (same logic as /v1/apps/metadata).
-    
+
     Uses a distributed lock to prevent multiple concurrent executions.
     """
     # Use distributed lock to prevent concurrent health checks
@@ -2084,6 +2154,9 @@ def check_external_services_health(self):
             vercel_domain = os.getenv("VERCEL_DOMAIN", "")
             tasks.append(_check_vercel_domain_health(vercel_domain))
 
+            # Check API server external reachability (skipped if not configured)
+            tasks.append(_check_api_server_health())
+
             # Run all checks concurrently
             logger.info(f"Health check: Executing {len(tasks)} external service health check(s) concurrently...")
             results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -2103,7 +2176,7 @@ def check_external_services_health(self):
 
             # Log details for unhealthy services
             if unhealthy_count > 0:
-                service_names = ["stripe", "sightengine", "brevo", "bedrock", "vercel"]
+                service_names = ["stripe", "sightengine", "brevo", "bedrock", "vercel", "api_server"]
                 for i, result in enumerate(results):
                     if isinstance(result, dict) and result.get("status") == "unhealthy":
                         service_name = service_names[i] if i < len(service_names) else f"unknown_{i}"
