@@ -119,8 +119,11 @@
     import PushNotificationBanner from './PushNotificationBanner.svelte'; // Import push notification banner component
     import { shouldShowPushBanner } from '../stores/pushNotificationStore'; // Import push notification store for banner visibility
     import DailyInspirationBanner from './DailyInspirationBanner.svelte'; // Daily inspiration carousel above welcome screen
+    import Not404Screen from './Not404Screen.svelte'; // 404 not-found screen shown when user lands on an unknown URL
     import ForkProgressBanner from './chats/ForkProgressBanner.svelte'; // Slim banner shown while a fork is in progress
     import { forkProgressStore } from '../stores/forkProgressStore'; // Global fork progress — used to show banner on source chat
+    import { notFoundPathStore } from '../stores/notFoundPathStore'; // 404 not-found path — set when user lands on unknown URL
+    import { openSearch, setSearchQuery } from '../stores/searchStore'; // For 404 search handler
     import { pendingMentionStore } from '../stores/pendingMentionStore'; // For inserting @skill mentions from suggestion clicks
     import type { DailyInspiration } from '../stores/dailyInspirationStore'; // Type for inspiration handler
     import { chatListCache } from '../services/chatListCache'; // For invalidating stale 'sending' status in sidebar cache
@@ -5021,6 +5024,34 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         showWelcome = !hasMessages;
     }
 
+    // ── 404 Not-Found Screen handlers ──────────────────────────────────────────
+    /**
+     * Called by Not404Screen when the user picks the Search option.
+     * Clears the 404 state, opens the Chats sidebar and activates the search bar
+     * pre-filled with the derived query string.
+     */
+    function handle404Search(query: string) {
+        notFoundPathStore.set(null);
+        panelState.openChats();
+        openSearch({ closeChatsOnEscape: false });
+        setSearchQuery(query);
+    }
+
+    /**
+     * Called by Not404Screen when the user picks the Ask AI option.
+     * Clears the 404 state, ensures we are on a clean new-chat screen, then
+     * injects the pre-filled message into the message input via setSuggestionText.
+     */
+    async function handle404AskAI(message: string) {
+        notFoundPathStore.set(null);
+        if (currentChat) {
+            await handleNewChatClick();
+        }
+        await tick();
+        messageInputFieldRef?.setSuggestionText(message);
+        messageInputFieldRef?.focus();
+    }
+
     /**
      * Handler for when the create icon is clicked.
      */
@@ -8999,6 +9030,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 class:side-by-side-minimizing={sideBySideAnimating && sideBySideAnimationDirection === 'minimize'}
                 class:side-by-side-restoring={sideBySideAnimating && sideBySideAnimationDirection === 'restore'}
             >
+                <!-- 404 Not-Found screen: shown exclusively when the user landed on an unknown URL.
+                     Replaces both chat-side and message-input-wrapper entirely. -->
+                {#if $notFoundPathStore !== null}
+                    <Not404Screen
+                        onSearch={handle404Search}
+                        onAskAI={handle404AskAI}
+                    />
+                {:else}
                 <!-- Left side container for chat history and buttons -->
                 <div class="chat-side" bind:this={chatSideEl}>
                     <!-- Daily Inspiration banners – shown above welcome greeting on new chat screen -->
@@ -9595,6 +9634,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         {/if}
                     </div>
                 </div>
+                {/if}
             </div>
             {/if}
 
