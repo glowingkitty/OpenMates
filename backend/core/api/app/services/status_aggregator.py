@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 # Status label normalization: core API → status page
 _STATUS_MAP = {
     "healthy": "operational",
+    "available": "operational",
     "unhealthy": "down",
     "degraded": "degraded",
     "unknown": "unknown",
@@ -155,6 +156,7 @@ async def gather_health_data(request) -> Dict[str, Dict[str, Any]]:
                     "api": data.get("api", {}),
                     "worker": data.get("worker", {}),
                     "last_check": data.get("last_check"),
+                    "skills": data.get("skills", []),
                 }
 
         for key in await client.keys("health_check:external:*"):
@@ -715,22 +717,31 @@ def build_apps_section(
     for app_id, data in health_data.get("apps", {}).items():
         svc_key = f"app/{app_id}"
         skills = data.get("skills", [])
-        # Count unique providers across all skills
+        # Count unique providers across this app's skills (not global LLM providers)
         provider_ids = set()
         for skill in skills:
             for provider in skill.get("providers", []):
-                provider_ids.add(provider.get("name", ""))
+                name = provider.get("name", "")
+                if name:
+                    provider_ids.add(name)
 
         apps.append({
             "id": app_id,
             "display_name": app_id.replace("_", " ").title(),
             "status": _normalize_status(data.get("status", "unknown")),
             "timeline_30d": service_timelines.get(svc_key, []),
-            "provider_count": len(health_data.get("providers", {})),
+            "provider_count": len(provider_ids),
             "skill_count": len(skills),
         })
 
     return apps
+
+
+def _normalize_app_status(status: str) -> str:
+    """Normalize app/skill status labels. Handles 'available' from skill health checks."""
+    if status in ("available", "healthy"):
+        return "operational"
+    return _normalize_status(status)
 
 
 def build_app_detail(
@@ -742,7 +753,8 @@ def build_app_detail(
     """
     Build detailed app data for the /v1/status/apps?app=<id> endpoint.
 
-    Returns providers with timelines and skills with overall status.
+    Shows the app's own skill providers (Brave, Google, REWE, etc.) — NOT global LLM providers.
+    Each skill lists its providers from the app's Redis health data.
     """
     app_data = health_data.get("apps", {}).get(app_id)
     if app_data is None:
@@ -750,33 +762,29 @@ def build_app_detail(
 
     svc_key = f"app/{app_id}"
 
-    # Build provider list with timelines
-    providers = []
-    for provider_id, pdata in health_data.get("providers", {}).items():
-        prov_key = f"provider/{provider_id}"
-        provider_entry: Dict[str, Any] = {
-            "id": provider_id,
-            "name": provider_id.replace("_", " ").title(),
-            "status": _normalize_status(pdata.get("status", "unknown")),
-            "timeline_30d": service_timelines.get(prov_key, []),
-        }
-        if is_admin:
-            provider_entry["error_message"] = pdata.get("last_error")
-            provider_entry["response_time_ms"] = pdata.get("response_times_ms", {})
-            provider_entry["last_check"] = pdata.get("last_check")
-        providers.append(provider_entry)
-
-    # Build skills list with overall status
+    # Collect unique providers from this app's skills (not global LLM providers)
+    seen_providers: Dict[str, str] = {}  # name → status
     skills = []
     for skill in app_data.get("skills", []):
+        skill_providers = []
+        for p in skill.get("providers", []):
+            pname = p.get("name", "")
+            pstatus = _normalize_app_status(p.get("status", "unknown"))
+            skill_providers.append({"name": pname, "status": pstatus})
+            if pname and pname not in seen_providers:
+                seen_providers[pname] = pstatus
+
         skills.append({
             "id": skill.get("id", ""),
-            "status": _normalize_status(skill.get("status", "unknown")),
-            "providers": [
-                {"name": p.get("name", ""), "status": _normalize_status(p.get("status", "unknown"))}
-                for p in skill.get("providers", [])
-            ],
+            "status": _normalize_app_status(skill.get("status", "unknown")),
+            "providers": skill_providers,
         })
+
+    # Build flat provider list for this app
+    providers = [
+        {"id": name.lower().replace(" ", "_"), "name": name, "status": status}
+        for name, status in sorted(seen_providers.items())
+    ]
 
     result: Dict[str, Any] = {
         "id": app_id,

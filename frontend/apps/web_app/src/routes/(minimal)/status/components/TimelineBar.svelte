@@ -12,7 +12,7 @@
 		entries,
 		timelineKey,
 		testid = '',
-		height = '1.1rem',
+		height = '',
 		selected = $bindable<SelectedTimeline | null>(null),
 		showLabels = false,
 		enableIntraDay = false,
@@ -87,7 +87,7 @@
 </script>
 
 {#if entries?.length}
-	<div class="tl" style="height:{height}" data-testid={testid || `status-timeline-${timelineKey}`}>
+	<div class="tl" style={height ? `height:${height}` : ''} data-testid={testid || `status-timeline-${timelineKey}`}>
 		{#each entries as d}
 			<button
 				type="button"
@@ -260,7 +260,7 @@
 	.intra-tl {
 		display: flex;
 		gap: 2px;
-		height: 1.3rem;
+		min-height: 0.8rem;
 		border-radius: 4px;
 		overflow: hidden;
 		background: var(--color-grey-20);

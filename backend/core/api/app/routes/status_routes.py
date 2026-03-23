@@ -156,22 +156,16 @@ async def get_status_app_detail(
 
     health_data = filter_public_status_health_data(await gather_health_data(request))
 
-    # Build provider timelines (scoped to providers only for efficiency)
+    # Build the app's own timeline only (per-app providers are from skills, not global LLM providers)
     service_timelines: Dict[str, Any] = {}
     try:
         directus = DirectusService(cache_service=CacheService())
         try:
             service_timelines = await build_all_service_daily_statuses(
                 directus, health_data, days=30,
-                service_type_filter="provider",
-            )
-            # Also get the app's own timeline
-            app_timelines = await build_all_service_daily_statuses(
-                directus, health_data, days=30,
                 service_type_filter="app",
                 service_ids_filter={app},
             )
-            service_timelines.update(app_timelines)
         finally:
             await directus.close()
     except Exception as e:
@@ -245,9 +239,92 @@ async def get_status_intraday(
     Get hourly-grouped intra-day data for any timeline.
     Used when clicking a day segment that has multiple checks/runs.
 
-    Returns hours with aggregated summaries per hour.
+    For services: queries health events from database, grouped by hour.
+    For functionalities/tests: queries test run files, grouped by hour.
     """
+    if source == "service" and id:
+        # Query health events for this service on this date
+        from backend.core.api.app.services.status_aggregator import INFRASTRUCTURE_SERVICES
+        svc_config = INFRASTRUCTURE_SERVICES.get(id)
+        if svc_config:
+            return await _get_service_intraday(date, svc_config["source_type"], svc_config["source_id"])
+        # Fallback: try as raw service type/id
+        return await _get_service_intraday(date, "external", id)
+
     return get_intra_day_runs_hourly(date, source=source, source_id=id)
+
+
+async def _get_service_intraday(date: str, service_type: str, service_id: str) -> Dict[str, Any]:
+    """Query health events for a service on a specific date, grouped by hour."""
+    from datetime import datetime as _dt
+
+    try:
+        # Parse date to get timestamp range for this day
+        day_start = _dt.fromisoformat(f"{date}T00:00:00+00:00")
+        since_ts = int(day_start.timestamp())
+
+        directus = DirectusService(cache_service=CacheService())
+        try:
+            events = await directus.health_event.get_health_history(
+                since_timestamp=since_ts,
+                service_type=service_type,
+                limit=500,
+            )
+        finally:
+            await directus.close()
+
+        # Filter to this service_id and date
+        day_events = []
+        for ev in events:
+            if ev.get("service_id") != service_id:
+                continue
+            created_at = ev.get("created_at", "")
+            if created_at[:10] == date:
+                day_events.append(ev)
+
+        # Group by hour
+        hours_map: Dict[int, List[Dict[str, Any]]] = {}
+        for ev in day_events:
+            created_at = ev.get("created_at", "")
+            try:
+                hour = int(created_at[11:13])
+            except (ValueError, IndexError):
+                hour = 0
+            hours_map.setdefault(hour, []).append({
+                "timestamp": created_at,
+                "status": ev.get("new_status", "unknown"),
+                "previous_status": ev.get("previous_status"),
+                "error_message": ev.get("error_message"),
+                "response_time_ms": ev.get("response_time_ms"),
+            })
+
+        hours = []
+        for hour in sorted(hours_map.keys()):
+            hour_events = hours_map[hour]
+            statuses = [e["status"] for e in hour_events]
+
+            hours.append({
+                "hour": hour,
+                "run_count": len(hour_events),
+                "summary": {
+                    "total": len(hour_events),
+                    "passed": sum(1 for s in statuses if s == "healthy"),
+                    "failed": sum(1 for s in statuses if s == "unhealthy"),
+                    "skipped": 0,
+                },
+                "runs": hour_events,
+            })
+
+        return {
+            "date": date,
+            "source": "service",
+            "id": service_id,
+            "hours": hours,
+        }
+
+    except Exception as e:
+        logger.error(f"[STATUS] Error getting service intraday: {e}", exc_info=True)
+        return {"date": date, "source": "service", "id": service_id, "hours": []}
 
 
 @router.get("/incidents", dependencies=[])

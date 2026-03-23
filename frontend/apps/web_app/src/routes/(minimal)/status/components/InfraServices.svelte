@@ -29,6 +29,9 @@
 				entries={svc.timeline_30d}
 				timelineKey="service-{svc.id}"
 				bind:selected
+				enableIntraDay
+				intraDaySource="service"
+				intraDayId={svc.id}
 			/>
 		{/if}
 	</div>
