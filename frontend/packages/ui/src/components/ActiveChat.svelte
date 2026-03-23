@@ -2836,6 +2836,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const isWelcome = showWelcome;
         const isAuth = $authStore.isAuthenticated;
         const currentActiveChat = $activeChatStore;
+        const lastOpened = $userProfile.last_opened;
 
         // Sync from phasedSyncState when on the welcome screen, authenticated,
         // no chat is currently active, and phasedSyncState has resume data.
@@ -2843,6 +2844,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         if (isWelcome && isAuth && !currentActiveChat && syncState.resumeChatData) {
             // Skip if the same chat is already displayed (no need to re-assign)
             if (resumeChatData?.chat_id === syncState.resumeChatData.chat_id) {
+                return;
+            }
+            // CRITICAL: Only apply sync bridge data if it matches the current last_opened.
+            // phasedSyncState.resumeChatData is set during Phase 1 sync or cross-device
+            // broadcasts and may be stale when the user opened a different chat locally.
+            // Without this guard, navigating Chat A → "New Chat" would show the old
+            // Phase 1 resume chat instead of Chat A, because the sync bridge fires
+            // immediately (sync) while loadResumeChatFromDB runs async.
+            if (lastOpened && syncState.resumeChatData.chat_id !== lastOpened) {
+                console.debug(`[ActiveChat] Skipping sync bridge — stale resumeChatData (${syncState.resumeChatData.chat_id}) doesn't match last_opened (${lastOpened})`);
                 return;
             }
             resumeChatData = syncState.resumeChatData;
@@ -5015,6 +5026,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      */
     async function handleNewChatClick() {
         console.debug("[ActiveChat] New chat creation initiated");
+        // CRITICAL: Clear activeChatStore BEFORE setting showWelcome = true.
+        // The resume card $effect guards on $activeChatStore — if it's still set
+        // when showWelcome triggers the effect, the guard returns early and the
+        // resume card never loads, leaving stale data from the sync bridge.
+        try {
+            activeChatStore.clearActiveChat();
+        } catch (err) {
+            console.error('[ActiveChat] Failed to clear activeChatStore on new chat:', err);
+        }
         // Reset current chat metadata and messages
         currentChat = null;
         currentMessages = [];
@@ -5098,15 +5118,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         window.dispatchEvent(globalDeselectEvent);
         console.debug("[ActiveChat] Dispatched chatDeselected / globalChatDeselected");
 
-        // Also clear the persistent active chat store so side panel highlight resets
-        // even if the Chats panel is not currently mounted to receive the event.
-        // This prevents the previously selected chat from remaining highlighted.
-        try {
-            activeChatStore.clearActiveChat();
-            console.debug('[ActiveChat] Cleared persistent activeChatStore after starting a new chat');
-        } catch (err) {
-            console.error('[ActiveChat] Failed to clear activeChatStore on new chat:', err);
-        }
+        // activeChatStore was already cleared at the top of handleNewChatClick()
+        // (before showWelcome = true) to ensure the resume card effect sees it.
     }
 
     // Expose a helper so parents can reset the UI to the new chat state (e.g., after deletions)
@@ -9232,7 +9245,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     {/if}
 
                                     <!-- ── Additional recent chats (scrollable after primary card) ── -->
-                                    {#each recentChats as meta, i (meta.chat.chat_id)}
+                                    <!-- Dedup: skip any chat already shown as the resume card to prevent
+                                         duplicates when loadRecentChats and resumeChatData use different sources -->
+                                    {#each recentChats.filter(m => m.chat.chat_id !== resumeChatData?.chat_id) as meta, i (meta.chat.chat_id)}
                                         {@const tilt = recentChatTiltStates[i]}
                                         {@const category = meta.category || 'general_knowledge'}
                                         {@const gradientColors = getCategoryGradientColors(category)}
