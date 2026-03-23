@@ -116,6 +116,7 @@
   let localErrorMessage = $state<string>('');
   let localTaskId = $state<string | undefined>(undefined);
   let localSkillTaskId = $state<string | undefined>(undefined);
+  let isLoadingChildren = $state(false);
   
   // Initialize local state from props
   $effect(() => {
@@ -197,8 +198,9 @@
             ? (embedIds as string).split('|').filter((id: string) => id.length > 0)
             : Array.isArray(embedIds) ? (embedIds as string[]) : [];
           
-          if (childEmbedIds.length > 0) {
+          if (childEmbedIds.length > 0 && !isLoadingChildren) {
             console.debug(`[WebSearchEmbedPreview] Loading child embeds for preview (${childEmbedIds.length} embed_ids)`);
+            isLoadingChildren = true;
             loadChildEmbedsForPreview(childEmbedIds);
           }
         }
@@ -266,6 +268,8 @@
     } catch (error) {
       console.warn('[WebSearchEmbedPreview] Error loading child embeds for preview:', error);
       // Continue without results - preview will just show query/provider
+    } finally {
+      isLoadingChildren = false;
     }
   }
   
@@ -475,8 +479,13 @@
         <!-- Finished state: show favicons and remaining count, or "0 results found" -->
         <div class="search-results-info">
           {#if flatResults.length === 0}
-            <!-- Search completed but returned zero results — show clear indication -->
-            <span class="no-results-text">{$text('embeds.search_no_results')}</span>
+            {#if isLoadingChildren}
+              <!-- Child embeds are being fetched — show loading instead of confusing "0 results" -->
+              <span class="no-results-text">{$text('embeds.loading')}</span>
+            {:else}
+              <!-- Search completed but returned zero results — show clear indication -->
+              <span class="no-results-text">{$text('embeds.search_no_results')}</span>
+            {/if}
           {:else}
             <!-- Favicons row -->
             {#if faviconResults.length > 0}

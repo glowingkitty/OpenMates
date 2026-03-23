@@ -603,3 +603,233 @@ def strip_admin_fields_from_incidents(events: List[Dict[str, Any]]) -> List[Dict
         }
         for e in events
     ]
+
+
+# ─── V2: New section-based status page builders ─────────────────────────────
+# These replace the old group-based approach with three clear sections:
+# Services (flat infrastructure), Apps (expandable), Functionalities (test-based).
+# Architecture: docs/architecture/infrastructure/status-page.md
+
+
+# Flat infrastructure services shown in the "Services" section
+INFRASTRUCTURE_SERVICES = {
+    "vercel": {"display_name": "Frontend Server (Vercel)", "source_type": "external", "source_id": "vercel"},
+    "api_server": {"display_name": "API Server (Hetzner)", "source_type": "external", "source_id": "api_server"},
+    "sightengine": {"display_name": "Content Moderation (Sightengine)", "source_type": "external", "source_id": "sightengine"},
+    "brevo": {"display_name": "Email (Brevo)", "source_type": "external", "source_id": "brevo"},
+}
+
+# Functionality-to-test-pattern mapping for the "Functionalities" section.
+# Skills are NOT here — skill health is shown in the Apps section.
+FUNCTIONALITY_MAP = {
+    "Signup": ["signup"],
+    "Login": ["account-recovery", "backup-code", "multi-session", "recovery-key", "session-revoke"],
+    "Chat": ["chat-flow", "chat-management", "chat-scroll", "chat-search", "daily-inspiration", "fork", "hidden", "import", "message-sync", "background"],
+    "Payment": ["buy-credits", "saved-payment", "settings-buy-credits"],
+    "Search & AI": ["code-generation", "focus-mode", "follow-up-suggestions"],
+    "Media & Embeds": ["audio-recording", "embed-", "file-attachment", "pdf-flow"],
+    "Settings": ["api-keys", "incognito", "language-settings", "location-security", "pii-detection"],
+    "Reminders": ["reminder-"],
+    "Accessibility": ["a11y-"],
+}
+
+# Sub-categories within functionalities (for drill-down)
+FUNCTIONALITY_SUB_CATEGORIES = {
+    "Chat": {
+        "Chat Flow": ["chat-flow"],
+        "Chat Management": ["chat-management", "hidden", "import", "fork"],
+        "Chat Scroll": ["chat-scroll"],
+        "Chat Search": ["chat-search"],
+        "Chat Sync": ["message-sync", "background"],
+        "Daily Inspiration": ["daily-inspiration"],
+    },
+    "Login": {
+        "Account Recovery": ["account-recovery", "recovery-key"],
+        "Backup Codes": ["backup-code"],
+        "Session Management": ["multi-session", "session-revoke"],
+    },
+    "Media & Embeds": {
+        "Audio": ["audio-recording"],
+        "Embeds": ["embed-"],
+        "File Uploads": ["file-attachment"],
+        "PDF": ["pdf-flow"],
+    },
+}
+
+
+def _pass_rate_to_status(pass_rate: int) -> str:
+    """Convert a test pass rate (0-100) to a status label."""
+    if pass_rate >= 100:
+        return "operational"
+    if pass_rate >= 80:
+        return "degraded"
+    return "down"
+
+
+def build_services_section(
+    health_data: Dict[str, Dict[str, Any]],
+    service_timelines: Dict[str, List[Dict[str, str]]],
+) -> List[Dict[str, Any]]:
+    """
+    Build the flat "Services" section for the status page.
+
+    Returns a list of infrastructure service entries with status and 30-day timeline.
+    These are the core platform dependencies (Vercel, API server, Sightengine, Brevo).
+    """
+    services = []
+    for svc_id, svc_config in INFRASTRUCTURE_SERVICES.items():
+        source_type = svc_config["source_type"]
+        source_id = svc_config["source_id"]
+        svc_key = f"{source_type}/{source_id}"
+
+        # Look up current status from health data
+        status = "unknown"
+        if source_type == "external":
+            ext_data = health_data.get("external_services", {}).get(source_id, {})
+            status = _normalize_status(ext_data.get("status", "unknown"))
+        elif source_type == "app":
+            app_data = health_data.get("apps", {}).get(source_id, {})
+            status = _normalize_status(app_data.get("status", "unknown"))
+
+        services.append({
+            "id": svc_id,
+            "display_name": svc_config["display_name"],
+            "status": status,
+            "timeline_30d": service_timelines.get(svc_key, []),
+        })
+
+    return services
+
+
+def build_apps_section(
+    health_data: Dict[str, Dict[str, Any]],
+    service_timelines: Dict[str, List[Dict[str, str]]],
+) -> List[Dict[str, Any]]:
+    """
+    Build the "Apps" section summary for the status page.
+
+    Returns app-level summaries with status, timeline, and provider/skill counts.
+    Detail data (individual providers, skills) loads lazily via /v1/status/apps?app=<id>.
+    """
+    apps = []
+    for app_id, data in health_data.get("apps", {}).items():
+        svc_key = f"app/{app_id}"
+        skills = data.get("skills", [])
+        # Count unique providers across all skills
+        provider_ids = set()
+        for skill in skills:
+            for provider in skill.get("providers", []):
+                provider_ids.add(provider.get("name", ""))
+
+        apps.append({
+            "id": app_id,
+            "display_name": app_id.replace("_", " ").title(),
+            "status": _normalize_status(data.get("status", "unknown")),
+            "timeline_30d": service_timelines.get(svc_key, []),
+            "provider_count": len(health_data.get("providers", {})),
+            "skill_count": len(skills),
+        })
+
+    return apps
+
+
+def build_app_detail(
+    app_id: str,
+    health_data: Dict[str, Dict[str, Any]],
+    service_timelines: Dict[str, List[Dict[str, str]]],
+    is_admin: bool = False,
+) -> Optional[Dict[str, Any]]:
+    """
+    Build detailed app data for the /v1/status/apps?app=<id> endpoint.
+
+    Returns providers with timelines and skills with overall status.
+    """
+    app_data = health_data.get("apps", {}).get(app_id)
+    if app_data is None:
+        return None
+
+    svc_key = f"app/{app_id}"
+
+    # Build provider list with timelines
+    providers = []
+    for provider_id, pdata in health_data.get("providers", {}).items():
+        prov_key = f"provider/{provider_id}"
+        provider_entry: Dict[str, Any] = {
+            "id": provider_id,
+            "name": provider_id.replace("_", " ").title(),
+            "status": _normalize_status(pdata.get("status", "unknown")),
+            "timeline_30d": service_timelines.get(prov_key, []),
+        }
+        if is_admin:
+            provider_entry["error_message"] = pdata.get("last_error")
+            provider_entry["response_time_ms"] = pdata.get("response_times_ms", {})
+            provider_entry["last_check"] = pdata.get("last_check")
+        providers.append(provider_entry)
+
+    # Build skills list with overall status
+    skills = []
+    for skill in app_data.get("skills", []):
+        skills.append({
+            "id": skill.get("id", ""),
+            "status": _normalize_status(skill.get("status", "unknown")),
+            "providers": [
+                {"name": p.get("name", ""), "status": _normalize_status(p.get("status", "unknown"))}
+                for p in skill.get("providers", [])
+            ],
+        })
+
+    result: Dict[str, Any] = {
+        "id": app_id,
+        "display_name": app_id.replace("_", " ").title(),
+        "status": _normalize_status(app_data.get("status", "unknown")),
+        "timeline_30d": service_timelines.get(svc_key, []),
+        "providers": providers,
+        "skills": skills,
+    }
+
+    if is_admin:
+        result["api"] = app_data.get("api", {})
+        result["worker"] = app_data.get("worker", {})
+        result["last_check"] = app_data.get("last_check")
+
+    return result
+
+
+def build_current_issues_v2(
+    health_data: Dict[str, Dict[str, Any]],
+    is_admin: bool = False,
+    limit: int = 5,
+) -> Dict[str, Any]:
+    """
+    Build current issues with truncation support.
+
+    Returns {services, services_total, failed_tests, failed_tests_total}.
+    The first `limit` items are included; total counts show the full number.
+    """
+    # Reuse existing logic for service issues
+    all_service_issues = build_current_issues(health_data, is_admin=is_admin)
+
+    # Get failed tests from latest run
+    from backend.core.api.app.services.test_results_service import get_latest_run_detail
+
+    test_issues: List[Dict[str, Any]] = []
+    latest_detail = get_latest_run_detail()
+    if latest_detail:
+        for suite_name, suite_data in latest_detail.get("suites", {}).items():
+            for test in suite_data.get("tests", []):
+                if test.get("status") == "failed":
+                    entry: Dict[str, Any] = {
+                        "suite": suite_name,
+                        "name": test.get("name") or test.get("file", ""),
+                        "file": test.get("file", ""),
+                    }
+                    if is_admin:
+                        entry["error"] = test.get("error")
+                    test_issues.append(entry)
+
+    return {
+        "services": all_service_issues[:limit],
+        "services_total": len(all_service_issues),
+        "failed_tests": test_issues[:limit],
+        "failed_tests_total": len(test_issues),
+    }

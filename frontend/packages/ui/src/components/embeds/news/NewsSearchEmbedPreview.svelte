@@ -110,7 +110,8 @@
   let localResults = $state<NewsSearchResult[]>([]);
   let localTaskId = $state<string | undefined>(undefined);
   let localSkillTaskId = $state<string | undefined>(undefined);
-  
+  let isLoadingChildren = $state(false);
+
   // Initialize local state from props
   $effect(() => {
     localQuery = queryProp || '';
@@ -172,8 +173,9 @@
             ? (embedIds as string).split('|').filter((id: string) => id.length > 0)
             : Array.isArray(embedIds) ? (embedIds as string[]) : [];
           
-          if (childEmbedIds.length > 0) {
+          if (childEmbedIds.length > 0 && !isLoadingChildren) {
             console.debug(`[NewsSearchEmbedPreview] Loading child embeds for preview (${childEmbedIds.length} embed_ids)`);
+            isLoadingChildren = true;
             loadChildEmbedsForPreview(childEmbedIds);
           }
         }
@@ -241,6 +243,8 @@
     } catch (error) {
       console.warn('[NewsSearchEmbedPreview] Error loading child embeds for preview:', error);
       // Continue without results - preview will just show query/provider
+    } finally {
+      isLoadingChildren = false;
     }
   }
   
@@ -433,8 +437,10 @@
       <!-- Finished state: show favicons and remaining count -->
       {#if status === 'finished'}
         <div class="search-results-info">
-          <!-- Favicons row -->
-          {#if faviconResults.length > 0}
+          {#if faviconResults.length === 0 && remainingCount === 0 && isLoadingChildren}
+            <!-- Child embeds are being fetched — show loading instead of empty state -->
+            <span class="loading-text">{$text('embeds.loading')}</span>
+          {:else if faviconResults.length > 0}
             <div class="favicon-row">
               {#each faviconResults as result, index}
                 {@const rawFaviconUrl = getFaviconUrl(result)}
@@ -558,6 +564,13 @@
     margin-left: 0;
   }
   
+  /* Loading text (shown while child embeds are being fetched) */
+  .loading-text {
+    font-size: 14px;
+    color: var(--color-grey-70);
+    font-weight: 500;
+  }
+
   /* Remaining count */
   .remaining-count {
     font-size: 14px;

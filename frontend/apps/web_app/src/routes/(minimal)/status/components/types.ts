@@ -1,5 +1,5 @@
-// Status page TypeScript types.
-// Shared across all status page components.
+// Status page TypeScript types (v2).
+// Three sections: Services (infrastructure), Apps (expandable), Functionalities (test-based).
 // Architecture: docs/architecture/infrastructure/status-page.md
 
 export type TimelineStatus =
@@ -30,84 +30,88 @@ export type SelectedTimeline = {
 	text: string;
 };
 
-export type HealthGroup = {
-	group_name: string;
+// ─── Services section (flat infrastructure) ─────────────────────────────────
+
+export type InfraService = {
+	id: string;
 	display_name: string;
 	status: string;
-	service_count: number;
 	timeline_30d: TimelineEntry[];
 };
 
-export type SkillProvider = {
-	name: string;
-	status: string;
-};
+// ─── Apps section (expandable) ──────────────────────────────────────────────
 
-export type SkillStatus = {
+export type AppSummary = {
 	id: string;
+	display_name: string;
 	status: string;
-	providers: SkillProvider[];
+	timeline_30d: TimelineEntry[];
+	provider_count: number;
+	skill_count: number;
 };
 
-export type Service = {
+export type ProviderDetail = {
 	id: string;
 	name: string;
 	status: string;
 	timeline_30d: TimelineEntry[];
-	skills?: SkillStatus[];
 	error_message?: string;
 	response_time_ms?: Record<string, number>;
 	last_check?: string;
+};
+
+export type SkillDetail = {
+	id: string;
+	status: string;
+	providers: { name: string; status: string }[];
+};
+
+export type AppDetail = AppSummary & {
+	providers: ProviderDetail[];
+	skills: SkillDetail[];
 	api?: Record<string, unknown>;
 	worker?: Record<string, unknown>;
+	last_check?: string;
 };
 
-export type HealthGroupDetail = HealthGroup & {
-	services: Service[];
-};
+// ─── Functionalities section (test-based) ───────────────────────────────────
 
-export type TestSuiteData = {
+export type FunctionalitySummary = {
 	name: string;
+	status: string;
+	pass_rate: number;
 	total: number;
 	passed: number;
 	failed: number;
-	skipped: number;
 	timeline_30d: TimelineEntry[];
 };
 
-export type TestData = {
+export type FunctionalityTest = {
 	name: string;
-	file?: string;
+	file: string;
 	status: string;
 	error?: string;
 	last_run?: string;
 	history_30d?: TimelineEntry[];
-	run_id?: string;
+	sub_category?: string;
 };
 
-export type TestCategory = {
+export type FunctionalitySubCategory = {
+	name: string;
+	status: string;
+	pass_rate: number;
 	total: number;
 	passed: number;
 	failed: number;
-	pass_rate: number;
-	history?: TimelineEntry[];
-	tests?: TestData[];
+	timeline_30d: TimelineEntry[];
 };
 
-export type TestSuiteDetail = {
-	run_id: string | null;
-	suites: Record<
-		string,
-		{
-			total: number;
-			passed: number;
-			failed: number;
-			tests: TestData[];
-		}
-	>;
-	categories: Record<string, TestCategory>;
-	flaky_tests: TestData[];
+export type FunctionalityDetail = FunctionalitySummary & {
+	tests: FunctionalityTest[];
+	sub_categories?: FunctionalitySubCategory[] | null;
 };
+
+// ─── Intra-day hourly timeline ──────────────────────────────────────────────
 
 export type IntraDayRun = {
 	run_id: string;
@@ -123,11 +127,26 @@ export type IntraDayRun = {
 	status: string;
 };
 
-export type IntraDayRunsResponse = {
-	date: string;
+export type IntraDayHour = {
+	hour: number;
 	run_count: number;
+	summary: {
+		total: number;
+		passed: number;
+		failed: number;
+		skipped: number;
+	};
 	runs: IntraDayRun[];
 };
+
+export type IntraDayResponse = {
+	date: string;
+	source?: string | null;
+	id?: string | null;
+	hours: IntraDayHour[];
+};
+
+// ─── Current issues ─────────────────────────────────────────────────────────
 
 export type ServiceIssue = {
 	service_type: string;
@@ -146,21 +165,21 @@ export type TestIssue = {
 	error?: string;
 };
 
+// ─── Top-level status summary ───────────────────────────────────────────────
+
 export type StatusSummary = {
 	overall_status: string;
 	last_updated: string;
 	is_admin: boolean;
 	overall_timeline_30d?: TimelineEntry[];
-	health?: { groups: HealthGroup[] };
-	tests?: {
-		overall_status: string;
-		latest_run: { summary: Record<string, number>; timestamp: string } | null;
-		suites: TestSuiteData[];
-		trend: TimelineEntry[];
-	};
+	services?: InfraService[];
+	apps?: AppSummary[];
+	functionalities?: FunctionalitySummary[];
 	incidents?: { total_last_30d: number };
 	current_issues?: {
 		services: ServiceIssue[];
+		services_total: number;
 		failed_tests: TestIssue[];
+		failed_tests_total: number;
 	};
 };

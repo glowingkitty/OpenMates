@@ -87,7 +87,8 @@
   let localErrorMessage = $state<string>('');
   let localTaskId = $state<string | undefined>(undefined);
   let localSkillTaskId = $state<string | undefined>(undefined);
-  
+  let isLoadingChildren = $state(false);
+
   // Initialize local state from props
   $effect(() => {
     localQuery = queryProp || '';
@@ -137,8 +138,9 @@
             ? (embedIds as string).split('|').filter((cid: string) => cid.length > 0)
             : Array.isArray(embedIds) ? (embedIds as string[]) : [];
           
-          if (childEmbedIds.length > 0) {
+          if (childEmbedIds.length > 0 && !isLoadingChildren) {
             console.debug(`[TravelSearchEmbedPreview] Loading child embeds for preview (${childEmbedIds.length} embed_ids)`);
+            isLoadingChildren = true;
             loadChildEmbedsForPreview(childEmbedIds);
           }
         }
@@ -188,6 +190,8 @@
       }
     } catch (error) {
       console.warn('[TravelSearchEmbedPreview] Error loading child embeds for preview:', error);
+    } finally {
+      isLoadingChildren = false;
     }
   }
   
@@ -330,8 +334,10 @@
             <span class="connection-count">
               {connectionCount} {connectionCount === 1 ? $text('embeds.connection') : $text('embeds.connections')}
             </span>
+          {:else if isLoadingChildren}
+            <span class="loading-text">{$text('embeds.loading')}</span>
           {/if}
-          
+
           {#if priceInfo}
             <span class="price-info">{priceInfo}</span>
           {/if}
@@ -420,6 +426,13 @@
     margin-top: 2px;
   }
   
+  /* Loading text (shown while child embeds are being fetched) */
+  .loading-text {
+    font-size: 14px;
+    color: var(--color-grey-70);
+    font-weight: 500;
+  }
+
   /* Connection count */
   .connection-count {
     font-size: 14px;

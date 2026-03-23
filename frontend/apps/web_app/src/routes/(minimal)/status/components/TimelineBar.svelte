@@ -1,33 +1,39 @@
 <!--
     TimelineBar — Reusable 30-day timeline bar with interactive segment selection.
-    When a day has multiple test runs, clicking it shows an intra-day sub-timeline.
+    When a day has multiple checks/runs, clicking it shows an hourly sub-timeline.
     Architecture: docs/architecture/infrastructure/status-page.md
 -->
 <script lang="ts">
-	import type { TimelineEntry, SelectedTimeline, IntraDayRun } from './types';
+	import type { TimelineEntry, SelectedTimeline, IntraDayHour } from './types';
 	import { timelineColor, timelineTitle, fd, ft, rc } from './utils';
-	import { fetchIntraDayRuns } from './api';
+	import { fetchIntraDayData } from './api';
 
 	let {
 		entries,
 		timelineKey,
 		testid = '',
+		height = '1.1rem',
 		selected = $bindable<SelectedTimeline | null>(null),
 		showLabels = false,
-		enableIntraDay = false
+		enableIntraDay = false,
+		intraDaySource = undefined as string | undefined,
+		intraDayId = undefined as string | undefined
 	}: {
 		entries: TimelineEntry[];
 		timelineKey: string;
 		testid?: string;
+		height?: string;
 		selected?: SelectedTimeline | null;
 		showLabels?: boolean;
 		enableIntraDay?: boolean;
+		intraDaySource?: string;
+		intraDayId?: string;
 	} = $props();
 
-	let intraDayRuns: IntraDayRun[] | null = $state(null);
+	let intraDayHours: IntraDayHour[] | null = $state(null);
 	let intraDayDate: string | null = $state(null);
 	let intraDayLoading = $state(false);
-	let selectedRunId: string | null = $state(null);
+	let selectedHour: number | null = $state(null);
 
 	function select(entry: TimelineEntry) {
 		selected = {
@@ -35,11 +41,10 @@
 			date: entry.date,
 			text: timelineTitle(entry)
 		};
-		// Reset intra-day when selecting a different date or different timeline
 		if (intraDayDate !== entry.date) {
-			intraDayRuns = null;
+			intraDayHours = null;
 			intraDayDate = null;
-			selectedRunId = null;
+			selectedHour = null;
 		}
 	}
 
@@ -48,21 +53,20 @@
 	}
 
 	async function loadIntraDay(date: string) {
-		if (intraDayDate === date && intraDayRuns !== null) {
-			// Toggle off
-			intraDayRuns = null;
+		if (intraDayDate === date && intraDayHours !== null) {
+			intraDayHours = null;
 			intraDayDate = null;
-			selectedRunId = null;
+			selectedHour = null;
 			return;
 		}
 		intraDayLoading = true;
 		intraDayDate = date;
 		try {
-			const res = await fetchIntraDayRuns(date);
-			intraDayRuns = res.runs;
+			const res = await fetchIntraDayData(date, intraDaySource, intraDayId);
+			intraDayHours = res.hours;
 		} catch (e) {
-			console.error('[STATUS] Failed to load intra-day runs', e);
-			intraDayRuns = [];
+			console.error('[STATUS] Failed to load intra-day data', e);
+			intraDayHours = [];
 		} finally {
 			intraDayLoading = false;
 		}
@@ -75,15 +79,15 @@
 		}
 	}
 
-	function runColor(run: IntraDayRun): string {
-		if (run.summary.total === 0) return 'var(--color-grey-40)';
-		const rate = Math.round((run.summary.passed / run.summary.total) * 100);
+	function hourColor(hour: IntraDayHour): string {
+		if (hour.summary.total === 0) return 'var(--color-grey-40)';
+		const rate = Math.round((hour.summary.passed / hour.summary.total) * 100);
 		return rc(rate);
 	}
 </script>
 
 {#if entries?.length}
-	<div class="tl" data-testid={testid || `status-timeline-${timelineKey}`}>
+	<div class="tl" style="height:{height}" data-testid={testid || `status-timeline-${timelineKey}`}>
 		{#each entries as d}
 			<button
 				type="button"
@@ -100,7 +104,7 @@
 	{#if selected?.key === timelineKey}
 		<div class="tl-detail" data-testid="status-timeline-detail">
 			{selected.text}
-			{#if enableIntraDay && selected.date && !intraDayRuns && !intraDayLoading}
+			{#if enableIntraDay && selected.date && !intraDayHours && !intraDayLoading}
 				<button class="expand-btn" onclick={() => loadIntraDay(selected?.date ?? '')}>
 					Show all runs
 				</button>
@@ -108,53 +112,72 @@
 		</div>
 	{/if}
 
-	<!-- Intra-day sub-timeline -->
+	<!-- Intra-day hourly sub-timeline -->
 	{#if intraDayLoading}
 		<div class="intra-day">
-			<span class="intra-label">Loading runs...</span>
+			<span class="intra-label">Loading...</span>
 		</div>
-	{:else if intraDayRuns !== null && intraDayDate}
-		{#if intraDayRuns.length <= 1}
+	{:else if intraDayHours !== null && intraDayDate}
+		{@const totalRuns = intraDayHours.reduce((s, h) => s + h.run_count, 0)}
+		{#if totalRuns <= 1}
 			<div class="intra-day">
 				<span class="intra-label">{fd(intraDayDate)}: 1 run</span>
 			</div>
 		{:else}
 			<div class="intra-day">
-				<span class="intra-label">{fd(intraDayDate)}: {intraDayRuns.length} runs</span>
+				<span class="intra-label">{fd(intraDayDate)}: {totalRuns} runs across {intraDayHours.length} hours</span>
 				<div class="intra-tl">
-					{#each intraDayRuns as run}
-						{@const rate = run.summary.total > 0 ? Math.round((run.summary.passed / run.summary.total) * 100) : 0}
-						<button
-							type="button"
-							class="intra-seg"
-							class:selected={selectedRunId === run.run_id}
-							style="background:{runColor(run)}"
-							title="{ft(run.timestamp)}: {run.summary.passed}/{run.summary.total} passed ({rate}%)"
-							aria-label="{ft(run.timestamp)}: {run.summary.passed}/{run.summary.total} passed"
-							onclick={() => (selectedRunId = selectedRunId === run.run_id ? null : run.run_id)}
-						></button>
+					{#each Array(24) as _, h}
+						{@const hourData = intraDayHours.find((hr) => hr.hour === h)}
+						{#if hourData}
+							{@const rate = hourData.summary.total > 0 ? Math.round((hourData.summary.passed / hourData.summary.total) * 100) : 0}
+							<button
+								type="button"
+								class="intra-seg"
+								class:selected={selectedHour === h}
+								style="background:{hourColor(hourData)}"
+								title="{String(h).padStart(2, '0')}:00 — {hourData.run_count} run(s), {hourData.summary.passed}/{hourData.summary.total} passed ({rate}%)"
+								aria-label="{String(h).padStart(2, '0')}:00: {hourData.summary.passed}/{hourData.summary.total} passed"
+								onclick={() => (selectedHour = selectedHour === h ? null : h)}
+							></button>
+						{:else}
+							<div class="intra-seg empty" title="{String(h).padStart(2, '0')}:00 — no runs"></div>
+						{/if}
 					{/each}
 				</div>
-				{#if selectedRunId}
-					{@const run = intraDayRuns.find((r) => r.run_id === selectedRunId)}
-					{#if run}
-						{@const rate = run.summary.total > 0 ? Math.round((run.summary.passed / run.summary.total) * 100) : 0}
+				{#if selectedHour !== null}
+					{@const hourData = intraDayHours.find((hr) => hr.hour === selectedHour)}
+					{#if hourData}
+						{@const rate = hourData.summary.total > 0 ? Math.round((hourData.summary.passed / hourData.summary.total) * 100) : 0}
 						<div class="intra-detail">
-							<span class="intra-time">{ft(run.timestamp)}</span>
+							<span class="intra-time">{String(selectedHour).padStart(2, '0')}:00</span>
 							<span class="intra-counts">
-								{run.summary.passed}/{run.summary.total} passed
-								{#if run.summary.failed > 0}
-									<span class="intra-fail">{run.summary.failed} failed</span>
+								{hourData.run_count} run(s) · {hourData.summary.passed}/{hourData.summary.total} passed
+								{#if hourData.summary.failed > 0}
+									<span class="intra-fail">{hourData.summary.failed} failed</span>
 								{/if}
 							</span>
 							<span class="intra-rate" style="color:{rc(rate)}">{rate}%</span>
-							{#if run.git_sha}
-								<span class="intra-sha">{run.git_sha.slice(0, 7)}</span>
-							{/if}
-							{#if run.duration_seconds}
-								<span class="intra-dur">{Math.round(run.duration_seconds)}s</span>
-							{/if}
 						</div>
+						<!-- Individual runs within this hour -->
+						{#if hourData.runs.length > 1}
+							<div class="intra-runs">
+								{#each hourData.runs as run}
+									{@const runRate = run.summary.total > 0 ? Math.round((run.summary.passed / run.summary.total) * 100) : 0}
+									<div class="intra-run-row">
+										<span class="intra-time">{ft(run.timestamp)}</span>
+										<span class="intra-counts">{run.summary.passed}/{run.summary.total}</span>
+										<span class="intra-rate" style="color:{rc(runRate)}">{runRate}%</span>
+										{#if run.git_sha}
+											<span class="intra-sha">{run.git_sha.slice(0, 7)}</span>
+										{/if}
+										{#if run.duration_seconds}
+											<span class="intra-dur">{Math.round(run.duration_seconds)}s</span>
+										{/if}
+									</div>
+								{/each}
+							</div>
+						{/if}
 					{/if}
 				{/if}
 			</div>
@@ -170,7 +193,8 @@
 	.tl {
 		display: flex;
 		gap: 1px;
-		height: 1.1rem;
+		/* height set via inline style prop (default 1.1rem) */
+		min-height: 0.8rem;
 		border-radius: 4px;
 		overflow: hidden;
 		background: var(--color-grey-20);
@@ -243,16 +267,35 @@
 	}
 	.intra-seg {
 		flex: 1;
-		min-width: 8px;
+		min-width: 4px;
 		border: none;
 		padding: 0;
 		margin: 0;
 		cursor: pointer;
 		border-radius: 2px;
 	}
+	.intra-seg.empty {
+		background: var(--color-grey-15);
+		cursor: default;
+	}
 	.intra-seg.selected {
 		outline: 2px solid var(--color-font-primary);
 		outline-offset: -2px;
+	}
+	.intra-runs {
+		margin-top: 0.25rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.15rem;
+	}
+	.intra-run-row {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		font-size: 0.68rem;
+		color: var(--color-font-secondary);
+		font-variant-numeric: tabular-nums;
+		padding: 0.1rem 0;
 	}
 	.intra-detail {
 		display: flex;
