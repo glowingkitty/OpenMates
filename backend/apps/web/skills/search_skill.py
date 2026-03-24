@@ -854,7 +854,9 @@ class SearchSkill(BaseSkill):
                     ch_id = snippet.get("channelId", "")
                     yt_thumbs = snippet.get("thumbnails", {})
                     yt_thumb = (
-                        yt_thumbs.get("high", {}).get("url")
+                        yt_thumbs.get("maxres", {}).get("url")
+                        or yt_thumbs.get("standard", {}).get("url")
+                        or yt_thumbs.get("high", {}).get("url")
                         or yt_thumbs.get("medium", {}).get("url")
                         or ""
                     )

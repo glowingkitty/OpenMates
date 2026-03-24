@@ -544,7 +544,9 @@ class SearchSkill(BaseSkill):
                         'age': brave_result.get('age', ''),
                         'meta_url': meta_url if meta_url else None,
                         'thumbnail': {
-                            'original': snippet.get('thumbnails', {}).get('high', {}).get('url') or 
+                            'original': snippet.get('thumbnails', {}).get('maxres', {}).get('url') or
+                                       snippet.get('thumbnails', {}).get('standard', {}).get('url') or
+                                       snippet.get('thumbnails', {}).get('high', {}).get('url') or
                                        snippet.get('thumbnails', {}).get('medium', {}).get('url') or
                                        brave_result.get('thumbnail', {}).get('original', '')
                         } if snippet.get('thumbnails') else brave_result.get('thumbnail'),

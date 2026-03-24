@@ -18,7 +18,7 @@
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
   import { handleImageError } from '../../../utils/offlineImageHandler';
-  import { proxyImage } from '../../../utils/imageProxy';
+  import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
 
   /**
    * Single image search result (child embed content schema).
@@ -126,7 +126,7 @@
 
   function proxyUrl(url: string | undefined): string | undefined {
     if (!url) return undefined;
-    return proxyImage(url);
+    return proxyImage(url, MAX_WIDTH_PREVIEW_THUMBNAIL);
   }
 
   /**
