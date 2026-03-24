@@ -16,7 +16,7 @@ Data processing is done via unified `parseMessage()` function described in [mess
 
 #### Document | Processing
 
-[![Document | Processing | Preview & Fullscreen view in mobile & desktop](../../images/apps/docs/previews/document/processing.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3522-41704&t=vQbeWjQG2QtbTDoL-4)
+[![Document | Processing | Preview & Fullscreen view in mobile & desktop](../../images/user-guide/apps/docs/previews/document/processing.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3522-41704&t=vQbeWjQG2QtbTDoL-4)
 
 When the document is still being processed, those layouts are used.
 
@@ -57,7 +57,7 @@ Figma design:
 
 #### Document | Finished
 
-[![Document | Finished | Preview & Fullscreen view in mobile & desktop](../../images/apps/docs/previews/document/finished.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3524-42033&t=vQbeWjQG2QtbTDoL-4)
+[![Document | Finished | Preview & Fullscreen view in mobile & desktop](../../images/user-guide/apps/docs/previews/document/finished.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3524-42033&t=vQbeWjQG2QtbTDoL-4)
 
 When the document is finished being processed, those layouts are used.
 
@@ -102,7 +102,7 @@ Figma design:
 
 #### Document | Chat example
 
-[![Document | Chat example](../../images/apps/docs/previews/document/chat_example.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3424-41905&t=vQbeWjQG2QtbTDoL-4)
+[![Document | Chat example](../../images/user-guide/apps/docs/previews/document/chat_example.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3424-41905&t=vQbeWjQG2QtbTDoL-4)
 
 Shows how document previews are rendered in a chat message. Mobile / desktop layouts are used depending on the viewport width.
 

@@ -16,7 +16,7 @@ Data processing is done via unified `parseMessage()` function described in [mess
 
 #### Code | Processing
 
-[![Code | Processing | Preview & Fullscreen view in mobile & desktop](../../images/apps/code/previews/code/processing.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3508-41238&t=V4FPCQaihiRx7h7e-4)
+[![Code | Processing | Preview & Fullscreen view in mobile & desktop](../../images/user-guide/apps/code/previews/code/processing.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3508-41238&t=V4FPCQaihiRx7h7e-4)
 
 When the code is still being generated, those layouts are used.
 
@@ -71,7 +71,7 @@ Figma design:
 
 #### Code | Finished
 
-[![Code | Finished | Preview & Fullscreen view in mobile & desktop](../../images/apps/code/previews/code/finished.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3508-41242&t=V4FPCQaihiRx7h7e-4)
+[![Code | Finished | Preview & Fullscreen view in mobile & desktop](../../images/user-guide/apps/code/previews/code/finished.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3508-41242&t=V4FPCQaihiRx7h7e-4)
 
 When the code is finished being generated, those layouts are used.
 
@@ -170,7 +170,7 @@ Figma design:
 
 #### Code | Chat example
 
-[![Code | Chat example](../../images/apps/code/previews/code/chat_example.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3508-41244&t=V4FPCQaihiRx7h7e-4)
+[![Code | Chat example](../../images/user-guide/apps/code/previews/code/chat_example.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3508-41244&t=V4FPCQaihiRx7h7e-4)
 
 Shows how code previews are rendered in a chat message. Mobile / desktop layouts are used depending on the viewport width.
 

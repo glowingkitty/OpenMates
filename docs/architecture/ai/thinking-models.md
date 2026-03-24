@@ -1,75 +1,71 @@
-# Thinking Models Architecture
+---
+status: active
+last_verified: 2026-03-24
+key_files:
+  - backend/apps/ai/llm_providers/google_client.py
+  - backend/apps/ai/llm_providers/types.py
+  - backend/apps/ai/processing/main_processor.py
+  - backend/apps/ai/tasks/stream_consumer.py
+  - backend/apps/ai/utils/llm_utils.py
+  - backend/apps/ai/utils/stream_utils.py
+  - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+  - frontend/packages/ui/src/types/chat.ts
+---
 
-Status: implemented and active.
+# Thinking Models
 
-## Purpose
+> Streams model reasoning/thinking content separately from the main response, with dedicated Redis channels and encrypted storage.
 
-This document describes how OpenMates handles model reasoning/thinking streams across providers, how that data is surfaced in chat, and where the source-of-truth implementation lives.
+## Why This Exists
 
-The current behavior is:
+Some models (notably Google Gemini) expose their intermediate reasoning as "thinking" content. This gives users transparency into the model's reasoning process. Thinking content needs separate streaming, storage, and encryption because it follows different display patterns than the main response text.
 
-- Thinking content is streamed as provider chunks as they arrive.
-- Thinking content is not paragraph-buffered before publish.
-- Main assistant text still uses paragraph-oriented streaming for readability.
+## How It Works
 
-## Scope
+### Streaming Architecture
 
-Supported provider behavior in the current codebase:
+1. Provider stream emits mixed chunk types (text, tool calls, usage, thinking metadata) via unified `UnifiedStreamChunk` types defined in [`types.py`](../../backend/apps/ai/llm_providers/types.py).
+2. `call_main_llm_stream` in [`llm_utils.py`](../../backend/apps/ai/utils/llm_utils.py) forwards raw provider chunks without paragraph aggregation.
+3. [`main_processor.py`](../../backend/apps/ai/processing/main_processor.py) aggregates text into paragraphs for the main assistant output, while passing non-string chunks (including thinking) through immediately.
+4. [`stream_consumer.py`](../../backend/apps/ai/tasks/stream_consumer.py) publishes thinking chunks to a dedicated Redis channel as they arrive -- no buffering.
+5. The frontend receives thinking events and updates the UI in real-time.
 
-- Google Gemini: exposes thinking content and signatures.
-- Anthropic/OpenAI: current integration paths do not emit visible thinking chunks in the same way as Gemini in this stack.
+### Redis Channels
 
-## Runtime Flow
+| Channel | Purpose |
+|---------|---------|
+| `chat_stream::{chat_id}` | Main response stream |
+| `chat_stream_thinking::{chat_id}` | Thinking content stream |
 
-1. Provider stream emits mixed chunk types (text, tool calls, usage, thinking metadata where available).
-2. `call_main_llm_stream` forwards raw provider chunks without paragraph aggregation.
-3. `main_processor` aggregates string text into paragraphs for assistant output while passing non-string chunks through immediately.
-4. `stream_consumer` publishes thinking chunks to a dedicated Redis channel as soon as they arrive.
-5. Frontend receives `thinking_chunk` / `thinking_complete`, updates in-memory UI state, and persists thinking metadata for message history.
+### Event Types
 
-## Redis Channels
+- **`thinking_chunk`**: Incremental reasoning content
+- **`thinking_complete`**: Completion marker with signature and token metadata
 
-- Main response stream channel: `chat_stream::{chat_id}`
-- Thinking stream channel: `chat_stream_thinking::{chat_id}`
+### Provider Support
 
-Thinking event payloads use:
+- **Google Gemini**: Exposes thinking content and signatures via the `google-genai` SDK ([`google_client.py`](../../backend/apps/ai/llm_providers/google_client.py))
+- **Anthropic/OpenAI**: Current integration does not emit visible thinking chunks in this stack
 
-- `thinking_chunk`: incremental reasoning content chunk
-- `thinking_complete`: completion marker with signature/token metadata when available
+### Storage and Encryption
 
-## Storage and Encryption
+Thinking data is stored as encrypted message metadata, following the same chat encryption model:
 
-Thinking fields are part of message metadata and follow the chat encryption model used in the UI database layer.
+| Field | Purpose |
+|-------|---------|
+| `encrypted_thinking_content` | The reasoning text (encrypted) |
+| `encrypted_thinking_signature` | Provider signature if available |
+| `has_thinking` | Boolean flag for quick checks |
+| `thinking_token_count` | Token count for billing/display |
 
-Key fields used by the frontend message model:
+These fields are defined in the message type in [`chat.ts`](../../frontend/packages/ui/src/types/chat.ts) and handled in [`chatSyncServiceHandlersAI.ts`](../../frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts).
 
-- `encrypted_thinking_content`
-- `encrypted_thinking_signature`
-- `has_thinking`
-- `thinking_token_count`
+## Edge Cases
 
-## Source of Truth (Implementation Files)
+- **Non-thinking models**: When a model does not emit thinking chunks, the thinking Redis channel receives no events and the UI shows no thinking section.
+- **Thinking vs main text**: Thinking content is streamed immediately as chunks arrive. Main assistant text uses paragraph-buffered streaming for readability. This is an intentional asymmetry.
 
-Backend stream and provider pipeline:
+## Related Docs
 
-- `backend/apps/ai/utils/llm_utils.py`
-- `backend/apps/ai/processing/main_processor.py`
-- `backend/apps/ai/tasks/stream_consumer.py`
-- `backend/apps/ai/llm_providers/google_client.py`
-- `backend/apps/ai/llm_providers/types.py`
-- `backend/apps/ai/utils/stream_utils.py`
-
-Frontend event handling, state, and persistence:
-
-- `frontend/packages/ui/src/services/chatSyncService.ts`
-- `frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts`
-- `frontend/packages/ui/src/components/ActiveChat.svelte`
-- `frontend/packages/ui/src/components/ChatHistory.svelte`
-- `frontend/packages/ui/src/components/ChatMessage.svelte`
-- `frontend/packages/ui/src/services/db/chatKeyManagement.ts`
-- `frontend/packages/ui/src/types/chat.ts`
-
-## Notes
-
-- This document intentionally avoids embedded code examples. Refer to the files above for the live implementation.
-- If behavior differs from this document, treat the listed source files as canonical and update this document accordingly.
+- [AI Model Selection](./ai-model-selection.md) -- how models are chosen
+- [Message Processing](../messaging/message-processing.md) -- full pipeline

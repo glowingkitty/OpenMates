@@ -1,264 +1,85 @@
-# Message input field architecture
+---
+status: active
+last_verified: 2026-03-24
+key_files:
+  - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+  - frontend/packages/ui/src/components/enter_message/editorConfig.ts
+  - frontend/packages/ui/src/components/enter_message/extensions/Embed.ts
+  - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+  - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+  - frontend/packages/ui/src/message_parsing/parse_message.ts
+  - frontend/packages/ui/src/message_parsing/serializers.ts
+---
 
-The message input field is the field that allows the user to send messages to their digital team mates.
+# Message Input Field Architecture
 
-> Note: The architecture is still in development and not yet fully implemented.
+> The TipTap-based message editor that provides real-time markdown parsing, inline embed previews, mentions, file attachments, and serialization to canonical markdown for sending.
 
-## New chat suggestions
+## Why This Exists
 
-> Note: Not yet implemented.
+The message input field is the primary interaction point for users composing messages. It must handle rich content types (code blocks, URLs, tables, documents) inline while keeping the underlying storage format as plain markdown. The editor uses TipTap (ProseMirror wrapper) with custom extensions for embed nodes, mentions, and markdown highlighting.
 
-[![New chat suggestions](../../docs/images/messageinputfield/new_chat_suggestions.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3554-60874&t=vQbeWjQG2QtbTDoL-4)
+## How It Works
 
-"New chat suggestions" are shown when the user opens an empty new chat. The suggestions are generated with every new message sent by the user - see [message_processing.md #post-processing](./message_processing.md#post-processing) for more details.
+### Editor Setup
 
-## Short message
+[MessageInput.svelte](../../frontend/packages/ui/src/components/enter_message/MessageInput.svelte) initializes a TipTap `Editor` instance with extensions configured in [editorConfig.ts](../../frontend/packages/ui/src/components/enter_message/editorConfig.ts). The unified parser (`parse_message` from [parse_message.ts](../../frontend/packages/ui/src/message_parsing/parse_message.ts)) is imported directly and called in write mode to convert markdown into TipTap JSON with inline embed previews.
 
-> Note: "Next sentence" suggestions are not yet implemented.
+Key extensions:
+- **Embed** ([Embed.ts](../../frontend/packages/ui/src/components/enter_message/extensions/Embed.ts)) -- Unified atom node for all embed types. Renders via type-specific renderers. Handles backspace behavior (group splitting, convert-to-text) through `GroupHandlerRegistry`.
+- **EmbedInlineNode** / **EmbedPreviewLargeNode** -- Read-mode embed link badges and large preview cards.
+- **MateNode** / **AIModelMentionNode** / **BestModelMentionNode** / **GenericMentionNode** -- @mention atom nodes for team mates, AI models, and generic mentions.
+- **MarkdownExtensions** -- Syntax highlighting for headings, bold, italic, lists, etc. in edit mode.
+- **SourceQuoteNode** -- Styled clickable quote cards for `> [text](embed:ref)` patterns.
+- **Placeholder** -- Placeholder text when the editor is empty.
 
-[![Short message](../../docs/images/messageinputfield/short_message.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3556-61099&t=vQbeWjQG2QtbTDoL-4)
+### Content Flow
 
-The message input field height is adapting to the height of the text in the field.
-Once a certain max height is reached, the layout switches to "Large message" layout.
-When the message input field is not empty, the 'Send' button shows up in the bottom right corner of message input field, moving the camera and recording buttons to the left. When the message input field is empty again, the buttons move back to the right and the 'Send' button disappears.
+**Typing/pasting to embed detection:**
+1. User types or pastes content into the TipTap editor.
+2. `parse_message(markdown, 'write')` is called, which runs the full pipeline including `handleStreamingSemantics()` for unclosed blocks.
+3. Detected embeds (code blocks, URLs, tables) appear as inline previews while being typed. Unclosed blocks show as highlighted "processing" state.
+4. Once a block is closed (closing `` ``` ``, space after URL, empty line after table), the embed renders as a finished preview.
 
-### Next sentence suggestions
+**Paste handling:**
+- Code from VS Code is detected via clipboard HTML and creates code embeds with language detection ([codeEmbedService.ts](../../frontend/packages/ui/src/components/enter_message/services/codeEmbedService.ts)).
+- URLs are processed by [urlMetadataService.ts](../../frontend/packages/ui/src/components/enter_message/services/urlMetadataService.ts), which creates proper embeds with `embed_id` for LLM context.
+- File attachments (images, PDFs, EPUBs, audio) are handled by [fileHandlers.ts](../../frontend/packages/ui/src/components/enter_message/fileHandlers.ts) and [embedHandlers.ts](../../frontend/packages/ui/src/components/enter_message/embedHandlers.ts).
 
-Next sentence suggestions can be triggered manually by user interacting with "Press Control + Space or click here for suggestions" text.
+**Sending:**
+- `handleSend()` in [sendHandlers.ts](../../frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts) serializes the TipTap document back to canonical markdown via `tipTapToCanonicalMarkdown()` from [serializers.ts](../../frontend/packages/ui/src/message_parsing/serializers.ts).
+- Embed nodes are serialized to their fenced code block format (JSON references for server embeds, raw code for preview embeds).
+- Draft state is flushed and cleared after successful send.
 
-- “Suggestions” (next sentence suggestions) are generated based on user input and previous message, if user presses keyboard shortcut or clicks on "Press Control + Space or click here for suggestions" text. Example prompt for Mistral Small 3.2:
+### Layout Behavior
 
-```text
-You are given a draft for a user request to an LLM. Output a json list of 3 brief 'next_sentence' suggestions which can continue the existing user request draft. Each suggestion must be max 8 words.
-```
+- **Auto-expanding height** -- The input field grows with content up to a configurable max height.
+- **Fullscreen toggle** -- When max height is reached, a fullscreen button appears in the top-right corner. Clicking it expands the editor to full viewport height.
+- **Scroll minimization** -- When the user scrolls through chat history, the input field minimizes to show only the last few lines of the draft.
+- **Send button** -- Appears in the bottom-right corner when the input is non-empty, displacing camera/recording buttons to the left.
 
-- “Next sentence suggestions” show up in same position and layout as “new chat suggestions” or “follow up suggestions”
-- User is charged for next sentence generation based on Mistral Small 3.2 pricing, but only once a full credit is accumulated. Example: 0.04 credits + 0.2 credits + 0.1 credits + 0.4 credits + 0.3 credits → 1 credit is charged. We use separate “auto_complete_credits” variable that is getting increased and set to 0 once a credit (or more) is charged.
+### Mentions
 
+The `@` character triggers [MentionDropdown.svelte](../../frontend/packages/ui/src/components/enter_message/MentionDropdown.svelte). Mention search is handled by [mentionSearchService.ts](../../frontend/packages/ui/src/components/enter_message/services/mentionSearchService.ts), which searches mates, AI models, and app skills. Selected mentions insert atom nodes that serialize to `@mention` syntax.
 
-## Large message
+### Drafts
 
-[![Large message](../../docs/images/messageinputfield/large_message.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3556-61259&t=vQbeWjQG2QtbTDoL-4)
+Draft persistence is managed by `draftService` (imported from `../../services/draftService`). Drafts are saved automatically on changes and restored when returning to a chat. The service handles encryption and IndexedDB storage.
 
-When the max message input field height is reached, then the text will be cut off visually at the top (should be combined with a way that prevents super long text that isn't visible currently from being rendered in the DOM). "Fullscreen" button shows up in the top right corner of message input field.
+### PII Detection
 
-When the user scrolls within the chat history, minimize the message input field height so the user sees the last few lines of his input, but sees also more from the chat history.
+[piiDetectionService.ts](../../frontend/packages/ui/src/components/enter_message/services/piiDetectionService.ts) scans message content for personally identifiable information before sending. When PII is detected, [PIIWarningBanner.svelte](../../frontend/packages/ui/src/components/enter_message/PIIWarningBanner.svelte) shows a warning banner.
 
-## Large message | Fullscreen
+## Edge Cases
 
-[![Large message | Fullscreen](../../docs/images/messageinputfield/large_message_fullscreen.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3556-61446&t=vQbeWjQG2QtbTDoL-4)
+- **Backspace on embed previews** -- Pressing backspace after an embed preview converts it back to editable markdown text. For groups, the last item is split off while the remaining items stay grouped (see [message-previews-grouping.md](./message-previews-grouping.md)).
+- **Embed cleanup on deletion** -- When an embed node is removed from the editor, `cleanupRemovedEmbed()` in [Embed.ts](../../frontend/packages/ui/src/components/enter_message/extensions/Embed.ts) asynchronously deletes the corresponding entry from EmbedStore to prevent orphaned data.
+- **Edit mode** -- `editMessageStore` allows editing previously sent messages. The original message content is loaded back into the editor as markdown.
+- **Notification reply** -- `pendingNotificationReplyStore` pre-fills the input when replying from a notification.
 
-When the user clicks on "Fullscreen" button, the message input field will be expanded to the full height of the screen and the "Fullscreen" button will be replaced with "Minimize" button.
+## Related Docs
 
-## Message parsing | Sheets
-
-[![Message parsing | Sheets](../../docs/images/messageinputfield/message_parsing/sheets.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3556-61591&t=vQbeWjQG2QtbTDoL-4)
-
-The message input is continuously parsed. Once the parsing detects a started table like in this message:
-
-````markdown
-I'm analyzing sales data for a small retail business. Below is a table showing monthly sales figures for the first half of 2024 across three product categories: Electronics, Apparel, and Home Goods.
-
-| Device | Type |
-|--------|------|
-| **Nexus Fold X** | Foldable Phone |
-| **Lumina Watch Pro** | Smartwatch |
-| **AuraBook Air** | Ultrabook |
-| **Pixel Pad Ultra** | Android Tablet |
-| **Vision Lens One** | AR Glasses |
-| **Echo Home Max** | Smart Sp
-````
-
-The table text will be highlighted in "Edit mode".
-
-### Sheets | Highlight in "Edit mode"
-
-The table text will be rendered in the color `#006400`, to indicate to the user that a Sheet was detected and will be rendered as a Sheets preview, once the user adds an empty line below the table to close it. See [apps/sheets.md](./apps/sheets.md) for more details and screenshots.
-
-Figma design: [Sheets | Highlight in "Edit mode" | Mobile](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3556-61685&t=vQbeWjQG2QtbTDoL-4)
-
-### Sheets | One preview block
-
-The preview block will be rendered as the `Finished` `Desktop` preview of the Sheets document if its a single item. See [apps/sheets.md](./apps/sheets.md) for more details and screenshots.
-
-Figma design: [Sheets | One preview block | Mobile](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3556-61701&t=vQbeWjQG2QtbTDoL-4)
-
-### Sheets | Multiple preview blocks
-
-Once multiple items are detected, the preview blocks will be rendered as the `Finished` `Mobile` preview of the Sheets document. See [apps/sheets.md](./apps/sheets.md) for more details and screenshots.
-
-Figma design: [Sheets | Multiple preview blocks | Mobile](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3556-61728&t=vQbeWjQG2QtbTDoL-4)
-
-### Sheets | Preview Click-menu
-
-If the user clicks/taps on a preview block, a click-menu will show up with the following options:
-
-- "Delete" -> deletes the preview block
-- "Edit" -> switches back to edit mode and remove the preview block
-- "Fullscreen" -> opens the Sheets in fullscreen mode (see [apps/sheets.md#sheet--finished--fullscreen-view](./apps/sheets.md#sheet--finished--fullscreen-view))
-
-Figma design: [Preview Click-menu](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3556-61765&t=vQbeWjQG2QtbTDoL-4)
-
-The same applies not just to sheet blocks, but to all preview blocks, like websites, code, docs, etc.
-
-### Pressing backspace
-
-When the user presses backspace after a preview block or group of preview blocks, the last preview block will be deleted and switched back to edit mode. Regardless of the type of preview block.
-
-Figma design: [Pressing backspace](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3556-61774&t=vQbeWjQG2QtbTDoL-4)
-
-
-## Message parsing | Websites & Code
-
-[![Message parsing | Websites & Code](../../docs/images/messageinputfield/message_parsing/websites_and_code.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3556-61919&t=vQbeWjQG2QtbTDoL-4)
-
-### Websites
-
-The message input is continuously parsed. Once the parsing detects a started URL like in this message:
-
-````markdown
-Summarize this blog post https://zapier.com/blog/best-transcription-ap
-````
-
-The URL text will be highlighted in "Edit mode".
-
-
-#### Websites | Highlight in "Edit mode"
-
-The URL text will be highlighted in the color `#DE1E66`, to indicate to the user that a Website was detected and will be rendered as a Website preview, once the user enters a space after the url or new line. See [apps/web.md](./apps/web.md) for more details and screenshots.
-
-Figma design: [Websites | Highlight in "Edit mode" | Mobile](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3556-62168&t=vQbeWjQG2QtbTDoL-4)
-
-#### Websites | One preview block
-
-The preview block will be rendered as the `Finished` `Desktop` preview of the Website. See [apps/web.md](./apps/web.md) for more details and screenshots.
-
-Figma design: [Websites | One preview block | Mobile](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3556-62184&t=vQbeWjQG2QtbTDoL-4)
-
-#### Websites | Multiple preview blocks
-
-Once multiple items are detected, the preview blocks will be rendered as the `Finished` `Mobile` preview of the Website. See [apps/web.md](./apps/web.md) for more details and screenshots.
-
-#### Websites | Preview Click-menu
-
-If the user clicks/taps on a preview block, a click-menu will show up with the following options:
-
-- "Delete" -> deletes the preview block
-- "Edit" -> switches back to edit mode and remove the preview block
-- "Fullscreen" -> opens the Website in fullscreen mode (see [apps/web.md#website--finished--fullscreen-view](./apps/web.md#website--finished--fullscreen-view))
-
-Figma design: [Preview Click-menu](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3556-61765&t=vQbeWjQG2QtbTDoL-4)
-
-The same applies not just to website blocks, but to all preview blocks, like sheets, code, docs, etc.
-
-### Code
-
-The message input is continuously parsed. Once the parsing detects a started code block using \``` as a start, the code block will be highlighted in "Edit mode", like in this message:
-
-````markdown
-What does this code do?
-```python:payment_processing.py
-import stripe
-from datetime import datetime
-
-# Initialize Stripe with your secret key
-stripe.api_key = "sk_test_..."
-
-def process_payment(amount, currency, payment_method, customer_email):
-   try:
-````
-
-#### Code | Highlight in "Edit mode"
-
-The code block will be highlighted in the color `#155D91`, to indicate to the user that a Code block was detected and will be rendered as a Code preview, once the user enters the closing \```. See [apps/code.md](./apps/code.md) for more details and screenshots.
-
-Figma design: [Code | Highlight in "Edit mode" | Mobile](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3556-62203&t=vQbeWjQG2QtbTDoL-4)
-
-#### Code | One preview block
-
-The preview block will be rendered as the `Finished` `Desktop` preview of the Code. See [apps/code.md](./apps/code.md) for more details and screenshots.
-
-Figma design: [Code | One preview block | Mobile](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3556-62218&t=vQbeWjQG2QtbTDoL-4)
-
-
-#### Code | Multiple preview blocks
-
-Once multiple items are detected, the preview blocks will be rendered as the `Finished` `Mobile` preview of the Code. See [apps/code.md](./apps/code.md) for more details and screenshots.
-
-#### Code | Preview Click-menu
-
-If the user clicks/taps on a preview block, a click-menu will show up with the following options:
-
-- "Delete" -> deletes the preview block
-- "Edit" -> switches back to edit mode and remove the preview block
-- "Fullscreen" -> opens the Code in fullscreen mode (see [apps/code.md#code--finished--fullscreen-view](./apps/code.md#code--finished--fullscreen-view))
-
-Figma design: [Preview Click-menu](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3556-61765&t=vQbeWjQG2QtbTDoL-4)
-
-The same applies not just to code blocks, but to all preview blocks, like websites, sheets, docs, etc.
-
-## Message parsing | Web videos & Markdown
-
-[![Message parsing | Web videos & Markdown](../../docs/images/messageinputfield/message_parsing/web_videos_and_markdown.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3556-62364&t=vQbeWjQG2QtbTDoL-4)
-
-### Web videos
-
-The message input is continuously parsed. Once the parsing detects a started YouTube URL like in this message:
-
-````markdown
-Summarize & analyze: https://www.youtube.com/watch?v=XSZP9GhhuAc
-````
-
-#### Web videos | Highlight in "Edit mode"
-
-The YouTube URL text will be highlighted in the color `#A70B09`, to indicate to the user that a Web video was detected and will be rendered as a Web video preview, once the user enters a space after the url or new line. See [apps/videos.md](./apps/videos.md) for more details and screenshots.
-
-Figma design: [Web videos | Highlight in "Edit mode" | Mobile](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3556-62571&t=vQbeWjQG2QtbTDoL-4)
-
-#### Web videos | One preview block
-
-The preview block will be rendered as the `Finished` `Desktop` preview of the Web video. See [apps/videos.md](./apps/videos.md) for more details and screenshots.
-
-Figma design: [Web videos | One preview block | Mobile](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3556-62586&t=vQbeWjQG2QtbTDoL-4)
-
-#### Web videos | Multiple preview blocks
-
-Once multiple items are detected, the preview blocks will be rendered as the `Finished` `Mobile` preview of the Web video. See [apps/videos.md](./apps/videos.md) for more details and screenshots.
-
-#### Web videos | Preview Click-menu
-
-If the user clicks/taps on a preview block, a click-menu will show up with the following options:
-
-- "Delete" -> deletes the preview block
-- "Edit" -> switches back to edit mode and remove the preview block
-- "Fullscreen" -> opens the Web video in fullscreen mode (see [apps/videos.md#web-videos--finished--fullscreen-view](./apps/videos.md#web-videos--finished--fullscreen-view))
-
-Figma design: [Preview Click-menu](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3556-61765&t=vQbeWjQG2QtbTDoL-4)
-
-
-### Markdown
-
-The following markdown syntax will only be highlighted via a different color in editing mode (indicating to the user that the formatting was detected), but only rendered correctly once the message is sent and added to the chat history:
-
-- headings
-- lists (ordered, unordered, task lists, incl. subitems)
-- *Italic* or _Italic_
-- **Bold** or __Bold__
-- ***Bold + Italic***
-- ~~Strikethrough~~
-- > blockquote.
-- >> Nested blockquote. 
-- [Link](https://example.com)
-- ![Alt text](https://placekitten.com/200/300)
-- horizontal rule
-
-The following markdown syntax should not be supported currently:
-
-- footnotes
-- Definition Lists
-
-#### Markdown | Highlight in "Edit mode"
-
-The markdown text will be highlighted in the color `#6A737D`, to indicate to the user that Markdown formatting was detected and will be rendered in the chat history, once the user sends the message.
-
-Figma design: [Markdown | Highlight in "Edit mode" | Mobile](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3556-62605&t=vQbeWjQG2QtbTDoL-4)
+- [Message Parsing](./message-parsing.md) -- The unified parser pipeline used in both write and read modes
+- [Message Previews Grouping](./message-previews-grouping.md) -- How consecutive embeds are grouped in the input
+- [Embeds Architecture](./embeds.md) -- Server-side embed storage and reference format
+- [Message Processing](./message-processing.md) -- Backend processing after the message is sent

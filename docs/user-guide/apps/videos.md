@@ -4,8 +4,8 @@
 
 ### Web video
 
-[![Web video previews & fullscreen views](../../images/apps/videos/previews/web_video/finished.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3403-37227&t=JIw9suqrshvmsdFU-4)
-[![Web video previews in chat, example](../../images/apps/videos/previews/web_video/chat_example.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3403-37227&t=JIw9suqrshvmsdFU-4)
+[![Web video previews & fullscreen views](../../images/user-guide/apps/videos/previews/web_video/finished.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3403-37227&t=JIw9suqrshvmsdFU-4)
+[![Web video previews in chat, example](../../images/user-guide/apps/videos/previews/web_video/chat_example.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3403-37227&t=JIw9suqrshvmsdFU-4)
 
 Used every time a web video is contained in a message in the chat history or message input field.
 
@@ -54,15 +54,15 @@ Figma design:
 
 ### Skill "Videos | Get transcript" | Processing
 
-[![Skill "Videos | Get transcript" processing](../../images/apps/videos/previews/get_transcript/processing.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3404-37413&t=JIw9suqrshvmsdFU-4)
+[![Skill "Videos | Get transcript" processing](../../images/user-guide/apps/videos/previews/get_transcript/processing.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3404-37413&t=JIw9suqrshvmsdFU-4)
 
 ### Skill "Videos | Get transcript" | Finished
 
-[![Skill "Videos | Get transcript" previews & fullscreen views](../../images/apps/videos/previews/get_transcript/finished.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3404-37413&t=JIw9suqrshvmsdFU-4)
+[![Skill "Videos | Get transcript" previews & fullscreen views](../../images/user-guide/apps/videos/previews/get_transcript/finished.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3404-37413&t=JIw9suqrshvmsdFU-4)
 
 ### Skill "Videos | Get transcript" | Chat example
 
-[![Skill "Videos | Get transcript" chat example](../../images/apps/videos/previews/get_transcript/chat_example.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3404-37413&t=JIw9suqrshvmsdFU-4)
+[![Skill "Videos | Get transcript" chat example](../../images/user-guide/apps/videos/previews/get_transcript/chat_example.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3404-37413&t=JIw9suqrshvmsdFU-4)
 
 Used every time the skill ["Videos | Get transcript"](./videos.md#transcript) is called.
 

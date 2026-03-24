@@ -134,7 +134,7 @@ Markdown tables in AI responses are automatically detected and converted to `she
 
 #### Sheet | Processing
 
-[![Sheet | Processing | Preview & Fullscreen view in mobile & desktop](../../images/apps/sheets/previews/sheet/processing.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3514-41257&t=V4FPCQaihiRx7h7e-4)
+[![Sheet | Processing | Preview & Fullscreen view in mobile & desktop](../../images/user-guide/apps/sheets/previews/sheet/processing.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3514-41257&t=V4FPCQaihiRx7h7e-4)
 
 When the sheet is still being processed, those layouts are used.
 
@@ -176,7 +176,7 @@ Figma design:
 
 #### Sheet | Finished
 
-[![Sheet | Finished | Preview & Fullscreen view in mobile & desktop](../../images/apps/sheets/previews/sheet/finished.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3514-41375&t=R9j0Nv3WdNV351nc-4)
+[![Sheet | Finished | Preview & Fullscreen view in mobile & desktop](../../images/user-guide/apps/sheets/previews/sheet/finished.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3514-41375&t=R9j0Nv3WdNV351nc-4)
 
 When the sheet is finished being processed, those layouts are used.
 
@@ -222,7 +222,7 @@ Figma design:
 
 #### Sheet | Chat example
 
-[![Sheet | Chat example](../../images/apps/sheets/previews/sheet/chat_example.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3514-41526&t=R9j0Nv3WdNV351nc-4)
+[![Sheet | Chat example](../../images/user-guide/apps/sheets/previews/sheet/chat_example.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3514-41526&t=R9j0Nv3WdNV351nc-4)
 
 Shows how sheet previews are rendered in a chat message. Mobile / desktop layouts are used depending on the viewport width.
 

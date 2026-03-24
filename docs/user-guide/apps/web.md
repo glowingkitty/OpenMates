@@ -17,7 +17,7 @@ Used every time a completed website link is contained in a message in the chat h
 
 #### Website | Finished
 
-[![Website | Finished preview & Fullscreen view in mobile & desktop](../../images/apps/web/previews/website/finished.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3558-63316&t=vQbeWjQG2QtbTDoL-4)
+[![Website | Finished preview & Fullscreen view in mobile & desktop](../../images/user-guide/apps/web/previews/website/finished.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3558-63316&t=vQbeWjQG2QtbTDoL-4)
 
 When the website is finished being processed, those layouts are used. If getting open graph data fails, the preview will be rendered with the url instead of a title and without a background image and favicon (and with no "Fullscreen" option for the preview).
 
@@ -105,7 +105,7 @@ Figma design:
 
 #### Website | Chat example
 
-[![Website | Chat example](../../images/apps/web/previews/website/chat_example.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3558-63607&t=vQbeWjQG2QtbTDoL-4)
+[![Website | Chat example](../../images/user-guide/apps/web/previews/website/chat_example.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3558-63607&t=vQbeWjQG2QtbTDoL-4)
 
 Shows how website previews are rendered in a chat message. Mobile / desktop layouts are used depending on the viewport width.
 
@@ -128,15 +128,15 @@ Include "likely_shortened" output parameter for news for example?
 
 #### Skill "Web | Search" | Processing
 
-[![Skill "Web | Search" | Processing](../../images/apps/web/previews/search/processing.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3560-64335&t=vQbeWjQG2QtbTDoL-4)
+[![Skill "Web | Search" | Processing](../../images/user-guide/apps/web/previews/search/processing.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3560-64335&t=vQbeWjQG2QtbTDoL-4)
 
 #### Skill "Web | Search" | Finished
 
-[![Skill "Web | Search" | Finished](../../images/apps/web/previews/search/finished.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3560-64335&t=vQbeWjQG2QtbTDoL-4)
+[![Skill "Web | Search" | Finished](../../images/user-guide/apps/web/previews/search/finished.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3560-64335&t=vQbeWjQG2QtbTDoL-4)
 
 #### Skill "Web | Search" | Chat example
 
-[![Skill "Web | Search" | Chat example](../../images/apps/web/previews/search/chat_example.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3560-64335&t=vQbeWjQG2QtbTDoL-4)
+[![Skill "Web | Search" | Chat example](../../images/user-guide/apps/web/previews/search/chat_example.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3560-64335&t=vQbeWjQG2QtbTDoL-4)
 
 
 
@@ -156,7 +156,7 @@ Used every time the skill ["Web | Read"](#read) is called.
 
 #### Skill "Web | Read" | Processing
 
-[![Skill "Web | Read" | Processing](../../images/apps/web/previews/read/processing.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3562-66382&t=vQbeWjQG2QtbTDoL-4)
+[![Skill "Web | Read" | Processing](../../images/user-guide/apps/web/previews/read/processing.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3562-66382&t=vQbeWjQG2QtbTDoL-4)
 
 #### Skill "Web | Read" | Input example
 
@@ -179,11 +179,11 @@ Used every time the skill ["Web | Read"](#read) is called.
 
 #### Skill "Web | Read" | Finished
 
-[![Skill "Web | Read" | Finished](../../images/apps/web/previews/read/finished.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3562-66382&t=vQbeWjQG2QtbTDoL-4)
+[![Skill "Web | Read" | Finished](../../images/user-guide/apps/web/previews/read/finished.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3562-66382&t=vQbeWjQG2QtbTDoL-4)
 
 #### Skill "Web | Read" | Chat example
 
-[![Skill "Web | Read" | Chat example](../../images/apps/web/previews/read/chat_example.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3562-66382&t=vQbeWjQG2QtbTDoL-4)
+[![Skill "Web | Read" | Chat example](../../images/user-guide/apps/web/previews/read/chat_example.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3562-66382&t=vQbeWjQG2QtbTDoL-4)
 
 > TODO: continue updating docs ...
 
@@ -196,16 +196,16 @@ Used every time the skill ["Web | View"](#view) is called.
 
 #### Skill "Web | View" | Processing
 
-[![Skill "Web | View" | Processing](../../images/apps/web/previews/view/processing.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3560-65612&t=vQbeWjQG2QtbTDoL-4)
+[![Skill "Web | View" | Processing](../../images/user-guide/apps/web/previews/view/processing.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3560-65612&t=vQbeWjQG2QtbTDoL-4)
 
 
 #### Skill "Web | View" | Finished
 
-[![Skill "Web | View" | Finished](../../images/apps/web/previews/view/finished.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3560-65612&t=vQbeWjQG2QtbTDoL-4)
+[![Skill "Web | View" | Finished](../../images/user-guide/apps/web/previews/view/finished.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3560-65612&t=vQbeWjQG2QtbTDoL-4)
 
 #### Skill "Web | View" | Chat example
 
-[![Skill "Web | View" | Chat example](../../images/apps/web/previews/view/chat_example.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3560-65612&t=vQbeWjQG2QtbTDoL-4)
+[![Skill "Web | View" | Chat example](../../images/user-guide/apps/web/previews/view/chat_example.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3560-65612&t=vQbeWjQG2QtbTDoL-4)
 
 
 ## Skills

@@ -1,248 +1,118 @@
+---
+status: active
+last_verified: 2026-03-24
+key_files:
+  - frontend/packages/ui/src/message_parsing/embedGrouping.ts
+  - frontend/packages/ui/src/message_parsing/groupHandlers.ts
+  - frontend/packages/ui/src/message_parsing/types.ts
+  - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+  - frontend/packages/ui/src/components/enter_message/extensions/Embed.ts
+---
+
 # Message Previews Grouping Architecture
 
-## Overview
+> Consecutive embed nodes of the same type are automatically merged into horizontal scroll groups, reducing vertical space in messages.
 
-The message previews grouping system provides a dynamic, extensible architecture for grouping consecutive embed nodes of the same type in the message input. This system allows multiple embeds (websites, code blocks, documents, spreadsheets) to be visually grouped together while maintaining individual functionality.
+## Why This Exists
 
-## Supported Embed Types
+LLM responses and user messages frequently contain multiple consecutive embeds of the same type (e.g., several search results, multiple code files, a sequence of URLs). Without grouping, each embed would take full width and stack vertically, creating excessive scrolling. Grouping collapses them into a single horizontally scrollable row with a count header.
 
-Currently, the system supports grouping for:
-- **Websites** (`web-website`) - Regular websites with metadata
-- **Videos** (`videos-video`) - YouTube URLs and other video content
-- **Code blocks** (`code-code`) - All programming languages grouped together
-- **Documents** (`docs-doc`) - HTML documents and similar content
-- **Spreadsheets** (`sheets-sheet`) - Table-based data
+## How It Works
 
-## Architecture Components
+### Grouping Pipeline
 
-### 1. Group Handler Interface (`EmbedGroupHandler`)
+The function `groupConsecutiveEmbedsInDocument()` in [embedGrouping.ts](../../frontend/packages/ui/src/message_parsing/embedGrouping.ts) runs three passes:
 
-The core interface that defines how each embed type handles grouping behavior.
+1. **Intra-paragraph grouping** -- `groupConsecutiveEmbedsInParagraph()` groups consecutive `embed` nodes within a single paragraph. Whitespace-only text nodes between embeds do not break a group.
 
-**Implementation**: `frontend/packages/ui/src/message_parsing/groupHandlers.ts`
+2. **Cross-paragraph grouping** -- `groupConsecutiveEmbedParagraphs()` groups consecutive paragraphs that each contain a single embed. Empty/whitespace-only paragraphs between embed paragraphs (from blank lines in markdown) are treated as ignorable and do not break grouping. These spacer paragraphs are discarded when embeds are grouped.
 
-### 2. Group Handler Registry (`GroupHandlerRegistry`)
+3. **Scattered app-skill-use merging** -- `groupScatteredAppSkillEmbeds()` handles the common case where the LLM interleaves text between tool calls. All `app-skill-use` and `app-skill-use-group` nodes across the entire document are collected and merged into a single group at the first occurrence position. Text structure between them is preserved.
 
-Central registry that manages all group handlers and provides unified access:
+**Post-processing:** `removeEmptyParagraphsAfterEmbeds()` strips empty paragraphs that immediately follow an embed-only paragraph, preventing visual gaps in read mode.
 
-- **Registration**: Automatically registers handlers for supported embed types
-- **Handler lookup**: Finds appropriate handlers for embed types and group types
-- **Grouping logic**: Determines if two embeds can be grouped together
-- **Delegation**: Routes operations to the correct handler
+### Group Handler System
 
-### 3. Specific Group Handlers
+[groupHandlers.ts](../../frontend/packages/ui/src/message_parsing/groupHandlers.ts) defines the `EmbedGroupHandler` interface and per-type handler classes. A singleton `GroupHandlerRegistry` manages all handlers with O(1) Map lookups.
 
-#### WebWebsiteGroupHandler
-- Groups `web-website` embeds together
-- Handles URL-based content with metadata
-- Supports both successful (with metadata) and failed (URL-only) states
+**Registered handlers (6 types):**
 
-#### VideosVideoGroupHandler
-- Groups `videos-video` embeds together (YouTube URLs, etc.)
-- Handles video thumbnails and metadata
-- Supports both successful (with thumbnail) and failed (URL-only) states
+| Handler | Embed Type | Group Type | Grouping Rule |
+|---------|-----------|------------|---------------|
+| `WebWebsiteGroupHandler` | `web-website` | `web-website-group` | Same type only |
+| `VideosVideoGroupHandler` | `videos-video` | `videos-video-group` | Same type only |
+| `CodeCodeGroupHandler` | `code-code` | `code-code-group` | Same type regardless of language |
+| `DocsDocGroupHandler` | `docs-doc` | `docs-doc-group` | Same type only |
+| `SheetsSheetGroupHandler` | `sheets-sheet` | `sheets-sheet-group` | Same type only |
+| `AppSkillUseGroupHandler` | `app-skill-use` | `app-skill-use-group` | All consecutive app-skill-use embeds regardless of `app_id`/`skill_id` |
 
-#### CodeCodeGroupHandler
-- Groups all `code-code` embeds regardless of programming language
-- Maintains language and filename information for individual items
-- Supports processing and finished states
+Each handler implements four methods:
+- `canGroup(nodeA, nodeB)` -- Determines if two embeds can be grouped together
+- `createGroup(embedNodes)` -- Creates group attributes from individual embeds
+- `handleGroupBackspace(groupAttrs)` -- Returns backspace action (`delete-group`, `split-group`, or `convert-to-text`)
+- `groupToMarkdown(groupAttrs)` -- Serializes group back to canonical markdown
 
-#### DocsDocGroupHandler
-- Groups `docs-doc` embeds (HTML documents)
-- Preserves title information
-- Handles document_html fence conversion
+### Deterministic Group IDs
 
-#### SheetsSheetGroupHandler
-- Groups `sheets-sheet` embeds (spreadsheets/tables)
-- Maintains row/column information
-- Supports table markdown conversion
+`generateDeterministicGroupId()` derives the group ID from the first item's `contentRef` (preferred) or `id`. This is critical for streaming stability -- when a group grows from N to N+1 items during streaming, the stable ID lets TipTap match and update the existing NodeView instead of destroying and recreating it.
 
-**Implementation**: All handlers are in `frontend/packages/ui/src/message_parsing/groupHandlers.ts`
+### Group Creation
 
-### 4. Group Renderer (`GroupRenderer`)
+When `createGroup()` is called:
+1. A deterministic group ID is generated from the first item (before sorting)
+2. Items are sorted by status: `processing` first, then `finished` (app-skill-use adds `error` after finished)
+3. Only essential, serializable attributes are extracted into `groupedItems` (varies by type)
+4. The group node has type `{embedType}-group`, status `finished`, and null `contentRef`
 
-Generic renderer that handles visual display of all group types:
+### Backspace Behavior
 
-- **Dynamic rendering**: Adapts display based on embed type
-- **Consistent layout**: Uses unified CSS classes and structure
-- **Item display**: Renders individual items within groups
-- **Header generation**: Creates appropriate group headers (e.g., "3 websites", "2 code files")
+Defined per handler via `handleGroupBackspace()`:
 
-**Implementation**: `frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts`
+- **>2 items** -- Last item is removed and converted to editable text; remaining items stay grouped
+- **2 items** -- Group is dissolved: first item becomes individual embed, last becomes editable text
+- **1 item** -- Converts to editable text (URL, code fence, or table markdown depending on type)
+- **0 items** -- Group node is deleted entirely
 
-## Grouping Process
+The backspace keyboard integration is in [Embed.ts](../../frontend/packages/ui/src/components/enter_message/extensions/Embed.ts).
 
-### 1. Document Parsing
+### Rendering
 
-**Flow**: Markdown → Individual Embeds → Document Enhancement → Grouping → Final Document
+[GroupRenderer.ts](../../frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts) handles visual display. It resolves embed data from the EmbedStore, decodes TOON content, and mounts the appropriate Svelte preview component for each item. The renderer supports 40+ distinct embed preview components (web search, code, docs, sheets, images, travel, mail, health, shopping, events, maps, PDFs, etc.).
 
-1. **Parse embed nodes**: Extract individual embeds from markdown
-2. **Enhance document**: Replace json_embed blocks with embed nodes
-3. **Group consecutive embeds**: Use group handlers to create groups
-4. **Generate final document**: Return TipTap document with groups
+Group display structure:
+- Container div with type-specific CSS class
+- Group header showing count (e.g., "3 websites")
+- Horizontal scroll container with individual preview cards
 
-**Implementation**: `frontend/packages/ui/src/message_parsing/parse_message.ts`
+## Edge Cases
 
-### 2. Grouping Logic
+- **Single embeds** -- When only one embed of a type exists (no consecutive neighbors), it is not wrapped in a group node. It renders as an individual embed.
+- **Mixed app-skill types** -- The `AppSkillUseGroupHandler` groups all consecutive `app-skill-use` embeds regardless of `app_id`/`skill_id`. Each item retains its own metadata so the correct Svelte preview component renders within the shared group.
+- **Error embeds in groups** -- Failed skill executions stay in the group with an error state indicator. Previously they were filtered out, which caused instability during streaming (group type transitions triggered NodeView recreation).
+- **Empty paragraphs between embeds** -- Blank lines in markdown between consecutive embeds do not prevent grouping. The spacer paragraphs are discarded during group creation and also cleaned up in post-processing.
+- **Assistant embed promotion** -- In read mode for assistant messages, non-app-skill non-code groups are expanded into consecutive `embedPreviewLarge` nodes for slideshow rendering. Code groups are exempt and keep the horizontal scroll layout. This promotion happens in `promoteAssistantEmbedsToLarge()` in [parse_message.ts](../../frontend/packages/ui/src/message_parsing/parse_message.ts).
 
-The system groups embeds when:
-- They are consecutive in the document (only whitespace between them)
-- They are of compatible types (determined by group handlers)
-- There are 2 or more consecutive compatible embeds
+## Data Structures
 
-**Implementation**: `frontend/packages/ui/src/message_parsing/embedGrouping.ts` - See `groupConsecutiveEmbedsInParagraph` function
+### Group Node Attributes
 
-### 3. Group Creation
+A group embed node in the TipTap document looks like:
 
-When creating groups:
-1. **Sort items**: Processing status first, then finished
-2. **Generate group ID**: Unique identifier for the group
-3. **Set group type**: `{embedType}-group` (e.g., `web-website-group`)
-4. **Store metadata**: Group count and individual item data
-
-**Implementation**: Each group handler's `createGroup` method in `frontend/packages/ui/src/message_parsing/groupHandlers.ts`
-
-## Backspace Behavior
-
-The system provides sophisticated backspace handling for groups:
-
-### Split Group
-When backspacing a group with multiple items:
-1. Remove the last item from the group
-2. Keep remaining items as individual rendered embeds
-3. Convert the last item back to editable text/markdown
-
-### Convert to Text
-When backspacing a single-item group:
-1. Convert the group back to individual embed
-2. Then convert to editable markdown format
-
-### Delete Group
-When backspacing an empty group:
-1. Simply delete the entire group node
-
-**Implementation**: `handleGroupBackspace` method in each group handler + keyboard shortcuts in `frontend/packages/ui/src/components/enter_message/extensions/Embed.ts`
-
-## Serialization
-
-Groups are serialized back to markdown by:
-1. **Individual serialization**: Each item in the group is serialized separately
-2. **Appropriate spacing**: Items are separated by newlines or spaces
-3. **Format preservation**: Original markdown format is maintained
-
-Example:
-````markdown
-// Website group serializes to:
-```json_embed
-{"type": "website", "url": "https://example.com"}
+```
+type: "embed"
+attrs:
+  id: "group_embed:<server-uuid>"  (deterministic)
+  type: "web-website-group"        ({embedType}-group)
+  status: "finished"
+  contentRef: null
+  groupedItems: [...]              (array of individual EmbedNodeAttributes)
+  groupCount: 3                    (number of items)
 ```
 
-```json_embed
-{"type": "website", "url": "https://test.com"}
-```
+See [types.ts](../../frontend/packages/ui/src/message_parsing/types.ts) for the full `EmbedNodeAttributes` interface.
 
-// Code group serializes to:
-```javascript:main.js
-```
+## Related Docs
 
-```python:app.py
-```
-````
-
-## Rendering System
-
-### Group Display Structure
-```html
-<div class="{type}-preview-group">
-  <div class="group-header">3 websites</div>
-  <div class="group-scroll-container">
-    <div class="embed-unified-container" data-embed-type="website">
-      <!-- Individual item content -->
-    </div>
-    <!-- More items... -->
-  </div>
-</div>
-```
-
-### CSS Classes
-- `.{type}-preview-group`: Main group container
-- `.group-header`: Group title/count display
-- `.group-scroll-container`: Horizontal scrollable container
-- `.embed-unified-container`: Individual item wrapper
-
-## Extensibility
-
-### Adding New Embed Types
-
-1. **Create Group Handler**:
-```typescript
-export class NewTypeGroupHandler implements EmbedGroupHandler {
-  embedType = 'newtype';
-  
-  canGroup(nodeA, nodeB) {
-    return nodeA.type === 'newtype' && nodeB.type === 'newtype';
-  }
-  
-  // Implement other methods...
-}
-```
-
-2. **Register Handler**:
-```typescript
-// In GroupHandlerRegistry constructor
-this.register(new NewTypeGroupHandler());
-```
-
-3. **Add Renderer Support**:
-```typescript
-// In embed_renderers/index.ts
-'newtype-group': new GroupRenderer(),
-```
-
-4. **Update GroupRenderer**:
-```typescript
-// Add rendering logic for the new type
-private renderNewTypeItem(item: EmbedNodeAttributes): string {
-  // Custom rendering logic
-}
-```
-
-### Configuration
-
-The system is designed to be configurable:
-- **Group size limits**: Can be configured per embed type
-- **Grouping criteria**: Customizable through handler logic
-- **Display options**: Flexible rendering through GroupRenderer
-- **Serialization format**: Customizable per embed type
-
-## Error Handling
-
-The system includes robust error handling:
-- **Missing handlers**: Graceful fallback to individual embeds
-- **Invalid group data**: Safe defaults and error logging
-- **Serialization errors**: Fallback to basic text representation
-- **Rendering errors**: Error boundaries and safe defaults
-
-## Performance Considerations
-
-- **Lazy evaluation**: Groups are only created when needed
-- **Efficient lookups**: Handler registry uses Map for O(1) lookups
-- **Minimal DOM updates**: Groups update only when content changes
-- **Memory management**: Proper cleanup of group resources
-
-## Testing
-
-The system includes comprehensive tests:
-- **Unit tests**: Individual handler functionality
-- **Integration tests**: Full grouping workflow
-- **Edge cases**: Empty groups, single items, mixed types
-- **Performance tests**: Large numbers of embeds
-
-## Future Enhancements
-
-Planned improvements:
-- **Drag & drop**: Reordering items within groups
-- **Nested groups**: Groups within groups for complex content
-- **Custom grouping rules**: User-defined grouping criteria
-- **Group templates**: Predefined group layouts
-- **Analytics**: Group usage tracking and optimization
+- [Message Parsing](./message-parsing.md) -- The unified parser that invokes grouping as step 6
+- [Embeds Architecture](./embeds.md) -- Server-side embed storage and embed types
+- [Message Input Field](./message-input-field.md) -- Editor integration and backspace behavior

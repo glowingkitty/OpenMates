@@ -1,171 +1,79 @@
-# Follow-up Request Suggestions & New Chat Suggestions
+---
+status: active
+last_verified: 2026-03-24
+key_files:
+  - backend/apps/ai/processing/postprocessor.py
+  - backend/apps/ai/base_instructions.yml
+  - backend/apps/ai/tasks/ask_skill_task.py
+  - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+  - frontend/packages/ui/src/components/ActiveChat.svelte
+  - frontend/packages/ui/src/types/chat.ts
+---
 
-> **Status**: ⚠️ **NOT YET IMPLEMENTED** - This is planned functionality that is still on the todo list.
+# Follow-up and New Chat Suggestions
 
-## Overview
+> Post-processing generates contextual follow-up suggestions for active chats and topic suggestions for the welcome screen, with skill/focus-mode prefix validation.
 
-The post-processing stage generates two types of suggestions to enhance user engagement:
+## Why This Exists
 
-1. **Follow-up Request Suggestions**: 6 contextual suggestions shown under the last assistant message in an active chat (3 visible by default). Suggestion messages must encourage learning more about a topic, exploring different view points, and (once apps are implemented, later) exploring which app skills exist on OpenMates and can be used in this context. Max length: 5 words per suggestion.
-2. **New Chat Request Suggestions**: Suggestions shown in the welcome message when no chat is open (3 random from stored pool). Suggestions encourage exploring new topics which are related to previous conversation tppics. Max length: 5 words per suggestion.
+After each assistant response, the system generates actionable suggestions that help users explore topics further, discover app skills (web search, image generation, etc.), and start focus modes. This increases engagement and helps users discover platform capabilities they might not know about.
 
-Both suggestion types support fuzzy search/filtering as the user types in the message input field, and clicking a suggestion copies it to the message input field.
+## How It Works
 
-## Architecture
+### Generation Pipeline
 
-### Post-Processing Pipeline
+The post-processor ([`postprocessor.py`](../../backend/apps/ai/processing/postprocessor.py)) runs after each assistant response completes. It calls a lightweight LLM with the conversation context and generates:
 
-**Planned Implementation**: Future dedicated post-processing module (to be created)
+1. **Follow-up suggestions** (6 per response): Shown under the last assistant message. Each suggestion carries a `[app_id-skill_id]` or `[app_id-focus_id]` prefix indicating which skill/focus to invoke.
+2. **New chat suggestions** (6 per response): Added to a rolling pool of 50. Three random suggestions display on the welcome screen.
 
-- **LLM Model**: Mistral Small 3.2 for text-only, Gemini 2.5 Flash Lite for text + images
-- **System Prompt Includes**:
-  - Ethics prompt
-  - Mate-specific prompt (software, marketing, etc.)
-  - Focus mode prompt (if active)
-  - Base instructions from [`backend/apps/ai/base_instructions.yml`](../../backend/apps/ai/base_instructions.yml)
-- **Input Context**:
-  - Last user request
-  - Last assistant response
-  - User interests (?)
-  - User's preferred learning type (visual, auditory, reading, etc.)
-- **Output**: JSON via function calling with suggestions and metadata
+The `handle_postprocessing()` function receives the user message, assistant response, chat summary, chat tags, and lists of available skills and focus modes. It uses the `postprocess_response_tool` definition from [`base_instructions.yml`](../../backend/apps/ai/base_instructions.yml).
 
-### Storage & Encryption
+### Prefix Validation
 
-**Follow-up Request Suggestions**:
+The `sanitize_suggestions()` function validates every suggestion's prefix against known skill, focus mode, and memory IDs:
 
-- Stored encrypted in the chat record under field `encrypted_follow_up_request_suggestions` (encrypted via chat specific key client side)
-- Contains the last 18 generated suggestions (as a list)
-- Stored in both IndexedDB (client-side) and Directus (server-side)
-- Replaced when the next assistant response for the chat is completed
+- Valid prefixes (e.g., `[web-search]`, `[jobs-career_insights]`) pass through
+- Invalid/hallucinated prefixes are replaced with `[ai]` fallback
+- Suggestions with fewer than 4 words in the body are dropped
+- Memory prefixes are only allowed in follow-up suggestions (not new chat)
 
-**New Chat Request Suggestions**:
+### Incognito Handling
 
-- Stored under separate database model `new_chat_request_suggestions` (encrypted via master encryption key client side, not chat specific key)
-- Includes `chat_id` field for tracking which chat generated each suggestion
-- **NOT deleted** when the source chat is deleted (retained for continued topic exploration and usability)
-- Stores the 50 most recent suggestions
-- Stored in both IndexedDB (client-side) and Directus (server-side)
+Post-processing is skipped entirely for incognito chats -- no suggestions are generated or stored.
 
-## Follow-up Request Suggestions
+### Storage and Encryption
 
-[![Follow up suggestions](../../docs/images/follow_up_suggestions.png)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3469-39197&t=vQbeWjQG2QtbTDoL-4)
+**Follow-up suggestions**: Stored encrypted in the chat message record under `encrypted_follow_up_request_suggestions`. Encrypted with the chat-specific key client-side. Replaced when the next assistant response completes.
 
-### Purpose
+**New chat suggestions**: Stored in a separate collection, encrypted with the master encryption key (not chat-specific). Includes `chat_id` for provenance tracking. Not deleted when the source chat is deleted. The 50 most recent are kept.
 
-Engage users to ask follow-up questions, dig deeper, and learn topics better while discovering OpenMates App skills and features. Suggestions can include:
-
-- Learning more about specific topics
-- Instructions to use app skills (web search, image generation, etc.)
-- Instructions to start specific focus modes
-- For completed code editing tasks: "create & push commit" and similar
-
-### Generation Rules
-
-- **Count**: 6 suggestions generated per assistant response
-- **Display**: First 3 shown by default
-- **Filtering**: Auto-search/filter based on current message input
-- **Hide Behavior**: If message input string is not contained in any suggestion, show no suggestions
-- **Special Cases**:
-  - For learning-oriented topics: Reserve one suggestion for learning-specific follow-ups ("Test me about this topic", "Prepare me for an upcoming test", "Repeat teaching me about this every week")
-  - Always include app skills and focus modes in suggestions (and auto-complete when implemented)
-
-### Example Output
-
-```json
-{
-  "follow_up_request_suggestions": [
-    "Explore Whisper Tiny for iOS compatibility",
-    "Check iOS device compatibility for Whisper models",
-    "Research Core ML conversion for Whisper models",
-    "Compare Whisper accuracy with Apple's on-device speech recognition",
-    "Can Whisper run offline on mobile devices efficiently?",
-    "How to fine-tune Whisper for custom accents or languages?"
-  ]
-}
-```
+Both are stored in IndexedDB (client-side) and Directus (server-side), synced via the standard phased sync mechanism.
 
 ### Frontend Integration
 
-**Planned Frontend**: To be handled in [`frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts`](../../frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts)
+- [`chatSyncServiceHandlersAI.ts`](../../frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts): Receives suggestions from WebSocket, encrypts and stores them
+- [`ActiveChat.svelte`](../../frontend/packages/ui/src/components/ActiveChat.svelte): Displays follow-up suggestions under the last assistant message (first 3 visible by default)
+- Suggestions support fuzzy search/filter as the user types in the message input
+- Clicking a suggestion copies it to the input field
+- New chat suggestions are deleted from both client and server after being clicked and sent
 
-- Receive suggestions from post-processing via WebSocket
-- Encrypt and store in IndexedDB under chat record
-- Display first 3 in chat UI under last assistant message
-- Implement fuzzy search/filter as user types
-- Handle click to copy suggestion to message input field
+### Additional Post-Processing Outputs
 
-## New Chat Request Suggestions
+The same LLM call also generates:
 
-[![New chat suggestions](../../docs/images/messageinputfield/new_chat_suggestions.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3554-60874&t=vQbeWjQG2QtbTDoL-4)
+- **`harmful_response`**: Score 0-10 for detecting harmful responses
+- **`chat_summary`**: Updated summary (max 20 words) of the conversation
+- **`daily_inspiration_topic_suggestions`**: 3 topic phrases for personalized daily inspiration
+- **`top_recommended_apps_for_user`**: Top 5 app ID recommendations based on context
 
-### Purpose
+## Edge Cases
 
-Help users start new chats and explore topics, OpenMates App skills, and features. Suggestions can include:
+- **Skill/focus hallucination**: LLMs sometimes invent non-existent skill prefixes. The sanitizer catches these and falls back to `[ai]`.
+- **Very short suggestions**: Suggestions under 4 words are dropped as too vague.
+- **Language handling**: Follow-up suggestions use the conversation language (`output_language`). New chat suggestions use the user's UI language (`user_system_language`).
 
-- Learning more about specific topics
-- Instructions to use app skills (web search, image generation, etc.)
-- Instructions to start specific focus modes
-- General conversation starters
+## Related Docs
 
-### Generation Rules
-
-- **Count**: 6 suggestions generated per assistant response
-- **Storage**: 50 most recent suggestions stored in pool
-- **Display**: 3 randomly selected from the pool
-- **Filtering**: Auto-search/filter based on current message input
-- **Hide Behavior**: If message input string is not contained in any suggestion, show no suggestions
-- **Deletion on Use**: When a suggestion is clicked and sent as a message, it is immediately deleted from both client (IndexedDB) and server (Directus) storage to prevent re-suggesting used topics
-- **Special Cases**: Always include app skills and focus modes in suggestions (and auto-complete when implemented)
-
-### Example Output
-
-```json
-{
-  "new_chat_request_suggestions": [
-    "Whisper for offline voice notes",
-    "Best open-source speech-to-text?",
-    "Auto-subtitle local videos",
-    "Run AI models on phones?",
-    "How is AI optimized for mobile chips?",
-    "Learn languages with speech recognition"
-  ]
-}
-```
-
-> New suggestions are added to the top of the user's `new_chat_request_suggestions` list, and only the first 50 are kept.
-
-### Frontend Integration
-
-**Implementation**: Managed in [`frontend/packages/ui/src/services/db.ts`](../../frontend/packages/ui/src/services/db.ts) and [`frontend/packages/ui/src/components/NewChatSuggestions.svelte`](../../frontend/packages/ui/src/components/NewChatSuggestions.svelte)
-
-- Receive suggestions from post-processing via WebSocket
-- Add to top of existing `new_chat_request_suggestions` list
-- Keep only first 50 suggestions
-- Display 3 random suggestions in welcome message
-- Implement fuzzy search/filter as user types
-- Handle click to copy suggestion to message input field
-- **Deletion Flow**:
-  1. When user clicks a suggestion, track both decrypted and encrypted versions in `suggestionTracker` store
-  2. When message is sent, delete suggestion from local IndexedDB immediately
-  3. Include `encrypted_suggestion_to_delete` in WebSocket `chat_message_added` payload
-  4. Server deletes matching suggestion from Directus and invalidates cache
-  5. Next sync fetches updated suggestions without the deleted one
-
-## Additional Post-Processing Outputs
-
-For complete context, post-processing also generates:
-
-- **[Chat Summary](../messaging/message-processing.md#chat-summary)**: 2-3 sentence summary for context
-- **[Chat Tags](../messaging/message-processing.md#chat-tags)**: Max 10 tags for categorization
-- **harmful_response**: Score 0-10 to detect harmful responses and consider reprocessing
-- **new_learnings**: (idea phase) Better collect new learnings
-
-## Related Documentation
-
-- **Post-Processing Overview**: See [`message_processing.md#post-processing`](../messaging/message-processing.md#post-processing)
-- **Chat Summary Details**: See [`message_processing.md#chat-summary`](../messaging/message-processing.md#chat-summary)
-- **Chat Tags Details**: See [`message_processing.md#chat-tags`](../messaging/message-processing.md#chat-tags)
-- **Base Instructions**: [`backend/apps/ai/base_instructions.yml`](../../backend/apps/ai/base_instructions.yml)
-- **Frontend Handlers**: [`frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts`](../../frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts)
-- **Database Layer**: [`frontend/packages/ui/src/services/db.ts`](../../frontend/packages/ui/src/services/db.ts)
+- [Message Processing](../messaging/message-processing.md) -- full pipeline context
+- [AI Model Selection](./ai-model-selection.md) -- how models are chosen

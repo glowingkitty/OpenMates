@@ -1,90 +1,74 @@
-# LLM Hallucination Mitigation
+---
+status: active
+last_verified: 2026-03-24
+key_files:
+  - backend/apps/ai/processing/url_validator.py
+  - backend/apps/ai/tasks/stream_consumer.py
+  - backend/apps/ai/base_instructions.yml
+  - backend/apps/ai/processing/preprocessor.py
+  - backend/apps/ai/processing/main_processor.py
+  - backend/apps/ai/tasks/ask_skill_task.py
+---
 
-This document summarizes the **implemented** and **planned** measures OpenMates uses to reduce LLM hallucinations (incorrect or fabricated content), with an emphasis on link/source hallucinations and tool-result hallucinations.
+# Hallucination Mitigation
 
-## Goals
+> Multi-layered defenses against fabricated URLs, tool-result hallucinations, and unsupported claims in AI responses.
 
-- Reduce **fabricated URLs**, broken links, and incorrect citations.
-- Reduce **tool-result hallucinations** (model “pretending” to have executed a tool).
-- Encourage “ask / search / verify” behavior when the model lacks evidence.
+## Why This Exists
 
-## Current (Implemented)
+LLMs fabricate URLs, invent tool results, and make unsupported claims. OpenMates addresses this through instruction design, automatic URL validation, tool preselection, and resilient tool-call handling.
 
-### 1) Prompting / instruction design (ethics + accuracy constraints)
+## How It Works
 
-Base instructions include an ethics layer and explicit rules that discourage fabrication, especially for URLs:
+### 1. Instruction-Based Guardrails
 
-- **Base ethics instruction**: `backend/apps/ai/base_instructions.yml` (`base_ethics_instruction`)
-- **URL sourcing rules (anti-URL-hallucination)**: `backend/apps/ai/base_instructions.yml` (`base_url_sourcing_instruction`)
-  - Only use URLs from conversation/tool results or well-known canonical sources
-  - Prefer offering web-search over guessing links
+[`base_instructions.yml`](../../backend/apps/ai/base_instructions.yml) contains two key instruction layers:
 
-Related system-prompt composition is documented in `docs/architecture/message_processing.md`.
+- **`base_ethics_instruction`**: Ethics layer discouraging fabrication
+- **`base_url_sourcing_instruction`**: Explicit rules requiring URLs to come from conversation context, tool results, or well-known canonical sources. The model is instructed to prefer offering a web search over guessing links.
 
-### 2) Automatic URL validation + Brave search replacement (404 / 4xx)
+### 2. Automatic URL Validation and Replacement
 
-OpenMates validates markdown links during streaming and replaces broken links with Brave search URLs:
+[`url_validator.py`](../../backend/apps/ai/processing/url_validator.py) validates markdown links during streaming and replaces broken ones with Brave search URLs.
 
-- URL extraction/validation: `backend/apps/ai/processing/url_validator.py`
-- Streaming integration + correction publish: `backend/apps/ai/tasks/stream_consumer.py`
+**Process:**
+- Extracts markdown links (`[text](url)`) from streamed paragraphs
+- Validates each URL via `HEAD` request (fallback to `GET`) through Webshare rotating residential proxy
+- Uses random User-Agent generation and randomized HTTP headers to avoid bot detection
+- Skips localhost patterns and fragment-only URLs
 
-**Anti-detection features** (to avoid datacenter IP blocking):
-- Webshare rotating residential proxy for URL validation requests
-- Random User-Agent generation (via `user-agents` library)
-- Randomized HTTP headers (Accept-Language, DNT, etc.)
+**Broken link handling:**
+- **4xx responses** (401, 403, 404): Treated as broken, collected for replacement
+- **5xx/timeouts**: Treated as temporary server issues, left as-is
+- After streaming completes, broken URLs are replaced with Brave search links: `[Python docs](https://search.brave.com/search?q=Python%20docs)`
 
-**Behavior summary:**
-- Only **markdown links** like `[text](https://...)` are extracted/validated.
-- URLs are checked via `HEAD` (fallback to `GET`) with redirects enabled, routed through Webshare proxy.
-- **4xx** links (401, 403, 404, etc.) are treated as broken and collected; **5xx/timeouts** are treated as temporary (not auto-removed).
-- After streaming completes, broken URLs are replaced with Brave search links using the original link text.
-  - Example: `[Python docs](https://broken-link.com)` → `[Python docs](https://search.brave.com/search?q=Python%20docs)`
-- This approach is simple, reliable (can't fail), zero-cost (no LLM call), and preserves the user's ability to find the intended content.
+[`stream_consumer.py`](../../backend/apps/ai/tasks/stream_consumer.py) publishes URL correction events to the frontend after validation completes.
 
-### 3) Tool preselection (reduce irrelevant tools → fewer “wrong tool” paths)
+### 3. Tool Preselection
 
-Before main inference, preprocessing narrows the available tools/focus modes to only what’s relevant for the user request. This reduces chances of the model selecting irrelevant tools or fabricating tool usage:
+The preprocessor ([`preprocessor.py`](../../backend/apps/ai/processing/preprocessor.py)) narrows available tools to only what is relevant for the request. This reduces the chance of the model selecting irrelevant tools or fabricating tool usage for tools it should not have access to.
 
-- Preprocessing: `backend/apps/ai/processing/preprocessor.py`
-- Architecture overview: `docs/architecture/message_processing.md`
+### 4. Tool-Name Hallucination Resilience
 
-### 4) Resilience to common tool-call “name hallucinations”
+The main processor ([`main_processor.py`](../../backend/apps/ai/processing/main_processor.py)) builds a resolver map for tool-name variants (hyphen vs underscore, case differences). Minor hallucinations in tool identifiers are automatically corrected instead of failing.
 
-The main processor builds a resolver map for tool-name variants (e.g., hyphen vs underscore) so minor hallucinations in tool identifiers don’t derail execution:
+### 5. Tool Availability Guarantees
 
-- Tool resolver map: `backend/apps/ai/processing/main_processor.py`
+[`ask_skill_task.py`](../../backend/apps/ai/tasks/ask_skill_task.py) treats missing tool metadata as a critical reliability issue. It includes a cache-miss fallback to ensure tool definitions are actually available to the model, reducing the chance the model "pretends" to have searched or read content.
 
-### 5) Prevent “no tools available” → tool-result hallucinations
+## Edge Cases
 
-The system treats missing tool metadata as a critical reliability issue and includes a cache fallback to ensure tools are actually available to the model. This reduces the chance the model “pretends” to have searched/read:
+- Plain-text URLs (not in markdown link syntax) are not validated -- only `[text](url)` patterns are checked.
+- Brave search replacement preserves the link text but redirects to search results; the user must still verify the result.
+- Temporary server issues (5xx) are intentionally not treated as broken to avoid overcorrecting valid links.
 
-- Metadata loading + fallback + warnings: `backend/apps/ai/tasks/ask_skill_task.py`
+## Planned Improvements
 
-## Planned / In Progress
+- **Docs search before code generation**: Enforce a "search current docs first" step before generating code for framework/library APIs.
+- **Post-generation lint/typecheck**: Run linters in sandboxed environments (e2b) on generated code, with automatic fix loops for critical errors.
+- **Stronger research focus modes**: Multi-step research/verification behaviors (plan, search, read, synthesize).
 
-### 1) “Docs search required” for code generation
+## Related Docs
 
-For code-writing flows, enforce a “search current docs first” step (via skills / internal docs search) before generating final code, especially for framework/library APIs that change quickly.
-
-### 2) Post-generation lint/typecheck loop for code (TODO)
-
-After code generation completes:
-- **Automatic Trigger**: Automatically run linters/typecheck on produced files using **e2b (End-to-Box)** sandboxed environments.
-- **Full Context Approach**: Reconstruct the full project context in the sandbox by loading all code files from the chat history. This ensures cross-file dependencies (imports, types) are correctly resolved, preventing false positives.
-- **Targeted Reporting**: Filter results to only report and fix errors in the **newly generated or modified files** from the latest response.
-- **Autonomous Fix Loop**: If critical errors are found, trigger an automatic follow-up inference pass to fix the reported issues before final delivery or as a post-response correction.
-- **Expected Performance & Cost**:
-    - **Latency**: ~150ms startup (cold-start) + 1-5s execution (background processing).
-    - **Cost**: Extremely cost-effective (~$0.00003 - $0.0002 per check).
-- **Multi-language Support**: Support common linters across all major programming languages (Python, TS/JS, Svelte, Go, Rust, Java, C/C++, Ruby, PHP, etc.).
-
-### 3) Stronger research strategies via focus modes
-
-Expand and harden focus modes that guide the model into multi-step research/verification behaviors (e.g., plan → search → read → synthesize), reducing unsupported claims.
-
-## Known Gaps / Limitations
-
-- URL validation currently targets markdown links; plain-text URLs may not be validated.
-- This mitigates *broken* URLs and URL fabrication patterns, but does not fully verify factual claims without explicit retrieval/verification steps.
-- Temporary network/server issues (timeouts/5xx) are intentionally treated as non-broken to avoid overcorrecting valid links.
-- Brave search replacement preserves the link but redirects to search results; the user must still verify they found the correct resource.
+- [Message Processing](../messaging/message-processing.md) -- pipeline context
+- [Prompt Injection Protection](../privacy/prompt-injection.md) -- protecting against malicious content in tool results

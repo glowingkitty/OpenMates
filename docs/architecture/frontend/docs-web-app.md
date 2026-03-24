@@ -1,127 +1,81 @@
-# Docs Architecture
+---
+status: active
+last_verified: 2026-03-24
+key_files:
+  - frontend/apps/web_app/scripts/process-docs.js
+  - frontend/apps/web_app/scripts/vite-plugin-docs.js
+  - frontend/apps/web_app/src/routes/docs/+layout.svelte
+  - frontend/apps/web_app/src/routes/docs/[...slug]/+page.svelte
+  - frontend/apps/web_app/src/routes/docs/api/+page.svelte
+  - frontend/apps/web_app/src/lib/components/docs/DocsSidebar.svelte
+  - frontend/apps/web_app/src/lib/components/docs/DocsContent.svelte
+  - frontend/apps/web_app/src/lib/components/docs/DocsSearch.svelte
+  - frontend/apps/web_app/src/lib/generated/docs-data.json
+---
 
-The documentation system is integrated into the main web app at `openmates.org/docs`, providing a unified experience for all OpenMates documentation including user guides, developer docs, and API reference.
+# Docs Web App
 
-## Design Principles
+> Documentation system integrated into the main web app at `openmates.org/docs`, rendering repository markdown files with search, navigation, and API reference.
 
-- **Unified experience**: Documentation is part of the main web app, not a separate domain
-- **Authenticated by default**: Logged-in users have seamless access with their credentials
-- **Offline-first PWA**: Docs are cached for offline access via the web app's service worker
-- **Single source of truth**: All docs come from `/docs/**/*.md` in the repository
-- **API integration**: Interactive API docs with auto-authentication
+## Why This Exists
 
-## Content Structure
+Keeps all documentation in a single codebase (`/docs/**/*.md`) and serves it through the web app rather than a separate docs site. Users get seamless access with their existing session, and offline access via the service worker.
 
-### Markdown Documentation (`/docs/*`)
+## How It Works
 
-Documentation organized by purpose:
+### Build Pipeline (`process-docs.js`)
 
-```
-/docs
-├── architecture/       # Technical architecture docs
-│   ├── apps/          # App-specific architecture
-│   └── ...
-├── features/          # Feature specifications
-├── business_plan/     # Business documentation
-├── designguidelines/  # Design system docs
-└── .docsignore        # Files to exclude from processing
-```
-
-### API Documentation (`/docs/api`)
-
-Interactive API reference that:
-
-- Displays OpenAPI spec from FastAPI backend
-- Auto-injects logged-in user's API key
-- Provides "Try it" functionality for all endpoints
-- Shows real-time usage and rate limits
-
-## Build Pipeline
-
-### At Build Time
-
-1. **process-docs.js** scans `/docs/**/*.md`
-2. Respects `.docsignore` exclusion patterns
-3. Converts markdown to HTML with:
-   - Syntax highlighting (highlight.js)
-   - Heading IDs for anchor links
-   - Relative link resolution
-   - Image path fixing
-4. Generates `docs-data.json` with:
+1. Scans `/docs/**/*.md` (respects `.docsignore` exclusion patterns)
+2. Converts markdown to HTML using `markdown-it` with `highlight.js` syntax highlighting
+3. Generates heading IDs for anchor links, resolves relative links, fixes image paths
+4. Outputs `src/lib/generated/docs-data.json` containing:
    - Navigation tree structure
-   - HTML content for each page
+   - HTML content per page
    - Original markdown (for copy functionality)
    - Metadata (titles, slugs, paths)
-5. Generates search index for FlexSearch
+5. Generates FlexSearch index for full-text search
 
-### In Dev Mode
+### Dev Mode (`vite-plugin-docs.js`)
 
-- Vite plugin watches `/docs` directory
-- Hot-reloads on markdown file changes
-- Same processing pipeline as build
+Vite plugin watches `/docs` directory and hot-reloads on markdown changes using the same processing pipeline.
 
-## Frontend Components
+### Frontend Components
 
-### DocsSidebar.svelte
+Located in `frontend/apps/web_app/src/lib/components/docs/`:
 
-Tree navigation component:
+| Component | Purpose |
+|-----------|---------|
+| `DocsSidebar.svelte` | Collapsible tree navigation, active page highlighting, mobile drawer |
+| `DocsContent.svelte` | HTML renderer with table of contents, copy-to-clipboard, PDF download, "Edit on GitHub" link |
+| `DocsSearch.svelte` | FlexSearch full-text search with context snippets, Cmd/Ctrl+K shortcut |
 
-- Collapsible folder structure
-- Active page highlighting
-- Mobile-responsive (drawer on mobile)
-- Keyboard navigation support
+### Layout
 
-### DocsContent.svelte
+The docs layout (`+layout.svelte`) mirrors the main chat page pattern:
+- Fixed-position sidebar (325px) with slide transition
+- Main content area offset by sidebar width
+- Responsive: sidebar slides off-screen on mobile
 
-Content renderer:
+Individual doc pages (`[...slug]/+page.svelte`) render content as a single assistant message using `DocsMessage` + TipTap, matching the chat UI style.
 
-- Displays processed HTML
-- Table of contents generation
-- Copy to clipboard button
-- PDF download button
-- Edit on GitHub link
-
-### DocsSearch.svelte
-
-Full-text search:
-
-- FlexSearch for fast offline search
-- Results with context snippets
-- Keyboard shortcuts (Cmd/Ctrl+K)
-
-## Offline Strategy
-
-Integrated with web app's existing PWA:
-
-1. **First visit**: Service worker caches docs-data.json and all doc pages
-2. **Subsequent visits**: Served from cache, network-first for updates
-3. **Search**: Index stored in IndexedDB for offline search
-
-## URL Structure
+### URL Structure
 
 ```
-/docs                           → Documentation index
-/docs/architecture              → Architecture section index
-/docs/architecture/chats        → Specific doc page
-/docs/api                       → Interactive API reference
-/docs/api/endpoints/chats       → Specific API endpoint docs
+/docs                      -- Documentation index
+/docs/architecture/chats   -- Specific doc page
+/docs/api                  -- Interactive API reference (OpenAPI from FastAPI)
 ```
 
-## Authentication Integration
+### Authentication Integration
 
-When users are logged in:
+- Logged-in users: API docs auto-inject user's API key for "Try it" functionality
+- Public access: All docs are readable without login; API testing prompts login
 
-1. **API docs**: Automatically use user's API key for "Try it"
-2. **Developer docs**: Show personalized examples with their credentials
-3. **Usage display**: Show their current API usage and limits
+### Offline Support
 
-When users are not logged in:
+Integrated with the web app's PWA service worker. `docs-data.json` and search index are cached for offline access.
 
-1. **Read-only access**: All docs are publicly readable
-2. **API testing**: Prompts to log in for "Try it" functionality
-3. **Sign-up links**: Contextual CTAs to create account
+## Related Docs
 
-## Related Documentation
-
-- [Search Architecture](../user-guide/search.md) - Unified search including docs
-- [PWA Architecture](./web-app.md) - Service worker and offline support
+- [Web App Architecture](./web-app.md) -- overall app structure
+- [REST API](../apps/rest-api.md) -- API endpoint documentation

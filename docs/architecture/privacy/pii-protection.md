@@ -1,193 +1,85 @@
-# PII Anonymization Architecture
+---
+status: active
+last_verified: 2026-03-24
+key_files:
+  - frontend/packages/ui/src/components/enter_message/services/piiDetectionService.ts
+  - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+  - frontend/packages/ui/src/components/enter_message/PIIWarningBanner.svelte
+  - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+  - frontend/packages/ui/src/components/ChatHistory.svelte
+  - frontend/packages/ui/src/services/db/chatKeyManagement.ts
+  - frontend/packages/ui/src/types/chat.ts
+  - backend/core/directus/schemas/messages.yml
+---
 
-> **Status**: Implemented  
-> **Last Updated**: 2026-02-07
+# PII Anonymization
 
-## Overview
+> Client-side detection and replacement of personally identifiable information before messages reach the server, with encrypted mappings for client-side restoration.
 
-OpenMates implements client-side PII (Personally Identifiable Information) detection and anonymization to protect user privacy. Sensitive data like email addresses, API keys, and credit card numbers are automatically detected while the user types, replaced with placeholders before sending to the server, and restored (with visual highlighting) when rendering messages.
+## Why This Exists
 
-**Key principle**: The server NEVER sees the original PII values. Only encrypted mappings are stored, and restoration happens entirely client-side.
+Users may inadvertently paste API keys, email addresses, or credit card numbers into chat messages. The server and LLM providers should never see these values. All detection and replacement happens client-side; the server only receives encrypted placeholders and encrypted mappings it cannot read.
 
-## Architecture Flow
+## How It Works
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                           USER TYPES MESSAGE                             │
-│              "My email is user@example.com and API key sk-proj-..."      │
-└─────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                    REAL-TIME DETECTION (300ms debounce)                  │
-│  piiDetectionService.detectPII() scans text using regex patterns         │
-│  TipTap decorations highlight detected PII in the editor                 │
-│  PIIWarningBanner shows summary above input ("1 email, 1 API key")       │
-└─────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                         USER CLICKS "SEND"                               │
-│  1. detectPII() runs final scan                                          │
-│  2. createPIIMappingsForStorage() creates mapping array                  │
-│  3. replacePIIWithPlaceholders() transforms content                      │
-│  4. Message created with pii_mappings field                              │
-└─────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                      MESSAGE STORED & SYNCED                             │
-│  content: "My email is [EMAIL_com] and API key [OPENAI_KEY_f9d]"            │
-│  pii_mappings: [                                                         │
-│    { placeholder: "[EMAIL_com]", original: "user@example.com", type: "EMAIL" }  │
-│    { placeholder: "[OPENAI_KEY_f9d]", original: "sk-proj-...f9d", type: "OPENAI_KEY" } │
-│  ]                                                                       │
-│  Both fields encrypted with chat key before storage                      │
-└─────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                    SERVER PROCESSES MESSAGE                              │
-│  Server only sees encrypted blobs - cannot read PII                      │
-│  AI receives: "My email is [EMAIL_com] and API key [OPENAI_KEY_f9d]"        │
-│  AI responds: "I'll contact you at [EMAIL_com]. Never share [OPENAI_KEY_f9d]!" │
-└─────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                      MESSAGE RENDERING                                   │
-│  ChatHistory.buildCumulativePIIMappings() aggregates all user mappings  │
-│  restorePIIInText() replaces placeholders with highlighted originals    │
-│  User sees: "I'll contact you at <highlighted>user@example.com</highlighted>" │
-└─────────────────────────────────────────────────────────────────────────┘
-```
+### Detection Flow
 
-## Supported PII Types
+1. **Real-time scanning** (300ms debounce): [`piiDetectionService.ts`](../../frontend/packages/ui/src/components/enter_message/services/piiDetectionService.ts) scans text using regex patterns as the user types
+2. **Visual feedback**: TipTap decorations highlight detected PII in the editor. [`PIIWarningBanner.svelte`](../../frontend/packages/ui/src/components/enter_message/PIIWarningBanner.svelte) shows a summary (e.g., "1 email, 1 API key")
+3. **On send**: [`sendHandlers.ts`](../../frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts) runs a final scan, creates mappings, and replaces PII with placeholders before the message is created
+4. **Storage**: Both the replaced content and `pii_mappings` array are encrypted with the chat key before storage
 
-| Type           | Pattern                         | Example                     | Placeholder       |
-| -------------- | ------------------------------- | --------------------------- | ----------------- |
-| EMAIL          | Standard email regex            | user@example.com            | [EMAIL_com]         |
-| PHONE          | US/International formats        | +1-555-123-4567             | [PHONE_567]         |
-| AWS_ACCESS_KEY | AKIA followed by 16 chars       | AKIAIOSFODNN7EXAMPLE        | [AWS_KEY_1]       |
-| AWS_SECRET_KEY | 40-char with context keywords   | secret_key="abc..."         | [AWS_SECRET_1]    |
-| OPENAI_KEY     | sk-proj-_ or sk-_ patterns      | sk-proj-abc123...           | [OPENAI_KEY_f9d]    |
-| ANTHROPIC_KEY  | sk-ant-api03-\* pattern         | sk-ant-api03-...            | [ANTHROPIC_KEY_1] |
-| GITHUB_PAT     | ghp*\*, github_pat*\_, gho\_\_  | ghp_abc123...               | [GITHUB_TOKEN_1]  |
-| STRIPE_KEY     | sk*live*_, sk*test*_            | sk_live_abc...              | [STRIPE_KEY_1]    |
-| GOOGLE_API_KEY | AIza followed by 35 chars       | AIzaSyB...                  | [GOOGLE_KEY_1]    |
-| SLACK_TOKEN    | xox[bpras]-\* patterns          | xoxb-123...                 | [SLACK_TOKEN_1]   |
-| CREDIT_CARD    | Major card formats + Luhn check | 4111-1111-1111-1111         | [CARD_111]          |
-| SSN            | US Social Security Number       | 123-45-6789                 | [SSN_789]           |
-| IPV4           | Public IP addresses             | 203.0.113.50                | [IP_1]            |
-| IPV6           | Full IPv6 format                | 2001:0db8:...               | [IPV6_1]          |
-| PRIVATE_KEY    | PEM-encoded private keys        | -----BEGIN PRIVATE KEY----- | [PRIVATE_KEY_1]   |
-| JWT            | JSON Web Tokens                 | eyJhbG...                   | [JWT_TOKEN_1]     |
+### Supported PII Types
 
-## Key Components
+| Type | Example | Placeholder |
+|------|---------|-------------|
+| EMAIL | user@example.com | `[EMAIL_com]` |
+| PHONE | +1-555-123-4567 | `[PHONE_567]` |
+| AWS_ACCESS_KEY | AKIAIOSFODNN7EXAMPLE | `[AWS_KEY_1]` |
+| AWS_SECRET_KEY | (40-char with context) | `[AWS_SECRET_1]` |
+| OPENAI_KEY | sk-proj-abc123... | `[OPENAI_KEY_f9d]` |
+| ANTHROPIC_KEY | sk-ant-api03-... | `[ANTHROPIC_KEY_1]` |
+| GITHUB_PAT | ghp_abc123... | `[GITHUB_TOKEN_1]` |
+| STRIPE_KEY | sk_live_abc... | `[STRIPE_KEY_1]` |
+| GOOGLE_API_KEY | AIzaSyB... | `[GOOGLE_KEY_1]` |
+| SLACK_TOKEN | xoxb-123... | `[SLACK_TOKEN_1]` |
+| CREDIT_CARD | 4111-1111-1111-1111 | `[CARD_111]` |
+| SSN | 123-45-6789 | `[SSN_789]` |
+| IPV4 | 203.0.113.50 | `[IP_1]` |
+| IPV6 | 2001:0db8:... | `[IPV6_1]` |
+| PRIVATE_KEY | -----BEGIN PRIVATE KEY----- | `[PRIVATE_KEY_1]` |
+| JWT | eyJhbG... | `[JWT_TOKEN_1]` |
 
-### Frontend
+### Restoration During Rendering
 
-| File                                                                                                              | Purpose                                                                   |
-| ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| [piiDetectionService.ts](../../frontend/packages/ui/src/components/enter_message/services/piiDetectionService.ts) | Core detection logic, regex patterns, placeholder generation, restoration |
-| [MessageInput.svelte](../../frontend/packages/ui/src/components/enter_message/MessageInput.svelte)                | Real-time detection integration, TipTap decorations, click-to-exclude     |
-| [PIIWarningBanner.svelte](../../frontend/packages/ui/src/components/enter_message/PIIWarningBanner.svelte)        | Warning banner UI with "Undo All" button                                  |
-| [sendHandlers.ts](../../frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts)               | On-send replacement and mapping storage                                   |
-| [ChatHistory.svelte](../../frontend/packages/ui/src/components/ChatHistory.svelte)                                | Cumulative mapping aggregation and restoration during render              |
-| [chatKeyManagement.ts](../../frontend/packages/ui/src/services/db/chatKeyManagement.ts)                           | Encryption/decryption of pii_mappings field                               |
-| [ReadOnlyMessage.svelte](../../frontend/packages/ui/src/components/ReadOnlyMessage.svelte)                        | CSS styles for restored PII highlighting                                  |
+[`ChatHistory.svelte`](../../frontend/packages/ui/src/components/ChatHistory.svelte) calls `buildCumulativePIIMappings()` to aggregate all PII mappings from user messages. Both user and assistant messages are processed -- when the AI responds using a placeholder like `[EMAIL_com]`, it is restored to the original value with color-coded highlighting.
 
-### Backend/Storage
+### Visual Highlighting Categories
 
-| File                                                             | Purpose                                                          |
-| ---------------------------------------------------------------- | ---------------------------------------------------------------- |
-| [messages.yml](../../backend/core/directus/schemas/messages.yml) | Directus schema with encrypted_pii_mappings field                |
-| [chat.ts](../../frontend/packages/ui/src/types/chat.ts)          | Message type with pii_mappings and encrypted_pii_mappings fields |
+| Category | Color | PII Types |
+|----------|-------|-----------|
+| Communication | Blue | EMAIL |
+| Identity | Green | PHONE |
+| Secrets | Red | API keys, tokens, private keys |
+| Financial | Purple | CREDIT_CARD, SSN |
+| Network | Gray | IPV4, IPV6 |
 
-## Data Model
+### Data Model
 
-### Message Type Extension
-
-```typescript
-interface Message {
-  // ... existing fields ...
-
-  // PII anonymization fields
-  encrypted_pii_mappings?: string; // Encrypted JSON stored in IndexedDB/Directus
-  pii_mappings?: PIIMapping[]; // Decrypted (computed on-demand, never stored)
-}
-
-interface PIIMapping {
-  placeholder: string; // e.g., "[EMAIL_com]"
-  original: string; // e.g., "user@example.com"
-  type: string; // e.g., "EMAIL"
-}
-```
-
-## Security Considerations
-
-### What the Server Sees
-
-- **Content**: `"My API key is [OPENAI_KEY_f9d]"` (encrypted)
-- **PII Mappings**: Encrypted blob (cannot read without chat key)
-- **Never sees**: The actual API key value
-
-### Encryption
-
-- PII mappings are encrypted using the same chat key as message content
-- Stored in `encrypted_pii_mappings` field
-- Decrypted on-demand during message retrieval
-- Follows the same zero-knowledge architecture as all other message data
+Messages include `encrypted_pii_mappings` (encrypted JSON in IndexedDB/Directus) and `pii_mappings` (decrypted on-demand, never persisted in plaintext). Each mapping contains `placeholder`, `original`, and `type`.
 
 ### Click-to-Exclude
 
-Users can click on highlighted PII in the editor to exclude it from replacement:
+Users can click highlighted PII in the editor to exclude it from replacement (useful for false positives like example data in code). Exclusions are session-scoped and not persisted.
 
-- Useful for false positives (e.g., example data in code)
-- Exclusions are tracked per-session, not persisted
-- After excluding, the original text remains and is sent as-is
+## Edge Cases
 
-## Visual Highlighting
+- **Regex-based only**: No NLP/ML detection -- names, addresses, and context-dependent PII are not detected
+- **Client-side only**: Requires JavaScript; no server-side fallback
+- **Cumulative mappings**: Assistant messages use mappings aggregated from all prior user messages in the conversation, ensuring consistent restoration across follow-ups
 
-Restored PII values are displayed with color-coded highlighting:
+## Related Docs
 
-| Category      | Color  | PII Types                      |
-| ------------- | ------ | ------------------------------ |
-| Default       | Orange | Generic PII                    |
-| Communication | Blue   | EMAIL                          |
-| Identity      | Green  | PHONE                          |
-| Secrets       | Red    | API keys, tokens, private keys |
-| Financial     | Purple | CREDIT_CARD, SSN               |
-| Network       | Gray   | IPV4, IPV6                     |
-
-Hover tooltip shows the PII type (e.g., "Email Address (restored from placeholder)").
-
-## Follow-up Message Handling
-
-When the assistant responds using placeholders from a user message:
-
-1. `ChatHistory.buildCumulativePIIMappings()` aggregates all PII mappings from user messages
-2. Assistant message content is processed with the cumulative mappings
-3. Placeholders like `[EMAIL_com]` are replaced with the original value from the relevant user message
-
-This ensures consistent restoration across the entire conversation, even for follow-up messages.
-
-## Limitations
-
-1. **Regex-based detection**: May miss some edge cases or have false positives
-2. **No NLP/ML**: Does not detect names, addresses, or other context-dependent PII
-3. **Client-side only**: Requires JavaScript; no server-side fallback
-4. **Session-based exclusions**: Click-to-exclude doesn't persist across page reloads
-
-## Future Enhancements
-
-- Server-side Presidio integration for NLP-based detection
-- User preference to disable PII detection
-- Persisted exclusion rules
-- Custom PII pattern definitions
-
-## Read Next
-
-- [Security Architecture](../core/security.md) - Zero-knowledge encryption overview
-- [Message Processing](../messaging/message-processing.md) - How messages flow through the system
-- [Sync Architecture](../data/sync.md) - How encrypted data syncs between devices
+- [PII Detection Phase 2](./pii-detection-phase2.md) -- planned server-side document PII detection
+- [Sensitive Data Redaction](./sensitive-data-redaction.md) -- planned server-side redaction
+- [Email Privacy](./email-privacy.md) -- email encryption architecture

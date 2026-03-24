@@ -4,6 +4,6 @@
 
 ### Focus "Career insights"
 
-![Career insights preview](../../images/apps/jobs/previews/career_insights.png)
+![Career insights preview](../../images/user-guide/apps/jobs/previews/career_insights.png)
 
 Used every time the "Career insights" focus is activated.

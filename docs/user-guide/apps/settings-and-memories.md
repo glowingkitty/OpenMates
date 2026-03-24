@@ -24,7 +24,7 @@ For encryption architecture, see [security.md#app-settings--memories](../../arch
 
 ## Client-Side Interaction
 
-![App settings and memories](../../images/apps/request_app_settings_memories.png)
+![App settings and memories](../../images/user-guide/apps/request_app_settings_memories.png)
 
 As described in [message_processing.md](../../architecture/messaging/message-processing.md), the client submits an overview of the type of app settings and memories that are available. The assistant then requests the data from the user via WebSocket connection.
 
