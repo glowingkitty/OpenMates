@@ -109,7 +109,7 @@ test.describe('App: Math / Skill: calculate', () => {
 		test.setTimeout(300_000);
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
 
-		const { logCheckpoint } = createSignupLogger('skill-math-calculate');
+		const logCheckpoint = createSignupLogger('skill-math-calculate');
 		await archiveExistingScreenshots(logCheckpoint);
 		const takeStepScreenshot = createStepScreenshotter(logCheckpoint);
 

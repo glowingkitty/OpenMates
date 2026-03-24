@@ -94,7 +94,7 @@ test.describe('App: Videos / Skill: get_transcript', () => {
 		test.setTimeout(300_000);
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
 
-		const { logCheckpoint } = createSignupLogger('skill-videos-transcript');
+		const logCheckpoint = createSignupLogger('skill-videos-transcript');
 		await archiveExistingScreenshots(logCheckpoint);
 		const takeStepScreenshot = createStepScreenshotter(logCheckpoint);
 

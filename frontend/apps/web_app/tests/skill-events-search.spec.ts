@@ -112,7 +112,7 @@ test.describe('App: Events / Skill: search', () => {
 		test.setTimeout(300_000);
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
 
-		const { logCheckpoint } = createSignupLogger('skill-events-search');
+		const logCheckpoint = createSignupLogger('skill-events-search');
 		await archiveExistingScreenshots(logCheckpoint);
 		const takeStepScreenshot = createStepScreenshotter(logCheckpoint);
 

@@ -109,7 +109,7 @@ test.describe('App: Travel / Skill: search_connections', () => {
 		test.setTimeout(300_000);
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
 
-		const { logCheckpoint } = createSignupLogger('skill-travel-connections');
+		const logCheckpoint = createSignupLogger('skill-travel-connections');
 		await archiveExistingScreenshots(logCheckpoint);
 		const takeStepScreenshot = createStepScreenshotter(logCheckpoint);
 

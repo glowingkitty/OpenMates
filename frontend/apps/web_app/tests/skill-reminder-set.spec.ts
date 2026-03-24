@@ -75,7 +75,7 @@ test.describe('App: Reminder / Skill: set-reminder', () => {
 		test.setTimeout(300_000);
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
 
-		const { logCheckpoint } = createSignupLogger('skill-reminder-set');
+		const logCheckpoint = createSignupLogger('skill-reminder-set');
 		await archiveExistingScreenshots(logCheckpoint);
 		const takeStepScreenshot = createStepScreenshotter(logCheckpoint);
 

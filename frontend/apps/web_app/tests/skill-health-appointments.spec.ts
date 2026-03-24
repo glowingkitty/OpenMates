@@ -97,7 +97,7 @@ test.describe('App: Health / Skill: search_appointments', () => {
 		test.setTimeout(300_000);
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
 
-		const { logCheckpoint } = createSignupLogger('skill-health-appointments');
+		const logCheckpoint = createSignupLogger('skill-health-appointments');
 		await archiveExistingScreenshots(logCheckpoint);
 		const takeStepScreenshot = createStepScreenshotter(logCheckpoint);
 

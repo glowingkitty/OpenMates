@@ -95,7 +95,7 @@ test.describe('App: Code / Skill: get_docs', () => {
 		test.setTimeout(300_000);
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
 
-		const { logCheckpoint } = createSignupLogger('skill-code-docs');
+		const logCheckpoint = createSignupLogger('skill-code-docs');
 		await archiveExistingScreenshots(logCheckpoint);
 		const takeStepScreenshot = createStepScreenshotter(logCheckpoint);
 
