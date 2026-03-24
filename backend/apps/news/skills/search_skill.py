@@ -481,15 +481,18 @@ class SearchSkill(BaseSkill):
                     profile_name = profile.get("name")
                 
                 thumbnail = result.get("thumbnail", {})
+                thumbnail_src = None
                 thumbnail_original = None
                 if isinstance(thumbnail, dict):
+                    thumbnail_src = thumbnail.get("src")
                     thumbnail_original = thumbnail.get("original")
-                
+
                 result_metadata.append({
                     "url": result.get("url", ""),
                     "page_age": result.get("page_age", result.get("age", "")),
                     "profile_name": profile_name,
                     "favicon": favicon,
+                    "thumbnail_src": thumbnail_src,
                     "thumbnail_original": thumbnail_original,
                     "original_title": title,
                     "original_description": description,
@@ -607,7 +610,7 @@ class SearchSkill(BaseSkill):
                                 "page_age": metadata["page_age"],
                                 "profile": {"name": metadata["profile_name"]} if metadata["profile_name"] else None,
                                 "meta_url": {"favicon": metadata["favicon"]} if metadata["favicon"] else None,
-                                "thumbnail": {"original": metadata["thumbnail_original"]} if metadata["thumbnail_original"] else None,
+                                "thumbnail": {"src": metadata.get("thumbnail_src"), "original": metadata["thumbnail_original"]} if (metadata.get("thumbnail_src") or metadata["thumbnail_original"]) else None,
                                 "extra_snippets": sanitized_extra_snippets,
                                 "hash": self._generate_result_hash(metadata["url"])
                             }
@@ -625,8 +628,9 @@ class SearchSkill(BaseSkill):
                         profile = result.get("profile", {})
                         profile_name = profile.get("name") if isinstance(profile, dict) else None
                         thumbnail = result.get("thumbnail", {})
+                        thumbnail_src = thumbnail.get("src") if isinstance(thumbnail, dict) else None
                         thumbnail_original = thumbnail.get("original") if isinstance(thumbnail, dict) else None
-                        
+
                         preview = {
                             "type": "search_result",
                             "title": result.get("title", ""),
@@ -635,7 +639,7 @@ class SearchSkill(BaseSkill):
                             "page_age": result.get("page_age", result.get("age", "")),
                             "profile": {"name": profile_name} if profile_name else None,
                             "meta_url": {"favicon": favicon} if favicon else None,
-                            "thumbnail": {"original": thumbnail_original} if thumbnail_original else None,
+                            "thumbnail": {"src": thumbnail_src, "original": thumbnail_original} if (thumbnail_src or thumbnail_original) else None,
                             "extra_snippets": result.get("extra_snippets", []),
                             "hash": self._generate_result_hash(result.get("url", ""))
                         }
