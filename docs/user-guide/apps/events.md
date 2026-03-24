@@ -30,6 +30,10 @@ The Events app searches for upcoming events near you or in any city. It pulls re
 - Look for online events: "Search for online Python workshops"
 - Compare cities: "Find startup events in both Munich and Hamburg"
 
+## Screenshots
+
+![Event search results](../../images/user-guide/apps/events/previews/search/finished.jpg)
+
 ## Tips
 
 - When you mention a city, your mate defaults to in-person events. Say "online" or "virtual" if you want remote events.

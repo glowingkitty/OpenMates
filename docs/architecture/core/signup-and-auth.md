@@ -28,6 +28,26 @@ key_files:
 
 ## How It Works
 
+```mermaid
+graph TB
+    subgraph "Signup"
+        S1[Email + username] --> S2[Confirm email via OTP]
+        S2 --> S3{Choose auth method}
+        S3 -->|Password| S4["PBKDF2(password, salt)<br/>→ wrap master key"]
+        S3 -->|Passkey| S5["PRF + HKDF<br/>→ wrap master key"]
+        S4 --> S6[Mandatory 2FA setup]
+        S6 --> S7[Recovery key generated<br/>+ mandatory download]
+        S5 --> S7
+    end
+
+    subgraph "Login Paths → Master Key"
+        L1[Password + 2FA] --> L5["PBKDF2 → unwrap"]
+        L2[Passkey + PRF] --> L5
+        L3[Recovery Key] --> L5
+        L5 --> L6[Master key in memory<br/>→ decrypt all user data]
+    end
+```
+
 ### Signup Flow
 
 **Step 1 -- Basics:** user provides username and email; server checks email uniqueness via `hashed_email`.

@@ -22,6 +22,21 @@ key_files:
 
 ## How It Works
 
+```mermaid
+graph TB
+    A["Cannot log in"] --> B{Have recovery key?}
+    B -->|Yes| C["Login with recovery key<br/>✅ All data preserved"]
+    B -->|No| D{Have email access?}
+    D -->|No| E["❌ Account permanently<br/>inaccessible"]
+    D -->|Yes| F[Request 6-digit code]
+    F --> G["Verify code +<br/>acknowledge data loss"]
+    G --> H{Choose new method}
+    H -->|Password| I[Set password + mandatory 2FA]
+    H -->|Passkey| J[WebAuthn + PRF registration]
+    I --> K["Account reset complete<br/>⚠️ All client-encrypted data deleted"]
+    J --> K
+```
+
 ### Recovery Key Login (Non-Destructive)
 
 Users with their recovery key use "Login with recovery key" on the login page. This uses the same PBKDF2 key derivation as password login to unwrap the master key. All data is preserved.

@@ -29,6 +29,10 @@ The News app searches for recent news articles and headlines. It is optimised fo
 - Get specific updates: "News about SpaceX Starship launch"
 - Your mate automatically uses the News app when you ask about current events or recent happenings.
 
+## Screenshots
+
+![News search results](../../images/user-guide/apps/news/previews/search/finished.jpg)
+
 ## Tips
 
 - Results appear as preview cards with article titles and descriptions. Click any result to read the full article.

@@ -23,7 +23,30 @@ key_files:
 
 ## Two Encryption Tiers
 
-<!-- TODO: Mermaid diagram — side-by-side: client-managed flow vs. server-managed flow -->
+```mermaid
+graph TB
+    subgraph "Client-Managed · Zero-Knowledge"
+        U[User Device]
+        MK[Master Key<br/>never leaves device]
+        EB[Encrypted Blob]
+        SRV1[Server / Directus]
+        U -->|generates| MK
+        MK -->|AES-256-GCM| EB
+        EB -->|store| SRV1
+        SRV1 -.->|cannot decrypt| EB
+    end
+
+    subgraph "Server-Managed · Vault-Hybrid"
+        SK[Skill / Long-Running Task]
+        AES[Per-File AES Key]
+        VLT[HashiCorp Vault<br/>Transit wrap/unwrap]
+        S3[S3 Encrypted Storage]
+        SK -->|generates| AES
+        AES -->|encrypts file| S3
+        AES -->|wrap| VLT
+        VLT -->|unwrap on demand| SK
+    end
+```
 
 ### Client-Managed (Zero-Knowledge)
 

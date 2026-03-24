@@ -22,6 +22,21 @@ Users may inadvertently paste API keys, email addresses, or credit card numbers 
 
 ## How It Works
 
+```mermaid
+graph LR
+    A["User types<br/>message"] -->|300ms debounce| B["PII Detection<br/>Service<br/>regex scan"]
+    B --> C["TipTap decorations<br/>highlight PII"]
+    B --> D["Warning banner<br/>1 email, 1 API key"]
+    C --> E{User sends?}
+    E -->|Yes| F["Final scan +<br/>create mappings"]
+    F --> G["Replace PII with<br/>placeholders<br/>[EMAIL_com]"]
+    G --> H["Encrypt message +<br/>pii_mappings with<br/>chat key"]
+    H --> I["Server receives<br/>only placeholders"]
+
+    J["Assistant responds<br/>using [EMAIL_com]"] --> K["Restore original<br/>value client-side"]
+    K --> L["Render with<br/>color-coded highlight"]
+```
+
 ### Detection Flow
 
 1. **Real-time scanning** (300ms debounce): [`piiDetectionService.ts`](../../frontend/packages/ui/src/components/enter_message/services/piiDetectionService.ts) scans text using regex patterns as the user types

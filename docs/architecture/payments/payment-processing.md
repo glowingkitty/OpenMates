@@ -18,6 +18,28 @@ OpenMates uses a credit-based billing model. Users purchase credits via card pay
 
 ## How It Works
 
+```mermaid
+sequenceDiagram
+    participant U as User / Client
+    participant S as Server
+    participant ST as Stripe
+    participant D as Directus
+
+    U->>S: POST /payments/create-order<br/>(tier, currency)
+    S->>S: Check tier limit + monthly spend
+    S->>ST: Create PaymentIntent
+    ST-->>S: client_secret
+    S-->>U: client_secret
+
+    U->>ST: Stripe.js card input + 3D Secure
+    ST-->>U: Payment confirmed
+
+    ST->>S: Webhook: payment_intent.succeeded
+    S->>S: Decrypt credit balance<br/>+ add credits
+    S->>D: Update user record
+    S-->>U: WebSocket: balance update
+```
+
 ### Payment Flow
 
 1. User selects credit tier and currency (EUR, USD, JPY).

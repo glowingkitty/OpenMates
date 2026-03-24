@@ -32,6 +32,12 @@ The PDF app processes uploaded PDF documents so your mate can read their content
 - Visual analysis: "Show me the chart on page 5 and explain what it shows"
 - Navigate: "What topics are covered in this document?" (uses the auto-detected table of contents)
 
+## Screenshots
+
+![PDF read preview](../../images/user-guide/apps/pdf/previews/read/finished.jpg)
+
+![PDF search results](../../images/user-guide/apps/pdf/previews/search/finished.jpg)
+
 ## Tips
 
 - Your mate can see the table of contents and page-by-page word counts, so it can jump directly to the most relevant sections.

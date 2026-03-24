@@ -36,6 +36,10 @@ The Math app gives your mate the ability to perform precise mathematical calcula
 - Differentiate: "What is the derivative of sin(x) times e to the x?"
 - Plot a function: "Plot the function y equals x squared from -5 to 5"
 
+## Screenshots
+
+![Calculation result](../../images/user-guide/apps/math/previews/calculate/finished.jpg)
+
 ## Tips
 
 - Your mate automatically uses this skill whenever you ask a maths question, so you always get precise answers rather than estimates.

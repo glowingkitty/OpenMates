@@ -19,6 +19,22 @@ Enables the LLM to automatically invoke app skills (web search, image generation
 
 ## How It Works
 
+```mermaid
+graph LR
+    A["User message"] --> B["Pre-processing<br/>preprocessor.py"]
+    B -->|"preselects relevant<br/>skills + focus modes"| C["Tool Generator<br/>loads full schemas"]
+    C --> D["Main LLM<br/>with tool definitions"]
+    D --> E{Tool call?}
+    E -->|Yes| F["Parse: web-search<br/>→ app_id + skill_id"]
+    F --> G["Skill Executor<br/>asyncio.gather ≤5"]
+    G --> H["Skill result<br/>JSON → TOON"]
+    H --> D
+    E -->|No| I["Stream response"]
+
+    B -->|"focus mode<br/>detected"| J["Activate focus mode<br/>update chat state"]
+    J --> D
+```
+
 ### Integration with Message Processing
 
 1. User sends a message

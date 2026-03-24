@@ -34,6 +34,10 @@ The Reminder app lets you schedule reminders that can either nudge you back to a
 - Random timing: "Remind me sometime this week between 10am and 2pm to take a break"
 - Repeating reminder: "Remind me every day at 9am to check my to-do list"
 
+## Screenshots
+
+![Reminder preview](../../images/user-guide/apps/reminder/previews/reminders/finished.jpg)
+
 ## Tips
 
 - Set up email notifications in your account settings to receive reminders even when you are not using the app.

@@ -20,6 +20,22 @@ File uploads need malware scanning, content moderation, encryption, and S3 stora
 
 ## How It Works
 
+```mermaid
+graph TB
+    A["Client POST /upload/file"] --> B["Auth: validate session<br/>via /internal/validate-token"]
+    B --> C["Validate: 100 MB max,<br/>MIME whitelist"]
+    C --> D{Duplicate hash?}
+    D -->|Yes| E["Return existing record"]
+    D -->|No| F["ClamAV malware scan"]
+    F --> G["SightEngine content safety<br/>nudity / violence / gore / AI-gen"]
+    G --> H["Generate WEBP preview<br/>600×600 max"]
+    H --> I["AES-256-GCM encrypt<br/>random per-file key"]
+    I --> J["Vault Transit wrap<br/>AES key"]
+    J --> K["S3 upload<br/>encrypted original + preview"]
+    K --> L["Record in Directus<br/>upload_files"]
+    L --> M["Return AES key + metadata<br/>→ client builds embed"]
+```
+
 ### Upload Flow (Phase 1: Images)
 
 Client sends multipart POST to `/api/uploads/v1/upload/file`. Processing steps:

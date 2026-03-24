@@ -20,6 +20,23 @@ key_files:
 
 ## How It Works
 
+```mermaid
+graph TB
+    MK["Master Key<br/>generated at signup"] --> W{Wrapped by}
+    W -->|Password| PW["PBKDF2(password, salt)"]
+    W -->|Passkey PRF| PRF["HKDF(PRF_sig, salt)"]
+    W -->|Recovery key| RK["PBKDF2(recovery_key, salt)"]
+
+    MK -->|derives| CK["Per-Chat AES Key"]
+    MK -->|derives| AK["Per-App AES Key"]
+    MK -->|directly encrypts| TM["Titles, drafts, email"]
+    CK -->|HKDF| EK["Per-Embed Key"]
+
+    CK -->|encrypts| CD["Chat messages"]
+    AK -->|encrypts| AD["App settings & memories"]
+    EK -->|encrypts| ED["Embed content"]
+```
+
 ### Two Encryption Tiers
 
 **Client-Managed (true zero-knowledge):** chats, messages, app data, emails, profile settings. Key lives on the user's device. Server stores encrypted blobs only.

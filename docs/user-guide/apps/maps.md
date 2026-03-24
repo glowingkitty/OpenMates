@@ -32,6 +32,10 @@ The Maps app searches for places around the world and returns detailed informati
 - Compare options: "Find coffee shops and coworking spaces in Amsterdam"
 - Get specific details: "Search for museums in Paris"
 
+## Screenshots
+
+![Place search results](../../images/user-guide/apps/maps/previews/search/finished.jpg)
+
 ## Tips
 
 - Results appear as interactive cards with a map view. Click any result to see it in fullscreen with more details.

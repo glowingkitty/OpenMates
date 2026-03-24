@@ -34,7 +34,30 @@ key_files:
 - Message markdown has lightweight JSON reference block with `embed_id`
 - On render, [embedResolver.ts](../../frontend/packages/ui/src/services/embedResolver.ts) resolves references to actual content
 
-<!-- TODO: Mermaid diagram — embed lifecycle: placeholder → processing → finished/error, showing client/server/Directus -->
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant S as Skill Executor
+    participant R as Redis Cache
+    participant D as Directus
+
+    S->>C: WS: embed placeholder (status: processing)
+    C->>C: Store in IndexedDB (encrypted)
+
+    alt Skill succeeds
+        S->>R: Cache embed (Vault-encrypted, 24h TTL)
+        S->>D: Persist embed (client-encrypted)
+        S->>C: WS: embed update (status: finished)
+    else Skill cancelled
+        S->>C: WS: embed update (status: cancelled)
+    else Skill fails
+        S->>C: WS: embed update (status: error)
+    end
+
+    C->>C: Decrypt → render via embed component
+
+    Note over C,D: Message stores only {embed_id} reference<br/>embedResolver.ts resolves on render
+```
 
 ## Encryption
 

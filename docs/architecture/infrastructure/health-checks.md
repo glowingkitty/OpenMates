@@ -17,6 +17,30 @@ OpenMates depends on multiple LLM providers, internal microservices, and externa
 
 ## How It Works
 
+```mermaid
+graph TB
+    subgraph "Celery Beat · every 5 min"
+        A["check_all_providers"] --> D["Redis cache<br/>10-min TTL"]
+        B["check_all_apps"] --> D
+        C["check_external_services"] --> D
+    end
+
+    A -->|"minimal LLM call<br/>per server"| P["LLM Providers<br/>Anthropic, Bedrock, Groq..."]
+    B -->|"GET /health +<br/>Celery worker inspect"| Q["App Services<br/>app-web, app-code..."]
+    C -->|"API call"| R["External<br/>Stripe, Brevo, SightEngine"]
+
+    D --> E["GET /v1/health"]
+    D --> F["Status Page"]
+
+    subgraph "Status Transitions"
+        G["healthy"] -->|failure| H["unhealthy"]
+        H -->|recovery| G
+        G -.->|partial| I["degraded"]
+    end
+
+    H --> J["health_events<br/>Directus collection"]
+```
+
 Three Celery Beat tasks run every **5 minutes** on the `health_check` queue, each acquiring a distributed Redis lock (10-minute TTL) to prevent duplicate executions.
 
 ### Provider Health Checks (`health_check.check_all_providers`)

@@ -27,6 +27,10 @@ The Shopping app searches for products across online stores and shows you result
 - Browse a category: "Show me the best-selling wireless headphones on Amazon"
 - Filter results: "Find books about machine learning under 30 euros on Amazon Germany"
 
+## Screenshots
+
+![Product search results](../../images/user-guide/apps/shopping/previews/search/finished.jpg)
+
 ## Tips
 
 - REWE results include local pricing for the Berlin area by default.

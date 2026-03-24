@@ -24,6 +24,10 @@ The Health app helps you find available doctor appointments and keeps track of y
 - Telehealth: "Find an English-speaking therapist offering video consultations in Hamburg"
 - Specific appointment type: "Search for vaccination appointments in Frankfurt"
 
+## Screenshots
+
+![Doctor appointment search](../../images/user-guide/apps/health/previews/search/finished.jpg)
+
 ## Settings and Memories
 
 - **Appointments** -- Track upcoming doctor visits, operations, and check-ups with dates and notes.

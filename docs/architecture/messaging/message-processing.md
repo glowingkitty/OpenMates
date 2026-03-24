@@ -36,7 +36,22 @@ key_files:
 - Server caches assistant response via `_save_to_cache_and_publish()` in [stream_consumer.py](../../backend/apps/ai/tasks/stream_consumer.py)
 - Client encrypts response → stores in Directus (zero-knowledge permanent)
 
-<!-- TODO: Mermaid diagram — full pipeline: client → cache check → pre-processing → main → skills → stream → cache -->
+```mermaid
+graph LR
+    A[Client sends<br/>message via WS] --> B{Cache hit?<br/>last 3 chats}
+    B -->|Yes| C[Decrypt via<br/>Vault key]
+    B -->|Miss| D[Request history<br/>from client]
+    D --> C
+    C --> E[Pre-processing<br/>Mistral Small]
+    E -->|model + skills<br/>+ language| F[Main Processing<br/>Selected LLM]
+    F --> G{Tool calls?}
+    G -->|Yes| H[Skill Executor]
+    H --> I[Create/update<br/>embed]
+    I --> F
+    G -->|No| J[Stream response<br/>via WebSocket]
+    J --> K[Cache response<br/>Vault-encrypted · 72h]
+    J --> L[Client encrypts<br/>→ Directus]
+```
 
 ## Dual-Cache Architecture
 

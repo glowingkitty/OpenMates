@@ -30,7 +30,18 @@ key_files:
 - Result stored as embed — see [embeds.md](../messaging/embeds.md)
 - Result streamed to client via WebSocket as embed update
 
-<!-- TODO: Mermaid diagram — pre-processing → LLM → skill executor → embed creation → client -->
+```mermaid
+graph LR
+    A[Pre-processing<br/>preselects skills] --> B[LLM decides<br/>tool calls]
+    B --> C[Skill Executor<br/>dispatches with<br/>skill_task_id]
+    C --> D[Skill.execute<br/>returns JSON]
+    D --> E[TOON conversion<br/>30-60% smaller]
+    E --> F[Embed created<br/>processing → finished]
+    F -->|WebSocket| G[Client renders<br/>embed preview]
+
+    D -.->|SkillCancelled<br/>Exception| H[Embed status:<br/>cancelled]
+    H -.-> G
+```
 
 ## Skill Cancellation
 

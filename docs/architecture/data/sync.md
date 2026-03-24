@@ -28,7 +28,36 @@ key_files:
 - Login succeeds → cache already warm → instant WebSocket sync in 3 phases
 - All data stays encrypted during transit — decryption only in client memory
 
-<!-- TODO: Mermaid sequence diagram — /lookup → cache warming ∥ auth → WebSocket phases 1/2/3 -->
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant S as Server
+    participant R as Redis
+    participant D as Directus
+
+    C->>S: POST /lookup (hashed_email)
+    activate S
+    S-->>C: salt, wrapped_master_key
+    S--)R: Start cache warming (async)
+    deactivate S
+
+    Note over C: User types password + 2FA (~10-30s)
+
+    par Cache Warming (concurrent with auth)
+        R->>D: Query last chat + 20 recent + 100 chats
+        D-->>R: Encrypted chat data cached
+    end
+
+    C->>S: POST /login (lookup_hash + OTP)
+    S-->>C: Session cookie
+
+    C->>S: WebSocket connect
+    S->>R: Read warm cache
+    S-->>C: Phase 1 — last chat + 50 suggestions
+    S-->>C: Phase 2 — last 20 chats
+    S-->>C: Phase 3 — last 100 chats (batched)
+    S-->>C: Post-Phase 3 — app settings & memories
+```
 
 ### Data Flow (all phases)
 

@@ -26,6 +26,12 @@ The Mail app helps you compose emails and search through your connected Proton M
 - List recent emails: "Show me my latest emails"
 - Compose with style: "Write a friendly follow-up email to the client about the project update"
 
+## Screenshots
+
+![Email draft preview](../../images/user-guide/apps/mail/previews/email/finished.jpg)
+
+![Inbox search results](../../images/user-guide/apps/mail/previews/search/finished.jpg)
+
 ## Settings and Memories
 
 - **Writing Styles** -- Save different email writing styles for different situations (for example, formal business, friendly follow-up, customer service). Each style can include the tone, level of detail, and a custom signature.

@@ -32,6 +32,14 @@ The Travel app helps you plan trips by searching for transport connections and a
 - Look up a flight: "Show me the details of flight LH2472 on March 5"
 - Compare options: "Search for the cheapest flights from Hamburg to Rome next weekend"
 
+## Screenshots
+
+![Flight search results](../../images/user-guide/apps/travel/previews/search/finished.jpg)
+
+![Hotel search results](../../images/user-guide/apps/travel/previews/stays_search/finished.jpg)
+
+![Train connections](../../images/user-guide/apps/travel/previews/connections/finished.jpg)
+
 ## Settings and Memories
 
 - **Trips** -- Save your upcoming and past trips with destinations, dates, and notes.

@@ -20,6 +20,27 @@ A single model cannot optimally serve all request types. Simple factual question
 
 ## How It Works
 
+```mermaid
+graph TB
+    A["User message"] --> B{User override?<br/>@ai-model:...}
+    B -->|Yes| C["Use specified model"]
+    B -->|No| D["Pre-processing<br/>Mistral Small"]
+    D -->|complexity, task_area<br/>china_sensitive| E["Model Selector"]
+    E --> F{China-sensitive?}
+    F -->|Yes| G["Exclude CN-origin<br/>models"]
+    F -->|No| H["All auto-selectable<br/>models"]
+    G --> I["Rank by leaderboard<br/>+ task area"]
+    H --> I
+    I --> J["Primary model"]
+    I --> K["Secondary model"]
+    I --> L["Tertiary fallback"]
+    J -->|fail| K
+    K -->|fail| L
+    J -->|success| M["Stream response"]
+    K -->|success| M
+    L -->|success| M
+```
+
 ### Configuration
 
 Model selection is configured in [`backend/apps/ai/app.yml`](../../backend/apps/ai/app.yml) under `skill_config`:

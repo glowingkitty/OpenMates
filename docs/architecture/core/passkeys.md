@@ -22,6 +22,33 @@ key_files:
 
 ## How It Works
 
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant B as Browser / Authenticator
+    participant S as Server
+
+    Note over C,S: Registration
+    C->>S: POST /auth/passkey/registration/initiate
+    S-->>C: CreationOptions + PRF extension
+    C->>B: navigator.credentials.create()
+    B-->>C: credential + PRF signature
+    C->>C: HKDF(PRF_sig, user_salt) → wrapping key
+    C->>C: Wrap master key with wrapping key
+    C->>S: POST /auth/passkey/registration/complete
+
+    Note over C,S: Login
+    C->>S: POST /auth/passkey/assertion/initiate
+    S-->>C: Challenge + global salt SHA256(rp_id)[:32]
+    C->>B: navigator.credentials.get() + PRF
+    B-->>C: assertion + PRF signature
+    C->>S: POST /auth/passkey/assertion/verify
+    S-->>C: encrypted_master_key, user_email_salt
+    C->>C: HKDF(PRF_sig, salt) → unwrap master key
+    C->>C: Decrypt email → derive lookup_hash
+    C->>S: POST /auth/login (completes session)
+```
+
 ### PRF-Based Key Wrapping
 
 1. Client uses global salt `prf_eval_first = SHA256(rp_id)[:32]` for the PRF extension
