@@ -152,7 +152,12 @@ changes to the documentation (to keep the documentation up to date).
             // Main app details route
             const appRoute = `app_store/${appId}`;
             views[appRoute] = AppDetailsWrapper;
-            
+
+            // Reminder app: add create route for the reminder creation settings page
+            if (appId === 'reminder') {
+                views[`app_store/reminder/create`] = AppDetailsWrapper;
+            }
+
             // Add skill detail routes and their provider sub-routes
             if (app.skills && app.skills.length > 0) {
                 for (const skill of app.skills) {
