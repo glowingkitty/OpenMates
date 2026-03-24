@@ -241,6 +241,11 @@ models:
         name: "Mistral"
         model_id: "devstral-2512" # Direct Mistral API model ID
         region: "EU" # Server region for UI display (Mistral is EU-based)
+      - id: "aws_bedrock"
+        name: "AWS Bedrock"
+        model_id: "mistral.devstral-2-123b" # Bedrock model ID (no EU inference profile available)
+        aws_region: "eu-central-1"
+        region: "EU"
       - id: "openrouter"
         name: "OpenRouter"
         # OpenRouter model identifier

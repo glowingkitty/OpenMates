@@ -71,6 +71,11 @@ models:
       - id: "openrouter"
         name: "OpenRouter API"
         region: "US" # Server region for UI display
+      - id: "aws_bedrock"
+        name: "AWS Bedrock"
+        model_id: "openai.gpt-oss-120b-1:0" # Bedrock model ID
+        aws_region: "eu-central-1"
+        region: "EU"
     # Provider overrides to force Cerebras as the provider
     provider_overrides:
       order: ["cerebras"] # try Cerebras first (and only)
