@@ -36,7 +36,7 @@ key_files:
 
 - Each invocation gets unique `skill_task_id` (UUID) from [skill_executor.py](../../backend/apps/ai/processing/skill_executor.py)
 - Frontend shows stop button on embed preview using this ID
-- Cancel flow: user clicks stop → `cancel_skill` WebSocket → Redis flag `skill_cancel:{skill_task_id}` → `SkillCancelledException`
+- Cancel flow: user clicks stop → `cancel_skill` WebSocket → Redis flag `cancelled_skill:{skill_task_id}` → `SkillCancelledException`
 - Handler: [cancel_skill_handler.py](../../backend/core/api/app/routes/handlers/websocket_handlers/cancel_skill_handler.py)
 - Frontend sender: `sendCancelSkillImpl()` in [chatSyncServiceSenders.ts](../../frontend/packages/ui/src/services/chatSyncServiceSenders.ts)
 - Main processor catches exception → embed status `cancelled` → AI continues with remaining skills

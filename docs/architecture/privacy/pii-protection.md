@@ -35,20 +35,20 @@ Users may inadvertently paste API keys, email addresses, or credit card numbers 
 |------|---------|-------------|
 | EMAIL | user@example.com | `[EMAIL_com]` |
 | PHONE | +1-555-123-4567 | `[PHONE_567]` |
-| AWS_ACCESS_KEY | AKIAIOSFODNN7EXAMPLE | `[AWS_KEY_1]` |
-| AWS_SECRET_KEY | (40-char with context) | `[AWS_SECRET_1]` |
+| AWS_ACCESS_KEY | AKIAIOSFODNN7EXAMPLE | `[AWS_KEY_PLE]` |
+| AWS_SECRET_KEY | (40-char with context) | `[AWS_SECRET_f9d]` |
 | OPENAI_KEY | sk-proj-abc123... | `[OPENAI_KEY_f9d]` |
-| ANTHROPIC_KEY | sk-ant-api03-... | `[ANTHROPIC_KEY_1]` |
-| GITHUB_PAT | ghp_abc123... | `[GITHUB_TOKEN_1]` |
-| STRIPE_KEY | sk_live_abc... | `[STRIPE_KEY_1]` |
-| GOOGLE_API_KEY | AIzaSyB... | `[GOOGLE_KEY_1]` |
-| SLACK_TOKEN | xoxb-123... | `[SLACK_TOKEN_1]` |
+| ANTHROPIC_KEY | sk-ant-api03-... | `[ANTHROPIC_KEY_xyz]` |
+| GITHUB_PAT | ghp_abc123... | `[GITHUB_TOKEN_123]` |
+| STRIPE_KEY | sk_live_abc... | `[STRIPE_KEY_abc]` |
+| GOOGLE_API_KEY | AIzaSyB... | `[GOOGLE_KEY_yB_]` |
+| SLACK_TOKEN | xoxb-123... | `[SLACK_TOKEN_23_]` |
 | CREDIT_CARD | 4111-1111-1111-1111 | `[CARD_111]` |
 | SSN | 123-45-6789 | `[SSN_789]` |
-| IPV4 | 203.0.113.50 | `[IP_1]` |
-| IPV6 | 2001:0db8:... | `[IPV6_1]` |
-| PRIVATE_KEY | -----BEGIN PRIVATE KEY----- | `[PRIVATE_KEY_1]` |
-| JWT | eyJhbG... | `[JWT_TOKEN_1]` |
+| IPV4 | 203.0.113.50 | `[IP_.50]` |
+| IPV6 | 2001:0db8:... | `[IPV6_b8:]` |
+| PRIVATE_KEY | -----BEGIN PRIVATE KEY----- | `[PRIVATE_KEY_---]` |
+| JWT | eyJhbG... | `[JWT_TOKEN_hbG]` |
 
 ### Restoration During Rendering
 

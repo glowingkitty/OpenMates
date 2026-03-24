@@ -25,7 +25,7 @@ After each assistant response, the system generates actionable suggestions that 
 The post-processor ([`postprocessor.py`](../../backend/apps/ai/processing/postprocessor.py)) runs after each assistant response completes. It calls a lightweight LLM with the conversation context and generates:
 
 1. **Follow-up suggestions** (6 per response): Shown under the last assistant message. Each suggestion carries a `[app_id-skill_id]` or `[app_id-focus_id]` prefix indicating which skill/focus to invoke.
-2. **New chat suggestions** (6 per response): Added to a rolling pool of 50. Three random suggestions display on the welcome screen.
+2. **New chat suggestions** (6 per response): Added to a rolling pool of 30. Up to 10 randomly shuffled suggestions display on the welcome screen.
 
 The `handle_postprocessing()` function receives the user message, assistant response, chat summary, chat tags, and lists of available skills and focus modes. It uses the `postprocess_response_tool` definition from [`base_instructions.yml`](../../backend/apps/ai/base_instructions.yml).
 
@@ -46,7 +46,7 @@ Post-processing is skipped entirely for incognito chats -- no suggestions are ge
 
 **Follow-up suggestions**: Stored encrypted in the chat message record under `encrypted_follow_up_request_suggestions`. Encrypted with the chat-specific key client-side. Replaced when the next assistant response completes.
 
-**New chat suggestions**: Stored in a separate collection, encrypted with the master encryption key (not chat-specific). Includes `chat_id` for provenance tracking. Not deleted when the source chat is deleted. The 50 most recent are kept.
+**New chat suggestions**: Stored in a separate collection, encrypted with the master encryption key (not chat-specific). Includes `chat_id` for provenance tracking. Not deleted when the source chat is deleted. The 30 most recent are kept.
 
 Both are stored in IndexedDB (client-side) and Directus (server-side), synced via the standard phased sync mechanism.
 

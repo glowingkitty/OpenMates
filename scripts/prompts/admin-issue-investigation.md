@@ -1,6 +1,6 @@
 # Admin-Reported Issue Investigation Prompt
 
-# Placeholders replaced by backend/admin_sidecar/main.py before passing to opencode:
+# Placeholders replaced by backend/admin_sidecar/main.py before passing to claude:
 
 # {{ISSUE_ID}} — UUID of the issue record in Directus
 
@@ -88,4 +88,4 @@ where confident, implement) a concrete fix.
    exactly what a developer needs to do to complete it.
 
 Work efficiently. The admin who filed this report is available to answer clarifying questions
-via the opencode session chat.
+via the claude session chat.
