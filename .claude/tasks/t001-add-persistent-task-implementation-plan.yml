@@ -26,8 +26,8 @@ acceptance_criteria:
 files_to_modify:
   - "scripts/sessions.py"
   - "CLAUDE.md"
-  - "docs/claude/planning-compact.md"
-  - "docs/claude/planning.md"
+  - "docs/contributing/guides/planning.md"
+  - "docs/contributing/guides/planning.md"
 files_modified: []
 notes: ''
 summary: |

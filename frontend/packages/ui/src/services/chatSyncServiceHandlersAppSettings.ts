@@ -1870,15 +1870,19 @@ export async function handleNewSystemMessageImpl(
       `[ChatSyncService:AppSettings] Updated chat ${chat_id} last_edited_overall_timestamp and messages_v for cross-device system message`,
     );
 
-    // Dispatch chatUpdated event to trigger UI refresh
-    // ActiveChat listens for 'chatUpdated' with newMessage to update the chat history
-    // Include chat object so Chats.svelte uses the in-place patch path (faster than full DB reload)
+    // Dispatch chatUpdated event to trigger UI refresh.
+    // Include newMessage so ActiveChat takes the direct-update path (appends to
+    // currentMessages immediately) instead of the slower safety-net IndexedDB reload.
+    // This is critical for cross-device permission sync: the response system message
+    // must appear in the messages array so ChatHistory's unpairedRequest derived state
+    // recalculates and auto-dismisses the permission dialog on the receiving device.
     serviceInstance.dispatchEvent(
       new CustomEvent("chatUpdated", {
         detail: {
           chat_id: chat_id,
           type: "system_message_synced",
           messagesUpdated: true,
+          newMessage: systemMessage,
           chat: updatedChat,
         },
       }),

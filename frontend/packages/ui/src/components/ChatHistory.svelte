@@ -620,6 +620,21 @@
     appSettingsMemoriesPermissionStore.showDialog(recoveredRequest);
   });
 
+  // Effect: Auto-dismiss dialog when response arrives from another device.
+  // The show-dialog effect above only fires when unpairedRequest is non-null.
+  // This complementary effect hides the dialog when the response system message
+  // arrives (via cross-device broadcast or sync) and unpairedRequest becomes null.
+  $effect(() => {
+    if (unpairedRequest === null && $isPermissionDialogVisible &&
+        $currentPermissionRequest?.chatId === currentChatId) {
+      console.info(
+        `[ChatHistory] Permission response detected (cross-device sync) ` +
+        `for chat ${currentChatId} — dismissing dialog`
+      );
+      appSettingsMemoriesPermissionStore.hideDialog();
+    }
+  });
+
   // Determine if we should show settings/memories suggestions
   // Only show after the last assistant message when:
   // 1. We have suggestions to show
