@@ -158,7 +158,7 @@ export class GroupRenderer implements EmbedRenderer {
    *   4. Add an HTML fallback method `render{TypeName}Item()` for group HTML rendering
    *   5. Add a case in renderItemContent() switch for the HTML fallback path
    *
-   * See docs/claude/embed-types.md for the full registration checklist.
+   * See docs/contributing/guides/add-embed-type.md for the full registration checklist.
    */
   private readonly individualMounters: Map<string, IndividualMounter>;
 
@@ -254,7 +254,7 @@ export class GroupRenderer implements EmbedRenderer {
     // Startup check: warn if EMBED_RENDERER_MAP contains GroupRenderer types
     // that are not registered in this.individualMounters (catches future omissions).
     // Import is deferred to avoid circular deps at module load time.
-    // See docs/claude/embed-types.md for the full registration checklist.
+    // See docs/contributing/guides/add-embed-type.md for the full registration checklist.
     if (typeof window !== "undefined") {
       import("../../../../data/embedRegistry.generated")
         .then(({ EMBED_RENDERER_MAP }) => {
@@ -269,7 +269,7 @@ export class GroupRenderer implements EmbedRenderer {
             if (!this.individualMounters.has(type)) {
               console.warn(
                 `[GroupRenderer] MISSING individual mounter for type "${type}". ` +
-                  `Add it to GroupRenderer.individualMounters. See docs/claude/embed-types.md.`,
+                  `Add it to GroupRenderer.individualMounters. See docs/contributing/guides/add-embed-type.md.`,
               );
             }
           }

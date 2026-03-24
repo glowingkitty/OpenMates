@@ -6,7 +6,7 @@ export {};
  * Purpose: verify ZIP upload, chat selection list, import completion, and cleanup.
  * Architecture context: docs/architecture/ and chat import services in frontend/packages/ui/src/services/.
  * Validation target: frontend/packages/ui/src/components/settings/account/SettingsImportAccount.svelte.
- * Test refs: docs/claude/testing.md and docs/claude/testing-ref.md.
+ * Test refs: docs/contributing/guides/testing.md.
  */
 
 const path = require('path');

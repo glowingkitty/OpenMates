@@ -8,7 +8,7 @@
 #
 # Security: All functions return None / no-op when SERVER_ENVIRONMENT == "production".
 #
-# Architecture context: See docs/claude/testing-ref.md ("E2E Mock/Replay System")
+# Architecture context: See docs/contributing/guides/testing.md ("E2E Mock/Replay System")
 
 import asyncio
 import json

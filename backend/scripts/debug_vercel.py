@@ -6,7 +6,7 @@ Fetches build logs for the latest (or a specified) Vercel deployment of the
 web app via the Vercel REST API. Works for ERROR deployments where the CLI
 `vercel logs` command returns nothing.
 
-Architecture context: See docs/claude/debugging.md
+Architecture context: See docs/contributing/guides/debugging.md
 Tests: None (inspection script, not production code)
 
 USAGE (via debug.py):

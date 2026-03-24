@@ -12,7 +12,7 @@ and satellite server logs.  Supports multiple modes:
   4. Satellite server update:  Trigger git-pull + rebuild on upload/preview.
   5. Satellite server status:  Poll last update status on upload/preview.
 
-Architecture context: See docs/claude/inspection-scripts.md
+Architecture context: See docs/contributing/guides/debugging.md
 
 Usage — User Timeline Mode (requires email):
     docker exec api python /app/backend/scripts/debug_logs.py <email>

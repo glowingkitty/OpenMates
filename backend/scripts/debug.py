@@ -5,7 +5,7 @@ Unified debug entry point for OpenMates backend.
 All debugging goes through this single script. Each subcommand delegates to a
 dedicated debug_*.py module, passing the remaining CLI arguments through.
 
-Architecture context: See docs/claude/debugging.md
+Architecture context: See docs/contributing/guides/debugging.md
 Tests: None (inspection script, not production code)
 
 USAGE

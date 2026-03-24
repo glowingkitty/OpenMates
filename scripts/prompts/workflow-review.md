@@ -23,7 +23,7 @@ Analyze the session digests above and identify **up to 10 concrete improvements*
 - `scripts/sessions.py` — the session lifecycle manager
 - `backend/scripts/debug.py` and its sub-modules (`debug_chat.py`, `debug_logs.py`, etc.)
 - `CLAUDE.md` — the top-level AI assistant instruction file
-- `docs/claude/*.md` — instruction docs loaded by sessions.py
+- `docs/contributing/` — instruction docs loaded by sessions.py
 
 Focus on:
 
@@ -36,7 +36,7 @@ Focus on:
 
 For each suggestion:
 
-- **File:** `sessions.py` | `debug.py` | `CLAUDE.md` | `docs/claude/<name>.md`
+- **File:** `sessions.py` | `debug.py` | `CLAUDE.md` | `docs/contributing/<name>.md`
 - **Observed friction:** What happened in the session (quote or paraphrase briefly)
 - **Suggestion:** Specific, actionable change (a new flag, a rule rewrite, a new subcommand, etc.)
 - **Priority:** High / Medium / Low

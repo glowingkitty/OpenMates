@@ -5,7 +5,7 @@ checks, error fingerprint display, and request replay.
 
 Called by debug.py; not meant to be run directly.
 
-Architecture context: See docs/claude/debugging.md
+Architecture context: See docs/contributing/guides/debugging.md
 Tests: None (inspection script, not production code)
 """
 

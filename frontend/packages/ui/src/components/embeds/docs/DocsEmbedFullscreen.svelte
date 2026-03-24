@@ -4,7 +4,7 @@
   Fullscreen view for Document embeds (document_html).
   Uses UnifiedEmbedFullscreen as base and provides document-specific content.
 
-  Architecture: See docs/claude/embed-types.md for the unified embed pattern.
+  Architecture: See docs/contributing/guides/add-embed-type.md for the unified embed pattern.
 
   Designed to look like reading a document in Microsoft Word / Google Docs:
   - Dark grey background canvas (the area around and between pages)

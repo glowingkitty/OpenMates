@@ -5,7 +5,7 @@
 // proxy to protect user privacy (hides IP), optimize bandwidth (resizing), and
 // improve performance (7-day server-side cache).
 //
-// Architecture: See docs/architecture/servers.md, docs/claude/image-proxy.md
+// Architecture: See docs/architecture/servers.md, docs/contributing/guides/image-proxy.md
 // Tests: None yet — frontend utility, verified via component usage.
 
 import { getPreviewUrl } from "../config/api";

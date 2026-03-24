@@ -12,7 +12,7 @@
  * When adding a new embed type:
  * 1. Add a preview case in renderEmbedPreview()
  * 2. Add a fullscreen case in renderEmbedFullscreen()
- * 3. Update docs/claude/embed-types.md checklist
+ * 3. Update docs/contributing/guides/add-embed-type.md checklist
  *
  * Architecture doc: docs/architecture/openmates-cli.md
  * Tests: frontend/packages/openmates-cli/tests/

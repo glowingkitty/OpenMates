@@ -783,7 +783,7 @@ function main() {
       );
     }
     console.error(
-      `\nSee docs/claude/embed-types.md for the registration checklist.\n`,
+      `\nSee docs/contributing/guides/add-embed-type.md for the registration checklist.\n`,
     );
     process.exit(1);
   }

@@ -12,7 +12,7 @@
 #
 # Security: Only works when SERVER_ENVIRONMENT != "production".
 #
-# Architecture context: See docs/claude/testing-ref.md ("E2E Mock/Replay System")
+# Architecture context: See docs/contributing/guides/testing.md ("E2E Mock/Replay System")
 
 import json
 import logging
