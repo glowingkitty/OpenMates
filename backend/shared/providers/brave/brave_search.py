@@ -355,12 +355,15 @@ async def search_web(
                 if isinstance(meta_url, dict):
                     favicon = meta_url.get("favicon")
                 
-                # Extract thumbnail
+                # Extract thumbnail — prefer 'src' (Brave-proxied, required per API schema)
+                # over 'original' (raw source URL, optional). Many news results only have 'src'.
                 thumbnail = result.get("thumbnail", {})
+                thumbnail_src = None
                 thumbnail_original = None
                 if isinstance(thumbnail, dict):
+                    thumbnail_src = thumbnail.get("src")
                     thumbnail_original = thumbnail.get("original")
-                
+
                 # Extract extra_snippets (array of additional snippets)
                 extra_snippets = result.get("extra_snippets", [])
                 if not isinstance(extra_snippets, list):
@@ -393,12 +396,13 @@ async def search_web(
                         "name": profile_name
                     } if profile_name else None,
                     "thumbnail": {
+                        "src": thumbnail_src,
                         "original": thumbnail_original
-                    } if thumbnail_original else None,
+                    } if (thumbnail_src or thumbnail_original) else None,
                     "extra_snippets": extra_snippets
                 }
                 formatted_results.append(formatted_result)
-            
+
             logger.info(f"Brave web search completed: found {len(formatted_results)} results for query '{query}'")
             
             return {
@@ -538,15 +542,17 @@ async def search_videos(
                 # Extract meta_url
                 meta_url = result.get("meta_url", {})
                 
-                # Extract thumbnail
+                # Extract thumbnail — prefer 'src' (Brave-proxied) over 'original' (raw, optional)
                 thumbnail = result.get("thumbnail", {})
+                thumbnail_src = None
                 thumbnail_original = None
                 if isinstance(thumbnail, dict):
+                    thumbnail_src = thumbnail.get("src")
                     thumbnail_original = thumbnail.get("original")
-                
+
                 # Extract video metadata
                 video_data = result.get("video", {})
-                
+
                 formatted_result = {
                     "title": result.get("title", ""),
                     "url": result.get("url", ""),
@@ -556,8 +562,9 @@ async def search_videos(
                     "language": result.get("language", ""),
                     "family_friendly": result.get("family_friendly", True),
                     "thumbnail": {
+                        "src": thumbnail_src,
                         "original": thumbnail_original
-                    } if thumbnail_original else None,
+                    } if (thumbnail_src or thumbnail_original) else None,
                     "video": video_data if video_data else None,
                     "extra_snippets": []  # Videos API doesn't support extra_snippets
                 }
@@ -710,17 +717,20 @@ async def search_news(
                 # Extract meta_url
                 meta_url = result.get("meta_url", {})
                 
-                # Extract thumbnail
+                # Extract thumbnail — prefer 'src' (Brave-proxied, required per API schema)
+                # over 'original' (raw source URL, optional). Many news results only have 'src'.
                 thumbnail = result.get("thumbnail", {})
+                thumbnail_src = None
                 thumbnail_original = None
                 if isinstance(thumbnail, dict):
+                    thumbnail_src = thumbnail.get("src")
                     thumbnail_original = thumbnail.get("original")
-                
+
                 # Extract extra_snippets (array of additional snippets)
                 extra_snippets_list = result.get("extra_snippets", [])
                 if not isinstance(extra_snippets_list, list):
                     extra_snippets_list = []
-                
+
                 formatted_result = {
                     "title": result.get("title", ""),
                     "url": result.get("url", ""),
@@ -730,8 +740,9 @@ async def search_news(
                     "language": result.get("language", ""),
                     "family_friendly": result.get("family_friendly", True),
                     "thumbnail": {
+                        "src": thumbnail_src,
                         "original": thumbnail_original
-                    } if thumbnail_original else None,
+                    } if (thumbnail_src or thumbnail_original) else None,
                     "extra_snippets": extra_snippets_list,
                     "breaking": result.get("breaking", False)  # News-specific field
                 }

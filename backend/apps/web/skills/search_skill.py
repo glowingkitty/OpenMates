@@ -536,25 +536,29 @@ class SearchSkill(BaseSkill):
                     profile_name = profile.get("name")
                 
                 thumbnail = result.get("thumbnail", {})
+                thumbnail_src = None
                 thumbnail_original = None
                 if isinstance(thumbnail, dict):
+                    thumbnail_src = thumbnail.get("src")
                     thumbnail_original = thumbnail.get("original")
-                
+
                 # DEBUG: Log thumbnail and favicon extraction
                 logger.debug(
                     f"[{task_id}] Result {idx} metadata extraction: "
                     f"url={result.get('url', '')[:50]}... "
                     f"raw_thumbnail={result.get('thumbnail')}, "
                     f"raw_meta_url={result.get('meta_url')}, "
+                    f"extracted_thumbnail_src={thumbnail_src}, "
                     f"extracted_thumbnail_original={thumbnail_original}, "
                     f"extracted_favicon={favicon}"
                 )
-                
+
                 result_metadata.append({
                     "url": result.get("url", ""),
                     "page_age": result.get("page_age", result.get("age", "")),
                     "profile_name": profile_name,
                     "favicon": favicon,
+                    "thumbnail_src": thumbnail_src,
                     "thumbnail_original": thumbnail_original,
                     "original_title": title,
                     "original_description": description,
@@ -725,8 +729,9 @@ class SearchSkill(BaseSkill):
                                     "favicon": metadata["favicon"]
                                 } if metadata["favicon"] else None,
                                 "thumbnail": {
+                                    "src": metadata.get("thumbnail_src"),
                                     "original": metadata["thumbnail_original"]
-                                } if metadata["thumbnail_original"] else None,
+                                } if (metadata.get("thumbnail_src") or metadata["thumbnail_original"]) else None,
                                 "extra_snippets": sanitized_extra_snippets,
                                 "hash": self._generate_result_hash(metadata["url"])
                             }
@@ -755,13 +760,14 @@ class SearchSkill(BaseSkill):
                         profile = result.get("profile", {})
                         profile_name = profile.get("name") if isinstance(profile, dict) else None
                         thumbnail = result.get("thumbnail", {})
+                        thumbnail_src = thumbnail.get("src") if isinstance(thumbnail, dict) else None
                         thumbnail_original = thumbnail.get("original") if isinstance(thumbnail, dict) else None
-                        
+
                         # Strip HTML tags even in fallback case
                         raw_extra_snippets = result.get("extra_snippets", [])
                         if not isinstance(raw_extra_snippets, list):
                             raw_extra_snippets = []
-                        
+
                         preview = {
                             "type": "search_result",
                             "title": strip_html_tags(result.get("title", "")),
@@ -770,7 +776,7 @@ class SearchSkill(BaseSkill):
                             "page_age": result.get("page_age", result.get("age", "")),
                             "profile": {"name": profile_name} if profile_name else None,
                             "meta_url": {"favicon": favicon} if favicon else None,
-                            "thumbnail": {"original": thumbnail_original} if thumbnail_original else None,
+                            "thumbnail": {"src": thumbnail_src, "original": thumbnail_original} if (thumbnail_src or thumbnail_original) else None,
                             "extra_snippets": [strip_html_tags(s) for s in raw_extra_snippets if s],
                             "hash": self._generate_result_hash(result.get("url", ""))
                         }
