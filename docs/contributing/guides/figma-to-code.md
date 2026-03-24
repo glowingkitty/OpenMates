@@ -1,8 +1,11 @@
+---
+status: active
+last_verified: 2026-03-24
+---
+
 # Figma-to-Code — Reference
 
 Full phase-by-phase guide, component patterns, design token mapping, and validation checklist.
-
-For rules, see `figma-to-code.md` (loaded automatically by tag).
 
 ---
 

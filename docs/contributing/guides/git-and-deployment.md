@@ -1,8 +1,11 @@
+---
+status: active
+last_verified: 2026-03-24
+---
+
 # Git and Deployment — Reference
 
 Detailed commands, PR workflow, release creation, and linting reference.
-
-For rules, see `git-and-deployment.md` (loaded at deploy phase).
 
 ---
 
@@ -114,12 +117,12 @@ For ad-hoc fixes without a formal issue ID, the Symptom/Cause/Fix block is still
 
 **If backend files were modified** (`.py`, `Dockerfile`, `docker-compose.yml`, config `.yml`), rebuild affected services.
 
-**Concurrent Session Check (CRITICAL):** Before rebuilding, check the Docker Rebuild Lock in `.claude/sessions.md`:
+**Concurrent Session Check (CRITICAL):** Before rebuilding, check the Docker Rebuild Lock via `sessions.py`:
 
-1. Read `.claude/sessions.md` → check the **Docker Rebuild Lock** section
-2. If another session holds the lock → wait 30s, re-read, repeat
-3. If no lock is held → claim the lock with the services you're rebuilding
-4. Rebuild and restart, then **release the lock immediately**
+1. Run `python3 scripts/sessions.py status` → check for active Docker locks
+2. If another session holds the lock → wait 30s, re-check, repeat
+3. If no lock is held → acquire with `python3 scripts/sessions.py lock --session <ID> --type docker`
+4. Rebuild and restart, then **release the lock immediately** with `unlock`
 
 See `docs/contributing/guides/concurrent-sessions.md` for the full lock protocol.
 

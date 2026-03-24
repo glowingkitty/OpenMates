@@ -1,3 +1,8 @@
+---
+status: active
+last_verified: 2026-03-24
+---
+
 # OpenMates CLI
 
 A terminal interface and Node.js SDK for interacting with OpenMates. Provides pair-auth login, end-to-end encrypted chat operations, app skill execution, settings management, and self-hosted server administration.
@@ -70,5 +75,5 @@ All files are created with strict permissions (`0o600` owner read/write only, di
 - [Settings](./settings.md) -- settings and memories management
 - [Embeds & Sharing](./embeds-and-sharing.md) -- embed viewing and share links
 - [Server Management](./server-management.md) -- self-hosted server administration
-- [CLI Standards](../claude/cli-standards.md) -- development standards for CLI contributors
-- [CLI Architecture](../architecture/openmates-cli.md) -- architecture decisions
+- [CLI Standards](../contributing/standards/cli.md) -- development standards for CLI contributors
+- [CLI Architecture](../architecture/apps/cli-package.md) -- architecture decisions

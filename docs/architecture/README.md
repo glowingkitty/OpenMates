@@ -13,6 +13,9 @@ Technical architecture documentation for developers and contributors. For user-f
 - [Passkeys](core/passkeys.md) - WebAuthn/PRF implementation details
 - [Account Recovery](core/account-recovery.md) - Account reset and recovery flows
 - [Account Backup](core/account-backup.md) - GDPR data export architecture
+- [Delete Account](core/delete-account.md) - Account deletion flow
+- [Chat Encryption Implementation](core/chat-encryption-implementation.md) - Encryption implementation details
+- [Guest Mode](core/guest-mode.md) - Unauthenticated guest access
 
 ## Message Pipeline
 
@@ -30,6 +33,9 @@ Technical architecture documentation for developers and contributors. For user-f
 - [Preprocessing Model Comparison](ai/preprocessing-model-comparison.md) - Mistral model benchmarks
 - [Mates](ai/mates.md) - Specialized AI assistant identities and routing
 - [Followup Suggestions](ai/followup-suggestions.md) - Post-processing follow-up generation
+- [Learning Mode](ai/learning-mode.md) - Interactive learning mode for AI assistants
+- [Multi-Agents](ai/multi-agents.md) - Multi-agent orchestration architecture
+- [Weekly Review](ai/weekly-review.md) - Automated weekly review generation
 
 ## Privacy & Security
 
@@ -37,6 +43,8 @@ Technical architecture documentation for developers and contributors. For user-f
 - [Prompt Injection](privacy/prompt-injection.md) - Defense-in-depth against prompt injection
 - [Sensitive Data Redaction](privacy/sensitive-data-redaction.md) - Redacting PII before LLM processing
 - [Email Privacy](privacy/email-privacy.md) - Client-side email encryption
+- [PII Detection Phase 2](privacy/pii-detection-phase2.md) - Extended PII detection capabilities
+- [Remove Website](privacy/remove-website.md) - Website data removal process
 
 ## Data & Sync
 
@@ -47,6 +55,7 @@ Technical architecture documentation for developers and contributors. For user-f
 ## Payments
 
 - [Payment Processing](payments/payment-processing.md) - Stripe integration and credit system
+- [Auto Top-Up](payments/auto-topup.md) - Automatic credit top-up system
 
 ## Apps Architecture
 
@@ -57,6 +66,8 @@ Technical implementation details for the apps system. For user-facing app guides
 - [Focus Modes Implementation](apps/focus-modes-implementation.md) - Focus mode technical details
 - [Action Confirmation](apps/action-confirmation.md) - User confirmation for destructive actions
 - [REST API](apps/rest-api.md) - OpenAI-compatible API endpoints
+- [CLI Package](apps/cli-package.md) - OpenMates CLI package architecture
+- [CLI Remote Access](apps/cli-remote-access.md) - Remote CLI access and tunneling
 
 ## Frontend
 
@@ -81,6 +92,9 @@ Technical implementation details for the apps system. For user-facing app guides
 
 - [Luma API](integrations/luma.md) - Luma video generation API
 - [Media Generation](integrations/media-generation.md) - OG images and social media graphics
+- [Calendar Sync](integrations/calendar-sync.md) - Calendar synchronization integration
+- [Email OpenMates](integrations/email-openmates.md) - Email integration for OpenMates
+- [Voice Calling](integrations/voice-calling.md) - Voice calling integration
 
 ## Storage
 
@@ -88,4 +102,4 @@ Technical implementation details for the apps system. For user-facing app guides
 
 ## Contributing
 
-- [Contributing Guide](contributing/contributing.md) - How to contribute to OpenMates
+- [Contributing Guide](../contributing/contributing.md) - How to contribute to OpenMates

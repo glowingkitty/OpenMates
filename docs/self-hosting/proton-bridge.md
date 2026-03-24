@@ -1,3 +1,8 @@
+---
+status: active
+last_verified: 2026-03-24
+---
+
 # Proton Mail Bridge Setup
 
 Connect a single Proton Mail account to OpenMates so the **mail search skill** can read your inbox.

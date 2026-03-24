@@ -1,8 +1,11 @@
+---
+status: active
+last_verified: 2026-03-24
+---
+
 # Translation Management — Reference
 
 Full command reference, output examples, and detailed workflows.
-
-For rules, see `manage-translations.md` (loaded automatically by tag).
 
 ---
 

@@ -1,3 +1,8 @@
+---
+status: active
+last_verified: 2026-03-24
+---
+
 # Documentation Structure
 
 This guide explains how the `docs/` folder is organized and where to place new documentation files.

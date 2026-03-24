@@ -1,46 +1,36 @@
-# Books app architecture
+---
+status: active
+last_verified: 2026-03-24
+---
 
-## Skills
+# Books
 
-### Search
+> Track your reading with book lists, favourites, and reading notes.
 
-Searches within uploaded ebooks (EPUB, MOBI) and book excerpts using high-performance `rg` (ripgrep) functionality. For PDF searching, see [PDF App](./pdf.md).
+## What It Does
 
-**Features:**
-- Support for multiple ebooks and search queries in a single call (processed in parallel, up to 5 requests)
-- Regex pattern matching support using `rg` (ripgrep) for finding passages, chapters, quotes
-- Case-sensitive and case-insensitive search options
-- Returns matched passages with context (surrounding paragraphs/chapters) and page numbers
-- Preserves formatting for ebook readers (EPUB, MOBI)
-- Efficient text extraction and caching for large ebooks
+The Books app helps you organise your reading life. You can track books you have read, what you are currently reading, and what you want to read next. Your mate uses this information to give you personalised book recommendations and remember your reading preferences.
 
-**Input Parameters:**
-- `file_ids`: Array of ebook file IDs
-- `query`: Search pattern (e.g., "character name", "theme", or regex pattern)
-- `case_sensitive`: Boolean (default: false)
-- `context_lines`: Number of lines before/after match (default: 3)
-- `regex`: Boolean to enable regex mode (default: false)
+**Settings and memories (available):**
 
-**Output:**
-- Results grouped by book and query
-- Each match includes:
-  - Page or chapter number
-  - Matched passage
-  - Surrounding context
-  - Book metadata (title, author)
+- **Favourite Books** -- Save books you love with the author, genre, your personal rating, and notes about why you liked them.
+- **Currently Reading** -- Track books you are in the middle of, with start dates and reading notes.
+- **To Read List** -- Keep a list of books you want to read, with reasons why they caught your interest.
 
-### Summarize by Chapter
+## How to Use It
 
-Generates summaries of specific chapters or sections within books.
+- Save a favourite: "Add 'Sapiens' by Yuval Noah Harari to my favourites -- I rate it 5 out of 5"
+- Track reading: "I just started reading 'Project Hail Mary' by Andy Weir"
+- Get recommendations: "Based on my reading list, what should I read next?"
+- Add to wishlist: "Add 'Dune' by Frank Herbert to my to-read list"
 
-**Features:**
-- Extract and summarize individual chapters
-- Support for multiple chapters in one request
-- Customizable summary length (brief, detailed, key points)
-- Identifies themes, plot points, and character development
+## Tips
 
-## Settings & memories
+- Save your favourite books with ratings and notes so your mate can give better recommendations.
+- Your reading data is encrypted and only shared when you give permission.
+- You can ask for book recommendations even without saving any data -- your mate can suggest books based on topics you describe.
 
-### To read list
+## Related
 
-List of books which one still wants to read and what one hopes to get out of them if anything.
+- [Study](./study.md) -- Track learning goals related to your reading
+- [Web](./web.md) -- Search for book reviews and summaries

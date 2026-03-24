@@ -22,7 +22,6 @@ Everything you need to know about using OpenMates as an end user.
 ## Features
 
 - [Daily Inspiration](daily-inspiration.md) - Curated daily prompts and educational content
-- [File Uploads](file-uploads.md) - Upload files and images to your chats
 - [Debug Tools](debug-tools.md) - Browser console tools for troubleshooting
 
 ## Billing & Account

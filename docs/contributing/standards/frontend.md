@@ -1,3 +1,8 @@
+---
+status: active
+last_verified: 2026-03-24
+---
+
 # Frontend Standards (Svelte/TypeScript)
 
 Standards for modifying frontend code in `frontend/` - Svelte 5 components, TypeScript services, CSS, and stores.

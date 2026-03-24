@@ -1,59 +1,46 @@
-# PDF App Architecture
+---
+status: active
+last_verified: 2026-03-24
+---
 
-The PDF app allows for viewing, searching, and analyzing PDF documents.
+# PDF
 
-## Skills
+> Upload, read, search, and visually inspect PDF documents.
 
-### Search
+## What It Does
 
-Searches within PDF documents using high-performance `rg` (ripgrep) functionality to find text, phrases, or patterns.
+The PDF app processes uploaded PDF documents so your mate can read their content, search for specific text, and visually examine individual pages. It works with both text-based and scanned PDFs.
 
-**Features:**
-- Support for searching multiple PDFs in parallel (up to 5 requests)
-- Regex pattern matching support using `rg` (ripgrep)
-- Case-sensitive and case-insensitive search options
-- Returns matched content with page numbers and context
-- Shows surrounding text before/after matches
-- Efficient text extraction and caching for large PDFs
-- Preserves PDF structure (pages, sections) in results
+**Available skills:**
 
-**Input Parameters:**
-- `file_ids`: Array of PDF file IDs to search within
-- `query`: Search pattern (supports regex)
-- `case_sensitive`: Boolean (default: false)
-- `context_lines`: Number of lines before/after match to include (default: 2)
-- `regex`: Boolean to enable regex mode (default: true)
+- **Read** -- Loads the text content of specific pages from an uploaded PDF. Your mate uses the table of contents (automatically detected) to find the most relevant sections. Good for getting summaries, answering questions about the content, or extracting information.
+- **Search** -- Searches for specific words or phrases across all pages of a PDF. Returns matching text with surrounding context and page numbers. Works instantly without needing a separate search engine.
+- **View** -- Shows your mate what specific pages look like visually. Useful for pages with diagrams, charts, complex tables, or images that text extraction might not capture well.
 
-**Output:**
-- Grouped results by file and query
-- Each match includes:
-  - Page number
-  - Matched text
-  - Context lines before/after
-  - File metadata (name, total pages)
+**How PDF processing works:**
 
-**Processing:**
-- Extracts text from PDFs on first search, caches for subsequent searches
-- Celery-based processing with parallel requests using `rg` (ripgrep) for search
-- Returns results incrementally as searches complete
-- Handles both text-based and scanned PDFs (with OCR support)
+- When you upload a PDF, it is processed in the background.
+- The text on each page is extracted, and page screenshots are taken for visual analysis.
+- A table of contents is automatically detected for documents with more than 10 pages.
+- Your mate can then use any of the three skills above to work with the document.
 
-### Extract Text
+## How to Use It
 
-Extracts all text content from a PDF and returns it in plain text format.
+- Upload and ask: Upload a PDF and ask "What does this document say about pricing?"
+- Search: "Find where it mentions 'delivery terms' in this contract"
+- Summarise: "Give me a summary of chapter 3"
+- Visual analysis: "Show me the chart on page 5 and explain what it shows"
+- Navigate: "What topics are covered in this document?" (uses the auto-detected table of contents)
 
-**Features:**
-- Full document text extraction
-- Preserves page breaks and basic structure
-- Supports batch extraction (multiple PDFs)
-- Useful for further processing or analysis
+## Tips
 
-### Analyze Structure
+- Your mate can see the table of contents and page-by-page word counts, so it can jump directly to the most relevant sections.
+- For scanned documents, text is extracted using optical character recognition.
+- The visual analysis skill is helpful when a page contains charts, diagrams, or complex layouts that text alone does not capture.
+- You can ask about multiple sections in sequence -- your mate remembers what it has already read from the document.
 
-Analyzes PDF structure to identify sections, headings, and document hierarchy.
+## Related
 
-**Features:**
-- Detects headings, sections, and subsections
-- Identifies table of contents structure
-- Maps page numbers to sections
-- Useful for understanding document organization
+- [Docs](./docs.md) -- Create new formatted documents
+- [Code](./code.md) -- Look up programming documentation
+- [Web](./web.md) -- Read web content

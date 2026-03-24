@@ -1,8 +1,11 @@
+---
+status: active
+last_verified: 2026-03-24
+---
+
 # Embed Types — Reference
 
 Full component skeletons, step-by-step creation guide, and registration details.
-
-For rules summary, see `embed-types.md` (loaded automatically by tag).
 
 ---
 

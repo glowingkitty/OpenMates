@@ -48,6 +48,19 @@ core/zero-knowledge-storage.md:
   - frontend/packages/ui/src/services/encryption/**/*.ts
   - backend/core/vault/**/*.py
 
+core/chat-encryption-implementation.md:
+  - frontend/packages/ui/src/services/cryptoService.ts
+  - frontend/packages/ui/src/services/encryption/**/*.ts
+  - backend/core/vault/**/*.py
+
+core/delete-account.md:
+  - backend/core/api/app/routes/profile_api.py
+  - backend/core/api/app/routes/auth.py
+
+core/guest-mode.md:
+  - backend/core/api/app/routes/auth.py
+  - frontend/packages/ui/src/stores/authStore.ts
+
 # === messaging/ ===
 
 messaging/embeds.md:
@@ -99,6 +112,21 @@ ai/thinking-models.md:
   - backend/shared/providers/**/*.py
   - backend/apps/ai/skills/*/skill.py
 
+ai/learning-mode.md:
+  - backend/apps/ai/skills/*/skill.py
+  - frontend/packages/ui/src/stores/teamStore.ts
+
+ai/multi-agents.md:
+  - backend/apps/ai/**/*.py
+  - frontend/packages/ui/src/stores/teamStore.ts
+
+ai/preprocessing-model-comparison.md:
+  - backend/apps/ai/llm_providers/**/*.py
+  - backend/shared/providers/**/*.py
+
+ai/weekly-review.md:
+  - backend/apps/ai/skills/*/skill.py
+
 # === privacy/ ===
 
 privacy/email-privacy.md:
@@ -117,6 +145,13 @@ privacy/prompt-injection.md:
 privacy/sensitive-data-redaction.md:
   - backend/apps/ai/skills/*/skill.py
   - backend/shared/python_utils/pii*.py
+
+privacy/pii-detection-phase2.md:
+  - backend/shared/python_utils/pii*.py
+  - frontend/packages/ui/src/stores/embedPIIStore.ts
+
+privacy/remove-website.md:
+  - backend/core/api/app/routes/profile_api.py
 
 # === data/ ===
 
@@ -144,6 +179,10 @@ payments/payment-processing.md:
   - backend/core/api/app/routes/credit_note.py
   - frontend/packages/ui/src/components/payment/**/*.svelte
 
+payments/auto-topup.md:
+  - backend/core/api/app/routes/payments.py
+  - frontend/packages/ui/src/components/payment/**/*.svelte
+
 # === apps/ ===
 
 apps/app-skills.md:
@@ -157,6 +196,26 @@ apps/rest-api.md:
   - backend/core/api/app/routes/embeds_api.py
   - backend/core/api/app/routes/tasks_api.py
 
+apps/action-confirmation.md:
+  - backend/apps/base_skill.py
+  - frontend/packages/ui/src/components/chats/**/*.svelte
+
+apps/cli-package.md:
+  - frontend/packages/openmates-cli/src/**/*.ts
+
+apps/cli-remote-access.md:
+  - frontend/packages/openmates-cli/src/server.ts
+  - frontend/packages/openmates-cli/src/client.ts
+
+apps/focus-modes-implementation.md:
+  - backend/apps/base_app.py
+  - backend/apps/base_app.yml
+  - frontend/packages/ui/src/stores/teamStore.ts
+
+apps/function-calling.md:
+  - backend/apps/ai/skills/*/skill.py
+  - backend/apps/base_skill.py
+
 # === frontend/ ===
 
 frontend/daily-inspiration.md:
@@ -166,6 +225,14 @@ frontend/daily-inspiration.md:
   - frontend/packages/ui/src/services/dailyInspirationDB.ts
 
 frontend/web-app.md:
+  - frontend/apps/web_app/src/**/*.ts
+  - frontend/apps/web_app/src/**/*.svelte
+
+frontend/accessibility.md:
+  - frontend/packages/ui/src/components/**/*.svelte
+  - frontend/apps/web_app/tests/a11y-helpers.ts
+
+frontend/docs-web-app.md:
   - frontend/apps/web_app/src/**/*.ts
   - frontend/apps/web_app/src/**/*.svelte
 
@@ -201,3 +268,33 @@ infrastructure/status-page.md:
 infrastructure/vector-personalization.md:
   - frontend/packages/ui/src/services/searchService.ts
   - frontend/packages/ui/src/stores/searchStore.ts
+
+infrastructure/analytics.md:
+  - backend/core/api/app/routes/analytics_beacon.py
+
+infrastructure/cronjobs.md:
+  - backend/core/workers/**/*.py
+
+# === integrations/ ===
+
+integrations/calendar-sync.md:
+  - backend/apps/events/**/*.py
+
+integrations/email-openmates.md:
+  - backend/core/api/app/routes/email.py
+  - backend/core/api/app/routes/email_block.py
+
+integrations/luma.md:
+  - backend/apps/images/**/*.py
+
+integrations/media-generation.md:
+  - backend/apps/images/**/*.py
+
+integrations/voice-calling.md:
+  - backend/apps/audio/**/*.py
+
+# === storage/ ===
+
+storage/embed-cold-storage.md:
+  - backend/shared/python_schemas/embed*.py
+  - frontend/packages/ui/src/services/embedStore.ts

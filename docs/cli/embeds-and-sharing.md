@@ -1,3 +1,8 @@
+---
+status: active
+last_verified: 2026-03-24
+---
+
 # Embeds & Sharing
 
 View decrypted embed content, create encrypted share links, and search available @mentions. Embeds are rich content blocks (code snippets, search results, transcripts, etc.) attached to chat messages.
@@ -46,7 +51,7 @@ Share links use zero-knowledge encryption. The decryption key is embedded in the
 - Optional password protection adds a second layer -- the recipient must know both the URL and the password.
 - Expiration is enforced server-side by deleting the encrypted blob after the specified duration.
 
-See [shareEncryption.ts](../../frontend/packages/openmates-cli/src/shareEncryption.ts) for the encryption implementation and [zero-knowledge-storage.md](../architecture/zero-knowledge-storage.md) for the architecture.
+See [shareEncryption.ts](../../frontend/packages/openmates-cli/src/shareEncryption.ts) for the encryption implementation and [zero-knowledge-storage.md](../architecture/core/zero-knowledge-storage.md) for the architecture.
 
 ## Mentions
 
@@ -112,5 +117,5 @@ Security rules for file mentions:
 
 - [README](./README.md) -- CLI overview
 - [Chat Commands](./chats.md) -- using mentions in chat, share command
-- [Zero-Knowledge Storage](../architecture/zero-knowledge-storage.md) -- encryption architecture
-- [CLI Standards](../claude/cli-standards.md) -- Rule 5 on embed key resolution strategies
+- [Zero-Knowledge Storage](../architecture/core/zero-knowledge-storage.md) -- encryption architecture
+- [CLI Standards](../contributing/standards/cli.md) -- Rule 5 on embed key resolution strategies

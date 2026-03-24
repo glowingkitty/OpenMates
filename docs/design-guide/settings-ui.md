@@ -1,3 +1,8 @@
+---
+status: active
+last_verified: 2026-03-24
+---
+
 # Settings UI Design Guidelines
 
 Single source of truth for all settings page components. Every visual element on a settings page MUST use a canonical component from this system — no custom inline HTML/CSS is allowed.

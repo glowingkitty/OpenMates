@@ -1,51 +1,41 @@
-# Study app architecture
+---
+status: active
+last_verified: 2026-03-24
+---
 
-## Overview
+# Study
 
-The Study app helps users learn effectively, master new topics, and discover their ideal educational path. It provides multiple focus modes tailored to different learning objectives.
+> Track learning goals and save educational preferences.
 
-## Focuses
+## What It Does
 
-### What to study
+The Study app helps you manage your learning journey. It stores your educational goals and background so your mate can provide personalised study help.
 
-Helps users discover their ideal degree and field of study through targeted, strategic questioning. This focus mode guides users to explore their:
-- **Interests and hobbies**: Understanding what naturally engages them
-- **Strengths and talents**: Identifying what comes naturally
-- **Career aspirations**: Learning their professional goals and work environment preferences
-- **Learning style**: Understanding how they prefer to learn
-- **Values**: Determining what matters most in a career
-- **Practical constraints**: Considering location, finances, and time availability
+**Settings and memories (available):**
 
-The AI acts as an expert education and career counselor, using the Socratic method to guide self-discovery rather than simply giving advice. After gathering information, it suggests specific degree programs, universities, and alternative educational paths tailored to their profile.
+- **Learning Goals** -- Track topics you want to master, your current difficulty level, and target deadlines.
 
-### Learn topic
+**Planned focus modes (not yet available):**
 
-Helps users learn new topics for school, university, or exams. This focus mode:
-- Breaks down topics into manageable subtopics
-- Creates personalized learning schedules with spaced repetition
-- Integrates with the Reminder app to send periodic review notifications
-- Adapts to the user's current knowledge level and learning goals
+- **What to Study** -- Helps you discover your ideal degree or field of study through guided questioning.
+- **Learn Topic** -- Breaks down topics into manageable parts with structured learning and spaced repetition.
+- **Test Knowledge** -- Assesses your understanding through personalised questions with detailed feedback.
+- **Socratic Questioning** -- Explores topics through thought-provoking questions to develop critical thinking.
 
-### Test knowledge
+## How to Use It
 
-Allows users to assess their understanding through multiple rounds of questions with detailed feedback. Features include:
-- Personalized question generation based on difficulty level
-- Evaluation of answers for correctness and understanding
-- Detailed feedback and explanations for incorrect answers
-- Identification of knowledge gaps for further study
+- Track a goal: "I want to learn machine learning at an intermediate level by December"
+- Ask for study help: "Help me understand quantum computing"
+- Test yourself: "Quiz me on European history"
 
-### Socratic questioning
+## Tips
 
-Engages users in deep exploration of topics through strategic questioning. This focus:
-- Asks thought-provoking questions to guide thinking
-- Helps examine assumptions and beliefs
-- Encourages drawing conclusions through personal reasoning
-- Develops critical thinking and deeper comprehension
+- Save your learning goals so your mate can track your progress over time.
+- Your mate can help with any learning topic even without saved goals.
+- Study focus modes will offer structured approaches for different learning styles when they become available.
 
-## Settings and Memories
+## Related
 
-The Study app maintains the following user information:
-
-- **Learning Goals**: Topics to master, difficulty levels, deadlines, and priorities
-- **Education History**: Degrees, certifications, institutions, and completion dates
-- **Career Interests**: Job titles, industries, required skills, and career timelines
+- [Code](./code.md) -- Programming documentation and code help
+- [Web](./web.md) -- Research topics on the web
+- [Books](./books.md) -- Track books related to your studies

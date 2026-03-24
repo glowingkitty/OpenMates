@@ -1,3 +1,8 @@
+---
+status: active
+last_verified: 2026-03-24
+---
+
 # Settings Commands
 
 Read and write account settings via REST. The CLI supports `get`, `post`, `patch`, and `delete` operations on settings paths, plus gift card management and memories CRUD.
@@ -85,4 +90,4 @@ Memories are managed as a sub-command of settings. See [apps-and-skills.md](./ap
 - [README](./README.md) -- CLI overview
 - [Authentication](./authentication.md) -- session required for all settings commands
 - [Apps & Skills](./apps-and-skills.md) -- memories CRUD reference
-- [CLI Standards](../claude/cli-standards.md) -- Rule 9 on blocked settings paths as a security boundary
+- [CLI Standards](../contributing/standards/cli.md) -- Rule 9 on blocked settings paths as a security boundary

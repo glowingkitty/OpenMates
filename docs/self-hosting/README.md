@@ -1,3 +1,8 @@
+---
+status: active
+last_verified: 2026-03-24
+---
+
 # Self-Hosting
 
 Run your own OpenMates instance with full control over your data and infrastructure.

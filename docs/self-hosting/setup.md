@@ -1,3 +1,8 @@
+---
+status: active
+last_verified: 2026-03-24
+---
+
 # OpenMates Self-Hosting Edition
 
 This guide provides comprehensive instructions for setting up and running OpenMates on your own infrastructure.
@@ -300,7 +305,7 @@ docker compose --env-file .env -f backend/core/docker-compose.yml down
 ```bash
 docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml down && \
 docker volume rm openmates-cache-data && \
-docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml build api cms cms-database cms-setup task-worker task-scheduler app-ai app-web app-videos app-news app-maps app-ai-worker app-web-worker cache vault vault-setup prometheus cadvisor loki promtail && \
+docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml build api cms cms-database cms-setup task-worker task-scheduler app-ai app-web app-videos app-news app-maps app-ai-worker app-web-worker cache vault vault-setup prometheus cadvisor openobserve promtail && \
 docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml up -d --scale webapp=0
 ```
 
@@ -374,4 +379,4 @@ This will:
 
 ## License & Contributing
 
-OpenMates is licensed under AGPL v3. Contributions welcome! See [contributing.md](../architecture/contributing/contributing.md) for guidelines.
+OpenMates is licensed under AGPL v3. Contributions welcome! See [contributing.md](../contributing/contributing.md) for guidelines.

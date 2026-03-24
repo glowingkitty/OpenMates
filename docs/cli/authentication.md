@@ -1,3 +1,8 @@
+---
+status: active
+last_verified: 2026-03-24
+---
+
 # Authentication
 
 The OpenMates CLI uses pair-auth for login -- it never asks for your email or password. Authentication is completed by confirming a pair PIN in the web app or scanning a QR code.
@@ -55,5 +60,5 @@ Session data is stored in `~/.openmates/session.json`. This file contains your s
 
 - [README](./README.md) -- CLI overview and installation
 - [Settings](./settings.md) -- blocked security paths
-- [CLI Standards](../claude/cli-standards.md) -- storage permission rules (Rule 8)
-- [Signup & Auth Architecture](../architecture/signup-and-auth.md) -- pair-auth protocol details
+- [CLI Standards](../contributing/standards/cli.md) -- storage permission rules (Rule 8)
+- [Signup & Auth Architecture](../architecture/core/signup-and-auth.md) -- pair-auth protocol details

@@ -1,3 +1,8 @@
+---
+status: active
+last_verified: 2026-03-24
+---
+
 # Apps & Skills
 
 List available apps, inspect skill schemas, and execute skills directly from the terminal. Skills can also be invoked via @mentions in chat messages.
@@ -126,4 +131,4 @@ openmates settings memories delete --id <uuid>
 - [README](./README.md) -- CLI overview
 - [Settings](./settings.md) -- settings management (memories are a sub-command of settings)
 - [Embeds & Sharing](./embeds-and-sharing.md) -- @mentions for skills in chat messages
-- [CLI Standards](../claude/cli-standards.md) -- Rule 3 on keeping `MEMORY_TYPE_REGISTRY` in sync with `app.yml`
+- [CLI Standards](../contributing/standards/cli.md) -- Rule 3 on keeping `MEMORY_TYPE_REGISTRY` in sync with `app.yml`

@@ -1,3 +1,8 @@
+---
+status: active
+last_verified: 2026-03-24
+---
+
 # Design guidelines
 
 ![Design guidelines header image](../images/designguidelines_header.png)
@@ -87,7 +92,7 @@ Browse live implementations of UI components in the dev preview environment:
 
 ## Documentation Standards
 
-- [Documentation Writing Guidelines](docs-writing-guidelines.md) - How to write and structure docs for both human and AI contributors
+- [Documentation Writing Guidelines](../contributing/guides/docs-writing-guidelines.md) - How to write and structure docs for both human and AI contributors
 
 ## Design board
 
