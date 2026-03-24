@@ -55,6 +55,7 @@
         'gift_cards': 'gift',
         'incognito': 'anonym',
         'interface': 'language',
+        'mates': 'mate',
         'messengers': 'chat',
         'newsletter': 'mail',
         'notifications': 'announcement',
@@ -81,6 +82,17 @@
         'key': 'security_key',
         'low_balance': 'coins',
         'secrets': 'lock',
+        // Icon names that don't match SVG filenames
+        'api-keys': 'coding',
+        'app-ai': 'ai',
+        'dark_mode': 'darkmode',
+        'focus': 'search',
+        'light_mode': 'darkmode',
+        'link': 'web',
+        'notification': 'announcement',
+        'profile-picture': 'user',
+        'shield': 'lock',
+        'username': 'user',
     };
 
     /**

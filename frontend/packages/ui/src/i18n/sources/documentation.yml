@@ -358,16 +358,16 @@ actions.share_copied:
   sv: ""
   he: הקישור הועתק ללוח
   verified_by_human: []
-actions.download_pdf:
-  context: Tooltip for the download as PDF button on docs pages
-  en: Download as PDF
-  de: Als PDF herunterladen
-  zh: 下载为 PDF
-  es: Descargar como PDF
-  fr: Télécharger en PDF
+actions.download_md:
+  context: Tooltip for the download markdown file button on docs pages
+  en: Download Markdown
+  de: Markdown herunterladen
+  zh: 下载 Markdown
+  es: Descargar Markdown
+  fr: Télécharger Markdown
   pt: ""
   ru: ""
-  ja: PDFとしてダウンロード
+  ja: Markdownをダウンロード
   ko: ""
   it: ""
   tr: ""
@@ -380,7 +380,7 @@ actions.download_pdf:
   th: ""
   cs: ""
   sv: ""
-  he: הורד כ-PDF
+  he: הורד Markdown
   verified_by_human: []
 actions.report_issue:
   context: Tooltip for the report issue button on docs pages

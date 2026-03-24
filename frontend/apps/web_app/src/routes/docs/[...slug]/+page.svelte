@@ -16,6 +16,7 @@
     import { ChatHeader, text } from '@repo/ui';
     import DocsMessage from '$lib/components/docs/DocsMessage.svelte';
     import DocsActionBar from '$lib/components/docs/DocsActionBar.svelte';
+    import DocsBreadcrumb from '$lib/components/docs/DocsBreadcrumb.svelte';
     import docsData from '$lib/generated/docs-data.json';
     import type { DocFile, DocFolder, DocStructure } from '$lib/types/docs';
     import { getDocCategoryInfo } from '$lib/utils/docsCategoryMap';
@@ -103,7 +104,8 @@
     {@const file = pageData.data as DocFile}
     {#key currentSlug}
         <div class="docs-page-content">
-            <DocsActionBar title={file.title} />
+            <DocsActionBar title={file.title} originalMarkdown={file.originalMarkdown} fileName={file.name} />
+            <DocsBreadcrumb slug={currentSlug} />
             <ChatHeader
                 title={file.title}
                 category={catInfo.category}
@@ -119,6 +121,7 @@
 {:else if pageData?.type === 'folder'}
     {@const folder = pageData.data as DocFolder}
     <div class="docs-page-content">
+        <DocsBreadcrumb slug={currentSlug} />
         <ChatHeader
             title={folder.title}
             category={catInfo.category}

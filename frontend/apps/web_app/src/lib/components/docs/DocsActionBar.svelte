@@ -13,9 +13,11 @@
 
 	interface Props {
 		title: string;
+		originalMarkdown?: string;
+		fileName?: string;
 	}
 
-	let { title }: Props = $props();
+	let { title, originalMarkdown = '', fileName = '' }: Props = $props();
 
 	async function handleShare() {
 		try {
@@ -32,8 +34,17 @@
 		}
 	}
 
-	function handleDownloadPdf() {
-		window.print();
+	function handleDownloadMarkdown() {
+		if (!originalMarkdown) return;
+		const blob = new Blob([originalMarkdown], { type: 'text/markdown;charset=utf-8' });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = fileName || `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '')}.md`;
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+		URL.revokeObjectURL(url);
 	}
 
 	async function handleReportIssue() {
@@ -56,8 +67,8 @@
 		<div class="new-chat-button-wrapper">
 			<button
 				class="clickable-icon icon_download top-button"
-				title={$text('documentation.actions.download_pdf')}
-				onclick={handleDownloadPdf}
+				title={$text('documentation.actions.download_md')}
+				onclick={handleDownloadMarkdown}
 			></button>
 		</div>
 		<div class="new-chat-button-wrapper">

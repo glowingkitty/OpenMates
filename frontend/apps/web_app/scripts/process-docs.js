@@ -157,13 +157,14 @@ function fixMarkdownLinks(content, filePath) {
 
     // Fix relative code file links - convert to GitHub links
     // Pattern: [text](./file.js) -> [text](https://github.com/glowingkitty/OpenMates/blob/<branch>/file.js)
+    // Also handles #anchor fragments (e.g., payments.py#L264)
     const codeExtensions = 'js|ts|py|java|cpp|c|h|go|rs|php|rb|swift|kt|scala|r|sql|sh|bash|yaml|yml|json|xml|html|css|scss|sass|less|vue|svelte|jsx|tsx';
     const codeFileRegex = new RegExp(
-        `\\[([^\\]]+)\\]\\(([^)]+\\.(${codeExtensions}))\\)`,
+        `\\[([^\\]]+)\\]\\(([^)#]+\\.(${codeExtensions}))(#[^)]*)?\\)`,
         'g'
     );
 
-    processedContent = processedContent.replace(codeFileRegex, (match, linkText, codePath) => {
+    processedContent = processedContent.replace(codeFileRegex, (match, linkText, codePath, _ext, anchor) => {
         // Skip absolute URLs
         if (codePath.startsWith('http') || codePath.startsWith('/')) {
             return match;
@@ -177,7 +178,7 @@ function fixMarkdownLinks(content, filePath) {
         // resolves to something like "backend/..." after normalization
         const cleanPath = resolved.replace(/^(\.\.\/)+/, '');
 
-        const githubUrl = `https://github.com/glowingkitty/OpenMates/blob/${githubBranch}/${cleanPath}`;
+        const githubUrl = `https://github.com/glowingkitty/OpenMates/blob/${githubBranch}/${cleanPath}${anchor || ''}`;
         return `[${linkText}](${githubUrl})`;
     });
 
@@ -244,6 +245,40 @@ function fixMarkdownLinks(content, filePath) {
             }
 
             return `![${altText}](${newImagePath})`;
+        }
+    );
+
+    // Catch-all: convert any remaining relative links to GitHub URLs.
+    // Handles folders (no extension), unrecognized file extensions (.mjml, Dockerfile, .env.example),
+    // and any other relative paths not caught by the specific regexes above.
+    // Uses /tree/ for directory paths and /blob/ for file paths.
+    processedContent = processedContent.replace(
+        /\[([^\]]+)\]\((\.\.?\/[^)]+)\)/g,
+        (match, linkText, relPath) => {
+            // Skip if already processed (absolute URL or /docs/ route)
+            if (relPath.startsWith('http') || relPath.startsWith('/docs/')) {
+                return match;
+            }
+            // Skip image links (already handled above)
+            if (/^\s*!/.test(match)) {
+                return match;
+            }
+
+            // Separate anchor fragment from path
+            const [pathPart, ...anchorParts] = relPath.split('#');
+            const anchor = anchorParts.length ? `#${anchorParts.join('#')}` : '';
+
+            const currentDir = path.dirname(filePath);
+            const resolved = path.normalize(path.join(currentDir, pathPart)).replace(/\\/g, '/');
+            const cleanPath = resolved.replace(/^(\.\.\/)+/, '');
+
+            // Directory links (trailing slash or no extension) use /tree/, files use /blob/
+            const isDir = pathPart.endsWith('/') || !path.extname(pathPart);
+            const githubType = isDir ? 'tree' : 'blob';
+            const cleanFinal = cleanPath.replace(/\/+$/, ''); // strip trailing slash for clean URL
+
+            const githubUrl = `https://github.com/glowingkitty/OpenMates/${githubType}/${githubBranch}/${cleanFinal}${anchor}`;
+            return `[${linkText}](${githubUrl})`;
         }
     );
 
