@@ -1,90 +1,63 @@
-# Web app architecture
+---
+status: active
+last_verified: 2026-03-24
+key_files:
+  - frontend/apps/web_app/src/routes/+layout.svelte
+  - frontend/apps/web_app/src/routes/+page.svelte
+  - frontend/packages/ui/src/legal/documents/privacy-policy.ts
+  - frontend/packages/ui/src/legal/documents/terms-of-use.ts
+  - frontend/packages/ui/src/legal/documents/imprint.ts
+---
 
-## Current state
+# Web App Architecture
 
-Currently we have a separate website openmates.org and openmates.org site, where the openmates.org is forwarding to openmates.org (since the old informative website got too outdated).
-The web app allows the user to interact with OpenMates after signup/login.
+> The OpenMates web app at `openmates.org` serves as both the product landing page and the full application, replacing the old informative website.
 
-## Planned state
+## Why This Exists
 
-- one single openmates.org web app, which also replaces the informative website
-- advantages: drastically reduced development effort, direct introduction to the web app and its capabilities
-- if user is not logged in, web app loads default demo chats in chats list which show only the currently implemented features.
-- on loading of the web app, the user sees a new assistant message showing up, which introduces the user to OpenMates, how its different to other services, how to access the chats list, the app store, docs and more - as well giving an outlook of what is planned for the future.
-- this way we introduce the user to how to use the web app and what its capabilities are.
-- Message input field shows 'Signup to send' button instead of 'Send' button, which then opens the signup flow and keeps the user message saved as a draft, to send later once signed up
-- on signup completion, the demo chats are kept and the user receives another assistant message 'Thanks for signing up! If you don't want to see the example chats anymore, you can right click & delete them - or ask me to delete them.'
-- demo chats:
-    - "Welcome to OpenMates!" -> short introduction to OpenMates
-    - "What makes OpenMates different?" -> explain the different areas/features of OpenMates (can also include youtube clips explaining the different areas/features)
-    - "October 2025: New features & changes" -> summarize the new changes to OpenMates from last or current month, based on changelog on github?
-    - "Example: Learn something new" -> (example chat for learning about a topic, without app use)
-    - "Example: The power of apps" -> (example chat involving app skill use + focus mode: getting transcript from video, factchecking it with web research)
-    - "Example: Personalized, but privacy preserving." -> (example chat involving app settings & memories: planning a trip based on personal preferences)
-    - "OpenMates for developers" -> explain the features & planned features for developers and add link to Signal developer group for contributing
-    - "Stay up to date & contribute" -> show all links to social media accounts & community links: Signal Dev group, Discord, Meetup, Luma, Instagram, YouTube, Mastodon, Pixelfed, etc.
-- demo chats must have fixed chat id so we can link to individual chats from elsewhere (Example: "https://openmates.org/chat/stay-up-to-date-contribute")
-- demo chats must be part of the precompiled static page, for SEO optimization and loading speed
-- **Legal chats** (Privacy Policy, Terms of Use, Imprint) are always shown in the sidebar alongside demo chats
-  - They use the same infrastructure as demo chats (static bundle, no encryption)
-  - Legal chats are shown by default to ensure easy access and legal compliance
-  - Like demo chats, legal chats are NOT saved to user data until the user responds to them
-  - When a user sends a message in a legal chat, it creates a new encrypted chat (converts demo/legal → real chat)
-- **IMPORTANT: Updating Legal Documents**
-  - When privacy policy, terms of use, or imprint are updated:
-    1. **For new users**: Update the static legal chat files (`frontend/packages/ui/src/legal/documents/*.ts`) with the new content
-    2. **For existing users**: Send follow-up messages to all signed-up users mentioning:
-       - What changed (summary of changes)
-       - Link to the updated full text
-       - The updated full text should be sent as an assistant message in a new chat or existing chat
-    3. This ensures both new and existing users have access to the latest legal information
+A single web app reduces development effort and gives visitors immediate exposure to product capabilities. Unauthenticated visitors see demo chats that showcase features; authenticated users get the full experience.
 
-See also: [Onboarding Architecture](onboarding.md) for planned user onboarding features.
+## How It Works
 
-### Welcome to OpenMates!
+### Unauthenticated Experience
 
-Hey there and welcome to OpenMates!
-With OpenMates you have a full team of digital team mates (AI chatbots who are experts in various fields) to answer your questions, brainstorm ideas and fulfill various tasks using a wide range of Apps.
+When a visitor loads `openmates.org` without being logged in:
 
-If you want to learn more about how OpenMates is different to ChatGPT, Claude, Manus, etc. - check out this chat:
-“What makes OpenMates different?”
+1. **Demo chats** appear in the sidebar with fixed chat IDs (for deep-linkable URLs like `/chat/stay-up-to-date-contribute`). These are precompiled into the static bundle for SEO and fast load times.
+2. **Legal chats** (Privacy Policy, Terms of Use, Imprint) are always shown alongside demo chats using the same static-bundle infrastructure.
+3. The message input shows a **"Signup to send"** button instead of "Send", which opens the signup flow and saves the draft message.
 
-Or check one of the other example chats in the chat history (accessible via the menu button in the top left) - or signup (its fast, affordable & simple) and test out OpenMates yourself!
+### Demo Chat Content
 
-### What makes OpenMates different?
+- "Welcome to OpenMates!" -- short product introduction
+- "What makes OpenMates different?" -- comparison to ChatGPT, Claude, etc.
+- Monthly changelog summary
+- Example chats: learning, app power, personalization
+- "OpenMates for developers" -- developer features + Signal group link
+- "Stay up to date & contribute" -- social media and community links
 
-Assistant messages:
+### Legal Document Infrastructure
 
-```
-Hey there!
-Think of OpenMates as a better alternative to ChatGPT, Claude, Manus, etc. - that actually focuses on user interests and building the best possible product that YOU love to use on a daily base. That means: functionality, privacy, accessibility - all by design.
+Legal documents are stored as TypeScript files in `frontend/packages/ui/src/legal/documents/`:
+- `privacy-policy.ts`
+- `terms-of-use.ts`
+- `imprint.ts`
 
-Functionality
+**Updating legal documents requires three steps:**
+1. Update the static legal chat files for new users
+2. Send follow-up messages to existing users with a summary of changes
+3. Include the updated full text as an assistant message
 
-Mates
-When you message OpenMates, your request will be automatically forwarded to the best optimized digital team mate for the request. With optimized instructions & the best AI model for the task. And if you prefer, you can also further customize the processing by opening the settings menu (in the top right). You can also check these example chats via the chats menu (in the top left), to get a better idea of how OpenMates can help you with questions & brainstorming ideas:
-“chat 1”
-“chat 2”
+### Post-Signup Flow
 
-Apps
-OpenMates can not just answer questions and help you brainstorm ideas - but it can also fulfill various tasks, using Apps. From discussing the content & learnings of a YouTube video with the Videos apps, to researching 5 different topics at the same time to then get a faster & more reliable summary using the Web app, getting career advice via the Jobs app and much more. Check out these example chats:
-“Fact check & analyze this video”
-“Career advice”
-“More example usecases”
+On signup completion, demo chats are kept and the user receives a message explaining they can delete the example chats. Draft messages saved before signup are sent automatically.
 
-And more...
-Those features only scratch the surface. Our goal with OpenMates is to build the best digital team mates for everyone - for everyday personal life and for work. Check this chat out for more details:”Current OpenMates features”
-“What comes next for OpenMates”
+### Onboarding
 
-Software developer?
-If you happen to be a software developer, OpenMates has some exciting features for you in the pipeline, which you can check out here:”OpenMates for developers”
+See [Onboarding Architecture](onboarding.md) for planned user onboarding features.
 
-Privacy
-We believe that every software needs to be built with privacy as a key priority - so we designed our architecture around that principle. All your chats and sensitive data are encrypted in a way that only your devices can read them. And only the minimum amount of data that is needed for processing is send to our server.
+## Related Docs
 
-Accessibility
-There is already too much income & opportunity inequality in this world. But by designing OpenMates so its easy to use by everyone (without the need for deep technical experience) we can make the best learning tool ever and digital team mates that can fullfill tasks for you, accessible to the masses and be part of a shift towards more 
-
-Any more questions? Check the docs or (after signing up) just ask me questions about OpenMates!
-
-```
+- [Accessibility](./accessibility.md) -- WCAG compliance patterns
+- [Daily Inspiration](./daily-inspiration.md) -- content generation pipeline
+- [Docs Web App](./docs-web-app.md) -- documentation rendering at `/docs`

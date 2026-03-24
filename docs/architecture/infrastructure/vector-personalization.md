@@ -1,99 +1,55 @@
-# 🧠 Client-Side Vector Search for Privacy-Preserving Personalization
-
-## Overview
-
-This feature enables **privacy-focused personalization** in the AI Agents web app using **client-side vector search**.  
-Instead of storing user interests or profiles on the server, the system performs **semantic matching locally** to determine which of the user’s interests are relevant to each message.
-
-Only the **relevant tags** are shared with the backend — not the user’s entire interest profile — providing personalization **without user tracking**.
-
+---
+status: planned
+last_verified: 2026-03-24
+key_files: []
 ---
 
-## ✨ How It Works
+# Client-Side Vector Search for Personalization
 
-### 1. Setup Phase
-During onboarding, the user selects or describes topics they’re interested in.  
-These interest statements are converted into vector embeddings and stored **locally** (e.g., in IndexedDB or SQLite-WASM).  
-No data leaves the device.
+> Planned feature: privacy-preserving personalization via client-side semantic matching of user interests against message tags, with only relevant interests sent to the backend.
 
-Example:
-```json
-{
-  "user_interests": ["AI safety", "automation", "neuroscience", "history podcasts"]
-}
+## Why This Exists
 
-2. Message Processing
-	1.	The user sends a message to the server.
-	2.	A lightweight preprocessing step returns a list of semantic tags for that message (e.g., "AI tools", "ethics", "productivity").
-	3.	On the client, a local vector search compares these tags against the stored user interest embeddings.
-	4.	The top-N most relevant interests are selected and sent to the backend as part of the inference request.
+Personalization typically requires server-side user profiles, which conflicts with OpenMates' privacy-first design. Client-side vector search keeps the full interest profile on-device and shares only contextually relevant tags per request.
 
-Only those contextually relevant topics (as plain text) are sent — not vectors or the full profile.
+## How It Works (Planned)
 
-⸻
+### Setup Phase
 
-🧩 Example Flow
+During onboarding, the user selects interest topics. These are converted to vector embeddings and stored locally (IndexedDB or SQLite-WASM). No data leaves the device.
 
-flowchart LR
-    A[User selects interests] --> B[Embeddings generated locally]
-    B --> C[Interests stored in local vector DB]
-    D[User sends message] --> E[Server preprocessing → message tags]
-    E --> F[Client performs vector similarity search]
-    F --> G[Top relevant interests identified]
-    G --> H[Relevant interests sent with LLM request]
-    H --> I[Personalized LLM response]
+### Message Processing
 
+1. User sends a message.
+2. Server preprocessing returns semantic tags for the message.
+3. Client performs local vector similarity search against stored interest embeddings.
+4. Top-N relevant interests sent to backend as plain text with the inference request.
 
-⸻
+### Technology Options
 
-⚙️ Technology
+| Component    | Candidates                              |
+|-------------|------------------------------------------|
+| Embeddings  | text-embedding-3-small, MiniLM-L6-v2    |
+| Vector Store| hnswlib-wasm, vectordb, SQLite-VSS       |
+| Storage     | IndexedDB, WASM SQLite                   |
 
-Component	Example Options
-Embeddings	text-embedding-3-small, MiniLM-L6-v2 (local)
-Vector Store	hnswlib-wasm, vectordb, or SQLite-VSS
-Storage	IndexedDB or WASM SQLite
-Backend	Stateless LLM inference API
+### Privacy Properties
 
+- No server-side storage of interests or embeddings.
+- Only minimal relevant metadata sent per request.
+- Cannot reconstruct full user profile from individual requests.
+- GDPR-friendly: no profiling, no tracking.
 
-⸻
+### Performance
 
-🔒 Privacy Advantages
-	•	No server-side storage of user interests or embeddings
-	•	Only minimal, relevant metadata sent per request
-	•	Difficult or impossible to reconstruct full user profile
-	•	Complies with privacy-first design principles (GDPR-friendly)
+Client-side vector search: <10ms for <10,000 interests. No network overhead for personalization logic.
 
-⸻
+## Future
 
-⚡ Performance
+- Encrypted local backups for cross-device interest sync.
+- Model versioning to prevent embedding drift.
+- Local embedding generation via transformers.js for full offline mode.
 
-Client-side vector searches are lightweight:
-	•	<10 ms for <10 000 interests
-	•	Local embeddings cached for fast access
-	•	No network overhead for personalization logic
+## Related Docs
 
-⸻
-
-✅ Benefits
-	•	Personalization without profiling
-	•	Low latency, high privacy
-	•	Semantic understanding of user preferences
-	•	Simple integration with existing LLM APIs
-
-⸻
-
-🧠 Future Improvements
-	•	Optional encrypted local backups for interests
-	•	Model versioning to prevent embedding drift
-	•	Local embedding generation using transformers.js for full offline mode
-
-⸻
-
-Example Output
-
-{
-  "message": "How can I build an autonomous research assistant?",
-  "tags": ["AI tools", "automation", "agents"],
-  "matched_interests": ["AI safety", "automation"],
-  "response": "To build a safe autonomous research assistant..."
-}
+- [Learning Mode](../ai/learning-mode.md) -- related personalization concept
