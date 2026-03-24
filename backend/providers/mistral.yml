@@ -235,22 +235,21 @@ models:
       - text
     output_types:
       - text
-    default_server: "mistral" # Default to direct Mistral API
+    default_server: "aws_bedrock" # Default to AWS Bedrock (EU), with Mistral API as fallback
     servers:
+      - id: "aws_bedrock"
+        name: "AWS Bedrock"
+        model_id: "mistral.devstral-2-123b" # Bedrock model ID
+        aws_region: "eu-central-1"
+        region: "EU"
       - id: "mistral"
         name: "Mistral"
         model_id: "devstral-2512" # Direct Mistral API model ID
-        region: "EU" # Server region for UI display (Mistral is EU-based)
-      - id: "aws_bedrock"
-        name: "AWS Bedrock"
-        model_id: "mistral.devstral-2-123b" # Bedrock model ID (no EU inference profile available)
-        aws_region: "eu-central-1"
         region: "EU"
       - id: "openrouter"
         name: "OpenRouter"
-        # OpenRouter model identifier
         model_id: "mistralai/devstral-2512"
-        region: "US" # Server region for UI display
+        region: "US"
     pricing:
       tokens:
         input:
