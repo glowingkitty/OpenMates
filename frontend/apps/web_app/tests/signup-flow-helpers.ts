@@ -885,6 +885,14 @@ function withLiveRecordMarker(message: string, groupId: string): string {
 	return `${message} <<<TEST_LIVE_RECORD:${groupId}>>>`;
 }
 
+/**
+ * Build a deterministic test account email for a given slot number.
+ * Used by create-test-account.spec.ts to provision persistent E2E test accounts.
+ */
+function buildTestAccountEmail(slot: number, domain: string): string {
+	return `testacct${slot}@${domain}`;
+}
+
 module.exports = {
 	ARTIFACTS_DIRNAME,
 	PREVIOUS_RUN_DIRNAME,
@@ -896,6 +904,7 @@ module.exports = {
 	getSignupTestDomain,
 	getMailosaurServerId,
 	buildSignupEmail,
+	buildTestAccountEmail,
 	checkMailosaurQuota,
 	createMailosaurClient,
 	generateTotp,
