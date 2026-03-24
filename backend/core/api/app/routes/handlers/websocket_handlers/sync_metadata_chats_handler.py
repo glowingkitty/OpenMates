@@ -120,11 +120,14 @@ async def handle_sync_metadata_chats(
                 f"{len(new_chat_ids)} to send"
             )
 
-            # Fetch metadata for new chats from cache
+            # Fetch metadata for new chats from cache — batch Redis lookups
             chat_ids_needing_directus = []
+            batch_list_items = await cache_service.get_batch_chat_list_item_data(user_id, new_chat_ids)
+            batch_versions = await cache_service.get_batch_chat_versions(user_id, new_chat_ids)
+
             for chat_id in new_chat_ids:
-                cached_list_item = await cache_service.get_chat_list_item_data(user_id, chat_id)
-                cached_versions = await cache_service.get_chat_versions(user_id, chat_id)
+                cached_list_item = batch_list_items.get(chat_id)
+                cached_versions = batch_versions.get(chat_id)
 
                 if not cached_list_item:
                     chat_ids_needing_directus.append(chat_id)
