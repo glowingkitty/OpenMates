@@ -1691,6 +1691,46 @@ prometheus_alert.footer_note:
   he: "התראה זו נשלחה על ידי מערכת הניטור האוטומטית של Prometheus."
   verified_by_human: []
 
+cron_session_notification.title:
+  context: Email subject for cron job session notification (admin only)
+  en: "Cron Job Session — {{job_display}} ({{status}})"
+
+cron_session_notification.header:
+  context: Header text in cron session notification email (admin only)
+  en: "Cron Job Session"
+
+cron_session_notification.job_type_label:
+  context: Label for job type in cron session email (admin only)
+  en: "Job Type"
+
+cron_session_notification.session_label:
+  context: Label for session name in cron session email (admin only)
+  en: "Session"
+
+cron_session_notification.duration_label:
+  context: Label for duration in cron session email (admin only)
+  en: "Duration"
+
+cron_session_notification.exit_code_label:
+  context: Label for exit code in cron session email (admin only)
+  en: "Exit Code"
+
+cron_session_notification.session_id_label:
+  context: Label for session ID in cron session email (admin only)
+  en: "Session ID"
+
+cron_session_notification.resume_hint:
+  context: Hint text for resuming a session in cron session email (admin only)
+  en: "Resume this session"
+
+cron_session_notification.summary_label:
+  context: Label for context summary in cron session email (admin only)
+  en: "Summary"
+
+cron_session_notification.footer_note:
+  context: Footer note in cron session notification email (admin only)
+  en: "This notification was sent by an automated Claude Code cron job."
+
 github:
   context: GitHub link in email footer
   en: GitHub

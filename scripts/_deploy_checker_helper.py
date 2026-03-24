@@ -359,6 +359,8 @@ def run() -> None:
         log_prefix=LOG_PREFIX,
         agent=None,   # None = build mode (default)
         timeout=1800, # 30 minutes
+        job_type="deploy-fix",
+        context_summary=f"Vercel deployment {deploy_id} failed ({state_val})",
     )
 
     if returncode == 0:

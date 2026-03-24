@@ -2578,3 +2578,68 @@ async def alertmanager_webhook(
         "errors": errors,
         "recipient": admin_email,
     }
+
+
+# ---------------------------------------------------------------------------
+# Cron Job Session Notification
+# ---------------------------------------------------------------------------
+
+class CronSessionNotificationPayload(BaseModel):
+    """Payload for cron job session email notification."""
+    job_type: str = Field(..., description="Job category: audit, security, redteam, dependabot, dead-code, deploy-fix, test-analysis, issues, workflow-review")
+    job_name: str = Field(..., description="Human-readable session title")
+    status: str = Field(..., description="Session outcome: completed, failed, or timeout")
+    session_id: Optional[str] = Field(None, description="Claude Code session UUID")
+    duration_seconds: Optional[int] = Field(None, description="Session duration in seconds")
+    context_summary: Optional[str] = Field(None, description="Brief description of what happened")
+    exit_code: Optional[int] = Field(None, description="Process exit code")
+
+
+@router.post("/dispatch-cron-session-email")
+async def dispatch_cron_session_email(
+    payload: CronSessionNotificationPayload,
+    request: Request,
+) -> Dict[str, Any]:
+    """
+    Dispatch a cron job session notification email to the admin.
+
+    Called by scripts/_claude_utils.py after each automated Claude Code session
+    completes (or fails/times out). Non-fatal — cron jobs should not fail if
+    this endpoint is unreachable.
+
+    Protected by internal service token (X-Internal-Service-Token header).
+    Architecture: See docs/architecture/infrastructure/cronjobs.md
+    """
+    from backend.core.api.app.tasks.celery_config import app as celery_app
+
+    admin_email = os.getenv("SERVER_OWNER_EMAIL") or os.getenv("ADMIN_NOTIFY_EMAIL")
+    if not admin_email:
+        logger.warning(
+            "SERVER_OWNER_EMAIL/ADMIN_NOTIFY_EMAIL not configured — "
+            "cron session notification skipped."
+        )
+        return {"status": "no_recipient", "reason": "no admin email configured"}
+
+    try:
+        celery_app.send_task(
+            name="app.tasks.email_tasks.cron_session_email_task.send_cron_session_notification",
+            args=[
+                admin_email,
+                payload.job_type,
+                payload.job_name,
+                payload.status,
+                payload.session_id,
+                payload.duration_seconds,
+                payload.context_summary,
+                payload.exit_code,
+            ],
+            queue="email",
+        )
+        logger.info(
+            f"Dispatched cron session notification: job_type={payload.job_type}, "
+            f"status={payload.status}, recipient={admin_email}"
+        )
+        return {"status": "dispatched", "recipient": admin_email}
+    except Exception as e:
+        logger.error(f"Failed to dispatch cron session notification: {e}", exc_info=True)
+        return {"status": "error", "error": str(e)}

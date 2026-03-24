@@ -250,13 +250,15 @@ def run() -> None:
     session_title = f"chore: dead code removal {today_date}"
     print(f"[dead-code] Starting claude session '{session_title}'...")
 
-    returncode, share_url = run_claude_session(
+    returncode, session_id = run_claude_session(
         prompt=prompt,
         session_title=session_title,
         project_root=project_root,
         log_prefix="[dead-code]",
         agent=None,    # build mode — no agent flag
         timeout=2400,  # 40 minutes — dead code removal involves many file edits
+        job_type="dead-code",
+        context_summary=f"{len(items_to_send)} item(s) across {categories_str}",
     )
 
     # Record items as removed in state regardless of claude exit code —

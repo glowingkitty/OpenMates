@@ -376,6 +376,8 @@ def process_alerts() -> None:
         log_prefix="[dependabot]",
         agent=None,    # build mode — fix the alerts
         timeout=1800,
+        job_type="dependabot",
+        context_summary=f"{len(to_dispatch)} alert(s) dispatched for fix",
     )
 
 

@@ -334,6 +334,7 @@ def run_audit() -> None:
         log_prefix="[security]",
         agent="plan",
         timeout=2700,  # 45 min max — no hard limit, but cap to be safe
+        job_type="security",
     )
 
     # Update state
@@ -418,6 +419,7 @@ def run_redteam() -> None:
         agent="plan",
         timeout=1200,
         allowed_tools=["Read", "Grep", "Glob", "Bash(curl *)"],
+        job_type="redteam",
     )
 
     # Update state

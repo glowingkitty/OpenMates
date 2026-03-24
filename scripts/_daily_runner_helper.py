@@ -577,6 +577,8 @@ def start_claude_analysis() -> None:
             log_prefix="[daily-runner]",
             agent="plan",
             timeout=600,
+            job_type="test-analysis",
+            context_summary=f"{failed_count} test(s) failed (run_id={run_id})",
         )
         if session_id:
             # Emit parseable line for run-tests-daily.sh to capture via grep

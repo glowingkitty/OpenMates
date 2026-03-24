@@ -164,6 +164,7 @@ def run_audit() -> None:
         log_prefix="[audit]",
         agent="plan",
         timeout=1800,
+        job_type="audit",
     )
 
     # Store session ID as proxy for summary

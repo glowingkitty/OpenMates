@@ -263,6 +263,8 @@ def check_issues() -> None:
         log_prefix="[issues-checker]",
         agent="plan",
         timeout=900,
+        job_type="issues",
+        context_summary=f"{len(unresolved)} unresolved issue(s) from past 24h",
     )
 
     if session_id:

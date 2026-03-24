@@ -2144,6 +2144,9 @@
     "share": {
       "text": "Share chat"
     },
+    "reminders": {
+      "text": "Reminders"
+    },
     "start_audio_call": {
       "text": "Start audio call"
     },
@@ -3153,8 +3156,8 @@
       "share_copied": {
         "text": "Link copied to clipboard"
       },
-      "download_pdf": {
-        "text": "Download as PDF"
+      "download_md": {
+        "text": "Download Markdown"
       },
       "report_issue": {
         "text": "Report issue"
@@ -3434,6 +3437,38 @@
       },
       "footer_note": {
         "text": "This alert was sent by the automated Prometheus monitoring system."
+      }
+    },
+    "cron_session_notification": {
+      "title": {
+        "text": "Cron Job Session — {{job_display}} ({{status}})"
+      },
+      "header": {
+        "text": "Cron Job Session"
+      },
+      "job_type_label": {
+        "text": "Job Type"
+      },
+      "session_label": {
+        "text": "Session"
+      },
+      "duration_label": {
+        "text": "Duration"
+      },
+      "exit_code_label": {
+        "text": "Exit Code"
+      },
+      "session_id_label": {
+        "text": "Session ID"
+      },
+      "resume_hint": {
+        "text": "Resume this session"
+      },
+      "summary_label": {
+        "text": "Summary"
+      },
+      "footer_note": {
+        "text": "This notification was sent by an automated Claude Code cron job."
       }
     },
     "github": {
@@ -7177,6 +7212,32 @@
       },
       "error_generic": {
         "text": "Something went wrong. Please try again."
+      }
+    },
+    "settings": {
+      "title": {
+        "text": "Reminders"
+      },
+      "description": {
+        "text": "Create and manage your reminders"
+      },
+      "description_this_chat": {
+        "text": "The reminder will trigger in the current chat"
+      },
+      "description_new_chat": {
+        "text": "The reminder will start a new chat when it triggers"
+      },
+      "target_heading": {
+        "text": "Where to trigger"
+      },
+      "create_title": {
+        "text": "Create reminder"
+      },
+      "success": {
+        "text": "Reminder set successfully!"
+      },
+      "active_title": {
+        "text": "Active reminders"
       }
     }
   },

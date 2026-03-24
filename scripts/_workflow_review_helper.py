@@ -331,6 +331,7 @@ def cmd_run_review(yesterday: str) -> None:
         log_prefix="[workflow-review]",
         agent="plan",
         timeout=900,
+        job_type="workflow-review",
     )
 
     if session_id:
