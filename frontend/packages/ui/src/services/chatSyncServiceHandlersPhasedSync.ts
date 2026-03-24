@@ -460,7 +460,7 @@ async function storeRecentChats(
       const existingChat = await chatDB.getChat(chatId);
 
       // Merge server data with local data, preserving higher versions
-      let mergedChat = mergeServerChatWithLocal(
+      let mergedChat = await mergeServerChatWithLocal(
         chat_details,
         existingChat,
         currentUserId,
@@ -718,7 +718,7 @@ async function storeAllChats(
       const existingChat = await chatDB.getChat(chatId);
 
       // Merge server data with local data, preserving higher versions
-      let mergedChat = mergeServerChatWithLocal(
+      let mergedChat = await mergeServerChatWithLocal(
         chat_details,
         existingChat,
         currentUserId,
@@ -1073,11 +1073,11 @@ async function storeEmbedKeysBatch(
  * @param currentUserId - Current user's ID (all synced chats belong to them - server filters by hashed_user_id)
  * @returns Merged chat data with required fields for Chat type
  */
-function mergeServerChatWithLocal(
+async function mergeServerChatWithLocal(
   serverChat: Partial<Chat> & { id: string },
   localChat: Chat | null,
   currentUserId?: string,
-): Chat {
+): Promise<Chat> {
   const nowTimestamp = Math.floor(Date.now() / 1000);
 
   // If no local chat exists, use server data with defaults
@@ -1213,8 +1213,8 @@ function mergeServerChatWithLocal(
   }
 
   // Use server's encrypted_chat_key if available, otherwise keep local.
-  // This ensures we can decrypt messages synced from the server even if our local key was
-  // incorrectly generated (e.g. during a race condition or stale session).
+  // Server is the durable source of truth — when keys differ, we accept
+  // the server key and update ChatKeyManager so future encryptions use it.
   if (serverChat.encrypted_chat_key) {
     if (
       localChat.encrypted_chat_key &&
@@ -1222,8 +1222,23 @@ function mergeServerChatWithLocal(
     ) {
       console.warn(
         `[ChatSyncService] ⚠️ Chat key mismatch for chat ${merged.chat_id}! ` +
-          `Local key differs from server key. Overwriting local key with server's source of truth.`,
+          `Local key differs from server key. Server wins as source of truth.`,
       );
+      // Proactively load the server key into ChatKeyManager so subsequent
+      // operations (decryptMessageFields, validateAndHealEncryptedMetadata)
+      // use the correct key. receiveKeyFromServer will detect the conflict
+      // and replace the local key.
+      try {
+        await chatKeyManager.receiveKeyFromServer(
+          merged.chat_id,
+          serverChat.encrypted_chat_key,
+        );
+      } catch (error) {
+        console.error(
+          `[ChatSyncService] Failed to load server key for ${merged.chat_id}:`,
+          error,
+        );
+      }
     }
     merged.encrypted_chat_key = serverChat.encrypted_chat_key;
   } else if (localChat.encrypted_chat_key) {

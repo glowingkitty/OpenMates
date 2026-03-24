@@ -159,9 +159,27 @@ async def setup_vault():
             await secrets_manager.add_new_secrets_to_vault()
         else:
             # Root token unavailable (deleted after first successful setup — expected on every restart).
-            # Engine checks above confirmed Vault is operational. Skip root-only operations.
-            logger.info("Root token not available — skipping policy/token creation and secret migration (already completed on first run).")
-            logger.info("Existing api.token remains valid; no action needed.")
+            # Engine checks above confirmed Vault is operational. Skip root-only operations
+            # (policy creation, token creation) but still sync new secrets from .env.
+            logger.info("Root token not available — skipping policy/token creation (already completed on first run).")
+            logger.info("Existing api.token remains valid.")
+
+            # Sync new secrets from environment: generate a temporary root token using the
+            # unseal key, write any new SECRET__* env vars to Vault, then revoke the token.
+            logger.info("Checking for new secrets to sync from environment...")
+            temp_root = await initializer.generate_temporary_root_token()
+            if temp_root:
+                original_token = client.vault_token
+                client.update_token(temp_root)
+                try:
+                    await secrets_manager.add_new_secrets_to_vault()
+                finally:
+                    # Restore API token and revoke the temporary root token
+                    client.update_token(original_token)
+                    await initializer.revoke_token(temp_root)
+            else:
+                logger.warning("Could not generate temporary root token — skipping secret sync. "
+                               "New SECRET__* env vars will NOT be imported until next first-run setup.")
         
         # Final instructions
         logger.info("="*80)

@@ -10,26 +10,10 @@
 
 import type { Chat, Message, TiptapJSON } from "../../types/chat";
 import {
-  generateChatKey,
   encryptChatKeyWithMasterKey,
   decryptChatKeyWithMasterKey,
 } from "../cryptoService";
-
-/** FNV-1a fingerprint — same algorithm as ChatKeyManager.computeKeyFingerprint */
-function computeKeyFingerprint(key: Uint8Array): string {
-  let h1 = 0x811c9dc5;
-  let h2 = 0x1a47e90b;
-  for (let i = 0; i < key.length; i++) {
-    h1 ^= key[i];
-    h1 = Math.imul(h1, 0x01000193);
-  }
-  for (let i = key.length - 1; i >= 0; i--) {
-    h2 ^= key[i];
-    h2 = Math.imul(h2, 0x01000193);
-  }
-  return (h1 >>> 0).toString(16).padStart(8, "0") + (h2 >>> 0).toString(16).padStart(8, "0");
-}
-import { chatKeyManager } from "../encryption/ChatKeyManager";
+import { chatKeyManager, computeKeyFingerprint } from "../encryption/ChatKeyManager";
 import { get } from "svelte/store";
 import { forcedLogoutInProgress, isLoggingOut } from "../../stores/signupState";
 
@@ -168,13 +152,12 @@ export async function encryptChatForStorage(
     }
   }
 
-  // Step 4: genuinely new chat — generate a key explicitly (no silent fallbacks)
+  // Step 4: genuinely new chat — create key through ChatKeyManager (single source of truth)
   if (!chatKey) {
     console.log(
       `[ChatDatabase] Generating NEW chat key for chat ${chat.chat_id} (new chat creation)`,
     );
-    chatKey = generateChatKey();
-    chatKeyManager.injectKey(chat.chat_id, chatKey, "created");
+    chatKey = chatKeyManager.createKeyForNewChat(chat.chat_id);
   }
 
   // Ensure encrypted_chat_key is present in the stored object

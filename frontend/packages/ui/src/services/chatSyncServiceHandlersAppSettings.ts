@@ -2232,8 +2232,9 @@ export async function handleReminderFiredImpl(
     } else {
       // new_chat: Create the chat locally first
       // Generate a new chat key for this chat
-      const { generateChatKey } = await import("./cryptoService");
-      chatKey = generateChatKey();
+      // Create key through ChatKeyManager (single source of truth for key creation)
+      const { chatKeyManager } = await import("./encryption/ChatKeyManager");
+      chatKey = chatKeyManager.createKeyForNewChat(chat_id);
 
       if (!chatKey) {
         console.error(
@@ -2241,9 +2242,6 @@ export async function handleReminderFiredImpl(
         );
         return;
       }
-
-      // Store the chat key
-      chatDB.setChatKey(chat_id, chatKey);
 
       const now = firedAt;
 

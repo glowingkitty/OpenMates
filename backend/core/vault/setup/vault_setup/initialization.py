@@ -291,6 +291,134 @@ class VaultInitializer:
             logger.error(f"Failed to unseal Vault: {str(e)}")
             return False
 
+    async def generate_temporary_root_token(self) -> Optional[str]:
+        """Generate a temporary root token using the unseal key.
+
+        Uses the Vault generate-root workflow (init → provide unseal key → decode).
+        This allows vault-setup to perform privileged operations (secret sync, policy
+        updates) on every restart without storing the root token on disk.
+
+        Returns:
+            A temporary root token, or None if generation fails.
+        """
+        unseal_key = self.get_saved_unseal_key()
+        if not unseal_key:
+            logger.warning("No unseal key available — cannot generate temporary root token.")
+            return None
+
+        try:
+            # Step 1: Cancel any in-progress generation
+            await self.client._client.delete(
+                f"{self.client.vault_addr}/v1/sys/generate-root/attempt",
+            )
+
+            # Step 2: Start a new generate-root attempt
+            init_resp = await self.client._client.put(
+                f"{self.client.vault_addr}/v1/sys/generate-root/attempt",
+                json={},
+            )
+            init_resp.raise_for_status()
+            init_data = init_resp.json()
+            nonce = init_data["nonce"]
+            otp = init_data["otp"]
+
+            # Step 3: Provide the unseal key
+            update_resp = await self.client._client.put(
+                f"{self.client.vault_addr}/v1/sys/generate-root/update",
+                json={"key": unseal_key, "nonce": nonce},
+            )
+            update_resp.raise_for_status()
+            update_data = update_resp.json()
+
+            if not update_data.get("complete"):
+                logger.error("Root token generation did not complete (unexpected — threshold=1).")
+                return None
+
+            encoded_token = update_data["encoded_root_token"]
+
+            # Step 4: Decode the encoded token using the OTP
+            decode_resp = await self.client._client.put(
+                f"{self.client.vault_addr}/v1/sys/generate-root/attempt",
+                json={"encoded_token": encoded_token, "otp": otp},
+            )
+
+            # The decode endpoint may not exist in all Vault versions.
+            # Fall back to XOR decoding if necessary.
+            if decode_resp.status_code == 200:
+                decoded = decode_resp.json()
+                if decoded.get("encoded_root_token"):
+                    # Some Vault versions return the decoded token here
+                    root_token = decoded["encoded_root_token"]
+                else:
+                    root_token = self._xor_decode_root_token(encoded_token, otp)
+            else:
+                root_token = self._xor_decode_root_token(encoded_token, otp)
+
+            if root_token:
+                logger.info("Generated temporary root token for secret sync.")
+                return root_token
+
+            logger.error("Failed to decode temporary root token.")
+            return None
+
+        except Exception as e:
+            logger.error(f"Failed to generate temporary root token: {e}", exc_info=True)
+            # Cancel any in-progress attempt on failure
+            try:
+                await self.client._client.delete(
+                    f"{self.client.vault_addr}/v1/sys/generate-root/attempt",
+                )
+            except Exception:
+                pass
+            return None
+
+    @staticmethod
+    def _xor_decode_root_token(encoded_token: str, otp: str) -> Optional[str]:
+        """Decode a Vault encoded root token using XOR with the OTP.
+
+        Vault (1.x+) encodes: base64url(xor(token_bytes, otp_bytes)).
+        After XOR the result is the raw token string (UTF-8).
+        The OTP is a raw ASCII string (not base64-encoded).
+        """
+        import base64
+        try:
+            # encoded_token is base64url without padding
+            padded = encoded_token + "=" * (-len(encoded_token) % 4)
+            token_bytes = base64.urlsafe_b64decode(padded)
+            # OTP is a raw string — use its bytes directly
+            otp_bytes = otp.encode("utf-8")
+            xored = bytes(a ^ b for a, b in zip(token_bytes, otp_bytes))
+            result = xored.decode("utf-8").rstrip("\x00")
+            if result:
+                return result
+            logger.error("XOR decode produced empty result.")
+            return None
+        except UnicodeDecodeError:
+            # Fallback: OTP might be base64url-encoded in some Vault versions
+            try:
+                otp_bytes = base64.urlsafe_b64decode(otp + "=" * (-len(otp) % 4))
+                xored = bytes(a ^ b for a, b in zip(token_bytes, otp_bytes))
+                result = xored.decode("utf-8").rstrip("\x00")
+                return result if result else None
+            except Exception as e2:
+                logger.error(f"XOR decode failed (both raw and b64 OTP): {e2}")
+                return None
+        except Exception as e:
+            logger.error(f"XOR decode failed: {e}")
+            return None
+
+    async def revoke_token(self, token: str) -> None:
+        """Revoke a Vault token."""
+        try:
+            await self.client._client.put(
+                f"{self.client.vault_addr}/v1/auth/token/revoke-self",
+                headers={"X-Vault-Token": token},
+                json={},
+            )
+            logger.info("Temporary root token revoked.")
+        except Exception as e:
+            logger.warning(f"Failed to revoke temporary root token: {e}")
+
     def get_api_token_from_file(self) -> Optional[str]:
         """Reads the token from the api.token file."""
         try:

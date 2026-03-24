@@ -454,6 +454,21 @@ class ChatDatabase {
           return chat?.encrypted_chat_key || null;
         });
 
+        // Wire ChatKeyManager's key persister for atomic key creation.
+        // This enables createAndPersistKey() to save the encrypted key to IDB
+        // in a single atomic operation — preventing the race where a key is
+        // created in memory but not yet persisted when data gets encrypted.
+        chatKeyManager.setEncryptedChatKeyPersister(
+          async (chatId: string, encryptedChatKey: string) => {
+            const chat = await this.getChat(chatId);
+            if (chat) {
+              chat.encrypted_chat_key = encryptedChatKey;
+              await this.updateChat(chat);
+            }
+            // If chat doesn't exist yet, the key will be set when addChat() runs
+          },
+        );
+
         // Load chat keys from database into cache
         try {
           await this.loadChatKeysFromDatabase();

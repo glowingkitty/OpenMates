@@ -2076,28 +2076,44 @@ export async function sendEncryptedStoragePackage(
       console.warn(
         `[ChatSyncService:Senders] ⚠️ encrypted_chat_key missing for ${chat_id}, generating new key (new chat)`,
       );
-      // New chat on originating device — safe to create key
+      // New chat on originating device — use atomic createAndPersistKey to ensure
+      // the key is persisted to IDB before any data is encrypted with it.
+      // This prevents the race where key K1 is in memory but not in IDB, a
+      // disruption wipes memory, and a new key K2 is generated.
       if (!chatKey) {
-        chatKey =
-          chatKeyManager.getKeySync(chat_id) ||
-          chatKeyManager.createKeyForNewChat(chat_id);
+        chatKey = chatKeyManager.getKeySync(chat_id);
       }
 
-      // Encrypt and save the new key
-      const { encryptChatKeyWithMasterKey } = await import("./cryptoService");
-      encryptedChatKey = await encryptChatKeyWithMasterKey(chatKey);
-
-      if (encryptedChatKey) {
-        // Update chat in DB with the encrypted key
-        chat.encrypted_chat_key = encryptedChatKey;
-        await chatDB.updateChat(chat);
-        console.log(
-          `[ChatSyncService:Senders] ✅ Generated and saved encrypted_chat_key for ${chat_id}: ${encryptedChatKey.substring(0, 20)}...`,
-        );
+      if (!chatKey) {
+        try {
+          const result = await chatKeyManager.createAndPersistKey(chat_id);
+          chatKey = result.chatKey;
+          encryptedChatKey = result.encryptedChatKey;
+          chat.encrypted_chat_key = encryptedChatKey;
+          console.log(
+            `[ChatSyncService:Senders] ✅ Atomically created and persisted key for ${chat_id}: ${encryptedChatKey.substring(0, 20)}...`,
+          );
+        } catch (error) {
+          console.error(
+            `[ChatSyncService:Senders] ❌ Failed to create/persist chat key for ${chat_id}:`,
+            error,
+          );
+        }
       } else {
-        console.error(
-          `[ChatSyncService:Senders] ❌ Failed to encrypt chat key for ${chat_id} - master key may be missing`,
-        );
+        // Key found in memory but not persisted — encrypt and save
+        const { encryptChatKeyWithMasterKey } = await import("./cryptoService");
+        encryptedChatKey = await encryptChatKeyWithMasterKey(chatKey);
+        if (encryptedChatKey) {
+          chat.encrypted_chat_key = encryptedChatKey;
+          await chatDB.updateChat(chat);
+          console.log(
+            `[ChatSyncService:Senders] ✅ Persisted existing key for ${chat_id}: ${encryptedChatKey.substring(0, 20)}...`,
+          );
+        } else {
+          console.error(
+            `[ChatSyncService:Senders] ❌ Failed to encrypt chat key for ${chat_id} - master key may be missing`,
+          );
+        }
       }
     }
 

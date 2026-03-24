@@ -14,15 +14,13 @@
 import { get } from "svelte/store";
 import { text } from "../i18n/translations";
 import {
-  generateChatKey,
-  encryptChatKeyWithMasterKey,
   encryptWithChatKey,
   encryptArrayWithChatKey,
 } from "./cryptoService";
+import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { addChat } from "./db/chatCrudOperations";
 import { saveMessage } from "./db/messageOperations";
 import { chatDB } from "./db";
-import { chatKeyManager } from "./encryption/ChatKeyManager";
 import type { Chat, Message } from "../types/chat";
 
 /**
@@ -67,12 +65,16 @@ export async function createOnboardingChat(
 
     // --- Generate chat ID and encryption key ---
     const chatId = crypto.randomUUID();
-    const chatKey = generateChatKey();
-    const encryptedChatKey = await encryptChatKeyWithMasterKey(chatKey);
-
-    if (!encryptedChatKey) {
+    let chatKey: Uint8Array;
+    let encryptedChatKey: string;
+    try {
+      const result = await chatKeyManager.createAndPersistKey(chatId);
+      chatKey = result.chatKey;
+      encryptedChatKey = result.encryptedChatKey;
+    } catch (error) {
       console.error(
-        "[OnboardingChat] Failed to encrypt chat key — master key may be missing",
+        "[OnboardingChat] Failed to create/persist chat key — master key may be missing:",
+        error,
       );
       return null;
     }
@@ -156,10 +158,10 @@ export async function createOnboardingChat(
       encrypted_category: encryptedCategory,
     };
 
-    // --- Cache the chat key before saving (addChat needs it for encryption) ---
+    // Key is already cached in ChatKeyManager via createAndPersistKey() above.
+    // addChat → encryptChatForStorage will find it via chatKeyManager.getKeySync().
     const dbInstance = chatDB;
     await dbInstance.init();
-    dbInstance.setChatKey(chatId, chatKey);
 
     // --- Save to IndexedDB ---
     await addChat(dbInstance, chat);
