@@ -18,6 +18,11 @@
  */
 export function getBackendUrl(url: URL): string {
 	const host = url.hostname;
+	// During prerendering, SvelteKit uses a synthetic hostname — use the same
+	// PRERENDER_BACKEND_URL that entries() generators use for consistency.
+	if (host === 'sveltekit-prerender') {
+		return PRERENDER_BACKEND_URL;
+	}
 	if (
 		host.includes('.dev.') ||
 		host.startsWith('dev.') ||

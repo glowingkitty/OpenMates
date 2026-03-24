@@ -60,12 +60,14 @@ export const load: PageServerLoad = async ({ params, fetch, setHeaders, url }) =
 	// Detect development/staging hostnames so the page can emit noindex meta tags.
 	// Matches the same logic used in robots.txt/+server.ts.
 	const hostname = url.hostname;
+	const isPrerender = hostname === 'sveltekit-prerender';
 	const isDevHost =
 		hostname.includes('.dev.') ||
 		hostname.startsWith('dev.') ||
 		hostname === 'localhost' ||
 		hostname === '127.0.0.1';
 
+	// getBackendUrl handles sveltekit-prerender hostname → PRERENDER_BACKEND_URL
 	const backendUrl = getBackendUrl(url);
 
 	let chatData: DemoChatResponse;
@@ -88,6 +90,13 @@ export const load: PageServerLoad = async ({ params, fetch, setHeaders, url }) =
 			throw err;
 		}
 		console.error(`[demo/chat/${slug}] Failed to fetch demo chat data:`, err);
+		// During prerendering, throw 404 instead of 500 so SvelteKit skips this page
+		// gracefully (prerender = 'auto' treats 404 as "don't prerender, serve via SSR").
+		// A 500 during prerendering crashes the entire build.
+		if (isPrerender) {
+			console.warn(`[demo/chat/${slug}] Skipping prerender — backend unreachable, will SSR at runtime`);
+			error(404, 'Demo chat not available for prerendering');
+		}
 		error(500, 'Failed to load demo chat');
 	}
 
