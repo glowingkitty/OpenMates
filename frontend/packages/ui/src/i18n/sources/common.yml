@@ -233,15 +233,15 @@ not_found.search_label:
   pt: Pesquisar "{query}"
   ru: Искать «{query}»
   ja: 「{query}」を検索
-  ko: "{query}" 검색
+  ko: '"{query}" 검색'
   it: Cerca "{query}"
-  tr: "{query}" ara
+  tr: '"{query}" ara'
   vi: Tìm kiếm "{query}"
   id: Cari "{query}"
   pl: Szukaj „{query}"
   nl: Zoek naar "{query}"
   ar: البحث عن "{query}"
-  hi: "{query}" खोजें
+  hi: '"{query}" खोजें'
   th: ค้นหา "{query}"
   cs: Hledat „{query}"
   sv: Sök efter "{query}"
@@ -258,15 +258,15 @@ not_found.ask_ai_label:
   pt: Perguntar sobre "{topic}"
   ru: Спросить о «{topic}»
   ja: 「{topic}」について質問する
-  ko: "{topic}"에 대해 질문
+  ko: '"{topic}"에 대해 질문'
   it: Chiedi di "{topic}"
-  tr: "{topic}" hakkında sor
+  tr: '"{topic}" hakkında sor'
   vi: Hỏi về "{topic}"
   id: Tanyakan tentang "{topic}"
   pl: Zapytaj o „{topic}"
   nl: Vragen over "{topic}"
   ar: اسأل عن "{topic}"
-  hi: "{topic}" के बारे में पूछें
+  hi: '"{topic}" के बारे में पूछें'
   th: ถามเกี่ยวกับ "{topic}"
   cs: Zeptat se na „{topic}"
   sv: Fråga om "{topic}"

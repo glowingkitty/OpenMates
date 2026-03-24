@@ -31,7 +31,7 @@ auto_logout.consider_stay_logged_in:
   context: Message suggesting to enable stay logged in
   en: "Consider activating 'Stay logged in'."
   de: "Erwägen Sie, 'Eingeloggt bleiben' zu aktivieren."
-  zh: "考虑启用"保持登录"。"
+  zh: "考虑启用\"保持登录\"。"
   es: "Considera activar 'Mantener sesión iniciada'."
   fr: "Envisagez d'activer 'Rester connecté'."
   pt: "Considere ativar 'Manter conectado'."

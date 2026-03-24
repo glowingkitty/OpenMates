@@ -6,51 +6,236 @@ account_created:
   fr: Compte créé
   ja: アカウントが作成されました
   zh: 账户已创建
+  pt: Conta criada
+  ru: Аккаунт создан
+  ko: 계정이 생성되었습니다
+  it: Account creato
+  tr: Hesap oluşturuldu
+  vi: Tài khoản đã được tạo
+  id: Akun dibuat
+  pl: Konto zostało utworzone
+  nl: Account aangemaakt
+  ar: تم إنشاء الحساب
+  hi: खाता बनाया गया
+  th: สร้างบัญชีแล้ว
+  cs: Účet byl vytvořen
+  sv: Konto skapat
   he: החשבון נוצר
 password_security_reminder.subject:
   context: Subject line for recurring security reminders when password login is enabled without 2FA
   en: Action needed to secure your OpenMates account
   de: Aktion erforderlich, um dein OpenMates-Konto zu sichern
+  zh: 需要采取措施保护您的 OpenMates 账户
+  es: Se necesita acción para proteger tu cuenta de OpenMates
+  fr: Action requise pour sécuriser votre compte OpenMates
+  pt: Ação necessária para proteger sua conta OpenMates
+  ru: Требуется действие для защиты вашего аккаунта OpenMates
+  ja: OpenMatesアカウントを保護するための対応が必要です
+  ko: OpenMates 계정 보안을 위한 조치가 필요합니다
+  it: Azione necessaria per proteggere il tuo account OpenMates
+  tr: OpenMates hesabınızı güvence altına almak için işlem gerekiyor
+  vi: Cần thực hiện hành động để bảo mật tài khoản OpenMates của bạn
+  id: Tindakan diperlukan untuk mengamankan akun OpenMates Anda
+  pl: Wymagane działanie w celu zabezpieczenia konta OpenMates
+  nl: Actie vereist om je OpenMates-account te beveiligen
+  ar: إجراء مطلوب لتأمين حساب OpenMates الخاص بك
+  hi: आपके OpenMates खाते को सुरक्षित करने के लिए कार्रवाई आवश्यक है
+  th: จำเป็นต้องดำเนินการเพื่อรักษาความปลอดภัยบัญชี OpenMates ของคุณ
+  cs: Je nutné podniknout kroky k zabezpečení vašeho účtu OpenMates
+  sv: Åtgärd krävs för att säkra ditt OpenMates-konto
+  he: נדרשת פעולה לאבטחת חשבון OpenMates שלך
   verified_by_human: []
 password_security_reminder.header:
   context: Header in password security reminder email
   en: Your account needs a security update
   de: Dein Konto braucht ein Sicherheits-Update
+  zh: 您的账户需要安全更新
+  es: Tu cuenta necesita una actualización de seguridad
+  fr: Votre compte a besoin d'une mise à jour de sécurité
+  pt: Sua conta precisa de uma atualização de segurança
+  ru: Ваш аккаунт требует обновления безопасности
+  ja: アカウントにセキュリティアップデートが必要です
+  ko: 계정에 보안 업데이트가 필요합니다
+  it: Il tuo account ha bisogno di un aggiornamento di sicurezza
+  tr: Hesabınızın güvenlik güncellemesine ihtiyacı var
+  vi: Tài khoản của bạn cần cập nhật bảo mật
+  id: Akun Anda membutuhkan pembaruan keamanan
+  pl: Twoje konto wymaga aktualizacji zabezpieczeń
+  nl: Je account heeft een beveiligingsupdate nodig
+  ar: حسابك يحتاج إلى تحديث أمني
+  hi: आपके खाते को सुरक्षा अपडेट की आवश्यकता है
+  th: บัญชีของคุณต้องการการอัปเดตความปลอดภัย
+  cs: Váš účet potřebuje aktualizaci zabezpečení
+  sv: Ditt konto behöver en säkerhetsuppdatering
+  he: החשבון שלך זקוק לעדכון אבטחה
   verified_by_human: []
 password_security_reminder.description:
   context: Intro paragraph in password security reminder email
   en: Your account is considered fully secure only if password login is protected by 2FA, or if you switch to passkey-only login by removing password login.
   de: Dein Konto gilt nur dann als vollständig sicher, wenn Passwort-Login mit 2FA geschützt ist, oder wenn du auf reinen Passkey-Login umstellst und Passwort-Login entfernst.
+  zh: 只有当密码登录受到 2FA 保护，或者您通过删除密码登录切换到仅使用通行密钥登录时，您的账户才被认为是完全安全的。
+  es: Tu cuenta se considera completamente segura solo si el inicio de sesión con contraseña está protegido por 2FA, o si cambias al inicio de sesión solo con clave de acceso eliminando el inicio de sesión con contraseña.
+  fr: Votre compte est considéré comme entièrement sécurisé uniquement si la connexion par mot de passe est protégée par la 2FA, ou si vous passez à la connexion uniquement par clé d'accès en supprimant la connexion par mot de passe.
+  pt: Sua conta é considerada totalmente segura apenas se o login com senha estiver protegido por 2FA, ou se você mudar para o login somente com chave de acesso removendo o login com senha.
+  ru: Ваш аккаунт считается полностью защищённым только если вход по паролю защищён двухфакторной аутентификацией, или если вы переходите на вход только по ключу доступа, удалив вход по паролю.
+  ja: パスワードログインが2FAで保護されている場合、またはパスワードログインを削除してパスキーのみのログインに切り替えた場合にのみ、アカウントは完全に安全とみなされます。
+  ko: 비밀번호 로그인이 2FA로 보호되거나, 비밀번호 로그인을 제거하고 패스키 전용 로그인으로 전환한 경우에만 계정이 완전히 안전한 것으로 간주됩니다.
+  it: Il tuo account è considerato completamente sicuro solo se il login con password è protetto da 2FA, o se passi al login solo con passkey rimuovendo il login con password.
+  tr: Hesabınız yalnızca şifre girişi 2FA ile korunuyorsa veya şifre girişini kaldırarak yalnızca geçiş anahtarı girişine geçerseniz tamamen güvenli kabul edilir.
+  vi: Tài khoản của bạn được coi là hoàn toàn an toàn chỉ khi đăng nhập bằng mật khẩu được bảo vệ bởi 2FA, hoặc khi bạn chuyển sang đăng nhập chỉ bằng khóa truy cập bằng cách xóa đăng nhập bằng mật khẩu.
+  id: Akun Anda dianggap sepenuhnya aman hanya jika login kata sandi dilindungi oleh 2FA, atau jika Anda beralih ke login hanya dengan kunci sandi dengan menghapus login kata sandi.
+  pl: Twoje konto jest uznawane za w pełni bezpieczne tylko wtedy, gdy logowanie hasłem jest chronione przez 2FA lub gdy przejdziesz na logowanie wyłącznie kluczem dostępu, usuwając logowanie hasłem.
+  nl: Je account wordt als volledig veilig beschouwd alleen als de wachtwoordinlog beveiligd is met 2FA, of als je overschakelt naar alleen passkey-inlog door de wachtwoordinlog te verwijderen.
+  ar: يُعدّ حسابك آمنًا تمامًا فقط إذا كان تسجيل الدخول بكلمة المرور محميًا بالمصادقة الثنائية، أو إذا قمت بالتبديل إلى تسجيل الدخول بمفتاح المرور فقط عن طريق إزالة تسجيل الدخول بكلمة المرور.
+  hi: आपका खाता पूरी तरह सुरक्षित तभी माना जाता है जब पासवर्ड लॉगिन 2FA द्वारा संरक्षित हो, या यदि आप पासवर्ड लॉगिन हटाकर केवल पासकी लॉगिन पर स्विच करते हैं।
+  th: บัญชีของคุณถือว่าปลอดภัยสมบูรณ์เฉพาะเมื่อการเข้าสู่ระบบด้วยรหัสผ่านได้รับการป้องกันด้วย 2FA หรือเมื่อคุณเปลี่ยนไปใช้การเข้าสู่ระบบด้วยพาสคีย์เท่านั้นโดยการลบการเข้าสู่ระบบด้วยรหัสผ่าน
+  cs: Váš účet je považován za plně zabezpečený pouze tehdy, pokud je přihlášení heslem chráněno 2FA, nebo pokud přejdete na přihlášení pouze přístupovým klíčem odstraněním přihlášení heslem.
+  sv: Ditt konto anses vara helt säkert endast om lösenordsinloggning är skyddad med 2FA, eller om du byter till enbart nyckelkodsinloggning genom att ta bort lösenordsinloggning.
+  he: חשבונך נחשב מאובטח לחלוטין רק אם כניסת הסיסמה מוגנת על ידי 2FA, או אם אתה עובר לכניסה עם מפתח גישה בלבד על ידי הסרת כניסת הסיסמה.
   verified_by_human: []
 password_security_reminder.rule_1:
   context: Rule 1 in password security reminder email
   en: Add an OTP 2FA app to secure password login.
   de: Füge eine OTP-2FA-App hinzu, um den Passwort-Login zu schützen.
+  zh: 添加 OTP 2FA 应用以保护密码登录。
+  es: Agrega una aplicación OTP 2FA para proteger el inicio de sesión con contraseña.
+  fr: Ajoutez une application OTP 2FA pour sécuriser la connexion par mot de passe.
+  pt: Adicione um aplicativo OTP 2FA para proteger o login com senha.
+  ru: Добавьте приложение OTP 2FA для защиты входа по паролю.
+  ja: OTP 2FAアプリを追加してパスワードログインを保護してください。
+  ko: OTP 2FA 앱을 추가하여 비밀번호 로그인을 보호하세요.
+  it: Aggiungi un'app OTP 2FA per proteggere il login con password.
+  tr: Şifre girişini güvence altına almak için bir OTP 2FA uygulaması ekleyin.
+  vi: Thêm ứng dụng OTP 2FA để bảo mật đăng nhập bằng mật khẩu.
+  id: Tambahkan aplikasi OTP 2FA untuk mengamankan login kata sandi.
+  pl: Dodaj aplikację OTP 2FA, aby zabezpieczyć logowanie hasłem.
+  nl: Voeg een OTP 2FA-app toe om wachtwoordinlog te beveiligen.
+  ar: أضف تطبيق OTP 2FA لتأمين تسجيل الدخول بكلمة المرور.
+  hi: पासवर्ड लॉगिन को सुरक्षित करने के लिए OTP 2FA ऐप जोड़ें।
+  th: เพิ่มแอป OTP 2FA เพื่อรักษาความปลอดภัยในการเข้าสู่ระบบด้วยรหัสผ่าน
+  cs: Přidejte aplikaci OTP 2FA pro zabezpečení přihlášení heslem.
+  sv: Lägg till en OTP 2FA-app för att säkra lösenordsinloggning.
+  he: הוסף אפליקציית OTP 2FA לאבטחת כניסת הסיסמה.
   verified_by_human: []
 password_security_reminder.rule_2:
   context: Rule 2 in password security reminder email
   en: Or set up a passkey (recommended, fast, phishing-resistant).
   de: Oder richte einen Passkey ein (empfohlen, schnell, phishing-resistent).
+  zh: 或者设置通行密钥（推荐，快速，防钓鱼）。
+  es: O configura una clave de acceso (recomendado, rápido, resistente al phishing).
+  fr: Ou configurez une clé d'accès (recommandé, rapide, résistant au phishing).
+  pt: Ou configure uma chave de acesso (recomendado, rápido, resistente a phishing).
+  ru: Или настройте ключ доступа (рекомендуется, быстро, устойчиво к фишингу).
+  ja: またはパスキーを設定してください（推奨、高速、フィッシング耐性あり）。
+  ko: 또는 패스키를 설정하세요(권장, 빠름, 피싱 방지).
+  it: Oppure configura una passkey (consigliato, veloce, resistente al phishing).
+  tr: Ya da bir geçiş anahtarı ayarlayın (önerilen, hızlı, kimlik avına karşı dirençli).
+  vi: Hoặc thiết lập khóa truy cập (được khuyến nghị, nhanh, chống lừa đảo).
+  id: Atau siapkan kunci sandi (direkomendasikan, cepat, tahan phishing).
+  pl: Lub skonfiguruj klucz dostępu (zalecane, szybkie, odporne na phishing).
+  nl: Of stel een passkey in (aanbevolen, snel, phishingbestendig).
+  ar: أو قم بإعداد مفتاح مرور (موصى به، سريع، مقاوم للتصيد الاحتيالي).
+  hi: या पासकी सेट करें (अनुशंसित, तेज़, फ़िशिंग-प्रतिरोधी)।
+  th: หรือตั้งค่าพาสคีย์ (แนะนำ, รวดเร็ว, ต้านการฟิชชิง)
+  cs: Nebo nastavte přístupový klíč (doporučeno, rychlé, odolné proti phishingu).
+  sv: Eller konfigurera en nyckelkod (rekommenderat, snabbt, nätfiskeresistent).
+  he: או הגדר מפתח גישה (מומלץ, מהיר, עמיד בפני פישינג).
   verified_by_human: []
 password_security_reminder.rule_3:
   context: Rule 3 in password security reminder email
   en: If you choose passkeys, remove password login afterwards to eliminate the insecure fallback.
   de: Wenn du Passkeys nutzt, entferne danach den Passwort-Login, um den unsicheren Fallback zu beseitigen.
+  zh: 如果您选择通行密钥，之后请删除密码登录以消除不安全的备用方式。
+  es: Si eliges las claves de acceso, elimina el inicio de sesión con contraseña después para eliminar el respaldo inseguro.
+  fr: Si vous choisissez les clés d'accès, supprimez ensuite la connexion par mot de passe pour éliminer le mécanisme de secours non sécurisé.
+  pt: Se você escolher passkeys, remova o login com senha depois para eliminar o fallback inseguro.
+  ru: Если вы выбираете ключи доступа, удалите вход по паролю после этого, чтобы устранить небезопасный запасной вариант.
+  ja: パスキーを選択した場合は、その後パスワードログインを削除して、安全でないフォールバックを排除してください。
+  ko: 패스키를 선택한 경우, 안전하지 않은 대안을 제거하기 위해 나중에 비밀번호 로그인을 삭제하세요.
+  it: Se scegli le passkey, rimuovi in seguito il login con password per eliminare il fallback non sicuro.
+  tr: Geçiş anahtarlarını seçerseniz, güvenli olmayan yedek seçeneği ortadan kaldırmak için daha sonra şifre girişini kaldırın.
+  vi: Nếu bạn chọn passkey, hãy xóa đăng nhập bằng mật khẩu sau đó để loại bỏ phương thức dự phòng không an toàn.
+  id: Jika Anda memilih kunci sandi, hapus login kata sandi setelahnya untuk menghilangkan cadangan yang tidak aman.
+  pl: Jeśli wybierzesz klucze dostępu, usuń logowanie hasłem, aby wyeliminować niezabezpieczony mechanizm awaryjny.
+  nl: Als je passkeys kiest, verwijder dan daarna het wachtwoordinlog om de onveilige fallback te elimineren.
+  ar: إذا اخترت مفاتيح المرور، فقم بإزالة تسجيل الدخول بكلمة المرور بعد ذلك للقضاء على الخيار الاحتياطي غير الآمن.
+  hi: यदि आप पासकी चुनते हैं, तो असुरक्षित फ़ॉलबैक को समाप्त करने के लिए बाद में पासवर्ड लॉगिन हटा दें।
+  th: หากคุณเลือกพาสคีย์ ให้ลบการเข้าสู่ระบบด้วยรหัสผ่านในภายหลังเพื่อขจัดตัวเลือกสำรองที่ไม่ปลอดภัย
+  cs: Pokud zvolíte přístupové klíče, odstraňte poté přihlášení heslem, abyste eliminovali nezabezpečený záložní mechanismus.
+  sv: Om du väljer nyckelkoder, ta bort lösenordsinloggning efteråt för att eliminera den osäkra reservlösningen.
+  he: אם תבחר במפתחות גישה, הסר לאחר מכן את כניסת הסיסמה כדי לסלק את נפילת הגיבוי הלא מאובטחת.
   verified_by_human: []
 password_security_reminder.actions_title:
   context: Call-to-action title in password security reminder email
   en: "Open security settings:"
   de: "Sicherheits-Einstellungen öffnen:"
+  zh: "打开安全设置："
+  es: "Abrir configuración de seguridad:"
+  fr: "Ouvrir les paramètres de sécurité :"
+  pt: "Abrir configurações de segurança:"
+  ru: "Открыть настройки безопасности:"
+  ja: "セキュリティ設定を開く："
+  ko: "보안 설정 열기:"
+  it: "Apri impostazioni di sicurezza:"
+  tr: "Güvenlik ayarlarını aç:"
+  vi: "Mở cài đặt bảo mật:"
+  id: "Buka pengaturan keamanan:"
+  pl: "Otwórz ustawienia bezpieczeństwa:"
+  nl: "Beveiligingsinstellingen openen:"
+  ar: "فتح إعدادات الأمان:"
+  hi: "सुरक्षा सेटिंग खोलें:"
+  th: "เปิดการตั้งค่าความปลอดภัย:"
+  cs: "Otevřít nastavení zabezpečení:"
+  sv: "Öppna säkerhetsinställningar:"
+  he: "פתח הגדרות אבטחה:"
   verified_by_human: []
 password_security_reminder.open_2fa_settings:
   context: Button label for opening 2FA settings from reminder email
   en: Add OTP 2FA app
   de: OTP-2FA-App hinzufügen
+  zh: 添加 OTP 2FA 应用
+  es: Agregar aplicación OTP 2FA
+  fr: Ajouter une application OTP 2FA
+  pt: Adicionar aplicativo OTP 2FA
+  ru: Добавить приложение OTP 2FA
+  ja: OTP 2FAアプリを追加
+  ko: OTP 2FA 앱 추가
+  it: Aggiungi app OTP 2FA
+  tr: OTP 2FA uygulaması ekle
+  vi: Thêm ứng dụng OTP 2FA
+  id: Tambahkan aplikasi OTP 2FA
+  pl: Dodaj aplikację OTP 2FA
+  nl: OTP 2FA-app toevoegen
+  ar: إضافة تطبيق OTP 2FA
+  hi: OTP 2FA ऐप जोड़ें
+  th: เพิ่มแอป OTP 2FA
+  cs: Přidat aplikaci OTP 2FA
+  sv: Lägg till OTP 2FA-app
+  he: הוסף אפליקציית OTP 2FA
   verified_by_human: []
 password_security_reminder.open_passkey_settings:
   context: Button label for opening passkey settings from reminder email
   en: Add passkey
   de: Passkey hinzufügen
+  zh: 添加通行密钥
+  es: Agregar clave de acceso
+  fr: Ajouter une clé d'accès
+  pt: Adicionar chave de acesso
+  ru: Добавить ключ доступа
+  ja: パスキーを追加
+  ko: 패스키 추가
+  it: Aggiungi passkey
+  tr: Geçiş anahtarı ekle
+  vi: Thêm khóa truy cập
+  id: Tambahkan kunci sandi
+  pl: Dodaj klucz dostępu
+  nl: Passkey toevoegen
+  ar: إضافة مفتاح مرور
+  hi: पासकी जोड़ें
+  th: เพิ่มพาสคีย์
+  cs: Přidat přístupový klíč
+  sv: Lägg till nyckelkod
+  he: הוסף מפתח גישה
   verified_by_human: []
 backup_reminder.subject:
   context: Subject line for periodic backup reminder emails

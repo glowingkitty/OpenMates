@@ -5,21 +5,21 @@ open_settings_menu:
   zh: 打开设置菜单
   es: Abrir menú de configuración
   fr: Ouvrir le menu des paramètres
-  pt: ""
-  ru: ""
+  pt: Abrir menu de configurações
+  ru: Открыть меню настроек
   ja: 設定メニューを開く
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 설정 메뉴 열기
+  it: Apri menu impostazioni
+  tr: Ayarlar menüsünü aç
+  vi: Mở menu cài đặt
+  id: Buka menu pengaturan
+  pl: Otwórz menu ustawień
+  nl: Instellingenmenu openen
   ar: افتح قائمة الإعدادات
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: सेटिंग्स मेनू खोलें
+  th: เปิดเมนูการตั้งค่า
+  cs: Otevřít menu nastavení
+  sv: Öppna inställningsmenyn
   he: פתיחת תפריט ההגדרות
   verified_by_human: []
 close_settings_menu:
@@ -29,21 +29,21 @@ close_settings_menu:
   zh: 关闭设置菜单
   es: Cerrar menú de configuración
   fr: Fermer le menu des paramètres
-  pt: ""
-  ru: ""
+  pt: Fechar menu de configurações
+  ru: Закрыть меню настроек
   ja: 設定メニューを閉じる
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 설정 메뉴 닫기
+  it: Chiudi menu impostazioni
+  tr: Ayarlar menüsünü kapat
+  vi: Đóng menu cài đặt
+  id: Tutup menu pengaturan
+  pl: Zamknij menu ustawień
+  nl: Instellingenmenu sluiten
   ar: إغلاق قائمة الإعدادات
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: सेटिंग्स मेनू बंद करें
+  th: ปิดเมนูการตั้งค่า
+  cs: Zavřít menu nastavení
+  sv: Stäng inställningsmenyn
   he: סגירת תפריט ההגדרות
   verified_by_human: []
 search:
@@ -53,21 +53,21 @@ search:
   zh: 搜索
   es: Buscar
   fr: Rechercher
-  pt: ""
-  ru: ""
+  pt: Pesquisar
+  ru: Поиск
   ja: 検索
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 검색
+  it: Cerca
+  tr: Ara
+  vi: Tìm kiếm
+  id: Cari
+  pl: Szukaj
+  nl: Zoeken
   ar: بحث
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: खोजें
+  th: ค้นหา
+  cs: Hledat
+  sv: Sök
   he: חיפוש
   verified_by_human: []
 add_credits:
@@ -77,21 +77,21 @@ add_credits:
   zh: 添加额度
   es: Añadir créditos
   fr: Ajouter des crédits
-  pt: ""
-  ru: ""
+  pt: Adicionar créditos
+  ru: Добавить кредиты
   ja: クレジットを追加
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 크레딧 추가
+  it: Aggiungi crediti
+  tr: Kredi ekle
+  vi: Thêm tín dụng
+  id: Tambah kredit
+  pl: Dodaj kredyty
+  nl: Credits toevoegen
   ar: إضافة رصيد
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: क्रेडिट जोड़ें
+  th: เพิ่มเครดิต
+  cs: Přidat kredity
+  sv: Lägg till krediter
   he: הוספת קרדיטים
   verified_by_human: []
 credits:

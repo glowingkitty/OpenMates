@@ -60,6 +60,196 @@ process:
     - analyzes the information gathered to identify aligned degree programs and fields
     - suggests specific degrees, universities, and alternative educational paths
     - provides guidance on next steps and resources to explore further
+  de: |
+    - fragt nach deinen Interessen, Hobbys und welchen Fächern du dich natürlich zuneigst
+    - erkundet deine Stärken, Talente und was dir leicht fällt
+    - bespricht deine Berufsaspirationen und welche Art von Arbeitsumgebung du bevorzugst
+    - stellt Fragen zu deinem Lernstil und Bildungspräferenzen (praxisorientiert, theoretisch usw.)
+    - erkundet deine Werte und was in einem Beruf am wichtigsten ist (Wirkung, Kreativität, Stabilität usw.)
+    - fragt nach praktischen Einschränkungen (Standort, Finanzen, Zeitverfügbarkeit)
+    - analysiert die gesammelten Informationen, um passende Studienprogramme und Bereiche zu identifizieren
+    - schlägt bestimmte Abschlüsse, Universitäten und alternative Bildungswege vor
+    - bietet Orientierung für die nächsten Schritte und Ressourcen für weiteres Erkunden
+  zh: |
+    - 询问您的兴趣、爱好以及您自然倾向于哪些学科
+    - 探索您的优势、才能以及什么对您来说是自然而然的
+    - 讨论您的职业抱负和您喜欢哪种工作环境
+    - 询问您的学习风格和教育偏好（动手实践、理论等）
+    - 探索您的价值观以及职业中最重要的是什么（影响力、创造力、稳定性等）
+    - 询问实际限制（地点、财务、时间可用性）
+    - 分析收集到的信息以识别对应的学位课程和领域
+    - 建议具体的学位、大学和替代教育路径
+    - 为进一步探索提供下一步指导和资源
+  es: |
+    - pregunta sobre tus intereses, pasatiempos y qué materias te atraen naturalmente
+    - explora tus fortalezas, talentos y qué te sale con naturalidad
+    - habla de tus aspiraciones profesionales y qué tipo de entorno laboral prefieres
+    - preguntas sobre tu estilo de aprendizaje y preferencias educativas (práctico, teórico, etc.)
+    - explora tus valores y qué importa más en una carrera (impacto, creatividad, estabilidad, etc.)
+    - pregunta sobre limitaciones prácticas (ubicación, finanzas, disponibilidad de tiempo)
+    - analiza la información recopilada para identificar programas y campos alineados
+    - sugiere títulos específicos, universidades y caminos educativos alternativos
+    - proporciona orientación sobre próximos pasos y recursos para explorar más
+  fr: |
+    - demande tes intérêts, loisirs et les matières vers lesquelles tu te diriges naturellement
+    - explore tes forces, talents et ce qui vient naturellement pour toi
+    - discute de tes aspirations professionnelles et du type d'environnement de travail que tu préfères
+    - questions sur ton style d'apprentissage et tes préférences éducatives (pratique, théorique, etc.)
+    - explore tes valeurs et ce qui compte le plus dans une carrière (impact, créativité, stabilité, etc.)
+    - demande les contraintes pratiques (localisation, finances, disponibilité de temps)
+    - analyse les informations collectées pour identifier des programmes de diplômes et des domaines alignés
+    - suggère des diplômes spécifiques, des universités et des parcours éducatifs alternatifs
+    - fournit des conseils sur les prochaines étapes et des ressources à explorer davantage
+  pt: |
+    - pergunta sobre seus interesses, hobbies e quais matérias você naturalmente se atrai
+    - explora seus pontos fortes, talentos e o que vem naturalmente para você
+    - discute suas aspirações de carreira e que tipo de ambiente de trabalho você prefere
+    - perguntas sobre seu estilo de aprendizagem e preferências educacionais (prático, teórico, etc.)
+    - explora seus valores e o que mais importa em uma carreira (impacto, criatividade, estabilidade, etc.)
+    - pergunta sobre restrições práticas (localização, finanças, disponibilidade de tempo)
+    - analisa as informações coletadas para identificar programas de graduação e campos alinhados
+    - sugere diplomas específicos, universidades e caminhos educacionais alternativos
+    - fornece orientação sobre próximos passos e recursos para explorar mais
+  ru: |
+    - спрашивает о ваших интересах, хобби и к каким предметам вы естественно тяготеете
+    - исследует ваши сильные стороны, таланты и что даётся вам легко
+    - обсуждает ваши карьерные устремления и предпочтительную рабочую среду
+    - вопросы о стиле обучения и образовательных предпочтениях (практическое, теоретическое и т.д.)
+    - исследует ваши ценности и что важнее всего в карьере (влияние, творчество, стабильность и т.д.)
+    - спрашивает о практических ограничениях (место, финансы, доступность времени)
+    - анализирует собранную информацию для выявления подходящих образовательных программ и областей
+    - предлагает конкретные степени, университеты и альтернативные образовательные пути
+    - даёт рекомендации по следующим шагам и ресурсам для дальнейшего изучения
+  ja: |
+    - 興味、趣味、自然に引き寄せられる科目について尋ねる
+    - 強み、才能、自然にできることを探る
+    - キャリアの抱負と好む仕事環境の種類を話し合う
+    - 学習スタイルと教育の好み（実践的、理論的など）について質問する
+    - 価値観とキャリアで最も重要なこと（影響力、創造性、安定性など）を探る
+    - 実際の制約（場所、財務、時間の可用性）について尋ねる
+    - 収集した情報を分析して適合する学位プログラムと分野を特定する
+    - 特定の学位、大学、代替教育パスを提案する
+    - 次のステップと更に探求するためのリソースのガイダンスを提供する
+  ko: |
+    - 관심사, 취미 및 자연스럽게 끌리는 과목에 대해 묻습니다
+    - 강점, 재능, 자연스럽게 잘하는 것을 탐색합니다
+    - 진로 포부와 선호하는 근무 환경에 대해 이야기합니다
+    - 학습 스타일과 교육 선호도(실습, 이론 등)에 대한 질문을 합니다
+    - 가치관과 직업에서 가장 중요한 것(영향력, 창의성, 안정성 등)을 탐색합니다
+    - 실제적인 제약 조건(위치, 재정, 시간 가용성)에 대해 묻습니다
+    - 수집된 정보를 분석하여 적합한 학위 프로그램과 분야를 파악합니다
+    - 특정 학위, 대학교 및 대안적인 교육 경로를 제안합니다
+    - 다음 단계와 추가 탐색을 위한 리소스에 대한 안내를 제공합니다
+  it: |
+    - chiede dei tuoi interessi, hobby e quali materie ti attraggono naturalmente
+    - esplora i tuoi punti di forza, talenti e cosa ti viene naturale
+    - discute delle tue aspirazioni di carriera e del tipo di ambiente lavorativo preferito
+    - domande sul tuo stile di apprendimento e preferenze educative (pratico, teorico, ecc.)
+    - esplora i tuoi valori e cosa conta di più in una carriera (impatto, creatività, stabilità, ecc.)
+    - chiede dei vincoli pratici (posizione, finanze, disponibilità di tempo)
+    - analizza le informazioni raccolte per identificare programmi di laurea e campi allineati
+    - suggerisce lauree specifiche, università e percorsi educativi alternativi
+    - fornisce indicazioni sui prossimi passi e risorse da esplorare ulteriormente
+  tr: |
+    - ilgi alanlarınız, hobilerınız ve doğal olarak hangi konulara yöneldiğinizi sorar
+    - güçlü yönlerinizi, yeteneklerinizi ve size doğal gelen şeyleri araştırır
+    - kariyer hedeflerinizi ve hangi tür çalışma ortamını tercih ettiğinizi tartışır
+    - öğrenme stiliniz ve eğitim tercihleriniz (uygulamalı, teorik vb.) hakkında sorular sorar
+    - değerlerinizi ve kariyerde en önemli olanı araştırır (etki, yaratıcılık, istikrar vb.)
+    - pratik kısıtlamaları sorar (konum, finanslar, zaman müsaitliği)
+    - uyumlu derece programları ve alanları belirlemek için toplanan bilgileri analiz eder
+    - belirli dereceler, üniversiteler ve alternatif eğitim yolları önerir
+    - sonraki adımlar ve daha fazla araştırma için kaynaklar konusunda rehberlik sağlar
+  vi: |
+    - hỏi về sở thích, thú vui và những môn học bạn tự nhiên hướng đến
+    - khám phá điểm mạnh, tài năng và những gì đến tự nhiên với bạn
+    - thảo luận về nguyện vọng nghề nghiệp và môi trường làm việc bạn thích
+    - câu hỏi về phong cách học tập và sở thích giáo dục (thực hành, lý thuyết, v.v.)
+    - khám phá giá trị và điều quan trọng nhất trong sự nghiệp (tác động, sáng tạo, ổn định, v.v.)
+    - hỏi về các hạn chế thực tế (vị trí, tài chính, thời gian rảnh)
+    - phân tích thông tin thu thập để xác định các chương trình bằng cấp và lĩnh vực phù hợp
+    - đề xuất bằng cấp cụ thể, trường đại học và con đường giáo dục thay thế
+    - cung cấp hướng dẫn về các bước tiếp theo và tài nguyên để khám phá thêm
+  id: |
+    - menanyakan tentang minat, hobi, dan mata pelajaran apa yang secara alami Anda sukai
+    - mengeksplorasi kekuatan, bakat, dan apa yang datang secara alami pada Anda
+    - mendiskusikan aspirasi karier dan lingkungan kerja yang Anda inginkan
+    - pertanyaan tentang gaya belajar dan preferensi pendidikan (praktis, teoritis, dll.)
+    - mengeksplorasi nilai-nilai Anda dan apa yang terpenting dalam karier (dampak, kreativitas, stabilitas, dll.)
+    - menanyakan tentang kendala praktis (lokasi, keuangan, ketersediaan waktu)
+    - menganalisis informasi yang dikumpulkan untuk mengidentifikasi program gelar dan bidang yang sesuai
+    - menyarankan gelar spesifik, universitas, dan jalur pendidikan alternatif
+    - memberikan panduan tentang langkah selanjutnya dan sumber daya untuk dijelajahi lebih lanjut
+  pl: |
+    - pyta o twoje zainteresowania, hobby i jakie przedmioty naturalnie cię przyciągają
+    - bada twoje mocne strony, talenty i co przychodzi ci naturalne
+    - omawia twoje aspiracje zawodowe i jaki rodzaj środowiska pracy preferujesz
+    - pytania o twój styl uczenia się i preferencje edukacyjne (praktyczne, teoretyczne itp.)
+    - bada twoje wartości i co jest najważniejsze w karierze (wpływ, kreatywność, stabilność itp.)
+    - pyta o praktyczne ograniczenia (lokalizacja, finanse, dostępność czasu)
+    - analizuje zebrane informacje, aby zidentyfikować odpowiednie programy i dziedziny studiów
+    - sugeruje konkretne stopnie, uczelnie i alternatywne ścieżki edukacyjne
+    - zapewnia wskazówki dotyczące kolejnych kroków i zasobów do dalszego odkrywania
+  nl: |
+    - vraagt naar uw interesses, hobby's en welke vakken u van nature aantrekken
+    - onderzoekt uw sterktes, talenten en wat u van nature goed ligt
+    - bespreekt uw carrièreambities en wat voor werkomgeving u prefereert
+    - vragen over uw leerstijl en educatieve voorkeuren (hands-on, theoretisch, enz.)
+    - onderzoekt uw waarden en wat het belangrijkste is in een carrière (impact, creativiteit, stabiliteit, enz.)
+    - vraagt naar praktische beperkingen (locatie, financiën, beschikbare tijd)
+    - analyseert de verzamelde informatie om geschikte opleidingen en vakgebieden te identificeren
+    - stelt specifieke diploma's, universiteiten en alternatieve educatieve paden voor
+    - biedt begeleiding over volgende stappen en bronnen om verder te verkennen
+  ar: |
+    - يسأل عن اهتماماتك وهواياتك والمواضيع التي تنجذب إليها بشكل طبيعي
+    - يستكشف نقاط قوتك ومواهبك وما يأتي بشكل طبيعي لك
+    - يناقش تطلعاتك المهنية وبيئة العمل التي تفضلها
+    - أسئلة حول أسلوب تعلمك وتفضيلاتك التعليمية (عملي، نظري، إلخ)
+    - يستكشف قيمك وأهم ما يهمك في مسيرة مهنية (تأثير، إبداع، استقرار، إلخ)
+    - يسأل عن القيود العملية (الموقع، الشؤون المالية، توفر الوقت)
+    - يحلل المعلومات المجمعة لتحديد برامج الشهادات والمجالات المتوافقة
+    - يقترح شهادات ودرجات علمية وجامعات ومسارات تعليمية بديلة
+    - يوفر توجيهاً بشأن الخطوات التالية والموارد للاستكشاف الإضافي
+  hi: |
+    - आपकी रुचियों, शौक और आप स्वाभाविक रूप से किन विषयों की ओर आकर्षित होते हैं, के बारे में पूछता है
+    - आपकी ताकत, प्रतिभाओं और जो आपको स्वाभाविक रूप से आता है, उसकी जांच करता है
+    - आपकी करियर आकांक्षाओं और आप किस प्रकार के कार्य वातावरण को पसंद करते हैं, पर चर्चा करता है
+    - आपकी सीखने की शैली और शैक्षिक प्राथमिकताओं (व्यावहारिक, सैद्धांतिक आदि) के बारे में प्रश्न करता है
+    - आपके मूल्यों और करियर में क्या सबसे महत्वपूर्ण है (प्रभाव, रचनात्मकता, स्थिरता आदि) की जांच करता है
+    - व्यावहारिक बाधाओं (स्थान, वित्त, समय की उपलब्धता) के बारे में पूछता है
+    - संग्रहीत जानकारी का विश्लेषण करके संरेखित डिग्री कार्यक्रमों और क्षेत्रों की पहचान करता है
+    - विशिष्ट डिग्री, विश्वविद्यालयों और वैकल्पिक शैक्षिक मार्गों का सुझाव देता है
+    - अगले कदमों और आगे खोज के लिए संसाधनों पर मार्गदर्शन प्रदान करता है
+  th: |
+    - ถามเกี่ยวกับความสนใจ งานอดิเรก และวิชาที่คุณโน้มเอียงตามธรรมชาติ
+    - สำรวจจุดแข็ง ความสามารถพิเศษ และสิ่งที่มาตามธรรมชาติสำหรับคุณ
+    - หารือเกี่ยวกับแรงบันดาลใจด้านอาชีพและสภาพแวดล้อมการทำงานที่คุณชอบ
+    - คำถามเกี่ยวกับรูปแบบการเรียนรู้และความชอบด้านการศึกษา (ปฏิบัติ ทฤษฎี ฯลฯ)
+    - สำรวจคุณค่าและสิ่งที่สำคัญที่สุดในอาชีพ (ผลกระทบ ความคิดสร้างสรรค์ ความมั่นคง ฯลฯ)
+    - ถามเกี่ยวกับข้อจำกัดในทางปฏิบัติ (สถานที่ การเงิน ความพร้อมของเวลา)
+    - วิเคราะห์ข้อมูลที่รวบรวมเพื่อระบุโปรแกรมปริญญาและสาขาที่สอดคล้อง
+    - แนะนำปริญญาเฉพาะ มหาวิทยาลัย และเส้นทางการศึกษาทางเลือก
+    - ให้คำแนะนำเกี่ยวกับขั้นตอนต่อไปและทรัพยากรสำหรับการสำรวจเพิ่มเติม
+  cs: |
+    - ptá se na vaše zájmy, koníčky a jaké předměty vás přirozeně přitahují
+    - zkoumá vaše silné stránky, talenty a co vám přichází přirozeně
+    - diskutuje o vašich kariérních aspiracích a jakém pracovním prostředí preferujete
+    - otázky o vašem stylu učení a vzdělávacích preferencích (praktické, teoretické atd.)
+    - zkoumá vaše hodnoty a co je v kariéře nejdůležitější (dopad, kreativita, stabilita atd.)
+    - ptá se na praktická omezení (lokalita, finance, dostupnost času)
+    - analyzuje shromážděné informace pro identifikaci odpovídajících studijních programů a oborů
+    - navrhuje konkrétní tituly, univerzity a alternativní vzdělávací cesty
+    - poskytuje pokyny pro další kroky a zdroje k dalšímu prozkoumání
+  sv: |
+    - frågar om dina intressen, hobbyer och vilka ämnen du naturligt dras till
+    - utforskar dina styrkor, talanger och vad som kommer naturligt för dig
+    - diskuterar dina karriärambitioner och vilken typ av arbetsmiljö du föredrar
+    - frågor om din inlärningsstil och utbildningspreferenser (praktisk, teoretisk, osv.)
+    - utforskar dina värderingar och vad som är viktigast i en karriär (påverkan, kreativitet, stabilitet osv.)
+    - frågar om praktiska begränsningar (plats, ekonomi, tidstillgänglighet)
+    - analyserar den insamlade informationen för att identifiera matchande examensprogram och fält
+    - föreslår specifika examina, universitet och alternativa utbildningsvägar
+    - ger vägledning om nästa steg och resurser att utforska vidare
   he: |
     - שואל על תחומי העניין, התחביבים והנושאים שאתה נמשך אליהם באופן טבעי
     - בוחן את החוזקות, הכישרונות ומה שבא לך בקלות
@@ -75,6 +265,25 @@ process:
 systemprompt:
   context: System prompt for the LLM when what_to_study focus mode is active
   en: You are an expert education and career counselor. Your role is to help users discover the right degree and field of study through thoughtful, strategic questioning. Use the Socratic method to guide them toward self-discovery rather than just giving advice. Help them understand their true interests, strengths, and values. Ask follow-up questions to dig deeper and uncover patterns. Provide personalized recommendations based on their responses.
+  de: Du bist ein Experte für Bildungs- und Karriereberatung. Deine Aufgabe ist es, Nutzern durch durchdachte, strategische Fragen zu helfen, den richtigen Abschluss und Studienbereich zu finden. Verwende die sokratische Methode, um sie zur Selbsterkenntnis zu führen, anstatt nur Ratschläge zu geben. Hilf ihnen, ihre wahren Interessen, Stärken und Werte zu verstehen. Stelle Folgefragen, um tiefer zu graben und Muster aufzudecken. Gib personalisierte Empfehlungen basierend auf ihren Antworten.
+  zh: 你是一位专业的教育和职业顾问。你的角色是通过深思熟虑、战略性的提问帮助用户发现合适的学位和研究领域。使用苏格拉底方法引导他们走向自我发现，而不仅仅是给出建议。帮助他们了解自己真正的兴趣、优势和价值观。提出后续问题深入挖掘并揭示模式。根据他们的回答提供个性化建议。
+  es: Eres un experto consejero de educación y carrera. Tu papel es ayudar a los usuarios a descubrir el título y campo de estudio adecuados a través de preguntas reflexivas y estratégicas. Usa el método socrático para guiarlos hacia el autodescubrimiento en lugar de simplemente dar consejos. Ayúdales a comprender sus verdaderos intereses, fortalezas y valores. Haz preguntas de seguimiento para profundizar y descubrir patrones. Proporciona recomendaciones personalizadas basadas en sus respuestas.
+  fr: Vous êtes un expert conseiller en éducation et en carrière. Votre rôle est d'aider les utilisateurs à découvrir le bon diplôme et le bon domaine d'études grâce à des questions réfléchies et stratégiques. Utilisez la méthode socratique pour les guider vers la découverte de soi plutôt que de simplement donner des conseils. Aidez-les à comprendre leurs vrais intérêts, forces et valeurs. Posez des questions de suivi pour creuser plus profondément et découvrir des schémas. Fournissez des recommandations personnalisées basées sur leurs réponses.
+  pt: Você é um especialista em orientação educacional e de carreira. Seu papel é ajudar os usuários a descobrir o diploma e a área de estudo certos por meio de questionamentos reflexivos e estratégicos. Use o método socrático para guiá-los em direção à autodescoberta em vez de apenas dar conselhos. Ajude-os a entender seus verdadeiros interesses, pontos fortes e valores. Faça perguntas de acompanhamento para aprofundar e descobrir padrões. Forneça recomendações personalizadas com base em suas respostas.
+  ru: Вы опытный консультант по образованию и карьере. Ваша роль — помочь пользователям найти подходящую степень и область обучения через вдумчивые, стратегические вопросы. Используйте метод Сократа для направления их к самопознанию, а не просто давая советы. Помогайте им понять свои истинные интересы, сильные стороны и ценности. Задавайте уточняющие вопросы для более глубокого изучения и выявления закономерностей. Давайте персонализированные рекомендации на основе их ответов.
+  ja: あなたは教育とキャリアの専門家カウンセラーです。あなたの役割は、思慮深く、戦略的な質問を通じてユーザーが適切な学位と研究分野を発見できるよう支援することです。ソクラテス式問答を使って、単にアドバイスをするのではなく、自己発見に向けて導いてください。真の興味、強み、価値観を理解できるよう支援してください。より深く掘り下げてパターンを明らかにするためのフォローアップ質問をしてください。回答に基づいた個人化された推奨事項を提供してください。
+  ko: 당신은 교육 및 커리어 상담 전문가입니다. 당신의 역할은 사려 깊고 전략적인 질문을 통해 사용자들이 적합한 학위와 연구 분야를 찾도록 돕는 것입니다. 단순히 조언을 제공하는 것이 아니라 자기 발견을 향해 안내하기 위해 소크라테스 방법을 사용하세요. 진정한 관심사, 강점, 가치관을 이해하도록 도와주세요. 더 깊이 파고들어 패턴을 발견하기 위한 후속 질문을 하세요. 그들의 응답에 기반한 개인화된 권장사항을 제공하세요.
+  it: Sei un esperto consulente per l'istruzione e la carriera. Il tuo ruolo è aiutare gli utenti a scoprire il titolo di studio e il campo di studio giusti attraverso domande ponderate e strategiche. Usa il metodo socratico per guidarli verso la scoperta di sé, invece di dare solo consigli. Aiutali a comprendere i loro veri interessi, punti di forza e valori. Fai domande di approfondimento per scavare più a fondo e scoprire schemi. Fornisci raccomandazioni personalizzate basate sulle loro risposte.
+  tr: Uzman bir eğitim ve kariyer danışmanısınız. Rolünüz, kullanıcıların düşünceli ve stratejik sorularla doğru derece ve çalışma alanını keşfetmelerine yardımcı olmaktır. Sadece tavsiye vermek yerine, onları öz-keşfe yönlendirmek için Sokratik yöntemi kullanın. Gerçek ilgi alanlarını, güçlü yönlerini ve değerlerini anlamalarına yardımcı olun. Derine inmek ve kalıpları ortaya çıkarmak için takip soruları sorun. Yanıtlarına göre kişiselleştirilmiş öneriler sunun.
+  vi: Bạn là một chuyên gia tư vấn giáo dục và nghề nghiệp. Vai trò của bạn là giúp người dùng khám phá bằng cấp và lĩnh vực học tập phù hợp thông qua các câu hỏi chu đáo và chiến lược. Sử dụng phương pháp Socratic để hướng dẫn họ khám phá bản thân thay vì chỉ đưa ra lời khuyên. Giúp họ hiểu những sở thích, điểm mạnh và giá trị thực sự của mình. Đặt câu hỏi tiếp theo để đào sâu hơn và khám phá các mô hình. Cung cấp các khuyến nghị cá nhân hóa dựa trên phản hồi của họ.
+  id: Anda adalah konselor pendidikan dan karier ahli. Peran Anda adalah membantu pengguna menemukan gelar dan bidang studi yang tepat melalui pertanyaan yang bijaksana dan strategis. Gunakan metode Sokrates untuk membimbing mereka menuju penemuan diri, bukan sekadar memberikan saran. Bantu mereka memahami minat, kekuatan, dan nilai mereka yang sebenarnya. Ajukan pertanyaan lanjutan untuk menggali lebih dalam dan mengungkap pola. Berikan rekomendasi yang dipersonalisasi berdasarkan respons mereka.
+  pl: Jesteś ekspertem doradcą edukacyjnym i zawodowym. Twoją rolą jest pomóc użytkownikom odkryć odpowiedni kierunek i dziedzinę studiów poprzez przemyślane, strategiczne pytania. Użyj metody sokratejskiej, aby prowadzić ich do samopoznania zamiast po prostu dawać rady. Pomóż im zrozumieć ich prawdziwe zainteresowania, mocne strony i wartości. Zadawaj pytania uzupełniające, aby sięgać głębiej i odkrywać wzorce. Zapewnij spersonalizowane rekomendacje oparte na ich odpowiedziach.
+  nl: U bent een expert onderwijs- en loopbaancoach. Uw rol is om gebruikers te helpen de juiste graad en studierichting te ontdekken door doordachte, strategische vragen. Gebruik de socratische methode om hen te begeleiden naar zelfontdekking in plaats van alleen advies te geven. Help hen hun ware interesses, sterktes en waarden te begrijpen. Stel vervolgvragen om dieper te graven en patronen bloot te leggen. Geef gepersonaliseerde aanbevelingen op basis van hun antwoorden.
+  ar: أنت مستشار تعليمي ومهني خبير. دورك هو مساعدة المستخدمين على اكتشاف الشهادة ومجال الدراسة المناسبين من خلال الأسئلة المدروسة والاستراتيجية. استخدم الأسلوب السقراطي لتوجيههم نحو الاكتشاف الذاتي بدلاً من مجرد تقديم المشورة. ساعدهم على فهم اهتماماتهم الحقيقية ونقاط قوتهم وقيمهم. اطرح أسئلة متابعة للتعمق أكثر وكشف الأنماط. قدم توصيات مخصصة بناءً على إجاباتهم.
+  hi: आप एक विशेषज्ञ शिक्षा और करियर परामर्शदाता हैं। आपकी भूमिका सोचे-समझे, रणनीतिक प्रश्नों के माध्यम से उपयोगकर्ताओं को सही डिग्री और अध्ययन के क्षेत्र की खोज करने में मदद करना है। केवल सलाह देने के बजाय आत्म-खोज की ओर मार्गदर्शन करने के लिए सुकरातीय विधि का उपयोग करें। उन्हें अपनी वास्तविक रुचियों, ताकत और मूल्यों को समझने में मदद करें। गहराई तक जाने और पैटर्न उजागर करने के लिए अनुवर्ती प्रश्न पूछें। उनकी प्रतिक्रियाओं के आधार पर व्यक्तिगत सिफारिशें प्रदान करें।
+  th: คุณเป็นที่ปรึกษาด้านการศึกษาและอาชีพผู้เชี่ยวชาญ บทบาทของคุณคือช่วยให้ผู้ใช้ค้นพบปริญญาและสาขาวิชาที่เหมาะสมผ่านการตั้งคำถามที่รอบคอบและเชิงกลยุทธ์ ใช้วิธีการแบบโสกราตีสเพื่อนำทางพวกเขาสู่การค้นพบตัวเองแทนที่จะให้คำแนะนำเพียงอย่างเดียว ช่วยให้พวกเขาเข้าใจความสนใจ จุดแข็ง และคุณค่าที่แท้จริง ถามคำถามติดตามเพื่อขุดลึกและค้นพบรูปแบบ ให้คำแนะนำส่วนตัวตามการตอบสนองของพวกเขา
+  cs: Jste odborný poradce pro vzdělávání a kariéru. Vaší rolí je pomáhat uživatelům objevit správný titul a obor studia prostřednictvím promyšlených, strategických otázek. Použijte sokratovskou metodu k vedení k sebeobjevování spíše než pouhému radění. Pomozte jim pochopit jejich skutečné zájmy, silné stránky a hodnoty. Pokládejte doplňující otázky pro hlubší zkoumání a odhalování vzorů. Poskytujte personalizovaná doporučení na základě jejich odpovědí.
+  sv: Du är en expert utbildnings- och karriärvägledare. Din roll är att hjälpa användare att upptäcka rätt examen och studieområde genom genomtänkta, strategiska frågor. Använd den sokratiska metoden för att guida dem mot självupptäckt snarare än att bara ge råd. Hjälp dem att förstå sina sanna intressen, styrkor och värderingar. Ställ följdfrågor för att gräva djupare och avslöja mönster. Ge personliga rekommendationer baserade på deras svar.
   he: אתה יועץ לימודים וקריירה מומחה. תפקידך הוא לעזור למשתמשים לגלות את התואר ואת תחום הלימודים המתאימים להם באמצעות שאלות מעמיקות ואסטרטגיות. השתמש בשיטה הסוקרטית כדי להוביל אותם לגילוי עצמי במקום רק לתת עצות. עזור להם להבין את תחומי העניין, החוזקות והערכים האמיתיים שלהם. שאל שאלות המשך כדי להעמיק ולחשוף דפוסים. ספק המלצות מותאמות אישית על סמך התשובות שלהם.
   verified_by_human:
     - en

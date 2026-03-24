@@ -632,19 +632,19 @@ panel.action_prompt_placeholder:
   pt: ex. Pesquisar as últimas notícias e resumi-las
   ru: например, найти последние новости и суммировать их
   ja: 例：最新ニュースを検索してまとめる
-  ko: 예: 최신 뉴스를 검색하고 요약하세요
+  ko: "예: 최신 뉴스를 검색하고 요약하세요"
   it: es. Cerca le ultime notizie e riassumile
   tr: örn. En son haberleri ara ve özetle
   vi: vd. Tìm kiếm tin tức mới nhất và tóm tắt
   id: mis. Cari berita terbaru dan ringkas
   pl: np. Wyszukaj najnowsze wiadomości i podsumuj je
   nl: bijv. Zoek het laatste nieuws en vat het samen
-  ar: مثال: ابحث عن آخر الأخبار وقدّم ملخصاً
-  hi: जैसे: नवीनतम समाचार खोजें और सारांश बनाएं
+  ar: "مثال: ابحث عن آخر الأخبار وقدّم ملخصاً"
+  hi: "जैसे: नवीनतम समाचार खोजें और सारांश बनाएं"
   th: เช่น ค้นหาข่าวล่าสุดและสรุป
   cs: např. Vyhledej nejnovější zprávy a shrň je
   sv: t.ex. Sök efter de senaste nyheterna och sammanfatta dem
-  he: לדוגמה: חפש חדשות עדכניות וסכם אותן
+  he: "לדוגמה: חפש חדשות עדכניות וסכם אותן"
   verified_by_human: [en, de]
 
 panel.repeat:
