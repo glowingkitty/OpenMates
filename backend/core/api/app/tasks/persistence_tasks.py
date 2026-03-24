@@ -1658,9 +1658,22 @@ async def _async_persist_encrypted_chat_metadata(
                 else:
                     # Chat already has an encrypted_chat_key - NEVER overwrite it
                     update_fields.pop("encrypted_chat_key", None)
+                    # CRITICAL: Also block title/icon/category from this same request.
+                    # If the encrypted_chat_key was rejected, the metadata fields in
+                    # this payload were encrypted with the rejected (wrong) key.
+                    # Accepting them would corrupt the chat — title/icon/category
+                    # would be undecryptable with the real key.
+                    # Root cause: stale cached JS on secondary devices (e.g. iPadOS Safari)
+                    # generates a new random key instead of using the originator's key.
+                    rejected_metadata = []
+                    for field in ("encrypted_title", "encrypted_icon", "encrypted_category"):
+                        if field in update_fields:
+                            rejected_metadata.append(field)
+                            update_fields.pop(field)
                     logger.warning(
                         f"[CHAT_KEY_IMMUTABLE] ⚠️ Blocked attempt to overwrite encrypted_chat_key for chat {chat_id}. "
                         f"Existing key is set, incoming key will be ignored to preserve message decryptability. "
+                        f"Also blocked metadata fields: {rejected_metadata or 'none'}. "
                         f"(task_id: {task_id})"
                     )
             

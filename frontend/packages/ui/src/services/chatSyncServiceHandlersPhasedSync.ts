@@ -22,12 +22,79 @@ import { chatListCache } from "./chatListCache";
 import { updateTotalChatCount } from "../stores/userProfile";
 import { activeChatStore } from "../stores/activeChatStore";
 import { unreadMessagesStore } from "../stores/unreadMessagesStore";
+import { chatKeyManager } from "./encryption/ChatKeyManager";
 
 /**
  * Tracks chat IDs fully processed in Phase 2 so Phase 3 can skip them.
  * Cleared after Phase 3 completes.
  */
 let phase2ProcessedChatIds: Set<string> | null = null;
+
+/**
+ * Validate encrypted metadata fields (title/icon/category) in a merged chat.
+ * If the merged field fails to decrypt but the local version succeeds, swap to
+ * the local version and flag for re-send to the server (self-heal).
+ *
+ * Root cause: stale cached JS on secondary devices (e.g. iPadOS Safari) can
+ * encrypt metadata with a wrong key. The server-side key immutability guard
+ * preserves the correct encrypted_chat_key, but the title/icon/category may
+ * have been overwritten with wrongly-encrypted values.
+ *
+ * @returns true if any field was healed (local version preserved over server)
+ */
+async function validateAndHealEncryptedMetadata(
+  merged: Chat,
+  localChat: Chat | null,
+  chatId: string,
+): Promise<boolean> {
+  const chatKey = chatKeyManager.getKeySync(chatId);
+  if (!chatKey) return false;
+  if (!localChat) return false;
+
+  const { decryptWithChatKey } = await import("./cryptoService");
+  let healed = false;
+
+  const fields = [
+    "encrypted_title",
+    "encrypted_icon",
+    "encrypted_category",
+  ] as const;
+
+  for (const field of fields) {
+    const mergedValue = merged[field];
+    const localValue = localChat[field];
+
+    // Skip if merged has no value, or merged and local are the same
+    if (!mergedValue || mergedValue === localValue) continue;
+
+    // Try to decrypt the merged (server-preferred) value
+    try {
+      const result = await decryptWithChatKey(mergedValue, chatKey);
+      if (result !== null) continue; // Merged value decrypts fine
+    } catch {
+      // Decryption threw — merged value is corrupted
+    }
+
+    // Merged value failed to decrypt — check local
+    if (localValue) {
+      try {
+        const localResult = await decryptWithChatKey(localValue, chatKey);
+        if (localResult !== null) {
+          // Local decrypts, merged doesn't → keep local
+          (merged as unknown as Record<string, unknown>)[field] = localValue;
+          healed = true;
+          console.warn(
+            `[PhasedSync] Self-heal: ${field} for chat ${chatId} — server version corrupted, preserved local`,
+          );
+        }
+      } catch {
+        // Local also fails — nothing we can do
+      }
+    }
+  }
+
+  return healed;
+}
 
 /**
  * Yield control back to the browser's main thread.
@@ -399,6 +466,22 @@ async function storeRecentChats(
         currentUserId,
       );
 
+      // Self-heal: validate encrypted metadata fields after merge.
+      // If server's title/icon/category is corrupted (encrypted with wrong key)
+      // but local version is valid, preserve local and queue re-send to server.
+      if (existingChat) {
+        const wasHealed = await validateAndHealEncryptedMetadata(
+          mergedChat,
+          existingChat,
+          chatId,
+        );
+        if (wasHealed) {
+          console.info(
+            `[ChatSyncService] Phase 2 - Self-healed corrupted metadata for chat ${chatId}`,
+          );
+        }
+      }
+
       // Populate in-memory unread badge store from server-authoritative count
       // so badges render correctly without waiting for a per-chat read status event.
       const syncedUnread = mergedChat.unread_count ?? 0;
@@ -640,6 +723,20 @@ async function storeAllChats(
         existingChat,
         currentUserId,
       );
+
+      // Self-heal: validate encrypted metadata fields after merge
+      if (existingChat) {
+        const wasHealed = await validateAndHealEncryptedMetadata(
+          mergedChat,
+          existingChat,
+          chatId,
+        );
+        if (wasHealed) {
+          console.info(
+            `[ChatSyncService] Phase 3 - Self-healed corrupted metadata for chat ${chatId}`,
+          );
+        }
+      }
 
       // Populate in-memory unread badge store from server-authoritative count
       const syncedUnread3 = mergedChat.unread_count ?? 0;
