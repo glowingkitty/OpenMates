@@ -1017,6 +1017,38 @@ async function storeEmbedsBatch(
     console.info(
       `[ChatSyncService] ${phaseName} - Batch stored ${validEmbeds.length} embeds (single transaction)`,
     );
+
+    // Eagerly decrypt + register embed refs so EmbedReferencePreview components
+    // can resolve refs (e.g. "livescience.com-kd0") to embed UUIDs.
+    // Without this, the in-memory ref→ID index stays empty after cross-device sync
+    // and embeds show "Loading preview..." forever (requires manual tab reload).
+    // putEncryptedBatch() stored encrypted entries in embedCache; calling get()
+    // decrypts from memory, registers refs via registerEmbedRef(), and bumps
+    // embedRefIndexVersion — triggering Svelte reactive re-renders.
+    const embedIdsToWarm = validEmbeds.map((e) => `embed:${e.embed_id}`);
+    setTimeout(async () => {
+      const BATCH_SIZE = 20;
+      try {
+        for (let i = 0; i < embedIdsToWarm.length; i += BATCH_SIZE) {
+          const batch = embedIdsToWarm.slice(i, i + BATCH_SIZE);
+          await Promise.allSettled(batch.map((id) => embedStore.get(id)));
+          // Yield to main thread between batches to avoid blocking UI
+          if (i + BATCH_SIZE < embedIdsToWarm.length) {
+            await new Promise((r) => setTimeout(r, 0));
+          }
+        }
+        console.debug(
+          `[ChatSyncService] ${phaseName} - Eagerly registered refs for ${embedIdsToWarm.length} embeds`,
+        );
+      } catch (err) {
+        // Non-critical: embeds will still resolve on individual component render
+        // via resolveEmbed's request_embed fallback or retry mechanism.
+        console.warn(
+          `[ChatSyncService] ${phaseName} - Non-critical: eager embed ref registration failed:`,
+          err,
+        );
+      }
+    }, 0);
   } catch (error) {
     console.error(
       `[ChatSyncService] ${phaseName} - Error storing embeds batch:`,
