@@ -2465,6 +2465,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // that reactive effects don't snap it back to the initial position.
     let recentChatsScrolledByUser = false;
     const RECENT_CHATS_LIMIT = 10;
+    // Incremented by event handlers (chatDeleted, chatUpdated, syncComplete,
+    // visibilitychange) to trigger the $effect that calls loadRecentChats().
+    let carouselInvalidationCounter = $state(0);
+    // Debounce timer for carousel refreshes — prevents redundant IndexedDB reads
+    // during rapid sync events (matching Chats.svelte's 300ms debounce pattern).
+    let _carouselRefreshTimer: ReturnType<typeof setTimeout> | null = null;
 
     /**
      * Load up to RECENT_CHATS_LIMIT recent real chats from IndexedDB.
@@ -2558,6 +2564,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // State for non-authenticated users' intro + example chats scroll list
     let nonAuthRecentChats = $state<RecentChatMeta[]>([]);
 
+    /**
+     * Debounced wrapper for loadRecentChats — coalesces rapid sync events into
+     * a single IndexedDB read (300ms window, matching Chats.svelte pattern).
+     */
+    function loadRecentChatsDebounced(): void {
+        if (_carouselRefreshTimer) clearTimeout(_carouselRefreshTimer);
+        _carouselRefreshTimer = setTimeout(() => {
+            _carouselRefreshTimer = null;
+            loadRecentChats().then(() => {
+                if (!recentChatsScrolledByUser) centerFirstRecentChat();
+            });
+        }, 300);
+    }
+
     // Refresh recent chats when welcome screen appears or auth/sync changes.
     // Reset the user-scroll guard each time fresh data is loaded so the newly
     // centred card is correct for the new data set.
@@ -2569,6 +2589,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         void $userProfile.total_chat_count;
         // Subscribe to communityDemoStore so this effect re-runs when demos load
         void $communityDemoStore;
+        // Re-run when carousel is invalidated by cross-device events
+        void carouselInvalidationCounter;
         if (!isWelcome) {
             recentChats = [];
             nonAuthRecentChats = [];
@@ -2577,7 +2599,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         if (isAuth) {
             nonAuthRecentChats = [];
             recentChatsScrolledByUser = false;
-            loadRecentChats().then(() => centerFirstRecentChat());
+            loadRecentChatsDebounced();
         } else {
             recentChats = [];
             recentChatsScrolledByUser = false;
@@ -6097,11 +6119,27 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     // Update handler for chat updates to be more selective
     async function handleChatUpdated(event: CustomEvent) {
-        const detail = event.detail as ChatUpdatedDetail; 
+        const detail = event.detail as ChatUpdatedDetail;
         const incomingChatId = detail.chat_id;
         const incomingChatMetadata = detail.chat as Chat | undefined;
         const incomingMessages = detail.messages as ChatMessageModel[] | undefined;
         console.debug(`[ActiveChat] handleChatUpdated: Event for chat_id: ${incomingChatId}. Current active chat_id: ${currentChat?.chat_id}. Event detail:`, detail);
+
+        // ─── Welcome screen carousel/resume card updates ─────────────────────
+        // When on the welcome screen (no active chat), metadata and message
+        // changes from other devices should refresh the carousel and resume card.
+        if (showWelcome && !currentChat) {
+            const carouselRelevantTypes = ['title_updated', 'metadata_updated', 'post_processing_metadata', 'message_added', 'draft', 'draft_deleted'];
+            if (incomingChatId && carouselRelevantTypes.includes(detail.type || '')) {
+                carouselInvalidationCounter++;
+            }
+            // Re-decrypt resume card if its title/category/icon changed
+            if (resumeChatData?.chat_id === incomingChatId &&
+                (detail.type === 'title_updated' || detail.type === 'metadata_updated' || detail.type === 'post_processing_metadata')) {
+                loadResumeChatFromDB(resumeChatData.chat_id);
+            }
+            // Don't return — fall through only if there's a currentChat
+        }
 
         if (!incomingChatId || !currentChat || currentChat.chat_id !== incomingChatId) {
             console.warn('[ActiveChat] handleChatUpdated: Event for non-active chat, no current chat, or chat_id mismatch. Current:', currentChat?.chat_id, 'Event chat_id:', incomingChatId, 'Ignoring.');
@@ -8503,15 +8541,56 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
         }) as EventListenerCallback;
 
-        // Handle chat deletion - if the currently active chat is deleted, reset to new chat
+        // Handle chat deletion - if the currently active chat is deleted, reset to new chat.
+        // Also handles carousel and resume card updates for cross-device sync.
         const chatDeletedHandler = ((event: CustomEvent) => {
             const { chat_id } = event.detail;
             console.debug('[ActiveChat] Received chatDeleted event for chat:', chat_id, 'Current chat:', currentChat?.chat_id);
-            
+
             if (currentChat && chat_id === currentChat.chat_id) {
                 console.info('[ActiveChat] Currently active chat was deleted. Resetting to new chat state.');
                 // Reset to new chat state using the existing handler
                 handleNewChatClick();
+            }
+
+            // ─── Carousel: remove deleted chat and trigger refresh ───────────
+            const carouselIdx = recentChats.findIndex(rc => rc.chat.chat_id === chat_id);
+            if (carouselIdx !== -1) {
+                recentChats = recentChats.filter(rc => rc.chat.chat_id !== chat_id);
+                carouselInvalidationCounter++;
+                console.debug('[ActiveChat] Removed deleted chat from carousel:', chat_id);
+            }
+
+            // ─── Resume card: clear if it shows the deleted chat ─────────────
+            if (resumeChatData?.chat_id === chat_id) {
+                console.info('[ActiveChat] Resume card chat was deleted. Clearing and finding next best chat.');
+                resumeChatData = null;
+                resumeChatTitle = null;
+                resumeChatCategory = null;
+                resumeChatIcon = null;
+                resumeChatSummary = null;
+                resumeChatIsCreditsError = false;
+                resumeChatUserMessagePreview = null;
+                phasedSyncState.clearResumeChatData();
+                // Find the next best chat from IndexedDB to show as resume card
+                (async () => {
+                    try {
+                        await chatDB.init();
+                        const chats = await chatDB.getAllChats();
+                        const filtered = chats.filter(c => !isPublicChat(c.chat_id) && c.chat_id !== chat_id);
+                        const sorted = sortChats(filtered, []);
+                        if (sorted.length > 0) {
+                            const nextBest = sorted[0];
+                            const found = await loadResumeChatFromDB(nextBest.chat_id);
+                            if (found) {
+                                console.info('[ActiveChat] Promoted next best chat as resume card:', nextBest.chat_id);
+                            }
+                        }
+                    } catch (err) {
+                        console.warn('[ActiveChat] Error finding next resume chat after deletion:', err);
+                    }
+                })();
+                carouselInvalidationCounter++;
             }
         }) as EventListenerCallback;
 
@@ -8532,6 +8611,46 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 }
             }
         }) as EventListenerCallback;
+
+        // ─── Cross-device sync: refresh carousel and resume card after sync completes ──
+        // When the WebSocket reconnects (tab foregrounded, network restored), phased sync
+        // delivers fresh chat data to IndexedDB. syncComplete fires after Phase 3 finishes —
+        // trigger a carousel re-read so new/deleted/updated chats appear immediately.
+        const syncCompleteHandler = (() => {
+            if (showWelcome) {
+                console.debug('[ActiveChat] syncComplete — refreshing carousel and resume card');
+                carouselInvalidationCounter++;
+                const lastOpened = $userProfile.last_opened;
+                if (lastOpened && !isPublicChat(lastOpened)) {
+                    loadResumeChatFromDB(lastOpened);
+                }
+            }
+        }) as EventListenerCallback;
+        chatSyncService.addEventListener('syncComplete', syncCompleteHandler);
+
+        // ─── Tab visibility: refresh stale carousel when tab returns from background ──
+        // When a tab is backgrounded and later foregrounded, the carousel may show stale
+        // data (chats created/deleted/updated on other devices while backgrounded).
+        // Wait 1.5s after visibility change to give WebSocket reconnect + sync time to
+        // update IndexedDB, then trigger a full carousel re-read.
+        let _visibilityTimer: ReturnType<typeof setTimeout> | null = null;
+        const handleVisibilityChange = () => {
+            if (document.visibilityState !== 'visible') return;
+            if (!showWelcome) return;
+            if (_visibilityTimer) clearTimeout(_visibilityTimer);
+            _visibilityTimer = setTimeout(() => {
+                _visibilityTimer = null;
+                if (showWelcome) {
+                    console.debug('[ActiveChat] Tab foregrounded — refreshing carousel and resume card');
+                    carouselInvalidationCounter++;
+                    const lastOpened = $userProfile.last_opened;
+                    if (lastOpened && !isPublicChat(lastOpened)) {
+                        loadResumeChatFromDB(lastOpened);
+                    }
+                }
+            }, 1500);
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
 
         // ─── Chat Compression event handlers ─────────────────────────────────────────
         // When the AI worker detects a long chat history, it triggers compression before
@@ -8910,6 +9029,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             chatSyncService.removeEventListener('aiThinkingComplete', handleAiThinkingComplete as EventListenerCallback);
             chatSyncService.removeEventListener('chatDeleted', chatDeletedHandler);
             chatSyncService.removeEventListener('messageDeleted', messageDeletedHandler);
+            chatSyncService.removeEventListener('syncComplete', syncCompleteHandler);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            if (_visibilityTimer) clearTimeout(_visibilityTimer);
+            if (_carouselRefreshTimer) clearTimeout(_carouselRefreshTimer);
             window.removeEventListener('preprocessingStep', preprocessingStepHandler);
             chatSyncService.removeEventListener('postProcessingCompleted', handlePostProcessingCompleted as EventListenerCallback);
             chatSyncService.removeEventListener('aiStreamInterrupted', aiStreamInterruptedHandler);
