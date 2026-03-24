@@ -1946,125 +1946,431 @@ form.replace_with.placeholder_custom:
   context: Placeholder for custom replacement input
   en: "example: 'MY_COMPANY'"
   de: "Beispiel: 'MEINE_FIRMA'"
+  zh: "例如: 'MY_COMPANY'"
+  es: "ejemplo: 'MI_EMPRESA'"
+  fr: "exemple: 'MON_ENTREPRISE'"
+  pt: "exemplo: 'MINHA_EMPRESA'"
+  ru: "пример: 'МОЯ_КОМПАНИЯ'"
+  ja: "例: 'MY_COMPANY'"
+  ko: "예시: 'MY_COMPANY'"
+  it: "esempio: 'MIA_AZIENDA'"
+  tr: "örnek: 'ŞİRKETİM'"
+  vi: "ví dụ: 'CÔNG_TY'"
+  id: "contoh: 'PERUSAHAAN_SAYA'"
+  pl: "przykład: 'MOJA_FIRMA'"
+  nl: "voorbeeld: 'MIJN_BEDRIJF'"
   ar: "مثال: 'MY_COMPANY'"
+  hi: "उदाहरण: 'MY_COMPANY'"
+  th: "ตัวอย่าง: 'MY_COMPANY'"
+  cs: "příklad: 'MOJE_FIRMA'"
+  sv: "exempel: 'MITT_FÖRETAG'"
   he: "לדוגמה: 'MY_COMPANY'"
   verified_by_human: []
 form.date:
   context: Form field label for birthday date
   en: Date
   de: Datum
+  zh: 日期
+  es: Fecha
+  fr: Date
+  pt: Data
+  ru: Дата
+  ja: 日付
+  ko: 날짜
+  it: Data
+  tr: Tarih
+  vi: Ngày
+  id: Tanggal
+  pl: Data
+  nl: Datum
   ar: التاريخ
+  hi: तारीख
+  th: วันที่
+  cs: Datum
+  sv: Datum
   he: תאריך
   verified_by_human: []
 form.date.placeholder:
   context: Placeholder for birthday date input
   en: "example: '15.03.1990'"
   de: "Beispiel: '15.03.1990'"
+  zh: "例如: '15.03.1990'"
+  es: "ejemplo: '15.03.1990'"
+  fr: "exemple: '15.03.1990'"
+  pt: "exemplo: '15.03.1990'"
+  ru: "пример: '15.03.1990'"
+  ja: "例: '15.03.1990'"
+  ko: "예시: '15.03.1990'"
+  it: "esempio: '15.03.1990'"
+  tr: "örnek: '15.03.1990'"
+  vi: "ví dụ: '15.03.1990'"
+  id: "contoh: '15.03.1990'"
+  pl: "przykład: '15.03.1990'"
+  nl: "voorbeeld: '15.03.1990'"
   ar: "مثال: '15.03.1990'"
+  hi: "उदाहरण: '15.03.1990'"
+  th: "ตัวอย่าง: '15.03.1990'"
+  cs: "příklad: '15.03.1990'"
+  sv: "exempel: '15.03.1990'"
   he: "לדוגמה: '15.03.1990'"
   verified_by_human: []
 form.street:
   context: Form field label for street address
   en: Street
   de: Straße
+  zh: 街道
+  es: Calle
+  fr: Rue
+  pt: Rua
+  ru: Улица
+  ja: 通り
+  ko: 거리
+  it: Via
+  tr: Sokak
+  vi: Đường
+  id: Jalan
+  pl: Ulica
+  nl: Straat
   ar: الشارع
+  hi: सड़क
+  th: ถนน
+  cs: Ulice
+  sv: Gata
   he: רחוב
   verified_by_human: []
 form.street.placeholder:
   context: Placeholder for street address input
   en: "example: '123 Main Street'"
   de: "Beispiel: 'Hauptstraße 123'"
+  zh: "例如: '主街123号'"
+  es: "ejemplo: 'Calle Mayor 123'"
+  fr: "exemple: '123 rue de la Paix'"
+  pt: "exemplo: 'Rua Principal 123'"
+  ru: "пример: 'ул. Главная, 123'"
+  ja: "例: 'メインストリート123'"
+  ko: "예시: '메인로 123'"
+  it: "esempio: 'Via Roma 123'"
+  tr: "örnek: 'Ana Cadde 123'"
+  vi: "ví dụ: '123 Đường Chính'"
+  id: "contoh: 'Jalan Utama 123'"
+  pl: "przykład: 'ul. Główna 123'"
+  nl: "voorbeeld: 'Hoofdstraat 123'"
   ar: "مثال: '123 الشارع الرئيسي'"
+  hi: "उदाहरण: 'मुख्य सड़क 123'"
+  th: "ตัวอย่าง: '123 ถนนหลัก'"
+  cs: "příklad: 'Hlavní ulice 123'"
+  sv: "exempel: 'Huvudgatan 123'"
   he: "לדוגמה: 'רחוב הרצל 123'"
   verified_by_human: []
 form.city:
   context: Form field label for city
   en: City
   de: Stadt
+  zh: 城市
+  es: Ciudad
+  fr: Ville
+  pt: Cidade
+  ru: Город
+  ja: 市区町村
+  ko: 도시
+  it: Città
+  tr: Şehir
+  vi: Thành phố
+  id: Kota
+  pl: Miasto
+  nl: Stad
   ar: المدينة
+  hi: शहर
+  th: เมือง
+  cs: Město
+  sv: Stad
   he: עיר
   verified_by_human: []
 form.city.placeholder:
   context: Placeholder for city input
   en: "example: 'Berlin'"
   de: "Beispiel: 'Berlin'"
+  zh: "例如: '北京'"
+  es: "ejemplo: 'Madrid'"
+  fr: "exemple: 'Paris'"
+  pt: "exemplo: 'Lisboa'"
+  ru: "пример: 'Москва'"
+  ja: "例: '東京'"
+  ko: "예시: '서울'"
+  it: "esempio: 'Roma'"
+  tr: "örnek: 'İstanbul'"
+  vi: "ví dụ: 'Hà Nội'"
+  id: "contoh: 'Jakarta'"
+  pl: "przykład: 'Warszawa'"
+  nl: "voorbeeld: 'Amsterdam'"
   ar: 'مثال: "برلين"'
+  hi: "उदाहरण: 'दिल्ली'"
+  th: "ตัวอย่าง: 'กรุงเทพ'"
+  cs: "příklad: 'Praha'"
+  sv: "exempel: 'Stockholm'"
   he: "לדוגמה: 'תל אביב'"
   verified_by_human: []
 form.state:
   context: Form field label for state/province
   en: State / Province
   de: Bundesland
+  zh: 省 / 州
+  es: Estado / Provincia
+  fr: État / Province
+  pt: Estado / Província
+  ru: Штат / Область
+  ja: 都道府県
+  ko: 주 / 도
+  it: Stato / Provincia
+  tr: Eyalet / İl
+  vi: Tỉnh / Thành phố
+  id: Provinsi
+  pl: Województwo
+  nl: Provincie
   ar: الولاية / المقاطعة
+  hi: राज्य / प्रांत
+  th: จังหวัด / รัฐ
+  cs: Kraj / Provincie
+  sv: Stat / Provins
   he: מדינה / מחוז
   verified_by_human: []
 form.state.placeholder:
   context: Placeholder for state input
   en: "example: 'California'"
   de: "Beispiel: 'Bayern'"
+  zh: "例如: '广东省'"
+  es: "ejemplo: 'Cataluña'"
+  fr: "exemple: 'Île-de-France'"
+  pt: "exemplo: 'São Paulo'"
+  ru: "пример: 'Московская область'"
+  ja: "例: '東京都'"
+  ko: "예시: '경기도'"
+  it: "esempio: 'Lombardia'"
+  tr: "örnek: 'İstanbul'"
+  vi: "ví dụ: 'TP. Hồ Chí Minh'"
+  id: "contoh: 'Jawa Barat'"
+  pl: "przykład: 'Mazowieckie'"
+  nl: "voorbeeld: 'Noord-Holland'"
   ar: 'مثال: "كاليفورنيا"'
+  hi: "उदाहरण: 'महाराष्ट्र'"
+  th: "ตัวอย่าง: 'กรุงเทพมหานคร'"
+  cs: "příklad: 'Jihomoravský kraj'"
+  sv: "exempel: 'Stockholms län'"
   he: "לדוגמה: 'קליפורניה'"
   verified_by_human: []
 form.zip:
   context: Form field label for zip/postal code
   en: ZIP / Postal code
   de: PLZ
+  zh: 邮政编码
+  es: Código postal
+  fr: Code postal
+  pt: CEP / Código postal
+  ru: Почтовый индекс
+  ja: 郵便番号
+  ko: 우편번호
+  it: CAP / Codice postale
+  tr: Posta kodu
+  vi: Mã bưu chính
+  id: Kode pos
+  pl: Kod pocztowy
+  nl: Postcode
   ar: الرمز البريدي
+  hi: पिन कोड
+  th: รหัสไปรษณีย์
+  cs: PSČ
+  sv: Postnummer
   he: מיקוד
   verified_by_human: []
 form.zip.placeholder:
   context: Placeholder for zip code input
   en: "example: '10115'"
   de: "Beispiel: '10115'"
+  zh: "例如: '100000'"
+  es: "ejemplo: '28001'"
+  fr: "exemple: '75001'"
+  pt: "exemplo: '01310-100'"
+  ru: "пример: '101000'"
+  ja: "例: '100-0001'"
+  ko: "예시: '04524'"
+  it: "esempio: '00100'"
+  tr: "örnek: '34000'"
+  vi: "ví dụ: '700000'"
+  id: "contoh: '10110'"
+  pl: "przykład: '00-001'"
+  nl: "voorbeeld: '1000 AA'"
   ar: 'مثال: "10115"'
+  hi: "उदाहरण: '110001'"
+  th: "ตัวอย่าง: '10100'"
+  cs: "příklad: '110 00'"
+  sv: "exempel: '111 29'"
   he: "לדוגמה: '10115'"
   verified_by_human: []
 form.country:
   context: Form field label for country
   en: Country
   de: Land
+  zh: 国家
+  es: País
+  fr: Pays
+  pt: País
+  ru: Страна
+  ja: 国
+  ko: 국가
+  it: Paese
+  tr: Ülke
+  vi: Quốc gia
+  id: Negara
+  pl: Kraj
+  nl: Land
   ar: البلد
+  hi: देश
+  th: ประเทศ
+  cs: Země
+  sv: Land
   he: מדינה
   verified_by_human: []
 form.country.placeholder:
   context: Placeholder for country input
   en: "example: 'Germany'"
   de: "Beispiel: 'Deutschland'"
+  zh: "例如: '中国'"
+  es: "ejemplo: 'España'"
+  fr: "exemple: 'France'"
+  pt: "exemplo: 'Brasil'"
+  ru: "пример: 'Россия'"
+  ja: "例: '日本'"
+  ko: "예시: '한국'"
+  it: "esempio: 'Italia'"
+  tr: "örnek: 'Türkiye'"
+  vi: "ví dụ: 'Việt Nam'"
+  id: "contoh: 'Indonesia'"
+  pl: "przykład: 'Polska'"
+  nl: "voorbeeld: 'Nederland'"
   ar: 'مثال: "ألمانيا"'
+  hi: "उदाहरण: 'भारत'"
+  th: "ตัวอย่าง: 'ประเทศไทย'"
+  cs: "příklad: 'Česká republika'"
+  sv: "exempel: 'Sverige'"
   he: "לדוגמה: 'גרמניה'"
   verified_by_human: []
 form.save:
   context: Save button text for personal data form
   en: Save
   de: Speichern
+  zh: 保存
+  es: Guardar
+  fr: Enregistrer
+  pt: Salvar
+  ru: Сохранить
+  ja: 保存
+  ko: 저장
+  it: Salva
+  tr: Kaydet
+  vi: Lưu
+  id: Simpan
+  pl: Zapisz
+  nl: Opslaan
   ar: حفظ
+  hi: सहेजें
+  th: บันทึก
+  cs: Uložit
+  sv: Spara
   he: שמירה
   verified_by_human: []
 form.delete:
   context: Delete button text for personal data entry
   en: Delete
   de: Löschen
+  zh: 删除
+  es: Eliminar
+  fr: Supprimer
+  pt: Excluir
+  ru: Удалить
+  ja: 削除
+  ko: 삭제
+  it: Elimina
+  tr: Sil
+  vi: Xóa
+  id: Hapus
+  pl: Usuń
+  nl: Verwijderen
   ar: حذف
+  hi: हटाएं
+  th: ลบ
+  cs: Smazat
+  sv: Radera
   he: מחיקה
   verified_by_human: []
 encryption_note:
   context: Note explaining that personal data entries are client-side encrypted
   en: All your personal data entries are encrypted on your device. Not even the OpenMates server can read them.
   de: Alle deine persönlichen Dateneinträge werden auf deinem Gerät verschlüsselt. Nicht einmal der OpenMates-Server kann sie lesen.
+  zh: 您所有的个人数据条目都在您的设备上加密。即使是 OpenMates 服务器也无法读取它们。
+  es: Todas tus entradas de datos personales están cifradas en tu dispositivo. Ni siquiera el servidor de OpenMates puede leerlas.
+  fr: Toutes vos entrées de données personnelles sont chiffrées sur votre appareil. Même le serveur OpenMates ne peut pas les lire.
+  pt: Todas as suas entradas de dados pessoais são criptografadas no seu dispositivo. Nem mesmo o servidor OpenMates pode lê-las.
+  ru: Все ваши личные данные зашифрованы на вашем устройстве. Даже сервер OpenMates не может их прочитать.
+  ja: すべての個人データはデバイス上で暗号化されています。OpenMatesのサーバーでさえ読み取ることができません。
+  ko: 모든 개인 데이터 항목이 기기에서 암호화됩니다. OpenMates 서버조차 읽을 수 없습니다.
+  it: Tutte le tue voci di dati personali sono crittografate sul tuo dispositivo. Nemmeno il server di OpenMates può leggerle.
+  tr: Tüm kişisel veri girişleriniz cihazınızda şifrelenir. OpenMates sunucusu bile onları okuyamaz.
+  vi: Tất cả mục nhập dữ liệu cá nhân của bạn được mã hóa trên thiết bị của bạn. Ngay cả máy chủ OpenMates cũng không thể đọc chúng.
+  id: Semua entri data pribadi Anda dienkripsi di perangkat Anda. Bahkan server OpenMates pun tidak dapat membacanya.
+  pl: Wszystkie wpisy danych osobowych są szyfrowane na Twoim urządzeniu. Nawet serwer OpenMates nie może ich odczytać.
+  nl: Al uw persoonlijke gegevensinvoer is versleuteld op uw apparaat. Zelfs de OpenMates-server kan ze niet lezen.
   ar: جميع إدخالات بياناتك الشخصية مشفرة على جهازك. حتى خادم OpenMates لا يمكنه قراءتها.
+  hi: आपके सभी व्यक्तिगत डेटा प्रविष्टियां आपके डिवाइस पर एन्क्रिप्ट की गई हैं। यहां तक कि OpenMates सर्वर भी उन्हें नहीं पढ़ सकता।
+  th: รายการข้อมูลส่วนตัวทั้งหมดของคุณถูกเข้ารหัสบนอุปกรณ์ของคุณ แม้แต่เซิร์ฟเวอร์ OpenMates ก็ไม่สามารถอ่านได้
+  cs: Všechny vaše osobní datové záznamy jsou šifrovány na vašem zařízení. Ani server OpenMates je nemůže číst.
+  sv: Alla dina personliga dataposter är krypterade på din enhet. Inte ens OpenMates-servern kan läsa dem.
   he: כל נתוניך האישיים מוצפנים במכשיר שלך. אפילו השרת של OpenMates לא יכול לקרוא אותם.
   verified_by_human: []
 auth.title:
   context: Title shown in the identity verification modal when opening a personal data entry for editing
   en: Verify your identity
   de: Identität bestätigen
+  zh: 验证您的身份
+  es: Verifica tu identidad
+  fr: Vérifiez votre identité
+  pt: Verifique sua identidade
+  ru: Подтвердите свою личность
+  ja: 本人確認
+  ko: 신원을 확인하세요
+  it: Verifica la tua identità
+  tr: Kimliğinizi doğrulayın
+  vi: Xác minh danh tính của bạn
+  id: Verifikasi identitas Anda
+  pl: Zweryfikuj swoją tożsamość
+  nl: Verifieer uw identiteit
   ar: التحقق من هويتك
+  hi: अपनी पहचान सत्यापित करें
+  th: ยืนยันตัวตนของคุณ
+  cs: Ověřte svou identitu
+  sv: Verifiera din identitet
   he: אמת את זהותך
   verified_by_human: []
 auth.description:
   context: Description shown in the identity verification modal before editing a personal data entry
   en: To protect your private data, please confirm your identity before editing.
   de: Um deine privaten Daten zu schützen, bestätige bitte deine Identität vor dem Bearbeiten.
+  zh: 为保护您的私人数据，请在编辑前确认您的身份。
+  es: Para proteger tus datos privados, confirma tu identidad antes de editar.
+  fr: Pour protéger vos données privées, veuillez confirmer votre identité avant de modifier.
+  pt: Para proteger seus dados privados, confirme sua identidade antes de editar.
+  ru: Чтобы защитить ваши личные данные, подтвердите свою личность перед редактированием.
+  ja: プライベートデータを保護するため、編集前に本人確認を行ってください。
+  ko: 개인 데이터를 보호하기 위해 편집 전에 신원을 확인해 주세요.
+  it: Per proteggere i tuoi dati privati, conferma la tua identità prima di modificare.
+  tr: Özel verilerinizi korumak için düzenlemeden önce lütfen kimliğinizi doğrulayın.
+  vi: Để bảo vệ dữ liệu riêng tư của bạn, vui lòng xác nhận danh tính trước khi chỉnh sửa.
+  id: Untuk melindungi data pribadi Anda, konfirmasi identitas Anda sebelum mengedit.
+  pl: Aby chronić swoje prywatne dane, potwierdź swoją tożsamość przed edycją.
+  nl: Om uw privégegevens te beschermen, bevestig uw identiteit voordat u bewerkt.
   ar: لحماية بياناتك الخاصة، يرجى تأكيد هويتك قبل التعديل.
+  hi: अपने निजी डेटा की सुरक्षा के लिए, कृपया संपादित करने से पहले अपनी पहचान की पुष्टि करें।
+  th: เพื่อปกป้องข้อมูลส่วนตัวของคุณ โปรดยืนยันตัวตนก่อนแก้ไข
+  cs: Chcete-li chránit svá soukromá data, před úpravou potvrďte svou identitu.
+  sv: För att skydda dina privata uppgifter, bekräfta din identitet innan du redigerar.
   he: כדי להגן על המידע הפרטי שלך, אנא אמת את זהותך לפני העריכה.
   verified_by_human: []

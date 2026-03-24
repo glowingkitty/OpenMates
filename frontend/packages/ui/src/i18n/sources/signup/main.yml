@@ -19,7 +19,7 @@ sign_up:
   hi: साइन अप करें
   th: สมัครสมาชิก
   cs: Registrovat
-  sv: ""
+  sv: "Registrera dig"
   he: הרשמה
   verified_by_human: []
 version_title:
@@ -43,7 +43,7 @@ version_title:
   hi: v0.6 अल्फा
   th: v0.6 อัลฟา
   cs: v0.6 alpha
-  sv: ""
+  sv: "v0.6 alpha"
   he: v0.6 אלפא
   verified_by_human: []
 domain_not_allowed:
@@ -90,7 +90,7 @@ email_ignored:
   hi: इस ई-मेल पते का उपयोग पंजीकरण के लिए नहीं किया जा सकता है। यदि आपको लगता है कि यह एक त्रुटि है, तो कृपया समर्थन से संपर्क करें।
   th: ไม่สามารถใช้ที่อยู่อีเมลนี้เพื่อลงทะเบียนได้ โปรดติดต่อฝ่ายสนับสนุนหากคุณเชื่อว่านี่เป็นข้อผิดพลาด
   cs: Tato e-mailová adresa nemůže být použita pro registraci. Pokud si myslíte, že se jedná o chybu, kontaktujte prosím podporu.
-  sv: ""
+  sv: "Den här e-postadressen kan inte användas för registrering. Kontakta support om du tror att detta är ett fel."
   he: לא ניתן להשתמש בכתובת אימייל זו להרשמה. אנא צור קשר עם התמיכה אם לדעתך זו טעות.
   verified_by_human: []
 is_alpha_disclaimer:
@@ -114,7 +114,7 @@ is_alpha_disclaimer:
   hi: OpenMates वर्तमान में प्रारंभिक परीक्षकों के लिए एक अल्फा रिलीज़ है।
   th: OpenMates อยู่ในช่วงเวอร์ชันอัลฟาสำหรับผู้ทดสอบก่อน
   cs: OpenMates je v současnosti alfa verze pro rané testery.
-  sv: ""
+  sv: "OpenMates är för närvarande en alfaversion för tidiga testare."
   he: OpenMates נמצאת כרגע בגרסת אלפא לנסיינים מוקדמים.
   verified_by_human: []
 decent_stable:
@@ -138,7 +138,7 @@ decent_stable:
   hi: यह अल्फा रिलीज़ काफी स्थिर है
   th: เวอร์ชันอัลฟานี้ค่อนข้างเสถียร
   cs: Tato alfa verze je poměrně stabilní
-  sv: ""
+  sv: "Den här alfaversionen är ganska stabil"
   he: גרסת אלפא זו יציבה למדי
   verified_by_human: []
 not_all_core_features_implemented:
@@ -162,7 +162,7 @@ not_all_core_features_implemented:
   hi: हालांकि, अभी तक सभी मुख्य सुविधाएं लागू नहीं की गई हैं।
   th: อย่างไรก็ตาม ยังไม่ได้ใช้งานฟีเจอร์หลักทั้งหมด
   cs: Nicméně ještě nejsou implementovány všechny základní funkce.
-  sv: ""
+  sv: "Alla kärnfunktioner är dock inte implementerade ännu."
   he: עם זאת, לא כל תכונות הליבה הוטמעו עדיין.
   verified_by_human: []
 expect_bugs_and_missing_features:
@@ -186,7 +186,7 @@ expect_bugs_and_missing_features:
   hi: "यहाँ-वहाँ कुछ बग की अपेक्षा करें और याद रखें: AI चैटबॉट गलतियाँ कर सकते हैं।"
   th: "คาดหวังข้อผิดพลาดบางอย่างที่นี่และที่นั่น และจำไว้ว่า: แชทบอต AI สามารถทำผิดพลาดได้"
   cs: "Očekávejte některé chyby tu a tam a pamatujte: AI chatboty mohou dělat chyby."
-  sv: ""
+  sv: "Förvänta dig några buggar här och där och kom ihåg: AI-chatbotar kan göra misstag."
   he: "צפו לבאגים פה ושם וזכרו: צ'אטבוטים מבוססי בינה מלאכותית עלולים לטעות."
   verified_by_human: []
 view_on_github:
@@ -210,7 +210,7 @@ view_on_github:
   hi: GitHub पर OpenMates देखें
   th: ดู OpenMates บน GitHub
   cs: Zobrazit OpenMates na GitHub
-  sv: ""
+  sv: "Visa OpenMates på GitHub"
   he: צפה ב-OpenMates ב-GitHub
   verified_by_human: []
 view_on_github_description:
@@ -234,7 +234,7 @@ view_on_github_description:
   hi: बग, सुविधाओं पर चर्चा करने और नए रिलीज़ पर अपडेट रहने के लिए।
   th: เพื่อหารือเกี่ยวกับข้อผิดพลาด ฟีเจอร์ และรับข้อมูลอัปเดตเกี่ยวกับการเผยแพร่ใหม่
   cs: Pro diskusi o chybách, funkcích a aktualizacích o nových verzích.
-  sv: ""
+  sv: "För att diskutera buggar, funktioner och hålla dig uppdaterad om nya versioner."
   he: כדי לדון בבאגים, תכונות ולהישאר מעודכנים בגרסאות חדשות.
   verified_by_human: []
 view_on_instagram:
@@ -258,7 +258,7 @@ view_on_instagram:
   hi: Instagram पर OpenMates देखें
   th: ดู OpenMates บน Instagram
   cs: Zobrazit OpenMates na Instagram
-  sv: ""
+  sv: "Visa OpenMates på Instagram"
   he: צפה ב-OpenMates ב-Instagram
   verified_by_human: []
 view_on_instagram_description:
@@ -282,7 +282,7 @@ view_on_instagram_description:
   hi: नए रिलीज़ और अन्य अपडेट पर अपडेट रहने के लिए।
   th: เพื่อรับข้อมูลอัปเดตเกี่ยวกับการเผยแพร่ใหม่และการอัปเดตอื่นๆ
   cs: Pro aktualizace o nových verzích a dalších aktualizacích.
-  sv: ""
+  sv: "För att hålla dig uppdaterad om nya versioner och andra uppdateringar."
   he: כדי להישאר מעודכנים בגרסאות חדשות ועדכונים נוספים.
   verified_by_human: []
 continue_with_alpha:
@@ -306,7 +306,7 @@ continue_with_alpha:
   hi: "{version} के साथ जारी रखें"
   th: ดำเนินการต่อด้วย {version}
   cs: Pokračovat s {version}
-  sv: ""
+  sv: "Fortsätt med {version}"
   he: "המשך עם {version}"
   verified_by_human: []
 server_admin:
@@ -330,7 +330,7 @@ server_admin:
   hi: सर्वर व्यवस्थापक
   th: ผู้ดูแลระบบเซิร์ฟเวอร์
   cs: Správce serveru
-  sv: ""
+  sv: "Serveradministratör"
   he: מנהל שרת
   verified_by_human: []
 enter_personal_invite_code:
@@ -354,7 +354,7 @@ enter_personal_invite_code:
   hi: आमंत्रण कोड दर्ज करें
   th: ใส่รหัสเชิญ
   cs: Zadejte pozvánkový kód
-  sv: ""
+  sv: "Ange inbjudningskod"
   he: הזן קוד הזמנה
   verified_by_human: []
 dont_have_personal_invite_code:
@@ -378,7 +378,7 @@ dont_have_personal_invite_code:
   hi: आमंत्रण कोड नहीं है?
   th: ไม่มีรหัสเชิญ?
   cs: Nemáte pozvánkový kód?
-  sv: ""
+  sv: "Har du ingen inbjudningskod?"
   he: "אין לך קוד הזמנה?"
   verified_by_human: []
 follow_us:
@@ -478,7 +478,11 @@ follow_us:
     znovu zaregistrovat bez kódu.
 
     "
-  sv: ""
+  sv: "Följ oss för att se när du kan
+
+    registrera dig igen utan kod.
+
+    "
   he: |
     עקבו אחרינו כדי לראות מתי תוכלו
     להירשם שוב ללא קוד.
@@ -504,7 +508,7 @@ open_instagram:
   hi: Instagram खोलें
   th: เปิด Instagram
   cs: Otevřít Instagram
-  sv: ""
+  sv: "Öppna Instagram"
   he: פתח את Instagram
   verified_by_human: []
 open_mastodon:
@@ -528,7 +532,7 @@ open_mastodon:
   hi: Mastodon खोलें
   th: เปิด Mastodon
   cs: Otevřít Mastodon
-  sv: ""
+  sv: "Öppna Mastodon"
   he: פתח את Mastodon
   verified_by_human: []
 checking_code:
@@ -552,7 +556,7 @@ checking_code:
   hi: कोड जांचा जा रहा है...
   th: กำลังตรวจสอบรหัส...
   cs: Kontrola kódu...
-  sv: ""
+  sv: "Kontrollerar kod..."
   he: בודק קוד...
   verified_by_human: []
 too_many_requests:
@@ -576,7 +580,7 @@ too_many_requests:
   hi: आपने बहुत अधिक अनुरोध भेजे हैं। बाद में पुनः प्रयास करें।
   th: คุณส่งคำขอมากเกินไป ลองอีกครั้งในภายหลัง
   cs: Odeslali jste příliš mnoho požadavků. Zkuste to znovu později.
-  sv: ""
+  sv: "Du skickade för många förfrågningar. Försök igen senare."
   he: שלחת יותר מדי בקשות. נסה שוב מאוחר יותר.
   verified_by_human: []
 username_too_short:
@@ -600,7 +604,7 @@ username_too_short:
   hi: न्यूनतम 3 वर्ण
   th: อย่างน้อย 3 ตัวอักษร
   cs: Minimálně 3 znaky
-  sv: ""
+  sv: "Minst 3 tecken"
   he: מינימום 3 תווים
   verified_by_human: []
 username_too_long:
@@ -624,7 +628,7 @@ username_too_long:
   hi: 20 वर्ण से कम
   th: น้อยกว่า 20 ตัวอักษร
   cs: Méně než 20 znaků
-  sv: ""
+  sv: "Färre än 20 tecken"
   he: פחות מ-20 תווים
   verified_by_human: []
 username_invalid_chars:
@@ -648,7 +652,7 @@ username_invalid_chars:
   hi: "अनुमत: अक्षर, संख्याएं, _, ."
   th: "อนุญาต: ตัวอักษร, ตัวเลข, _, ."
   cs: "Povoleno: písmena, číslice, _, ."
-  sv: ""
+  sv: "Tillåtet: bokstäver, siffror, _, ."
   he: "מותר: אותיות, מספרים, _, ."
   verified_by_human: []
 username_taken:
@@ -672,7 +676,7 @@ username_taken:
   hi: यह उपयोगकर्ता नाम पहले से उपयोग में है। कृपया कोई अन्य नाम चुनें।
   th: ชื่อผู้ใช้นี้ถูกใช้ไปแล้ว กรุณาเลือกชื่ออื่น
   cs: Toto uživatelské jméno je již obsazeno. Prosím zvolte jiné.
-  sv: ""
+  sv: "Det här användarnamnet är redan taget. Välj ett annat."
   he: שם המשתמש הזה כבר תפוס. אנא בחר שם אחר.
   verified_by_human: []
 enter_username:
@@ -696,7 +700,7 @@ enter_username:
   hi: उपयोगकर्ता नाम दर्ज करें
   th: ใส่ชื่อผู้ใช้
   cs: Zadejte uživatelské jméno
-  sv: ""
+  sv: "Ange användarnamn"
   he: הזן שם משתמש
   verified_by_human: []
 repeat_password:
@@ -720,7 +724,7 @@ repeat_password:
   hi: पासवर्ड दोहराएं
   th: ยืนยันรหัสผ่าน
   cs: Zopakujte heslo
-  sv: ""
+  sv: "Upprepa lösenord"
   he: חזור על הסיסמה
   verified_by_human: []
 create_password:
@@ -744,7 +748,7 @@ create_password:
   hi: अपना नया पासवर्ड बनाएं
   th: สร้างรหัสผ่านใหม่ของคุณ
   cs: Vytvořte si nové heslo
-  sv: ""
+  sv: "Skapa ditt nya lösenord"
   he: צור את הסיסמה החדשה שלך
   verified_by_human: []
 confirm_password:
@@ -768,7 +772,7 @@ confirm_password:
   hi: पासवर्ड की पुष्टि करें
   th: ยืนยันรหัสผ่าน
   cs: Potvrďte heslo
-  sv: ""
+  sv: "Bekräfta lösenord"
   he: אשר סיסמה
   verified_by_human: []
 passwords_do_not_match:
@@ -792,7 +796,7 @@ passwords_do_not_match:
   hi: पासवर्ड मेल नहीं खाते
   th: รหัสผ่านไม่ตรงกัน
   cs: Hesla se neshodují
-  sv: ""
+  sv: "Lösenorden matchar inte"
   he: הסיסמאות אינן תואמות
   verified_by_human: []
 password_too_short:
@@ -816,7 +820,7 @@ password_too_short:
   hi: न्यूनतम 10 वर्ण
   th: อย่างน้อย 10 ตัวอักษร
   cs: Minimálně 10 znaků
-  sv: ""
+  sv: "Minst 10 tecken"
   he: מינימום 10 תווים
   verified_by_human: []
 password_too_common:
@@ -840,7 +844,7 @@ password_too_common:
   hi: यह पासवर्ड बहुत सामान्य है। कृपया अधिक मजबूत पासवर्ड चुनें।
   th: รหัสผ่านนี้พบบ่อยเกินไป โปรดเลือกรหัสผ่านที่ปลอดภัยกว่า
   cs: Toto heslo je příliš běžné. Vyberte prosím silnější.
-  sv: ""
+  sv: "Det här lösenordet är för vanligt. Välj ett starkare."
   he: הסיסמה הזו נפוצה מדי. בחר/י סיסמה חזקה יותר.
   verified_by_human: []
 password_needs_lowercase:
@@ -864,7 +868,7 @@ password_needs_lowercase:
   hi: कम से कम एक लोअरकेस अक्षर
   th: อย่างน้อยหนึ่งตัวอักษรพิมพ์เล็ก
   cs: Alespoň jedno malé písmeno
-  sv: ""
+  sv: "Minst en gemen bokstav"
   he: לפחות אות קטנה אחת
   verified_by_human: []
 password_needs_uppercase:
@@ -888,7 +892,7 @@ password_needs_uppercase:
   hi: कम से कम एक अपरकेस अक्षर
   th: อย่างน้อยหนึ่งตัวอักษรพิมพ์ใหญ่
   cs: Alespoň jedno velké písmeno
-  sv: ""
+  sv: "Minst en versal bokstav"
   he: לפחות אות גדולה אחת
   verified_by_human: []
 password_too_long:
@@ -912,7 +916,7 @@ password_too_long:
   hi: 60 वर्ण से कम
   th: น้อยกว่า 60 ตัวอักษร
   cs: Méně než 60 znaků
-  sv: ""
+  sv: "Färre än 60 tecken"
   he: פחות מ-60 תווים
   verified_by_human: []
 password_needs_letter:
@@ -936,7 +940,7 @@ password_needs_letter:
   hi: कम से कम एक अक्षर
   th: อย่างน้อยหนึ่งตัวอักษร
   cs: Alespoň jedno písmeno
-  sv: ""
+  sv: "Minst en bokstav"
   he: לפחות אות אחת
   verified_by_human: []
 password_needs_number:
@@ -960,7 +964,7 @@ password_needs_number:
   hi: कम से कम एक संख्या
   th: อย่างน้อยหนึ่งตัวเลข
   cs: Alespoň jedna číslice
-  sv: ""
+  sv: "Minst en siffra"
   he: לפחות ספרה אחת
   verified_by_human: []
 password_needs_special:
@@ -984,7 +988,7 @@ password_needs_special:
   hi: कम से कम एक विशेष वर्ण
   th: อย่างน้อยหนึ่งอักขระพิเศษ
   cs: Alespoň jeden speciální znak
-  sv: ""
+  sv: "Minst ett specialtecken"
   he: לפחות תו מיוחד אחד
   verified_by_human: []
 skip_for_now:
@@ -1224,7 +1228,7 @@ agree_to:
   hi: सहमत हैं
   th: ยอมรับ
   cs: Souhlasím s
-  sv: ""
+  sv: "Godkänner"
   he: אני מסכים ל-
   verified_by_human: []
 terms_of_service:
@@ -1248,7 +1252,7 @@ terms_of_service:
   hi: सेवा की शर्तें
   th: เงื่อนไขการให้บริการ
   cs: Podmínky služby
-  sv: ""
+  sv: "Användarvillkor"
   he: תנאי השימוש
   verified_by_human: []
 privacy_policy:
@@ -1272,7 +1276,7 @@ privacy_policy:
   hi: गोपनीयता नीति
   th: นโยบายความเป็นส่วนตัว
   cs: Zásady ochrany osobních údajů
-  sv: ""
+  sv: "Integritetspolicy"
   he: מדיניות הפרטיות
   verified_by_human: []
 subscribe_to_newsletter:
@@ -1320,7 +1324,7 @@ create_new_account:
   hi: नया खाता बनाएं
   th: สร้างบัญชีใหม่
   cs: Vytvořit nový účet
-  sv: ""
+  sv: "Skapa nytt konto"
   he: יצירת חשבון חדש
   verified_by_human: []
 email_address_already_in_use:
@@ -1344,7 +1348,7 @@ email_address_already_in_use:
   hi: ई-मेल पता पहले से उपयोग में है
   th: ที่อยู่อีเมลถูกใช้งานแล้ว
   cs: E-mailová adresa je již používána
-  sv: ""
+  sv: "E-postadressen används redan"
   he: כתובת האימייל כבר בשימוש
   verified_by_human: []
 you_received_a_one_time_code_via_email:
@@ -1368,7 +1372,7 @@ you_received_a_one_time_code_via_email:
   hi: आपने ई-मेल के माध्यम से एक वन-टाइम कोड प्राप्त किया है
   th: คุณได้รับรหัสครั้งเดียวทางอีเมล
   cs: Obdrželi jste jednorázový kód e-mailem
-  sv: ""
+  sv: "Du fick en engångskod via e-post"
   he: קיבלת קוד חד-פעמי באימייל
   verified_by_human: []
 open_mail_app:
@@ -1392,7 +1396,7 @@ open_mail_app:
   hi: मेल ऐप खोलें
   th: เปิดแอปอีเมล
   cs: Otevřít e-mailovou aplikaci
-  sv: ""
+  sv: "Öppna e-postapp"
   he: פתיחת אפליקציית המייל
   verified_by_human: []
 enter_one_time_code:
@@ -1416,7 +1420,7 @@ enter_one_time_code:
   hi: 6 अंकों का वन-टाइम कोड दर्ज करें
   th: ใส่รหัส 6 หลัก
   cs: Zadejte 6místný jednorázový kód
-  sv: ""
+  sv: "Ange 6-siffrig engångskod"
   he: הזן קוד חד-פעמי בן 6 ספרות
   verified_by_human: []
 havent_received_a_code:
@@ -1440,7 +1444,7 @@ havent_received_a_code:
   hi: कोड प्राप्त नहीं हुआ?
   th: ยังไม่ได้รับรหัส?
   cs: Neobdrželi jste kód?
-  sv: ""
+  sv: "Har du inte fått en kod?"
   he: "לא קיבלת קוד?"
   verified_by_human: []
 click_to_resend:
@@ -1464,7 +1468,7 @@ click_to_resend:
   hi: फिर से भेजने के लिए यहां क्लिक करें
   th: คลิกที่นี่เพื่อส่งอีกครั้ง
   cs: Klikněte sem pro opětovné odeslání
-  sv: ""
+  sv: "Klicka här för att skicka igen"
   he: לחץ כאן לשליחה חוזרת
   verified_by_human: []
 code_is_invalid:
@@ -1488,7 +1492,7 @@ code_is_invalid:
   hi: कोड अमान्य है
   th: รหัสไม่ถูกต้อง
   cs: Kód je neplatný
-  sv: ""
+  sv: "Koden är ogiltig"
   he: הקוד אינו תקין
   verified_by_human: []
 at_missing:
@@ -1512,7 +1516,7 @@ at_missing:
   hi: "@ गायब है"
   th: "@ ขาดหายไป"
   cs: "@ chybí"
-  sv: ""
+  sv: "@ saknas"
   he: חסר @
   verified_by_human: []
 domain_ending_missing:
@@ -1536,7 +1540,7 @@ domain_ending_missing:
   hi: डोमेन अंत गायब है
   th: ส่วนท้ายโดเมนขาดหายไป
   cs: Chybí koncovka domény
-  sv: ""
+  sv: "Domänändelse saknas"
   he: חסרה סיומת דומיין
   verified_by_human: []
 skip:
@@ -1560,7 +1564,7 @@ skip:
   hi: छोड़ें
   th: ข้าม
   cs: Přeskočit
-  sv: ""
+  sv: "Hoppa över"
   he: דילוג
   verified_by_human: []
 next:
@@ -1584,7 +1588,7 @@ next:
   hi: अगला
   th: ถัดไป
   cs: Další
-  sv: ""
+  sv: "Nästa"
   he: הבא
   verified_by_human: []
 upload_profile_image:
@@ -1608,7 +1612,7 @@ upload_profile_image:
   hi: प्रोफ़ाइल छवि अपलोड करें
   th: อัปโหลดรูปโปรไฟล์
   cs: Nahrát profilový obrázek
-  sv: ""
+  sv: "Ladda upp en profilbild"
   he: העלאת תמונת פרופיל
   verified_by_human: []
 image_too_large:
@@ -1632,7 +1636,7 @@ image_too_large:
   hi: अधिकतम 2MB
   th: สูงสุด 2MB
   cs: Max 2MB
-  sv: ""
+  sv: "Max 2MB"
   he: מקסימום 2MB
   verified_by_human: []
 image_wrong_filetype:
@@ -1656,7 +1660,7 @@ image_wrong_filetype:
   hi: केवल .jpg, .jpeg, .png
   th: เฉพาะ .jpg, .jpeg, .png
   cs: Pouze .jpg, .jpeg, .png
-  sv: ""
+  sv: "Endast .jpg, .jpeg, .png"
   he: רק .jpg, .jpeg, .png
   verified_by_human: []
 image_no_nudity_or_violence:
@@ -1680,7 +1684,7 @@ image_no_nudity_or_violence:
   hi: नग्नता या हिंसा की अनुमति नहीं है
   th: ไม่อนุญาตให้มีภาพเปลือยหรือความรุนแรง
   cs: Nahota nebo násilí není povoleno
-  sv: ""
+  sv: "Ingen nakenhet eller våld tillåtet"
   he: ללא עירום או אלימות
   verified_by_human: []
 profile_image:
@@ -1704,7 +1708,7 @@ profile_image:
   hi: प्रोफ़ाइल छवि
   th: รูปโปรไฟล์
   cs: Profilový obrázek
-  sv: ""
+  sv: "Profilbild"
   he: תמונת פרופיל
   verified_by_human: []
 cancel_signup:
@@ -1728,7 +1732,7 @@ cancel_signup:
   hi: साइनअप रद्द करें
   th: ยกเลิกการสมัครสมาชิก
   cs: Zrušit registraci
-  sv: ""
+  sv: "Avbryt registrering"
   he: ביטול ההרשמה
   verified_by_human: []
 secure_your_account:
@@ -1752,7 +1756,7 @@ secure_your_account:
   hi: अपने खाते को सुरक्षित करें
   th: ป้องกันบัญชีของคุณ
   cs: Zabezpečte svůj účet
-  sv: ""
+  sv: "Säkra ditt konto"
   he: אבטחת החשבון שלך
   verified_by_human: []
 click_on_an_option:
@@ -1776,7 +1780,7 @@ click_on_an_option:
   hi: एक विकल्प पर क्लिक करें
   th: คลิกที่ตัวเลือก
   cs: Klikněte na možnost
-  sv: ""
+  sv: "Klicka på ett alternativ"
   he: לחץ על אפשרות
   verified_by_human: []
 how_to_login:
@@ -1800,7 +1804,7 @@ how_to_login:
   hi: आप कैसे लॉगिन करना चाहते हैं?
   th: คุณต้องการเข้าสู่ระบบอย่างไร?
   cs: Jak se chcete přihlásit?
-  sv: ""
+  sv: "Hur vill du logga in?"
   he: "איך ברצונך להתחבר?"
   verified_by_human: []
 password:
@@ -1824,7 +1828,7 @@ password:
   hi: पासवर्ड
   th: รหัสผ่าน
   cs: Heslo
-  sv: ""
+  sv: "Lösenord"
   he: סיסמה
   verified_by_human: []
 passkey:
@@ -1848,7 +1852,7 @@ passkey:
   hi: पासकी
   th: คีย์ผ่าน
   cs: Přístupový klíč
-  sv: ""
+  sv: "Lösenordsnyckel"
   he: מפתח גישה
   verified_by_human: []
 passkey_descriptor:
@@ -1872,7 +1876,7 @@ passkey_descriptor:
   hi: "सबसे सुरक्षित, फ़िशिंग-प्रूफ, सबसे तेज़ और उपयोग में सबसे आसान।"
   th: "ปลอดภัยที่สุด ป้องกันฟิชชิ่ง เร็วที่สุด และใช้งานง่ายที่สุด"
   cs: "Nejbezpečnější, odolné proti phishingu, nejrychlejší a nejsnadnější na použití."
-  sv: ""
+  sv: "Säkrast, nätfiskeresistent, snabbast och enklast att använda."
   he: הכי מאובטח, עמיד בפני פישינג, הכי מהיר וקל לשימוש.
   verified_by_human: []
 passkey_instruction_title:
@@ -1896,7 +1900,7 @@ passkey_instruction_title:
   hi: "पासकी बनाएं"
   th: "สร้างคีย์ผ่าน"
   cs: "Vytvořit přístupový klíč"
-  sv: ""
+  sv: "Skapa en lösenordsnyckel"
   he: יצירת מפתח גישה
   verified_by_human: []
 passkey_instruction_text:
@@ -1920,7 +1924,7 @@ passkey_instruction_text:
   hi: "अपने डिवाइस बायोमेट्रिक्स या पासवर्ड मैनेजर का उपयोग करके पासकी बनाने के लिए नीचे दिए गए बटन पर क्लिक करें। यह आपको बिना पासवर्ड के साइन इन करने की अनुमति देगा।"
   th: "คลิกปุ่มด้านล่างเพื่อสร้างคีย์ผ่านโดยใช้ไบโอเมตริกซ์ของอุปกรณ์หรือตัวจัดการรหัสผ่านของคุณ ซึ่งจะช่วยให้คุณเข้าสู่ระบบโดยไม่ต้องใช้รหัสผ่าน"
   cs: "Klikněte na tlačítko níže a vytvořte přístupový klíč pomocí biometrie vašeho zařízení nebo správce hesel. To vám umožní přihlásit se bez hesla."
-  sv: ""
+  sv: "Klicka på knappen nedan för att skapa en lösenordsnyckel med hjälp av enhetens biometri eller lösenordshanterare. Detta gör att du kan logga in utan lösenord."
   he: לחץ על הכפתור למטה כדי ליצור מפתח גישה באמצעות הביומטריה של המכשיר או מנהל הסיסמאות שלך. זה יאפשר לך להיכנס ללא סיסמה.
   verified_by_human: []
 create_passkey:
@@ -1944,7 +1948,7 @@ create_passkey:
   hi: "पासकी बनाएं"
   th: "สร้างคีย์ผ่าน"
   cs: "Vytvořit přístupový klíč"
-  sv: ""
+  sv: "Skapa lösenordsnyckel"
   he: יצירת מפתח גישה
   verified_by_human: []
 passkey_info:
@@ -1968,7 +1972,7 @@ passkey_info:
   hi: "आपकी पासकी आपके डिवाइस या पासवर्ड मैनेजर में सुरक्षित रूप से संग्रहीत की जाएगी।"
   th: "คีย์ผ่านของคุณจะถูกเก็บไว้อย่างปลอดภัยบนอุปกรณ์หรือในตัวจัดการรหัสผ่านของคุณ"
   cs: "Váš přístupový klíč bude bezpečně uložen na vašem zařízení nebo ve správci hesel."
-  sv: ""
+  sv: "Din lösenordsnyckel lagras säkert på din enhet eller i din lösenordshanterare."
   he: מפתח הגישה שלך יישמר בצורה מאובטחת במכשיר שלך או במנהל הסיסמאות שלך.
   verified_by_human: []
 passkey_prf_error_title:
@@ -1992,7 +1996,7 @@ passkey_prf_error_title:
   hi: "PRF समर्थित नहीं"
   th: "ไม่รองรับ PRF"
   cs: "PRF není podporováno"
-  sv: ""
+  sv: "PRF stöds inte"
   he: PRF אינו נתמך
   verified_by_human: []
 passkey_prf_error_message:
@@ -2016,7 +2020,7 @@ passkey_prf_error_message:
   hi: "आपका पासवर्ड मैनेजर PRF मानक का समर्थन नहीं करता है। किसी अन्य पासवर्ड मैनेजर को आज़माएं या इसके बजाय पासवर्ड को साइनअप विकल्प के रूप में उपयोग करें।"
   th: "ตัวจัดการรหัสผ่านของคุณไม่รองรับมาตรฐาน PRF ลองใช้ตัวจัดการรหัสผ่านอื่นหรือใช้รหัสผ่านเป็นตัวเลือกการสมัครแทน"
   cs: "Váš správce hesel nepodporuje standard PRF. Zkuste jiný správce hesel nebo místo toho použijte heslo jako možnost registrace."
-  sv: ""
+  sv: "Din lösenordshanterare stöder inte PRF-standarden. Prova en annan lösenordshanterare eller använd lösenord som registreringsalternativ istället."
   he: מנהל הסיסמאות שלך אינו תומך בתקן PRF. נסה מנהל סיסמאות אחר או השתמש בסיסמה כאפשרות הרשמה במקום זאת.
   verified_by_human: []
 password_descriptor:
@@ -2116,7 +2120,11 @@ password_descriptor:
     Pro lepší zabezpečení je vyžadováno dodatečné ověření prostřednictvím aplikace 2FA OTP.
 
     "
-  sv: ""
+  sv: "Mest välkänt.
+
+    Extra autentisering via 2FA OTP-app behövs för bättre säkerhet.
+
+    "
   he: |
     הכי מוכר.
     נדרש אימות נוסף באמצעות אפליקציית 2FA OTP לאבטחה טובה יותר.
@@ -2142,7 +2150,7 @@ security_key:
   hi: सुरक्षा कुंजी
   th: คีย์ความปลอดภัย
   cs: Bezpečnostní klíč
-  sv: ""
+  sv: "Säkerhetsnyckel"
   he: מפתח אבטחה
   verified_by_human: []
 security_key_descriptor:
@@ -2242,7 +2250,11 @@ security_key_descriptor:
     Prostřednictvím vyhrazeného hardwaru.
 
     "
-  sv: ""
+  sv: "Alternativ till lösenordsnyckel.
+
+    Via dedikerad hårdvara.
+
+    "
   he: |
     חלופה למפתח גישה.
     באמצעות חומרה ייעודית.
@@ -2268,7 +2280,7 @@ additional_options_follow_soon:
   hi: पासकी और सुरक्षा कुंजी जैसे अतिरिक्त विकल्प जल्द ही आएंगे।
   th: ตัวเลือกเพิ่มเติม เช่น คีย์การเข้าถึงและคีย์ความปลอดภัยจะตามมาเร็วๆ นี้
   cs: Další možnosti, jako jsou přístupové klíče a bezpečnostní klíče, budou brzy následovat.
-  sv: ""
+  sv: "Ytterligare alternativ som lösenordsnycklar och säkerhetsnycklar kommer snart."
   he: אפשרויות נוספות כמו מפתחות גישה ומפתחות אבטחה יתווספו בקרוב.
   verified_by_human: []
 advice:
@@ -2292,7 +2304,7 @@ advice:
   hi: सलाह
   th: คำแนะนำ
   cs: Rada
-  sv: ""
+  sv: "Råd"
   he: עצה
   verified_by_human: []
 use_your_password_manager:
@@ -2392,7 +2404,11 @@ use_your_password_manager:
     k vygenerování a uložení silného hesla.
 
     "
-  sv: ""
+  sv: "Använd din lösenordshanterare
+
+    för att generera och spara ett starkt lösenord.
+
+    "
   he: |
     השתמש במנהל הסיסמאות שלך
     כדי ליצור ולשמור סיסמה חזקה.
@@ -2418,7 +2434,7 @@ dont_have_password_manager_yet:
   hi: अभी तक पासवर्ड मैनेजर नहीं है?
   th: ยังไม่มีตัวจัดการรหัสผ่าน?
   cs: Ještě nemáte správce hesel?
-  sv: ""
+  sv: "Har du ingen lösenordshanterare ännu?"
   he: "עדיין אין לך מנהל סיסמאות?"
   verified_by_human: []
 click_here_to_show_password_managers:
@@ -5711,7 +5727,7 @@ vat_info:
   hi: ""
   th: ""
   cs: ""
-  sv: ""
+  sv: "Ingen moms debiteras enligt §19 UStG (småföretagsreglering)."
   he: 'לא נגבה מע"מ בהתאם ל-§19 UStG (תקנת עסקים קטנים).'
   verified_by_human: []
 card_number:
@@ -5735,7 +5751,7 @@ card_number:
   hi: ""
   th: ""
   cs: ""
-  sv: ""
+  sv: "Kortnummer"
   he: מספר כרטיס
   verified_by_human: []
 cvv:
@@ -5759,7 +5775,7 @@ cvv:
   hi: ""
   th: ""
   cs: ""
-  sv: ""
+  sv: "CVV"
   he: CVV
   verified_by_human: []
 mm_yy:
@@ -5783,7 +5799,7 @@ mm_yy:
   hi: ""
   th: ""
   cs: ""
-  sv: ""
+  sv: "MM/ÅÅ"
   he: MM/YY
   verified_by_human: []
 buy_for:
@@ -5807,7 +5823,7 @@ buy_for:
   hi: ""
   th: ""
   cs: ""
-  sv: ""
+  sv: "Köp för {amount} {currency}"
   he: "קנייה ב-{amount} {currency}"
   verified_by_human: []
 send_amount:
@@ -5855,7 +5871,7 @@ secured_and_powered_by:
   hi: ""
   th: ""
   cs: ""
-  sv: ""
+  sv: "Säkrad och drivs av {provider}"
   he: "מאובטח ומופעל על ידי {provider}"
   verified_by_human: []
 name_too_short:
@@ -5879,7 +5895,7 @@ name_too_short:
   hi: ""
   th: ""
   cs: ""
-  sv: ""
+  sv: "Minst 3 tecken"
   he: מינימום 3 תווים
   verified_by_human: []
 invalid_card_number:
@@ -6143,7 +6159,7 @@ switch_to_eu_card:
   hi: ""
   th: ""
   cs: ""
-  sv: ""
+  sv: "Betala med ett EU-kort istället"
   he: תשלום בכרטיס אירופאי במקום זאת
   verified_by_human: []
 switch_to_non_eu_card:
@@ -6167,7 +6183,7 @@ switch_to_non_eu_card:
   hi: ""
   th: ""
   cs: ""
-  sv: ""
+  sv: "Betala med ett icke EU-kort"
   he: תשלום בכרטיס לא-אירופאי
   verified_by_human: []
 you_will_receive_payment_confirmation_soon:
@@ -6191,7 +6207,7 @@ you_will_receive_payment_confirmation_soon:
   hi: ""
   th: ""
   cs: ""
-  sv: ""
+  sv: "Du kommer att få en e-postbekräftelse med din betalningsbekräftelse snart."
   he: אישור אימייל עם אישור התשלום שלך יישלח אליך בקרוב.
   verified_by_human: []
 enjoy_your_gift:

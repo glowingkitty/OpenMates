@@ -56,6 +56,120 @@ process:
     - helps you examine your assumptions and beliefs
     - encourages you to arrive at conclusions through your own reasoning
     - asks follow-up questions to deepen understanding
+  de: |
+    - fragt, welches Thema oder Konzept du tiefgreifend erkunden möchtest
+    - stellt strategische Fragen, um dein Denken zu lenken
+    - hilft dir, deine Annahmen und Überzeugungen zu untersuchen
+    - ermutigt dich, durch eigenes Denken zu Schlussfolgerungen zu gelangen
+    - stellt Folgefragen, um das Verständnis zu vertiefen
+  zh: |
+    - 询问您想深入探索的主题或概念
+    - 提出战略性问题以引导您的思考
+    - 帮助您审视自己的假设和信念
+    - 鼓励您通过自己的推理得出结论
+    - 提出后续问题以加深理解
+  es: |
+    - pregunta qué tema o concepto quieres explorar profundamente
+    - hace preguntas estratégicas para guiar tu pensamiento
+    - te ayuda a examinar tus suposiciones y creencias
+    - te anima a llegar a conclusiones a través de tu propio razonamiento
+    - hace preguntas de seguimiento para profundizar la comprensión
+  fr: |
+    - demande quel sujet ou concept vous souhaitez explorer en profondeur
+    - pose des questions stratégiques pour guider votre réflexion
+    - vous aide à examiner vos hypothèses et croyances
+    - vous encourage à parvenir à des conclusions par votre propre raisonnement
+    - pose des questions de suivi pour approfondir la compréhension
+  pt: |
+    - pergunta qual tópico ou conceito você quer explorar profundamente
+    - faz perguntas estratégicas para guiar seu pensamento
+    - ajuda você a examinar suas suposições e crenças
+    - encoraja você a chegar a conclusões através de seu próprio raciocínio
+    - faz perguntas de acompanhamento para aprofundar a compreensão
+  ru: |
+    - спрашивает, какую тему или концепцию вы хотите изучить глубоко
+    - задаёт стратегические вопросы для направления вашего мышления
+    - помогает вам исследовать ваши предположения и убеждения
+    - поощряет вас приходить к выводам через собственные рассуждения
+    - задаёт уточняющие вопросы для углубления понимания
+  ja: |
+    - 深く探求したいトピックや概念を尋ねる
+    - 思考を導くための戦略的な質問をする
+    - 自分の仮定や信念を検討できるよう支援する
+    - 自分自身の推論によって結論に至るよう促す
+    - 理解を深めるためのフォローアップ質問をする
+  ko: |
+    - 깊이 탐구하고 싶은 주제나 개념을 묻습니다
+    - 생각을 안내하는 전략적 질문을 합니다
+    - 자신의 가정과 믿음을 검토할 수 있도록 도와줍니다
+    - 자신의 추론을 통해 결론에 도달하도록 격려합니다
+    - 이해를 심화하기 위한 후속 질문을 합니다
+  it: |
+    - chiede quale argomento o concetto vuoi esplorare approfonditamente
+    - pone domande strategiche per guidare il tuo pensiero
+    - ti aiuta a esaminare le tue assunzioni e credenze
+    - ti incoraggia a giungere a conclusioni attraverso il tuo ragionamento
+    - pone domande di approfondimento per approfondire la comprensione
+  tr: |
+    - hangi konu veya kavramı derinlemesine keşfetmek istediğinizi sorar
+    - düşüncenizi yönlendirmek için stratejik sorular sorar
+    - varsayımlarınızı ve inançlarınızı incelemenize yardımcı olur
+    - kendi muhakemenizle sonuçlara ulaşmanızı teşvik eder
+    - anlayışı derinleştirmek için takip soruları sorar
+  vi: |
+    - hỏi chủ đề hoặc khái niệm nào bạn muốn khám phá sâu
+    - đặt câu hỏi chiến lược để hướng dẫn suy nghĩ của bạn
+    - giúp bạn xem xét các giả định và niềm tin của mình
+    - khuyến khích bạn đến kết luận thông qua lý luận của chính mình
+    - đặt câu hỏi tiếp theo để hiểu sâu hơn
+  id: |
+    - menanyakan topik atau konsep apa yang ingin Anda jelajahi secara mendalam
+    - mengajukan pertanyaan strategis untuk memandu pemikiran Anda
+    - membantu Anda memeriksa asumsi dan keyakinan Anda
+    - mendorong Anda untuk sampai pada kesimpulan melalui penalaran Anda sendiri
+    - mengajukan pertanyaan lanjutan untuk memperdalam pemahaman
+  pl: |
+    - pyta, jaki temat lub koncepcję chcesz zgłębić
+    - zadaje strategiczne pytania, aby kierować twoim myśleniem
+    - pomaga ci zbadać twoje założenia i przekonania
+    - zachęca cię do dochodzenia do wniosków przez własne rozumowanie
+    - zadaje pytania uzupełniające, aby pogłębić zrozumienie
+  nl: |
+    - vraagt welk onderwerp of concept u diepgaand wilt verkennen
+    - stelt strategische vragen om uw denken te begeleiden
+    - helpt u uw aannames en overtuigingen te onderzoeken
+    - moedigt u aan om via uw eigen redenering tot conclusies te komen
+    - stelt vervolgvragen om het begrip te verdiepen
+  ar: |
+    - يسأل عن الموضوع أو المفهوم الذي تريد استكشافه بعمق
+    - يطرح أسئلة استراتيجية لتوجيه تفكيرك
+    - يساعدك على فحص افتراضاتك ومعتقداتك
+    - يشجعك على الوصول إلى استنتاجات من خلال تفكيرك الخاص
+    - يطرح أسئلة متابعة لتعميق الفهم
+  hi: |
+    - पूछता है कि आप किस विषय या अवधारणा को गहराई से खोजना चाहते हैं
+    - आपकी सोच को मार्गदर्शन देने के लिए रणनीतिक प्रश्न पूछता है
+    - आपको अपनी धारणाओं और विश्वासों की जांच करने में मदद करता है
+    - आपको अपनी स्वयं की तर्क शक्ति से निष्कर्ष तक पहुंचने के लिए प्रोत्साहित करता है
+    - समझ को गहरा करने के लिए अनुवर्ती प्रश्न पूछता है
+  th: |
+    - ถามว่าต้องการสำรวจหัวข้อหรือแนวคิดอะไรอย่างลึกซึ้ง
+    - ถามคำถามเชิงกลยุทธ์เพื่อนำทางความคิดของคุณ
+    - ช่วยให้คุณตรวจสอบสมมติฐานและความเชื่อของตัวเอง
+    - ส่งเสริมให้คุณสรุปผลผ่านเหตุผลของตัวเอง
+    - ถามคำถามติดตามเพื่อเพิ่มความเข้าใจลึกขึ้น
+  cs: |
+    - ptá se, jaké téma nebo koncept chcete hluboce prozkoumat
+    - klade strategické otázky k vedení vašeho myšlení
+    - pomáhá vám zkoumat vaše předpoklady a přesvědčení
+    - povzbuzuje vás k dosažení závěrů prostřednictvím vlastního uvažování
+    - klade doplňující otázky k prohloubení porozumění
+  sv: |
+    - frågar vilket ämne eller koncept du vill utforska djupt
+    - ställer strategiska frågor för att vägleda ditt tänkande
+    - hjälper dig att undersöka dina antaganden och övertygelser
+    - uppmuntrar dig att nå slutsatser genom ditt eget resonemang
+    - ställer uppföljningsfrågor för att fördjupa förståelsen
   he: |
     - שואל איזה נושא או מושג ברצונך לחקור לעומק
     - שואל שאלות אסטרטגיות כדי להנחות את החשיבה שלך
@@ -67,6 +181,25 @@ process:
 systemprompt:
   context: System prompt for the LLM when socratic_questioning focus mode is active
   en: You are a master teacher using the Socratic method. Ask thought-provoking questions that help users examine their understanding. Don't provide direct answers, but guide them to discover insights through their own reasoning. Focus on critical thinking and deeper comprehension.
+  de: Du bist ein Meisterlehrer, der die sokratische Methode anwendet. Stelle zum Nachdenken anregende Fragen, die Nutzern helfen, ihr Verständnis zu überprüfen. Gib keine direkten Antworten, sondern führe sie dazu, Erkenntnisse durch ihr eigenes Denken zu entdecken. Fokussiere dich auf kritisches Denken und tieferes Verständnis.
+  zh: 你是一位使用苏格拉底方法的大师级教师。提出发人深省的问题，帮助用户审视他们的理解。不要提供直接答案，而是引导他们通过自己的推理发现洞见。专注于批判性思维和更深层次的理解。
+  es: Eres un maestro experto que usa el método socrático. Haz preguntas que inviten a la reflexión y ayuden a los usuarios a examinar su comprensión. No proporciones respuestas directas, sino guíalos a descubrir ideas a través de su propio razonamiento. Enfócate en el pensamiento crítico y la comprensión más profunda.
+  fr: Vous êtes un maître enseignant utilisant la méthode socratique. Posez des questions stimulantes qui aident les utilisateurs à examiner leur compréhension. Ne fournissez pas de réponses directes, mais guidez-les pour découvrir des insights par leur propre raisonnement. Concentrez-vous sur la pensée critique et la compréhension approfondie.
+  pt: Você é um professor mestre usando o método socrático. Faça perguntas instigantes que ajudem os usuários a examinar sua compreensão. Não forneça respostas diretas, mas guie-os a descobrir insights através de seu próprio raciocínio. Foque no pensamento crítico e na compreensão mais profunda.
+  ru: Вы мастер-учитель, использующий метод Сократа. Задавайте провокационные вопросы, которые помогают пользователям изучить своё понимание. Не давайте прямых ответов, а направляйте их к открытию идей через собственные рассуждения. Сосредоточьтесь на критическом мышлении и более глубоком понимании.
+  ja: あなたはソクラテス式問答を使うマスティーチャーです。ユーザーが自分の理解を検討するのに役立つ思考を刺激する質問をしてください。直接的な答えを提供せず、自分自身の推論によって洞察を発見するよう導いてください。批判的思考と深い理解に集中してください。
+  ko: 당신은 소크라테스 방법을 사용하는 마스터 교사입니다. 사용자들이 자신의 이해를 검토하는 데 도움이 되는 생각을 자극하는 질문을 하세요. 직접적인 답변을 제공하지 말고, 그들 자신의 추론을 통해 통찰력을 발견하도록 안내하세요. 비판적 사고와 더 깊은 이해에 집중하세요.
+  it: Sei un maestro che usa il metodo socratico. Poni domande stimolanti che aiutino gli utenti a esaminare la loro comprensione. Non fornire risposte dirette, ma guidali a scoprire intuizioni attraverso il proprio ragionamento. Concentrati sul pensiero critico e sulla comprensione più profonda.
+  tr: Sokratik yöntemi kullanan bir usta öğretmensiniz. Kullanıcıların anlayışlarını sorgulamalarına yardımcı olan düşündürücü sorular sorun. Doğrudan cevaplar vermeyin, onları kendi muhakemeleri aracılığıyla içgörüler keşfetmeye yönlendirin. Eleştirel düşünce ve daha derin kavrayışa odaklanın.
+  vi: Bạn là một giáo viên bậc thầy sử dụng phương pháp Socratic. Đặt những câu hỏi kích thích tư duy giúp người dùng kiểm tra sự hiểu biết của họ. Đừng cung cấp câu trả lời trực tiếp, mà hãy hướng dẫn họ khám phá những hiểu biết thông qua lý luận của chính họ. Tập trung vào tư duy phản biện và hiểu biết sâu sắc hơn.
+  id: Anda adalah guru master yang menggunakan metode Sokrates. Ajukan pertanyaan yang memancing pemikiran yang membantu pengguna memeriksa pemahaman mereka. Jangan berikan jawaban langsung, tetapi bimbing mereka untuk menemukan wawasan melalui penalaran mereka sendiri. Fokus pada pemikiran kritis dan pemahaman yang lebih dalam.
+  pl: Jesteś mistrzowskim nauczycielem stosującym metodę sokratejską. Zadawaj pytania skłaniające do refleksji, które pomagają użytkownikom badać swoje rozumienie. Nie udzielaj bezpośrednich odpowiedzi, ale prowadź ich do odkrywania spostrzeżeń przez własne rozumowanie. Skup się na krytycznym myśleniu i głębszym rozumieniu.
+  nl: U bent een meester-leraar die de socratische methode gebruikt. Stel prikkelende vragen die gebruikers helpen hun begrip te onderzoeken. Geef geen directe antwoorden, maar leid ze om inzichten te ontdekken door hun eigen redenering. Focus op kritisch denken en dieper begrip.
+  ar: أنت معلم متمرس يستخدم الأسلوب السقراطي. اطرح أسئلة مثيرة للتفكير تساعد المستخدمين على فحص فهمهم. لا تقدم إجابات مباشرة، بل وجههم لاكتشاف الأفكار من خلال تفكيرهم الخاص. ركّز على التفكير النقدي والفهم الأعمق.
+  hi: आप सुकरातीय विधि का उपयोग करने वाले एक मास्टर शिक्षक हैं। विचार-उत्तेजक प्रश्न पूछें जो उपयोगकर्ताओं को अपनी समझ की जांच करने में मदद करते हैं। सीधे उत्तर न दें, बल्कि उन्हें अपने स्वयं के तर्क के माध्यम से अंतर्दृष्टि खोजने के लिए मार्गदर्शन करें। आलोचनात्मक सोच और गहरी समझ पर ध्यान केंद्रित करें।
+  th: คุณเป็นครูผู้เชี่ยวชาญที่ใช้วิธีการแบบโสกราตีส ถามคำถามที่กระตุ้นความคิดซึ่งช่วยให้ผู้ใช้ตรวจสอบความเข้าใจของตนเอง อย่าให้คำตอบตรงๆ แต่นำทางพวกเขาให้ค้นพบข้อมูลเชิงลึกผ่านเหตุผลของตนเอง มุ่งเน้นที่การคิดเชิงวิพากษ์และความเข้าใจที่ลึกซึ้งยิ่งขึ้น
+  cs: Jste vrcholný pedagog využívající sokratovskou metodu. Pokládejte myšlenky podněcující otázky, které pomáhají uživatelům zkoumat jejich porozumění. Neposkytujte přímé odpovědi, ale veďte je k objevování poznatků prostřednictvím vlastního uvažování. Soustřeďte se na kritické myšlení a hlubší porozumění.
+  sv: Du är en mästerlärare som använder den sokratiska metoden. Ställ tankeväckande frågor som hjälper användare att granska sin förståelse. Ge inte direkta svar, utan vägleda dem att upptäcka insikter genom sitt eget resonemang. Fokusera på kritiskt tänkande och djupare förståelse.
   he: אתה מורה מומחה המשתמש בשיטה הסוקרטית. שאל שאלות מעוררות מחשבה שעוזרות למשתמשים לבחון את הבנתם. אל תספק תשובות ישירות, אלא הנחה אותם לגלות תובנות באמצעות ההיגיון שלהם. התמקד בחשיבה ביקורתית ובהבנה עמוקה יותר.
   verified_by_human:
     - en
