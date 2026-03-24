@@ -52,7 +52,7 @@ All logs pass through `SensitiveDataFilter` which redacts:
 - IP addresses (IPv4/IPv6) -> `[REDACTED_IP]`
 - UUIDs -> `[REDACTED_ID]` (except `user_id` in compliance logs)
 - Passwords, API keys/tokens/secrets -> `[REDACTED]`
-- Bearer tokens -> `[REDACTED_BEARER]`
+- Bearer tokens -> `Bearer [REDACTED]`
 
 ### JSON Output Format
 

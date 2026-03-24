@@ -46,7 +46,7 @@ The `is_admin` flag comes from `/v1/auth/login` and `/v1/auth/session` responses
 - Flush interval: 5 seconds
 - Max batch size: 50 entries
 - Max batches per flush cycle: 25
-- Durable IndexedDB queue (`om-admin-log-queue`) survives page refreshes
+- Durable IndexedDB queue (`openmates_admin_client_log_queue`) survives page refreshes
 
 ### Privacy
 

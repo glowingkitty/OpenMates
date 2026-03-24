@@ -21,7 +21,7 @@ Three Celery Beat tasks run every **5 minutes** on the `health_check` queue, eac
 
 ### Provider Health Checks (`health_check.check_all_providers`)
 
-- Iterates all server IDs from `PROVIDER_CLIENT_REGISTRY` (Anthropic, Cerebras, Google, OpenAI, OpenRouter, Groq).
+- Iterates all server IDs from `PROVIDER_CLIENT_REGISTRY` (dynamically built from provider YAML configs; includes Anthropic, AWS Bedrock, Cerebras, Google, Google AI Studio, Google MaaS, Groq, Mistral, OpenAI, OpenRouter, Together).
 - Makes a minimal LLM completion request ("Answer short" / "1+2?") using the cheapest available model per server (Haiku for Anthropic, `llama-3.1-8b-instant` for Groq, cheapest-by-input-cost for others).
 - 15-second timeout, single attempt (no retry to avoid duplicate API billing).
 - Also checks Brave Search reachability via HEAD request (no billing).

@@ -81,5 +81,5 @@ Users can click highlighted PII in the editor to exclude it from replacement (us
 ## Related Docs
 
 - [PII Detection Phase 2](./pii-detection-phase2.md) -- planned server-side document PII detection
-- [Sensitive Data Redaction](./sensitive-data-redaction.md) -- planned server-side redaction
+- [Sensitive Data Redaction](./sensitive-data-redaction.md) -- full redaction architecture (client-side PII + server-side content sanitization)
 - [Email Privacy](./email-privacy.md) -- email encryption architecture
