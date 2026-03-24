@@ -7,7 +7,7 @@ Python helper for check-deploy-status.sh.
 Checks every 2 minutes (via cron) whether a git commit was made in the last
 5 minutes on the local dev branch. If so, polls the Vercel API for the latest
 deployment status. If the deployment has ERRORed and hasn't been dispatched yet,
-runs an opencode build-mode session to investigate and fix the failure.
+runs an claude build-mode session to investigate and fix the failure.
 
 Architecture context: docs/architecture/cronjobs.md
 Tests: None (cron helper, not production code)
@@ -23,7 +23,7 @@ Called by check-deploy-status.sh:
 
 Environment variables (sourced from .env by the shell script):
     VERCEL_TOKEN   — required; Vercel personal/team access token
-    DRY_RUN        — "true" to skip actual opencode invocation
+    DRY_RUN        — "true" to skip actual claude invocation
 """
 
 import json
@@ -42,12 +42,12 @@ _BACKEND_SCRIPTS = _PROJECT_ROOT / "backend" / "scripts"
 if str(_BACKEND_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_BACKEND_SCRIPTS))
 
-# Add scripts/ itself to sys.path for _opencode_utils
+# Add scripts/ itself to sys.path for _claude_utils
 if str(_SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPT_DIR))
 
 import httpx  # noqa: E402
-from _opencode_utils import run_opencode_session  # noqa: E402
+from _claude_utils import run_claude_session  # noqa: E402
 
 # ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -284,7 +284,7 @@ def run() -> None:
 
     dry_run = os.environ.get("DRY_RUN", "false").lower() == "true"
     if dry_run:
-        _log("DRY RUN mode — opencode will not be invoked.")
+        _log("DRY RUN mode — claude will not be invoked.")
 
     # Step 1: Any local commit in the last 5 minutes? (skip if --force)
     force = os.environ.get("DEPLOY_CHECKER_FORCE", "false").lower() == "true"
@@ -329,7 +329,7 @@ def run() -> None:
         _save_state(state)
         return
 
-    # Step 4: Fetch the build log and build the opencode prompt
+    # Step 4: Fetch the build log and build the claude prompt
     _log(f"Fetching build log for {deploy_id}...")
     build_log = _fetch_build_log_text(token, deploy_id, team_id)
     _log(f"Build log: {len(build_log)} chars, {build_log.count(chr(10))+1} lines")
@@ -338,21 +338,21 @@ def run() -> None:
 
     session_title = f"fix: Vercel build failure {deploy_id[:16]} ({git_sha})"
 
-    _log(f"Dispatching opencode build session: {session_title!r}")
+    _log(f"Dispatching claude build session: {session_title!r}")
 
-    # Step 5: Mark as dispatched BEFORE running opencode (so a timeout doesn't cause a re-dispatch)
+    # Step 5: Mark as dispatched BEFORE running claude (so a timeout doesn't cause a re-dispatch)
     state["dispatched_deploy_ids"].append(deploy_id)
     # Keep the list bounded — only the last 50 deploy IDs
     state["dispatched_deploy_ids"] = state["dispatched_deploy_ids"][-50:]
     _save_state(state)
 
     if dry_run:
-        _log("DRY RUN: would dispatch opencode with the following prompt (truncated to 500 chars):")
+        _log("DRY RUN: would dispatch claude with the following prompt (truncated to 500 chars):")
         print(prompt[:500])
         return
 
-    # Step 6: Invoke opencode in build mode
-    returncode, share_url = run_opencode_session(
+    # Step 6: Invoke claude in build mode
+    returncode, session_id = run_claude_session(
         prompt=prompt,
         session_title=session_title,
         project_root=str(_PROJECT_ROOT),
@@ -362,14 +362,14 @@ def run() -> None:
     )
 
     if returncode == 0:
-        _log("opencode session completed successfully.")
+        _log("claude session completed successfully.")
     else:
-        _log(f"WARNING: opencode exited with code {returncode}.")
+        _log(f"WARNING: claude exited with code {returncode}.")
 
-    if share_url:
-        _log(f"Session share URL: {share_url}")
+    if session_id:
+        _log(f"Session share URL: {session_id}")
     else:
-        _log("No share URL found in opencode output.")
+        _log("No share URL found in claude output.")
 
     _log(f"Deploy checker complete at {_now_iso()}")
 

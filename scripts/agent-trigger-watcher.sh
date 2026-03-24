@@ -4,16 +4,16 @@
 #
 # Host-side service that polls scripts/.agent-triggers/ for JSON trigger files
 # written by the admin sidecar (Docker). For each trigger file found, it runs
-# an opencode plan-mode investigation session on the host where the opencode
+# a claude plan-mode investigation session on the host where the claude
 # binary is installed.
 #
 # Architecture:
 #   1. Admin submits issue report with "Submit to agent" toggle ON.
-#   2. API container calls admin sidecar POST /admin/opencode-investigate.
+#   2. API container calls admin sidecar POST /admin/claude-investigate.
 #   3. Sidecar writes a JSON trigger file to the bind-mounted project dir
 #      at scripts/.agent-triggers/<issue_id>.json.
 #   4. THIS script (running on the host) detects the file, reads the prompt,
-#      runs opencode, logs the share URL, and moves the file to done/.
+#      runs claude, logs the session ID, and moves the file to done/.
 #
 # Install as a systemd user service:
 #   cp scripts/agent-trigger-watcher.service ~/.config/systemd/user/
@@ -24,7 +24,7 @@
 #   ./scripts/agent-trigger-watcher.sh
 #
 # Env vars (sourced from .env automatically):
-#   None required — opencode uses its own config.
+#   None required — claude uses its own config.
 # =============================================================================
 set -euo pipefail
 
@@ -38,7 +38,7 @@ POLL_INTERVAL=5  # seconds between polls
 # Ensure directories exist
 mkdir -p "$TRIGGER_DIR" "$DONE_DIR" "$(dirname "$LOG_FILE")"
 
-# Source .env if present (for any env vars opencode may need)
+# Source .env if present (for any env vars claude may need)
 if [[ -f "$PROJECT_ROOT/.env" ]]; then
     set -a
     # shellcheck disable=SC1091
@@ -46,8 +46,8 @@ if [[ -f "$PROJECT_ROOT/.env" ]]; then
     set +a
 fi
 
-# Ensure opencode is on PATH
-export PATH="/home/superdev/.npm-global/bin:$PATH"
+# Ensure claude is on PATH
+export PATH="/home/superdev/.local/bin:/home/superdev/.npm-global/bin:$PATH"
 
 log() {
     local msg="[$(date -u '+%Y-%m-%dT%H:%M:%SZ')] $1"
@@ -72,33 +72,39 @@ process_trigger() {
     session_title="$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(d['session_title'])" "$trigger_file")"
     prompt="$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(d['prompt'])" "$trigger_file")"
 
-    log "[agent-watcher] Starting opencode investigation (issue_id=$issue_id, title=$session_title)"
+    log "[agent-watcher] Starting claude investigation (issue_id=$issue_id, title=$session_title)"
 
-    # Run opencode plan-mode session with a 15 minute timeout
+    # Write prompt to temp file to avoid MAX_ARG_STRLEN limit
+    local tmp_file="$PROJECT_ROOT/scripts/.tmp/claude-trigger-$issue_id.txt"
+    mkdir -p "$(dirname "$tmp_file")"
+    echo "$prompt" > "$tmp_file"
+
+    # Run claude plan-mode session with a 15 minute timeout
     local output exit_code=0
-    output="$(timeout 900 opencode run \
-        --attach "http://localhost:4096" \
-        --agent plan \
-        --share \
-        --model "anthropic/claude-sonnet-4-6" \
-        --title "$session_title" \
-        --dir "$PROJECT_ROOT" \
-        "$prompt" 2>&1)" || exit_code=$?
+    output="$(timeout 900 claude \
+        -p "Read scripts/.tmp/claude-trigger-$issue_id.txt in full and follow all the instructions precisely." \
+        --model "claude-sonnet-4-6" \
+        --name "$session_title" \
+        --permission-mode plan \
+        --output-format json 2>&1)" || exit_code=$?
+
+    # Clean up temp file
+    rm -f "$tmp_file"
 
     if [[ $exit_code -eq 124 ]]; then
-        log "[agent-watcher] WARNING: opencode timed out after 15 minutes (issue_id=$issue_id)"
+        log "[agent-watcher] WARNING: claude timed out after 15 minutes (issue_id=$issue_id)"
     elif [[ $exit_code -ne 0 ]]; then
-        log "[agent-watcher] WARNING: opencode exited with code $exit_code (issue_id=$issue_id)"
+        log "[agent-watcher] WARNING: claude exited with code $exit_code (issue_id=$issue_id)"
     fi
 
-    # Extract share URL from output
-    local share_url=""
-    share_url="$(echo "$output" | grep -oP 'https?://[^ ]*opncd\.ai/share/[^ ]*' | head -1)" || true
+    # Extract session ID from JSON output
+    local session_id=""
+    session_id="$(echo "$output" | python3 -c "import json,sys; print(json.load(sys.stdin).get('session_id',''))" 2>/dev/null)" || true
 
-    if [[ -n "$share_url" ]]; then
-        log "[agent-watcher] opencode session completed: $share_url (issue_id=$issue_id)"
+    if [[ -n "$session_id" ]]; then
+        log "[agent-watcher] claude session completed: $session_id (issue_id=$issue_id)"
     else
-        log "[agent-watcher] opencode ran but no share URL found in output (issue_id=$issue_id)"
+        log "[agent-watcher] claude ran but no session ID found in output (issue_id=$issue_id)"
     fi
 
     # Move trigger file to done/

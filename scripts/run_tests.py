@@ -1360,13 +1360,13 @@ class TestOrchestrator:
         for old in archives[30:]:
             old.unlink(missing_ok=True)
 
-        # Start opencode analysis on failures (reuse helper)
+        # Start claude analysis on failures (reuse helper)
         if result.summary["failed"] > 0:
             helper = PROJECT_ROOT / "scripts" / "_daily_runner_helper.py"
             if helper.is_file():
-                _log("Starting opencode analysis for failures...")
+                _log("Starting claude analysis for failures...")
                 subprocess.run(
-                    [sys.executable, str(helper), "start-opencode-analysis"],
+                    [sys.executable, str(helper), "start-claude-analysis"],
                     env={**os.environ, "RESULTS_DIR": str(RESULTS_DIR)},
                 )
 

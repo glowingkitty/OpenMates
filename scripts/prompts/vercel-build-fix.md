@@ -1,6 +1,6 @@
 # Vercel Build Failure Fix Prompt
 #
-# Placeholders replaced by scripts/_deploy_checker_helper.py before passing to opencode:
+# Placeholders replaced by scripts/_deploy_checker_helper.py before passing to claude:
 # {{DATE}}           — UTC datetime of the failure detection (ISO 8601)
 # {{DEPLOY_ID}}      — Vercel deployment ID (e.g. dpl_abc123)
 # {{DEPLOY_URL}}     — Vercel deployment URL (e.g. openmates-abc123.vercel.app)

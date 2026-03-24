@@ -6,7 +6,7 @@
 # api.dev.openmates.org. Reads source code to identify attack vectors, then
 # uses curl to non-destructively probe live endpoints.
 #
-# Runs in opencode plan mode for safety — can read files and run curl, but
+# Runs in claude plan mode for safety — can read files and run curl, but
 # cannot modify code or data. Capped at 20 minutes.
 #
 # Features:
@@ -21,13 +21,13 @@
 #
 # Can also be invoked manually:
 #   ./scripts/red-teaming.sh
-#   ./scripts/red-teaming.sh --dry-run   # print prompt without running opencode
+#   ./scripts/red-teaming.sh --dry-run   # print prompt without running claude
 #
 # State files (.claude/ — gitignored):
 #   .claude/security-audit-state.json      — shared with security-audit.sh
 #   .claude/security-acknowledged.json     — shared with security-audit.sh
 #
-# No env vars required beyond what opencode itself needs.
+# No env vars required beyond what claude itself needs.
 # =============================================================================
 set -euo pipefail
 

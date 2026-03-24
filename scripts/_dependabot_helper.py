@@ -4,7 +4,7 @@ scripts/_dependabot_helper.py
 
 Python helper for check-dependabot-daily.sh.
 
-Handles the complex dedup, state tracking, and opencode dispatch logic for
+Handles the complex dedup, state tracking, and claude dispatch logic for
 Dependabot security alerts. Called by the shell script via:
 
     python3 scripts/_dependabot_helper.py process-alerts
@@ -14,7 +14,7 @@ Environment variables (set by the shell script):
     TRACKING_FILE_PATH      — absolute path to scripts/dependabot-processed.json
     PROJECT_ROOT            — absolute path to the repo root
     REDISPATCH_AFTER_DAYS   — number of days before re-dispatching an unresolved alert
-    DRY_RUN                 — "true" to skip actual opencode invocation
+    DRY_RUN                 — "true" to skip actual claude invocation
     PROMPT_TEMPLATE_PATH    — absolute path to scripts/prompts/dependabot-analysis.md
     TODAY_DATE              — current date as YYYY-MM-DD
 
@@ -42,7 +42,7 @@ import json
 import os
 import subprocess
 
-from _opencode_utils import run_opencode_session
+from _claude_utils import run_claude_session
 import sys
 from datetime import datetime, timezone
 
@@ -163,7 +163,7 @@ def _deduplicate_by_ghsa(alerts: list[dict]) -> dict[str, dict]:
 
 def _build_alert_summary(alerts_to_dispatch: list[dict]) -> str:
     """
-    Build the alert summary section for the opencode prompt.
+    Build the alert summary section for the claude prompt.
     Groups alerts by severity: CRITICAL, HIGH, MEDIUM.
     """
     by_severity: dict[str, list] = {"critical": [], "high": [], "medium": []}
@@ -198,7 +198,7 @@ def _build_alert_summary(alerts_to_dispatch: list[dict]) -> str:
 
 def process_alerts() -> None:
     """
-    Main entry point: process Dependabot alerts, update tracking, run opencode if needed.
+    Main entry point: process Dependabot alerts, update tracking, run claude if needed.
     """
     # Read env vars set by the shell script
     alerts_json_b64 = os.environ.get("ALERTS_JSON_B64", "")
@@ -331,7 +331,7 @@ def process_alerts() -> None:
         f"{skip_count} skipped (grace period), {resolve_count} resolved in git."
     )
 
-    # Update tracking before dispatch (so state is saved even if opencode fails)
+    # Update tracking before dispatch (so state is saved even if claude fails)
     tracking["last_run"] = now_iso
     tracking["processed"] = list(processed_map.values())
     _save_tracking(tracking_file, tracking)
@@ -358,18 +358,18 @@ def process_alerts() -> None:
         .replace("{{ALERT_SUMMARY}}", alert_summary)
     )
 
-    # Step 5: Run opencode
+    # Step 5: Run claude
     if dry_run:
-        print("[dependabot] DRY RUN — would run opencode with the following prompt:")
+        print("[dependabot] DRY RUN — would run claude with the following prompt:")
         print("-" * 60)
         print(prompt[:2000])
         print("-" * 60)
         return
 
     session_title = f"security: dependabot {today_date}"
-    print(f"[dependabot] Starting opencode session for {len(to_dispatch)} alert(s)...")
+    print(f"[dependabot] Starting claude session for {len(to_dispatch)} alert(s)...")
 
-    run_opencode_session(
+    run_claude_session(
         prompt=prompt,
         session_title=session_title,
         project_root=project_root,

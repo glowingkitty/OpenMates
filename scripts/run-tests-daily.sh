@@ -248,8 +248,8 @@ fi
 echo "[daily-runner] Dispatching test run summary email to $ADMIN_EMAIL..."
 export ADMIN_NOTIFY_EMAIL="$ADMIN_EMAIL"
 
-# --- Start opencode analysis session on failures (before email so URL is included) ---
-# Only runs if there were test failures. The helper writes the session URL to stdout
+# --- Start claude analysis session on failures (before email so session ID is included) ---
+# Only runs if there were test failures. The helper writes the session ID to stdout
 # so we can capture it and pass it to the summary email.
 OPENCODE_CHAT_URL=""
 FAILED_COUNT=$(python3 -c "
@@ -262,16 +262,16 @@ except Exception as e:
 " 2>/dev/null || echo "0")
 
 if [[ "$FAILED_COUNT" -gt 0 ]]; then
-  echo "[daily-runner] $FAILED_COUNT test(s) failed — starting opencode analysis session..."
-  OPENCODE_CHAT_URL=$(python3 "$SCRIPT_DIR/_daily_runner_helper.py" start-opencode-analysis 2>&1 | grep "^OPENCODE_URL:" | sed 's/^OPENCODE_URL://' | tr -d '[:space:]') || true
-  if [[ -n "$OPENCODE_CHAT_URL" ]]; then
-    echo "[daily-runner] opencode analysis session: $OPENCODE_CHAT_URL"
-    export OPENCODE_CHAT_URL
+  echo "[daily-runner] $FAILED_COUNT test(s) failed — starting claude analysis session..."
+  CLAUDE_SESSION_ID=$(python3 "$SCRIPT_DIR/_daily_runner_helper.py" start-claude-analysis 2>&1 | grep "^CLAUDE_SESSION_ID:" | sed 's/^CLAUDE_SESSION_ID://' | tr -d '[:space:]') || true
+  if [[ -n "$CLAUDE_SESSION_ID" ]]; then
+    echo "[daily-runner] claude analysis session: $CLAUDE_SESSION_ID"
+    export CLAUDE_SESSION_ID
   else
-    echo "[daily-runner] WARNING: opencode analysis did not return a session URL (non-fatal)"
+    echo "[daily-runner] WARNING: claude analysis did not return a session ID (non-fatal)"
   fi
 else
-  echo "[daily-runner] All tests passed — skipping opencode analysis."
+  echo "[daily-runner] All tests passed — skipping claude analysis."
 fi
 
 python3 "$SCRIPT_DIR/_daily_runner_helper.py" dispatch-email

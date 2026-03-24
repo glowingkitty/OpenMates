@@ -4,7 +4,7 @@
 #
 # Checks for open user-reported issues from the past 24 hours and determines
 # whether each has been addressed in a git commit. For any unresolved issues,
-# starts an opencode analysis session to investigate and suggest fixes.
+# starts a claude analysis session to investigate and suggest fixes.
 #
 # Triggered by a system crontab entry:
 #   0 4 * * * bash -c 'set -a && . /path/to/.env && set +a && /path/to/scripts/nightly-issues-check.sh' >> /path/to/logs/nightly-issues.log 2>&1

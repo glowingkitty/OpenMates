@@ -5,7 +5,7 @@ scripts/_security_helper.py
 Python helper for security-audit.sh and red-teaming.sh.
 
 Manages security audit state, deduplication of findings, and the acknowledge
-workflow. Runs opencode sessions for both the code-based security audit and
+workflow. Runs claude sessions for both the code-based security audit and
 the external red team probe.
 
 Commands:
@@ -20,7 +20,7 @@ State files (.claude/ — gitignored):
     .claude/security-acknowledged.json     — manually acknowledged risks
 
 Environment variables (set by shell wrappers):
-    DRY_RUN             — "true" to skip opencode, print prompt only
+    DRY_RUN             — "true" to skip claude, print prompt only
     PROJECT_ROOT        — absolute path to repo root
     TODAY_DATE          — current date as YYYY-MM-DD
     PROMPT_TEMPLATE_PATH — path to the relevant prompt template
@@ -42,9 +42,9 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-# Append scripts/ to path so we can import _opencode_utils
+# Append scripts/ to path so we can import _claude_utils
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _opencode_utils import run_opencode_session
+from _claude_utils import run_claude_session
 
 
 # ---------------------------------------------------------------------------
@@ -118,10 +118,10 @@ def _load_state(project_root: str) -> dict:
     default = {
         "last_audit_date": None,
         "last_audit_sha": None,
-        "last_audit_session_url": None,
+        "last_audit_session_id": None,
         "last_redteam_date": None,
         "last_redteam_sha": None,
-        "last_redteam_session_url": None,
+        "last_redteam_session_id": None,
         "last_full_sweep_date": None,
         "findings": {},
         "run_history": [],
@@ -238,13 +238,13 @@ def _needs_full_sweep(state: dict) -> bool:
         return True
 
 
-def _record_run(state: dict, job_type: str, sha: str, session_url: str | None) -> None:
+def _record_run(state: dict, job_type: str, sha: str, session_id: str | None) -> None:
     """Record a run in the state history (keep last 50)."""
     state["run_history"].append({
         "type": job_type,
         "date": _now_iso(),
         "sha": sha,
-        "session_url": session_url,
+        "session_id": session_id,
     })
     state["run_history"] = state["run_history"][-50:]
 
@@ -312,7 +312,7 @@ def run_audit() -> None:
     )
 
     if dry_run:
-        print("[security] DRY RUN — would run opencode with the following prompt:")
+        print("[security] DRY RUN — would run claude with the following prompt:")
         print("-" * 60)
         print(prompt[:3000])
         print(f"... ({len(prompt)} chars total)")
@@ -325,9 +325,9 @@ def run_audit() -> None:
         return
 
     session_title = f"security-audit: top 5 issues {today_date}"
-    print(f"[security] Starting opencode security audit session (HEAD {current_sha})...")
+    print(f"[security] Starting claude security audit session (HEAD {current_sha})...")
 
-    returncode, share_url = run_opencode_session(
+    returncode, session_id = run_claude_session(
         prompt=prompt,
         session_title=session_title,
         project_root=project_root,
@@ -339,10 +339,10 @@ def run_audit() -> None:
     # Update state
     state["last_audit_date"] = today_date
     state["last_audit_sha"] = current_sha
-    state["last_audit_session_url"] = share_url
+    state["last_audit_session_id"] = session_id
     if force_full:
         state["last_full_sweep_date"] = today_date
-    _record_run(state, "audit", current_sha, share_url)
+    _record_run(state, "audit", current_sha, session_id)
     _save_state(project_root, state)
 
     if returncode != 0:
@@ -396,7 +396,7 @@ def run_redteam() -> None:
     )
 
     if dry_run:
-        print("[redteam] DRY RUN — would run opencode with the following prompt:")
+        print("[redteam] DRY RUN — would run claude with the following prompt:")
         print("-" * 60)
         print(prompt[:3000])
         print(f"... ({len(prompt)} chars total)")
@@ -407,23 +407,24 @@ def run_redteam() -> None:
         return
 
     session_title = f"redteam: external probe {today_date}"
-    print(f"[redteam] Starting opencode red team session (HEAD {current_sha})...")
+    print(f"[redteam] Starting claude red team session (HEAD {current_sha})...")
 
     # 20 minute hard cap (1200 seconds) — plan mode only
-    returncode, share_url = run_opencode_session(
+    returncode, session_id = run_claude_session(
         prompt=prompt,
         session_title=session_title,
         project_root=project_root,
         log_prefix="[redteam]",
         agent="plan",
         timeout=1200,
+        allowed_tools=["Read", "Grep", "Glob", "Bash(curl *)"],
     )
 
     # Update state
     state["last_redteam_date"] = today_date
     state["last_redteam_sha"] = current_sha
-    state["last_redteam_session_url"] = share_url
-    _record_run(state, "redteam", current_sha, share_url)
+    state["last_redteam_session_id"] = session_id
+    _record_run(state, "redteam", current_sha, session_id)
     _save_state(project_root, state)
 
     if returncode != 0:
@@ -495,7 +496,7 @@ def list_findings() -> None:
         rtype = run.get("type", "?")
         rdate = run.get("date", "?")
         rsha = run.get("sha", "?")
-        rurl = run.get("session_url", "")
+        rurl = run.get("session_id", "")
         print(f"  [{rtype}] {rdate} (SHA {rsha}) {rurl or ''}")
 
 

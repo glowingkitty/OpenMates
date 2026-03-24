@@ -18,7 +18,7 @@ import sys
 import urllib.error
 import urllib.request
 
-from _opencode_utils import run_opencode_session
+from _claude_utils import run_claude_session
 
 # Maximum error snippet length per failed test entry (characters)
 MAX_ERROR_SNIPPET_LEN = 600
@@ -280,9 +280,9 @@ def dispatch_email() -> None:
 
     normalized_payload = _build_test_run_payload(results_dir, environment)
 
-    # Include opencode analysis chat URL if one was produced during this run
-    # (set by run-tests-daily.sh after calling start-opencode-analysis).
-    opencode_chat_url = os.environ.get("OPENCODE_CHAT_URL", "").strip() or None
+    # Include claude analysis session ID if one was produced during this run
+    # (set by run-tests-daily.sh after calling start-claude-analysis).
+    claude_session_id = os.environ.get("CLAUDE_SESSION_ID", "").strip() or None
 
     # Dispatch via internal API endpoint.
     # When running on the host (via crontab), use localhost:8000 since
@@ -294,7 +294,7 @@ def dispatch_email() -> None:
     payload = {
         "recipient_email": admin_email,
         **normalized_payload,
-        "opencode_chat_url": opencode_chat_url,
+        "claude_session_id": claude_session_id,
     }
 
     try:
@@ -486,22 +486,16 @@ def dispatch_start_email() -> None:
         print(f"[daily-runner] WARNING: could not dispatch start email: {e}", file=sys.stderr)
 
 
-def start_opencode_analysis() -> None:
+def start_claude_analysis() -> None:
     """
-    Start an opencode analysis session for test failures.
+    Start a claude analysis session for test failures.
 
     Reads the failed tests from last-failed-tests.json (written by split-results),
     loads the prompt template from scripts/prompts/test-failure-analysis.md,
-    substitutes placeholders, then runs:
-
-        opencode run --share --model anthropic/claude-sonnet-4-6 \
-                     --title "test-failures YYYY-MM-DD" "<prompt>"
-
-    The --share flag produces a shareable session URL. We capture it from stdout
-    by looking for the "OPENCODE_URL:" prefix that this function emits.
+    substitutes placeholders, then runs claude in plan mode.
 
     Output convention (for run-tests-daily.sh to capture):
-        Prints "OPENCODE_URL:<url>" to stdout when a share URL is found.
+        Prints "CLAUDE_SESSION_ID:<id>" to stdout when a session ID is found.
 
     Only called when failed_count > 0. Non-fatal — does not abort the test run.
     """
@@ -514,7 +508,7 @@ def start_opencode_analysis() -> None:
     # Load failed tests
     failed_path = os.path.join(results_dir, "last-failed-tests.json")
     if not os.path.isfile(failed_path):
-        print("[daily-runner] WARNING: last-failed-tests.json not found — skipping opencode analysis.", file=sys.stderr)
+        print("[daily-runner] WARNING: last-failed-tests.json not found — skipping claude analysis.", file=sys.stderr)
         return
 
     with open(failed_path) as f:
@@ -524,7 +518,7 @@ def start_opencode_analysis() -> None:
     run_id = failed_data.get("run_id", "unknown")
 
     if not failed_tests:
-        print("[daily-runner] No failed tests in last-failed-tests.json — skipping opencode analysis.", file=sys.stderr)
+        print("[daily-runner] No failed tests in last-failed-tests.json — skipping claude analysis.", file=sys.stderr)
         return
 
     # Load last-run.json for git info
@@ -546,7 +540,7 @@ def start_opencode_analysis() -> None:
     prompt_template_path = os.path.join(script_dir, "prompts", "test-failure-analysis.md")
     if not os.path.isfile(prompt_template_path):
         print(
-            f"[daily-runner] WARNING: prompt template not found at {prompt_template_path} — skipping opencode analysis.",
+            f"[daily-runner] WARNING: prompt template not found at {prompt_template_path} — skipping claude analysis.",
             file=sys.stderr,
         )
         return
@@ -572,11 +566,11 @@ def start_opencode_analysis() -> None:
     )
 
     session_title = f"test-failures {date_str}"
-    print(f"[daily-runner] Running opencode analysis for {failed_count} failed test(s)...")
+    print(f"[daily-runner] Running claude analysis for {failed_count} failed test(s)...")
 
     # Non-fatal: test run email is already sent; this is a best-effort analysis session.
     try:
-        _, share_url = run_opencode_session(
+        _, session_id = run_claude_session(
             prompt=prompt,
             session_title=session_title,
             project_root=project_root,
@@ -584,17 +578,17 @@ def start_opencode_analysis() -> None:
             agent="plan",
             timeout=600,
         )
-        if share_url:
+        if session_id:
             # Emit parseable line for run-tests-daily.sh to capture via grep
-            print(f"OPENCODE_URL:{share_url}")
+            print(f"CLAUDE_SESSION_ID:{session_id}")
     except Exception as e:
-        print(f"[daily-runner] WARNING: opencode analysis failed: {e} (non-fatal)", file=sys.stderr)
+        print(f"[daily-runner] WARNING: claude analysis failed: {e} (non-fatal)", file=sys.stderr)
 
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print(
-            f"Usage: {sys.argv[0]} <split-results|dispatch-start-email|dispatch-email|dispatch-openobserve-test-run|start-opencode-analysis>",
+            f"Usage: {sys.argv[0]} <split-results|dispatch-start-email|dispatch-email|dispatch-openobserve-test-run|start-claude-analysis>",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -608,8 +602,8 @@ if __name__ == "__main__":
         dispatch_email()
     elif command == "dispatch-openobserve-test-run":
         dispatch_openobserve_test_run()
-    elif command == "start-opencode-analysis":
-        start_opencode_analysis()
+    elif command == "start-claude-analysis":
+        start_claude_analysis()
     else:
         print(f"Unknown command: {command}", file=sys.stderr)
         sys.exit(1)

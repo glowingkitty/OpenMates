@@ -5,7 +5,7 @@
 # Runs every 2 minutes via cron. Checks if a local git commit was made in the
 # last 5 minutes on the dev branch. If so, queries the Vercel API for the
 # latest deployment status. If the deployment has ERRORed (and hasn't already
-# been dispatched), runs an opencode build-mode session to investigate and fix.
+# been dispatched), runs a claude build-mode session to investigate and fix.
 #
 # Logic:
 #   1. Check local git log — any commit in the last 5 minutes? If not, exit 0.
@@ -13,7 +13,7 @@
 #   3. If status is not ERROR/CANCELED, exit 0.
 #   4. If this deploy ID was already dispatched (state file), exit 0.
 #   5. Fetch the Vercel build log (errors + warnings).
-#   6. Dispatch opencode in build mode with the log + commit context as prompt.
+#   6. Dispatch claude in build mode with the log + commit context as prompt.
 #   7. Record the deploy ID in state file to prevent re-dispatch.
 #
 # Crontab entry (add via: crontab -e):
@@ -21,7 +21,7 @@
 #
 # Can also be run manually:
 #   ./scripts/check-deploy-status.sh
-#   ./scripts/check-deploy-status.sh --dry-run   # show prompt, skip opencode
+#   ./scripts/check-deploy-status.sh --dry-run   # show prompt, skip claude
 #   ./scripts/check-deploy-status.sh --force     # skip the recent-commit guard
 #
 # Env vars (sourced from .env automatically):
@@ -40,7 +40,7 @@ if [[ -f "$PROJECT_ROOT/.env" ]]; then
   set +a
 fi
 
-# Ensure opencode is on PATH
+# Ensure claude is on PATH
 export PATH="/home/superdev/.npm-global/bin:$PATH"
 
 # --- Parse CLI args ---

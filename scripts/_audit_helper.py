@@ -5,7 +5,7 @@ scripts/_audit_helper.py
 Python helper for weekly-codebase-audit.sh.
 
 Determines which files changed since the last audit, loads the prompt template,
-substitutes placeholders, and runs opencode to perform the "top 5 improvements" audit.
+substitutes placeholders, and runs claude to perform the "top 5 improvements" audit.
 
 Commands:
     run-audit    Run the codebase health audit
@@ -15,12 +15,12 @@ State file format (scripts/.audit-state.json):
   "last_audit_date": "2026-03-17",
   "last_audit_sha": "abc1234",
   "last_audit_summary": "1. Security: ...\n2. Performance: ...",
-  "last_session_url": "https://opencode.ai/s/..."
+  "last_session_id": "e9348349-..."
 }
 
 Environment variables (set by weekly-codebase-audit.sh):
     FORCE               — "true" to ignore last audit SHA (analyse all recent changes)
-    DRY_RUN             — "true" to skip opencode, just print prompt
+    DRY_RUN             — "true" to skip claude, just print prompt
     PROJECT_ROOT        — absolute path to repo root
     TODAY_DATE          — current date as YYYY-MM-DD
     AUDIT_STATE_FILE    — absolute path to scripts/.audit-state.json
@@ -32,7 +32,7 @@ Not intended to be called directly by users; use weekly-codebase-audit.sh instea
 import json
 import os
 import subprocess
-from _opencode_utils import run_opencode_session
+from _claude_utils import run_claude_session
 import sys
 from datetime import datetime, timezone
 
@@ -47,7 +47,7 @@ def _load_state(state_file: str) -> dict:
         "last_audit_date": None,
         "last_audit_sha": None,
         "last_audit_summary": "N/A (first audit)",
-        "last_session_url": None,
+        "last_session_id": None,
     }
     if not os.path.isfile(state_file):
         return empty
@@ -99,7 +99,7 @@ def _get_recent_git_log(project_root: str) -> str:
 
 
 def run_audit() -> None:
-    """Main entry point: build prompt from recent git log and run opencode audit."""
+    """Main entry point: build prompt from recent git log and run claude audit."""
     dry_run = os.environ.get("DRY_RUN", "false").lower() == "true"
     project_root = os.environ.get("PROJECT_ROOT", "")
     today_date = os.environ.get("TODAY_DATE", datetime.now(timezone.utc).strftime("%Y-%m-%d"))
@@ -143,7 +143,7 @@ def run_audit() -> None:
     )
 
     if dry_run:
-        print("[audit] DRY RUN — would run opencode with the following prompt:")
+        print("[audit] DRY RUN — would run claude with the following prompt:")
         print("-" * 60)
         print(prompt[:3000])
         print(f"... ({len(prompt)} chars total)")
@@ -155,9 +155,9 @@ def run_audit() -> None:
         return
 
     session_title = f"audit: codebase health {today_date}"
-    print(f"[audit] Starting opencode audit session (HEAD {current_sha})...")
+    print(f"[audit] Starting claude audit session (HEAD {current_sha})...")
 
-    returncode, share_url = run_opencode_session(
+    returncode, session_id = run_claude_session(
         prompt=prompt,
         session_title=session_title,
         project_root=project_root,
@@ -166,14 +166,14 @@ def run_audit() -> None:
         timeout=1800,
     )
 
-    # Extract a brief summary from the share URL (state stores URL as proxy for summary)
-    session_summary = share_url or "No summary available."
+    # Store session ID as proxy for summary
+    session_summary = session_id or "No summary available."
 
     # Update state regardless of exit code — so next run doesn't re-audit same files
     state["last_audit_date"] = today_date
     state["last_audit_sha"] = current_sha
     state["last_audit_summary"] = session_summary
-    state["last_session_url"] = share_url
+    state["last_session_id"] = session_id
     _save_state(state_file, state)
 
     if returncode != 0:

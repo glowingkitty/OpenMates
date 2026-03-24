@@ -2,8 +2,8 @@
 # =============================================================================
 # OpenMates Twice-Weekly Codebase Health Audit
 #
-# Runs a "top 5 improvements" codebase audit using opencode in plan mode.
-# Uses recent git log (last 2 weeks) as context — opencode reads the actual
+# Runs a "top 5 improvements" codebase audit using claude in plan mode.
+# Uses recent git log (last 2 weeks) as context — claude reads the actual
 # files itself using its file tools.
 #
 # Triggered by system crontab (Mon + Thu at 02:00 UTC):
@@ -11,11 +11,11 @@
 #
 # Can also be invoked manually:
 #   ./scripts/weekly-codebase-audit.sh
-#   ./scripts/weekly-codebase-audit.sh --dry-run   # print prompt without running opencode
+#   ./scripts/weekly-codebase-audit.sh --dry-run   # print prompt without running claude
 #
 # State file: scripts/.audit-state.json (tracks last audit date and findings summary)
 #
-# No env vars required beyond what opencode itself needs.
+# No env vars required beyond what claude itself needs.
 # =============================================================================
 set -euo pipefail
 

@@ -3,7 +3,7 @@
 # OpenMates Nightly Dead Code Removal
 #
 # Runs the dead code detector (scripts/find_dead_code.py), takes up to MAX_FINDINGS
-# matches, builds a prompt, and delegates to opencode (build mode) to safely remove
+# matches, builds a prompt, and delegates to claude (build mode) to safely remove
 # the dead code. Runs 1 hour before the daily test suite (03:00 UTC) so any
 # breakage is caught immediately by tests.
 #
@@ -13,7 +13,7 @@
 #   3. Skip run if HEAD SHA unchanged since last run (no new commits → no new dead code)
 #   4. Cap to MAX_FINDINGS total (prefer high-confidence items first)
 #   5. Build a structured prompt with the findings + project context
-#   6. Run opencode in build mode to remove the dead code
+#   6. Run claude in build mode to remove the dead code
 #   7. Update state file (.dead-code-removal-state.json)
 #
 # Triggered by system crontab (runs 1 hour before tests at 03:00 UTC):
@@ -21,7 +21,7 @@
 #
 # Can also be invoked manually:
 #   ./scripts/nightly-dead-code-removal.sh
-#   ./scripts/nightly-dead-code-removal.sh --dry-run   # show what would be sent, no opencode
+#   ./scripts/nightly-dead-code-removal.sh --dry-run   # show what would be sent, no claude
 #   ./scripts/nightly-dead-code-removal.sh --force     # skip SHA-unchanged guard
 #   ./scripts/nightly-dead-code-removal.sh --category python   # only one category
 #
@@ -35,7 +35,7 @@ STATE_FILE="$SCRIPT_DIR/.dead-code-removal-state.json"
 PROMPT_TEMPLATE="$SCRIPT_DIR/prompts/dead-code-removal.md"
 
 MAX_FINDINGS_PER_CAT=100  # per-category limit fed to find_dead_code.py
-MAX_FINDINGS_TOTAL=300    # hard cap on items sent to opencode in one session
+MAX_FINDINGS_TOTAL=300    # hard cap on items sent to claude in one session
 
 # Source .env if present
 if [[ -f "$PROJECT_ROOT/.env" ]]; then

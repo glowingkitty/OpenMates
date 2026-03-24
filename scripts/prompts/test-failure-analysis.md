@@ -2,7 +2,7 @@
 
 #
 
-# Placeholders replaced by scripts/\_daily_runner_helper.py before passing to opencode:
+# Placeholders replaced by scripts/\_daily_runner_helper.py before passing to claude:
 
 # {{DATE}} — UTC date of the test run (YYYY-MM-DD)
 

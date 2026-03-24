@@ -2,7 +2,7 @@
 
 #
 
-# Placeholders replaced by scripts/\_issues_checker.py before passing to opencode:
+# Placeholders replaced by scripts/\_issues_checker.py before passing to claude:
 
 # {{DATE}} — UTC date of the check (YYYY-MM-DD)
 

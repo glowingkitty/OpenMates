@@ -3,7 +3,7 @@
 # OpenMates Daily Dependabot Security Alert Checker
 #
 # Fetches open Dependabot security alerts from GitHub, deduplicates by GHSA ID,
-# checks git history for matching commits, and starts an opencode session to fix
+# checks git history for matching commits, and starts a claude session to fix
 # any unresolved alerts.
 #
 # Processing logic:
@@ -16,7 +16,7 @@
 #      c. If previously dispatched → re-dispatch if last dispatch was >7 days ago
 #         (increment re_dispatch_count); skip if within 7-day grace period
 #   5. Build consolidated prompt for all new/re-dispatched alerts
-#   6. Run opencode to fix the alerts
+#   6. Run claude to fix the alerts
 #   7. Update dependabot-processed.json
 #
 # Triggered by system crontab:
@@ -24,7 +24,7 @@
 #
 # Can also be invoked manually:
 #   ./scripts/check-dependabot-daily.sh
-#   ./scripts/check-dependabot-daily.sh --dry-run   # show what would be dispatched, no opencode
+#   ./scripts/check-dependabot-daily.sh --dry-run   # show what would be dispatched, no claude
 #
 # Requirements:
 #   - gh CLI installed and authenticated (gh auth status)
@@ -41,7 +41,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 TRACKING_FILE="$SCRIPT_DIR/dependabot-processed.json"
 PROMPT_TEMPLATE="$SCRIPT_DIR/prompts/dependabot-analysis.md"
 
-# Re-dispatch threshold: re-open an opencode session if still unresolved after this many days
+# Re-dispatch threshold: re-open a claude session if still unresolved after this many days
 REDISPATCH_AFTER_DAYS=7
 
 # Minimum severity to process (critical, high, medium — skip low)

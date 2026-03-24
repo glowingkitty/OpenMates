@@ -8,7 +8,7 @@
 # Reads directly from the opencode SQLite DB (no API key needed).
 # Filters to workflow-relevant sessions by title keywords, extracts text parts
 # and targeted bash tool outputs, applies a per-session token budget, then
-# runs a single opencode analysis session to produce a numbered suggestion list.
+# runs a single claude analysis session to produce a numbered suggestion list.
 #
 # Triggered by a system crontab entry:
 #   0 5 * * * /path/to/scripts/nightly-workflow-review.sh >> /path/to/logs/nightly-workflow-review.log 2>&1
@@ -16,7 +16,7 @@
 # Can also be invoked manually:
 #   ./scripts/nightly-workflow-review.sh               # review yesterday
 #   REVIEW_DATE=2026-03-17 ./scripts/nightly-workflow-review.sh   # review specific date
-#   DRY_RUN=true ./scripts/nightly-workflow-review.sh  # print prompt, skip opencode
+#   DRY_RUN=true ./scripts/nightly-workflow-review.sh  # print prompt, skip claude
 #
 # No env vars required (reads opencode DB directly).
 # State file: scripts/.workflow-review-state.json

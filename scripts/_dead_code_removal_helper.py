@@ -5,7 +5,7 @@ scripts/_dead_code_removal_helper.py
 Python helper for nightly-dead-code-removal.sh.
 
 Handles: findings prioritisation, state tracking (skip already-removed items),
-building the opencode prompt, and dispatching opencode in build mode.
+building the claude prompt, and dispatching claude in build mode.
 
 Called by the shell script via:
     python3 scripts/_dead_code_removal_helper.py run
@@ -14,9 +14,9 @@ Environment variables (set by the shell script):
     FINDINGS_JSON_B64       — base64-encoded JSON output from find_dead_code.py
     STATE_FILE_PATH         — path to .dead-code-removal-state.json
     PROJECT_ROOT            — absolute repo root path
-    DRY_RUN                 — "true" to skip actual opencode invocation
+    DRY_RUN                 — "true" to skip actual claude invocation
     PROMPT_TEMPLATE_PATH    — path to scripts/prompts/dead-code-removal.md
-    MAX_FINDINGS_TOTAL      — hard cap on items sent to opencode (default: 300)
+    MAX_FINDINGS_TOTAL      — hard cap on items sent to claude (default: 300)
     CURRENT_SHA             — current HEAD SHA (written to state after run)
     TODAY_DATE              — current date as YYYY-MM-DD
 
@@ -40,7 +40,7 @@ import base64
 import json
 import os
 
-from _opencode_utils import run_opencode_session
+from _claude_utils import run_claude_session
 import sys
 from datetime import datetime, timezone
 
@@ -207,7 +207,7 @@ def run() -> None:
     if capped:
         print(f"[dead-code] Capped to {max_total} items (deferred {capped} to next run).")
 
-    print(f"[dead-code] Sending {len(items_to_send)} item(s) to opencode.")
+    print(f"[dead-code] Sending {len(items_to_send)} item(s) to claude.")
 
     # Summarise categories
     cat_counts: dict[str, int] = {}
@@ -234,7 +234,7 @@ def run() -> None:
     )
 
     if dry_run:
-        print("[dead-code] DRY RUN — would run opencode with the following prompt:")
+        print("[dead-code] DRY RUN — would run claude with the following prompt:")
         print("-" * 70)
         print(prompt[:3000])
         if len(prompt) > 3000:
@@ -246,11 +246,11 @@ def run() -> None:
         _save_state(state_file, state)
         return
 
-    # Dispatch opencode in build mode (agent=None)
+    # Dispatch claude in build mode (agent=None)
     session_title = f"chore: dead code removal {today_date}"
-    print(f"[dead-code] Starting opencode session '{session_title}'...")
+    print(f"[dead-code] Starting claude session '{session_title}'...")
 
-    returncode, share_url = run_opencode_session(
+    returncode, share_url = run_claude_session(
         prompt=prompt,
         session_title=session_title,
         project_root=project_root,
@@ -259,8 +259,8 @@ def run() -> None:
         timeout=2400,  # 40 minutes — dead code removal involves many file edits
     )
 
-    # Record items as removed in state regardless of opencode exit code —
-    # if opencode ran at all it likely cleaned some items; next run re-detects remainder.
+    # Record items as removed in state regardless of claude exit code —
+    # if claude ran at all it likely cleaned some items; next run re-detects remainder.
     now_iso = _now_iso()
     new_removed = [
         {

@@ -1,7 +1,7 @@
 # OpenMates Agent Trigger Watcher — systemd user service
 #
 # Watches scripts/.agent-triggers/ for JSON trigger files written by the admin
-# sidecar (Docker) and runs opencode plan-mode investigations on the host.
+# sidecar (Docker) and runs claude plan-mode investigations on the host.
 #
 # Install:
 #   mkdir -p ~/.config/systemd/user

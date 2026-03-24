@@ -2,14 +2,14 @@
 """
 scripts/_workflow_review_helper.py
 
-Nightly workflow review — analyzes yesterday's opencode sessions to extract
+Nightly workflow review — analyzes yesterday's claude sessions to extract
 improvement suggestions for sessions.py, debug.py, and CLAUDE.md.
 
 Architecture context: See CLAUDE.md (Session Lifecycle section)
 
 Commands:
-    dry-run     Build and print the prompt without calling opencode
-    run-review  Build prompt and run opencode analysis
+    dry-run     Build and print the prompt without calling claude
+    run-review  Build prompt and run claude analysis
 
 State file: scripts/.workflow-review-state.json
 DB: /home/superdev/.local/share/opencode/opencode.db (sqlite3, direct access)
@@ -31,7 +31,7 @@ Can be run manually for testing:
 import json
 import os
 
-from _opencode_utils import run_opencode_session
+from _claude_utils import run_claude_session
 import sqlite3
 import sys
 from datetime import datetime, timezone, timedelta
@@ -54,7 +54,7 @@ TAIL_RATIO = 0.3
 WORKFLOW_KEYWORDS = [
     "session", "debug", "workflow", "audit", "cron", "issues", "backlog",
     "test", "script", "cli", "plan", "improve", "helper", "nightly",
-    "dependabot", "concurrent", "deploy", "opencode",
+    "dependabot", "concurrent", "deploy", "claude", "opencode",
 ]
 
 # Bash commands worth extracting tool output for (beyond text parts)
@@ -71,7 +71,7 @@ def _empty_state() -> dict:
     return {
         "last_review_date": None,
         "last_summary": "N/A (first run)",
-        "last_session_url": None,
+        "last_session_id": None,
     }
 
 
@@ -215,7 +215,7 @@ def _truncate(text: str, budget: int) -> tuple[str, bool]:
 
 def build_session_digests(yesterday: str, verbose: bool = False) -> tuple[str, int, int]:
     """
-    Query the opencode SQLite DB and build session digests for yesterday.
+    Query the claude SQLite DB and build session digests for yesterday.
 
     Returns (digest_text, session_count, total_chars)
     """
@@ -300,7 +300,7 @@ def build_prompt(yesterday: str, state: dict, verbose: bool = False) -> str:
 # ── Commands ──────────────────────────────────────────────────────────────────
 
 def cmd_dry_run(yesterday: str) -> None:
-    """Build and print the prompt without calling opencode."""
+    """Build and print the prompt without calling claude."""
     print(f"[workflow-review] DRY RUN for {yesterday}")
     state = _load_state()
     prompt = build_prompt(yesterday, state, verbose=True)
@@ -316,15 +316,15 @@ def cmd_dry_run(yesterday: str) -> None:
 
 
 def cmd_run_review(yesterday: str) -> None:
-    """Build prompt and run opencode analysis."""
+    """Build prompt and run claude analysis."""
     state = _load_state()
     prompt = build_prompt(yesterday, state, verbose=True)
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     session_title = f"workflow-review {yesterday}"
 
-    print(f"[workflow-review] Starting opencode session '{session_title}'...")
+    print(f"[workflow-review] Starting claude session '{session_title}'...")
 
-    returncode, share_url = run_opencode_session(
+    returncode, session_id = run_claude_session(
         prompt=prompt,
         session_title=session_title,
         project_root=str(PROJECT_ROOT),
@@ -333,14 +333,14 @@ def cmd_run_review(yesterday: str) -> None:
         timeout=900,
     )
 
-    if share_url:
-        # Emit parseable line for any caller capturing OPENCODE_URL:
-        print(f"OPENCODE_URL:{share_url}")
+    if session_id:
+        # Emit parseable line for any caller capturing session ID
+        print(f"CLAUDE_SESSION_ID:{session_id}")
 
     # Save state
     state["last_review_date"] = today
-    state["last_summary"] = share_url or "(see log)"
-    state["last_session_url"] = share_url
+    state["last_summary"] = session_id or "(see log)"
+    state["last_session_id"] = session_id
     _save_state(state)
 
     if returncode != 0:

@@ -1,4 +1,4 @@
-You are reviewing yesterday's Claude Code (opencode) sessions to extract concrete improvement suggestions for the OpenMates developer workflow tools.
+You are reviewing yesterday's Claude Code sessions to extract concrete improvement suggestions for the OpenMates developer workflow tools.
 
 **Date:** {{DATE}} | **Reviewing sessions from:** {{YESTERDAY}}
 **Previous suggestions (already captured — do not repeat):** {{LAST_SUMMARY}}
