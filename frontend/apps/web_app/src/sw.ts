@@ -20,6 +20,19 @@ precacheAndRoute(self.__WB_MANIFEST);
 cleanupOutdatedCaches();
 clientsClaim();
 
+// Listen for SKIP_WAITING message from performCleanUpdate() in cacheManager.ts.
+// When the app detects a new version (via SvelteKit version polling) and the user
+// clicks "Refresh now", performCleanUpdate() posts this message to activate the
+// waiting service worker immediately — ensuring the new JS bundle is loaded.
+// Without this handler, the waiting SW would only activate after ALL tabs close,
+// which can leave devices running stale code for hours/days (causing encryption
+// key sync failures on multi-device setups).
+self.addEventListener('message', (event: ExtendableMessageEvent) => {
+	if (event.data && event.data.type === 'SKIP_WAITING') {
+		self.skipWaiting();
+	}
+});
+
 registerRoute(
 	({ url }) => /^https:\/\/api\.(dev\.)?openmates\.org\/.*/i.test(url.href),
 	new NetworkFirst({
