@@ -1,202 +1,105 @@
-# Server architecture
+---
+status: active
+last_verified: 2026-03-24
+key_files:
+  - backend/core/docker-compose.yml
+  - backend/preview/docker-compose.preview.yml
+  - deployment/dev_server/Caddyfile
+---
 
-> This is the planned architecture. Keep in mind there can still be differences to the current state of the code.
+# Server Architecture
 
-## API server
+> Docker Compose stack with a core API, Directus CMS, per-app API containers, Celery workers, and a separate preview server for image/metadata proxying.
 
-- docker compose consisting of
-	- core-api docker
-	- core-api-task-worker docker
-	- directus docker
-	- dragonfly docker
-	- grafana docker
-	- Loki docker
-	- Prometheus docker
-	- celery task-scheduler docker
-	- app-ai docker
-		- with docker network internal fast api endpoints for each skill and each focus mode
-		- /skill/ask
-			- used every time a user is messaging a digital team mate
-	- app-ai-task-worker docker
-		- celery task worker for processing longer running tasks (like /skill/ask)
-	- for each additional app, we add two dockers:
-		- app-{appname} docker
-			- with docker network internal fast api endpoints for each skill and each focus mode
-			- serves as the API container for the app
-			- handles incoming skill execution requests
-			- routes requests to appropriate skill handlers
-		- app-{appname}-task-worker docker
-			- celery task worker for processing longer running tasks
-			- processes skill executions asynchronously
-			- handles external API calls and long-running operations
-		- for the apps web, videos, sheets, docs, etc.
+## Why This Exists
 
-**Two-Container Pattern:**
-Each app follows a consistent two-container architecture:
-- **API Container**: FastAPI server that receives and routes skill execution requests
-- **Celery Worker Container**: Background task processor for asynchronous skill execution
+- Each app gets its own container pair (API + worker) for independent scaling and fault isolation
+- Infrastructure services (cache, vault, monitoring) are co-located in the same Compose stack
+- The preview server runs on a separate VM for security isolation (blocks SSRF, prevents hotlinking)
 
-This separation allows:
-- **Scalability**: Scale API and workers independently based on load
-- **Reliability**: Worker failures don't affect API availability
-- **Resource Management**: Different resource limits for API vs. workers
-- **Service Discovery**: Apps are automatically discovered via Docker network
+## How It Works
 
-For more details on app architecture, see [Apps Architecture](./apps/README.md).
+### Core Services
 
+Defined in [docker-compose.yml](../../backend/core/docker-compose.yml):
 
-## uploads server
+| Container | Image / Build | Purpose |
+|-----------|--------------|---------|
+| `api` | Custom (FastAPI) | Core REST API, WebSocket server |
+| `task-worker` | Custom (Celery) | Background tasks (email, deletion, cache warming) |
+| `task-scheduler` | Custom (Celery Beat) | Scheduled/periodic task dispatch |
+| `cms` | `directus/directus:11.5` | Directus CMS for data management |
+| `cms-database` | `postgres:13-alpine` | PostgreSQL database |
+| `cms-setup` | Custom | Schema migration on startup (runs once) |
+| `cache` | `dragonflydb/dragonfly` | Redis-compatible cache (Dragonfly) |
+| `vault` | `hashicorp/vault:1.19` | Secret management, transit encryption |
+| `vault-setup` | Custom | Vault initialization (runs once) |
+| `core-admin-sidecar` | Custom | Admin utilities (health checks, scripts) |
 
-- isolated docker environment to process files
-- public /upload endpoint
-	- validate user
-	- check if file is within file size limit
-	- check for harmful uploaded files
-	- if pdf or image file: create preview image
-	- upload preview and original to S3 hetzner and return file id to frontend?
-- public /files endpoint
-	- validate user
-	- gets hetzner s3 url for file and does a 302 redirect to the hetzner s3 url
-- public /preview endpoint
-	- validate use
-	- checks if hetzner s3 url for preview image for the file exists and if so, makes 302 forward to the hetzner s3 url
+### App Containers (Two-Container Pattern)
 
-## preview server
+Each app follows API + Worker separation:
 
-The preview server provides image/favicon proxying and URL metadata extraction for privacy, security, and performance benefits. It runs at `preview.openmates.org`.
+| App | API Container | Worker Container |
+|-----|--------------|-----------------|
+| AI | `app-ai` | `app-ai-worker` |
+| Web | `app-web` | -- |
+| Videos | `app-videos` | -- |
+| Audio | `app-audio` | -- |
+| News | `app-news` | -- |
+| Events | `app-events` | -- |
+| Maps | `app-maps` | -- |
+| Travel | `app-travel` | -- |
+| Health | `app-health` | -- |
+| Shopping | `app-shopping` | -- |
+| Code | `app-code` | -- |
+| Docs | `app-docs` | -- |
+| Mail | `app-mail` | -- |
+| Images | `app-images` | `app-images-worker` |
+| PDF | `app-pdf` | `app-pdf-worker` |
+| Reminder | `app-reminder` | -- |
+| Jobs | `app-jobs` | -- |
+| Math | `app-math` | -- |
 
-**Implementation:** `backend/preview/`
+Currently only AI, Images, and PDF have dedicated worker containers. Other apps handle tasks via the core `task-worker` or process synchronously.
 
-### Deployment Options
+Each API container exposes internal FastAPI endpoints on the Docker network (e.g., `/skill/ask`). Service discovery is automatic via Docker networking.
 
-1. **Cloud (Production):** Runs on a separate VM at `preview.openmates.org` for security isolation and independent scaling.
-   - Use `backend/preview/docker-compose.preview.yml`
-   
-2. **Self-hosted:** Can be included in the main docker-compose stack (uncomment the preview service in `backend/core/docker-compose.yml`)
+### Monitoring Stack
 
-### Endpoints
+| Container | Image | Purpose |
+|-----------|-------|---------|
+| `openobserve` | `zinclabs/openobserve:v0.70.0-rc3` | Log aggregation, metrics (replaces Loki+Grafana) |
+| `prometheus` | `prom/prometheus:v3.2.1` | Metrics collection |
+| `alertmanager` | `prom/alertmanager:v0.31.1` | Alert routing |
+| `cadvisor` | `cadvisor:v0.47.2` | Container resource metrics |
+| `promtail` | `grafana/promtail:3.4.2` | Log shipping to OpenObserve |
 
-#### `GET /api/v1/image`
-Fetches, resizes, and caches images from external URLs.
+Grafana and a backup-service are defined but commented out.
 
-**Query Parameters:**
-- `url` (required): Image URL to fetch
-- `max_width` (optional): Maximum width in pixels (0 = no limit, default: 1920)
-- `max_height` (optional): Maximum height in pixels (0 = no limit, default: 1080)
-- `quality` (optional): JPEG/WebP quality 1-100 (default: 85)
-- `format` (optional): Force output format (jpeg, png, webp)
-- `refresh` (optional): Bypass cache and fetch fresh
+### Preview Server
 
-**Example:**
-```
-GET /api/v1/image?url=https://example.com/photo.jpg&max_width=800&quality=80
-```
+Runs on a separate VM at `preview.openmates.org`. See [docker-compose.preview.yml](../../backend/preview/docker-compose.preview.yml).
 
-**Features:**
-- Automatic resizing with aspect ratio preservation
-- JPEG/WebP quality optimization
-- Disk-based LRU cache (10GB default)
-- SSRF protection (blocks private IPs)
-- 7-day cache TTL
-- 4 concurrent workers for parallel processing
+**Endpoints:**
+- `GET /api/v1/image` -- fetch, resize, cache external images (disk-based LRU, 10GB, 7-day TTL)
+- `GET /api/v1/favicon` -- fetch and cache favicons (tries `/favicon.ico`, falls back to Google Favicon Service)
+- `POST /api/v1/metadata` -- extract Open Graph / HTML metadata (24-hour cache TTL)
+- `GET /health`, `GET /health/detailed` -- health checks
 
-#### `GET /api/v1/favicon`
-Fetches and caches website favicons.
+**Security:** referer validation, SSRF protection (blocks private IPs), content-type validation, optional API key auth. 4 uvicorn workers by default.
 
-**Query Parameters:**
-- `url` (required): Website URL (not favicon URL)
-- `refresh` (optional): Bypass cache
+**Self-hosted option:** uncomment the preview service in the core `docker-compose.yml`.
 
-**Example:**
-```
-GET /api/v1/favicon?url=https://github.com
-```
+## Edge Cases
 
-**Features:**
-- Tries `/favicon.ico` first, falls back to Google Favicon Service
-- Disk-based caching with 7-day TTL
+- **Docker network isolation:** app containers communicate via internal network only; not exposed publicly
+- **Vault token management:** `vault-setup` runs once on startup; `api` and `task-worker` wait for it via `depends_on: service_completed_successfully`
+- **Cache as Dragonfly:** drop-in Redis replacement with better memory efficiency; same protocol
 
-#### `POST /api/v1/metadata`
-Extracts Open Graph and HTML metadata from websites.
+<!-- VERIFY: whether all app containers without dedicated workers actually use core task-worker vs synchronous processing -->
 
-**Request Body:**
-```json
-{
-  "url": "https://example.com/article"
-}
-```
+## Related Docs
 
-**Response:**
-```json
-{
-  "url": "https://example.com/article",
-  "title": "Article Title",
-  "description": "Article description...",
-  "image": "https://example.com/og-image.jpg",
-  "favicon": "https://example.com/favicon.ico",
-  "site_name": "Example.com"
-}
-```
-
-**Features:**
-- Extracts og:title, og:description, og:image, twitter:* tags
-- Falls back to HTML title and meta description
-- 24-hour cache TTL
-
-#### `GET /health`
-Health check endpoint for load balancers.
-
-#### `GET /health/detailed`
-Detailed health check with cache statistics.
-
-### Security Features
-
-- **Referer Validation:** Blocks requests from unauthorized domains (prevents hotlinking)
-- **SSRF Protection:** Blocks requests to private/internal IP addresses
-- **Content Validation:** Validates content types and size limits
-- **Rate Limiting:** Configurable rate limits per IP (at Caddy level recommended)
-- **API Key Auth:** Optional API key authentication
-
-### Configuration
-
-Environment variables (prefix: `PREVIEW_`):
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PREVIEW_PORT` | 8080 | Server port |
-| `UVICORN_WORKERS` | 4 | Number of worker processes (concurrent image processing) |
-| `PREVIEW_CACHE_DIR` | /app/cache | Cache directory |
-| `PREVIEW_CACHE_MAX_SIZE_MB` | 10240 | Image cache size (10GB) |
-| `PREVIEW_METADATA_CACHE_MAX_SIZE_MB` | 500 | Metadata cache size (500MB) |
-| `PREVIEW_MAX_IMAGE_WIDTH` | 1920 | Default max image width |
-| `PREVIEW_MAX_IMAGE_HEIGHT` | 1080 | Default max image height |
-| `PREVIEW_JPEG_QUALITY` | 85 | Default JPEG quality |
-| `PREVIEW_BLOCK_PRIVATE_IPS` | true | SSRF protection |
-| `PREVIEW_CORS_ORIGINS` | (see config) | Allowed CORS origins |
-| `PREVIEW_VALIDATE_REFERER` | true | Enable Referer validation |
-| `PREVIEW_ALLOWED_REFERERS` | (see config) | Allowed Referer patterns |
-| `PREVIEW_API_KEY` | (empty) | Optional API key |
-
-### Cache Architecture
-
-All caches are **disk-based** using `diskcache` (SQLite index + file storage). No Redis/Dragonfly needed.
-
-- **Images:** Disk-based LRU cache, 10GB default, 7-day TTL
-- **Favicons:** Separate LRU cache, 1GB, 7-day TTL  
-- **Metadata:** Separate LRU cache, 500MB, 24-hour TTL
-
-Cache keys include processing parameters, so different sizes of the same image are cached separately.
-
-### Concurrency
-
-The server runs **4 uvicorn workers** by default, allowing 4 concurrent image processing tasks. Each worker:
-- Uses ~200-300MB RAM when processing
-- Shares the same disk cache (thread-safe)
-- Can be scaled via `UVICORN_WORKERS` environment variable
-
-### Recommended Hardware
-
-**Hetzner CAX11** (€3.79/month):
-- 2 ARM cores, 4GB RAM, 40GB SSD
-- Handles 4 concurrent image processing + 10GB cache
-- Sufficient for moderate traffic
+- [Security Architecture](./security.md) -- Vault integration, encryption
+- [Apps Architecture](../apps/) -- app skill execution model

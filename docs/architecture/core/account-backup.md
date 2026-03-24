@@ -1,94 +1,44 @@
-# Account Data Backup & Export
+---
+status: planned
+last_verified: 2026-03-24
+key_files:
+  - frontend/packages/ui/src/components/settings/user/SettingsDownloadUserData.svelte
+---
 
-> Feature not yet implemented
+# Account Backup & Export
 
-## Overview
+> GDPR-compliant data export allowing users to download their account data. Not yet implemented.
 
-Account data backup and export functionality for GDPR compliance and manual backups. Users can download or automatically backup their account data from Account Settings, with granular control over what data is included.
+## Why This Exists
 
-**Location**: Account Settings → Data & Privacy → Download/Backup Account Data
+- GDPR Article 15 (Right to Access), Article 20 (Data Portability), Article 17 (Right to Erasure -- backup before deletion)
+- Users need a way to export their data in a human-readable or machine-readable format
 
-**Implementation Placeholder**: `frontend/packages/ui/src/components/settings/user/SettingsDownloadUserData.svelte`
+## Planned Design
 
-## Backup Scope
+**Location:** Account Settings -> Data & Privacy -> Download/Backup Account Data
+
+**Placeholder component:** `SettingsDownloadUserData.svelte` (exists but not functional)
 
 ### Data Categories (User Selectable)
 
-Users can individually enable/disable each category:
+1. **Chats & Messages** -- all chats with message history, optionally including uploaded files
+2. **App Settings & Memories** -- per-app configurations and memories
+3. **Usage Logs** -- API usage history, credit consumption, feature usage
+4. **Account Settings** -- profile info, preferences, privacy settings (excluding passwords/payment methods)
 
-1. **Chats & Messages** (Default: Enabled)
-   - All chats with complete message history
-   - Optional: Include uploaded files associated with chats
+### Format Options
 
-2. **App Settings & Memories** (Default: Enabled)
-   - App-specific settings for all apps
-   - Memories associated with apps
+- **Decrypted (default):** YAML, human-readable, GDPR-compliant
+- **Encrypted (optional):** encrypted with user-defined backup key (separate from master key)
+- Packaged as ZIP archive
 
-3. **Usage Logs** (Default: Enabled)
-   - API usage history
-   - Credit consumption logs
-   - Feature usage statistics
+### Backup Methods
 
-4. **Account Settings** (Default: Enabled)
-   - User profile information
-   - Preferences (language, dark mode, currency)
-   - Privacy settings and consent records
-   - and all other account settings (except for sensitive data like passwords, payment methods, etc.)
+- **One-time download:** manual export, client-side generation
+- **Automatic cloud backup (planned):** scheduled backups to S3/GCS/Azure/Dropbox/Google Drive/OneDrive/WebDAV/SFTP. Credentials stored client-side only (encrypted in IndexedDB)
 
-## Backup Formats
+## Related Docs
 
-### Encryption Options
-
-- **Decrypted Backup (Default)**: Human-readable format for GDPR compliance and data portability
-- **Encrypted Backup (Optional)**: Data encrypted with a custom backup encryption key (user-defined, stored client-side only)
-
-### File Format
-
-- **Primary**: YAML (structured, human-readable)
-- **Alternative**: JSON (optional, machine-readable)
-- Packaged as ZIP archive for download
-
-## Backup Methods
-
-### One-Time Download
-
-For GDPR data export and manual backups:
-1. User selects data categories to include
-2. User chooses encryption option
-3. System generates backup files (client-side)
-4. User downloads ZIP file
-
-### Automatic Cloud Backup
-
-Scheduled backups to cloud storage or FTP servers:
-- **Frequency**: Manual, Daily, Weekly, Monthly, or Custom interval
-- **Storage Options**:
-  - Cloud: AWS S3, Google Cloud Storage, Azure Blob, Dropbox, Google Drive, OneDrive, WebDAV
-  - FTP/FTPS/SFTP servers (SFTP recommended)
-- **Credentials**: Stored client-side only (encrypted in IndexedDB)
-
-## Security & Privacy
-
-- **Data Encryption**: Encrypted backups use custom backup key (user-defined, separate from master key)
-- **Transmission**: All uploads use HTTPS/TLS/SSH encryption
-
-## Implementation
-
-**Frontend:**
-- `frontend/packages/ui/src/services/accountBackupService.ts` - Main backup service
-- `frontend/packages/ui/src/services/backupStorage/` - Storage provider integrations
-- Reuses existing `chatExportService.ts` for chat export functionality
-
-
-## GDPR Compliance
-
-Fulfills GDPR requirements:
-- **Article 15** (Right to Access): Users can download all personal data
-- **Article 20** (Data Portability): Structured, portable format
-- **Article 17** (Right to Erasure): Users can backup before account deletion
-
-## Related Documentation
-
-- `docs/architecture/chats.md` - Chat export functionality
-- `docs/architecture/apps/app_settings_and_memories.md` - App settings structure
-- `docs/architecture/security.md` - Security architecture
+- [Delete Account](./delete-account.md) -- users may want to export before deletion
+- [Zero-Knowledge Storage](./zero-knowledge-storage.md) -- decryption happens client-side

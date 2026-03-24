@@ -1,176 +1,110 @@
-# Signup & login architecture
+---
+status: active
+last_verified: 2026-03-24
+key_files:
+  - backend/core/api/app/routes/auth_routes/auth_login.py
+  - backend/core/api/app/routes/auth_routes/auth_passkey.py
+  - backend/core/api/app/routes/auth_routes/auth_2fa_setup.py
+  - frontend/packages/ui/src/services/cryptoService.ts
+  - frontend/packages/ui/src/services/cryptoKeyStorage.ts
+  - frontend/packages/ui/src/components/Login.svelte
+  - frontend/packages/ui/src/components/signup/steps/secureaccount/SecureAccountTopContent.svelte
+---
 
-> **Implementation Status:**
-> - ✅ **IMPLEMENTED**: Email + Password + OTP 2FA signup and login
-> - ✅ **IMPLEMENTED**: Passkey authentication (passwordless login with PRF extension)
-> - ⚠️ **PLANNED**: Magic link login (not yet implemented)
->
-> Keep in mind there can still be differences between this planned architecture and the current code implementation.
+# Signup & Login
 
-## Zero-Knowledge Authentication Flow
+> Zero-knowledge authentication where the server never sees plaintext passwords, emails, or master encryption keys. Authentication is proven by successful client-side decryption.
 
-Our system uses zero-knowledge authentication where the server never sees plaintext passwords, backup codes, or master encryption keys. Authentication is performed by successfully decrypting encrypted data on the client side.
+## Why This Exists
 
-## Signup
+- The server must authenticate users without ever seeing their password or email in plaintext
+- Multiple login methods (password+2FA, passkey, recovery key) each need their own path to the same master key
+- Session persistence must work reliably across Safari iOS/iPadOS strict cookie policies
 
-### Step 1 - Basics
+## Implementation Status
 
-- User is asked for username and email address and to confirm terms of service and privacy policy
-- User clicks continue to start server request
-- Server checks if email address is already in use or not and continues to step 2 (confirm email address) if not yet in use
+- **Implemented:** email + password + OTP 2FA, passkey (PRF), recovery key login
+- **Planned:** magic link login, API key access
 
-### Step 2 - Confirm email address
+## How It Works
 
-- One time confirmation code is sent to email address
-- User enters one time code from email and it's validated once entered. If code is valid, signup continues with step 3 (secure account)
-- User can also choose to click "Send again"
+### Signup Flow
 
-## Step 3 – Secure Account ✅ **IMPLEMENTED** (Password & Passkey)
+**Step 1 -- Basics:** user provides username and email; server checks email uniqueness via `hashed_email`.
 
-- **Currently implemented:** User can choose between password-based or passkey-based authentication
-- Both methods maintain zero-knowledge encryption principles
+**Step 2 -- Confirm email:** 6-digit OTP sent to email, validated server-side.
 
-### Password Setup ✅ **IMPLEMENTED**
-- Continue to step 3.1 (setup password)
+**Step 3 -- Secure account:** user chooses password or passkey.
 
-### Passkey Setup ✅ **IMPLEMENTED**
-- If passkey is selected:
-	- A request is sent to the server to initiate passkey registration.
-	- The server responds with a WebAuthn PublicKeyCredentialCreationOptions object.
-	- The frontend uses the browser's WebAuthn API to prompt the user to create a passkey
-	- Once the user consents, the browser generates the credential and returns it to the frontend.
-	- The frontend sends the credential data to the server.
-	- The server verifies the attestation and stores the passkey's credential ID, signCount and public key in the user data in the database.
-	- User device is generating encryption key for user and uses WebAuthn PRF extension (supported by iOS 18 & newer, Chrome, Android, Windows 11. If failing: ask user to consider different password manager that supports WebAuthn PRF or signup via password) to encrypt the encryption key, before uploading wrapped encryption key to server
-	- User account is created on server
-	- User is logged in on device (and consider the "Stay logged in" toggle selection in step 3 to decide where to store decrypted encryption key - in session-storage or local-storage).
-	- Continue to step 4 (setup backup codes)
+**Password path:**
+1. Client generates master key via `generateExtractableMasterKey()` and a unique salt
+2. Wrapping key derived via `deriveKeyFromPassword()` -- PBKDF2-SHA256, 100k iterations
+3. Master key wrapped with wrapping key; only `hashed_email`, `encrypted_email`, salt, and wrapped master key sent to server
+4. Plaintext password never transmitted
 
-## Step 3.1 - Setup Password ✅ **IMPLEMENTED**
+**Passkey path:**
+1. Server generates WebAuthn registration options with PRF extension
+2. Browser creates credential; client verifies PRF support (required for zero-knowledge)
+3. Client generates master key, wraps it with `deriveWrappingKeyFromPRF()` (HKDF from PRF signature + user salt)
+4. Wrapped master key uploaded to server
 
-- Enter password & confirm password
-- When user clicks continue:
-	- **On the user's device, a master encryption key and a unique salt are generated. A wrapping key is derived from the password and salt using Argon2. This wrapping key is used to encrypt the master key.**
-	- **The user's hashed email (for lookup), encrypted email (for operations), the salt, and the wrapped master key are sent to the server. The plaintext password is never sent and is not stored on the server in any form.**
-	- User account is created on server
-	- User is logged in on device (and consider the "Stay logged in" toggle selection in step 3 to decide where to store decrypted encryption key - in session-storage or local-storage).
-	- Continue to step 3.2 (setup otp 2fa)
+See [Passkeys](./passkeys.md) for full passkey details.
 
-## Step 3.2 - Setup OTP 2FA ✅ **IMPLEMENTED**
+**Step 3.2 -- 2FA setup (password users only):** QR code scanned with authenticator app, 6-digit OTP verified. Password auth always requires 2FA -- they are set up together and cannot exist independently.
 
-- User scans QR code with authenticator app (e.g., Google Authenticator, Authy)
-- User enters 6-digit OTP code to verify setup
-- Server validates OTP and stores encrypted 2FA secret
-- Continue to step 4 (setup backup codes)
+**Step 4 -- Recovery key:** mandatory. Auto-generated, auto-downloaded as `openmates_recovery_key.txt`. User must confirm storage before proceeding. See `RecoveryKeyTopContent.svelte`.
 
-## Step 4 - Setup Backup Codes ✅ **IMPLEMENTED**
+**Step 5 -- Profile image:** (work in progress)
 
-- Ask if user wants to setup backup codes
-- Explain pro: login option in case access to 2FA OTP is lost
-- Explain risk: anyone with backup code can login to user account, security risk if not securely stored
-- If user chooses to create backup codes: **Backup codes are generated on the server and shown once to the user. They can be used as a second factor (replacing OTP) during password login.**
+### Login Flows
 
-## Step 5 - Upload profile image
+#### Password + 2FA Login
 
-... (work in progress)
+1. Client computes `hashed_email` for lookup
+2. Server returns user's salt and wrapped master key
+3. Client derives wrapping key via PBKDF2(password, salt) and unwraps master key
+4. User enters OTP (or backup code); server verifies
+5. If verified: server sets session cookies, client decrypts user data with master key
 
-## Session Persistence ("Stay Logged In")
+#### Passkey Login
 
-### Cookie Expiration Strategy ✅ **IMPLEMENTED**
-The application implements a "Stay logged in on this device" option to address Safari mobile's strict cookie handling:
+1. User clicks "Login with passkey" (no email entry needed)
+2. `POST /auth/passkey/assertion/initiate` returns WebAuthn challenge with PRF extension using global salt `SHA256(rp_id)[:32]`
+3. Browser prompts for passkey authentication
+4. `POST /auth/passkey/assertion/verify` verifies signature via `py_webauthn`, identifies user by `credential_id`, starts cache warming
+5. Client derives wrapping key from PRF via `HKDF(PRF_signature, user_email_salt)`, unwraps master key
+6. Client decrypts email from `encrypted_email_with_master_key`, derives `lookup_hash`
+7. `POST /auth/login` with `lookup_hash` and `login_method: 'passkey'` completes session
+8. Frontend waits for cache warming (via WebSocket sync status) before loading main interface
 
-- **Default (unchecked)**: Cookies expire after **24 hours**
-  - Suitable for shared or less trusted devices
-  - Session expires after 1 day of inactivity
-  
-- **Stay Logged In (checked)**: Cookies expire after **30 days**
-  - Optimized for Safari iOS/iPadOS compatibility
-  - Prevents automatic logout on page reload
-  - Suitable for personal trusted devices
-  - Master encryption key stored in IndexedDB (persists across sessions)
-  
-- **Default (unchecked)**: Cookies expire after **24 hours**
-  - Master encryption key stored in memory only (module-level variable)
-  - Automatically cleared when page/tab closes (no persistence)
-  - Suitable for shared or less trusted devices
+See [auth_passkey.py](../../backend/core/api/app/routes/auth_routes/auth_passkey.py) and [Login.svelte](../../frontend/packages/ui/src/components/Login.svelte).
 
-### Implementation Details
-- User preference captured during email lookup (first login step)
-- Preference echoed back by server and stored in Redis cache
-- Cookie `max_age` adjusted based on preference: 2,592,000s (30 days) vs 86,400s (24 hours)
-- Cache TTL matches cookie expiration for consistency
-- Session refresh endpoint respects stored preference
+#### Recovery Key Login
 
-### Master Key Storage Strategy ✅ **IMPLEMENTED**
-The application uses a hybrid storage approach for master encryption keys:
+Recovery key uses the same PBKDF2 derivation path as password login. Users who still have their recovery key use "Login with recovery key" on the login page -- this preserves all data. See [Account Recovery](./account-recovery.md) for the destructive reset flow when all credentials are lost.
 
-- **stayLoggedIn=false**: Master key stored in memory only (module-level variable)
-  - Automatically cleared when page/tab closes (no async cleanup needed)
-  - No persistence across browser sessions
-  - Provides reliable cleanup without relying on unload handlers
-  
-- **stayLoggedIn=true**: Master key stored in IndexedDB as CryptoKey object
-  - Persists across browser sessions
-  - Uses Web Crypto API CryptoKey objects (not Base64 strings)
-  - Better isolation than localStorage/sessionStorage
-  - Keys require Web Crypto API to use (not plain strings in storage)
+### Session Persistence ("Stay Logged In")
 
-**Security Features**:
-- Multiple validation layers ensure cleanup (page load check, access-time validation, periodic validation)
-- Memory keys provide automatic cleanup (no dependency on unreliable unload handlers)
-- Defense in depth: Even if one validation layer fails, others ensure proper cleanup
+| Setting | Cookie TTL | Master key storage | Cleanup |
+|---------|------------|-------------------|---------|
+| Unchecked (default) | 24 hours | Memory only (`memoryMasterKey`) | Auto-cleared on page close |
+| Checked | 30 days | IndexedDB as CryptoKey | Persists across sessions |
 
-### Safari iOS Compatibility
-Safari on iOS/iPadOS has strict cookie policies that can cause logout on page reload. The 30-day cookie TTL specifically addresses this issue by providing a longer cookie lifetime that survives browser restarts and page reloads.
+The 30-day TTL addresses Safari iOS strict cookie policies that cause logout on page reload.
 
-## Login Flow
+Implementation: preference captured during email lookup, stored in Redis, cookie `max_age` set to 2,592,000s or 86,400s accordingly. See [cryptoKeyStorage.ts](../../frontend/packages/ui/src/services/cryptoKeyStorage.ts) for storage logic.
 
-### Password Login ✅ **IMPLEMENTED**:
-1. User enters email and password
-2. User can optionally check "Stay logged in on this device" (cookie TTL: 30 days vs 24 hours)
-3. Client computes hashed email for lookup
-4. Server returns user's salt, wrapped master key, and Argon2 parameters
-5. Client derives wrapping key using Argon2(password, salt, params)
-6. Client attempts to decrypt wrapped master key
-7. User enters OTP code (or backup code)
-8. Server verifies OTP/backup code
-9. If verified: server sends encrypted chats/data and sets cookies with appropriate TTL
-10. Client decrypts user data using master key
+**Validation layers:** page-load check, access-time validation, periodic validation timer. Memory keys need no cleanup handlers (cleared automatically when page closes).
 
-### Backup Code Login ✅ **IMPLEMENTED**:
-1. User enters email and password (same as password login)
-2. User can optionally check "Stay logged in on this device" (cookie TTL: 30 days vs 24 hours)
-3. User selects "Use backup code instead" when prompted for OTP
-4. User enters backup code
-5. Server verifies backup code and marks it as used
-6. Success = authentication, user is logged in with appropriate cookie TTL
+## Edge Cases
 
-### Passkey Login ✅ **IMPLEMENTED**:
-1. User clicks "Login with passkey" (or uses passwordless flow)
-2. User can optionally check "Stay logged in on this device" (cookie TTL: 30 days vs 24 hours)
-3. Frontend calls `/auth/passkey/assertion/initiate` to get WebAuthn challenge
-4. Backend generates challenge with PRF extension using global salt: `SHA256(rp_id)[:32]`
-5. Browser prompts for passkey authentication (biometric/PIN)
-6. Client receives WebAuthn PRF signature from authenticator (deterministic for same global salt)
-7. Frontend calls `/auth/passkey/assertion/verify` with credential response
-8. Backend verifies passkey signature using `py_webauthn` library
-9. Backend starts cache warming asynchronously (similar to password login `/lookup` endpoint)
-10. Backend returns `encrypted_email_with_master_key`, `encrypted_master_key`, and `user_email_salt`
-11. Client derives wrapping key from PRF signature using `HKDF(PRF_signature, user_email_salt)`
-12. Client unwraps master key from `encrypted_master_key`
-13. Client decrypts email from `encrypted_email_with_master_key` using master key
-14. Client derives `email_encryption_key = SHA256(email + user_email_salt)` and `lookup_hash = SHA256(PRF_signature + user_email_salt)`
-15. Client completes authentication by calling `/auth/login` with `lookup_hash` and `login_method: 'passkey'`
-16. Backend verifies `lookup_hash` and creates session with appropriate cookie TTL
-17. Frontend waits for cache warming to complete (via WebSocket sync status) before loading main interface
-18. If successful: user is logged in with appropriate cookie TTL and data ready for instant sync
+- **Safari iOS cookie eviction:** 30-day TTL + `navigator.storage.persist()` for IndexedDB
+- **Lost password + lost passkey + lost recovery key:** destructive account reset required (see [Account Recovery](./account-recovery.md))
+- **Non-PRF passkey device:** signup blocked; user prompted to use password+2FA or switch to a PRF-capable manager
 
-### Magic Link Login / Login via Phone ⚠️ **PLANNED** (not yet implemented):
-See docs/architecture/security.md for planned magic link and phone login flow details.
+## Related Docs
 
-### API Key Access ⚠️ **PLANNED** (not yet implemented):
-1. Client sends API key in request header
-2. Server hashes API key for lookup
-3. If IP is approved: server returns salt, wrapped master key, and encrypted data
-4. If IP is pending: server notifies user for approval
-5. Client decrypts master key using API key and proceeds with decryption
+- [Security Architecture](./security.md) -- zero-knowledge authentication overview
+- [Zero-Knowledge Storage](./zero-knowledge-storage.md) -- master key lifecycle
+- [Passkeys](./passkeys.md) -- WebAuthn PRF implementation
+- [Account Recovery](./account-recovery.md) -- recovery and reset flows

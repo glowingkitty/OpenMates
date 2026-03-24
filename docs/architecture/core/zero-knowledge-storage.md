@@ -1,206 +1,98 @@
-# Zero-Knowledge Storage Architecture
+---
+status: active
+last_verified: 2026-03-24
+key_files:
+  - frontend/packages/ui/src/services/cryptoService.ts
+  - frontend/packages/ui/src/services/cryptoKeyStorage.ts
+  - backend/core/api/app/utils/encryption.py
+  - backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
+---
 
-OpenMates implements client-side encryption for all sensitive data storage, ensuring the server cannot decrypt user content without user cooperation.
+# Zero-Knowledge Storage
 
-## Core Principles
+> All sensitive user data is encrypted client-side before storage; the server stores only encrypted blobs it cannot decrypt.
 
-- **Client-side encryption**: All sensitive data encrypted before storage
-- **Server stores encrypted blobs**: Server cannot decrypt stored data without user keys
-- **Per-data-type key isolation**: Separate encryption keys for chats, apps, emails
-- **Master key never transmitted**: Generated and managed entirely client-side
+## Why This Exists
 
-## Important Note: Chat Inference Processing
+- User data must remain private even if the server is fully compromised
+- Government data requests should be unanswerable: zero-knowledge means we cannot decrypt
+- The exception: AI inference requires cleartext during active processing (see below)
 
-**Zero-knowledge storage ≠ Zero server access during active use**
+## How It Works
 
-For AI inference, the client **does** send cleartext chat content to the server for processing. Additionally:
+### Two Encryption Tiers
 
-- **Server-side caching**: Last 3 chats per user are cached via HashiCorp Vault encryption (72-hour TTL, LRU eviction) for faster inference
-- **Performance optimization**: Prevents client from resending full chat history on each request
-- **Ephemeral access**: Server processes cleartext only during active inference requests
-- **Zero-knowledge principle**: Server cannot decrypt historical stored chats without user providing keys
+**Client-Managed (true zero-knowledge):** chats, messages, app data, emails, profile settings. Key lives on the user's device. Server stores encrypted blobs only.
 
-The key distinction: Server needs cleartext for active AI processing, but cannot access stored chat history without user cooperation.
+**Server-Managed (Vault-hybrid):** server-generated files (images, PDFs, videos), long-running task outputs. AES key wrapped by HashiCorp Vault using a user-specific key ID. Needed because the server must complete tasks while the user may be offline.
 
-## Master Key Management
+For the full breakdown of both tiers, see [Security Architecture](./security.md).
 
-### Key Generation
+### Master Key Lifecycle
 
-**Implementation**: [`frontend/packages/ui/src/services/cryptoService.ts`](../../frontend/packages/ui/src/services/cryptoService.ts)
+1. During signup, the client generates a unique master key via `generateExtractableMasterKey()` in [cryptoService.ts](../../frontend/packages/ui/src/services/cryptoService.ts)
+2. The master key is wrapped using the chosen login method:
+   - **Password:** PBKDF2-SHA256 (100k iterations) via `deriveKeyFromPassword()`
+   - **Passkey:** HKDF from WebAuthn PRF signature + user salt via `deriveWrappingKeyFromPRF()`
+   - **Recovery key:** PBKDF2-SHA256 (100k iterations) via `deriveKeyFromPassword()`
+3. The wrapped master key is stored on the server; the plaintext master key stays client-side only
 
-During user signup:
+### Master Key Storage Modes
 
-1. Client generates unique master encryption key (`encryption_key_user_local`)
-2. Master key wrapped using login method-specific derivation:
-   - **Password**: PBKDF2-SHA256 key derivation from password + salt (100k iterations)
-   - **Passkey**: HKDF from WebAuthn PRF signature + user salt (deterministic per device)
-   - **Recovery Key**: PBKDF2-SHA256 key derivation from recovery key + salt (100k iterations)
-3. Wrapped master key stored on server, plaintext master key stays client-side only
+Managed in [cryptoKeyStorage.ts](../../frontend/packages/ui/src/services/cryptoKeyStorage.ts):
 
-**Note**: Passkeys use WebAuthn PRF extension to generate deterministic signatures that serve as key material, enabling true passwordless login. For complete passkey implementation details, see [Passkeys](./passkeys.md).
+- **Stay Logged In = false (default):** master key in memory only (module-level variable `memoryMasterKey`). Auto-cleared on page close.
+- **Stay Logged In = true:** master key persisted to IndexedDB as a CryptoKey object. Uses `navigator.storage.persist()` to prevent iOS Safari from evicting the DB.
 
-### Key Storage Modes
+### Per-Data-Type Key Isolation
 
-**Stay Logged In = false** (default for security):
+| Data type | Key source | Implementation |
+|-----------|-----------|----------------|
+| Chat messages | Per-chat AES key, wrapped with master key | `encryptWithChatKey()` / `decryptWithChatKey()` |
+| Chat titles, drafts | Master key directly | `encryptWithMasterKey()` / `decryptWithMasterKey()` |
+| Embeds | Per-embed key derived from chat key via HKDF | `deriveEmbedKeyFromChatKey()` |
+| Email address | SHA256(email + salt) for server lookup; master key for client storage | `deriveEmailEncryptionKey()` / `encryptEmail()` |
+| App settings & memories | Per-app AES key, wrapped with master key | Same pattern as chat keys |
 
-- Master key stored in memory only (module-level variable)
-- Automatically cleared when page/tab closes
-- No persistence across browser sessions
+Compromise of one data type does not affect others.
 
-**Stay Logged In = true** (convenience option):
+### Chat Key Immutability
 
-- Master key stored in IndexedDB as CryptoKey object
-- Persists across sessions
-- Uses Web Crypto API isolation
+Once a chat has an `encrypted_chat_key`, the server will not accept a different key unless the client includes an explicit `allow_chat_key_rotation` flag (used for hidden-chat hide/unhide flows). This guard operates at two levels:
 
-**Planned: Public Computer Mode**:
+1. **WebSocket handler** in [encrypted_chat_metadata_handler.py](../../backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py) compares incoming key against cached key
+2. **Persistence task** in [persistence_tasks.py](../../backend/core/api/app/tasks/persistence_tasks.py) checks against Directus before writing
 
-- Master key memory-only with auto-logout after 30 minutes
-- IndexedDB deleted on internet disconnect
-- Enhanced security for shared devices
+This prevents a misconfigured device from corrupting the chat key across devices.
 
-## Chat Encryption
+### AI Inference Exception
 
-**Implementation**: [`frontend/packages/ui/src/services/cryptoService.ts`](../../frontend/packages/ui/src/services/cryptoService.ts) and [`frontend/packages/ui/src/services/db.ts`](../../frontend/packages/ui/src/services/db.ts)
+**Zero-knowledge storage does not mean zero server access during active use.** For AI inference:
 
-### Storage vs. Processing Model
+- The client sends cleartext chat content for processing
+- The server caches the last 3 active chats per user via HashiCorp Vault encryption (72-hour TTL, LRU eviction)
+- This cache is separate from permanent encrypted storage and improves inference performance
+- The server cannot access stored chat history without user cooperation
 
-**Stored Chat Data (Zero-Knowledge)**:
+## Cryptographic Standards
 
-- Each chat generates unique symmetric encryption key
-- Chat keys encrypted with user's master key for storage/sync
-- Messages encrypted/decrypted client-side using AES-256-GCM
-- Server cannot decrypt stored chat history without user keys
+- **Symmetric encryption:** AES-256-GCM with random 12-byte IVs
+- **Key derivation:** PBKDF2-SHA256 with 100,000 iterations (passwords, recovery keys)
+- **Passkey derivation:** HKDF-SHA256 with info `"masterkey_wrapping"` (PRF signatures)
+- **Random generation:** `crypto.getRandomValues()` (Web Crypto API)
 
-**Active Inference Processing**:
+All constants defined in [cryptoService.ts](../../frontend/packages/ui/src/services/cryptoService.ts): `AES_KEY_LENGTH = 256`, `AES_IV_LENGTH = 12`, `PBKDF2_ITERATIONS = 100000`.
 
-- Client sends cleartext chat content for AI inference
-- Server caches last 3 chats per user (HashiCorp Vault encryption, 72-hour TTL, LRU eviction)
-- Improves performance by reducing redundant data transmission
-- Cache is separate from permanent encrypted storage
+## Edge Cases
 
-### Chat Key Immutability & Rotation
+- **Server compromise:** yields only encrypted blobs and hashes; no access to passwords, emails, chat content, or master keys
+- **Browser eviction (iOS Safari):** `navigator.storage.persist()` + `STAY_LOGGED_IN_FLAG` in localStorage tracks whether key loss is expected or unexpected
+- **Tab/device race on embed keys:** embed keys are derived deterministically from chat key + embed ID via HKDF, so all tabs produce the same key
 
-- **Immutability by default**: Once a chat has an `encrypted_chat_key`, the server will not accept or broadcast a different key for that chat.
-- **Explicit rotation only**: Key updates are allowed only when the client includes an explicit rotation flag
-  (used for hidden chat hide/unhide flows).
-- **Safety guarantee**: This prevents a single misconfigured device from corrupting the chat key across devices,
-  which would make existing messages undecryptable.
+## Related Docs
 
-### Embed Content Security (Dual-Mode)
-
-OpenMates uses a hybrid approach for embed security depending on the source of the content:
-
-- **Client-Generated (Zero-Knowledge)**:
-  - Used for: Uploaded files, pasted text, client-side code execution outputs.
-  - Encryption: Each embed generates a unique key for content encryption. Server cannot decrypt.
-  - Structure: Parent embeds generate their own key; child embeds inherit the parent's key. Key wrappers are stored for cross-chat access and sharing.
-- **Server-Generated (Vault-Managed Hybrid)**:
-  - Used for: AI-generated images, videos, PDF documents, server-side task outputs.
-  - Encryption: Content is encrypted with a unique AES key, which is then **wrapped by HashiCorp Vault** using a user-specific key ID.
-  - Purpose: Allows the server to process long-running tasks (like image generation) while the user is offline, and enables AI modification of previously generated content.
-  - Access: The server can "unwrap" the key for legitimate processing/download, but data remains encrypted at rest.
-
-## Email Encryption
-
-**Implementation**: [`frontend/packages/ui/src/services/cryptoService.ts`](../../frontend/packages/ui/src/services/cryptoService.ts)
-
-### Email Storage Security
-
-- Email addresses encrypted client-side before storage
-- Server stores only encrypted blobs and plaintext salt (unique per user)
-- Hashed email used for lookup only, never plaintext email
-- Separate encryption for passkey passwordless login
-
-### Key Derivation
-
-Email encryption keys are derived client-side using SHA256 with the user's email and unique salt.
-
-### Security Properties
-
-- Server never stores email encryption keys persistently
-- Email decryption only during login (temporary, in-memory)
-- Each user has unique salt preventing cross-user key reuse
-
-## App Settings & Memories
-
-**Implementation**: [`frontend/packages/ui/src/services/cryptoService.ts`](../../frontend/packages/ui/src/services/cryptoService.ts) and [`frontend/packages/ui/src/services/db.ts`](../../frontend/packages/ui/src/services/db.ts)
-
-### Per-App Key Isolation
-
-- Each app generates unique encryption key
-- App keys encrypted with master key for device sync
-- Individual items stored as separate encrypted database rows
-
-### Privacy-Preserving Storage
-
-- Server cannot identify which app (only sees opaque hashes)
-- Server cannot identify settings groups (only sees opaque hashes)
-- Server cannot access plaintext data (all items encrypted)
-- Server can provide efficient pagination without decryption
-- Client controls which apps/groups sync to which devices
-
-## Cryptographic Implementation
-
-### Encryption Standards
-
-- **Symmetric encryption**: AES-256-GCM for all data encryption
-- **Key derivation**: PBKDF2-SHA256 (100k iterations) combined with 2FA for passwords
-- **Random generation**: Cryptographically secure random generation
-- **Key wrapping**:
-  - **Passwords**: PBKDF2-SHA256 (100k iterations) for wrapping master keys
-  - **Passkeys**: HKDF from WebAuthn PRF signature for wrapping master keys
-  - **Recovery Keys**: PBKDF2-SHA256 (100k iterations) for wrapping master keys
-
-### Security Architecture
-
-**Layer 1: Client-Side Encryption**
-
-- AES-256-GCM encryption before any data transmission
-- All sensitive content encrypted locally before upload
-
-**Layer 2: Per-Data-Type Key Isolation**
-
-- Separate encryption keys for chats, emails, apps, embeds
-- Compromise of one data type doesn't affect others
-
-**Layer 3: Master Key Protection**
-
-- Master keys never transmitted to server
-- User-controlled key management and derivation
-
-**Layer 4: Secure Key Derivation**
-
-- PBKDF2-SHA256 key derivation with unique user salts (100k iterations)
-- Cryptographically secure random generation
-
-**Result**: Server compromise yields only encrypted blobs useless without user keys
-
-## Implementation Files
-
-### Frontend Encryption
-
-- **[`frontend/packages/ui/src/services/cryptoService.ts`](../../frontend/packages/ui/src/services/cryptoService.ts)**: Core encryption/decryption service
-- **[`frontend/packages/ui/src/services/db.ts`](../../frontend/packages/ui/src/services/db.ts)**: Local encrypted database operations
-
-### Backend Support
-
-- **[`backend/core/api/app/utils/encryption.py`](../../backend/core/api/app/utils/encryption.py)**: Server-side encryption helpers (Vault integration)
-- **[`backend/core/api/app/routes/auth_routes/auth_2fa_setup.py`](../../backend/core/api/app/routes/auth_routes/auth_2fa_setup.py)**: Key setup during authentication
-
-### WebSocket Encryption
-
-- **[`backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py`](../../backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py)**: Real-time encrypted updates
-- **[`backend/core/api/app/routes/handlers/websocket_handlers/ai_response_completed_handler.py`](../../backend/core/api/app/routes/handlers/websocket_handlers/ai_response_completed_handler.py)**: AI response encryption
-
-## Security Guarantees
-
-1. **Zero-knowledge storage**: Server cannot decrypt stored data without user cooperation
-2. **Key isolation**: Compromise of one data type doesn't affect others
-3. **Forward secrecy**: New chats/apps generate fresh encryption keys
-4. **Device independence**: Same keys work across user's devices via encrypted sync
-5. **Offline capability**: Local decryption works without server connectivity
-6. **Ephemeral processing**: Server only accesses cleartext during active AI inference requests
-
-For authentication flows and login implementation, see [Signup & Login](./signup-and-auth.md).
-For email-specific privacy protections, see [Email Privacy](../privacy/email-privacy.md).
+- [Security Architecture](./security.md) -- encryption tiers, S3 access, controls summary
+- [Chat Encryption Implementation](./chat-encryption-implementation.md) -- field-level encryption details
+- [Signup & Login](./signup-and-auth.md) -- master key creation during signup
+- [Passkeys](./passkeys.md) -- PRF-based key wrapping
+- [Email Privacy](../privacy/email-privacy.md) -- email encryption specifics
