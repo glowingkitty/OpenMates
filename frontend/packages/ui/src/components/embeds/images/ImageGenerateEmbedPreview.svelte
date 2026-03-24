@@ -107,6 +107,7 @@
   let localAesKey = $state<string | undefined>(undefined);
   let localAesNonce = $state<string | undefined>(undefined);
   let localStatus = $state<'processing' | 'finished' | 'error'>('processing');
+  let storeResolved = $state(false);
   let localError = $state<string | undefined>(undefined);
   let localTaskId = $state<string | undefined>(undefined);
   let localInputEmbedIds = $state<string[] | undefined>(undefined);
@@ -161,16 +162,18 @@
   
   // Initialize local state from props
   $effect(() => {
-    localPrompt = promptProp;
-    localModel = modelProp;
-    localS3BaseUrl = s3BaseUrlProp;
-    localFiles = filesProp;
-    localAesKey = aesKeyProp;
-    localAesNonce = aesNonceProp;
-    localStatus = statusProp || 'processing';
-    localError = errorProp;
-    localTaskId = taskIdProp;
-    localInputEmbedIds = inputEmbedIdsProp;
+    if (!storeResolved) {
+      localPrompt = promptProp;
+      localModel = modelProp;
+      localS3BaseUrl = s3BaseUrlProp;
+      localFiles = filesProp;
+      localAesKey = aesKeyProp;
+      localAesNonce = aesNonceProp;
+      localStatus = statusProp || 'processing';
+      localError = errorProp;
+      localTaskId = taskIdProp;
+      localInputEmbedIds = inputEmbedIdsProp;
+    }
   });
   
   // Derived state
@@ -334,7 +337,10 @@
     if (data.status === 'processing' || data.status === 'finished' || data.status === 'error') {
       localStatus = data.status;
     }
-    
+    if (data.status !== 'processing') {
+      storeResolved = true;
+    }
+
     // Update content from decoded data
     if (data.decodedContent) {
       const content = data.decodedContent as unknown as ImageEmbedData;

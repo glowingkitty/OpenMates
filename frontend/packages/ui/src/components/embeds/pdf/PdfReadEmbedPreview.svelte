@@ -75,16 +75,19 @@
   // ---------------------------------------------------------------------------
 
   let localStatus = $state<'processing' | 'finished' | 'error'>('processing');
+  let storeResolved = $state(false);
   let localTextContent = $state<string>('');
   let localFilename = $state<string>('');
   let localPagesReturned = $state<number[]>([]);
 
   // Initialize from props
   $effect(() => {
-    localStatus = statusProp;
-    localTextContent = textContentProp || '';
-    localFilename = filename || '';
-    localPagesReturned = pagesReturned || [];
+    if (!storeResolved) {
+      localStatus = statusProp;
+      localTextContent = textContentProp || '';
+      localFilename = filename || '';
+      localPagesReturned = pagesReturned || [];
+    }
   });
 
   /**
@@ -97,6 +100,9 @@
   }): void {
     if (data.status === 'processing' || data.status === 'finished' || data.status === 'error') {
       localStatus = data.status as 'processing' | 'finished' | 'error';
+    }
+    if (data.status !== 'processing') {
+      storeResolved = true;
     }
     const content = data.decodedContent;
     if (!content) return;

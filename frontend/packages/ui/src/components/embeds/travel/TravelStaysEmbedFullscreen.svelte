@@ -97,14 +97,17 @@
   let embedIdsValue = $derived(embedIdsOverride ?? embedIds);
   let localResults = $state<unknown[]>([]);
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('finished');
+  let storeResolved = $state(false);
   let localErrorMessage = $state('');
 
   $effect(() => {
-    _localQuery = queryProp || '';
-    localProvider = providerProp || 'Google';
-    localResults = resultsProp || [];
-    localStatus = statusProp || 'finished';
-    localErrorMessage = errorMessageProp || '';
+    if (!storeResolved) {
+      _localQuery = queryProp || '';
+      localProvider = providerProp || 'Google';
+      localResults = resultsProp || [];
+      localStatus = statusProp || 'finished';
+      localErrorMessage = errorMessageProp || '';
+    }
   });
 
   let provider = $derived(localProvider);
@@ -254,6 +257,9 @@
     if (!data.decodedContent) return;
     if (data.status === 'processing' || data.status === 'finished' || data.status === 'error' || data.status === 'cancelled') {
       localStatus = data.status;
+    }
+    if (data.status !== 'processing') {
+      storeResolved = true;
     }
     const content = data.decodedContent;
     if (typeof content.query === 'string') _localQuery = content.query;

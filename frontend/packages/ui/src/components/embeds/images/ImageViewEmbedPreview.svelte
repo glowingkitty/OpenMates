@@ -78,6 +78,7 @@
 
   // Local state for derived status
   let localStatus = $state<'processing' | 'finished' | 'error'>('processing');
+  let storeResolved = $state(false);
   let localError = $state<string | undefined>(undefined);
 
   // Decrypted preview image blob URL
@@ -95,8 +96,10 @@
 
   // Sync props to local state
   $effect(() => {
-    localStatus = statusProp || 'processing';
-    localError = errorProp;
+    if (!storeResolved) {
+      localStatus = statusProp || 'processing';
+      localError = errorProp;
+    }
   });
 
   // Set up IntersectionObserver for lazy loading (200px pre-fetch margin)

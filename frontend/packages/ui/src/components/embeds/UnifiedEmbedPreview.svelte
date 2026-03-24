@@ -209,16 +209,28 @@
       const embedData = await resolveEmbed(id);
       if (embedData) {
         
-        // Update status from fetched data
+        // Update status from fetched data.
+        // CRITICAL: Don't regress from a terminal status back to "processing".
+        // The in-memory embedCache may still hold stale "processing" data from
+        // setInMemoryOnly() (streaming row events) while the finalization path's
+        // putEncrypted() hasn't completed yet. If handleEmbedUpdate already set
+        // a terminal status (storeResolved=true), trust it over stale store data.
         if (embedData.status && (embedData.status === 'processing' || embedData.status === 'finished' || embedData.status === 'error' || embedData.status === 'cancelled')) {
-          localStatus = embedData.status;
-          // Mark store-resolved for terminal statuses so $effect won't revert on re-mount
+          if (!storeResolved || embedData.status !== 'processing') {
+            localStatus = embedData.status;
+          }
           if (embedData.status !== 'processing') {
             storeResolved = true;
           }
         }
-        
-        // Decode content and notify child component if callback is provided
+
+        // Decode content and notify child component if callback is provided.
+        // Skip propagating stale "processing" data to child components when a
+        // terminal status is already known — prevents overwriting correct state
+        // in SheetEmbedPreview/CodeEmbedPreview etc.
+        if (storeResolved && embedData.status === 'processing') {
+          return;
+        }
         if (onEmbedDataUpdated && embedData.content) {
           const decodedContent = await decodeToonContent(embedData.content);
           if (decodedContent) {

@@ -112,14 +112,17 @@
   let localQuery = $state<string>('');
   let localResults = $state<unknown[]>([]);
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('finished');
+  let storeResolved = $state(false);
   let localErrorMessage = $state<string>('');
-  
+
   // Keep local state in sync with prop changes
   $effect(() => {
-    localQuery = queryProp || '';
-    localResults = resultsProp || [];
-    localStatus = statusProp || 'finished';
-    localErrorMessage = errorMessageProp || '';
+    if (!storeResolved) {
+      localQuery = queryProp || '';
+      localResults = resultsProp || [];
+      localStatus = statusProp || 'finished';
+      localErrorMessage = errorMessageProp || '';
+    }
   });
   
   // Derived state
@@ -363,7 +366,10 @@
     if (data.status === 'processing' || data.status === 'finished' || data.status === 'error' || data.status === 'cancelled') {
       localStatus = data.status;
     }
-    
+    if (data.status !== 'processing') {
+      storeResolved = true;
+    }
+
     const content = data.decodedContent;
     if (typeof content.query === 'string') localQuery = content.query;
     if (Array.isArray(content.results)) localResults = content.results as unknown[];

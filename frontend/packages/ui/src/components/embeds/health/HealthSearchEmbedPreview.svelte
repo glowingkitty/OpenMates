@@ -77,6 +77,7 @@
   // Local reactive state — updated by handleEmbedDataUpdated during streaming
   let localQuery = $state<string>('');
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
+  let storeResolved = $state(false);
   let localResults = $state<AppointmentResult[]>([]);
   let localErrorMessage = $state<string>('');
   let localTaskId = $state<string | undefined>(undefined);
@@ -84,12 +85,14 @@
 
   // Sync local state from props on mount / prop change
   $effect(() => {
-    localQuery = queryProp || '';
-    localStatus = statusProp || 'processing';
-    localResults = resultsProp || [];
-    localTaskId = taskIdProp;
-    localSkillTaskId = skillTaskIdProp;
-    localErrorMessage = '';
+    if (!storeResolved) {
+      localQuery = queryProp || '';
+      localStatus = statusProp || 'processing';
+      localResults = resultsProp || [];
+      localTaskId = taskIdProp;
+      localSkillTaskId = skillTaskIdProp;
+      localErrorMessage = '';
+    }
   });
 
   // Derived state (source of truth for template)
@@ -117,6 +120,9 @@
       data.status === 'cancelled'
     ) {
       localStatus = data.status;
+    }
+    if (data.status !== 'processing') {
+      storeResolved = true;
     }
 
     const content = data.decodedContent;

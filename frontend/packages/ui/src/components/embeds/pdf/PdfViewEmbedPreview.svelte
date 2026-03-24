@@ -77,11 +77,14 @@
   // ---------------------------------------------------------------------------
 
   let localStatus = $state<'processing' | 'finished' | 'error'>('processing');
+  let storeResolved = $state(false);
   let localOriginalEmbedId = $state<string>('');
 
   $effect(() => {
-    localStatus = statusProp;
-    localOriginalEmbedId = originalEmbedId || '';
+    if (!storeResolved) {
+      localStatus = statusProp;
+      localOriginalEmbedId = originalEmbedId || '';
+    }
   });
 
   // ---------------------------------------------------------------------------
@@ -239,6 +242,9 @@
   }): void {
     if (data.status === 'processing' || data.status === 'finished' || data.status === 'error') {
       localStatus = data.status as 'processing' | 'finished' | 'error';
+    }
+    if (data.status !== 'processing') {
+      storeResolved = true;
     }
     // If the original embed ID is embedded in the skill result content
     const c = data.decodedContent;

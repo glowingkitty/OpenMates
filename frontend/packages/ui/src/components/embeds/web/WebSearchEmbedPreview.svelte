@@ -117,28 +117,31 @@
   let localTaskId = $state<string | undefined>(undefined);
   let localSkillTaskId = $state<string | undefined>(undefined);
   let isLoadingChildren = $state(false);
-  
+  let storeResolved = $state(false);
+
   // Initialize local state from props
   $effect(() => {
-    // Initialize from previewData or direct props
-    if (previewData) {
-      localQuery = previewData.query || '';
-      localProvider = previewData.provider || 'Brave Search';
-      localStatus = previewData.status || 'processing';
-      localResults = previewData.results || [];
-      localTaskId = previewData.task_id;
-      // skill_task_id might be in previewData for skill-level cancellation
-      localSkillTaskId = (previewData as WebSearchSkillPreviewData & { skill_task_id?: string }).skill_task_id;
-      // previewData does not formally include error, but some backend paths may attach it
-      localErrorMessage = (previewData as WebSearchSkillPreviewData & { error?: string }).error || '';
-    } else {
-      localQuery = queryProp || '';
-      localProvider = providerProp || 'Brave Search';
-      localStatus = statusProp || 'processing';
-      localResults = resultsProp || [];
-      localTaskId = taskIdProp;
-      localSkillTaskId = skillTaskIdProp;
-      localErrorMessage = '';
+    if (!storeResolved) {
+      // Initialize from previewData or direct props
+      if (previewData) {
+        localQuery = previewData.query || '';
+        localProvider = previewData.provider || 'Brave Search';
+        localStatus = previewData.status || 'processing';
+        localResults = previewData.results || [];
+        localTaskId = previewData.task_id;
+        // skill_task_id might be in previewData for skill-level cancellation
+        localSkillTaskId = (previewData as WebSearchSkillPreviewData & { skill_task_id?: string }).skill_task_id;
+        // previewData does not formally include error, but some backend paths may attach it
+        localErrorMessage = (previewData as WebSearchSkillPreviewData & { error?: string }).error || '';
+      } else {
+        localQuery = queryProp || '';
+        localProvider = providerProp || 'Brave Search';
+        localStatus = statusProp || 'processing';
+        localResults = resultsProp || [];
+        localTaskId = taskIdProp;
+        localSkillTaskId = skillTaskIdProp;
+        localErrorMessage = '';
+      }
     }
   });
   
@@ -168,7 +171,10 @@
     if (data.status === 'processing' || data.status === 'finished' || data.status === 'error' || data.status === 'cancelled') {
       localStatus = data.status;
     }
-    
+    if (data.status !== 'processing') {
+      storeResolved = true;
+    }
+
     // Update web-search-specific fields from decoded content
     const content = data.decodedContent;
     if (content) {

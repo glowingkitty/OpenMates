@@ -52,19 +52,23 @@
   let localQuery = $state('');
   let localProvider = $state('');
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
+  let storeResolved = $state(false);
   let localResults = $state<MailSearchResult[]>([]);
 
   $effect(() => {
-    localQuery = queryProp || 'Recent emails';
-    localProvider = providerProp || 'Proton Mail Bridge';
-    localStatus = statusProp || 'processing';
-    localResults = resultsProp || [];
+    if (!storeResolved) {
+      localQuery = queryProp || 'Recent emails';
+      localProvider = providerProp || 'Proton Mail Bridge';
+      localStatus = statusProp || 'processing';
+      localResults = resultsProp || [];
+    }
   });
 
   function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> | null }) {
     if (!data.decodedContent) {
       if (data.status === 'processing' || data.status === 'finished' || data.status === 'error' || data.status === 'cancelled') {
         localStatus = data.status;
+        if (data.status !== 'processing') { storeResolved = true; }
       }
       return;
     }
@@ -76,6 +80,7 @@
 
     if (data.status === 'processing' || data.status === 'finished' || data.status === 'error' || data.status === 'cancelled') {
       localStatus = data.status;
+      if (data.status !== 'processing') { storeResolved = true; }
     }
   }
 

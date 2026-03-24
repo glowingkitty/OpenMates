@@ -74,15 +74,18 @@
   let localLineCount = $state<number>(0);
   let localStatus = $state<'processing' | 'finished' | 'error'>('processing');
   let localTaskId = $state<string | undefined>(undefined);
-  
+  let storeResolved = $state(false);
+
   // Initialize local state from props
   $effect(() => {
-    localCodeContent = codeContentProp || '';
-    localLanguage = languageProp || '';
-    localFilename = filenameProp;
-    localLineCount = lineCountProp || 0;
-    localStatus = statusProp || 'processing';
-    localTaskId = taskIdProp;
+    if (!storeResolved) {
+      localCodeContent = codeContentProp || '';
+      localLanguage = languageProp || '';
+      localFilename = filenameProp;
+      localLineCount = lineCountProp || 0;
+      localStatus = statusProp || 'processing';
+      localTaskId = taskIdProp;
+    }
   });
   
   // Use local state as the source of truth (allows updates from embed events)
@@ -283,6 +286,9 @@
     // Update status
     if (data.status) {
       localStatus = data.status as 'processing' | 'finished' | 'error';
+    }
+    if (data.status !== 'processing') {
+      storeResolved = true;
     }
   }
   

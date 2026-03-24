@@ -107,6 +107,7 @@
   let localProvider = $state<string>('Brave Search');
   // NOTE: Must include 'cancelled' to match SkillExecutionStatus type
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
+  let storeResolved = $state(false);
   let localResults = $state<NewsSearchResult[]>([]);
   let localTaskId = $state<string | undefined>(undefined);
   let localSkillTaskId = $state<string | undefined>(undefined);
@@ -114,12 +115,14 @@
 
   // Initialize local state from props
   $effect(() => {
-    localQuery = queryProp || '';
-    localProvider = providerProp || 'Brave Search';
-    localStatus = statusProp || 'processing';
-    localResults = resultsProp || [];
-    localTaskId = taskIdProp;
-    localSkillTaskId = skillTaskIdProp;
+    if (!storeResolved) {
+      localQuery = queryProp || '';
+      localProvider = providerProp || 'Brave Search';
+      localStatus = statusProp || 'processing';
+      localResults = resultsProp || [];
+      localTaskId = taskIdProp;
+      localSkillTaskId = skillTaskIdProp;
+    }
   });
   
   // Use local state as the source of truth (allows updates from embed events)
@@ -146,8 +149,9 @@
     // Update status - handle all SkillExecutionStatus values
     if (data.status === 'processing' || data.status === 'finished' || data.status === 'error' || data.status === 'cancelled') {
       localStatus = data.status;
+      if (data.status !== 'processing') { storeResolved = true; }
     }
-    
+
     // Update news-search-specific fields from decoded content
     const content = data.decodedContent;
     if (content) {

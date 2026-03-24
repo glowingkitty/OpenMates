@@ -82,21 +82,24 @@
   let localQuery = $state<string>('');
   let localProvider = $state<string>('Google');
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
+  let storeResolved = $state(false);
   let localResults = $state<StayResult[]>([]);
   let localResultCount = $state<number | undefined>(undefined);
   let localErrorMessage = $state<string>('');
   let localTaskId = $state<string | undefined>(undefined);
   let localSkillTaskId = $state<string | undefined>(undefined);
-  
+
   // Initialize local state from props
   $effect(() => {
-    localQuery = queryProp || '';
-    localProvider = providerProp || 'Google';
-    localStatus = statusProp || 'processing';
-    localResults = resultsProp || [];
-    localTaskId = taskIdProp;
-    localSkillTaskId = skillTaskIdProp;
-    localErrorMessage = '';
+    if (!storeResolved) {
+      localQuery = queryProp || '';
+      localProvider = providerProp || 'Google';
+      localStatus = statusProp || 'processing';
+      localResults = resultsProp || [];
+      localTaskId = taskIdProp;
+      localSkillTaskId = skillTaskIdProp;
+      localErrorMessage = '';
+    }
   });
   
   // Use local state as the source of truth (allows updates from embed events)
@@ -121,14 +124,17 @@
     if (data.status === 'processing' || data.status === 'finished' || data.status === 'error' || data.status === 'cancelled') {
       localStatus = data.status;
     }
-    
+    if (data.status !== 'processing') {
+      storeResolved = true;
+    }
+
     const content = data.decodedContent;
     if (content) {
       if (typeof content.query === 'string') localQuery = content.query;
       if (typeof content.provider === 'string') localProvider = content.provider;
       if (typeof content.error === 'string') localErrorMessage = content.error;
       if (typeof content.skill_task_id === 'string') localSkillTaskId = content.skill_task_id;
-      
+
       if (content.results && Array.isArray(content.results)) {
         localResults = content.results as StayResult[];
       }

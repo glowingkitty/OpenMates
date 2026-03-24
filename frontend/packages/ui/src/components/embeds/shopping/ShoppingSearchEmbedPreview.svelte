@@ -98,6 +98,7 @@
   let localQuery = $state<string>('');
   let localProvider = $state<string>('REWE');
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
+  let storeResolved = $state(false);
   let localResults = $state<ProductResult[]>([]);
   let localErrorMessage = $state<string>('');
   let localTaskId = $state<string | undefined>(undefined);
@@ -105,13 +106,15 @@
 
   // Initialize local state from props
   $effect(() => {
-    localQuery = queryProp || '';
-    localProvider = providerProp || 'REWE';
-    localStatus = statusProp || 'processing';
-    localResults = resultsProp || [];
-    localTaskId = taskIdProp;
-    localSkillTaskId = skillTaskIdProp;
-    localErrorMessage = '';
+    if (!storeResolved) {
+      localQuery = queryProp || '';
+      localProvider = providerProp || 'REWE';
+      localStatus = statusProp || 'processing';
+      localResults = resultsProp || [];
+      localTaskId = taskIdProp;
+      localSkillTaskId = skillTaskIdProp;
+      localErrorMessage = '';
+    }
   });
 
   // Derived display state
@@ -130,6 +133,9 @@
   async function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> }) {
     if (data.status === 'processing' || data.status === 'finished' || data.status === 'error' || data.status === 'cancelled') {
       localStatus = data.status;
+    }
+    if (data.status !== 'processing') {
+      storeResolved = true;
     }
 
     const content = data.decodedContent;

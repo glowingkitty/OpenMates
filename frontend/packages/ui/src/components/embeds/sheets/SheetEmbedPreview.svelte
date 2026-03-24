@@ -67,15 +67,22 @@
   let localColCount = $state<number>(0);
   let localStatus = $state<'processing' | 'finished' | 'error'>('processing');
   let localTaskId = $state<string | undefined>(undefined);
-  
-  // Initialize local state from props
+
+  // Track whether the store has resolved a terminal status for this embed.
+  // Once handleEmbedDataUpdated receives "finished"/"error", the $effect must NOT
+  // revert to statusProp (which may still be "processing" from the HTML attribute).
+  let storeResolved = $state(false);
+
+  // Initialize local state from props — but only when the store hasn't resolved yet.
   $effect(() => {
-    localTableContent = tableContentProp || '';
-    localTitle = titleProp;
-    localRowCount = rowCountProp || 0;
-    localColCount = colCountProp || 0;
-    localStatus = statusProp || 'processing';
-    localTaskId = taskIdProp;
+    if (!storeResolved) {
+      localTableContent = tableContentProp || '';
+      localTitle = titleProp;
+      localRowCount = rowCountProp || 0;
+      localColCount = colCountProp || 0;
+      localStatus = statusProp || 'processing';
+      localTaskId = taskIdProp;
+    }
   });
   
   // Use local state as source of truth
@@ -187,6 +194,10 @@
   function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> | null }) {
     if (data.status === 'processing' || data.status === 'finished' || data.status === 'error') {
       localStatus = data.status;
+      // Mark store-resolved for terminal statuses so $effect won't revert on re-render
+      if (data.status !== 'processing') {
+        storeResolved = true;
+      }
     }
     
     if (data.decodedContent) {

@@ -124,6 +124,7 @@
   // Status type matches UnifiedEmbedPreview expectations (excludes 'cancelled')
   // We map 'cancelled' to 'error' for display purposes
   let localStatus = $state<'processing' | 'finished' | 'error'>('processing');
+  let storeResolved = $state(false);
   let localSkillTaskId = $state<string | undefined>(undefined);
   
   // ===========================================
@@ -150,21 +151,23 @@
   
   // Initialize local state from props
   $effect(() => {
-    // Initialize from previewData or direct props
-    if (previewData) {
-      localResults = previewData.results || [];
-      // URL comes from the first result, not directly from previewData
-      // The effectiveUrl derived value will handle extracting it from results
-      localUrl = '';
-      localStatus = mapStatusToEmbedStatus(previewData.status);
-      // skill_task_id might be in previewData for skill-level cancellation
-      // Check if it exists as a property (it's not in the type but may be present at runtime)
-      localSkillTaskId = 'skill_task_id' in previewData ? (previewData as Record<string, unknown>).skill_task_id as string | undefined : undefined;
-    } else {
-      localResults = resultsProp || [];
-      localUrl = urlProp || '';
-      localStatus = statusProp || 'processing';
-      localSkillTaskId = skillTaskIdProp;
+    if (!storeResolved) {
+      // Initialize from previewData or direct props
+      if (previewData) {
+        localResults = previewData.results || [];
+        // URL comes from the first result, not directly from previewData
+        // The effectiveUrl derived value will handle extracting it from results
+        localUrl = '';
+        localStatus = mapStatusToEmbedStatus(previewData.status);
+        // skill_task_id might be in previewData for skill-level cancellation
+        // Check if it exists as a property (it's not in the type but may be present at runtime)
+        localSkillTaskId = 'skill_task_id' in previewData ? (previewData as Record<string, unknown>).skill_task_id as string | undefined : undefined;
+      } else {
+        localResults = resultsProp || [];
+        localUrl = urlProp || '';
+        localStatus = statusProp || 'processing';
+        localSkillTaskId = skillTaskIdProp;
+      }
     }
   });
   
@@ -279,8 +282,9 @@
     // Update status - map SkillExecutionStatus to embed status
     if (data.status === 'processing' || data.status === 'finished' || data.status === 'error' || data.status === 'cancelled') {
       localStatus = mapStatusToEmbedStatus(data.status as SkillExecutionStatus);
+      if (data.status !== 'processing') { storeResolved = true; }
     }
-    
+
     // Update video-transcript-specific fields from decoded content
     const content = data.decodedContent;
     if (content) {

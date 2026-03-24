@@ -100,12 +100,15 @@
   let embedIdsOverride = $state<string | string[] | undefined>(undefined);
   let localResults = $state<unknown[]>([]);
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('finished');
+  let storeResolved = $state(false);
   let localErrorMessage = $state('');
 
   $effect(() => {
-    localResults = resultsProp || [];
-    localStatus = statusProp || 'finished';
-    localErrorMessage = errorMessageProp || '';
+    if (!storeResolved) {
+      localResults = resultsProp || [];
+      localStatus = statusProp || 'finished';
+      localErrorMessage = errorMessageProp || '';
+    }
   });
 
   let embedIdsValue = $derived(embedIdsOverride ?? embedIds);
@@ -245,6 +248,9 @@
     if (!data.decodedContent) return;
     if (data.status === 'processing' || data.status === 'finished' || data.status === 'error' || data.status === 'cancelled') {
       localStatus = data.status;
+    }
+    if (data.status !== 'processing') {
+      storeResolved = true;
     }
     const content = data.decodedContent;
     if (content.embed_ids) embedIdsOverride = content.embed_ids as string | string[];

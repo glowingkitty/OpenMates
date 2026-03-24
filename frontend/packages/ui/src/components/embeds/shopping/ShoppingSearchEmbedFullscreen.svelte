@@ -101,14 +101,17 @@
   let embedIdsOverride = $state<string | string[] | undefined>(undefined);
   let localResults = $state<unknown[]>([]);
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('finished');
+  let storeResolved = $state(false);
   let localErrorMessage = $state('');
 
   $effect(() => {
-    localQuery = queryProp || '';
-    localProvider = providerProp || 'REWE';
-    localResults = resultsProp || [];
-    localStatus = statusProp || 'finished';
-    localErrorMessage = errorMessageProp || '';
+    if (!storeResolved) {
+      localQuery = queryProp || '';
+      localProvider = providerProp || 'REWE';
+      localResults = resultsProp || [];
+      localStatus = statusProp || 'finished';
+      localErrorMessage = errorMessageProp || '';
+    }
   });
 
   let query = $derived(localQuery);
@@ -220,6 +223,9 @@
       data.status === 'cancelled'
     ) {
       localStatus = data.status;
+    }
+    if (data.status !== 'processing') {
+      storeResolved = true;
     }
 
     const content = data.decodedContent;

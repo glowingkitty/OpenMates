@@ -73,18 +73,21 @@
   let localPlaceType = $state<string>('');
   let localMapImageUrl = $state<string | undefined>(undefined);
   let localStatus = $state<'processing' | 'finished' | 'error'>('processing');
+  let storeResolved = $state(false);
   let localTaskId = $state<string | undefined>(undefined);
   let imageError = $state(false);
 
   // Sync local state from props on initial mount / prop changes
   $effect(() => {
-    localName = nameProp ?? '';
-    localAddress = addressProp ?? '';
-    localLocationType = locationTypeProp ?? 'area';
-    localPlaceType = placeTypeProp ?? '';
-    localMapImageUrl = mapImageUrlProp;
-    localStatus = statusProp ?? 'processing';
-    localTaskId = taskIdProp;
+    if (!storeResolved) {
+      localName = nameProp ?? '';
+      localAddress = addressProp ?? '';
+      localLocationType = locationTypeProp ?? 'area';
+      localPlaceType = placeTypeProp ?? '';
+      localMapImageUrl = mapImageUrlProp;
+      localStatus = statusProp ?? 'processing';
+      localTaskId = taskIdProp;
+    }
   });
 
   // Expose as derived read-only aliases for clarity
@@ -105,6 +108,7 @@
 
     if (data.status === 'processing' || data.status === 'finished' || data.status === 'error') {
       localStatus = data.status;
+      if (data.status !== 'processing') { storeResolved = true; }
     }
 
     const content = data.decodedContent;
