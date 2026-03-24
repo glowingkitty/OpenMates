@@ -20,6 +20,7 @@ load_dotenv()
 from backend.apps.ai.llm_providers.mistral_client import UnifiedMistralResponse as UnifiedMistralResponse
 from backend.apps.ai.llm_providers.google_client import UnifiedGoogleResponse, ParsedGoogleToolCall as ParsedGoogleToolCall
 from backend.apps.ai.llm_providers.anthropic_client import UnifiedAnthropicResponse
+from backend.apps.ai.llm_providers.bedrock_shared import UnifiedBedrockResponse  # noqa: F401
 from backend.apps.ai.llm_providers.openai_shared import UnifiedOpenAIResponse, _sanitize_schema_for_llm_providers
 from backend.apps.ai.utils.timeout_utils import (
     stream_with_first_chunk_timeout,
@@ -85,6 +86,7 @@ def _is_usage_chunk(chunk: Any) -> bool:
         "GoogleUsageMetadata",
         "AnthropicUsageMetadata",
         "OpenAIUsageMetadata",
+        "BedrockUsageMetadata",
     }
 
 

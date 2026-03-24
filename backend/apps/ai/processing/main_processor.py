@@ -26,6 +26,7 @@ from backend.apps.ai.utils.stream_utils import aggregate_paragraphs
 from backend.apps.ai.llm_providers.mistral_client import ParsedMistralToolCall, MistralUsage
 from backend.apps.ai.llm_providers.google_client import GoogleUsageMetadata, ParsedGoogleToolCall
 from backend.apps.ai.llm_providers.anthropic_client import ParsedAnthropicToolCall, AnthropicUsageMetadata
+from backend.apps.ai.llm_providers.bedrock_shared import ParsedBedrockToolCall, BedrockUsageMetadata
 from backend.apps.ai.llm_providers.openai_shared import ParsedOpenAIToolCall, OpenAIUsageMetadata
 from backend.apps.ai.llm_providers.types import UnifiedStreamChunk, StreamChunkType
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML, AppSkillDefinition
@@ -1903,7 +1904,7 @@ async def handle_main_processing(
                     ) from model_error
 
         current_turn_text_buffer = []
-        tool_calls_for_this_turn: List[Union[ParsedMistralToolCall, ParsedGoogleToolCall, ParsedAnthropicToolCall, ParsedOpenAIToolCall]] = []
+        tool_calls_for_this_turn: List[Union[ParsedMistralToolCall, ParsedGoogleToolCall, ParsedAnthropicToolCall, ParsedBedrockToolCall, ParsedOpenAIToolCall]] = []
         llm_turn_had_content = False
         
         # Dictionary to store placeholder embeds created for tool calls during stream processing
@@ -1922,7 +1923,7 @@ async def handle_main_processing(
         _stream_all_servers_error: Optional[AllServersFailedError] = None
         try:
           async for chunk in aggregate_paragraphs(llm_stream):
-            if isinstance(chunk, (MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata)):
+            if isinstance(chunk, (MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, BedrockUsageMetadata, OpenAIUsageMetadata)):
                 usage = chunk
                 # Accumulate token counts from every LLM call in this turn.
                 # Each tool-use iteration re-sends the full history plus tool results,
@@ -1935,7 +1936,7 @@ async def handle_main_processing(
                 elif isinstance(chunk, GoogleUsageMetadata):
                     _iter_input = chunk.prompt_token_count or 0
                     _iter_output = chunk.candidates_token_count or 0
-                elif isinstance(chunk, AnthropicUsageMetadata):
+                elif isinstance(chunk, (AnthropicUsageMetadata, BedrockUsageMetadata)):
                     _iter_input = chunk.input_tokens or 0
                     _iter_output = chunk.output_tokens or 0
                 elif isinstance(chunk, OpenAIUsageMetadata):
@@ -1949,7 +1950,7 @@ async def handle_main_processing(
                     f"Running totals: {cumulative_input_tokens} in / {cumulative_output_tokens} out"
                 )
                 continue
-            if isinstance(chunk, (ParsedMistralToolCall, ParsedGoogleToolCall, ParsedAnthropicToolCall, ParsedOpenAIToolCall)):
+            if isinstance(chunk, (ParsedMistralToolCall, ParsedGoogleToolCall, ParsedAnthropicToolCall, ParsedBedrockToolCall, ParsedOpenAIToolCall)):
                 tool_calls_for_this_turn.append(chunk)
                 
                 # === IMMEDIATE PLACEHOLDER CREATION ===

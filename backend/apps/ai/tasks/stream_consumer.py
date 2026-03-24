@@ -28,6 +28,7 @@ from backend.shared.python_utils.billing_utils import calculate_total_credits, c
 from backend.apps.ai.llm_providers.mistral_client import MistralUsage
 from backend.apps.ai.llm_providers.google_client import GoogleUsageMetadata
 from backend.apps.ai.llm_providers.anthropic_client import AnthropicUsageMetadata
+from backend.apps.ai.llm_providers.bedrock_shared import BedrockUsageMetadata
 from backend.apps.ai.llm_providers.openai_shared import OpenAIUsageMetadata
 from backend.apps.ai.llm_providers.types import UnifiedStreamChunk, StreamChunkType
 from backend.apps.ai.processing.url_validator import (
@@ -40,7 +41,7 @@ from backend.shared.python_utils.url_normalizer import sanitize_text_urls_remove
 logger = logging.getLogger(__name__)
 
 # Type alias for usage metadata
-UsageMetadata = Union[MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata]
+UsageMetadata = Union[MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, BedrockUsageMetadata, OpenAIUsageMetadata]
 
 # Regex pattern to match <tool_call>...</tool_call> blocks
 # Some LLMs (e.g., Qwen3) output tool calls as XML text IN ADDITION to proper function calling.
@@ -1260,6 +1261,18 @@ async def _handle_normal_billing(
         user_input_tokens = usage.user_input_tokens
         system_prompt_tokens = usage.system_prompt_tokens
         provider_name = "anthropic"
+    elif isinstance(usage, BedrockUsageMetadata):
+        input_tokens = usage.input_tokens
+        output_tokens = usage.output_tokens
+        user_input_tokens = usage.user_input_tokens
+        system_prompt_tokens = usage.system_prompt_tokens
+        # Bedrock is provider-agnostic — determine billing provider from model_id prefix
+        try:
+            selected_full_model = preprocessing_result.selected_main_llm_model_id or "anthropic/unknown"
+            provider_name = selected_full_model.split("/", 1)[0]
+            logger.info(f"{log_prefix} Bedrock usage - extracted billing provider from model_id: {provider_name}")
+        except Exception:
+            provider_name = "anthropic"
     elif isinstance(usage, OpenAIUsageMetadata):
         input_tokens = usage.input_tokens
         output_tokens = usage.output_tokens
@@ -1742,7 +1755,7 @@ async def _consume_main_processing_stream(
         )
 
     # Normal processing flow for other non-harmful content
-    main_processing_stream: AsyncIterator[Union[str, MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata]] = handle_main_processing(
+    main_processing_stream: AsyncIterator[Union[str, MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, BedrockUsageMetadata, OpenAIUsageMetadata]] = handle_main_processing(
         task_id=task_id,
         request_data=request_data,
         preprocessing_results=preprocessing_result,
@@ -1758,7 +1771,7 @@ async def _consume_main_processing_stream(
     )
 
     stream_chunk_count = 0
-    usage: Optional[Union[MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata]] = None
+    usage: Optional[Union[MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, BedrockUsageMetadata, OpenAIUsageMetadata]] = None
 
     # Cumulative token totals from all LLM iterations in this turn (set via sentinel dict
     # emitted by handle_main_processing just before the final usage metadata object).
@@ -1970,7 +1983,7 @@ async def _consume_main_processing_stream(
                 # Skip to next chunk - thinking chunks don't go to main response
                 continue
             
-            if isinstance(chunk, (MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata)):
+            if isinstance(chunk, (MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, BedrockUsageMetadata, OpenAIUsageMetadata)):
                 usage = chunk
                 continue
             

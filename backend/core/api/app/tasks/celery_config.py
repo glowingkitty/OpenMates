@@ -493,7 +493,7 @@ async def prewarm_ai_services():
             logger.warning(f"[PERF] Failed to pre-warm OpenAI client: {e}")
             providers_failed.append("openai")
         
-        # Anthropic client (includes AWS Bedrock setup)
+        # Anthropic direct API client
         try:
             from backend.apps.ai.llm_providers.anthropic_client import initialize_anthropic_client
             await initialize_anthropic_client(secrets_manager)
@@ -501,7 +501,16 @@ async def prewarm_ai_services():
         except Exception as e:
             logger.warning(f"[PERF] Failed to pre-warm Anthropic client: {e}")
             providers_failed.append("anthropic")
-        
+
+        # AWS Bedrock client (unified across all Bedrock providers)
+        try:
+            from backend.apps.ai.llm_providers.bedrock_client import _ensure_bedrock_client
+            await _ensure_bedrock_client(secrets_manager)
+            providers_initialized.append("aws_bedrock")
+        except Exception as e:
+            logger.warning(f"[PERF] Failed to pre-warm AWS Bedrock client: {e}")
+            providers_failed.append("aws_bedrock")
+
         # Google client (Vertex AI)
         try:
             from backend.apps.ai.llm_providers.google_client import initialize_google_client
