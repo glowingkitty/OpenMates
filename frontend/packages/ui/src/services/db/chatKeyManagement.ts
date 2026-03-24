@@ -638,8 +638,12 @@ export async function decryptMessageFields(
   }
 
   const decryptedMessage = { ...message };
-  // Use ChatKeyManager for key lookup (safe: returns null if unavailable)
-  const chatKey = chatKeyManager.getKeySync(chatId);
+  // Use ChatKeyManager for async key lookup — waits for key from IDB if not in memory.
+  // CRITICAL: The previous sync getKeySync() returned null on secondary devices where
+  // the key hadn't finished loading yet (decrypt encrypted_chat_key with master key is async).
+  // This caused "[Content decryption failed]" on iPad/iPhone when opening chats created
+  // on another device, because the message rendered before the key was available.
+  const chatKey = await chatKeyManager.getKey(chatId);
 
   if (!chatKey) {
     const keyState = chatKeyManager.getState(chatId);
