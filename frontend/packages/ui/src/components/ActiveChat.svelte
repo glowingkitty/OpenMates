@@ -6055,7 +6055,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         await tick();
         await new Promise(resolve => setTimeout(resolve, 100));
 
-        settingsDeepLink.set('notifications/reminders');
+        settingsDeepLink.set('app_store/reminder/create');
     }
 
     /**
@@ -9273,7 +9273,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {#if !showWelcome}
                                 <div class="new-chat-button-wrapper">
                                     <button
-                                        class="clickable-icon icon_bell top-button"
+                                        class="clickable-icon icon_reminder top-button"
                                         data-testid="chat-reminders-button"
                                         aria-label={$text('chat.reminders')}
                                         onclick={handleOpenReminders}

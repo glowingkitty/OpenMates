@@ -26,7 +26,6 @@ import SettingsChatNotifications from "./chat/SettingsChatNotifications.svelte";
 import SettingsNotifications from "./SettingsNotifications.svelte";
 import SettingsNotificationsChatNotifications from "./notifications/SettingsChatNotifications.svelte";
 import SettingsBackupReminders from "./notifications/SettingsBackupReminders.svelte";
-import SettingsReminders from "./notifications/SettingsReminders.svelte";
 
 // Privacy
 import SettingsPrivacy from "./SettingsPrivacy.svelte";
@@ -148,7 +147,6 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   notifications: SettingsNotifications,
   "notifications/chat": SettingsNotificationsChatNotifications,
   "notifications/backup": SettingsBackupReminders,
-  "notifications/reminders": SettingsReminders,
   // Settings & Memories hub — lists all user-created settings and memories across apps
   settings_memories: SettingsMemoriesHub,
   // Privacy settings — anonymization, device permissions, auto deletion

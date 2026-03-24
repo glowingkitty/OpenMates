@@ -1,12 +1,12 @@
 <!--
   SettingsReminders.svelte
 
-  Reminder management settings page. Allows users to create new reminders
-  and view active (pending) reminders. Uses canonical settings design elements.
+  Reminder creation page within the Reminders app settings.
+  Uses canonical settings design elements (SettingsItem headings + SettingsInput/Dropdown).
 
   Opened via:
-  - Chat top bar bell button (deep link: notifications/reminders)
-  - Settings → Notifications → Reminders
+  - Chat top bar reminder button (deep link: app_store/reminder/create)
+  - Reminders app page → "Create reminder" button (future)
 
   API: POST /v1/apps/reminder/skills/set-reminder (creation)
   API: GET /v1/settings/reminders (list, via ActiveRemindersList)
@@ -26,6 +26,7 @@
     import SettingsButton from '../elements/SettingsButton.svelte';
     import SettingsDivider from '../elements/SettingsDivider.svelte';
     import SettingsInfoBox from '../elements/SettingsInfoBox.svelte';
+    import SettingsItem from '../../SettingsItem.svelte';
     import ActiveRemindersList from '../appSettings/ActiveRemindersList.svelte';
 
     // ─── Form state ────────────────────────────────────────────────────────────
@@ -33,7 +34,7 @@
     let date = $state('');
     let time = $state('');
     let note = $state('');
-    let responseType = $state<'simple' | 'full'>('simple');
+    let responseType = $state('simple');
     let actionPrompt = $state('');
     let repeatType = $state('none');
     let customInterval = $state('1');
@@ -47,56 +48,36 @@
 
     // ─── Derived ───────────────────────────────────────────────────────────────
 
-    /** Timezone from user profile, falling back to browser timezone. */
     let timezone = $derived(
         $userProfile.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone
     );
 
-    /** Today's date string (YYYY-MM-DD) used as the min value for date inputs. */
-    let todayStr = $derived(() => {
+    let todayStr = $derived.by(() => {
         const d = new Date();
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     });
 
     let showCustomRepeat = $derived(repeatType === 'custom');
 
-    /** Repeat type dropdown options */
-    const repeatOptions = [
-        { value: 'none', label: '' },
-        { value: 'daily', label: '' },
-        { value: 'weekly', label: '' },
-        { value: 'monthly', label: '' },
-        { value: 'custom', label: '' },
-    ];
+    /** Dropdown options — labels populated reactively via $derived */
+    let repeatOptions = $derived([
+        { value: 'none', label: $text('reminder.panel.repeat_none') },
+        { value: 'daily', label: $text('reminder.panel.repeat_daily') },
+        { value: 'weekly', label: $text('reminder.panel.repeat_weekly') },
+        { value: 'monthly', label: $text('reminder.panel.repeat_monthly') },
+        { value: 'custom', label: $text('reminder.panel.repeat_custom') },
+    ]);
 
-    /** Custom repeat unit dropdown options */
-    const customUnitOptions = [
-        { value: 'days', label: '' },
-        { value: 'weeks', label: '' },
-        { value: 'months', label: '' },
-    ];
+    let customUnitOptions = $derived([
+        { value: 'days', label: $text('reminder.panel.repeat_days') },
+        { value: 'weeks', label: $text('reminder.panel.repeat_weeks') },
+        { value: 'months', label: $text('reminder.panel.repeat_months') },
+    ]);
 
-    /** Response type dropdown options */
-    const responseTypeOptions = [
-        { value: 'simple', label: '' },
-        { value: 'full', label: '' },
-    ];
-
-    // Populate labels reactively (need $text which is reactive)
-    $effect(() => {
-        repeatOptions[0].label = $text('reminder.panel.repeat_none');
-        repeatOptions[1].label = $text('reminder.panel.repeat_daily');
-        repeatOptions[2].label = $text('reminder.panel.repeat_weekly');
-        repeatOptions[3].label = $text('reminder.panel.repeat_monthly');
-        repeatOptions[4].label = $text('reminder.panel.repeat_custom');
-
-        customUnitOptions[0].label = $text('reminder.panel.repeat_days');
-        customUnitOptions[1].label = $text('reminder.panel.repeat_weeks');
-        customUnitOptions[2].label = $text('reminder.panel.repeat_months');
-
-        responseTypeOptions[0].label = $text('reminder.panel.type_notification');
-        responseTypeOptions[1].label = $text('reminder.panel.type_action');
-    });
+    let responseTypeOptions = $derived([
+        { value: 'simple', label: $text('reminder.panel.type_notification') },
+        { value: 'full', label: $text('reminder.panel.type_action') },
+    ]);
 
     // ─── Submission ────────────────────────────────────────────────────────────
 
@@ -106,7 +87,6 @@
 
         if (!date || !time) return;
 
-        // Validate that the chosen date/time is in the future
         const triggerDatetime = `${date}T${time}:00`;
         const triggerMs = new Date(triggerDatetime).getTime();
         if (triggerMs <= Date.now()) {
@@ -174,7 +154,6 @@
             endDate = '';
             refreshTrigger++;
 
-            // Clear success message after 5 seconds
             setTimeout(() => { successMessage = ''; }, 5000);
         } catch (err) {
             errorMessage = $text('reminder.panel.error_generic');
@@ -187,48 +166,71 @@
 
 <SettingsPageContainer>
     <SettingsPageHeader
-        title={$text('reminder.settings.title')}
+        title={$text('reminder.settings.create_title')}
         description={$text('reminder.settings.description')}
     />
 
-    <!-- Create new reminder form -->
-    <h3 class="section-heading">{$text('reminder.settings.create_title')}</h3>
-
-    <div class="form-row">
-        <div class="form-field">
-            <label class="field-label" for="settings-reminder-date">{$text('reminder.panel.date')}</label>
-            <input
-                id="settings-reminder-date"
-                class="native-input"
-                type="date"
-                bind:value={date}
-                min={todayStr()}
-            />
-        </div>
-        <div class="form-field">
-            <label class="field-label" for="settings-reminder-time">{$text('reminder.panel.time')}</label>
-            <input
-                id="settings-reminder-time"
-                class="native-input"
-                type="time"
-                bind:value={time}
-            />
-        </div>
+    <!-- Date -->
+    <SettingsItem
+        type="heading"
+        icon="calendar"
+        title={$text('reminder.panel.date')}
+    />
+    <div class="native-input-wrapper">
+        <input
+            id="settings-reminder-date"
+            class="native-input"
+            type="date"
+            bind:value={date}
+            min={todayStr}
+        />
     </div>
 
+    <!-- Time -->
+    <SettingsItem
+        type="heading"
+        icon="clock"
+        title={$text('reminder.panel.time')}
+    />
+    <div class="native-input-wrapper">
+        <input
+            id="settings-reminder-time"
+            class="native-input"
+            type="time"
+            bind:value={time}
+        />
+    </div>
+
+    <!-- Response type -->
+    <SettingsItem
+        type="heading"
+        icon="reminder"
+        title={$text('reminder.panel.type_notification')}
+    />
     <SettingsDropdown
         bind:value={responseType}
         options={responseTypeOptions}
         ariaLabel={$text('reminder.panel.type_notification')}
     />
 
+    <!-- Note or action prompt -->
     {#if responseType === 'simple'}
+        <SettingsItem
+            type="heading"
+            icon="text"
+            title={$text('reminder.panel.note')}
+        />
         <SettingsInput
             bind:value={note}
             placeholder={$text('reminder.panel.note_placeholder')}
             ariaLabel={$text('reminder.panel.note')}
         />
     {:else}
+        <SettingsItem
+            type="heading"
+            icon="text"
+            title={$text('reminder.panel.action_prompt_label')}
+        />
         <SettingsTextarea
             bind:value={actionPrompt}
             placeholder={$text('reminder.panel.action_prompt_placeholder')}
@@ -237,6 +239,12 @@
         />
     {/if}
 
+    <!-- Repeat -->
+    <SettingsItem
+        type="heading"
+        icon="repeat"
+        title={$text('reminder.panel.repeat')}
+    />
     <SettingsDropdown
         bind:value={repeatType}
         options={repeatOptions}
@@ -244,9 +252,13 @@
     />
 
     {#if showCustomRepeat}
-        <div class="form-row">
-            <div class="form-field">
-                <label class="field-label" for="settings-reminder-interval">{$text('reminder.panel.repeat_every')}</label>
+        <SettingsItem
+            type="heading"
+            icon="repeat"
+            title={$text('reminder.panel.repeat_every')}
+        />
+        <div class="custom-repeat-row">
+            <div class="native-input-wrapper interval-field">
                 <input
                     id="settings-reminder-interval"
                     class="native-input"
@@ -255,7 +267,7 @@
                     bind:value={customInterval}
                 />
             </div>
-            <div class="form-field form-field-grow">
+            <div class="unit-field">
                 <SettingsDropdown
                     bind:value={customUnit}
                     options={customUnitOptions}
@@ -266,14 +278,18 @@
     {/if}
 
     {#if repeatType !== 'none'}
-        <div class="form-field">
-            <label class="field-label" for="settings-reminder-end-date">{$text('reminder.panel.end_date')}</label>
+        <SettingsItem
+            type="heading"
+            icon="calendar"
+            title={$text('reminder.panel.end_date')}
+        />
+        <div class="native-input-wrapper">
             <input
                 id="settings-reminder-end-date"
                 class="native-input"
                 type="date"
                 bind:value={endDate}
-                min={todayStr()}
+                min={todayStr}
             />
         </div>
     {/if}
@@ -298,42 +314,18 @@
     <SettingsDivider />
 
     <!-- Active reminders list -->
-    <h3 class="section-heading">{$text('reminder.settings.active_title')}</h3>
+    <SettingsItem
+        type="heading"
+        icon="reminder"
+        title={$text('reminder.settings.active_title')}
+    />
     <ActiveRemindersList {refreshTrigger} />
 </SettingsPageContainer>
 
 <style>
-    .section-heading {
-        font-family: 'Lexend Deca Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        font-size: var(--font-size-h3, 1.125rem);
-        font-weight: 600;
-        color: var(--color-font-primary);
-        margin: 0.5rem 0.625rem 0.75rem;
-    }
-
-    .form-row {
-        display: flex;
-        gap: 0.75rem;
+    /* Wrapper to match SettingsInput/SettingsDropdown horizontal padding */
+    .native-input-wrapper {
         padding: 0 0.625rem;
-    }
-
-    .form-field {
-        display: flex;
-        flex-direction: column;
-        gap: 0.375rem;
-        flex: 1;
-    }
-
-    .form-field-grow {
-        flex: 2;
-    }
-
-    .field-label {
-        font-family: 'Lexend Deca Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        font-size: var(--font-size-small, 0.8125rem);
-        font-weight: 500;
-        color: var(--color-font-secondary);
-        padding-left: 0.25rem;
     }
 
     /* Native date/time/number inputs styled to match SettingsInput */
@@ -356,5 +348,19 @@
     .native-input:focus {
         outline: none;
         box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.15);
+    }
+
+    .custom-repeat-row {
+        display: flex;
+        gap: 0.75rem;
+        align-items: flex-start;
+    }
+
+    .interval-field {
+        flex: 1;
+    }
+
+    .unit-field {
+        flex: 2;
     }
 </style>
