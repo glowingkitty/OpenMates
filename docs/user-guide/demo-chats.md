@@ -17,8 +17,9 @@ Demo chats are curated conversations that appear in the sidebar for all visitors
 
 Built-in chats that are always available, even offline:
 
-- **Welcome to OpenMates** -- An introduction for new users.
-- **What Makes OpenMates Different** -- Feature highlights and comparisons.
+- **OpenMates | For everyone** -- An introduction for new users.
+- **OpenMates | For developers** -- Developer-focused features, REST API, CLI, and privacy.
+- **Who develops OpenMates?** -- Meet the creator and learn about the project philosophy.
 
 These chats are translated into all supported languages.
 
@@ -26,7 +27,7 @@ These chats are translated into all supported languages.
 
 Example conversations submitted by users and approved by the team:
 
-- Up to **6 "For Everyone"** demos covering general topics.
+- Up to **10 "For Everyone"** demos covering general topics.
 - Up to **4 "For Developers"** demos covering technical topics.
 - Updated periodically as new submissions are approved.
 - Automatically translated into all supported languages.

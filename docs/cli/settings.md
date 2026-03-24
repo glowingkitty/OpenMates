@@ -68,13 +68,11 @@ Redemption shows the credits added and your updated balance.
 
 The following operations are blocked in the CLI for security reasons and must be performed in the web app:
 
-- Passkey management
-- Password setup and updates
-- Two-factor authentication setup
-- Device session management
-- API key creation (listing and deletion are allowed)
+- Password setup and updates (`/v1/settings/update-password`, `/v1/auth/setup_password`)
+- Two-factor authentication setup (`/v1/auth/2fa/setup/*`)
+- API key creation (`/v1/settings/api-keys` POST is blocked; listing and deletion are allowed)
 
-These paths are enforced by `BLOCKED_SETTINGS_MUTATE_PATHS` in the client. The CLI shows web app URLs for these operations when you run `openmates settings --help`.
+These paths are enforced by `BLOCKED_SETTINGS_MUTATE_PATHS` in the client. Additionally, passkey management and device session management are not exposed as CLI-accessible settings paths at all -- the `--help` output shows web app URLs for these operations.
 
 ## Memories
 

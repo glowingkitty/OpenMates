@@ -200,7 +200,7 @@ Same rule as frontend-standards: **never add a package with a version from memor
 pnpm info <package-name> version
 ```
 
-The CLI has zero runtime dependencies beyond Node.js built-ins (intentional). Before adding any external library, consider whether the functionality can be implemented with `node:crypto`, `node:fs`, or `node:http` built-ins. An external dependency increases install size for users who run the CLI globally.
+The CLI has minimal runtime dependencies (`qrcode-terminal`, `ws`, `@toon-format/toon`, `ahocorasick`) beyond Node.js built-ins. Before adding any external library, consider whether the functionality can be implemented with `node:crypto`, `node:fs`, or `node:http` built-ins. An external dependency increases install size for users who run the CLI globally.
 
 ---
 

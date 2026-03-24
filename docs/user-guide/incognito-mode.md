@@ -56,7 +56,6 @@ Incognito chats still use credits. Your usage is tracked, but all incognito acti
 
 - Incognito mode is per-tab, so you can have one tab in incognito mode and another in regular mode at the same time.
 - If you want to keep a conversation that started in incognito mode, copy the text before turning off the mode or closing the tab.
-- Incognito chats work offline. Messages queue up and send when your connection returns.
 
 ## Related
 

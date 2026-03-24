@@ -13,7 +13,7 @@ A terminal interface and Node.js SDK for interacting with OpenMates. Provides pa
 npm install -g openmates
 ```
 
-Requires Node.js 18+. The package has zero runtime dependencies beyond Node.js built-ins.
+Requires Node.js 18+. Runtime dependencies are minimal: `qrcode-terminal` (pair-auth QR display), `ws` (WebSocket streaming), `@toon-format/toon` (embed encoding), and `ahocorasick` (mention matching).
 
 ## Quick Start
 
@@ -37,6 +37,7 @@ Login uses pair-auth only -- the CLI never asks for your email or password. A QR
 | `settings` | Read/write settings, memories CRUD, gift cards | [settings.md](./settings.md) |
 | `embeds`, `mentions` | View embeds, create share links, search mentions | [embeds-and-sharing.md](./embeds-and-sharing.md) |
 | `inspirations`, `newchatsuggestions` | Daily inspirations and personalized suggestions | [chats.md](./chats.md) |
+| `docs` | Browse, search, and download documentation | — |
 | `server` | Install, start, stop, update a self-hosted instance | [server-management.md](./server-management.md) |
 
 ## Global Flags

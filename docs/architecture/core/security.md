@@ -73,7 +73,7 @@ key_files:
 
 - Client sends `vault_wrapped_aes_key` (never plaintext AES key)
 - `apps_api.py` resolves `vault_key_id` from cache/Directus → skill unwraps via Vault
-- Implementation: [transcribe_skill.py](../../backend/apps/ai/skills/transcribe/transcribe_skill.py) <!-- VERIFY: exact path -->
+- Implementation: [transcribe_skill.py](../../backend/apps/audio/skills/transcribe_skill.py)
 
 > Profile images use separate public-read bucket — unencrypted thumbnails, no sensitive data
 

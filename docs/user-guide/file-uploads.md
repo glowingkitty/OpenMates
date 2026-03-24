@@ -13,11 +13,10 @@ You can upload files directly into a chat. Your digital team mate can then view,
 
 ## Supported File Types
 
-- **Images** — JPEG, PNG, WebP, GIF, HEIC
+- **Images** — JPEG, PNG, WebP, GIF, HEIC, BMP, TIFF, SVG
 - **PDFs** — documents, reports, scanned pages
 - **Audio** — voice recordings and audio files (transcription available via the Audio app)
-
-More file types (DOCX, XLSX) are planned for the future.
+- **Code and text files** — Python, JavaScript, TypeScript, HTML, CSS, JSON, Java, C/C++, Rust, Go, Ruby, PHP, Swift, Kotlin, SQL, Markdown, YAML, shell scripts, Dockerfiles, and more
 
 ## How to Use It
 

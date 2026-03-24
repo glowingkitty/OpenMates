@@ -11,7 +11,7 @@ Commands for installing, running, and administering a self-hosted OpenMates inst
 
 - **Docker** -- must be installed with the daemon running
 - **Git** -- required for `install` and `update`
-- At least one LLM provider API key (OpenAI, Anthropic, or Google) in the `.env` file
+- At least one LLM provider API key (any `SECRET__<PROVIDER>__API_KEY` entry, e.g. OpenAI, Anthropic, Google, Mistral) in the `.env` file
 
 ## Installing
 
@@ -37,7 +37,7 @@ openmates server start --with-overrides
 
 Starts all Docker containers. The `--with-overrides` flag includes admin UIs (Directus CMS, Grafana) defined in `docker-compose.override.yml`.
 
-Requires at least one LLM provider API key in the `.env` file. The CLI checks for `SECRET__*__API_KEY` entries before starting.
+Requires at least one LLM provider API key in the `.env` file. The CLI checks for any `SECRET__<PROVIDER>__API_KEY` entry (matching `SECRET__\w+__API_KEY`) with a non-empty value before starting.
 
 ## Stopping the Server
 

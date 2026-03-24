@@ -24,7 +24,7 @@ Search lets you quickly find content across your entire OpenMates experience. Be
 ## How to Use It
 
 1. Open the search bar.
-2. Start typing. Results appear instantly as you type (with a brief 100ms pause after you stop typing).
+2. Start typing. Results appear instantly as you type (with a brief 250ms pause after you stop typing).
 3. Click a result to navigate to it.
 
 ### Auto-Complete

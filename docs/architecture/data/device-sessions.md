@@ -29,7 +29,7 @@ Users access OpenMates from personal devices, public computers, and developer to
 ### Session Token Security
 
 - **Storage:** HTTP-only secure cookies.
-- **TTL:** 7 days (with "Stay logged in") or session-only.
+- **TTL:** 30 days (with "Stay logged in") or 24 hours (default).
 - **Refresh:** Automatic background refresh.
 - **Revocation:** On user logout or security event.
 

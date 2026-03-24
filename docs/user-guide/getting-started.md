@@ -29,7 +29,7 @@ last_verified: 2026-03-24
 2. **Meet Suki**, the welcome assistant, who will walk you through how OpenMates works.
 3. **Start a new chat** by clicking the compose button or pressing `Ctrl/Cmd + K`, then `N`.
 4. **Explore apps** in the App Store (Settings > App Store) to see what your digital team mates can do.
-5. **Buy credits** when you are ready (Settings > Billing). New accounts come with starter credits.
+5. **Buy credits** when you are ready (Settings > Billing). If you signed up with an invite link, you may have starter credits waiting for you.
 
 ## Quick Links
 

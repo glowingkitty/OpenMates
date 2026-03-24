@@ -23,16 +23,20 @@ Location: `frontend/packages/ui/src/i18n/sources/`
 
 ```
 sources/
-  email.yml
-  login.yml
+  email/
+    main.yml
+  login/
+    main.yml
   settings/
     main.yml
+    account.yml
     app_store.yml
     billing.yml
     interface.yml
+    security.yml
+    ...
   signup/
     main.yml
-    steps.yml
 ```
 
 Files in subdirectories contribute to the parent namespace (e.g., `settings/app_store.yml` -> `settings.app_store.*`). Large files (>500 lines) are automatically split by top-level key prefix.
@@ -55,7 +59,7 @@ Rules: `en` first, then `de`, then alphabetical. Empty `""` for missing translat
 cd frontend/packages/ui && npm run prepare
 ```
 
-The `prepare` script runs 7 steps in sequence: `build:translations`, `validate:locales`, `generate-apps-metadata`, `generate-embed-registry`, `generate-models-metadata`, `generate-providers-metadata`, `generate-icon-urls`.
+The `prepare` script runs 8 steps in sequence: `build:translations`, `validate:locales`, `generate-apps-metadata`, `generate-embed-registry`, `generate-models-metadata`, `generate-providers-metadata`, `generate-icon-urls`, `validate:icon-refs`.
 
 `build:translations` specifically: recursively loads all YAML from `sources/`, merges by namespace, strips `context` fields, preserves newlines as `\n`, generates JSON for all 25 languages.
 
@@ -79,10 +83,10 @@ text = TranslationService().get_nested_translation("email.confirm_email.text", "
 
 Always append `.text` when accessing -- the JSON structure wraps each value in a `text` field.
 
-### Supported Languages (25)
+### Supported Languages (21)
 
-**EU:** en, de, es, fr, it, pt, nl, pl, ro, cs, sv, fi, el, hu, bg, hr, sk, sl, lt, lv, et, ga, mt
-**Other:** ja, zh
+**European:** en, de, es, fr, it, pt, nl, pl, cs, sv, tr, ru
+**Asian:** ja, zh, ko, hi, th, vi, id, ar, he
 
 ## Edge Cases
 

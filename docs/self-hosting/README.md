@@ -27,5 +27,5 @@ The setup guide covers:
 
 - A Linux server (Ubuntu/Debian recommended)
 - Docker and Docker Compose
-- At least one AI provider API key (Mistral, OpenAI, Anthropic, or Google)
+- At least one AI provider API key (e.g. OpenAI, Anthropic, Google, or Mistral)
 - A domain name (for production deployment)

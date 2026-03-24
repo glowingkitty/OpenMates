@@ -23,12 +23,12 @@ You can export everything OpenMates knows about you -- chats, messages, usage hi
 | Step | What happens |
 |------|-------------|
 | Initialising | Preparing the export |
-| Preparing | Gathering a list of all your data |
+| Preparing | Gathering a list of all your data from the server |
 | Syncing chats | Making sure all chats are available on this device |
 | Loading data | Reading your chats and messages |
-| Fetching details | Getting usage records, invoices, and settings from the server |
 | Decrypting | Decrypting your data on your device |
 | Downloading invoices | Fetching your invoice PDF files |
+| Downloading files | Fetching your uploaded files |
 | Creating archive | Building the ZIP file |
 | Complete | Ready to download |
 

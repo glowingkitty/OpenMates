@@ -26,16 +26,14 @@ Instead of monthly subscriptions, OpenMates uses **credits**. You buy credits an
 
 ## Cost Transparency
 
-- Before an expensive skill runs, you are shown the **estimated cost** and asked to confirm.
-- You can change this in settings to auto-approve skills below a certain price.
+- **Prices are listed** in the App Store section for each skill, so you know the cost before using them.
 - In your billing section, you can see a detailed breakdown of credits used per chat.
 - You can **export any chat** to see the full billing details and token counts.
 
 ## Running Out of Credits
 
-- If credits run out **during a response**, the reply pauses and you are prompted to buy more. Once purchased, you can resume.
-- If you try to send a message with **zero credits**, you receive a prompt to purchase credits before continuing.
-- If a **skill requires more credits** than you have, you are prompted to top up before it can run.
+- If you try to send a message with **insufficient credits**, your request is rejected and a system notice appears in the chat with a **Buy Credits** button. Once you purchase credits, you can resend your message.
+- The chat enters a "waiting" state until you top up -- no credits are lost on a rejected request.
 
 ## Tips
 

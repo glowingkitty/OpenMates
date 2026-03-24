@@ -44,7 +44,7 @@ Two caches, different encryption, different purposes:
 
 | Cache | Key pattern | Encryption | TTL | Purpose |
 |-------|-------------|------------|-----|---------|
-| **AI Inference** | `user:{id}:chat:{id}:messages:ai` | Vault (server can decrypt) | 24h | AI context for follow-ups |
+| **AI Inference** | `user:{id}:chat:{id}:messages:ai` | Vault (server can decrypt) | 72h | AI context for follow-ups |
 | **Sync** | `user:{id}:chat:{id}:messages:sync` | Client-encrypted | 1h | Login sync (phases 1-3) |
 
 - Why separate? AI cache needs server-readable encryption; sync cache must stay zero-knowledge. Mixing → decryption failures
@@ -61,7 +61,7 @@ Two caches, different encryption, different purposes:
 
 ## Pre-Processing
 
-- **Model:** Mistral Small 3.2 — see [preprocessing model comparison](../ai/preprocessing-model-comparison.md) for why
+- **Model:** `mistral-small-2506` (Mistral Small) — see [preprocessing model comparison](../ai/preprocessing-model-comparison.md) for why
 - **Implementation:** [preprocessor.py](../../backend/apps/ai/processing/preprocessor.py)
 - **Config:** [base_instructions.yml](../../backend/apps/ai/base_instructions.yml)
 - **Outputs:**
