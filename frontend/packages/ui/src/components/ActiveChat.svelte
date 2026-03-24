@@ -6049,6 +6049,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     async function handleOpenReminders() {
         console.debug("[ActiveChat] Reminders button clicked, opening reminder settings");
 
+        // Set the active chat so SettingsReminders can access the chat context
+        if (currentChat?.chat_id) {
+            activeChatStore.setActiveChat(currentChat.chat_id);
+        }
+
         settingsMenuVisible.set(true);
         panelState.openSettings();
 

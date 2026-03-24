@@ -172,10 +172,28 @@ settings.description:
   de: Erinnerungen erstellen und verwalten
   verified_by_human: [en, de]
 
+settings.description_this_chat:
+  context: Description when the reminder will fire in the current chat
+  en: The reminder will trigger in the current chat
+  de: Die Erinnerung wird im aktuellen Chat ausgelöst
+  verified_by_human: [en, de]
+
+settings.description_new_chat:
+  context: Description when the reminder will start a new chat
+  en: The reminder will start a new chat when it triggers
+  de: Die Erinnerung startet einen neuen Chat, wenn sie ausgelöst wird
+  verified_by_human: [en, de]
+
+settings.target_heading:
+  context: Heading for the target type selector (this chat vs new chat)
+  en: Where to trigger
+  de: Wo auslösen
+  verified_by_human: [en, de]
+
 settings.create_title:
-  context: Section heading for the create new reminder form in settings
-  en: Create new reminder
-  de: Neue Erinnerung erstellen
+  context: Page title for the create reminder settings page (shown in settings header)
+  en: Create reminder
+  de: Erinnerung erstellen
   verified_by_human: [en, de]
 
 settings.success:

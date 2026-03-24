@@ -4,9 +4,9 @@
   Reminder creation page within the Reminders app settings.
   Uses canonical settings design elements (SettingsItem headings + SettingsInput/Dropdown).
 
-  Opened via:
-  - Chat top bar reminder button (deep link: app_store/reminder/create)
-  - Reminders app page → "Create reminder" button (future)
+  Opened via chat top bar reminder button (deep link: app_store/reminder/create).
+  Reads the active chat from activeChatStore to show context and allow "This chat"
+  as a target option.
 
   API: POST /v1/apps/reminder/skills/set-reminder (creation)
   API: GET /v1/settings/reminders (list, via ActiveRemindersList)
@@ -17,6 +17,8 @@
 <script lang="ts">
     import { text } from '@repo/ui';
     import { userProfile } from '../../../stores/userProfile';
+    import { activeChatStore } from '../../../stores/activeChatStore';
+    import { chatListCache } from '../../../services/chatListCache';
     import { getApiUrl } from '../../../config/api';
     import SettingsPageContainer from '../elements/SettingsPageContainer.svelte';
     import SettingsPageHeader from '../elements/SettingsPageHeader.svelte';
@@ -29,11 +31,28 @@
     import SettingsItem from '../../SettingsItem.svelte';
     import ActiveRemindersList from '../appSettings/ActiveRemindersList.svelte';
 
+    // ─── Chat context ──────────────────────────────────────────────────────────
+
+    /** Active chat ID from store (set by ActiveChat before opening this page) */
+    let activeChatId = $derived($activeChatStore);
+
+    /** Look up the chat title from the chat list cache */
+    let activeChatTitle = $derived.by(() => {
+        if (!activeChatId) return '';
+        const chats = chatListCache.getCache();
+        if (!chats) return '';
+        const chat = chats.find(c => c.chat_id === activeChatId);
+        return chat?.title || '';
+    });
+
+    let hasActiveChat = $derived(!!activeChatId && !!activeChatTitle);
+
     // ─── Form state ────────────────────────────────────────────────────────────
 
     let date = $state('');
     let time = $state('');
     let note = $state('');
+    let targetType = $state<'existing_chat' | 'new_chat'>('existing_chat');
     let responseType = $state('simple');
     let actionPrompt = $state('');
     let repeatType = $state('none');
@@ -45,6 +64,13 @@
     let errorMessage = $state('');
     let successMessage = $state('');
     let refreshTrigger = $state(0);
+
+    // Default to new_chat if no active chat context
+    $effect(() => {
+        if (!hasActiveChat) {
+            targetType = 'new_chat';
+        }
+    });
 
     // ─── Derived ───────────────────────────────────────────────────────────────
 
@@ -59,7 +85,6 @@
 
     let showCustomRepeat = $derived(repeatType === 'custom');
 
-    /** Dropdown options — labels populated reactively via $derived */
     let repeatOptions = $derived([
         { value: 'none', label: $text('reminder.panel.repeat_none') },
         { value: 'daily', label: $text('reminder.panel.repeat_daily') },
@@ -78,6 +103,20 @@
         { value: 'simple', label: $text('reminder.panel.type_notification') },
         { value: 'full', label: $text('reminder.panel.type_action') },
     ]);
+
+    let targetTypeOptions = $derived([
+        ...(hasActiveChat
+            ? [{ value: 'existing_chat', label: $text('reminder.panel.target_this_chat') }]
+            : []),
+        { value: 'new_chat', label: $text('reminder.panel.target_new_chat') },
+    ]);
+
+    /** Description text that changes based on target type */
+    let descriptionText = $derived(
+        targetType === 'existing_chat' && hasActiveChat
+            ? $text('reminder.settings.description_this_chat')
+            : $text('reminder.settings.description_new_chat')
+    );
 
     // ─── Submission ────────────────────────────────────────────────────────────
 
@@ -106,10 +145,16 @@
                 trigger_type: 'specific',
                 trigger_datetime: triggerDatetime,
                 timezone,
-                target_type: 'new_chat',
+                target_type: targetType,
                 response_type: responseType,
-                new_chat_title: prompt.slice(0, 50),
             };
+
+            if (targetType === 'existing_chat' && activeChatId) {
+                body._chat_id = activeChatId;
+            } else {
+                body.target_type = 'new_chat';
+                body.new_chat_title = prompt.slice(0, 50);
+            }
 
             if (repeatType !== 'none') {
                 const repeat: Record<string, unknown> = { type: repeatType };
@@ -167,8 +212,34 @@
 <SettingsPageContainer>
     <SettingsPageHeader
         title={$text('reminder.settings.create_title')}
-        description={$text('reminder.settings.description')}
+        description={descriptionText}
     />
+
+    <!-- Chat context: show which chat the reminder relates to -->
+    {#if hasActiveChat}
+        <div class="chat-context">
+            <div class="chat-context-icon">
+                <span class="icon reminder"></span>
+            </div>
+            <div class="chat-context-info">
+                <span class="chat-context-title">{activeChatTitle}</span>
+            </div>
+        </div>
+    {/if}
+
+    <!-- Target type: this chat vs new chat -->
+    {#if hasActiveChat}
+        <SettingsItem
+            type="heading"
+            icon="chat"
+            title={$text('reminder.settings.target_heading')}
+        />
+        <SettingsDropdown
+            bind:value={targetType}
+            options={targetTypeOptions}
+            ariaLabel={$text('reminder.settings.target_heading')}
+        />
+    {/if}
 
     <!-- Date -->
     <SettingsItem
@@ -189,7 +260,7 @@
     <!-- Time -->
     <SettingsItem
         type="heading"
-        icon="clock"
+        icon="calendar"
         title={$text('reminder.panel.time')}
     />
     <div class="native-input-wrapper">
@@ -242,7 +313,7 @@
     <!-- Repeat -->
     <SettingsItem
         type="heading"
-        icon="repeat"
+        icon="reminder"
         title={$text('reminder.panel.repeat')}
     />
     <SettingsDropdown
@@ -254,7 +325,7 @@
     {#if showCustomRepeat}
         <SettingsItem
             type="heading"
-            icon="repeat"
+            icon="reminder"
             title={$text('reminder.panel.repeat_every')}
         />
         <div class="custom-repeat-row">
@@ -323,6 +394,37 @@
 </SettingsPageContainer>
 
 <style>
+    /* Chat context preview at top of form */
+    .chat-context {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 1rem;
+        margin: 0 0.625rem;
+        background: var(--color-grey-10);
+        border-radius: 1rem;
+        border: 1px solid var(--color-grey-25);
+    }
+
+    .chat-context-icon {
+        flex-shrink: 0;
+        width: 2rem;
+        height: 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .chat-context-title {
+        font-family: 'Lexend Deca Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-size: var(--font-size-p, 0.875rem);
+        font-weight: 500;
+        color: var(--color-font-primary);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
     /* Wrapper to match SettingsInput/SettingsDropdown horizontal padding */
     .native-input-wrapper {
         padding: 0 0.625rem;

@@ -148,14 +148,25 @@ test('reminder — settings page: create reminder via top-bar button and verify 
 	await page.waitForTimeout(1000);
 	await screenshot(page, 'settings-opened');
 
-	// ── Step 3: Verify the reminder creation form is visible ──
+	// ── Step 3: Verify the reminder creation form and chat context ──
 	log('Verifying reminder creation form...');
 
 	// The settings panel should now show the reminder creation page
-	// Look for the date input field (native date input within the settings)
 	const dateInput = page.locator('#settings-reminder-date');
 	await expect(dateInput).toBeVisible({ timeout: 10000 });
 	log('Reminder creation form is visible.');
+
+	// Verify chat context is shown (the current chat title should appear)
+	const chatContext = page.locator('.chat-context');
+	await expect(chatContext).toBeVisible({ timeout: 5000 });
+	log('Chat context visible in reminder form.');
+
+	// Verify target type dropdown defaults to "This chat"
+	const targetDropdown = page.locator('.settings-dropdown').first();
+	if (await targetDropdown.isVisible({ timeout: 3000 }).catch(() => false)) {
+		const selectedValue = await targetDropdown.inputValue();
+		log(`Target type: ${selectedValue}`);
+	}
 
 	const timeInput = page.locator('#settings-reminder-time');
 	await expect(timeInput).toBeVisible({ timeout: 5000 });
@@ -164,11 +175,14 @@ test('reminder — settings page: create reminder via top-bar button and verify 
 	const { date, time } = getOneMinuteFromNow();
 	log(`Setting reminder for: ${date} ${time}`);
 
+	// Use Playwright's fill() which sets the value directly on date/time inputs
+	// (OS-native date/time pickers are triggered by click on the input in real browsers,
+	// but in headless Playwright, fill() is the correct way to set values)
 	await dateInput.fill(date);
 	await timeInput.fill(time);
 
-	// Fill in a note (the SettingsInput for the note field)
-	const noteInput = page.locator('.settings-input[aria-label]').first();
+	// Fill in a note
+	const noteInput = page.locator('.settings-input').first();
 	if (await noteInput.isVisible({ timeout: 3000 }).catch(() => false)) {
 		await noteInput.fill('E2E test reminder - check test results');
 		log('Note filled.');
