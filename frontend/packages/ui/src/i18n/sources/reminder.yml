@@ -159,3 +159,33 @@ panel.error_generic:
   en: Something went wrong. Please try again.
   de: Etwas ist schiefgelaufen. Bitte versuche es erneut.
   verified_by_human: [en, de]
+
+settings.title:
+  context: Title of the reminder management settings page
+  en: Reminders
+  de: Erinnerungen
+  verified_by_human: [en, de]
+
+settings.description:
+  context: Description shown below the title on the reminder management page
+  en: Create and manage your reminders
+  de: Erinnerungen erstellen und verwalten
+  verified_by_human: [en, de]
+
+settings.create_title:
+  context: Section heading for the create new reminder form in settings
+  en: Create new reminder
+  de: Neue Erinnerung erstellen
+  verified_by_human: [en, de]
+
+settings.success:
+  context: Success message shown after a reminder is created from settings
+  en: Reminder set successfully!
+  de: Erinnerung erfolgreich gesetzt!
+  verified_by_human: [en, de]
+
+settings.active_title:
+  context: Section heading for the active reminders list in settings
+  en: Active reminders
+  de: Aktive Erinnerungen
+  verified_by_human: [en, de]

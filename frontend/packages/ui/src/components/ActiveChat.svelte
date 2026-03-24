@@ -6043,6 +6043,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     /**
+     * Handler for the reminders bell button click.
+     * Opens the settings menu and navigates to the reminders management page.
+     */
+    async function handleOpenReminders() {
+        console.debug("[ActiveChat] Reminders button clicked, opening reminder settings");
+
+        settingsMenuVisible.set(true);
+        panelState.openSettings();
+
+        await tick();
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        settingsDeepLink.set('notifications/reminders');
+    }
+
+    /**
      * Handler for the report issue button click.
      * Opens the settings menu and navigates to the report issue page.
      * This ensures the settings menu is properly opened on mobile devices.
@@ -9254,6 +9270,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
                         <!-- Right side buttons -->
                         <div class="right-buttons">
+                            {#if !showWelcome}
+                                <div class="new-chat-button-wrapper">
+                                    <button
+                                        class="clickable-icon icon_bell top-button"
+                                        data-testid="chat-reminders-button"
+                                        aria-label={$text('chat.reminders')}
+                                        onclick={handleOpenReminders}
+                                        use:tooltip
+                                    >
+                                    </button>
+                                </div>
+                            {/if}
                             <!-- Minimize chat button - only shows in side-by-side mode -->
                             <!-- When clicked, hides the chat and shows only the embed fullscreen (overlay mode) -->
                             {#if showSideBySideFullscreen}
@@ -11967,6 +11995,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         position: absolute;
         top: 15px;
         left: 15px;
+        right: 15px;
         display: flex;
         justify-content: space-between; /* Distribute space between left and right buttons */
         z-index: 1;
@@ -11991,6 +12020,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         .top-buttons:not(.top-buttons-flow) {
             top: 10px;
             left: 10px;
+            right: 10px;
         }
     }
 
@@ -12001,12 +12031,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      *   visually appear on the right / inline-end side of the row.
      */
     :global([dir="rtl"]) .top-buttons:not(.top-buttons-flow) {
-        left: auto;
+        left: 15px;
         right: 15px;
     }
 
     @media (max-width: 730px) {
         :global([dir="rtl"]) .top-buttons:not(.top-buttons-flow) {
+            left: 10px;
             right: 10px;
         }
     }

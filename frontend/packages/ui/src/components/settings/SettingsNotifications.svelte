@@ -62,6 +62,15 @@
             title: $text('settings.notifications.backup'),
         });
     }
+
+    function navigateToReminders() {
+        dispatch('openSettings', {
+            settingsPath: 'notifications/reminders',
+            direction: 'forward',
+            icon: 'bell',
+            title: $text('reminder.settings.title'),
+        });
+    }
 </script>
 
 <div class="notifications-settings-container">
@@ -79,6 +88,13 @@
         title={$text('settings.notifications.backup')}
         subtitleTop={backupReminderStatus}
         onClick={navigateToBackupReminders}
+    />
+
+    <SettingsItem
+        type="submenu"
+        icon="subsetting_icon bell"
+        title={$text('reminder.settings.title')}
+        onClick={navigateToReminders}
     />
 </div>
 

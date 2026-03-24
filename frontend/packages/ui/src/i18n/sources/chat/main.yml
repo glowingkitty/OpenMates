@@ -46,6 +46,11 @@ share:
   sv: Dela chatt
   he: "שיתוף צ'אט"
   verified_by_human: []
+reminders:
+  context: Tooltip for the reminder bell button in the chat top bar
+  en: Reminders
+  de: Erinnerungen
+  verified_by_human: [en, de]
 start_audio_call:
   context: Button label for starting an audio call
   en: Start audio call

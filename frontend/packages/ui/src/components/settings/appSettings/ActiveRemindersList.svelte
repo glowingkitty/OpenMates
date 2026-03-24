@@ -13,7 +13,7 @@
     import { onMount } from 'svelte';
     import { text } from '@repo/ui';
     import { getApiEndpoint } from '../../../config/api';
-    
+
     /**
      * Represents a single active reminder returned by the API.
      */
@@ -26,12 +26,29 @@
         is_repeating: boolean;
         status: string;
     }
-    
+
+    let {
+        /** Increment this counter to trigger a refetch of reminders. */
+        refreshTrigger = 0,
+    }: {
+        refreshTrigger?: number;
+    } = $props();
+
     // Component state
     let reminders = $state<ActiveReminder[]>([]);
     let loading = $state(true);
     let error = $state<string | null>(null);
-    
+
+    // Refetch when refreshTrigger changes (after initial mount)
+    let mounted = $state(false);
+    $effect(() => {
+        // Access refreshTrigger to subscribe to changes
+        const _ = refreshTrigger;
+        if (mounted) {
+            fetchReminders();
+        }
+    });
+
     /**
      * Fetch active reminders from the backend API.
      * Uses credentials: 'include' for cookie-based auth.
@@ -66,6 +83,7 @@
     
     onMount(() => {
         fetchReminders();
+        mounted = true;
     });
 </script>
 
