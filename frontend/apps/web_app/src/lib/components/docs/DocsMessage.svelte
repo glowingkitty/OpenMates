@@ -13,7 +13,7 @@
 	import { ReadOnlyMessage, text } from '@repo/ui';
 
 	interface Props {
-		/** Original markdown content to render via TipTap */
+		/** Processed markdown (links fixed) to render via TipTap */
 		content: string;
 		/** Category is kept for API compatibility but not used for avatar (always shows OpenMates logo) */
 		category: string;
@@ -72,5 +72,37 @@
 	.docs-message :global(.mate-profile::after),
 	.docs-message :global(.mate-profile::before) {
 		display: none !important;
+	}
+
+	/* --- GitHub code file links — styled like EmbedInlineLink (code app) --- */
+	.docs-message :global(a[href*="github.com/glowingkitty/OpenMates/blob/"]) {
+		display: inline;
+		text-decoration: none;
+		font-weight: 500;
+		color: var(--color-app-code-start);
+		transition: opacity 0.15s ease;
+		cursor: pointer;
+	}
+
+	:global([data-theme="dark"]) .docs-message :global(a[href*="github.com/glowingkitty/OpenMates/blob/"]) {
+		color: var(--color-app-code-end);
+	}
+
+	.docs-message :global(a[href*="github.com/glowingkitty/OpenMates/blob/"]:hover) {
+		opacity: 0.8;
+	}
+
+	/* Small circular code-app badge before GitHub code links.
+	   Matches EmbedInlineLink's 20px circular badge but CSS-only (no Svelte component). */
+	.docs-message :global(a[href*="github.com/glowingkitty/OpenMates/blob/"]::before) {
+		content: '';
+		display: inline-block;
+		width: 18px;
+		height: 18px;
+		min-width: 18px;
+		border-radius: 50%;
+		vertical-align: middle;
+		margin-right: 3px;
+		background: var(--color-app-code);
 	}
 </style>

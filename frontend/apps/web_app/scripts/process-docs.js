@@ -127,18 +127,33 @@ function shouldIgnore(relativePath, ignorePatterns) {
 }
 
 /**
- * Process markdown content: fix paths and convert to HTML
+ * Fix links in markdown content without converting to HTML.
+ * Handles: relative .md links → /docs/ routes, absolute app URLs → /docs/ routes,
+ * relative code file links → GitHub links, relative image paths → /docs/images/.
  * @param {string} content - Original markdown content
  * @param {string} filePath - Path to the current file (relative to docs root)
- * @returns {string} Processed HTML content
+ * @returns {string} Markdown with fixed links
  */
-function processMarkdownContent(content, filePath) {
+function fixMarkdownLinks(content, filePath) {
     let processedContent = content;
 
     // GitHub branch: use DOCS_GITHUB_BRANCH env var, or detect from Vercel/dev environment
     const githubBranch = process.env.DOCS_GITHUB_BRANCH
         || (process.env.VERCEL_GIT_COMMIT_REF === 'dev' ? 'dev' : null)
         || (process.env.NODE_ENV === 'development' ? 'dev' : 'main');
+
+    // Fix absolute app URLs pointing to .md files
+    // Pattern: [text](https://app.dev.openmates.org/docs/demo-chats.md) -> [text](/docs/demo-chats)
+    // Also handles openmates.org (production) and any subdomain
+    processedContent = processedContent.replace(
+        /\[([^\]]+)\]\(https?:\/\/(?:app\.(?:dev\.)?)?openmates\.org\/docs\/([^)]+\.md(?:#[^)]*)?)\)/g,
+        (match, linkText, mdPath) => {
+            const [pathPart, ...anchorParts] = mdPath.split('#');
+            const anchor = anchorParts.length ? `#${anchorParts.join('#')}` : '';
+            const cleanPath = pathPart.replace(/\.md$/, '').replace(/\/+/g, '/').replace(/^\//, '');
+            return `[${linkText}](/docs/${cleanPath}${anchor})`;
+        }
+    );
 
     // Fix relative code file links - convert to GitHub links
     // Pattern: [text](./file.js) -> [text](https://github.com/glowingkitty/OpenMates/blob/<branch>/file.js)
@@ -188,10 +203,15 @@ function processMarkdownContent(content, filePath) {
             // Remove .md extension and clean up
             let resolvedPath = resolved.replace(/\.md$/, '').replace(/\/+/g, '/').replace(/^\//, '');
 
+            // README/index files map to the folder path (e.g., user-guide/README → user-guide)
+            resolvedPath = resolvedPath.replace(/\/(README|index)$/i, '');
+            // Root README → empty string (will become /docs/)
+            if (/^README$/i.test(resolvedPath)) resolvedPath = '';
+
             return `[${linkText}](/docs/${resolvedPath}${anchor})`;
         }
     );
-    
+
     // Fix image paths - convert relative paths to /docs/images/...
     processedContent = processedContent.replace(
         /!\[([^\]]*)\]\(([^)]+)\)/g,
@@ -200,9 +220,9 @@ function processMarkdownContent(content, filePath) {
             if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
                 return match;
             }
-            
+
             let newImagePath = imagePath;
-            
+
             // Handle paths starting with /images
             if (imagePath.startsWith('/images')) {
                 newImagePath = `/docs${imagePath}`;
@@ -222,17 +242,29 @@ function processMarkdownContent(content, filePath) {
             else {
                 newImagePath = `/docs/${imagePath}`;
             }
-            
+
             return `![${altText}](${newImagePath})`;
         }
     );
-    
+
+    return processedContent;
+}
+
+/**
+ * Process markdown content: fix paths and convert to HTML
+ * @param {string} content - Original markdown content
+ * @param {string} filePath - Path to the current file (relative to docs root)
+ * @returns {string} Processed HTML content
+ */
+function processMarkdownContent(content, filePath) {
+    const processedContent = fixMarkdownLinks(content, filePath);
+
     // Convert markdown to HTML using markdown-it
     let html = md.render(processedContent);
-    
+
     // Add IDs to headings for anchor links
     html = addHeadingIds(html);
-    
+
     return html;
 }
 
@@ -340,12 +372,15 @@ function buildDocsStructure(dir, relativePath = '', ignorePatterns = []) {
             const titleMatch = originalMarkdown.match(/^#\s+(.+)$/m);
             const title = titleMatch ? titleMatch[1] : generateTitle(item.name);
             
-            // Process content: fix paths and convert to HTML
+            // Fix links in markdown (for TipTap rendering)
+            const processedMarkdown = fixMarkdownLinks(originalMarkdown, itemRelativePath);
+
+            // Process content: fix paths and convert to HTML (for SSR/SEO)
             const htmlContent = processMarkdownContent(originalMarkdown, itemRelativePath);
-            
+
             // Extract plain text for search
             const plainText = extractPlainText(originalMarkdown);
-            
+
             // Generate slug for URL
             const slug = itemRelativePath.replace(/\.md$/, '').replace(/\\/g, '/');
 
@@ -355,6 +390,7 @@ function buildDocsStructure(dir, relativePath = '', ignorePatterns = []) {
                 path: itemRelativePath.replace(/\\/g, '/'),
                 slug: slug,
                 content: htmlContent,
+                processedMarkdown: processedMarkdown,
                 originalMarkdown: originalMarkdown,
                 plainText: plainText,
                 wordCount: plainText.split(/\s+/).filter(w => w.trim()).length,

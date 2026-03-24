@@ -111,7 +111,7 @@
                 summary={summary}
             />
             <DocsMessage
-                content={file.originalMarkdown}
+                content={file.processedMarkdown}
                 category={catInfo.category}
             />
         </div>
