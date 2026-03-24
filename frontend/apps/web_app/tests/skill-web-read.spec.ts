@@ -116,8 +116,8 @@ test.describe('App: Web / Skill: read', () => {
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
 
 		const { logCheckpoint } = createSignupLogger('skill-web-read');
-		await archiveExistingScreenshots('skill-web-read');
-		const takeStepScreenshot = createStepScreenshotter('skill-web-read');
+		await archiveExistingScreenshots(logCheckpoint);
+		const takeStepScreenshot = createStepScreenshotter(logCheckpoint);
 
 		await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
 		await startNewChat(page, logCheckpoint);

@@ -101,8 +101,12 @@ jobs:
         if: always()
         with:
           name: playwright-${{ github.event.inputs.spec }}
-          path: test-results/playwright.json
+          path: |
+            test-results/playwright.json
+            frontend/apps/web_app/test-results/
+            frontend/apps/web_app/artifacts/
           if-no-files-found: ignore
+          retention-days: 7
       - name: Fail if tests failed
         if: steps.pw_run.outcome == 'failure'
         run: exit 1

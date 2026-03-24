@@ -489,7 +489,7 @@ class BatchRunner:
                 status = "failed"
                 error = f"GitHub Actions conclusion: {conclusion}"
 
-            # Try to download artifact for error details
+            # Try to download artifact for error details + screenshots
             if status == "failed":
                 # playwright-spec.yml artifact name: playwright-{spec}
                 art_path = self.client.download_artifact(rid, f"playwright-{spec}", artifact_dir)
@@ -497,6 +497,8 @@ class BatchRunner:
                     pw_json = art_path / "playwright.json"
                     if pw_json.is_file():
                         error = self._extract_error_from_playwright_json(pw_json) or error
+                    # Persist screenshots/traces for failed tests
+                    self._persist_failure_artifacts(spec, art_path)
 
             icon = {"passed": "✓", "failed": "✗", "timeout": "⏱", "not_started": "⊘"}.get(status, "?")
             _log(f"  {icon} {spec} (run {rid})", "OK" if status == "passed" else "ERROR")
@@ -538,6 +540,23 @@ class BatchRunner:
         except Exception:
             pass
         return None
+
+    @staticmethod
+    def _persist_failure_artifacts(spec: str, art_path: Path) -> None:
+        """Copy screenshots and traces from a failed test's artifacts to
+        test-results/screenshots/{spec-name}/ for post-run debugging."""
+        spec_name = spec.replace(".spec.ts", "")
+        dest = RESULTS_DIR / "screenshots" / spec_name
+        dest.mkdir(parents=True, exist_ok=True)
+        copied = 0
+        for root, _dirs, files in os.walk(art_path):
+            for fname in files:
+                if fname.endswith((".png", ".webp", ".zip", ".trace")):
+                    src = Path(root) / fname
+                    shutil.copy2(src, dest / fname)
+                    copied += 1
+        if copied:
+            _log(f"    Saved {copied} artifact(s) to test-results/screenshots/{spec_name}/")
 
     @staticmethod
     def _spec_result_to_dict(r: SpecResult) -> dict:
@@ -1200,6 +1219,12 @@ class TestOrchestrator:
 
         start_time = time.time()
         suites: dict[str, SuiteResult] = {}
+
+        # Clear previous failure screenshots before starting a new run
+        screenshots_dir = RESULTS_DIR / "screenshots"
+        if screenshots_dir.is_dir():
+            shutil.rmtree(screenshots_dir, ignore_errors=True)
+            _log("Cleared previous failure screenshots")
 
         # Run local suites first (fast)
         if self.suite in ("all", "vitest"):

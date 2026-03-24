@@ -6,7 +6,7 @@ Manages session registration, file tracking, concurrent edit safety,
 tag-based instruction doc preloading, architecture doc staleness detection,
 and automated deployment (lint + commit + push).
 
-Architecture context: See docs/claude/concurrent-sessions.md for the full protocol.
+Architecture context: See docs/contributing/guides/concurrent-sessions.md for the full protocol.
 
 Usage:
     # Session lifecycle (modes: feature, bug, docs, question, testing)
@@ -68,34 +68,37 @@ STALE_EMPTY_SESSION_HOURS = 6  # Sessions with zero tracked files expire faster
 STALE_LOCK_MINUTES = 5
 STALE_DOC_HOURS = 24
 RECENT_COMMITS_COUNT = 5  # Number of recent git commits to show at session start
-CLAUDE_DOCS_DIR = PROJECT_ROOT / "docs" / "claude"
+CONTRIBUTING_GUIDES_DIR = PROJECT_ROOT / "docs" / "contributing" / "guides"
+CONTRIBUTING_STANDARDS_DIR = PROJECT_ROOT / "docs" / "contributing" / "standards"
+DESIGN_GUIDE_DIR = PROJECT_ROOT / "docs" / "design-guide"
 ARCH_DOCS_DIR = PROJECT_ROOT / "docs" / "architecture"
 ENV_FILE = PROJECT_ROOT / ".env"
 
 # ---------------------------------------------------------------------------
-# Tag system — maps task tags to relevant docs/claude/*.md files
+# Tag system — maps task tags to relevant instruction docs
+# Docs are searched in: contributing/guides/, contributing/standards/, design-guide/
 # ---------------------------------------------------------------------------
 
 # Tags that map to instruction docs (loaded at session start)
 TAG_TO_DOCS: dict[str, list[str]] = {
-    "frontend": ["frontend-standards-compact.md"],
-    "backend": ["backend-standards.md"],  # Already compact at 68 lines
-    "cli": ["cli-standards.md"],
-    "debug": ["debugging-compact.md"],
-    "test": ["testing-compact.md"],
-    "i18n": ["i18n.md", "manage-translations.md"],
-    "figma": ["figma-to-code.md"],
-    "settings": ["settings-ui-compact.md"],
-    "embed": ["embed-types.md"],
-    "api": ["add-api.md"],
-    "planning": ["planning-compact.md"],
-    "feature": ["planning-compact.md"],
-    "logging": ["logging-and-docs.md"],
-    "security": ["backend-standards.md"],
+    "frontend": ["standards/frontend.md"],
+    "backend": ["standards/backend.md"],
+    "cli": ["standards/cli.md"],
+    "debug": ["guides/debugging.md"],
+    "test": ["guides/testing.md"],
+    "i18n": ["guides/i18n.md", "guides/manage-translations.md"],
+    "figma": ["guides/figma-to-code.md"],
+    "settings": ["design-guide/settings-ui.md"],
+    "embed": ["guides/add-embed-type.md"],
+    "api": ["guides/add-api.md"],
+    "planning": ["guides/planning.md"],
+    "feature": ["guides/planning.md"],
+    "logging": ["guides/logging.md"],
+    "security": ["standards/backend.md"],
 }
 
 # Docs deferred until deploy phase (not loaded at session start)
-DEPLOY_PHASE_DOCS = {"git-and-deployment.md"}
+DEPLOY_PHASE_DOCS = {"guides/git-and-deployment.md"}
 
 # ---------------------------------------------------------------------------
 # Session modes — controls what output sections are shown at start
@@ -702,8 +705,28 @@ def _resolve_docs_for_tags(tags: list[str], *, include_deploy: bool = False) -> 
 
 
 def _load_doc_content(filename: str) -> str | None:
-    """Load the full content of a docs/claude/ file. Returns None if not found."""
-    path = CLAUDE_DOCS_DIR / filename
+    """Load an instruction doc by relative path.
+
+    Filenames use prefixed paths: 'guides/debugging.md', 'standards/frontend.md',
+    or 'design-guide/settings-ui.md'.
+    """
+    CONTRIBUTING_DIR = PROJECT_ROOT / "docs" / "contributing"
+    DOCS_DIR = PROJECT_ROOT / "docs"
+
+    if filename.startswith("guides/") or filename.startswith("standards/"):
+        path = CONTRIBUTING_DIR / filename
+    elif filename.startswith("design-guide/"):
+        path = DOCS_DIR / filename
+    else:
+        # Fallback: try contributing/guides, contributing/standards, design-guide
+        for parent in (CONTRIBUTING_DIR / "guides", CONTRIBUTING_DIR / "standards", DOCS_DIR / "design-guide"):
+            candidate = parent / filename
+            if candidate.exists():
+                path = candidate
+                break
+        else:
+            return None
+
     if not path.exists():
         return None
     try:
@@ -2251,7 +2274,7 @@ def cmd_start(args: argparse.Namespace) -> None:
                 print(f"\n--- {doc_name} ---")
                 print(doc_content.rstrip())
             else:
-                print(f"  [!] docs/claude/{doc_name} not found")
+                print(f"  [!] docs/contributing/{doc_name} not found")
         all_possible = set()
         for tag in tags:
             all_possible.update(TAG_TO_DOCS.get(tag, []))
@@ -3123,24 +3146,31 @@ def cmd_context(args: argparse.Namespace) -> None:
             for doc_filename in docs:
                 doc_to_tags.setdefault(doc_filename, []).append(tag)
 
-        print("== AVAILABLE INSTRUCTION DOCS (docs/claude/) ==")
+        print("== AVAILABLE INSTRUCTION DOCS (docs/contributing/ & docs/design-guide/) ==")
         print()
-        if CLAUDE_DOCS_DIR.exists():
-            rows = []
-            for f in sorted(CLAUDE_DOCS_DIR.iterdir()):
+        rows = []
+        for search_dir, prefix in [
+            (CONTRIBUTING_GUIDES_DIR, "guides/"),
+            (CONTRIBUTING_STANDARDS_DIR, "standards/"),
+            (DESIGN_GUIDE_DIR, "design-guide/"),
+        ]:
+            if not search_dir.exists():
+                continue
+            for f in sorted(search_dir.iterdir()):
                 if f.suffix != ".md":
                     continue
+                rel_key = prefix + f.name
                 try:
                     lines = sum(1 for _ in open(f))
                 except OSError:
                     lines = 0
-                tags_that_load = doc_to_tags.get(f.name, [])
-                is_deploy = f.name in DEPLOY_PHASE_DOCS
+                tags_that_load = doc_to_tags.get(rel_key, [])
+                is_deploy = rel_key in DEPLOY_PHASE_DOCS
                 tag_str = f"auto: {', '.join(tags_that_load)}" if tags_that_load else (
                     "deploy-phase" if is_deploy else "manual only")
-                rows.append((f.stem, lines, tag_str))
-            # Aligned output
-            max_name = max(len(r[0]) for r in rows) if rows else 10
+                rows.append((rel_key, lines, tag_str))
+        if rows:
+            max_name = max(len(r[0]) for r in rows)
             print(f"  {'Name':<{max_name}}  {'Lines':>5}  Tags")
             print(f"  {'-' * max_name}  {'-----':>5}  ----")
             for name, lines, tag_str in rows:
@@ -3182,7 +3212,7 @@ def cmd_context(args: argparse.Namespace) -> None:
         print("== END SKILL TEST COVERAGE ==")
         return
 
-    # Try instruction doc first (docs/claude/)
+    # Try instruction doc first (contributing/guides, contributing/standards, design-guide)
     # Allow with or without .md extension
     if not doc_name.endswith(".md"):
         doc_name_md = doc_name + ".md"
@@ -3190,15 +3220,22 @@ def cmd_context(args: argparse.Namespace) -> None:
         doc_name_md = doc_name
         doc_name = doc_name[:-3]
 
-    # Check docs/claude/
-    claude_path = CLAUDE_DOCS_DIR / doc_name_md
-    if claude_path.exists():
-        with open(claude_path) as f:
-            content = f.read()
-        print(f"== docs/claude/{doc_name_md} ==")
-        print(content.rstrip())
-        print(f"\n== END {doc_name_md} ==")
-        return
+    # Search contributing/guides/, contributing/standards/, design-guide/ by filename
+    DOCS_ROOT = PROJECT_ROOT / "docs"
+    instruction_dirs = [
+        ("contributing/guides", CONTRIBUTING_GUIDES_DIR),
+        ("contributing/standards", CONTRIBUTING_STANDARDS_DIR),
+        ("design-guide", DESIGN_GUIDE_DIR),
+    ]
+    for label, search_dir in instruction_dirs:
+        candidate = search_dir / doc_name_md
+        if candidate.exists():
+            with open(candidate) as f:
+                content = f.read()
+            print(f"== docs/{label}/{doc_name_md} ==")
+            print(content.rstrip())
+            print(f"\n== END {doc_name_md} ==")
+            return
 
     # Check docs/architecture/ (search subdirectories too)
     arch_path = ARCH_DOCS_DIR / doc_name_md
@@ -3223,11 +3260,12 @@ def cmd_context(args: argparse.Namespace) -> None:
 
     # Not found — show available docs
     print(f"Error: Document '{doc_name}' not found.", file=sys.stderr)
-    print("\nAvailable instruction docs (docs/claude/):", file=sys.stderr)
-    if CLAUDE_DOCS_DIR.exists():
-        for f in sorted(CLAUDE_DOCS_DIR.iterdir()):
-            if f.suffix == ".md":
-                print(f"  {f.stem}", file=sys.stderr)
+    print("\nAvailable instruction docs (docs/contributing/ & docs/design-guide/):", file=sys.stderr)
+    for label, search_dir in instruction_dirs:
+        if search_dir.exists():
+            for f in sorted(search_dir.iterdir()):
+                if f.suffix == ".md":
+                    print(f"  {label}/{f.stem}", file=sys.stderr)
     print("\nAvailable architecture docs (docs/architecture/):", file=sys.stderr)
     if ARCH_DOCS_DIR.exists():
         for f in sorted(ARCH_DOCS_DIR.rglob("*.md")):

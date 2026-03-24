@@ -110,8 +110,8 @@ test.describe('App: Math / Skill: calculate', () => {
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
 
 		const { logCheckpoint } = createSignupLogger('skill-math-calculate');
-		await archiveExistingScreenshots('skill-math-calculate');
-		const takeStepScreenshot = createStepScreenshotter('skill-math-calculate');
+		await archiveExistingScreenshots(logCheckpoint);
+		const takeStepScreenshot = createStepScreenshotter(logCheckpoint);
 
 		await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
 		await startNewChat(page, logCheckpoint);

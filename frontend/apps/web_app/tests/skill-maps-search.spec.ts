@@ -93,8 +93,8 @@ test.describe('App: Maps / Skill: search', () => {
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
 
 		const { logCheckpoint } = createSignupLogger('skill-maps-search');
-		await archiveExistingScreenshots('skill-maps-search');
-		const takeStepScreenshot = createStepScreenshotter('skill-maps-search');
+		await archiveExistingScreenshots(logCheckpoint);
+		const takeStepScreenshot = createStepScreenshotter(logCheckpoint);
 
 		await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
 		await startNewChat(page, logCheckpoint);

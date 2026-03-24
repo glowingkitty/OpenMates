@@ -110,8 +110,8 @@ test.describe('App: Travel / Skill: search_connections', () => {
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
 
 		const { logCheckpoint } = createSignupLogger('skill-travel-connections');
-		await archiveExistingScreenshots('skill-travel-connections');
-		const takeStepScreenshot = createStepScreenshotter('skill-travel-connections');
+		await archiveExistingScreenshots(logCheckpoint);
+		const takeStepScreenshot = createStepScreenshotter(logCheckpoint);
 
 		await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
 		await startNewChat(page, logCheckpoint);

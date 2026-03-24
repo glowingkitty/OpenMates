@@ -113,8 +113,8 @@ test.describe('App: Events / Skill: search', () => {
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
 
 		const { logCheckpoint } = createSignupLogger('skill-events-search');
-		await archiveExistingScreenshots('skill-events-search');
-		const takeStepScreenshot = createStepScreenshotter('skill-events-search');
+		await archiveExistingScreenshots(logCheckpoint);
+		const takeStepScreenshot = createStepScreenshotter(logCheckpoint);
 
 		await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
 		await startNewChat(page, logCheckpoint);
