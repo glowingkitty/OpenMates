@@ -3221,7 +3221,6 @@ def cmd_context(args: argparse.Namespace) -> None:
         doc_name = doc_name[:-3]
 
     # Search contributing/guides/, contributing/standards/, design-guide/ by filename
-    DOCS_ROOT = PROJECT_ROOT / "docs"
     instruction_dirs = [
         ("contributing/guides", CONTRIBUTING_GUIDES_DIR),
         ("contributing/standards", CONTRIBUTING_STANDARDS_DIR),
@@ -3386,11 +3385,11 @@ def cmd_deploy_docs(args: argparse.Namespace) -> None:
     for doc_name in sorted(DEPLOY_PHASE_DOCS):
         doc_content = _load_doc_content(doc_name)
         if doc_content:
-            print(f"== docs/claude/{doc_name} ==")
+            print(f"== docs/contributing/{doc_name} ==")
             print(doc_content.rstrip())
             print(f"\n== END {doc_name} ==")
         else:
-            print(f"[!] docs/claude/{doc_name} not found")
+            print(f"[!] docs/contributing/{doc_name} not found")
     print()
 
 
@@ -3398,7 +3397,7 @@ def cmd_deploy_docs(args: argparse.Namespace) -> None:
 # Test and Documentation Coverage Commands
 # ---------------------------------------------------------------------------
 
-# Test location patterns (aligned with docs/claude/testing.md)
+# Test location patterns (aligned with docs/contributing/guides/testing.md)
 _TEST_LOCATIONS = {
     # Python unit/integration tests
     ".py": [
