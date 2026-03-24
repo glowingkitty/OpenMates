@@ -99,7 +99,7 @@
       title: content.title as string | undefined,
       url: content.url as string,
       favicon_url: getNestedField(content, 'meta_url.favicon', 'favicon_url', 'meta_url_favicon'),
-      thumbnail: getNestedField(content, 'thumbnail.original', 'thumbnail', 'thumbnail_original', 'image'),
+      thumbnail: getNestedField(content, 'thumbnail.original', 'thumbnail.src', 'thumbnail', 'thumbnail_original', 'image'),
       description: (content.description as string) || (content.snippet as string),
       extra_snippets: content.extra_snippets as string | string[] | undefined,
       page_age: (content.age as string) || (content.page_age as string) || undefined
@@ -118,7 +118,7 @@
         title: r.title as string | undefined,
         url: r.url as string,
         favicon_url: (r.favicon_url as string) || (r.meta_url_favicon as string) || metaUrl?.favicon,
-        thumbnail: (r.thumbnail_original as string) || thumbnail?.original,
+        thumbnail: (r.thumbnail_original as string) || thumbnail?.original || thumbnail?.src,
         description: (r.description as string) || (r.snippet as string),
         extra_snippets: r.extra_snippets as string | string[] | undefined,
         page_age: (r.age as string) || (r.page_age as string) || undefined

@@ -572,6 +572,13 @@ def _extract_social_image_url(html: str) -> Optional[str]:
         if match:
             image_url = match.group(1).strip()
             if image_url:
+                # Meetup returns relative paths for default group cover images
+                # (e.g. "/images/fallbacks/redesign/group-cover-3-wide.jpeg").
+                # These generic placeholders are behind CloudFront and return 403
+                # on direct access, so discard them — the frontend handles missing
+                # images gracefully with its own fallback chain.
+                if image_url.startswith("/"):
+                    return None
                 return image_url
     return None
 

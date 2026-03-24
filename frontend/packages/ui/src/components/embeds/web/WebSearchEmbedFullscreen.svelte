@@ -179,6 +179,7 @@
     const thumbnailUrl = getNestedField(
       content,
       "thumbnail.original",
+      "thumbnail.src",
       "preview_image_url",
       "thumbnail_original",
       "image",
@@ -248,6 +249,7 @@
         preview_image_url: getNestedField(
           r,
           "thumbnail.original",
+          "thumbnail.src",
           "preview_image_url",
           "thumbnail_original",
           "image",
