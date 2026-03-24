@@ -19,7 +19,7 @@ toggle_menu:
   hi: मेनू टॉगल करें
   th: สลับเมนู
   cs: Přepnout menu
-  sv: ''
+  sv: Växla meny
   he: החלפת מצב תפריט
   verified_by_human: []
 login_signup:
@@ -43,7 +43,7 @@ login_signup:
   hi: लॉगिन / साइनअप
   th: เข้าสู่ระบบ / สมัครสมาชิก
   cs: Přihlásit / Registrovat
-  sv: ''
+  sv: Logga in / Registrera
   he: התחברות / הרשמה
   verified_by_human: []
 login:
@@ -67,7 +67,7 @@ login:
   hi: साइन इन करें
   th: เข้าสู่ระบบ
   cs: Přihlásit se
-  sv: ''
+  sv: Logga in
   he: התחברות
   verified_by_human: []
 self_hosting_edition:
@@ -91,7 +91,7 @@ self_hosting_edition:
   hi: सेल्फ होस्टिंग संस्करण
   th: รุ่นโฮสต์เอง
   cs: Edice vlastního hostování
-  sv: ''
+  sv: Självhostningsutgåva
   he: מהדורת אירוח עצמי
   verified_by_human: []
 development_server:
@@ -115,7 +115,7 @@ development_server:
   hi: विकास सर्वर
   th: เซิร์ฟเวอร์พัฒนา
   cs: Vývojový server
-  sv: ''
+  sv: Utvecklingsserver
   he: שרת פיתוח
   verified_by_human: []
 report_issue:

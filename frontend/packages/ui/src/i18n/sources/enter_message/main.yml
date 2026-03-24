@@ -97,6 +97,25 @@ send:
 buy_credits:
   context: Button text shown instead of Send when a signed-in user has zero credits
   en: Buy credits
+  de: Credits kaufen
+  zh: 购买积分
+  es: Comprar créditos
+  fr: Acheter des crédits
+  pt: Comprar créditos
+  ru: Купить кредиты
+  ja: クレジットを購入
+  ko: 크레딧 구매
+  it: Acquista crediti
+  tr: Kredi satın al
+  vi: Mua tín dụng
+  id: Beli kredit
+  pl: Kup kredyty
+  nl: Credits kopen
+  ar: شراء الرصيد
+  hi: क्रेडिट खरीदें
+  th: ซื้อเครดิต
+  cs: Koupit kredity
+  sv: Köp krediter
   he: קנה קרדיטים
   verified_by_human: []
 is_typing_powered_by:
@@ -545,12 +564,48 @@ attachments.record_audio.hint:
   context: Inline hint text shown next to the audio record button
   en: Hold to record
   de: Halten zum Aufnehmen
+  zh: 按住录音
+  es: Mantener para grabar
+  fr: Maintenir pour enregistrer
+  pt: Segure para gravar
+  ru: Удерживайте для записи
+  ja: 押し続けて録音
+  ko: 길게 눌러 녹음
+  it: Tieni premuto per registrare
+  tr: Kaydetmek için basılı tutun
+  vi: Giữ để ghi âm
+  id: Tahan untuk merekam
+  pl: Przytrzymaj, aby nagrać
+  nl: Vasthouden om op te nemen
+  ar: اضغط مطولاً للتسجيل
+  hi: रिकॉर्ड करने के लिए होल्ड करें
+  th: กดค้างเพื่อบันทึก
+  cs: Podržte pro nahrávání
+  sv: Håll inne för att spela in
   he: החזק כדי להקליט
   verified_by_human: []
 message_queued:
   context: Fallback text shown when user sends a message while AI task is active
   en: Message queued
   de: Nachricht in Warteschlange
+  zh: 消息已排队
+  es: Mensaje en cola
+  fr: Message en file d'attente
+  pt: Mensagem na fila
+  ru: Сообщение в очереди
+  ja: メッセージはキューに追加されました
+  ko: 메시지가 대기 중입니다
+  it: Messaggio in coda
+  tr: Mesaj kuyruğa alındı
+  vi: Tin nhắn đã được xếp hàng
+  id: Pesan dalam antrian
+  pl: Wiadomość w kolejce
+  nl: Bericht in wachtrij
+  ar: الرسالة في قائمة الانتظار
+  hi: संदेश कतार में है
+  th: ข้อความอยู่ในคิว
+  cs: Zpráva ve frontě
+  sv: Meddelande i kö
   he: ההודעה בתור
   verified_by_human: []
 waiting_for_upload:

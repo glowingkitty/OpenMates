@@ -25,25 +25,81 @@ tagline:
     le plus utile jamais créé.
 
     '
-  pt: ''
-  ru: ''
+  pt: 'Construindo o software
+
+    mais útil de todos os tempos.
+
+    '
+  ru: 'Создаём самое полезное
+
+    программное обеспечение в истории.
+
+    '
   ja: '史上最も役立つ
 
     ソフトウェアを構築中。
 
     '
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: '역사상 가장 유용한
+
+    소프트웨어를 만들고 있습니다.
+
+    '
+  it: 'Costruendo il software
+
+    più utile di sempre.
+
+    '
+  tr: 'Tarihin en yardımcı
+
+    yazılımını inşa ediyoruz.
+
+    '
+  vi: 'Xây dựng phần mềm
+
+    hữu ích nhất từ trước đến nay.
+
+    '
+  id: 'Membangun perangkat lunak
+
+    paling membantu yang pernah ada.
+
+    '
+  pl: 'Tworzymy najbardziej pomocne
+
+    oprogramowanie w historii.
+
+    '
+  nl: 'Het meest nuttige
+
+    software ooit bouwen.
+
+    '
+  ar: 'بناء أكثر البرامج
+
+    فائدة على الإطلاق.
+
+    '
+  hi: 'अब तक का सबसे उपयोगी
+
+    सॉफ़्टवेयर बना रहे हैं।
+
+    '
+  th: 'กำลังสร้างซอฟต์แวร์
+
+    ที่มีประโยชน์มากที่สุดเท่าที่เคยมีมา
+
+    '
+  cs: 'Vytváříme nejužitečnější
+
+    software všech dob.
+
+    '
+  sv: 'Bygger den mest hjälpsamma
+
+    mjukvaran någonsin.
+
+    '
   he: |
     בונים את התוכנה המועילה ביותר
     אי פעם.
@@ -55,20 +111,20 @@ made_in_eu:
   zh: 在欧盟制造
   es: Hecho en la UE
   fr: Fabriqué dans l'UE
-  pt: ''
-  ru: ''
+  pt: Feito na UE
+  ru: Сделано в ЕС
   ja: EUで開発
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: EU에서 만들어짐
+  it: Fatto nell'UE
+  tr: AB'de yapıldı
+  vi: Được làm tại EU
+  id: Dibuat di UE
+  pl: Wyprodukowano w UE
+  nl: Gemaakt in de EU
+  ar: صُنع في الاتحاد الأوروبي
+  hi: EU में निर्मित
+  th: ผลิตในสหภาพยุโรป
+  cs: Vyrobeno v EU
+  sv: Tillverkat i EU
   he: מיוצר באיחוד האירופי
   verified_by_human: []

@@ -991,46 +991,217 @@ skip_for_now:
   context: Small link text on 2FA setup to defer 2FA until later
   en: Skip for now
   de: Vorerst überspringen
+  zh: 暂时跳过
+  es: Omitir por ahora
+  fr: Ignorer pour l'instant
+  pt: Pular por agora
+  ru: Пропустить пока
+  ja: 後で設定する
+  ko: 지금은 건너뛰기
+  it: Salta per ora
+  tr: Şimdilik atla
+  vi: Bỏ qua lúc này
+  id: Lewati untuk sekarang
+  pl: Pomiń na razie
+  nl: Nu overslaan
+  ar: تخطى الآن
+  hi: अभी छोड़ें
+  th: ข้ามไปก่อน
+  cs: Přeskočit prozatím
+  sv: Hoppa över nu
+  he: דלג לעת עתה
   verified_by_human: []
 skip_2fa_warning_title:
   context: Title on warning screen shown before user skips 2FA setup
   en: Be aware before skipping 2FA
   de: Hinweis vor dem Überspringen von 2FA
+  zh: 跳过两步验证前请注意
+  es: Ten en cuenta antes de omitir la 2FA
+  fr: Attention avant de passer l'authentification à deux facteurs
+  pt: Atenção antes de pular a autenticação de dois fatores
+  ru: Обратите внимание перед пропуском двухфакторной аутентификации
+  ja: 二段階認証をスキップする前にご注意ください
+  ko: 2FA를 건너뛰기 전에 주의하세요
+  it: Fai attenzione prima di saltare il 2FA
+  tr: 2FA'yı atlamadan önce dikkat edin
+  vi: Lưu ý trước khi bỏ qua xác thực 2 yếu tố
+  id: Perhatikan sebelum melewati 2FA
+  pl: Zwróć uwagę przed pominięciem 2FA
+  nl: Let op voordat u 2FA overslaat
+  ar: انتبه قبل تخطي المصادقة الثنائية
+  hi: 2FA छोड़ने से पहले सावधान रहें
+  th: โปรดระวังก่อนข้าม 2FA
+  cs: Pozor před přeskočením dvoufaktorového ověření
+  sv: Var uppmärksam innan du hoppar över 2FA
+  he: שים לב לפני דילוג על 2FA
   verified_by_human: []
 skip_2fa_warning_intro:
   context: Intro warning text on 2FA skip consent screen
   en: "Be aware: your account is not properly secured as long as password login is active without a 2FA app. If you continue, follow these rules:"
   de: "Achtung: Dein Konto ist nicht ausreichend geschützt, solange Passwort-Login ohne 2FA-App aktiv ist. Wenn du fortfährst, befolge bitte diese Regeln:"
+  zh: "注意：只要密码登录在没有2FA应用的情况下处于活跃状态，您的账户就没有得到适当保护。如果继续，请遵循以下规则："
+  es: "Atención: tu cuenta no está correctamente asegurada mientras el inicio de sesión con contraseña esté activo sin una aplicación de 2FA. Si continúas, sigue estas reglas:"
+  fr: "Attention : votre compte n'est pas correctement sécurisé tant que la connexion par mot de passe est active sans application 2FA. Si vous continuez, suivez ces règles :"
+  pt: "Atenção: sua conta não está devidamente protegida enquanto o login por senha estiver ativo sem um aplicativo de 2FA. Se continuar, siga estas regras:"
+  ru: "Внимание: ваша учётная запись не защищена должным образом, пока вход по паролю активен без приложения двухфакторной аутентификации. Если продолжите, следуйте этим правилам:"
+  ja: "注意：パスワードログインが2FAアプリなしで有効になっている場合、アカウントは適切に保護されていません。続行する場合は、次のルールに従ってください："
+  ko: "주의: 2FA 앱 없이 비밀번호 로그인이 활성화된 경우 계정이 제대로 보호되지 않습니다. 계속하려면 다음 규칙을 따르세요:"
+  it: "Attenzione: il tuo account non è adeguatamente protetto finché il login con password è attivo senza un'app 2FA. Se continui, segui queste regole:"
+  tr: "Dikkat: 2FA uygulaması olmadan şifre girişi aktif olduğu sürece hesabınız düzgün güvence altına alınmamıştır. Devam ederseniz şu kurallara uyun:"
+  vi: "Lưu ý: tài khoản của bạn không được bảo mật đúng cách khi đăng nhập bằng mật khẩu còn hoạt động mà không có ứng dụng 2FA. Nếu tiếp tục, hãy tuân theo các quy tắc sau:"
+  id: "Perhatian: akun Anda tidak diamankan dengan benar selama login kata sandi aktif tanpa aplikasi 2FA. Jika melanjutkan, ikuti aturan berikut:"
+  pl: "Uwaga: Twoje konto nie jest odpowiednio zabezpieczone, dopóki logowanie hasłem jest aktywne bez aplikacji 2FA. Jeśli kontynuujesz, postępuj zgodnie z tymi zasadami:"
+  nl: "Let op: uw account is niet goed beveiligd zolang wachtwoordlogin actief is zonder een 2FA-app. Als u doorgaat, volg dan deze regels:"
+  ar: "انتبه: حسابك غير محمي بشكل صحيح طالما أن تسجيل الدخول بكلمة المرور نشط بدون تطبيق 2FA. إذا واصلت، اتبع هذه القواعد:"
+  hi: "सावधान: जब तक 2FA ऐप के बिना पासवर्ड लॉगिन सक्रिय है, तब तक आपका खाता ठीक से सुरक्षित नहीं है। यदि आप जारी रखते हैं, तो इन नियमों का पालन करें:"
+  th: "โปรดระวัง: บัญชีของคุณไม่ได้รับการรักษาความปลอดภัยอย่างเหมาะสมตราบใดที่การเข้าสู่ระบบด้วยรหัสผ่านทำงานอยู่โดยไม่มีแอป 2FA หากดำเนินการต่อ ให้ปฏิบัติตามกฎเหล่านี้:"
+  cs: "Pozor: váš účet není správně zabezpečen, dokud je přihlášení heslem aktivní bez aplikace 2FA. Pokud budete pokračovat, dodržujte tato pravidla:"
+  sv: "Obs: ditt konto är inte ordentligt säkrat så länge inloggning med lösenord är aktivt utan en 2FA-app. Om du fortsätter, följ dessa regler:"
+  he: "שים לב: חשבונך אינו מאובטח כראוי כל עוד כניסת הסיסמה פעילה ללא אפליקציית 2FA. אם תמשיך, פעל לפי הכללים הבאים:"
   verified_by_human: []
 skip_2fa_warning_rule_1:
   context: Rule 1 for skipping 2FA warning screen
   en: Never reuse your password anywhere else
   de: Verwende dein Passwort nirgendwo sonst erneut
+  zh: 不要在其他任何地方重复使用您的密码
+  es: Nunca reutilices tu contraseña en ningún otro lugar
+  fr: Ne réutilisez jamais votre mot de passe ailleurs
+  pt: Nunca reutilize sua senha em nenhum outro lugar
+  ru: Никогда не используйте пароль повторно где-либо ещё
+  ja: パスワードを他の場所で再使用しないでください
+  ko: 다른 어느 곳에서도 비밀번호를 재사용하지 마세요
+  it: Non riutilizzare mai la tua password altrove
+  tr: Şifrenizi başka hiçbir yerde yeniden kullanmayın
+  vi: Không bao giờ tái sử dụng mật khẩu ở bất kỳ nơi nào khác
+  id: Jangan pernah menggunakan ulang kata sandi Anda di tempat lain
+  pl: Nigdy nie używaj ponownie hasła w żadnym innym miejscu
+  nl: Hergebruik uw wachtwoord nooit ergens anders
+  ar: لا تُعيد استخدام كلمة مرورك في أي مكان آخر
+  hi: अपना पासवर्ड कहीं और दोबारा इस्तेमाल न करें
+  th: อย่าใช้รหัสผ่านของคุณซ้ำที่ไหนอีก
+  cs: Nikdy znovu nepoužívejte své heslo nikde jinde
+  sv: Återanvänd aldrig ditt lösenord någon annanstans
+  he: לעולם אל תשתמש שוב בסיסמה שלך בשום מקום אחר
   verified_by_human: []
 skip_2fa_warning_rule_2:
   context: Rule 2 for skipping 2FA warning screen
   en: "Remember or store your password securely (Recommended: Use a password manager)"
   de: "Merke dir dein Passwort oder speichere es sicher (Empfohlen: Nutze einen Passwortmanager)"
+  zh: "记住或安全存储您的密码（推荐：使用密码管理器）"
+  es: "Recuerda o almacena tu contraseña de forma segura (Recomendado: Usa un gestor de contraseñas)"
+  fr: "Mémorisez ou stockez votre mot de passe en toute sécurité (Recommandé : Utilisez un gestionnaire de mots de passe)"
+  pt: "Lembre ou armazene sua senha com segurança (Recomendado: Use um gerenciador de senhas)"
+  ru: "Запомните или надёжно храните пароль (Рекомендуется: используйте менеджер паролей)"
+  ja: "パスワードを記憶するか安全に保存してください（推奨：パスワードマネージャーを使用する）"
+  ko: "비밀번호를 기억하거나 안전하게 저장하세요 (권장: 비밀번호 관리자 사용)"
+  it: "Ricorda o archivia la tua password in modo sicuro (Consigliato: Usa un gestore di password)"
+  tr: "Şifrenizi hatırlayın veya güvenli şekilde saklayın (Önerilen: Şifre yöneticisi kullanın)"
+  vi: "Ghi nhớ hoặc lưu mật khẩu của bạn một cách an toàn (Khuyến nghị: Sử dụng trình quản lý mật khẩu)"
+  id: "Ingat atau simpan kata sandi Anda dengan aman (Disarankan: Gunakan pengelola kata sandi)"
+  pl: "Zapamiętaj lub bezpiecznie przechowuj swoje hasło (Zalecane: Użyj menedżera haseł)"
+  nl: "Onthoud of sla uw wachtwoord veilig op (Aanbevolen: Gebruik een wachtwoordmanager)"
+  ar: "تذكر أو خزّن كلمة مرورك بأمان (موصى به: استخدم مدير كلمات المرور)"
+  hi: "अपना पासवर्ड याद रखें या सुरक्षित रूप से संग्रहीत करें (अनुशंसित: पासवर्ड मैनेजर का उपयोग करें)"
+  th: "จำหรือเก็บรหัสผ่านของคุณอย่างปลอดภัย (แนะนำ: ใช้ตัวจัดการรหัสผ่าน)"
+  cs: "Zapamatujte si nebo bezpečně uložte své heslo (Doporučeno: Používejte správce hesel)"
+  sv: "Kom ihåg eller lagra ditt lösenord säkert (Rekommenderat: Använd en lösenordshanterare)"
+  he: "זכור או שמור את הסיסמה שלך בצורה מאובטחת (מומלץ: השתמש במנהל סיסמאות)"
   verified_by_human: []
 skip_2fa_warning_rule_3:
   context: Rule 3 for skipping 2FA warning screen
   en: Never share your password with anyone else (No real contributor/employee will ever ask for your password)
   de: Teile dein Passwort niemals mit anderen (Kein echter Mitwirkender/Mitarbeiter wird dich jemals nach deinem Passwort fragen)
+  zh: 永远不要与任何人分享您的密码（没有真正的贡献者/员工会要求您提供密码）
+  es: Nunca compartas tu contraseña con nadie (Ningún colaborador/empleado real te pedirá tu contraseña)
+  fr: Ne partagez jamais votre mot de passe avec qui que ce soit (Aucun vrai contributeur/employé ne vous demandera jamais votre mot de passe)
+  pt: Nunca compartilhe sua senha com ninguém (Nenhum colaborador/funcionário real jamais pedirá sua senha)
+  ru: Никогда не делитесь паролем с кем-либо (Ни один настоящий участник/сотрудник никогда не попросит ваш пароль)
+  ja: パスワードを絶対に他人と共有しないでください（本物の貢献者/従業員がパスワードを求めることは絶対にありません）
+  ko: 절대로 비밀번호를 다른 사람과 공유하지 마세요 (진짜 기여자/직원은 절대 비밀번호를 요청하지 않습니다)
+  it: Non condividere mai la tua password con nessuno (Nessun vero collaboratore/dipendente ti chiederà mai la tua password)
+  tr: Şifrenizi asla kimseyle paylaşmayın (Hiçbir gerçek katkıda bulunan/çalışan şifrenizi istemeyecektir)
+  vi: Không bao giờ chia sẻ mật khẩu với bất kỳ ai (Không có cộng tác viên/nhân viên thực sự nào sẽ hỏi mật khẩu của bạn)
+  id: Jangan pernah membagikan kata sandi Anda kepada siapapun (Tidak ada kontributor/karyawan nyata yang akan meminta kata sandi Anda)
+  pl: Nigdy nie udostępniaj swojego hasła nikomu (Żaden prawdziwy współpracownik/pracownik nigdy nie poprosi o twoje hasło)
+  nl: Deel uw wachtwoord nooit met iemand anders (Geen echte bijdrager/medewerker zal ooit om uw wachtwoord vragen)
+  ar: لا تشارك كلمة مرورك مع أي شخص آخر (لن يطلب منك أي مساهم/موظف حقيقي كلمة مرورك أبدًا)
+  hi: अपना पासवर्ड कभी भी किसी के साथ साझा न करें (कोई भी वास्तविक योगदानकर्ता/कर्मचारी कभी भी आपका पासवर्ड नहीं मांगेगा)
+  th: อย่าแชร์รหัสผ่านของคุณกับใครทั้งนั้น (ผู้ร่วมงาน/พนักงานที่แท้จริงจะไม่มีวันขอรหัสผ่านของคุณ)
+  cs: Nikdy nesdílejte své heslo s nikým (Žádný skutečný přispěvatel/zaměstnanec vás nikdy nepožádá o heslo)
+  sv: Dela aldrig ditt lösenord med någon annan (Ingen riktig bidragsgivare/anställd kommer någonsin att be om ditt lösenord)
+  he: לעולם אל תשתף את הסיסמה שלך עם אף אחד (אף תורם/עובד אמיתי לעולם לא יבקש את הסיסמה שלך)
   verified_by_human: []
 skip_2fa_warning_rule_4:
   context: Rule 4 for skipping 2FA warning screen
   en: Never enter your password on a domain that is not openmates.org
   de: Gib dein Passwort niemals auf einer Domain ein, die nicht openmates.org ist
+  zh: 永远不要在非 openmates.org 的域名上输入您的密码
+  es: Nunca ingreses tu contraseña en un dominio que no sea openmates.org
+  fr: Ne saisissez jamais votre mot de passe sur un domaine qui n'est pas openmates.org
+  pt: Nunca insira sua senha em um domínio que não seja openmates.org
+  ru: Никогда не вводите пароль на домене, который не является openmates.org
+  ja: openmates.org 以外のドメインでパスワードを入力しないでください
+  ko: openmates.org가 아닌 도메인에 비밀번호를 절대 입력하지 마세요
+  it: Non inserire mai la tua password su un dominio diverso da openmates.org
+  tr: Şifrenizi openmates.org dışındaki bir etki alanına asla girmeyin
+  vi: Không bao giờ nhập mật khẩu trên một tên miền không phải openmates.org
+  id: Jangan pernah memasukkan kata sandi di domain yang bukan openmates.org
+  pl: Nigdy nie wpisuj hasła na domenie innej niż openmates.org
+  nl: Voer uw wachtwoord nooit in op een domein dat niet openmates.org is
+  ar: لا تُدخل كلمة مرورك أبدًا على نطاق غير openmates.org
+  hi: कभी भी openmates.org के अलावा किसी अन्य डोमेन पर अपना पासवर्ड दर्ज न करें
+  th: อย่าป้อนรหัสผ่านของคุณบนโดเมนที่ไม่ใช่ openmates.org
+  cs: Nikdy nezadávejte své heslo na doméně, která není openmates.org
+  sv: Ange aldrig ditt lösenord på en domän som inte är openmates.org
+  he: לעולם אל תזין את הסיסמה שלך בדומיין שאינו openmates.org
   verified_by_human: []
 skip_2fa_warning_rule_5:
   context: Rule 5 for skipping 2FA warning screen
   en: Complete setup of a 2FA OTP app or passkey in Settings / Account / Security as soon as possible
   de: Richte so schnell wie möglich eine 2FA-OTP-App oder einen Passkey unter Einstellungen / Konto / Sicherheit ein
+  zh: 尽快在设置 / 账户 / 安全中完成2FA OTP应用或通行密钥的设置
+  es: Completa la configuración de una aplicación OTP de 2FA o clave de acceso en Ajustes / Cuenta / Seguridad lo antes posible
+  fr: Terminez la configuration d'une application OTP 2FA ou d'une clé de sécurité dans Paramètres / Compte / Sécurité dès que possible
+  pt: Complete a configuração de um aplicativo OTP 2FA ou chave de acesso em Configurações / Conta / Segurança o mais rápido possível
+  ru: Завершите настройку приложения 2FA OTP или ключа доступа в Настройках / Аккаунт / Безопасность как можно скорее
+  ja: できるだけ早く設定 / アカウント / セキュリティで2FA OTPアプリまたはパスキーの設定を完了してください
+  ko: 가능한 빨리 설정 / 계정 / 보안에서 2FA OTP 앱 또는 패스키 설정을 완료하세요
+  it: Completa la configurazione di un'app OTP 2FA o di una chiave di accesso in Impostazioni / Account / Sicurezza il prima possibile
+  tr: Mümkün olan en kısa sürede Ayarlar / Hesap / Güvenlik bölümünde bir 2FA OTP uygulaması veya geçiş anahtarı kurulumunu tamamlayın
+  vi: Hoàn thành thiết lập ứng dụng OTP 2FA hoặc khóa truy cập trong Cài đặt / Tài khoản / Bảo mật càng sớm càng tốt
+  id: Selesaikan pengaturan aplikasi OTP 2FA atau kunci sandi di Pengaturan / Akun / Keamanan sesegera mungkin
+  pl: Zakończ konfigurację aplikacji OTP 2FA lub klucza dostępu w Ustawienia / Konto / Bezpieczeństwo jak najszybciej
+  nl: Voltooi de instelling van een 2FA OTP-app of toegangssleutel in Instellingen / Account / Beveiliging zo snel mogelijk
+  ar: أكمل إعداد تطبيق OTP للمصادقة الثنائية أو مفتاح المرور في الإعدادات / الحساب / الأمان في أقرب وقت ممكن
+  hi: जल्द से जल्द सेटिंग्स / खाता / सुरक्षा में 2FA OTP ऐप या पासकी का सेटअप पूरा करें
+  th: ทำการตั้งค่าแอป OTP 2FA หรือพาสคีย์ในการตั้งค่า / บัญชี / ความปลอดภัยให้เสร็จสิ้นโดยเร็วที่สุด
+  cs: Co nejdříve dokončete nastavení aplikace 2FA OTP nebo přístupového klíče v Nastavení / Účet / Zabezpečení
+  sv: Slutför konfigurationen av en 2FA OTP-app eller lösenordsnyckel i Inställningar / Konto / Säkerhet så snart som möjligt
+  he: השלם את הגדרת אפליקציית OTP לאימות דו-שלבי או מפתח גישה בהגדרות / חשבון / אבטחה בהקדם האפשרי
   verified_by_human: []
 skip_2fa_consent_toggle:
   context: Consent checkbox label to acknowledge security risks before skipping 2FA setup
   en: I understand these risks and want to continue without setting up 2FA now
   de: Ich verstehe diese Risiken und möchte ohne sofortige 2FA-Einrichtung fortfahren
+  zh: 我了解这些风险，并希望现在不设置2FA就继续
+  es: Entiendo estos riesgos y quiero continuar sin configurar la 2FA ahora
+  fr: Je comprends ces risques et je souhaite continuer sans configurer le 2FA maintenant
+  pt: Entendo esses riscos e quero continuar sem configurar o 2FA agora
+  ru: Я понимаю эти риски и хочу продолжить без настройки двухфакторной аутентификации сейчас
+  ja: これらのリスクを理解し、今すぐ2FAを設定せずに続行したいと思います
+  ko: 이러한 위험을 이해하고 지금 2FA를 설정하지 않고 계속 진행하고 싶습니다
+  it: Comprendo questi rischi e voglio continuare senza configurare il 2FA ora
+  tr: Bu riskleri anlıyorum ve şimdi 2FA kurmadan devam etmek istiyorum
+  vi: Tôi hiểu những rủi ro này và muốn tiếp tục mà không thiết lập 2FA ngay bây giờ
+  id: Saya memahami risiko ini dan ingin melanjutkan tanpa menyiapkan 2FA sekarang
+  pl: Rozumiem te zagrożenia i chcę kontynuować bez konfigurowania 2FA teraz
+  nl: Ik begrijp deze risico's en wil doorgaan zonder nu 2FA in te stellen
+  ar: أفهم هذه المخاطر وأريد المتابعة دون إعداد المصادقة الثنائية الآن
+  hi: मैं इन जोखिमों को समझता हूं और अभी 2FA सेट किए बिना आगे बढ़ना चाहता हूं
+  th: ฉันเข้าใจความเสี่ยงเหล่านี้และต้องการดำเนินการต่อโดยไม่ตั้งค่า 2FA ในตอนนี้
+  cs: Rozumím těmto rizikům a chci pokračovat bez nastavení dvoufaktorového ověření nyní
+  sv: Jag förstår dessa risker och vill fortsätta utan att konfigurera 2FA nu
+  he: אני מבין את הסיכונים הללו ורוצה להמשיך ללא הגדרת 2FA כעת
   verified_by_human: []
 agree_to:
   context: "in message: 'Agree to Terms of service' and 'Agree to Privacy policy'"

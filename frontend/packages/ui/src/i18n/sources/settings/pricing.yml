@@ -5,21 +5,21 @@ packages_heading:
   zh: 积分套餐
   es: Paquetes de Créditos
   fr: Forfaits de Crédits
-  pt: ""
-  ru: ""
+  pt: Pacotes de Créditos
+  ru: Кредитные пакеты
   ja: クレジットパッケージ
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 크레딧 패키지
+  it: Pacchetti di Crediti
+  tr: Kredi Paketleri
+  vi: Gói Tín dụng
+  id: Paket Kredit
+  pl: Pakiety Kredytów
+  nl: Creditpakketten
   ar: باقات الرصيد
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: क्रेडिट पैकेज
+  th: แพ็กเกจเครดิต
+  cs: Kreditní balíčky
+  sv: Kreditpaket
   he: חבילות קרדיטים
   verified_by_human: []
 recommended:
@@ -29,21 +29,21 @@ recommended:
   zh: 推荐
   es: Recomendado
   fr: Recommandé
-  pt: ""
-  ru: ""
+  pt: Recomendado
+  ru: Рекомендуется
   ja: おすすめ
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 추천
+  it: Consigliato
+  tr: Önerilen
+  vi: Được đề xuất
+  id: Direkomendasikan
+  pl: Polecane
+  nl: Aanbevolen
   ar: موصى به
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: अनुशंसित
+  th: แนะนำ
+  cs: Doporučeno
+  sv: Rekommenderat
   he: מומלץ
   verified_by_human: []
 bonus_credits:
@@ -53,21 +53,21 @@ bonus_credits:
   zh: 自动充值附赠积分/月
   es: bonus/mes con Recarga Automática
   fr: bonus/mois avec Rechargement Auto
-  pt: ""
-  ru: ""
+  pt: bônus/mês com Recarga Automática
+  ru: бонус/мес с автопополнением
   ja: 自動チャージ付きボーナス/月
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 자동 충전 시 보너스/월
+  it: bonus/mese con Ricarica Automatica
+  tr: Otomatik Yükleme ile bonus/ay
+  vi: thưởng/tháng với Tự động nạp tiền
+  id: bonus/bln dengan Isi Ulang Otomatis
+  pl: bonus/mies. z automatycznym doładowaniem
+  nl: bonus/mnd met Automatisch Opwaarderen
   ar: رصيد إضافي/شهري مع التعبئة التلقائية
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: ऑटो टॉप-अप के साथ बोनस/माह
+  th: โบนัส/เดือน พร้อมเติมเงินอัตโนมัติ
+  cs: bonus/měs. s automatickým dobíjením
+  sv: bonus/mån med automatisk påfyllning
   he: בונוס/חודש עם טעינה אוטומטית
   verified_by_human: []
 vat_note:
@@ -77,21 +77,21 @@ vat_note:
   zh: 所有价格不含增值税。价格以欧元和美元计。
   es: Todos los precios sin IVA. Precios en EUR y USD.
   fr: Tous les prix hors TVA. Prix en EUR et USD.
-  pt: ""
-  ru: ""
+  pt: Todos os preços excluem IVA. Preços em EUR e USD.
+  ru: Все цены без НДС. Цены в EUR и USD.
   ja: すべての価格は税抜きです。EUR・USD表示。
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 모든 가격은 부가세 제외입니다. 가격은 EUR 및 USD입니다.
+  it: Tutti i prezzi IVA esclusa. Prezzi in EUR e USD.
+  tr: Tüm fiyatlar KDV hariçtir. Fiyatlar EUR ve USD cinsindendir.
+  vi: Tất cả giá chưa bao gồm VAT. Giá tính bằng EUR và USD.
+  id: Semua harga belum termasuk PPN. Harga dalam EUR dan USD.
+  pl: Wszystkie ceny bez VAT. Ceny w EUR i USD.
+  nl: Alle prijzen exclusief btw. Prijzen in EUR en USD.
   ar: جميع الأسعار لا تشمل ضريبة القيمة المضافة. الأسعار باليورو والدولار الأمريكي.
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: सभी कीमतें VAT को छोड़कर। कीमतें EUR और USD में।
+  th: ราคาทั้งหมดไม่รวม VAT ราคาเป็น EUR และ USD
+  cs: Všechny ceny bez DPH. Ceny v EUR a USD.
+  sv: Alla priser exkl. moms. Priser i EUR och USD.
   he: "כל המחירים אינם כוללים מע\"מ. מחירים ב-EUR וב-USD."
   verified_by_human: []
 explore_heading:
@@ -101,21 +101,21 @@ explore_heading:
   zh: 探索应用技能与费用
   es: Explorar habilidades de apps y costos
   fr: Explorer les compétences d'apps et les coûts
-  pt: ""
-  ru: ""
+  pt: Explorar habilidades de apps e custos
+  ru: Изучить навыки приложений и стоимость
   ja: アプリスキルとコストを探る
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 앱 스킬 및 비용 탐색
+  it: Esplora le abilità delle app e i costi
+  tr: Uygulama Becerilerini ve Maliyetleri Keşfet
+  vi: Khám phá kỹ năng và chi phí ứng dụng
+  id: Jelajahi Keahlian dan Biaya Aplikasi
+  pl: Odkryj umiejętności aplikacji i koszty
+  nl: App-vaardigheden en kosten verkennen
   ar: استكشاف مهارات التطبيق والتكاليف
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: ऐप स्किल और लागत जानें
+  th: สำรวจทักษะแอปและต้นทุน
+  cs: Prozkoumejte dovednosti aplikací a náklady
+  sv: Utforska appfärdigheter och kostnader
   he: גלה יכולות ועלויות
   verified_by_human: []
 ai_ask_skill:
@@ -125,21 +125,21 @@ ai_ask_skill:
   zh: AI 问答
   es: AI Ask
   fr: IA Demander
-  pt: ""
-  ru: ""
+  pt: AI Ask
+  ru: AI Ask
   ja: AI Ask
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: AI Ask
+  it: AI Ask
+  tr: AI Soru
+  vi: AI Ask
+  id: AI Ask
+  pl: AI Ask
+  nl: AI Ask
   ar: الاستعلام بالذكاء الاصطناعي
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: AI Ask
+  th: AI Ask
+  cs: AI Ask
+  sv: AI Ask
   he: AI Ask
   verified_by_human: []
 ai_ask_subtitle:
@@ -149,21 +149,21 @@ ai_ask_subtitle:
   zh: 最大费用因素 — 探索模型定价
   es: Mayor factor de costo — explorar precios de modelos
   fr: Plus grand facteur de coût — explorer la tarification des modèles
-  pt: ""
-  ru: ""
+  pt: Maior fator de custo — explorar preços de modelos
+  ru: Основной фактор стоимости — изучите цены моделей
   ja: 最大コスト要因 — モデル料金を確認
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 가장 큰 비용 요인 — 모델 가격 탐색
+  it: Fattore di costo principale — esplora i prezzi dei modelli
+  tr: En büyük maliyet faktörü — model fiyatlarını keşfet
+  vi: Yếu tố chi phí lớn nhất — khám phá giá mô hình
+  id: Faktor biaya terbesar — jelajahi harga model
+  pl: Największy czynnik kosztów — poznaj ceny modeli
+  nl: Grootste kostenfactor — modelprijzen verkennen
   ar: أكبر عامل تكلفة — استكشاف تسعير النموذج
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: सबसे बड़ा लागत कारक — मॉडल मूल्य जानें
+  th: ปัจจัยต้นทุนที่ใหญ่ที่สุด — สำรวจราคาโมเดล
+  cs: Největší faktor nákladů — prozkoumejte ceny modelů
+  sv: Största kostnadsfaktorn — utforska modellpriser
   he: גורם העלות העיקרי — גלה את מחירי המודלים
   verified_by_human: []
 browse_app_store:
@@ -173,21 +173,21 @@ browse_app_store:
   zh: 浏览应用商店
   es: Explorar App Store
   fr: Parcourir l'App Store
-  pt: ""
-  ru: ""
+  pt: Explorar App Store
+  ru: Обзор App Store
   ja: アプリストアを閲覧
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: App Store 탐색
+  it: Sfoglia App Store
+  tr: App Store'a gözat
+  vi: Duyệt App Store
+  id: Jelajahi App Store
+  pl: Przeglądaj App Store
+  nl: App Store doorzoeken
   ar: تصفح متجر التطبيقات
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: App Store ब्राउज़ करें
+  th: เรียกดู App Store
+  cs: Procházet App Store
+  sv: Bläddra i App Store
   he: עיון בחנות האפליקציות
   verified_by_human: []
 browse_app_store_subtitle:
@@ -197,20 +197,20 @@ browse_app_store_subtitle:
   zh: 查看所有可用技能的定价
   es: Ver precios de todas las habilidades disponibles
   fr: Voir les prix de toutes les compétences disponibles
-  pt: ""
-  ru: ""
+  pt: Ver preços de todas as habilidades disponíveis
+  ru: Смотрите цены на все доступные навыки
   ja: 利用可能なすべてのスキルの料金を確認
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 모든 사용 가능한 스킬의 가격 보기
+  it: Vedi i prezzi per tutte le abilità disponibili
+  tr: Tüm mevcut beceriler için fiyatları görün
+  vi: Xem giá cho tất cả các kỹ năng có sẵn
+  id: Lihat harga untuk semua keterampilan yang tersedia
+  pl: Zobacz ceny wszystkich dostępnych umiejętności
+  nl: Bekijk prijzen voor alle beschikbare vaardigheden
   ar: اطلع على أسعار جميع المهارات المتاحة
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: सभी उपलब्ध स्किल की कीमतें देखें
+  th: ดูราคาสำหรับทักษะทั้งหมดที่มี
+  cs: Zobrazte ceny všech dostupných dovedností
+  sv: Se priser för alla tillgängliga färdigheter
   he: צפה במחירים של כל היכולות הזמינות
   verified_by_human: []

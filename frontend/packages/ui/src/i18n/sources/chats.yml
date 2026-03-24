@@ -398,6 +398,26 @@ context_menu.hide:
 context_menu.share:
   context: Menu option to share a chat (opens the share settings deep link)
   en: Share
+  de: Teilen
+  zh: 分享
+  es: Compartir
+  fr: Partager
+  pt: Compartilhar
+  ru: Поделиться
+  ja: 共有
+  ko: 공유
+  it: Condividi
+  tr: Paylaş
+  vi: Chia sẻ
+  id: Bagikan
+  pl: Udostępnij
+  nl: Delen
+  ar: مشاركة
+  hi: साझा करें
+  th: แชร์
+  cs: Sdílet
+  sv: Dela
+  he: שיתוף
   verified_by_human: []
 
 hidden_chats.unlock:

@@ -20,6 +20,7 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.services.status_aggregator import (
+    PRECOMPUTED_STATUS_KEY,
     build_all_service_daily_statuses,
     build_app_detail,
     build_apps_section,
@@ -69,6 +70,21 @@ async def get_status(
     is_admin = current_user is not None and current_user.is_admin
     if detail == "full" and not is_admin:
         raise HTTPException(status_code=403, detail="detail=full requires admin authentication")
+
+    # Fast path: serve precomputed payload for public (non-admin) summary requests
+    if not is_admin and detail == "summary":
+        try:
+            cache_service = CacheService()
+            client = await cache_service.client
+            if client:
+                cached = await client.get(PRECOMPUTED_STATUS_KEY)
+                if cached:
+                    import json as _json
+                    if isinstance(cached, bytes):
+                        cached = cached.decode("utf-8")
+                    return _json.loads(cached)
+        except Exception as e:
+            logger.warning(f"[STATUS] Precomputed cache read failed, falling back to live: {e}")
 
     response: Dict[str, Any] = {
         "last_updated": datetime.now(timezone.utc).isoformat(),

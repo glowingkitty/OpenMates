@@ -25,6 +25,7 @@ const {
 	getTestAccount,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
+const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 /**
  * Backup code setup and login flow test against a deployed web app.
@@ -70,9 +71,7 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	await archiveExistingScreenshots(logCheckpoint);
 
 	// Validate required environment variables
-	test.skip(!OPENMATES_TEST_ACCOUNT_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!OPENMATES_TEST_ACCOUNT_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!OPENMATES_TEST_ACCOUNT_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, OPENMATES_TEST_ACCOUNT_EMAIL, OPENMATES_TEST_ACCOUNT_PASSWORD, OPENMATES_TEST_ACCOUNT_OTP_KEY);
 
 	// Grant clipboard permissions for "Copy" actions
 	await context.grantPermissions(['clipboard-read', 'clipboard-write']);

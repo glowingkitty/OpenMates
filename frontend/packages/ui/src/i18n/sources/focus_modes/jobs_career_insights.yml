@@ -60,6 +60,196 @@ process:
     - identifies transferable skills and experience that open up new directions
     - synthesizes all the information to suggest concrete career directions, industries, and roles
     - provides actionable next steps (networking, upskilling, job boards, portfolio, resume tips)
+  de: |
+    - versteht die aktuelle Situation des Nutzers (Jobposition, Branche, Dauer, Anlass für Veränderung)
+    - erkundet, was der Nutzer an aktuellen und früheren Positionen mag und nicht mag
+    - fragt nach Fähigkeiten, Stärken und Fachgebieten
+    - diskutiert Interessen, Leidenschaften und was außerhalb der Arbeit Energie gibt
+    - erkundet Werte und Prioritäten (Work-Life-Balance, Gehalt, Wirkung, Kreativität, Stabilität, Wachstum, Heimarbeit)
+    - fragt nach praktischen Einschränkungen (Standort, Finanzen, familiäre Verpflichtungen, Zeitrahmen)
+    - identifiziert übertragbare Fähigkeiten und Erfahrungen, die neue Richtungen eröffnen
+    - fasst alle Informationen zusammen, um konkrete Karriererichtungen vorzuschlagen
+    - bietet umsetzbare nächste Schritte an (Networking, Weiterbildung, Jobbörsen, Portfolio, Lebenslaufhinweise)
+  zh: |
+    - 了解用户目前的情况（职位、行业、工作时长、促使改变的原因）
+    - 探索用户对当前和过去职位的喜欢和不喜欢之处
+    - 询问技能、优势和专业领域
+    - 讨论兴趣、热情以及工作之外什么给予能量
+    - 探索价值观和优先事项（工作生活平衡、薪资、影响力、创造力、稳定性、成长、远程工作等）
+    - 询问实际限制（地点、财务、家庭义务、时间表）
+    - 识别可转移的技能和经验，开辟新方向
+    - 综合所有信息，提出具体的职业方向、行业和职位
+    - 提供可执行的后续步骤（网络关系、提升技能、招聘网站、作品集、简历建议）
+  es: |
+    - comprende la situación actual del usuario (cargo, industria, tiempo, motivo del cambio)
+    - explora lo que le gusta y no le gusta de sus roles actuales y pasados
+    - pregunta sobre habilidades, fortalezas y áreas de experiencia
+    - discute intereses, pasiones y qué le da energía fuera del trabajo
+    - explora valores y prioridades (equilibrio trabajo-vida, salario, impacto, creatividad, estabilidad, crecimiento, trabajo remoto)
+    - pregunta sobre restricciones prácticas (ubicación, finanzas, obligaciones familiares, cronograma)
+    - identifica habilidades y experiencias transferibles que abren nuevas direcciones
+    - sintetiza toda la información para sugerir direcciones, industrias y roles concretos
+    - proporciona próximos pasos accionables (networking, capacitación, bolsas de trabajo, portafolio, consejos de CV)
+  fr: |
+    - comprend la situation actuelle de l'utilisateur (poste, industrie, durée, ce qui motive le changement)
+    - explore ce qu'il aime et n'aime pas dans ses rôles actuels et passés
+    - demande ses compétences, forces et domaines d'expertise
+    - discute de ses intérêts, passions et de ce qui l'énergise hors travail
+    - explore ses valeurs et priorités (équilibre travail-vie, salaire, impact, créativité, stabilité, croissance, télétravail)
+    - demande les contraintes pratiques (localisation, finances, obligations familiales, calendrier)
+    - identifie les compétences et expériences transférables ouvrant de nouvelles directions
+    - synthétise toutes les informations pour suggérer des orientations concrètes
+    - fournit des prochaines étapes concrètes (réseautage, montée en compétences, offres d'emploi, portfolio, conseils CV)
+  pt: |
+    - entende a situação atual do usuário (cargo, setor, tempo, o que está motivando a mudança)
+    - explora o que gosta e não gosta em suas funções atuais e anteriores
+    - pergunta sobre habilidades, pontos fortes e áreas de especialização
+    - discute interesses, paixões e o que energiza fora do trabalho
+    - explora valores e prioridades (equilíbrio trabalho-vida, salário, impacto, criatividade, estabilidade, crescimento, trabalho remoto)
+    - pergunta sobre restrições práticas (localização, finanças, obrigações familiares, cronograma)
+    - identifica habilidades e experiências transferíveis que abrem novas direções
+    - sintetiza tudo para sugerir direções, setores e funções concretas
+    - fornece próximas etapas práticas (networking, capacitação, vagas de emprego, portfólio, dicas de currículo)
+  ru: |
+    - понимает текущую ситуацию пользователя (должность, отрасль, стаж, причина перемен)
+    - исследует, что нравится и не нравится в текущих и прошлых ролях
+    - спрашивает о навыках, сильных сторонах и областях экспертизы
+    - обсуждает интересы, страсти и что даёт энергию вне работы
+    - исследует ценности и приоритеты (баланс работы/жизни, зарплата, влияние, творчество, стабильность, рост, удалённая работа)
+    - спрашивает о практических ограничениях (место, финансы, семейные обязательства, сроки)
+    - выявляет переносимые навыки и опыт, открывающие новые направления
+    - синтезирует всю информацию для конкретных карьерных предложений
+    - предоставляет практические следующие шаги (нетворкинг, повышение квалификации, биржи труда, портфолио, резюме)
+  ja: |
+    - ユーザーの現状を理解する（役職、業界、在職期間、変化のきっかけ）
+    - 現在と過去の役割について好きなこと・嫌いなことを探る
+    - スキル、強み、専門分野について尋ねる
+    - 仕事外で活力を与えるものを含む興味・情熱を話し合う
+    - 価値観と優先順位を探る（ワークライフバランス、給与、影響力、創造性、安定性、成長、リモートワーク）
+    - 実際の制約（場所、財務、家族の義務、タイムライン）について尋ねる
+    - 新しい方向性を開く転用可能なスキルと経験を特定する
+    - 情報を統合して具体的なキャリア方向、業界、役割を提案する
+    - 実行可能な次のステップを提供する（ネットワーキング、スキルアップ、求人掲示板、ポートフォリオ、履歴書のヒント）
+  ko: |
+    - 사용자의 현재 상황을 이해합니다 (직책, 업종, 재직 기간, 변화의 동기)
+    - 현재 및 과거 역할에서 좋아하고 싫어하는 것을 탐색합니다
+    - 기술, 강점, 전문 분야에 대해 묻습니다
+    - 관심사, 열정, 업무 외에서 활력을 주는 것에 대해 이야기합니다
+    - 가치관과 우선순위를 탐색합니다 (일-생활 균형, 급여, 영향력, 창의성, 안정성, 성장, 원격 근무)
+    - 실제적인 제약 조건을 묻습니다 (위치, 재정, 가족 의무, 일정)
+    - 새로운 방향을 열어주는 이전 가능한 기술과 경험을 파악합니다
+    - 모든 정보를 종합하여 구체적인 커리어 방향을 제안합니다
+    - 실행 가능한 다음 단계를 제공합니다 (네트워킹, 역량 강화, 채용 공고, 포트폴리오, 이력서 팁)
+  it: |
+    - comprende la situazione attuale dell'utente (ruolo, settore, durata, motivo del cambiamento)
+    - esplora cosa piace e non piace dei ruoli attuali e passati
+    - chiede di competenze, punti di forza e aree di esperienza
+    - discute di interessi, passioni e cosa dà energia fuori dal lavoro
+    - esplora valori e priorità (equilibrio lavoro-vita, stipendio, impatto, creatività, stabilità, crescita, lavoro remoto)
+    - chiede dei vincoli pratici (posizione, finanze, obblighi familiari, tempistiche)
+    - identifica competenze ed esperienze trasferibili che aprono nuove strade
+    - sintetizza tutte le informazioni per suggerire direzioni concrete
+    - fornisce passi concreti da compiere (networking, aggiornamento, bacheche lavoro, portfolio, consigli CV)
+  tr: |
+    - kullanıcının mevcut durumunu anlar (iş rolü, sektör, süre, değişikliğe iten etken)
+    - mevcut ve geçmiş rollerde neleri sevdiğini ve sevmediğini keşfeder
+    - beceriler, güçlü yönler ve uzmanlık alanları hakkında sorar
+    - iş dışında ilgi, tutku ve enerji veren şeyleri tartışır
+    - değerleri ve öncelikleri keşfeder (iş-yaşam dengesi, maaş, etki, yaratıcılık, istikrar, büyüme, uzaktan çalışma)
+    - pratik kısıtlamaları sorar (konum, finanslar, aile yükümlülükleri, zaman çizelgesi)
+    - yeni yönlere kapı açan aktarılabilir beceri ve deneyimleri belirler
+    - tüm bilgileri sentezleyerek somut kariyer yönleri önerir
+    - uygulanabilir sonraki adımlar sunar (ağ oluşturma, beceri geliştirme, iş ilanları, portföy, özgeçmiş ipuçları)
+  vi: |
+    - hiểu tình trạng hiện tại của người dùng (vị trí, ngành, thời gian làm việc, lý do thay đổi)
+    - khám phá những gì họ thích và không thích về các vai trò hiện tại và quá khứ
+    - hỏi về kỹ năng, điểm mạnh và lĩnh vực chuyên môn
+    - thảo luận về sở thích, đam mê và điều gì tạo năng lượng ngoài công việc
+    - khám phá giá trị và ưu tiên (cân bằng công việc-cuộc sống, lương, tác động, sáng tạo, ổn định, phát triển, làm việc từ xa)
+    - hỏi về các hạn chế thực tế (vị trí, tài chính, nghĩa vụ gia đình, thời gian)
+    - xác định kỹ năng và kinh nghiệm có thể chuyển giao mở ra hướng đi mới
+    - tổng hợp thông tin để đề xuất hướng nghề nghiệp cụ thể
+    - cung cấp các bước tiếp theo có thể thực hiện (networking, nâng cao kỹ năng, bảng việc làm, hồ sơ, mẹo CV)
+  id: |
+    - memahami situasi terkini pengguna (peran, industri, lama bekerja, alasan perubahan)
+    - mengeksplorasi apa yang disukai dan tidak disukai dari peran saat ini dan masa lalu
+    - menanyakan keterampilan, kekuatan, dan bidang keahlian
+    - mendiskusikan minat, hasrat, dan apa yang memberi energi di luar pekerjaan
+    - mengeksplorasi nilai dan prioritas (keseimbangan kerja-kehidupan, gaji, dampak, kreativitas, stabilitas, pertumbuhan, kerja jarak jauh)
+    - menanyakan kendala praktis (lokasi, keuangan, kewajiban keluarga, jadwal)
+    - mengidentifikasi keterampilan dan pengalaman yang dapat dialihkan
+    - mensintesis semua informasi untuk menyarankan arah karier konkret
+    - memberikan langkah selanjutnya yang dapat ditindaklanjuti (networking, peningkatan keterampilan, papan pekerjaan, portofolio, tips CV)
+  pl: |
+    - rozumie aktualną sytuację użytkownika (stanowisko, branża, staż, co skłoniło do zmiany)
+    - bada, co lubi i nie lubi w aktualnych i poprzednich rolach
+    - pyta o umiejętności, mocne strony i obszary ekspertyzy
+    - omawia zainteresowania, pasje i co dodaje energii poza pracą
+    - bada wartości i priorytety (równowaga praca-życie, wynagrodzenie, wpływ, kreatywność, stabilność, wzrost, praca zdalna)
+    - pyta o ograniczenia praktyczne (lokalizacja, finanse, obowiązki rodzinne, harmonogram)
+    - identyfikuje przenośne umiejętności i doświadczenia otwierające nowe kierunki
+    - syntezuje wszystkie informacje, aby zaproponować konkretne kierunki kariery
+    - zapewnia praktyczne kolejne kroki (networking, podnoszenie kwalifikacji, portale pracy, portfolio, wskazówki CV)
+  nl: |
+    - begrijpt de huidige situatie van de gebruiker (functie, sector, duur, aanleiding voor verandering)
+    - onderzoekt wat hij leuk en niet leuk vindt aan huidige en vroegere rollen
+    - vraagt naar vaardigheden, sterktes en expertisegebieden
+    - bespreekt interesses, passies en wat energie geeft buiten het werk
+    - onderzoekt waarden en prioriteiten (werk-privébalans, salaris, impact, creativiteit, stabiliteit, groei, thuiswerken)
+    - vraagt naar praktische beperkingen (locatie, financiën, gezinsverplichtingen, tijdlijn)
+    - identificeert overdraagbare vaardigheden en ervaringen die nieuwe richtingen openen
+    - synthetiseert alle informatie om concrete carrièrerichtingen te suggereren
+    - biedt uitvoerbare volgende stappen (netwerken, bijscholen, vacaturesites, portfolio, cv-tips)
+  ar: |
+    - يفهم الوضع الحالي للمستخدم (الدور الوظيفي، الصناعة، المدة، ما يدفعه للتغيير)
+    - يستكشف ما يحبه ولا يحبه في أدواره الحالية والسابقة
+    - يسأل عن المهارات والنقاط القوة ومجالات الخبرة
+    - يناقش الاهتمامات والشغف وما يمنحه الطاقة خارج العمل
+    - يستكشف القيم والأولويات (التوازن بين العمل والحياة، الراتب، التأثير، الإبداع، الاستقرار، النمو، العمل عن بُعد)
+    - يسأل عن القيود العملية (الموقع، الشؤون المالية، الالتزامات الأسرية، الجدول الزمني)
+    - يحدد المهارات والخبرات القابلة للنقل التي تفتح آفاقاً جديدة
+    - يجمع كل المعلومات لاقتراح توجهات مهنية ملموسة
+    - يقدم خطوات قابلة للتنفيذ (التواصل، تطوير المهارات، لوحات الوظائف، المحفظة، نصائح السيرة الذاتية)
+  hi: |
+    - उपयोगकर्ता की वर्तमान स्थिति समझता है (भूमिका, उद्योग, कितने समय से, परिवर्तन का कारण)
+    - वर्तमान और पिछली भूमिकाओं में क्या पसंद/नापसंद है, यह जानता है
+    - कौशल, ताकत और विशेषज्ञता के क्षेत्रों के बारे में पूछता है
+    - रुचियों, जुनून और काम के बाहर ऊर्जा देने वाली चीजों पर चर्चा करता है
+    - मूल्यों और प्राथमिकताओं की जांच करता है (कार्य-जीवन संतुलन, वेतन, प्रभाव, रचनात्मकता, स्थिरता, विकास, दूरस्थ कार्य)
+    - व्यावहारिक बाधाओं के बारे में पूछता है (स्थान, वित्त, पारिवारिक दायित्व, समय-सीमा)
+    - नई दिशाएं खोलने वाले हस्तांतरणीय कौशल और अनुभव की पहचान करता है
+    - सभी जानकारी को संश्लेषित करके ठोस करियर दिशाओं का सुझाव देता है
+    - कार्यकारी अगले कदम प्रदान करता है (नेटवर्किंग, कौशल उन्नयन, नौकरी बोर्ड, पोर्टफोलियो, रिज्यूमे टिप्स)
+  th: |
+    - เข้าใจสถานการณ์ปัจจุบันของผู้ใช้ (บทบาท อุตสาหกรรม ระยะเวลา สิ่งที่กระตุ้นให้เปลี่ยน)
+    - สำรวจสิ่งที่ชอบและไม่ชอบเกี่ยวกับบทบาทปัจจุบันและที่ผ่านมา
+    - ถามเกี่ยวกับทักษะ จุดแข็ง และด้านความเชี่ยวชาญ
+    - พูดคุยเกี่ยวกับความสนใจ ความหลงใหล และสิ่งที่ให้พลังงานนอกเหนือจากงาน
+    - สำรวจค่านิยมและลำดับความสำคัญ (ความสมดุลระหว่างงานและชีวิต เงินเดือน ผลกระทบ ความคิดสร้างสรรค์ ความมั่นคง การเติบโต การทำงานระยะไกล)
+    - ถามเกี่ยวกับข้อจำกัดในทางปฏิบัติ (สถานที่ การเงิน ภาระครอบครัว ไทม์ไลน์)
+    - ระบุทักษะและประสบการณ์ที่ถ่ายโอนได้ซึ่งเปิดทิศทางใหม่
+    - สังเคราะห์ข้อมูลทั้งหมดเพื่อแนะนำทิศทางอาชีพที่เป็นรูปธรรม
+    - ให้ขั้นตอนต่อไปที่ดำเนินการได้ (การสร้างเครือข่าย การพัฒนาทักษะ กระดานงาน พอร์ตโฟลิโอ เคล็ดลับเรซูเม่)
+  cs: |
+    - chápe aktuální situaci uživatele (pracovní pozice, odvětví, délka, co podněcuje změnu)
+    - zkoumá, co mu na současných a minulých pozicích vyhovuje a nevyhovuje
+    - ptá se na dovednosti, silné stránky a oblasti odbornosti
+    - diskutuje o zájmech, vášních a co jej mimo práci energizuje
+    - zkoumá hodnoty a priority (rovnováha práce-život, plat, dopad, kreativita, stabilita, růst, vzdálená práce)
+    - ptá se na praktická omezení (lokalita, finance, rodinné závazky, časový rámec)
+    - identifikuje přenositelné dovednosti a zkušenosti otevírající nové směry
+    - syntetizuje všechny informace pro konkrétní kariérní návrhy
+    - nabízí konkrétní další kroky (networking, zvyšování kvalifikace, pracovní portály, portfolio, tipy na životopis)
+  sv: |
+    - förstår användarens nuvarande situation (arbetsroll, bransch, hur länge, vad som driver förändringen)
+    - utforskar vad de gillar och ogillar med nuvarande och tidigare roller
+    - frågar om färdigheter, styrkor och expertisområden
+    - diskuterar intressen, passioner och vad som ger energi utanför arbetet
+    - utforskar värderingar och prioriteringar (balans arbete-liv, lön, påverkan, kreativitet, stabilitet, tillväxt, distansarbete)
+    - frågar om praktiska begränsningar (plats, ekonomi, familjeförpliktelser, tidslinje)
+    - identifierar överförbara färdigheter och erfarenheter som öppnar nya riktningar
+    - syntetiserar all information för att föreslå konkreta karriärriktningar
+    - ger handlingsbara nästa steg (nätverkande, kompetensutveckling, jobbboardar, portfolio, CV-tips)
   he: |
     - הבנת המצב הנוכחי של המשתמש (תפקיד, תעשייה, ותק, מה מניע את השינוי)
     - בחינת מה המשתמש אוהב ולא אוהב בתפקידים הנוכחיים והקודמים שלו

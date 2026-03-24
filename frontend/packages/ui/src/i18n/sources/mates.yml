@@ -2,384 +2,384 @@ software_development:
   context: Female name starting with first two characters of the word 'Software' in english.
   en: Sophia
   de: Sophia
-  zh: ""
+  zh: Sophia
   es: Sophia
   fr: Lorraine
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Sofia
+  ru: София
+  ja: ソフィア
+  ko: 소피아
+  it: Sofia
+  tr: Sophia
+  vi: Sophia
+  id: Sophia
+  pl: Zofia
+  nl: Sophia
+  ar: صوفيا
+  hi: सोफिया
+  th: โซเฟีย
+  cs: Sofie
+  sv: Sophia
   he: סופיה
   verified_by_human: []
 business_development:
   context: Male name starting with first two characters of the word 'Business' in english.
   en: Burton
   de: Gerd
-  zh: ""
+  zh: Burton
   es: Néstor
   fr: Corentin
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Bruno
+  ru: Борис
+  ja: バートン
+  ko: 버튼
+  it: Bruno
+  tr: Burak
+  vi: Burton
+  id: Burton
+  pl: Bernard
+  nl: Burton
+  ar: بدر
+  hi: भरत
+  th: บัณฑิต
+  cs: Bronislav
+  sv: Björn
   he: ברטון
   verified_by_human: []
 medical_health:
   context: Male name starting with first two characters of the word 'Medical' in english.
   en: Melvin
   de: Melvin
-  zh: ""
+  zh: Melvin
   es: Melvin
   fr: Melvin
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Melvin
+  ru: Мелвин
+  ja: メルヴィン
+  ko: 멜빈
+  it: Melvin
+  tr: Melvin
+  vi: Melvin
+  id: Melvin
+  pl: Melvin
+  nl: Melvin
+  ar: مروان
+  hi: मेलविन
+  th: เมลวิน
+  cs: Melvin
+  sv: Melvin
   he: מלווין
   verified_by_human: []
 legal_law:
   context: Male name starting with first two characters of the word 'Legal' in english.
   en: Leon
   de: René
-  zh: ""
+  zh: Leon
   es: Leon
   fr: Leon
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Leandro
+  ru: Леонид
+  ja: レオン
+  ko: 레온
+  it: Leonardo
+  tr: Levent
+  vi: Leon
+  id: Leon
+  pl: Leon
+  nl: Leon
+  ar: لقمان
+  hi: लियोन
+  th: ลีออน
+  cs: Leoš
+  sv: Leon
   he: ליאון
   verified_by_human: []
 maker_prototyping:
   context: Female name starting with first two characters of the word 'Maker' in english.
   en: Makani
   de: Barbara
-  zh: ""
+  zh: Makani
   es: Fabiola
   fr: Fabienne
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Mariana
+  ru: Мария
+  ja: まかに
+  ko: 마야
+  it: Maria
+  tr: Mavi
+  vi: Makani
+  id: Makani
+  pl: Marta
+  nl: Makani
+  ar: مريم
+  hi: माया
+  th: มายา
+  cs: Markéta
+  sv: Maja
   he: מאקאני
   verified_by_human: []
 marketing_sales:
   context: Male name starting with first two characters of the word 'Marketing' in english.
   en: Mark
   de: Mark
-  zh: ""
+  zh: Mark
   es: Mark
   fr: Mark
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Marco
+  ru: Марк
+  ja: マーク
+  ko: 마크
+  it: Marco
+  tr: Mert
+  vi: Mark
+  id: Mark
+  pl: Marek
+  nl: Mark
+  ar: مازن
+  hi: मार्क
+  th: มาร์ค
+  cs: Marek
+  sv: Markus
   he: מארק
   verified_by_human: []
 finance:
   context: Male name starting with first two characters of the word 'Finance' in english.
   en: Finn
   de: Finn
-  zh: ""
+  zh: Finn
   es: Finn
   fr: Finn
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Fábio
+  ru: Филипп
+  ja: フィン
+  ko: 핀
+  it: Filippo
+  tr: Fikret
+  vi: Finn
+  id: Finn
+  pl: Filip
+  nl: Finn
+  ar: فيصل
+  hi: फिन
+  th: ฟินน์
+  cs: Filip
+  sv: Finn
   he: פין
   verified_by_human: []
 design:
   context: Female name starting with first two characters of the word 'Design' in english.
   en: Denise
   de: Denise
-  zh: ""
+  zh: Denise
   es: Diana
   fr: Denise
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Débora
+  ru: Диана
+  ja: デニス
+  ko: 데니스
+  it: Desiree
+  tr: Defne
+  vi: Denise
+  id: Denise
+  pl: Dominika
+  nl: Denise
+  ar: دينا
+  hi: देनिस
+  th: เดนิส
+  cs: Denisa
+  sv: Denise
   he: דניס
   verified_by_human: []
 electrical_engineering:
   context: Male name starting with first two characters of the word 'Electrical' in english.
   en: Elton
   de: Elton
-  zh: ""
+  zh: Elton
   es: Elton
   fr: Elton
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Elton
+  ru: Элтон
+  ja: エルトン
+  ko: 엘튼
+  it: Elton
+  tr: Elton
+  vi: Elton
+  id: Elton
+  pl: Elton
+  nl: Elton
+  ar: إلياس
+  hi: एल्टन
+  th: เอลตัน
+  cs: Elton
+  sv: Elton
   he: אלטון
   verified_by_human: []
 movies_tv:
   context: Female name starting with first two characters of the word 'Movies' in english.
   en: Monika
   de: Fiona
-  zh: ""
+  zh: Monika
   es: Penélope
   fr: Fiona
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Mônica
+  ru: Мonica
+  ja: モニカ
+  ko: 모니카
+  it: Monica
+  tr: Mona
+  vi: Monika
+  id: Monika
+  pl: Monika
+  nl: Monika
+  ar: منى
+  hi: मोनिका
+  th: โมนิกา
+  cs: Monika
+  sv: Monika
   he: מוניקה
   verified_by_human: []
 history:
   context: Male name starting with first two characters of the word 'History' in english.
   en: Hiro
   de: Georg
-  zh: ""
+  zh: Hiro
   es: Hiro
   fr: Hiro
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Hiro
+  ru: Хиро
+  ja: ヒロ
+  ko: 히로
+  it: Hiro
+  tr: Hiro
+  vi: Hiro
+  id: Hiro
+  pl: Hiro
+  nl: Hiro
+  ar: هشام
+  hi: हिरो
+  th: ฮิโระ
+  cs: Hiro
+  sv: Hiro
   he: הירו
   verified_by_human: []
 science:
   context: Female name starting with first two characters of the word 'Science' in english.
   en: Scarlett
   de: Wiebke
-  zh: ""
+  zh: Scarlett
   es: Cintia
   fr: Scarlett
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Scarlett
+  ru: Скарлетт
+  ja: スカーレット
+  ko: 스칼렛
+  it: Scarlett
+  tr: Selin
+  vi: Scarlett
+  id: Scarlett
+  pl: Scarlett
+  nl: Scarlett
+  ar: سمر
+  hi: स्कारलेट
+  th: สการ์เล็ต
+  cs: Scarlett
+  sv: Scarlett
   he: סקרלט
   verified_by_human: []
 life_coach_psychology:
   context: Female name starting with first two characters of the word 'Life' in english.
   en: Lisa
   de: Lena
-  zh: ""
+  zh: Lisa
   es: Corina
   fr: Coralie
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Lívia
+  ru: Лиза
+  ja: リサ
+  ko: 리사
+  it: Livia
+  tr: Lina
+  vi: Lisa
+  id: Lisa
+  pl: Lidia
+  nl: Lisa
+  ar: ليلى
+  hi: लिसा
+  th: ลิซ่า
+  cs: Lucie
+  sv: Lisa
   he: ליזה
   verified_by_human: []
 cooking_food:
   context: Male name starting with first two characters of the word 'Cooking' in english.
   en: Colin
   de: Konrad
-  zh: ""
+  zh: Colin
   es: Colin
   fr: Gabriel
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Cozimo
+  ru: Константин
+  ja: コリン
+  ko: 콜린
+  it: Cosimo
+  tr: Koray
+  vi: Colin
+  id: Colin
+  pl: Konrad
+  nl: Colin
+  ar: كريم
+  hi: कोलिन
+  th: โคลิน
+  cs: Koloman
+  sv: Colin
   he: קולין
   verified_by_human: []
 activism:
   context: Male name starting with first two characters of the word 'Activism' in english.
   en: Ace
   de: Akim
-  zh: ""
+  zh: Ace
   es: Ace
   fr: Ace
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Acácio
+  ru: Аким
+  ja: エース
+  ko: 에이스
+  it: Achille
+  tr: Acer
+  vi: Ace
+  id: Ace
+  pl: Acer
+  nl: Ace
+  ar: عادل
+  hi: एस
+  th: เอซ
+  cs: Adam
+  sv: Ace
   he: אייס
   verified_by_human: []
 general_knowledge:
   context: Male name starting with first two characters of the word 'General' in english.
   en: George
   de: Albert
-  zh: ""
+  zh: George
   es: Constantino
   fr: George
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Gerson
+  ru: Геннадий
+  ja: ジョージ
+  ko: 조지
+  it: Giorgio
+  tr: Genç
+  vi: George
+  id: George
+  pl: Grzegorz
+  nl: George
+  ar: جمال
+  hi: जॉर्ज
+  th: จอร์จ
+  cs: Gregor
+  sv: Georg
   he: "ג'ורג'"
   verified_by_human: []
 onboarding_support:

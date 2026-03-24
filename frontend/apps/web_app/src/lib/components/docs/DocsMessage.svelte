@@ -7,10 +7,16 @@
 	 * width-limiting (from ChatHistory.svelte), and chat-message/mate-profile/
 	 * mate-message-content for message rendering (from ChatMessage).
 	 *
-	 * Architecture: docs/architecture/docs-web-app.md
+	 * Post-processes TipTap-rendered DOM to:
+	 * 1. Render Mermaid diagram blocks as interactive SVGs
+	 * 2. Replace code blocks with CodeEmbedPreview/Fullscreen components
+	 *
+	 * Architecture: docs/architecture/frontend/docs-web-app.md
 	 * Test: N/A — visual component, tested via E2E
 	 */
+	import { onMount, tick, mount, unmount } from 'svelte';
 	import { ReadOnlyMessage, text } from '@repo/ui';
+	import DocsCodeBlock from './DocsCodeBlock.svelte';
 
 	interface Props {
 		/** Processed markdown (links fixed) to render via TipTap */
@@ -20,9 +26,107 @@
 	}
 
 	let { content, category: _category }: Props = $props();
+
+	let messageContainer: HTMLElement;
+	let mountedComponents: ReturnType<typeof mount>[] = [];
+
+	/**
+	 * Post-process TipTap DOM after render:
+	 * - Mermaid code blocks → rendered SVG diagrams
+	 * - Other code blocks → CodeEmbedPreview components
+	 */
+	async function postProcessCodeBlocks() {
+		if (!messageContainer) return;
+
+		// Wait for TipTap to finish rendering
+		await tick();
+		// Additional delay to ensure the lazy-loaded TipTap editor (IntersectionObserver) has mounted
+		await new Promise(resolve => setTimeout(resolve, 300));
+
+		const codeBlocks = messageContainer.querySelectorAll('.markdown-code-block');
+		if (codeBlocks.length === 0) return;
+
+		// Dynamically import mermaid only when needed (large dependency)
+		let mermaidModule: typeof import('mermaid') | null = null;
+
+		for (let i = 0; i < codeBlocks.length; i++) {
+			const block = codeBlocks[i] as HTMLElement;
+			const preEl = block.querySelector('pre');
+			const codeEl = preEl?.querySelector('code');
+			if (!codeEl) continue;
+
+			const codeText = codeEl.textContent || '';
+
+			// Detect language from TipTap's code block attributes or CSS class
+			let language = '';
+			const langClass = Array.from(codeEl.classList).find(c => c.startsWith('language-'));
+			if (langClass) {
+				language = langClass.replace('language-', '');
+			}
+
+			// Handle Mermaid blocks
+			if (language === 'mermaid') {
+				try {
+					if (!mermaidModule) {
+						mermaidModule = await import('mermaid');
+						const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+						mermaidModule.default.initialize({
+							startOnLoad: false,
+							theme: isDark ? 'dark' : 'default',
+							securityLevel: 'strict',
+							fontFamily: 'var(--font-family-sans, system-ui, sans-serif)',
+						});
+					}
+
+					const mermaidId = `docs-mermaid-${i}`;
+					const { svg } = await mermaidModule.default.render(mermaidId, codeText.trim());
+
+					const wrapper = document.createElement('div');
+					wrapper.className = 'docs-mermaid-diagram';
+					wrapper.innerHTML = svg;
+					block.replaceWith(wrapper);
+				} catch (err) {
+					console.warn('[DocsMessage] Mermaid render failed, keeping code block:', err);
+					// Leave the original code block visible on error
+				}
+				continue;
+			}
+
+			// Handle regular code blocks → mount CodeEmbedPreview
+			const wrapper = document.createElement('div');
+			wrapper.className = 'docs-code-block-wrapper';
+			block.replaceWith(wrapper);
+
+			const component = mount(DocsCodeBlock, {
+				target: wrapper,
+				props: {
+					code: codeText,
+					language,
+					blockId: `docs-code-${i}`,
+				},
+			});
+			mountedComponents.push(component);
+		}
+	}
+
+	onMount(() => {
+		postProcessCodeBlocks();
+
+		return () => {
+			// Cleanup mounted components
+			for (const comp of mountedComponents) {
+				try {
+					unmount(comp);
+				} catch {
+					// Component may already be unmounted
+				}
+			}
+			mountedComponents = [];
+		};
+	});
 </script>
 
-<div class="chat-history-content has-messages has-header">
+<div class="chat-history-content has-messages has-header" bind:this={messageContainer}>
 	<div class="chat-message assistant docs-message">
 		<!-- OpenMates logo avatar — same as demo-for-everyone intro chat -->
 		<div class="mate-profile openmates_official" style="animation: none; opacity: 1;"></div>
@@ -104,5 +208,32 @@
 		vertical-align: middle;
 		margin-right: 3px;
 		background: var(--color-app-code);
+	}
+
+	/* --- Mermaid diagram styling --- */
+	.docs-message :global(.docs-mermaid-diagram) {
+		margin: 1rem 0;
+		padding: 1.5rem;
+		background: var(--color-grey-5, #fafafa);
+		border: 1px solid var(--color-grey-20, #e5e7eb);
+		border-radius: 12px;
+		overflow-x: auto;
+		text-align: center;
+	}
+
+	:global([data-theme="dark"]) .docs-message :global(.docs-mermaid-diagram) {
+		background: var(--color-grey-10, #1a1a1a);
+		border-color: var(--color-grey-25, #333);
+	}
+
+	.docs-message :global(.docs-mermaid-diagram svg) {
+		max-width: 100%;
+		height: auto;
+	}
+
+	/* --- Code block wrapper — provides container query context for CodeEmbedPreview --- */
+	.docs-message :global(.docs-code-block-wrapper) {
+		margin: 0.75rem 0;
+		min-width: 0;
 	}
 </style>

@@ -55,21 +55,21 @@ get_docs:
   zh: 获取文档
   es: Obtener documentación
   fr: Obtenir la documentation
-  pt: ""
-  ru: ""
+  pt: Obter documentação
+  ru: Получить документацию
   ja: ドキュメントを取得
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 문서 가져오기
+  it: Ottieni documentazione
+  tr: Belgeleri al
+  vi: Lấy tài liệu
+  id: Dapatkan dokumentasi
+  pl: Pobierz dokumentację
+  nl: Documentatie ophalen
+  ar: الحصول على التوثيق
+  hi: दस्तावेज़ीकरण प्राप्त करें
+  th: รับเอกสาร
+  cs: Získat dokumentaci
+  sv: Hämta dokumentation
   he: קבל תיעוד
   verified_by_human: []
 
@@ -80,21 +80,21 @@ get_docs.description:
   zh: 获取特定的 OpenMates 文档页面。
   es: Obtener una página específica de documentación de OpenMates.
   fr: Récupérer une page de documentation OpenMates spécifique.
-  pt: ""
-  ru: ""
+  pt: Recuperar uma página específica da documentação do OpenMates.
+  ru: Получить конкретную страницу документации OpenMates.
   ja: 特定のOpenMatesドキュメントページを取得します。
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 특정 OpenMates 문서 페이지를 가져옵니다.
+  it: Recupera una pagina specifica della documentazione di OpenMates.
+  tr: Belirli bir OpenMates belge sayfasını alın.
+  vi: Truy xuất một trang tài liệu OpenMates cụ thể.
+  id: Ambil halaman dokumentasi OpenMates tertentu.
+  pl: Pobierz konkretną stronę dokumentacji OpenMates.
+  nl: Een specifieke OpenMates-documentatiepagina ophalen.
+  ar: استرجع صفحة توثيق محددة من OpenMates.
+  hi: एक विशिष्ट OpenMates दस्तावेज़ीकरण पृष्ठ प्राप्त करें।
+  th: ดึงหน้าเอกสารเฉพาะของ OpenMates
+  cs: Načíst konkrétní stránku dokumentace OpenMates.
+  sv: Hämta en specifik OpenMates-dokumentationssida.
   he: אחזר דף תיעוד ספציפי של OpenMates.
   verified_by_human: []
 
@@ -105,21 +105,21 @@ search_docs:
   zh: 搜索文档
   es: Buscar documentación
   fr: Rechercher la documentation
-  pt: ""
-  ru: ""
+  pt: Pesquisar documentação
+  ru: Поиск в документации
   ja: ドキュメントを検索
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 문서 검색
+  it: Cerca documentazione
+  tr: Belgelerde ara
+  vi: Tìm kiếm tài liệu
+  id: Cari dokumentasi
+  pl: Szukaj w dokumentacji
+  nl: Documentatie doorzoeken
+  ar: البحث في التوثيق
+  hi: दस्तावेज़ीकरण खोजें
+  th: ค้นหาเอกสาร
+  cs: Hledat v dokumentaci
+  sv: Sök i dokumentation
   he: חפש בתיעוד
   verified_by_human: []
 
@@ -130,20 +130,20 @@ search_docs.description:
   zh: 搜索所有 OpenMates 文档。
   es: Buscar en toda la documentación de OpenMates.
   fr: Rechercher dans toute la documentation OpenMates.
-  pt: ""
-  ru: ""
+  pt: Pesquisar em toda a documentação do OpenMates.
+  ru: Поиск по всей документации OpenMates.
   ja: すべてのOpenMatesドキュメントを検索します。
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 모든 OpenMates 문서에서 검색합니다.
+  it: Cerca in tutta la documentazione di OpenMates.
+  tr: Tüm OpenMates belgelerinde arama yapın.
+  vi: Tìm kiếm trong toàn bộ tài liệu OpenMates.
+  id: Cari di seluruh dokumentasi OpenMates.
+  pl: Szukaj w całej dokumentacji OpenMates.
+  nl: Zoek in alle OpenMates-documentatie.
+  ar: ابحث في جميع وثائق OpenMates.
+  hi: सभी OpenMates दस्तावेज़ीकरण में खोजें।
+  th: ค้นหาในเอกสารทั้งหมดของ OpenMates
+  cs: Prohledat veškerou dokumentaci OpenMates.
+  sv: Sök i all OpenMates-dokumentation.
   he: חפש בכל התיעוד של OpenMates.
   verified_by_human: []

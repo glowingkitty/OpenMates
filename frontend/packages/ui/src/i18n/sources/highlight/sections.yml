@@ -5,21 +5,21 @@ ask.heading:
   zh: 提问
   es: Preguntar
   fr: Demander
-  pt: ''
-  ru: ''
+  pt: Perguntar
+  ru: Спросить
   ja: 質問
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 질문
+  it: Chiedi
+  tr: Sor
+  vi: Hỏi
+  id: Tanya
+  pl: Pytaj
+  nl: Vragen
+  ar: اسأل
+  hi: पूछें
+  th: ถาม
+  cs: Zeptat se
+  sv: Fråga
   he: שאל
   verified_by_human: []
 ask.main_heading_1:
@@ -29,21 +29,21 @@ ask.main_heading_1:
   zh: 你的个性化专家
   es: Tus expertos personalizados
   fr: Vos experts personnalisés
-  pt: ''
-  ru: ''
+  pt: Os seus especialistas personalizados
+  ru: Ваши персонализированные эксперты
   ja: あなたの個人専門家が
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 맞춤형 전문가들이
+  it: I tuoi esperti personalizzati
+  tr: Kişiselleştirilmiş uzmanlarınız
+  vi: Các chuyên gia cá nhân hóa của bạn
+  id: Para ahli yang dipersonalisasi
+  pl: Twoi spersonalizowani eksperci
+  nl: Uw gepersonaliseerde experts
+  ar: خبراؤك المخصصون
+  hi: आपके व्यक्तिगत विशेषज्ञ
+  th: ผู้เชี่ยวชาญเฉพาะบุคคลของคุณ
+  cs: Vaši personalizovaní odborníci
+  sv: Dina personaliserade experter
   he: המומחים המותאמים אישית שלך
   verified_by_human: []
 ask.main_heading_2:
@@ -53,21 +53,21 @@ ask.main_heading_2:
   zh: 解答你的问题
   es: para tus preguntas
   fr: pour vos questions
-  pt: ''
-  ru: ''
+  pt: para as suas perguntas
+  ru: для ваших вопросов
   ja: 質問にお答えします
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 당신의 질문을 위한
+  it: per le tue domande
+  tr: sorularınız için
+  vi: cho câu hỏi của bạn
+  id: untuk pertanyaan Anda
+  pl: dla twoich pytań
+  nl: voor uw vragen
+  ar: لأسئلتك
+  hi: आपके सवालों के लिए
+  th: สำหรับคำถามของคุณ
+  cs: pro vaše dotazy
+  sv: för dina frågor
   he: לשאלות שלך
   verified_by_human: []
 ask.paragraph:
@@ -107,8 +107,20 @@ ask.paragraph:
     en fonction de vos intérêts.
 
     '
-  pt: ''
-  ru: ''
+  pt: 'Por exemplo:
+
+    Obtenha aconselhamento de carreira
+
+    com base nos seus interesses.
+
+    '
+  ru: 'Например:
+
+    Получите советы по карьере
+
+    на основе ваших интересов.
+
+    '
   ja: '例えば：
 
     あなたの興味に基づいた
@@ -116,18 +128,90 @@ ask.paragraph:
     キャリアアドバイスを受けられます。
 
     '
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: '예를 들어:
+
+    관심사를 바탕으로
+
+    커리어 조언을 받으세요.
+
+    '
+  it: 'Per esempio:
+
+    Ricevi consigli sulla carriera
+
+    in base ai tuoi interessi.
+
+    '
+  tr: 'Örneğin:
+
+    İlgi alanlarınıza göre
+
+    kariyer tavsiyesi alın.
+
+    '
+  vi: 'Ví dụ:
+
+    Nhận lời khuyên về sự nghiệp
+
+    dựa trên sở thích của bạn.
+
+    '
+  id: 'Misalnya:
+
+    Dapatkan saran karier
+
+    berdasarkan minat Anda.
+
+    '
+  pl: 'Na przykład:
+
+    Uzyskaj porady dotyczące kariery
+
+    na podstawie swoich zainteresowań.
+
+    '
+  nl: 'Bijvoorbeeld:
+
+    Ontvang loopbaanadvies
+
+    op basis van uw interesses.
+
+    '
+  ar: 'على سبيل المثال:
+
+    احصل على نصائح مهنية
+
+    بناءً على اهتماماتك.
+
+    '
+  hi: 'उदाहरण के लिए:
+
+    अपनी रुचियों के आधार पर
+
+    करियर सलाह प्राप्त करें।
+
+    '
+  th: 'ตัวอย่างเช่น:
+
+    รับคำแนะนำด้านอาชีพ
+
+    ตามความสนใจของคุณ
+
+    '
+  cs: 'Například:
+
+    Získejte kariérní poradenství
+
+    na základě vašich zájmů.
+
+    '
+  sv: 'Till exempel:
+
+    Få karriärrådgivning
+
+    baserat på dina intressen.
+
+    '
   he: |
     לדוגמה:
     קבל ייעוץ קריירה
@@ -140,21 +224,21 @@ tasks.heading:
   zh: 任务
   es: Tareas
   fr: Tâches
-  pt: ''
-  ru: ''
+  pt: Tarefas
+  ru: Задачи
   ja: タスク
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 작업
+  it: Attività
+  tr: Görevler
+  vi: Nhiệm vụ
+  id: Tugas
+  pl: Zadania
+  nl: Taken
+  ar: المهام
+  hi: कार्य
+  th: งาน
+  cs: Úkoly
+  sv: Uppgifter
   he: משימות
   verified_by_human: []
 tasks.main_heading_1:
@@ -164,21 +248,21 @@ tasks.main_heading_1:
   zh: 让他们
   es: Pídeles que
   fr: Demandez-leur
-  pt: ''
-  ru: ''
+  pt: Peça-lhes para
+  ru: Попросите их
   ja: アプリを使って
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 앱을 사용하여
+  it: Chiedi loro di
+  tr: Onlardan
+  vi: Yêu cầu họ
+  id: Minta mereka untuk
+  pl: Poproś ich, aby
+  nl: Vraag hen om
+  ar: اطلب منهم
+  hi: उनसे कहें
+  th: ขอให้พวกเขา
+  cs: Požádejte je, aby
+  sv: Be dem att
   he: בקש מהם
   verified_by_human: []
 tasks.main_heading_2:
@@ -188,21 +272,21 @@ tasks.main_heading_2:
   zh: 使用应用完成你的任务
   es: cumplan tus tareas
   fr: d'accomplir vos tâches
-  pt: ''
-  ru: ''
+  pt: cumprir as suas tarefas
+  ru: выполнить ваши задачи
   ja: タスクを実行してもらいましょう
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 당신의 작업을 수행하도록
+  it: svolgere le tue attività
+  tr: görevlerinizi yerine getirmesini isteyin
+  vi: hoàn thành các nhiệm vụ của bạn
+  id: menyelesaikan tugas Anda
+  pl: wykonali twoje zadania
+  nl: uw taken te vervullen
+  ar: لإنجاز مهامك
+  hi: आपके कार्यों को पूरा करने के लिए
+  th: ทำงานของคุณให้สำเร็จ
+  cs: splnit vaše úkoly
+  sv: utföra dina uppgifter
   he: לבצע את המשימות שלך
   verified_by_human: []
 tasks.paragraph:
@@ -252,8 +336,24 @@ tasks.paragraph:
     sur Doctolib & Jameda.
 
     '
-  pt: ''
-  ru: ''
+  pt: 'Por exemplo:
+
+    Encontre consultas médicas
+
+    que não conflitem com o seu calendário
+
+    no Doctolib & Jameda.
+
+    '
+  ru: 'Например:
+
+    Найдите приёмы врача
+
+    которые не пересекаются с вашим календарём
+
+    на Doctolib & Jameda.
+
+    '
   ja: '例えば：
 
     Doctolib & Jamedaで
@@ -263,18 +363,114 @@ tasks.paragraph:
     医師の予約を探します。
 
     '
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: '예를 들어:
+
+    Doctolib & Jameda에서
+
+    일정과 겹치지 않는
+
+    의사 예약을 찾으세요.
+
+    '
+  it: 'Per esempio:
+
+    Trova appuntamenti dal medico
+
+    che non si sovrappongano al tuo calendario
+
+    su Doctolib & Jameda.
+
+    '
+  tr: 'Örneğin:
+
+    Doctolib & Jameda''da
+
+    takviminizle çakışmayan
+
+    doktor randevusu bulun.
+
+    '
+  vi: 'Ví dụ:
+
+    Tìm lịch hẹn bác sĩ
+
+    không trùng với lịch của bạn
+
+    trên Doctolib & Jameda.
+
+    '
+  id: 'Misalnya:
+
+    Temukan janji dokter
+
+    yang tidak bentrok dengan kalender Anda
+
+    di Doctolib & Jameda.
+
+    '
+  pl: 'Na przykład:
+
+    Znajdź terminy u lekarza
+
+    które nie kolidują z Twoim kalendarzem
+
+    na Doctolib & Jameda.
+
+    '
+  nl: 'Bijvoorbeeld:
+
+    Vind doktersafspraken
+
+    die niet conflicteren met uw agenda
+
+    op Doctolib & Jameda.
+
+    '
+  ar: 'على سبيل المثال:
+
+    ابحث عن مواعيد الطبيب
+
+    التي لا تتعارض مع تقويمك
+
+    على Doctolib & Jameda.
+
+    '
+  hi: 'उदाहरण के लिए:
+
+    Doctolib & Jameda पर
+
+    ऐसे डॉक्टर अपॉइंटमेंट खोजें
+
+    जो आपके कैलेंडर से न टकराएं।
+
+    '
+  th: 'ตัวอย่างเช่น:
+
+    ค้นหาการนัดพบแพทย์
+
+    ที่ไม่ขัดกับปฏิทินของคุณ
+
+    บน Doctolib & Jameda
+
+    '
+  cs: 'Například:
+
+    Najděte termíny u lékaře
+
+    které nekolidují s vaším kalendářem
+
+    na Doctolib & Jameda.
+
+    '
+  sv: 'Till exempel:
+
+    Hitta läkartider
+
+    som inte krockar med din kalender
+
+    på Doctolib & Jameda.
+
+    '
   he: |
     לדוגמה:
     מצא תורים לרופא
@@ -288,21 +484,21 @@ apps.heading:
   zh: 应用
   es: Aplicaciones
   fr: Applis
-  pt: ''
-  ru: ''
+  pt: Aplicações
+  ru: Приложения
   ja: アプリ
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 앱
+  it: App
+  tr: Uygulamalar
+  vi: Ứng dụng
+  id: Aplikasi
+  pl: Aplikacje
+  nl: Apps
+  ar: التطبيقات
+  hi: ऐप्स
+  th: แอป
+  cs: Aplikace
+  sv: Appar
   he: אפליקציות
   verified_by_human: []
 apps.main_heading_1:
@@ -312,21 +508,21 @@ apps.main_heading_1:
   zh: 众多应用
   es: Tantas aplicaciones
   fr: Tant d'applications
-  pt: ''
-  ru: ''
+  pt: Tantas aplicações
+  ru: Так много приложений
   ja: 多くのアプリで
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 수많은 앱으로
+  it: Così tante app
+  tr: Pek çok uygulama
+  vi: Rất nhiều ứng dụng
+  id: Begitu banyak aplikasi
+  pl: Tak wiele aplikacji
+  nl: Zoveel apps
+  ar: الكثير من التطبيقات
+  hi: इतने सारे ऐप्स
+  th: แอปมากมาย
+  cs: Tolik aplikací
+  sv: Så många appar
   he: כל כך הרבה אפליקציות
   verified_by_human: []
 apps.main_heading_2:
@@ -352,25 +548,81 @@ apps.main_heading_2:
     .
 
     '
-  pt: ''
-  ru: ''
+  pt: 'para transformar a sua
+
+    vida pessoal e trabalho.
+
+    '
+  ru: 'чтобы изменить вашу
+
+    личную жизнь и работу.
+
+    '
   ja: 'あなたの私生活と仕事を
 
     変革します。
 
     '
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: '당신의 개인 생활과
+
+    업무를 변화시킬.
+
+    '
+  it: 'per trasformare la tua
+
+    vita personale e lavorativa.
+
+    '
+  tr: 'kişisel hayatınızı ve işinizi
+
+    dönüştürmek için.
+
+    '
+  vi: 'để biến đổi
+
+    cuộc sống cá nhân & công việc của bạn.
+
+    '
+  id: 'untuk mengubah
+
+    kehidupan pribadi & pekerjaan Anda.
+
+    '
+  pl: 'aby przekształcić Twoje
+
+    życie osobiste i pracę.
+
+    '
+  nl: 'om uw
+
+    persoonlijk leven & werk te transformeren.
+
+    '
+  ar: 'لتحويل حياتك
+
+    الشخصية والمهنية.
+
+    '
+  hi: 'आपके
+
+    निजी जीवन और काम को बदलने के लिए।
+
+    '
+  th: 'เพื่อเปลี่ยนแปลง
+
+    ชีวิตส่วนตัวและการทำงานของคุณ
+
+    '
+  cs: 'abyste transformovali svůj
+
+    osobní život i práci.
+
+    '
+  sv: 'för att förändra ditt
+
+    personliga liv & arbete.
+
+    '
   he: |
     כדי לשנות את
     החיים האישיים והעבודה שלך.
@@ -412,8 +664,20 @@ apps.paragraph:
     sur Meetup, Eventbrite et RA.
 
     '
-  pt: ''
-  ru: ''
+  pt: 'Por exemplo:
+
+    Encontre eventos
+
+    no Meetup, Eventbrite & RA.
+
+    '
+  ru: 'Например:
+
+    Найдите мероприятия
+
+    на Meetup, Eventbrite & RA.
+
+    '
   ja: '例えば：
 
     Meetup、Eventbrite、RAで
@@ -421,18 +685,90 @@ apps.paragraph:
     イベントを探します。
 
     '
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: '예를 들어:
+
+    Meetup, Eventbrite & RA에서
+
+    이벤트를 찾으세요.
+
+    '
+  it: 'Per esempio:
+
+    Trova eventi
+
+    su Meetup, Eventbrite & RA.
+
+    '
+  tr: 'Örneğin:
+
+    Meetup, Eventbrite & RA''da
+
+    etkinlikler bulun.
+
+    '
+  vi: 'Ví dụ:
+
+    Tìm các sự kiện
+
+    trên Meetup, Eventbrite & RA.
+
+    '
+  id: 'Misalnya:
+
+    Temukan acara
+
+    di Meetup, Eventbrite & RA.
+
+    '
+  pl: 'Na przykład:
+
+    Znajdź wydarzenia
+
+    na Meetup, Eventbrite & RA.
+
+    '
+  nl: 'Bijvoorbeeld:
+
+    Vind evenementen
+
+    op Meetup, Eventbrite & RA.
+
+    '
+  ar: 'على سبيل المثال:
+
+    ابحث عن الفعاليات
+
+    على Meetup و Eventbrite و RA.
+
+    '
+  hi: 'उदाहरण के लिए:
+
+    Meetup, Eventbrite & RA पर
+
+    इवेंट खोजें।
+
+    '
+  th: 'ตัวอย่างเช่น:
+
+    ค้นหากิจกรรม
+
+    บน Meetup, Eventbrite & RA
+
+    '
+  cs: 'Například:
+
+    Najděte události
+
+    na Meetup, Eventbrite & RA.
+
+    '
+  sv: 'Till exempel:
+
+    Hitta evenemang
+
+    på Meetup, Eventbrite & RA.
+
+    '
   he: |
     לדוגמה:
     מצא אירועים

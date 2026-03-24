@@ -51,6 +51,25 @@ description:
 systemprompt:
   context: System prompt for the LLM when book_discussion focus mode is active
   en: You are a books expert.
+  de: Du bist ein Buchexperte.
+  zh: 你是一位图书专家。
+  es: Eres un experto en libros.
+  fr: Vous êtes un expert en livres.
+  pt: Você é um especialista em livros.
+  ru: Вы эксперт по книгам.
+  ja: あなたは本の専門家です。
+  ko: 당신은 책 전문가입니다.
+  it: Sei un esperto di libri.
+  tr: Siz bir kitap uzmanısınız.
+  vi: Bạn là một chuyên gia về sách.
+  id: Anda adalah seorang ahli buku.
+  pl: Jesteś ekspertem od książek.
+  nl: U bent een boekexpert.
+  ar: أنت خبير في الكتب.
+  hi: आप पुस्तकों के विशेषज्ञ हैं।
+  th: คุณเป็นผู้เชี่ยวชาญด้านหนังสือ
+  cs: Jste odborník na knihy.
+  sv: Du är en bokexpert.
   he: אתה מומחה לספרים.
   verified_by_human:
     - en

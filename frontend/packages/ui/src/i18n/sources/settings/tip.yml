@@ -2,7 +2,24 @@ description:
   context: Introductory text explaining the tipping feature
   en: Support the creator by sending a tip from your credit balance.
   de: Unterstütze den Ersteller, indem du ein Trinkgeld aus deinem Guthaben sendest.
+  zh: 通过从您的积分余额发送小费来支持创作者。
+  es: Apoya al creador enviando una propina desde tu saldo de créditos.
+  fr: Soutenez le créateur en envoyant un pourboire depuis votre solde de crédits.
+  pt: Apoie o criador enviando uma gorjeta do seu saldo de créditos.
+  ru: Поддержите создателя, отправив чаевые со своего кредитного баланса.
+  ja: クレジット残高からチップを送ってクリエイターを支援しましょう。
+  ko: 크레딧 잔액에서 팁을 보내 크리에이터를 지원하세요.
+  it: Supporta il creatore inviando una mancia dal tuo saldo crediti.
+  tr: Kredi bakiyenizden bahşiş göndererek yaratıcıyı destekleyin.
+  vi: Hỗ trợ người tạo bằng cách gửi tiền tip từ số dư tín dụng của bạn.
+  id: Dukung pembuat konten dengan mengirim tip dari saldo kredit Anda.
+  pl: Wesprzyj twórcę, wysyłając napiwek ze swojego salda kredytów.
+  nl: Ondersteun de maker door een fooi te sturen van uw creditbalans.
   ar: ادعم المبدع بإرسال إكرامية من رصيد رصيدك.
+  hi: अपने क्रेडिट बैलेंस से टिप भेजकर निर्माता का समर्थन करें।
+  th: สนับสนุนผู้สร้างโดยส่งทิปจากยอดคงเหลือเครดิตของคุณ
+  cs: Podpořte tvůrce zasláním spropitného z vašeho kreditního zůstatku.
+  sv: Stöd skaparen genom att skicka ett tips från ditt kreditssaldo.
   he: תמכו ביוצר על ידי שליחת טיפ מיתרת הקרדיטים שלכם.
   verified_by_human: []
 
@@ -35,7 +52,24 @@ amount:
   context: Section title above tip amount slider
   en: Amount
   de: Betrag
+  zh: 金额
+  es: Cantidad
+  fr: Montant
+  pt: Valor
+  ru: Сумма
+  ja: 金額
+  ko: 금액
+  it: Importo
+  tr: Miktar
+  vi: Số tiền
+  id: Jumlah
+  pl: Kwota
+  nl: Bedrag
   ar: المبلغ
+  hi: राशि
+  th: จำนวน
+  cs: Částka
+  sv: Belopp
   he: סכום
   verified_by_human: []
 
@@ -43,7 +77,24 @@ credits:
   context: Label appended after amount values (e.g. "50 credits")
   en: credits
   de: Credits
+  zh: 积分
+  es: créditos
+  fr: crédits
+  pt: créditos
+  ru: кредиты
+  ja: クレジット
+  ko: 크레딧
+  it: crediti
+  tr: krediler
+  vi: tín dụng
+  id: kredit
+  pl: kredyty
+  nl: credits
   ar: رصيد
+  hi: क्रेडिट
+  th: เครดิต
+  cs: kredity
+  sv: krediter
   he: קרדיטים
   verified_by_human: []
 
@@ -51,7 +102,24 @@ current_balance:
   context: Label preceding the user's credit balance
   en: Current balance
   de: Aktuelles Guthaben
+  zh: 当前余额
+  es: Saldo actual
+  fr: Solde actuel
+  pt: Saldo atual
+  ru: Текущий баланс
+  ja: 現在の残高
+  ko: 현재 잔액
+  it: Saldo attuale
+  tr: Mevcut bakiye
+  vi: Số dư hiện tại
+  id: Saldo saat ini
+  pl: Aktualne saldo
+  nl: Huidig saldo
   ar: الرصيد الحالي
+  hi: वर्तमान शेष
+  th: ยอดคงเหลือปัจจุบัน
+  cs: Aktuální zůstatek
+  sv: Nuvarande saldo
   he: יתרה נוכחית
   verified_by_human: []
 
@@ -59,7 +127,24 @@ insufficient_balance:
   context: Warning when credit balance is less than selected tip amount. Uses {needed} interpolation.
   en: "You need {needed} more credits to send this tip."
   de: "Du benötigst noch {needed} Credits, um dieses Trinkgeld zu senden."
+  zh: "您需要再 {needed} 个积分才能发送此小费。"
+  es: "Necesitas {needed} créditos más para enviar esta propina."
+  fr: "Vous avez besoin de {needed} crédits supplémentaires pour envoyer ce pourboire."
+  pt: "Você precisa de {needed} créditos a mais para enviar esta gorjeta."
+  ru: "Вам нужно ещё {needed} кредитов, чтобы отправить этот чаевой."
+  ja: "このチップを送るには、あと {needed} クレジットが必要です。"
+  ko: "이 팁을 보내려면 {needed} 크레딧이 더 필요합니다."
+  it: "Hai bisogno di {needed} crediti in più per inviare questa mancia."
+  tr: "Bu bahşişi göndermek için {needed} daha fazla krediye ihtiyacınız var."
+  vi: "Bạn cần thêm {needed} tín dụng để gửi tip này."
+  id: "Anda membutuhkan {needed} kredit lagi untuk mengirim tip ini."
+  pl: "Potrzebujesz jeszcze {needed} kredytów, aby wysłać ten napiwek."
+  nl: "U heeft {needed} meer credits nodig om deze fooi te sturen."
   ar: "تحتاج إلى {needed} رصيد إضافي لإرسال هذه الإكرامية."
+  hi: "यह टिप भेजने के लिए आपको {needed} और क्रेडिट चाहिए।"
+  th: "คุณต้องการเครดิตเพิ่มอีก {needed} เพื่อส่งทิปนี้"
+  cs: "K odeslání tohoto spropitného potřebujete {needed} dalších kreditů."
+  sv: "Du behöver {needed} fler krediter för att skicka det här tipset."
   he: "חסרים לך {needed} קרדיטים כדי לשלוח את הטיפ הזה."
   verified_by_human: []
 
@@ -67,7 +152,24 @@ tipping:
   context: Button text while tip transaction is processing
   en: Sending tip...
   de: Trinkgeld wird gesendet...
+  zh: 正在发送小费...
+  es: Enviando propina...
+  fr: Envoi du pourboire...
+  pt: Enviando gorjeta...
+  ru: Отправка чаевых...
+  ja: チップ送信中...
+  ko: 팁 전송 중...
+  it: Invio mancia...
+  tr: Bahşiş gönderiliyor...
+  vi: Đang gửi tip...
+  id: Mengirim tip...
+  pl: Wysyłanie napiwku...
+  nl: Fooi verzenden...
   ar: جاري إرسال الإكرامية...
+  hi: टिप भेजा जा रहा है...
+  th: กำลังส่งทิป...
+  cs: Odesílání spropitného...
+  sv: Skickar tips...
   he: שולח טיפ...
   verified_by_human: []
 
@@ -75,7 +177,24 @@ tip_info:
   context: Informational text explaining how tips work
   en: Tips are sent directly from your credit balance to the content creator.
   de: Trinkgelder werden direkt von deinem Guthaben an den Ersteller gesendet.
+  zh: 小费直接从您的积分余额发送给内容创作者。
+  es: Las propinas se envían directamente desde tu saldo de créditos al creador de contenido.
+  fr: Les pourboires sont envoyés directement de votre solde de crédits au créateur de contenu.
+  pt: As gorjetas são enviadas diretamente do seu saldo de créditos para o criador de conteúdo.
+  ru: Чаевые отправляются напрямую с вашего кредитного баланса создателю контента.
+  ja: チップはクレジット残高からコンテンツクリエイターに直接送られます。
+  ko: 팁은 크레딧 잔액에서 콘텐츠 크리에이터에게 직접 전송됩니다.
+  it: Le mance vengono inviate direttamente dal tuo saldo crediti al creatore di contenuti.
+  tr: Bahşişler, kredi bakiyenizden doğrudan içerik oluşturucuya gönderilir.
+  vi: Tips được gửi trực tiếp từ số dư tín dụng của bạn đến người tạo nội dung.
+  id: Tips dikirim langsung dari saldo kredit Anda ke pembuat konten.
+  pl: Napiwki są wysyłane bezpośrednio z salda kredytów do twórcy treści.
+  nl: Fooien worden rechtstreeks van uw creditbalans naar de maker gestuurd.
   ar: يتم إرسال الإكراميات مباشرة من رصيدك إلى منشئ المحتوى.
+  hi: टिप्स आपके क्रेडिट बैलेंस से सीधे कंटेंट क्रिएटर को भेजे जाते हैं।
+  th: ทิปจะถูกส่งโดยตรงจากยอดคงเหลือเครดิตของคุณไปยังผู้สร้างเนื้อหา
+  cs: Spropitné je odesíláno přímo z vašeho kreditního zůstatku tvůrci obsahu.
+  sv: Tips skickas direkt från ditt kreditssaldo till innehållsskaparen.
   he: טיפים נשלחים ישירות מיתרת הקרדיטים שלך ליוצר התוכן.
   verified_by_human: []
 
@@ -83,6 +202,23 @@ channel_id_required:
   context: Info message when channel ID is missing for video tipping
   en: Channel ID is required to tip video creators.
   de: Die Kanal-ID ist erforderlich, um Video-Ersteller zu unterstützen.
+  zh: 需要频道 ID 才能向视频创作者打赏。
+  es: Se requiere el ID del canal para dar propina a los creadores de video.
+  fr: L'ID de la chaîne est requis pour donner un pourboire aux créateurs vidéo.
+  pt: O ID do canal é necessário para dar gorjeta a criadores de vídeo.
+  ru: Для отправки чаевых видеоблогерам требуется ID канала.
+  ja: 動画クリエイターへのチップにはチャンネルIDが必要です。
+  ko: 동영상 크리에이터에게 팁을 보내려면 채널 ID가 필요합니다.
+  it: L'ID del canale è necessario per dare la mancia ai creatori video.
+  tr: Video yaratıcılarına bahşiş vermek için Kanal Kimliği gereklidir.
+  vi: ID kênh là bắt buộc để tip cho người tạo video.
+  id: ID saluran diperlukan untuk memberi tip kepada pembuat video.
+  pl: ID kanału jest wymagane do napiwku dla twórców wideo.
+  nl: Kanaal-ID is vereist om videocreators te fooien.
   ar: معرف القناة مطلوب لإرسال إكرامية لمنشئي الفيديو.
+  hi: वीडियो क्रिएटर्स को टिप देने के लिए चैनल ID आवश्यक है।
+  th: จำเป็นต้องมี ID ช่องเพื่อให้ทิปแก่ผู้สร้างวิดีโอ
+  cs: Pro odeslání spropitného tvůrcům videí je vyžadováno ID kanálu.
+  sv: Kanal-ID krävs för att ge tips till videoskapare.
   he: נדרש מזהה ערוץ כדי לתת טיפ ליוצרי וידאו.
   verified_by_human: []

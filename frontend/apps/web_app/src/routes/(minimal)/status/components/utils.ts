@@ -123,6 +123,42 @@ export function timelineTitle(entry: TimelineEntry): string {
 	return parts.join(' · ');
 }
 
+/**
+ * Compute uptime percentage from a 30-day timeline.
+ * For service timelines: counts days with "operational" status.
+ * For test timelines: counts days with "passed" status or pass_rate === 100.
+ * Days with no data or "unknown" status are excluded from the denominator.
+ */
+export function uptimePct(timeline: TimelineEntry[]): number | null {
+	if (!timeline?.length) return null;
+
+	let up = 0;
+	let total = 0;
+
+	for (const entry of timeline) {
+		const s = entry.status;
+		// Skip days with no meaningful data
+		if (s === 'unknown' || s === 'not_run') continue;
+		if (!s && entry.has_run === false) continue;
+
+		total++;
+		if (s === 'operational' || s === 'passed') {
+			up++;
+		} else if (!s && typeof entry.pass_rate === 'number' && entry.pass_rate === 100) {
+			up++;
+		}
+	}
+
+	if (total === 0) return null;
+	return Math.round((up / total) * 1000) / 10; // one decimal place
+}
+
+/** Format uptime percentage for display (e.g. "99.7%"). */
+export function fmtUptime(pct: number | null): string {
+	if (pct === null) return '';
+	return pct === 100 ? '100%' : `${pct.toFixed(1)}%`;
+}
+
 /** Suite display name mapping. */
 export const SUITE_NAMES: Record<string, string> = {
 	playwright: 'End to End Tests',

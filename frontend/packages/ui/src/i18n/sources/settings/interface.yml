@@ -5,21 +5,21 @@ description:
   zh: 自定义OpenMates的外观和语言
   es: Personaliza la apariencia e idioma de OpenMates
   fr: Personnalisez l'apparence et la langue d'OpenMates
-  pt: ""
-  ru: ""
+  pt: Personalize a aparência e o idioma do OpenMates
+  ru: Настройте внешний вид и язык OpenMates
   ja: OpenMatesの外観と言語をカスタマイズする
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: OpenMates의 모양과 언어를 사용자 지정하세요
+  it: Personalizza l'aspetto e la lingua di OpenMates
+  tr: OpenMates'in görünümünü ve dilini özelleştirin
+  vi: Tùy chỉnh giao diện và ngôn ngữ của OpenMates
+  id: Sesuaikan tampilan dan bahasa OpenMates
+  pl: Dostosuj wygląd i język OpenMates
+  nl: Pas het uiterlijk en de taal van OpenMates aan
   ar: تخصيص مظهر ولغة OpenMates
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: OpenMates का स्वरूप और भाषा अनुकूलित करें
+  th: ปรับแต่งรูปลักษณ์และภาษาของ OpenMates
+  cs: Přizpůsobte si vzhled a jazyk OpenMates
+  sv: Anpassa utseendet och språket för OpenMates
   he: התאמת המראה והשפה של OpenMates
   verified_by_human: []
 interface:
@@ -29,21 +29,21 @@ interface:
   zh: 界面
   es: Interfaz
   fr: Interface
-  pt: ""
-  ru: ""
+  pt: Interface
+  ru: Интерфейс
   ja: インターフェース
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 인터페이스
+  it: Interfaccia
+  tr: Arayüz
+  vi: Giao diện
+  id: Antarmuka
+  pl: Interfejs
+  nl: Interface
   ar: واجهة
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: इंटरफ़ेस
+  th: อินเทอร์เฟซ
+  cs: Rozhraní
+  sv: Gränssnitt
   he: ממשק
   verified_by_human: []
 language:
@@ -53,21 +53,21 @@ language:
   zh: 语言
   es: Idioma
   fr: Langue
-  pt: ""
-  ru: ""
+  pt: Idioma
+  ru: Язык
   ja: 言語
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 언어
+  it: Lingua
+  tr: Dil
+  vi: Ngôn ngữ
+  id: Bahasa
+  pl: Język
+  nl: Taal
   ar: اللغة
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: भाषा
+  th: ภาษา
+  cs: Jazyk
+  sv: Språk
   he: שפה
   verified_by_human: []
 
@@ -78,21 +78,21 @@ dark_mode:
   zh: 深色模式
   es: Modo oscuro
   fr: Mode sombre
-  pt: ""
-  ru: ""
+  pt: Modo escuro
+  ru: Тёмный режим
   ja: ダークモード
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 다크 모드
+  it: Modalità scura
+  tr: Karanlık mod
+  vi: Chế độ tối
+  id: Mode gelap
+  pl: Tryb ciemny
+  nl: Donkere modus
   ar: الوضع الداكن
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: डार्क मोड
+  th: โหมดมืด
+  cs: Tmavý režim
+  sv: Mörkt läge
   he: מצב כהה
   verified_by_human: []
 
@@ -103,21 +103,21 @@ dark_mode.auto:
   zh: 自动
   es: Automático
   fr: Automatique
-  pt: ""
-  ru: ""
+  pt: Automático
+  ru: Авто
   ja: 自動
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 자동
+  it: Automatico
+  tr: Otomatik
+  vi: Tự động
+  id: Otomatis
+  pl: Automatyczny
+  nl: Automatisch
   ar: تلقائي
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: स्वचालित
+  th: อัตโนมัติ
+  cs: Automaticky
+  sv: Automatisk
   he: אוטומטי
   verified_by_human: []
 
@@ -128,21 +128,21 @@ dark_mode.auto.description:
   zh: 跟随设备设置
   es: Sigue la configuración de tu dispositivo
   fr: Suit les paramètres de votre appareil
-  pt: ""
-  ru: ""
+  pt: Segue as configurações do seu dispositivo
+  ru: Следует настройкам вашего устройства
   ja: デバイスの設定に従う
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 기기 설정을 따릅니다
+  it: Segue le impostazioni del dispositivo
+  tr: Cihaz ayarlarınızı takip eder
+  vi: Theo cài đặt thiết bị của bạn
+  id: Mengikuti pengaturan perangkat Anda
+  pl: Podąża za ustawieniami urządzenia
+  nl: Volgt uw apparaatinstellingen
   ar: يتبع إعدادات جهازك
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: आपके डिवाइस की सेटिंग्स का पालन करता है
+  th: ตามการตั้งค่าอุปกรณ์ของคุณ
+  cs: Sleduje nastavení vašeho zařízení
+  sv: Följer dina enhetsinställningar
   he: בהתאם להגדרות המכשיר שלך
   verified_by_human: []
 
@@ -153,21 +153,21 @@ dark_mode.light:
   zh: 浅色
   es: Claro
   fr: Clair
-  pt: ""
-  ru: ""
+  pt: Claro
+  ru: Светлый
   ja: ライト
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 밝게
+  it: Chiaro
+  tr: Açık
+  vi: Sáng
+  id: Terang
+  pl: Jasny
+  nl: Licht
   ar: ضوء
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: हल्का
+  th: สว่าง
+  cs: Světlý
+  sv: Ljust
   he: בהיר
   verified_by_human: []
 
@@ -178,21 +178,21 @@ dark_mode.light.description:
   zh: 始终使用浅色模式
   es: Usar siempre el modo claro
   fr: Toujours utiliser le mode clair
-  pt: ""
-  ru: ""
+  pt: Usar sempre o modo claro
+  ru: Всегда использовать светлый режим
   ja: 常にライトモードを使用
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 항상 밝은 모드 사용
+  it: Usa sempre la modalità chiara
+  tr: Her zaman açık modu kullan
+  vi: Luôn dùng chế độ sáng
+  id: Selalu gunakan mode terang
+  pl: Zawsze używaj trybu jasnego
+  nl: Altijd lichte modus gebruiken
   ar: استخدم الوضع الفاتح دائماً
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: हमेशा लाइट मोड का उपयोग करें
+  th: ใช้โหมดสว่างเสมอ
+  cs: Vždy používat světlý režim
+  sv: Använd alltid ljust läge
   he: שימוש קבוע במצב בהיר
   verified_by_human: []
 
@@ -203,21 +203,21 @@ dark_mode.dark:
   zh: 深色
   es: Oscuro
   fr: Sombre
-  pt: ""
-  ru: ""
+  pt: Escuro
+  ru: Тёмный
   ja: ダーク
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 어둡게
+  it: Scuro
+  tr: Koyu
+  vi: Tối
+  id: Gelap
+  pl: Ciemny
+  nl: Donker
   ar: مظلم
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: गहरा
+  th: มืด
+  cs: Tmavý
+  sv: Mörkt
   he: כהה
   verified_by_human: []
 
@@ -228,20 +228,20 @@ dark_mode.dark.description:
   zh: 始终使用深色模式
   es: Usar siempre el modo oscuro
   fr: Toujours utiliser le mode sombre
-  pt: ""
-  ru: ""
+  pt: Usar sempre o modo escuro
+  ru: Всегда использовать тёмный режим
   ja: 常にダークモードを使用
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 항상 어두운 모드 사용
+  it: Usa sempre la modalità scura
+  tr: Her zaman karanlık modu kullan
+  vi: Luôn dùng chế độ tối
+  id: Selalu gunakan mode gelap
+  pl: Zawsze używaj trybu ciemnego
+  nl: Altijd donkere modus gebruiken
   ar: استخدم الوضع الداكن دائماً
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: हमेशा डार्क मोड का उपयोग करें
+  th: ใช้โหมดมืดเสมอ
+  cs: Vždy používat tmavý režim
+  sv: Använd alltid mörkt läge
   he: שימוש קבוע במצב כהה
   verified_by_human: []

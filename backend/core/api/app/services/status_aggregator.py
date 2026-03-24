@@ -95,10 +95,14 @@ def filter_public_status_health_data(health_data: Dict[str, Dict[str, Any]]) -> 
     }
 
 
-async def gather_health_data(request) -> Dict[str, Dict[str, Any]]:
+async def gather_health_data(request=None) -> Dict[str, Dict[str, Any]]:
     """
     Gather current health data from Redis cache.
     Returns dict with keys: providers, apps, external_services.
+
+    Args:
+        request: FastAPI request object (optional). When None, uses Redis-only
+                 path for discovered_app_ids — suitable for Celery tasks.
     """
     from backend.core.api.app.services.cache import CacheService
 
@@ -107,7 +111,7 @@ async def gather_health_data(request) -> Dict[str, Dict[str, Any]]:
     external_services_health: Dict[str, Any] = {}
 
     discovered_app_ids: Set[str] = set()
-    if hasattr(request.app.state, "discovered_apps_metadata"):
+    if request is not None and hasattr(request.app.state, "discovered_apps_metadata"):
         discovered_app_ids = set(request.app.state.discovered_apps_metadata.keys())
 
     try:
@@ -841,3 +845,70 @@ def build_current_issues_v2(
         "failed_tests": test_issues[:limit],
         "failed_tests_total": len(test_issues),
     }
+
+
+# ─── Precomputed status summary for Celery task ──────────────────────────────
+
+# Redis key for the precomputed public status summary
+PRECOMPUTED_STATUS_KEY = "status:precomputed:summary"
+PRECOMPUTED_STATUS_TTL = 90  # seconds — slightly longer than the 60s Beat interval
+
+
+async def build_precomputed_status_payload() -> Dict[str, Any]:
+    """
+    Build the full /v1/status summary payload without a request object.
+
+    Called by the Celery Beat precompute task. Uses Redis-only path for
+    health data (no request.app.state). Returns the public (non-admin)
+    payload ready to be cached and served.
+    """
+    from backend.core.api.app.services.cache import CacheService
+    from backend.core.api.app.services.directus import DirectusService
+    from backend.core.api.app.services.test_results_service import get_functionality_summaries
+
+    response: Dict[str, Any] = {
+        "last_updated": datetime.now(timezone.utc).isoformat(),
+        "is_admin": False,
+    }
+
+    # Gather health data (no request — Redis-only for discovered_app_ids)
+    health_data = filter_public_status_health_data(await gather_health_data())
+    response["overall_status"] = compute_overall_status(health_data)
+
+    # Build per-service 30-day timelines
+    service_timelines: Dict[str, Any] = {}
+    try:
+        directus = DirectusService(cache_service=CacheService())
+        try:
+            service_timelines = await build_all_service_daily_statuses(
+                directus, health_data, days=30,
+            )
+        finally:
+            await directus.close()
+    except Exception as e:
+        logger.error(f"[STATUS] Precompute: Error building service timelines: {e}", exc_info=True)
+
+    response["overall_timeline_30d"] = compute_overall_daily_timeline(service_timelines)
+    response["current_issues"] = build_current_issues_v2(health_data, is_admin=False, limit=5)
+    response["services"] = build_services_section(health_data, service_timelines)
+    response["apps"] = build_apps_section(health_data, service_timelines)
+    response["functionalities"] = get_functionality_summaries(days=30)
+
+    # Incidents — 30-day count
+    try:
+        since_30d = int((datetime.now(timezone.utc) - timedelta(days=30)).timestamp())
+        directus = DirectusService(cache_service=CacheService())
+        try:
+            incident_summary = await directus.health_event.get_incident_summary(
+                since_timestamp=since_30d,
+            )
+            response["incidents"] = {
+                "total_last_30d": incident_summary.get("total_incidents", 0),
+            }
+        finally:
+            await directus.close()
+    except Exception as e:
+        logger.error(f"[STATUS] Precompute: Error getting incidents: {e}", exc_info=True)
+        response["incidents"] = {"total_last_30d": 0}
+
+    return response

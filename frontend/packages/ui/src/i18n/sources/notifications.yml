@@ -8,68 +8,256 @@ auto_logout.title:
   context: Title for auto logout notification
   en: Auto logout
   de: Automatische Abmeldung
-
+  zh: 自动退出
+  es: Cierre de sesión automático
+  fr: Déconnexion automatique
+  pt: Logout automático
+  ru: Автовыход
+  ja: 自動ログアウト
+  ko: 자동 로그아웃
+  it: Logout automatico
+  tr: Otomatik çıkış
+  vi: Tự động đăng xuất
+  id: Logout otomatis
+  pl: Automatyczne wylogowanie
+  nl: Automatisch uitloggen
+  ar: تسجيل خروج تلقائي
+  hi: स्वचालित लॉगआउट
+  th: ออกจากระบบอัตโนมัติ
+  cs: Automatické odhlášení
+  sv: Automatisk utloggning
   he: התנתקות אוטומטית
 auto_logout.consider_stay_logged_in:
   context: Message suggesting to enable stay logged in
   en: "Consider activating 'Stay logged in'."
   de: "Erwägen Sie, 'Eingeloggt bleiben' zu aktivieren."
-
+  zh: "考虑启用"保持登录"。"
+  es: "Considera activar 'Mantener sesión iniciada'."
+  fr: "Envisagez d'activer 'Rester connecté'."
+  pt: "Considere ativar 'Manter conectado'."
+  ru: "Рассмотрите активацию 'Оставаться в системе'."
+  ja: "「ログイン状態を保つ」の有効化を検討してください。"
+  ko: "'로그인 유지'를 활성화하는 것을 고려하세요."
+  it: "Valuta di attivare 'Rimani connesso'."
+  tr: "'Oturumu açık tut' seçeneğini etkinleştirmeyi düşünün."
+  vi: "Hãy cân nhắc bật 'Duy trì đăng nhập'."
+  id: "Pertimbangkan mengaktifkan 'Tetap masuk'."
+  pl: "Rozważ aktywację 'Pozostań zalogowany'."
+  nl: "Overweeg 'Ingelogd blijven' te activeren."
+  ar: "فكّر في تفعيل 'الإبقاء على تسجيل الدخول'."
+  hi: "'लॉगिन रहें' सक्रिय करने पर विचार करें।"
+  th: "ลองเปิดใช้ 'คงสถานะเข้าสู่ระบบ'"
+  cs: "Zvažte aktivaci 'Zůstat přihlášen'."
+  sv: "Överväg att aktivera 'Håll mig inloggad'."
   he: "כדאי להפעיל את 'הישאר מחובר'."
 auto_logout.during_login:
   context: Secondary message about when to enable the setting
   en: During login, to remain connected.
   de: Beim Einloggen, um verbunden zu bleiben.
+  zh: 登录时启用，以保持连接。
+  es: Durante el inicio de sesión, para permanecer conectado.
+  fr: Lors de la connexion, pour rester connecté.
+  pt: Durante o login, para permanecer conectado.
+  ru: При входе, чтобы оставаться в системе.
+  ja: ログイン中に接続を維持するために。
+  ko: 연결을 유지하려면 로그인 시 설정하세요.
+  it: Durante il login, per rimanere connesso.
+  tr: Bağlantıda kalmak için giriş sırasında.
+  vi: Trong khi đăng nhập, để duy trì kết nối.
+  id: Saat login, agar tetap terhubung.
+  pl: Podczas logowania, aby pozostać połączonym.
+  nl: Tijdens het inloggen, om verbonden te blijven.
+  ar: أثناء تسجيل الدخول، للبقاء متصلاً.
+  hi: लॉगिन के दौरान, कनेक्टेड रहने के लिए।
+  th: ระหว่างเข้าสู่ระบบ เพื่อคงการเชื่อมต่อ
+  cs: Při přihlášení, abyste zůstali připojeni.
+  sv: Vid inloggning, för att förbli ansluten.
+  he: במהלך ההתחברות, כדי להישאר מחובר.
 
 # Connection problem notifications
-  he: במהלך ההתחברות, כדי להישאר מחובר.
 connection.title:
   context: Title for connection problem notification
   en: "Can't connect to server."
   de: "Verbindung zum Server nicht möglich."
-
+  zh: "无法连接到服务器。"
+  es: "No se puede conectar al servidor."
+  fr: "Impossible de se connecter au serveur."
+  pt: "Não é possível conectar ao servidor."
+  ru: "Не удаётся подключиться к серверу."
+  ja: "サーバーに接続できません。"
+  ko: "서버에 연결할 수 없습니다."
+  it: "Impossibile connettersi al server."
+  tr: "Sunucuya bağlanılamıyor."
+  vi: "Không thể kết nối đến máy chủ."
+  id: "Tidak dapat terhubung ke server."
+  pl: "Nie można połączyć się z serwerem."
+  nl: "Kan geen verbinding maken met de server."
+  ar: "تعذّر الاتصال بالخادم."
+  hi: "सर्वर से कनेक्ट नहीं हो सका।"
+  th: "ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้"
+  cs: "Nelze se připojit k serveru."
+  sv: "Kan inte ansluta till servern."
   he: לא ניתן להתחבר לשרת.
 connection.trying_to_reconnect:
   context: Message about reconnection attempt
   en: Trying to reconnect for {seconds} seconds.
   de: Versuche seit {seconds} Sekunden die Verbindung wiederherzustellen.
-
+  zh: 已尝试重新连接 {seconds} 秒。
+  es: Intentando reconectar durante {seconds} segundos.
+  fr: Tentative de reconnexion depuis {seconds} secondes.
+  pt: Tentando reconectar há {seconds} segundos.
+  ru: Попытка переподключения в течение {seconds} секунд.
+  ja: "{seconds}秒間再接続を試みています。"
+  ko: "{seconds}초 동안 재연결을 시도하고 있습니다."
+  it: Tentativo di riconnessione da {seconds} secondi.
+  tr: "{seconds} saniyedir yeniden bağlanmaya çalışılıyor."
+  vi: Đang cố kết nối lại trong {seconds} giây.
+  id: Mencoba menyambung kembali selama {seconds} detik.
+  pl: Próba ponownego połączenia przez {seconds} sekund.
+  nl: Probeert {seconds} seconden opnieuw verbinding te maken.
+  ar: "جارٍ محاولة إعادة الاتصال منذ {seconds} ثانية."
+  hi: "{seconds} सेकंड से पुनः कनेक्ट करने का प्रयास।"
+  th: "พยายามเชื่อมต่อใหม่มา {seconds} วินาที"
+  cs: Pokus o opětovné připojení po dobu {seconds} sekund.
+  sv: Försöker återansluta sedan {seconds} sekunder.
   he: "מנסה להתחבר מחדש במשך {seconds} שניות."
 connection.offline_mode:
   context: Secondary message about offline mode activation
   en: Else Offline Mode will be activated.
   de: Andernfalls wird der Offline-Modus aktiviert.
-
+  zh: 否则将激活离线模式。
+  es: De lo contrario, se activará el modo sin conexión.
+  fr: Sinon, le mode hors ligne sera activé.
+  pt: Caso contrário, o modo offline será ativado.
+  ru: Иначе будет активирован офлайн-режим.
+  ja: そうでなければオフラインモードが有効になります。
+  ko: 그렇지 않으면 오프라인 모드가 활성화됩니다.
+  it: Altrimenti verrà attivata la modalità offline.
+  tr: Aksi takdirde Çevrimdışı Modu etkinleştirilecek.
+  vi: Nếu không, Chế độ ngoại tuyến sẽ được kích hoạt.
+  id: Jika tidak, Mode Offline akan diaktifkan.
+  pl: W przeciwnym razie zostanie aktywowany tryb offline.
+  nl: Anders wordt de offlinemodus geactiveerd.
+  ar: وإلا سيتم تفعيل وضع عدم الاتصال.
+  hi: अन्यथा ऑफलाइन मोड सक्रिय हो जाएगा।
+  th: มิฉะนั้นโหมดออฟไลน์จะถูกเปิดใช้งาน
+  cs: Jinak bude aktivován offline režim.
+  sv: Annars aktiveras offlineläge.
   he: אחרת, מצב לא מקוון יופעל.
 connection.offline_banner:
   context: Message shown in the notification when the device loses network connectivity
   en: You are offline. Your chats are still available.
   de: Du bist offline. Deine Chats sind weiterhin verfügbar.
-
+  zh: 您处于离线状态。您的聊天仍然可用。
+  es: Estás sin conexión. Tus chats siguen disponibles.
+  fr: Vous êtes hors ligne. Vos chats sont toujours disponibles.
+  pt: Você está offline. Seus chats ainda estão disponíveis.
+  ru: Вы в офлайне. Ваши чаты по-прежнему доступны.
+  ja: オフラインです。チャットは引き続き利用できます。
+  ko: 오프라인 상태입니다. 채팅은 여전히 사용 가능합니다.
+  it: Sei offline. Le tue chat sono ancora disponibili.
+  tr: Çevrimdışısınız. Sohbetleriniz hâlâ erişilebilir.
+  vi: Bạn đang ngoại tuyến. Các chat vẫn khả dụng.
+  id: Anda sedang offline. Obrolan Anda masih tersedia.
+  pl: Jesteś offline. Twoje czaty są nadal dostępne.
+  nl: Je bent offline. Je chats zijn nog steeds beschikbaar.
+  ar: أنت غير متصل. محادثاتك لا تزال متاحة.
+  hi: आप ऑफलाइन हैं। आपकी चैट अभी भी उपलब्ध हैं।
+  th: คุณออฟไลน์อยู่ แต่แชทของคุณยังใช้งานได้
+  cs: Jste offline. Vaše chaty jsou stále dostupné.
+  sv: Du är offline. Dina chattar är fortfarande tillgängliga.
   he: "אין חיבור לאינטרנט. הצ'אטים שלך עדיין זמינים."
 connection.offline_banner.title:
   context: Title for the offline notification shown when the device loses network connectivity
   en: You are offline
   de: Du bist offline
-
+  zh: 您处于离线状态
+  es: Estás sin conexión
+  fr: Vous êtes hors ligne
+  pt: Você está offline
+  ru: Вы в офлайне
+  ja: オフラインです
+  ko: 오프라인 상태입니다
+  it: Sei offline
+  tr: Çevrimdışısınız
+  vi: Bạn đang ngoại tuyến
+  id: Anda sedang offline
+  pl: Jesteś offline
+  nl: Je bent offline
+  ar: أنت غير متصل
+  hi: आप ऑफलाइन हैं
+  th: คุณออฟไลน์อยู่
+  cs: Jste offline
+  sv: Du är offline
   he: אין חיבור לאינטרנט
 connection.tap_to_reconnect:
   context: Action button text on the offline notification, lets the user manually trigger a reconnection attempt
   en: Tap to reconnect
   de: Zum Wiederverbinden tippen
-
+  zh: 点击重新连接
+  es: Toca para reconectar
+  fr: Appuyer pour se reconnecter
+  pt: Toque para reconectar
+  ru: Нажмите для переподключения
+  ja: タップして再接続
+  ko: 재연결하려면 탭하세요
+  it: Tocca per riconnetterti
+  tr: Yeniden bağlanmak için dokun
+  vi: Nhấn để kết nối lại
+  id: Ketuk untuk menyambung kembali
+  pl: Dotknij, aby ponownie połączyć
+  nl: Tik om opnieuw verbinding te maken
+  ar: اضغط لإعادة الاتصال
+  hi: पुनः कनेक्ट करने के लिए टैप करें
+  th: แตะเพื่อเชื่อมต่อใหม่
+  cs: Klepnutím se znovu připojte
+  sv: Tryck för att återansluta
   he: הקש להתחברות מחדש
 connection.reconnecting.title:
   context: Title shown on the notification while a reconnection attempt is in progress
   en: Reconnecting...
   de: Verbindung wird hergestellt...
-
+  zh: 重新连接中...
+  es: Reconectando...
+  fr: Reconnexion...
+  pt: Reconectando...
+  ru: Переподключение...
+  ja: 再接続中...
+  ko: 재연결 중...
+  it: Riconnessione...
+  tr: Yeniden bağlanılıyor...
+  vi: Đang kết nối lại...
+  id: Menyambung kembali...
+  pl: Ponowne łączenie...
+  nl: Opnieuw verbinden...
+  ar: إعادة الاتصال...
+  hi: पुनः कनेक्ट हो रहा है...
+  th: กำลังเชื่อมต่อใหม่...
+  cs: Opětovné připojení...
+  sv: Återansluter...
   he: מתחבר מחדש...
 connection.reconnecting:
   context: Message shown on the notification while a reconnection attempt is in progress
   en: Attempting to reconnect to the server.
   de: Verbindung zum Server wird hergestellt.
-
+  zh: 正在尝试重新连接到服务器。
+  es: Intentando reconectar con el servidor.
+  fr: Tentative de reconnexion au serveur.
+  pt: Tentando reconectar ao servidor.
+  ru: Попытка переподключиться к серверу.
+  ja: サーバーへの再接続を試みています。
+  ko: 서버에 재연결을 시도하고 있습니다.
+  it: Tentativo di riconnessione al server.
+  tr: Sunucuya yeniden bağlanılmaya çalışılıyor.
+  vi: Đang cố kết nối lại với máy chủ.
+  id: Mencoba menyambung kembali ke server.
+  pl: Próba ponownego połączenia z serwerem.
+  nl: Probeert opnieuw verbinding te maken met de server.
+  ar: محاولة إعادة الاتصال بالخادم.
+  hi: सर्वर से पुनः कनेक्ट करने का प्रयास।
+  th: กำลังพยายามเชื่อมต่อกับเซิร์ฟเวอร์ใหม่
+  cs: Pokus o opětovné připojení k serveru.
+  sv: Försöker återansluta till servern.
   he: מנסה להתחבר מחדש לשרת.
 connection.reconnected:
   context: Message shown in the success notification when the server connection is restored after an offline period
@@ -104,105 +292,398 @@ software_update.title:
   context: Title for software update notification
   en: Software update available
   de: Software-Update verfügbar
-
+  zh: 有可用的软件更新
+  es: Actualización de software disponible
+  fr: Mise à jour logicielle disponible
+  pt: Atualização de software disponível
+  ru: Доступно обновление программного обеспечения
+  ja: ソフトウェアアップデートが利用可能
+  ko: 소프트웨어 업데이트 사용 가능
+  it: Aggiornamento software disponibile
+  tr: Yazılım güncellemesi mevcut
+  vi: Có bản cập nhật phần mềm
+  id: Pembaruan perangkat lunak tersedia
+  pl: Dostępna aktualizacja oprogramowania
+  nl: Software-update beschikbaar
+  ar: تحديث برنامج متاح
+  hi: सॉफ़्टवेयर अपडेट उपलब्ध
+  th: มีการอัปเดตซอฟต์แวร์
+  cs: Dostupná aktualizace softwaru
+  sv: Programuppdatering tillgänglig
   he: עדכון תוכנה זמין
 software_update.new_version:
   context: Message about new version availability
   en: OpenMates {version} is available now.
   de: OpenMates {version} ist jetzt verfügbar.
-
+  zh: OpenMates {version} 现已可用。
+  es: OpenMates {version} ya está disponible.
+  fr: OpenMates {version} est disponible maintenant.
+  pt: OpenMates {version} está disponível agora.
+  ru: OpenMates {version} доступен сейчас.
+  ja: OpenMates {version} が利用可能になりました。
+  ko: OpenMates {version}을(를) 지금 사용할 수 있습니다.
+  it: OpenMates {version} è disponibile ora.
+  tr: OpenMates {version} şimdi mevcut.
+  vi: OpenMates {version} hiện đã có sẵn.
+  id: OpenMates {version} kini tersedia.
+  pl: OpenMates {version} jest teraz dostępny.
+  nl: OpenMates {version} is nu beschikbaar.
+  ar: "OpenMates {version} متاح الآن."
+  hi: OpenMates {version} अभी उपलब्ध है।
+  th: OpenMates {version} พร้อมใช้งานแล้ว
+  cs: OpenMates {version} je nyní k dispozici.
+  sv: OpenMates {version} är nu tillgänglig.
   he: "OpenMates {version} זמינה כעת."
 software_update.check_settings:
   context: Secondary message about where to install update
   en: Check your server settings to install it.
   de: Überprüfen Sie Ihre Server-Einstellungen zur Installation.
+  zh: 请检查您的服务器设置以安装它。
+  es: Revisa los ajustes de tu servidor para instalarlo.
+  fr: Vérifiez les paramètres de votre serveur pour l'installer.
+  pt: Verifique as configurações do servidor para instalá-lo.
+  ru: Проверьте настройки сервера для установки.
+  ja: インストールするにはサーバー設定を確認してください。
+  ko: 설치하려면 서버 설정을 확인하세요.
+  it: Controlla le impostazioni del server per installarlo.
+  tr: Yüklemek için sunucu ayarlarınızı kontrol edin.
+  vi: Kiểm tra cài đặt máy chủ để cài đặt.
+  id: Periksa pengaturan server Anda untuk menginstalnya.
+  pl: Sprawdź ustawienia serwera, aby zainstalować.
+  nl: Controleer uw serverinstellingen om het te installeren.
+  ar: تحقق من إعدادات الخادم لتثبيته.
+  hi: इसे इंस्टॉल करने के लिए अपनी सर्वर सेटिंग जांचें।
+  th: ตรวจสอบการตั้งค่าเซิร์ฟเวอร์เพื่อติดตั้ง
+  cs: Pro instalaci zkontrolujte nastavení serveru.
+  sv: Kontrollera dina serverinställningar för att installera det.
+  he: בדוק את הגדרות השרת כדי להתקין אותו.
 
 # Web app version update notifications (shown when SvelteKit detects a new deployment)
-  he: בדוק את הגדרות השרת כדי להתקין אותו.
 software_update.web_app_available:
   context: Primary message shown in the notification when a new web app version is detected
   en: A new version is available. It will load on your next navigation.
   de: Eine neue Version ist verfügbar. Sie wird bei der nächsten Navigation geladen.
-
+  zh: 有新版本可用。下次导航时将自动加载。
+  es: Hay una nueva versión disponible. Se cargará en tu próxima navegación.
+  fr: Une nouvelle version est disponible. Elle se chargera lors de votre prochaine navigation.
+  pt: Uma nova versão está disponível. Ela será carregada na próxima navegação.
+  ru: Доступна новая версия. Она загрузится при следующей навигации.
+  ja: 新しいバージョンが利用可能です。次のナビゲーション時に読み込まれます。
+  ko: 새 버전이 있습니다. 다음 탐색 시 로드됩니다.
+  it: È disponibile una nuova versione. Si caricherà alla prossima navigazione.
+  tr: Yeni bir sürüm mevcut. Bir sonraki gezintinizde yüklenecek.
+  vi: Có phiên bản mới. Nó sẽ được tải vào lần điều hướng tiếp theo.
+  id: Versi baru tersedia. Akan dimuat saat navigasi berikutnya.
+  pl: Dostępna jest nowa wersja. Załaduje się przy następnej nawigacji.
+  nl: Er is een nieuwe versie beschikbaar. Deze wordt geladen bij uw volgende navigatie.
+  ar: نسخة جديدة متاحة. ستُحمَّل في التنقل التالي.
+  hi: एक नया संस्करण उपलब्ध है। अगले नेविगेशन पर लोड होगा।
+  th: มีเวอร์ชันใหม่พร้อมใช้งาน จะโหลดในการนำทางครั้งถัดไป
+  cs: Je k dispozici nová verze. Načte se při příštím přechodu.
+  sv: En ny version är tillgänglig. Den laddas vid nästa navigering.
   he: גרסה חדשה זמינה. היא תיטען במעבר הבא בין דפים.
 software_update.refresh_now:
   context: Action button label to immediately refresh the page and load the new version
   en: Refresh now
   de: Jetzt aktualisieren
+  zh: 立即刷新
+  es: Actualizar ahora
+  fr: Actualiser maintenant
+  pt: Atualizar agora
+  ru: Обновить сейчас
+  ja: 今すぐ更新
+  ko: 지금 새로 고침
+  it: Aggiorna ora
+  tr: Şimdi yenile
+  vi: Làm mới ngay
+  id: Segarkan sekarang
+  pl: Odśwież teraz
+  nl: Nu vernieuwen
+  ar: تحديث الآن
+  hi: अभी रीफ्रेश करें
+  th: รีเฟรชตอนนี้
+  cs: Obnovit nyní
+  sv: Uppdatera nu
+  he: רענן כעת
 
 # Chat message notifications
-  he: רענן כעת
 chat_message.new_ai_response:
   context: Default message for new AI response notification
   en: New AI response ready
   de: Neue KI-Antwort bereit
-
+  zh: 新的AI回复已准备好
+  es: Nueva respuesta de IA lista
+  fr: Nouvelle réponse IA prête
+  pt: Nova resposta de IA pronta
+  ru: Новый ответ ИИ готов
+  ja: 新しいAI応答が準備完了
+  ko: 새 AI 응답이 준비되었습니다
+  it: Nuova risposta AI pronta
+  tr: Yeni AI yanıtı hazır
+  vi: Phản hồi AI mới sẵn sàng
+  id: Respons AI baru siap
+  pl: Nowa odpowiedź AI gotowa
+  nl: Nieuwe AI-reactie klaar
+  ar: استجابة الذكاء الاصطناعي الجديدة جاهزة
+  hi: नई AI प्रतिक्रिया तैयार है
+  th: การตอบกลับ AI ใหม่พร้อมแล้ว
+  cs: Nová odpověď AI připravena
+  sv: Nytt AI-svar redo
   he: תגובת AI חדשה מוכנה
 click_to_respond:
   context: Button text for reply action in chat notification
   en: Click here to respond
   de: Hier klicken zum Antworten
+  zh: 点击此处回复
+  es: Haz clic aquí para responder
+  fr: Cliquez ici pour répondre
+  pt: Clique aqui para responder
+  ru: Нажмите здесь, чтобы ответить
+  ja: ここをクリックして返信
+  ko: 여기를 클릭하여 응답
+  it: Clicca qui per rispondere
+  tr: Yanıtlamak için buraya tıklayın
+  vi: Nhấp vào đây để trả lời
+  id: Klik di sini untuk membalas
+  pl: Kliknij tutaj, aby odpowiedzieć
+  nl: Klik hier om te antwoorden
+  ar: انقر هنا للرد
+  hi: जवाब देने के लिए यहां क्लिक करें
+  th: คลิกที่นี่เพื่อตอบกลับ
+  cs: Kliknutím sem odpovíte
+  sv: Klicka här för att svara
+  he: לחץ כאן כדי להגיב
 
 # Push notification permission banner
-  he: לחץ כאן כדי להגיב
 push.banner_title:
   context: Title for the push notification permission banner
   en: Want to receive notifications when your assistant responds?
   de: Möchten Sie Benachrichtigungen erhalten, wenn Ihr Assistent antwortet?
-
+  zh: 想在您的助手回复时收到通知吗？
+  es: ¿Deseas recibir notificaciones cuando tu asistente responda?
+  fr: Vous souhaitez recevoir des notifications quand votre assistant répond ?
+  pt: Quer receber notificações quando seu assistente responder?
+  ru: Хотите получать уведомления, когда ваш помощник отвечает?
+  ja: アシスタントが返信したときに通知を受け取りますか？
+  ko: 어시스턴트가 응답할 때 알림을 받으시겠습니까?
+  it: Vuoi ricevere notifiche quando il tuo assistente risponde?
+  tr: Asistanınız yanıt verdiğinde bildirim almak ister misiniz?
+  vi: Bạn có muốn nhận thông báo khi trợ lý của bạn phản hồi không?
+  id: Ingin menerima notifikasi saat asisten Anda merespons?
+  pl: Chcesz otrzymywać powiadomienia, gdy Twój asystent odpowiada?
+  nl: Wilt u meldingen ontvangen wanneer uw assistent reageert?
+  ar: هل تريد تلقّي الإشعارات عند رد مساعدك؟
+  hi: क्या आप अपने सहायक के जवाब देने पर सूचनाएं प्राप्त करना चाहते हैं?
+  th: ต้องการรับการแจ้งเตือนเมื่อผู้ช่วยตอบกลับไหม?
+  cs: Chcete dostávat oznámení, když váš asistent odpoví?
+  sv: Vill du få meddelanden när din assistent svarar?
   he: "רוצה לקבל התראות כשהעוזר שלך מגיב?"
 push.banner_subtitle:
   context: Subtitle explaining the benefit
   en: "Even when you're not in the app."
   de: "Auch wenn Sie nicht in der App sind."
-
+  zh: "即使您不在应用程序中也可以。"
+  es: "Incluso cuando no estés en la app."
+  fr: "Même lorsque vous n'êtes pas dans l'application."
+  pt: "Mesmo quando você não está no aplicativo."
+  ru: "Даже когда вы не в приложении."
+  ja: "アプリを開いていないときでも。"
+  ko: "앱을 사용하지 않을 때도요."
+  it: "Anche quando non sei nell'app."
+  tr: "Uygulamada olmadığınızda bile."
+  vi: "Ngay cả khi bạn không ở trong ứng dụng."
+  id: "Bahkan saat Anda tidak berada di aplikasi."
+  pl: "Nawet gdy nie jesteś w aplikacji."
+  nl: "Zelfs als u niet in de app bent."
+  ar: "حتى عندما لا تكون في التطبيق."
+  hi: "तब भी जब आप ऐप में नहीं हैं।"
+  th: "แม้ไม่ได้อยู่ในแอป"
+  cs: "I když nejste v aplikaci."
+  sv: "Även när du inte är i appen."
   he: גם כשאינך באפליקציה.
 push.enable_btn:
   context: Button to enable notifications
   en: Enable Notifications
   de: Benachrichtigungen aktivieren
-
+  zh: 启用通知
+  es: Habilitar notificaciones
+  fr: Activer les notifications
+  pt: Ativar notificações
+  ru: Включить уведомления
+  ja: 通知を有効にする
+  ko: 알림 활성화
+  it: Abilita notifiche
+  tr: Bildirimleri etkinleştir
+  vi: Bật thông báo
+  id: Aktifkan notifikasi
+  pl: Włącz powiadomienia
+  nl: Meldingen inschakelen
+  ar: تفعيل الإشعارات
+  hi: सूचनाएं सक्षम करें
+  th: เปิดใช้การแจ้งเตือน
+  cs: Povolit oznámení
+  sv: Aktivera aviseringar
   he: הפעל התראות
 push.not_yet_btn:
   context: Button to dismiss the banner temporarily
   en: Not Yet
   de: Noch nicht
-
+  zh: 暂不
+  es: Todavía no
+  fr: Pas encore
+  pt: Ainda não
+  ru: Пока нет
+  ja: まだいい
+  ko: 아직 아님
+  it: Non ancora
+  tr: Henüz değil
+  vi: Chưa
+  id: Belum
+  pl: Jeszcze nie
+  nl: Nog niet
+  ar: ليس الآن
+  hi: अभी नहीं
+  th: ยังไม่ตอนนี้
+  cs: Ještě ne
+  sv: Inte nu
   he: לא כרגע
 push.requesting:
   context: Loading state while requesting permission
   en: Requesting...
   de: Wird angefragt...
-
+  zh: 请求中...
+  es: Solicitando...
+  fr: Demande en cours...
+  pt: Solicitando...
+  ru: Запрос...
+  ja: リクエスト中...
+  ko: 요청 중...
+  it: Richiesta in corso...
+  tr: İsteniyor...
+  vi: Đang yêu cầu...
+  id: Meminta...
+  pl: Żądanie...
+  nl: Aanvragen...
+  ar: جارٍ الطلب...
+  hi: अनुरोध हो रहा है...
+  th: กำลังขออนุญาต...
+  cs: Žádost...
+  sv: Begär...
   he: מבקש...
 push.ios_install_title:
   context: Title for iOS PWA installation instructions
   en: Install OpenMates First
   de: Installieren Sie zuerst OpenMates
-
+  zh: 请先安装 OpenMates
+  es: Instala OpenMates primero
+  fr: Installez OpenMates d'abord
+  pt: Instale o OpenMates primeiro
+  ru: Сначала установите OpenMates
+  ja: まず OpenMates をインストール
+  ko: 먼저 OpenMates를 설치하세요
+  it: Installa prima OpenMates
+  tr: Önce OpenMates'i yükleyin
+  vi: Cài đặt OpenMates trước
+  id: Instal OpenMates terlebih dahulu
+  pl: Najpierw zainstaluj OpenMates
+  nl: Installeer OpenMates eerst
+  ar: ثبّت OpenMates أولاً
+  hi: पहले OpenMates इंस्टॉल करें
+  th: ติดตั้ง OpenMates ก่อน
+  cs: Nejprve nainstalujte OpenMates
+  sv: Installera OpenMates först
   he: התקן את OpenMates תחילה
 push.ios_install_step1:
   context: Step 1 for iOS installation
   en: 1. Tap the Share button in Safari
   de: 1. Tippen Sie auf die Teilen-Schaltfläche in Safari
-
+  zh: 1. 在 Safari 中点击分享按钮
+  es: 1. Toca el botón Compartir en Safari
+  fr: 1. Appuyez sur le bouton Partager dans Safari
+  pt: 1. Toque no botão Compartilhar no Safari
+  ru: 1. Нажмите кнопку «Поделиться» в Safari
+  ja: 1. Safari で「共有」ボタンをタップ
+  ko: 1. Safari에서 공유 버튼을 탭하세요
+  it: 1. Tocca il pulsante Condividi in Safari
+  tr: 1. Safari'de Paylaş düğmesine dokunun
+  vi: 1. Nhấn nút Chia sẻ trong Safari
+  id: 1. Ketuk tombol Bagikan di Safari
+  pl: 1. Dotknij przycisku Udostępnij w Safari
+  nl: 1. Tik op de knop Delen in Safari
+  ar: 1. اضغط على زر المشاركة في Safari
+  hi: 1. Safari में शेयर बटन टैप करें
+  th: 1. แตะปุ่มแชร์ใน Safari
+  cs: 1. Klepněte na tlačítko Sdílet v Safari
+  sv: 1. Tryck på dela-knappen i Safari
   he: 1. הקש על כפתור השיתוף ב-Safari
 push.ios_install_step2:
   context: Step 2 for iOS installation
   en: 2. Select "Add to Home Screen"
   de: 2. Wählen Sie "Zum Home-Bildschirm"
-
+  zh: 2. 选择"添加到主屏幕"
+  es: 2. Selecciona "Agregar a pantalla de inicio"
+  fr: 2. Sélectionnez "Ajouter à l'écran d'accueil"
+  pt: 2. Selecione "Adicionar à Tela Início"
+  ru: 2. Выберите «Добавить на экран «Домой»»
+  ja: 2. 「ホーム画面に追加」を選択
+  ko: 2. "홈 화면에 추가" 선택
+  it: 2. Seleziona "Aggiungi alla schermata Home"
+  tr: 2. "Ana Ekrana Ekle" seçin
+  vi: 2. Chọn "Thêm vào màn hình chính"
+  id: 2. Pilih "Tambahkan ke Layar Utama"
+  pl: 2. Wybierz "Dodaj do ekranu głównego"
+  nl: 2. Selecteer "Voeg toe aan beginscherm"
+  ar: 2. اختر "إضافة إلى الشاشة الرئيسية"
+  hi: 2. "होम स्क्रीन में जोड़ें" चुनें
+  th: 2. เลือก "เพิ่มไปยังหน้าจอหลัก"
+  cs: 2. Vyberte "Přidat na plochu"
+  sv: 2. Välj "Lägg till på hemskärmen"
   he: "2. בחר ב-\"הוסף למסך הבית\""
 push.ios_install_step3:
   context: Step 3 for iOS installation
   en: 3. Open OpenMates from your home screen
   de: 3. Öffnen Sie OpenMates vom Home-Bildschirm
-
+  zh: 3. 从主屏幕打开 OpenMates
+  es: 3. Abre OpenMates desde tu pantalla de inicio
+  fr: 3. Ouvrez OpenMates depuis votre écran d'accueil
+  pt: 3. Abra o OpenMates pela tela inicial
+  ru: 3. Откройте OpenMates с домашнего экрана
+  ja: 3. ホーム画面から OpenMates を開く
+  ko: 3. 홈 화면에서 OpenMates 열기
+  it: 3. Apri OpenMates dalla schermata Home
+  tr: 3. Ana ekrandan OpenMates'i açın
+  vi: 3. Mở OpenMates từ màn hình chính
+  id: 3. Buka OpenMates dari layar utama Anda
+  pl: 3. Otwórz OpenMates z ekranu głównego
+  nl: 3. Open OpenMates vanuit uw beginscherm
+  ar: 3. افتح OpenMates من شاشتك الرئيسية
+  hi: 3. होम स्क्रीन से OpenMates खोलें
+  th: 3. เปิด OpenMates จากหน้าจอหลัก
+  cs: 3. Otevřete OpenMates z domovské obrazovky
+  sv: 3. Öppna OpenMates från din hemskärm
   he: 3. פתח את OpenMates ממסך הבית
 push.ios_install_step4:
   context: Step 4 for iOS installation
   en: 4. Then you can enable notifications
   de: 4. Dann können Sie Benachrichtigungen aktivieren
+  zh: 4. 然后您可以启用通知
+  es: 4. Entonces podrás habilitar las notificaciones
+  fr: 4. Vous pouvez alors activer les notifications
+  pt: 4. Aí você pode ativar as notificações
+  ru: 4. Тогда вы сможете включить уведомления
+  ja: 4. そのあと通知を有効にできます
+  ko: 4. 그러면 알림을 활성화할 수 있습니다
+  it: 4. Quindi puoi abilitare le notifiche
+  tr: 4. Ardından bildirimleri etkinleştirebilirsiniz
+  vi: 4. Sau đó bạn có thể bật thông báo
+  id: 4. Kemudian Anda dapat mengaktifkan notifikasi
+  pl: 4. Następnie możesz włączyć powiadomienia
+  nl: 4. Dan kunt u meldingen inschakelen
+  ar: 4. ثم يمكنك تفعيل الإشعارات
+  hi: 4. फिर आप सूचनाएं सक्षम कर सकते हैं
+  th: 4. จากนั้นคุณสามารถเปิดการแจ้งเตือนได้
+  cs: 4. Pak můžete zapnout oznámení
+  sv: 4. Sedan kan du aktivera aviseringar
   he: 4. לאחר מכן תוכל להפעיל התראות
 
 # Security reminder notification (shown after login when user has no 2FA/passkey)

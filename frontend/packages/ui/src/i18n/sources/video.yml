@@ -5,21 +5,21 @@ playback_progress:
   zh: 视频播放进度
   es: Progreso de reproducción de video
   fr: Progression de lecture vidéo
-  pt: ''
-  ru: ''
+  pt: Progresso de reprodução de vídeo
+  ru: Прогресс воспроизведения видео
   ja: 動画再生の進行状況
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 동영상 재생 진행률
+  it: Avanzamento riproduzione video
+  tr: Video oynatma ilerleme durumu
+  vi: Tiến trình phát video
+  id: Kemajuan pemutaran video
+  pl: Postęp odtwarzania wideo
+  nl: Voortgang video-afspelen
+  ar: تقدم تشغيل الفيديو
+  hi: वीडियो प्लेबैक प्रगति
+  th: ความคืบหน้าการเล่นวิดีโอ
+  cs: Průběh přehrávání videa
+  sv: Videouppspelningsförlopp
   he: התקדמות הפעלת הווידאו
   verified_by_human: []
 pause:
@@ -29,21 +29,21 @@ pause:
   zh: 暂停
   es: Pausar
   fr: Pause
-  pt: ''
-  ru: ''
+  pt: Pausar
+  ru: Пауза
   ja: 一時停止
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 일시정지
+  it: Pausa
+  tr: Duraklat
+  vi: Tạm dừng
+  id: Jeda
+  pl: Wstrzymaj
+  nl: Pauzeren
+  ar: إيقاف مؤقت
+  hi: रोकें
+  th: หยุดชั่วคราว
+  cs: Pozastavit
+  sv: Pausa
   he: השהיה
   verified_by_human: []
 play:
@@ -53,20 +53,20 @@ play:
   zh: 播放
   es: Reproducir
   fr: Lire
-  pt: ''
-  ru: ''
+  pt: Reproduzir
+  ru: Воспроизвести
   ja: 再生
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 재생
+  it: Riproduci
+  tr: Oynat
+  vi: Phát
+  id: Putar
+  pl: Odtwórz
+  nl: Afspelen
+  ar: تشغيل
+  hi: चलाएं
+  th: เล่น
+  cs: Přehrát
+  sv: Spela
   he: הפעלה
   verified_by_human: []

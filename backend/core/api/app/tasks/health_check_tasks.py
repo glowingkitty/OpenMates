@@ -2239,3 +2239,53 @@ def cleanup_old_health_events(self, retention_days: int = 90):
     except Exception as e:
         logger.error(f"Health check: Error running health event cleanup: {e}", exc_info=True)
         raise
+
+
+@app.task(name="health_check.precompute_status_summary", bind=True)
+def precompute_status_summary(self):
+    """
+    Periodic task to precompute the public /v1/status summary payload.
+
+    Builds the full status page payload (services, apps, functionalities,
+    timelines, incidents) and stores it in Redis. The GET /v1/status endpoint
+    serves this cached payload instead of computing it on every request.
+
+    Scheduled by Celery Beat every 60 seconds. TTL is 90 seconds to ensure
+    overlap during Beat scheduling jitter.
+    """
+    logger.info("[STATUS] Precompute: Building status summary payload...")
+
+    async def run_precompute():
+        from backend.core.api.app.services.cache import CacheService
+        from backend.core.api.app.services.status_aggregator import (
+            PRECOMPUTED_STATUS_KEY,
+            PRECOMPUTED_STATUS_TTL,
+            build_precomputed_status_payload,
+        )
+
+        payload = await build_precomputed_status_payload()
+
+        # Store in Redis with TTL
+        cache_service = CacheService()
+        client = await cache_service.client
+        if client:
+            await client.set(
+                PRECOMPUTED_STATUS_KEY,
+                json.dumps(payload),
+                ex=PRECOMPUTED_STATUS_TTL,
+            )
+            svc_count = len(payload.get("services", []))
+            app_count = len(payload.get("apps", []))
+            func_count = len(payload.get("functionalities", []))
+            logger.info(
+                f"[STATUS] Precompute: Cached summary ({svc_count} services, "
+                f"{app_count} apps, {func_count} functionalities)"
+            )
+        else:
+            logger.warning("[STATUS] Precompute: Redis client unavailable, skipping cache write")
+
+    try:
+        asyncio.run(run_precompute())
+    except Exception as e:
+        logger.error(f"[STATUS] Precompute: Error building status summary: {e}", exc_info=True)
+        raise

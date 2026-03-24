@@ -5,21 +5,21 @@ open_documentation:
   zh: 打开文档
   es: Abrir documentación
   fr: Ouvrir la documentation
-  pt: ""
-  ru: ""
+  pt: Abrir documentação
+  ru: Открыть документацию
   ja: ドキュメントを開く
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 문서 열기
+  it: Apri documentazione
+  tr: Belgeleri aç
+  vi: Mở tài liệu
+  id: Buka dokumentasi
+  pl: Otwórz dokumentację
+  nl: Documentatie openen
+  ar: فتح التوثيق
+  hi: दस्तावेज़ खोलें
+  th: เปิดเอกสาร
+  cs: Otevřít dokumentaci
+  sv: Öppna dokumentation
   he: פתח תיעוד
   verified_by_human: []
 search.placeholder:
@@ -29,21 +29,21 @@ search.placeholder:
   zh: 搜索文档...
   es: Buscar documentación...
   fr: Rechercher la documentation...
-  pt: ""
-  ru: ""
+  pt: Pesquisar documentação...
+  ru: Поиск по документам...
   ja: ドキュメントを検索...
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 문서 검색...
+  it: Cerca documentazione...
+  tr: Dokümantasyon ara...
+  vi: Tìm kiếm tài liệu...
+  id: Cari dokumentasi...
+  pl: Szukaj w dokumentach...
+  nl: Documentatie zoeken...
+  ar: البحث في المستندات...
+  hi: दस्तावेज़ खोजें...
+  th: ค้นหาเอกสาร...
+  cs: Hledat v dokumentaci...
+  sv: Sök i dokumentation...
   he: חיפוש במסמכים...
   verified_by_human: []
 search.no_results:
@@ -53,21 +53,21 @@ search.no_results:
   zh: 未找到文档
   es: No se encontraron documentos
   fr: Aucun document trouvé
-  pt: ""
-  ru: ""
+  pt: Nenhum documento encontrado
+  ru: Документы не найдены
   ja: ドキュメントが見つかりませんでした
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 문서를 찾을 수 없습니다
+  it: Nessun documento trovato
+  tr: Belge bulunamadı
+  vi: Không tìm thấy tài liệu
+  id: Tidak ada dokumen ditemukan
+  pl: Nie znaleziono dokumentów
+  nl: Geen documenten gevonden
+  ar: لم يتم العثور على وثائق
+  hi: कोई दस्तावेज़ नहीं मिला
+  th: ไม่พบเอกสาร
+  cs: Žádné dokumenty nenalezeny
+  sv: Inga dokument hittades
   he: לא נמצאו מסמכים
   verified_by_human: []
 welcome.title:
@@ -77,21 +77,21 @@ welcome.title:
   zh: OpenMates 文档
   es: Documentación de OpenMates
   fr: Documentation OpenMates
-  pt: ""
-  ru: ""
+  pt: Documentação OpenMates
+  ru: Документация OpenMates
   ja: OpenMates ドキュメント
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: OpenMates 문서
+  it: Documentazione OpenMates
+  tr: OpenMates Belgeleri
+  vi: Tài liệu OpenMates
+  id: Dokumentasi OpenMates
+  pl: Dokumentacja OpenMates
+  nl: OpenMates Documentatie
+  ar: توثيق OpenMates
+  hi: OpenMates दस्तावेज़
+  th: เอกสาร OpenMates
+  cs: Dokumentace OpenMates
+  sv: OpenMates Dokumentation
   he: תיעוד OpenMates
   verified_by_human: []
 welcome.subtitle:
@@ -101,21 +101,21 @@ welcome.subtitle:
   zh: 指南、架构文档和 API 参考。
   es: Guías, documentación de arquitectura y referencia de API.
   fr: Guides, documentation d'architecture et référence API.
-  pt: ""
-  ru: ""
+  pt: Guias, documentação de arquitetura e referência de API.
+  ru: Руководства, архитектурная документация и справочник API.
   ja: ガイド、アーキテクチャドキュメント、APIリファレンス。
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 가이드, 아키텍처 문서 및 API 참조.
+  it: Guide, documentazione dell'architettura e riferimento API.
+  tr: Kılavuzlar, mimari belgeler ve API referansı.
+  vi: Hướng dẫn, tài liệu kiến trúc và tham khảo API.
+  id: Panduan, dokumentasi arsitektur, dan referensi API.
+  pl: Przewodniki, dokumentacja architektury i referencje API.
+  nl: Handleidingen, architectuurdocumentatie en API-referentie.
+  ar: أدلة وتوثيق البنية ومرجع API.
+  hi: गाइड, आर्किटेक्चर दस्तावेज़ीकरण, और API संदर्भ।
+  th: คู่มือ เอกสารสถาปัตยกรรม และเอกสารอ้างอิง API
+  cs: Průvodci, architektonická dokumentace a reference API.
+  sv: Guider, arkitekturdokumentation och API-referens.
   he: מדריכים, תיעוד ארכיטקטורה, ומידע על API.
   verified_by_human: []
 page_not_found:
@@ -125,21 +125,21 @@ page_not_found:
   zh: 页面未找到
   es: Página no encontrada
   fr: Page non trouvée
-  pt: ""
-  ru: ""
+  pt: Página não encontrada
+  ru: Страница не найдена
   ja: ページが見つかりません
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 페이지를 찾을 수 없습니다
+  it: Pagina non trovata
+  tr: Sayfa bulunamadı
+  vi: Không tìm thấy trang
+  id: Halaman tidak ditemukan
+  pl: Strona nie znaleziona
+  nl: Pagina niet gevonden
+  ar: الصفحة غير موجودة
+  hi: पृष्ठ नहीं मिला
+  th: ไม่พบหน้า
+  cs: Stránka nenalezena
+  sv: Sidan hittades inte
   he: הדף לא נמצא
   verified_by_human: []
 back_to_docs:
@@ -149,21 +149,21 @@ back_to_docs:
   zh: 返回文档
   es: Volver a la documentación
   fr: Retour à la documentation
-  pt: ""
-  ru: ""
+  pt: Voltar para a documentação
+  ru: Назад к документации
   ja: ドキュメントに戻る
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 문서로 돌아가기
+  it: Torna alla documentazione
+  tr: Belgelere geri dön
+  vi: Quay lại tài liệu
+  id: Kembali ke dokumentasi
+  pl: Wróć do dokumentacji
+  nl: Terug naar documentatie
+  ar: العودة إلى التوثيق
+  hi: दस्तावेज़ पर वापस जाएं
+  th: กลับไปที่เอกสาร
+  cs: Zpět na dokumentaci
+  sv: Tillbaka till dokumentation
   he: חזרה לתיעוד
   verified_by_human: []
 sender_name:
@@ -173,21 +173,21 @@ sender_name:
   zh: OpenMates
   es: OpenMates
   fr: OpenMates
-  pt: ""
-  ru: ""
+  pt: OpenMates
+  ru: OpenMates
   ja: OpenMates
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: OpenMates
+  it: OpenMates
+  tr: OpenMates
+  vi: OpenMates
+  id: OpenMates
+  pl: OpenMates
+  nl: OpenMates
+  ar: OpenMates
+  hi: OpenMates
+  th: OpenMates
+  cs: OpenMates
+  sv: OpenMates
   he: OpenMates
   verified_by_human: []
 toc.title:
@@ -197,21 +197,21 @@ toc.title:
   zh: 本页内容
   es: En esta página
   fr: Sur cette page
-  pt: ""
-  ru: ""
+  pt: Nesta página
+  ru: На этой странице
   ja: このページの内容
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 이 페이지에서
+  it: In questa pagina
+  tr: Bu sayfada
+  vi: Trên trang này
+  id: Di halaman ini
+  pl: Na tej stronie
+  nl: Op deze pagina
+  ar: في هذه الصفحة
+  hi: इस पृष्ठ पर
+  th: ในหน้านี้
+  cs: Na této stránce
+  sv: På den här sidan
   he: בדף זה
   verified_by_human: []
 documents_count:
@@ -221,21 +221,21 @@ documents_count:
   zh: "{count} 篇文档"
   es: "{count} documentos"
   fr: "{count} documents"
-  pt: ""
-  ru: ""
+  pt: "{count} documentos"
+  ru: "{count} документов"
   ja: "{count} 件のドキュメント"
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: "{count}개 문서"
+  it: "{count} documenti"
+  tr: "{count} belge"
+  vi: "{count} tài liệu"
+  id: "{count} dokumen"
+  pl: "{count} dokumentów"
+  nl: "{count} documenten"
+  ar: "{count} مستندات"
+  hi: "{count} दस्तावेज़"
+  th: "{count} เอกสาร"
+  cs: "{count} dokumentů"
+  sv: "{count} dokument"
   he: "{count} מסמכים"
   verified_by_human: []
 api_reference:
@@ -245,21 +245,21 @@ api_reference:
   zh: API 参考
   es: Referencia de API
   fr: Référence API
-  pt: ""
-  ru: ""
+  pt: Referência de API
+  ru: Справочник API
   ja: APIリファレンス
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: API 참조
+  it: Riferimento API
+  tr: API Referansı
+  vi: Tài liệu tham khảo API
+  id: Referensi API
+  pl: Dokumentacja API
+  nl: API-referentie
+  ar: مرجع API
+  hi: API संदर्भ
+  th: เอกสารอ้างอิง API
+  cs: Reference API
+  sv: API-referens
   he: מסמך API
   verified_by_human: []
 back_to_chats:
@@ -269,21 +269,21 @@ back_to_chats:
   zh: 返回聊天
   es: Volver a chats
   fr: Retour aux chats
-  pt: ""
-  ru: ""
+  pt: Voltar aos chats
+  ru: Назад к чатам
   ja: チャットに戻る
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 채팅으로 돌아가기
+  it: Torna alle chat
+  tr: Sohbetlere geri dön
+  vi: Quay lại trò chuyện
+  id: Kembali ke percakapan
+  pl: Wróć do czatów
+  nl: Terug naar chats
+  ar: العودة إلى المحادثات
+  hi: चैट पर वापस जाएं
+  th: กลับไปที่แชท
+  cs: Zpět na chaty
+  sv: Tillbaka till chattar
   he: חזרה לצ'אטים
   verified_by_human: []
 tabs.docs:
@@ -293,21 +293,21 @@ tabs.docs:
   zh: 文档
   es: Docs
   fr: Docs
-  pt: ""
-  ru: ""
+  pt: Docs
+  ru: Документы
   ja: ドキュメント
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 문서
+  it: Docs
+  tr: Belgeler
+  vi: Tài liệu
+  id: Dokumen
+  pl: Dokumenty
+  nl: Docs
+  ar: المستندات
+  hi: दस्तावेज़
+  th: เอกสาร
+  cs: Dokumentace
+  sv: Dokumentation
   he: תיעוד
   verified_by_human: []
 actions.share:
@@ -317,21 +317,21 @@ actions.share:
   zh: 分享页面
   es: Compartir página
   fr: Partager la page
-  pt: ""
-  ru: ""
+  pt: Partilhar página
+  ru: Поделиться страницей
   ja: ページを共有
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 페이지 공유
+  it: Condividi pagina
+  tr: Sayfayı paylaş
+  vi: Chia sẻ trang
+  id: Bagikan halaman
+  pl: Udostępnij stronę
+  nl: Pagina delen
+  ar: مشاركة الصفحة
+  hi: पृष्ठ साझा करें
+  th: แชร์หน้า
+  cs: Sdílet stránku
+  sv: Dela sida
   he: שתף דף
   verified_by_human: []
 actions.share_copied:
@@ -341,21 +341,21 @@ actions.share_copied:
   zh: 链接已复制到剪贴板
   es: Enlace copiado al portapapeles
   fr: Lien copié dans le presse-papier
-  pt: ""
-  ru: ""
+  pt: Link copiado para a área de transferência
+  ru: Ссылка скопирована в буфер обмена
   ja: リンクをクリップボードにコピーしました
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 링크가 클립보드에 복사되었습니다
+  it: Link copiato negli appunti
+  tr: Bağlantı panoya kopyalandı
+  vi: Đã sao chép liên kết vào clipboard
+  id: Tautan disalin ke clipboard
+  pl: Link skopiowany do schowka
+  nl: Link gekopieerd naar klembord
+  ar: تم نسخ الرابط إلى الحافظة
+  hi: लिंक क्लिपबोर्ड पर कॉपी किया गया
+  th: คัดลอกลิงก์ไปยังคลิปบอร์ดแล้ว
+  cs: Odkaz zkopírován do schránky
+  sv: Länk kopierad till urklipp
   he: הקישור הועתק ללוח
   verified_by_human: []
 actions.download_md:
@@ -365,21 +365,21 @@ actions.download_md:
   zh: 下载 Markdown
   es: Descargar Markdown
   fr: Télécharger Markdown
-  pt: ""
-  ru: ""
+  pt: Baixar Markdown
+  ru: Скачать Markdown
   ja: Markdownをダウンロード
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: Markdown 다운로드
+  it: Scarica Markdown
+  tr: Markdown'ı indir
+  vi: Tải xuống Markdown
+  id: Unduh Markdown
+  pl: Pobierz Markdown
+  nl: Markdown downloaden
+  ar: تنزيل Markdown
+  hi: Markdown डाउनलोड करें
+  th: ดาวน์โหลด Markdown
+  cs: Stáhnout Markdown
+  sv: Ladda ner Markdown
   he: הורד Markdown
   verified_by_human: []
 actions.report_issue:
@@ -389,21 +389,21 @@ actions.report_issue:
   zh: 报告问题
   es: Reportar problema
   fr: Signaler un problème
-  pt: ""
-  ru: ""
+  pt: Reportar problema
+  ru: Сообщить о проблеме
   ja: 問題を報告
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 문제 신고
+  it: Segnala problema
+  tr: Sorun bildir
+  vi: Báo cáo sự cố
+  id: Laporkan masalah
+  pl: Zgłoś problem
+  nl: Probleem melden
+  ar: الإبلاغ عن مشكلة
+  hi: समस्या रिपोर्ट करें
+  th: รายงานปัญหา
+  cs: Nahlásit problém
+  sv: Rapportera problem
   he: דווח על בעיה
   verified_by_human: []
 actions.ask_question:
@@ -413,21 +413,21 @@ actions.ask_question:
   zh: 询问有关此文档的问题...
   es: Preguntar sobre esta documentación...
   fr: Poser une question sur cette documentation...
-  pt: ""
-  ru: ""
+  pt: Perguntar sobre esta documentação...
+  ru: Задать вопрос по этой документации...
   ja: このドキュメントについて質問...
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 이 문서에 대해 질문하기...
+  it: Fare una domanda su questa documentazione...
+  tr: Bu belge hakkında soru sor...
+  vi: Hỏi về tài liệu này...
+  id: Tanyakan tentang dokumentasi ini...
+  pl: Zapytaj o tę dokumentację...
+  nl: Vraag over deze documentatie...
+  ar: اسأل عن هذا التوثيق...
+  hi: इस दस्तावेज़ के बारे में पूछें...
+  th: ถามเกี่ยวกับเอกสารนี้...
+  cs: Zeptejte se na tuto dokumentaci...
+  sv: Fråga om den här dokumentationen...
   he: שאל על התיעוד הזה...
   verified_by_human: []
 tabs.chat:
@@ -437,20 +437,20 @@ tabs.chat:
   zh: 聊天
   es: Chat
   fr: Chat
-  pt: ""
-  ru: ""
+  pt: Chat
+  ru: Чат
   ja: チャット
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 채팅
+  it: Chat
+  tr: Sohbet
+  vi: Trò chuyện
+  id: Obrolan
+  pl: Czat
+  nl: Chat
+  ar: دردشة
+  hi: चैट
+  th: แชท
+  cs: Chat
+  sv: Chatt
   he: צ'אט
   verified_by_human: []

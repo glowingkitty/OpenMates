@@ -55,6 +55,101 @@ process:
     - mate checks code structure overview and asks further clearifying questions if needed
     - mate tries to find redundant code, unnecessary complexity, etc. and suggests improvements before implementing them
     - mate implements the changes step-by-step, asks for feedback and then continues with the next step
+  de: |
+    - mate stellt mehrere Fragen, um die Anforderungen und was im aktuellen Code nicht gut funktioniert besser zu verstehen
+    - mate überprüft die Codestrukturübersicht und stellt bei Bedarf weitere Klärungsfragen
+    - mate versucht redundanten Code, unnötige Komplexität usw. zu finden und schlägt Verbesserungen vor, bevor sie implementiert werden
+    - mate implementiert die Änderungen schrittweise, bittet um Feedback und fährt dann mit dem nächsten Schritt fort
+  zh: |
+    - mate 提出多个问题，更好地了解需求以及当前代码中哪些地方运行不好
+    - mate 检查代码结构概览，如有需要提出进一步的澄清问题
+    - mate 尝试找出冗余代码、不必要的复杂性等，并在实施之前建议改进措施
+    - mate 逐步实施变更，征求反馈，然后继续下一步
+  es: |
+    - mate hace múltiples preguntas para entender mejor los requisitos y qué no funciona bien en el código actual
+    - mate revisa la estructura del código y hace preguntas de aclaración adicionales si es necesario
+    - mate intenta encontrar código redundante, complejidad innecesaria, etc. y sugiere mejoras antes de implementarlas
+    - mate implementa los cambios paso a paso, pide retroalimentación y luego continúa con el siguiente paso
+  fr: |
+    - mate pose plusieurs questions pour mieux comprendre les exigences et ce qui ne fonctionne pas bien dans le code actuel
+    - mate vérifie la structure du code et pose des questions de clarification supplémentaires si nécessaire
+    - mate essaie de trouver du code redondant, une complexité inutile, etc. et suggère des améliorations avant de les implémenter
+    - mate implémente les changements étape par étape, demande un retour et continue ensuite avec l'étape suivante
+  pt: |
+    - mate faz várias perguntas para entender melhor os requisitos e o que não está funcionando bem no código atual
+    - mate verifica a visão geral da estrutura do código e faz perguntas de esclarecimento adicionais se necessário
+    - mate tenta encontrar código redundante, complexidade desnecessária, etc. e sugere melhorias antes de implementá-las
+    - mate implementa as mudanças passo a passo, pede feedback e então continua com o próximo passo
+  ru: |
+    - mate задаёт несколько вопросов, чтобы лучше понять требования и что не работает хорошо в текущем коде
+    - mate проверяет обзор структуры кода и задаёт дополнительные уточняющие вопросы при необходимости
+    - mate пытается найти избыточный код, ненужную сложность и т.д. и предлагает улучшения перед их реализацией
+    - mate реализует изменения шаг за шагом, запрашивает обратную связь и затем переходит к следующему шагу
+  ja: |
+    - mate は要件と現在のコードで何がうまく機能していないかをよりよく理解するために複数の質問をします
+    - mate はコード構造の概要を確認し、必要に応じてさらなる明確化の質問をします
+    - mate は冗長なコード、不必要な複雑さなどを見つけようとし、実装前に改善を提案します
+    - mate は変更を段階的に実装し、フィードバックを求め、次のステップに進みます
+  ko: |
+    - mate는 요구사항과 현재 코드에서 잘 작동하지 않는 것을 더 잘 이해하기 위해 여러 질문을 합니다
+    - mate는 코드 구조 개요를 확인하고 필요하면 추가 명확화 질문을 합니다
+    - mate는 중복 코드, 불필요한 복잡성 등을 찾고 구현 전에 개선사항을 제안합니다
+    - mate는 변경 사항을 단계별로 구현하고 피드백을 요청한 후 다음 단계로 진행합니다
+  it: |
+    - mate fa più domande per capire meglio i requisiti e cosa non funziona bene nel codice attuale
+    - mate controlla la struttura del codice e fa ulteriori domande di chiarimento se necessario
+    - mate cerca codice ridondante, complessità non necessaria, ecc. e suggerisce miglioramenti prima di implementarli
+    - mate implementa le modifiche passo dopo passo, chiede feedback e poi continua con il passo successivo
+  tr: |
+    - mate gereksinimleri ve mevcut koddaki sorunları daha iyi anlamak için birden fazla soru sorar
+    - mate kod yapısına genel bir bakış atar ve gerekirse ek açıklayıcı sorular sorar
+    - mate gereksiz kodu, gereksiz karmaşıklığı vb. bulmaya çalışır ve uygulamadan önce iyileştirmeler önerir
+    - mate değişiklikleri adım adım uygular, geri bildirim ister ve ardından bir sonraki adıma geçer
+  vi: |
+    - mate đặt nhiều câu hỏi để hiểu rõ hơn về yêu cầu và những gì không hoạt động tốt trong mã hiện tại
+    - mate kiểm tra tổng quan cấu trúc mã và đặt thêm câu hỏi làm rõ nếu cần
+    - mate cố gắng tìm mã dư thừa, độ phức tạp không cần thiết, v.v. và đề xuất cải tiến trước khi triển khai
+    - mate triển khai các thay đổi từng bước, yêu cầu phản hồi và sau đó tiếp tục bước tiếp theo
+  id: |
+    - mate mengajukan beberapa pertanyaan untuk lebih memahami persyaratan dan apa yang tidak berjalan baik dalam kode saat ini
+    - mate memeriksa gambaran umum struktur kode dan mengajukan pertanyaan klarifikasi lebih lanjut jika diperlukan
+    - mate mencoba menemukan kode yang redundan, kerumitan yang tidak perlu, dll. dan menyarankan perbaikan sebelum mengimplementasikannya
+    - mate mengimplementasikan perubahan langkah demi langkah, meminta umpan balik, lalu melanjutkan ke langkah berikutnya
+  pl: |
+    - mate zadaje wiele pytań, aby lepiej zrozumieć wymagania i co nie działa dobrze w obecnym kodzie
+    - mate sprawdza przegląd struktury kodu i zadaje dalsze pytania wyjaśniające w razie potrzeby
+    - mate stara się znaleźć redundantny kod, niepotrzebną złożoność itp. i sugeruje ulepszenia przed ich wdrożeniem
+    - mate wdraża zmiany krok po kroku, prosi o informacje zwrotne, a następnie przechodzi do następnego kroku
+  nl: |
+    - mate stelt meerdere vragen om de vereisten en wat niet goed werkt in de huidige code beter te begrijpen
+    - mate controleert het overzicht van de codestructuur en stelt verdere verhelderende vragen indien nodig
+    - mate probeert redundante code, onnodige complexiteit enz. te vinden en stelt verbeteringen voor voordat ze worden geïmplementeerd
+    - mate implementeert de wijzigingen stap voor stap, vraagt om feedback en gaat dan verder met de volgende stap
+  ar: |
+    - mate يطرح عدة أسئلة لفهم المتطلبات بشكل أفضل وما لا يعمل بشكل جيد في الكود الحالي
+    - mate يراجع نظرة عامة على بنية الكود ويطرح المزيد من أسئلة التوضيح إذا لزم الأمر
+    - mate يحاول إيجاد الكود الزائد والتعقيد غير الضروري وما إلى ذلك، ويقترح التحسينات قبل تنفيذها
+    - mate ينفذ التغييرات خطوة بخطوة، ويطلب التغذية الراجعة، ثم يستمر مع الخطوة التالية
+  hi: |
+    - mate आवश्यकताओं और वर्तमान कोड में क्या ठीक से काम नहीं कर रहा है, यह बेहतर ढंग से समझने के लिए कई प्रश्न पूछता है
+    - mate कोड संरचना का अवलोकन करता है और यदि आवश्यक हो तो अतिरिक्त स्पष्टीकरण प्रश्न पूछता है
+    - mate अनावश्यक कोड, अनावश्यक जटिलता आदि खोजने की कोशिश करता है और उन्हें लागू करने से पहले सुधार सुझाता है
+    - mate परिवर्तनों को चरण-दर-चरण लागू करता है, फीडबैक मांगता है और फिर अगले चरण पर जाता है
+  th: |
+    - mate ถามคำถามหลายข้อเพื่อทำความเข้าใจข้อกำหนดและสิ่งที่ไม่ทำงานดีในโค้ดปัจจุบัน
+    - mate ตรวจสอบภาพรวมโครงสร้างโค้ดและถามคำถามเพื่อความชัดเจนเพิ่มเติมหากจำเป็น
+    - mate พยายามหาโค้ดที่ซ้ำซ้อน ความซับซ้อนที่ไม่จำเป็น ฯลฯ และแนะนำการปรับปรุงก่อนนำไปใช้
+    - mate ดำเนินการเปลี่ยนแปลงทีละขั้น ขอข้อเสนอแนะ และดำเนินการต่อในขั้นตอนถัดไป
+  cs: |
+    - mate klade několik otázek, aby lépe porozuměl požadavkům a co nefunguje dobře v aktuálním kódu
+    - mate kontroluje přehled struktury kódu a klade další objasňující otázky dle potřeby
+    - mate se snaží najít redundantní kód, zbytečnou složitost atd. a navrhuje vylepšení před jejich implementací
+    - mate implementuje změny krok za krokem, žádá o zpětnou vazbu a poté pokračuje dalším krokem
+  sv: |
+    - mate ställer flera frågor för att bättre förstå kraven och vad som inte fungerar bra i den nuvarande koden
+    - mate kontrollerar kodstrukturens översikt och ställer ytterligare klargörande frågor vid behov
+    - mate försöker hitta redundant kod, onödig komplexitet etc. och föreslår förbättringar innan de implementeras
+    - mate implementerar ändringarna steg för steg, ber om feedback och fortsätter sedan med nästa steg
   he: |
     - mate שואל מספר שאלות כדי להבין טוב יותר את הדרישות ומה לא עובד טוב בקוד הנוכחי
     - mate בודק את סקירת מבנה הקוד ושואל שאלות הבהרה נוספות במידת הצורך

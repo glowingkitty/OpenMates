@@ -59,6 +59,177 @@ process:
     - clone the repo to the specified location
     - read project folder & file structure and readme.md to get an overview of the project
     - figure out how to test the project and start testing it
+  de: |
+    - falls noch nicht angegeben, den Nutzer nach der github/gitlab-Repo-URL fragen
+    - falls noch nicht angegeben, den Nutzer fragen, was er testen möchte / was sein Anwendungsfall ist
+    - Fähigkeit verwenden, um in Issues zu prüfen, ob kürzlich kritische Probleme mit dem Repo gemeldet wurden
+    - wenn das Projekt als defekt gemeldet wurde, den Nutzer fragen, ob er mit dem Testen fortfahren möchte
+    - den Nutzer fragen, wo das Repo geklont und getestet werden soll? Neue Maschine einrichten? GitHub Codespaces verwenden? Lokale Maschine? usw.
+    - das Repo an den angegebenen Ort klonen
+    - Ordner- und Dateistruktur des Projekts sowie readme.md lesen, um einen Überblick über das Projekt zu erhalten
+    - herausfinden, wie das Projekt getestet werden soll, und mit dem Testen beginnen
+  zh: |
+    - 如果尚未提供，请用户提供 github/gitlab 仓库 URL
+    - 如果尚未提供，询问用户想测试什么/他们的使用场景是什么
+    - 使用技能检查 issues，看是否有最近报告的关于使用该仓库的关键问题
+    - 如果项目被报告为损坏，询问用户是否要继续测试
+    - 询问用户在哪里克隆和测试仓库？设置新机器？使用 github codespaces？本地机器？等
+    - 将仓库克隆到指定位置
+    - 阅读项目文件夹和文件结构以及 readme.md，了解项目概况
+    - 找出如何测试项目并开始测试
+  es: |
+    - si no se proporcionó, pedir al usuario la URL del repositorio github/gitlab
+    - si no se proporcionó, preguntar al usuario qué quiere probar / cuál es su caso de uso
+    - usar la habilidad para revisar issues si hay problemas críticos reportados recientemente con el repositorio
+    - si el proyecto está reportado como roto, preguntar si el usuario quiere continuar con las pruebas
+    - preguntar al usuario dónde clonar y probar el repositorio ¿nueva máquina? ¿github codespaces? ¿máquina local? etc.
+    - clonar el repositorio en la ubicación especificada
+    - leer la estructura de carpetas y archivos del proyecto y readme.md para obtener una visión general
+    - descubrir cómo probar el proyecto y comenzar a probarlo
+  fr: |
+    - si non fourni, demander à l'utilisateur l'URL du dépôt github/gitlab
+    - si non fourni, demander à l'utilisateur ce qu'il veut tester / quel est son cas d'utilisation
+    - utiliser la compétence pour vérifier dans les issues s'il y a des problèmes critiques récents signalés
+    - si le projet est signalé comme défaillant, demander si l'utilisateur veut continuer les tests
+    - demander à l'utilisateur où cloner et tester le dépôt : nouvelle machine ? github codespaces ? machine locale ? etc.
+    - cloner le dépôt à l'emplacement spécifié
+    - lire la structure des dossiers et fichiers du projet et le readme.md pour avoir un aperçu
+    - trouver comment tester le projet et commencer les tests
+  pt: |
+    - se não fornecido, pedir ao usuário a URL do repositório github/gitlab
+    - se não fornecido, perguntar ao usuário o que quer testar / qual é seu caso de uso
+    - usar habilidade para verificar issues se há problemas críticos reportados recentemente com o repositório
+    - se o projeto for reportado como quebrado, perguntar se o usuário quer continuar testando
+    - perguntar ao usuário onde clonar e testar o repositório? nova máquina? github codespaces? máquina local? etc.
+    - clonar o repositório no local especificado
+    - ler a estrutura de pastas e arquivos do projeto e readme.md para ter uma visão geral
+    - descobrir como testar o projeto e começar a testá-lo
+  ru: |
+    - если ещё не предоставлено, попросить пользователя URL репозитория github/gitlab
+    - если ещё не предоставлено, спросить пользователя, что он хочет протестировать / каков его сценарий использования
+    - использовать навык для проверки issues на наличие критических проблем, недавно сообщённых при использовании репозитория
+    - если проект сообщается как нерабочий, спросить пользователя, хочет ли он продолжить тестирование
+    - спросить пользователя, где клонировать и тестировать репозиторий: новая машина? github codespaces? локальная машина? и т.д.
+    - клонировать репозиторий в указанное место
+    - прочитать структуру папок и файлов проекта и readme.md для получения обзора
+    - выяснить, как тестировать проект, и начать тестирование
+  ja: |
+    - まだ提供されていない場合、ユーザーに github/gitlab リポジトリの URL を尋ねる
+    - まだ提供されていない場合、ユーザーにテストしたいこと / ユースケースを尋ねる
+    - スキルを使用して、リポジトリ使用に関する最近報告された重大な問題を issues で確認する
+    - プロジェクトが壊れていると報告された場合、ユーザーにテストを続けるかどうか尋ねる
+    - ユーザーにリポジトリをクローンしてテストする場所を尋ねる（新しいマシン設定? github codespaces? ローカルマシン? など）
+    - リポジトリを指定された場所にクローンする
+    - プロジェクトのフォルダ・ファイル構造と readme.md を読んでプロジェクトの概要を把握する
+    - プロジェクトのテスト方法を把握してテストを開始する
+  ko: |
+    - 아직 제공되지 않은 경우 사용자에게 github/gitlab 저장소 URL을 요청합니다
+    - 아직 제공되지 않은 경우 사용자에게 무엇을 테스트하고 싶은지 / 사용 사례가 무엇인지 묻습니다
+    - 기술을 사용하여 저장소 사용과 관련해 최근 보고된 중요한 이슈가 있는지 확인합니다
+    - 프로젝트가 작동하지 않는다고 보고된 경우 사용자에게 계속 테스트할지 묻습니다
+    - 사용자에게 저장소를 어디서 클론하고 테스트할지 묻습니다 (새 머신 설정? github codespaces? 로컬 머신? 등)
+    - 지정된 위치에 저장소를 클론합니다
+    - 프로젝트 폴더 및 파일 구조와 readme.md를 읽어 프로젝트 개요를 파악합니다
+    - 프로젝트를 테스트하는 방법을 파악하고 테스트를 시작합니다
+  it: |
+    - se non già fornito, chiedere all'utente l'URL del repository github/gitlab
+    - se non già fornito, chiedere all'utente cosa vuole testare / qual è il suo caso d'uso
+    - usare la competenza per verificare nelle issues se ci sono problemi critici recentemente segnalati con il repository
+    - se il progetto è segnalato come rotto, chiedere all'utente se vuole continuare a testarlo
+    - chiedere all'utente dove clonare e testare il repository: nuova macchina? github codespaces? macchina locale? ecc.
+    - clonare il repository nella posizione specificata
+    - leggere la struttura di cartelle e file del progetto e readme.md per avere una panoramica
+    - capire come testare il progetto e iniziare il testing
+  tr: |
+    - henüz sağlanmadıysa, kullanıcıdan github/gitlab repo URL'sini isteyin
+    - henüz sağlanmadıysa, kullanıcıya ne test etmek istediğini / kullanım durumunun ne olduğunu sorun
+    - repo kullanımıyla ilgili yakın zamanda bildirilen kritik sorunların olup olmadığını issues'ta kontrol etmek için beceriyi kullanın
+    - proje bozuk olarak raporlanmışsa, kullanıcıya test etmeye devam etmek isteyip istemediğini sorun
+    - kullanıcıya repoyu nereye klonlayıp test edeceğini sorun: yeni makine kurulumu? github codespaces? yerel makine? vb.
+    - repoyu belirtilen konuma klonlayın
+    - projeye genel bakış elde etmek için proje klasör ve dosya yapısını ve readme.md'yi okuyun
+    - projeyi nasıl test edeceğinizi bulun ve test etmeye başlayın
+  vi: |
+    - nếu chưa được cung cấp, yêu cầu người dùng URL kho lưu trữ github/gitlab
+    - nếu chưa được cung cấp, hỏi người dùng muốn kiểm tra gì / trường hợp sử dụng của họ là gì
+    - sử dụng kỹ năng để kiểm tra issues xem có vấn đề nghiêm trọng nào được báo cáo gần đây không
+    - nếu dự án được báo cáo là bị hỏng, hỏi người dùng có muốn tiếp tục kiểm tra không
+    - hỏi người dùng sẽ clone và kiểm tra kho lưu trữ ở đâu: máy mới? github codespaces? máy cục bộ? v.v.
+    - clone kho lưu trữ đến vị trí đã chỉ định
+    - đọc cấu trúc thư mục và tệp của dự án và readme.md để có cái nhìn tổng quan
+    - tìm hiểu cách kiểm tra dự án và bắt đầu kiểm tra
+  id: |
+    - jika belum disediakan, minta pengguna untuk URL repo github/gitlab
+    - jika belum disediakan, tanya pengguna apa yang ingin mereka uji / apa kasus penggunaan mereka
+    - gunakan keahlian untuk memeriksa issues apakah ada masalah kritis yang baru-baru ini dilaporkan
+    - jika proyek dilaporkan rusak, tanya pengguna apakah ingin melanjutkan pengujian
+    - tanya pengguna di mana mengkloning dan menguji repo: mengatur mesin baru? menggunakan github codespaces? mesin lokal? dll.
+    - kloning repo ke lokasi yang ditentukan
+    - baca struktur folder dan file proyek serta readme.md untuk mendapatkan gambaran umum
+    - cari tahu cara menguji proyek dan mulai mengujinya
+  pl: |
+    - jeśli nie podano, poprosić użytkownika o URL repozytorium github/gitlab
+    - jeśli nie podano, zapytać użytkownika, co chce przetestować / jaki jest jego przypadek użycia
+    - użyć umiejętności do sprawdzenia issues, czy były niedawno zgłoszone krytyczne problemy z użyciem repozytorium
+    - jeśli projekt jest zgłoszony jako uszkodzony, zapytać użytkownika, czy chce kontynuować testowanie
+    - zapytać użytkownika, gdzie sklonować i przetestować repo: nowa maszyna? github codespaces? maszyna lokalna? itp.
+    - sklonować repo do wskazanego miejsca
+    - przeczytać strukturę folderów i plików projektu oraz readme.md, aby uzyskać przegląd projektu
+    - dowiedzieć się, jak przetestować projekt, i rozpocząć testowanie
+  nl: |
+    - als nog niet opgegeven, vraag de gebruiker om de github/gitlab repo URL
+    - als nog niet opgegeven, vraag de gebruiker wat hij wil testen / wat zijn gebruiksscenario is
+    - gebruik de vaardigheid om in issues te controleren of er recentelijk kritieke problemen zijn gemeld
+    - als het project als kapot wordt gerapporteerd, vraag de gebruiker of hij door wil gaan met testen
+    - vraag de gebruiker waar de repo gekloond en getest moet worden: nieuwe machine instellen? github codespaces? lokale machine? enz.
+    - kloon de repo naar de opgegeven locatie
+    - lees de map- en bestandsstructuur van het project en readme.md voor een overzicht
+    - uitzoeken hoe het project getest moet worden en beginnen met testen
+  ar: |
+    - إذا لم يُقدَّم بعد، اطلب من المستخدم رابط URL للمستودع على github/gitlab
+    - إذا لم يُقدَّم بعد، اسأل المستخدم ما الذي يريد اختباره / ما هو حالة الاستخدام لديه
+    - استخدم المهارة للتحقق في Issues إذا كانت هناك مشكلات حرجة حديثة مُبلَّغ عنها مع استخدام المستودع
+    - إذا أُبلِغ عن أن المشروع معطوب، اسأل المستخدم إذا كان يريد الاستمرار في اختباره
+    - اسأل المستخدم أين يريد استنساخ واختبار المستودع؟ إعداد جهاز جديد؟ استخدام github codespaces؟ جهاز محلي؟ إلخ
+    - استنسخ المستودع في الموقع المحدد
+    - اقرأ هيكل مجلدات وملفات المشروع و readme.md للحصول على نظرة عامة
+    - اكتشف كيفية اختبار المشروع وابدأ في اختباره
+  hi: |
+    - यदि पहले से नहीं दिया गया, तो उपयोगकर्ता से github/gitlab रेपो URL मांगें
+    - यदि पहले से नहीं दिया गया, तो उपयोगकर्ता से पूछें कि वे क्या परीक्षण करना चाहते हैं / उनका उपयोग मामला क्या है
+    - issues में हाल ही में रिपोर्ट की गई कोई भी गंभीर समस्या जांचने के लिए कौशल का उपयोग करें
+    - यदि प्रोजेक्ट टूटा हुआ बताया गया है, तो उपयोगकर्ता से पूछें कि क्या वे परीक्षण जारी रखना चाहते हैं
+    - उपयोगकर्ता से पूछें कि रेपो कहां क्लोन और परीक्षण करना है: नई मशीन सेटअप? github codespaces? स्थानीय मशीन? आदि
+    - निर्दिष्ट स्थान पर रेपो क्लोन करें
+    - प्रोजेक्ट का अवलोकन प्राप्त करने के लिए प्रोजेक्ट फ़ोल्डर और फ़ाइल संरचना तथा readme.md पढ़ें
+    - प्रोजेक्ट को कैसे परीक्षण करें यह पता लगाएं और परीक्षण शुरू करें
+  th: |
+    - ถ้ายังไม่ได้ให้ไว้ ขอ URL ของ repo github/gitlab จากผู้ใช้
+    - ถ้ายังไม่ได้ให้ไว้ ถามผู้ใช้ว่าต้องการทดสอบอะไร / กรณีการใช้งานของพวกเขาคืออะไร
+    - ใช้ทักษะเพื่อตรวจสอบใน issues ว่ามีปัญหาสำคัญที่รายงานล่าสุดเกี่ยวกับการใช้ repo หรือไม่
+    - ถ้ามีการรายงานว่าโปรเจกต์พัง ถามผู้ใช้ว่าต้องการดำเนินการทดสอบต่อหรือไม่
+    - ถามผู้ใช้ว่าจะ clone และทดสอบ repo ที่ไหน: ตั้งค่าเครื่องใหม่? ใช้ github codespaces? เครื่องท้องถิ่น? ฯลฯ
+    - clone repo ไปยังตำแหน่งที่ระบุ
+    - อ่านโครงสร้างโฟลเดอร์และไฟล์ของโปรเจกต์และ readme.md เพื่อให้ได้ภาพรวม
+    - คิดหาวิธีทดสอบโปรเจกต์และเริ่มทดสอบ
+  cs: |
+    - pokud ještě není poskytnuto, požádat uživatele o URL github/gitlab repozitáře
+    - pokud ještě není poskytnuto, zeptat se uživatele, co chce testovat / jaký je jeho případ použití
+    - použít dovednost ke kontrole issues, zda byly nedávno nahlášeny kritické problémy s použitím repozitáře
+    - pokud je projekt hlášen jako nefunkční, zeptat se uživatele, zda chce pokračovat v testování
+    - zeptat se uživatele, kde klonovat a testovat repo: nastavit nový stroj? github codespaces? lokální stroj? atd.
+    - klonovat repo na určené místo
+    - přečíst strukturu složek a souborů projektu a readme.md pro přehled o projektu
+    - zjistit, jak projekt testovat, a začít s testováním
+  sv: |
+    - om inte redan angett, be användaren om github/gitlab repo URL
+    - om inte redan angett, fråga användaren vad de vill testa / vad deras användningsfall är
+    - använd kompetensen för att kontrollera issues om det finns nyligen rapporterade kritiska problem med att använda repot
+    - om projektet rapporterats som trasigt, fråga användaren om de vill fortsätta med testningen
+    - fråga användaren var repot ska klonas och testas: ny maskin? github codespaces? lokal maskin? osv.
+    - klona repot till den angivna platsen
+    - läs projektets mapp- och filstruktur samt readme.md för att få en översikt av projektet
+    - ta reda på hur projektet ska testas och börja testa det
   he: |
     - אם לא סופק כבר, בקש מהמשתמש את כתובת ה-URL של המאגר ב-github/gitlab
     - אם לא סופק כבר, שאל את המשתמש מה הוא רוצה לבדוק / מהו מקרה השימוש שלו

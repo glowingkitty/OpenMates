@@ -5,21 +5,21 @@ for_all:
   zh: 为了我们所有人
   es: Para todos
   fr: Pour nous tous
-  pt: ''
-  ru: ''
+  pt: Para todos nós
+  ru: Для всех нас
   ja: 私たち全員のために
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 우리 모두를 위해
+  it: Per tutti noi
+  tr: Hepimiz için
+  vi: Cho tất cả chúng ta
+  id: Untuk kita semua
+  pl: Dla nas wszystkich
+  nl: Voor ons allemaal
+  ar: لكلنا
+  hi: हम सभी के लिए
+  th: สำหรับพวกเราทุกคน
+  cs: Pro nás všechny
+  sv: För oss alla
   he: לכולנו
   verified_by_human: []
 for_developers:
@@ -29,21 +29,21 @@ for_developers:
   zh: 面向开发者
   es: Para desarrolladores
   fr: Pour les développeurs
-  pt: ''
-  ru: ''
+  pt: Para Desenvolvedores
+  ru: Для разработчиков
   ja: 開発者向け
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 개발자를 위해
+  it: Per Sviluppatori
+  tr: Geliştiriciler İçin
+  vi: Cho Lập Trình Viên
+  id: Untuk Pengembang
+  pl: Dla Deweloperów
+  nl: Voor Ontwikkelaars
+  ar: للمطورين
+  hi: डेवलपर्स के लिए
+  th: สำหรับนักพัฒนา
+  cs: Pro Vývojáře
+  sv: För Utvecklare
   he: למפתחים
   verified_by_human: []
 docs:
@@ -53,21 +53,21 @@ docs:
   zh: 文档
   es: Documentación
   fr: Documentation
-  pt: ''
-  ru: ''
+  pt: Documentação
+  ru: Документация
   ja: ドキュメント
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 문서
+  it: Documentazione
+  tr: Belgeler
+  vi: Tài liệu
+  id: Dokumentasi
+  pl: Dokumentacja
+  nl: Documentatie
+  ar: التوثيق
+  hi: दस्तावेज़
+  th: เอกสาร
+  cs: Dokumentace
+  sv: Dokumentation
   he: תיעוד
   verified_by_human: []
 chat:
@@ -77,21 +77,21 @@ chat:
   zh: 聊天
   es: Chat
   fr: Chat
-  pt: ''
-  ru: ''
+  pt: Chat
+  ru: Чат
   ja: チャット
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 채팅
+  it: Chat
+  tr: Sohbet
+  vi: Trò chuyện
+  id: Obrolan
+  pl: Czat
+  nl: Chat
+  ar: دردشة
+  hi: चैट
+  th: แชท
+  cs: Chat
+  sv: Chatt
   he: "צ'אט"
   verified_by_human: []
 projects:
@@ -101,21 +101,21 @@ projects:
   zh: 项目
   es: Proyectos
   fr: Projets
-  pt: ''
-  ru: ''
+  pt: Projetos
+  ru: Проекты
   ja: プロジェクト
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 프로젝트
+  it: Progetti
+  tr: Projeler
+  vi: Dự án
+  id: Proyek
+  pl: Projekty
+  nl: Projecten
+  ar: المشاريع
+  hi: प्रोजेक्ट
+  th: โปรเจกต์
+  cs: Projekty
+  sv: Projekt
   he: פרויקטים
   verified_by_human: []
 workflows:
@@ -125,21 +125,21 @@ workflows:
   zh: 工作流程
   es: Flujos de trabajo
   fr: Flux de travail
-  pt: ''
-  ru: ''
+  pt: Fluxos de trabalho
+  ru: Рабочие процессы
   ja: ワークフロー
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 워크플로우
+  it: Flussi di lavoro
+  tr: İş akışları
+  vi: Quy trình làm việc
+  id: Alur kerja
+  pl: Przepływy pracy
+  nl: Workflows
+  ar: سير العمل
+  hi: वर्कफ्लो
+  th: เวิร์กโฟลว์
+  cs: Pracovní postupy
+  sv: Arbetsflöden
   he: תהליכי עבודה
   verified_by_human: []
 skip_to_content:
@@ -149,20 +149,20 @@ skip_to_content:
   zh: 跳转到内容
   es: Saltar al contenido
   fr: Aller au contenu
-  pt: ''
-  ru: ''
+  pt: Pular para o conteúdo
+  ru: Перейти к содержимому
   ja: コンテンツにスキップ
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 콘텐츠로 건너뛰기
+  it: Salta al contenuto
+  tr: İçeriğe atla
+  vi: Bỏ qua đến nội dung
+  id: Lewati ke konten
+  pl: Przejdź do treści
+  nl: Naar inhoud springen
+  ar: تخطى إلى المحتوى
+  hi: सामग्री पर जाएं
+  th: ข้ามไปที่เนื้อหา
+  cs: Přejít na obsah
+  sv: Hoppa till innehåll
   he: דלג לתוכן
   verified_by_human: []

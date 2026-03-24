@@ -8,21 +8,21 @@ security.description:
   zh: 管理您的密码、通行密钥和双因素认证
   es: Gestiona tus contraseñas, llaves de acceso y autenticación de dos factores
   fr: Gérez vos mots de passe, clés d'accès et authentification à deux facteurs
-  pt: ""
-  ru: ""
+  pt: Gerencie suas senhas, chaves de acesso e autenticação de dois fatores
+  ru: Управляйте паролями, ключами доступа и двухфакторной аутентификацией
   ja: パスワード、パスキー、二要素認証を管理する
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 비밀번호, 패스키 및 이중 인증을 관리하세요
+  it: Gestisci le tue password, chiavi di accesso e autenticazione a due fattori
+  tr: Şifrelerinizi, erişim anahtarlarınızı ve iki faktörlü kimlik doğrulamanızı yönetin
+  vi: Quản lý mật khẩu, khóa truy cập và xác thực hai yếu tố của bạn
+  id: Kelola kata sandi, kunci akses, dan autentikasi dua faktor Anda
+  pl: Zarządzaj swoimi hasłami, kluczami dostępu i uwierzytelnianiem dwuskładnikowym
+  nl: Beheer uw wachtwoorden, toegangssleutels en tweefactorauthenticatie
   ar: إدارة كلمات المرور ومفاتيح المرور والمصادقة الثنائية
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: अपने पासवर्ड, पासकी और दो-कारक प्रमाणीकरण प्रबंधित करें
+  th: จัดการรหัสผ่าน คีย์การเข้าถึง และการยืนยันตัวตนสองขั้นตอนของคุณ
+  cs: Spravujte svá hesla, přístupové klíče a dvoufaktorové ověřování
+  sv: Hantera dina lösenord, åtkomstnycklar och tvåfaktorsautentisering
   he: נהל את הסיסמאות, מפתחות הגישה והאימות הדו-שלבי שלך
   verified_by_human: []
 
@@ -30,7 +30,24 @@ security:
   context: Security settings section title
   en: Security
   de: Sicherheit
+  zh: 安全
+  es: Seguridad
+  fr: Sécurité
+  pt: Segurança
+  ru: Безопасность
+  ja: セキュリティ
+  ko: 보안
+  it: Sicurezza
+  tr: Güvenlik
+  vi: Bảo mật
+  id: Keamanan
+  pl: Bezpieczeństwo
+  nl: Beveiliging
   ar: الأمان
+  hi: सुरक्षा
+  th: ความปลอดภัย
+  cs: Zabezpečení
+  sv: Säkerhet
   he: אבטחה
   verified_by_human: []
 
@@ -347,6 +364,7 @@ email_otp_description:
   th: เราจะส่งรหัสยืนยันไปยังที่อยู่อีเมลของคุณ
   cs: Na vaši e-mailovou adresu zašleme ověřovací kód.
   sv: Vi skickar en verifieringskod till din e-postadress.
+  he: נשלח קוד אימות לכתובת האימייל שלך.
   verified_by_human: []
 
 send_verification_code:
@@ -371,6 +389,7 @@ send_verification_code:
   th: ส่งรหัสยืนยัน
   cs: Odeslat ověřovací kód
   sv: Skicka verifieringskod
+  he: שלח קוד אימות
   verified_by_human: []
 
 email_otp_enter_code:
@@ -395,6 +414,7 @@ email_otp_enter_code:
   th: กรอกรหัส 6 หลักที่ส่งไปยังอีเมลของคุณ
   cs: Zadejte 6místný kód zaslaný na váš e-mail.
   sv: Ange den 6-siffriga koden som skickades till din e-post.
+  he: הזן את הקוד בן 6 הספרות שנשלח לאימייל שלך.
   verified_by_human: []
 
 resend_code:
@@ -419,6 +439,7 @@ resend_code:
   th: ส่งรหัสอีกครั้ง
   cs: Znovu odeslat kód
   sv: Skicka koden igen
+  he: שלח את הקוד שוב
   verified_by_human: []
 
 # --- SettingsPassword Component ---

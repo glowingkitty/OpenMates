@@ -376,162 +376,675 @@ panel.title:
   context: Title shown at the top of the inline reminder setter panel
   en: Set a Reminder
   de: Erinnerung setzen
+  zh: 设置提醒
+  es: Establecer un recordatorio
+  fr: Définir un rappel
+  pt: Definir um lembrete
+  ru: Установить напоминание
+  ja: リマインダーを設定する
+  ko: 알림 설정
+  it: Imposta un promemoria
+  tr: Bir hatırlatıcı ayarla
+  vi: Đặt nhắc nhở
+  id: Atur pengingat
+  pl: Ustaw przypomnienie
+  nl: Herinnering instellen
+  ar: تعيين تذكير
+  hi: अनुस्मारक सेट करें
+  th: ตั้งการแจ้งเตือน
+  cs: Nastavit připomínku
+  sv: Ställ in en påminnelse
+  he: הגדרת תזכורת
   verified_by_human: [en, de]
 
 panel.date:
   context: Label for the date input field in the reminder setter panel
   en: Date
   de: Datum
+  zh: 日期
+  es: Fecha
+  fr: Date
+  pt: Data
+  ru: Дата
+  ja: 日付
+  ko: 날짜
+  it: Data
+  tr: Tarih
+  vi: Ngày
+  id: Tanggal
+  pl: Data
+  nl: Datum
+  ar: التاريخ
+  hi: तारीख
+  th: วันที่
+  cs: Datum
+  sv: Datum
+  he: תאריך
   verified_by_human: [en, de]
 
 panel.time:
   context: Label for the time input field in the reminder setter panel
   en: Time
   de: Uhrzeit
+  zh: 时间
+  es: Hora
+  fr: Heure
+  pt: Hora
+  ru: Время
+  ja: 時間
+  ko: 시간
+  it: Ora
+  tr: Saat
+  vi: Giờ
+  id: Waktu
+  pl: Czas
+  nl: Tijd
+  ar: الوقت
+  hi: समय
+  th: เวลา
+  cs: Čas
+  sv: Tid
+  he: שעה
   verified_by_human: [en, de]
 
 panel.note:
   context: Label for the optional note/prompt field in the reminder setter panel
   en: Note (optional)
   de: Notiz (optional)
+  zh: 备注（可选）
+  es: Nota (opcional)
+  fr: Note (optionnelle)
+  pt: Nota (opcional)
+  ru: Заметка (необязательно)
+  ja: メモ（オプション）
+  ko: 메모 (선택사항)
+  it: Nota (opzionale)
+  tr: Not (isteğe bağlı)
+  vi: Ghi chú (tùy chọn)
+  id: Catatan (opsional)
+  pl: Notatka (opcjonalna)
+  nl: Notitie (optioneel)
+  ar: ملاحظة (اختياري)
+  hi: नोट (वैकल्पिक)
+  th: หมายเหตุ (ไม่บังคับ)
+  cs: Poznámka (volitelná)
+  sv: Anteckning (valfritt)
+  he: הערה (אופציונלי)
   verified_by_human: [en, de]
 
 panel.note_placeholder:
   context: Placeholder text for the note field in the reminder setter panel
   en: Check this chat
   de: Diesen Chat prüfen
+  zh: 查看此聊天
+  es: Revisar este chat
+  fr: Vérifier ce chat
+  pt: Verificar este chat
+  ru: Проверить этот чат
+  ja: このチャットを確認
+  ko: 이 채팅 확인
+  it: Controlla questa chat
+  tr: Bu sohbeti kontrol et
+  vi: Kiểm tra chat này
+  id: Periksa chat ini
+  pl: Sprawdź ten czat
+  nl: Controleer deze chat
+  ar: تحقق من هذه المحادثة
+  hi: इस चैट की जांच करें
+  th: ตรวจสอบแชทนี้
+  cs: Zkontrolovat tento chat
+  sv: Kontrollera den här chatten
+  he: בדוק את הצ'אט הזה
   verified_by_human: [en, de]
 
 panel.target_this_chat:
   context: Option label — reminder fires in the current existing chat
   en: In this chat
   de: In diesem Chat
+  zh: 在此聊天中
+  es: En este chat
+  fr: Dans ce chat
+  pt: Neste chat
+  ru: В этом чате
+  ja: このチャットで
+  ko: 이 채팅에서
+  it: In questa chat
+  tr: Bu sohbette
+  vi: Trong chat này
+  id: Di chat ini
+  pl: W tym czacie
+  nl: In deze chat
+  ar: في هذه المحادثة
+  hi: इस चैट में
+  th: ในแชทนี้
+  cs: V tomto chatu
+  sv: I den här chatten
+  he: בצ'אט הזה
   verified_by_human: [en, de]
 
 panel.target_new_chat:
   context: Option label — reminder opens a new chat when it fires
   en: New chat
   de: Neuer Chat
+  zh: 新聊天
+  es: Nuevo chat
+  fr: Nouveau chat
+  pt: Novo chat
+  ru: Новый чат
+  ja: 新しいチャット
+  ko: 새 채팅
+  it: Nuova chat
+  tr: Yeni sohbet
+  vi: Chat mới
+  id: Chat baru
+  pl: Nowy czat
+  nl: Nieuwe chat
+  ar: محادثة جديدة
+  hi: नया चैट
+  th: แชทใหม่
+  cs: Nový chat
+  sv: Ny chatt
+  he: צ'אט חדש
   verified_by_human: [en, de]
 
 panel.type_notification:
   context: Option label — reminder sends a notification only, no AI response
   en: Notification only
   de: Nur Benachrichtigung
+  zh: 仅通知
+  es: Solo notificación
+  fr: Notification uniquement
+  pt: Apenas notificação
+  ru: Только уведомление
+  ja: 通知のみ
+  ko: 알림만
+  it: Solo notifica
+  tr: Yalnızca bildirim
+  vi: Chỉ thông báo
+  id: Notifikasi saja
+  pl: Tylko powiadomienie
+  nl: Alleen melding
+  ar: إشعار فقط
+  hi: केवल अधिसूचना
+  th: การแจ้งเตือนเท่านั้น
+  cs: Pouze oznámení
+  sv: Endast avisering
+  he: התראה בלבד
   verified_by_human: [en, de]
 
 panel.type_action:
   context: Option label — reminder triggers an AI action when it fires
   en: Trigger AI action
   de: KI-Aktion auslösen
+  zh: 触发AI操作
+  es: Activar acción de IA
+  fr: Déclencher une action IA
+  pt: Acionar ação de IA
+  ru: Запустить действие ИИ
+  ja: AIアクションをトリガー
+  ko: AI 작업 트리거
+  it: Attiva azione AI
+  tr: AI eylemi tetikle
+  vi: Kích hoạt hành động AI
+  id: Picu tindakan AI
+  pl: Uruchom akcję AI
+  nl: AI-actie activeren
+  ar: تشغيل إجراء الذكاء الاصطناعي
+  hi: AI क्रिया ट्रिगर करें
+  th: กระตุ้นการดำเนินการ AI
+  cs: Spustit akci AI
+  sv: Utlös AI-åtgärd
+  he: הפעל פעולת AI
   verified_by_human: [en, de]
 
 panel.action_prompt_label:
   context: Label for the action prompt textarea shown when response type is "full"
   en: What should the AI do?
   de: Was soll die KI tun?
+  zh: AI应该做什么？
+  es: ¿Qué debe hacer la IA?
+  fr: Que doit faire l'IA ?
+  pt: O que a IA deve fazer?
+  ru: Что должен делать ИИ?
+  ja: AIは何をすべきですか？
+  ko: AI가 무엇을 해야 하나요?
+  it: Cosa dovrebbe fare l'AI?
+  tr: AI ne yapmalı?
+  vi: AI nên làm gì?
+  id: Apa yang harus dilakukan AI?
+  pl: Co AI powinno zrobić?
+  nl: Wat moet de AI doen?
+  ar: ماذا يجب أن يفعل الذكاء الاصطناعي؟
+  hi: AI को क्या करना चाहिए?
+  th: AI ควรทำอะไร?
+  cs: Co má AI dělat?
+  sv: Vad ska AI göra?
+  he: מה ה-AI צריך לעשות?
   verified_by_human: [en, de]
 
 panel.action_prompt_placeholder:
   context: Placeholder for the action prompt field
   en: e.g. Search the latest news and summarize them
   de: z.B. Aktuelle Nachrichten suchen und zusammenfassen
+  zh: 例如：搜索最新新闻并总结
+  es: p.ej. Busca las últimas noticias y resúmelas
+  fr: ex. Rechercher les dernières actualités et les résumer
+  pt: ex. Pesquisar as últimas notícias e resumi-las
+  ru: например, найти последние новости и суммировать их
+  ja: 例：最新ニュースを検索してまとめる
+  ko: 예: 최신 뉴스를 검색하고 요약하세요
+  it: es. Cerca le ultime notizie e riassumile
+  tr: örn. En son haberleri ara ve özetle
+  vi: vd. Tìm kiếm tin tức mới nhất và tóm tắt
+  id: mis. Cari berita terbaru dan ringkas
+  pl: np. Wyszukaj najnowsze wiadomości i podsumuj je
+  nl: bijv. Zoek het laatste nieuws en vat het samen
+  ar: مثال: ابحث عن آخر الأخبار وقدّم ملخصاً
+  hi: जैसे: नवीनतम समाचार खोजें और सारांश बनाएं
+  th: เช่น ค้นหาข่าวล่าสุดและสรุป
+  cs: např. Vyhledej nejnovější zprávy a shrň je
+  sv: t.ex. Sök efter de senaste nyheterna och sammanfatta dem
+  he: לדוגמה: חפש חדשות עדכניות וסכם אותן
   verified_by_human: [en, de]
 
 panel.repeat:
   context: Label for the repeat frequency selector in the reminder setter panel
   en: Repeat
   de: Wiederholen
+  zh: 重复
+  es: Repetir
+  fr: Répéter
+  pt: Repetir
+  ru: Повторять
+  ja: 繰り返し
+  ko: 반복
+  it: Ripeti
+  tr: Tekrar et
+  vi: Lặp lại
+  id: Ulangi
+  pl: Powtórz
+  nl: Herhalen
+  ar: تكرار
+  hi: दोहराएं
+  th: ทำซ้ำ
+  cs: Opakovat
+  sv: Upprepa
+  he: חזרה
   verified_by_human: [en, de]
 
 panel.repeat_none:
   context: Option — no repeat, one-time reminder
   en: None
   de: Keine
+  zh: 无
+  es: Ninguno
+  fr: Aucun
+  pt: Nenhum
+  ru: Нет
+  ja: なし
+  ko: 없음
+  it: Nessuno
+  tr: Yok
+  vi: Không
+  id: Tidak ada
+  pl: Brak
+  nl: Geen
+  ar: لا شيء
+  hi: कोई नहीं
+  th: ไม่มี
+  cs: Žádný
+  sv: Ingen
+  he: ללא
   verified_by_human: [en, de]
 
 panel.repeat_daily:
   context: Option — repeat daily
   en: Daily
   de: Täglich
+  zh: 每天
+  es: Diario
+  fr: Quotidien
+  pt: Diário
+  ru: Ежедневно
+  ja: 毎日
+  ko: 매일
+  it: Giornaliero
+  tr: Günlük
+  vi: Hàng ngày
+  id: Harian
+  pl: Codziennie
+  nl: Dagelijks
+  ar: يومياً
+  hi: दैनिक
+  th: รายวัน
+  cs: Denně
+  sv: Dagligen
+  he: יומי
   verified_by_human: [en, de]
 
 panel.repeat_weekly:
   context: Option — repeat weekly
   en: Weekly
   de: Wöchentlich
+  zh: 每周
+  es: Semanal
+  fr: Hebdomadaire
+  pt: Semanal
+  ru: Еженедельно
+  ja: 毎週
+  ko: 매주
+  it: Settimanale
+  tr: Haftalık
+  vi: Hàng tuần
+  id: Mingguan
+  pl: Co tydzień
+  nl: Wekelijks
+  ar: أسبوعياً
+  hi: साप्ताहिक
+  th: รายสัปดาห์
+  cs: Týdně
+  sv: Veckovis
+  he: שבועי
   verified_by_human: [en, de]
 
 panel.repeat_monthly:
   context: Option — repeat monthly
   en: Monthly
   de: Monatlich
+  zh: 每月
+  es: Mensual
+  fr: Mensuel
+  pt: Mensal
+  ru: Ежемесячно
+  ja: 毎月
+  ko: 매월
+  it: Mensile
+  tr: Aylık
+  vi: Hàng tháng
+  id: Bulanan
+  pl: Co miesiąc
+  nl: Maandelijks
+  ar: شهرياً
+  hi: मासिक
+  th: รายเดือน
+  cs: Měsíčně
+  sv: Månadsvis
+  he: חודשי
   verified_by_human: [en, de]
 
 panel.repeat_custom:
   context: Option — custom repeat interval (every N days/weeks/months)
   en: Custom
   de: Benutzerdefiniert
+  zh: 自定义
+  es: Personalizado
+  fr: Personnalisé
+  pt: Personalizado
+  ru: Пользовательский
+  ja: カスタム
+  ko: 사용자 지정
+  it: Personalizzato
+  tr: Özel
+  vi: Tùy chỉnh
+  id: Kustom
+  pl: Niestandardowy
+  nl: Aangepast
+  ar: مخصص
+  hi: कस्टम
+  th: กำหนดเอง
+  cs: Vlastní
+  sv: Anpassad
+  he: מותאם אישית
   verified_by_human: [en, de]
 
 panel.repeat_every:
   context: Label prefix for custom repeat interval, e.g. "Every 3 days"
   en: Every
   de: Alle
+  zh: 每
+  es: Cada
+  fr: Chaque
+  pt: A cada
+  ru: Каждые
+  ja: 毎
+  ko: 매
+  it: Ogni
+  tr: Her
+  vi: Mỗi
+  id: Setiap
+  pl: Co
+  nl: Elke
+  ar: كل
+  hi: हर
+  th: ทุก
+  cs: Každý
+  sv: Var
+  he: כל
   verified_by_human: [en, de]
 
 panel.repeat_days:
   context: Unit label for custom repeat interval — days
   en: days
   de: Tage
+  zh: 天
+  es: días
+  fr: jours
+  pt: dias
+  ru: дней
+  ja: 日
+  ko: 일
+  it: giorni
+  tr: gün
+  vi: ngày
+  id: hari
+  pl: dni
+  nl: dagen
+  ar: أيام
+  hi: दिन
+  th: วัน
+  cs: dní
+  sv: dagar
+  he: ימים
   verified_by_human: [en, de]
 
 panel.repeat_weeks:
   context: Unit label for custom repeat interval — weeks
   en: weeks
   de: Wochen
+  zh: 周
+  es: semanas
+  fr: semaines
+  pt: semanas
+  ru: недель
+  ja: 週
+  ko: 주
+  it: settimane
+  tr: hafta
+  vi: tuần
+  id: minggu
+  pl: tygodnie
+  nl: weken
+  ar: أسابيع
+  hi: सप्ताह
+  th: สัปดาห์
+  cs: týdnů
+  sv: veckor
+  he: שבועות
   verified_by_human: [en, de]
 
 panel.repeat_months:
   context: Unit label for custom repeat interval — months
   en: months
   de: Monate
+  zh: 月
+  es: meses
+  fr: mois
+  pt: meses
+  ru: месяцев
+  ja: ヶ月
+  ko: 개월
+  it: mesi
+  tr: ay
+  vi: tháng
+  id: bulan
+  pl: miesiące
+  nl: maanden
+  ar: أشهر
+  hi: महीने
+  th: เดือน
+  cs: měsíců
+  sv: månader
+  he: חודשים
   verified_by_human: [en, de]
 
 panel.end_date:
   context: Label for the optional repeat end date field
   en: End date (optional)
   de: Enddatum (optional)
+  zh: 结束日期（可选）
+  es: Fecha de fin (opcional)
+  fr: Date de fin (optionnelle)
+  pt: Data de término (opcional)
+  ru: Дата окончания (необязательно)
+  ja: 終了日（オプション）
+  ko: 종료 날짜 (선택사항)
+  it: Data di fine (opzionale)
+  tr: Bitiş tarihi (isteğe bağlı)
+  vi: Ngày kết thúc (tùy chọn)
+  id: Tanggal berakhir (opsional)
+  pl: Data końcowa (opcjonalna)
+  nl: Einddatum (optioneel)
+  ar: تاريخ الانتهاء (اختياري)
+  hi: समाप्ति तिथि (वैकल्पिक)
+  th: วันที่สิ้นสุด (ไม่บังคับ)
+  cs: Datum ukončení (volitelné)
+  sv: Slutdatum (valfritt)
+  he: תאריך סיום (אופציונלי)
   verified_by_human: [en, de]
 
 panel.submit:
   context: Submit button label in the reminder setter panel
   en: Set Reminder
   de: Erinnerung setzen
+  zh: 设置提醒
+  es: Establecer recordatorio
+  fr: Définir un rappel
+  pt: Definir lembrete
+  ru: Установить напоминание
+  ja: リマインダーを設定
+  ko: 알림 설정
+  it: Imposta promemoria
+  tr: Hatırlatıcı ayarla
+  vi: Đặt nhắc nhở
+  id: Atur pengingat
+  pl: Ustaw przypomnienie
+  nl: Herinnering instellen
+  ar: تعيين تذكير
+  hi: अनुस्मारक सेट करें
+  th: ตั้งการแจ้งเตือน
+  cs: Nastavit připomínku
+  sv: Ställ in påminnelse
+  he: הגדרת תזכורת
   verified_by_human: [en, de]
 
 panel.cancel:
   context: Cancel/dismiss button label in the reminder setter panel
   en: Cancel
   de: Abbrechen
+  zh: 取消
+  es: Cancelar
+  fr: Annuler
+  pt: Cancelar
+  ru: Отмена
+  ja: キャンセル
+  ko: 취소
+  it: Annulla
+  tr: İptal
+  vi: Hủy
+  id: Batal
+  pl: Anuluj
+  nl: Annuleren
+  ar: إلغاء
+  hi: रद्द करें
+  th: ยกเลิก
+  cs: Zrušit
+  sv: Avbryt
+  he: ביטול
   verified_by_human: [en, de]
 
 panel.error_past:
   context: Validation error shown when the user picks a date/time in the past
   en: Please choose a future date and time.
   de: Bitte wähle ein zukünftiges Datum und eine Uhrzeit.
+  zh: 请选择未来的日期和时间。
+  es: Por favor elige una fecha y hora futura.
+  fr: Veuillez choisir une date et une heure dans le futur.
+  pt: Por favor, escolha uma data e hora futura.
+  ru: Пожалуйста, выберите дату и время в будущем.
+  ja: 未来の日時を選択してください。
+  ko: 미래의 날짜와 시간을 선택하세요.
+  it: Si prega di scegliere una data e un'ora future.
+  tr: Lütfen gelecekteki bir tarih ve saat seçin.
+  vi: Vui lòng chọn ngày và giờ trong tương lai.
+  id: Silakan pilih tanggal dan waktu di masa depan.
+  pl: Proszę wybrać przyszłą datę i godzinę.
+  nl: Kies een datum en tijd in de toekomst.
+  ar: يرجى اختيار تاريخ ووقت في المستقبل.
+  hi: कृपया भविष्य की तारीख और समय चुनें।
+  th: โปรดเลือกวันที่และเวลาในอนาคต
+  cs: Prosím vyberte datum a čas v budoucnosti.
+  sv: Välj ett framtida datum och tid.
+  he: אנא בחר תאריך ושעה עתידיים.
   verified_by_human: [en, de]
 
 panel.error_generic:
   context: Generic error shown when the API call to set a reminder fails
   en: Failed to set reminder. Please try again.
   de: Erinnerung konnte nicht gesetzt werden. Bitte versuche es erneut.
+  zh: 设置提醒失败。请再试一次。
+  es: No se pudo establecer el recordatorio. Por favor, inténtalo de nuevo.
+  fr: Échec de la définition du rappel. Veuillez réessayer.
+  pt: Falha ao definir lembrete. Por favor, tente novamente.
+  ru: Не удалось установить напоминание. Пожалуйста, попробуйте снова.
+  ja: リマインダーの設定に失敗しました。もう一度お試しください。
+  ko: 알림 설정에 실패했습니다. 다시 시도해 주세요.
+  it: Impossibile impostare il promemoria. Riprova.
+  tr: Hatırlatıcı ayarlanamadı. Lütfen tekrar deneyin.
+  vi: Không thể đặt nhắc nhở. Vui lòng thử lại.
+  id: Gagal mengatur pengingat. Silakan coba lagi.
+  pl: Nie udało się ustawić przypomnienia. Spróbuj ponownie.
+  nl: Instellen van herinnering mislukt. Probeer het opnieuw.
+  ar: فشل تعيين التذكير. يرجى المحاولة مرة أخرى.
+  hi: अनुस्मारक सेट करने में विफल। कृपया पुनः प्रयास करें।
+  th: ตั้งการแจ้งเตือนล้มเหลว โปรดลองอีกครั้ง
+  cs: Nepodařilo se nastavit připomínku. Zkuste to znovu.
+  sv: Det gick inte att ställa in påminnelsen. Försök igen.
+  he: הגדרת התזכורת נכשלה. אנא נסה שוב.
   verified_by_human: [en, de]
 
 panel.setting:
   context: Loading state shown on the submit button while the API call is in progress
   en: Setting...
   de: Wird gesetzt...
+  zh: 设置中...
+  es: Configurando...
+  fr: Configuration...
+  pt: Configurando...
+  ru: Настройка...
+  ja: 設定中...
+  ko: 설정 중...
+  it: Impostazione...
+  tr: Ayarlanıyor...
+  vi: Đang đặt...
+  id: Mengatur...
+  pl: Ustawianie...
+  nl: Instellen...
+  ar: جارٍ الضبط...
+  hi: सेट हो रहा है...
+  th: กำลังตั้ง...
+  cs: Nastavování...
+  sv: Ställer in...
+  he: מגדיר...
   verified_by_human: [en, de]
 
 # ─── Timeline marker for fired simple reminders ─────────────────────────────
@@ -540,10 +1053,48 @@ timeline.label:
   context: Label shown in the timeline event marker when a simple reminder fires in the chat history
   en: Reminder
   de: Erinnerung
+  zh: 提醒
+  es: Recordatorio
+  fr: Rappel
+  pt: Lembrete
+  ru: Напоминание
+  ja: リマインダー
+  ko: 알림
+  it: Promemoria
+  tr: Hatırlatıcı
+  vi: Nhắc nhở
+  id: Pengingat
+  pl: Przypomnienie
+  nl: Herinnering
+  ar: تذكير
+  hi: अनुस्मारक
+  th: การแจ้งเตือน
+  cs: Připomínka
+  sv: Påminnelse
+  he: תזכורת
   verified_by_human: [en, de]
 
 timeline.fired_at:
   context: Timeline event marker text showing when the reminder fired. {time} is a formatted date/time string.
   en: "Reminder · {time}"
   de: "Erinnerung · {time}"
+  zh: "提醒 · {time}"
+  es: "Recordatorio · {time}"
+  fr: "Rappel · {time}"
+  pt: "Lembrete · {time}"
+  ru: "Напоминание · {time}"
+  ja: "リマインダー · {time}"
+  ko: "알림 · {time}"
+  it: "Promemoria · {time}"
+  tr: "Hatırlatıcı · {time}"
+  vi: "Nhắc nhở · {time}"
+  id: "Pengingat · {time}"
+  pl: "Przypomnienie · {time}"
+  nl: "Herinnering · {time}"
+  ar: "تذكير · {time}"
+  hi: "अनुस्मारक · {time}"
+  th: "การแจ้งเตือน · {time}"
+  cs: "Připomínka · {time}"
+  sv: "Påminnelse · {time}"
+  he: "תזכורת · {time}"
   verified_by_human: [en, de]

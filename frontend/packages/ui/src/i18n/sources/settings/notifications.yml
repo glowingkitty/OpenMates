@@ -11,7 +11,22 @@ description:
   zh: 管理你的通知偏好设置
   fr: Gère tes préférences de notification
   es: Gestiona tus preferencias de notificación
+  pt: Gerencie suas preferências de notificação
+  ru: Управляйте настройками уведомлений
   ja: 通知設定を管理します
+  ko: 알림 기본 설정 관리
+  it: Gestisci le tue preferenze di notifica
+  tr: Bildirim tercihlerinizi yönetin
+  vi: Quản lý tùy chọn thông báo của bạn
+  id: Kelola preferensi notifikasi Anda
+  pl: Zarządzaj preferencjami powiadomień
+  nl: Beheer uw meldingsvoorkeuren
+  ar: إدارة تفضيلات الإشعارات
+  hi: अपनी सूचना प्राथमिकताएं प्रबंधित करें
+  th: จัดการการตั้งค่าการแจ้งเตือนของคุณ
+  cs: Spravujte předvolby oznámení
+  sv: Hantera dina aviseringsinställningar
+  he: נהל את העדפות ההתראות שלך
   verified_by_human: []
 
 chat:
@@ -21,7 +36,22 @@ chat:
   zh: 聊天通知
   fr: Notifications de chat
   es: Notificaciones de chat
+  pt: Notificações de chat
+  ru: Уведомления чата
   ja: チャット通知
+  ko: 채팅 알림
+  it: Notifiche chat
+  tr: Sohbet bildirimleri
+  vi: Thông báo trò chuyện
+  id: Notifikasi obrolan
+  pl: Powiadomienia czatu
+  nl: Chatmeldingen
+  ar: إشعارات الدردشة
+  hi: चैट सूचनाएं
+  th: การแจ้งเตือนแชท
+  cs: Chatová oznámení
+  sv: Chattaviseringar
+  he: התראות צ'אט
   verified_by_human: []
 
 backup:
@@ -31,7 +61,22 @@ backup:
   zh: 备份提醒
   fr: Rappels de sauvegarde
   es: Recordatorios de copia de seguridad
+  pt: Lembretes de backup
+  ru: Напоминания о резервном копировании
   ja: バックアップのリマインダー
+  ko: 백업 알림
+  it: Promemoria di backup
+  tr: Yedekleme hatırlatıcıları
+  vi: Nhắc nhở sao lưu
+  id: Pengingat cadangan
+  pl: Przypomnienia o kopii zapasowej
+  nl: Back-upherinneringen
+  ar: تذكيرات النسخ الاحتياطي
+  hi: बैकअप रिमाइंडर
+  th: การแจ้งเตือนสำรองข้อมูล
+  cs: Připomínky zálohování
+  sv: Säkerhetskopieringspåminnelser
+  he: תזכורות גיבוי
   verified_by_human: []
 
 backup.email_toggle:
@@ -41,7 +86,22 @@ backup.email_toggle:
   zh: 备份提醒邮件
   fr: E-mails de rappel de sauvegarde
   es: Correos de recordatorio de copia de seguridad
+  pt: E-mails de lembrete de backup
+  ru: Письма-напоминания о резервном копировании
   ja: バックアップのリマインダーメール
+  ko: 백업 알림 이메일
+  it: E-mail di promemoria backup
+  tr: Yedekleme hatırlatıcı e-postaları
+  vi: Email nhắc nhở sao lưu
+  id: Email pengingat cadangan
+  pl: E-maile przypominające o kopii zapasowej
+  nl: Herinneringse-mails voor back-up
+  ar: رسائل تذكير النسخ الاحتياطي
+  hi: बैकअप रिमाइंडर ईमेल
+  th: อีเมลแจ้งเตือนสำรองข้อมูล
+  cs: Připomínkové e-maily pro zálohu
+  sv: Säkerhetskopieringspåminnelse-e-post
+  he: אימיילי תזכורת גיבוי
   verified_by_human: []
 
 backup.email_toggle_info:
@@ -51,7 +111,22 @@ backup.email_toggle_info:
   zh: 定期接收提醒邮件，以导出并备份你的数据
   fr: Reçois un e-mail de rappel périodique pour exporter et sauvegarder tes données
   es: Recibe un recordatorio periódico por correo electrónico para exportar y hacer una copia de seguridad de tus datos
+  pt: Receba um lembrete periódico por e-mail para exportar e fazer backup dos seus dados
+  ru: Получайте периодические напоминания по электронной почте для экспорта и резервного копирования данных
   ja: データのバックアップとエクスポートを促すリマインダーメールを定期的に受け取ります
+  ko: 데이터를 내보내고 백업하라는 정기적인 이메일 알림을 받으세요
+  it: Ricevi un promemoria periodico via e-mail per esportare e fare il backup dei tuoi dati
+  tr: Verilerinizi dışa aktarmak ve yedeklemek için periyodik bir e-posta hatırlatıcısı alın
+  vi: Nhận email nhắc nhở định kỳ để xuất và sao lưu dữ liệu của bạn
+  id: Terima pengingat email berkala untuk mengekspor dan mencadangkan data Anda
+  pl: Otrzymuj okresowe przypomnienia e-mail, aby eksportować i tworzyć kopie zapasowe danych
+  nl: Ontvang een periodieke e-mailherinnering om uw gegevens te exporteren en te back-uppen
+  ar: احصل على تذكير دوري بالبريد الإلكتروني لتصدير بياناتك ونسخها احتياطياً
+  hi: अपने डेटा को निर्यात और बैकअप करने के लिए समय-समय पर ईमेल रिमाइंडर प्राप्त करें
+  th: รับการแจ้งเตือนทางอีเมลเป็นระยะเพื่อส่งออกและสำรองข้อมูลของคุณ
+  cs: Dostávejte pravidelné e-mailové připomínky k exportu a zálohování dat
+  sv: Ta emot periodiska e-postpåminnelser om att exportera och säkerhetskopiera dina data
+  he: קבל תזכורת תקופתית באימייל לייצוא ולגיבוי הנתונים שלך
   verified_by_human: []
 
 backup.interval:
@@ -61,7 +136,22 @@ backup.interval:
   zh: 提醒频率
   fr: Fréquence des rappels
   es: Frecuencia de los recordatorios
+  pt: Frequência do lembrete
+  ru: Частота напоминаний
   ja: リマインダーの頻度
+  ko: 알림 빈도
+  it: Frequenza del promemoria
+  tr: Hatırlatıcı sıklığı
+  vi: Tần suất nhắc nhở
+  id: Frekuensi pengingat
+  pl: Częstotliwość przypomnień
+  nl: Herinneringsfrequentie
+  ar: تكرار التذكير
+  hi: रिमाइंडर आवृत्ति
+  th: ความถี่การแจ้งเตือน
+  cs: Frekvence připomínek
+  sv: Påminnelsefrekvens
+  he: תדירות תזכורות
   verified_by_human: []
 
 backup.interval_days:
@@ -71,7 +161,22 @@ backup.interval_days:
   zh: "每 {count} 天一次"
   fr: "Tous les {count} jours"
   es: "Cada {count} días"
+  pt: "A cada {count} dias"
+  ru: "Каждые {count} дней"
   ja: "{count}日ごと"
+  ko: "{count}일마다"
+  it: "Ogni {count} giorni"
+  tr: "Her {count} günde bir"
+  vi: "Mỗi {count} ngày"
+  id: "Setiap {count} hari"
+  pl: "Co {count} dni"
+  nl: "Elke {count} dagen"
+  ar: "كل {count} أيام"
+  hi: "हर {count} दिन"
+  th: "ทุก {count} วัน"
+  cs: "Každých {count} dní"
+  sv: "Var {count}:e dag"
+  he: "כל {count} ימים"
   verified_by_human: []
 
 backup.disabled:
@@ -81,7 +186,22 @@ backup.disabled:
   zh: 已禁用
   fr: Désactivé
   es: Desactivado
+  pt: Desativado
+  ru: Отключено
   ja: 無効
+  ko: 비활성화됨
+  it: Disabilitato
+  tr: Devre dışı
+  vi: Đã tắt
+  id: Dinonaktifkan
+  pl: Wyłączone
+  nl: Uitgeschakeld
+  ar: معطّل
+  hi: अक्षम
+  th: ปิดใช้งาน
+  cs: Zakázáno
+  sv: Inaktiverat
+  he: מושבת
   verified_by_human: []
 
 backup.last_export:
@@ -91,7 +211,22 @@ backup.last_export:
   zh: 上次导出时间
   fr: Dernière exportation
   es: Última exportación
+  pt: Último export
+  ru: Последний экспорт
   ja: 最終エクスポート
+  ko: 마지막 내보내기
+  it: Ultimo export
+  tr: Son dışa aktarma
+  vi: Lần xuất cuối
+  id: Ekspor terakhir
+  pl: Ostatni eksport
+  nl: Laatste export
+  ar: آخر تصدير
+  hi: अंतिम निर्यात
+  th: ส่งออกล่าสุด
+  cs: Poslední export
+  sv: Senaste export
+  he: ייצוא אחרון
   verified_by_human: []
 
 backup.never_exported:
@@ -101,7 +236,22 @@ backup.never_exported:
   zh: 从未导出过
   fr: Jamais exporté
   es: Nunca exportado
+  pt: Nunca exportado
+  ru: Никогда не экспортировалось
   ja: エクスポート履歴なし
+  ko: 내보낸 적 없음
+  it: Mai esportato
+  tr: Hiç dışa aktarılmadı
+  vi: Chưa từng xuất
+  id: Belum pernah diekspor
+  pl: Nigdy nie eksportowano
+  nl: Nooit geëxporteerd
+  ar: لم يتم التصدير أبدًا
+  hi: कभी निर्यात नहीं किया
+  th: ยังไม่เคยส่งออก
+  cs: Nikdy neexportováno
+  sv: Aldrig exporterat
+  he: מעולם לא יוצא
   verified_by_human: []
 
 backup.export_hint:
@@ -111,5 +261,20 @@ backup.export_hint:
   zh: 导出并下载你的所有数据
   fr: Exporte et télécharge toutes tes données
   es: Exporta y descarga todos tus datos
+  pt: Exporte e baixe todos os seus dados
+  ru: Экспортируйте и загрузите все свои данные
   ja: すべてのデータをエクスポートしてダウンロードします
+  ko: 모든 데이터 내보내기 및 다운로드
+  it: Esporta e scarica tutti i tuoi dati
+  tr: Tüm verilerinizi dışa aktarın ve indirin
+  vi: Xuất và tải xuống tất cả dữ liệu của bạn
+  id: Ekspor dan unduh semua data Anda
+  pl: Eksportuj i pobierz wszystkie swoje dane
+  nl: Exporteer en download al uw gegevens
+  ar: قم بتصدير وتنزيل جميع بياناتك
+  hi: अपना सारा डेटा निर्यात करें और डाउनलोड करें
+  th: ส่งออกและดาวน์โหลดข้อมูลทั้งหมดของคุณ
+  cs: Exportujte a stáhněte všechna svá data
+  sv: Exportera och ladda ner all din data
+  he: ייצא והורד את כל הנתונים שלך
   verified_by_human: []

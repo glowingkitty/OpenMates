@@ -162,6 +162,25 @@ coding_setup:
   context: Settings/memory name for preferred coding setup
   en: Coding Setup
   de: Coding-Setup
+  zh: 编程设置
+  es: Configuración de programación
+  fr: Configuration de codage
+  pt: Configuração de codificação
+  ru: Настройка кодирования
+  ja: コーディング環境設定
+  ko: 코딩 설정
+  it: Configurazione di codifica
+  tr: Kodlama kurulumu
+  vi: Thiết lập lập trình
+  id: Pengaturan coding
+  pl: Konfiguracja kodowania
+  nl: Coderingsinstellingen
+  ar: إعداد البرمجة
+  hi: कोडिंग सेटअप
+  th: การตั้งค่าการเขียนโค้ด
+  cs: Nastavení kódování
+  sv: Kodningskonfiguration
+  he: הגדרת קידוד
   verified_by_human:
     - en
     - de
@@ -170,6 +189,25 @@ coding_setup.description:
   context: Description for preferred coding setup settings/memory
   en: How you like to code, collaborate with AI, and enter instructions
   de: Wie du am liebsten codest, mit KI zusammenarbeitest und Eingaben machst
+  zh: 您喜欢如何编程、与AI协作以及输入指令
+  es: Cómo te gusta programar, colaborar con la IA e ingresar instrucciones
+  fr: Comment vous aimez coder, collaborer avec l'IA et entrer des instructions
+  pt: Como você gosta de programar, colaborar com a IA e inserir instruções
+  ru: Как вы предпочитаете кодировать, сотрудничать с ИИ и вводить инструкции
+  ja: コーディング、AIとの協力、指示の入力方法の好み
+  ko: 코딩하고 AI와 협업하고 지침을 입력하는 방법
+  it: Come ti piace programmare, collaborare con l'AI e inserire istruzioni
+  tr: Nasıl kod yazmayı, AI ile işbirliği yapmayı ve talimat girmeyi tercih ettiğiniz
+  vi: Cách bạn thích lập trình, cộng tác với AI và nhập hướng dẫn
+  id: Bagaimana Anda suka coding, berkolaborasi dengan AI, dan memasukkan instruksi
+  pl: Jak lubisz kodować, współpracować z AI i wprowadzać instrukcje
+  nl: Hoe u graag codeert, samenwerkt met AI en instructies invoert
+  ar: كيف تحب البرمجة والتعاون مع الذكاء الاصطناعي وإدخال التعليمات
+  hi: आप कोडिंग, AI के साथ सहयोग और निर्देश दर्ज करना कैसे पसंद करते हैं
+  th: วิธีที่คุณชอบเขียนโค้ด ทำงานร่วมกับ AI และป้อนคำสั่ง
+  cs: Jak rádi kódujete, spolupracujete s AI a zadáváte pokyny
+  sv: Hur du gillar att koda, samarbeta med AI och ange instruktioner
+  he: איך אתה אוהב לכתוב קוד, לשתף פעולה עם AI ולהכניס הוראות
   verified_by_human:
     - en
     - de
@@ -178,6 +216,25 @@ coding_setup.example_1:
   context: Example entry title for coding setup (terminal-heavy workflow)
   en: Terminal-first setup
   de: Terminal-first-Setup
+  zh: 终端优先设置
+  es: Configuración basada en terminal
+  fr: Configuration terminal-first
+  pt: Configuração com terminal primeiro
+  ru: Настройка с приоритетом терминала
+  ja: ターミナル優先の設定
+  ko: 터미널 우선 설정
+  it: Configurazione terminal-first
+  tr: Terminal öncelikli kurulum
+  vi: Thiết lập ưu tiên terminal
+  id: Pengaturan terminal-first
+  pl: Konfiguracja z terminalem
+  nl: Terminal-eerste instelling
+  ar: إعداد يعتمد على الطرفية
+  hi: टर्मिनल-फर्स्ट सेटअप
+  th: การตั้งค่าที่ใช้เทอร์มินัลเป็นหลัก
+  cs: Nastavení s důrazem na terminál
+  sv: Terminal-first-konfiguration
+  he: הגדרה עם עדיפות לטרמינל
   verified_by_human:
     - en
     - de
@@ -186,6 +243,25 @@ coding_setup.example_2:
   context: Example entry title for coding setup (guided web workflow)
   en: Guided web workflow
   de: Geführter Web-Workflow
+  zh: 引导式Web工作流程
+  es: Flujo de trabajo web guiado
+  fr: Flux de travail web guidé
+  pt: Fluxo de trabalho web guiado
+  ru: Управляемый веб-рабочий процесс
+  ja: ガイド付きWebワークフロー
+  ko: 가이드 웹 워크플로우
+  it: Flusso di lavoro web guidato
+  tr: Rehberli web iş akışı
+  vi: Quy trình web có hướng dẫn
+  id: Alur kerja web terpandu
+  pl: Prowadzony przepływ pracy webowy
+  nl: Begeleide webworkflow
+  ar: سير عمل الويب الموجَّه
+  hi: गाइडेड वेब वर्कफ्लो
+  th: เวิร์กโฟลว์เว็บแบบมีคำแนะนำ
+  cs: Řízený webový pracovní postup
+  sv: Guidad webbarbetsflöde
+  he: תהליך עבודה מונחה לאינטרנט
   verified_by_human:
     - en
     - de
@@ -194,6 +270,25 @@ coding_setup.example_1.notes:
   context: Example notes for coding setup entry 1
   en: Neovim + tmux, short suggestions only
   de: Neovim + tmux, nur kurze Vorschläge
+  zh: Neovim + tmux，仅短建议
+  es: Neovim + tmux, solo sugerencias cortas
+  fr: Neovim + tmux, suggestions courtes uniquement
+  pt: Neovim + tmux, apenas sugestões curtas
+  ru: Neovim + tmux, только короткие подсказки
+  ja: Neovim + tmux、短い提案のみ
+  ko: Neovim + tmux, 짧은 제안만
+  it: Neovim + tmux, solo suggerimenti brevi
+  tr: Neovim + tmux, yalnızca kısa öneriler
+  vi: Neovim + tmux, chỉ gợi ý ngắn
+  id: Neovim + tmux, saran singkat saja
+  pl: Neovim + tmux, tylko krótkie sugestie
+  nl: Neovim + tmux, alleen korte suggesties
+  ar: Neovim + tmux، اقتراحات قصيرة فقط
+  hi: Neovim + tmux, केवल छोटे सुझाव
+  th: Neovim + tmux เฉพาะคำแนะนำสั้นๆ
+  cs: Neovim + tmux, pouze krátké návrhy
+  sv: Neovim + tmux, endast korta förslag
+  he: Neovim + tmux, הצעות קצרות בלבד
   verified_by_human:
     - en
     - de
@@ -202,6 +297,25 @@ coding_setup.example_2.notes:
   context: Example notes for coding setup entry 2
   en: Prefers presets and one-click actions
   de: Bevorzugt Presets und One-Click-Aktionen
+  zh: 偏好预设和一键操作
+  es: Prefiere presets y acciones de un clic
+  fr: Préfère les préréglages et actions en un clic
+  pt: Prefere presets e ações de um clique
+  ru: Предпочитает пресеты и действия в один клик
+  ja: プリセットとワンクリック操作を好む
+  ko: 프리셋과 원클릭 작업 선호
+  it: Preferisce preset e azioni con un clic
+  tr: Ön ayarları ve tek tıklamalı işlemleri tercih eder
+  vi: Ưa thích các cài đặt sẵn và hành động một cú nhấp
+  id: Lebih suka preset dan tindakan satu klik
+  pl: Preferuje presety i akcje jednym kliknięciem
+  nl: Geeft de voorkeur aan presets en één-klik-acties
+  ar: يفضل الإعدادات المسبقة والإجراءات بنقرة واحدة
+  hi: प्रीसेट और एक-क्लिक क्रियाएं पसंद करता है
+  th: ชอบใช้ preset และการดำเนินการด้วยคลิกเดียว
+  cs: Preferuje předvolby a akce jedním kliknutím
+  sv: Föredrar förinställningar och enkelsklicksåtgärder
+  he: מעדיף הגדרות מוגדרות מראש ופעולות בלחיצה אחת
   verified_by_human:
     - en
     - de

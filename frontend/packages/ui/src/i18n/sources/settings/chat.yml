@@ -10,21 +10,21 @@ description:
   zh: 自定义通知和聊天行为
   es: Personaliza las notificaciones y el comportamiento del chat
   fr: Personnalisez les notifications et le comportement du chat
-  pt: ""
-  ru: ""
+  pt: Personalize as notificações e o comportamento do chat
+  ru: Настройте уведомления и поведение чата
   ja: 通知とチャットの動作をカスタマイズする
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 알림 및 채팅 동작 사용자 지정
+  it: Personalizza le notifiche e il comportamento della chat
+  tr: Bildirimleri ve sohbet davranışını özelleştirin
+  vi: Tùy chỉnh thông báo và hành vi trò chuyện
+  id: Sesuaikan notifikasi dan perilaku obrolan
+  pl: Dostosuj powiadomienia i zachowanie czatu
+  nl: Pas meldingen en chatgedrag aan
   ar: تخصيص الإشعارات وسلوك الدردشة
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: सूचनाओं और चैट व्यवहार को अनुकूलित करें
+  th: ปรับแต่งการแจ้งเตือนและพฤติกรรมของแชท
+  cs: Přizpůsobte si oznámení a chování chatu
+  sv: Anpassa aviseringar och chattbeteende
   he: "התאמה אישית של התראות והתנהגות הצ'אט"
   verified_by_human: []
 
@@ -33,233 +33,762 @@ chat:
   context: Chat settings menu title
   en: Chat
   de: Chat
+  zh: 聊天
+  es: Chat
+  fr: Chat
+  pt: Chat
+  ru: Чат
+  ja: チャット
+  ko: 채팅
+  it: Chat
+  tr: Sohbet
+  vi: Trò chuyện
+  id: Obrolan
+  pl: Czat
+  nl: Chat
   ar: الدردشة
-
+  hi: चैट
+  th: แชท
+  cs: Chat
+  sv: Chatt
   # Notifications submenu (becomes settings.chat.notifications.text)
   he: "צ'אט"
 notifications:
   context: Notifications submenu title
   en: Notifications
   de: Benachrichtigungen
+  zh: 通知
+  es: Notificaciones
+  fr: Notifications
+  pt: Notificações
+  ru: Уведомления
+  ja: 通知
+  ko: 알림
+  it: Notifiche
+  tr: Bildirimler
+  vi: Thông báo
+  id: Notifikasi
+  pl: Powiadomienia
+  nl: Meldingen
   ar: الإشعارات
-
+  hi: सूचनाएं
+  th: การแจ้งเตือน
+  cs: Oznámení
+  sv: Aviseringar
   he: התראות
 ai_app_settings:
   context: Link title in chat settings that opens the AI app settings page
   en: AI App Settings
   de: KI-App-Einstellungen
+  zh: AI 应用设置
+  es: Configuración de la App de IA
+  fr: Paramètres de l'App IA
+  pt: Configurações do App de IA
+  ru: Настройки AI-приложения
+  ja: AIアプリ設定
+  ko: AI 앱 설정
+  it: Impostazioni App AI
+  tr: AI Uygulama Ayarları
+  vi: Cài đặt App AI
+  id: Pengaturan App AI
+  pl: Ustawienia aplikacji AI
+  nl: AI App-instellingen
   ar: إعدادات تطبيق الذكاء الاصطناعي
-
+  hi: AI ऐप सेटिंग्स
+  th: การตั้งค่าแอป AI
+  cs: Nastavení AI aplikace
+  sv: AI-appinställningar
   he: הגדרות אפליקציית AI
 ai_app_settings_info:
   context: Helper text for AI app settings link explaining where to find more chat preferences
   en: Find more chat preferences in AI app settings
   de: Weitere Chat-Einstellungen finden Sie in den KI-App-Einstellungen
+  zh: 在 AI 应用设置中查找更多聊天偏好
+  es: Encuentra más preferencias de chat en la configuración de la app de IA
+  fr: Trouvez plus de préférences de chat dans les paramètres de l'app IA
+  pt: Encontre mais preferências de chat nas configurações do app de IA
+  ru: Найдите дополнительные настройки чата в настройках AI-приложения
+  ja: AIアプリ設定でさらにチャット設定を見つける
+  ko: AI 앱 설정에서 더 많은 채팅 환경설정 찾기
+  it: Trova altre preferenze di chat nelle impostazioni dell'app AI
+  tr: AI uygulama ayarlarında daha fazla sohbet tercihi bulun
+  vi: Tìm thêm tùy chọn trò chuyện trong cài đặt App AI
+  id: Temukan lebih banyak preferensi obrolan di pengaturan App AI
+  pl: Znajdź więcej preferencji czatu w ustawieniach aplikacji AI
+  nl: Vind meer chatvoorkeuren in AI app-instellingen
   ar: اعثر على المزيد من تفضيلات الدردشة في إعدادات تطبيق الذكاء الاصطناعي
-
+  hi: AI ऐप सेटिंग्स में और चैट प्राथमिकताएं खोजें
+  th: ค้นหาการตั้งค่าแชทเพิ่มเติมในการตั้งค่าแอป AI
+  cs: Najděte další předvolby chatu v nastavení aplikace AI
+  sv: Hitta fler chattinställningar i AI-appinställningar
   he: אפשר למצוא העדפות צ'אט נוספות בהגדרות אפליקציית ה-AI
 notifications.enabled:
   context: Status text when notifications are enabled
   en: Enabled
   de: Aktiviert
+  zh: 已启用
+  es: Activado
+  fr: Activé
+  pt: Ativado
+  ru: Включено
+  ja: 有効
+  ko: 활성화됨
+  it: Abilitato
+  tr: Etkin
+  vi: Đã bật
+  id: Diaktifkan
+  pl: Włączone
+  nl: Ingeschakeld
   ar: مفعّل
-
+  hi: सक्षम
+  th: เปิดใช้งาน
+  cs: Povoleno
+  sv: Aktiverat
   he: פעיל
 notifications.disabled:
   context: Status text when notifications are disabled
   en: Disabled
   de: Deaktiviert
+  zh: 已禁用
+  es: Desactivado
+  fr: Désactivé
+  pt: Desativado
+  ru: Отключено
+  ja: 無効
+  ko: 비활성화됨
+  it: Disabilitato
+  tr: Devre dışı
+  vi: Đã tắt
+  id: Dinonaktifkan
+  pl: Wyłączone
+  nl: Uitgeschakeld
   ar: معطّل
-
+  hi: अक्षम
+  th: ปิดใช้งาน
+  cs: Zakázáno
+  sv: Inaktiverat
   he: מושבת
 notifications.blocked:
   context: Status text when notifications are blocked by browser
   en: Blocked by browser
   de: Vom Browser blockiert
+  zh: 被浏览器屏蔽
+  es: Bloqueado por el navegador
+  fr: Bloqué par le navigateur
+  pt: Bloqueado pelo navegador
+  ru: Заблокировано браузером
+  ja: ブラウザによりブロック済み
+  ko: 브라우저에 의해 차단됨
+  it: Bloccato dal browser
+  tr: Tarayıcı tarafından engellendi
+  vi: Bị trình duyệt chặn
+  id: Diblokir oleh browser
+  pl: Zablokowane przez przeglądarkę
+  nl: Geblokkeerd door browser
   ar: محجوب بواسطة المتصفح
-
+  hi: ब्राउज़र द्वारा अवरुद्ध
+  th: ถูกบล็อกโดยเบราว์เซอร์
+  cs: Blokováno prohlížečem
+  sv: Blockerat av webbläsaren
   he: חסום על ידי הדפדפן
 notifications.enable:
   context: Push notifications toggle title
   en: Push Notifications
   de: Push-Benachrichtigungen
+  zh: 推送通知
+  es: Notificaciones push
+  fr: Notifications push
+  pt: Notificações push
+  ru: Push-уведомления
+  ja: プッシュ通知
+  ko: 푸시 알림
+  it: Notifiche push
+  tr: Anlık bildirimler
+  vi: Thông báo đẩy
+  id: Notifikasi push
+  pl: Powiadomienia push
+  nl: Pushmeldingen
   ar: إشعارات الدفع
-
+  hi: पुश नोटिफिकेशन
+  th: การแจ้งเตือนแบบพุช
+  cs: Push oznámení
+  sv: Push-aviseringar
   he: התראות Push
 notifications.permission_granted:
   context: Permission status when granted
   en: Permission granted
   de: Berechtigung erteilt
+  zh: 已授予权限
+  es: Permiso concedido
+  fr: Autorisation accordée
+  pt: Permissão concedida
+  ru: Разрешение предоставлено
+  ja: 許可されました
+  ko: 권한 허용됨
+  it: Autorizzazione concessa
+  tr: İzin verildi
+  vi: Đã cấp quyền
+  id: Izin diberikan
+  pl: Uprawnienie przyznane
+  nl: Toestemming verleend
   ar: تم منح الإذن
-
+  hi: अनुमति दी गई
+  th: ได้รับสิทธิ์แล้ว
+  cs: Oprávnění uděleno
+  sv: Behörighet beviljad
   he: ניתנה הרשאה
 notifications.permission_denied:
   context: Permission status when denied
   en: Permission denied in browser settings
   de: Berechtigung in Browser-Einstellungen verweigert
+  zh: 在浏览器设置中被拒绝
+  es: Permiso denegado en la configuración del navegador
+  fr: Autorisation refusée dans les paramètres du navigateur
+  pt: Permissão negada nas configurações do navegador
+  ru: Разрешение отклонено в настройках браузера
+  ja: ブラウザ設定で拒否されました
+  ko: 브라우저 설정에서 권한 거부됨
+  it: Autorizzazione negata nelle impostazioni del browser
+  tr: Tarayıcı ayarlarında izin reddedildi
+  vi: Quyền bị từ chối trong cài đặt trình duyệt
+  id: Izin ditolak di pengaturan browser
+  pl: Uprawnienie odrzucone w ustawieniach przeglądarki
+  nl: Toestemming geweigerd in browserinstellingen
   ar: تم رفض الإذن في إعدادات المتصفح
-
+  hi: ब्राउज़र सेटिंग्स में अनुमति अस्वीकृत
+  th: ถูกปฏิเสธสิทธิ์ในการตั้งค่าเบราว์เซอร์
+  cs: Oprávnění zamítnuto v nastavení prohlížeče
+  sv: Behörighet nekad i webbläsarinställningar
   he: ההרשאה נדחתה בהגדרות הדפדפן
 notifications.permission_default:
   context: Permission status when not yet requested
   en: Permission not yet requested
   de: Berechtigung noch nicht angefragt
+  zh: 尚未请求权限
+  es: Permiso aún no solicitado
+  fr: Autorisation pas encore demandée
+  pt: Permissão ainda não solicitada
+  ru: Разрешение ещё не запрошено
+  ja: まだ許可がリクエストされていません
+  ko: 아직 권한을 요청하지 않음
+  it: Autorizzazione non ancora richiesta
+  tr: İzin henüz istenmedi
+  vi: Chưa yêu cầu quyền
+  id: Izin belum diminta
+  pl: Uprawnienie jeszcze nie zażądane
+  nl: Toestemming nog niet aangevraagd
   ar: لم يُطلب الإذن بعد
-
+  hi: अनुमति अभी तक अनुरोध नहीं की गई
+  th: ยังไม่ได้ขอสิทธิ์
+  cs: Oprávnění dosud nepožádáno
+  sv: Behörighet ännu inte begärd
   he: טרם התבקשה הרשאה
 notifications.not_supported:
   context: Warning when push notifications are not supported
   en: Push notifications are not supported on this browser or device.
   de: Push-Benachrichtigungen werden auf diesem Browser oder Gerät nicht unterstützt.
+  zh: 此浏览器或设备不支持推送通知。
+  es: Las notificaciones push no están disponibles en este navegador o dispositivo.
+  fr: Les notifications push ne sont pas prises en charge sur ce navigateur ou appareil.
+  pt: Notificações push não são suportadas neste navegador ou dispositivo.
+  ru: Push-уведомления не поддерживаются в этом браузере или устройстве.
+  ja: このブラウザまたはデバイスではプッシュ通知はサポートされていません。
+  ko: 이 브라우저 또는 기기에서는 푸시 알림이 지원되지 않습니다.
+  it: Le notifiche push non sono supportate su questo browser o dispositivo.
+  tr: Bu tarayıcı veya cihazda anlık bildirimler desteklenmiyor.
+  vi: Thông báo đẩy không được hỗ trợ trên trình duyệt hoặc thiết bị này.
+  id: Notifikasi push tidak didukung di browser atau perangkat ini.
+  pl: Powiadomienia push nie są obsługiwane w tej przeglądarce ani na tym urządzeniu.
+  nl: Pushmeldingen worden niet ondersteund op deze browser of dit apparaat.
   ar: إشعارات الدفع غير مدعومة على هذا المتصفح أو الجهاز.
-
+  hi: इस ब्राउज़र या डिवाइस पर पुश नोटिफिकेशन समर्थित नहीं हैं।
+  th: การแจ้งเตือนแบบพุชไม่รองรับบนเบราว์เซอร์หรืออุปกรณ์นี้
+  cs: Push oznámení nejsou v tomto prohlížeči nebo zařízení podporována.
+  sv: Push-aviseringar stöds inte på den här webbläsaren eller enheten.
   he: התראות Push אינן נתמכות בדפדפן או במכשיר זה.
 notifications.pwa_install_title:
   context: Title shown on iOS Safari when push requires PWA installation
   en: Add to Home Screen to Enable Notifications
   de: Zum Home-Bildschirm hinzufügen, um Benachrichtigungen zu aktivieren
+  zh: 添加到主屏幕以启用通知
+  es: Añadir a la pantalla de inicio para activar notificaciones
+  fr: Ajouter à l'écran d'accueil pour activer les notifications
+  pt: Adicionar à tela inicial para ativar notificações
+  ru: Добавьте на главный экран для включения уведомлений
+  ja: 通知を有効にするにはホーム画面に追加してください
+  ko: 알림을 활성화하려면 홈 화면에 추가하세요
+  it: Aggiungi alla schermata principale per abilitare le notifiche
+  tr: Bildirimleri etkinleştirmek için ana ekrana ekleyin
+  vi: Thêm vào màn hình chính để bật thông báo
+  id: Tambahkan ke Layar Utama untuk Mengaktifkan Notifikasi
+  pl: Dodaj do ekranu głównego, aby włączyć powiadomienia
+  nl: Voeg toe aan beginscherm om meldingen in te schakelen
   ar: أضف إلى الشاشة الرئيسية لتفعيل الإشعارات
-
+  hi: सूचनाएं सक्षम करने के लिए होम स्क्रीन में जोड़ें
+  th: เพิ่มไปยังหน้าจอหลักเพื่อเปิดใช้การแจ้งเตือน
+  cs: Přidejte na domovskou obrazovku pro povolení oznámení
+  sv: Lägg till på startskärmen för att aktivera aviseringar
   he: הוספה למסך הבית כדי להפעיל התראות
 notifications.pwa_install_desc:
   context: Description explaining why PWA installation is needed for push notifications
   en: "Push notifications require the app to be installed on your device. Follow these steps:"
   de: "Push-Benachrichtigungen erfordern, dass die App auf Ihrem Gerät installiert ist. Folgen Sie diesen Schritten:"
+  zh: "推送通知需要在您的设备上安装该应用。请按以下步骤操作："
+  es: "Las notificaciones push requieren que la app esté instalada en tu dispositivo. Sigue estos pasos:"
+  fr: "Les notifications push nécessitent que l'app soit installée sur votre appareil. Suivez ces étapes :"
+  pt: "As notificações push exigem que o app esteja instalado no seu dispositivo. Siga estes passos:"
+  ru: "Push-уведомления требуют установки приложения на вашем устройстве. Следуйте этим шагам:"
+  ja: "プッシュ通知には、アプリをデバイスにインストールする必要があります。次の手順に従ってください："
+  ko: "푸시 알림을 사용하려면 앱이 기기에 설치되어 있어야 합니다. 다음 단계를 따르세요:"
+  it: "Le notifiche push richiedono che l'app sia installata sul tuo dispositivo. Segui questi passaggi:"
+  tr: "Anlık bildirimler, uygulamanın cihazınıza yüklenmesini gerektirir. Şu adımları izleyin:"
+  vi: "Thông báo đẩy yêu cầu ứng dụng phải được cài đặt trên thiết bị của bạn. Làm theo các bước sau:"
+  id: "Notifikasi push membutuhkan aplikasi yang terinstal di perangkat Anda. Ikuti langkah-langkah berikut:"
+  pl: "Powiadomienia push wymagają zainstalowania aplikacji na urządzeniu. Wykonaj następujące kroki:"
+  nl: "Pushmeldingen vereisen dat de app op uw apparaat is geïnstalleerd. Volg deze stappen:"
   ar: "تتطلب إشعارات الدفع تثبيت التطبيق على جهازك. اتبع هذه الخطوات:"
-
+  hi: "पुश नोटिफिकेशन के लिए ऐप आपके डिवाइस पर इंस्टॉल होना आवश्यक है। इन चरणों का पालन करें:"
+  th: "การแจ้งเตือนแบบพุชต้องการให้แอปติดตั้งบนอุปกรณ์ของคุณ ทำตามขั้นตอนเหล่านี้:"
+  cs: "Push oznámení vyžadují instalaci aplikace na vašem zařízení. Postupujte podle těchto kroků:"
+  sv: "Push-aviseringar kräver att appen är installerad på din enhet. Följ dessa steg:"
   he: "התראות Push דורשות שהאפליקציה תהיה מותקנת במכשיר שלך. בצע את השלבים הבאים:"
 notifications.denied_info:
   context: Info text when permission is denied
   en: To enable notifications, please allow them in your browser settings and refresh the page.
   de: Um Benachrichtigungen zu aktivieren, erlauben Sie diese bitte in Ihren Browser-Einstellungen und aktualisieren Sie die Seite.
+  zh: 要启用通知，请在浏览器设置中允许，然后刷新页面。
+  es: Para activar las notificaciones, permítelas en la configuración del navegador y actualiza la página.
+  fr: Pour activer les notifications, veuillez les autoriser dans les paramètres de votre navigateur et actualiser la page.
+  pt: Para ativar notificações, permita-as nas configurações do navegador e atualize a página.
+  ru: Чтобы включить уведомления, разрешите их в настройках браузера и обновите страницу.
+  ja: 通知を有効にするには、ブラウザの設定で許可してページを更新してください。
+  ko: 알림을 활성화하려면 브라우저 설정에서 허용하고 페이지를 새로 고침하세요.
+  it: Per abilitare le notifiche, consentile nelle impostazioni del browser e aggiorna la pagina.
+  tr: Bildirimleri etkinleştirmek için lütfen tarayıcı ayarlarınızda bunlara izin verin ve sayfayı yenileyin.
+  vi: Để bật thông báo, hãy cho phép chúng trong cài đặt trình duyệt và làm mới trang.
+  id: Untuk mengaktifkan notifikasi, izinkan di pengaturan browser Anda dan muat ulang halaman.
+  pl: Aby włączyć powiadomienia, zezwól na nie w ustawieniach przeglądarki i odśwież stronę.
+  nl: Om meldingen in te schakelen, staat u ze toe in uw browserinstellingen en vernieuwt u de pagina.
   ar: لتفعيل الإشعارات، يرجى السماح بها في إعدادات المتصفح وإعادة تحميل الصفحة.
-
+  hi: सूचनाएं सक्षम करने के लिए, कृपया अपने ब्राउज़र सेटिंग्स में उन्हें अनुमति दें और पृष्ठ को रीफ्रेश करें।
+  th: เพื่อเปิดใช้การแจ้งเตือน กรุณาอนุญาตในการตั้งค่าเบราว์เซอร์และรีเฟรชหน้า
+  cs: Chcete-li povolit oznámení, povolte je v nastavení prohlížeče a obnovte stránku.
+  sv: För att aktivera aviseringar, tillåt dem i webbläsarinställningarna och uppdatera sidan.
   he: כדי להפעיל התראות, יש לאשר אותן בהגדרות הדפדפן ולרענן את הדף.
 notifications.categories:
   context: Section title for notification categories
   en: Notification Types
   de: Benachrichtigungstypen
+  zh: 通知类型
+  es: Tipos de notificaciones
+  fr: Types de notifications
+  pt: Tipos de notificações
+  ru: Типы уведомлений
+  ja: 通知タイプ
+  ko: 알림 유형
+  it: Tipi di notifica
+  tr: Bildirim türleri
+  vi: Loại thông báo
+  id: Jenis notifikasi
+  pl: Typy powiadomień
+  nl: Meldingstypen
   ar: أنواع الإشعارات
-
+  hi: अधिसूचना प्रकार
+  th: ประเภทการแจ้งเตือน
+  cs: Typy oznámení
+  sv: Aviseringstyper
   he: סוגי התראות
 notifications.new_messages:
   context: New messages notification toggle
   en: New Messages
   de: Neue Nachrichten
+  zh: 新消息
+  es: Nuevos mensajes
+  fr: Nouveaux messages
+  pt: Novas mensagens
+  ru: Новые сообщения
+  ja: 新しいメッセージ
+  ko: 새 메시지
+  it: Nuovi messaggi
+  tr: Yeni mesajlar
+  vi: Tin nhắn mới
+  id: Pesan baru
+  pl: Nowe wiadomości
+  nl: Nieuwe berichten
   ar: رسائل جديدة
-
+  hi: नए संदेश
+  th: ข้อความใหม่
+  cs: Nové zprávy
+  sv: Nya meddelanden
   he: הודעות חדשות
 notifications.new_messages_desc:
   context: Description for new messages notifications
   en: When an assistant completes a response
   de: Wenn ein Assistent eine Antwort abgeschlossen hat
+  zh: 当助手完成回复时
+  es: Cuando un asistente completa una respuesta
+  fr: Quand un assistant complète une réponse
+  pt: Quando um assistente conclui uma resposta
+  ru: Когда помощник завершает ответ
+  ja: アシスタントが回答を完了したとき
+  ko: 어시스턴트가 응답을 완료했을 때
+  it: Quando un assistente completa una risposta
+  tr: Bir asistan bir yanıtı tamamladığında
+  vi: Khi trợ lý hoàn thành phản hồi
+  id: Saat asisten menyelesaikan respons
+  pl: Gdy asystent ukończy odpowiedź
+  nl: Wanneer een assistent een antwoord voltooit
   ar: عندما يكمل المساعد ردًا
-
+  hi: जब कोई सहायक प्रतिक्रिया पूरी करता है
+  th: เมื่อผู้ช่วยตอบกลับเสร็จสิ้น
+  cs: Když asistent dokončí odpověď
+  sv: När en assistent slutför ett svar
   he: כאשר עוזר משלים תגובה
 notifications.server_events:
   context: Server events notification toggle
   en: Server Events
   de: Server-Ereignisse
+  zh: 服务器事件
+  es: Eventos del servidor
+  fr: Événements du serveur
+  pt: Eventos do servidor
+  ru: События сервера
+  ja: サーバーイベント
+  ko: 서버 이벤트
+  it: Eventi del server
+  tr: Sunucu olayları
+  vi: Sự kiện máy chủ
+  id: Acara server
+  pl: Zdarzenia serwera
+  nl: Servergebeurtenissen
   ar: أحداث الخادم
-
+  hi: सर्वर इवेंट
+  th: เหตุการณ์เซิร์ฟเวอร์
+  cs: Události serveru
+  sv: Serverhändelser
   he: אירועי שרת
 notifications.server_events_desc:
   context: Description for server event notifications
   en: Connection issues and maintenance alerts
   de: Verbindungsprobleme und Wartungsmeldungen
+  zh: 连接问题和维护提醒
+  es: Problemas de conexión y alertas de mantenimiento
+  fr: Problèmes de connexion et alertes de maintenance
+  pt: Problemas de conexão e alertas de manutenção
+  ru: Проблемы с подключением и уведомления о техобслуживании
+  ja: 接続の問題とメンテナンスアラート
+  ko: 연결 문제 및 유지 관리 알림
+  it: Problemi di connessione e avvisi di manutenzione
+  tr: Bağlantı sorunları ve bakım uyarıları
+  vi: Sự cố kết nối và cảnh báo bảo trì
+  id: Masalah koneksi dan peringatan pemeliharaan
+  pl: Problemy z połączeniem i alerty konserwacji
+  nl: Verbindingsproblemen en onderhoudswaarschuwingen
   ar: مشاكل الاتصال وتنبيهات الصيانة
-
+  hi: कनेक्शन समस्याएं और रखरखाव अलर्ट
+  th: ปัญหาการเชื่อมต่อและการแจ้งเตือนการบำรุงรักษา
+  cs: Problémy s připojením a upozornění na údržbu
+  sv: Anslutningsproblem och underhållsaviseringar
   he: בעיות חיבור והתראות תחזוקה
 notifications.software_updates:
   context: Software updates notification toggle
   en: Software Updates
   de: Software-Updates
+  zh: 软件更新
+  es: Actualizaciones de software
+  fr: Mises à jour logicielles
+  pt: Atualizações de software
+  ru: Обновления программного обеспечения
+  ja: ソフトウェアアップデート
+  ko: 소프트웨어 업데이트
+  it: Aggiornamenti software
+  tr: Yazılım güncellemeleri
+  vi: Cập nhật phần mềm
+  id: Pembaruan perangkat lunak
+  pl: Aktualizacje oprogramowania
+  nl: Software-updates
   ar: تحديثات البرنامج
-
+  hi: सॉफ्टवेयर अपडेट
+  th: การอัปเดตซอฟต์แวร์
+  cs: Aktualizace softwaru
+  sv: Programuppdateringar
   he: עדכוני תוכנה
 notifications.software_updates_desc:
   context: Description for software update notifications
   en: When new versions are available
   de: Wenn neue Versionen verfügbar sind
+  zh: 当有新版本可用时
+  es: Cuando hay nuevas versiones disponibles
+  fr: Quand de nouvelles versions sont disponibles
+  pt: Quando novas versões estão disponíveis
+  ru: Когда доступны новые версии
+  ja: 新しいバージョンが利用可能になったとき
+  ko: 새 버전이 사용 가능할 때
+  it: Quando sono disponibili nuove versioni
+  tr: Yeni sürümler mevcut olduğunda
+  vi: Khi có phiên bản mới
+  id: Saat versi baru tersedia
+  pl: Gdy dostępne są nowe wersje
+  nl: Wanneer nieuwe versies beschikbaar zijn
   ar: عند توفر إصدارات جديدة
-
+  hi: जब नए संस्करण उपलब्ध हों
+  th: เมื่อมีเวอร์ชันใหม่
+  cs: Když jsou k dispozici nové verze
+  sv: När nya versioner finns tillgängliga
   # Email notifications section
   he: כאשר גרסאות חדשות זמינות
 notifications.email_section:
   context: Section title for email notifications
   en: Email Notifications
   de: E-Mail-Benachrichtigungen
+  zh: 邮件通知
+  es: Notificaciones por correo electrónico
+  fr: Notifications par e-mail
+  pt: Notificações por e-mail
+  ru: Уведомления по электронной почте
+  ja: メール通知
+  ko: 이메일 알림
+  it: Notifiche e-mail
+  tr: E-posta bildirimleri
+  vi: Thông báo qua email
+  id: Notifikasi email
+  pl: Powiadomienia e-mail
+  nl: E-mailmeldingen
   ar: إشعارات البريد الإلكتروني
-
+  hi: ईमेल सूचनाएं
+  th: การแจ้งเตือนทางอีเมล
+  cs: E-mailová oznámení
+  sv: E-postaviseringar
   he: התראות באימייל
 notifications.email_enable:
   context: Email notifications toggle title
   en: Email Notifications
   de: E-Mail-Benachrichtigungen
+  zh: 邮件通知
+  es: Notificaciones por correo electrónico
+  fr: Notifications par e-mail
+  pt: Notificações por e-mail
+  ru: Уведомления по электронной почте
+  ja: メール通知
+  ko: 이메일 알림
+  it: Notifiche e-mail
+  tr: E-posta bildirimleri
+  vi: Thông báo qua email
+  id: Notifikasi email
+  pl: Powiadomienia e-mail
+  nl: E-mailmeldingen
   ar: إشعارات البريد الإلكتروني
-
+  hi: ईमेल सूचनाएं
+  th: การแจ้งเตือนทางอีเมล
+  cs: E-mailová oznámení
+  sv: E-postaviseringar
   he: התראות באימייל
 notifications.email_enable_desc:
   context: Description for email notifications toggle
   en: Receive emails when you're offline
   de: E-Mails erhalten, wenn Sie offline sind
+  zh: 离线时接收邮件
+  es: Recibe correos cuando estás desconectado
+  fr: Recevoir des e-mails quand vous êtes hors ligne
+  pt: Receba e-mails quando estiver offline
+  ru: Получайте письма, когда вы не в сети
+  ja: オフライン時にメールを受信する
+  ko: 오프라인 상태일 때 이메일 수신
+  it: Ricevi e-mail quando sei offline
+  tr: Çevrimdışıyken e-posta alın
+  vi: Nhận email khi bạn ngoại tuyến
+  id: Terima email saat Anda offline
+  pl: Otrzymuj e-maile, gdy jesteś offline
+  nl: Ontvang e-mails wanneer u offline bent
   ar: استلام رسائل بريد إلكتروني عند عدم الاتصال
-
+  hi: ऑफ़लाइन होने पर ईमेल प्राप्त करें
+  th: รับอีเมลเมื่อคุณออฟไลน์
+  cs: Dostávejte e-maily, když jste offline
+  sv: Ta emot e-post när du är offline
   he: קבלת אימיילים כשאינך מחובר
 notifications.email_address:
   context: Email address input label
   en: Notification Email
   de: Benachrichtigungs-E-Mail
+  zh: 通知邮箱
+  es: Correo de notificación
+  fr: E-mail de notification
+  pt: E-mail de notificação
+  ru: Email для уведомлений
+  ja: 通知メール
+  ko: 알림 이메일
+  it: E-mail di notifica
+  tr: Bildirim e-postası
+  vi: Email thông báo
+  id: Email notifikasi
+  pl: E-mail powiadomień
+  nl: Meldings-e-mail
   ar: بريد الإشعارات
-
+  hi: अधिसूचना ईमेल
+  th: อีเมลการแจ้งเตือน
+  cs: Notifikační e-mail
+  sv: Aviserings-e-post
   he: אימייל להתראות
 notifications.email_address_placeholder:
   context: Email address input placeholder
   en: Enter email address
   de: E-Mail-Adresse eingeben
+  zh: 输入电子邮件地址
+  es: Ingresa la dirección de correo electrónico
+  fr: Saisir l'adresse e-mail
+  pt: Digite o endereço de e-mail
+  ru: Введите адрес электронной почты
+  ja: メールアドレスを入力
+  ko: 이메일 주소 입력
+  it: Inserisci l'indirizzo e-mail
+  tr: E-posta adresini girin
+  vi: Nhập địa chỉ email
+  id: Masukkan alamat email
+  pl: Wprowadź adres e-mail
+  nl: E-mailadres invoeren
   ar: أدخل عنوان البريد الإلكتروني
-
+  hi: ईमेल पता दर्ज करें
+  th: ป้อนที่อยู่อีเมล
+  cs: Zadejte e-mailovou adresu
+  sv: Ange e-postadress
   he: הזנת כתובת אימייל
 notifications.email_address_desc:
   context: Description for notification email field
   en: Where to send notifications (can differ from login email)
   de: Wohin Benachrichtigungen gesendet werden (kann von der Login-E-Mail abweichen)
+  zh: 发送通知的位置（可以与登录邮箱不同）
+  es: Dónde enviar notificaciones (puede ser diferente al correo de inicio de sesión)
+  fr: Où envoyer les notifications (peut différer de l'e-mail de connexion)
+  pt: Para onde enviar notificações (pode diferir do e-mail de login)
+  ru: Куда отправлять уведомления (может отличаться от email для входа)
+  ja: 通知の送信先（ログインメールと異なる場合があります）
+  ko: 알림을 보낼 위치 (로그인 이메일과 다를 수 있음)
+  it: Dove inviare le notifiche (può differire dall'e-mail di accesso)
+  tr: Bildirimlerin gönderileceği yer (giriş e-postasından farklı olabilir)
+  vi: Nơi gửi thông báo (có thể khác với email đăng nhập)
+  id: Tempat mengirim notifikasi (bisa berbeda dari email login)
+  pl: Gdzie wysyłać powiadomienia (może różnić się od e-maila logowania)
+  nl: Waar meldingen naartoe sturen (kan afwijken van aanmeldings-e-mail)
   ar: مكان إرسال الإشعارات (يمكن أن يختلف عن بريد تسجيل الدخول)
-
+  hi: सूचनाएं कहां भेजें (लॉगिन ईमेल से भिन्न हो सकता है)
+  th: ที่ส่งการแจ้งเตือน (อาจแตกต่างจากอีเมลเข้าสู่ระบบ)
+  cs: Kam posílat oznámení (může se lišit od přihlašovacího e-mailu)
+  sv: Vart skicka aviseringar (kan skilja sig från inloggnings-e-post)
   he: לאן לשלוח התראות (יכול להיות שונה מאימייל ההתחברות)
 notifications.email_ai_responses:
   context: AI responses notification toggle
   en: AI Responses
   de: KI-Antworten
+  zh: AI 回复
+  es: Respuestas de IA
+  fr: Réponses IA
+  pt: Respostas de IA
+  ru: Ответы ИИ
+  ja: AI回答
+  ko: AI 응답
+  it: Risposte AI
+  tr: Yapay zeka yanıtları
+  vi: Phản hồi AI
+  id: Respons AI
+  pl: Odpowiedzi AI
+  nl: AI-antwoorden
   ar: ردود الذكاء الاصطناعي
-
+  hi: AI प्रतिक्रियाएं
+  th: การตอบกลับของ AI
+  cs: Odpovědi AI
+  sv: AI-svar
   he: תגובות בינה מלאכותית
 notifications.email_ai_responses_desc:
   context: Description for AI responses email notifications
   en: When an assistant completes a response while you're away
   de: Wenn ein Assistent eine Antwort abschließt, während Sie abwesend sind
+  zh: 当您离开时助手完成回复
+  es: Cuando un asistente completa una respuesta mientras estás ausente
+  fr: Quand un assistant complète une réponse pendant votre absence
+  pt: Quando um assistente conclui uma resposta enquanto você está ausente
+  ru: Когда помощник завершает ответ в ваше отсутствие
+  ja: 外出中にアシスタントが回答を完了したとき
+  ko: 자리를 비운 동안 어시스턴트가 응답을 완료했을 때
+  it: Quando un assistente completa una risposta mentre sei assente
+  tr: Bir asistan siz yokken yanıtı tamamladığında
+  vi: Khi trợ lý hoàn thành phản hồi trong lúc bạn vắng mặt
+  id: Saat asisten menyelesaikan respons saat Anda pergi
+  pl: Gdy asystent ukończy odpowiedź podczas Twojej nieobecności
+  nl: Wanneer een assistent een antwoord voltooit terwijl u weg bent
   ar: عندما يكمل المساعد الرد أثناء غيابك
-
+  hi: जब आप दूर हों तो सहायक प्रतिक्रिया पूरी करता है
+  th: เมื่อผู้ช่วยตอบกลับเสร็จสิ้นขณะที่คุณไม่อยู่
+  cs: Když asistent dokončí odpověď během vaší nepřítomnosti
+  sv: När en assistent slutför ett svar medan du är borta
   he: כאשר עוזר משלים תגובה בזמן שאינך נמצא
 notifications.email_how_it_works:
   context: Info banner explaining how email notifications work
   en: Email notifications are only sent when you're not actively using OpenMates on any device.
   de: E-Mail-Benachrichtigungen werden nur gesendet, wenn Sie OpenMates auf keinem Gerät aktiv nutzen.
+  zh: 仅当您未在任何设备上主动使用 OpenMates 时才发送邮件通知。
+  es: Las notificaciones por correo se envían solo cuando no estás usando activamente OpenMates en ningún dispositivo.
+  fr: Les notifications par e-mail ne sont envoyées que lorsque vous n'utilisez pas activement OpenMates sur aucun appareil.
+  pt: As notificações por e-mail só são enviadas quando você não está usando ativamente o OpenMates em nenhum dispositivo.
+  ru: Уведомления по электронной почте отправляются только тогда, когда вы активно не используете OpenMates ни на одном устройстве.
+  ja: メール通知は、どのデバイスでもOpenMatesを積極的に使用していない場合にのみ送信されます。
+  ko: 이메일 알림은 어떤 기기에서도 OpenMates를 적극적으로 사용하지 않을 때만 전송됩니다.
+  it: Le notifiche e-mail vengono inviate solo quando non stai usando attivamente OpenMates su nessun dispositivo.
+  tr: E-posta bildirimleri yalnızca hiçbir cihazda OpenMates'i aktif olarak kullanmadığınızda gönderilir.
+  vi: Thông báo email chỉ được gửi khi bạn không đang tích cực sử dụng OpenMates trên bất kỳ thiết bị nào.
+  id: Notifikasi email hanya dikirim saat Anda tidak aktif menggunakan OpenMates di perangkat mana pun.
+  pl: Powiadomienia e-mail są wysyłane tylko wtedy, gdy nie korzystasz aktywnie z OpenMates na żadnym urządzeniu.
+  nl: E-mailmeldingen worden alleen verzonden wanneer u OpenMates op geen enkel apparaat actief gebruikt.
   ar: يتم إرسال إشعارات البريد الإلكتروني فقط عندما لا تستخدم OpenMates بنشاط على أي جهاز.
-
+  hi: ईमेल सूचनाएं केवल तब भेजी जाती हैं जब आप किसी भी डिवाइस पर OpenMates का सक्रिय रूप से उपयोग नहीं कर रहे हों।
+  th: การแจ้งเตือนทางอีเมลจะถูกส่งเฉพาะเมื่อคุณไม่ได้ใช้งาน OpenMates อย่างแข็งขันบนอุปกรณ์ใดๆ
+  cs: E-mailová oznámení se odesílají pouze tehdy, když aktivně nepoužíváte OpenMates na žádném zařízení.
+  sv: E-postaviseringar skickas bara när du inte aktivt använder OpenMates på någon enhet.
   he: התראות באימייל נשלחות רק כשאינך משתמש באופן פעיל ב-OpenMates באף מכשיר.
 notifications.email_invalid:
   context: Error message for invalid email
   en: Please enter a valid email address
   de: Bitte geben Sie eine gültige E-Mail-Adresse ein
+  zh: 请输入有效的电子邮件地址
+  es: Por favor ingresa una dirección de correo electrónico válida
+  fr: Veuillez saisir une adresse e-mail valide
+  pt: Por favor, insira um endereço de e-mail válido
+  ru: Пожалуйста, введите действительный адрес электронной почты
+  ja: 有効なメールアドレスを入力してください
+  ko: 유효한 이메일 주소를 입력해 주세요
+  it: Per favore inserisci un indirizzo e-mail valido
+  tr: Lütfen geçerli bir e-posta adresi girin
+  vi: Vui lòng nhập địa chỉ email hợp lệ
+  id: Silakan masukkan alamat email yang valid
+  pl: Proszę podać prawidłowy adres e-mail
+  nl: Voer een geldig e-mailadres in
   ar: يرجى إدخال عنوان بريد إلكتروني صالح
-
+  hi: कृपया एक वैध ईमेल पता दर्ज करें
+  th: กรุณาป้อนที่อยู่อีเมลที่ถูกต้อง
+  cs: Zadejte prosím platnou e-mailovou adresu
+  sv: Ange en giltig e-postadress
   he: נא להזין כתובת אימייל תקינה
 notifications.email_saving:
   context: Status text while saving email settings
   en: Saving...
   de: Wird gespeichert...
+  zh: 正在保存...
+  es: Guardando...
+  fr: Enregistrement...
+  pt: Salvando...
+  ru: Сохранение...
+  ja: 保存中...
+  ko: 저장 중...
+  it: Salvataggio...
+  tr: Kaydediliyor...
+  vi: Đang lưu...
+  id: Menyimpan...
+  pl: Zapisywanie...
+  nl: Opslaan...
   ar: جاري الحفظ...
+  hi: सहेजा जा रहा है...
+  th: กำลังบันทึก...
+  cs: Ukládání...
+  sv: Sparar...
   he: שומר...
 
 notifications.email_webhooks:
@@ -269,7 +798,21 @@ notifications.email_webhooks:
   zh: Webhook 聊天
   es: Chats de Webhook
   fr: Chats Webhook
+  pt: Chats de Webhook
+  ru: Webhook-чаты
+  ja: Webhookチャット
+  ko: 웹훅 채팅
+  it: Chat Webhook
+  tr: Webhook Sohbetleri
+  vi: Chats Webhook
+  id: Obrolan Webhook
+  pl: Czaty Webhook
+  nl: Webhook-chats
   ar: محادثات Webhook
+  hi: Webhook चैट
+  th: แชท Webhook
+  cs: Webhook chaty
+  sv: Webhook-chattar
   he: שיחות Webhook
 
 notifications.email_webhooks_desc:
@@ -279,5 +822,19 @@ notifications.email_webhooks_desc:
   zh: 当传入 Webhook 在您离开时创建新聊天
   es: Cuando un webhook entrante crea un nuevo chat mientras estás ausente
   fr: Lorsqu'un webhook entrant crée un nouveau chat pendant votre absence
+  pt: Quando um webhook de entrada cria um novo chat enquanto você está ausente
+  ru: Когда входящий webhook создаёт новый чат в ваше отсутствие
+  ja: 外出中に受信webhookが新しいチャットを作成したとき
+  ko: 자리를 비운 동안 수신 웹훅이 새 채팅을 만들 때
+  it: Quando un webhook in arrivo crea una nuova chat mentre sei assente
+  tr: Siz yokken gelen bir webhook yeni bir sohbet oluşturduğunda
+  vi: Khi một webhook đến tạo cuộc trò chuyện mới trong lúc bạn vắng mặt
+  id: Saat webhook masuk membuat obrolan baru saat Anda pergi
+  pl: Gdy przychodzący webhook tworzy nowy czat podczas Twojej nieobecności
+  nl: Wanneer een inkomende webhook een nieuwe chat maakt terwijl u weg bent
   ar: عندما يُنشئ webhook وارد محادثة جديدة أثناء غيابك
+  hi: जब आप दूर हों तो आने वाला webhook एक नई चैट बनाता है
+  th: เมื่อ webhook ขาเข้าสร้างแชทใหม่ขณะที่คุณไม่อยู่
+  cs: Když příchozí webhook vytvoří nový chat během vaší nepřítomnosti
+  sv: När ett inkommande webhook skapar en ny chatt medan du är borta
   he: כאשר webhook נכנס יוצר שיחה חדשה בזמן שאינך נמצא

@@ -53,6 +53,63 @@ process:
   en: |
     - discusses what symptoms one had in recent weeks and months, even if one doesn't see connections between them
     - discusses what test results / documents one should collect before the next appointment
+  de: |
+    - bespricht, welche Symptome man in den letzten Wochen und Monaten hatte, auch wenn man keine Verbindungen sieht
+    - bespricht, welche Testergebnisse/Dokumente man vor dem nächsten Termin sammeln sollte
+  zh: |
+    - 讨论近几周和几个月出现的症状，即使看不出它们之间的联系
+    - 讨论在下次预约前应该收集哪些检查结果/文件
+  es: |
+    - discute qué síntomas se han tenido en las últimas semanas y meses, incluso si no se ven conexiones entre ellos
+    - discute qué resultados de pruebas/documentos se deben recopilar antes de la próxima cita
+  fr: |
+    - discute des symptômes ressentis ces dernières semaines et mois, même si l'on ne voit pas de liens entre eux
+    - discute des résultats de tests/documents à rassembler avant le prochain rendez-vous
+  pt: |
+    - discute os sintomas que teve nas últimas semanas e meses, mesmo que não veja conexões entre eles
+    - discute quais resultados de exames/documentos devem ser coletados antes da próxima consulta
+  ru: |
+    - обсуждает симптомы, которые были в последние недели и месяцы, даже если не видно связи между ними
+    - обсуждает, какие результаты анализов/документы нужно собрать перед следующим визитом
+  ja: |
+    - 最近数週間・数ヶ月で経験した症状を話し合う（関連性が見えなくても）
+    - 次の予約前に収集すべき検査結果/書類について話し合う
+  ko: |
+    - 최근 몇 주 및 몇 달 동안 경험한 증상에 대해 이야기합니다 (연관성이 없어 보여도)
+    - 다음 예약 전에 수집해야 할 검사 결과/문서에 대해 이야기합니다
+  it: |
+    - discute i sintomi avuti nelle ultime settimane e mesi, anche se non si vedono connessioni
+    - discute quali risultati di esami/documenti raccogliere prima della prossima visita
+  tr: |
+    - son haftalarda ve aylarda yaşanan semptomları, aralarında bağlantı görünmese bile tartışır
+    - bir sonraki randevudan önce hangi test sonuçları/belgelerinin toplanması gerektiğini tartışır
+  vi: |
+    - thảo luận về các triệu chứng trong những tuần và tháng gần đây, dù không thấy mối liên hệ giữa chúng
+    - thảo luận về kết quả xét nghiệm/tài liệu cần thu thập trước cuộc hẹn tiếp theo
+  id: |
+    - mendiskusikan gejala yang dialami dalam beberapa minggu dan bulan terakhir, meski tidak terlihat kaitannya
+    - mendiskusikan hasil tes/dokumen yang perlu dikumpulkan sebelum janji temu berikutnya
+  pl: |
+    - omawia objawy z ostatnich tygodni i miesięcy, nawet jeśli nie widać między nimi związków
+    - omawia, jakie wyniki badań/dokumenty należy zebrać przed następną wizytą
+  nl: |
+    - bespreekt welke symptomen men de afgelopen weken en maanden had, ook als er geen verbanden zichtbaar zijn
+    - bespreekt welke testresultaten/documenten verzameld moeten worden voor de volgende afspraak
+  ar: |
+    - يناقش الأعراض التي ظهرت خلال الأسابيع والأشهر الأخيرة، حتى لو لم تبدُ مترابطة
+    - يناقش نتائج الفحوصات/الوثائق التي يجب جمعها قبل الموعد القادم
+  hi: |
+    - पिछले हफ्तों और महीनों में हुए लक्षणों पर चर्चा करता है, भले ही उनके बीच कोई संबंध न दिखे
+    - अगली अपॉइंटमेंट से पहले कौन से परीक्षण परिणाम/दस्तावेज़ एकत्र करने चाहिए, इस पर चर्चा करता है
+  th: |
+    - พูดคุยเกี่ยวกับอาการที่เกิดขึ้นในช่วงสัปดาห์และเดือนที่ผ่านมา แม้ว่าจะไม่เห็นความเชื่อมโยงระหว่างกัน
+    - พูดคุยเกี่ยวกับผลการทดสอบ/เอกสารที่ควรรวบรวมก่อนนัดหมายครั้งถัดไป
+  cs: |
+    - diskutuje o příznacích z posledních týdnů a měsíců, i když není vidět spojitost
+    - diskutuje o výsledcích testů/dokumentech, které je třeba shromáždit před příštím termínem
+  sv: |
+    - diskuterar vilka symtom man haft de senaste veckorna och månaderna, även om man inte ser samband
+    - diskuterar vilka testresultat/dokument man bör samla in inför nästa besök
   he: |
     - פירוט התסמינים שהופיעו בשבועות ובחודשים האחרונים, גם אם לא נראה שיש ביניהם קשר
     - פירוט תוצאות בדיקות או מסמכים שכדאי לאסוף לקראת התור הבא
@@ -61,6 +118,25 @@ process:
 systemprompt:
   context: System prompt for the LLM when prepare_doctor_appointment focus mode is active
   en: You are a health expert.
+  de: Du bist ein Gesundheitsexperte.
+  zh: 你是一位健康专家。
+  es: Eres un experto en salud.
+  fr: Vous êtes un expert en santé.
+  pt: Você é um especialista em saúde.
+  ru: Вы эксперт в области здоровья.
+  ja: あなたは健康の専門家です。
+  ko: 당신은 건강 전문가입니다.
+  it: Sei un esperto di salute.
+  tr: Sağlık konusunda uzmansınız.
+  vi: Bạn là chuyên gia sức khỏe.
+  id: Anda adalah ahli kesehatan.
+  pl: Jesteś ekspertem ds. zdrowia.
+  nl: U bent een gezondheidsexpert.
+  ar: أنت خبير في الصحة.
+  hi: आप एक स्वास्थ्य विशेषज्ञ हैं।
+  th: คุณเป็นผู้เชี่ยวชาญด้านสุขภาพ
+  cs: Jste odborník na zdraví.
+  sv: Du är en hälsoexpert.
   he: אתה מומחה לבריאות.
   verified_by_human:
     - en

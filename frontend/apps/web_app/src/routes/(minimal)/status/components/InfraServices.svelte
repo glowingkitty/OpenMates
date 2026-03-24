@@ -5,7 +5,7 @@
 -->
 <script lang="ts">
 	import type { InfraService, SelectedTimeline } from './types';
-	import { sc } from './utils';
+	import { sc, uptimePct, fmtUptime } from './utils';
 	import TimelineBar from './TimelineBar.svelte';
 
 	let {
@@ -22,6 +22,10 @@
 		<div class="svc-head">
 			<span class="dot" style="background:{sc(svc.status)}"></span>
 			<span class="svc-name">{svc.display_name}</span>
+			{@const pct = uptimePct(svc.timeline_30d ?? [])}
+			{#if pct !== null}
+				<span class="svc-uptime">{fmtUptime(pct)}</span>
+			{/if}
 			<span class="svc-status" style="color:{sc(svc.status)}">{svc.status}</span>
 		</div>
 		{#if svc.timeline_30d?.length}
@@ -65,6 +69,11 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
+	}
+	.svc-uptime {
+		font-size: 0.75rem;
+		color: var(--color-font-secondary);
+		flex-shrink: 0;
 	}
 	.svc-status {
 		font-size: 0.78rem;

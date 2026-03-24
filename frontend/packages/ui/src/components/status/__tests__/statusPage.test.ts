@@ -216,6 +216,145 @@ describe("status API v2 response shapes", () => {
   });
 });
 
+// ─── v2 section structure validation ─────────────────────────────────────
+
+describe("status API v2 section structure", () => {
+  const v2Response = {
+    overall_status: "operational",
+    last_updated: "2026-03-24T10:00:00+00:00",
+    is_admin: false,
+    overall_timeline_30d: Array.from({ length: 30 }, (_, i) => ({
+      date: `2026-${String(Math.floor((24 - 29 + i) / 30) + 2).padStart(2, "0")}-${String(((24 - 29 + i) % 30) + 1).padStart(2, "0")}`,
+      status: "operational",
+    })),
+    services: [
+      {
+        id: "vercel",
+        display_name: "Frontend Server (Vercel)",
+        status: "operational",
+        timeline_30d: [{ date: "2026-03-24", status: "operational" }],
+      },
+    ],
+    apps: [
+      {
+        id: "ai",
+        display_name: "Ai",
+        status: "operational",
+        timeline_30d: [{ date: "2026-03-24", status: "operational" }],
+        provider_count: 5,
+        skill_count: 3,
+      },
+    ],
+    functionalities: [
+      {
+        name: "Chat",
+        status: "operational",
+        pass_rate: 100,
+        total: 10,
+        passed: 10,
+        failed: 0,
+        timeline_30d: [{ date: "2026-03-24", status: "passed" }],
+      },
+    ],
+    incidents: { total_last_30d: 0 },
+  };
+
+  it("has services section with flat infrastructure services", () => {
+    expect(Array.isArray(v2Response.services)).toBe(true);
+    for (const svc of v2Response.services) {
+      expect(svc).toHaveProperty("id");
+      expect(svc).toHaveProperty("display_name");
+      expect(svc).toHaveProperty("status");
+      expect(svc).toHaveProperty("timeline_30d");
+    }
+  });
+
+  it("has apps section with summary data", () => {
+    expect(Array.isArray(v2Response.apps)).toBe(true);
+    for (const app of v2Response.apps) {
+      expect(app).toHaveProperty("id");
+      expect(app).toHaveProperty("provider_count");
+      expect(app).toHaveProperty("skill_count");
+      expect(app).toHaveProperty("timeline_30d");
+    }
+  });
+
+  it("has functionalities section with test-based data", () => {
+    expect(Array.isArray(v2Response.functionalities)).toBe(true);
+    for (const fn of v2Response.functionalities) {
+      expect(fn).toHaveProperty("name");
+      expect(fn).toHaveProperty("pass_rate");
+      expect(fn).toHaveProperty("total");
+      expect(fn).toHaveProperty("passed");
+      expect(fn).toHaveProperty("failed");
+      expect(fn).toHaveProperty("timeline_30d");
+    }
+  });
+
+  it("overall_timeline_30d has 30 entries for uptime calculation", () => {
+    expect(v2Response.overall_timeline_30d).toHaveLength(30);
+  });
+});
+
+// ─── Uptime percentage calculation ───────────────────────────────────────
+
+describe("uptime percentage calculation logic", () => {
+  function computeUptime(
+    timeline: { date: string; status: string }[],
+  ): number | null {
+    if (!timeline?.length) return null;
+    let up = 0;
+    let total = 0;
+    for (const entry of timeline) {
+      if (entry.status === "unknown" || entry.status === "not_run") continue;
+      total++;
+      if (entry.status === "operational" || entry.status === "passed") up++;
+    }
+    if (total === 0) return null;
+    return Math.round((up / total) * 1000) / 10;
+  }
+
+  it("returns 100% for fully operational 30-day timeline", () => {
+    const timeline = Array.from({ length: 30 }, (_, i) => ({
+      date: `2026-03-${String(i + 1).padStart(2, "0")}`,
+      status: "operational",
+    }));
+    expect(computeUptime(timeline)).toBe(100);
+  });
+
+  it("calculates percentage excluding unknown days", () => {
+    const timeline = [
+      { date: "2026-03-20", status: "operational" },
+      { date: "2026-03-21", status: "unknown" },
+      { date: "2026-03-22", status: "down" },
+    ];
+    // 1 operational / 2 countable = 50%
+    expect(computeUptime(timeline)).toBe(50);
+  });
+
+  it("returns null for empty timeline", () => {
+    expect(computeUptime([])).toBeNull();
+  });
+
+  it("returns null when all days are unknown", () => {
+    expect(
+      computeUptime([
+        { date: "2026-03-20", status: "unknown" },
+        { date: "2026-03-21", status: "unknown" },
+      ]),
+    ).toBeNull();
+  });
+
+  it("handles single degraded day correctly", () => {
+    const timeline = Array.from({ length: 30 }, (_, i) => ({
+      date: `2026-03-${String(i + 1).padStart(2, "0")}`,
+      status: i === 15 ? "degraded" : "operational",
+    }));
+    // 29/30 = 96.7%
+    expect(computeUptime(timeline)).toBe(96.7);
+  });
+});
+
 // ─── Color interpolation ─────────────────────────────────────────────────
 
 describe("pass rate color interpolation", () => {

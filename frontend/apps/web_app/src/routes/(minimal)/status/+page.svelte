@@ -46,7 +46,7 @@
 
 <main>
 	{#if data}
-		<StatusHeader overallStatus={data.overall_status} lastUpdated={data.last_updated} />
+		<StatusHeader overallStatus={data.overall_status} lastUpdated={data.last_updated} overallTimeline={data.overall_timeline_30d} />
 	{/if}
 
 	{#if loading}

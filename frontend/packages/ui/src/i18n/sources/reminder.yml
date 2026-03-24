@@ -2,208 +2,873 @@ panel.title:
   context: Title shown at the top of the inline reminder setter panel
   en: Set reminder
   de: Erinnerung setzen
+  zh: 设置提醒
+  es: Establecer recordatorio
+  fr: Définir un rappel
+  pt: Definir lembrete
+  ru: Установить напоминание
+  ja: リマインダーを設定
+  ko: 알림 설정
+  it: Imposta promemoria
+  tr: Hatırlatıcı ayarla
+  vi: Đặt nhắc nhở
+  id: Atur pengingat
+  pl: Ustaw przypomnienie
+  nl: Herinnering instellen
+  ar: تعيين تذكير
+  hi: अनुस्मारक सेट करें
+  th: ตั้งการแจ้งเตือน
+  cs: Nastavit připomínku
+  sv: Ställ in påminnelse
+  he: הגדרת תזכורת
   verified_by_human: [en, de]
 
 panel.cancel:
   context: Label for the close/cancel button in the reminder setter panel (also used as aria-label)
   en: Cancel
   de: Abbrechen
+  zh: 取消
+  es: Cancelar
+  fr: Annuler
+  pt: Cancelar
+  ru: Отмена
+  ja: キャンセル
+  ko: 취소
+  it: Annulla
+  tr: İptal
+  vi: Hủy
+  id: Batal
+  pl: Anuluj
+  nl: Annuleren
+  ar: إلغاء
+  hi: रद्द करें
+  th: ยกเลิก
+  cs: Zrušit
+  sv: Avbryt
+  he: ביטול
   verified_by_human: [en, de]
 
 panel.date:
   context: Label for the date input field in the reminder setter panel
   en: Date
   de: Datum
+  zh: 日期
+  es: Fecha
+  fr: Date
+  pt: Data
+  ru: Дата
+  ja: 日付
+  ko: 날짜
+  it: Data
+  tr: Tarih
+  vi: Ngày
+  id: Tanggal
+  pl: Data
+  nl: Datum
+  ar: التاريخ
+  hi: तारीख
+  th: วันที่
+  cs: Datum
+  sv: Datum
+  he: תאריך
   verified_by_human: [en, de]
 
 panel.time:
   context: Label for the time input field in the reminder setter panel
   en: Time
   de: Uhrzeit
+  zh: 时间
+  es: Hora
+  fr: Heure
+  pt: Hora
+  ru: Время
+  ja: 時間
+  ko: 시간
+  it: Ora
+  tr: Saat
+  vi: Giờ
+  id: Waktu
+  pl: Czas
+  nl: Tijd
+  ar: الوقت
+  hi: समय
+  th: เวลา
+  cs: Čas
+  sv: Tid
+  he: שעה
   verified_by_human: [en, de]
 
 panel.target_this_chat:
   context: Toggle button label — reminder will trigger in the current chat
   en: This chat
   de: Dieser Chat
+  zh: 此聊天
+  es: Este chat
+  fr: Ce chat
+  pt: Este chat
+  ru: Этот чат
+  ja: このチャット
+  ko: 이 채팅
+  it: Questa chat
+  tr: Bu sohbet
+  vi: Chat này
+  id: Chat ini
+  pl: Ten czat
+  nl: Deze chat
+  ar: هذه المحادثة
+  hi: यह चैट
+  th: แชทนี้
+  cs: Tento chat
+  sv: Denna chatt
+  he: הצ'אט הזה
   verified_by_human: [en, de]
 
 panel.target_new_chat:
   context: Toggle button label — reminder will trigger in a new chat
   en: New chat
   de: Neuer Chat
+  zh: 新聊天
+  es: Nuevo chat
+  fr: Nouveau chat
+  pt: Novo chat
+  ru: Новый чат
+  ja: 新しいチャット
+  ko: 새 채팅
+  it: Nuova chat
+  tr: Yeni sohbet
+  vi: Chat mới
+  id: Chat baru
+  pl: Nowy czat
+  nl: Nieuwe chat
+  ar: محادثة جديدة
+  hi: नया चैट
+  th: แชทใหม่
+  cs: Nový chat
+  sv: Ny chatt
+  he: צ'אט חדש
   verified_by_human: [en, de]
 
 panel.type_notification:
   context: Toggle button label — reminder sends a simple notification (no AI action)
   en: Notification
   de: Benachrichtigung
+  zh: 通知
+  es: Notificación
+  fr: Notification
+  pt: Notificação
+  ru: Уведомление
+  ja: 通知
+  ko: 알림
+  it: Notifica
+  tr: Bildirim
+  vi: Thông báo
+  id: Notifikasi
+  pl: Powiadomienie
+  nl: Melding
+  ar: إشعار
+  hi: अधिसूचना
+  th: การแจ้งเตือน
+  cs: Oznámení
+  sv: Avisering
+  he: התראה
   verified_by_human: [en, de]
 
 panel.type_action:
   context: Toggle button label — reminder triggers a full AI action/response
   en: Action
   de: Aktion
+  zh: 操作
+  es: Acción
+  fr: Action
+  pt: Ação
+  ru: Действие
+  ja: アクション
+  ko: 작업
+  it: Azione
+  tr: Eylem
+  vi: Hành động
+  id: Tindakan
+  pl: Akcja
+  nl: Actie
+  ar: إجراء
+  hi: कार्रवाई
+  th: การดำเนินการ
+  cs: Akce
+  sv: Åtgärd
+  he: פעולה
   verified_by_human: [en, de]
 
 panel.action_prompt_label:
   context: Label for the action prompt textarea shown when response type is "action"
   en: Action prompt
   de: Aktionsanweisung
+  zh: 操作提示
+  es: Indicación de acción
+  fr: Invite d'action
+  pt: Prompt de ação
+  ru: Запрос действия
+  ja: アクションプロンプト
+  ko: 작업 프롬프트
+  it: Prompt azione
+  tr: Eylem komutu
+  vi: Lệnh hành động
+  id: Perintah tindakan
+  pl: Monit akcji
+  nl: Actie-prompt
+  ar: موجه الإجراء
+  hi: क्रिया प्रम्प्ट
+  th: คำสั่งการดำเนินการ
+  cs: Výzva akce
+  sv: Åtgärdsprompt
+  he: הנחיית פעולה
   verified_by_human: [en, de]
 
 panel.action_prompt_placeholder:
   context: Placeholder for the action prompt textarea in the reminder setter panel
   en: What should I do when this reminder triggers?
   de: Was soll ich tun, wenn diese Erinnerung ausgelöst wird?
+  zh: 当此提醒触发时，我应该做什么？
+  es: ¿Qué debo hacer cuando se active este recordatorio?
+  fr: Que dois-je faire lorsque ce rappel se déclenche ?
+  pt: O que devo fazer quando este lembrete disparar?
+  ru: Что мне делать, когда это напоминание сработает?
+  ja: このリマインダーが発動したとき、何をすべきですか？
+  ko: 이 알림이 실행되면 무엇을 해야 하나요?
+  it: Cosa devo fare quando questo promemoria si attiva?
+  tr: Bu hatırlatıcı tetiklendiğinde ne yapmalıyım?
+  vi: Tôi nên làm gì khi lời nhắc này kích hoạt?
+  id: Apa yang harus saya lakukan saat pengingat ini dipicu?
+  pl: Co powinienem zrobić, gdy to przypomnienie się uruchomi?
+  nl: Wat moet ik doen als deze herinnering afgaat?
+  ar: ماذا يجب أن أفعل عند تشغيل هذا التذكير؟
+  hi: जब यह अनुस्मारक ट्रिगर हो तो मुझे क्या करना चाहिए?
+  th: ฉันควรทำอะไรเมื่อการแจ้งเตือนนี้ทำงาน?
+  cs: Co mám dělat, když se tato připomínka spustí?
+  sv: Vad ska jag göra när den här påminnelsen utlöses?
+  he: מה עלי לעשות כשהתזכורת הזו מופעלת?
   verified_by_human: [en, de]
 
 panel.note:
   context: Label for the note input shown when response type is "notification"
   en: Note
   de: Notiz
+  zh: 备注
+  es: Nota
+  fr: Note
+  pt: Nota
+  ru: Заметка
+  ja: メモ
+  ko: 메모
+  it: Nota
+  tr: Not
+  vi: Ghi chú
+  id: Catatan
+  pl: Notatka
+  nl: Notitie
+  ar: ملاحظة
+  hi: नोट
+  th: หมายเหตุ
+  cs: Poznámka
+  sv: Anteckning
+  he: הערה
   verified_by_human: [en, de]
 
 panel.note_placeholder:
   context: Placeholder for the note input in the reminder setter panel (also used as default prompt when no note is entered)
   en: Optional note
   de: Optionale Notiz
+  zh: 可选备注
+  es: Nota opcional
+  fr: Note optionnelle
+  pt: Nota opcional
+  ru: Необязательная заметка
+  ja: オプションメモ
+  ko: 선택적 메모
+  it: Nota opzionale
+  tr: İsteğe bağlı not
+  vi: Ghi chú tùy chọn
+  id: Catatan opsional
+  pl: Opcjonalna notatka
+  nl: Optionele notitie
+  ar: ملاحظة اختيارية
+  hi: वैकल्पिक नोट
+  th: หมายเหตุเสริม
+  cs: Volitelná poznámka
+  sv: Valfri anteckning
+  he: הערה אופציונלית
   verified_by_human: [en, de]
 
 panel.repeat:
   context: Label for the repeat/recurrence select field in the reminder setter panel
   en: Repeat
   de: Wiederholen
+  zh: 重复
+  es: Repetir
+  fr: Répéter
+  pt: Repetir
+  ru: Повторять
+  ja: 繰り返し
+  ko: 반복
+  it: Ripeti
+  tr: Tekrar et
+  vi: Lặp lại
+  id: Ulangi
+  pl: Powtórz
+  nl: Herhalen
+  ar: تكرار
+  hi: दोहराएं
+  th: ทำซ้ำ
+  cs: Opakovat
+  sv: Upprepa
+  he: חזרה
   verified_by_human: [en, de]
 
 panel.repeat_none:
   context: Option in the repeat select — reminder does not repeat
   en: No repeat
   de: Keine Wiederholung
+  zh: 不重复
+  es: Sin repetición
+  fr: Pas de répétition
+  pt: Sem repetição
+  ru: Без повтора
+  ja: 繰り返しなし
+  ko: 반복 없음
+  it: Nessuna ripetizione
+  tr: Tekrar yok
+  vi: Không lặp lại
+  id: Tidak berulang
+  pl: Bez powtórzeń
+  nl: Geen herhaling
+  ar: بدون تكرار
+  hi: कोई दोहराव नहीं
+  th: ไม่ทำซ้ำ
+  cs: Bez opakování
+  sv: Ingen upprepning
+  he: ללא חזרה
   verified_by_human: [en, de]
 
 panel.repeat_daily:
   context: Option in the repeat select — reminder repeats every day
   en: Daily
   de: Täglich
+  zh: 每天
+  es: Diario
+  fr: Quotidien
+  pt: Diário
+  ru: Ежедневно
+  ja: 毎日
+  ko: 매일
+  it: Giornaliero
+  tr: Günlük
+  vi: Hàng ngày
+  id: Harian
+  pl: Codziennie
+  nl: Dagelijks
+  ar: يومياً
+  hi: दैनिक
+  th: รายวัน
+  cs: Denně
+  sv: Dagligen
+  he: יומי
   verified_by_human: [en, de]
 
 panel.repeat_weekly:
   context: Option in the repeat select — reminder repeats every week
   en: Weekly
   de: Wöchentlich
+  zh: 每周
+  es: Semanal
+  fr: Hebdomadaire
+  pt: Semanal
+  ru: Еженедельно
+  ja: 毎週
+  ko: 매주
+  it: Settimanale
+  tr: Haftalık
+  vi: Hàng tuần
+  id: Mingguan
+  pl: Co tydzień
+  nl: Wekelijks
+  ar: أسبوعياً
+  hi: साप्ताहिक
+  th: รายสัปดาห์
+  cs: Týdně
+  sv: Veckovis
+  he: שבועי
   verified_by_human: [en, de]
 
 panel.repeat_monthly:
   context: Option in the repeat select — reminder repeats every month
   en: Monthly
   de: Monatlich
+  zh: 每月
+  es: Mensual
+  fr: Mensuel
+  pt: Mensal
+  ru: Ежемесячно
+  ja: 毎月
+  ko: 매월
+  it: Mensile
+  tr: Aylık
+  vi: Hàng tháng
+  id: Bulanan
+  pl: Co miesiąc
+  nl: Maandelijks
+  ar: شهرياً
+  hi: मासिक
+  th: รายเดือน
+  cs: Měsíčně
+  sv: Månadsvis
+  he: חודשי
   verified_by_human: [en, de]
 
 panel.repeat_custom:
   context: Option in the repeat select — reminder repeats on a custom interval
   en: Custom
   de: Benutzerdefiniert
+  zh: 自定义
+  es: Personalizado
+  fr: Personnalisé
+  pt: Personalizado
+  ru: Пользовательский
+  ja: カスタム
+  ko: 사용자 지정
+  it: Personalizzato
+  tr: Özel
+  vi: Tùy chỉnh
+  id: Kustom
+  pl: Niestandardowy
+  nl: Aangepast
+  ar: مخصص
+  hi: कस्टम
+  th: กำหนดเอง
+  cs: Vlastní
+  sv: Anpassad
+  he: מותאם אישית
   verified_by_human: [en, de]
 
 panel.repeat_every:
   context: Label for the custom repeat interval number input (e.g. "Every [3] days")
   en: Every
   de: Alle
+  zh: 每
+  es: Cada
+  fr: Chaque
+  pt: A cada
+  ru: Каждые
+  ja: 毎
+  ko: 매
+  it: Ogni
+  tr: Her
+  vi: Mỗi
+  id: Setiap
+  pl: Co
+  nl: Elke
+  ar: كل
+  hi: हर
+  th: ทุก
+  cs: Každý
+  sv: Var
+  he: כל
   verified_by_human: [en, de]
 
 panel.repeat_days:
   context: Option in the custom repeat unit select — interval unit is days
   en: Days
   de: Tage
+  zh: 天
+  es: Días
+  fr: Jours
+  pt: Dias
+  ru: Дней
+  ja: 日
+  ko: 일
+  it: Giorni
+  tr: Gün
+  vi: Ngày
+  id: Hari
+  pl: Dni
+  nl: Dagen
+  ar: أيام
+  hi: दिन
+  th: วัน
+  cs: Dní
+  sv: Dagar
+  he: ימים
   verified_by_human: [en, de]
 
 panel.repeat_weeks:
   context: Option in the custom repeat unit select — interval unit is weeks
   en: Weeks
   de: Wochen
+  zh: 周
+  es: Semanas
+  fr: Semaines
+  pt: Semanas
+  ru: Недель
+  ja: 週
+  ko: 주
+  it: Settimane
+  tr: Hafta
+  vi: Tuần
+  id: Minggu
+  pl: Tygodnie
+  nl: Weken
+  ar: أسابيع
+  hi: सप्ताह
+  th: สัปดาห์
+  cs: Týdnů
+  sv: Veckor
+  he: שבועות
   verified_by_human: [en, de]
 
 panel.repeat_months:
   context: Option in the custom repeat unit select — interval unit is months
   en: Months
   de: Monate
+  zh: 月
+  es: Meses
+  fr: Mois
+  pt: Meses
+  ru: Месяцев
+  ja: ヶ月
+  ko: 개월
+  it: Mesi
+  tr: Ay
+  vi: Tháng
+  id: Bulan
+  pl: Miesiące
+  nl: Maanden
+  ar: أشهر
+  hi: महीने
+  th: เดือน
+  cs: Měsíců
+  sv: Månader
+  he: חודשים
   verified_by_human: [en, de]
 
 panel.end_date:
   context: Label for the optional end date input shown when a repeat type is selected
   en: End date
   de: Enddatum
+  zh: 结束日期
+  es: Fecha de fin
+  fr: Date de fin
+  pt: Data de término
+  ru: Дата окончания
+  ja: 終了日
+  ko: 종료 날짜
+  it: Data di fine
+  tr: Bitiş tarihi
+  vi: Ngày kết thúc
+  id: Tanggal berakhir
+  pl: Data końcowa
+  nl: Einddatum
+  ar: تاريخ الانتهاء
+  hi: समाप्ति तिथि
+  th: วันที่สิ้นสุด
+  cs: Datum ukončení
+  sv: Slutdatum
+  he: תאריך סיום
   verified_by_human: [en, de]
 
 panel.setting:
   context: Submit button label shown while the reminder is being saved (loading state)
   en: Setting…
   de: Wird gesetzt…
+  zh: 设置中…
+  es: Configurando…
+  fr: Configuration…
+  pt: Configurando…
+  ru: Настройка…
+  ja: 設定中…
+  ko: 설정 중…
+  it: Impostazione…
+  tr: Ayarlanıyor…
+  vi: Đang đặt…
+  id: Mengatur…
+  pl: Ustawianie…
+  nl: Instellen…
+  ar: جارٍ الضبط…
+  hi: सेट हो रहा है…
+  th: กำลังตั้ง…
+  cs: Nastavování…
+  sv: Ställer in…
+  he: מגדיר…
   verified_by_human: [en, de]
 
 panel.submit:
   context: Submit button label in the reminder setter panel (idle state)
   en: Set reminder
   de: Erinnerung setzen
+  zh: 设置提醒
+  es: Establecer recordatorio
+  fr: Définir un rappel
+  pt: Definir lembrete
+  ru: Установить напоминание
+  ja: リマインダーを設定
+  ko: 알림 설정
+  it: Imposta promemoria
+  tr: Hatırlatıcı ayarla
+  vi: Đặt nhắc nhở
+  id: Atur pengingat
+  pl: Ustaw przypomnienie
+  nl: Herinnering instellen
+  ar: تعيين تذكير
+  hi: अनुस्मारक सेट करें
+  th: ตั้งการแจ้งเตือน
+  cs: Nastavit připomínku
+  sv: Ställ in påminnelse
+  he: הגדרת תזכורת
   verified_by_human: [en, de]
 
 panel.error_past:
   context: Validation error shown when the user selects a date/time in the past
   en: Please choose a future date and time.
   de: Bitte wähle einen zukünftigen Zeitpunkt.
+  zh: 请选择未来的日期和时间。
+  es: Por favor elige una fecha y hora futura.
+  fr: Veuillez choisir une date et une heure dans le futur.
+  pt: Por favor, escolha uma data e hora futura.
+  ru: Пожалуйста, выберите дату и время в будущем.
+  ja: 未来の日時を選択してください。
+  ko: 미래의 날짜와 시간을 선택하세요.
+  it: Si prega di scegliere una data e un'ora future.
+  tr: Lütfen gelecekteki bir tarih ve saat seçin.
+  vi: Vui lòng chọn ngày và giờ trong tương lai.
+  id: Silakan pilih tanggal dan waktu di masa depan.
+  pl: Proszę wybrać przyszłą datę i godzinę.
+  nl: Kies een datum en tijd in de toekomst.
+  ar: يرجى اختيار تاريخ ووقت في المستقبل.
+  hi: कृपया भविष्य की तारीख और समय चुनें।
+  th: โปรดเลือกวันที่และเวลาในอนาคต
+  cs: Prosím vyberte datum a čas v budoucnosti.
+  sv: Välj ett framtida datum och en framtida tid.
+  he: אנא בחר תאריך ושעה עתידיים.
   verified_by_human: [en, de]
 
 panel.error_generic:
   context: Generic error message shown when the reminder API call fails
   en: Something went wrong. Please try again.
   de: Etwas ist schiefgelaufen. Bitte versuche es erneut.
+  zh: 出现了问题。请再试一次。
+  es: Algo salió mal. Por favor, inténtalo de nuevo.
+  fr: Quelque chose s'est mal passé. Veuillez réessayer.
+  pt: Algo deu errado. Por favor, tente novamente.
+  ru: Что-то пошло не так. Пожалуйста, попробуйте снова.
+  ja: 問題が発生しました。もう一度お試しください。
+  ko: 문제가 발생했습니다. 다시 시도해 주세요.
+  it: Qualcosa è andato storto. Riprova.
+  tr: Bir şeyler ters gitti. Lütfen tekrar deneyin.
+  vi: Đã xảy ra lỗi. Vui lòng thử lại.
+  id: Ada yang salah. Silakan coba lagi.
+  pl: Coś poszło nie tak. Spróbuj ponownie.
+  nl: Er is iets misgegaan. Probeer het opnieuw.
+  ar: حدث خطأ ما. يرجى المحاولة مرة أخرى.
+  hi: कुछ गलत हो गया। कृपया पुनः प्रयास करें।
+  th: เกิดข้อผิดพลาด โปรดลองอีกครั้ง
+  cs: Něco se pokazilo. Zkuste to znovu.
+  sv: Något gick fel. Försök igen.
+  he: משהו השתבש. אנא נסה שוב.
   verified_by_human: [en, de]
 
 settings.title:
   context: Title of the reminder management settings page
   en: Reminders
   de: Erinnerungen
+  zh: 提醒
+  es: Recordatorios
+  fr: Rappels
+  pt: Lembretes
+  ru: Напоминания
+  ja: リマインダー
+  ko: 알림
+  it: Promemoria
+  tr: Hatırlatıcılar
+  vi: Nhắc nhở
+  id: Pengingat
+  pl: Przypomnienia
+  nl: Herinneringen
+  ar: التذكيرات
+  hi: अनुस्मारक
+  th: การแจ้งเตือน
+  cs: Připomínky
+  sv: Påminnelser
+  he: תזכורות
   verified_by_human: [en, de]
 
 settings.description:
   context: Description shown below the title on the reminder management page
   en: Create and manage your reminders
   de: Erinnerungen erstellen und verwalten
+  zh: 创建和管理您的提醒
+  es: Crea y gestiona tus recordatorios
+  fr: Créez et gérez vos rappels
+  pt: Crie e gerencie seus lembretes
+  ru: Создавайте и управляйте своими напоминаниями
+  ja: リマインダーを作成・管理する
+  ko: 알림을 만들고 관리하세요
+  it: Crea e gestisci i tuoi promemoria
+  tr: Hatırlatıcılarınızı oluşturun ve yönetin
+  vi: Tạo và quản lý nhắc nhở của bạn
+  id: Buat dan kelola pengingat Anda
+  pl: Twórz i zarządzaj swoimi przypomnieniami
+  nl: Maak en beheer uw herinneringen
+  ar: إنشاء وإدارة تذكيراتك
+  hi: अपने अनुस्मारक बनाएं और प्रबंधित करें
+  th: สร้างและจัดการการแจ้งเตือนของคุณ
+  cs: Vytvářejte a spravujte své připomínky
+  sv: Skapa och hantera dina påminnelser
+  he: צור ונהל את התזכורות שלך
   verified_by_human: [en, de]
 
 settings.description_this_chat:
   context: Description when the reminder will fire in the current chat
   en: The reminder will trigger in the current chat
   de: Die Erinnerung wird im aktuellen Chat ausgelöst
+  zh: 提醒将在当前聊天中触发
+  es: El recordatorio se activará en el chat actual
+  fr: Le rappel se déclenchera dans le chat actuel
+  pt: O lembrete será acionado no chat atual
+  ru: Напоминание сработает в текущем чате
+  ja: リマインダーは現在のチャットでトリガーされます
+  ko: 알림이 현재 채팅에서 실행됩니다
+  it: Il promemoria si attiverà nella chat corrente
+  tr: Hatırlatıcı mevcut sohbette tetiklenecek
+  vi: Nhắc nhở sẽ kích hoạt trong chat hiện tại
+  id: Pengingat akan memicu di chat saat ini
+  pl: Przypomnienie uruchomi się w bieżącym czacie
+  nl: De herinnering wordt in de huidige chat geactiveerd
+  ar: سيتم تشغيل التذكير في المحادثة الحالية
+  hi: अनुस्मारक वर्तमान चैट में ट्रिगर होगा
+  th: การแจ้งเตือนจะทำงานในแชทปัจจุบัน
+  cs: Připomínka se spustí v aktuálním chatu
+  sv: Påminnelsen utlöses i den aktuella chatten
+  he: התזכורת תופעל בצ'אט הנוכחי
   verified_by_human: [en, de]
 
 settings.description_new_chat:
   context: Description when the reminder will start a new chat
   en: The reminder will start a new chat when it triggers
   de: Die Erinnerung startet einen neuen Chat, wenn sie ausgelöst wird
+  zh: 提醒触发时将开始新聊天
+  es: El recordatorio iniciará un nuevo chat cuando se active
+  fr: Le rappel démarrera un nouveau chat lorsqu'il se déclenche
+  pt: O lembrete iniciará um novo chat quando disparar
+  ru: Напоминание начнёт новый чат при срабатывании
+  ja: リマインダーが発動すると新しいチャットが開始されます
+  ko: 알림이 실행되면 새 채팅을 시작합니다
+  it: Il promemoria avvierà una nuova chat quando si attiva
+  tr: Hatırlatıcı tetiklendiğinde yeni bir sohbet başlatacak
+  vi: Nhắc nhở sẽ mở chat mới khi kích hoạt
+  id: Pengingat akan memulai chat baru saat dipicu
+  pl: Przypomnienie uruchomi nowy czat po wyzwoleniu
+  nl: De herinnering start een nieuw chat wanneer deze afgaat
+  ar: سيبدأ التذكير محادثة جديدة عند تشغيله
+  hi: ट्रिगर होने पर अनुस्मारक एक नया चैट शुरू करेगा
+  th: การแจ้งเตือนจะเริ่มแชทใหม่เมื่อทำงาน
+  cs: Připomínka spustí nový chat při aktivaci
+  sv: Påminnelsen startar en ny chatt när den utlöses
+  he: התזכורת תפתח צ'אט חדש כשתופעל
   verified_by_human: [en, de]
 
 settings.target_heading:
   context: Heading for the target type selector (this chat vs new chat)
   en: Where to trigger
   de: Wo auslösen
+  zh: 触发位置
+  es: Dónde activar
+  fr: Où déclencher
+  pt: Onde acionar
+  ru: Где срабатывать
+  ja: トリガー先
+  ko: 실행 위치
+  it: Dove attivare
+  tr: Nerede tetikle
+  vi: Nơi kích hoạt
+  id: Di mana memicu
+  pl: Gdzie wyzwalać
+  nl: Waar te activeren
+  ar: أين يتم التشغيل
+  hi: कहाँ ट्रिगर करें
+  th: ตำแหน่งที่จะทำงาน
+  cs: Kde spustit
+  sv: Var ska utlösas
+  he: היכן להפעיל
   verified_by_human: [en, de]
 
 settings.create_title:
   context: Page title for the create reminder settings page (shown in settings header)
   en: Create reminder
   de: Erinnerung erstellen
+  zh: 创建提醒
+  es: Crear recordatorio
+  fr: Créer un rappel
+  pt: Criar lembrete
+  ru: Создать напоминание
+  ja: リマインダーを作成
+  ko: 알림 만들기
+  it: Crea promemoria
+  tr: Hatırlatıcı oluştur
+  vi: Tạo nhắc nhở
+  id: Buat pengingat
+  pl: Utwórz przypomnienie
+  nl: Herinnering aanmaken
+  ar: إنشاء تذكير
+  hi: अनुस्मारक बनाएं
+  th: สร้างการแจ้งเตือน
+  cs: Vytvořit připomínku
+  sv: Skapa påminnelse
+  he: יצירת תזכורת
   verified_by_human: [en, de]
 
 settings.success:
   context: Success message shown after a reminder is created from settings
   en: Reminder set successfully!
   de: Erinnerung erfolgreich gesetzt!
+  zh: 提醒设置成功！
+  es: ¡Recordatorio establecido con éxito!
+  fr: Rappel défini avec succès !
+  pt: Lembrete configurado com sucesso!
+  ru: Напоминание успешно установлено!
+  ja: リマインダーが正常に設定されました！
+  ko: 알림이 성공적으로 설정되었습니다!
+  it: Promemoria impostato con successo!
+  tr: Hatırlatıcı başarıyla ayarlandı!
+  vi: Đặt nhắc nhở thành công!
+  id: Pengingat berhasil diatur!
+  pl: Przypomnienie ustawione pomyślnie!
+  nl: Herinnering succesvol ingesteld!
+  ar: تم تعيين التذكير بنجاح!
+  hi: अनुस्मारक सफलतापूर्वक सेट किया गया!
+  th: ตั้งการแจ้งเตือนสำเร็จ!
+  cs: Připomínka úspěšně nastavena!
+  sv: Påminnelse inställd!
+  he: התזכורת הוגדרה בהצלחה!
   verified_by_human: [en, de]
 
 settings.active_title:
   context: Section heading for the active reminders list in settings
   en: Active reminders
   de: Aktive Erinnerungen
+  zh: 活跃提醒
+  es: Recordatorios activos
+  fr: Rappels actifs
+  pt: Lembretes ativos
+  ru: Активные напоминания
+  ja: アクティブなリマインダー
+  ko: 활성 알림
+  it: Promemoria attivi
+  tr: Aktif hatırlatıcılar
+  vi: Nhắc nhở đang hoạt động
+  id: Pengingat aktif
+  pl: Aktywne przypomnienia
+  nl: Actieve herinneringen
+  ar: التذكيرات النشطة
+  hi: सक्रिय अनुस्मारक
+  th: การแจ้งเตือนที่ใช้งานอยู่
+  cs: Aktivní připomínky
+  sv: Aktiva påminnelser
+  he: תזכורות פעילות
   verified_by_human: [en, de]

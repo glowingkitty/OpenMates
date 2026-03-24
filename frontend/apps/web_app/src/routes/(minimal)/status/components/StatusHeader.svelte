@@ -3,16 +3,21 @@
     Architecture: docs/architecture/infrastructure/status-page.md
 -->
 <script lang="ts">
-	import { ft } from './utils';
+	import type { TimelineEntry } from './types';
+	import { ft, uptimePct, fmtUptime } from './utils';
 	import { STATUS_LABELS } from './utils';
 
 	let {
 		overallStatus,
-		lastUpdated
+		lastUpdated,
+		overallTimeline
 	}: {
 		overallStatus: string;
 		lastUpdated: string;
+		overallTimeline?: TimelineEntry[];
 	} = $props();
+
+	const uptime = $derived(uptimePct(overallTimeline ?? []));
 </script>
 
 <header>
@@ -20,6 +25,9 @@
 	<div class="badge" data-s={overallStatus}>
 		<span class="bdot"></span>{STATUS_LABELS[overallStatus] ?? STATUS_LABELS.unknown}
 	</div>
+	{#if uptime !== null}
+		<p class="uptime" data-testid="overall-uptime">{fmtUptime(uptime)} uptime <span class="uptime-period">last 30 days</span></p>
+	{/if}
 	<p class="upd">Updated {ft(lastUpdated)}</p>
 </header>
 
@@ -55,6 +63,17 @@
 	[data-s='degraded'] { color: #f59e0b; }
 	[data-s='down'] .bdot { background: #ef4444; }
 	[data-s='down'] { color: #ef4444; }
+	.uptime {
+		margin: 0.5rem 0 0;
+		font-size: 1.1rem;
+		font-weight: 600;
+		color: var(--color-font-primary);
+	}
+	.uptime-period {
+		font-weight: 400;
+		font-size: 0.8rem;
+		color: var(--color-font-secondary);
+	}
 	.upd {
 		margin: 0.4rem 0 0;
 		font-size: 0.75rem;

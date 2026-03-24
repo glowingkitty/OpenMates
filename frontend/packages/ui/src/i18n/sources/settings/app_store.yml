@@ -2821,21 +2821,21 @@ settings_memories.hub_no_entries:
   zh: 还没有设置或记忆。请在 App Store 中访问某个应用来创建。
   es: Todavía no hay ajustes ni memorias. Visita una app en la App Store para crearlos.
   fr: Pas encore de paramètres ni de mémoires. Visitez une app dans l'App Store pour en créer.
-  pt: ""
-  ru: ""
+  pt: Ainda não há configurações ou memórias. Visite um app na App Store para criá-las.
+  ru: Настроек или воспоминаний ещё нет. Зайдите в приложение в App Store, чтобы их создать.
   ja: まだ設定やメモリがありません。App Store のアプリを訪問して作成してください。
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 아직 설정이나 메모리가 없습니다. App Store에서 앱을 방문하여 만들어 보세요.
+  it: Ancora nessuna impostazione o memoria. Visita un'app nell'App Store per crearle.
+  tr: Henüz ayar veya anı yok. Oluşturmak için App Store'dan bir uygulamayı ziyaret edin.
+  vi: Chưa có cài đặt hoặc ký ức nào. Hãy truy cập một ứng dụng trong App Store để tạo chúng.
+  id: Belum ada pengaturan atau memori. Kunjungi aplikasi di App Store untuk membuatnya.
+  pl: Brak ustawień lub wspomnień. Odwiedź aplikację w App Store, aby je utworzyć.
+  nl: Nog geen instellingen of herinneringen. Bezoek een app in de App Store om ze te maken.
   ar: لا توجد إعدادات أو ذكريات بعد. قم بزيارة أحد التطبيقات في App Store لإنشائها.
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: अभी तक कोई सेटिंग्स या यादें नहीं हैं। उन्हें बनाने के लिए App Store में कोई ऐप देखें।
+  th: ยังไม่มีการตั้งค่าหรือความทรงจำ เยี่ยมชมแอปใน App Store เพื่อสร้าง
+  cs: Zatím žádná nastavení ani vzpomínky. Navštivte aplikaci v App Store a vytvořte je.
+  sv: Inga inställningar eller minnen än. Besök en app i App Store för att skapa dem.
   he: אין עדיין הגדרות או זיכרונות. בקר באפליקציה ב-App Store כדי ליצור אותם.
   verified_by_human: []
 
@@ -2846,21 +2846,21 @@ settings_memories.discover_link:
   zh: 发现具有设置和记忆的应用
   es: Descubre apps con ajustes y memorias
   fr: Découvrir des apps avec paramètres et mémoires
-  pt: ""
-  ru: ""
+  pt: Descubra apps com configurações e memórias
+  ru: Откройте приложения с настройками и воспоминаниями
   ja: 設定とメモリを持つアプリを発見する
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 설정 및 메모리가 있는 앱 탐색
+  it: Scopri app con impostazioni e memorie
+  tr: Ayarlar ve anıları olan uygulamaları keşfedin
+  vi: Khám phá các ứng dụng có cài đặt & ký ức
+  id: Temukan aplikasi dengan pengaturan & memori
+  pl: Odkryj aplikacje z ustawieniami i wspomnieniami
+  nl: Ontdek apps met instellingen en herinneringen
   ar: اكتشف التطبيقات التي تحتوي على إعدادات وذكريات
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: सेटिंग्स और यादों वाले ऐप्स खोजें
+  th: ค้นพบแอปที่มีการตั้งค่าและความทรงจำ
+  cs: Objevte aplikace s nastaveními a vzpomínkami
+  sv: Upptäck appar med inställningar och minnen
   he: גלה אפליקציות עם הגדרות וזיכרונות
   verified_by_human: []
 
@@ -2871,20 +2871,20 @@ settings_memories.entry_count:
   zh: "{count, plural, other {# 条目}}"
   es: "{count, plural, one {# entrada} other {# entradas}}"
   fr: "{count, plural, one {# entrée} other {# entrées}}"
-  pt: ""
-  ru: ""
+  pt: "{count, plural, one {# entrada} other {# entradas}}"
+  ru: "{count, plural, one {# запись} few {# записи} other {# записей}}"
   ja: "{count} 件"
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: "{count}개 항목"
+  it: "{count, plural, one {# voce} other {# voci}}"
+  tr: "{count, plural, one {# giriş} other {# giriş}}"
+  vi: "{count} mục"
+  id: "{count, plural, one {# entri} other {# entri}}"
+  pl: "{count, plural, one {# wpis} few {# wpisy} other {# wpisów}}"
+  nl: "{count, plural, one {# item} other {# items}}"
   ar: "{count, plural, one {# إدخال} other {# إدخالات}}"
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: "{count} प्रविष्टियां"
+  th: "{count} รายการ"
+  cs: "{count, plural, one {# záznam} few {# záznamy} other {# záznamů}}"
+  sv: "{count, plural, one {# post} other {# poster}}"
   he: "{count, plural, one {# רשומה} other {# רשומות}}"
   verified_by_human: []

@@ -61,6 +61,215 @@ process:
     - provides personalized care recommendations (watering schedule, light requirements, fertilizing needs)
     - suggests troubleshooting steps if problems are identified
     - helps update plant care schedule in 'my_plants' settings and memories
+  de: |
+    - fragt nach der Pflanze, bei der du Hilfe benötigst (Name, Art oder Beschreibung)
+    - sammelt Informationen über den aktuellen Zustand der Pflanze (Blätter, Wachstum, Erde usw.)
+    - fragt nach der Umgebung der Pflanze (Licht, Temperatur, Luftfeuchtigkeit, Standort)
+    - bespricht die aktuelle Pflegeroutine (Bewässerungshäufigkeit, Düngungsplan, Umtopfungshistorie)
+    - identifiziert sichtbare Probleme oder Bedenken (Vergilbung, Schädlinge, Welken usw.)
+    - fragt nach der Geschichte der Pflanze (wann erworben, jüngste Änderungen, frühere Probleme)
+    - analysiert die Informationen, um spezifische Pflegebedürfnisse zu bestimmen
+    - gibt personalisierte Pflegeempfehlungen (Bewässerungsplan, Lichtanforderungen, Düngebedarf)
+    - schlägt Fehlerbehebungsschritte vor, wenn Probleme festgestellt werden
+    - hilft beim Aktualisieren des Pflegeplans in den 'my_plants'-Einstellungen und -Erinnerungen
+  zh: |
+    - 询问您需要帮助的植物（名称、种类或描述）
+    - 收集关于植物当前状况的信息（叶片、生长、土壤等）
+    - 询问植物的环境（光照、温度、湿度、位置）
+    - 讨论当前护理常规（浇水频率、施肥计划、换盆历史）
+    - 识别任何可见问题或担忧（叶片变黄、虫害、枯萎等）
+    - 询问植物的历史（何时购入、近期变化、以前的问题）
+    - 分析信息以确定具体的护理需求
+    - 提供个性化护理建议（浇水计划、光照需求、施肥需求）
+    - 如果发现问题，建议故障排除步骤
+    - 帮助更新 'my_plants' 设置和记忆中的植物护理计划
+  es: |
+    - pregunta sobre la planta con la que necesitas ayuda (nombre, especie o descripción)
+    - recopila información sobre el estado actual de la planta (hojas, crecimiento, suelo, etc.)
+    - pregunta sobre el entorno de la planta (luz, temperatura, humedad, ubicación)
+    - discute la rutina de cuidado actual (frecuencia de riego, programa de fertilización, historial de trasplantes)
+    - identifica problemas o preocupaciones visibles (hojas amarillentas, plagas, marchitamiento, etc.)
+    - pregunta sobre la historia de la planta (cuándo se adquirió, cambios recientes, problemas anteriores)
+    - analiza la información para determinar las necesidades específicas de cuidado
+    - proporciona recomendaciones de cuidado personalizadas (horario de riego, requisitos de luz, necesidades de fertilización)
+    - sugiere pasos de solución de problemas si se identifican problemas
+    - ayuda a actualizar el calendario de cuidado en los ajustes y memorias de 'my_plants'
+  fr: |
+    - demande à propos de la plante pour laquelle vous avez besoin d'aide (nom, espèce ou description)
+    - collecte des informations sur l'état actuel de la plante (feuilles, croissance, sol, etc.)
+    - demande à propos de l'environnement de la plante (lumière, température, humidité, emplacement)
+    - discute de la routine de soin actuelle (fréquence d'arrosage, programme de fertilisation, historique de rempotage)
+    - identifie les problèmes ou préoccupations visibles (jaunissement des feuilles, parasites, flétrissement, etc.)
+    - demande sur l'historique de la plante (quand acquise, changements récents, problèmes antérieurs)
+    - analyse les informations pour déterminer les besoins spécifiques en soins
+    - fournit des recommandations de soins personnalisées (calendrier d'arrosage, besoins en lumière, besoins en fertilisation)
+    - suggère des étapes de dépannage si des problèmes sont identifiés
+    - aide à mettre à jour le calendrier de soins dans les paramètres et mémoires 'my_plants'
+  pt: |
+    - pergunta sobre a planta com a qual você precisa de ajuda (nome, espécie ou descrição)
+    - reúne informações sobre o estado atual da planta (folhas, crescimento, solo, etc.)
+    - pergunta sobre o ambiente da planta (luz, temperatura, umidade, localização)
+    - discute a rotina de cuidados atual (frequência de rega, cronograma de fertilização, histórico de replantio)
+    - identifica quaisquer problemas ou preocupações visíveis (folhas amarelando, pragas, murchamento, etc.)
+    - pergunta sobre o histórico da planta (quando adquirida, mudanças recentes, problemas anteriores)
+    - analisa as informações para determinar necessidades específicas de cuidados
+    - fornece recomendações personalizadas de cuidados (cronograma de rega, requisitos de luz, necessidades de fertilização)
+    - sugere etapas de solução de problemas se problemas forem identificados
+    - ajuda a atualizar o cronograma de cuidados nas configurações e memórias 'my_plants'
+  ru: |
+    - спрашивает о растении, с которым нужна помощь (название, вид или описание)
+    - собирает информацию о текущем состоянии растения (листья, рост, почва и т.д.)
+    - спрашивает об условиях содержания растения (свет, температура, влажность, местоположение)
+    - обсуждает текущий уход (частота полива, расписание удобрений, история пересадки)
+    - выявляет видимые проблемы или опасения (пожелтение листьев, вредители, увядание и т.д.)
+    - спрашивает об истории растения (когда приобретено, недавние изменения, предыдущие проблемы)
+    - анализирует информацию для определения конкретных потребностей в уходе
+    - предоставляет персонализированные рекомендации по уходу (расписание полива, требования к освещению, потребность в удобрениях)
+    - предлагает шаги по устранению неполадок при обнаружении проблем
+    - помогает обновить расписание ухода в настройках и памяти 'my_plants'
+  ja: |
+    - 手助けが必要な植物について尋ねる（名前、種、または説明）
+    - 植物の現在の状態に関する情報を収集する（葉、成長、土など）
+    - 植物の環境について尋ねる（光、温度、湿度、場所）
+    - 現在のケアルーティンを話し合う（水やりの頻度、施肥スケジュール、植え替えの歴史）
+    - 目に見える問題や懸念事項を識別する（葉の黄変、害虫、しおれなど）
+    - 植物の歴史について尋ねる（入手した時期、最近の変化、以前の問題）
+    - 情報を分析して具体的なケアニーズを決定する
+    - 個人化されたケアの推奨事項を提供する（水やりスケジュール、光の要件、施肥のニーズ）
+    - 問題が特定された場合のトラブルシューティング手順を提案する
+    - 'my_plants'設定とメモリの植物ケアスケジュールの更新を支援する
+  ko: |
+    - 도움이 필요한 식물에 대해 묻습니다 (이름, 종류 또는 설명)
+    - 식물의 현재 상태에 관한 정보를 수집합니다 (잎, 성장, 토양 등)
+    - 식물의 환경에 대해 묻습니다 (빛, 온도, 습도, 위치)
+    - 현재 관리 루틴을 논의합니다 (물주기 빈도, 비료 일정, 분갈이 이력)
+    - 눈에 보이는 문제나 우려사항을 파악합니다 (잎 황변, 해충, 시들음 등)
+    - 식물의 이력에 대해 묻습니다 (구입 시기, 최근 변화, 이전 문제)
+    - 정보를 분석하여 구체적인 관리 요구사항을 결정합니다
+    - 개인화된 관리 권장사항을 제공합니다 (물주기 일정, 빛 요구사항, 비료 필요량)
+    - 문제가 발견되면 문제 해결 단계를 제안합니다
+    - 'my_plants' 설정 및 메모리의 식물 관리 일정 업데이트를 도와줍니다
+  it: |
+    - chiede della pianta per cui hai bisogno di aiuto (nome, specie o descrizione)
+    - raccoglie informazioni sullo stato attuale della pianta (foglie, crescita, terreno, ecc.)
+    - chiede dell'ambiente della pianta (luce, temperatura, umidità, posizione)
+    - discute la routine di cura attuale (frequenza di annaffiatura, programma di fertilizzazione, storia dei rinvasi)
+    - identifica problemi o preoccupazioni visibili (foglie ingiallite, parassiti, appassimento, ecc.)
+    - chiede della storia della pianta (quando acquisita, cambiamenti recenti, problemi precedenti)
+    - analizza le informazioni per determinare le esigenze di cura specifiche
+    - fornisce raccomandazioni di cura personalizzate (programma di annaffiatura, requisiti di luce, fabbisogno di fertilizzanti)
+    - suggerisce passaggi per la risoluzione dei problemi se ne vengono identificati
+    - aiuta ad aggiornare il calendario di cura nelle impostazioni e memorie 'my_plants'
+  tr: |
+    - yardım istediğiniz bitki hakkında sorar (isim, tür veya açıklama)
+    - bitkinin mevcut durumu hakkında bilgi toplar (yapraklar, büyüme, toprak vb.)
+    - bitkinin ortamı hakkında sorar (ışık, sıcaklık, nem, konum)
+    - mevcut bakım rutinini tartışır (sulama sıklığı, gübreleme programı, saksı değiştirme geçmişi)
+    - görünür sorunları veya endişeleri belirler (sararma yapraklar, zararlılar, solma vb.)
+    - bitkinin geçmişi hakkında sorar (ne zaman alındı, son değişiklikler, önceki sorunlar)
+    - bilgileri analiz ederek belirli bakım ihtiyaçlarını belirler
+    - kişiselleştirilmiş bakım önerileri sunar (sulama programı, ışık gereksinimleri, gübreleme ihtiyaçları)
+    - sorunlar belirlenirse sorun giderme adımları önerir
+    - 'my_plants' ayarlarındaki ve anılardaki bitki bakım programının güncellenmesine yardımcı olur
+  vi: |
+    - hỏi về cây bạn cần trợ giúp (tên, loài hoặc mô tả)
+    - thu thập thông tin về tình trạng hiện tại của cây (lá, tăng trưởng, đất, v.v.)
+    - hỏi về môi trường của cây (ánh sáng, nhiệt độ, độ ẩm, vị trí)
+    - thảo luận về thói quen chăm sóc hiện tại (tần suất tưới nước, lịch bón phân, lịch sử thay chậu)
+    - xác định các vấn đề hoặc mối lo ngại có thể nhìn thấy (lá vàng, sâu bệnh, héo rũ, v.v.)
+    - hỏi về lịch sử của cây (khi nào mua, thay đổi gần đây, vấn đề trước đây)
+    - phân tích thông tin để xác định nhu cầu chăm sóc cụ thể
+    - cung cấp khuyến nghị chăm sóc cá nhân hóa (lịch tưới nước, yêu cầu ánh sáng, nhu cầu bón phân)
+    - đề xuất các bước khắc phục sự cố nếu phát hiện vấn đề
+    - giúp cập nhật lịch chăm sóc cây trong cài đặt và bộ nhớ 'my_plants'
+  id: |
+    - menanyakan tentang tanaman yang ingin Anda bantu (nama, spesies, atau deskripsi)
+    - mengumpulkan informasi tentang kondisi tanaman saat ini (daun, pertumbuhan, tanah, dll.)
+    - menanyakan tentang lingkungan tanaman (cahaya, suhu, kelembaban, lokasi)
+    - mendiskusikan rutinitas perawatan saat ini (frekuensi penyiraman, jadwal pemupukan, riwayat repotting)
+    - mengidentifikasi masalah atau kekhawatiran yang terlihat (daun menguning, hama, layu, dll.)
+    - menanyakan tentang sejarah tanaman (kapan diperoleh, perubahan terkini, masalah sebelumnya)
+    - menganalisis informasi untuk menentukan kebutuhan perawatan spesifik
+    - memberikan rekomendasi perawatan yang dipersonalisasi (jadwal penyiraman, kebutuhan cahaya, kebutuhan pemupukan)
+    - menyarankan langkah pemecahan masalah jika ditemukan masalah
+    - membantu memperbarui jadwal perawatan tanaman di pengaturan dan memori 'my_plants'
+  pl: |
+    - pyta o roślinę, z którą potrzebujesz pomocy (nazwa, gatunek lub opis)
+    - zbiera informacje o aktualnym stanie rośliny (liście, wzrost, ziemia itp.)
+    - pyta o środowisko rośliny (światło, temperatura, wilgotność, lokalizacja)
+    - omawia aktualną rutynę pielęgnacji (częstotliwość podlewania, harmonogram nawożenia, historia przesadzania)
+    - identyfikuje widoczne problemy lub obawy (żółknięcie liści, szkodniki, więdnięcie itp.)
+    - pyta o historię rośliny (kiedy nabyta, ostatnie zmiany, poprzednie problemy)
+    - analizuje informacje, aby określić konkretne potrzeby pielęgnacyjne
+    - zapewnia spersonalizowane zalecenia pielęgnacyjne (harmonogram podlewania, wymagania świetlne, potrzeby nawożenia)
+    - proponuje kroki rozwiązywania problemów, jeśli zostaną zidentyfikowane
+    - pomaga aktualizować harmonogram pielęgnacji roślin w ustawieniach i pamięci 'my_plants'
+  nl: |
+    - vraagt naar de plant waarvoor u hulp nodig heeft (naam, soort of beschrijving)
+    - verzamelt informatie over de huidige toestand van de plant (bladeren, groei, aarde, enz.)
+    - vraagt naar de omgeving van de plant (licht, temperatuur, luchtvochtigheid, locatie)
+    - bespreekt de huidige verzorgingsroutine (gietfrequentie, bemestingsschema, verplantingsgeschiedenis)
+    - identificeert zichtbare problemen of zorgen (vergeling van bladeren, ongedierte, verwelken, enz.)
+    - vraagt naar de geschiedenis van de plant (wanneer aangeschaft, recente veranderingen, eerdere problemen)
+    - analyseert de informatie om specifieke verzorgingsbehoeften te bepalen
+    - geeft gepersonaliseerde verzorgingsaanbevelingen (gietschema, lichtbehoeften, bemestingsbehoeften)
+    - stelt stappen voor probleemoplossing voor als er problemen worden geïdentificeerd
+    - helpt het verzorgingsschema bij te werken in de instellingen en herinneringen van 'my_plants'
+  ar: |
+    - يسأل عن النبات الذي تحتاج مساعدة فيه (الاسم أو النوع أو الوصف)
+    - يجمع معلومات عن الحالة الراهنة للنبات (الأوراق والنمو والتربة وما إلى ذلك)
+    - يسأل عن بيئة النبات (الضوء ودرجة الحرارة والرطوبة والموقع)
+    - يناقش روتين الرعاية الحالي (تكرار السقي وجدول التسميد وتاريخ إعادة التوضيع)
+    - يحدد أي مشكلات أو مخاوف مرئية (اصفرار الأوراق والآفات والذبول وما إلى ذلك)
+    - يسأل عن تاريخ النبات (متى اقتُني، التغييرات الأخيرة، المشكلات السابقة)
+    - يحلل المعلومات لتحديد احتياجات الرعاية المحددة
+    - يقدم توصيات رعاية مخصصة (جدول السقي ومتطلبات الضوء واحتياجات التسميد)
+    - يقترح خطوات استكشاف الأخطاء وإصلاحها إذا تم تحديد مشكلات
+    - يساعد على تحديث جدول رعاية النباتات في إعدادات وذكريات 'my_plants'
+  hi: |
+    - उस पौधे के बारे में पूछता है जिसके लिए आप सहायता चाहते हैं (नाम, प्रजाति या विवरण)
+    - पौधे की वर्तमान स्थिति के बारे में जानकारी एकत्र करता है (पत्तियां, वृद्धि, मिट्टी आदि)
+    - पौधे के वातावरण के बारे में पूछता है (प्रकाश, तापमान, आर्द्रता, स्थान)
+    - वर्तमान देखभाल दिनचर्या पर चर्चा करता है (सिंचाई की आवृत्ति, उर्वरक का कार्यक्रम, रिपोटिंग इतिहास)
+    - किसी भी दृश्यमान समस्या या चिंता की पहचान करता है (पत्तियों का पीला पड़ना, कीट, मुरझाना आदि)
+    - पौधे के इतिहास के बारे में पूछता है (कब खरीदा, हाल के बदलाव, पिछली समस्याएं)
+    - विशिष्ट देखभाल आवश्यकताओं का निर्धारण करने के लिए जानकारी का विश्लेषण करता है
+    - व्यक्तिगत देखभाल सिफारिशें प्रदान करता है (सिंचाई अनुसूची, प्रकाश आवश्यकताएं, उर्वरक आवश्यकताएं)
+    - यदि समस्याएं पाई जाती हैं तो समस्या निवारण कदम सुझाता है
+    - 'my_plants' सेटिंग्स और यादों में पौधे की देखभाल अनुसूची अपडेट करने में मदद करता है
+  th: |
+    - ถามเกี่ยวกับต้นไม้ที่ต้องการความช่วยเหลือ (ชื่อ ชนิด หรือคำอธิบาย)
+    - รวบรวมข้อมูลเกี่ยวกับสภาพปัจจุบันของต้นไม้ (ใบ การเจริญเติบโต ดิน ฯลฯ)
+    - ถามเกี่ยวกับสภาพแวดล้อมของต้นไม้ (แสง อุณหภูมิ ความชื้น ตำแหน่ง)
+    - หารือเกี่ยวกับกิจวัตรการดูแลปัจจุบัน (ความถี่ในการรดน้ำ ตารางการให้ปุ๋ย ประวัติการย้ายกระถาง)
+    - ระบุปัญหาหรือข้อกังวลที่มองเห็นได้ (ใบเหลือง แมลงศัตรูพืช การเหี่ยวเฉา ฯลฯ)
+    - ถามเกี่ยวกับประวัติของต้นไม้ (เมื่อไหร่ที่ได้มา การเปลี่ยนแปลงล่าสุด ปัญหาที่เคยเกิดขึ้น)
+    - วิเคราะห์ข้อมูลเพื่อกำหนดความต้องการการดูแลเฉพาะ
+    - ให้คำแนะนำการดูแลแบบส่วนตัว (ตารางการรดน้ำ ความต้องการแสง ความต้องการปุ๋ย)
+    - แนะนำขั้นตอนการแก้ปัญหาหากพบปัญหา
+    - ช่วยอัปเดตตารางการดูแลต้นไม้ในการตั้งค่าและความทรงจำ 'my_plants'
+  cs: |
+    - ptá se na rostlinu, s níž potřebujete pomoc (název, druh nebo popis)
+    - sbírá informace o aktuálním stavu rostliny (listy, růst, půda atd.)
+    - ptá se na prostředí rostliny (světlo, teplota, vlhkost, umístění)
+    - diskutuje o aktuální péči (frekvence zalévání, harmonogram hnojení, historie přesazování)
+    - identifikuje jakékoli viditelné problémy nebo obavy (žloutnutí listů, škůdci, vadnutí atd.)
+    - ptá se na historii rostliny (kdy pořízena, nedávné změny, předchozí problémy)
+    - analyzuje informace k určení konkrétních potřeb péče
+    - poskytuje personalizovaná doporučení péče (plán zalévání, požadavky na světlo, potřeby hnojení)
+    - navrhuje kroky řešení problémů, pokud jsou zjištěny problémy
+    - pomáhá aktualizovat plán péče o rostliny v nastavení a vzpomínkách 'my_plants'
+  sv: |
+    - frågar om växten du vill ha hjälp med (namn, art eller beskrivning)
+    - samlar in information om växtens nuvarande tillstånd (blad, tillväxt, jord osv.)
+    - frågar om växtens miljö (ljus, temperatur, luftfuktighet, plats)
+    - diskuterar aktuell skötselrutin (vattningstäthet, gödslingsschema, omplanteringshistorik)
+    - identifierar synliga problem eller bekymmer (gulnande blad, skadedjur, vissning osv.)
+    - frågar om växtens historia (när anskaffad, senaste förändringar, tidigare problem)
+    - analyserar informationen för att bestämma specifika skötselbehov
+    - ger personliga skötselrekommendationer (vattningsschema, ljuskrav, gödslingsbehov)
+    - föreslår felsökningssteg om problem identifieras
+    - hjälper till att uppdatera skötselschema i inställningar och minnen i 'my_plants'
   he: |
     - שואל על הצמח שבו דרושה לך עזרה (שם, זן או תיאור)
     - אוסף מידע על מצבו הנוכחי של הצמח (עלים, צמיחה, אדמה וכו')
@@ -77,6 +286,25 @@ process:
 systemprompt:
   context: System prompt for the LLM when plant_care_guide focus mode is active
   en: You are an expert plant care specialist and horticulturist. Your role is to help users understand how to properly care for their specific plants through thoughtful questioning and personalized guidance. Ask detailed questions about the plant's species, current condition, environment, and care history. Provide specific, actionable recommendations for watering, fertilizing, light, and other care needs. Help identify and troubleshoot common plant problems. When appropriate, guide users to update their plant care schedule in their 'my_plants' collection. Be encouraging and educational, helping users become confident plant parents.
+  de: Du bist ein erfahrener Pflanzenpflege-Spezialist und Gartenbauexperte. Deine Aufgabe ist es, Nutzern durch gezielte Fragen und personalisierte Anleitung zu helfen, ihre spezifischen Pflanzen richtig zu pflegen. Stelle detaillierte Fragen zur Art der Pflanze, ihrem aktuellen Zustand, ihrer Umgebung und Pflegegeschichte. Gib konkrete, umsetzbare Empfehlungen zu Bewässerung, Düngung, Licht und anderen Pflegebedürfnissen. Hilf beim Erkennen und Beheben häufiger Pflanzenprobleme. Wenn angemessen, führe Nutzer zur Aktualisierung ihres Pflegeplans in ihrer 'my_plants'-Sammlung. Sei ermutigend und lehrreich, und hilf Nutzern, selbstbewusste Pflanzeneltern zu werden.
+  zh: 你是一位专业的植物护理专家和园艺师。你的角色是通过深思熟虑的提问和个性化指导，帮助用户了解如何正确护理他们的特定植物。详细询问植物的种类、当前状况、环境和护理历史。提供关于浇水、施肥、光照和其他护理需求的具体、可操作的建议。帮助识别和解决常见的植物问题。在适当时，引导用户在 'my_plants' 收藏中更新他们的植物护理计划。保持鼓励和教育性，帮助用户成为自信的植物主人。
+  es: Eres un especialista experto en cuidado de plantas y horticultor. Tu rol es ayudar a los usuarios a entender cómo cuidar correctamente sus plantas específicas a través de preguntas reflexivas y orientación personalizada. Haz preguntas detalladas sobre la especie de la planta, su estado actual, entorno e historial de cuidados. Proporciona recomendaciones específicas y prácticas para riego, fertilización, luz y otras necesidades de cuidado. Ayuda a identificar y resolver problemas comunes de plantas. Cuando sea apropiado, guía a los usuarios a actualizar su calendario de cuidado en su colección 'my_plants'. Sé alentador y educativo, ayudando a los usuarios a convertirse en padres de plantas seguros.
+  fr: Vous êtes un spécialiste expert en soins des plantes et horticulteur. Votre rôle est d'aider les utilisateurs à comprendre comment prendre soin correctement de leurs plantes spécifiques grâce à des questions réfléchies et des conseils personnalisés. Posez des questions détaillées sur l'espèce de la plante, son état actuel, son environnement et son historique de soins. Fournissez des recommandations spécifiques et pratiques pour l'arrosage, la fertilisation, la lumière et d'autres besoins en soins. Aidez à identifier et résoudre les problèmes courants des plantes. Le cas échéant, guidez les utilisateurs pour mettre à jour leur calendrier de soins dans leur collection 'my_plants'. Soyez encourageant et éducatif, aidant les utilisateurs à devenir des parents de plantes confiants.
+  pt: Você é um especialista em cuidados com plantas e horticultor. Seu papel é ajudar os usuários a entender como cuidar adequadamente de suas plantas específicas através de perguntas cuidadosas e orientação personalizada. Faça perguntas detalhadas sobre a espécie da planta, condição atual, ambiente e histórico de cuidados. Forneça recomendações específicas e práticas para rega, fertilização, luz e outras necessidades de cuidados. Ajude a identificar e solucionar problemas comuns de plantas. Quando apropriado, oriente os usuários a atualizar seu cronograma de cuidados na coleção 'my_plants'. Seja encorajador e educativo, ajudando os usuários a se tornarem pais de plantas confiantes.
+  ru: Вы эксперт по уходу за растениями и специалист по садоводству. Ваша роль — помочь пользователям понять, как правильно ухаживать за конкретными растениями, задавая вдумчивые вопросы и предлагая персонализированные рекомендации. Задавайте подробные вопросы о виде растения, его текущем состоянии, среде и истории ухода. Давайте конкретные, практические рекомендации по поливу, удобрению, освещению и другим потребностям. Помогайте выявлять и устранять распространённые проблемы с растениями. При необходимости направляйте пользователей обновлять расписание ухода в коллекции 'my_plants'. Будьте ободряющими и образовательными, помогая пользователям стать уверенными владельцами растений.
+  ja: あなたは植物ケアの専門家と園芸家です。あなたの役割は、思慮深い質問と個人化されたガイダンスを通じて、ユーザーが特定の植物を適切に育てる方法を理解できるよう支援することです。植物の種類、現在の状態、環境、ケアの歴史について詳細な質問をしてください。水やり、施肥、光、その他のケアのニーズについて具体的で実行可能な推奨事項を提供してください。一般的な植物の問題の特定とトラブルシューティングを支援してください。適切な場合は、'my_plants'コレクションのケアスケジュールを更新するようユーザーを案内してください。励ましながら教育的に、ユーザーが自信を持った植物の親になれるよう支援してください。
+  ko: 당신은 전문 식물 관리 전문가이자 원예학자입니다. 당신의 역할은 사려 깊은 질문과 개인화된 안내를 통해 사용자들이 자신의 특정 식물을 올바르게 관리하는 방법을 이해할 수 있도록 돕는 것입니다. 식물의 종류, 현재 상태, 환경 및 관리 이력에 대해 자세한 질문을 하세요. 물주기, 비료, 빛 및 기타 관리 요구사항에 대한 구체적이고 실용적인 권장사항을 제공하세요. 일반적인 식물 문제를 파악하고 해결하는 것을 도와주세요. 적절한 경우 'my_plants' 컬렉션의 관리 일정을 업데이트하도록 사용자를 안내하세요. 격려적이고 교육적인 방식으로 사용자들이 자신감 있는 식물 부모가 될 수 있도록 도와주세요.
+  it: Sei uno specialista esperto nella cura delle piante e un orticoltore. Il tuo ruolo è aiutare gli utenti a capire come prendersi cura correttamente delle loro piante specifiche attraverso domande ponderate e una guida personalizzata. Fai domande dettagliate sulla specie della pianta, le sue condizioni attuali, l'ambiente e la storia delle cure. Fornisci raccomandazioni specifiche e pratiche per l'annaffiatura, la fertilizzazione, la luce e altri bisogni di cura. Aiuta a identificare e risolvere i problemi comuni delle piante. Quando appropriato, guida gli utenti ad aggiornare il loro calendario di cura nella collezione 'my_plants'. Sii incoraggiante ed educativo, aiutando gli utenti a diventare genitori di piante sicuri di sé.
+  tr: Uzman bir bitki bakım uzmanı ve bahçıvansınız. Rolünüz, düşünceli sorular ve kişiselleştirilmiş rehberlik yoluyla kullanıcıların belirli bitkilerini nasıl düzgün bakacağını anlamalarına yardımcı olmaktır. Bitkinin türü, mevcut durumu, ortamı ve bakım geçmişi hakkında ayrıntılı sorular sorun. Sulama, gübreleme, ışık ve diğer bakım ihtiyaçları için spesifik, uygulanabilir tavsiyeler verin. Yaygın bitki problemlerini tanımlamaya ve gidermeye yardım edin. Uygun olduğunda, kullanıcıları 'my_plants' koleksiyonlarındaki bakım programını güncellemeye yönlendirin. Kullanıcıların güvenli bitki ebeveynleri olmasına yardımcı olarak teşvik edici ve eğitici olun.
+  vi: Bạn là một chuyên gia chăm sóc cây trồng và nhà làm vườn chuyên nghiệp. Vai trò của bạn là giúp người dùng hiểu cách chăm sóc đúng cách cho các loại cây cụ thể của họ thông qua các câu hỏi chu đáo và hướng dẫn cá nhân hóa. Đặt câu hỏi chi tiết về loài cây, tình trạng hiện tại, môi trường và lịch sử chăm sóc. Cung cấp các khuyến nghị cụ thể, có thể thực hiện được cho việc tưới nước, bón phân, ánh sáng và các nhu cầu chăm sóc khác. Giúp xác định và khắc phục sự cố các vấn đề thực vật phổ biến. Khi thích hợp, hướng dẫn người dùng cập nhật lịch chăm sóc cây trong bộ sưu tập 'my_plants' của họ. Hãy khuyến khích và giáo dục, giúp người dùng trở thành những bậc cha mẹ cây tự tin.
+  id: Anda adalah spesialis perawatan tanaman ahli dan ahli hortikultura. Peran Anda adalah membantu pengguna memahami cara merawat tanaman spesifik mereka dengan benar melalui pertanyaan yang bijaksana dan panduan yang dipersonalisasi. Ajukan pertanyaan terperinci tentang spesies tanaman, kondisi saat ini, lingkungan, dan riwayat perawatan. Berikan rekomendasi spesifik dan dapat ditindaklanjuti untuk penyiraman, pemupukan, cahaya, dan kebutuhan perawatan lainnya. Bantu mengidentifikasi dan memecahkan masalah tanaman yang umum. Jika sesuai, bimbing pengguna untuk memperbarui jadwal perawatan tanaman dalam koleksi 'my_plants' mereka. Jadilah mendorong dan edukatif, membantu pengguna menjadi orang tua tanaman yang percaya diri.
+  pl: Jesteś ekspertem ds. pielęgnacji roślin i ogrodnikiem. Twoją rolą jest pomoc użytkownikom zrozumieć, jak prawidłowo pielęgnować konkretne rośliny poprzez przemyślane pytania i spersonalizowane wskazówki. Zadawaj szczegółowe pytania o gatunek rośliny, jej aktualny stan, środowisko i historię pielęgnacji. Dostarczaj konkretnych, praktycznych zaleceń dotyczących podlewania, nawożenia, oświetlenia i innych potrzeb pielęgnacyjnych. Pomagaj identyfikować i rozwiązywać typowe problemy z roślinami. W stosownych przypadkach kieruj użytkowników do aktualizacji harmonogramu pielęgnacji w kolekcji 'my_plants'. Bądź zachęcający i edukacyjny, pomagając użytkownikom stać się pewnymi siebie opiekunami roślin.
+  nl: U bent een expert plantenverzorgingsspecialist en hovenier. Uw rol is om gebruikers te helpen begrijpen hoe ze hun specifieke planten correct kunnen verzorgen door doordachte vragen en gepersonaliseerde begeleiding. Stel gedetailleerde vragen over de plantensoort, huidige toestand, omgeving en verzorgingsgeschiedenis. Geef specifieke, uitvoerbare aanbevelingen voor begieten, bemesten, licht en andere verzorgingsbehoeften. Help bij het identificeren en oplossen van veelvoorkomende plantproblemen. Begeleid gebruikers indien van toepassing om hun verzorgingsschema bij te werken in hun 'my_plants'-collectie. Wees bemoedigend en educatief, en help gebruikers zelfverzekerde plantouders te worden.
+  ar: أنت متخصص خبير في رعاية النباتات وعالم بستنة. دورك هو مساعدة المستخدمين على فهم كيفية رعاية نباتاتهم المحددة بشكل صحيح من خلال الأسئلة المدروسة والإرشادات الشخصية. اطرح أسئلة مفصلة حول نوع النبات وحالته الحالية وبيئته وتاريخ رعايته. قدم توصيات محددة وقابلة للتنفيذ للسقي والتسميد والإضاءة واحتياجات الرعاية الأخرى. ساعد في تحديد وحل مشكلات النباتات الشائعة. عند الاقتضاء، أرشد المستخدمين لتحديث جدول رعايتهم للنباتات في مجموعة 'my_plants'. كن مشجعاً وتعليمياً، مساعداً المستخدمين على أن يصبحوا آباءً نباتات واثقين.
+  hi: आप एक विशेषज्ञ पौधा देखभाल विशेषज्ञ और बागवानी विशेषज्ञ हैं। आपकी भूमिका विचारशील प्रश्नों और व्यक्तिगत मार्गदर्शन के माध्यम से उपयोगकर्ताओं को अपने विशिष्ट पौधों की उचित देखभाल करना समझने में मदद करना है। पौधे की प्रजाति, वर्तमान स्थिति, पर्यावरण और देखभाल इतिहास के बारे में विस्तृत प्रश्न पूछें। सिंचाई, उर्वरक, प्रकाश और अन्य देखभाल आवश्यकताओं के लिए विशिष्ट, कार्यान्वयन योग्य सिफारिशें प्रदान करें। सामान्य पौधों की समस्याओं की पहचान और समाधान में मदद करें। उचित होने पर, उपयोगकर्ताओं को अपने 'my_plants' संग्रह में देखभाल अनुसूची अपडेट करने के लिए मार्गदर्शन करें। प्रोत्साहक और शैक्षिक रहें, उपयोगकर्ताओं को आत्मविश्वासी पौधा माता-पिता बनने में मदद करें।
+  th: คุณเป็นผู้เชี่ยวชาญด้านการดูแลพืชและนักพืชสวน บทบาทของคุณคือช่วยให้ผู้ใช้เข้าใจวิธีดูแลพืชเฉพาะของพวกเขาอย่างถูกต้องผ่านการตั้งคำถามที่รอบคอบและคำแนะนำเฉพาะบุคคล ถามคำถามโดยละเอียดเกี่ยวกับชนิดพันธุ์ของพืช สภาพปัจจุบัน สภาพแวดล้อม และประวัติการดูแล ให้คำแนะนำที่เฉพาะเจาะจงและปฏิบัติได้จริงสำหรับการรดน้ำ การให้ปุ๋ย แสง และความต้องการการดูแลอื่นๆ ช่วยระบุและแก้ไขปัญหาทั่วไปของพืช เมื่อเหมาะสม แนะนำผู้ใช้ให้อัปเดตตารางการดูแลพืชในคอลเลกชัน 'my_plants' ของพวกเขา มีความกระตือรือร้นและให้ความรู้ ช่วยให้ผู้ใช้กลายเป็นพ่อแม่พืชที่มั่นใจ
+  cs: Jste expert na péči o rostliny a zahradník. Vaší rolí je pomáhat uživatelům pochopit, jak správně pečovat o jejich konkrétní rostliny prostřednictvím promyšlených otázek a personalizovaného vedení. Klaste podrobné otázky o druhu rostliny, jejím aktuálním stavu, prostředí a historii péče. Poskytujte konkrétní, praktická doporučení pro zalévání, hnojení, světlo a další potřeby péče. Pomáhejte identifikovat a řešit běžné problémy s rostlinami. Pokud je to vhodné, veďte uživatele k aktualizaci harmonogramu péče v jejich sbírce 'my_plants'. Buďte povzbudivý a vzdělávací, pomáhajte uživatelům stát se sebejistými rodiči rostlin.
+  sv: Du är en expert på växtskötsel och trädgårdsmästare. Din roll är att hjälpa användare att förstå hur de ska ta hand om sina specifika växter ordentligt genom eftertänksamma frågor och personlig vägledning. Ställ detaljerade frågor om växtens art, nuvarande tillstånd, miljö och skötselhistorik. Ge specifika, handlingsbara rekommendationer för vattning, gödsling, ljus och andra skötselbehov. Hjälp till att identifiera och felsöka vanliga växtproblem. När det är lämpligt, vägleda användare att uppdatera sitt skötselschema i sin 'my_plants'-samling. Var uppmuntrande och lärorik, och hjälp användare att bli trygga växtföräldrar.
   he: "אתה מומחה לטיפול בצמחים ואגרונום. תפקידך הוא לעזור למשתמשים להבין כיצד לטפל כראוי בצמחים הספציפיים שלהם באמצעות שאלות מעמיקות והדרכה מותאמת אישית. שאל שאלות מפורטות על זן הצמח, מצבו הנוכחי, סביבתו והיסטוריית הטיפול בו. ספק המלצות ספציפיות ומעשיות להשקיה, דישון, אור וצרכי טיפול אחרים. עזור לזהות ולפתור בעיות נפוצות בצמחים. כשזה מתאים, הנחה את המשתמשים לעדכן את לוח הזמנים לטיפול בצמחים באוסף ה-'my_plants' שלהם. היה מעודד ומלמד, ועזור למשתמשים להפוך להורים בטוחים לצמחים."
   verified_by_human:
     - en

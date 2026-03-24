@@ -5,21 +5,21 @@ example_input:
   zh: 我对目前的工作不满意。 你有什么建议我可以朝哪个方向发展吗？
   es: No estoy contento en mi trabajo actual. ¿Tienes ideas sobre qué dirección podría tomar?
   fr: Je suis malheureux dans mon travail actuel. As-tu des idées sur la direction que je pourrais prendre à la place ?
-  pt: ''
-  ru: ''
+  pt: Estou insatisfeito com meu trabalho atual. Você tem ideias sobre qual direção eu poderia seguir?
+  ru: Я недоволен своей нынешней работой. Есть идеи, в каком направлении я мог бы развиваться?
   ja: 現在の仕事に満足していません。他にどのような方向に進めばいいでしょうか？
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 현재 직장이 불만족스럽습니다. 대신 어떤 방향으로 나아갈 수 있을지 아이디어가 있나요?
+  it: Non sono soddisfatto del mio lavoro attuale. Hai idee su quale direzione potrei prendere?
+  tr: Mevcut işimden memnun değilim. Bunun yerine hangi yönde ilerleyebileceğim konusunda fikrin var mı?
+  vi: Tôi không hài lòng với công việc hiện tại. Bạn có ý tưởng nào về hướng tôi có thể đi không?
+  id: Saya tidak bahagia dengan pekerjaan saya saat ini. Ada ide ke arah mana saya bisa pergi?
+  pl: Jestem niezadowolony z obecnej pracy. Masz jakieś pomysły, w jakim kierunku mógłbym się udać?
+  nl: Ik ben ongelukkig in mijn huidige baan. Heb je ideeën in welke richting ik in plaats daarvan zou kunnen gaan?
+  ar: أنا غير سعيد في وظيفتي الحالية. هل لديك أفكار حول الاتجاه الذي يمكنني السير فيه بدلاً من ذلك؟
+  hi: मैं अपनी वर्तमान नौकरी से खुश नहीं हूं। क्या आपके पास कोई विचार है कि मैं इसके बजाय किस दिशा में जा सकता हूं?
+  th: ฉันไม่มีความสุขกับงานปัจจุบัน คุณมีความคิดว่าฉันควรไปในทิศทางไหนแทน?
+  cs: Nejsem spokojený ve své současné práci. Máte nápady, jakým směrem bych se místo toho mohl vydat?
+  sv: Jag är inte nöjd med mitt nuvarande jobb. Har du några idéer om vilken riktning jag skulle kunna gå istället?
   he: "אני לא מרוצה בעבודה הנוכחית שלי. יש לך רעיונות לאיזה כיוון כדאי לי לפנות במקום?"
   verified_by_human: []
 example_output:
@@ -64,8 +64,22 @@ example_output:
     1. Quels aspects de vos emplois précédents avez-vous trouvés les plus enrichissants ?
 
     '
-  pt: ''
-  ru: ''
+  pt: 'Claro! Como você mencionou ter experiência em marketing e gostar de contar histórias, poderíamos procurar funções que aproveitem essas habilidades.
+
+
+    Para ter uma melhor noção da direção, você poderia me dizer:
+
+    1. Quais aspectos dos seus trabalhos anteriores você achou mais gratificantes?
+
+    '
+  ru: 'Конечно! Поскольку вы упомянули, что у вас есть опыт в маркетинге и вы любите рассказывать истории, мы могли бы искать роли, которые используют эти навыки.
+
+
+    Чтобы лучше определить направление, не могли бы вы сказать мне:
+
+    1. Какие аспекты ваших предыдущих работ были для вас наиболее значимыми?
+
+    '
   ja: 'もちろんです！マーケティングの経験があり、ストーリーテリングが好きだとおっしゃっていたので、それらのスキルを活かせる役割を探してみましょう。
 
 
@@ -74,21 +88,105 @@ example_output:
     1. これまでの仕事で、どのような面にやりがいを感じましたか？
 
     '
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: '물론입니다! 마케팅 배경이 있고 스토리텔링을 즐긴다고 하셨으니 그 스킬을 활용할 수 있는 역할을 찾아볼 수 있습니다.
+
+
+    더 나은 방향을 잡기 위해 말씀해 주실 수 있나요:
+
+    1. 이전 직장에서 어떤 점이 가장 보람 있었나요?
+
+    '
+  it: 'Certo! Dal momento che hai menzionato di avere un background nel marketing e di amare il racconto di storie, potremmo cercare ruoli che sfruttino queste competenze.
+
+
+    Per avere un''idea migliore della direzione, potresti dirmi:
+
+    1. Quali aspetti dei tuoi lavori precedenti hai trovato più gratificanti?
+
+    '
+  tr: 'Tabii ki! Pazarlama geçmişiniz olduğunu ve hikaye anlatmayı sevdiğinizi belirttiğiniz için, bu becerileri kullanan roller arayabiliriz.
+
+
+    Daha iyi bir yön duygusu elde etmek için bana söyleyebilir misiniz:
+
+    1. Önceki işlerinizin hangi yönlerini en tatmin edici buldunuz?
+
+    '
+  vi: 'Tất nhiên! Vì bạn đã đề cập rằng bạn có nền tảng về tiếp thị và thích kể chuyện, chúng ta có thể tìm kiếm các vai trò tận dụng những kỹ năng đó.
+
+
+    Để có định hướng tốt hơn, bạn có thể cho tôi biết:
+
+    1. Những khía cạnh nào của công việc trước đây của bạn mang lại cho bạn nhiều sự thỏa mãn nhất?
+
+    '
+  id: 'Tentu saja! Karena Anda menyebutkan bahwa Anda memiliki latar belakang pemasaran dan menyukai bercerita, kita bisa mencari peran yang memanfaatkan keterampilan tersebut.
+
+
+    Untuk mendapatkan gambaran arah yang lebih baik, bisakah Anda memberi tahu saya:
+
+    1. Aspek pekerjaan sebelumnya mana yang paling memuaskan bagi Anda?
+
+    '
+  pl: 'Oczywiście! Skoro wspomniałeś, że masz doświadczenie w marketingu i lubisz opowiadać historie, moglibyśmy poszukać ról, które wykorzystują te umiejętności.
+
+
+    Aby lepiej określić kierunek, czy mógłbyś mi powiedzieć:
+
+    1. Jakie aspekty poprzednich prac były dla ciebie najbardziej satysfakcjonujące?
+
+    '
+  nl: 'Natuurlijk! Omdat je vermeldde dat je een achtergrond in marketing hebt en van verhalen vertellen houdt, kunnen we zoeken naar rollen die gebruik maken van die vaardigheden.
+
+
+    Om een beter gevoel voor de richting te krijgen, zou je me kunnen vertellen:
+
+    1. Welke aspecten van je vorige banen vond je het meest bevredigend?
+
+    '
+  ar: 'بالطبع! بما أنك ذكرت أن لديك خلفية في التسويق وتستمتع برواية القصص، يمكننا البحث عن أدوار تستفيد من تلك المهارات.
+
+
+    للحصول على إحساس أفضل بالاتجاه، هل يمكنك إخباري:
+
+    1. ما هي جوانب وظائفك السابقة التي وجدتها الأكثر إشباعاً؟
+
+    '
+  hi: 'बिल्कुल! चूंकि आपने बताया कि आपका मार्केटिंग में बैकग्राउंड है और आप स्टोरीटेलिंग का आनंद लेते हैं, हम उन भूमिकाओं की तलाश कर सकते हैं जो उन कौशल का लाभ उठाती हैं।
+
+
+    बेहतर दिशा समझने के लिए, क्या आप मुझे बता सकते हैं:
+
+    1. आपकी पिछली नौकरियों के कौन से पहलू आपको सबसे संतोषजनक लगे?
+
+    '
+  th: 'แน่นอน! เนื่องจากคุณกล่าวถึงว่าคุณมีพื้นฐานด้านการตลาดและชอบการเล่าเรื่อง เราสามารถมองหาบทบาทที่ใช้ทักษะเหล่านั้น
+
+
+    เพื่อให้เข้าใจทิศทางได้ดีขึ้น คุณช่วยบอกฉันได้ไหม:
+
+    1. ด้านใดของงานก่อนหน้าของคุณที่คุณพบว่าน่าพึงพอใจที่สุด?
+
+    '
+  cs: 'Samozřejmě! Protože jste zmínil, že máte zázemí v marketingu a rádi vyprávíte příběhy, mohli bychom hledat role, které tyto dovednosti využívají.
+
+
+    Abychom získali lepší smysl pro směr, mohli byste mi říct:
+
+    1. Jaké aspekty vašich předchozích zaměstnání jste považoval za nejuspokojivější?
+
+    '
+  sv: 'Självklart! Eftersom du nämnde att du har bakgrund inom marknadsföring och tycker om berättande, kan vi leta efter roller som utnyttjar dessa färdigheter.
+
+
+    För att få en bättre känsla för riktningen, kan du berätta för mig:
+
+    1. Vilka aspekter av dina tidigare jobb tyckte du var mest givande?
+
+    '
   he: |
     כמובן! מכיוון שציינת שיש לך רקע בשיווק ושאתה נהנה לספר סיפורים, נוכל לחפש תפקידים שמנצלים את הכישורים האלה.
-    
+
     כדי לקבל כיוון טוב יותר, תוכל לומר לי:
     1. אילו היבטים בעבודות הקודמות שלך היו הכי מספקים עבורך?
   verified_by_human: []
@@ -99,21 +197,21 @@ search_input:
   zh: 人工智能，初学者
   es: IA, principiante
   fr: IA, débutant
-  pt: ''
-  ru: ''
+  pt: IA, iniciante
+  ru: ИИ, начинающий
   ja: AI、初心者
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: AI, 초보자
+  it: IA, principiante
+  tr: Yapay Zeka, başlangıç
+  vi: AI, người mới bắt đầu
+  id: AI, pemula
+  pl: AI, początkujący
+  nl: AI, beginner
+  ar: الذكاء الاصطناعي، مبتدئ
+  hi: AI, शुरुआती
+  th: AI, ผู้เริ่มต้น
+  cs: AI, začátečník
+  sv: AI, nybörjare
   he: AI, מתחילים
   verified_by_human: []
 search_output_title:
@@ -123,20 +221,20 @@ search_output_title:
   zh: 人工智能、项目、资源和未来 - 一瞥未来
   es: IA, Proyectos, Recursos y el Futuro - Un Vistazo al Mañana
   fr: IA, Projets, Ressources, et le Futur - Un aperçu de demain
-  pt: ''
-  ru: ''
+  pt: IA, Projetos, Recursos e o Futuro - Um Vislumbre do Amanhã
+  ru: ИИ, Проекты, Ресурсы и Будущее - Взгляд в завтра
   ja: AI、プロジェクト、リソース、そして未来 - 明日への展望
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: AI, 프로젝트, 리소스 및 미래 - 내일을 향한 엿보기
+  it: IA, Progetti, Risorse e il Futuro - Uno Sguardo al Domani
+  tr: Yapay Zeka, Projeler, Kaynaklar ve Gelecek - Yarına Bir Bakış
+  vi: AI, Dự án, Tài nguyên và Tương lai - Cái nhìn về Ngày mai
+  id: AI, Proyek, Sumber Daya, dan Masa Depan - Sekilas tentang Hari Esok
+  pl: AI, Projekty, Zasoby i Przyszłość - Spojrzenie w Jutro
+  nl: AI, Projecten, Middelen en de Toekomst - Een Blik op Morgen
+  ar: الذكاء الاصطناعي والمشاريع والموارد والمستقبل - لمحة عن الغد
+  hi: AI, परियोजनाएं, संसाधन, और भविष्य - कल की एक झलक
+  th: AI โครงการ ทรัพยากร และอนาคต - มุมมองสู่วันพรุ่งนี้
+  cs: AI, Projekty, Zdroje a Budoucnost - Pohled do zítřka
+  sv: AI, Projekt, Resurser och Framtiden - En glimt in i morgondagen
   he: AI, פרויקטים, משאבים והעתיד - הצצה אל המחר
   verified_by_human: []

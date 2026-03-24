@@ -5,21 +5,21 @@ description:
   zh: 管理您的积分、订阅和支付方式
   es: Gestiona tus créditos, suscripciones y métodos de pago
   fr: Gérez vos crédits, abonnements et moyens de paiement
-  pt: ""
-  ru: ""
+  pt: Gerencie seus créditos, compras e para o que você usou créditos
+  ru: Управляйте кредитами, покупками и тем, на что вы тратили кредиты
   ja: クレジット、サブスクリプション、支払い方法を管理する
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 크레딧, 구매 내역 및 크레딧 사용 내역 관리
+  it: Gestisci i tuoi crediti, gli acquisti e per cosa hai usato i crediti
+  tr: Kredilerinizi, satın alma işlemlerinizi ve kredilerinizi ne için kullandığınızı yönetin
+  vi: Quản lý tín dụng, mua hàng và những gì bạn đã dùng tín dụng cho
+  id: Kelola kredit, pembelian, dan penggunaan kredit Anda
+  pl: Zarządzaj kredytami, zakupami i tym, na co wydałeś kredyty
+  nl: Beheer uw credits, aankopen en waarvoor u credits heeft gebruikt
   ar: إدارة رصيدك واشتراكاتك وطرق الدفع
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: अपने क्रेडिट, खरीदारी और क्रेडिट के उपयोग का प्रबंधन करें
+  th: จัดการเครดิต การซื้อ และสิ่งที่คุณใช้เครดิต
+  cs: Spravujte své kredity, nákupy a k čemu jste kredity použili
+  sv: Hantera dina krediter, köp och vad du använde krediter till
   he: נהל את הקרדיטים, המנויים ואמצעי התשלום שלך
   verified_by_human: []
 billing:

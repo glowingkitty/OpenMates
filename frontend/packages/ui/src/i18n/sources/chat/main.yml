@@ -50,6 +50,25 @@ reminders:
   context: Tooltip for the reminder bell button in the chat top bar
   en: Reminders
   de: Erinnerungen
+  zh: 提醒
+  es: Recordatorios
+  fr: Rappels
+  pt: Lembretes
+  ru: Напоминания
+  ja: リマインダー
+  ko: 미리 알림
+  it: Promemoria
+  tr: Hatırlatıcılar
+  vi: Nhắc nhở
+  id: Pengingat
+  pl: Przypomnienia
+  nl: Herinneringen
+  ar: التذكيرات
+  hi: अनुस्मारक
+  th: การแจ้งเตือน
+  cs: Připomínky
+  sv: Påminnelser
+  he: תזכורות
   verified_by_human: [en, de]
 start_audio_call:
   context: Button label for starting an audio call
@@ -588,29 +607,118 @@ pii_hide:
   context: Tooltip for the PII toggle button when sensitive data is currently visible (clicking will hide it)
   en: Hide sensitive data
   de: Sensible Daten ausblenden
-
+  zh: 隐藏敏感数据
+  es: Ocultar datos sensibles
+  fr: Masquer les données sensibles
+  pt: Ocultar dados sensíveis
+  ru: Скрыть конфиденциальные данные
+  ja: 機密データを非表示
+  ko: 민감한 데이터 숨기기
+  it: Nascondi dati sensibili
+  tr: Hassas verileri gizle
+  vi: Ẩn dữ liệu nhạy cảm
+  id: Sembunyikan data sensitif
+  pl: Ukryj dane wrażliwe
+  nl: Gevoelige gegevens verbergen
+  ar: إخفاء البيانات الحساسة
+  hi: संवेदनशील डेटा छुपाएं
+  th: ซ่อนข้อมูลที่ละเอียดอ่อน
+  cs: Skrýt citlivá data
+  sv: Dölj känslig data
   he: הסתרת נתונים רגישים
 pii_show:
   context: Tooltip for the PII toggle button when sensitive data is currently hidden (clicking will reveal it)
   en: Show sensitive data
   de: Sensible Daten anzeigen
+  zh: 显示敏感数据
+  es: Mostrar datos sensibles
+  fr: Afficher les données sensibles
+  pt: Mostrar dados sensíveis
+  ru: Показать конфиденциальные данные
+  ja: 機密データを表示
+  ko: 민감한 데이터 표시
+  it: Mostra dati sensibili
+  tr: Hassas verileri göster
+  vi: Hiển thị dữ liệu nhạy cảm
+  id: Tampilkan data sensitif
+  pl: Pokaż dane wrażliwe
+  nl: Gevoelige gegevens tonen
+  ar: إظهار البيانات الحساسة
+  hi: संवेदनशील डेटा दिखाएं
+  th: แสดงข้อมูลที่ละเอียดอ่อน
+  cs: Zobrazit citlivá data
+  sv: Visa känslig data
   he: הצגת נתונים רגישים
 minimize:
   context: Aria-label and tooltip for minimize button that hides chat panel in side-by-side layout
   en: Minimize chat
   de: Chat minimieren
+  zh: 最小化聊天
+  es: Minimizar chat
+  fr: Réduire le chat
+  pt: Minimizar chat
+  ru: Свернуть чат
+  ja: チャットを最小化
+  ko: 채팅 최소화
+  it: Minimizza chat
+  tr: Sohbeti küçült
+  vi: Thu nhỏ trò chuyện
+  id: Minimalkan obrolan
+  pl: Minimalizuj czat
+  nl: Chat minimaliseren
+  ar: تصغير الدردشة
+  hi: चैट छोटा करें
+  th: ย่อแชท
+  cs: Minimalizovat chat
+  sv: Minimera chatt
   he: "מזעור הצ'אט"
   verified_by_human: []
 read_only_shared:
   context: Text shown in read-only indicator when viewing a shared chat you don't own
   en: This is a shared chat. You can view messages but cannot reply.
   de: Dies ist ein geteilter Chat. Du kannst Nachrichten lesen, aber nicht antworten.
+  zh: 这是一个共享聊天。您可以查看消息，但无法回复。
+  es: Este es un chat compartido. Puedes ver los mensajes pero no puedes responder.
+  fr: "Il s'agit d'un chat partagé. Vous pouvez voir les messages mais ne pouvez pas répondre."
+  pt: Este é um chat compartilhado. Você pode ver as mensagens, mas não pode responder.
+  ru: Это общий чат. Вы можете просматривать сообщения, но не можете отвечать.
+  ja: これは共有チャットです。メッセージを閲覧できますが、返信はできません。
+  ko: 이것은 공유된 채팅입니다. 메시지를 볼 수 있지만 답장할 수 없습니다.
+  it: Questa è una chat condivisa. Puoi visualizzare i messaggi ma non puoi rispondere.
+  tr: Bu paylaşılan bir sohbettir. Mesajları görebilirsiniz ancak yanıt veremezsiniz.
+  vi: Đây là cuộc trò chuyện được chia sẻ. Bạn có thể xem tin nhắn nhưng không thể trả lời.
+  id: Ini adalah obrolan bersama. Anda dapat melihat pesan tetapi tidak dapat membalas.
+  pl: To jest współdzielony czat. Możesz przeglądać wiadomości, ale nie możesz odpowiadać.
+  nl: Dit is een gedeelde chat. Je kunt berichten bekijken maar niet antwoorden.
+  ar: هذه دردشة مشتركة. يمكنك عرض الرسائل لكن لا يمكنك الرد.
+  hi: यह एक साझा चैट है। आप संदेश देख सकते हैं लेकिन जवाब नहीं दे सकते।
+  th: นี่คือแชทที่แชร์ คุณสามารถดูข้อความได้แต่ไม่สามารถตอบกลับได้
+  cs: Toto je sdílený chat. Můžete zobrazit zprávy, ale nemůžete odpovídat.
+  sv: Detta är en delad chatt. Du kan se meddelanden men kan inte svara.
   he: "זהו צ'אט משותף. ניתן לצפות בהודעות אך לא ניתן להשיב."
   verified_by_human: []
 show_chat:
   context: Aria-label for button that restores chat panel after minimizing
   en: Show chat
   de: Chat anzeigen
+  zh: 显示聊天
+  es: Mostrar chat
+  fr: Afficher le chat
+  pt: Mostrar chat
+  ru: Показать чат
+  ja: チャットを表示
+  ko: 채팅 표시
+  it: Mostra chat
+  tr: Sohbeti göster
+  vi: Hiển thị trò chuyện
+  id: Tampilkan obrolan
+  pl: Pokaż czat
+  nl: Chat tonen
+  ar: إظهار الدردشة
+  hi: चैट दिखाएं
+  th: แสดงแชท
+  cs: Zobrazit chat
+  sv: Visa chatt
   he: "הצגת הצ'אט"
   verified_by_human: []
 credits_needed:
@@ -882,6 +990,24 @@ header.previous_chat:
   context: Accessible label for the "previous chat" navigation arrow button shown in the chat header banner
   en: Previous chat
   de: Vorheriger Chat
+  zh: 上一个聊天
+  es: Chat anterior
+  fr: Chat précédent
+  pt: Chat anterior
+  ru: Предыдущий чат
+  ja: 前のチャット
+  ko: 이전 채팅
+  it: Chat precedente
+  tr: Önceki sohbet
+  vi: Trò chuyện trước
+  id: Obrolan sebelumnya
+  pl: Poprzedni czat
+  nl: Vorige chat
+  ar: الدردشة السابقة
+  hi: पिछली चैट
+  th: แชทก่อนหน้า
+  cs: Předchozí chat
+  sv: Föregående chatt
   he: "הצ'אט הקודם"
   verified_by_human: []
 
@@ -889,6 +1015,24 @@ header.next_chat:
   context: Accessible label for the "next chat" navigation arrow button shown in the chat header banner
   en: Next chat
   de: Nächster Chat
+  zh: 下一个聊天
+  es: Chat siguiente
+  fr: Chat suivant
+  pt: Próximo chat
+  ru: Следующий чат
+  ja: 次のチャット
+  ko: 다음 채팅
+  it: Chat successiva
+  tr: Sonraki sohbet
+  vi: Trò chuyện tiếp theo
+  id: Obrolan berikutnya
+  pl: Następny czat
+  nl: Volgende chat
+  ar: الدردشة التالية
+  hi: अगली चैट
+  th: แชทถัดไป
+  cs: Další chat
+  sv: Nästa chatt
   he: "הצ'אט הבא"
   verified_by_human: []
 
@@ -896,6 +1040,25 @@ header.set_reminder:
   context: Accessible label for the bell button in the top-right of the chat header banner that opens the reminder setter panel
   en: Set reminder
   de: Erinnerung setzen
+  zh: 设置提醒
+  es: Establecer recordatorio
+  fr: Définir un rappel
+  pt: Definir lembrete
+  ru: Установить напоминание
+  ja: リマインダーを設定
+  ko: 미리 알림 설정
+  it: Imposta promemoria
+  tr: Hatırlatıcı ayarla
+  vi: Đặt nhắc nhở
+  id: Atur pengingat
+  pl: Ustaw przypomnienie
+  nl: Herinnering instellen
+  ar: تعيين تذكير
+  hi: अनुस्मारक सेट करें
+  th: ตั้งการแจ้งเตือน
+  cs: Nastavit připomínku
+  sv: Ställ in påminnelse
+  he: הגדרת תזכורת
   verified_by_human: [en, de]
 
 thinking.placeholder:

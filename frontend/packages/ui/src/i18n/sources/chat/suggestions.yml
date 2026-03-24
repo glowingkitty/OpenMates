@@ -25,6 +25,26 @@ explore_next:
 filter_no_match:
   context: Header text shown above suggestions when the typed query matched no suggestions (graceful fallback — all suggestions are still shown)
   en: "No matching suggestions — showing all"
+  de: "Keine passenden Vorschläge — alle werden angezeigt"
+  zh: 没有匹配的建议 — 显示全部
+  es: "Sin sugerencias coincidentes — mostrando todo"
+  fr: "Aucune suggestion correspondante — affichage de tout"
+  pt: "Nenhuma sugestão correspondente — mostrando tudo"
+  ru: "Нет подходящих предложений — показаны все"
+  ja: "一致する提案なし — すべて表示"
+  ko: "일치하는 제안 없음 — 전체 표시"
+  it: "Nessun suggerimento corrispondente — mostro tutto"
+  tr: "Eşleşen öneri yok — hepsi gösteriliyor"
+  vi: "Không có gợi ý phù hợp — hiển thị tất cả"
+  id: "Tidak ada saran yang cocok — menampilkan semua"
+  pl: "Brak pasujących sugestii — pokazuję wszystkie"
+  nl: "Geen overeenkomende suggesties — alles weergeven"
+  ar: "لا توجد اقتراحات مطابقة — عرض الكل"
+  hi: "कोई मिलान सुझाव नहीं — सभी दिखाए जा रहे हैं"
+  th: "ไม่มีคำแนะนำที่ตรงกัน — แสดงทั้งหมด"
+  cs: "Žádné odpovídající návrhy — zobrazuji vše"
+  sv: "Inga matchande förslag — visar alla"
+  he: "אין הצעות תואמות — מציג הכל"
   verified_by_human: []
 header_click:
   context: Header text above the new chat suggestion cards on the welcome screen

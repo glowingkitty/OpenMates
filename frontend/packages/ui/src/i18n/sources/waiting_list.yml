@@ -19,7 +19,7 @@ discord_members:
   hi: हमारे Discord के सदस्य
   th: สมาชิกใน Discord ของเราจะ
   cs: Členové našeho Discordu získají
-  sv: ''
+  sv: Medlemmar i vår Discord kommer att
   he: חברים בדיסקורד שלנו
   verified_by_human: []
 early_access:
@@ -43,7 +43,7 @@ early_access:
   hi: प्रारंभिक पहुंच प्राप्त करेंगे।
   th: ได้รับการเข้าถึงก่อนกำหนด
   cs: časný přístup.
-  sv: ''
+  sv: tidig åtkomst.
   he: יקבלו גישה מוקדמת.
   verified_by_human: []
 first_invites:
@@ -67,6 +67,6 @@ first_invites:
   hi: पहले निमंत्रण जनवरी/फरवरी 2025 में
   th: การเชิญครั้งแรกในม.ค./ก.พ. 2025
   cs: První pozvánky v lednu/únoru 2025
-  sv: ''
+  sv: Första inbjudningar i jan/feb 2025
   he: הזמנות ראשונות בינואר/פברואר 2025
   verified_by_human: []

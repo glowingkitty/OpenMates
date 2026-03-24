@@ -2,6 +2,24 @@ admin:
   context: Badge label shown next to admin username in navigation
   en: Admin
   de: Admin
+  zh: 管理员
+  es: Admin
+  fr: Admin
+  pt: Admin
+  ru: Администратор
+  ja: 管理者
+  ko: 관리자
+  it: Admin
+  tr: Yönetici
+  vi: Quản trị
+  id: Admin
+  pl: Administrator
+  nl: Beheerder
+  ar: مشرف
+  hi: एडमिन
+  th: ผู้ดูแลระบบ
+  cs: Správce
+  sv: Admin
   he: מנהל
   verified_by_human: []
 
@@ -9,6 +27,24 @@ close:
   context: Generic close button text
   en: Close
   de: Schließen
+  zh: 关闭
+  es: Cerrar
+  fr: Fermer
+  pt: Fechar
+  ru: Закрыть
+  ja: 閉じる
+  ko: 닫기
+  it: Chiudi
+  tr: Kapat
+  vi: Đóng
+  id: Tutup
+  pl: Zamknij
+  nl: Sluiten
+  ar: إغلاق
+  hi: बंद करें
+  th: ปิด
+  cs: Zavřít
+  sv: Stäng
   he: סגור
   verified_by_human: []
 
@@ -16,6 +52,24 @@ cancel:
   context: Generic cancel button text
   en: Cancel
   de: Abbrechen
+  zh: 取消
+  es: Cancelar
+  fr: Annuler
+  pt: Cancelar
+  ru: Отмена
+  ja: キャンセル
+  ko: 취소
+  it: Annulla
+  tr: İptal
+  vi: Hủy
+  id: Batal
+  pl: Anuluj
+  nl: Annuleren
+  ar: إلغاء
+  hi: रद्द करें
+  th: ยกเลิก
+  cs: Zrušit
+  sv: Avbryt
   he: ביטול
   verified_by_human: []
 
@@ -23,6 +77,24 @@ continue:
   context: Generic continue/proceed button text
   en: Continue
   de: Weiter
+  zh: 继续
+  es: Continuar
+  fr: Continuer
+  pt: Continuar
+  ru: Продолжить
+  ja: 続ける
+  ko: 계속
+  it: Continua
+  tr: Devam et
+  vi: Tiếp tục
+  id: Lanjutkan
+  pl: Kontynuuj
+  nl: Doorgaan
+  ar: متابعة
+  hi: जारी रखें
+  th: ดำเนินการต่อ
+  cs: Pokračovat
+  sv: Fortsätt
   he: המשך
   verified_by_human: []
 
@@ -30,6 +102,24 @@ copy:
   context: Generic copy-to-clipboard button text
   en: Copy
   de: Kopieren
+  zh: 复制
+  es: Copiar
+  fr: Copier
+  pt: Copiar
+  ru: Копировать
+  ja: コピー
+  ko: 복사
+  it: Copia
+  tr: Kopyala
+  vi: Sao chép
+  id: Salin
+  pl: Kopiuj
+  nl: Kopiëren
+  ar: نسخ
+  hi: कॉपी करें
+  th: คัดลอก
+  cs: Kopírovat
+  sv: Kopiera
   he: העתק
   verified_by_human: []
 
@@ -37,6 +127,24 @@ copied:
   context: Feedback text shown after copying to clipboard
   en: Copied
   de: Kopiert
+  zh: 已复制
+  es: Copiado
+  fr: Copié
+  pt: Copiado
+  ru: Скопировано
+  ja: コピーしました
+  ko: 복사됨
+  it: Copiato
+  tr: Kopyalandı
+  vi: Đã sao chép
+  id: Disalin
+  pl: Skopiowano
+  nl: Gekopieerd
+  ar: تم النسخ
+  hi: कॉपी किया गया
+  th: คัดลอกแล้ว
+  cs: Zkopírováno
+  sv: Kopierat
   he: הועתק
   verified_by_human: []
 
@@ -44,6 +152,24 @@ done:
   context: Generic done/finish button text
   en: Done
   de: Fertig
+  zh: 完成
+  es: Hecho
+  fr: Terminé
+  pt: Concluído
+  ru: Готово
+  ja: 完了
+  ko: 완료
+  it: Fatto
+  tr: Bitti
+  vi: Xong
+  id: Selesai
+  pl: Gotowe
+  nl: Klaar
+  ar: تم
+  hi: हो गया
+  th: เสร็จสิ้น
+  cs: Hotovo
+  sv: Klar
   he: בוצע
   verified_by_human: []
 
@@ -51,6 +177,24 @@ not_found.title:
   context: Large heading shown on the 404 not-found screen
   en: "404"
   de: "404"
+  zh: "404"
+  es: "404"
+  fr: "404"
+  pt: "404"
+  ru: "404"
+  ja: "404"
+  ko: "404"
+  it: "404"
+  tr: "404"
+  vi: "404"
+  id: "404"
+  pl: "404"
+  nl: "404"
+  ar: "404"
+  hi: "404"
+  th: "404"
+  cs: "404"
+  sv: "404"
   he: "404"
   verified_by_human: []
 
@@ -58,6 +202,24 @@ not_found.summary:
   context: Subtitle shown under the 404 heading on the not-found screen
   en: Page not found
   de: Seite nicht gefunden
+  zh: 页面未找到
+  es: Página no encontrada
+  fr: Page introuvable
+  pt: Página não encontrada
+  ru: Страница не найдена
+  ja: ページが見つかりません
+  ko: 페이지를 찾을 수 없습니다
+  it: Pagina non trovata
+  tr: Sayfa bulunamadı
+  vi: Không tìm thấy trang
+  id: Halaman tidak ditemukan
+  pl: Strona nie znaleziona
+  nl: Pagina niet gevonden
+  ar: الصفحة غير موجودة
+  hi: पृष्ठ नहीं मिला
+  th: ไม่พบหน้า
+  cs: Stránka nenalezena
+  sv: Sidan hittades inte
   he: הדף לא נמצא
   verified_by_human: []
 
@@ -65,6 +227,24 @@ not_found.search_label:
   context: Label on the search option on the 404 screen, {query} is the search term derived from the failed URL path
   en: Search for "{query}"
   de: Suche nach „{query}"
+  zh: 搜索"{query}"
+  es: Buscar "{query}"
+  fr: Rechercher « {query} »
+  pt: Pesquisar "{query}"
+  ru: Искать «{query}»
+  ja: 「{query}」を検索
+  ko: "{query}" 검색
+  it: Cerca "{query}"
+  tr: "{query}" ara
+  vi: Tìm kiếm "{query}"
+  id: Cari "{query}"
+  pl: Szukaj „{query}"
+  nl: Zoek naar "{query}"
+  ar: البحث عن "{query}"
+  hi: "{query}" खोजें
+  th: ค้นหา "{query}"
+  cs: Hledat „{query}"
+  sv: Sök efter "{query}"
   he: חפש "{query}"
   verified_by_human: []
 
@@ -72,6 +252,24 @@ not_found.ask_ai_label:
   context: Label on the Ask AI option on the 404 screen, {topic} is the humanized failed URL path
   en: Ask about "{topic}"
   de: Frage nach „{topic}"
+  zh: 询问"{topic}"
+  es: Preguntar sobre "{topic}"
+  fr: Demander à propos de « {topic} »
+  pt: Perguntar sobre "{topic}"
+  ru: Спросить о «{topic}»
+  ja: 「{topic}」について質問する
+  ko: "{topic}"에 대해 질문
+  it: Chiedi di "{topic}"
+  tr: "{topic}" hakkında sor
+  vi: Hỏi về "{topic}"
+  id: Tanyakan tentang "{topic}"
+  pl: Zapytaj o „{topic}"
+  nl: Vragen over "{topic}"
+  ar: اسأل عن "{topic}"
+  hi: "{topic}" के बारे में पूछें
+  th: ถามเกี่ยวกับ "{topic}"
+  cs: Zeptat se na „{topic}"
+  sv: Fråga om "{topic}"
   he: שאל על "{topic}"
   verified_by_human: []
 
@@ -79,6 +277,24 @@ not_found.ask_ai_message:
   context: Pre-filled message sent to AI when the user clicks Ask AI on the 404 screen, {topic} is the humanized failed URL path
   en: "Tell me more about ''{topic}''"
   de: "Erzähl mir mehr über ''{topic}''"
+  zh: "告诉我更多关于'{topic}'的信息"
+  es: "Cuéntame más sobre ''{topic}''"
+  fr: "Dis-moi en plus sur ''{topic}''"
+  pt: "Me conta mais sobre ''{topic}''"
+  ru: "Расскажи мне больше о ''{topic}''"
+  ja: "「{topic}」についてもっと教えてください"
+  ko: "'{topic}'에 대해 더 알려주세요"
+  it: "Dimmi di più su ''{topic}''"
+  tr: "''{topic}'' hakkında daha fazla bilgi ver"
+  vi: "Cho tôi biết thêm về ''{topic}''"
+  id: "Ceritakan lebih banyak tentang ''{topic}''"
+  pl: "Opowiedz mi więcej o ''{topic}''"
+  nl: "Vertel me meer over ''{topic}''"
+  ar: "أخبرني المزيد عن ''{topic}''"
+  hi: "''{topic}'' के बारे में और बताएं"
+  th: "บอกฉันเพิ่มเติมเกี่ยวกับ ''{topic}''"
+  cs: "Řekni mi více o ''{topic}''"
+  sv: "Berätta mer om ''{topic}''"
   he: "ספר לי עוד על ''{topic}''"
   verified_by_human: []
 
@@ -86,6 +302,24 @@ not_found.explanation:
   context: Explanation paragraph on the 404 screen, {url} is the URL the user tried to visit
   en: "The page you are looking for does not exist. This can be for one of multiple reasons. For example:"
   de: "Die gesuchte Seite existiert nicht. Das kann verschiedene Gründe haben. Zum Beispiel:"
+  zh: "您正在查找的页面不存在。这可能有多种原因。例如："
+  es: "La página que buscas no existe. Esto puede ser por una de varias razones. Por ejemplo:"
+  fr: "La page que vous recherchez n'existe pas. Cela peut être dû à plusieurs raisons. Par exemple :"
+  pt: "A página que você está procurando não existe. Isso pode ser por várias razões. Por exemplo:"
+  ru: "Запрашиваемая страница не существует. Это может быть по нескольким причинам. Например:"
+  ja: "お探しのページは存在しません。これはいくつかの理由が考えられます。例えば："
+  ko: "찾는 페이지가 존재하지 않습니다. 여러 가지 이유가 있을 수 있습니다. 예를 들어:"
+  it: "La pagina che stai cercando non esiste. Ciò può dipendere da più motivi. Per esempio:"
+  tr: "Aradığınız sayfa mevcut değil. Bu birkaç nedenle olabilir. Örneğin:"
+  vi: "Trang bạn đang tìm kiếm không tồn tại. Điều này có thể do nhiều lý do. Ví dụ:"
+  id: "Halaman yang Anda cari tidak ada. Ini bisa karena beberapa alasan. Misalnya:"
+  pl: "Strona, której szukasz, nie istnieje. Może to być z kilku powodów. Na przykład:"
+  nl: "De pagina die u zoekt bestaat niet. Dit kan om meerdere redenen zijn. Bijvoorbeeld:"
+  ar: "الصفحة التي تبحث عنها غير موجودة. يمكن أن يكون ذلك لأسباب عدة. على سبيل المثال:"
+  hi: "आप जिस पृष्ठ को ढूंढ रहे हैं वह मौजूद नहीं है। यह कई कारणों से हो सकता है। उदाहरण के लिए:"
+  th: "หน้าที่คุณกำลังมองหาไม่มีอยู่ ซึ่งอาจเป็นเพราะหลายสาเหตุ เช่น:"
+  cs: "Stránka, kterou hledáte, neexistuje. Může to být z několika důvodů. Například:"
+  sv: "Sidan du letar efter finns inte. Det kan bero på flera orsaker. Till exempel:"
   he: "הדף שחיפשת אינו קיים. זה יכול להיות מסיבות שונות. לדוגמה:"
   verified_by_human: []
 
@@ -93,6 +327,24 @@ not_found.reason_typo:
   context: First bullet reason on 404 screen explaining a typo in the URL, {url} placeholder is replaced by a copyable URL element in the UI
   en: "you made a spelling mistake in this URL"
   de: "du hast einen Tippfehler in dieser URL gemacht"
+  zh: "您在此URL中输入了拼写错误"
+  es: "cometiste un error ortográfico en esta URL"
+  fr: "vous avez fait une faute de frappe dans cette URL"
+  pt: "você cometeu um erro de digitação nesta URL"
+  ru: "вы допустили опечатку в этом URL"
+  ja: "このURLにスペルミスがあります"
+  ko: "이 URL에 철자 오류가 있습니다"
+  it: "hai fatto un errore di battitura in questo URL"
+  tr: "bu URL'de yazım hatası yaptınız"
+  vi: "bạn đã nhập sai chính tả trong URL này"
+  id: "Anda membuat kesalahan ejaan di URL ini"
+  pl: "popełniłeś błąd literowy w tym URL"
+  nl: "u heeft een typfout gemaakt in deze URL"
+  ar: "أخطأت في كتابة عنوان URL هذا"
+  hi: "आपने इस URL में वर्तनी की गलती की"
+  th: "คุณพิมพ์ URL นี้ผิด"
+  cs: "v této URL jste udělali překlep"
+  sv: "du har gjort ett stavfel i denna URL"
   he: "טעית בהקלדת כתובת ה-URL"
   verified_by_human: []
 
@@ -100,6 +352,24 @@ not_found.reason_removed:
   context: Second bullet reason on 404 screen
   en: "the page you tried to open no longer exists or the path has changed"
   de: "die Seite, die du aufrufen wolltest, existiert nicht mehr oder der Pfad hat sich geändert"
+  zh: "您尝试打开的页面已不存在或路径已更改"
+  es: "la página que intentaste abrir ya no existe o la ruta ha cambiado"
+  fr: "la page que vous avez essayé d'ouvrir n'existe plus ou le chemin a changé"
+  pt: "a página que você tentou abrir não existe mais ou o caminho foi alterado"
+  ru: "страница, которую вы пытались открыть, больше не существует или путь изменился"
+  ja: "開こうとしたページが存在しないか、パスが変更されました"
+  ko: "열려고 한 페이지가 더 이상 존재하지 않거나 경로가 변경되었습니다"
+  it: "la pagina che hai provato ad aprire non esiste più o il percorso è cambiato"
+  tr: "açmaya çalıştığınız sayfa artık mevcut değil veya yol değişti"
+  vi: "trang bạn cố mở không còn tồn tại hoặc đường dẫn đã thay đổi"
+  id: "halaman yang Anda coba buka tidak lagi ada atau jalurnya telah berubah"
+  pl: "strona, którą próbowałeś otworzyć, już nie istnieje lub ścieżka się zmieniła"
+  nl: "de pagina die u probeerde te openen bestaat niet meer of het pad is gewijzigd"
+  ar: "الصفحة التي حاولت فتحها لم تعد موجودة أو تغيّر المسار"
+  hi: "जिस पृष्ठ को आपने खोलने की कोशिश की वह अब मौजूद नहीं है या पथ बदल गया है"
+  th: "หน้าที่คุณพยายามเปิดไม่มีอยู่แล้วหรือเส้นทางเปลี่ยนแปลง"
+  cs: "stránka, kterou jste se pokusili otevřít, již neexistuje nebo se změnila cesta"
+  sv: "sidan du försökte öppna finns inte längre eller sökvägen har ändrats"
   he: "הדף שניסית לפתוח אינו קיים יותר, או שהנתיב השתנה"
   verified_by_human: []
 
@@ -107,6 +377,24 @@ not_found.suggestion_heading:
   context: Heading above the action buttons on the 404 screen
   en: "Suggestion:"
   de: "Vorschlag:"
+  zh: "建议："
+  es: "Sugerencia:"
+  fr: "Suggestion :"
+  pt: "Sugestão:"
+  ru: "Предложение:"
+  ja: "提案："
+  ko: "제안:"
+  it: "Suggerimento:"
+  tr: "Öneri:"
+  vi: "Gợi ý:"
+  id: "Saran:"
+  pl: "Sugestia:"
+  nl: "Suggestie:"
+  ar: "اقتراح:"
+  hi: "सुझाव:"
+  th: "คำแนะนำ:"
+  cs: "Návrh:"
+  sv: "Förslag:"
   he: "הצעה:"
   verified_by_human: []
 
@@ -114,6 +402,24 @@ not_found.suggestion_body:
   context: Text below the suggestion heading on the 404 screen
   en: "Either try a search to find the page you are looking for, or ask OpenMates directly about the topic."
   de: "Versuche entweder eine Suche, um die gewünschte Seite zu finden, oder frage OpenMates direkt zum Thema."
+  zh: "尝试搜索以找到您需要的页面，或直接向 OpenMates 询问该主题。"
+  es: "Intenta una búsqueda para encontrar la página que buscas, o pregunta directamente a OpenMates sobre el tema."
+  fr: "Essayez une recherche pour trouver la page que vous cherchez, ou demandez directement à OpenMates sur le sujet."
+  pt: "Tente uma pesquisa para encontrar a página ou pergunte diretamente ao OpenMates sobre o assunto."
+  ru: "Попробуйте поиск, чтобы найти нужную страницу, или спросите OpenMates напрямую по теме."
+  ja: "検索で必要なページを見つけるか、OpenMates にトピックについて直接質問してください。"
+  ko: "검색으로 찾는 페이지를 찾거나, OpenMates에 직접 주제에 대해 질문하세요."
+  it: "Prova una ricerca per trovare la pagina che cerchi, o chiedi direttamente a OpenMates sull'argomento."
+  tr: "Aradığınız sayfayı bulmak için arama yapmayı deneyin veya konu hakkında doğrudan OpenMates'e sorun."
+  vi: "Thử tìm kiếm để tìm trang bạn cần, hoặc hỏi trực tiếp OpenMates về chủ đề đó."
+  id: "Coba cari halaman yang Anda cari, atau tanyakan langsung kepada OpenMates tentang topiknya."
+  pl: "Spróbuj wyszukać stronę lub zapytaj bezpośrednio OpenMates o temat."
+  nl: "Probeer een zoekopdracht om de pagina te vinden of vraag OpenMates direct over het onderwerp."
+  ar: "جرّب البحث للعثور على الصفحة، أو اسأل OpenMates مباشرة عن الموضوع."
+  hi: "खोज कर पृष्ठ ढूंढने का प्रयास करें, या OpenMates से सीधे विषय के बारे में पूछें।"
+  th: "ลองค้นหาหน้าที่ต้องการ หรือถาม OpenMates โดยตรงเกี่ยวกับหัวข้อนั้น"
+  cs: "Zkuste vyhledat stránku nebo se přímo zeptejte OpenMates na dané téma."
+  sv: "Försök söka för att hitta sidan du letar efter, eller fråga OpenMates direkt om ämnet."
   he: "נסה לחפש את הדף שאתה מחפש, או שאל את OpenMates ישירות על הנושא."
   verified_by_human: []
 
@@ -121,6 +427,24 @@ not_found.or_separator:
   context: Short separator word between the search and ask-AI buttons on the 404 screen
   en: "or"
   de: "oder"
+  zh: "或"
+  es: "o"
+  fr: "ou"
+  pt: "ou"
+  ru: "или"
+  ja: "または"
+  ko: "또는"
+  it: "o"
+  tr: "veya"
+  vi: "hoặc"
+  id: "atau"
+  pl: "lub"
+  nl: "of"
+  ar: "أو"
+  hi: "या"
+  th: "หรือ"
+  cs: "nebo"
+  sv: "eller"
   he: "או"
   verified_by_human: []
 
@@ -128,6 +452,24 @@ not_found.copy_url:
   context: Tooltip/aria-label on the copy-URL button on the 404 screen
   en: Copy URL
   de: URL kopieren
+  zh: 复制URL
+  es: Copiar URL
+  fr: Copier l'URL
+  pt: Copiar URL
+  ru: Копировать URL
+  ja: URLをコピー
+  ko: URL 복사
+  it: Copia URL
+  tr: URL'yi kopyala
+  vi: Sao chép URL
+  id: Salin URL
+  pl: Kopiuj URL
+  nl: URL kopiëren
+  ar: نسخ الرابط
+  hi: URL कॉपी करें
+  th: คัดลอก URL
+  cs: Kopírovat URL
+  sv: Kopiera URL
   he: העתק URL
   verified_by_human: []
 
@@ -135,5 +477,23 @@ not_found.url_copied:
   context: Feedback shown briefly after the URL is copied to clipboard on the 404 screen
   en: Copied!
   de: Kopiert!
+  zh: 已复制！
+  es: ¡Copiado!
+  fr: Copié !
+  pt: Copiado!
+  ru: Скопировано!
+  ja: コピーしました！
+  ko: 복사됨!
+  it: Copiato!
+  tr: Kopyalandı!
+  vi: Đã sao chép!
+  id: Disalin!
+  pl: Skopiowano!
+  nl: Gekopieerd!
+  ar: تم النسخ!
+  hi: कॉपी किया गया!
+  th: คัดลอกแล้ว!
+  cs: Zkopírováno!
+  sv: Kopierat!
   he: הועתק!
   verified_by_human: []

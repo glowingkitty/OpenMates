@@ -54,6 +54,82 @@ process:
     - asks user what their learning goal is (understanding a specific part of a new technology, extending knowledge, etc.)
     - show examples, suggest a sample project, consider Q&As or other learning methods for understanding a tech
     - goal is to assist software developers who don't want to use AI assisted coding but still profit from the use of AI (and ease the developers into accepting AI support more).
+  de: |
+    - fragt den Nutzer nach seinem Lernziel (Verstehen eines bestimmten Teils einer neuen Technologie, Wissen erweitern usw.)
+    - zeigt Beispiele, schlägt ein Beispielprojekt vor, berücksichtigt Q&As oder andere Lernmethoden zum Verstehen einer Technologie
+    - Ziel ist es, Softwareentwickler zu unterstützen, die keine KI-gestützte Programmierung verwenden wollen, aber dennoch von KI profitieren (und die Entwickler schrittweise an KI-Unterstützung gewöhnen).
+  zh: |
+    - 询问用户的学习目标（理解新技术的特定部分、扩展知识等）
+    - 展示示例，建议示例项目，考虑问答或其他学习方法来理解某项技术
+    - 目标是协助不想使用AI辅助编码但仍希望从AI中受益的软件开发者（并帮助开发者逐步接受AI支持）。
+  es: |
+    - pregunta al usuario cuál es su objetivo de aprendizaje (entender una parte específica de una tecnología, ampliar conocimientos, etc.)
+    - muestra ejemplos, sugiere un proyecto de muestra, considera Q&As u otros métodos de aprendizaje para entender la tecnología
+    - el objetivo es ayudar a desarrolladores de software que no quieren usar codificación asistida por IA pero aún se benefician del uso de IA (y facilitar que los desarrolladores acepten el apoyo de la IA).
+  fr: |
+    - demande à l'utilisateur quel est son objectif d'apprentissage (comprendre une partie spécifique d'une nouvelle technologie, élargir ses connaissances, etc.)
+    - montre des exemples, suggère un projet type, envisage des Q&R ou d'autres méthodes d'apprentissage pour comprendre une technologie
+    - l'objectif est d'aider les développeurs qui ne souhaitent pas utiliser le codage assisté par IA mais qui profitent quand même de l'IA (et d'amener progressivement les développeurs à accepter le support de l'IA).
+  pt: |
+    - pergunta ao usuário qual é seu objetivo de aprendizado (entender uma parte específica de uma nova tecnologia, ampliar conhecimento, etc.)
+    - mostra exemplos, sugere um projeto de amostra, considera Q&As ou outros métodos de aprendizado para entender uma tecnologia
+    - o objetivo é ajudar desenvolvedores que não querem usar codificação assistida por IA, mas ainda se beneficiam do uso de IA (e facilitar que os desenvolvedores aceitem o suporte de IA).
+  ru: |
+    - спрашивает пользователя о его цели обучения (понять определённую часть новой технологии, расширить знания и т.д.)
+    - показывает примеры, предлагает пример проекта, рассматривает вопросы-ответы или другие методы обучения для понимания технологии
+    - цель — помочь разработчикам, которые не хотят использовать AI-кодирование, но всё же получают пользу от ИИ (и постепенно приобщать разработчиков к поддержке ИИ).
+  ja: |
+    - ユーザーの学習目標を尋ねる（新技術の特定部分の理解、知識の拡張など）
+    - 例を示し、サンプルプロジェクトを提案し、技術理解のためのQ&Aやその他の学習方法を検討する
+    - AIによるコーディング支援を使いたくないが、AIの活用から恩恵を受けたいソフトウェア開発者を支援することが目標（開発者がAIサポートを受け入れやすくする）。
+  ko: |
+    - 사용자의 학습 목표를 묻습니다 (새 기술의 특정 부분 이해, 지식 확장 등)
+    - 예시를 보여주고 샘플 프로젝트를 제안하며 기술 이해를 위한 Q&A 또는 기타 학습 방법을 고려합니다
+    - AI 보조 코딩을 사용하고 싶지 않지만 AI 활용의 이점은 누리고 싶은 소프트웨어 개발자를 지원하는 것이 목표입니다 (개발자가 AI 지원을 더 쉽게 받아들이도록 돕기).
+  it: |
+    - chiede all'utente qual è il suo obiettivo di apprendimento (capire una parte specifica di una nuova tecnologia, ampliare le conoscenze, ecc.)
+    - mostra esempi, suggerisce un progetto di esempio, considera Q&A o altri metodi di apprendimento per capire una tecnologia
+    - l'obiettivo è assistere sviluppatori che non vogliono usare la programmazione assistita da AI ma beneficiano comunque dell'AI (e abituarli gradualmente al supporto dell'AI).
+  tr: |
+    - kullanıcıya öğrenme hedefini sorar (yeni bir teknolojinin belirli bir bölümünü anlama, bilgiyi genişletme vb.)
+    - örnekler gösterir, örnek bir proje önerir, teknolojiyi anlamak için S&C veya diğer öğrenme yöntemlerini değerlendirir
+    - amaç, AI destekli kodlama kullanmak istemeyen ancak yine de AI'dan yararlanan yazılım geliştiricilere yardımcı olmaktır (ve geliştiricileri AI desteğini kabul etmeye alıştırmak).
+  vi: |
+    - hỏi người dùng mục tiêu học tập của họ là gì (hiểu một phần cụ thể của công nghệ mới, mở rộng kiến thức, v.v.)
+    - hiển thị ví dụ, đề xuất dự án mẫu, xem xét Q&A hoặc các phương pháp học tập khác để hiểu công nghệ
+    - mục tiêu là hỗ trợ các nhà phát triển phần mềm không muốn dùng lập trình có hỗ trợ AI nhưng vẫn được lợi từ việc dùng AI (và giúp các nhà phát triển dần chấp nhận hỗ trợ AI hơn).
+  id: |
+    - menanyakan kepada pengguna apa tujuan belajarnya (memahami bagian tertentu dari teknologi baru, memperluas pengetahuan, dll.)
+    - menampilkan contoh, menyarankan proyek contoh, mempertimbangkan tanya jawab atau metode pembelajaran lain untuk memahami teknologi
+    - tujuannya adalah membantu pengembang perangkat lunak yang tidak ingin menggunakan pengodean berbantuan AI tetapi tetap mendapat manfaat dari penggunaan AI (dan membiasakan pengembang menerima dukungan AI lebih banyak).
+  pl: |
+    - pyta użytkownika o jego cel nauki (zrozumienie konkretnej części nowej technologii, poszerzenie wiedzy itp.)
+    - pokazuje przykłady, sugeruje przykładowy projekt, rozważa pytania i odpowiedzi lub inne metody uczenia się w celu zrozumienia technologii
+    - celem jest wsparcie programistów, którzy nie chcą używać kodowania wspomaganego przez AI, ale korzystają z AI (i stopniowe oswajanie programistów z akceptowaniem wsparcia AI).
+  nl: |
+    - vraagt de gebruiker wat zijn leerdoel is (een specifiek deel van nieuwe technologie begrijpen, kennis uitbreiden, enz.)
+    - toont voorbeelden, stelt een voorbeeldproject voor, overweegt Q&A's of andere leermethoden om een technologie te begrijpen
+    - het doel is softwareontwikkelaars te helpen die geen AI-gestuurde codering willen gebruiken maar toch van AI profiteren (en ontwikkelaars geleidelijk te laten wennen aan AI-ondersteuning).
+  ar: |
+    - يسأل المستخدم عن هدفه التعليمي (فهم جزء محدد من تقنية جديدة، توسيع المعرفة، إلخ)
+    - يعرض أمثلة، يقترح مشروعاً نموذجياً، يأخذ في الاعتبار الأسئلة والأجوبة أو طرق التعلم الأخرى لفهم التقنية
+    - الهدف هو مساعدة مطوري البرامج الذين لا يرغبون في استخدام الترميز بمساعدة الذكاء الاصطناعي ولكنهم يستفيدون منه رغم ذلك (وتسهيل قبول المطورين لدعم الذكاء الاصطناعي تدريجياً).
+  hi: |
+    - उपयोगकर्ता से उनका सीखने का लक्ष्य पूछता है (नई तकनीक के किसी विशेष भाग को समझना, ज्ञान विस्तार आदि)
+    - उदाहरण दिखाता है, एक नमूना परियोजना सुझाता है, तकनीक को समझने के लिए Q&A या अन्य सीखने के तरीके विचार करता है
+    - लक्ष्य उन सॉफ्टवेयर डेवलपर्स की मदद करना है जो AI-सहायता प्राप्त कोडिंग का उपयोग नहीं करना चाहते लेकिन फिर भी AI से लाभ उठाते हैं (और डेवलपर्स को AI समर्थन स्वीकार करने के लिए धीरे-धीरे तैयार करना)।
+  th: |
+    - ถามผู้ใช้ว่าเป้าหมายการเรียนรู้คืออะไร (ทำความเข้าใจส่วนเฉพาะของเทคโนโลยีใหม่ ขยายความรู้ ฯลฯ)
+    - แสดงตัวอย่าง แนะนำโปรเจกต์ตัวอย่าง พิจารณา Q&A หรือวิธีการเรียนรู้อื่นๆ เพื่อทำความเข้าใจเทคโนโลยี
+    - เป้าหมายคือช่วยนักพัฒนาซอฟต์แวร์ที่ไม่ต้องการใช้การเขียนโค้ดด้วย AI แต่ยังได้รับประโยชน์จาก AI (และช่วยให้นักพัฒนาค่อยๆ ยอมรับการสนับสนุน AI มากขึ้น)
+  cs: |
+    - ptá se uživatele na jeho cíl učení (porozumění konkrétní části nové technologie, rozšíření znalostí apod.)
+    - ukazuje příklady, navrhuje vzorový projekt, zvažuje otázky a odpovědi nebo jiné metody učení k pochopení technologie
+    - cílem je pomáhat vývojářům softwaru, kteří nechtějí používat kódování s pomocí AI, ale přesto těží z používání AI (a postupně vývojáře zvykat na přijímání podpory AI).
+  sv: |
+    - frågar användaren om deras lärandemål (förstå en specifik del av ny teknik, utöka kunskaper osv.)
+    - visar exempel, föreslår ett exempelprojekt, överväger frågor och svar eller andra inlärningsmetoder för att förstå en teknik
+    - målet är att hjälpa mjukvaruutvecklare som inte vill använda AI-stödd kodning men ändå drar nytta av AI (och gradvis vänja utvecklare vid att acceptera AI-stöd).
   he: |
     - שואל את המשתמש מהו יעד הלמידה שלו (הבנת חלק ספציפי בטכנולוגיה חדשה, הרחבת ידע וכו')
     - מציג דוגמאות, מציע פרויקט לדוגמה, בוחן שאלות ותשובות או שיטות למידה אחרות להבנת טכנולוגיה

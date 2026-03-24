@@ -1092,6 +1092,11 @@ app.conf.beat_schedule = {
         'options': {'queue': 'health_check'},  # Explicitly route to health_check queue
         'kwargs': {'retention_days': 90},  # Keep 90 days of history
     },
+    'precompute-status-summary': {
+        'task': 'health_check.precompute_status_summary',
+        'schedule': timedelta(seconds=60),  # Every 60 seconds
+        'options': {'queue': 'health_check'},  # Explicitly route to health_check queue
+    },
     'archive-old-usage-entries': {
         'task': 'usage.archive_old_entries',
         'schedule': crontab(hour=2, minute=0, day_of_month=1),  # 1st of month at 2 AM UTC

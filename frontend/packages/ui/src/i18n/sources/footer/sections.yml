@@ -5,21 +5,21 @@ website:
   zh: 网站
   es: Sitio web
   fr: Site web
-  pt: ''
-  ru: ''
+  pt: Website
+  ru: Сайт
   ja: ウェブサイト
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 웹사이트
+  it: Sito web
+  tr: Web sitesi
+  vi: Trang web
+  id: Situs web
+  pl: Strona internetowa
+  nl: Website
+  ar: الموقع الإلكتروني
+  hi: वेबसाइट
+  th: เว็บไซต์
+  cs: Webové stránky
+  sv: Webbplats
   he: אתר
   verified_by_human: []
 for_everyone:
@@ -29,21 +29,21 @@ for_everyone:
   zh: 面向所有人
   es: Para todos nosotros
   fr: Pour nous tous
-  pt: ''
-  ru: ''
+  pt: Para todos nós
+  ru: Для всех нас
   ja: 私たち全員のために
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 우리 모두를 위해
+  it: Per tutti noi
+  tr: Hepimiz için
+  vi: Cho tất cả chúng ta
+  id: Untuk kita semua
+  pl: Dla nas wszystkich
+  nl: Voor ons allemaal
+  ar: لنا جميعاً
+  hi: हम सभी के लिए
+  th: สำหรับพวกเราทุกคน
+  cs: Pro nás všechny
+  sv: För oss alla
   he: לכולנו
   verified_by_human: []
 for_developers:
@@ -53,21 +53,21 @@ for_developers:
   zh: 面向开发者
   es: Para desarrolladores
   fr: Pour les développeurs
-  pt: ''
-  ru: ''
+  pt: Para desenvolvedores
+  ru: Для разработчиков
   ja: 開発者向け
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 개발자를 위해
+  it: Per sviluppatori
+  tr: Geliştiriciler için
+  vi: Dành cho nhà phát triển
+  id: Untuk pengembang
+  pl: Dla deweloperów
+  nl: Voor ontwikkelaars
+  ar: للمطورين
+  hi: डेवलपर्स के लिए
+  th: สำหรับนักพัฒนา
+  cs: Pro vývojáře
+  sv: För utvecklare
   he: למפתחים
   verified_by_human: []
 webapp:
@@ -77,21 +77,21 @@ webapp:
   zh: Web 应用
   es: Web App
   fr: App Web
-  pt: ''
-  ru: ''
+  pt: Aplicativo Web
+  ru: Веб-приложение
   ja: ウェブアプリ
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 웹 앱
+  it: App Web
+  tr: Web Uygulaması
+  vi: Ứng dụng web
+  id: Aplikasi Web
+  pl: Aplikacja internetowa
+  nl: Web App
+  ar: تطبيق الويب
+  hi: वेब ऐप
+  th: เว็บแอป
+  cs: Webová aplikace
+  sv: Webbapp
   he: אפליקציית ווב
   verified_by_human: []
 docs:
@@ -101,21 +101,21 @@ docs:
   zh: 文档
   es: Documentación
   fr: Docs
-  pt: ''
-  ru: ''
+  pt: Documentação
+  ru: Документация
   ja: ドキュメント
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 문서
+  it: Documentazione
+  tr: Belgeler
+  vi: Tài liệu
+  id: Dokumentasi
+  pl: Dokumentacja
+  nl: Docs
+  ar: التوثيق
+  hi: दस्तावेज़
+  th: เอกสาร
+  cs: Dokumentace
+  sv: Dokumentation
   he: תיעוד
   verified_by_human: []
 user_guide:
@@ -125,21 +125,21 @@ user_guide:
   zh: 用户指南
   es: Guía del usuario
   fr: Guide de l'utilisateur
-  pt: ''
-  ru: ''
+  pt: Guia do usuário
+  ru: Руководство пользователя
   ja: ユーザーガイド
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 사용자 가이드
+  it: Guida utente
+  tr: Kullanıcı kılavuzu
+  vi: Hướng dẫn người dùng
+  id: Panduan pengguna
+  pl: Przewodnik użytkownika
+  nl: Gebruikershandleiding
+  ar: دليل المستخدم
+  hi: उपयोगकर्ता गाइड
+  th: คู่มือผู้ใช้
+  cs: Uživatelská příručka
+  sv: Användarguide
   he: מדריך למשתמש
   verified_by_human: []
 api_docs:
@@ -149,21 +149,21 @@ api_docs:
   zh: API 文档
   es: Documentación de la API
   fr: Documentation de l'API
-  pt: ''
-  ru: ''
+  pt: Documentação da API
+  ru: Документация API
   ja: APIドキュメント
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: API 문서
+  it: Documentazione API
+  tr: API Belgeleri
+  vi: Tài liệu API
+  id: Dokumentasi API
+  pl: Dokumentacja API
+  nl: API-documentatie
+  ar: توثيق API
+  hi: API दस्तावेज़
+  th: เอกสาร API
+  cs: Dokumentace API
+  sv: API-dokumentation
   he: תיעוד API
   verified_by_human: []
 roadmap:
@@ -173,21 +173,21 @@ roadmap:
   zh: 路线图
   es: Plan de desarrollo
   fr: Feuille de route
-  pt: ''
-  ru: ''
+  pt: Roteiro
+  ru: Дорожная карта
   ja: ロードマップ
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 로드맵
+  it: Roadmap
+  tr: Yol haritası
+  vi: Lộ trình
+  id: Peta jalan
+  pl: Mapa drogowa
+  nl: Routekaart
+  ar: خارطة الطريق
+  hi: रोडमैप
+  th: แผนงาน
+  cs: Plán vývoje
+  sv: Färdplan
   he: מפת דרכים
   verified_by_human: []
 design_guidelines:
@@ -197,21 +197,21 @@ design_guidelines:
   zh: 设计准则
   es: Guías de diseño
   fr: Principes de conception
-  pt: ''
-  ru: ''
+  pt: Diretrizes de design
+  ru: Руководство по дизайну
   ja: デザインガイドライン
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 디자인 가이드라인
+  it: Linee guida di design
+  tr: Tasarım kılavuzları
+  vi: Hướng dẫn thiết kế
+  id: Pedoman desain
+  pl: Wytyczne projektowe
+  nl: Ontwerprichtlijnen
+  ar: إرشادات التصميم
+  hi: डिज़ाइन दिशानिर्देश
+  th: แนวทางการออกแบบ
+  cs: Pokyny pro design
+  sv: Designriktlinjer
   he: הנחיות עיצוב
   verified_by_human: []
 legal:
@@ -221,21 +221,21 @@ legal:
   zh: 法律声明
   es: Legal
   fr: Juridique
-  pt: ''
-  ru: ''
+  pt: Jurídico
+  ru: Правовая информация
   ja: 法的情報
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 법률
+  it: Legale
+  tr: Yasal
+  vi: Pháp lý
+  id: Hukum
+  pl: Informacje prawne
+  nl: Juridisch
+  ar: قانوني
+  hi: कानूनी
+  th: กฎหมาย
+  cs: Právní informace
+  sv: Juridiskt
   he: משפטי
   verified_by_human: []
 contact:
@@ -245,21 +245,21 @@ contact:
   zh: 联系方式
   es: Contacto
   fr: Contact
-  pt: ''
-  ru: ''
+  pt: Contato
+  ru: Контакты
   ja: お問い合わせ
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 연락처
+  it: Contatti
+  tr: İletişim
+  vi: Liên hệ
+  id: Kontak
+  pl: Kontakt
+  nl: Contact
+  ar: اتصل بنا
+  hi: संपर्क
+  th: ติดต่อ
+  cs: Kontakt
+  sv: Kontakt
   he: צור קשר
   verified_by_human: []
 imprint:
@@ -269,21 +269,21 @@ imprint:
   zh: 版本说明
   es: Aviso legal
   fr: Mentions légales
-  pt: ''
-  ru: ''
+  pt: Aviso legal
+  ru: Импрессум
   ja: インプリント
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 법적 고지
+  it: Note legali
+  tr: Künye
+  vi: Thông tin pháp lý
+  id: Imprint
+  pl: Stopka redakcyjna
+  nl: Colofon
+  ar: بيانات النشر
+  hi: इम्प्रिंट
+  th: ข้อมูลผู้เผยแพร่
+  cs: Impressum
+  sv: Impressum
   he: פרטי העסק
   verified_by_human: []
 privacy:
@@ -293,21 +293,21 @@ privacy:
   zh: 隐私政策
   es: Privacidad
   fr: Confidentialité
-  pt: ''
-  ru: ''
+  pt: Privacidade
+  ru: Конфиденциальность
   ja: プライバシー
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 개인정보 보호
+  it: Privacy
+  tr: Gizlilik
+  vi: Quyền riêng tư
+  id: Privasi
+  pl: Prywatność
+  nl: Privacy
+  ar: الخصوصية
+  hi: गोपनीयता
+  th: ความเป็นส่วนตัว
+  cs: Ochrana soukromí
+  sv: Integritet
   he: פרטיות
   verified_by_human: []
 terms_and_conditions:
@@ -317,21 +317,21 @@ terms_and_conditions:
   zh: 条款和条件
   es: Términos y condiciones
   fr: Conditions générales d'utilisation
-  pt: ''
-  ru: ''
+  pt: Termos e condições
+  ru: Условия использования
   ja: 利用規約
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 이용 약관
+  it: Termini e condizioni
+  tr: Şartlar ve koşullar
+  vi: Điều khoản và điều kiện
+  id: Syarat dan ketentuan
+  pl: Warunki korzystania
+  nl: Algemene voorwaarden
+  ar: الشروط والأحكام
+  hi: नियम और शर्तें
+  th: ข้อกำหนดและเงื่อนไข
+  cs: Podmínky použití
+  sv: Villkor
   he: תנאי שימוש
   verified_by_human: []
 discord:
@@ -341,21 +341,21 @@ discord:
   zh: Discord
   es: Discord
   fr: Discord
-  pt: ''
-  ru: ''
+  pt: Discord
+  ru: Discord
   ja: Discord
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: Discord
+  it: Discord
+  tr: Discord
+  vi: Discord
+  id: Discord
+  pl: Discord
+  nl: Discord
+  ar: Discord
+  hi: Discord
+  th: Discord
+  cs: Discord
+  sv: Discord
   he: Discord
   verified_by_human: []
 email:
@@ -365,68 +365,68 @@ email:
   zh: 电子邮件
   es: Correo electrónico
   fr: E-mail
-  pt: ''
-  ru: ''
+  pt: E-mail
+  ru: Электронная почта
   ja: メール
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 이메일
+  it: Email
+  tr: E-posta
+  vi: Email
+  id: Email
+  pl: E-mail
+  nl: E-mail
+  ar: البريد الإلكتروني
+  hi: ईमेल
+  th: อีเมล
+  cs: E-mail
+  sv: E-post
   he: אימייל
   verified_by_human: []
 instagram:
   context: Instagram link in footer
   en: Instagram
-  de: ''
-  zh: ''
+  de: Instagram
+  zh: Instagram
   es: Instagram
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  fr: Instagram
+  pt: Instagram
+  ru: Instagram
+  ja: Instagram
+  ko: Instagram
+  it: Instagram
+  tr: Instagram
+  vi: Instagram
+  id: Instagram
+  pl: Instagram
+  nl: Instagram
+  ar: Instagram
+  hi: Instagram
+  th: Instagram
+  cs: Instagram
+  sv: Instagram
   he: Instagram
   verified_by_human: []
 github:
   context: GitHub link in footer
   en: GitHub
-  de: ''
-  zh: ''
+  de: GitHub
+  zh: GitHub
   es: GitHub
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  fr: GitHub
+  pt: GitHub
+  ru: GitHub
+  ja: GitHub
+  ko: GitHub
+  it: GitHub
+  tr: GitHub
+  vi: GitHub
+  id: GitHub
+  pl: GitHub
+  nl: GitHub
+  ar: GitHub
+  hi: GitHub
+  th: GitHub
+  cs: GitHub
+  sv: GitHub
   he: GitHub
   verified_by_human: []

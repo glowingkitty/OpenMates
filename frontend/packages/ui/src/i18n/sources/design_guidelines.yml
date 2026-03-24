@@ -107,8 +107,20 @@ privacy.subtext:
     en mettant l''accent sur la confidentialité.
 
     '
-  pt: ''
-  ru: ''
+  pt: 'Por isso,
+
+    o OpenMates foi desenvolvido
+
+    com foco na privacidade.
+
+    '
+  ru: 'Поэтому
+
+    OpenMates разработан
+
+    с акцентом на конфиденциальность.
+
+    '
   ja: 'そのため、
 
     OpenMatesは
@@ -116,18 +128,90 @@ privacy.subtext:
     プライバシーを重視して設計されています。
 
     '
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: '따라서,
+
+    OpenMates는
+
+    개인정보 보호에 중점을 두고 설계되었습니다.
+
+    '
+  it: 'Pertanto,
+
+    OpenMates è progettato
+
+    con un focus sulla privacy.
+
+    '
+  tr: 'Bu nedenle,
+
+    OpenMates gizliliğe
+
+    odaklanılarak tasarlanmıştır.
+
+    '
+  vi: 'Do đó,
+
+    OpenMates được thiết kế
+
+    với trọng tâm là quyền riêng tư.
+
+    '
+  id: 'Oleh karena itu,
+
+    OpenMates dirancang
+
+    dengan fokus pada privasi.
+
+    '
+  pl: 'Dlatego
+
+    OpenMates jest zaprojektowany
+
+    z naciskiem na prywatność.
+
+    '
+  nl: 'Daarom is
+
+    OpenMates ontworpen
+
+    met een focus op privacy.
+
+    '
+  ar: 'لذلك،
+
+    تم تصميم OpenMates
+
+    مع التركيز على الخصوصية.
+
+    '
+  hi: 'इसलिए,
+
+    OpenMates को
+
+    गोपनीयता पर ध्यान केंद्रित करके डिज़ाइन किया गया है।
+
+    '
+  th: 'ดังนั้น
+
+    OpenMates จึงถูกออกแบบ
+
+    โดยมุ่งเน้นที่ความเป็นส่วนตัว
+
+    '
+  cs: 'Proto je
+
+    OpenMates navržen
+
+    se zaměřením na soukromí.
+
+    '
+  sv: 'Därför är
+
+    OpenMates designat
+
+    med fokus på integritet.
+
+    '
   he: |
     לכן,
     OpenMates תוכננה
@@ -140,21 +224,21 @@ privacy.anonymization:
   zh: 匿名化
   es: Anonimización
   fr: Anonymisation
-  pt: ''
-  ru: ''
+  pt: Anonimização
+  ru: Анонимизация
   ja: 匿名化
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 익명화
+  it: Anonimizzazione
+  tr: Anonimleştirme
+  vi: Ẩn danh hóa
+  id: Anonimisasi
+  pl: Anonimizacja
+  nl: Anonimisering
+  ar: إخفاء الهوية
+  hi: अनामीकरण
+  th: การไม่เปิดเผยตัวตน
+  cs: Anonymizace
+  sv: Anonymisering
   he: אנונימיזציה
   verified_by_human: []
 privacy.local_processing:
@@ -164,21 +248,21 @@ privacy.local_processing:
   zh: 优先本地处理
   es: Procesamiento local primero
   fr: Traitement local en premier
-  pt: ''
-  ru: ''
+  pt: Processamento local primeiro
+  ru: Сначала локальная обработка
   ja: ローカル処理優先
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 로컬 처리 우선
+  it: Elaborazione locale prima
+  tr: Önce yerel işleme
+  vi: Xử lý cục bộ trước
+  id: Pemrosesan lokal terlebih dahulu
+  pl: Lokalne przetwarzanie najpierw
+  nl: Lokale verwerking eerst
+  ar: المعالجة المحلية أولاً
+  hi: पहले स्थानीय प्रसंस्करण
+  th: ประมวลผลในเครื่องก่อน
+  cs: Nejprve lokální zpracování
+  sv: Lokal bearbetning först
   he: עיבוד מקומי תחילה
   verified_by_human: []
 privacy.self_hosting:
@@ -188,21 +272,21 @@ privacy.self_hosting:
   zh: 自托管选项
   es: Opción de autoalojamiento
   fr: Option d'auto-hébergement
-  pt: ''
-  ru: ''
+  pt: Opção de auto-hospedagem
+  ru: Возможность самостоятельного хостинга
   ja: セルフホスティングオプション
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 자체 호스팅 옵션
+  it: Opzione di auto-hosting
+  tr: Kendi sunucusunda barındırma seçeneği
+  vi: Tùy chọn tự lưu trữ
+  id: Opsi hosting mandiri
+  pl: Opcja samodzielnego hostingu
+  nl: Zelfhosting optie
+  ar: خيار الاستضافة الذاتية
+  hi: स्व-होस्टिंग विकल्प
+  th: ตัวเลือกการโฮสต์เอง
+  cs: Možnost vlastního hostingu
+  sv: Alternativ för egen hosting
   he: אפשרות לאירוח עצמי
   verified_by_human: []
 maximum_good.headline_1:
@@ -212,21 +296,21 @@ maximum_good.headline_1:
   zh: 最大化善意
   es: Máximo beneficio
   fr: Bien maximum,
-  pt: ''
-  ru: ''
+  pt: Máximo bem
+  ru: Максимум добра
   ja: 最大限の善
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 최대 선
+  it: Massimo bene
+  tr: Maksimum fayda
+  vi: Lợi ích tối đa
+  id: Kebaikan maksimal
+  pl: Maksimum dobra
+  nl: Maximale goed
+  ar: أقصى قدر من الخير
+  hi: अधिकतम भलाई
+  th: ประโยชน์สูงสุด
+  cs: Maximální dobro
+  sv: Maximalt gott
   he: מקסימום טוב
   verified_by_human: []
 maximum_good.headline_2:
@@ -236,21 +320,21 @@ maximum_good.headline_2:
   zh: 而非最大化贪婪。
   es: no máxima codicia.
   fr: pas cupidité maximale.
-  pt: ''
-  ru: ''
+  pt: não máxima ganância.
+  ru: не максимальная жадность.
   ja: 最大限の貪欲ではなく。
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 최대 탐욕이 아닌.
+  it: non massima avidità.
+  tr: maksimum açgözlülük değil.
+  vi: không phải tham lam tối đa.
+  id: bukan keserakahan maksimal.
+  pl: nie maksymalna chciwość.
+  nl: niet maximale hebzucht.
+  ar: لا جشع أقصى.
+  hi: अधिकतम लालच नहीं।
+  th: ไม่ใช่ความโลภสูงสุด
+  cs: ne maximální chamtivost.
+  sv: inte maximal girighet.
   he: לא מקסימום חמדנות.
   verified_by_human: []
 maximum_good:
@@ -260,21 +344,21 @@ maximum_good:
   zh: 近年来，不惜一切代价追求利润的科技垄断企业一再将贪婪置于用户和地球的利益之上，忽视了这些决定造成的负面后果和破坏。 我们不能再这样继续下去了。
   es: Durante los últimos años, los monopolios tecnológicos que buscan beneficios a toda costa han priorizado repetidamente su codicia por encima de los intereses de sus usuarios y nuestro planeta, ignorando las consecuencias negativas y la destrucción causada por esas decisiones. No podemos continuar así.
   fr: Au cours des dernières années, les monopoles technologiques privilégiant le profit à tout prix ont maintes et maintes fois privilégié leur cupidité au détriment des intérêts de leurs utilisateurs et de notre planète, ignorant les conséquences négatives et la destruction causées par ces décisions.  Nous ne pouvons pas continuer ainsi.
-  pt: ''
-  ru: ''
+  pt: Nos últimos anos, os monopólios tecnológicos que buscam lucro a qualquer custo priorizaram repetidamente sua ganância em vez dos interesses de seus usuários e do nosso planeta, ignorando as consequências negativas e a destruição causadas por essas decisões. Não podemos simplesmente continuar assim.
+  ru: В последние годы технологические монополии, стремящиеся к прибыли любой ценой, снова и снова ставили свою жадность выше интересов пользователей и нашей планеты, игнорируя негативные последствия и разрушения, причинённые этими решениями. Так продолжаться не может.
   ja: 近年、利益優先のテクノロジー独占企業は、ユーザーや地球の利益よりも自らの貪欲さを優先し、その決定がもたらす悪影響や破壊を無視し続けてきました。このままでは続けられません。
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 최근 몇 년 동안, 어떤 대가를 치르더라도 이익을 추구하는 기술 독점 기업들은 사용자와 우리 지구의 이익 대신 탐욕을 반복적으로 우선시했으며, 그 결정으로 인한 부정적인 결과와 파괴를 무시했습니다. 우리는 그냥 그렇게 계속할 수 없습니다.
+  it: Negli ultimi anni, i monopoli tecnologici orientati al profitto a tutti i costi hanno ripetutamente dato priorità alla loro avidità invece degli interessi dei loro utenti e del nostro pianeta, ignorando le conseguenze negative e la distruzione causate da quelle decisioni. Non possiamo semplicemente continuare così.
+  tr: Son yıllarda, her ne pahasına olursa olsun kâr peşinde koşan teknoloji tekelleri, defalarca kendi açgözlülüklerini kullanıcılarının ve gezegenimizin çıkarlarının önüne koyarak bu kararların neden olduğu olumsuz sonuçları ve yıkımı görmezden gelmiştir. Böyle devam edemeyiz.
+  vi: Trong những năm gần đây, các tập đoàn công nghệ theo đuổi lợi nhuận bằng mọi giá đã nhiều lần ưu tiên sự tham lam của họ thay vì lợi ích của người dùng và hành tinh của chúng ta, bỏ qua những hậu quả tiêu cực và sự hủy hoại do những quyết định đó gây ra. Chúng ta không thể cứ tiếp tục như vậy.
+  id: Selama beberapa tahun terakhir, monopoli teknologi yang mencari keuntungan dengan segala cara telah berulang kali mengutamakan keserakahan mereka daripada kepentingan pengguna dan planet kita, mengabaikan konsekuensi negatif dan kehancuran yang disebabkan oleh keputusan-keputusan tersebut. Kita tidak bisa terus seperti itu.
+  pl: W ostatnich latach, monopole technologiczne dążące do zysku za wszelką cenę, raz po raz stawiały swoją chciwość ponad interesy swoich użytkowników i naszej planety, ignorując negatywne konsekwencje i zniszczenia spowodowane tymi decyzjami. Nie możemy tak po prostu kontynuować.
+  nl: In de afgelopen jaren hebben technologische monopolies die winst nastreven ten koste van alles, keer op keer hun hebzucht boven de belangen van hun gebruikers en onze planeet gesteld, waarbij ze de negatieve gevolgen en de vernietiging die door die beslissingen worden veroorzaakt, negeerden. We kunnen zo niet gewoon doorgaan.
+  ar: على مدار السنوات الأخيرة، قدّمت احتكارات التكنولوجيا الساعية للربح بأي ثمن جشعها مراراً وتكراراً على حساب مصالح مستخدميها وكوكبنا، متجاهلةً العواقب السلبية والدمار الناجم عن تلك القرارات. لا يمكننا الاستمرار على هذا النحو.
+  hi: हाल के वर्षों में, किसी भी कीमत पर लाभ कमाने वाले तकनीकी एकाधिकारों ने बार-बार अपने उपयोगकर्ताओं और हमारे ग्रह के हितों के बजाय अपने लालच को प्राथमिकता दी है, उन निर्णयों के कारण होने वाले नकारात्मक परिणामों और विनाश को नजरअंदाज करते हुए। हम बस इसी तरह जारी नहीं रह सकते।
+  th: ในช่วงไม่กี่ปีที่ผ่านมา การผูกขาดทางเทคโนโลยีที่แสวงหากำไรอย่างไม่มีข้อจำกัดได้ให้ความสำคัญกับความโลภของตนมากกว่าผลประโยชน์ของผู้ใช้และโลกของเรา โดยไม่สนใจผลลัพธ์เชิงลบและความเสียหายที่เกิดจากการตัดสินใจเหล่านั้น เราไม่สามารถดำเนินต่อไปเช่นนี้ได้
+  cs: V posledních letech technologické monopoly zaměřené na zisk za každou cenu opakovaně upřednostňovaly svou chamtivost před zájmy svých uživatelů a naší planety, přičemž ignorovaly negativní důsledky a ničení způsobené těmito rozhodnutími. Nemůžeme jen tak pokračovat.
+  sv: Under de senaste åren har teknologiska monopol som strävar efter vinst till varje pris, gång på gång prioriterat sin girighet framför sina användares och vår planets intressen, och ignorerat de negativa konsekvenserna och den förstörelse som orsakades av dessa beslut. Vi kan inte bara fortsätta så.
   he: במהלך השנים האחרונות, מונופולי טכנולוגיה השואפים לרווח בכל מחיר העדיפו שוב ושוב את חמדנותם על פני האינטרסים של המשתמשים שלהם ושל כדור הארץ שלנו, תוך התעלמות מההשלכות השליליות ומההרס שנגרמו כתוצאה מהחלטות אלו. אנחנו לא יכולים פשוט להמשיך ככה.
   verified_by_human: []
 maximum_good.subtext:
@@ -314,8 +398,20 @@ maximum_good.subtext:
     en mettant l''accent sur la maximisation de l''impact positif de l''IA.
 
     '
-  pt: ''
-  ru: ''
+  pt: 'Por isso,
+
+    o OpenMates foi desenvolvido
+
+    com foco em maximizar o impacto positivo da IA.
+
+    '
+  ru: 'Поэтому
+
+    OpenMates разработан
+
+    с акцентом на максимизацию положительного воздействия ИИ.
+
+    '
   ja: 'そのため、
 
     OpenMatesはAIの
@@ -323,18 +419,90 @@ maximum_good.subtext:
     ポジティブな影響を最大化することに焦点を当てて設計されています。
 
     '
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: '따라서,
+
+    OpenMates는 AI의
+
+    긍정적인 영향을 극대화하는 데 중점을 두고 설계되었습니다.
+
+    '
+  it: 'Pertanto,
+
+    OpenMates è progettato
+
+    con un focus sulla massimizzazione dell''impatto positivo dell''IA.
+
+    '
+  tr: 'Bu nedenle,
+
+    OpenMates yapay zekanın
+
+    olumlu etkisini en üst düzeye çıkarmaya odaklanarak tasarlanmıştır.
+
+    '
+  vi: 'Do đó,
+
+    OpenMates được thiết kế
+
+    với trọng tâm là tối đa hóa tác động tích cực của AI.
+
+    '
+  id: 'Oleh karena itu,
+
+    OpenMates dirancang
+
+    dengan fokus memaksimalkan dampak positif AI.
+
+    '
+  pl: 'Dlatego
+
+    OpenMates jest zaprojektowany
+
+    z naciskiem na maksymalizację pozytywnego wpływu AI.
+
+    '
+  nl: 'Daarom is
+
+    OpenMates ontworpen
+
+    met een focus op het maximaliseren van de positieve impact van AI.
+
+    '
+  ar: 'لذلك،
+
+    تم تصميم OpenMates
+
+    مع التركيز على تعظيم الأثر الإيجابي للذكاء الاصطناعي.
+
+    '
+  hi: 'इसलिए,
+
+    OpenMates को AI के
+
+    सकारात्मक प्रभाव को अधिकतम करने पर ध्यान केंद्रित करके डिज़ाइन किया गया है।
+
+    '
+  th: 'ดังนั้น
+
+    OpenMates จึงถูกออกแบบ
+
+    โดยมุ่งเน้นที่การเพิ่มผลกระทบเชิงบวกของ AI สูงสุด
+
+    '
+  cs: 'Proto je
+
+    OpenMates navržen
+
+    se zaměřením na maximalizaci pozitivního dopadu AI.
+
+    '
+  sv: 'Därför är
+
+    OpenMates designat
+
+    med fokus på att maximera den positiva effekten av AI.
+
+    '
   he: |
     לכן,
     OpenMates תוכננה
@@ -347,21 +515,21 @@ maximum_good.open_source:
   zh: 开源
   es: Código abierto
   fr: Open Source
-  pt: ''
-  ru: ''
+  pt: Código aberto
+  ru: Открытый исходный код
   ja: オープンソース
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 오픈 소스
+  it: Open Source
+  tr: Açık Kaynak
+  vi: Mã nguồn mở
+  id: Sumber terbuka
+  pl: Open Source
+  nl: Open Source
+  ar: مفتوح المصدر
+  hi: ओपन सोर्स
+  th: โอเพ่นซอร์ส
+  cs: Open Source
+  sv: Open Source
   he: קוד פתוח
   verified_by_human: []
 maximum_good.provider_independent:
@@ -371,21 +539,21 @@ maximum_good.provider_independent:
   zh: 独立于供应商
   es: Independiente del proveedor
   fr: Indépendant du fournisseur
-  pt: ''
-  ru: ''
+  pt: Independente de fornecedor
+  ru: Независимость от провайдера
   ja: プロバイダー独立
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 공급자 독립적
+  it: Indipendente dal provider
+  tr: Sağlayıcıdan bağımsız
+  vi: Độc lập với nhà cung cấp
+  id: Independen dari penyedia
+  pl: Niezależny od dostawcy
+  nl: Provideronafhankelijk
+  ar: مستقل عن المزود
+  hi: प्रदाता-स्वतंत्र
+  th: ไม่ขึ้นกับผู้ให้บริการ
+  cs: Nezávislý na poskytovateli
+  sv: Leverantörsoberoende
   he: בלתי תלוי בספקים
   verified_by_human: []
 maximum_good.chat_anywhere:
@@ -395,20 +563,20 @@ maximum_good.chat_anywhere:
   zh: 随时随地聊天
   es: Chatea en cualquier lugar
   fr: Chattez n'importe où
-  pt: ''
-  ru: ''
+  pt: Converse em qualquer lugar
+  ru: Чат везде
   ja: どこでもチャット
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 어디서나 채팅
+  it: Chatta ovunque
+  tr: Her yerde sohbet et
+  vi: Trò chuyện ở bất cứ đâu
+  id: Obrolan di mana saja
+  pl: Rozmawiaj gdziekolwiek
+  nl: Chat overal
+  ar: تحدث في أي مكان
+  hi: कहीं भी चैट करें
+  th: แชทได้ทุกที่
+  cs: Chatujte kdekoli
+  sv: Chatta var som helst
   he: "צ'אט בכל מקום"
   verified_by_human: []

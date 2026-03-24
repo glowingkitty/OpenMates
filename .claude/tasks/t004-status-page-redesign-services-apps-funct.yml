@@ -1,0 +1,26 @@
+id: t004
+title: "Status page redesign: Services/Apps/Functionalities"
+status: done
+mode: feature
+tags: []
+created: "2026-03-23T16:16:13Z"
+updated: "2026-03-23T17:40:39Z"
+session: 32f1
+context: |
+  Complete rewrite of status page. Plan: .claude/plans/tender-dancing-crystal.md
+plan:
+  - "[x] Phase 1A: Rewrite status_aggregator.py with new section builders"
+  - "[x] Phase 1B: Add new API endpoints (status_routes.py)"
+  - "[x] Phase 1C: Add functionality summaries to test_results_service.py"
+  - "[x] Phase 1D: Add API server external ping health check"
+  - "[x] Phase 1E: Add precompute_status_summary Celery task"
+  - "[x] Phase 2A: Fix TimelineBar .tl height + add hourly intra-day"
+  - "[x] Phase 2B: Rewrite types.ts and api.ts"
+  - "[x] Phase 2C: Create new components (InfraServices, AppGroup, FunctionalityGroup, ExpandableIssues)"
+  - "[x] Phase 2D: Rewrite +page.svelte layout"
+  - "[x] Phase 3: Cleanup old components and endpoints"
+acceptance_criteria: []
+files_to_modify: []
+files_modified: []
+notes: ''
+summary: ''
