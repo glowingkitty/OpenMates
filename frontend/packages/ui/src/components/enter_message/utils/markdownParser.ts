@@ -82,6 +82,19 @@ function isCurrencyLikeDollar(text: string, dollarIndex: number): boolean {
   }
 
   const nextChar = text[numberEnd];
+
+  // If the number is followed by whitespace, peek past it for LaTeX indicators.
+  // "$2 \times 10^{32}$" is math, not currency — the backslash signals a LaTeX command.
+  if (nextChar && /\s/.test(nextChar)) {
+    let lookAhead = numberEnd;
+    while (lookAhead < text.length && /\s/.test(text[lookAhead])) {
+      lookAhead++;
+    }
+    if (lookAhead < text.length && /[\\^_{}]/.test(text[lookAhead])) {
+      return false;
+    }
+  }
+
   // Accept end of string, whitespace, punctuation, or markdown syntax characters (* for bold/italic, ~ for strikethrough)
   return !nextChar || /[\s)\],.;:!?%*~]/.test(nextChar);
 }
