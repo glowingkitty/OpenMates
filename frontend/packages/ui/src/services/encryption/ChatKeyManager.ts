@@ -18,7 +18,7 @@
 // Tests: (to be added)
 
 import {
-  generateChatKey,
+  _generateChatKeyInternal,
   encryptChatKeyWithMasterKey,
   decryptChatKeyWithMasterKey,
   clearCryptoKeyCache,
@@ -84,8 +84,11 @@ const MAX_QUEUE_SIZE = 50;
  * Compute a short fingerprint of a key for comparison/logging.
  * Uses first 8 hex chars of a simple hash (NOT cryptographic — just for debugging).
  * Fast and synchronous, no Web Crypto needed.
+ *
+ * Exported so other modules can use the same fingerprint algorithm without
+ * duplicating the implementation (was duplicated in chatCrudOperations.ts).
  */
-function computeKeyFingerprint(key: Uint8Array): string {
+export function computeKeyFingerprint(key: Uint8Array): string {
   // Simple FNV-1a hash for speed (this is NOT for security, just comparison)
   let hash = 0x811c9dc5;
   for (let i = 0; i < key.length; i++) {
@@ -196,6 +199,15 @@ export class ChatKeyManager {
     | null = null;
 
   /**
+   * Callback to persist encrypted_chat_key to IndexedDB for a given chatId.
+   * Set during ChatDatabase init via setEncryptedChatKeyPersister().
+   * Used by createAndPersistKey() to atomically create + persist keys.
+   */
+  private persistEncryptedChatKeyFn:
+    | ((chatId: string, encryptedChatKey: string) => Promise<void>)
+    | null = null;
+
+  /**
    * BroadcastChannel for cross-tab coordination.
    * When this tab clears all keys (logout), other tabs are notified so they
    * also clear — preventing stale decrypted keys from lingering in other tabs.
@@ -253,6 +265,17 @@ export class ChatKeyManager {
       | null,
   ): void {
     this.hiddenChatKeyDecryptor = decryptor;
+  }
+
+  /**
+   * Register the function that persists encrypted_chat_key to IndexedDB.
+   * Called once during ChatDatabase initialization.
+   * Used by createAndPersistKey() to atomically create + persist keys.
+   */
+  setEncryptedChatKeyPersister(
+    persister: (chatId: string, encryptedChatKey: string) => Promise<void>,
+  ): void {
+    this.persistEncryptedChatKeyFn = persister;
   }
 
   // ---- Core Key Access ----
@@ -323,7 +346,7 @@ export class ChatKeyManager {
       return existing;
     }
 
-    const newKey = generateChatKey();
+    const newKey = _generateChatKeyInternal();
     this.setKeyWithProvenance(chatId, newKey, "created");
 
     console.info(
@@ -334,6 +357,46 @@ export class ChatKeyManager {
     this.flushPendingOps(chatId, newKey);
 
     return newKey;
+  }
+
+  /**
+   * Atomically create a new chat key AND persist the encrypted form to IndexedDB.
+   * This is the preferred way to create keys for new chats — it guarantees the key
+   * is persisted before any data is encrypted with it.
+   *
+   * Returns both the raw key (for immediate encryption) and the encrypted form
+   * (for inclusion in the chat record sent to server).
+   *
+   * @throws Error if master key is unavailable or persistence callback not registered
+   */
+  async createAndPersistKey(chatId: string): Promise<{
+    chatKey: Uint8Array;
+    encryptedChatKey: string;
+  }> {
+    // Step 1: Create the key (idempotent — returns existing if already created)
+    const chatKey = this.createKeyForNewChat(chatId);
+
+    // Step 2: Encrypt with master key for server/IDB storage
+    const encryptedChatKey = await encryptChatKeyWithMasterKey(chatKey);
+    if (!encryptedChatKey) {
+      throw new Error(
+        `[ChatKeyManager] Failed to encrypt chat key for ${chatId} — master key unavailable`,
+      );
+    }
+
+    // Step 3: Persist to IndexedDB (if persister is registered)
+    if (this.persistEncryptedChatKeyFn) {
+      await this.persistEncryptedChatKeyFn(chatId, encryptedChatKey);
+      console.info(
+        `[ChatKeyManager] ✅ Created and persisted key for chat ${chatId}`,
+      );
+    } else {
+      console.warn(
+        `[ChatKeyManager] Key created for ${chatId} but no persister registered — encrypted_chat_key not saved to IDB`,
+      );
+    }
+
+    return { chatKey, encryptedChatKey };
   }
 
   // ---- Key Loading ----
@@ -434,9 +497,30 @@ export class ChatKeyManager {
     chatId: string,
     encryptedChatKey: string,
   ): Promise<Uint8Array | null> {
-    // If key is already ready, skip decryption (it's the same key from server)
     const existing = this.keys.get(chatId);
-    if (existing) return existing;
+    if (existing) {
+      // Key already loaded — verify it matches the server key instead of
+      // silently skipping. A mismatch here means the server has a different key
+      // than what we have locally, which is the root cause of decryption failures.
+      try {
+        const serverKey = await decryptChatKeyWithMasterKey(encryptedChatKey);
+        if (serverKey && !keysAreEqual(existing, serverKey)) {
+          const existingFp = computeKeyFingerprint(existing);
+          const serverFp = computeKeyFingerprint(serverKey);
+          console.error(
+            `[ChatKeyManager] ⚠️ KEY CONFLICT in receiveKeyFromServer for chat ${chatId}! ` +
+              `Local key fp=${existingFp} differs from server key fp=${serverFp}. ` +
+              `Server key wins as source of truth — locally encrypted data may need re-encryption.`,
+          );
+          // Server is the source of truth — accept the server key
+          this.setKeyWithProvenance(chatId, serverKey, "server_sync");
+          return serverKey;
+        }
+      } catch {
+        // Decryption of server key failed — keep existing
+      }
+      return existing;
+    }
 
     try {
       const chatKey = await decryptChatKeyWithMasterKey(encryptedChatKey);

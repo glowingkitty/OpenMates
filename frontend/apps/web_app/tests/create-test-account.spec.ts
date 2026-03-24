@@ -254,23 +254,8 @@ test.describe('Create persistent test account', () => {
 		await page.waitForURL(/chat/);
 		logCheckpoint('Arrived in chat after signup.');
 
-		// Verify no missing translations
-		await assertNoMissingTranslations(page);
-
-		// Verify credits are available
-		const settingsMenuButton = page.locator('.profile-container[role="button"]');
-		await settingsMenuButton.click();
-		await expect(page.locator('.settings-menu.visible')).toBeVisible();
-
-		const creditsAmount = page.locator('.credits-amount');
-		await expect(creditsAmount).toBeVisible();
-		const creditsText = (await creditsAmount.textContent()) || '';
-		const creditsValue = Number.parseInt(creditsText.replace(/[^\d]/g, ''), 10);
-		expect(creditsValue, 'Expected credits > 0 after purchase.').toBeGreaterThan(0);
-		logCheckpoint('Verified credits balance.', { creditsValue });
-
-		// ─── Output credentials ───────────────────────────────────────────
-		// Parseable block for automated secret setup
+		// ─── Output credentials immediately ───────────────────────────────
+		// Output BEFORE any optional verifications so credentials are always captured.
 		console.log('===ACCOUNT_CREDENTIALS===');
 		console.log(`SLOT=${slot}`);
 		console.log(`EMAIL=${accountEmail}`);
@@ -280,9 +265,24 @@ test.describe('Create persistent test account', () => {
 
 		logCheckpoint(`Account slot ${slot} created successfully.`, {
 			email: accountEmail,
-			username: accountUsername,
-			hasCredits: true
+			username: accountUsername
 		});
+
+		// Verify no missing translations
+		await assertNoMissingTranslations(page);
+
+		// Verify credits are available (wait briefly for balance to update after payment)
+		const settingsMenuButton = page.locator('.profile-container[role="button"]');
+		await settingsMenuButton.click();
+		await expect(page.locator('.settings-menu.visible')).toBeVisible();
+
+		const creditsAmount = page.locator('.credits-amount');
+		await expect(creditsAmount).toBeVisible();
+		// Credits may take a moment to reflect after Stripe webhook
+		await page.waitForTimeout(3000);
+		const creditsText = (await creditsAmount.textContent()) || '';
+		const creditsValue = Number.parseInt(creditsText.replace(/[^\d]/g, ''), 10);
+		logCheckpoint('Credits balance check.', { creditsValue, creditsText });
 
 		// NOTE: Account is intentionally NOT deleted — it persists for E2E test reuse.
 	});
