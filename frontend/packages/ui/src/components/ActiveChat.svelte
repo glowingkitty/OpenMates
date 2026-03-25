@@ -2094,10 +2094,26 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     /**
      * Navigate to an existing chat when selected from the suggestion area's chat search results.
+     * Fetches the full Chat object from IndexedDB and loads it via loadChat(), matching the
+     * same flow as clicking a chat in the sidebar (Chats.svelte handleChatClick).
      */
-    function handleChatNavigate(chatId: string) {
+    async function handleChatNavigate(chatId: string) {
         console.debug('[ActiveChat] Chat navigate from suggestion area:', chatId);
-        activeChatStore.setActiveChat(chatId);
+        try {
+            await chatDB.init();
+            const chat = await chatDB.getChat(chatId);
+            if (!chat) {
+                console.warn('[ActiveChat] Chat not found in IndexedDB:', chatId);
+                return;
+            }
+            activeChatStore.setActiveChat(chatId);
+            await loadChat(chat);
+            window.dispatchEvent(new CustomEvent('globalChatSelected', {
+                bubbles: true, composed: true, detail: { chatId }
+            }));
+        } catch (error) {
+            console.error('[ActiveChat] Failed to navigate to chat:', chatId, error);
+        }
     }
 
     // Handler for the dislike/report-bad-answer retry prompt.

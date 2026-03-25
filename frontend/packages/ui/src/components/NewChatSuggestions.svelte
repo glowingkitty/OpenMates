@@ -254,7 +254,9 @@
    * e.g., "Today", "Yesterday", "Mar 15", "Dec 2025"
    */
   function formatChatDate(timestamp: number): string {
-    const date = new Date(timestamp);
+    // Timestamps are stored as Unix seconds (Math.floor(Date.now() / 1000))
+    // but Date constructor expects milliseconds
+    const date = new Date(timestamp * 1000);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
@@ -745,19 +747,19 @@
         {/if}
         {#each chatSearchResults as chatResult (chatResult.chatId)}
           {@const IconComponent = getLucideIcon(chatResult.iconName)}
-          <button
-            class="suggestion-card chat-result-card"
-            style="background: linear-gradient(135deg, {chatResult.gradientStart}, {chatResult.gradientEnd});"
-            onclick={() => onChatNavigate(chatResult.chatId)}
-          >
-            <span class="card-icon chat-result-icon">
-              <IconComponent size={24} color="white" />
-            </span>
-            <span class="card-text-group">
+          <div class="chat-result-wrapper">
+            <button
+              class="suggestion-card chat-result-card"
+              style="background: linear-gradient(135deg, {chatResult.gradientStart}, {chatResult.gradientEnd});"
+              onclick={() => onChatNavigate(chatResult.chatId)}
+            >
+              <span class="card-icon chat-result-icon">
+                <IconComponent size={24} color="white" />
+              </span>
               <span class="card-text">{chatResult.title}</span>
-              <span class="card-date">Chat from {chatResult.dateLabel}</span>
-            </span>
-          </button>
+            </button>
+            <span class="card-date">{chatResult.dateLabel}</span>
+          </div>
         {/each}
       {/if}
     </div>
@@ -958,23 +960,24 @@
     justify-content: center;
   }
 
-  /* Text group wrapping title + date label for chat result cards */
-  .card-text-group {
+  /* Wrapper for chat result card + date label below it */
+  .chat-result-wrapper {
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    min-width: 0;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
   }
 
-  /* Small date label below the chat title */
+  /* Small date label below the chat result card */
   .card-date {
-    color: rgba(255, 255, 255, 0.7);
+    color: var(--color-grey-50);
     font-size: 11px;
     font-weight: 400;
     line-height: 1.2;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    text-align: center;
+    opacity: 0.8;
   }
 
   @media (max-width: 730px) {
