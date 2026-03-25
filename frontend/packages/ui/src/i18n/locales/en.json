@@ -3522,6 +3522,18 @@
       },
       "open_chat_button": {
         "text": "Open Chat"
+      },
+      "header_task": {
+        "text": "Your Task Has Been Executed"
+      },
+      "description_task": {
+        "text": "Your scheduled task has been executed. Check the results in your new chat."
+      },
+      "description_chat": {
+        "text": "You asked to be reminded about this chat."
+      },
+      "task_label": {
+        "text": "Your task"
       }
     },
     "test_failure_notification": {
@@ -7360,11 +7372,14 @@
       "action_prompt_placeholder": {
         "text": "What should I do when this reminder triggers?"
       },
-      "note": {
-        "text": "Note"
+      "mode_this_chat": {
+        "text": "Remind me about this chat"
       },
-      "note_placeholder": {
-        "text": "Optional note"
+      "mode_new_task": {
+        "text": "New chat with task"
+      },
+      "auto_prompt": {
+        "text": "Check back on this chat"
       },
       "repeat": {
         "text": "Repeat"
