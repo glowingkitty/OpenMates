@@ -899,10 +899,19 @@ async def payment_webhook(
             
             cached_order_data = await cache_service.get_order(webhook_order_id)
             if not cached_order_data:
-                logger.error(f"Order {webhook_order_id} not found in cache. Cannot process.")
+                logger.error(
+                    f"CRITICAL: Order {webhook_order_id} not found in cache. "
+                    f"Payment was successful but credits cannot be granted. "
+                    f"Returning HTTP 500 so {provider_name} will retry delivery."
+                )
                 await cache_service.update_order_status(webhook_order_id, "failed_missing_cache_data")
-                # TODO(audit-2026-03-19): Returns HTTP 200 on cache miss — Stripe stops retrying, user paid but credits never granted. Should return HTTP 500 so provider retries delivery.
-                return {"status": "order_cache_miss"}
+                # Return 500 so the payment provider retries the webhook.
+                # The cache entry may have expired between order creation and webhook delivery.
+                # On retry, the frontend may have re-created the order in cache.
+                raise HTTPException(
+                    status_code=500,
+                    detail="Order data temporarily unavailable, please retry"
+                )
 
             user_id = cached_order_data.get("user_id")
             credits_purchased = cached_order_data.get("credits_amount")
@@ -2121,7 +2130,7 @@ async def payment_webhook(
                         invoice_ninja_service = InvoiceNinjaService()
 
                         # We need minimal info for Invoice Ninja: user hash, order ID, amount, currency
-                        invoice_ninja_service.process_refund_transaction(
+                        await invoice_ninja_service.process_refund_transaction(
                             user_hash=user_id_hash,
                             external_order_id=refund_invoice.get("order_id", ""),
                             invoice_id=refund_invoice_id,

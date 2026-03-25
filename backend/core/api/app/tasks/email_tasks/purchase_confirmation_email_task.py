@@ -835,7 +835,7 @@ async def _async_process_invoice_and_send_email(
                 card_brand_lower_safe = card_brand.lower() if card_brand else ""
 
                 # Pass the English PDF bytes as custom_pdf_data and other required fields
-                invoice_ninja_service.process_income_transaction(
+                await invoice_ninja_service.process_income_transaction(
                     user_hash=user_id_hash,  # Using user_id_hash as user_hash
                     external_order_id=order_id,
                     customer_firstname=customer_firstname,
