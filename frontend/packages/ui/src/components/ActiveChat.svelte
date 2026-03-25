@@ -9194,7 +9194,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     <!-- Shown to ALL users: defaults for guests, personalized for authenticated users -->
                     <!-- Rendered FIRST so it appears above the top-buttons row on the welcome screen -->
                     {#if showWelcome && !hideWelcomeForKeyboard}
-                        <div class="daily-inspiration-area" out:fade={{ duration: 200 }}>
+                        <div class="daily-inspiration-area">
                             <DailyInspirationBanner
                                 onStartChat={handleStartChatFromInspiration}
                                 onEmbedFullscreen={handleInspirationEmbedFullscreen}
@@ -9328,7 +9328,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         <div
                             class="center-content"
                             bind:this={welcomeContentEl}
-                            out:fade={{ duration: 200 }}
                         >
                             <div class="team-profile">
                                 <!-- <div class="team-image" class:disabled={!isTeamEnabled}></div> -->
@@ -9702,12 +9701,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                               (hideWelcomeForKeyboard), giving the suggestions room to breathe.
                               Legacy fallback: also hide on very short screens (≤670px viewport). -->
                          {#if showWelcome && !messageInputMapsOpen && (!suggestionsWouldOverlapWelcome || messageInputRecentlyFocused) && (viewportHeight > 670 || messageInputRecentlyFocused)}
-                             <div in:fade={{ duration: 200, delay: 200 }} out:fade={{ duration: 200 }}>
-                                 <NewChatSuggestions
-                                     messageInputContent={liveInputText}
-                                     onSuggestionClick={handleSuggestionClick}
-                                 />
-                             </div>
+                             <NewChatSuggestions
+                                 messageInputContent={liveInputText}
+                                 onSuggestionClick={handleSuggestionClick}
+                             />
                          {/if}
 
 

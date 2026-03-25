@@ -653,6 +653,8 @@
 
 <style>
   .suggestions-wrapper {
+    animation: fadeIn 200ms ease-out;
+    animation-delay: 200ms;
     transition: opacity 200ms ease;
     opacity: 1;
     /* Must span full parent width so children's calc(50% - 120px) padding resolves
