@@ -8,6 +8,8 @@
  * Tests: Used by all credential-gated E2E specs
  */
 
+export {};
+
 import type { TestType } from '@playwright/test';
 
 /**
@@ -20,7 +22,7 @@ import type { TestType } from '@playwright/test';
  * Usage (inside a test.describe or at top level):
  *   skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
  */
-export function skipWithoutCredentials(
+function skipWithoutCredentials(
 	t: TestType<any, any>,
 	email: string | undefined,
 	password: string | undefined,
@@ -33,7 +35,7 @@ export function skipWithoutCredentials(
  * Skip all tests if Mailosaur credentials are missing.
  * For signup/email-verification specs that need the Mailosaur service.
  */
-export function skipWithoutMailosaur(
+function skipWithoutMailosaur(
 	t: TestType<any, any>,
 	mailosaurApiKey: string | undefined,
 	signupDomain?: string | undefined
@@ -43,3 +45,5 @@ export function skipWithoutMailosaur(
 		t.skip(!signupDomain, 'SIGNUP_TEST_EMAIL_DOMAINS must include a test domain.');
 	}
 }
+
+module.exports = { skipWithoutCredentials, skipWithoutMailosaur };

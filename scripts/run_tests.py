@@ -348,6 +348,51 @@ class GitHubActionsClient:
             capture_output=True,
         )
 
+    def get_failed_job_error(self, run_id: int) -> Optional[str]:
+        """Extract error details from a failed run's job logs via `gh run view --log-failed`.
+        Returns a trimmed error snippet or None."""
+        rc = subprocess.run(
+            ["gh", "run", "view", str(run_id),
+             "--repo", GH_REPO,
+             "--log-failed"],
+            capture_output=True, text=True,
+            timeout=30,
+        )
+        if rc.returncode != 0 or not rc.stdout.strip():
+            return None
+
+        lines = rc.stdout.strip().splitlines()
+
+        # Look for Playwright-style error lines (assertions, timeouts, etc.)
+        error_lines: list[str] = []
+        capture = False
+        for line in lines:
+            # Strip the GitHub Actions job/step prefix (e.g. "run-playwright\tRun tests\t")
+            text = line.split("\t")[-1] if "\t" in line else line
+
+            # Start capturing at error indicators
+            if any(kw in text for kw in [
+                "Error:", "FAILED", "expect(", "Timeout", "AssertionError",
+                "Error: locator", "waiting for", "error TS",
+                "Cannot find module", "ERR_MODULE_NOT_FOUND",
+            ]):
+                capture = True
+            if capture:
+                error_lines.append(text.strip())
+                if len(error_lines) >= 15:
+                    break
+
+        if error_lines:
+            return "\n".join(error_lines)[:MAX_ERROR_SNIPPET]
+
+        # Fallback: return last N non-empty lines (usually contains the failure reason)
+        tail = [ln.split("\t")[-1].strip() if "\t" in ln else ln.strip()
+                for ln in lines[-20:] if ln.strip()]
+        if tail:
+            return "\n".join(tail[-10:])[:MAX_ERROR_SNIPPET]
+
+        return None
+
     def download_artifact(self, run_id: int, artifact_name: str, dest_dir: Path) -> Optional[Path]:
         """Download a run's artifact. Returns path to downloaded dir or None."""
         dest = dest_dir / str(run_id)
@@ -499,6 +544,12 @@ class BatchRunner:
                         error = self._extract_error_from_playwright_json(pw_json) or error
                     # Persist screenshots/traces for failed tests
                     self._persist_failure_artifacts(spec, art_path)
+
+                # Fallback: fetch failed job logs if artifact didn't yield a real error
+                if error == f"GitHub Actions conclusion: {conclusion}":
+                    log_error = self.client.get_failed_job_error(rid)
+                    if log_error:
+                        error = log_error
 
             icon = {"passed": "✓", "failed": "✗", "timeout": "⏱", "not_started": "⊘"}.get(status, "?")
             _log(f"  {icon} {spec} (run {rid})", "OK" if status == "passed" else "ERROR")

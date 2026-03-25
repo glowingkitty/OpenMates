@@ -9,8 +9,15 @@
 
 import asyncio
 
-from backend.apps.ai.llm_providers.google_client import GoogleUsageMetadata
-from backend.apps.ai.utils import llm_utils
+import pytest
+
+try:
+    from backend.apps.ai.llm_providers.google_client import GoogleUsageMetadata
+    from backend.apps.ai.utils import llm_utils
+except ImportError:
+    pytestmark = pytest.mark.skip(reason="Backend AI dependencies not installed (google-genai, tiktoken, etc.)")
+    GoogleUsageMetadata = None  # type: ignore[assignment, misc]
+    llm_utils = None  # type: ignore[assignment]
 
 
 def test_call_main_llm_stream_falls_back_after_empty_provider_stream(monkeypatch):

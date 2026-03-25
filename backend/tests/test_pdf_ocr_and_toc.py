@@ -39,10 +39,16 @@ from typing import Any, Optional
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from dotenv import load_dotenv  # noqa: E402
-load_dotenv(PROJECT_ROOT / ".env")
+import pytest as _pytest_import  # noqa: E402 — needed for skip guard below
 
-from backend.core.api.app.utils.secrets_manager import SecretsManager  # noqa: E402
+try:
+    from dotenv import load_dotenv  # noqa: E402
+    load_dotenv(PROJECT_ROOT / ".env")
+
+    from backend.core.api.app.utils.secrets_manager import SecretsManager  # noqa: E402
+except ImportError as _exc:
+    pytestmark = _pytest_import.mark.skip(reason=f"Backend dependencies not installed: {_exc}")
+    SecretsManager = None  # type: ignore[assignment, misc]
 
 # ---------------------------------------------------------------------------
 # Logging

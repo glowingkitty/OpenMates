@@ -65,14 +65,17 @@ pytestmark = pytest.mark.benchmark
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from dotenv import load_dotenv  # noqa: E402
-load_dotenv()
+try:
+    from dotenv import load_dotenv  # noqa: E402
+    load_dotenv()
 
-from backend.apps.ai.utils.llm_utils import (  # noqa: E402
-    call_preprocessing_llm,
-    LLMPreprocessingCallResult,
-)
-from backend.core.api.app.utils.secrets_manager import SecretsManager  # noqa: E402
+    from backend.apps.ai.utils.llm_utils import (  # noqa: E402
+        call_preprocessing_llm,
+        LLMPreprocessingCallResult,
+    )
+    from backend.core.api.app.utils.secrets_manager import SecretsManager  # noqa: E402
+except ImportError as _exc:
+    pytestmark = pytest.mark.skip(reason=f"Backend AI dependencies not installed: {_exc}")
 
 logging.basicConfig(
     level=logging.INFO,
