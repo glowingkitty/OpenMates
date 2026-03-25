@@ -30,7 +30,6 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import get_curren
 # Import comprehensive ASCII smuggling sanitization
 # This module protects against invisible Unicode characters used to embed hidden instructions
 from backend.core.api.app.utils.text_sanitization import sanitize_text_simple
-from backend.shared.python_utils.url_normalizer import sanitize_text_urls_remove_query_and_fragment
 
 # Import AI models for documentation purposes
 # Use absolute imports to avoid circular dependencies
@@ -264,8 +263,11 @@ def _sanitize_dict_recursively(data: Any, log_prefix: str = "") -> Any:
     elif isinstance(data, list):
         return [_sanitize_dict_recursively(item, log_prefix) for item in data]
     elif isinstance(data, str):
-        sanitized = sanitize_text_simple(data, log_prefix=log_prefix)
-        return sanitize_text_urls_remove_query_and_fragment(sanitized)
+        # Only sanitize for ASCII smuggling — do NOT strip URL query params here.
+        # Skill input_data often contains URLs where query params are functional
+        # (e.g. ?v=VIDEO_ID for YouTube). The URL query/fragment stripping is
+        # appropriate for LLM chat context but not for structured skill inputs.
+        return sanitize_text_simple(data, log_prefix=log_prefix)
     else:
         # Primitives (int, float, bool, None) pass through unchanged
         return data
