@@ -381,6 +381,7 @@ email:
   cs: E-mail
   sv: E-post
   he: אימייל
+  verified_by_human: []
 email.loading:
   context: Loading message for email decryption
   en: Decrypting e-mail address...
@@ -2215,54 +2216,124 @@ delete_account_uncompleted_title:
   context: Title for uncompleted account deletion
   en: Delete uncompleted account
   de: Unvollständiges Konto löschen
+  zh: 删除未完成的账户
   es: Eliminar cuenta no completada
   fr: Supprimer le compte non terminé
+  pt: Excluir conta incompleta
+  ru: Удалить незавершённый аккаунт
   ja: 未完了のアカウントを削除
-  zh: 删除未完成的账户
+  ko: 미완성 계정 삭제
+  it: Elimina account non completato
+  tr: Tamamlanmamış hesabı sil
+  vi: Xóa tài khoản chưa hoàn thành
+  id: Hapus akun yang belum selesai
+  pl: Usuń nieukończone konto
+  nl: Onvoltooid account verwijderen
   ar: حذف الحساب غير المكتمل
+  hi: अधूरा खाता हटाएं
+  th: ลบบัญชีที่ยังไม่เสร็จ
+  cs: Smazat neúplný účet
+  sv: Ta bort ofullständigt konto
   he: מחיקת חשבון שלא הושלם
+  verified_by_human: []
 delete_account_uncompleted_message:
   context: Message for uncompleted account deletion
   en: This account hasn't completed the signup process yet. You can delete it now without logging in.
   de: Dieses Konto hat den Registrierungsprozess noch nicht abgeschlossen. Du kannst es jetzt ohne Anmeldung löschen.
+  zh: 此账户尚未完成注册流程。您现在可以在不登录的情况下将其删除。
   es: Esta cuenta aún no ha completado el proceso de registro. Puedes eliminarla ahora sin iniciar sesión.
   fr: Ce compte n'a pas encore terminé le processus d'inscription. Vous pouvez le supprimer maintenant sans vous connecter.
+  pt: Esta conta ainda não concluiu o processo de cadastro. Você pode excluí-la agora sem fazer login.
+  ru: Этот аккаунт ещё не завершил процесс регистрации. Вы можете удалить его сейчас без входа в систему.
   ja: このアカウントはまだサインアッププロセスを完了していません。ログインせずに今すぐ削除できます。
-  zh: 此账户尚未完成注册流程。您现在可以在不登录的情况下将其删除。
+  ko: 이 계정은 아직 가입 과정을 완료하지 않았습니다. 로그인 없이 지금 삭제할 수 있습니다.
+  it: Questo account non ha ancora completato il processo di registrazione. Puoi eliminarlo ora senza effettuare il login.
+  tr: Bu hesap henüz kayıt sürecini tamamlamamış. Giriş yapmadan şimdi silebilirsiniz.
+  vi: Tài khoản này chưa hoàn thành quá trình đăng ký. Bạn có thể xóa nó ngay bây giờ mà không cần đăng nhập.
+  id: Akun ini belum menyelesaikan proses pendaftaran. Anda dapat menghapusnya sekarang tanpa masuk.
+  pl: To konto nie ukończyło jeszcze procesu rejestracji. Możesz je teraz usunąć bez logowania.
+  nl: Dit account heeft het aanmeldingsproces nog niet voltooid. U kunt het nu verwijderen zonder in te loggen.
   ar: لم يكتمل هذا الحساب عملية التسجيل بعد. يمكنك حذفه الآن دون تسجيل الدخول.
+  hi: इस खाते ने अभी तक साइनअप प्रक्रिया पूरी नहीं की है। आप इसे बिना लॉगिन किए अभी हटा सकते हैं।
+  th: บัญชีนี้ยังไม่ได้ดำเนินการลงทะเบียนให้เสร็จสมบูรณ์ คุณสามารถลบได้ตอนนี้โดยไม่ต้องเข้าสู่ระบบ
+  cs: Tento účet ještě nedokončil proces registrace. Můžete jej nyní smazat bez přihlášení.
+  sv: Det här kontot har inte slutfört registreringsprocessen ännu. Du kan radera det nu utan att logga in.
   he: חשבון זה טרם השלים את תהליך ההרשמה. ניתן למחוק אותו כעת ללא צורך בהתחברות.
+  verified_by_human: []
 delete_account_login_required_title:
   context: Title when login is required for account deletion
   en: Login required
   de: Anmeldung erforderlich
+  zh: 需要登录
   es: Inicio de sesión requerido
   fr: Connexion requise
+  pt: Login necessário
+  ru: Требуется вход
   ja: ログインが必要です
-  zh: 需要登录
+  ko: 로그인 필요
+  it: Accesso richiesto
+  tr: Giriş gerekli
+  vi: Yêu cầu đăng nhập
+  id: Login diperlukan
+  pl: Wymagane logowanie
+  nl: Inloggen vereist
   ar: تسجيل الدخول مطلوب
+  hi: लॉगिन आवश्यक है
+  th: ต้องเข้าสู่ระบบ
+  cs: Vyžadováno přihlášení
+  sv: Inloggning krävs
   he: נדרשת התחברות
+  verified_by_human: []
 delete_account_login_required_message:
   context: Message when login is required for account deletion
   en: This account has completed signup or has credits/usage. Please log in to delete it using the regular interface.
   de: Dieses Konto hat die Registrierung abgeschlossen oder verfügt über Guthaben/Nutzung. Bitte melde dich an, um es über die reguläre Oberfläche zu löschen.
+  zh: 此账户已完成注册或有信用/使用记录。请登录后使用常规界面将其删除。
   es: Esta cuenta ha completado el registro o tiene créditos/uso. Por favor, inicia sesión para eliminarla usando la interfaz normal.
   fr: Ce compte a terminé son inscription ou possède des crédits/utilisations. Veuillez vous connecter pour le supprimer via l'interface habituelle.
+  pt: Esta conta concluiu o cadastro ou tem créditos/uso. Por favor, faça login para excluí-la pela interface regular.
+  ru: Этот аккаунт завершил регистрацию или имеет кредиты/историю использования. Войдите в систему, чтобы удалить его через обычный интерфейс.
   ja: このアカウントはサインアップを完了しているか、クレジットまたは使用履歴があります。通常のインターフェースを使用して削除するには、ログインしてください。
-  zh: 此账户已完成注册或有信用/使用记录。请登录后使用常规界面将其删除。
+  ko: 이 계정은 가입을 완료했거나 크레딧/사용 기록이 있습니다. 일반 인터페이스를 사용하여 삭제하려면 로그인하세요.
+  it: Questo account ha completato la registrazione o ha crediti/utilizzo. Per favore, accedi per eliminarlo tramite l'interfaccia normale.
+  tr: Bu hesap kaydı tamamlamış veya kredi/kullanım geçmişi var. Normal arayüzü kullanarak silmek için lütfen giriş yapın.
+  vi: Tài khoản này đã hoàn thành đăng ký hoặc có tín dụng/sử dụng. Vui lòng đăng nhập để xóa bằng giao diện thông thường.
+  id: Akun ini telah menyelesaikan pendaftaran atau memiliki kredit/penggunaan. Silakan masuk untuk menghapusnya menggunakan antarmuka biasa.
+  pl: To konto ukończyło rejestrację lub ma kredyty/historię użytkowania. Zaloguj się, aby usunąć je przez standardowy interfejs.
+  nl: Dit account heeft de aanmelding voltooid of heeft credits/gebruik. Log in om het te verwijderen via de normale interface.
   ar: أكمل هذا الحساب عملية التسجيل أو لديه رصيد/استخدام. يرجى تسجيل الدخول لحذفه عبر الواجهة العادية.
+  hi: इस खाते ने साइनअप पूरा कर लिया है या इसमें क्रेडिट/उपयोग है। नियमित इंटरफेस का उपयोग करके इसे हटाने के लिए कृपया लॉगिन करें।
+  th: บัญชีนี้ดำเนินการลงทะเบียนเสร็จแล้วหรือมีเครดิต/การใช้งาน กรุณาเข้าสู่ระบบเพื่อลบโดยใช้อินเทอร์เฟซปกติ
+  cs: Tento účet dokončil registraci nebo má kredity/historii použití. Přihlaste se prosím a smažte jej pomocí běžného rozhraní.
+  sv: Det här kontot har slutfört registreringen eller har krediter/användning. Logga in för att radera det med det vanliga gränssnittet.
   he: חשבון זה השלים את ההרשמה או שיש בו קרדיטים/שימוש. עליך להתחבר כדי למחוק אותו דרך הממשק הרגיל.
+  verified_by_human: []
 delete_account_status_error:
   context: Error message when checking account status fails
   en: Failed to check account status. Please try again later.
   de: Kontostatus konnte nicht überprüft werden. Bitte versuche es später erneut.
+  zh: 无法检查账户状态。请稍后再试。
   es: No se pudo verificar el estado de la cuenta. Por favor, inténtalo de nuevo más tarde.
   fr: Échec de la vérification de l'état du compte. Veuillez réessayer plus tard.
+  pt: Falha ao verificar o status da conta. Por favor, tente novamente mais tarde.
+  ru: Не удалось проверить статус аккаунта. Пожалуйста, попробуйте позже.
   ja: アカウントステータスの確認に失敗しました。後でもう一度お試しください。
-  zh: 无法检查账户状态。请稍后再试。
+  ko: 계정 상태 확인에 실패했습니다. 나중에 다시 시도해 주세요.
+  it: Impossibile verificare lo stato dell'account. Per favore riprova più tardi.
+  tr: Hesap durumu kontrol edilemedi. Lütfen daha sonra tekrar deneyin.
+  vi: Không thể kiểm tra trạng thái tài khoản. Vui lòng thử lại sau.
+  id: Gagal memeriksa status akun. Silakan coba lagi nanti.
+  pl: Nie udało się sprawdzić statusu konta. Spróbuj ponownie później.
+  nl: Kan de accountstatus niet controleren. Probeer het later opnieuw.
   ar: فشل التحقق من حالة الحساب. يرجى المحاولة مرة أخرى لاحقًا.
+  hi: खाता स्थिति जांचने में विफल। कृपया बाद में पुनः प्रयास करें।
+  th: ไม่สามารถตรวจสอบสถานะบัญชีได้ กรุณาลองอีกครั้งในภายหลัง
+  cs: Nepodařilo se zkontrolovat stav účtu. Zkuste to prosím znovu později.
+  sv: Det gick inte att kontrollera kontostatus. Försök igen senare.
+  he: בדיקת סטטוס החשבון נכשלה. כדאי לנסות שוב מאוחר יותר.
+  verified_by_human: []
 
   # --- Timezone Settings ---
-  he: בדיקת סטטוס החשבון נכשלה. כדאי לנסות שוב מאוחר יותר.
 timezone:
   context: Timezone settings menu item in account section
   en: Timezone
@@ -3358,6 +3429,17 @@ import_description:
   ja: 以前にエクスポートしたOpenMates YAMLファイルからチャットをインポートします。各メッセージは保存前にセキュリティスキャンされます。
   ko: 이전에 내보낸 OpenMates YAML 파일에서 채팅을 가져옵니다. 각 메시지는 저장 전에 보안 검사를 받습니다。
   it: Importa le chat da un file YAML OpenMates precedentemente esportato. Ogni messaggio viene analizzato per la sicurezza prima dell'archiviazione.
+  tr: OpenMates dışa aktarma ZIP veya YAML dosyasından sohbetleri içe aktarın. Her mesaj depolanmadan önce güvenlik taramasından geçirilir.
+  vi: Nhập chats từ tệp ZIP hoặc YAML xuất khẩu OpenMates. Mỗi tin nhắn được quét an toàn trước khi lưu trữ.
+  id: Impor obrolan dari file ZIP atau YAML ekspor OpenMates. Setiap pesan dipindai keamanan sebelum disimpan.
+  pl: Importuj czaty z pliku ZIP lub YAML eksportu OpenMates. Każda wiadomość jest skanowana pod kątem bezpieczeństwa przed zapisaniem.
+  nl: Importeer chats uit een OpenMates export ZIP- of YAML-bestand. Elk bericht wordt vóór opslag gescand op veiligheid.
+  ar: استورد المحادثات من ملف ZIP أو YAML لتصدير OpenMates. يتم فحص كل رسالة أمنيًا قبل التخزين.
+  hi: OpenMates एक्सपोर्ट ZIP या YAML फ़ाइल से चैट आयात करें। प्रत्येक संदेश को संग्रहीत करने से पहले सुरक्षा स्कैन किया जाता है।
+  th: นำเข้าแชทจากไฟล์ ZIP หรือ YAML ของ OpenMates แต่ละข้อความจะถูกสแกนความปลอดภัยก่อนจัดเก็บ
+  cs: Importujte chaty ze souboru ZIP nebo YAML exportu OpenMates. Každá zpráva je před uložením prověřena z hlediska bezpečnosti.
+  sv: Importera chattar från en OpenMates export ZIP- eller YAML-fil. Varje meddelande genomsöks för säkerhet innan lagring.
+  he: ייבא שיחות מקובץ ZIP או YAML של ייצוא OpenMates. כל הודעה נסרקת לאבטחה לפני האחסון.
   verified_by_human: []
 import_choose_file:
   context: Placeholder text for the file picker on the import page (accepts ZIP or YAML)
@@ -3371,6 +3453,17 @@ import_choose_file:
   ja: インポートする.zipまたは.ymlファイルを選択
   ko: 가져올 .zip 또는 .yml 파일 선택
   it: Scegli un file .zip o .yml da importare
+  tr: İçe aktarmak için .zip veya .yml dosyası seçin
+  vi: Chọn tệp .zip hoặc .yml để nhập
+  id: Pilih file .zip atau .yml untuk diimpor
+  pl: Wybierz plik .zip lub .yml do importu
+  nl: Kies een .zip- of .yml-bestand om te importeren
+  ar: اختر ملف .zip أو .yml للاستيراد
+  hi: आयात करने के लिए .zip या .yml फ़ाइल चुनें
+  th: เลือกไฟล์ .zip หรือ .yml เพื่อนำเข้า
+  cs: Vyberte soubor .zip nebo .yml k importu
+  sv: Välj en .zip- eller .yml-fil att importera
+  he: בחר קובץ .zip או .yml לייבוא
   verified_by_human: []
 import_select_chats:
   context: Header for the chat selection list on the import page
@@ -3384,6 +3477,17 @@ import_select_chats:
   ja: インポートするチャットを選択
   ko: 가져올 채팅 선택
   it: Seleziona le chat da importare
+  tr: İçe aktarılacak sohbetleri seçin
+  vi: Chọn chats để nhập
+  id: Pilih obrolan untuk diimpor
+  pl: Wybierz czaty do importu
+  nl: Selecteer te importeren chats
+  ar: حدد المحادثات للاستيراد
+  hi: आयात करने के लिए चैट चुनें
+  th: เลือกแชทที่จะนำเข้า
+  cs: Vyberte chaty k importu
+  sv: Välj chattar att importera
+  he: בחר שיחות לייבוא
   verified_by_human: []
 import_select_all:
   context: Select all chats button on import page
@@ -3397,6 +3501,17 @@ import_select_all:
   ja: すべて選択
   ko: 모두 선택
   it: Seleziona tutto
+  tr: Hepsini seç
+  vi: Chọn tất cả
+  id: Pilih semua
+  pl: Zaznacz wszystko
+  nl: Alles selecteren
+  ar: تحديد الكل
+  hi: सभी चुनें
+  th: เลือกทั้งหมด
+  cs: Vybrat vše
+  sv: Välj alla
+  he: בחר הכל
   verified_by_human: []
 import_deselect_all:
   context: Deselect all chats button on import page
@@ -3410,6 +3525,17 @@ import_deselect_all:
   ja: すべて解除
   ko: 모두 해제
   it: Deseleziona tutto
+  tr: Tümünü kaldır
+  vi: Bỏ chọn tất cả
+  id: Batalkan semua
+  pl: Odznacz wszystko
+  nl: Alles deselecteren
+  ar: إلغاء تحديد الكل
+  hi: सभी हटाएं
+  th: ยกเลิกเลือกทั้งหมด
+  cs: Zrušit výběr
+  sv: Avmarkera alla
+  he: בטל בחירה
   verified_by_human: []
 import_messages_count:
   context: Message count label in chat selection list
@@ -3423,6 +3549,17 @@ import_messages_count:
   ja: メッセージ
   ko: 메시지
   it: messaggi
+  tr: mesaj
+  vi: tin nhắn
+  id: pesan
+  pl: wiadomości
+  nl: berichten
+  ar: رسائل
+  hi: संदेश
+  th: ข้อความ
+  cs: zpráv
+  sv: meddelanden
+  he: הודעות
   verified_by_human: []
 import_estimated_cost:
   context: Label for estimated credit cost before importing
@@ -3436,6 +3573,17 @@ import_estimated_cost:
   ja: 推定コスト
   ko: 예상 비용
   it: Costo stimato
+  tr: Tahmini maliyet
+  vi: Chi phí ước tính
+  id: Perkiraan biaya
+  pl: Szacowany koszt
+  nl: Geschatte kosten
+  ar: التكلفة المقدرة
+  hi: अनुमानित लागत
+  th: ค่าใช้จ่ายโดยประมาณ
+  cs: Odhadované náklady
+  sv: Beräknad kostnad
+  he: עלות משוערת
   verified_by_human: []
 import_credits:
   context: "Credits unit label (e.g. '5 credits')"
@@ -3449,6 +3597,17 @@ import_credits:
   ja: クレジット
   ko: 크레딧
   it: crediti
+  tr: kredi
+  vi: tín dụng
+  id: kredit
+  pl: kredytów
+  nl: credits
+  ar: رصيد
+  hi: क्रेडिट
+  th: เครดิต
+  cs: kreditů
+  sv: krediter
+  he: קרדיטים
   verified_by_human: []
 import_chats_selected:
   context: Number of chats selected label in cost estimate
@@ -3462,6 +3621,17 @@ import_chats_selected:
   ja: チャット
   ko: 채팅
   it: chat
+  tr: sohbet
+  vi: cuộc trò chuyện
+  id: obrolan
+  pl: czatów
+  nl: chats
+  ar: محادثات
+  hi: चैट
+  th: แชท
+  cs: chatů
+  sv: chattar
+  he: צ'אטים
   verified_by_human: []
 import_scanning:
   context: Status message shown while importing
@@ -3475,6 +3645,17 @@ import_scanning:
   ja: チャットをスキャンしてインポートしています…
   ko: 채팅을 스캔하고 가져오는 중…
   it: Scansione e importazione delle chat in corso…
+  tr: Sohbetleriniz taranıyor ve içe aktarılıyor…
+  vi: Đang quét và nhập chats của bạn…
+  id: Memindai dan mengimpor obrolan Anda…
+  pl: Skanowanie i importowanie czatów…
+  nl: Uw chats worden gescand en geïmporteerd…
+  ar: جارٍ فحص محادثاتك واستيرادها…
+  hi: आपकी चैट स्कैन और आयात हो रही हैं…
+  th: กำลังสแกนและนำเข้าแชทของคุณ…
+  cs: Skenování a import chatů…
+  sv: Söker igenom och importerar dina chattar…
+  he: סורק ומייבא את השיחות שלך…
   verified_by_human: []
 import_scanning_note:
   context: Note shown below the spinner during import (reassures the user that scanning takes a moment)
@@ -3488,6 +3669,17 @@ import_scanning_note:
   ja: 大きなチャットの場合、セキュリティスキャンに少し時間がかかることがあります。
   ko: 큰 채팅의 경우 보안 검사에 잠시 시간이 걸릴 수 있습니다.
   it: La scansione di sicurezza potrebbe richiedere un momento per le chat grandi.
+  tr: Büyük sohbetler için güvenlik taraması biraz zaman alabilir.
+  vi: Quét an toàn có thể mất một lúc đối với các cuộc trò chuyện lớn.
+  id: Pemindaian keamanan mungkin membutuhkan waktu untuk obrolan besar.
+  pl: Skanowanie bezpieczeństwa może chwilę potrwać dla dużych czatów.
+  nl: Veiligheidsscanning kan even duren bij grote chats.
+  ar: قد يستغرق الفحص الأمني لحظة للمحادثات الكبيرة.
+  hi: बड़ी चैट के लिए सुरक्षा स्कैनिंग में एक पल लग सकता है।
+  th: การสแกนความปลอดภัยอาจใช้เวลาสักครู่สำหรับแชทขนาดใหญ่
+  cs: Bezpečnostní skenování může trvat chvíli pro velké chaty.
+  sv: Säkerhetsgenomgång kan ta ett ögonblick för stora chattar.
+  he: סריקת האבטחה עשויה לקחת רגע עבור שיחות גדולות.
   verified_by_human: []
 import_button:
   context: Primary action button on the import page
@@ -3501,6 +3693,17 @@ import_button:
   ja: 選択したチャットをインポート
   ko: 선택한 채팅 가져오기
   it: Importa le chat selezionate
+  tr: Seçili sohbetleri içe aktar
+  vi: Nhập chats đã chọn
+  id: Impor obrolan yang dipilih
+  pl: Importuj wybrane czaty
+  nl: Geselecteerde chats importeren
+  ar: استيراد المحادثات المحددة
+  hi: चुनी हुई चैट आयात करें
+  th: นำเข้าแชทที่เลือก
+  cs: Importovat vybrané chaty
+  sv: Importera valda chattar
+  he: ייבא שיחות נבחרות
   verified_by_human: []
 import_success:
   context: Success banner after import completes
@@ -3514,6 +3717,17 @@ import_success:
   ja: インポート完了！
   ko: 가져오기 완료!
   it: Importazione completata!
+  tr: İçe aktarım tamamlandı!
+  vi: Nhập hoàn tất!
+  id: Impor selesai!
+  pl: Import zakończony!
+  nl: Import voltooid!
+  ar: اكتمل الاستيراد!
+  hi: आयात पूर्ण!
+  th: นำเข้าเสร็จสมบูรณ์!
+  cs: Import dokončen!
+  sv: Import slutförd!
+  he: הייבוא הושלם!
   verified_by_human: []
 import_untitled:
   context: Placeholder name for a chat with no title
@@ -3527,6 +3741,17 @@ import_untitled:
   ja: 無題のチャット
   ko: 제목 없는 채팅
   it: Chat senza titolo
+  tr: Başlıksız sohbet
+  vi: Cuộc trò chuyện không có tiêu đề
+  id: Obrolan tanpa judul
+  pl: Czat bez tytułu
+  nl: Naamloze chat
+  ar: محادثة بدون عنوان
+  hi: शीर्षक रहित चैट
+  th: แชทที่ไม่มีชื่อ
+  cs: Chat bez názvu
+  sv: Namnlös chatt
+  he: "צ'אט ללא כותרת"
   verified_by_human: []
 import_messages_imported:
   context: "Label for messages imported count in results (e.g. '5 messages imported')"
@@ -3540,6 +3765,17 @@ import_messages_imported:
   ja: メッセージがインポートされました
   ko: 메시지 가져옴
   it: messaggi importati
+  tr: mesaj içe aktarıldı
+  vi: tin nhắn đã được nhập
+  id: pesan diimpor
+  pl: wiadomości zaimportowano
+  nl: berichten geïmporteerd
+  ar: رسائل مستوردة
+  hi: संदेश आयात किए गए
+  th: ข้อความที่นำเข้า
+  cs: zpráv importováno
+  sv: meddelanden importerade
+  he: הודעות יובאו
   verified_by_human: []
 import_messages_blocked:
   context: "Label for blocked messages count in results (e.g. '2 blocked')"
@@ -3553,6 +3789,17 @@ import_messages_blocked:
   ja: ブロック済み
   ko: 차단됨
   it: bloccati
+  tr: engellendi
+  vi: bị chặn
+  id: diblokir
+  pl: zablokowano
+  nl: geblokkeerd
+  ar: محظور
+  hi: अवरुद्ध
+  th: ถูกบล็อก
+  cs: zablokováno
+  sv: blockerade
+  he: חסום
   verified_by_human: []
 import_credits_charged:
   context: Credits charged label shown in import results
@@ -3566,6 +3813,17 @@ import_credits_charged:
   ja: 課金クレジット
   ko: 청구된 크레딧
   it: Crediti addebitati
+  tr: Kesilen krediler
+  vi: Tín dụng bị tính phí
+  id: Kredit yang dibebankan
+  pl: Naliczone kredyty
+  nl: In rekening gebrachte credits
+  ar: الرصيد المخصوم
+  hi: चार्ज किए गए क्रेडिट
+  th: เครดิตที่ถูกหักไป
+  cs: Účtované kredity
+  sv: Debiterade krediter
+  he: קרדיטים שנגבו
   verified_by_human: []
 import_another:
   context: Button to import another file after a successful import
@@ -3579,6 +3837,17 @@ import_another:
   ja: 別のファイルをインポート
   ko: 다른 파일 가져오기
   it: Importa un altro file
+  tr: Başka bir dosya içe aktar
+  vi: Nhập tệp khác
+  id: Impor file lain
+  pl: Importuj inny plik
+  nl: Nog een bestand importeren
+  ar: استيراد ملف آخر
+  hi: दूसरी फ़ाइल आयात करें
+  th: นำเข้าไฟล์อื่น
+  cs: Importovat další soubor
+  sv: Importera en annan fil
+  he: ייבא קובץ נוסף
   verified_by_human: []
 import_safety_notice:
   context: Info notice explaining the safety scan on the import page
@@ -3592,6 +3861,17 @@ import_safety_notice:
   ja: 各メッセージは保存前にプロンプトインジェクションのセキュリティスキャンが行われます。ブロックされたメッセージは表示プレースホルダーに置き換えられ、課金されません。
   ko: 각 메시지는 저장 전에 프롬프트 주입에 대한 보안 검사를 받습니다. 차단된 메시지는 표시 자리 표시자로 대체되며 요금이 청구되지 않습니다.
   it: Ogni messaggio viene analizzato per l'iniezione di prompt prima di essere archiviato. I messaggi bloccati vengono sostituiti con un segnaposto visibile e non vengono addebitati.
+  tr: Her mesaj depolanmadan önce istem enjeksiyonu için güvenlik taramasından geçirilir. Engellenen mesajlar görünür bir yer tutucu ile değiştirilir ve ücretlendirilmez.
+  vi: Mỗi tin nhắn được quét an toàn để phát hiện chèn prompt trước khi được lưu trữ. Tin nhắn bị chặn được thay thế bằng placeholder hiển thị và không bị tính phí.
+  id: Setiap pesan dipindai keamanan untuk injeksi prompt sebelum disimpan. Pesan yang diblokir diganti dengan placeholder yang terlihat dan tidak dikenakan biaya.
+  pl: Każda wiadomość jest skanowana pod kątem wstrzyknięcia promptów przed zapisaniem. Zablokowane wiadomości są zastępowane widocznym symbolem zastępczym i nie są naliczane.
+  nl: Elk bericht wordt vóór opslag gescand op promptinjectie. Geblokkeerde berichten worden vervangen door een zichtbare tijdelijke aanduiding en worden niet in rekening gebracht.
+  hi: प्रत्येक संदेश को संग्रहीत करने से पहले प्रॉम्प्ट इंजेक्शन के लिए सुरक्षा स्कैन किया जाता है। अवरुद्ध संदेशों को दृश्यमान प्लेसहोल्डर से बदल दिया जाता है और शुल्क नहीं लगाया जाता।
+  th: ข้อความแต่ละข้อความจะถูกสแกนความปลอดภัยสำหรับการแทรก prompt ก่อนจัดเก็บ ข้อความที่ถูกบล็อกจะถูกแทนที่ด้วย placeholder ที่มองเห็นได้และไม่มีการเรียกเก็บเงิน
+  cs: Každá zpráva je před uložením prověřena na injekci promptů. Blokované zprávy jsou nahrazeny viditelným zástupným symbolem a nejsou účtovány.
+  sv: Varje meddelande genomsöks för promptinjektion innan lagring. Blockerade meddelanden ersätts med en synlig platshållare och debiteras inte.
+  ar: يتم فحص كل رسالة أمنيًا للكشف عن حقن التعليمات قبل تخزينها. تُستبدل الرسائل المحظورة بعنصر نائب مرئي ولا يُحتسب ثمنها.
+  he: כל הודעה נסרקת לאבטחה לגילוי הזרקת פרומפט לפני האחסון. הודעות חסומות מוחלפות ב-placeholder גלוי ואינן מחויבות.
   verified_by_human: []
 import_login_required:
   context: Message shown when user is not authenticated on the import page
@@ -3605,6 +3885,17 @@ import_login_required:
   ja: チャットをインポートするにはログインが必要です。
   ko: 채팅을 가져오려면 로그인해야 합니다.
   it: Devi essere connesso per importare le chat.
+  tr: Sohbetleri içe aktarmak için giriş yapmalısınız.
+  vi: Bạn phải đăng nhập để nhập chats.
+  id: Anda harus masuk untuk mengimpor obrolan.
+  pl: Musisz być zalogowany, aby importować czaty.
+  nl: U moet ingelogd zijn om chats te importeren.
+  ar: يجب أن تكون مسجلاً للدخول لاستيراد المحادثات.
+  hi: चैट आयात करने के लिए आपको लॉगिन होना चाहिए।
+  th: คุณต้องเข้าสู่ระบบเพื่อนำเข้าแชท
+  cs: Pro import chatů musíte být přihlášeni.
+  sv: Du måste vara inloggad för att importera chattar.
+  he: עליך להיות מחובר כדי לייבא שיחות.
   verified_by_human: []
 import_importing:
   context: Button label while import is in progress
@@ -3618,4 +3909,15 @@ import_importing:
   ja: インポート中…
   ko: 가져오는 중…
   it: Importazione in corso…
+  tr: İçe aktarılıyor…
+  vi: Đang nhập…
+  id: Mengimpor…
+  pl: Importowanie…
+  nl: Importeren…
+  ar: جارٍ الاستيراد…
+  hi: आयात हो रहा है…
+  th: กำลังนำเข้า…
+  cs: Importování…
+  sv: Importerar…
+  he: מייבא…
   verified_by_human: []

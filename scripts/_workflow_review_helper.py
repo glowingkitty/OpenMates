@@ -2,7 +2,7 @@
 """
 scripts/_workflow_review_helper.py
 
-Nightly workflow review — analyzes yesterday's claude sessions to extract
+Nightly workflow review — analyzes yesterday's Claude Code sessions to extract
 improvement suggestions for sessions.py, debug.py, and CLAUDE.md.
 
 Architecture context: See CLAUDE.md (Session Lifecycle section)
@@ -12,14 +12,14 @@ Commands:
     run-review  Build prompt and run claude analysis
 
 State file: scripts/.workflow-review-state.json
-DB: /home/superdev/.local/share/opencode/opencode.db (sqlite3, direct access)
+Data source: Claude Code JSONL session files in ~/.claude/projects/<project-slug>/
 
 Extraction logic per session:
   - text parts: all assistant/user prose
-  - bash tool calls to sessions.py: header lines only (first 10 lines of output)
+  - bash tool calls to sessions.py: header lines only (first 12 lines of output)
   - bash tool calls to sessions.py deploy: full output (small, high signal)
   - bash tool calls to debug.py: full output (actual debugging signal)
-  - everything else dropped (Read/Edit/Write/Glob/file/step-start/step-finish)
+  - everything else dropped (Read/Edit/Write/Glob/Agent/file-history-snapshot/progress)
 
 Not intended to be called directly by users; use nightly-workflow-review.sh instead.
 Can be run manually for testing:
@@ -32,7 +32,6 @@ import json
 import os
 
 from _claude_utils import run_claude_session
-import sqlite3
 import sys
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
@@ -41,7 +40,15 @@ from pathlib import Path
 # ── Constants ────────────────────────────────────────────────────────────────
 
 PROJECT_ROOT = Path(__file__).parent.parent
-DB_PATH = Path.home() / ".local" / "share" / "opencode" / "opencode.db"
+
+# Claude Code stores sessions as JSONL files per project, keyed by a slugified
+# absolute path (/ replaced with -). Top-level *.jsonl are main sessions;
+# {uuid}/subagents/*.jsonl are subagent conversations (skipped).
+SESSIONS_DIR = (
+    Path.home() / ".claude" / "projects"
+    / "-home-superdev-projects-OpenMates"
+)
+
 STATE_FILE = PROJECT_ROOT / "scripts" / ".workflow-review-state.json"
 PROMPT_TEMPLATE = PROJECT_ROOT / "scripts" / "prompts" / "workflow-review.md"
 
@@ -63,6 +70,18 @@ DEBUG_TOOL_COMMANDS = ["debug.py"]
 
 # Max lines to keep from sessions.py start output (skip boilerplate)
 SESSIONS_START_HEADER_LINES = 12
+
+# JSONL entry types to skip entirely (no useful content for review)
+_SKIP_TYPES = frozenset({
+    "progress", "system", "queue-operation", "file-history-snapshot",
+    "custom-title",
+})
+
+# User message prefixes that are system noise, not real user input
+_NOISE_PREFIXES = (
+    "<local-command-caveat>", "<command-name>", "<local-command-stdout>",
+    "<system-reminder>",
+)
 
 
 # ── State helpers ─────────────────────────────────────────────────────────────
@@ -96,15 +115,7 @@ def _save_state(state: dict) -> None:
     print(f"[workflow-review] State saved: {STATE_FILE}")
 
 
-# ── DB helpers ────────────────────────────────────────────────────────────────
-
-def _day_range_ms(date_str: str) -> tuple[int, int]:
-    """Return (start_ms, end_ms) for a YYYY-MM-DD date in UTC."""
-    d = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-    start = int(d.timestamp() * 1000)
-    end = int((d + timedelta(days=1) - timedelta(milliseconds=1)).timestamp() * 1000)
-    return start, end
-
+# ── JSONL helpers ────────────────────────────────────────────────────────────
 
 def _is_workflow_relevant(title: str) -> bool:
     t = title.lower()
@@ -114,7 +125,6 @@ def _is_workflow_relevant(title: str) -> bool:
 def _extract_sessions_start_header(output: str) -> str:
     """Keep only the first N lines of sessions.py start output (skip stale docs, project index, instruction docs)."""
     lines = output.splitlines()
-    # Find where the boilerplate begins (STALE, PROJECT INDEX, INSTRUCTION DOCS, BACKLOG)
     boilerplate_markers = [
         "== STALE", "== PROJECT INDEX", "== INSTRUCTION DOCS",
         "== BACKLOG", "Arch docs", "Project:", "Load:",
@@ -130,68 +140,176 @@ def _extract_sessions_start_header(output: str) -> str:
     return "\n".join(keep)
 
 
-def _extract_part_content(session_id: str, conn: sqlite3.Connection) -> str:
+def _parse_session_meta(jsonl_path: Path) -> dict | None:
     """
-    Extract relevant content from a session's parts.
-    Returns a single string combining user/assistant text + targeted tool outputs.
-    """
-    parts = conn.execute("""
-        SELECT json_extract(data, '$.type') as ptype, data
-        FROM part
-        WHERE session_id = ?
-        ORDER BY time_created
-    """, (session_id,)).fetchall()
+    Read the first ~20 lines of a JSONL file to extract session metadata.
 
+    Returns dict with keys: session_id, title, timestamp_iso, timestamp_dt
+    or None if the file can't be parsed.
+    """
+    title = None
+    first_timestamp = None
+    session_id = jsonl_path.stem  # UUID from filename
+
+    try:
+        with open(jsonl_path) as f:
+            for i, line in enumerate(f):
+                if i > 30:
+                    break
+                try:
+                    entry = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+
+                etype = entry.get("type", "")
+
+                # Custom title (set by --name flag or auto-generated)
+                if etype == "custom-title" and not title:
+                    title = entry.get("customTitle", "")
+
+                # Capture first timestamp from any entry
+                if not first_timestamp and entry.get("timestamp"):
+                    first_timestamp = entry["timestamp"]
+
+                # Fallback title: first real user message
+                if etype == "user" and not title:
+                    msg = entry.get("message", {})
+                    content = msg.get("content", "")
+                    if isinstance(content, str):
+                        # Skip system/command noise
+                        stripped = content.strip()
+                        if stripped and not any(stripped.startswith(p) for p in _NOISE_PREFIXES):
+                            title = stripped[:120]
+
+    except (OSError, UnicodeDecodeError):
+        return None
+
+    if not first_timestamp:
+        return None
+
+    try:
+        # Claude Code uses ISO 8601 timestamps (e.g. "2026-03-24T19:04:54.004Z")
+        ts_dt = datetime.fromisoformat(first_timestamp.replace("Z", "+00:00"))
+    except (ValueError, AttributeError):
+        return None
+
+    return {
+        "session_id": session_id,
+        "title": title or "(untitled)",
+        "timestamp_iso": first_timestamp,
+        "timestamp_dt": ts_dt,
+        "path": jsonl_path,
+    }
+
+
+def _extract_session_content(jsonl_path: Path) -> str:
+    """
+    Extract relevant content from a Claude Code JSONL session file.
+
+    Reads user/assistant text + targeted Bash tool outputs for sessions.py
+    and debug.py. Skips everything else (Read, Edit, Glob, Agent, progress, etc.).
+
+    Returns a single string combining all extracted segments.
+    """
     segments = []
+    # Track pending Bash tool_use calls that match our target commands,
+    # so we can capture their tool_result output from subsequent user messages.
+    pending_bash: dict[str, str] = {}  # tool_use_id → command string
 
-    for p in parts:
-        ptype = p["ptype"]
-        raw = p["data"]
-
-        if ptype == "text":
-            try:
-                d = json.loads(raw)
-                text = (d.get("text") or "").strip()
-                if text:
-                    segments.append(text)
-            except Exception:
-                pass
-
-        elif ptype == "tool":
-            try:
-                d = json.loads(raw)
-                tool = d.get("tool", "")
-                if tool != "bash":
-                    continue
-                state = d.get("state", {})
-                if not isinstance(state, dict):
-                    continue
-                inp = state.get("input", {})
-                cmd = inp.get("command", "")
-                output = state.get("output", "") or ""
-
-                is_sessions = any(k in cmd for k in SESSIONS_TOOL_COMMANDS)
-                is_debug = any(k in cmd for k in DEBUG_TOOL_COMMANDS)
-
-                if not (is_sessions or is_debug):
+    try:
+        with open(jsonl_path) as f:
+            for line in f:
+                try:
+                    entry = json.loads(line)
+                except json.JSONDecodeError:
                     continue
 
-                # For sessions.py start: trim boilerplate, keep header
-                is_start_call = is_sessions and "sessions.py start" in cmd
-                is_deploy_call = is_sessions and "sessions.py deploy" in cmd
+                etype = entry.get("type", "")
 
-                if is_start_call:
-                    trimmed_output = _extract_sessions_start_header(output)
-                    segments.append(f"$ {cmd}\n{trimmed_output}")
-                elif is_deploy_call or is_debug:
-                    # Keep full output for deploy and debug calls
-                    segments.append(f"$ {cmd}\n{output[:3000]}")  # cap at 3K each
-                else:
-                    # Other sessions.py subcommands: keep command + first 20 lines
-                    first_lines = "\n".join(output.splitlines()[:20])
-                    segments.append(f"$ {cmd}\n{first_lines}")
-            except Exception:
-                pass
+                if etype in _SKIP_TYPES:
+                    continue
+
+                # ── Assistant messages: text blocks + Bash tool_use blocks ──
+                if etype == "assistant":
+                    msg = entry.get("message", {})
+                    content = msg.get("content", [])
+                    if not isinstance(content, list):
+                        continue
+
+                    for block in content:
+                        btype = block.get("type", "")
+
+                        if btype == "text":
+                            text = (block.get("text") or "").strip()
+                            if text:
+                                segments.append(text)
+
+                        elif btype == "tool_use" and block.get("name") == "Bash":
+                            inp = block.get("input", {})
+                            cmd = inp.get("command", "")
+                            tool_id = block.get("id", "")
+
+                            is_sessions = any(k in cmd for k in SESSIONS_TOOL_COMMANDS)
+                            is_debug = any(k in cmd for k in DEBUG_TOOL_COMMANDS)
+
+                            if (is_sessions or is_debug) and tool_id:
+                                pending_bash[tool_id] = cmd
+
+                # ── User messages: plain text + tool_result blocks ──────────
+                elif etype == "user":
+                    msg = entry.get("message", {})
+                    content = msg.get("content", "")
+
+                    # Plain text user message
+                    if isinstance(content, str):
+                        stripped = content.strip()
+                        if stripped and not any(stripped.startswith(p) for p in _NOISE_PREFIXES):
+                            segments.append(stripped)
+
+                    # List of content blocks (may contain tool_result)
+                    elif isinstance(content, list):
+                        for block in content:
+                            btype = block.get("type", "")
+
+                            if btype == "tool_result":
+                                tool_id = block.get("tool_use_id", "")
+                                if tool_id not in pending_bash:
+                                    continue
+
+                                cmd = pending_bash.pop(tool_id)
+
+                                # Extract output text from tool_result content
+                                result_content = block.get("content", "")
+                                if isinstance(result_content, list):
+                                    # Content is a list of blocks
+                                    output_parts = []
+                                    for rb in result_content:
+                                        if rb.get("type") == "text":
+                                            output_parts.append(rb.get("text", ""))
+                                    output = "\n".join(output_parts)
+                                elif isinstance(result_content, str):
+                                    output = result_content
+                                else:
+                                    output = ""
+
+                                # Apply same filtering as the old SQLite reader
+                                is_sessions = any(k in cmd for k in SESSIONS_TOOL_COMMANDS)
+                                is_start = is_sessions and "sessions.py start" in cmd
+                                is_deploy = is_sessions and "sessions.py deploy" in cmd
+                                is_debug = any(k in cmd for k in DEBUG_TOOL_COMMANDS)
+
+                                if is_start:
+                                    trimmed = _extract_sessions_start_header(output)
+                                    segments.append(f"$ {cmd}\n{trimmed}")
+                                elif is_deploy or is_debug:
+                                    segments.append(f"$ {cmd}\n{output[:3000]}")
+                                else:
+                                    # Other sessions.py subcommands: command + first 20 lines
+                                    first_lines = "\n".join(output.splitlines()[:20])
+                                    segments.append(f"$ {cmd}\n{first_lines}")
+
+    except (OSError, UnicodeDecodeError) as e:
+        segments.append(f"(error reading session: {e})")
 
     return "\n\n".join(segments)
 
@@ -215,29 +333,43 @@ def _truncate(text: str, budget: int) -> tuple[str, bool]:
 
 def build_session_digests(yesterday: str, verbose: bool = False) -> tuple[str, int, int]:
     """
-    Query the claude SQLite DB and build session digests for yesterday.
+    Scan Claude Code JSONL session files and build digests for yesterday.
 
-    Returns (digest_text, session_count, total_chars)
+    Returns (digest_text, relevant_count, total_chars)
     """
-    if not DB_PATH.is_file():
-        print(f"[workflow-review] ERROR: opencode DB not found at {DB_PATH}", file=sys.stderr)
+    if not SESSIONS_DIR.is_dir():
+        print(f"[workflow-review] ERROR: sessions dir not found at {SESSIONS_DIR}", file=sys.stderr)
         sys.exit(1)
 
-    conn = sqlite3.connect(str(DB_PATH))
-    conn.row_factory = sqlite3.Row
+    target_date = datetime.strptime(yesterday, "%Y-%m-%d").date()
 
-    start_ms, end_ms = _day_range_ms(yesterday)
+    # Pre-filter by file mtime (fast; avoids reading every JSONL)
+    # Use a 1-day buffer on each side to account for timezone differences
+    day_start_ts = datetime(
+        target_date.year, target_date.month, target_date.day,
+        tzinfo=timezone.utc,
+    ).timestamp()
+    day_end_ts = day_start_ts + 86400
 
-    sessions = conn.execute("""
-        SELECT id, title, time_created
-        FROM session
-        WHERE time_created BETWEEN ? AND ?
-        AND directory = ?
-        ORDER BY time_created
-    """, (start_ms, end_ms, str(PROJECT_ROOT))).fetchall()
+    candidates = []
+    for p in SESSIONS_DIR.glob("*.jsonl"):
+        mtime = p.stat().st_mtime
+        # Include files modified within ±24h of the target day
+        if mtime >= (day_start_ts - 86400) and mtime <= (day_end_ts + 86400):
+            candidates.append(p)
+
+    # Parse metadata and filter to exact date
+    sessions = []
+    for p in candidates:
+        meta = _parse_session_meta(p)
+        if meta and meta["timestamp_dt"].date() == target_date:
+            sessions.append(meta)
+
+    # Sort by timestamp
+    sessions.sort(key=lambda s: s["timestamp_dt"])
 
     total = len(sessions)
-    relevant = [s for s in sessions if _is_workflow_relevant(s["title"] or "")]
+    relevant = [s for s in sessions if _is_workflow_relevant(s["title"])]
     skipped = total - len(relevant)
 
     if verbose:
@@ -247,11 +379,10 @@ def build_session_digests(yesterday: str, verbose: bool = False) -> tuple[str, i
     grand_chars = 0
 
     for s in relevant:
-        title = s["title"] or "(untitled)"
-        ts = datetime.fromtimestamp(s["time_created"] / 1000, tz=timezone.utc)
-        time_str = ts.strftime("%H:%M UTC")
+        title = s["title"]
+        time_str = s["timestamp_dt"].strftime("%H:%M UTC")
 
-        content = _extract_part_content(s["id"], conn)
+        content = _extract_session_content(s["path"])
         trimmed, was_truncated = _truncate(content, PER_SESSION_BUDGET)
         grand_chars += len(trimmed)
 
@@ -263,12 +394,10 @@ def build_session_digests(yesterday: str, verbose: bool = False) -> tuple[str, i
         if verbose:
             print(f"  {len(trimmed):>6,} chars | {title[:70]}")
 
-    conn.close()
-
     digest_text = "\n\n---\n\n".join(digests) if digests else "(no relevant sessions found)"
 
     if verbose:
-        print(f"[workflow-review] Total digest: {grand_chars:,} chars (~{grand_chars//4:,} tokens)")
+        print(f"[workflow-review] Total digest: {grand_chars:,} chars (~{grand_chars // 4:,} tokens)")
 
     return digest_text, len(relevant), grand_chars
 
@@ -292,7 +421,7 @@ def build_prompt(yesterday: str, state: dict, verbose: bool = False) -> str:
     )
 
     if verbose:
-        print(f"[workflow-review] Prompt: {len(prompt):,} chars (~{len(prompt)//4:,} tokens) from {count} sessions")
+        print(f"[workflow-review] Prompt: {len(prompt):,} chars (~{len(prompt) // 4:,} tokens) from {count} sessions")
 
     return prompt
 
@@ -312,7 +441,7 @@ def cmd_dry_run(yesterday: str) -> None:
     if len(prompt) > 6000:
         print(f"\n... ({len(prompt) - 6000:,} more chars) ...")
     print("=" * 70)
-    print(f"\nTotal prompt: {len(prompt):,} chars (~{len(prompt)//4:,} tokens)")
+    print(f"\nTotal prompt: {len(prompt):,} chars (~{len(prompt) // 4:,} tokens)")
 
 
 def cmd_run_review(yesterday: str) -> None:

@@ -530,6 +530,20 @@ want_to_delete_account:
   fr: Vous souhaitez supprimer votre compte ?
   ja: アカウントを削除しますか？
   zh: 想要删除您的账户吗？
+  pt: Quer excluir sua conta?
+  ru: Хотите удалить аккаунт?
+  ko: 계정을 삭제하시겠습니까?
+  it: Vuoi eliminare il tuo account?
+  tr: Hesabınızı silmek mi istiyorsunuz?
+  vi: Bạn muốn xóa tài khoản của mình?
+  id: Ingin menghapus akun Anda?
+  pl: Chcesz usunąć swoje konto?
+  nl: Wil je je account verwijderen?
+  ar: هل تريد حذف حسابك؟
+  hi: क्या आप अपना खाता हटाना चाहते हैं?
+  th: ต้องการลบบัญชีของคุณ?
+  cs: Chcete smazat svůj účet?
+  sv: Vill du radera ditt konto?
   he: "רוצה למחוק את החשבון שלך?"
 click_here:
   context: Email body link text
@@ -539,6 +553,20 @@ click_here:
   fr: Cliquez ici
   ja: ここをクリック
   zh: 点击这里
+  pt: Clique aqui
+  ru: Нажмите здесь
+  ko: 여기를 클릭하세요
+  it: Clicca qui
+  tr: Buraya tıklayın
+  vi: Nhấp vào đây
+  id: Klik di sini
+  pl: Kliknij tutaj
+  nl: Klik hier
+  ar: انقر هنا
+  hi: यहां क्लिक करें
+  th: คลิกที่นี่
+  cs: Klikněte zde
+  sv: Klicka här
   he: לחץ כאן
 confirm_your_email_address:
   context: Email subject & header for email address confirmation
@@ -617,8 +645,8 @@ usecase_submitted.subject:
   th: "การส่งกรณีการใช้งานใหม่จากการเริ่มต้นใช้งาน"
   cs: "Nové odeslání případu použití z procesu zavádění"
   sv: "Ny användningsfallsinlämning från introduktionen"
-
   he: הגשת מקרה שימוש חדש מתהליך הקליטה
+  verified_by_human: []
 usecase_submitted.header:
   context: Header text in the use-case submission admin notification email body
   en: New use-case submission
@@ -641,8 +669,8 @@ usecase_submitted.header:
   th: การส่งกรณีการใช้งานใหม่
   cs: Nové odeslání případu použití
   sv: Ny användningsfallsinlämning
-
   he: הגשת מקרה שימוש חדש
+  verified_by_human: []
 usecase_submitted.description:
   context: Description text in the use-case submission email body — tells the admin what this email is about
   en: A user anonymously shared their intended use case during onboarding. No user identity is attached to this submission.
@@ -665,8 +693,8 @@ usecase_submitted.description:
   th: ผู้ใช้แชร์กรณีการใช้งานที่ตั้งใจไว้โดยไม่เปิดเผยตัวตนระหว่างการเริ่มต้นใช้งาน ไม่มีข้อมูลประจำตัวของผู้ใช้ที่แนบมากับการส่งนี้
   cs: Uživatel anonymně sdílel svůj zamýšlený případ použití během procesu zavádění. K tomuto odeslání není připojena žádná identita uživatele.
   sv: En användare delade anonymt sitt avsedda användningsfall under introduktionen. Ingen användaridentitet är kopplad till denna inlämning.
-
   he: משתמש שיתף באופן אנונימי את מקרה השימוש המיועד שלו במהלך תהליך הקליטה. לא מצורפת זהות משתמש להגשה זו.
+  verified_by_human: []
 usecase_submitted.summary_label:
   context: Label for the use-case summary field in the admin notification email
   en: Summary
@@ -689,8 +717,8 @@ usecase_submitted.summary_label:
   th: สรุป
   cs: Souhrn
   sv: Sammanfattning
-
   he: סיכום
+  verified_by_human: []
 usecase_submitted.language_label:
   context: Label for the conversation language field in the admin notification email
   en: Language
@@ -3098,21 +3126,21 @@ refund_processing_time:
   zh: 退款将在5-10个工作日内退回到您的原始付款方式。
   es: El reembolso se acreditará a tu método de pago original en un plazo de 5 a 10 días hábiles.
   fr: Le remboursement sera crédité sur votre méthode de paiement d'origine dans un délai de 5 à 10 jours ouvrables.
-  pt: ""
-  ru: ""
+  pt: O reembolso será creditado de volta ao seu método de pagamento original em 5 a 10 dias úteis.
+  ru: Возврат будет зачислен на ваш исходный способ оплаты в течение 5–10 рабочих дней.
   ja: 返金は5〜10営業日以内に元の支払い方法に返金されます。
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 환불금은 5~10 영업일 이내에 원래 결제 수단으로 반환됩니다.
+  it: Il rimborso sarà accreditato sul tuo metodo di pagamento originale entro 5-10 giorni lavorativi.
+  tr: Geri ödeme, orijinal ödeme yönteminize 5-10 iş günü içinde aktarılacaktır.
+  vi: Tiền hoàn sẽ được hoàn trả về phương thức thanh toán gốc của bạn trong vòng 5-10 ngày làm việc.
+  id: Pengembalian dana akan dikreditkan kembali ke metode pembayaran asli Anda dalam 5-10 hari kerja.
+  pl: Zwrot zostanie zaksięgowany na pierwotnej metodzie płatności w ciągu 5–10 dni roboczych.
+  nl: De terugbetaling wordt binnen 5-10 werkdagen bijgeschreven op je oorspronkelijke betaalmethode.
+  ar: سيتم إعادة الاسترداد إلى طريقة دفعك الأصلية في غضون 5-10 أيام عمل.
+  hi: धनवापसी आपके मूल भुगतान विधि में 5-10 व्यावसायिक दिनों के भीतर वापस कर दी जाएगी।
+  th: การคืนเงินจะถูกเครดิตกลับไปยังวิธีการชำระเงินเดิมของคุณภายใน 5-10 วันทำการ
+  cs: Vrácení peněz bude připsáno na původní způsob platby do 5–10 pracovních dnů.
+  sv: Återbetalningen krediteras till din ursprungliga betalningsmetod inom 5-10 arbetsdagar.
   he: ההחזר יזוכה לאמצעי התשלום המקורי שלך תוך 5-10 ימי עסקים.
   verified_by_human: []
 withdrawal_waiver_notice:
@@ -3122,237 +3150,237 @@ withdrawal_waiver_notice:
   zh: "您已明确要求我们在撤回期结束之前开始提供数字服务。您承认一旦开始使用该服务，您的撤回权即告失效。购买的礼品卡被排除在外，使用后无法退款。"
   es: "Ha solicitado expresamente que comencemos a prestar el servicio digital antes de que finalice el período de desistimiento. Reconoce que su derecho de desistimiento expira una vez que comience a utilizar el servicio. Las tarjetas de regalo compradas están excluidas y no pueden reembolsarse una vez utilizadas."
   fr: "Vous avez expressément demandé que nous commencions à fournir le service numérique avant la fin de la période de rétractation. Vous reconnaissez que votre droit de rétractation expire une fois que vous commencez à utiliser le service. Les cartes cadeaux achetées sont exclues et ne peuvent pas être remboursées une fois utilisées."
-  pt: ""
-  ru: ""
+  pt: "Você solicitou expressamente que começássemos a fornecer o serviço digital antes do término do período de rescisão. Você reconhece que seu direito de rescisão expira assim que você começa a usar o serviço. Os cartões-presente adquiridos estão excluídos e não podem ser reembolsados após serem utilizados."
+  ru: "Вы прямо потребовали начать предоставление цифровой услуги до истечения периода отзыва. Вы подтверждаете, что ваше право на отзыв истекает после начала использования услуги. Приобретённые подарочные карты исключены и не могут быть возвращены после использования."
   ja: "お客様は、撤回期間が終了する前にデジタルサービスの提供を開始するよう明示的に要求されました。サービスの使用を開始すると撤回権が失効することを承認されます。購入したギフトカードは除外され、使用後は返金できません。"
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: "귀하는 철회 기간이 종료되기 전에 디지털 서비스 제공을 시작하도록 명시적으로 요청하였습니다. 서비스 이용을 시작하면 철회권이 소멸됨을 인정합니다. 구입한 기프트 카드는 제외되며 사용 후 환불이 불가능합니다."
+  it: "Ha espressamente richiesto che iniziassimo a fornire il servizio digitale prima della scadenza del periodo di recesso. Riconosce che il diritto di recesso scade nel momento in cui inizia a utilizzare il servizio. Le carte regalo acquistate sono escluse e non possono essere rimborsate una volta utilizzate."
+  tr: "Dijital hizmetin, cayma süresi sona ermeden önce sağlanmaya başlanmasını açıkça talep ettiniz. Hizmeti kullanmaya başladığınızda cayma hakkınızın sona ereceğini kabul ediyorsunuz. Satın alınan hediye kartları kapsam dışındadır ve kullanıldıktan sonra iade edilemez."
+  vi: "Bạn đã yêu cầu rõ ràng rằng chúng tôi bắt đầu cung cấp dịch vụ kỹ thuật số trước khi thời gian rút lui kết thúc. Bạn thừa nhận rằng quyền rút lui của bạn hết hiệu lực khi bạn bắt đầu sử dụng dịch vụ. Thẻ quà tặng đã mua bị loại trừ và không thể hoàn tiền sau khi đã sử dụng."
+  id: "Anda telah secara tegas meminta kami untuk mulai menyediakan layanan digital sebelum periode penarikan berakhir. Anda mengakui bahwa hak penarikan Anda berakhir begitu Anda mulai menggunakan layanan. Kartu hadiah yang dibeli dikecualikan dan tidak dapat dikembalikan setelah digunakan."
+  pl: "Wyraźnie zażądałeś, abyśmy rozpoczęli świadczenie usługi cyfrowej przed upływem okresu odstąpienia. Przyjmujesz do wiadomości, że prawo do odstąpienia wygasa z chwilą rozpoczęcia korzystania z usługi. Zakupione karty podarunkowe są wykluczone i nie podlegają zwrotowi po ich użyciu."
+  nl: "U heeft uitdrukkelijk verzocht dat we de digitale dienst beginnen te verlenen voordat de herroepingstermijn afloopt. U erkent dat uw herroepingsrecht vervalt zodra u de dienst begint te gebruiken. Gekochte cadeaukaarten zijn uitgesloten en kunnen niet worden terugbetaald nadat ze zijn gebruikt."
+  ar: "لقد طلبت صراحةً أن نبدأ في تقديم الخدمة الرقمية قبل انتهاء فترة الانسحاب. تقر بأن حق الانسحاب الخاص بك ينتهي بمجرد بدء استخدام الخدمة. بطاقات الهدايا المشتراة مستثناة ولا يمكن استردادها بعد استخدامها."
+  hi: "आपने स्पष्ट रूप से अनुरोध किया है कि हम वापसी अवधि समाप्त होने से पहले डिजिटल सेवा प्रदान करना शुरू करें। आप स्वीकार करते हैं कि सेवा का उपयोग शुरू करने पर आपका वापसी का अधिकार समाप्त हो जाता है। खरीदे गए गिफ्ट कार्ड बाहर रखे गए हैं और उपयोग के बाद वापस नहीं किए जा सकते।"
+  th: "คุณได้ร้องขออย่างชัดเจนให้เราเริ่มให้บริการดิจิทัลก่อนที่ระยะเวลาการถอนตัวจะสิ้นสุดลง คุณรับทราบว่าสิทธิ์ในการถอนตัวของคุณจะหมดอายุเมื่อคุณเริ่มใช้บริการ บัตรของขวัญที่ซื้อจะถูกยกเว้นและไม่สามารถขอเงินคืนได้หลังจากใช้แล้ว"
+  cs: "Výslovně jste požádal, abychom začali poskytovat digitální službu před uplynutím doby na odstoupení. Berete na vědomí, že vaše právo na odstoupení zaniká, jakmile začnete službu využívat. Zakoupené dárkové karty jsou vyloučeny a po jejich použití je nelze vrátit."
+  sv: "Du begärde uttryckligen att vi ska börja tillhandahålla den digitala tjänsten innan ångerfristen löper ut. Du erkänner att din ångerrätt upphör när du börjar använda tjänsten. Köpta presentkort är undantagna och kan inte återbetalas efter att de har använts."
   he: ביקשת במפורש שנתחיל לספק את השירות הדיגיטלי לפני סיום תקופת הביטול. אתה מאשר שזכות הביטול שלך פוקעת ברגע שהתחלת להשתמש בשירות. כרטיסי מתנה שנרכשו אינם נכללים ולא ניתן לקבל עבורם החזר לאחר שנעשה בהם שימוש.
   verified_by_human: []
 signup_milestone:
   context: Email subject & header for signup milestone notification
   en: User Signup Milestone Reached
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: Meilenstein bei Benutzeranmeldungen erreicht
+  zh: 用户注册里程碑已达成
+  es: Se alcanzó un hito de registro de usuarios
+  fr: Jalon d'inscription utilisateur atteint
+  pt: Marco de cadastros de usuários atingido
+  ru: Достигнут рубеж регистрации пользователей
+  ja: ユーザー登録のマイルストーンを達成しました
+  ko: 사용자 가입 마일스톤 달성
+  it: Traguardo registrazione utenti raggiunto
+  tr: Kullanıcı kayıt kilometre taşına ulaşıldı
+  vi: Đạt mốc đăng ký người dùng
+  id: Tonggak pendaftaran pengguna tercapai
+  pl: Osiągnięto kamień milowy rejestracji użytkowników
+  nl: Gebruikersregistratiemijlpaal bereikt
+  ar: تم الوصول إلى معلم تسجيل المستخدمين
+  hi: उपयोगकर्ता साइनअप माइलस्टोन हासिल हुआ
+  th: บรรลุเป้าหมายการสมัครสมาชิกผู้ใช้
+  cs: Dosažen milník registrací uživatelů
+  sv: Milstolpe för användarregistrering nådd
   he: הושג יעד הרשמת משתמשים
   verified_by_human: []
 milestone_reached:
   context: Congratulatory message for signup milestone
   en: A user signup milestone has been reached!
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: Ein Meilenstein bei Benutzeranmeldungen wurde erreicht!
+  zh: 用户注册里程碑已达成！
+  es: ¡Se ha alcanzado un hito de registro de usuarios!
+  fr: Un jalon d'inscription utilisateur a été atteint !
+  pt: Um marco de cadastros de usuários foi atingido!
+  ru: Достигнут рубеж регистрации пользователей!
+  ja: ユーザー登録のマイルストーンを達成しました！
+  ko: 사용자 가입 마일스톤이 달성되었습니다!
+  it: È stato raggiunto un traguardo di registrazione utenti!
+  tr: Kullanıcı kayıt kilometre taşına ulaşıldı!
+  vi: Đã đạt mốc đăng ký người dùng!
+  id: Tonggak pendaftaran pengguna telah tercapai!
+  pl: Osiągnięto kamień milowy rejestracji użytkowników!
+  nl: Er is een gebruikersregistratiemijlpaal bereikt!
+  ar: تم الوصول إلى معلم تسجيل المستخدمين!
+  hi: उपयोगकर्ता साइनअप माइलस्टोन हासिल हो गया है!
+  th: บรรลุเป้าหมายการสมัครสมาชิกผู้ใช้แล้ว!
+  cs: Byl dosažen milník registrací uživatelů!
+  sv: En milstolpe för användarregistrering har nåtts!
   he: "הושג יעד חדש של הרשמת משתמשים!"
   verified_by_human: []
 milestone_count:
   context: Label for displaying the total user count in milestone email
   en: Total Users
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: Gesamte Benutzer
+  zh: 总用户数
+  es: Total de usuarios
+  fr: Total des utilisateurs
+  pt: Total de usuários
+  ru: Всего пользователей
+  ja: 合計ユーザー数
+  ko: 총 사용자
+  it: Utenti totali
+  tr: Toplam Kullanıcılar
+  vi: Tổng người dùng
+  id: Total Pengguna
+  pl: Łączna liczba użytkowników
+  nl: Totaal gebruikers
+  ar: إجمالي المستخدمين
+  hi: कुल उपयोगकर्ता
+  th: ผู้ใช้ทั้งหมด
+  cs: Celkový počet uživatelů
+  sv: Totalt antal användare
   he: 'סה"כ משתמשים'
   verified_by_human: []
 milestone_message:
   context: Message about platform growth in milestone email
   en: Your platform is growing! This milestone indicates increasing user adoption.
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: Deine Plattform wächst! Dieser Meilenstein zeigt eine zunehmende Benutzerakzeptanz an.
+  zh: 您的平台正在增长！此里程碑表明用户采用率不断提高。
+  es: ¡Tu plataforma está creciendo! Este hito indica una adopción de usuarios cada vez mayor.
+  fr: Votre plateforme grandit ! Ce jalon indique une adoption croissante des utilisateurs.
+  pt: Sua plataforma está crescendo! Este marco indica um aumento na adoção de usuários.
+  ru: Ваша платформа растёт! Этот рубеж указывает на растущее число пользователей.
+  ja: あなたのプラットフォームは成長しています！このマイルストーンはユーザー採用の増加を示しています。
+  ko: 플랫폼이 성장하고 있습니다! 이 마일스톤은 사용자 채택이 늘고 있음을 나타냅니다.
+  it: La tua piattaforma sta crescendo! Questo traguardo indica un'adozione crescente degli utenti.
+  tr: Platformunuz büyüyor! Bu kilometre taşı, artan kullanıcı benimsemesini gösteriyor.
+  vi: Nền tảng của bạn đang phát triển! Mốc này cho thấy ngày càng nhiều người dùng áp dụng.
+  id: Platform Anda sedang berkembang! Tonggak ini menunjukkan peningkatan adopsi pengguna.
+  pl: Twoja platforma rośnie! Ten kamień milowy wskazuje na rosnącą adopcję przez użytkowników.
+  nl: Je platform groeit! Deze mijlpaal duidt op toenemende gebruikersadoptie.
+  ar: منصتك تنمو! يشير هذا المعلم إلى تزايد اعتماد المستخدمين.
+  hi: आपका प्लेटफ़ॉर्म बढ़ रहा है! यह माइलस्टोन बढ़ती उपयोगकर्ता स्वीकृति को दर्शाता है।
+  th: แพลตฟอร์มของคุณกำลังเติบโต! เป้าหมายนี้บ่งชี้ว่าการใช้งานของผู้ใช้เพิ่มขึ้น
+  cs: Vaše platforma roste! Tento milník naznačuje rostoucí přijetí uživateli.
+  sv: Din plattform växer! Denna milstolpe visar på ökande användaracceptans.
   he: "הפלטפורמה שלך צומחת! יעד זה מעיד על עלייה באימוץ המשתמשים."
   verified_by_human: []
 milestone_date:
   context: Label for the date when milestone was reached
   en: Date Reached
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: Erreichtes Datum
+  zh: 达成日期
+  es: Fecha alcanzada
+  fr: Date atteinte
+  pt: Data atingida
+  ru: Дата достижения
+  ja: 達成日
+  ko: 달성 날짜
+  it: Data raggiunta
+  tr: Ulaşılan Tarih
+  vi: Ngày đạt được
+  id: Tanggal Tercapai
+  pl: Data osiągnięcia
+  nl: Datum bereikt
+  ar: تاريخ الوصول
+  hi: प्राप्त तिथि
+  th: วันที่บรรลุ
+  cs: Datum dosažení
+  sv: Datum nått
   he: תאריך ההישג
   verified_by_human: []
 newsletter_milestone:
   context: Email subject & header for newsletter milestone notification
   en: Newsletter Milestone Reached
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: Newsletter-Meilenstein erreicht
+  zh: 新闻通讯里程碑已达成
+  es: Hito del boletín alcanzado
+  fr: Jalon de la newsletter atteint
+  pt: Marco do boletim informativo atingido
+  ru: Достигнут рубеж рассылки
+  ja: ニュースレターのマイルストーンを達成しました
+  ko: 뉴스레터 마일스톤 달성
+  it: Traguardo newsletter raggiunto
+  tr: Bülten kilometre taşına ulaşıldı
+  vi: Đạt mốc bản tin
+  id: Tonggak newsletter tercapai
+  pl: Osiągnięto kamień milowy newslettera
+  nl: Nieuwsbriefmijlpaal bereikt
+  ar: تم الوصول إلى معلم النشرة الإخبارية
+  hi: न्यूज़लेटर माइलस्टोन हासिल हुआ
+  th: บรรลุเป้าหมายจดหมายข่าว
+  cs: Dosažen milník newsletteru
+  sv: Milstolpe för nyhetsbrev nådd
   he: הושג יעד ניוזלטר
   verified_by_human: []
 newsletter_milestone_reached:
   context: Congratulatory message for newsletter milestone
   en: A newsletter subscription milestone has been reached!
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: Ein Newsletter-Abonnement-Meilenstein wurde erreicht!
+  zh: 新闻通讯订阅里程碑已达成！
+  es: ¡Se ha alcanzado un hito de suscripción al boletín!
+  fr: Un jalon d'abonnement à la newsletter a été atteint !
+  pt: Um marco de assinatura do boletim informativo foi atingido!
+  ru: Достигнут рубеж подписки на рассылку!
+  ja: ニュースレターの購読マイルストーンを達成しました！
+  ko: 뉴스레터 구독 마일스톤이 달성되었습니다!
+  it: È stato raggiunto un traguardo di abbonamento alla newsletter!
+  tr: Bülten aboneliği kilometre taşına ulaşıldı!
+  vi: Đã đạt mốc đăng ký bản tin!
+  id: Tonggak langganan newsletter telah tercapai!
+  pl: Osiągnięto kamień milowy subskrypcji newslettera!
+  nl: Er is een nieuwsbriefabonneemijlpaal bereikt!
+  ar: تم الوصول إلى معلم اشتراك النشرة الإخبارية!
+  hi: न्यूज़लेटर सदस्यता माइलस्टोन हासिल हो गया है!
+  th: บรรลุเป้าหมายการสมัครสมาชิกจดหมายข่าวแล้ว!
+  cs: Byl dosažen milník odběru newsletteru!
+  sv: En milstolpe för nyhetsbrevsprenumeration har nåtts!
   he: "הושג יעד חדש של הרשמה לניוזלטר!"
   verified_by_human: []
 newsletter_subscriber_count:
   context: Label for displaying the total newsletter subscriber count in milestone email
   en: Total Newsletter Subscribers
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: Gesamte Newsletter-Abonnenten
+  zh: 新闻通讯订阅者总数
+  es: Total de suscriptores del boletín
+  fr: Total des abonnés à la newsletter
+  pt: Total de assinantes do boletim informativo
+  ru: Всего подписчиков рассылки
+  ja: ニュースレター購読者合計
+  ko: 총 뉴스레터 구독자
+  it: Totale iscritti alla newsletter
+  tr: Toplam Bülten Aboneleri
+  vi: Tổng số người đăng ký bản tin
+  id: Total Pelanggan Newsletter
+  pl: Łączna liczba subskrybentów newslettera
+  nl: Totaal nieuwsbriefabonnees
+  ar: إجمالي مشتركي النشرة الإخبارية
+  hi: कुल न्यूज़लेटर सदस्य
+  th: สมาชิกจดหมายข่าวทั้งหมด
+  cs: Celkový počet odběratelů newsletteru
+  sv: Totalt antal nyhetsbrevsprenumeranter
   he: 'סה"כ מנויים לניוזלטר'
   verified_by_human: []
 newsletter_milestone_message:
   context: Message about newsletter growth in milestone email
   en: Your newsletter is growing! This milestone indicates increasing subscriber engagement and reach.
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: Dein Newsletter wächst! Dieser Meilenstein zeigt zunehmende Abonnentenbindung und Reichweite.
+  zh: 您的新闻通讯正在增长！此里程碑表明订阅者参与度和覆盖面不断提高。
+  es: ¡Tu boletín está creciendo! Este hito indica un aumento en la participación y el alcance de los suscriptores.
+  fr: Votre newsletter grandit ! Ce jalon indique un engagement et une portée croissants des abonnés.
+  pt: Seu boletim informativo está crescendo! Este marco indica aumento no engajamento e alcance dos assinantes.
+  ru: Ваша рассылка растёт! Этот рубеж указывает на растущую вовлечённость и охват подписчиков.
+  ja: ニュースレターが成長しています！このマイルストーンは購読者のエンゲージメントとリーチの向上を示しています。
+  ko: 뉴스레터가 성장하고 있습니다! 이 마일스톤은 구독자 참여와 도달 범위가 증가하고 있음을 나타냅니다.
+  it: La tua newsletter sta crescendo! Questo traguardo indica un crescente coinvolgimento e portata degli iscritti.
+  tr: Bülteniniz büyüyor! Bu kilometre taşı, artan abone katılımını ve erişimini gösteriyor.
+  vi: Bản tin của bạn đang phát triển! Mốc này cho thấy sự tham gia và phạm vi tiếp cận của người đăng ký ngày càng tăng.
+  id: Newsletter Anda sedang berkembang! Tonggak ini menunjukkan peningkatan keterlibatan dan jangkauan pelanggan.
+  pl: Twój newsletter rośnie! Ten kamień milowy wskazuje na rosnące zaangażowanie i zasięg subskrybentów.
+  nl: Je nieuwsbrief groeit! Deze mijlpaal geeft aan dat de betrokkenheid en het bereik van abonnees toenemen.
+  ar: نشرتك الإخبارية تنمو! يشير هذا المعلم إلى زيادة مشاركة المشتركين والوصول إليهم.
+  hi: आपका न्यूज़लेटर बढ़ रहा है! यह माइलस्टोन सदस्यों की बढ़ती भागीदारी और पहुंच को दर्शाता है।
+  th: จดหมายข่าวของคุณกำลังเติบโต! เป้าหมายนี้บ่งชี้ว่าการมีส่วนร่วมและการเข้าถึงผู้สมัครสมาชิกเพิ่มขึ้น
+  cs: Váš newsletter roste! Tento milník naznačuje rostoucí zapojení a dosah odběratelů.
+  sv: Ditt nyhetsbrev växer! Denna milstolpe indikerar ökande abonnentengagemang och räckvidd.
   he: "הניוזלטר שלך צומח! יעד זה מעיד על עלייה במעורבות המנויים ובחשיפה."
   verified_by_human: []
 security_alert:
@@ -3362,21 +3390,21 @@ security_alert:
   zh: 安全警报
   es: Alerta de seguridad
   fr: Alerte de sécurité
-  pt: ""
-  ru: ""
+  pt: Alerta de segurança
+  ru: Предупреждение безопасности
   ja: セキュリティアラート
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 보안 알림
+  it: Avviso di sicurezza
+  tr: Güvenlik Uyarısı
+  vi: Cảnh báo bảo mật
+  id: Peringatan Keamanan
+  pl: Alert bezpieczeństwa
+  nl: Beveiligingswaarschuwing
+  ar: تنبيه أمني
+  hi: सुरक्षा अलर्ट
+  th: การแจ้งเตือนความปลอดภัย
+  cs: Bezpečnostní upozornění
+  sv: Säkerhetsvarning
   he: התראת אבטחה
   verified_by_human: []
 login_from_new_device:
@@ -3386,21 +3414,21 @@ login_from_new_device:
   zh: 从新设备登录
   es: Inicio de sesión desde un nuevo dispositivo
   fr: Connexion depuis un nouvel appareil
-  pt: ""
-  ru: ""
+  pt: Login de um novo dispositivo
+  ru: Вход с нового устройства
   ja: 新しいデバイスからのログイン
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 새 기기에서 로그인
+  it: Accesso da un nuovo dispositivo
+  tr: Yeni bir cihazdan giriş
+  vi: Đăng nhập từ thiết bị mới
+  id: Login dari perangkat baru
+  pl: Logowanie z nowego urządzenia
+  nl: Inloggen vanaf een nieuw apparaat
+  ar: تسجيل الدخول من جهاز جديد
+  hi: नए डिवाइस से लॉगिन
+  th: เข้าสู่ระบบจากอุปกรณ์ใหม่
+  cs: Přihlášení z nového zařízení
+  sv: Inloggning från en ny enhet
   he: התחברות ממכשיר חדש
   verified_by_human: []
 security_alert_login_from_new_device:
@@ -3410,21 +3438,21 @@ security_alert_login_from_new_device:
   zh: 安全警报：从新设备登录
   es: "Alerta de seguridad: Inicio de sesión desde un nuevo dispositivo"
   fr: "Alerte de sécurité : Connexion depuis un nouvel appareil"
-  pt: ""
-  ru: ""
+  pt: "Alerta de segurança: Login de um novo dispositivo"
+  ru: "Предупреждение безопасности: Вход с нового устройства"
   ja: "セキュリティアラート: 新しいデバイスからのログイン"
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: "보안 알림: 새 기기에서 로그인"
+  it: "Avviso di sicurezza: Accesso da un nuovo dispositivo"
+  tr: "Güvenlik Uyarısı: Yeni bir cihazdan giriş"
+  vi: "Cảnh báo bảo mật: Đăng nhập từ thiết bị mới"
+  id: "Peringatan Keamanan: Login dari perangkat baru"
+  pl: "Alert bezpieczeństwa: Logowanie z nowego urządzenia"
+  nl: "Beveiligingswaarschuwing: Inloggen vanaf een nieuw apparaat"
+  ar: "تنبيه أمني: تسجيل الدخول من جهاز جديد"
+  hi: "सुरक्षा अलर्ट: नए डिवाइस से लॉगिन"
+  th: "การแจ้งเตือนความปลอดภัย: เข้าสู่ระบบจากอุปกรณ์ใหม่"
+  cs: "Bezpečnostní upozornění: Přihlášení z nového zařízení"
+  sv: "Säkerhetsvarning: Inloggning från en ny enhet"
   he: "התראת אבטחה: התחברות ממכשיר חדש"
   verified_by_human: []
 device_details:
@@ -3464,8 +3492,20 @@ device_details:
     avec {operating_system} :
 
     "
-  pt: ""
-  ru: ""
+  pt: "Em {YYYY}/{MM}/{DD} às {time} ({timezone_name}),
+
+    de um {device_type}
+
+    com {operating_system}:
+
+    "
+  ru: "{YYYY}/{MM}/{DD} в {time} ({timezone_name}),
+
+    с {device_type}
+
+    на {operating_system}:
+
+    "
   ja: "{YYYY}/{MM}/{DD} {time} ({timezone_name})に、
 
     {device_type}から
@@ -3473,18 +3513,90 @@ device_details:
     {operating_system}でログインしました。
 
     "
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: "{YYYY}/{MM}/{DD} {time} ({timezone_name})에,
+
+    {device_type}에서
+
+    {operating_system}(으)로:
+
+    "
+  it: "Il {YYYY}/{MM}/{DD} alle {time} ({timezone_name}),
+
+    da un {device_type}
+
+    con {operating_system}:
+
+    "
+  tr: "{YYYY}/{MM}/{DD} tarihinde {time} ({timezone_name}) saatinde,
+
+    bir {device_type} üzerinden
+
+    {operating_system} ile:
+
+    "
+  vi: "Vào {YYYY}/{MM}/{DD} lúc {time} ({timezone_name}),
+
+    từ một {device_type}
+
+    với {operating_system}:
+
+    "
+  id: "Pada {YYYY}/{MM}/{DD} pukul {time} ({timezone_name}),
+
+    dari sebuah {device_type}
+
+    dengan {operating_system}:
+
+    "
+  pl: "W dniu {YYYY}/{MM}/{DD} o godzinie {time} ({timezone_name}),
+
+    z {device_type}
+
+    z systemem {operating_system}:
+
+    "
+  nl: "Op {YYYY}/{MM}/{DD} om {time} ({timezone_name}),
+
+    van een {device_type}
+
+    met {operating_system}:
+
+    "
+  ar: "في {YYYY}/{MM}/{DD} الساعة {time} ({timezone_name}),
+
+    من {device_type}
+
+    بنظام {operating_system}:
+
+    "
+  hi: "{YYYY}/{MM}/{DD} को {time} ({timezone_name}) पर,
+
+    एक {device_type} से
+
+    {operating_system} के साथ:
+
+    "
+  th: "เมื่อ {YYYY}/{MM}/{DD} เวลา {time} ({timezone_name}),
+
+    จาก {device_type}
+
+    ด้วย {operating_system}:
+
+    "
+  cs: "Dne {YYYY}/{MM}/{DD} v {time} ({timezone_name}),
+
+    ze zařízení {device_type}
+
+    se systémem {operating_system}:
+
+    "
+  sv: "Den {YYYY}/{MM}/{DD} kl. {time} ({timezone_name}),
+
+    från en {device_type}
+
+    med {operating_system}:
+
+    "
   he: |
     ב-{YYYY}/{MM}/{DD} בשעה {time} ({timezone_name}),
     ממכשיר {device_type}
@@ -3497,21 +3609,21 @@ computer:
   zh: 电脑
   es: Computadora
   fr: ordinateur
-  pt: ""
-  ru: ""
+  pt: computador
+  ru: компьютер
   ja: コンピュータ
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 컴퓨터
+  it: computer
+  tr: bilgisayar
+  vi: máy tính
+  id: komputer
+  pl: komputer
+  nl: computer
+  ar: حاسوب
+  hi: कंप्यूटर
+  th: คอมพิวเตอร์
+  cs: počítač
+  sv: dator
   he: מחשב
   verified_by_human: []
 phone:
@@ -3521,21 +3633,21 @@ phone:
   zh: 手机
   es: Teléfono
   fr: téléphone
-  pt: ""
-  ru: ""
+  pt: telefone
+  ru: телефон
   ja: スマートフォン
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 휴대폰
+  it: telefono
+  tr: telefon
+  vi: điện thoại
+  id: ponsel
+  pl: telefon
+  nl: telefoon
+  ar: هاتف
+  hi: फोन
+  th: โทรศัพท์
+  cs: telefon
+  sv: telefon
   he: טלפון
   verified_by_human: []
 tablet:
@@ -3545,21 +3657,21 @@ tablet:
   zh: 平板电脑
   es: Tablet
   fr: tablette
-  pt: ""
-  ru: ""
+  pt: tablet
+  ru: планшет
   ja: タブレット
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 태블릿
+  it: tablet
+  tr: tablet
+  vi: máy tính bảng
+  id: tablet
+  pl: tablet
+  nl: tablet
+  ar: جهاز لوحي
+  hi: टैबलेट
+  th: แท็บเล็ต
+  cs: tablet
+  sv: surfplatta
   he: טאבלט
   verified_by_human: []
 vr_headset:
@@ -3569,21 +3681,21 @@ vr_headset:
   zh: VR头戴设备
   es: Visor de VR
   fr: casque VR
-  pt: ""
-  ru: ""
+  pt: headset de RV
+  ru: VR-гарнитура
   ja: VRヘッドセット
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: VR 헤드셋
+  it: visore VR
+  tr: VR kulaklığı
+  vi: tai nghe VR
+  id: headset VR
+  pl: zestaw VR
+  nl: VR-headset
+  ar: سماعة الواقع الافتراضي
+  hi: VR हेडसेट
+  th: ชุดหูฟัง VR
+  cs: VR headset
+  sv: VR-headset
   he: משקפי VR
   verified_by_human: []
 unknown_os:
@@ -3593,21 +3705,21 @@ unknown_os:
   zh: 未知操作系统
   es: sistema operativo desconocido
   fr: système d'exploitation inconnu
-  pt: ""
-  ru: ""
+  pt: sistema operacional desconhecido
+  ru: неизвестная ОС
   ja: 不明なOS
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 알 수 없는 OS
+  it: sistema operativo sconosciuto
+  tr: bilinmeyen işletim sistemi
+  vi: hệ điều hành không xác định
+  id: OS tidak diketahui
+  pl: nieznany system operacyjny
+  nl: onbekend besturingssysteem
+  ar: نظام تشغيل مجهول
+  hi: अज्ञात OS
+  th: ระบบปฏิบัติการที่ไม่ทราบ
+  cs: neznámý operační systém
+  sv: okänt operativsystem
   he: מערכת הפעלה לא ידועה
   verified_by_human: []
 from_unknown_location:
@@ -3617,21 +3729,21 @@ from_unknown_location:
   zh: 来自未知位置
   es: desde una ubicación desconocida
   fr: depuis un lieu inconnu
-  pt: ""
-  ru: ""
+  pt: de um local desconhecido
+  ru: из неизвестного места
   ja: 不明な場所から
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 알 수 없는 위치에서
+  it: da una posizione sconosciuta
+  tr: bilinmeyen bir konumdan
+  vi: từ vị trí không xác định
+  id: dari lokasi yang tidak diketahui
+  pl: z nieznanej lokalizacji
+  nl: vanaf een onbekende locatie
+  ar: من موقع غير معروف
+  hi: अज्ञात स्थान से
+  th: จากสถานที่ที่ไม่ทราบ
+  cs: z neznámého místa
+  sv: från en okänd plats
   he: ממיקום לא ידוע
   verified_by_human: []
 area_around:
@@ -3661,25 +3773,81 @@ area_around:
     {city}, {country}
 
     "
-  pt: ""
-  ru: ""
+  pt: "Área ao redor de
+
+    {city}, {country}
+
+    "
+  ru: "Район вокруг
+
+    {city}, {country}
+
+    "
   ja: "{country}、{city}
 
     周辺
 
     "
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: "{city}, {country}
+
+    주변 지역
+
+    "
+  it: "Area intorno a
+
+    {city}, {country}
+
+    "
+  tr: "{city}, {country}
+
+    çevresindeki alan
+
+    "
+  vi: "Khu vực xung quanh
+
+    {city}, {country}
+
+    "
+  id: "Area sekitar
+
+    {city}, {country}
+
+    "
+  pl: "Obszar wokół
+
+    {city}, {country}
+
+    "
+  nl: "Gebied rondom
+
+    {city}, {country}
+
+    "
+  ar: "المنطقة المحيطة بـ
+
+    {city}، {country}
+
+    "
+  hi: "के आसपास का क्षेत्र
+
+    {city}, {country}
+
+    "
+  th: "พื้นที่รอบๆ
+
+    {city}, {country}
+
+    "
+  cs: "Oblast kolem
+
+    {city}, {country}
+
+    "
+  sv: "Område runt
+
+    {city}, {country}
+
+    "
   he: |
     אזור
     {city}, {country}
@@ -3721,8 +3889,20 @@ area_is_estimate:
     à un endroit différent de votre emplacement réel.
 
     "
-  pt: ""
-  ru: ""
+  pt: "A área é uma estimativa baseada no endereço IP.
+
+    Você usa uma VPN? Nesse caso, você provavelmente será exibido
+
+    em um local diferente do que realmente está.
+
+    "
+  ru: "Область является приблизительной на основе IP-адреса.
+
+    Вы используете VPN? В таком случае вы, вероятно, будете показаны
+
+    в другом месте, чем вы находитесь на самом деле.
+
+    "
   ja: "この場所はIPアドレスに基づく推定です。
 
     VPNを使用していますか？その場合、
@@ -3730,18 +3910,90 @@ area_is_estimate:
     実際の場所とは異なる場所が表示されている可能性があります。
 
     "
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: "해당 지역은 IP 주소를 기반으로 한 추정입니다.
+
+    VPN을 사용하고 계신가요? 그렇다면 실제 위치와
+
+    다른 위치가 표시될 수 있습니다.
+
+    "
+  it: "L'area è una stima basata sull'indirizzo IP.
+
+    Usi una VPN? In tal caso, probabilmente verrai mostrato
+
+    in una posizione diversa da quella in cui ti trovi realmente.
+
+    "
+  tr: "Alan, IP adresine dayalı bir tahmindir.
+
+    VPN kullanıyor musunuz? Öyleyse muhtemelen
+
+    gerçekte bulunduğunuzdan farklı bir konumda gösterilirsiniz.
+
+    "
+  vi: "Khu vực này là ước tính dựa trên địa chỉ IP.
+
+    Bạn có dùng VPN không? Nếu có, bạn có thể được hiển thị
+
+    ở một vị trí khác so với vị trí thực của bạn.
+
+    "
+  id: "Area ini merupakan perkiraan berdasarkan alamat IP.
+
+    Apakah Anda menggunakan VPN? Jika ya, Anda mungkin akan ditampilkan
+
+    di lokasi yang berbeda dari lokasi Anda sebenarnya.
+
+    "
+  pl: "Obszar jest szacunkowy na podstawie adresu IP.
+
+    Czy używasz VPN? W takim przypadku prawdopodobnie
+
+    zostaniesz wyświetlony w innym miejscu niż faktycznie się znajdujesz.
+
+    "
+  nl: "Het gebied is een schatting op basis van het IP-adres.
+
+    Gebruik je een VPN? Dan word je waarschijnlijk
+
+    op een andere locatie weergegeven dan je werkelijk bent.
+
+    "
+  ar: "المنطقة تقدير مبني على عنوان IP.
+
+    هل تستخدم VPN؟ إذا كان الأمر كذلك، فمن المحتمل أن يظهر
+
+    موقع مختلف عن موقعك الحقيقي.
+
+    "
+  hi: "क्षेत्र IP पते के आधार पर एक अनुमान है।
+
+    क्या आप VPN का उपयोग करते हैं? यदि हाँ, तो आप संभवतः
+
+    अपनी वास्तविक स्थिति से भिन्न स्थान पर दिखाई देंगे।
+
+    "
+  th: "พื้นที่นี้เป็นการประมาณการตามที่อยู่ IP
+
+    คุณใช้ VPN หรือไม่? ถ้าใช่ คุณอาจจะถูกแสดง
+
+    ในสถานที่ที่แตกต่างจากที่คุณอยู่จริง
+
+    "
+  cs: "Oblast je odhad na základě IP adresy.
+
+    Používáte VPN? V takovém případě budete pravděpodobně
+
+    zobrazeni na jiném místě, než kde se skutečně nacházíte.
+
+    "
+  sv: "Området är en uppskattning baserad på IP-adressen.
+
+    Använder du ett VPN? I så fall kommer du troligen att visas
+
+    på en annan plats än du faktiskt befinner dig.
+
+    "
   he: |
     האזור הוא הערכה המבוססת על כתובת ה-IP.
     האם אתה משתמש ב-VPN? אם כן, סביר להניח שיוצג
@@ -3784,8 +4036,20 @@ if_this_wasnt_you_react:
     <a href='{logout_link}'>Cliquez ici pour signaler cet incident urgent.</a>
 
     "
-  pt: ""
-  ru: ""
+  pt: "Se foi você, pode ignorar este e-mail.
+
+    Se não foi você, reaja imediatamente:
+
+    <a href='{logout_link}'>Clique aqui para reportar este incidente urgente.</a>
+
+    "
+  ru: "Если это были вы, вы можете проигнорировать это письмо.
+
+    Если это были не вы, реагируйте немедленно:
+
+    <a href='{logout_link}'>Нажмите здесь, чтобы сообщить об этом срочном инциденте.</a>
+
+    "
   ja: "あなた自身の操作であれば、このメールは無視してください。
 
     あなたの操作でない場合は、すぐに対応してください：
@@ -3793,18 +4057,90 @@ if_this_wasnt_you_react:
     <a href='{logout_link}'>ここをクリックして、この緊急事態を報告してください。</a>
 
     "
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: "이것이 본인의 행동이라면 이 이메일을 무시해도 됩니다.
+
+    본인이 아니라면 즉시 조치하세요:
+
+    <a href='{logout_link}'>여기를 클릭하여 이 긴급 사건을 보고하세요.</a>
+
+    "
+  it: "Se sei stato tu, puoi ignorare questa e-mail.
+
+    Se non sei stato tu, reagisci immediatamente:
+
+    <a href='{logout_link}'>Clicca qui per segnalare questo incidente urgente.</a>
+
+    "
+  tr: "Bu siz olduysanız, bu e-postayı yoksayabilirsiniz.
+
+    Bu siz olmadıysanız, hemen harekete geçin:
+
+    <a href='{logout_link}'>Bu acil olayı bildirmek için buraya tıklayın.</a>
+
+    "
+  vi: "Nếu đây là bạn, bạn có thể bỏ qua email này.
+
+    Nếu không phải bạn, hãy phản ứng ngay lập tức:
+
+    <a href='{logout_link}'>Nhấp vào đây để báo cáo sự cố khẩn cấp này.</a>
+
+    "
+  id: "Jika ini adalah Anda, Anda dapat mengabaikan email ini.
+
+    Jika bukan Anda, segera ambil tindakan:
+
+    <a href='{logout_link}'>Klik di sini untuk melaporkan insiden mendesak ini.</a>
+
+    "
+  pl: "Jeśli to byłeś ty, możesz zignorować ten e-mail.
+
+    Jeśli to nie byłeś ty, zareaguj natychmiast:
+
+    <a href='{logout_link}'>Kliknij tutaj, aby zgłosić ten pilny incydent.</a>
+
+    "
+  nl: "Als dit jij was, kun je deze e-mail negeren.
+
+    Als dit jij niet was, reageer dan onmiddellijk:
+
+    <a href='{logout_link}'>Klik hier om dit dringende incident te melden.</a>
+
+    "
+  ar: "إذا كنت أنت من فعل هذا، يمكنك تجاهل هذا البريد الإلكتروني.
+
+    إذا لم تكن أنت، فتصرف فوراً:
+
+    <a href='{logout_link}'>انقر هنا للإبلاغ عن هذا الحادث العاجل.</a>
+
+    "
+  hi: "यदि यह आप थे, तो आप इस ईमेल को अनदेखा कर सकते हैं।
+
+    यदि यह आप नहीं थे, तो तुरंत प्रतिक्रिया करें:
+
+    <a href='{logout_link}'>इस तत्काल घटना की रिपोर्ट करने के लिए यहां क्लिक करें।</a>
+
+    "
+  th: "ถ้าคุณทำสิ่งนี้ คุณสามารถเพิกเฉยต่ออีเมลนี้ได้
+
+    ถ้าไม่ใช่คุณ ให้ดำเนินการทันที:
+
+    <a href='{logout_link}'>คลิกที่นี่เพื่อรายงานเหตุการณ์เร่งด่วนนี้</a>
+
+    "
+  cs: "Pokud jste to byli vy, můžete tento e-mail ignorovat.
+
+    Pokud jste to nebyli vy, okamžitě reagujte:
+
+    <a href='{logout_link}'>Kliknutím zde nahlaste tento naléhavý incident.</a>
+
+    "
+  sv: "Om det var du kan du ignorera detta e-postmeddelande.
+
+    Om det inte var du, reagera omedelbart:
+
+    <a href='{logout_link}'>Klicka här för att rapportera detta brådskande incident.</a>
+
+    "
   he: |
     אם זה היית אתה, ניתן להתעלם ממייל זה.
     אם זה לא היית אתה, פעל מיד:
@@ -3817,21 +4153,21 @@ email_subject_someone_accessed_my_account:
   zh: 紧急：未经授权访问我的账户
   es: "Urgente: Acceso no autorizado a mi cuenta"
   fr: "Urgent : Accès non autorisé à mon compte"
-  pt: ""
-  ru: ""
+  pt: "Urgente: Acesso não autorizado à minha conta"
+  ru: "Срочно: Несанкционированный доступ к моей учётной записи"
   ja: 緊急：アカウントへの不正アクセス
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: "긴급: 내 계정에 무단 접근"
+  it: "Urgente: Accesso non autorizzato al mio account"
+  tr: "Acil: Hesabıma yetkisiz erişim"
+  vi: "Khẩn cấp: Truy cập trái phép vào tài khoản của tôi"
+  id: "Mendesak: Akses tidak sah ke akun saya"
+  pl: "Pilne: Nieautoryzowany dostęp do mojego konta"
+  nl: "Dringend: Ongeautoriseerde toegang tot mijn account"
+  ar: "عاجل: وصول غير مصرح به إلى حسابي"
+  hi: "तत्काल: मेरे खाते तक अनधिकृत पहुंच"
+  th: "ด่วน: การเข้าถึงบัญชีของฉันโดยไม่ได้รับอนุญาต"
+  cs: "Naléhavé: Neoprávněný přístup k mému účtu"
+  sv: "Brådskande: Obehörig åtkomst till mitt konto"
   he: "דחוף: גישה לא מורשית לחשבון שלי"
   verified_by_human: []
 email_body_someone_accessed_my_account_from_new_device:
@@ -3956,8 +4292,54 @@ email_body_someone_accessed_my_account_from_new_device:
     Merci.
 
     "
-  pt: ""
-  ru: ""
+  pt: "Olá.
+
+    Alguém acessou minha conta sem minha permissão!
+
+    Aqui estão os detalhes:
+
+
+    Hora de login: {login_time}
+
+    Dispositivo: {device_type}
+
+    Sistema operacional: {operating_system}
+
+    Localização: {city}, {country}
+
+    E-mail da conta: {account_email}
+
+
+    Por favor, ajude-me a proteger minha conta.
+
+
+    Obrigado.
+
+    "
+  ru: "Здравствуйте.
+
+    Кто-то получил доступ к моей учётной записи без моего разрешения!
+
+    Вот подробности:
+
+
+    Время входа: {login_time}
+
+    Устройство: {device_type}
+
+    Операционная система: {operating_system}
+
+    Местоположение: {city}, {country}
+
+    Email аккаунта: {account_email}
+
+
+    Пожалуйста, помогите мне защитить мою учётную запись.
+
+
+    Спасибо.
+
+    "
   ja: "こんにちは。
 
     誰かが私の許可なくアカウントにアクセスしました！
@@ -3982,18 +4364,294 @@ email_body_someone_accessed_my_account_from_new_device:
     よろしくお願いいたします。
 
     "
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: "안녕하세요.
+
+    누군가가 제 허락 없이 제 계정에 접근했습니다!
+
+    세부 정보는 다음과 같습니다:
+
+
+    로그인 시간: {login_time}
+
+    기기: {device_type}
+
+    운영 체제: {operating_system}
+
+    위치: {city}, {country}
+
+    계정 이메일: {account_email}
+
+
+    제 계정을 보호하는 데 도움을 주세요.
+
+
+    감사합니다.
+
+    "
+  it: "Salve.
+
+    Qualcuno ha acceduto al mio account senza il mio permesso!
+
+    Ecco i dettagli:
+
+
+    Ora di accesso: {login_time}
+
+    Dispositivo: {device_type}
+
+    Sistema operativo: {operating_system}
+
+    Posizione: {city}, {country}
+
+    Email dell'account: {account_email}
+
+
+    Per favore aiutatemi a proteggere il mio account.
+
+
+    Grazie.
+
+    "
+  tr: "Merhaba.
+
+    Birisi iznim olmadan hesabıma erişti!
+
+    İşte ayrıntılar:
+
+
+    Giriş zamanı: {login_time}
+
+    Cihaz: {device_type}
+
+    İşletim sistemi: {operating_system}
+
+    Konum: {city}, {country}
+
+    Hesap e-postası: {account_email}
+
+
+    Hesabımı güvence altına almama yardım edin lütfen.
+
+
+    Teşekkürler.
+
+    "
+  vi: "Xin chào.
+
+    Ai đó đã truy cập vào tài khoản của tôi mà không có sự cho phép của tôi!
+
+    Đây là các chi tiết:
+
+
+    Thời gian đăng nhập: {login_time}
+
+    Thiết bị: {device_type}
+
+    Hệ điều hành: {operating_system}
+
+    Vị trí: {city}, {country}
+
+    Email tài khoản: {account_email}
+
+
+    Vui lòng giúp tôi bảo mật tài khoản của mình.
+
+
+    Cảm ơn.
+
+    "
+  id: "Halo.
+
+    Seseorang mengakses akun saya tanpa izin saya!
+
+    Berikut detailnya:
+
+
+    Waktu login: {login_time}
+
+    Perangkat: {device_type}
+
+    Sistem operasi: {operating_system}
+
+    Lokasi: {city}, {country}
+
+    Email akun: {account_email}
+
+
+    Tolong bantu saya mengamankan akun saya.
+
+
+    Terima kasih.
+
+    "
+  pl: "Witaj.
+
+    Ktoś uzyskał dostęp do mojego konta bez mojego pozwolenia!
+
+    Oto szczegóły:
+
+
+    Czas logowania: {login_time}
+
+    Urządzenie: {device_type}
+
+    System operacyjny: {operating_system}
+
+    Lokalizacja: {city}, {country}
+
+    E-mail konta: {account_email}
+
+
+    Proszę pomóż mi zabezpieczyć moje konto.
+
+
+    Dziękuję.
+
+    "
+  nl: "Hallo.
+
+    Iemand heeft toegang gekregen tot mijn account zonder mijn toestemming!
+
+    Hier zijn de details:
+
+
+    Inlogtijd: {login_time}
+
+    Apparaat: {device_type}
+
+    Besturingssysteem: {operating_system}
+
+    Locatie: {city}, {country}
+
+    Account e-mail: {account_email}
+
+
+    Help me alstublieft mijn account te beveiligen.
+
+
+    Dank u.
+
+    "
+  ar: "مرحباً.
+
+    قام شخص ما بالوصول إلى حسابي دون إذني!
+
+    إليك التفاصيل:
+
+
+    وقت تسجيل الدخول: {login_time}
+
+    الجهاز: {device_type}
+
+    نظام التشغيل: {operating_system}
+
+    الموقع: {city}، {country}
+
+    البريد الإلكتروني للحساب: {account_email}
+
+
+    يرجى مساعدتي في تأمين حسابي.
+
+
+    شكراً.
+
+    "
+  hi: "नमस्ते।
+
+    किसी ने मेरी अनुमति के बिना मेरे खाते तक पहुंच प्राप्त की!
+
+    यहाँ विवरण हैं:
+
+
+    लॉगिन समय: {login_time}
+
+    डिवाइस: {device_type}
+
+    ऑपरेटिंग सिस्टम: {operating_system}
+
+    स्थान: {city}, {country}
+
+    खाता ईमेल: {account_email}
+
+
+    कृपया मेरे खाते को सुरक्षित करने में मेरी सहायता करें।
+
+
+    धन्यवाद।
+
+    "
+  th: "สวัสดี
+
+    มีคนเข้าถึงบัญชีของฉันโดยไม่ได้รับอนุญาต!
+
+    นี่คือรายละเอียด:
+
+
+    เวลาเข้าสู่ระบบ: {login_time}
+
+    อุปกรณ์: {device_type}
+
+    ระบบปฏิบัติการ: {operating_system}
+
+    ตำแหน่ง: {city}, {country}
+
+    อีเมลบัญชี: {account_email}
+
+
+    กรุณาช่วยฉันรักษาความปลอดภัยบัญชีของฉัน
+
+
+    ขอบคุณ
+
+    "
+  cs: "Dobrý den.
+
+    Někdo přistoupil k mému účtu bez mého svolení!
+
+    Zde jsou podrobnosti:
+
+
+    Čas přihlášení: {login_time}
+
+    Zařízení: {device_type}
+
+    Operační systém: {operating_system}
+
+    Umístění: {city}, {country}
+
+    E-mail účtu: {account_email}
+
+
+    Prosím pomozte mi zabezpečit můj účet.
+
+
+    Děkuji.
+
+    "
+  sv: "Hej.
+
+    Någon har fått tillgång till mitt konto utan mitt tillstånd!
+
+    Här är detaljerna:
+
+
+    Inloggningstid: {login_time}
+
+    Enhet: {device_type}
+
+    Operativsystem: {operating_system}
+
+    Plats: {city}, {country}
+
+    Konto-e-post: {account_email}
+
+
+    Hjälp mig att säkra mitt konto.
+
+
+    Tack.
+
+    "
   he: |
     שלום.
     מישהו ניגש לחשבון שלי ללא רשותי!
@@ -4027,25 +4685,310 @@ email_body_someone_accessed_my_account_recovery_key:
     Thanks.
 
     "
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: "Hallo.
+
+    Jemand hat auf mein Konto zugegriffen ohne meine Erlaubnis, indem er meinen Wiederherstellungsschlüssel verwendete!
+
+    Hier sind die Details:
+
+
+    Zeitpunkt der Anmeldung: {login_time}
+
+
+    Bitte helfe mir, mein Konto zu sichern.
+
+
+    Danke.
+
+    "
+  zh: "您好。
+
+    有人使用我的恢复密钥在未经我许可的情况下访问了我的账户！
+
+    以下是详细信息：
+
+
+    登录时间：{login_time}
+
+
+    请帮助我保护我的账户。
+
+
+    谢谢。
+
+    "
+  es: "Hola.
+
+    ¡Alguien accedió a mi cuenta sin mi permiso usando mi clave de recuperación!
+
+    Aquí están los detalles:
+
+
+    Hora de inicio de sesión: {login_time}
+
+
+    Por favor, ayúdame a asegurar mi cuenta.
+
+
+    Gracias.
+
+    "
+  fr: "Bonjour.
+
+    Quelqu'un a accédé à mon compte sans ma permission en utilisant ma clé de récupération !
+
+    Voici les détails :
+
+
+    Heure de connexion : {login_time}
+
+
+    Merci de m'aider à sécuriser mon compte.
+
+
+    Merci.
+
+    "
+  pt: "Olá.
+
+    Alguém acessou minha conta sem minha permissão usando minha chave de recuperação!
+
+    Aqui estão os detalhes:
+
+
+    Hora de login: {login_time}
+
+
+    Por favor, ajude-me a proteger minha conta.
+
+
+    Obrigado.
+
+    "
+  ru: "Здравствуйте.
+
+    Кто-то получил доступ к моей учётной записи без моего разрешения, используя мой ключ восстановления!
+
+    Вот подробности:
+
+
+    Время входа: {login_time}
+
+
+    Пожалуйста, помогите мне защитить мою учётную запись.
+
+
+    Спасибо.
+
+    "
+  ja: "こんにちは。
+
+    誰かが私の回復キーを使って私の許可なくアカウントにアクセスしました！
+
+    詳細は以下の通りです：
+
+
+    ログイン時刻: {login_time}
+
+
+    アカウントの保護にご協力ください。
+
+
+    よろしくお願いいたします。
+
+    "
+  ko: "안녕하세요.
+
+    누군가가 내 복구 키를 사용하여 제 허락 없이 제 계정에 접근했습니다!
+
+    세부 정보는 다음과 같습니다:
+
+
+    로그인 시간: {login_time}
+
+
+    제 계정을 보호하는 데 도움을 주세요.
+
+
+    감사합니다.
+
+    "
+  it: "Salve.
+
+    Qualcuno ha acceduto al mio account senza il mio permesso usando la mia chiave di recupero!
+
+    Ecco i dettagli:
+
+
+    Ora di accesso: {login_time}
+
+
+    Per favore aiutatemi a proteggere il mio account.
+
+
+    Grazie.
+
+    "
+  tr: "Merhaba.
+
+    Birisi kurtarma anahtarımı kullanarak iznim olmadan hesabıma erişti!
+
+    İşte ayrıntılar:
+
+
+    Giriş zamanı: {login_time}
+
+
+    Hesabımı güvence altına almama yardım edin lütfen.
+
+
+    Teşekkürler.
+
+    "
+  vi: "Xin chào.
+
+    Ai đó đã truy cập vào tài khoản của tôi mà không có sự cho phép của tôi bằng cách sử dụng khóa khôi phục của tôi!
+
+    Đây là các chi tiết:
+
+
+    Thời gian đăng nhập: {login_time}
+
+
+    Vui lòng giúp tôi bảo mật tài khoản của mình.
+
+
+    Cảm ơn.
+
+    "
+  id: "Halo.
+
+    Seseorang mengakses akun saya tanpa izin saya menggunakan kunci pemulihan saya!
+
+    Berikut detailnya:
+
+
+    Waktu login: {login_time}
+
+
+    Tolong bantu saya mengamankan akun saya.
+
+
+    Terima kasih.
+
+    "
+  pl: "Witaj.
+
+    Ktoś uzyskał dostęp do mojego konta bez mojego pozwolenia, używając mojego klucza odzyskiwania!
+
+    Oto szczegóły:
+
+
+    Czas logowania: {login_time}
+
+
+    Proszę pomóż mi zabezpieczyć moje konto.
+
+
+    Dziękuję.
+
+    "
+  nl: "Hallo.
+
+    Iemand heeft toegang gekregen tot mijn account zonder mijn toestemming met behulp van mijn herstelsleutel!
+
+    Hier zijn de details:
+
+
+    Inlogtijd: {login_time}
+
+
+    Help me alstublieft mijn account te beveiligen.
+
+
+    Dank u.
+
+    "
+  ar: "مرحباً.
+
+    قام شخص ما بالوصول إلى حسابي دون إذني باستخدام مفتاح الاسترداد الخاص بي!
+
+    إليك التفاصيل:
+
+
+    وقت تسجيل الدخول: {login_time}
+
+
+    يرجى مساعدتي في تأمين حسابي.
+
+
+    شكراً.
+
+    "
+  hi: "नमस्ते।
+
+    किसी ने मेरी पुनर्प्राप्ति कुंजी का उपयोग करके मेरी अनुमति के बिना मेरे खाते तक पहुंच प्राप्त की!
+
+    यहाँ विवरण हैं:
+
+
+    लॉगिन समय: {login_time}
+
+
+    कृपया मेरे खाते को सुरक्षित करने में मेरी सहायता करें।
+
+
+    धन्यवाद।
+
+    "
+  th: "สวัสดี
+
+    มีคนใช้คีย์กู้คืนของฉันเข้าถึงบัญชีของฉันโดยไม่ได้รับอนุญาต!
+
+    นี่คือรายละเอียด:
+
+
+    เวลาเข้าสู่ระบบ: {login_time}
+
+
+    กรุณาช่วยฉันรักษาความปลอดภัยบัญชีของฉัน
+
+
+    ขอบคุณ
+
+    "
+  cs: "Dobrý den.
+
+    Někdo přistoupil k mému účtu bez mého svolení pomocí mého obnovovacího klíče!
+
+    Zde jsou podrobnosti:
+
+
+    Čas přihlášení: {login_time}
+
+
+    Prosím pomozte mi zabezpečit můj účet.
+
+
+    Děkuji.
+
+    "
+  sv: "Hej.
+
+    Någon har fått tillgång till mitt konto utan mitt tillstånd med min återställningsnyckel!
+
+    Här är detaljerna:
+
+
+    Inloggningstid: {login_time}
+
+
+    Hjälp mig att säkra mitt konto.
+
+
+    Tack.
+
+    "
   he: |
     שלום.
     מישהו ניגש לחשבון שלי ללא רשותי באמצעות מפתח השחזור שלי!
@@ -4064,45 +5007,45 @@ security_alert_backup_code_was_used:
   zh: 安全警报：已使用备用码
   es: "Alerta de seguridad: Se utilizó un código de respaldo"
   fr: "Alerte de sécurité : Un code de secours a été utilisé"
-  pt: ""
-  ru: ""
+  pt: "Alerta de segurança: Código de backup foi usado"
+  ru: "Предупреждение безопасности: Был использован резервный код"
   ja: "セキュリティアラート: バックアップコードが使用されました"
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: "보안 경고: 백업 코드가 사용되었습니다"
+  it: "Avviso di sicurezza: È stato utilizzato un codice di backup"
+  tr: "Güvenlik Uyarısı: Yedek kod kullanıldı"
+  vi: "Cảnh báo bảo mật: Mã sao lưu đã được sử dụng"
+  id: "Peringatan Keamanan: Kode cadangan telah digunakan"
+  pl: "Alert bezpieczeństwa: Użyto kodu zapasowego"
+  nl: "Beveiligingswaarschuwing: Back-upcode is gebruikt"
+  ar: "تنبيه أمني: تم استخدام رمز النسخ الاحتياطي"
+  hi: "सुरक्षा चेतावनी: बैकअप कोड का उपयोग किया गया"
+  th: "การแจ้งเตือนความปลอดภัย: ใช้รหัสสำรองแล้ว"
+  cs: "Bezpečnostní upozornění: Byl použit záložní kód"
+  sv: "Säkerhetsvarning: Reservkod användes"
   he: "התראת אבטחה: נעשה שימוש בקוד גיבוי"
   verified_by_human: []
 security_alert_recovery_key_was_used:
   context: Email subject for recovery key usage for login
   en: "Security Alert: Recovery key was used"
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: "Sicherheitswarnung: Wiederherstellungsschlüssel wurde verwendet"
+  zh: 安全警报：已使用恢复密钥
+  es: "Alerta de seguridad: Se utilizó una clave de recuperación"
+  fr: "Alerte de sécurité : La clé de récupération a été utilisée"
+  pt: "Alerta de segurança: Chave de recuperação foi usada"
+  ru: "Предупреждение безопасности: Был использован ключ восстановления"
+  ja: "セキュリティアラート: 回復キーが使用されました"
+  ko: "보안 경고: 복구 키가 사용되었습니다"
+  it: "Avviso di sicurezza: È stata utilizzata una chiave di recupero"
+  tr: "Güvenlik Uyarısı: Kurtarma anahtarı kullanıldı"
+  vi: "Cảnh báo bảo mật: Khóa khôi phục đã được sử dụng"
+  id: "Peringatan Keamanan: Kunci pemulihan telah digunakan"
+  pl: "Alert bezpieczeństwa: Użyto klucza odzyskiwania"
+  nl: "Beveiligingswaarschuwing: Herstelsleutel is gebruikt"
+  ar: "تنبيه أمني: تم استخدام مفتاح الاسترداد"
+  hi: "सुरक्षा चेतावनी: पुनर्प्राप्ति कुंजी का उपयोग किया गया"
+  th: "การแจ้งเตือนความปลอดภัย: ใช้คีย์กู้คืนแล้ว"
+  cs: "Bezpečnostní upozornění: Byl použit obnovovací klíč"
+  sv: "Säkerhetsvarning: Återställningsnyckel användes"
   he: "התראת אבטחה: נעשה שימוש במפתח שחזור"
   verified_by_human: []
 backup_code_was_used:
@@ -4132,25 +5075,81 @@ backup_code_was_used:
     a été utilisé
 
     "
-  pt: ""
-  ru: ""
+  pt: "Código de backup
+
+    foi usado
+
+    "
+  ru: "Резервный код
+
+    был использован
+
+    "
   ja: "バックアップコード
 
     が使用されました
 
     "
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: "백업 코드가
+
+    사용되었습니다
+
+    "
+  it: "Il codice di backup
+
+    è stato utilizzato
+
+    "
+  tr: "Yedek kod
+
+    kullanıldı
+
+    "
+  vi: "Mã sao lưu
+
+    đã được sử dụng
+
+    "
+  id: "Kode cadangan
+
+    telah digunakan
+
+    "
+  pl: "Kod zapasowy
+
+    został użyty
+
+    "
+  nl: "Back-upcode
+
+    is gebruikt
+
+    "
+  ar: "تم استخدام
+
+    رمز النسخ الاحتياطي
+
+    "
+  hi: "बैकअप कोड
+
+    का उपयोग किया गया
+
+    "
+  th: "ใช้รหัส
+
+    สำรองแล้ว
+
+    "
+  cs: "Záložní kód
+
+    byl použit
+
+    "
+  sv: "Reservkod
+
+    användes
+
+    "
   he: |
     נעשה שימוש
     בקוד גיבוי
@@ -4186,26 +5185,96 @@ a_backup_code_was_used:
     Ce code est maintenant invalide :
 
     "
-  pt: ""
-  ru: ""
+  pt:
+    "Um código de backup foi usado com sucesso junto com seu endereço de e-mail e senha para fazer login em sua conta.
+
+    Este código é inválido agora:
+
+    "
+  ru:
+    "Резервный код был успешно использован вместе с вашим адресом электронной почты и паролем для входа в вашу учётную запись.
+
+    Этот код теперь недействителен:
+
+    "
   ja:
     "バックアップコードが、あなたのメールアドレスとパスワードと共に、アカウントへのログインに正常に使用されました。
 
     このコードは現在無効です:
 
     "
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko:
+    "백업 코드가 이메일 주소와 비밀번호와 함께 계정에 로그인하는 데 성공적으로 사용되었습니다.
+
+    이 코드는 이제 유효하지 않습니다:
+
+    "
+  it:
+    "Un codice di backup è stato utilizzato con successo insieme al tuo indirizzo e-mail e alla tua password per accedere al tuo account.
+
+    Questo codice è ora non valido:
+
+    "
+  tr:
+    "Bir yedek kod, e-posta adresiniz ve parolanızla birlikte hesabınıza giriş yapmak için başarıyla kullanıldı.
+
+    Bu kod artık geçersizdir:
+
+    "
+  vi:
+    "Một mã sao lưu đã được sử dụng thành công cùng với địa chỉ email và mật khẩu của bạn để đăng nhập vào tài khoản.
+
+    Mã này hiện không hợp lệ:
+
+    "
+  id:
+    "Kode cadangan telah berhasil digunakan bersama dengan alamat email dan kata sandi Anda untuk masuk ke akun Anda.
+
+    Kode ini sekarang tidak valid:
+
+    "
+  pl:
+    "Kod zapasowy został pomyślnie użyty wraz z Twoim adresem e-mail i hasłem do zalogowania się na Twoje konto.
+
+    Ten kod jest teraz nieważny:
+
+    "
+  nl:
+    "Een back-upcode is succesvol gebruikt samen met je e-mailadres en wachtwoord om in te loggen op je account.
+
+    Deze code is nu ongeldig:
+
+    "
+  ar:
+    "تم استخدام رمز النسخ الاحتياطي بنجاح مع عنوان بريدك الإلكتروني وكلمة المرور لتسجيل الدخول إلى حسابك.
+
+    هذا الرمز غير صالح الآن:
+
+    "
+  hi:
+    "एक बैकअप कोड को आपके ईमेल पते और पासवर्ड के साथ सफलतापूर्वक आपके खाते में लॉगिन करने के लिए उपयोग किया गया।
+
+    यह कोड अब अमान्य है:
+
+    "
+  th:
+    "รหัสสำรองถูกใช้งานสำเร็จร่วมกับที่อยู่อีเมลและรหัสผ่านของคุณเพื่อเข้าสู่ระบบบัญชีของคุณ
+
+    รหัสนี้ไม่ถูกต้องแล้ว:
+
+    "
+  cs:
+    "Záložní kód byl úspěšně použit spolu s vaší e-mailovou adresou a heslem pro přihlášení k vašemu účtu.
+
+    Tento kód je nyní neplatný:
+
+    "
+  sv:
+    "En reservkod användes framgångsrikt tillsammans med din e-postadress och ditt lösenord för att logga in på ditt konto.
+
+    Den här koden är nu ogiltig:
+
+    "
   he: |
     נעשה שימוש מוצלח בקוד גיבוי יחד עם כתובת האימייל והסיסמה שלך כדי להתחבר לחשבון.
     קוד זה אינו תקף כעת:
@@ -4217,25 +5286,101 @@ recovery_key_was_used:
     was used
 
     "
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: "Wiederherstellungsschlüssel
+
+    wurde verwendet
+
+    "
+  zh: "恢复密钥
+
+    已被使用
+
+    "
+  es: "La clave de recuperación
+
+    fue utilizada
+
+    "
+  fr: "La clé de récupération
+
+    a été utilisée
+
+    "
+  pt: "Chave de recuperação
+
+    foi usada
+
+    "
+  ru: "Ключ восстановления
+
+    был использован
+
+    "
+  ja: "回復キーが
+
+    使用されました
+
+    "
+  ko: "복구 키가
+
+    사용되었습니다
+
+    "
+  it: "La chiave di recupero
+
+    è stata utilizzata
+
+    "
+  tr: "Kurtarma anahtarı
+
+    kullanıldı
+
+    "
+  vi: "Khóa khôi phục
+
+    đã được sử dụng
+
+    "
+  id: "Kunci pemulihan
+
+    telah digunakan
+
+    "
+  pl: "Klucz odzyskiwania
+
+    został użyty
+
+    "
+  nl: "Herstelsleutel
+
+    is gebruikt
+
+    "
+  ar: "تم استخدام
+
+    مفتاح الاسترداد
+
+    "
+  hi: "पुनर्प्राप्ति कुंजी
+
+    का उपयोग किया गया
+
+    "
+  th: "ใช้คีย์
+
+    กู้คืนแล้ว
+
+    "
+  cs: "Obnovovací klíč
+
+    byl použit
+
+    "
+  sv: "Återställningsnyckel
+
+    användes
+
+    "
   he: |
     נעשה שימוש
     במפתח שחזור
@@ -4243,25 +5388,25 @@ recovery_key_was_used:
 recovery_key_security_info:
   context: Email body for recovery key usage for login
   en: Your recovery key was used successfully together with your email address to login to your account.
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: Dein Wiederherstellungsschlüssel wurde erfolgreich zusammen mit deiner E-Mail-Adresse verwendet, um dich in deinem Konto anzumelden.
+  zh: 您的恢复密钥已与您的电子邮件地址一起成功用于登录您的账户。
+  es: Tu clave de recuperación se utilizó con éxito junto con tu dirección de correo electrónico para iniciar sesión en tu cuenta.
+  fr: Votre clé de récupération a été utilisée avec succès avec votre adresse e-mail pour vous connecter à votre compte.
+  pt: Sua chave de recuperação foi usada com sucesso junto com seu endereço de e-mail para fazer login em sua conta.
+  ru: Ваш ключ восстановления был успешно использован вместе с вашим адресом электронной почты для входа в вашу учётную запись.
+  ja: あなたの回復キーがメールアドレスと共にアカウントへのログインに正常に使用されました。
+  ko: 귀하의 복구 키가 이메일 주소와 함께 계정에 로그인하는 데 성공적으로 사용되었습니다.
+  it: La tua chiave di recupero è stata utilizzata con successo insieme al tuo indirizzo e-mail per accedere al tuo account.
+  tr: Kurtarma anahtarınız, hesabınıza giriş yapmak için e-posta adresinizle birlikte başarıyla kullanıldı.
+  vi: Khóa khôi phục của bạn đã được sử dụng thành công cùng với địa chỉ email của bạn để đăng nhập vào tài khoản.
+  id: Kunci pemulihan Anda berhasil digunakan bersama dengan alamat email Anda untuk masuk ke akun Anda.
+  pl: Twój klucz odzyskiwania został pomyślnie użyty wraz z Twoim adresem e-mail do zalogowania się na Twoje konto.
+  nl: Je herstelsleutel is succesvol gebruikt samen met je e-mailadres om in te loggen op je account.
+  ar: تم استخدام مفتاح الاسترداد الخاص بك بنجاح مع عنوان بريدك الإلكتروني لتسجيل الدخول إلى حسابك.
+  hi: आपकी पुनर्प्राप्ति कुंजी को आपके ईमेल पते के साथ सफलतापूर्वक आपके खाते में लॉगिन करने के लिए उपयोग किया गया।
+  th: คีย์กู้คืนของคุณถูกใช้งานสำเร็จร่วมกับที่อยู่อีเมลของคุณเพื่อเข้าสู่ระบบบัญชีของคุณ
+  cs: Váš obnovovací klíč byl úspěšně použit spolu s vaší e-mailovou adresou pro přihlášení k vašemu účtu.
+  sv: Din återställningsnyckel användes framgångsrikt tillsammans med din e-postadress för att logga in på ditt konto.
   he: נעשה שימוש מוצלח במפתח השחזור שלך יחד עם כתובת האימייל שלך כדי להתחבר לחשבון.
   verified_by_human: []
 reset_2fa_info:
@@ -4291,25 +5436,81 @@ reset_2fa_info:
     Réinitialisez la 2FA dans vos paramètres OpenMates.
 
     "
-  pt: ""
-  ru: ""
+  pt: "Perdeu o acesso ao seu aplicativo 2FA?
+
+    Redefina o 2FA nas suas configurações do OpenMates.
+
+    "
+  ru: "Потеряли доступ к приложению 2FA?
+
+    Сбросьте 2FA в настройках OpenMates.
+
+    "
   ja: "2FAアプリへのアクセスを失いましたか？
 
     OpenMatesの設定で2FAをリセットしてください。
 
     "
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: "2FA 앱에 대한 액세스를 잃으셨나요?
+
+    OpenMates 설정에서 2FA를 초기화하세요.
+
+    "
+  it: "Hai perso l'accesso alla tua app 2FA?
+
+    Reimposta il 2FA nelle impostazioni di OpenMates.
+
+    "
+  tr: "2FA uygulamanıza erişimi mi kaybettiniz?
+
+    OpenMates ayarlarınızda 2FA'yı sıfırlayın.
+
+    "
+  vi: "Mất quyền truy cập vào ứng dụng 2FA của bạn?
+
+    Đặt lại 2FA trong cài đặt OpenMates của bạn.
+
+    "
+  id: "Kehilangan akses ke aplikasi 2FA Anda?
+
+    Reset 2FA di pengaturan OpenMates Anda.
+
+    "
+  pl: "Utraciłeś dostęp do swojej aplikacji 2FA?
+
+    Zresetuj 2FA w ustawieniach OpenMates.
+
+    "
+  nl: "Toegang tot je 2FA-app verloren?
+
+    Reset 2FA in je OpenMates-instellingen.
+
+    "
+  ar: "فقدت الوصول إلى تطبيق 2FA الخاص بك؟
+
+    أعد تعيين 2FA في إعدادات OpenMates.
+
+    "
+  hi: "अपने 2FA ऐप तक पहुंच खो दी?
+
+    OpenMates सेटिंग्स में 2FA रीसेट करें।
+
+    "
+  th: "สูญเสียการเข้าถึงแอป 2FA ของคุณ?
+
+    รีเซ็ต 2FA ในการตั้งค่า OpenMates ของคุณ
+
+    "
+  cs: "Ztratili jste přístup k aplikaci 2FA?
+
+    Resetujte 2FA v nastavení OpenMates.
+
+    "
+  sv: "Har du förlorat åtkomst till din 2FA-app?
+
+    Återställ 2FA i dina OpenMates-inställningar.
+
+    "
   he: |
     איבדת את הגישה לאפליקציית ה-2FA שלך?
     אפס את ה-2FA בהגדרות OpenMates שלך.
@@ -4416,8 +5617,46 @@ email_body_someone_accessed_my_account_backup_code:
     Merci.
 
     "
-  pt: ""
-  ru: ""
+  pt: "Olá.
+
+    Alguém acessou minha conta sem minha permissão!
+
+    Aqui estão os detalhes:
+
+
+    Hora de login: {login_time}
+
+    Código de backup usado: {backup_code}
+
+    E-mail da conta: {account_email}
+
+
+    Por favor, ajude-me a proteger minha conta.
+
+
+    Obrigado.
+
+    "
+  ru: "Здравствуйте.
+
+    Кто-то получил доступ к моей учётной записи без моего разрешения!
+
+    Вот подробности:
+
+
+    Время входа: {login_time}
+
+    Использованный резервный код: {backup_code}
+
+    Email аккаунта: {account_email}
+
+
+    Пожалуйста, помогите мне защитить мою учётную запись.
+
+
+    Спасибо.
+
+    "
   ja: "こんにちは。
 
     誰かが私の許可なくアカウントにアクセスしました！
@@ -4438,18 +5677,246 @@ email_body_someone_accessed_my_account_backup_code:
     よろしくお願いいたします。
 
     "
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: "안녕하세요.
+
+    누군가가 제 허락 없이 제 계정에 접근했습니다!
+
+    세부 정보는 다음과 같습니다:
+
+
+    로그인 시간: {login_time}
+
+    사용된 백업 코드: {backup_code}
+
+    계정 이메일: {account_email}
+
+
+    제 계정을 보호하는 데 도움을 주세요.
+
+
+    감사합니다.
+
+    "
+  it: "Salve.
+
+    Qualcuno ha acceduto al mio account senza il mio permesso!
+
+    Ecco i dettagli:
+
+
+    Ora di accesso: {login_time}
+
+    Codice di backup utilizzato: {backup_code}
+
+    Email dell'account: {account_email}
+
+
+    Per favore aiutatemi a proteggere il mio account.
+
+
+    Grazie.
+
+    "
+  tr: "Merhaba.
+
+    Birisi iznim olmadan hesabıma erişti!
+
+    İşte ayrıntılar:
+
+
+    Giriş zamanı: {login_time}
+
+    Kullanılan yedek kod: {backup_code}
+
+    Hesap e-postası: {account_email}
+
+
+    Hesabımı güvence altına almama yardım edin lütfen.
+
+
+    Teşekkürler.
+
+    "
+  vi: "Xin chào.
+
+    Ai đó đã truy cập vào tài khoản của tôi mà không có sự cho phép của tôi!
+
+    Đây là các chi tiết:
+
+
+    Thời gian đăng nhập: {login_time}
+
+    Mã sao lưu đã dùng: {backup_code}
+
+    Email tài khoản: {account_email}
+
+
+    Vui lòng giúp tôi bảo mật tài khoản của mình.
+
+
+    Cảm ơn.
+
+    "
+  id: "Halo.
+
+    Seseorang mengakses akun saya tanpa izin saya!
+
+    Berikut detailnya:
+
+
+    Waktu login: {login_time}
+
+    Kode cadangan yang digunakan: {backup_code}
+
+    Email akun: {account_email}
+
+
+    Tolong bantu saya mengamankan akun saya.
+
+
+    Terima kasih.
+
+    "
+  pl: "Witaj.
+
+    Ktoś uzyskał dostęp do mojego konta bez mojego pozwolenia!
+
+    Oto szczegóły:
+
+
+    Czas logowania: {login_time}
+
+    Użyty kod zapasowy: {backup_code}
+
+    E-mail konta: {account_email}
+
+
+    Proszę pomóż mi zabezpieczyć moje konto.
+
+
+    Dziękuję.
+
+    "
+  nl: "Hallo.
+
+    Iemand heeft toegang gekregen tot mijn account zonder mijn toestemming!
+
+    Hier zijn de details:
+
+
+    Inlogtijd: {login_time}
+
+    Gebruikte back-upcode: {backup_code}
+
+    Account e-mail: {account_email}
+
+
+    Help me alstublieft mijn account te beveiligen.
+
+
+    Dank u.
+
+    "
+  ar: "مرحباً.
+
+    قام شخص ما بالوصول إلى حسابي دون إذني!
+
+    إليك التفاصيل:
+
+
+    وقت تسجيل الدخول: {login_time}
+
+    رمز النسخ الاحتياطي المستخدم: {backup_code}
+
+    البريد الإلكتروني للحساب: {account_email}
+
+
+    يرجى مساعدتي في تأمين حسابي.
+
+
+    شكراً.
+
+    "
+  hi: "नमस्ते।
+
+    किसी ने मेरी अनुमति के बिना मेरे खाते तक पहुंच प्राप्त की!
+
+    यहाँ विवरण हैं:
+
+
+    लॉगिन समय: {login_time}
+
+    उपयोग किया गया बैकअप कोड: {backup_code}
+
+    खाता ईमेल: {account_email}
+
+
+    कृपया मेरे खाते को सुरक्षित करने में मेरी सहायता करें।
+
+
+    धन्यवाद।
+
+    "
+  th: "สวัสดี
+
+    มีคนเข้าถึงบัญชีของฉันโดยไม่ได้รับอนุญาต!
+
+    นี่คือรายละเอียด:
+
+
+    เวลาเข้าสู่ระบบ: {login_time}
+
+    รหัสสำรองที่ใช้: {backup_code}
+
+    อีเมลบัญชี: {account_email}
+
+
+    กรุณาช่วยฉันรักษาความปลอดภัยบัญชีของฉัน
+
+
+    ขอบคุณ
+
+    "
+  cs: "Dobrý den.
+
+    Někdo přistoupil k mému účtu bez mého svolení!
+
+    Zde jsou podrobnosti:
+
+
+    Čas přihlášení: {login_time}
+
+    Použitý záložní kód: {backup_code}
+
+    E-mail účtu: {account_email}
+
+
+    Prosím pomozte mi zabezpečit můj účet.
+
+
+    Děkuji.
+
+    "
+  sv: "Hej.
+
+    Någon har fått tillgång till mitt konto utan mitt tillstånd!
+
+    Här är detaljerna:
+
+
+    Inloggningstid: {login_time}
+
+    Använd reservkod: {backup_code}
+
+    Konto-e-post: {account_email}
+
+
+    Hjälp mig att säkra mitt konto.
+
+
+    Tack.
+
+    "
   he: |
     שלום.
     מישהו ניגש לחשבון שלי ללא רשותי!
@@ -4470,21 +5937,21 @@ your_email_address_was_changed:
   zh: 您的电子邮件地址已更改
   es: Tu dirección de correo electrónico fue cambiada
   fr: Votre adresse e-mail a été modifiée
-  pt: ""
-  ru: ""
+  pt: Seu endereço de e-mail foi alterado
+  ru: Ваш адрес электронной почты был изменён
   ja: メールアドレスが変更されました
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 이메일 주소가 변경되었습니다
+  it: Il tuo indirizzo e-mail è stato modificato
+  tr: E-posta adresiniz değiştirildi
+  vi: Địa chỉ email của bạn đã được thay đổi
+  id: Alamat email Anda telah diubah
+  pl: Twój adres e-mail został zmieniony
+  nl: Je e-mailadres is gewijzigd
+  ar: تم تغيير عنوان بريدك الإلكتروني
+  hi: आपका ईमेल पता बदल दिया गया
+  th: ที่อยู่อีเมลของคุณถูกเปลี่ยนแปลงแล้ว
+  cs: Vaše e-mailová adresa byla změněna
+  sv: Din e-postadress har ändrats
   he: כתובת האימייל שלך שונתה
   verified_by_human: []
 security_alert_email_address_changed:
@@ -4494,21 +5961,21 @@ security_alert_email_address_changed:
   zh: 安全警报：您的电子邮件地址已更改
   es: "Alerta de seguridad: Tu dirección de correo electrónico fue cambiada"
   fr: "Alerte de sécurité : Votre adresse e-mail a été modifiée"
-  pt: ""
-  ru: ""
+  pt: "Alerta de segurança: Seu endereço de e-mail foi alterado"
+  ru: "Предупреждение безопасности: Ваш адрес электронной почты был изменён"
   ja: "セキュリティアラート: メールアドレスが変更されました"
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: "보안 경고: 이메일 주소가 변경되었습니다"
+  it: "Avviso di sicurezza: Il tuo indirizzo e-mail è stato modificato"
+  tr: "Güvenlik Uyarısı: E-posta adresiniz değiştirildi"
+  vi: "Cảnh báo bảo mật: Địa chỉ email của bạn đã được thay đổi"
+  id: "Peringatan Keamanan: Alamat email Anda telah diubah"
+  pl: "Alert bezpieczeństwa: Twój adres e-mail został zmieniony"
+  nl: "Beveiligingswaarschuwing: Je e-mailadres is gewijzigd"
+  ar: "تنبيه أمني: تم تغيير عنوان بريدك الإلكتروني"
+  hi: "सुरक्षा चेतावनी: आपका ईमेल पता बदल दिया गया"
+  th: "การแจ้งเตือนความปลอดภัย: ที่อยู่อีเมลของคุณถูกเปลี่ยนแปลงแล้ว"
+  cs: "Bezpečnostní upozornění: Vaše e-mailová adresa byla změněna"
+  sv: "Säkerhetsvarning: Din e-postadress har ändrats"
   he: "התראת אבטחה: כתובת האימייל שלך שונתה"
   verified_by_human: []
 this_is_your_new_address:
@@ -4518,21 +5985,21 @@ this_is_your_new_address:
   zh: 这是您的新电子邮件地址：
   es: "Esta es tu nueva dirección de correo electrónico:"
   fr: "Voici votre nouvelle adresse e-mail :"
-  pt: ""
-  ru: ""
+  pt: "Este é o seu novo endereço de e-mail:"
+  ru: "Это ваш новый адрес электронной почты:"
   ja: "これがあなたの新しいメールアドレスです:"
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: "이것이 귀하의 새 이메일 주소입니다:"
+  it: "Questo è il tuo nuovo indirizzo e-mail:"
+  tr: "Bu sizin yeni e-posta adresinizdir:"
+  vi: "Đây là địa chỉ email mới của bạn:"
+  id: "Ini adalah alamat email baru Anda:"
+  pl: "To jest Twój nowy adres e-mail:"
+  nl: "Dit is je nieuwe e-mailadres:"
+  ar: "هذا هو عنوان بريدك الإلكتروني الجديد:"
+  hi: "यह आपका नया ईमेल पता है:"
+  th: "นี่คือที่อยู่อีเมลใหม่ของคุณ:"
+  cs: "Toto je vaše nová e-mailová adresa:"
+  sv: "Detta är din nya e-postadress:"
   he: "זוהי כתובת האימייל החדשה שלך:"
   verified_by_human: []
 your_password_was_changed:
@@ -4542,21 +6009,21 @@ your_password_was_changed:
   zh: 您的密码已更改
   es: Tu contraseña fue cambiada
   fr: Votre mot de passe a été modifié
-  pt: ""
-  ru: ""
+  pt: Sua senha foi alterada
+  ru: Ваш пароль был изменён
   ja: パスワードが変更されました
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 비밀번호가 변경되었습니다
+  it: La tua password è stata modificata
+  tr: Parolanız değiştirildi
+  vi: Mật khẩu của bạn đã được thay đổi
+  id: Kata sandi Anda telah diubah
+  pl: Twoje hasło zostało zmienione
+  nl: Je wachtwoord is gewijzigd
+  ar: تم تغيير كلمة مرورك
+  hi: आपका पासवर्ड बदल दिया गया
+  th: รหัสผ่านของคุณถูกเปลี่ยนแปลงแล้ว
+  cs: Vaše heslo bylo změněno
+  sv: Ditt lösenord har ändrats
   he: הסיסמה שלך שונתה
   verified_by_human: []
 security_alert_password_changed:
