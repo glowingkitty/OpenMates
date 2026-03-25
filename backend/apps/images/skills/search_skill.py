@@ -614,8 +614,15 @@ class SearchSkill(BaseSkill):
         # Clamp to max parallel requests
         requests_list = requests_list[:MAX_PARALLEL_REQUESTS]
 
+        # Normalise to dicts — items may arrive as Pydantic models (via BaseApp
+        # validation) or plain dicts (from other code paths).
+        requests_as_dicts: List[Dict[str, Any]] = [
+            r.model_dump() if hasattr(r, "model_dump") else r
+            for r in requests_list
+        ]
+
         # Determine provider string from first request (for the response header)
-        first_has_file_path = bool(requests_list[0].get("file_path"))
+        first_has_file_path = bool(requests_as_dicts[0].get("file_path"))
         default_provider = "Google Lens" if first_has_file_path else "Brave Search"
 
         file_path_index: Dict[str, str] = kwargs.get("file_path_index") or {}
@@ -623,8 +630,8 @@ class SearchSkill(BaseSkill):
 
         # Normalise request IDs (use provided id or index+1)
         normalised: List[tuple[Any, Dict[str, Any]]] = []
-        for idx, req in enumerate(requests_list):
-            req_id = req.get("id", idx + 1)
+        for idx, req in enumerate(requests_as_dicts):
+            req_id = req.get("id") or (idx + 1)
             normalised.append((req_id, req))
 
         # Run all requests concurrently
