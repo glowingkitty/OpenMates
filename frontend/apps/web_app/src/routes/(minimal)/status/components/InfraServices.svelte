@@ -18,11 +18,11 @@
 </script>
 
 {#each services as svc (svc.id)}
+	{@const pct = uptimePct(svc.timeline_30d ?? [])}
 	<div class="svc-row" data-testid="status-service-{svc.id}">
 		<div class="svc-head">
 			<span class="dot" style="background:{sc(svc.status)}"></span>
 			<span class="svc-name">{svc.display_name}</span>
-			{@const pct = uptimePct(svc.timeline_30d ?? [])}
 			{#if pct !== null}
 				<span class="svc-uptime">{fmtUptime(pct)}</span>
 			{/if}

@@ -241,46 +241,217 @@ backup_reminder.subject:
   context: Subject line for periodic backup reminder emails
   en: "Time to back up your OpenMates data"
   de: "Zeit, deine OpenMates-Daten zu sichern"
+  zh: "是时候备份您的 OpenMates 数据了"
+  es: "Es hora de hacer una copia de seguridad de tus datos de OpenMates"
+  fr: "Il est temps de sauvegarder vos données OpenMates"
+  pt: "Hora de fazer backup dos seus dados OpenMates"
+  ru: "Пора создать резервную копию данных OpenMates"
+  ja: "OpenMatesデータをバックアップする時間です"
+  ko: "OpenMates 데이터를 백업할 시간입니다"
+  it: "È ora di fare il backup dei tuoi dati OpenMates"
+  tr: "OpenMates verilerinizi yedekleme zamanı"
+  vi: "Đã đến lúc sao lưu dữ liệu OpenMates của bạn"
+  id: "Saatnya mencadangkan data OpenMates Anda"
+  pl: "Czas na kopię zapasową danych OpenMates"
+  nl: "Tijd om een back-up te maken van je OpenMates-gegevens"
+  ar: "حان وقت نسخ بيانات OpenMates احتياطيًا"
+  hi: "अपने OpenMates डेटा का बैकअप लेने का समय है"
+  th: "ถึงเวลาสำรองข้อมูล OpenMates ของคุณแล้ว"
+  cs: "Je čas zálohovat vaše data OpenMates"
+  sv: "Dags att säkerhetskopiera dina OpenMates-data"
+  he: "הגיע הזמן לגבות את נתוני OpenMates שלך"
   verified_by_human: []
 backup_reminder.header:
   context: Header in backup reminder email
   en: Back up your data
   de: Deine Daten sichern
+  zh: 备份您的数据
+  es: Haz una copia de seguridad de tus datos
+  fr: Sauvegardez vos données
+  pt: Faça backup dos seus dados
+  ru: Создайте резервную копию данных
+  ja: データをバックアップ
+  ko: 데이터 백업
+  it: Fai il backup dei tuoi dati
+  tr: Verilerinizi yedekleyin
+  vi: Sao lưu dữ liệu của bạn
+  id: Cadangkan data Anda
+  pl: Utwórz kopię zapasową danych
+  nl: Maak een back-up van je gegevens
+  ar: احتفظ بنسخة احتياطية من بياناتك
+  hi: अपना डेटा बैकअप करें
+  th: สำรองข้อมูลของคุณ
+  cs: Zálohujte svá data
+  sv: Säkerhetskopiera dina data
+  he: גבה את הנתונים שלך
   verified_by_human: []
 backup_reminder.description:
   context: Intro paragraph in backup reminder email
   en: Your chats, settings, and files are encrypted and stored securely — but keeping a local backup is always a good idea.
   de: Deine Chats, Einstellungen und Dateien sind verschlüsselt gespeichert — dennoch ist ein lokales Backup immer empfehlenswert.
+  zh: 您的聊天记录、设置和文件已加密并安全存储，但保留本地备份始终是个好主意。
+  es: Tus chats, configuraciones y archivos están cifrados y almacenados de forma segura, pero mantener una copia de seguridad local siempre es una buena idea.
+  fr: Vos discussions, paramètres et fichiers sont chiffrés et stockés en toute sécurité, mais conserver une sauvegarde locale est toujours une bonne idée.
+  pt: Seus chats, configurações e arquivos são criptografados e armazenados com segurança — mas manter um backup local é sempre uma boa ideia.
+  ru: Ваши чаты, настройки и файлы зашифрованы и хранятся в безопасности — но всегда хорошо иметь локальную резервную копию.
+  ja: チャット、設定、ファイルは暗号化されて安全に保存されていますが、ローカルバックアップを保持することは常に良いアイデアです。
+  ko: 채팅, 설정 및 파일은 암호화되어 안전하게 저장됩니다. 하지만 로컬 백업을 유지하는 것은 항상 좋은 생각입니다.
+  it: Le tue chat, impostazioni e file sono crittografati e archiviati in modo sicuro, ma mantenere un backup locale è sempre una buona idea.
+  tr: Sohbetleriniz, ayarlarınız ve dosyalarınız şifreli ve güvenli bir şekilde depolanmaktadır — ancak yerel bir yedek tutmak her zaman iyi bir fikirdir.
+  vi: Các cuộc trò chuyện, cài đặt và tệp của bạn được mã hóa và lưu trữ an toàn — nhưng giữ bản sao lưu cục bộ luôn là một ý tưởng hay.
+  id: Obrolan, pengaturan, dan file Anda dienkripsi dan disimpan dengan aman — namun menyimpan cadangan lokal selalu merupakan ide yang baik.
+  pl: Twoje czaty, ustawienia i pliki są zaszyfrowane i bezpiecznie przechowywane — ale posiadanie lokalnej kopii zapasowej zawsze jest dobrym pomysłem.
+  nl: Je chats, instellingen en bestanden zijn versleuteld en veilig opgeslagen — maar een lokale back-up bewaren is altijd een goed idee.
+  ar: محادثاتك وإعداداتك وملفاتك مشفرة ومخزنة بأمان — لكن الاحتفاظ بنسخة احتياطية محلية فكرة جيدة دائمًا.
+  hi: आपकी चैट, सेटिंग्स और फ़ाइलें एन्क्रिप्टेड हैं और सुरक्षित रूप से संग्रहीत हैं — लेकिन स्थानीय बैकअप रखना हमेशा एक अच्छा विचार है।
+  th: แชท การตั้งค่า และไฟล์ของคุณได้รับการเข้ารหัสและจัดเก็บอย่างปลอดภัย แต่การเก็บสำรองข้อมูลในเครื่องไว้เสมอเป็นความคิดที่ดี
+  cs: Vaše chaty, nastavení a soubory jsou zašifrovány a bezpečně uloženy — ale mít místní zálohu je vždy dobrý nápad.
+  sv: Dina chattar, inställningar och filer är krypterade och säkert lagrade — men att ha en lokal säkerhetskopia är alltid en bra idé.
+  he: הצ'אטים, ההגדרות והקבצים שלך מוצפנים ומאוחסנים בצורה מאובטחת — אך שמירת גיבוי מקומי היא תמיד רעיון טוב.
   verified_by_human: []
 backup_reminder.last_export_label:
   context: Label before the date of the last export in backup reminder email
   en: "Your last export:"
   de: "Dein letzter Export:"
+  zh: "您上次导出："
+  es: "Tu última exportación:"
+  fr: "Votre dernier export :"
+  pt: "Sua última exportação:"
+  ru: "Ваш последний экспорт:"
+  ja: "最後のエクスポート："
+  ko: "마지막 내보내기:"
+  it: "La tua ultima esportazione:"
+  tr: "Son dışa aktarmanız:"
+  vi: "Lần xuất cuối của bạn:"
+  id: "Ekspor terakhir Anda:"
+  pl: "Twój ostatni eksport:"
+  nl: "Je laatste export:"
+  ar: "آخر تصدير لك:"
+  hi: "आपका अंतिम निर्यात:"
+  th: "การส่งออกครั้งล่าสุดของคุณ:"
+  cs: "Váš poslední export:"
+  sv: "Din senaste export:"
+  he: "הייצוא האחרון שלך:"
   verified_by_human: []
 backup_reminder.never_exported:
   context: Shown when user has never exported their data in backup reminder email
   en: You have never exported your data.
   de: Du hast deine Daten noch nie exportiert.
+  zh: 您从未导出过数据。
+  es: Nunca has exportado tus datos.
+  fr: Vous n'avez jamais exporté vos données.
+  pt: Você nunca exportou seus dados.
+  ru: Вы ещё ни разу не экспортировали данные.
+  ja: データをエクスポートしたことがありません。
+  ko: 데이터를 내보낸 적이 없습니다.
+  it: Non hai mai esportato i tuoi dati.
+  tr: Verilerinizi hiç dışa aktarmadınız.
+  vi: Bạn chưa bao giờ xuất dữ liệu của mình.
+  id: Anda belum pernah mengekspor data Anda.
+  pl: Nigdy nie eksportowałeś swoich danych.
+  nl: Je hebt je gegevens nooit geëxporteerd.
+  ar: لم تقم أبدًا بتصدير بياناتك.
+  hi: आपने कभी अपना डेटा निर्यात नहीं किया।
+  th: คุณไม่เคยส่งออกข้อมูลของคุณ
+  cs: Svá data jste nikdy nevyexportoval.
+  sv: Du har aldrig exporterat dina data.
+  he: מעולם לא ייצאת את הנתונים שלך.
   verified_by_human: []
 backup_reminder.cta_title:
   context: Call-to-action title before the export button in backup reminder email
   en: "Export your data now:"
   de: "Daten jetzt exportieren:"
+  zh: "立即导出您的数据："
+  es: "Exporta tus datos ahora:"
+  fr: "Exportez vos données maintenant :"
+  pt: "Exporte seus dados agora:"
+  ru: "Экспортируйте свои данные сейчас:"
+  ja: "今すぐデータをエクスポート："
+  ko: "지금 데이터 내보내기:"
+  it: "Esporta i tuoi dati ora:"
+  tr: "Verilerinizi şimdi dışa aktarın:"
+  vi: "Xuất dữ liệu của bạn ngay bây giờ:"
+  id: "Ekspor data Anda sekarang:"
+  pl: "Wyeksportuj swoje dane teraz:"
+  nl: "Exporteer je gegevens nu:"
+  ar: "صدِّر بياناتك الآن:"
+  hi: "अभी अपना डेटा निर्यात करें:"
+  th: "ส่งออกข้อมูลของคุณทันที:"
+  cs: "Exportujte svá data nyní:"
+  sv: "Exportera dina data nu:"
+  he: "ייצא את הנתונים שלך עכשיו:"
   verified_by_human: []
 backup_reminder.export_button:
   context: Button label for opening the export settings page from backup reminder email
   en: Export my data
   de: Meine Daten exportieren
+  zh: 导出我的数据
+  es: Exportar mis datos
+  fr: Exporter mes données
+  pt: Exportar meus dados
+  ru: Экспортировать мои данные
+  ja: データをエクスポート
+  ko: 내 데이터 내보내기
+  it: Esporta i miei dati
+  tr: Verilerimi dışa aktar
+  vi: Xuất dữ liệu của tôi
+  id: Ekspor data saya
+  pl: Eksportuj moje dane
+  nl: Mijn gegevens exporteren
+  ar: تصدير بياناتي
+  hi: मेरा डेटा निर्यात करें
+  th: ส่งออกข้อมูลของฉัน
+  cs: Exportovat moje data
+  sv: Exportera mina data
+  he: ייצא את הנתונים שלי
   verified_by_human: []
 backup_reminder.unsubscribe_hint:
   context: Short sentence before the notification settings link in backup reminder email footer
   en: "To stop receiving these reminders,"
   de: "Um diese Erinnerungen zu deaktivieren,"
+  zh: "要停止接收这些提醒，"
+  es: "Para dejar de recibir estos recordatorios,"
+  fr: "Pour arrêter de recevoir ces rappels,"
+  pt: "Para parar de receber esses lembretes,"
+  ru: "Чтобы перестать получать эти напоминания,"
+  ja: "これらのリマインダーの受信を停止するには、"
+  ko: "이 알림 수신을 중단하려면,"
+  it: "Per smettere di ricevere questi promemoria,"
+  tr: "Bu hatırlatıcıları almayı durdurmak için,"
+  vi: "Để ngừng nhận những nhắc nhở này,"
+  id: "Untuk berhenti menerima pengingat ini,"
+  pl: "Aby przestać otrzymywać te przypomnienia,"
+  nl: "Om te stoppen met het ontvangen van deze herinneringen,"
+  ar: "لإيقاف تلقي هذه التذكيرات،"
+  hi: "इन अनुस्मारकों को प्राप्त करना बंद करने के लिए,"
+  th: "เพื่อหยุดรับการเตือนความจำเหล่านี้,"
+  cs: "Chcete-li přestat dostávat tato připomenutí,"
+  sv: "För att sluta ta emot dessa påminnelser,"
+  he: "כדי להפסיק לקבל תזכורות אלו,"
   verified_by_human: []
 backup_reminder.unsubscribe_link:
   context: Clickable link text in backup reminder email footer — opens notification settings
   en: update your notification settings
   de: Benachrichtigungseinstellungen öffnen
+  zh: 更新您的通知设置
+  es: actualiza tu configuración de notificaciones
+  fr: mettez à jour vos paramètres de notification
+  pt: atualize suas configurações de notificação
+  ru: обновите настройки уведомлений
+  ja: 通知設定を更新してください
+  ko: 알림 설정을 업데이트하세요
+  it: aggiorna le impostazioni delle notifiche
+  tr: bildirim ayarlarınızı güncelleyin
+  vi: cập nhật cài đặt thông báo của bạn
+  id: perbarui pengaturan notifikasi Anda
+  pl: zaktualizuj ustawienia powiadomień
+  nl: werk je meldingsinstellingen bij
+  ar: حدِّث إعدادات الإشعارات
+  hi: अपनी सूचना सेटिंग्स अपडेट करें
+  th: อัปเดตการตั้งค่าการแจ้งเตือนของคุณ
+  cs: aktualizujte nastavení oznámení
+  sv: uppdatera dina aviseringsinställningar
+  he: עדכן את הגדרות ההתראות שלך
   verified_by_human: []
 welcome_to_openmates:
   context: Email subheader for account created confirmation
@@ -290,6 +461,20 @@ welcome_to_openmates:
   fr: Bienvenue sur OpenMates !
   ja: OpenMatesへようこそ！
   zh: 欢迎来到 OpenMates！
+  pt: Bem-vindo ao OpenMates!
+  ru: Добро пожаловать в OpenMates!
+  ko: OpenMates에 오신 것을 환영합니다!
+  it: Benvenuto in OpenMates!
+  tr: OpenMates'e hoş geldiniz!
+  vi: Chào mừng đến với OpenMates!
+  id: Selamat datang di OpenMates!
+  pl: Witamy w OpenMates!
+  nl: Welkom bij OpenMates!
+  ar: مرحباً بك في OpenMates!
+  hi: OpenMates में आपका स्वागत है!
+  th: ยินดีต้อนรับสู่ OpenMates!
+  cs: Vítejte v OpenMates!
+  sv: Välkommen till OpenMates!
   he: "ברוכים הבאים ל-OpenMates!"
 complete_signup_info:
   context: Email body for account created confirmation
@@ -299,6 +484,20 @@ complete_signup_info:
   fr: Une fois que vous aurez terminé le processus d'inscription en achetant des crédits d'utilisation ou en utilisant une carte-cadeau, vous pourrez commencer à utiliser OpenMates !
   ja: 利用クレジットの購入またはギフトカードの引き換えによりサインアッププロセスが完了すると、OpenMatesの使用を開始できます。
   zh: 一旦您通过购买使用额度或兑换礼品卡完成了注册流程，您就可以开始使用 OpenMates 了！
+  pt: Depois de completar o processo de registro comprando créditos de uso ou resgatando um cartão-presente, você pode começar a usar o OpenMates!
+  ru: После завершения процесса регистрации путём покупки кредитов использования или активации подарочной карты вы сможете начать пользоваться OpenMates!
+  ko: 사용 크레딧을 구매하거나 기프트 카드를 사용하여 가입 과정을 완료하면 OpenMates를 사용할 수 있습니다!
+  it: Una volta completato il processo di registrazione acquistando crediti di utilizzo o riscattando una carta regalo, puoi iniziare a usare OpenMates!
+  tr: Kullanım kredisi satın alarak veya hediye kartı kullanarak kayıt işlemini tamamladığınızda, OpenMates'i kullanmaya başlayabilirsiniz!
+  vi: Khi bạn hoàn tất quá trình đăng ký bằng cách mua tín dụng sử dụng hoặc đổi thẻ quà tặng, bạn có thể bắt đầu sử dụng OpenMates!
+  id: Setelah menyelesaikan proses pendaftaran dengan membeli kredit penggunaan atau menukarkan kartu hadiah, Anda dapat mulai menggunakan OpenMates!
+  pl: Po zakończeniu procesu rejestracji poprzez zakup kredytów użytkowania lub realizację karty podarunkowej możesz zacząć korzystać z OpenMates!
+  nl: Zodra je het aanmeldingsproces hebt voltooid door gebruikskredieten te kopen of een cadeaukaart in te wisselen, kun je OpenMates gaan gebruiken!
+  ar: بمجرد إكمال عملية التسجيل عن طريق شراء رصيد الاستخدام أو استرداد بطاقة هدية، يمكنك البدء في استخدام OpenMates!
+  hi: एक बार जब आप उपयोग क्रेडिट खरीदकर या गिफ्ट कार्ड रिडीम करके साइनअप प्रक्रिया पूरी कर लेते हैं, तो आप OpenMates का उपयोग शुरू कर सकते हैं!
+  th: เมื่อคุณดำเนินการสมัครเสร็จสมบูรณ์โดยการซื้อเครดิตการใช้งานหรือแลกบัตรของขวัญ คุณสามารถเริ่มใช้ OpenMates ได้!
+  cs: Jakmile dokončíte proces registrace zakoupením kreditů využití nebo uplatněním dárkové karty, můžete začít používat OpenMates!
+  sv: När du har slutfört registreringsprocessen genom att köpa användningskrediter eller lösa in ett presentkort kan du börja använda OpenMates!
   he: "ברגע שתשלים את תהליך ההרשמה על ידי רכישת קרדיטים לשימוש או מימוש כרטיס מתנה, תוכל להתחיל להשתמש ב-OpenMates!"
 auto_delete_warning:
   context: Email body warning for account created confirmation
@@ -308,6 +507,20 @@ auto_delete_warning:
   fr: "Remarque : les comptes qui n'ont pas terminé le processus d'inscription seront automatiquement supprimés après 7 jours."
   ja: "注意：サインアップが完了していないアカウントは、7日後に自動的に削除されます。"
   zh: "请注意：未完成注册流程的账户将在 7 天后自动删除。"
+  pt: "Atenção: Contas que não concluíram o processo de registro serão excluídas automaticamente após 7 dias."
+  ru: "Обратите внимание: аккаунты, не завершившие процесс регистрации, будут автоматически удалены через 7 дней."
+  ko: "참고: 가입 과정을 완료하지 않은 계정은 7일 후 자동으로 삭제됩니다."
+  it: "Nota bene: gli account che non hanno completato il processo di registrazione saranno automaticamente eliminati dopo 7 giorni."
+  tr: "Lütfen dikkat: Kayıt işlemini tamamlamamış hesaplar 7 gün sonra otomatik olarak silinecektir."
+  vi: "Lưu ý: Các tài khoản chưa hoàn thành quá trình đăng ký sẽ tự động bị xóa sau 7 ngày."
+  id: "Perhatian: Akun yang belum menyelesaikan proses pendaftaran akan otomatis dihapus setelah 7 hari."
+  pl: "Uwaga: Konta, które nie ukończyły procesu rejestracji, zostaną automatycznie usunięte po 7 dniach."
+  nl: "Let op: Accounts die het aanmeldingsproces niet hebben voltooid, worden na 7 dagen automatisch verwijderd."
+  ar: "يُرجى الملاحظة: سيتم حذف الحسابات التي لم تستكمل عملية التسجيل تلقائيًا بعد 7 أيام."
+  hi: "कृपया ध्यान दें: जिन खातों ने साइनअप प्रक्रिया पूरी नहीं की है उन्हें 7 दिनों के बाद स्वचालित रूप से हटा दिया जाएगा।"
+  th: "โปรดทราบ: บัญชีที่ยังไม่ได้ดำเนินการสมัครให้เสร็จสมบูรณ์จะถูกลบโดยอัตโนมัติหลังจาก 7 วัน"
+  cs: "Upozornění: Účty, které nedokončily proces registrace, budou automaticky smazány po 7 dnech."
+  sv: "Observera: Konton som inte har slutfört registreringsprocessen kommer att raderas automatiskt efter 7 dagar."
   he: "לתשומת לבך: חשבונות שלא השלימו את תהליך ההרשמה יימחקו אוטומטית לאחר 7 ימים."
 want_to_delete_account:
   context: Email body link text for account deletion
@@ -334,20 +547,20 @@ confirm_your_email_address:
   zh: 确认您的电子邮件地址
   es: Confirma tu dirección de correo electrónico
   fr: Confirmez votre adresse e-mail
-  pt: ""
-  ru: ""
+  pt: Confirme seu endereço de e-mail
+  ru: Подтвердите свой адрес электронной почты
   ja: メールアドレスを確認
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
+  ko: 이메일 주소를 확인하세요
+  it: Conferma il tuo indirizzo e-mail
+  tr: E-posta adresinizi onaylayın
+  vi: Xác nhận địa chỉ email của bạn
+  id: Konfirmasi alamat email Anda
+  pl: Potwierdź swój adres e-mail
+  nl: Bevestig je e-mailadres
+  ar: أكد عنوان بريدك الإلكتروني
+  hi: अपना ईमेल पता पुष्टि करें
+  th: ยืนยันที่อยู่อีเมลของคุณ
+  cs: Potvrďte svou e-mailovou adresu
   sv: "Bekräfta din e-postadress"
   he: אשר את כתובת האימייל שלך
   verified_by_human: []
@@ -530,24 +743,76 @@ to_chat_to_your_mates:
     <mark>collègues numériques</mark>
 
     "
-  pt: ""
-  ru: ""
+  pt: "Para conversar com seus
+
+    <mark>colegas digitais de equipe</mark>
+
+    "
+  ru: "Чтобы пообщаться с вашими
+
+    <mark>цифровыми коллегами по команде</mark>
+
+    "
   ja: "<mark>デジタルチームメイト</mark>と
 
     チャットするには
 
     "
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
+  ko: "당신의
+
+    <mark>디지털 팀원들</mark>과 채팅하려면
+
+    "
+  it: "Per chattare con i tuoi
+
+    <mark>colleghi digitali del team</mark>
+
+    "
+  tr: "
+
+    <mark>dijital takım arkadaşlarınızla</mark> sohbet etmek için
+
+    "
+  vi: "Để trò chuyện với
+
+    <mark>đồng đội kỹ thuật số</mark> của bạn
+
+    "
+  id: "Untuk mengobrol dengan
+
+    <mark>rekan tim digital</mark> Anda
+
+    "
+  pl: "Aby porozmawiać z Twoimi
+
+    <mark>cyfrowymi członkami zespołu</mark>
+
+    "
+  nl: "Om te chatten met je
+
+    <mark>digitale teamleden</mark>
+
+    "
+  ar: "للدردشة مع
+
+    <mark>زملاء الفريق الرقميين</mark>
+
+    "
+  hi: "आपके
+
+    <mark>डिजिटल टीम साथियों</mark> से चैट करने के लिए
+
+    "
+  th: "เพื่อสนทนากับ
+
+    <mark>เพื่อนร่วมทีมดิจิทัล</mark> ของคุณ
+
+    "
+  cs: "Pro chatování s vašimi
+
+    <mark>digitálními členy týmu</mark>
+
+    "
   sv: "För att chatta med dina
 
     <mark>digitala teammedlemmar</mark>
@@ -564,20 +829,20 @@ enter_this_code:
   zh: 输入此一次性验证码：
   es: "Ingresa este código de un solo uso:"
   fr: "Saisissez ce code unique :"
-  pt: ""
-  ru: ""
+  pt: "Digite este código de uso único:"
+  ru: "Введите этот одноразовый код:"
   ja: "このワンタイムコードを入力してください:"
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
+  ko: "이 일회용 코드를 입력하세요:"
+  it: "Inserisci questo codice monouso:"
+  tr: "Bu tek kullanımlık kodu girin:"
+  vi: "Nhập mã dùng một lần này:"
+  id: "Masukkan kode sekali pakai ini:"
+  pl: "Wprowadź ten jednorazowy kod:"
+  nl: "Voer deze eenmalige code in:"
+  ar: "أدخل رمز الاستخدام الواحد هذا:"
+  hi: "यह एक बार का कोड दर्ज करें:"
+  th: "กรอกรหัสใช้ครั้งเดียวนี้:"
+  cs: "Zadejte tento jednorázový kód:"
   sv: "Ange denna engångskod:"
   he: "הזן את הקוד החד-פעמי הזה:"
   verified_by_human: []
@@ -588,20 +853,20 @@ on_openmates:
   zh: 在 <a href='https://openmates.org'>openmates.org</a>
   es: en <a href='https://openmates.org'>openmates.org</a>
   fr: sur <a href='https://openmates.org'>openmates.org</a>
-  pt: ""
-  ru: ""
+  pt: em <a href='https://openmates.org'>openmates.org</a>
+  ru: на <a href='https://openmates.org'>openmates.org</a>
   ja: <a href='https://openmates.org'>openmates.org</a>で
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
+  ko: <a href='https://openmates.org'>openmates.org</a>에서
+  it: su <a href='https://openmates.org'>openmates.org</a>
+  tr: <a href='https://openmates.org'>openmates.org</a> adresinde
+  vi: trên <a href='https://openmates.org'>openmates.org</a>
+  id: di <a href='https://openmates.org'>openmates.org</a>
+  pl: na <a href='https://openmates.org'>openmates.org</a>
+  nl: op <a href='https://openmates.org'>openmates.org</a>
+  ar: على <a href='https://openmates.org'>openmates.org</a>
+  hi: <a href='https://openmates.org'>openmates.org</a> पर
+  th: ที่ <a href='https://openmates.org'>openmates.org</a>
+  cs: na <a href='https://openmates.org'>openmates.org</a>
   sv: på <a href='https://openmates.org'>openmates.org</a>
   he: "ב-<a href='https://openmates.org'>openmates.org</a>"
   verified_by_human: []
@@ -632,24 +897,76 @@ did_not_request_email:
     Alors <a href='{block_list_url}'>cliquez ici</a> pour bloquer les e-mails futurs.
 
     "
-  pt: ""
-  ru: ""
+  pt: "Você não solicitou este e-mail?
+
+    Então <a href='{block_list_url}'>clique aqui</a> para bloquear e-mails futuros.
+
+    "
+  ru: "Вы не запрашивали это письмо?
+
+    Тогда <a href='{block_list_url}'>нажмите здесь</a>, чтобы заблокировать будущие письма.
+
+    "
   ja: "このメールをリクエストしていませんか？
 
     今後のメールをブロックするには<a href='{block_list_url}'>ここをクリック</a>してください。
 
     "
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
+  ko: "이 이메일을 요청하지 않으셨나요?
+
+    <a href='{block_list_url}'>여기를 클릭</a>하여 향후 이메일을 차단하세요.
+
+    "
+  it: "Non hai richiesto questa email?
+
+    Allora <a href='{block_list_url}'>clicca qui</a> per bloccare le email future.
+
+    "
+  tr: "Bu e-postayı siz istemediyseniz?
+
+    Gelecekteki e-postaları engellemek için <a href='{block_list_url}'>buraya tıklayın</a>.
+
+    "
+  vi: "Bạn không yêu cầu email này?
+
+    Thì <a href='{block_list_url}'>nhấp vào đây</a> để chặn các email trong tương lai.
+
+    "
+  id: "Anda tidak meminta email ini?
+
+    Maka <a href='{block_list_url}'>klik di sini</a> untuk memblokir email di masa mendatang.
+
+    "
+  pl: "Nie prosiłeś o ten e-mail?
+
+    Wtedy <a href='{block_list_url}'>kliknij tutaj</a>, aby zablokować przyszłe e-maile.
+
+    "
+  nl: "Je hebt dit e-mailbericht niet aangevraagd?
+
+    Klik dan <a href='{block_list_url}'>hier</a> om toekomstige e-mails te blokkeren.
+
+    "
+  ar: "لم تطلب هذا البريد الإلكتروني؟
+
+    إذن <a href='{block_list_url}'>انقر هنا</a> لحظر رسائل البريد الإلكتروني المستقبلية.
+
+    "
+  hi: "आपने यह ईमेल नहीं मांगा?
+
+    तो भविष्य के ईमेल ब्लॉक करने के लिए <a href='{block_list_url}'>यहां क्लिक करें</a>।
+
+    "
+  th: "คุณไม่ได้ขออีเมลนี้?
+
+    <a href='{block_list_url}'>คลิกที่นี่</a> เพื่อบล็อกอีเมลในอนาคต
+
+    "
+  cs: "Nepožádali jste o tento e-mail?
+
+    Pak <a href='{block_list_url}'>klikněte zde</a> pro zablokování budoucích e-mailů.
+
+    "
   sv: "Begärde du inte detta e-postmeddelande?
 
     Då kan du <a href='{block_list_url}'>klicka här</a> för att blockera framtida e-postmeddelanden.
@@ -666,20 +983,20 @@ this_email_was_sent_by:
   zh: 此电子邮件由 OpenMates 发送。
   es: Este correo fue enviado por OpenMates.
   fr: Cet e-mail a été envoyé par OpenMates.
-  pt: ""
-  ru: ""
+  pt: Este e-mail foi enviado pela OpenMates.
+  ru: Это письмо было отправлено OpenMates.
   ja: このメールはOpenMatesから送信されました。
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
+  ko: 이 이메일은 OpenMates에서 보낸 것입니다.
+  it: Questa email è stata inviata da OpenMates.
+  tr: Bu e-posta OpenMates tarafından gönderildi.
+  vi: Email này được gửi bởi OpenMates.
+  id: Email ini dikirim oleh OpenMates.
+  pl: Ten e-mail został wysłany przez OpenMates.
+  nl: Dit e-mailbericht is verzonden door OpenMates.
+  ar: تم إرسال هذا البريد الإلكتروني بواسطة OpenMates.
+  hi: यह ईमेल OpenMates द्वारा भेजा गया था।
+  th: อีเมลนี้ถูกส่งโดย OpenMates
+  cs: Tento e-mail byl odeslán společností OpenMates.
   sv: "Detta e-postmeddelande skickades av OpenMates."
   he: אימייל זה נשלח על ידי OpenMates.
   verified_by_human: []
@@ -690,20 +1007,20 @@ this_email_was_sent_by_self_hosted:
   zh: "此电子邮件由 OpenMates 的自托管版本发送。该版本独立运行和维护。访问 OpenMates.org 获取官方云版本。"
   es: "Este correo fue enviado por una versión auto alojada de OpenMates. Que es ejecutada y mantenida de forma independiente. Consulta OpenMates.org para la edición oficial en la nube."
   fr: "Cet e-mail a été envoyé par une version auto-hébergée de OpenMates. Qui est gérée et maintenue de manière indépendante. Consultez OpenMates.org pour l'édition cloud officielle."
-  pt: ""
-  ru: ""
+  pt: "Este e-mail foi enviado por uma versão auto-hospedada do OpenMates. Que é executada e mantida de forma independente. Consulte OpenMates.org para a edição oficial na nuvem."
+  ru: "Это письмо было отправлено самостоятельно размещённой версией OpenMates. Которая работает и обслуживается независимо. Проверьте OpenMates.org для официального облачного издания."
   ja: "このメールは、OpenMatesのセルフホスト版から送信されました。これは独立して運営・保守されています。公式クラウド版についてはOpenMates.orgをご確認ください。"
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
+  ko: "이 이메일은 OpenMates의 자체 호스팅 버전에서 보낸 것입니다. 독립적으로 운영 및 유지 관리됩니다. 공식 클라우드 버전은 OpenMates.org를 확인하세요."
+  it: "Questa email è stata inviata da una versione self-hosted di OpenMates. Che è gestita e mantenuta in modo indipendente. Controlla OpenMates.org per l'edizione cloud ufficiale."
+  tr: "Bu e-posta, OpenMates'in kendi kendine barındırılan bir sürümü tarafından gönderildi. Bağımsız olarak çalıştırılır ve bakımı yapılır. Resmi bulut sürümü için OpenMates.org'a bakın."
+  vi: "Email này được gửi bởi phiên bản tự lưu trữ của OpenMates. Được vận hành và bảo trì độc lập. Kiểm tra OpenMates.org để biết phiên bản đám mây chính thức."
+  id: "Email ini dikirim oleh versi self-hosted dari OpenMates. Yang dijalankan dan dipelihara secara independen. Periksa OpenMates.org untuk edisi cloud resmi."
+  pl: "Ten e-mail został wysłany przez samodzielnie hostowaną wersję OpenMates. Która jest niezależnie uruchamiana i utrzymywana. Sprawdź OpenMates.org dla oficjalnej edycji w chmurze."
+  nl: "Dit e-mailbericht is verzonden door een zelf gehoste versie van OpenMates. Die onafhankelijk wordt beheerd en onderhouden. Bekijk OpenMates.org voor de officiële cloud-editie."
+  ar: "تم إرسال هذا البريد الإلكتروني بواسطة نسخة مستضافة ذاتيًا من OpenMates. يتم تشغيلها وصيانتها بشكل مستقل. تحقق من OpenMates.org للإصدار الرسمي السحابي."
+  hi: "यह ईमेल OpenMates के स्व-होस्टेड संस्करण द्वारा भेजा गया था। जो स्वतंत्र रूप से चलाया और रखरखाव किया जाता है। आधिकारिक क्लाउड संस्करण के लिए OpenMates.org देखें।"
+  th: "อีเมลนี้ถูกส่งโดยเวอร์ชันที่โฮสต์เองของ OpenMates ซึ่งดำเนินการและบำรุงรักษาอย่างอิสระ ตรวจสอบ OpenMates.org สำหรับฉบับคลาวด์ทางการ"
+  cs: "Tento e-mail byl odeslán vlastní hostovanou verzí OpenMates. Která je nezávisle provozována a udržována. Zkontrolujte OpenMates.org pro oficiální cloudové vydání."
   sv: "Detta e-postmeddelande skickades av en självhostad version av OpenMates. Som körs och underhålls oberoende. Kolla OpenMates.org för den officiella molneditionen."
   he: אימייל זה נשלח על ידי גרסה באירוח עצמי של OpenMates, המופעלת ומתוחזקת באופן עצמאי. בדוק ב-OpenMates.org את מהדורת הענן הרשמית.
   verified_by_human: []
@@ -714,20 +1031,20 @@ legal:
   zh: 法律声明
   es: Legal
   fr: Juridique
-  pt: ""
-  ru: ""
+  pt: Legal
+  ru: Правовая информация
   ja: 法的情報
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
+  ko: 법적 정보
+  it: Legale
+  tr: Yasal
+  vi: Pháp lý
+  id: Hukum
+  pl: Informacje prawne
+  nl: Juridisch
+  ar: القانونية
+  hi: कानूनी
+  th: กฎหมาย
+  cs: Právní informace
   sv: "Juridiskt"
   he: משפטי
   verified_by_human: []
@@ -738,20 +1055,20 @@ imprint:
   zh: 版本说明
   es: Aviso legal
   fr: Mentions légales
-  pt: ""
-  ru: ""
+  pt: Impressum
+  ru: Выходные данные
   ja: インプリント
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
+  ko: 임프린트
+  it: Impronta
+  tr: Künye
+  vi: Thông tin pháp lý
+  id: Imprint
+  pl: Stopka redakcyjna
+  nl: Impressum
+  ar: بيانات الناشر
+  hi: इंप्रिंट
+  th: ข้อมูลผู้จัดพิมพ์
+  cs: Impressum
   sv: "Impressum"
   he: פרטי העסק
   verified_by_human: []
@@ -762,20 +1079,20 @@ privacy:
   zh: 隐私政策
   es: Privacidad
   fr: Confidentialité
-  pt: ""
-  ru: ""
+  pt: Privacidade
+  ru: Конфиденциальность
   ja: プライバシー
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
+  ko: 개인정보 보호
+  it: Privacy
+  tr: Gizlilik
+  vi: Quyền riêng tư
+  id: Privasi
+  pl: Prywatność
+  nl: Privacy
+  ar: الخصوصية
+  hi: गोपनीयता
+  th: ความเป็นส่วนตัว
+  cs: Soukromí
   sv: "Integritet"
   he: פרטיות
   verified_by_human: []
@@ -786,20 +1103,20 @@ terms_and_conditions:
   zh: 条款和条件
   es: Términos y condiciones
   fr: Conditions générales
-  pt: ""
-  ru: ""
+  pt: Termos e condições
+  ru: Условия использования
   ja: 利用規約
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
+  ko: 이용 약관
+  it: Termini e condizioni
+  tr: Şartlar ve koşullar
+  vi: Điều khoản và điều kiện
+  id: Syarat dan ketentuan
+  pl: Regulamin
+  nl: Algemene voorwaarden
+  ar: الشروط والأحكام
+  hi: नियम और शर्तें
+  th: ข้อกำหนดและเงื่อนไข
+  cs: Obchodní podmínky
   sv: "Användarvillkor"
   he: תנאי שימוש
   verified_by_human: []
@@ -810,20 +1127,20 @@ contact:
   zh: 联系方式
   es: Contacto
   fr: Contact
-  pt: ""
-  ru: ""
+  pt: Contato
+  ru: Контакты
   ja: お問い合わせ
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
+  ko: 연락처
+  it: Contatto
+  tr: İletişim
+  vi: Liên hệ
+  id: Kontak
+  pl: Kontakt
+  nl: Contact
+  ar: اتصل بنا
+  hi: संपर्क
+  th: ติดต่อ
+  cs: Kontakt
   sv: "Kontakt"
   he: צור קשר
   verified_by_human: []
@@ -834,21 +1151,21 @@ discord:
   zh: Discord
   es: Discord
   fr: Discord
-  pt: ""
-  ru: ""
+  pt: Discord
+  ru: Discord
   ja: Discord
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: Discord
+  it: Discord
+  tr: Discord
+  vi: Discord
+  id: Discord
+  pl: Discord
+  nl: Discord
+  ar: Discord
+  hi: Discord
+  th: Discord
+  cs: Discord
+  sv: Discord
   he: Discord
   verified_by_human: []
 reminder_notification.subject:
@@ -1879,161 +2196,361 @@ prometheus_alert.footer_note:
 cron_session_notification.title:
   context: Email subject for cron job session notification (admin only)
   en: "Cron Job Session — {{job_display}} ({{status}})"
+  de: "Cron-Job-Sitzung — {{job_display}} ({{status}})"
+  zh: "定时任务会话 — {{job_display}} ({{status}})"
+  es: "Sesión de trabajo cron — {{job_display}} ({{status}})"
+  fr: "Session de tâche cron — {{job_display}} ({{status}})"
+  pt: "Sessão de tarefa cron — {{job_display}} ({{status}})"
+  ru: "Сеанс задания cron — {{job_display}} ({{status}})"
+  ja: "Cronジョブセッション — {{job_display}} ({{status}})"
+  ko: "크론 작업 세션 — {{job_display}} ({{status}})"
+  it: "Sessione cron job — {{job_display}} ({{status}})"
+  tr: "Cron İş Oturumu — {{job_display}} ({{status}})"
+  vi: "Phiên tác vụ cron — {{job_display}} ({{status}})"
+  id: "Sesi pekerjaan cron — {{job_display}} ({{status}})"
+  pl: "Sesja zadania cron — {{job_display}} ({{status}})"
+  nl: "Cron-taaksessie — {{job_display}} ({{status}})"
+  ar: "جلسة مهمة cron — {{job_display}} ({{status}})"
+  hi: "क्रॉन जॉब सत्र — {{job_display}} ({{status}})"
+  th: "เซสชันงาน cron — {{job_display}} ({{status}})"
+  cs: "Cron úloha — {{job_display}} ({{status}})"
+  sv: "Cron-jobbsession — {{job_display}} ({{status}})"
+  he: "סשן של משימת cron — {{job_display}} ({{status}})"
 
 cron_session_notification.header:
   context: Header text in cron session notification email (admin only)
   en: "Cron Job Session"
+  de: "Cron-Job-Sitzung"
+  zh: "定时任务会话"
+  es: "Sesión de trabajo cron"
+  fr: "Session de tâche cron"
+  pt: "Sessão de tarefa cron"
+  ru: "Сеанс задания cron"
+  ja: "Cronジョブセッション"
+  ko: "크론 작업 세션"
+  it: "Sessione cron job"
+  tr: "Cron İş Oturumu"
+  vi: "Phiên tác vụ cron"
+  id: "Sesi pekerjaan cron"
+  pl: "Sesja zadania cron"
+  nl: "Cron-taaksessie"
+  ar: "جلسة مهمة cron"
+  hi: "क्रॉन जॉब सत्र"
+  th: "เซสชันงาน cron"
+  cs: "Cron úloha"
+  sv: "Cron-jobbsession"
+  he: "סשן של משימת cron"
 
 cron_session_notification.job_type_label:
   context: Label for job type in cron session email (admin only)
   en: "Job Type"
+  de: "Job-Typ"
+  zh: "作业类型"
+  es: "Tipo de trabajo"
+  fr: "Type de tâche"
+  pt: "Tipo de trabalho"
+  ru: "Тип задания"
+  ja: "ジョブタイプ"
+  ko: "작업 유형"
+  it: "Tipo di lavoro"
+  tr: "İş Türü"
+  vi: "Loại công việc"
+  id: "Jenis pekerjaan"
+  pl: "Typ zadania"
+  nl: "Taaktype"
+  ar: "نوع المهمة"
+  hi: "कार्य प्रकार"
+  th: "ประเภทงาน"
+  cs: "Typ úlohy"
+  sv: "Jobbtyp"
+  he: "סוג המשימה"
 
 cron_session_notification.session_label:
   context: Label for session name in cron session email (admin only)
   en: "Session"
+  de: "Sitzung"
+  zh: "会话"
+  es: "Sesión"
+  fr: "Session"
+  pt: "Sessão"
+  ru: "Сеанс"
+  ja: "セッション"
+  ko: "세션"
+  it: "Sessione"
+  tr: "Oturum"
+  vi: "Phiên"
+  id: "Sesi"
+  pl: "Sesja"
+  nl: "Sessie"
+  ar: "الجلسة"
+  hi: "सत्र"
+  th: "เซสชัน"
+  cs: "Relace"
+  sv: "Session"
+  he: "סשן"
 
 cron_session_notification.duration_label:
   context: Label for duration in cron session email (admin only)
   en: "Duration"
+  de: "Dauer"
+  zh: "持续时间"
+  es: "Duración"
+  fr: "Durée"
+  pt: "Duração"
+  ru: "Продолжительность"
+  ja: "所要時間"
+  ko: "소요 시간"
+  it: "Durata"
+  tr: "Süre"
+  vi: "Thời gian"
+  id: "Durasi"
+  pl: "Czas trwania"
+  nl: "Duur"
+  ar: "المدة"
+  hi: "अवधि"
+  th: "ระยะเวลา"
+  cs: "Délka"
+  sv: "Längd"
+  he: "משך זמן"
 
 cron_session_notification.exit_code_label:
   context: Label for exit code in cron session email (admin only)
   en: "Exit Code"
+  de: "Exit-Code"
+  zh: "退出代码"
+  es: "Código de salida"
+  fr: "Code de sortie"
+  pt: "Código de saída"
+  ru: "Код завершения"
+  ja: "終了コード"
+  ko: "종료 코드"
+  it: "Codice di uscita"
+  tr: "Çıkış Kodu"
+  vi: "Mã thoát"
+  id: "Kode keluar"
+  pl: "Kod wyjścia"
+  nl: "Exitcode"
+  ar: "رمز الخروج"
+  hi: "एग्जिट कोड"
+  th: "รหัสออก"
+  cs: "Kód ukončení"
+  sv: "Slutkod"
+  he: "קוד יציאה"
 
 cron_session_notification.session_id_label:
   context: Label for session ID in cron session email (admin only)
   en: "Session ID"
+  de: "Sitzungs-ID"
+  zh: "会话 ID"
+  es: "ID de sesión"
+  fr: "ID de session"
+  pt: "ID de sessão"
+  ru: "ID сеанса"
+  ja: "セッション ID"
+  ko: "세션 ID"
+  it: "ID sessione"
+  tr: "Oturum Kimliği"
+  vi: "ID phiên"
+  id: "ID sesi"
+  pl: "ID sesji"
+  nl: "Sessie-ID"
+  ar: "معرف الجلسة"
+  hi: "सत्र आईडी"
+  th: "รหัสเซสชัน"
+  cs: "ID relace"
+  sv: "Sessions-ID"
+  he: "מזהה סשן"
 
 cron_session_notification.resume_hint:
   context: Hint text for resuming a session in cron session email (admin only)
   en: "Resume this session"
+  de: "Diese Sitzung fortsetzen"
+  zh: "恢复此会话"
+  es: "Reanudar esta sesión"
+  fr: "Reprendre cette session"
+  pt: "Retomar esta sessão"
+  ru: "Возобновить этот сеанс"
+  ja: "このセッションを再開"
+  ko: "이 세션 재개"
+  it: "Riprendi questa sessione"
+  tr: "Bu oturumu sürdür"
+  vi: "Tiếp tục phiên này"
+  id: "Lanjutkan sesi ini"
+  pl: "Wznów tę sesję"
+  nl: "Deze sessie hervatten"
+  ar: "استئناف هذه الجلسة"
+  hi: "इस सत्र को फिर से शुरू करें"
+  th: "ดำเนินเซสชันนี้ต่อ"
+  cs: "Obnovit tuto relaci"
+  sv: "Fortsätt den här sessionen"
+  he: "חדש סשן זה"
 
 cron_session_notification.summary_label:
   context: Label for context summary in cron session email (admin only)
   en: "Summary"
+  de: "Zusammenfassung"
+  zh: "摘要"
+  es: "Resumen"
+  fr: "Résumé"
+  pt: "Resumo"
+  ru: "Резюме"
+  ja: "概要"
+  ko: "요약"
+  it: "Riepilogo"
+  tr: "Özet"
+  vi: "Tóm tắt"
+  id: "Ringkasan"
+  pl: "Podsumowanie"
+  nl: "Samenvatting"
+  ar: "الملخص"
+  hi: "सारांश"
+  th: "สรุป"
+  cs: "Souhrn"
+  sv: "Sammanfattning"
+  he: "סיכום"
 
 cron_session_notification.footer_note:
   context: Footer note in cron session notification email (admin only)
   en: "This notification was sent by an automated Claude Code cron job."
+  de: "Diese Benachrichtigung wurde von einem automatisierten Claude Code Cron-Job gesendet."
+  zh: "此通知由自动化 Claude Code 定时任务发送。"
+  es: "Esta notificación fue enviada por un trabajo cron automatizado de Claude Code."
+  fr: "Cette notification a été envoyée par un travail cron automatisé de Claude Code."
+  pt: "Esta notificação foi enviada por um trabalho cron automatizado do Claude Code."
+  ru: "Это уведомление было отправлено автоматическим заданием cron Claude Code."
+  ja: "この通知は自動化されたClaude CodeのCronジョブによって送信されました。"
+  ko: "이 알림은 자동화된 Claude Code 크론 작업에 의해 전송되었습니다."
+  it: "Questa notifica è stata inviata da un cron job automatizzato di Claude Code."
+  tr: "Bu bildirim otomatik bir Claude Code cron işi tarafından gönderildi."
+  vi: "Thông báo này được gửi bởi một tác vụ cron tự động của Claude Code."
+  id: "Pemberitahuan ini dikirim oleh pekerjaan cron otomatis Claude Code."
+  pl: "To powiadomienie zostało wysłane przez automatyczne zadanie cron Claude Code."
+  nl: "Deze melding is verzonden door een geautomatiseerde Claude Code cron-taak."
+  ar: "تم إرسال هذا الإشعار بواسطة مهمة cron تلقائية من Claude Code."
+  hi: "यह अधिसूचना एक स्वचालित Claude Code क्रॉन जॉब द्वारा भेजी गई थी।"
+  th: "การแจ้งเตือนนี้ถูกส่งโดยงาน cron อัตโนมัติของ Claude Code"
+  cs: "Toto oznámení bylo zasláno automatizovanou cron úlohou Claude Code."
+  sv: "Detta meddelande skickades av ett automatiserat Claude Code cron-jobb."
+  he: "הודעה זו נשלחה על ידי משימת cron אוטומטית של Claude Code."
 
 github:
   context: GitHub link in email footer
   en: GitHub
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: GitHub
+  zh: GitHub
+  es: GitHub
+  fr: GitHub
+  pt: GitHub
+  ru: GitHub
+  ja: GitHub
+  ko: GitHub
+  it: GitHub
+  tr: GitHub
+  vi: GitHub
+  id: GitHub
+  pl: GitHub
+  nl: GitHub
+  ar: GitHub
+  hi: GitHub
+  th: GitHub
+  cs: GitHub
+  sv: GitHub
   he: GitHub
   verified_by_human: []
 mastodon:
   context: Mastodon contact link
   en: Mastodon
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: Mastodon
+  zh: Mastodon
+  es: Mastodon
+  fr: Mastodon
+  pt: Mastodon
+  ru: Mastodon
+  ja: Mastodon
+  ko: Mastodon
+  it: Mastodon
+  tr: Mastodon
+  vi: Mastodon
+  id: Mastodon
+  pl: Mastodon
+  nl: Mastodon
+  ar: Mastodon
+  hi: Mastodon
+  th: Mastodon
+  cs: Mastodon
+  sv: Mastodon
   he: Mastodon
   verified_by_human: []
 pixelfed:
   context: Pixelfed contact link
   en: Pixelfed
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: Pixelfed
+  zh: Pixelfed
+  es: Pixelfed
+  fr: Pixelfed
+  pt: Pixelfed
+  ru: Pixelfed
+  ja: Pixelfed
+  ko: Pixelfed
+  it: Pixelfed
+  tr: Pixelfed
+  vi: Pixelfed
+  id: Pixelfed
+  pl: Pixelfed
+  nl: Pixelfed
+  ar: Pixelfed
+  hi: Pixelfed
+  th: Pixelfed
+  cs: Pixelfed
+  sv: Pixelfed
   he: Pixelfed
   verified_by_human: []
 element:
   context: Element contact link
   en: Element X
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: Element X
+  zh: Element X
+  es: Element X
+  fr: Element X
+  pt: Element X
+  ru: Element X
+  ja: Element X
+  ko: Element X
+  it: Element X
+  tr: Element X
+  vi: Element X
+  id: Element X
+  pl: Element X
+  nl: Element X
+  ar: Element X
+  hi: Element X
+  th: Element X
+  cs: Element X
+  sv: Element X
   he: Element X
   verified_by_human: []
 meetup:
   context: Meetup contact link
   en: Meetup
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: Meetup
+  zh: Meetup
+  es: Meetup
+  fr: Meetup
+  pt: Meetup
+  ru: Meetup
+  ja: Meetup
+  ko: Meetup
+  it: Meetup
+  tr: Meetup
+  vi: Meetup
+  id: Meetup
+  pl: Meetup
+  nl: Meetup
+  ar: Meetup
+  hi: Meetup
+  th: Meetup
+  cs: Meetup
+  sv: Meetup
   he: Meetup
   verified_by_human: []
 email:
@@ -2043,21 +2560,21 @@ email:
   zh: 电子邮件
   es: Correo electrónico
   fr: E-mail
-  pt: ""
-  ru: ""
+  pt: E-mail
+  ru: Эл. почта
   ja: メール
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 이메일
+  it: E-mail
+  tr: E-posta
+  vi: Email
+  id: Email
+  pl: E-mail
+  nl: E-mail
+  ar: البريد الإلكتروني
+  hi: ईमेल
+  th: อีเมล
+  cs: E-mail
+  sv: E-post
   he: אימייל
   verified_by_human: []
 made_in_eu:
@@ -2067,21 +2584,21 @@ made_in_eu:
   zh: 在欧盟制造
   es: Hecho en la UE
   fr: Fabriqué dans l'UE
-  pt: ""
-  ru: ""
+  pt: Feito na UE
+  ru: Сделано в ЕС
   ja: EUで開発
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: EU에서 제작
+  it: Realizzato nell'UE
+  tr: AB'de yapılmıştır
+  vi: Sản xuất tại EU
+  id: Dibuat di EU
+  pl: Wyprodukowano w UE
+  nl: Gemaakt in de EU
+  ar: صُنع في الاتحاد الأوروبي
+  hi: EU में निर्मित
+  th: ผลิตในสหภาพยุโรป
+  cs: Vyrobeno v EU
+  sv: Tillverkad i EU
   he: מיוצר באיחוד האירופי
   verified_by_human: []
 legal_update:
@@ -2091,21 +2608,21 @@ legal_update:
   zh: 法律更新
   es: Actualización legal
   fr: Mise à jour juridique
-  pt: ""
-  ru: ""
+  pt: Atualização legal
+  ru: Правовое обновление
   ja: 法的アップデート
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 법적 업데이트
+  it: Aggiornamento legale
+  tr: Yasal güncelleme
+  vi: Cập nhật pháp lý
+  id: Pembaruan hukum
+  pl: Aktualizacja prawna
+  nl: Juridische update
+  ar: تحديث قانوني
+  hi: कानूनी अपडेट
+  th: อัปเดตทางกฎหมาย
+  cs: Právní aktualizace
+  sv: Juridisk uppdatering
   he: עדכון משפטי
   verified_by_human: []
 we_made_some_changes_privacy_policy:
@@ -2135,25 +2652,81 @@ we_made_some_changes_privacy_policy:
     <mark>politique de confidentialité</mark>
 
     "
-  pt: ""
-  ru: ""
+  pt: "Fizemos algumas alterações em nossa
+
+    <mark>política de privacidade</mark>
+
+    "
+  ru: "Мы внесли изменения в нашу
+
+    <mark>политику конфиденциальности</mark>
+
+    "
   ja: "<mark>プライバシーポリシー</mark>に
 
     変更を加えました
 
     "
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: "당사
+
+    <mark>개인정보 처리방침</mark>을 일부 변경했습니다
+
+    "
+  it: "Abbiamo apportato alcune modifiche alla nostra
+
+    <mark>informativa sulla privacy</mark>
+
+    "
+  tr: "
+
+    <mark>gizlilik politikamızda</mark> bazı değişiklikler yaptık
+
+    "
+  vi: "Chúng tôi đã thực hiện một số thay đổi đối với
+
+    <mark>chính sách quyền riêng tư</mark> của chúng tôi
+
+    "
+  id: "Kami membuat beberapa perubahan pada
+
+    <mark>kebijakan privasi</mark> kami
+
+    "
+  pl: "Wprowadziliśmy kilka zmian w naszej
+
+    <mark>polityce prywatności</mark>
+
+    "
+  nl: "We hebben enkele wijzigingen aangebracht in ons
+
+    <mark>privacybeleid</mark>
+
+    "
+  ar: "أجرينا بعض التغييرات على
+
+    <mark>سياسة الخصوصية</mark> الخاصة بنا
+
+    "
+  hi: "हमने अपनी
+
+    <mark>गोपनीयता नीति</mark> में कुछ बदलाव किए हैं
+
+    "
+  th: "เราได้ทำการเปลี่ยนแปลงบางส่วนใน
+
+    <mark>นโยบายความเป็นส่วนตัว</mark> ของเรา
+
+    "
+  cs: "Provedli jsme několik změn v našich
+
+    <mark>zásadách ochrany osobních údajů</mark>
+
+    "
+  sv: "Vi har gjort några ändringar i vår
+
+    <mark>integritetspolicy</mark>
+
+    "
   he: |
     ערכנו כמה שינויים ב-
     <mark>מדיניות הפרטיות</mark> שלנו
@@ -2165,21 +2738,21 @@ you_can_see_the_new_privacy_policy:
   zh: 您可以在 <a href='https://openmates.org/legal/privacy'>openmates.org/legal/privacy</a> 查看新的隐私政策
   es: Puedes ver la nueva política de privacidad en <a href='https://openmates.org/legal/privacy'>openmates.org/legal/privacy</a>
   fr: Vous pouvez consulter la nouvelle politique de confidentialité sur <a href='https://openmates.org/legal/privacy'>openmates.org/legal/privacy</a>
-  pt: ""
-  ru: ""
+  pt: Você pode ver a nova política de privacidade em <a href='https://openmates.org/legal/privacy'>openmates.org/legal/privacy</a>
+  ru: Вы можете ознакомиться с новой политикой конфиденциальности на <a href='https://openmates.org/legal/privacy'>openmates.org/legal/privacy</a>
   ja: 新しいプライバシーポリシーは<a href='https://openmates.org/legal/privacy'>openmates.org/legal/privacy</a>でご確認いただけます
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 새로운 개인정보 처리방침은 <a href='https://openmates.org/legal/privacy'>openmates.org/legal/privacy</a>에서 확인하실 수 있습니다
+  it: Puoi consultare la nuova informativa sulla privacy su <a href='https://openmates.org/legal/privacy'>openmates.org/legal/privacy</a>
+  tr: Yeni gizlilik politikasını <a href='https://openmates.org/legal/privacy'>openmates.org/legal/privacy</a> adresinde görebilirsiniz
+  vi: Bạn có thể xem chính sách quyền riêng tư mới tại <a href='https://openmates.org/legal/privacy'>openmates.org/legal/privacy</a>
+  id: Anda dapat melihat kebijakan privasi baru di <a href='https://openmates.org/legal/privacy'>openmates.org/legal/privacy</a>
+  pl: Nową politykę prywatności możesz zobaczyć pod adresem <a href='https://openmates.org/legal/privacy'>openmates.org/legal/privacy</a>
+  nl: Je kunt het nieuwe privacybeleid bekijken op <a href='https://openmates.org/legal/privacy'>openmates.org/legal/privacy</a>
+  ar: يمكنك الاطلاع على سياسة الخصوصية الجديدة على <a href='https://openmates.org/legal/privacy'>openmates.org/legal/privacy</a>
+  hi: आप नई गोपनीयता नीति <a href='https://openmates.org/legal/privacy'>openmates.org/legal/privacy</a> पर देख सकते हैं
+  th: คุณสามารถดูนโยบายความเป็นส่วนตัวใหม่ได้ที่ <a href='https://openmates.org/legal/privacy'>openmates.org/legal/privacy</a>
+  cs: Nové zásady ochrany osobních údajů si můžete prohlédnout na <a href='https://openmates.org/legal/privacy'>openmates.org/legal/privacy</a>
+  sv: Du kan se den nya integritetspolicyn på <a href='https://openmates.org/legal/privacy'>openmates.org/legal/privacy</a>
   he: "ניתן לראות את מדיניות הפרטיות החדשה בכתובת <a href='https://openmates.org/legal/privacy'>openmates.org/legal/privacy</a>"
   verified_by_human: []
 purchase_confirmation:
@@ -2189,21 +2762,21 @@ purchase_confirmation:
   zh: 购买确认
   es: Confirmación de compra
   fr: Confirmation d'achat
-  pt: ""
-  ru: ""
+  pt: Confirmação de compra (Fatura {invoice_id})
+  ru: Подтверждение покупки (Счёт {invoice_id})
   ja: 購入確認
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 구매 확인 (청구서 {invoice_id})
+  it: Conferma acquisto (Fattura {invoice_id})
+  tr: Satın alma onayı (Fatura {invoice_id})
+  vi: Xác nhận mua hàng (Hóa đơn {invoice_id})
+  id: Konfirmasi pembelian (Faktur {invoice_id})
+  pl: Potwierdzenie zakupu (Faktura {invoice_id})
+  nl: Aankoopbevestiging (Factuur {invoice_id})
+  ar: تأكيد الشراء (فاتورة {invoice_id})
+  hi: खरीद पुष्टिकरण (चालान {invoice_id})
+  th: ยืนยันการซื้อ (ใบแจ้งหนี้ {invoice_id})
+  cs: Potvrzení nákupu (Faktura {invoice_id})
+  sv: Köpbekräftelse (Faktura {invoice_id})
   he: "אישור רכישה (חשבונית {invoice_id})"
   verified_by_human: []
 purchase_confirmation_polar:
@@ -2213,22 +2786,22 @@ purchase_confirmation_polar:
   zh: 购买确认（确认编号 {invoice_id}）
   es: Confirmación de compra (Confirmación {invoice_id})
   fr: Confirmation d'achat (Confirmation {invoice_id})
-  pt: ""
-  ru: ""
+  pt: Confirmação de compra (Confirmação {invoice_id})
+  ru: Подтверждение покупки (Подтверждение {invoice_id})
   ja: 購入確認（確認番号 {invoice_id}）
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
-  he: ""
+  ko: 구매 확인 (확인 {invoice_id})
+  it: Conferma acquisto (Conferma {invoice_id})
+  tr: Satın alma onayı (Onay {invoice_id})
+  vi: Xác nhận mua hàng (Xác nhận {invoice_id})
+  id: Konfirmasi pembelian (Konfirmasi {invoice_id})
+  pl: Potwierdzenie zakupu (Potwierdzenie {invoice_id})
+  nl: Aankoopbevestiging (Bevestiging {invoice_id})
+  ar: تأكيد الشراء (تأكيد {invoice_id})
+  hi: खरीद पुष्टिकरण (पुष्टिकरण {invoice_id})
+  th: ยืนยันการซื้อ (การยืนยัน {invoice_id})
+  cs: Potvrzení nákupu (Potvrzení {invoice_id})
+  sv: Köpbekräftelse (Bekräftelse {invoice_id})
+  he: "אישור רכישה (אישור {invoice_id})"
   verified_by_human: []
 support_contribution_confirmation:
   context: Email subject & header for support contribution confirmation
@@ -2237,21 +2810,21 @@ support_contribution_confirmation:
   zh: 感谢您支持 OpenMates（收据 {receipt_id}）
   es: Gracias por apoyar a OpenMates (Recibo {receipt_id})
   fr: Merci de soutenir OpenMates (Reçu {receipt_id})
-  pt: ""
-  ru: ""
+  pt: Obrigado por apoiar o OpenMates (Recibo {receipt_id})
+  ru: Спасибо за поддержку OpenMates (Квитанция {receipt_id})
   ja: OpenMates へのご支援ありがとうございます（領収書 {receipt_id}）
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: OpenMates를 지원해 주셔서 감사합니다 (영수증 {receipt_id})
+  it: Grazie per il tuo supporto a OpenMates (Ricevuta {receipt_id})
+  tr: OpenMates'i desteklediğiniz için teşekkürler (Makbuz {receipt_id})
+  vi: Cảm ơn bạn đã hỗ trợ OpenMates (Biên lai {receipt_id})
+  id: Terima kasih telah mendukung OpenMates (Kwitansi {receipt_id})
+  pl: Dziękujemy za wsparcie OpenMates (Paragon {receipt_id})
+  nl: Bedankt voor het ondersteunen van OpenMates (Ontvangstbewijs {receipt_id})
+  ar: شكراً لدعمك OpenMates (إيصال {receipt_id})
+  hi: OpenMates का समर्थन करने के लिए धन्यवाद (रसीद {receipt_id})
+  th: ขอบคุณที่สนับสนุน OpenMates (ใบเสร็จ {receipt_id})
+  cs: Děkujeme za podporu OpenMates (Účtenka {receipt_id})
+  sv: Tack för att du stöder OpenMates (Kvitto {receipt_id})
   he: "תודה על תמיכתך ב-OpenMates (קבלה {receipt_id})"
   verified_by_human: []
 thanks_for_purchase:
@@ -2261,21 +2834,21 @@ thanks_for_purchase:
   zh: 感谢您的购买！
   es: ¡Gracias por tu compra!
   fr: Merci pour votre achat !
-  pt: ""
-  ru: ""
+  pt: Obrigado pela sua compra!
+  ru: Спасибо за вашу покупку!
   ja: ご購入ありがとうございます！
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 구매해 주셔서 감사합니다!
+  it: Grazie per il tuo acquisto!
+  tr: Satın aldığınız için teşekkürler!
+  vi: Cảm ơn bạn đã mua hàng!
+  id: Terima kasih atas pembelian Anda!
+  pl: Dziękujemy za zakup!
+  nl: Bedankt voor je aankoop!
+  ar: شكراً على عملية الشراء!
+  hi: आपकी खरीदारी के लिए धन्यवाद!
+  th: ขอบคุณสำหรับการซื้อของคุณ!
+  cs: Děkujeme za váš nákup!
+  sv: Tack för ditt köp!
   he: "תודה על הרכישה!"
   verified_by_human: []
 thanks_for_support:
@@ -2285,21 +2858,21 @@ thanks_for_support:
   zh: 感谢您支持 OpenMates。
   es: Gracias por apoyar a OpenMates.
   fr: Merci de soutenir OpenMates.
-  pt: ""
-  ru: ""
+  pt: Obrigado por apoiar o OpenMates.
+  ru: Спасибо за поддержку OpenMates.
   ja: OpenMates を支援していただきありがとうございます。
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: OpenMates를 지원해 주셔서 감사합니다.
+  it: Grazie per il supporto a OpenMates.
+  tr: OpenMates'i desteklediğiniz için teşekkürler.
+  vi: Cảm ơn bạn đã hỗ trợ OpenMates.
+  id: Terima kasih telah mendukung OpenMates.
+  pl: Dziękujemy za wsparcie OpenMates.
+  nl: Bedankt voor je steun aan OpenMates.
+  ar: شكراً لدعمك OpenMates.
+  hi: OpenMates का समर्थन करने के लिए धन्यवाद।
+  th: ขอบคุณที่สนับสนุน OpenMates
+  cs: Děkujeme za podporu OpenMates.
+  sv: Tack för att du stöder OpenMates.
   he: תודה על התמיכה ב-OpenMates.
   verified_by_human: []
 support_amount_line:
@@ -2309,21 +2882,21 @@ support_amount_line:
   zh: "支持金额：{support_amount}"
   es: "Importe de apoyo: {support_amount}"
   fr: "Montant du soutien : {support_amount}"
-  pt: ""
-  ru: ""
+  pt: "Valor de apoio: {support_amount}"
+  ru: "Сумма поддержки: {support_amount}"
   ja: "支援金額：{support_amount}"
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: "지원 금액: {support_amount}"
+  it: "Importo supporto: {support_amount}"
+  tr: "Destek miktarı: {support_amount}"
+  vi: "Số tiền hỗ trợ: {support_amount}"
+  id: "Jumlah dukungan: {support_amount}"
+  pl: "Kwota wsparcia: {support_amount}"
+  nl: "Ondersteuningsbedrag: {support_amount}"
+  ar: "مبلغ الدعم: {support_amount}"
+  hi: "समर्थन राशि: {support_amount}"
+  th: "จำนวนเงินสนับสนุน: {support_amount}"
+  cs: "Částka podpory: {support_amount}"
+  sv: "Stödbelopp: {support_amount}"
   he: "סכום התמיכה: {support_amount}"
   verified_by_human: []
 receipt_id_line:
@@ -2333,21 +2906,21 @@ receipt_id_line:
   zh: "收据编号：{receipt_id}"
   es: "ID de recibo: {receipt_id}"
   fr: "ID du reçu : {receipt_id}"
-  pt: ""
-  ru: ""
+  pt: "ID do recibo: {receipt_id}"
+  ru: "ID квитанции: {receipt_id}"
   ja: "領収書ID：{receipt_id}"
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: "영수증 ID: {receipt_id}"
+  it: "ID ricevuta: {receipt_id}"
+  tr: "Makbuz Kimliği: {receipt_id}"
+  vi: "ID biên lai: {receipt_id}"
+  id: "ID kwitansi: {receipt_id}"
+  pl: "ID paragonu: {receipt_id}"
+  nl: "Ontvangstbewijs-ID: {receipt_id}"
+  ar: "معرف الإيصال: {receipt_id}"
+  hi: "रसीद आईडी: {receipt_id}"
+  th: "รหัสใบเสร็จ: {receipt_id}"
+  cs: "ID účtenky: {receipt_id}"
+  sv: "Kvitto-ID: {receipt_id}"
   he: "מזהה קבלה: {receipt_id}"
   verified_by_human: []
 receipt_pdf_attached:
@@ -2357,21 +2930,21 @@ receipt_pdf_attached:
   zh: 您的收据 PDF 已附在此电子邮件中。
   es: Tu recibo en PDF está adjunto a este correo electrónico.
   fr: Votre reçu PDF est joint à cet e-mail.
-  pt: ""
-  ru: ""
+  pt: O PDF do seu recibo está anexado a este e-mail.
+  ru: PDF вашей квитанции прикреплён к этому письму.
   ja: 領収書PDFはこのメールに添付されています。
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 영수증 PDF가 이 이메일에 첨부되어 있습니다.
+  it: Il PDF della tua ricevuta è allegato a questa email.
+  tr: Makbuz PDF'niz bu e-postaya eklenmiştir.
+  vi: PDF biên lai của bạn được đính kèm vào email này.
+  id: PDF kwitansi Anda terlampir pada email ini.
+  pl: PDF paragonu jest załączony do tego e-maila.
+  nl: Je ontvangstbewijs-PDF is bijgevoegd bij deze e-mail.
+  ar: ملف PDF الخاص بإيصالك مرفق بهذا البريد الإلكتروني.
+  hi: आपकी रसीद का PDF इस ईमेल में संलग्न है।
+  th: PDF ใบเสร็จของคุณแนบอยู่ในอีเมลนี้
+  cs: PDF vašeho potvrzení je přiloženo k tomuto e-mailu.
+  sv: Din kvitto-PDF är bifogad till detta e-postmeddelande.
   he: קבלת ה-PDF שלך מצורפת למייל זה.
   verified_by_human: []
 invoice_pdf_attached:
@@ -2381,21 +2954,21 @@ invoice_pdf_attached:
   zh: 发票 PDF 已附在此电子邮件中，您也可以在 OpenMates 的账单设置中找到它。
   es: Puedes encontrar el PDF de la factura adjunto a este correo electrónico, así como en tu configuración de Facturación en OpenMates.
   fr: Vous trouverez la facture PDF en pièce jointe à cet e-mail, ainsi que dans vos paramètres de facturation sur OpenMates.
-  pt: ""
-  ru: ""
+  pt: Você pode encontrar o PDF da fatura anexado a este e-mail, bem como nas suas configurações de Faturamento no OpenMates.
+  ru: PDF счёта прикреплён к этому письму, а также доступен в настройках платёжного аккаунта на OpenMates.
   ja: 請求書のPDFはこのメールに添付されており、OpenMatesの請求設定でも確認できます。
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 청구서 PDF는 이 이메일에 첨부되어 있으며 OpenMates의 청구 설정에서도 확인할 수 있습니다.
+  it: Puoi trovare il PDF della fattura allegato a questa email, nonché nelle impostazioni di Fatturazione su OpenMates.
+  tr: Fatura PDF'ini bu e-postaya eklenmiş olarak veya OpenMates'teki Faturalandırma ayarlarınızda bulabilirsiniz.
+  vi: Bạn có thể tìm thấy PDF hóa đơn đính kèm trong email này, cũng như trong cài đặt Thanh toán trên OpenMates.
+  id: Anda dapat menemukan PDF faktur yang terlampir pada email ini, serta di pengaturan Penagihan Anda di OpenMates.
+  pl: PDF faktury znajdziesz w załączniku tego e-maila, a także w ustawieniach Rozliczeń na OpenMates.
+  nl: Je kunt de factuur-PDF vinden als bijlage bij deze e-mail, evenals in je Factuureringsinstellingen op OpenMates.
+  ar: يمكنك العثور على ملف PDF للفاتورة مرفقًا بهذا البريد الإلكتروني، وكذلك في إعدادات الفوترة الخاصة بك على OpenMates.
+  hi: आप इस ई-मेल में संलग्न चालान PDF पा सकते हैं, साथ ही OpenMates पर अपनी बिलिंग सेटिंग्स में भी।
+  th: คุณสามารถพบ PDF ใบแจ้งหนี้แนบอยู่ในอีเมลนี้ รวมถึงในการตั้งค่าการชำระเงินของคุณบน OpenMates
+  cs: PDF faktury najdete v příloze tohoto e-mailu, jakož i v nastavení Fakturace na OpenMates.
+  sv: Du hittar faktura-PDF:en bifogad i detta e-postmeddelande, samt i dina Faktureringsinställningar på OpenMates.
   he: ניתן למצוא את חשבונית ה-PDF מצורפת למייל זה, וכן בהגדרות החיוב שלך ב-OpenMates.
   verified_by_human: []
 click_here_for_refund:
@@ -2405,21 +2978,21 @@ click_here_for_refund:
   zh: "想要退款？<a href='{refund_link}' style='color: #4867CD; text-decoration: underline;'>点击这里</a>在购买后14天内申请未使用点数的退款。"
   es: "¿Quieres un reembolso? <a href='{refund_link}' style='color: #4867CD; text-decoration: underline;'>Haz clic aquí</a> para solicitar un reembolso por créditos no utilizados dentro de los 14 días posteriores a la compra."
   fr: "Vous souhaitez un remboursement ? <a href='{refund_link}' style='color: #4867CD; text-decoration: underline;'>Cliquez ici</a> pour demander un remboursement des crédits non utilisés dans les 14 jours suivant l'achat."
-  pt: ""
-  ru: ""
+  pt: "Quer um reembolso? <a href='{refund_link}' style='color: #4867CD; text-decoration: underline;'>Clique aqui</a> para solicitar um reembolso por créditos não utilizados dentro de 14 dias após a compra."
+  ru: "Хотите вернуть деньги? <a href='{refund_link}' style='color: #4867CD; text-decoration: underline;'>Нажмите здесь</a>, чтобы запросить возврат за неиспользованные кредиты в течение 14 дней после покупки."
   ja: "返金をご希望ですか？<a href='{refund_link}' style='color: #4867CD; text-decoration: underline;'>ここをクリック</a>購入後14日以内の未使用クレジットの返金をリクエストするには。"
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: "환불을 원하시나요? <a href='{refund_link}' style='color: #4867CD; text-decoration: underline;'>여기를 클릭</a>하여 구매 후 14일 이내에 미사용 크레딧에 대한 환불을 요청하세요."
+  it: "Vuoi un rimborso? <a href='{refund_link}' style='color: #4867CD; text-decoration: underline;'>Clicca qui</a> per richiedere un rimborso per i crediti non utilizzati entro 14 giorni dall'acquisto."
+  tr: "Para iadesi ister misiniz? <a href='{refund_link}' style='color: #4867CD; text-decoration: underline;'>Buraya tıklayın</a> ve satın alma işleminden sonraki 14 gün içinde kullanılmayan krediler için para iadesi talep edin."
+  vi: "Muốn hoàn tiền? <a href='{refund_link}' style='color: #4867CD; text-decoration: underline;'>Nhấp vào đây</a> để yêu cầu hoàn tiền cho các tín dụng chưa sử dụng trong vòng 14 ngày sau khi mua."
+  id: "Ingin pengembalian dana? <a href='{refund_link}' style='color: #4867CD; text-decoration: underline;'>Klik di sini</a> untuk meminta pengembalian dana untuk kredit yang tidak digunakan dalam 14 hari setelah pembelian."
+  pl: "Chcesz zwrot pieniędzy? <a href='{refund_link}' style='color: #4867CD; text-decoration: underline;'>Kliknij tutaj</a>, aby poprosić o zwrot za niewykorzystane kredyty w ciągu 14 dni od zakupu."
+  nl: "Wil je een terugbetaling? <a href='{refund_link}' style='color: #4867CD; text-decoration: underline;'>Klik hier</a> om een terugbetaling aan te vragen voor ongebruikte credits binnen 14 dagen na aankoop."
+  ar: "هل تريد استردادًا؟ <a href='{refund_link}' style='color: #4867CD; text-decoration: underline;'>انقر هنا</a> لطلب استرداد الأموال للرصيد غير المستخدم خلال 14 يومًا من الشراء."
+  hi: "वापसी चाहते हैं? <a href='{refund_link}' style='color: #4867CD; text-decoration: underline;'>यहां क्लिक करें</a> खरीद के 14 दिनों के भीतर अप्रयुक्त क्रेडिट के लिए वापसी का अनुरोध करने के लिए।"
+  th: "ต้องการคืนเงินหรือไม่? <a href='{refund_link}' style='color: #4867CD; text-decoration: underline;'>คลิกที่นี่</a> เพื่อขอคืนเงินสำหรับเครดิตที่ยังไม่ได้ใช้ภายใน 14 วันหลังจากการซื้อ"
+  cs: "Chcete vrátit peníze? <a href='{refund_link}' style='color: #4867CD; text-decoration: underline;'>Klikněte zde</a> pro požadavek na vrácení peněz za nevyužité kredity do 14 dní od nákupu."
+  sv: "Vill du ha en återbetalning? <a href='{refund_link}' style='color: #4867CD; text-decoration: underline;'>Klicka här</a> för att begära återbetalning för oanvända krediter inom 14 dagar efter köpet."
   he: "רוצה החזר כספי? <a href='{refund_link}' style='color: #4867CD; text-decoration: underline;'>לחץ כאן</a> כדי לבקש החזר עבור קרדיטים שלא נוצלו תוך 14 ימים מהרכישה."
   verified_by_human: []
 refund_confirmation:
@@ -2429,21 +3002,21 @@ refund_confirmation:
   zh: 退款确认（贷记单 {credit_note_id}）
   es: Confirmación de reembolso (Nota de crédito {credit_note_id})
   fr: Confirmation de remboursement (Note de crédit {credit_note_id})
-  pt: ""
-  ru: ""
+  pt: Confirmação de reembolso (Nota de crédito {credit_note_id})
+  ru: Подтверждение возврата (Кредит-нота {credit_note_id})
   ja: 返金確認（クレジットノート {credit_note_id}）
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 환불 확인 (크레딧 메모 {credit_note_id})
+  it: Conferma rimborso (Nota di credito {credit_note_id})
+  tr: İade onayı (Kredi notu {credit_note_id})
+  vi: Xác nhận hoàn tiền (Ghi chú tín dụng {credit_note_id})
+  id: Konfirmasi pengembalian dana (Nota kredit {credit_note_id})
+  pl: Potwierdzenie zwrotu (Nota kredytowa {credit_note_id})
+  nl: Terugbetalingsbevestiging (Creditnota {credit_note_id})
+  ar: تأكيد الاسترداد (مذكرة ائتمان {credit_note_id})
+  hi: वापसी पुष्टिकरण (क्रेडिट नोट {credit_note_id})
+  th: ยืนยันการคืนเงิน (ใบลดหนี้ {credit_note_id})
+  cs: Potvrzení vrácení peněz (Dobropis {credit_note_id})
+  sv: Återbetalningsbekräftelse (Kreditnota {credit_note_id})
   he: "אישור החזר כספי (תעודת זיכוי {credit_note_id})"
   verified_by_human: []
 refund_processed:
@@ -2453,21 +3026,21 @@ refund_processed:
   zh: 您的退款已成功处理！
   es: ¡Tu reembolso ha sido procesado exitosamente!
   fr: Votre remboursement a été traité avec succès !
-  pt: ""
-  ru: ""
+  pt: Seu reembolso foi processado com sucesso!
+  ru: Ваш возврат успешно обработан!
   ja: 返金が正常に処理されました！
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 환불이 성공적으로 처리되었습니다!
+  it: Il tuo rimborso è stato elaborato con successo!
+  tr: İadeniz başarıyla işlendi!
+  vi: Khoản hoàn tiền của bạn đã được xử lý thành công!
+  id: Pengembalian dana Anda telah berhasil diproses!
+  pl: Twój zwrot został pomyślnie przetworzony!
+  nl: Je terugbetaling is succesvol verwerkt!
+  ar: تمت معالجة استردادك بنجاح!
+  hi: आपका रिफंड सफलतापूर्वक प्रोसेस हो गया है!
+  th: การคืนเงินของคุณได้รับการดำเนินการเรียบร้อยแล้ว!
+  cs: Vaše vrácení peněz bylo úspěšně zpracováno!
+  sv: Din återbetalning har behandlats framgångsrikt!
   he: "ההחזר הכספי שלך עובד בהצלחה!"
   verified_by_human: []
 credit_note_pdf_attached:
@@ -2477,21 +3050,21 @@ credit_note_pdf_attached:
   zh: 贷记单 PDF 已附在此电子邮件中，您也可以在 OpenMates 的账单设置中找到它。
   es: Puedes encontrar el PDF de la nota de crédito adjunto a este correo electrónico, así como en tu configuración de Facturación en OpenMates.
   fr: Vous trouverez la note de crédit PDF en pièce jointe à cet e-mail, ainsi que dans vos paramètres de facturation sur OpenMates.
-  pt: ""
-  ru: ""
+  pt: Você pode encontrar o PDF da nota de crédito em anexo a este e-mail, bem como nas suas configurações de Faturamento no OpenMates.
+  ru: PDF кредитной ноты приложен к этому письму, а также доступен в настройках выставления счётов на OpenMates.
   ja: クレジットノートのPDFはこのメールに添付されており、OpenMatesの請求設定でも確認できます。
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 크레딧 노트 PDF는 이 이메일에 첨부되어 있으며 OpenMates의 결제 설정에서도 확인할 수 있습니다.
+  it: Puoi trovare il PDF della nota di credito allegato a questa e-mail, nonché nelle impostazioni di fatturazione su OpenMates.
+  tr: Kredi notu PDF'ini bu e-postaya eklenmiş olarak veya OpenMates'teki Faturalama ayarlarınızda bulabilirsiniz.
+  vi: Bạn có thể tìm thấy PDF ghi chú tín dụng được đính kèm trong email này, cũng như trong cài đặt Thanh toán trên OpenMates.
+  id: Anda dapat menemukan PDF nota kredit terlampir pada email ini, serta di pengaturan Penagihan di OpenMates.
+  pl: Plik PDF noty kredytowej znajdziesz w załączniku do tego e-maila, a także w ustawieniach Rozliczeń na OpenMates.
+  nl: Je kunt de creditnota PDF vinden als bijlage bij deze e-mail, evenals in je Factuurinstellingen op OpenMates.
+  ar: يمكنك العثور على ملف PDF لإشعار الائتمان مرفقاً بهذا البريد الإلكتروني، وكذلك في إعدادات الفوترة على OpenMates.
+  hi: आप इस ई-मेल के साथ संलग्न क्रेडिट नोट PDF पा सकते हैं, साथ ही OpenMates पर अपनी बिलिंग सेटिंग में भी।
+  th: คุณสามารถดู PDF ใบเครดิตที่แนบมากับอีเมลนี้ รวมถึงในการตั้งค่าการเรียกเก็บเงินบน OpenMates
+  cs: PDF dobropisu najdete přiložený k tomuto e-mailu a také v nastavení fakturace na OpenMates.
+  sv: Du hittar kreditnotans PDF bifogad till detta e-postmeddelande, samt i dina faktureringsinställningar på OpenMates.
   he: ניתן למצוא את תעודת הזיכוי בפורמט PDF מצורפת למייל זה, וכן בהגדרות החיוב שלך ב-OpenMates.
   verified_by_human: []
 refund_amount:
@@ -2501,21 +3074,21 @@ refund_amount:
   zh: 退款金额
   es: Monto del reembolso
   fr: Montant du remboursement
-  pt: ""
-  ru: ""
+  pt: Valor do reembolso
+  ru: Сумма возврата
   ja: 返金額
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 환불 금액
+  it: Importo del rimborso
+  tr: İade tutarı
+  vi: Số tiền hoàn trả
+  id: Jumlah pengembalian dana
+  pl: Kwota zwrotu
+  nl: Terugbetalingsbedrag
+  ar: مبلغ الاسترداد
+  hi: रिफंड राशि
+  th: จำนวนเงินที่คืน
+  cs: Částka vrácení
+  sv: Återbetalningsbelopp
   he: סכום ההחזר
   verified_by_human: []
 refund_processing_time:

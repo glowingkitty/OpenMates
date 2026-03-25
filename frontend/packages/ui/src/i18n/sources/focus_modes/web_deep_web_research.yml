@@ -53,6 +53,63 @@ process:
   en: |
     - asks user multiple clearifying questions, then creates a list of requirements / priorities / search terms
     - then starts in depth web searches for the search terms and creates a report based on the findings
+  de: |
+    - stellt dem Nutzer mehrere Klärungsfragen und erstellt dann eine Liste von Anforderungen / Prioritäten / Suchbegriffen
+    - beginnt dann mit umfassenden Websuchen nach den Suchbegriffen und erstellt einen Bericht basierend auf den Ergebnissen
+  zh: |
+    - 向用户提问多个澄清性问题，然后创建需求/优先事项/搜索词列表
+    - 然后对搜索词开始深度网络搜索，并根据发现创建报告
+  es: |
+    - hace múltiples preguntas aclaratorias al usuario, luego crea una lista de requisitos / prioridades / términos de búsqueda
+    - luego inicia búsquedas web en profundidad para los términos de búsqueda y crea un informe basado en los hallazgos
+  fr: |
+    - pose plusieurs questions de clarification à l'utilisateur, puis crée une liste d'exigences / priorités / termes de recherche
+    - lance ensuite des recherches web approfondies sur les termes de recherche et crée un rapport basé sur les résultats
+  pt: |
+    - faz várias perguntas esclarecedoras ao usuário, depois cria uma lista de requisitos / prioridades / termos de pesquisa
+    - em seguida inicia pesquisas web aprofundadas para os termos de pesquisa e cria um relatório com base nas descobertas
+  ru: |
+    - задаёт пользователю несколько уточняющих вопросов, затем создаёт список требований / приоритетов / поисковых запросов
+    - затем начинает глубокий веб-поиск по поисковым запросам и создаёт отчёт на основе результатов
+  ja: |
+    - ユーザーに複数の明確化の質問をし、要件/優先事項/検索語のリストを作成する
+    - 次に検索語の詳細なウェブ検索を開始し、発見事項に基づいてレポートを作成する
+  ko: |
+    - 사용자에게 여러 명확화 질문을 하고 요구사항 / 우선순위 / 검색어 목록을 만듭니다
+    - 그런 다음 검색어에 대한 심층 웹 검색을 시작하고 결과를 바탕으로 보고서를 만듭니다
+  it: |
+    - pone all'utente più domande di chiarimento, quindi crea un elenco di requisiti / priorità / termini di ricerca
+    - poi avvia ricerche web approfondite per i termini di ricerca e crea un rapporto basato sui risultati
+  tr: |
+    - kullanıcıya birden fazla açıklayıcı soru sorar, ardından bir gereksinimler / öncelikler / arama terimleri listesi oluşturur
+    - ardından arama terimleri için derinlemesine web aramaları başlatır ve bulgulara dayalı bir rapor oluşturur
+  vi: |
+    - hỏi người dùng nhiều câu hỏi làm rõ, sau đó tạo danh sách yêu cầu / ưu tiên / từ khóa tìm kiếm
+    - sau đó bắt đầu tìm kiếm web chuyên sâu cho các từ khóa và tạo báo cáo dựa trên các phát hiện
+  id: |
+    - mengajukan beberapa pertanyaan klarifikasi kepada pengguna, lalu membuat daftar persyaratan / prioritas / istilah pencarian
+    - kemudian memulai pencarian web mendalam untuk istilah pencarian dan membuat laporan berdasarkan temuan
+  pl: |
+    - zadaje użytkownikowi wiele pytań wyjaśniających, a następnie tworzy listę wymagań / priorytetów / wyszukiwanych haseł
+    - następnie rozpoczyna dogłębne wyszukiwania w sieci dla tych haseł i tworzy raport na podstawie wyników
+  nl: |
+    - stelt de gebruiker meerdere verhelderende vragen en maakt vervolgens een lijst van vereisten / prioriteiten / zoektermen
+    - begint daarna met diepgaande webzoekopdrachten voor de zoektermen en maakt een rapport op basis van de bevindingen
+  ar: |
+    - يطرح على المستخدم أسئلة توضيحية متعددة، ثم ينشئ قائمة بالمتطلبات / الأولويات / مصطلحات البحث
+    - ثم يبدأ في إجراء بحوث ويب معمّقة لمصطلحات البحث وينشئ تقريراً بناءً على النتائج
+  hi: |
+    - उपयोगकर्ता से कई स्पष्टीकरण प्रश्न पूछता है, फिर आवश्यकताओं / प्राथमिकताओं / खोज शब्दों की सूची बनाता है
+    - फिर खोज शब्दों के लिए गहन वेब खोज शुरू करता है और निष्कर्षों के आधार पर एक रिपोर्ट बनाता है
+  th: |
+    - ถามคำถามเพื่อความชัดเจนหลายข้อแก่ผู้ใช้ จากนั้นสร้างรายการข้อกำหนด / ลำดับความสำคัญ / คำค้นหา
+    - จากนั้นเริ่มการค้นหาเว็บเชิงลึกสำหรับคำค้นหาและสร้างรายงานตามผลการค้นพบ
+  cs: |
+    - klade uživateli několik objasňujících otázek, poté vytvoří seznam požadavků / priorit / hledaných výrazů
+    - poté zahájí hloubkové webové vyhledávání pro hledané výrazy a vytvoří zprávu na základě zjištění
+  sv: |
+    - ställer användaren flera klargörande frågor och skapar sedan en lista med krav / prioriteringar / söktermer
+    - börjar sedan djupgående webbsökningar efter söktermerna och skapar en rapport baserat på resultaten
   he: |
     - שואל את המשתמש מספר שאלות הבהרה, ולאחר מכן יוצר רשימה של דרישות / סדרי עדיפויות / מונחי חיפוש
     - לאחר מכן מתחיל בחיפושי רשת מעמיקים עבור מונחי החיפוש ויוצר דוח המבוסס על הממצאים
@@ -61,6 +118,25 @@ process:
 systemprompt:
   context: System prompt for the LLM when deep_web_research focus mode is active
   en: You are an expert for deep web research.
+  de: Du bist ein Experte für tiefe Web-Recherche.
+  zh: 你是深度网络研究的专家。
+  es: Eres un experto en investigación web profunda.
+  fr: Vous êtes un expert en recherche web approfondie.
+  pt: Você é um especialista em pesquisa web profunda.
+  ru: Вы эксперт по глубокому веб-исследованию.
+  ja: あなたは深いウェブリサーチの専門家です。
+  ko: 당신은 심층 웹 연구 전문가입니다.
+  it: Sei un esperto di ricerca web approfondita.
+  tr: Derin web araştırması konusunda uzmansınız.
+  vi: Bạn là một chuyên gia nghiên cứu web sâu.
+  id: Anda adalah ahli untuk penelitian web mendalam.
+  pl: Jesteś ekspertem w dziedzinie głębokich badań internetowych.
+  nl: U bent een expert in diepgaand webonderzoek.
+  ar: أنت خبير في البحث العميق على الويب.
+  hi: आप गहरी वेब अनुसंधान के विशेषज्ञ हैं।
+  th: คุณเป็นผู้เชี่ยวชาญด้านการวิจัยเว็บเชิงลึก
+  cs: Jste odborník na hloubkový webový výzkum.
+  sv: Du är en expert på djup webbforskning.
   he: אתה מומחה למחקר רשת מעמיק.
   verified_by_human:
     - en

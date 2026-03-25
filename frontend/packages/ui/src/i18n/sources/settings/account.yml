@@ -259,7 +259,7 @@ username.error_taken:
   hi: यह उपयोगकर्ता नाम पहले से उपयोग में है। कृपया कोई अन्य नाम चुनें।
   th: ชื่อผู้ใช้นี้ถูกใช้ไปแล้ว กรุณาเลือกชื่ออื่น
   cs: Toto uživatelské jméno je již obsazeno. Prosím zvolte jiné.
-  sv: ""
+  sv: Det här användarnamnet är redan taget. Välj ett annat.
   he: שם המשתמש הזה כבר תפוס. אנא בחר שם אחר.
   verified_by_human: []
 username.error_failed:
@@ -317,21 +317,21 @@ description:
   zh: 管理您的个人资料、身份验证和账户设置
   es: Gestiona tu perfil, autenticación y configuración de cuenta
   fr: Gérez votre profil, l'authentification et les paramètres du compte
-  pt: ""
-  ru: ""
+  pt: Gerencie seu perfil, autenticação e configurações de conta
+  ru: Управляйте своим профилем, аутентификацией и настройками аккаунта
   ja: プロフィール、認証、アカウント設定を管理する
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 프로필, 인증 및 계정 설정 관리
+  it: Gestisci il tuo profilo, l'autenticazione e le impostazioni dell'account
+  tr: Profilinizi, kimlik doğrulamanızı ve hesap ayarlarınızı yönetin
+  vi: Quản lý hồ sơ, xác thực và cài đặt tài khoản của bạn
+  id: Kelola profil, autentikasi, dan pengaturan akun Anda
+  pl: Zarządzaj swoim profilem, uwierzytelnianiem i ustawieniami konta
+  nl: Beheer uw profiel, authenticatie en accountinstellingen
   ar: إدارة ملفك الشخصي وإعدادات المصادقة والحساب
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: अपने प्रोफ़ाइल, प्रमाणीकरण और खाता सेटिंग प्रबंधित करें
+  th: จัดการโปรไฟล์ การตรวจสอบสิทธิ์ และการตั้งค่าบัญชีของคุณ
+  cs: Spravujte svůj profil, ověřování a nastavení účtu
+  sv: Hantera din profil, autentisering och kontoinställningar
   he: ניהול הפרופיל, האימות והגדרות החשבון
   verified_by_human: []
 account:
@@ -362,19 +362,70 @@ email:
   context: Email submenu item
   en: E-mail
   de: E-Mail
+  zh: 电子邮件
+  es: Correo electrónico
+  fr: E-mail
+  pt: E-mail
+  ru: Эл. почта
+  ja: メール
+  ko: 이메일
+  it: E-mail
+  tr: E-posta
+  vi: Email
+  id: Email
+  pl: E-mail
+  nl: E-mail
   ar: البريد الإلكتروني
+  hi: ईमेल
+  th: อีเมล
+  cs: E-mail
+  sv: E-post
   he: אימייל
 email.loading:
   context: Loading message for email decryption
   en: Decrypting e-mail address...
   de: E-Mail-Adresse wird entschlüsselt...
+  zh: 正在解密电子邮件地址...
+  es: Descifrando dirección de correo electrónico...
+  fr: Déchiffrement de l'adresse e-mail...
+  pt: Descriptografando endereço de e-mail...
+  ru: Расшифровка адреса электронной почты...
+  ja: メールアドレスを復号中...
+  ko: 이메일 주소 복호화 중...
+  it: Decifratura indirizzo e-mail...
+  tr: E-posta adresi şifresi çözülüyor...
+  vi: Đang giải mã địa chỉ email...
+  id: Mendekripsi alamat email...
+  pl: Odszyfrowywanie adresu e-mail...
+  nl: E-mailadres ontsleutelen...
   ar: جارٍ فك تشفير عنوان البريد الإلكتروني...
+  hi: ईमेल पता डिक्रिप्ट हो रहा है...
+  th: กำลังถอดรหัสที่อยู่อีเมล...
+  cs: Dešifrování e-mailové adresy...
+  sv: Dekrypterar e-postadress...
   he: מפענח כתובת אימייל...
 email.current_email:
   context: Header for current email address
   en: Current E-mail Address
   de: Aktuelle E-Mail-Adresse
+  zh: 当前电子邮件地址
+  es: Dirección de correo electrónico actual
+  fr: Adresse e-mail actuelle
+  pt: Endereço de e-mail atual
+  ru: Текущий адрес электронной почты
+  ja: 現在のメールアドレス
+  ko: 현재 이메일 주소
+  it: Indirizzo e-mail attuale
+  tr: Mevcut e-posta adresi
+  vi: Địa chỉ email hiện tại
+  id: Alamat email saat ini
+  pl: Aktualny adres e-mail
+  nl: Huidig e-mailadres
   ar: عنوان البريد الإلكتروني الحالي
+  hi: वर्तमान ईमेल पता
+  th: ที่อยู่อีเมลปัจจุบัน
+  cs: Aktuální e-mailová adresa
+  sv: Nuvarande e-postadress
   he: כתובת אימייל נוכחית
 email.privacy_info:
   context: Privacy information about email storage
@@ -384,21 +435,72 @@ email.privacy_info:
   de: >-
     Ihre E-Mail-Adresse wird verschlüsselt auf Ihrem Gerät und dem Server gespeichert.
     Nur Sie können sie mit Ihrem Hauptschlüssel entschlüsseln.
+  zh: 您的电子邮件地址经加密存储在您的设备和服务器上。只有您才能使用主密钥解密。
+  es: Tu dirección de correo electrónico se almacena cifrada en tu dispositivo y el servidor. Solo tú puedes descifrarla usando tu clave maestra.
+  fr: Votre adresse e-mail est stockée chiffrée sur votre appareil et le serveur. Seul vous pouvez la déchiffrer en utilisant votre clé maître.
+  pt: Seu endereço de e-mail é armazenado criptografado no seu dispositivo e no servidor. Apenas você pode descriptografá-lo usando sua chave mestra.
+  ru: Ваш адрес электронной почты хранится в зашифрованном виде на вашем устройстве и сервере. Только вы можете расшифровать его с помощью своего мастер-ключа.
+  ja: メールアドレスはデバイスとサーバー上に暗号化されて保存されます。マスターキーを使用してのみ復号できます。
+  ko: 이메일 주소는 기기와 서버에 암호화되어 저장됩니다. 마스터 키를 사용하여 복호화할 수 있는 것은 본인뿐입니다.
+  it: Il tuo indirizzo e-mail viene memorizzato in forma crittografata sul tuo dispositivo e sul server. Solo tu puoi decifrarlo usando la tua chiave master.
+  tr: E-posta adresiniz cihazınızda ve sunucuda şifreli olarak saklanır. Yalnızca siz ana anahtarınızı kullanarak şifresini çözebilirsiniz.
+  vi: Địa chỉ email của bạn được lưu trữ mã hóa trên thiết bị và máy chủ. Chỉ bạn mới có thể giải mã bằng khóa chính của mình.
+  id: Alamat email Anda disimpan terenkripsi di perangkat dan server. Hanya Anda yang dapat mendekripsinya menggunakan kunci master Anda.
+  pl: Twój adres e-mail jest przechowywany w formie zaszyfrowanej na Twoim urządzeniu i serwerze. Tylko Ty możesz go odszyfrować używając swojego klucza głównego.
+  nl: Uw e-mailadres wordt versleuteld opgeslagen op uw apparaat en de server. Alleen u kunt het ontsleutelen met uw hoofdsleutel.
   ar: >-
     يتم تخزين عنوان بريدك الإلكتروني بشكل مشفر على جهازك والخادم.
     أنت وحدك يمكنك فك تشفيره باستخدام مفتاحك الرئيسي.
+  hi: आपका ईमेल पता आपके डिवाइस और सर्वर पर एन्क्रिप्टेड रूप में संग्रहीत है। केवल आप अपनी मास्टर कुंजी से इसे डिक्रिप्ट कर सकते हैं।
+  th: ที่อยู่อีเมลของคุณถูกจัดเก็บแบบเข้ารหัสบนอุปกรณ์และเซิร์ฟเวอร์ มีเพียงคุณเท่านั้นที่สามารถถอดรหัสได้โดยใช้มาสเตอร์คีย์ของคุณ
+  cs: Vaše e-mailová adresa je uložena zašifrovaně na vašem zařízení a serveru. Pouze vy ji můžete dešifrovat pomocí svého hlavního klíče.
+  sv: Din e-postadress lagras krypterad på din enhet och servern. Bara du kan dekryptera den med din huvudnyckel.
   he: כתובת האימייל שלך נשמרת מוצפנת במכשיר שלך ובשרת. רק לך יש אפשרות לפענח אותה באמצעות מפתח המאסטר שלך.
 email.copied:
   context: Notification shown when email address is copied to clipboard
   en: E-mail address copied to clipboard
   de: E-Mail-Adresse in die Zwischenablage kopiert
+  zh: 电子邮件地址已复制到剪贴板
+  es: Dirección de correo electrónico copiada al portapapeles
+  fr: Adresse e-mail copiée dans le presse-papiers
+  pt: Endereço de e-mail copiado para a área de transferência
+  ru: Адрес электронной почты скопирован в буфер обмена
+  ja: メールアドレスをクリップボードにコピーしました
+  ko: 이메일 주소가 클립보드에 복사되었습니다
+  it: Indirizzo e-mail copiato negli appunti
+  tr: E-posta adresi panoya kopyalandı
+  vi: Địa chỉ email đã được sao chép vào clipboard
+  id: Alamat email disalin ke clipboard
+  pl: Adres e-mail skopiowany do schowka
+  nl: E-mailadres gekopieerd naar klembord
   ar: تم نسخ عنوان البريد الإلكتروني إلى الحافظة
+  hi: ईमेल पता क्लिपबोर्ड पर कॉपी किया गया
+  th: คัดลอกที่อยู่อีเมลไปยังคลิปบอร์ดแล้ว
+  cs: E-mailová adresa zkopírována do schránky
+  sv: E-postadress kopierad till urklipp
   he: כתובת האימייל הועתקה ללוח
 email.error_decrypting:
   context: Error message when email decryption fails
   en: Failed to decrypt e-mail address.
   de: E-Mail-Adresse konnte nicht entschlüsselt werden.
+  zh: 解密电子邮件地址失败。
+  es: No se pudo descifrar la dirección de correo electrónico.
+  fr: Impossible de déchiffrer l'adresse e-mail.
+  pt: Falha ao descriptografar o endereço de e-mail.
+  ru: Не удалось расшифровать адрес электронной почты.
+  ja: メールアドレスの復号に失敗しました。
+  ko: 이메일 주소 복호화에 실패했습니다.
+  it: Impossibile decifrare l'indirizzo e-mail.
+  tr: E-posta adresi şifresi çözülemedi.
+  vi: Không thể giải mã địa chỉ email.
+  id: Gagal mendekripsi alamat email.
+  pl: Nie udało się odszyfrować adresu e-mail.
+  nl: Ontsleutelen van e-mailadres mislukt.
   ar: فشل فك تشفير عنوان البريد الإلكتروني.
+  hi: ईमेल पता डिक्रिप्ट करने में विफल।
+  th: ถอดรหัสที่อยู่อีเมลล้มเหลว
+  cs: Dešifrování e-mailové adresy se nezdařilo.
+  sv: Det gick inte att dekryptera e-postadressen.
   he: פענוח כתובת האימייל נכשל.
 security:
   context: Security submenu under Account settings
@@ -423,6 +525,78 @@ security:
   cs: Zabezpečení
   sv: Säkerhet
   he: אבטחה
+  verified_by_human: []
+security.sessions:
+  context: Breadcrumb label for the Sessions sub-page under Account > Security
+  en: Sessions
+  de: Sitzungen
+  zh: 会话
+  es: Sesiones
+  fr: Sessions
+  pt: Sessões
+  ru: Сессии
+  ja: セッション
+  ko: 세션
+  it: Sessioni
+  tr: Oturumlar
+  vi: Phiên
+  id: Sesi
+  pl: Sesje
+  nl: Sessies
+  ar: الجلسات
+  hi: सत्र
+  th: เซสชัน
+  cs: Relace
+  sv: Sessioner
+  he: הפעלות
+  verified_by_human: []
+security.sessions.confirm_pair:
+  context: Breadcrumb label for the Confirm Pair sub-page under Sessions
+  en: Confirm Pairing
+  de: Kopplung bestätigen
+  zh: 确认配对
+  es: Confirmar vinculación
+  fr: Confirmer l'appairage
+  pt: Confirmar emparelhamento
+  ru: Подтвердить сопряжение
+  ja: ペアリングを確認
+  ko: 페어링 확인
+  it: Conferma accoppiamento
+  tr: Eşleştirmeyi onayla
+  vi: Xác nhận ghép nối
+  id: Konfirmasi pemasangan
+  pl: Potwierdź parowanie
+  nl: Koppeling bevestigen
+  ar: تأكيد الاقتران
+  hi: पेयरिंग की पुष्टि करें
+  th: ยืนยันการจับคู่
+  cs: Potvrdit párování
+  sv: Bekräfta parkoppling
+  he: אישור שיוך
+  verified_by_human: []
+security.sessions.pair_initiate:
+  context: Breadcrumb label for the Pair Initiate sub-page under Sessions
+  en: Log In from Another Device
+  de: Von einem anderen Gerät anmelden
+  zh: 从另一台设备登录
+  es: Iniciar sesión desde otro dispositivo
+  fr: Se connecter depuis un autre appareil
+  pt: Entrar de outro dispositivo
+  ru: Войти с другого устройства
+  ja: 別のデバイスからログイン
+  ko: 다른 기기에서 로그인
+  it: Accedi da un altro dispositivo
+  tr: Başka bir cihazdan giriş yap
+  vi: Đăng nhập từ thiết bị khác
+  id: Masuk dari perangkat lain
+  pl: Zaloguj się z innego urządzenia
+  nl: Inloggen vanaf een ander apparaat
+  ar: تسجيل الدخول من جهاز آخر
+  hi: किसी अन्य डिवाइस से लॉगिन करें
+  th: เข้าสู่ระบบจากอุปกรณ์อื่น
+  cs: Přihlásit se z jiného zařízení
+  sv: Logga in från en annan enhet
+  he: כניסה ממכשיר אחר
   verified_by_human: []
 passkeys:
   context: Passkeys submenu under Security settings
@@ -479,21 +653,21 @@ profile_picture.upload:
   zh: 上传新图片
   es: Subir nueva foto
   fr: Télécharger une nouvelle photo
-  pt: ""
-  ru: ""
+  pt: Enviar nova foto
+  ru: Загрузить новое фото
   ja: 新しい画像をアップロード
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 새 사진 업로드
+  it: Carica nuova foto
+  tr: Yeni fotoğraf yükle
+  vi: Tải lên ảnh mới
+  id: Unggah foto baru
+  pl: Prześlij nowe zdjęcie
+  nl: Nieuwe foto uploaden
   ar: تحميل صورة جديدة
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: नई तस्वीर अपलोड करें
+  th: อัปโหลดรูปภาพใหม่
+  cs: Nahrát nový obrázek
+  sv: Ladda upp ny bild
   he: העלאת תמונה חדשה
   verified_by_human: []
 profile_picture.uploading:
@@ -503,21 +677,21 @@ profile_picture.uploading:
   zh: 上传中…
   es: Subiendo…
   fr: Téléchargement…
-  pt: ""
-  ru: ""
+  pt: Enviando…
+  ru: Загрузка…
   ja: アップロード中…
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 업로드 중…
+  it: Caricamento…
+  tr: Yükleniyor…
+  vi: Đang tải lên…
+  id: Mengunggah…
+  pl: Przesyłanie…
+  nl: Uploaden…
   ar: جارٍ التحميل…
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: अपलोड हो रहा है…
+  th: กำลังอัปโหลด…
+  cs: Nahrávání…
+  sv: Laddar upp…
   he: מעלה…
   verified_by_human: []
 profile_picture.upload_success:
@@ -527,21 +701,21 @@ profile_picture.upload_success:
   zh: 头像已更新
   es: Foto de perfil actualizada
   fr: Photo de profil mise à jour
-  pt: ""
-  ru: ""
+  pt: Foto de perfil atualizada
+  ru: Фото профиля обновлено
   ja: プロフィール写真が更新されました
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 프로필 사진이 업데이트되었습니다
+  it: Foto del profilo aggiornata
+  tr: Profil fotoğrafı güncellendi
+  vi: Ảnh đại diện đã được cập nhật
+  id: Foto profil diperbarui
+  pl: Zdjęcie profilowe zaktualizowane
+  nl: Profielfoto bijgewerkt
   ar: تم تحديث صورة الملف الشخصي
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: प्रोफ़ाइल चित्र अपडेट किया गया
+  th: อัปเดตรูปโปรไฟล์แล้ว
+  cs: Profilový obrázek aktualizován
+  sv: Profilbild uppdaterad
   he: תמונת הפרופיל עודכנה
   verified_by_human: []
 profile_picture.upload_error:
@@ -551,21 +725,21 @@ profile_picture.upload_error:
   zh: 上传失败，请重试。
   es: Error al subir. Inténtalo de nuevo.
   fr: Échec du téléchargement. Veuillez réessayer.
-  pt: ""
-  ru: ""
+  pt: Falha no upload. Por favor, tente novamente.
+  ru: Ошибка загрузки. Пожалуйста, попробуйте снова.
   ja: アップロードに失敗しました。再試行してください。
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 업로드에 실패했습니다. 다시 시도해 주세요.
+  it: Caricamento non riuscito. Riprova.
+  tr: Yükleme başarısız oldu. Lütfen tekrar deneyin.
+  vi: Tải lên thất bại. Vui lòng thử lại.
+  id: Gagal mengunggah. Silakan coba lagi.
+  pl: Przesyłanie nie powiodło się. Spróbuj ponownie.
+  nl: Uploaden mislukt. Probeer het opnieuw.
   ar: فشل التحميل. يرجى المحاولة مرة أخرى.
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: अपलोड विफल। कृपया पुनः प्रयास करें।
+  th: การอัปโหลดล้มเหลว กรุณาลองใหม่อีกครั้ง
+  cs: Nahrávání se nezdařilo. Zkuste to prosím znovu.
+  sv: Uppladdningen misslyckades. Försök igen.
   he: ההעלאה נכשלה. יש לנסות שוב.
   verified_by_human: []
 profile_picture.file_too_large:
@@ -575,21 +749,21 @@ profile_picture.file_too_large:
   zh: 图片太大，请选择较小的图片。
   es: La imagen es demasiado grande. Por favor, elige una imagen más pequeña.
   fr: L'image est trop grande. Veuillez choisir une image plus petite.
-  pt: ""
-  ru: ""
+  pt: A imagem é muito grande. Por favor, escolha uma imagem menor.
+  ru: Изображение слишком большое. Пожалуйста, выберите меньшее изображение.
   ja: 画像が大きすぎます。小さい画像を選んでください。
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 이미지가 너무 큽니다. 더 작은 이미지를 선택해 주세요.
+  it: L'immagine è troppo grande. Per favore, scegli un'immagine più piccola.
+  tr: Görsel çok büyük. Lütfen daha küçük bir görsel seçin.
+  vi: Ảnh quá lớn. Vui lòng chọn ảnh nhỏ hơn.
+  id: Gambar terlalu besar. Silakan pilih gambar yang lebih kecil.
+  pl: Obraz jest zbyt duży. Proszę wybrać mniejszy obraz.
+  nl: Afbeelding is te groot. Kies een kleinere afbeelding.
   ar: الصورة كبيرة جدًا. يرجى اختيار صورة أصغر.
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: छवि बहुत बड़ी है। कृपया एक छोटी छवि चुनें।
+  th: รูปภาพใหญ่เกินไป กรุณาเลือกรูปภาพที่เล็กกว่า
+  cs: Obrázek je příliš velký. Vyberte prosím menší obrázek.
+  sv: Bilden är för stor. Välj en mindre bild.
   he: התמונה גדולה מדי. יש לבחור תמונה קטנה יותר.
   verified_by_human: []
 profile_picture.wrong_format:
@@ -599,21 +773,21 @@ profile_picture.wrong_format:
   zh: 请选择 JPEG 或 PNG 格式的图片。
   es: Por favor, elige una imagen JPEG o PNG.
   fr: Veuillez choisir une image JPEG ou PNG.
-  pt: ""
-  ru: ""
+  pt: Por favor, escolha uma imagem JPEG ou PNG.
+  ru: Пожалуйста, выберите изображение в формате JPEG или PNG.
   ja: JPEGまたはPNG画像を選択してください。
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: JPEG 또는 PNG 이미지를 선택해 주세요.
+  it: Si prega di scegliere un'immagine JPEG o PNG.
+  tr: Lütfen bir JPEG veya PNG görsel seçin.
+  vi: Vui lòng chọn ảnh JPEG hoặc PNG.
+  id: Silakan pilih gambar JPEG atau PNG.
+  pl: Proszę wybrać obraz JPEG lub PNG.
+  nl: Kies een JPEG- of PNG-afbeelding.
   ar: يرجى اختيار صورة بتنسيق JPEG أو PNG.
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: कृपया JPEG या PNG छवि चुनें।
+  th: กรุณาเลือกรูปภาพ JPEG หรือ PNG
+  cs: Vyberte prosím obrázek ve formátu JPEG nebo PNG.
+  sv: Välj en JPEG- eller PNG-bild.
   he: יש לבחור תמונה בפורמט JPEG או PNG.
   verified_by_human: []
 storage:
@@ -2096,21 +2270,21 @@ timezone:
   zh: 时区
   es: Zona horaria
   fr: Fuseau horaire
-  pt: ""
-  ru: ""
+  pt: Fuso horário
+  ru: Часовой пояс
   ja: タイムゾーン
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 시간대
+  it: Fuso orario
+  tr: Saat dilimi
+  vi: Múi giờ
+  id: Zona waktu
+  pl: Strefa czasowa
+  nl: Tijdzone
   ar: المنطقة الزمنية
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: समय क्षेत्र
+  th: เขตเวลา
+  cs: Časové pásmo
+  sv: Tidszon
   he: אזור זמן
   verified_by_human: []
 timezone_current:
@@ -2120,21 +2294,21 @@ timezone_current:
   zh: 当前时区
   es: Zona horaria actual
   fr: Fuseau horaire actuel
-  pt: ""
-  ru: ""
+  pt: Fuso horário atual
+  ru: Текущий часовой пояс
   ja: 現在のタイムゾーン
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 현재 시간대
+  it: Fuso orario attuale
+  tr: Mevcut saat dilimi
+  vi: Múi giờ hiện tại
+  id: Zona waktu saat ini
+  pl: Aktualna strefa czasowa
+  nl: Huidige tijdzone
   ar: المنطقة الزمنية الحالية
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: वर्तमान समय क्षेत्र
+  th: เขตเวลาปัจจุบัน
+  cs: Aktuální časové pásmo
+  sv: Nuvarande tidszon
   he: אזור זמן נוכחי
   verified_by_human: []
 timezone_use_browser:
@@ -2144,21 +2318,21 @@ timezone_use_browser:
   zh: 使用浏览器时区
   es: Usar zona horaria del navegador
   fr: Utiliser le fuseau horaire du navigateur
-  pt: ""
-  ru: ""
+  pt: Usar fuso horário do navegador
+  ru: Использовать часовой пояс браузера
   ja: ブラウザのタイムゾーンを使用
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 브라우저 시간대 사용
+  it: Usa il fuso orario del browser
+  tr: Tarayıcı saat dilimini kullan
+  vi: Sử dụng múi giờ trình duyệt
+  id: Gunakan zona waktu browser
+  pl: Użyj strefy czasowej przeglądarki
+  nl: Browsertijdzone gebruiken
   ar: استخدام المنطقة الزمنية للمتصفح
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: ब्राउज़र समय क्षेत्र उपयोग करें
+  th: ใช้เขตเวลาของเบราว์เซอร์
+  cs: Použít časové pásmo prohlížeče
+  sv: Använd webbläsarens tidszon
   he: שימוש באזור הזמן של הדפדפן
   verified_by_human: []
 timezone_saved:
@@ -2168,21 +2342,21 @@ timezone_saved:
   zh: 时区已保存
   es: Zona horaria guardada
   fr: Fuseau horaire enregistré
-  pt: ""
-  ru: ""
+  pt: Fuso horário salvo
+  ru: Часовой пояс сохранён
   ja: タイムゾーンを保存しました
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 시간대가 저장되었습니다
+  it: Fuso orario salvato
+  tr: Saat dilimi kaydedildi
+  vi: Múi giờ đã được lưu
+  id: Zona waktu disimpan
+  pl: Strefa czasowa zapisana
+  nl: Tijdzone opgeslagen
   ar: تم حفظ المنطقة الزمنية
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: समय क्षेत्र सहेजा गया
+  th: บันทึกเขตเวลาแล้ว
+  cs: Časové pásmo uloženo
+  sv: Tidszon sparad
   he: אזור הזמן נשמר
   verified_by_human: []
 timezone_loading:
@@ -2192,21 +2366,21 @@ timezone_loading:
   zh: 正在加载时区设置...
   es: Cargando configuración de zona horaria...
   fr: Chargement des paramètres de fuseau horaire...
-  pt: ""
-  ru: ""
+  pt: Carregando configurações de fuso horário...
+  ru: Загрузка настроек часового пояса...
   ja: タイムゾーン設定を読み込み中...
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 시간대 설정 로딩 중...
+  it: Caricamento impostazioni fuso orario...
+  tr: Saat dilimi ayarları yükleniyor...
+  vi: Đang tải cài đặt múi giờ...
+  id: Memuat pengaturan zona waktu...
+  pl: Ładowanie ustawień strefy czasowej...
+  nl: Tijdzone-instellingen laden...
   ar: جارٍ تحميل إعدادات المنطقة الزمنية...
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: समय क्षेत्र सेटिंग लोड हो रही है...
+  th: กำลังโหลดการตั้งค่าเขตเวลา...
+  cs: Načítání nastavení časového pásma...
+  sv: Laddar tidszonsinställningar...
   he: טוען הגדרות אזור זמן...
   verified_by_human: []
 timezone_other:
@@ -2216,21 +2390,21 @@ timezone_other:
   zh: 其他
   es: Otro
   fr: Autre
-  pt: ""
-  ru: ""
+  pt: Outro
+  ru: Другое
   ja: その他
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 기타
+  it: Altro
+  tr: Diğer
+  vi: Khác
+  id: Lainnya
+  pl: Inne
+  nl: Overig
   ar: أخرى
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: अन्य
+  th: อื่นๆ
+  cs: Ostatní
+  sv: Övrigt
   he: אחר
   verified_by_human: []
 timezone_info:
@@ -2240,21 +2414,21 @@ timezone_info:
   zh: 您的时区用于安排提醒和显示时间。它已从您的浏览器自动检测，但您可以在此处更改。
   es: Su zona horaria se utiliza para programar recordatorios y mostrar horas. Se detectó automáticamente desde su navegador, pero puede cambiarla aquí.
   fr: Votre fuseau horaire est utilisé pour planifier les rappels et afficher les heures. Il a été détecté automatiquement depuis votre navigateur, mais vous pouvez le modifier ici.
-  pt: ""
-  ru: ""
+  pt: Seu fuso horário é usado para agendar lembretes e exibir horários. Foi detectado automaticamente pelo seu navegador, mas você pode alterá-lo aqui.
+  ru: Ваш часовой пояс используется для планирования напоминаний и отображения времени. Он был автоматически определён вашим браузером, но вы можете изменить его здесь.
   ja: タイムゾーンはリマインダーのスケジュールと時刻の表示に使用されます。ブラウザから自動的に検出されましたが、ここで変更できます。
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 시간대는 알림 예약 및 시간 표시에 사용됩니다. 브라우저에서 자동으로 감지되었지만 여기서 변경할 수 있습니다.
+  it: Il tuo fuso orario viene utilizzato per programmare promemoria e visualizzare gli orari. È stato rilevato automaticamente dal tuo browser, ma puoi modificarlo qui.
+  tr: Saat diliminiz hatırlatıcıları planlamak ve zamanları görüntülemek için kullanılır. Tarayıcınızdan otomatik olarak algılandı, ancak burada değiştirebilirsiniz.
+  vi: Múi giờ của bạn được sử dụng để lên lịch nhắc nhở và hiển thị thời gian. Nó được tự động phát hiện từ trình duyệt của bạn nhưng bạn có thể thay đổi nó ở đây.
+  id: Zona waktu Anda digunakan untuk menjadwalkan pengingat dan menampilkan waktu. Ini terdeteksi secara otomatis dari browser Anda tetapi Anda dapat mengubahnya di sini.
+  pl: Twoja strefa czasowa jest używana do planowania przypomnień i wyświetlania godzin. Została automatycznie wykryta z przeglądarki, ale możesz ją tutaj zmienić.
+  nl: Uw tijdzone wordt gebruikt voor het plannen van herinneringen en het weergeven van tijden. Deze is automatisch gedetecteerd vanuit uw browser, maar u kunt deze hier wijzigen.
   ar: تُستخدم منطقتك الزمنية لجدولة التذكيرات وعرض الأوقات. تم اكتشافها تلقائيًا من متصفحك ولكن يمكنك تغييرها هنا.
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: आपका समय क्षेत्र रिमाइंडर शेड्यूल करने और समय प्रदर्शित करने के लिए उपयोग किया जाता है। यह आपके ब्राउज़र से स्वचालित रूप से पता लगाया गया था लेकिन आप इसे यहां बदल सकते हैं।
+  th: เขตเวลาของคุณใช้สำหรับกำหนดเวลาเตือนความจำและแสดงเวลา ตรวจพบโดยอัตโนมัติจากเบราว์เซอร์ของคุณ แต่คุณสามารถเปลี่ยนได้ที่นี่
+  cs: Vaše časové pásmo se používá pro plánování připomenutí a zobrazování časů. Bylo automaticky detekováno z vašeho prohlížeče, ale zde ho můžete změnit.
+  sv: Din tidszon används för att schemalägga påminnelser och visa tider. Den detekterades automatiskt från din webbläsare men du kan ändra den här.
   he: אזור הזמן שלך משמש לתזמון תזכורות ולהצגת זמנים. הוא זוהה אוטומטית מהדפדפן שלך, אך ניתן לשנות אותו כאן.
   verified_by_human: []
 
@@ -2262,6 +2436,7 @@ chats:
   context: Chats submenu item label in Account settings — also used as the page title
   en: Chats
   de: Chats
+  zh: 聊天
   es: Chats
   fr: Chats
   pt: Chats
@@ -2270,207 +2445,687 @@ chats:
   ko: 채팅
   it: Chat
   tr: Sohbetler
-  zh: 聊天
+  vi: Cuộc trò chuyện
+  id: Obrolan
+  pl: Czaty
+  nl: Chats
   ar: المحادثات
   hi: चैट
+  th: แชท
+  cs: Chaty
+  sv: Chattar
   he: צ'אטים
   verified_by_human: []
 chats.description:
   context: Short description shown in the Chats settings page header
   en: Manage and review your chat history
   de: Chatverlauf verwalten und überprüfen
+  zh: 管理和查看您的聊天记录
   es: Administra y revisa tu historial de chats
   fr: Gérez et consultez votre historique de chats
+  pt: Gerencie e revise seu histórico de chats
+  ru: Управляйте и просматривайте историю чатов
+  ja: チャット履歴を管理・確認する
+  ko: 채팅 기록을 관리하고 검토하세요
+  it: Gestisci e rivedi la tua cronologia delle chat
+  tr: Sohbet geçmişinizi yönetin ve inceleyin
+  vi: Quản lý và xem lại lịch sử trò chuyện của bạn
+  id: Kelola dan tinjau riwayat obrolan Anda
+  pl: Zarządzaj i przeglądaj historię czatów
+  nl: Beheer en bekijk uw chatgeschiedenis
   ar: إدارة ومراجعة سجل المحادثات
+  hi: अपने चैट इतिहास को प्रबंधित और समीक्षा करें
+  th: จัดการและตรวจสอบประวัติการแชทของคุณ
+  cs: Spravujte a prohlížejte historii chatů
+  sv: Hantera och granska din chatthistorik
   he: ניהול ובדיקת היסטוריית הצ'אטים
   verified_by_human: []
 chats.total_count:
   context: Label showing total number of chats in the account, e.g. "142 Chats"
   en: "{count} Chats"
   de: "{count} Chats"
+  zh: "{count} 个聊天"
+  es: "{count} chats"
+  fr: "{count} chats"
+  pt: "{count} chats"
+  ru: "{count} чатов"
+  ja: "{count} 件のチャット"
+  ko: "{count}개 채팅"
+  it: "{count} chat"
+  tr: "{count} sohbet"
+  vi: "{count} cuộc trò chuyện"
+  id: "{count} obrolan"
+  pl: "{count} czatów"
+  nl: "{count} chats"
   ar: "{count} محادثات"
+  hi: "{count} चैट"
+  th: "{count} แชท"
+  cs: "{count} chatů"
+  sv: "{count} chattar"
   he: "{count} צ'אטים"
   verified_by_human: []
 chats.loading:
   context: Loading state text while chat stats are being fetched
   en: Loading...
   de: Laden...
+  zh: 加载中...
+  es: Cargando...
+  fr: Chargement...
+  pt: Carregando...
+  ru: Загрузка...
+  ja: 読み込み中...
+  ko: 로딩 중...
+  it: Caricamento...
+  tr: Yükleniyor...
+  vi: Đang tải...
+  id: Memuat...
+  pl: Ładowanie...
+  nl: Laden...
   ar: جارٍ التحميل...
+  hi: लोड हो रहा है...
+  th: กำลังโหลด...
+  cs: Načítání...
+  sv: Laddar...
   he: טוען...
   verified_by_human: []
 chats.error:
   context: Error message when chat stats fail to load
   en: Failed to load chat statistics
   de: Chat-Statistiken konnten nicht geladen werden
+  zh: 加载聊天统计信息失败
+  es: Error al cargar las estadísticas de chat
+  fr: Impossible de charger les statistiques de chat
+  pt: Falha ao carregar estatísticas de chat
+  ru: Не удалось загрузить статистику чата
+  ja: チャット統計の読み込みに失敗しました
+  ko: 채팅 통계를 불러오지 못했습니다
+  it: Impossibile caricare le statistiche della chat
+  tr: Sohbet istatistikleri yüklenemedi
+  vi: Không thể tải thống kê trò chuyện
+  id: Gagal memuat statistik obrolan
+  pl: Nie udało się załadować statystyk czatu
+  nl: Chatstatistieken laden mislukt
   ar: فشل تحميل إحصائيات المحادثات
+  hi: चैट आंकड़े लोड करने में विफल
+  th: โหลดสถิติแชทล้มเหลว
+  cs: Načtení statistik chatu se nezdařilo
+  sv: Det gick inte att ladda chattstatistik
   he: טעינת נתוני הצ'אט נכשלה
   verified_by_human: []
 chats.retry:
   context: Button label to retry loading chat stats after error
   en: Retry
   de: Erneut versuchen
+  zh: 重试
+  es: Reintentar
+  fr: Réessayer
+  pt: Tentar novamente
+  ru: Повторить
+  ja: 再試行
+  ko: 다시 시도
+  it: Riprova
+  tr: Yeniden dene
+  vi: Thử lại
+  id: Coba lagi
+  pl: Spróbuj ponownie
+  nl: Opnieuw proberen
   ar: إعادة المحاولة
+  hi: पुनः प्रयास करें
+  th: ลองอีกครั้ง
+  cs: Zkusit znovu
+  sv: Försök igen
   he: נסה שוב
   verified_by_human: []
 chats.timeline_title:
   context: Section heading above the chat creation timeline graph
   en: Chat Creation Over Time
   de: Chat-Verlauf im Zeitverlauf
+  zh: 聊天创建时间轴
+  es: Creación de chats a lo largo del tiempo
+  fr: Création de chats dans le temps
+  pt: Criação de chats ao longo do tempo
+  ru: История создания чатов
+  ja: チャット作成の時系列
+  ko: 시간별 채팅 생성
+  it: Creazione chat nel tempo
+  tr: Zaman içinde sohbet oluşturma
+  vi: Tạo cuộc trò chuyện theo thời gian
+  id: Pembuatan obrolan dari waktu ke waktu
+  pl: Tworzenie czatów w czasie
+  nl: Chatcreatie in de tijd
   ar: إنشاء المحادثات عبر الزمن
+  hi: समय के साथ चैट निर्माण
+  th: การสร้างแชทตามเวลา
+  cs: Vytváření chatů v čase
+  sv: Chattskapande över tid
   he: יצירת צ'אטים לאורך זמן
   verified_by_human: []
 chats.timeline_empty:
   context: Text shown when there are no chats to display in the timeline
   en: No chats yet
   de: Noch keine Chats
+  zh: 暂无聊天
+  es: Aún no hay chats
+  fr: Pas encore de chats
+  pt: Ainda sem chats
+  ru: Пока нет чатов
+  ja: まだチャットはありません
+  ko: 아직 채팅이 없습니다
+  it: Ancora nessuna chat
+  tr: Henüz sohbet yok
+  vi: Chưa có cuộc trò chuyện
+  id: Belum ada obrolan
+  pl: Brak czatów
+  nl: Nog geen chats
   ar: لا توجد محادثات بعد
+  hi: अभी तक कोई चैट नहीं
+  th: ยังไม่มีแชท
+  cs: Zatím žádné chaty
+  sv: Inga chattar än
   he: אין צ'אטים עדיין
   verified_by_human: []
 chats.delete_section_title:
   context: Section heading for the "Delete old chats" area
   en: Delete Old Chats
   de: Alte Chats löschen
+  zh: 删除旧聊天
+  es: Eliminar chats antiguos
+  fr: Supprimer les anciens chats
+  pt: Excluir chats antigos
+  ru: Удалить старые чаты
+  ja: 古いチャットを削除
+  ko: 오래된 채팅 삭제
+  it: Elimina vecchie chat
+  tr: Eski sohbetleri sil
+  vi: Xóa cuộc trò chuyện cũ
+  id: Hapus obrolan lama
+  pl: Usuń stare czaty
+  nl: Oude chats verwijderen
   ar: حذف المحادثات القديمة
+  hi: पुरानी चैट हटाएं
+  th: ลบแชทเก่า
+  cs: Smazat staré chaty
+  sv: Ta bort gamla chattar
   he: מחק צ'אטים ישנים
   verified_by_human: []
 chats.delete_section_desc:
   context: Description below the delete old chats section title — activity means last message sent/received
   en: Permanently delete chats with no activity for the selected period. This cannot be undone.
   de: Chats, die älter als der ausgewählte Zeitraum sind, werden dauerhaft gelöscht. Dieser Vorgang kann nicht rückgängig gemacht werden.
+  zh: 永久删除选定期间内没有活动的聊天。此操作无法撤销。
+  es: Eliminar permanentemente chats sin actividad durante el período seleccionado. Esta acción no se puede deshacer.
+  fr: Supprimer définitivement les chats sans activité pendant la période sélectionnée. Cette action ne peut pas être annulée.
+  pt: Excluir permanentemente chats sem atividade no período selecionado. Esta ação não pode ser desfeita.
+  ru: Навсегда удалить чаты без активности за выбранный период. Это действие нельзя отменить.
+  ja: 選択した期間に活動のないチャットを永久に削除します。この操作は元に戻せません。
+  ko: 선택한 기간 동안 활동이 없는 채팅을 영구적으로 삭제합니다. 이 작업은 취소할 수 없습니다.
+  it: Elimina definitivamente le chat senza attività per il periodo selezionato. Questa azione non può essere annullata.
+  tr: Seçilen dönem boyunca etkinlik olmayan sohbetleri kalıcı olarak sil. Bu işlem geri alınamaz.
+  vi: Xóa vĩnh viễn các cuộc trò chuyện không có hoạt động trong khoảng thời gian đã chọn. Không thể hoàn tác thao tác này.
+  id: Hapus secara permanen obrolan tanpa aktivitas selama periode yang dipilih. Tindakan ini tidak dapat dibatalkan.
+  pl: Trwale usuń czaty bez aktywności w wybranym okresie. Tej czynności nie można cofnąć.
+  nl: Verwijder permanent chats zonder activiteit in de geselecteerde periode. Dit kan niet ongedaan worden gemaakt.
   ar: حذف المحادثات الأقدم من الفترة المحددة بشكل دائم. لا يمكن التراجع عن هذا الإجراء.
+  hi: चयनित अवधि के लिए कोई गतिविधि नहीं होने वाली चैट को स्थायी रूप से हटाएं। यह क्रिया पूर्ववत नहीं की जा सकती।
+  th: ลบแชทที่ไม่มีกิจกรรมในช่วงเวลาที่เลือกอย่างถาวร ไม่สามารถยกเลิกการดำเนินการนี้ได้
+  cs: Trvale smaže chaty bez aktivity za vybrané období. Tuto akci nelze vrátit zpět.
+  sv: Ta permanent bort chattar utan aktivitet under den valda perioden. Detta kan inte ångras.
   he: מחיקה סופית של צ'אטים ישנים יותר מהתקופה הנבחרת. לא ניתן לבטל פעולה זו.
   verified_by_human: []
 chats.delete_older_than:
   context: Dropdown label — filters by last message activity, not chat creation date
   en: No activity for
   de: Älter als
+  zh: 无活动时间
+  es: Sin actividad durante
+  fr: Aucune activité depuis
+  pt: Sem atividade por
+  ru: Нет активности в течение
+  ja: 活動なし期間
+  ko: 활동 없음 기간
+  it: Nessuna attività per
+  tr: Etkinlik yok süre
+  vi: Không có hoạt động trong
+  id: Tidak ada aktivitas selama
+  pl: Brak aktywności przez
+  nl: Geen activiteit gedurende
   ar: أقدم من
+  hi: कोई गतिविधि नहीं
+  th: ไม่มีกิจกรรมเป็นเวลา
+  cs: Žádná aktivita po dobu
+  sv: Ingen aktivitet i
   he: ישן מ-
   verified_by_human: []
 chats.delete_option_1d:
   context: Dropdown option — delete chats older than 1 day
   en: 1 day
   de: 1 Tag
+  zh: 1 天
+  es: 1 día
+  fr: 1 jour
+  pt: 1 dia
+  ru: 1 день
+  ja: 1日
+  ko: 1일
+  it: 1 giorno
+  tr: 1 gün
+  vi: 1 ngày
+  id: 1 hari
+  pl: 1 dzień
+  nl: 1 dag
   ar: يوم واحد
+  hi: 1 दिन
+  th: 1 วัน
+  cs: 1 den
+  sv: 1 dag
   he: יום אחד
   verified_by_human: []
 chats.delete_option_7d:
   context: Dropdown option — delete chats older than 7 days
   en: 7 days
   de: 7 Tage
+  zh: 7 天
+  es: 7 días
+  fr: 7 jours
+  pt: 7 dias
+  ru: 7 дней
+  ja: 7日
+  ko: 7일
+  it: 7 giorni
+  tr: 7 gün
+  vi: 7 ngày
+  id: 7 hari
+  pl: 7 dni
+  nl: 7 dagen
   ar: 7 أيام
+  hi: 7 दिन
+  th: 7 วัน
+  cs: 7 dní
+  sv: 7 dagar
   he: 7 ימים
   verified_by_human: []
 chats.delete_option_14d:
   context: Dropdown option — delete chats older than 14 days
   en: 14 days
   de: 14 Tage
+  zh: 14 天
+  es: 14 días
+  fr: 14 jours
+  pt: 14 dias
+  ru: 14 дней
+  ja: 14日
+  ko: 14일
+  it: 14 giorni
+  tr: 14 gün
+  vi: 14 ngày
+  id: 14 hari
+  pl: 14 dni
+  nl: 14 dagen
   ar: 14 يومًا
+  hi: 14 दिन
+  th: 14 วัน
+  cs: 14 dní
+  sv: 14 dagar
   he: 14 ימים
   verified_by_human: []
 chats.delete_option_30d:
   context: Dropdown option — delete chats older than 30 days
   en: 30 days
   de: 30 Tage
+  zh: 30 天
+  es: 30 días
+  fr: 30 jours
+  pt: 30 dias
+  ru: 30 дней
+  ja: 30日
+  ko: 30일
+  it: 30 giorni
+  tr: 30 gün
+  vi: 30 ngày
+  id: 30 hari
+  pl: 30 dni
+  nl: 30 dagen
   ar: 30 يومًا
+  hi: 30 दिन
+  th: 30 วัน
+  cs: 30 dní
+  sv: 30 dagar
   he: 30 ימים
   verified_by_human: []
 chats.delete_option_90d:
   context: Dropdown option — delete chats older than 90 days
   en: 90 days
   de: 90 Tage
+  zh: 90 天
+  es: 90 días
+  fr: 90 jours
+  pt: 90 dias
+  ru: 90 дней
+  ja: 90日
+  ko: 90일
+  it: 90 giorni
+  tr: 90 gün
+  vi: 90 ngày
+  id: 90 hari
+  pl: 90 dni
+  nl: 90 dagen
   ar: 90 يومًا
+  hi: 90 दिन
+  th: 90 วัน
+  cs: 90 dní
+  sv: 90 dagar
   he: 90 ימים
   verified_by_human: []
 chats.delete_option_all:
   context: Dropdown option — delete ALL chats regardless of age
   en: All chats
   de: Alle Chats
+  zh: 所有聊天
+  es: Todos los chats
+  fr: Tous les chats
+  pt: Todos os chats
+  ru: Все чаты
+  ja: すべてのチャット
+  ko: 모든 채팅
+  it: Tutte le chat
+  tr: Tüm sohbetler
+  vi: Tất cả cuộc trò chuyện
+  id: Semua obrolan
+  pl: Wszystkie czaty
+  nl: Alle chats
   ar: جميع المحادثات
+  hi: सभी चैट
+  th: แชททั้งหมด
+  cs: Všechny chaty
+  sv: Alla chattar
   he: כל הצ'אטים
   verified_by_human: []
 chats.delete_button:
   context: Button to trigger deletion of old chats
   en: Delete Old Chats
   de: Alte Chats löschen
+  zh: 删除旧聊天
+  es: Eliminar chats antiguos
+  fr: Supprimer les anciens chats
+  pt: Excluir chats antigos
+  ru: Удалить старые чаты
+  ja: 古いチャットを削除
+  ko: 오래된 채팅 삭제
+  it: Elimina vecchie chat
+  tr: Eski sohbetleri sil
+  vi: Xóa cuộc trò chuyện cũ
+  id: Hapus obrolan lama
+  pl: Usuń stare czaty
+  nl: Oude chats verwijderen
   ar: حذف المحادثات القديمة
+  hi: पुरानी चैट हटाएं
+  th: ลบแชทเก่า
+  cs: Smazat staré chaty
+  sv: Ta bort gamla chattar
   he: מחק צ'אטים ישנים
   verified_by_human: []
 chats.delete_confirm_title:
   context: Confirmation dialog title before deleting old chats
   en: Delete Old Chats?
   de: Alte Chats löschen?
+  zh: 删除旧聊天？
+  es: ¿Eliminar chats antiguos?
+  fr: Supprimer les anciens chats ?
+  pt: Excluir chats antigos?
+  ru: Удалить старые чаты?
+  ja: 古いチャットを削除しますか？
+  ko: 오래된 채팅을 삭제하시겠습니까?
+  it: Eliminare le vecchie chat?
+  tr: Eski sohbetler silinsin mi?
+  vi: Xóa cuộc trò chuyện cũ?
+  id: Hapus obrolan lama?
+  pl: Usunąć stare czaty?
+  nl: Oude chats verwijderen?
   ar: حذف المحادثات القديمة؟
+  hi: पुरानी चैट हटाएं?
+  th: ลบแชทเก่า?
+  cs: Smazat staré chaty?
+  sv: Ta bort gamla chattar?
   he: למחוק צ'אטים ישנים?
   verified_by_human: []
 chats.delete_confirm_desc:
   context: Confirmation dialog body explaining what will be deleted, {days} is the number of days
   en: "This will permanently delete all chats older than {days} days. This action cannot be undone."
   de: "Dadurch werden alle Chats, die älter als {days} Tage sind, dauerhaft gelöscht. Diese Aktion kann nicht rückgängig gemacht werden."
+  zh: "这将永久删除所有超过 {days} 天的聊天。此操作无法撤销。"
+  es: "Esto eliminará permanentemente todos los chats con más de {days} días. Esta acción no se puede deshacer."
+  fr: "Cela supprimera définitivement tous les chats de plus de {days} jours. Cette action ne peut pas être annulée."
+  pt: "Isso excluirá permanentemente todos os chats com mais de {days} dias. Esta ação não pode ser desfeita."
+  ru: "Это навсегда удалит все чаты старше {days} дней. Это действие нельзя отменить."
+  ja: "{days}日を超えるすべてのチャットが永久に削除されます。この操作は元に戻せません。"
+  ko: "{days}일보다 오래된 모든 채팅이 영구적으로 삭제됩니다. 이 작업은 취소할 수 없습니다."
+  it: "Questo eliminerà definitivamente tutte le chat più vecchie di {days} giorni. Questa azione non può essere annullata."
+  tr: "Bu, {days} günden eski tüm sohbetleri kalıcı olarak silecek. Bu işlem geri alınamaz."
+  vi: "Thao tác này sẽ xóa vĩnh viễn tất cả cuộc trò chuyện cũ hơn {days} ngày. Không thể hoàn tác hành động này."
+  id: "Ini akan menghapus secara permanen semua obrolan yang lebih dari {days} hari. Tindakan ini tidak dapat dibatalkan."
+  pl: "Spowoduje to trwałe usunięcie wszystkich czatów starszych niż {days} dni. Tej czynności nie można cofnąć."
+  nl: "Hiermee worden alle chats ouder dan {days} dagen permanent verwijderd. Deze actie kan niet ongedaan worden gemaakt."
   ar: "سيؤدي هذا إلى حذف جميع المحادثات الأقدم من {days} أيام بشكل دائم. لا يمكن التراجع عن هذا الإجراء."
+  hi: "यह {days} दिनों से पुरानी सभी चैट को स्थायी रूप से हटा देगा। यह क्रिया पूर्ववत नहीं की जा सकती।"
+  th: "การดำเนินการนี้จะลบแชททั้งหมดที่เก่ากว่า {days} วันอย่างถาวร ไม่สามารถยกเลิกการดำเนินการนี้ได้"
+  cs: "Tím se trvale smaží všechny chaty starší než {days} dní. Tuto akci nelze vrátit zpět."
+  sv: "Det här tar permanent bort alla chattar äldre än {days} dagar. Den här åtgärden kan inte ångras."
   he: "פעולה זו תמחק לצמיתות את כל הצ'אטים הישנים מ-{days} ימים. לא ניתן לבטל פעולה זו."
   verified_by_human: []
 chats.delete_confirm_button:
   context: Confirmation button to proceed with deletion of old chats
   en: Delete
   de: Löschen
+  zh: 删除
+  es: Eliminar
+  fr: Supprimer
+  pt: Excluir
+  ru: Удалить
+  ja: 削除
+  ko: 삭제
+  it: Elimina
+  tr: Sil
+  vi: Xóa
+  id: Hapus
+  pl: Usuń
+  nl: Verwijderen
   ar: حذف
+  hi: हटाएं
+  th: ลบ
+  cs: Smazat
+  sv: Radera
   he: מחק
   verified_by_human: []
 chats.delete_cancel_button:
   context: Cancel button in the delete confirmation dialog
   en: Cancel
   de: Abbrechen
+  zh: 取消
+  es: Cancelar
+  fr: Annuler
+  pt: Cancelar
+  ru: Отмена
+  ja: キャンセル
+  ko: 취소
+  it: Annulla
+  tr: İptal
+  vi: Hủy
+  id: Batal
+  pl: Anuluj
+  nl: Annuleren
   ar: إلغاء
+  hi: रद्द करें
+  th: ยกเลิก
+  cs: Zrušit
+  sv: Avbryt
   he: ביטול
   verified_by_human: []
 chats.delete_deleting:
   context: Status text shown while deletion is in progress
   en: Deleting...
   de: Wird gelöscht...
+  zh: 正在删除...
+  es: Eliminando...
+  fr: Suppression...
+  pt: Excluindo...
+  ru: Удаление...
+  ja: 削除中...
+  ko: 삭제 중...
+  it: Eliminazione in corso...
+  tr: Siliniyor...
+  vi: Đang xóa...
+  id: Menghapus...
+  pl: Usuwanie...
+  nl: Verwijderen...
   ar: جارٍ الحذف...
+  hi: हटाया जा रहा है...
+  th: กำลังลบ...
+  cs: Mazání...
+  sv: Tar bort...
   he: מוחק...
   verified_by_human: []
 chats.delete_success:
   context: Success message shown after chats are deleted, {count} is the number deleted
   en: "{count} chats deleted"
   de: "{count} Chats gelöscht"
+  zh: "已删除 {count} 个聊天"
+  es: "{count} chats eliminados"
+  fr: "{count} chats supprimés"
+  pt: "{count} chats excluídos"
+  ru: "{count} чатов удалено"
+  ja: "{count} 件のチャットが削除されました"
+  ko: "{count}개 채팅이 삭제되었습니다"
+  it: "{count} chat eliminate"
+  tr: "{count} sohbet silindi"
+  vi: "Đã xóa {count} cuộc trò chuyện"
+  id: "{count} obrolan dihapus"
+  pl: "{count} czatów usuniętych"
+  nl: "{count} chats verwijderd"
   ar: "تم حذف {count} محادثات"
+  hi: "{count} चैट हटाई गई"
+  th: "ลบ {count} แชทแล้ว"
+  cs: "{count} chatů smazáno"
+  sv: "{count} chattar raderade"
   he: "{count} צ'אטים נמחקו"
   verified_by_human: []
 chats.delete_none:
   context: Message shown when no chats were found to delete
   en: No chats found older than the selected period
   de: Keine Chats gefunden, die älter als der ausgewählte Zeitraum sind
+  zh: 未找到超过所选期限的聊天
+  es: No se encontraron chats más antiguos que el período seleccionado
+  fr: Aucun chat trouvé plus ancien que la période sélectionnée
+  pt: Nenhum chat encontrado com mais do que o período selecionado
+  ru: Чаты старше выбранного периода не найдены
+  ja: 選択した期間より古いチャットは見つかりませんでした
+  ko: 선택한 기간보다 오래된 채팅이 없습니다
+  it: Nessuna chat trovata più vecchia del periodo selezionato
+  tr: Seçilen dönemden daha eski sohbet bulunamadı
+  vi: Không tìm thấy cuộc trò chuyện nào cũ hơn khoảng thời gian đã chọn
+  id: Tidak ada obrolan yang lebih lama dari periode yang dipilih
+  pl: Nie znaleziono czatów starszych niż wybrany okres
+  nl: Geen chats gevonden die ouder zijn dan de geselecteerde periode
   ar: لم يتم العثور على محادثات أقدم من الفترة المحددة
+  hi: चयनित अवधि से पुरानी कोई चैट नहीं मिली
+  th: ไม่พบแชทที่เก่ากว่าช่วงเวลาที่เลือก
+  cs: Nenalezeny žádné chaty starší než vybrané období
+  sv: Inga chattar hittades äldre än den valda perioden
   he: לא נמצאו צ'אטים ישנים יותר מהתקופה הנבחרת
   verified_by_human: []
 chats.preview_button:
   context: Button label to preview how many chats will be deleted before confirming
   en: Preview
   de: Vorschau
+  zh: 预览
+  es: Vista previa
+  fr: Aperçu
+  pt: Visualizar
+  ru: Предпросмотр
+  ja: プレビュー
+  ko: 미리보기
+  it: Anteprima
+  tr: Önizleme
+  vi: Xem trước
+  id: Pratinjau
+  pl: Podgląd
+  nl: Voorbeeld
   ar: معاينة
+  hi: पूर्वावलोकन
+  th: ดูตัวอย่าง
+  cs: Náhled
+  sv: Förhandsvisning
   he: תצוגה מקדימה
   verified_by_human: []
 chats.preview_result:
   context: Text showing how many chats will be deleted, {count} is the number, shown after clicking Preview
   en: "{count} chats will be deleted"
   de: "{count} Chats werden gelöscht"
+  zh: "将删除 {count} 个聊天"
+  es: "Se eliminarán {count} chats"
+  fr: "{count} chats seront supprimés"
+  pt: "{count} chats serão excluídos"
+  ru: "{count} чатов будет удалено"
+  ja: "{count} 件のチャットが削除されます"
+  ko: "{count}개 채팅이 삭제됩니다"
+  it: "{count} chat verranno eliminate"
+  tr: "{count} sohbet silinecek"
+  vi: "{count} cuộc trò chuyện sẽ bị xóa"
+  id: "{count} obrolan akan dihapus"
+  pl: "{count} czatów zostanie usuniętych"
+  nl: "{count} chats worden verwijderd"
   ar: "سيتم حذف {count} محادثة"
+  hi: "{count} चैट हटाई जाएंगी"
+  th: "จะลบ {count} แชท"
+  cs: "{count} chatů bude smazáno"
+  sv: "{count} chattar kommer att raderas"
   he: "{count} צ'אטים יימחקו"
   verified_by_human: []
 chats.preview_none:
   context: Text shown in preview when no chats would be deleted for the selected period
   en: No chats will be deleted
   de: Keine Chats werden gelöscht
+  zh: 不会删除任何聊天
+  es: No se eliminará ningún chat
+  fr: Aucun chat ne sera supprimé
+  pt: Nenhum chat será excluído
+  ru: Чаты не будут удалены
+  ja: 削除されるチャットはありません
+  ko: 삭제될 채팅이 없습니다
+  it: Nessuna chat verrà eliminata
+  tr: Hiçbir sohbet silinmeyecek
+  vi: Không có cuộc trò chuyện nào sẽ bị xóa
+  id: Tidak ada obrolan yang akan dihapus
+  pl: Żadne czaty nie zostaną usunięte
+  nl: Er worden geen chats verwijderd
   ar: لن يتم حذف أي محادثات
+  hi: कोई चैट नहीं हटाई जाएगी
+  th: ไม่มีแชทที่จะถูกลบ
+  cs: Žádné chaty nebudou smazány
+  sv: Inga chattar kommer att raderas
   he: לא יימחקו צ'אטים
   verified_by_human: []
 chats.preview_loading:
   context: Loading text shown while the preview count is being fetched
   en: Checking...
   de: Wird geprüft...
+  zh: 检查中...
+  es: Comprobando...
+  fr: Vérification...
+  pt: Verificando...
+  ru: Проверка...
+  ja: 確認中...
+  ko: 확인 중...
+  it: Controllo in corso...
+  tr: Kontrol ediliyor...
+  vi: Đang kiểm tra...
+  id: Memeriksa...
+  pl: Sprawdzanie...
+  nl: Controleren...
   ar: جارٍ التحقق...
+  hi: जांच हो रही है...
+  th: กำลังตรวจสอบ...
+  cs: Kontrola...
+  sv: Kontrollerar...
   he: בודק...
   verified_by_human: []
 export_select_all:

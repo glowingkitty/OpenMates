@@ -30,6 +30,7 @@
     "overrides": {
       "@isaacs/brace-expansion": "^5.0.1",
       "glob": "^13.0.0",
+      "workbox-build>glob": "7",
       "devalue": "^5.6.4",
       "@sveltejs/kit": "^2.55.0",
       "cookie": "1.1.1",
