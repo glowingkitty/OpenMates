@@ -573,6 +573,31 @@ delete:
   he: מחיקה
   verified_by_human: []
 
+edit:
+  context: "Generic UI text: Edit"
+  en: Edit
+  de: Bearbeiten
+  zh: 编辑
+  es: Editar
+  fr: Modifier
+  pt: Editar
+  ru: Редактировать
+  ja: 編集
+  ko: 편집
+  it: Modifica
+  tr: Düzenle
+  vi: Chỉnh sửa
+  id: Edit
+  pl: Edytuj
+  nl: Bewerken
+  ar: تعديل
+  hi: संपादित करें
+  th: แก้ไข
+  cs: Upravit
+  sv: Redigera
+  he: עריכה
+  verified_by_human: []
+
 email:
   context: "Generic UI text: Email"
   en: Email

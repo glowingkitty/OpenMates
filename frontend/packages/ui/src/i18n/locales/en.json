@@ -2939,6 +2939,9 @@
     "delete": {
       "text": "Delete"
     },
+    "edit": {
+      "text": "Edit"
+    },
     "email": {
       "text": "Email"
     },
