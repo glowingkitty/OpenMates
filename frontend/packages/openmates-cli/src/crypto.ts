@@ -14,6 +14,14 @@ const cryptoApi = globalThis.crypto ?? webcrypto;
 const PAIR_KDF_ITERATIONS = 100_000;
 const AES_GCM_IV_LENGTH = 12;
 
+// New ciphertext format: [0x4F 0x4D][4-byte key fingerprint][IV][ciphertext]
+// The web app's encryptWithChatKey() now prepends "OM" magic + fingerprint.
+// We detect this header and skip it to find the actual IV.
+const CIPHERTEXT_MAGIC_0 = 0x4f; // 'O'
+const CIPHERTEXT_MAGIC_1 = 0x4d; // 'M'
+const FINGERPRINT_LENGTH = 4;
+const CIPHERTEXT_HEADER_LENGTH = 2 + FINGERPRINT_LENGTH; // 6 bytes
+
 export function base64ToBytes(input: string): Uint8Array {
   return new Uint8Array(Buffer.from(input, "base64"));
 }
@@ -80,8 +88,19 @@ export async function decryptWithAesGcmCombined(
     if (combined.length <= AES_GCM_IV_LENGTH) {
       return null;
     }
-    const iv = combined.slice(0, AES_GCM_IV_LENGTH);
-    const ciphertext = combined.slice(AES_GCM_IV_LENGTH);
+
+    // Detect new "OM" format: [magic 2B][fingerprint 4B][IV 12B][ciphertext]
+    let offset = 0;
+    if (
+      combined.length > CIPHERTEXT_HEADER_LENGTH + AES_GCM_IV_LENGTH &&
+      combined[0] === CIPHERTEXT_MAGIC_0 &&
+      combined[1] === CIPHERTEXT_MAGIC_1
+    ) {
+      offset = CIPHERTEXT_HEADER_LENGTH;
+    }
+
+    const iv = combined.slice(offset, offset + AES_GCM_IV_LENGTH);
+    const ciphertext = combined.slice(offset + AES_GCM_IV_LENGTH);
     const key = await cryptoApi.subtle.importKey(
       "raw",
       toArrayBuffer(rawKeyBytes),
@@ -117,8 +136,19 @@ export async function decryptBytesWithAesGcm(
     if (combined.length <= AES_GCM_IV_LENGTH) {
       return null;
     }
-    const iv = combined.slice(0, AES_GCM_IV_LENGTH);
-    const ciphertext = combined.slice(AES_GCM_IV_LENGTH);
+
+    // Detect new "OM" format: [magic 2B][fingerprint 4B][IV 12B][ciphertext]
+    let offset = 0;
+    if (
+      combined.length > CIPHERTEXT_HEADER_LENGTH + AES_GCM_IV_LENGTH &&
+      combined[0] === CIPHERTEXT_MAGIC_0 &&
+      combined[1] === CIPHERTEXT_MAGIC_1
+    ) {
+      offset = CIPHERTEXT_HEADER_LENGTH;
+    }
+
+    const iv = combined.slice(offset, offset + AES_GCM_IV_LENGTH);
+    const ciphertext = combined.slice(offset + AES_GCM_IV_LENGTH);
     const key = await cryptoApi.subtle.importKey(
       "raw",
       toArrayBuffer(rawKeyBytes),
