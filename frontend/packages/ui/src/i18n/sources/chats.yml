@@ -1,3 +1,75 @@
+context_menu.download:
+  context: Menu option to download chat as markdown file
+  en: Download
+  de: Herunterladen
+  zh: 下载
+  es: Descargar
+  fr: Télécharger
+  pt: Baixar
+  ru: Загрузить
+  ja: ダウンロード
+  ko: 다운로드
+  it: Scarica
+  tr: İndir
+  vi: Tải xuống
+  id: Unduh
+  pl: Pobierz
+  nl: Downloaden
+  ar: تحميل
+  hi: डाउनलोड
+  th: ดาวน์โหลด
+  cs: Stáhnout
+  sv: Ladda ned
+  he: הורדה
+  verified_by_human: []
+context_menu.copy:
+  context: Menu option to copy chat (YAML with embedded link) to clipboard. When pasted inside OpenMates, only the link is used. When pasted outside, the full YAML is available.
+  en: Copy
+  de: Kopieren
+  zh: 复制
+  es: Copiar
+  fr: Copier
+  pt: Copiar
+  ru: Копировать
+  ja: コピー
+  ko: 복사
+  it: Copia
+  tr: Kopyala
+  vi: Sao chép
+  id: Salin
+  pl: Kopiuj
+  nl: Kopiëren
+  ar: نسخ
+  hi: कॉपी करें
+  th: คัดลอก
+  cs: Kopírovat
+  sv: Kopiera
+  he: העתקה
+  verified_by_human: []
+context_menu.delete:
+  context: Menu option to delete chat and all its messages
+  en: Delete
+  de: Löschen
+  zh: 删除
+  es: Eliminar
+  fr: Supprimer
+  pt: Excluir
+  ru: Удалить
+  ja: 削除
+  ko: 삭제
+  it: Elimina
+  tr: Sil
+  vi: Xóa
+  id: Hapus
+  pl: Usuń
+  nl: Verwijderen
+  ar: حذف
+  hi: हटाएं
+  th: ลบ
+  cs: Smazat
+  sv: Ta bort
+  he: מחיקה
+  verified_by_human: []
 context_menu.confirm:
   context: Menu option to confirm deletion of chat
   en: Confirm
@@ -323,6 +395,31 @@ context_menu.hide:
   he: הסתרה
   verified_by_human: []
 
+context_menu.share:
+  context: Menu option to share a chat (opens the share settings deep link)
+  en: Share
+  de: Teilen
+  zh: 分享
+  es: Compartir
+  fr: Partager
+  pt: Compartilhar
+  ru: Поделиться
+  ja: 共有
+  ko: 공유
+  it: Condividi
+  tr: Paylaş
+  vi: Chia sẻ
+  id: Bagikan
+  pl: Udostępnij
+  nl: Delen
+  ar: مشاركة
+  hi: साझा करें
+  th: แชร์
+  cs: Sdílet
+  sv: Dela
+  he: שיתוף
+  verified_by_human: []
+
 hidden_chats.unlock:
   context: Button to unlock hidden chats
   en: Unlock hidden chats
@@ -621,6 +718,31 @@ hidden_chats.set_code_button:
   cs: Nastavit kód
   sv: Ange kod
   he: הגדרת קוד
+  verified_by_human: []
+
+hidden_chats.cancel:
+  context: Button to cancel unlock/set code
+  en: Cancel
+  de: Abbrechen
+  zh: 取消
+  es: Cancelar
+  fr: Annuler
+  pt: Cancelar
+  ru: Отмена
+  ja: キャンセル
+  ko: 취소
+  it: Annulla
+  tr: İptal
+  vi: Hủy
+  id: Batal
+  pl: Anuluj
+  nl: Annuleren
+  ar: إلغاء
+  hi: रद्द करें
+  th: ยกเลิก
+  cs: Zrušit
+  sv: Avbryt
+  he: ביטול
   verified_by_human: []
 
 hidden_chats.incorrect_code:
@@ -923,6 +1045,31 @@ hidden_chats.set_password_description:
   he: "יש להזין סיסמה כדי להגן על הצ\\'אטים החבויים שלך. סיסמה זו נפרדת מסיסמת ההתחברות שלך. ניתן להשתמש בכל סיסמה ייחודית כדי להסתיר/להציג צ\\'אטים שונים."
   verified_by_human: []
 
+hidden_chats.password_label:
+  context: Label for password input field
+  en: Password
+  de: Passwort
+  zh: 密码
+  es: Contraseña
+  fr: Mot de passe
+  pt: Senha
+  ru: Пароль
+  ja: パスワード
+  ko: 비밀번호
+  it: Password
+  tr: Şifre
+  vi: Mật khẩu
+  id: Kata sandi
+  pl: Hasło
+  nl: Wachtwoord
+  ar: كلمة المرور
+  hi: पासवर्ड
+  th: รหัสผ่าน
+  cs: Heslo
+  sv: Lösenord
+  he: סיסמה
+  verified_by_human: []
+
 hidden_chats.confirm_password_label:
   context: Label for confirm password input field
   en: Confirm Password
@@ -1148,6 +1295,31 @@ hidden_chats.auto_locked:
   he: "הצ\\'אטים החבויים ננעלו עקב חוסר פעילות"
   verified_by_human: []
 
+select_all:
+  context: Button to select all chats
+  en: Select all
+  de: Alle auswählen
+  zh: 全选
+  es: Seleccionar todo
+  fr: Tout sélectionner
+  pt: Selecionar tudo
+  ru: Выбрать все
+  ja: すべて選択
+  ko: 모두 선택
+  it: Seleziona tutto
+  tr: Tümünü seç
+  vi: Chọn tất cả
+  id: Pilih semua
+  pl: Zaznacz wszystko
+  nl: Alles selecteren
+  ar: تحديد الكل
+  hi: सभी चुनें
+  th: เลือกทั้งหมด
+  cs: Vybrat vše
+  sv: Välj alla
+  he: בחר הכל
+  verified_by_human: []
+
 unselect_all:
   context: Button to unselect all chats
   en: Unselect all
@@ -1171,6 +1343,31 @@ unselect_all:
   cs: Zrušit výběr všech
   sv: Avmarkera alla
   he: ביטול בחירת הכל
+  verified_by_human: []
+
+cancel:
+  context: Button to cancel selection mode
+  en: Cancel
+  de: Abbrechen
+  zh: 取消
+  es: Cancelar
+  fr: Annuler
+  pt: Cancelar
+  ru: Отмена
+  ja: キャンセル
+  ko: 취소
+  it: Annulla
+  tr: İptal
+  vi: Hủy
+  id: Batal
+  pl: Anuluj
+  nl: Annuleren
+  ar: إلغاء
+  hi: रद्द करें
+  th: ยกเลิก
+  cs: Zrušit
+  sv: Avbryt
+  he: ביטול
   verified_by_human: []
 
 loadMore.button:
@@ -1221,6 +1418,31 @@ resume_last_chat.title:
   cs: Pokračujte tam, kde jste skončili
   sv: Fortsätt där du slutade
   he: להמשיך מהמקום שבו הפסקת
+  verified_by_human: []
+
+resume_last_chat.continue_button:
+  context: Button text to resume/continue the last chat
+  en: Continue
+  de: Fortfahren
+  zh: 继续
+  es: Continuar
+  fr: Continuer
+  pt: Continuar
+  ru: Продолжить
+  ja: 続ける
+  ko: 계속
+  it: Continua
+  tr: Devam et
+  vi: Tiếp tục
+  id: Lanjutkan
+  pl: Kontynuuj
+  nl: Doorgaan
+  ar: متابعة
+  hi: जारी रखें
+  th: ดำเนินการต่อ
+  cs: Pokračovat
+  sv: Fortsätt
+  he: המשך
   verified_by_human: []
 
 resume_last_chat.start_new:
@@ -1298,6 +1520,55 @@ explore_openmates.title:
   he: "גלה את OpenMates:"
   verified_by_human: []
 
+context_menu.credits:
+  context: Label shown next to the credit amount in chat/message context menus (e.g. "1.234 credits")
+  en: credits
+  de: Credits
+  zh: 积分
+  es: créditos
+  fr: crédits
+  pt: créditos
+  ru: кредиты
+  ja: クレジット
+  ko: 크레딧
+  it: crediti
+  tr: kredi
+  vi: tín dụng
+  id: kredit
+  pl: kredyty
+  nl: credits
+  ar: رصيد
+  hi: क्रेडिट
+  th: เครดิต
+  cs: kredity
+  sv: krediter
+  he: קרדיטים
+  verified_by_human: []
+
+context_menu.delete_message:
+  context: Menu option to delete a single message from the chat history (message context menu, not sidebar)
+  en: Delete
+  de: Löschen
+  zh: 删除
+  es: Eliminar
+  fr: Supprimer
+  pt: Excluir
+  ru: Удалить
+  ja: 削除
+  ko: 삭제
+  it: Elimina
+  tr: Sil
+  vi: Xóa
+  id: Hapus
+  pl: Usuń
+  nl: Verwijderen
+  ar: حذف
+  hi: हटाएं
+  th: ลบ
+  cs: Smazat
+  sv: Ta bort
+  he: מחיקה
+  verified_by_human: []
 context_menu.unhide:
   context: Context menu action to unhide a hidden chat
   en: Unhide
@@ -1497,6 +1768,31 @@ search.no_results:
   he: לא נמצאו תוצאות
   verified_by_human: []
 
+search.settings:
+  context: Section header for settings results in the search results list
+  en: Settings
+  de: Einstellungen
+  zh: 设置
+  es: Configuración
+  fr: Paramètres
+  pt: Configurações
+  ru: Настройки
+  ja: 設定
+  ko: 설정
+  it: Impostazioni
+  tr: Ayarlar
+  vi: Cài đặt
+  id: Pengaturan
+  pl: Ustawienia
+  nl: Instellingen
+  ar: الإعدادات
+  hi: सेटिंग
+  th: การตั้งค่า
+  cs: Nastavení
+  sv: Inställningar
+  he: הגדרות
+  verified_by_human: []
+
 search.my_embeds:
   context: Section header for the user's own settings/memories entry results in the search results list
   en: My embeds
@@ -1572,6 +1868,31 @@ search.apps:
   he: אפליקציות ומיומנויות
   verified_by_human: []
 
+search.apps_only:
+  context: Section header for app-only results in the search results list
+  en: Apps
+  de: Apps
+  zh: 应用
+  es: Apps
+  fr: Applications
+  pt: Apps
+  ru: Приложения
+  ja: アプリ
+  ko: 앱
+  it: App
+  tr: Uygulamalar
+  vi: Ứng dụng
+  id: Aplikasi
+  pl: Aplikacje
+  nl: Apps
+  ar: التطبيقات
+  hi: ऐप्स
+  th: แอป
+  cs: Aplikace
+  sv: Appar
+  he: אפליקציות
+  verified_by_human: []
+
 search.app_app:
   context: Badge label shown on app search results indicating it is an App entry type
   en: App
@@ -1595,6 +1916,31 @@ search.app_app:
   cs: Aplikace
   sv: App
   he: אפליקציה
+  verified_by_human: []
+
+search.app_skill:
+  context: Badge label shown on skill search results indicating it is a Skill entry type
+  en: Skill
+  de: Skill
+  zh: 技能
+  es: Habilidad
+  fr: Compétence
+  pt: Habilidade
+  ru: Навык
+  ja: スキル
+  ko: 스킬
+  it: Abilità
+  tr: Beceri
+  vi: Kỹ năng
+  id: Keterampilan
+  pl: Umiejętność
+  nl: Vaardigheid
+  ar: مهارة
+  hi: कौशल
+  th: ทักษะ
+  cs: Dovednost
+  sv: Färdighet
+  he: מיומנות
   verified_by_human: []
 
 search.app_focus_mode:
@@ -1720,6 +2066,31 @@ search.go_to_message:
   cs: Přejít na zprávu
   sv: Gå till meddelande
   he: מעבר להודעה
+  verified_by_human: []
+
+search.summary_match:
+  context: Label shown before a search match found in the chat summary (metadata-only search for chats beyond the initial 100)
+  en: Summary
+  de: Zusammenfassung
+  zh: 摘要
+  es: Resumen
+  fr: Résumé
+  pt: Resumo
+  ru: Резюме
+  ja: 概要
+  ko: 요약
+  it: Riepilogo
+  tr: Özet
+  vi: Tóm tắt
+  id: Ringkasan
+  pl: Podsumowanie
+  nl: Samenvatting
+  ar: ملخص
+  hi: सारांश
+  th: สรุป
+  cs: Shrnutí
+  sv: Sammanfattning
+  he: סיכום
   verified_by_human: []
 
 search.tag_match:
@@ -2222,3 +2593,26 @@ fork.messages_label:
   he: הודעות לפיצול
   verified_by_human: []
 
+search_placeholder:
+  en: Search
+  de: Suchen
+  zh: 搜索
+  es: Buscar
+  fr: Rechercher
+  pt: Pesquisar
+  ru: Поиск
+  ja: 検索
+  ko: 검색
+  it: Cerca
+  tr: Ara
+  vi: Tìm kiếm
+  id: Cari
+  pl: Szukaj
+  nl: Zoeken
+  ar: ابحث
+  hi: खोज
+  th: ค้นหา
+  cs: Hledat
+  sv: Sök
+  he: חפש
+  verified_by_human: []
