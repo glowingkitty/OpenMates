@@ -9207,7 +9207,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          On the welcome screen (showWelcome=true): rendered in normal document flow
                          below the daily inspiration banner (top-buttons-flow class removes position:absolute).
                          On the active chat screen (showWelcome=false): absolutely positioned at top. -->
-                    <div class="top-buttons" class:top-buttons-flow={showWelcome}>
+                    <div class="top-buttons" class:top-buttons-flow={showWelcome} class:welcome-hiding={showWelcome && hideWelcomeForKeyboard}>
                         <!-- Left side buttons -->
                         <div class="left-buttons">
                             {#if createButtonVisible}
@@ -11256,8 +11256,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         text-align: center;
         font-size: 1rem;
         color: var(--color-grey-60);
-        min-height: 76px;
-        padding: 22px 16px 6px;
+        padding: 0px 16px 6px;
         font-style: italic;
         /* Gradient background so the text remains readable when positioned over chat messages.
            Uses the active chat background color (--color-grey-20) fading from transparent at the top
@@ -12075,12 +12074,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
        0, preventing interaction with invisible content.  On fade-in (class
        removed), visibility:visible applies immediately via the base 0s delay. */
     .daily-inspiration-area,
-    .center-content {
+    .center-content,
+    .top-buttons {
         transition: opacity 200ms ease, visibility 0s 0s;
     }
 
     .daily-inspiration-area.welcome-hiding,
-    .center-content.welcome-hiding {
+    .center-content.welcome-hiding,
+    .top-buttons.welcome-hiding {
         opacity: 0;
         visibility: hidden;
         transition: opacity 200ms ease, visibility 0s 200ms;
