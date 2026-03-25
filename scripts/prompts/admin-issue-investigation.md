@@ -4,7 +4,7 @@
 
 # {{ISSUE_ID}} — UUID of the issue record in Directus
 
-# {{ISSUE_TITLE}} — sanitised issue title
+# {{ISSUE_TITLE}} — sanitised short description of the issue
 
 # {{ISSUE_DESCRIPTION}} — structured description (What/Expected/Actual sections)
 
@@ -37,7 +37,7 @@ where confident, implement) a concrete fix.
 
 ## Issue Report
 
-### Title
+### Short Description
 
 {{ISSUE_TITLE}}
 
@@ -67,7 +67,7 @@ where confident, implement) a concrete fix.
 
 ## Your Task
 
-1. **Understand the problem** — read the title and description carefully. Identify what the
+1. **Understand the problem** — read the short description and details carefully. Identify what the
    admin was trying to do, what went wrong, and what the expected behaviour was.
 
 2. **Locate the relevant code** — search the codebase for the component, route, or service

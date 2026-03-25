@@ -1,12 +1,12 @@
 # OpenMates™
 
-[![OpenMates header image](./docs/internal/slides/openmates_pitch_slides/intro.jpg)](https://openmates.org)
+[![OpenMates header image](./marketing/slides/openmates_pitch_slides/intro.jpg)](https://openmates.org)
 
 ## What is OpenMates?
 
 OpenMates™ aims to become an open source alternative to ChatGPT, Claude, Manus, etc. - focused on the best user experience, fulfilling your tasks using a wide range of apps, zero-knowledge encryption by default and compatibility with a wide range of AI models - making it also independent of specific companies. Currently in an alpha stage online. The perfect time for you to join in on the development with your feedback & contributions.
 
-[Click to show project overview slides PDF](./docs/internal/slides/openmates_overview_slides.pdf)
+[Click to show project overview slides PDF](./marketing/slides/openmates_overview_slides.pdf)
 
 [Support OpenMates financially](https://openmates.org/#settings/support)
 
@@ -14,13 +14,13 @@ OpenMates™ aims to become an open source alternative to ChatGPT, Claude, Manus
 
 ### Goal
 
-![Goal header image](./docs/internal/slides/openmates_pitch_slides/goal.jpg)
+![Goal header image](./marketing/slides/openmates_pitch_slides/goal.jpg)
 
 OpenMates aims to be the most user-friendly, privacy-focused and provider-independent AI agent software. Beyond being a powerful tool for daily tasks, it is designed with a strong focus on **education and inspiration** — empowering users to learn and discover new ideas through interactive AI assistance.
 
 #### Apps
 
-![Apps header image](./docs/internal/slides/openmates_pitch_slides/apps.jpg)
+![Apps header image](./marketing/slides/openmates_pitch_slides/apps.jpg)
 
 Apps are one of the core components of OpenMates. They allow your digital team mates to use various external providers to fullfill your requests - from searching the web, finding meetups, finding restaurants, generating images, transcribing videos, and much more.
 
@@ -28,7 +28,7 @@ Apps are one of the core components of OpenMates. They allow your digital team m
 
 ### Completed
 
-![Completed header image](./docs/internal/slides/openmates_pitch_slides/completed.jpg)
+![Completed header image](./marketing/slides/openmates_pitch_slides/completed.jpg)
 
 The [alpha release of OpenMates](https://openmates.org) is available and includes core features like:
 
@@ -43,7 +43,7 @@ A more stable and feature-rich beta release is planned for 2026.
 
 ### What's next
 
-![What's next header image](./docs/internal/slides/openmates_pitch_slides/whats_next.jpg)
+![What's next header image](./marketing/slides/openmates_pitch_slides/whats_next.jpg)
 
 While many core features are implemented, we are continuously improving OpenMates. Our next focus areas include:
 
@@ -55,7 +55,7 @@ While many core features are implemented, we are continuously improving OpenMate
 
 ### How to contribute
 
-![How to contribute header image](./docs/internal/slides/openmates_pitch_slides/contribute.jpg)
+![How to contribute header image](./marketing/slides/openmates_pitch_slides/contribute.jpg)
 
 You can help by testing the web app and providing feedback. You can also help by contributing to the code.
 
