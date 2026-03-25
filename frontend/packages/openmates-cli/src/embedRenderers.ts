@@ -757,8 +757,7 @@ function renderCodeDocsFullscreen(c: Record<string, unknown>): void {
   const docs =
     str(first?.documentation as string) ?? str(c.documentation as string) ?? "";
   if (docs) {
-    // Show first 2000 chars of documentation
-    console.log(trunc(docs, 2000));
+    console.log(docs);
   } else {
     console.log("No documentation content.");
   }
@@ -781,7 +780,7 @@ function renderWebReadFullscreen(c: Record<string, unknown>): void {
   if (Array.isArray(results)) {
     for (const r of results) {
       const content = str(r.content) ?? str(r.text) ?? "";
-      if (content) console.log(trunc(content, 2000));
+      if (content) console.log(content);
       console.log();
     }
   }
@@ -903,7 +902,7 @@ function renderVideoTranscriptFullscreen(c: Record<string, unknown>): void {
   if (url) process.stdout.write(`\x1b[2m${url}\x1b[0m\n`);
   console.log();
   const transcript = str(c.transcript) ?? str(c.text) ?? "";
-  if (transcript) console.log(trunc(transcript, 3000));
+  if (transcript) console.log(transcript);
   else console.log("No transcript available.");
 }
 
@@ -1157,7 +1156,7 @@ function renderDirectTypeFullscreen(
       if (filename) process.stdout.write(`\x1b[2mFile:\x1b[0m ${filename}\n`);
       if (lang) process.stdout.write(`\x1b[2mLanguage:\x1b[0m ${lang}\n`);
       console.log();
-      if (code) console.log(trunc(code, 5000));
+      if (code) console.log(code);
       break;
     }
 
@@ -1172,7 +1171,7 @@ function renderDirectTypeFullscreen(
           .replace(/<[^>]+>/g, " ")
           .replace(/\s+/g, " ")
           .trim();
-        console.log(trunc(text, 3000));
+        console.log(text);
       }
       break;
     }
@@ -1182,7 +1181,7 @@ function renderDirectTypeFullscreen(
       const title = str(c.title);
       const table = str(c.table) ?? str(c.content) ?? "";
       if (title) process.stdout.write(`\x1b[1m${title}\x1b[0m\n\n`);
-      if (table) console.log(trunc(table, 3000));
+      if (table) console.log(table);
       break;
     }
 
@@ -1195,7 +1194,7 @@ function renderDirectTypeFullscreen(
           const content = str(r.content) ?? str(r.text) ?? "";
           if (content) {
             console.log();
-            console.log(trunc(content, 3000));
+            console.log(content);
           }
         }
       }
@@ -1244,22 +1243,22 @@ function renderDirectTypeFullscreen(
       if (receiver) process.stdout.write(`\x1b[2mTo: ${receiver}\x1b[0m\n`);
       if (content) {
         console.log();
-        console.log(trunc(content, 2000));
+        console.log(content);
       }
       break;
     }
 
     default: {
-      // Generic: show all non-null fields
+      // Generic: show all non-null fields (fullscreen — no truncation)
       for (const [k, v] of Object.entries(c)) {
         if (v === null || v === undefined || k.startsWith("_")) continue;
         if (typeof v === "object") {
           process.stdout.write(
-            `  \x1b[2m${k.padEnd(20)}\x1b[0m ${JSON.stringify(v).slice(0, 120)}\n`,
+            `  \x1b[2m${k.padEnd(20)}\x1b[0m ${JSON.stringify(v)}\n`,
           );
         } else {
           process.stdout.write(
-            `  \x1b[2m${k.padEnd(20)}\x1b[0m ${trunc(String(v), 100)}\n`,
+            `  \x1b[2m${k.padEnd(20)}\x1b[0m ${String(v)}\n`,
           );
         }
       }
