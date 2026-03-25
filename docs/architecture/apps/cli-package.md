@@ -15,7 +15,7 @@ key_files:
 
 # CLI Package
 
-> npm package (`openmates`, v0.6.0-alpha.1) providing both a CLI and a programmatic SDK for pair-auth login, encrypted chat operations, app skill execution, settings management, and self-hosted server management.
+> npm package (`openmates`, v0.7.0-alpha.1) providing both a CLI and a programmatic SDK for pair-auth login, encrypted chat operations, app skill execution, settings management, and self-hosted server management.
 
 ## Why This Exists
 

@@ -24,27 +24,27 @@ sign_up:
   verified_by_human: []
 version_title:
   context: Version title on alpha disclaimer page
-  en: v0.6 alpha
-  de: v0.6 alpha
-  zh: v0.6 测试版
-  es: v0.6 alfa
-  fr: v0.6 alpha
-  pt: v0.6 alfa
-  ru: v0.6 альфа
-  ja: v0.6 アルファ
-  ko: v0.6 알파
-  it: v0.6 alpha
-  tr: v0.6 alfa
-  vi: v0.6 alpha
-  id: v0.6 alpha
-  pl: v0.6 alpha
-  nl: v0.6 alpha
-  ar: v0.6 ألفا
-  hi: v0.6 अल्फा
-  th: v0.6 อัลฟา
-  cs: v0.6 alpha
-  sv: "v0.6 alpha"
-  he: v0.6 אלפא
+  en: v0.7 alpha
+  de: v0.7 alpha
+  zh: v0.7 测试版
+  es: v0.7 alfa
+  fr: v0.7 alpha
+  pt: v0.7 alfa
+  ru: v0.7 альфа
+  ja: v0.7 アルファ
+  ko: v0.7 알파
+  it: v0.7 alpha
+  tr: v0.7 alfa
+  vi: v0.7 alpha
+  id: v0.7 alpha
+  pl: v0.7 alpha
+  nl: v0.7 alpha
+  ar: v0.7 ألفا
+  hi: v0.7 अल्फा
+  th: v0.7 อัลฟา
+  cs: v0.7 alpha
+  sv: "v0.7 alpha"
+  he: v0.7 אלפא
   verified_by_human: []
 domain_not_allowed:
   context: Error message shown when the domain is not allowed to sign up
