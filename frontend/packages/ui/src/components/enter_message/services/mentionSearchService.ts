@@ -669,8 +669,8 @@ export function getSettingsMemoryEntryResults(
       let entryTitle: string = entry.item_key;
       if (titleField && entry.item_value[titleField]) {
         entryTitle = String(entry.item_value[titleField]);
-      } else if (!titleField) {
-        // No schema title field — try common field names
+      } else {
+        // Schema title field missing or its value is falsy — try common field names
         for (const field of ["name", "title", "label"]) {
           const val = entry.item_value[field];
           if (val && typeof val === "string" && val.trim()) {
