@@ -1826,7 +1826,22 @@ export class OpenMatesClient {
       headers,
     );
     if (!response.ok) {
-      throw new Error(`Skill execution failed with HTTP ${response.status}`);
+      const body = response.data as Record<string, unknown> | undefined;
+      const detail =
+        typeof body?.detail === "string"
+          ? body.detail
+          : Array.isArray(body?.detail)
+            ? (body.detail as Array<{ msg?: string }>)
+                .map((d) => d.msg ?? JSON.stringify(d))
+                .join("; ")
+            : undefined;
+      const err = new Error(
+        detail
+          ? `Skill execution failed: ${detail}`
+          : `Skill execution failed with HTTP ${response.status}`,
+      );
+      (err as Error & { statusCode: number }).statusCode = response.status;
+      throw err;
     }
     return response.data;
   }

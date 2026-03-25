@@ -115,19 +115,6 @@ async def health() -> dict[str, str]:
     return {"status": "healthy"}
 
 
-@app.get("/api/status")
-async def get_status(env: str = Query(default=ENV_PROD)) -> dict[str, Any]:
-    environment = _validate_environment(env)
-    services = await get_current_service_status(DB_PATH, environment)
-    groups = _group_services(services)
-    return {
-        "environment": environment,
-        "status": _compute_overall_status(services),
-        "last_updated": datetime.now(timezone.utc).isoformat(),
-        "groups": groups,
-    }
-
-
 @app.get("/api/status/history")
 async def get_history(
     env: str = Query(default=ENV_PROD),
@@ -196,7 +183,7 @@ async def get_response_times(
     }
 
 
-@app.get("/api/status/v2")
+@app.get("/api/status")
 async def get_status_v2(env: str = Query(default=ENV_PROD)) -> dict[str, Any]:
     """Unified status endpoint for the new status page.
 
@@ -304,7 +291,7 @@ async def get_status_v2(env: str = Query(default=ENV_PROD)) -> dict[str, Any]:
     }
 
 
-@app.get("/api/status/v2/intraday")
+@app.get("/api/status/intraday")
 async def get_status_v2_intraday(
     env: str = Query(default=ENV_PROD),
     date: str = Query(..., pattern=r"^\d{4}-\d{2}-\d{2}$"),

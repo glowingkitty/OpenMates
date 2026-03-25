@@ -938,17 +938,31 @@ async function handleApps(
   ) {
     const potentialApp = subcommand;
     const potentialSkill = rest[0];
-    if (potentialSkill) {
-      // `apps <app> <skill> --help` → skill-level help
-      const data = await client.getSkillInfo(
+    try {
+      if (potentialSkill) {
+        // `apps <app> <skill> --help` → skill-level help
+        const data = await client.getSkillInfo(
+          potentialApp,
+          potentialSkill,
+          apiKey,
+        );
+        await printSkillInfo(client, potentialApp, data as SkillMetadata);
+      } else {
+        const data = await client.getApp(potentialApp);
+        await printAppInfo(client, data as AppMetadata);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`\x1b[31m✗ ${msg}\x1b[0m\n`);
+      const suggestion = await suggestAppOrSkill(
+        client,
         potentialApp,
-        potentialSkill,
+        potentialSkill ?? "",
         apiKey,
       );
-      await printSkillInfo(client, potentialApp, data as SkillMetadata);
-    } else {
-      const data = await client.getApp(potentialApp);
-      await printAppInfo(client, data as AppMetadata);
+      if (suggestion) console.error(`${suggestion}\n`);
+      console.error(`List all apps: openmates apps list`);
+      process.exit(1);
     }
     return;
   }
@@ -970,11 +984,20 @@ async function handleApps(
       printAppsHelp();
       process.exit(1);
     }
-    const data = await client.getApp(appId);
-    if (flags.json === true) {
-      printJson(data);
-    } else {
-      await printAppInfo(client, data as AppMetadata);
+    try {
+      const data = await client.getApp(appId);
+      if (flags.json === true) {
+        printJson(data);
+      } else {
+        await printAppInfo(client, data as AppMetadata);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`\x1b[31m✗ ${msg}\x1b[0m\n`);
+      const suggestion = await suggestAppOrSkill(client, appId, "", apiKey);
+      if (suggestion) console.error(`${suggestion}\n`);
+      console.error(`List all apps: openmates apps list`);
+      process.exit(1);
     }
     return;
   }
@@ -1008,12 +1031,36 @@ async function handleApps(
       process.exit(1);
     }
     // Silently forward to the sugar alias execution path
-    const inputData = buildSkillInput(flags, inlineTokens);
-    const data = await client.runSkill({ app, skill, inputData, apiKey });
-    if (flags.json === true) {
-      printJson(data);
-    } else {
-      printSkillResult(app, skill, data);
+    try {
+      const inputData = buildSkillInput(flags, inlineTokens);
+      const data = await client.runSkill({ app, skill, inputData, apiKey });
+      if (flags.json === true) {
+        printJson(data);
+      } else {
+        printSkillResult(app, skill, data);
+      }
+    } catch (err) {
+      const statusCode = (err as Error & { statusCode?: number }).statusCode;
+      const msg = err instanceof Error ? err.message : String(err);
+      if (statusCode === 404) {
+        const suggestion = await suggestAppOrSkill(client, app, skill, apiKey);
+        console.error(`\x1b[31m✗ ${msg}\x1b[0m\n`);
+        if (suggestion) console.error(`${suggestion}\n`);
+        console.error(
+          `List all apps:   openmates apps list\n` +
+            `App details:     openmates apps info <app-id>`,
+        );
+        process.exit(1);
+      }
+      if (statusCode === 422) {
+        console.error(`\x1b[31m✗ ${msg}\x1b[0m\n`);
+        console.error(
+          `Run with --help for parameter details:\n` +
+            `  openmates apps ${app} ${skill} --help`,
+        );
+        process.exit(1);
+      }
+      throw err;
     }
     return;
   }
@@ -1126,23 +1173,81 @@ async function handleApps(
       }
     }
 
-    const inputData = buildSkillInput(flags, inlineTokens);
-    const data = await client.runSkill({ app, skill, inputData, apiKey });
-    if (flags.json === true) {
-      printJson(data);
-    } else {
-      printSkillResult(app, skill, data);
+    try {
+      const inputData = buildSkillInput(flags, inlineTokens);
+      const data = await client.runSkill({ app, skill, inputData, apiKey });
+      if (flags.json === true) {
+        printJson(data);
+      } else {
+        printSkillResult(app, skill, data);
+      }
+    } catch (err) {
+      const statusCode = (err as Error & { statusCode?: number }).statusCode;
+
+      // 404 — app or skill not found → suggest closest match
+      if (statusCode === 404) {
+        const suggestion = await suggestAppOrSkill(client, app, skill, apiKey);
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`\x1b[31m✗ ${msg}\x1b[0m\n`);
+        if (suggestion) console.error(`${suggestion}\n`);
+        console.error(
+          `List all apps:   openmates apps list\n` +
+            `App details:     openmates apps info <app-id>`,
+        );
+        process.exit(1);
+      }
+
+      // 422 — validation error → show required parameters
+      if (statusCode === 422) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`\x1b[31m✗ ${msg}\x1b[0m\n`);
+        // Show skill schema if available
+        if (schemaParams.length > 0) {
+          console.error("Required parameters:");
+          for (const p of schemaParams) {
+            const req = p.required ? " (required)" : "";
+            const def =
+              p.default !== undefined ? ` [default: ${p.default}]` : "";
+            console.error(
+              `  ${p.name}: ${p.type}${req}${def}${p.description ? ` — ${p.description}` : ""}`,
+            );
+          }
+          console.error(
+            `\nUsage:\n` +
+              `  openmates apps ${app} ${skill} <value>\n` +
+              `  openmates apps ${app} ${skill} --input '{"requests": [{"${schemaParams[0]?.name ?? "query"}": "..."}]}'`,
+          );
+        } else {
+          console.error(
+            `Run with --help for parameter details:\n` +
+              `  openmates apps ${app} ${skill} --help`,
+          );
+        }
+        process.exit(1);
+      }
+
+      // Other errors — rethrow
+      throw err;
     }
     return;
   }
 
   // `apps <app>` with no skill — treat as `apps info <app>`
   if (app && !skill) {
-    const data = await client.getApp(app);
-    if (flags.json === true) {
-      printJson(data);
-    } else {
-      await printAppInfo(client, data as AppMetadata);
+    try {
+      const data = await client.getApp(app);
+      if (flags.json === true) {
+        printJson(data);
+      } else {
+        await printAppInfo(client, data as AppMetadata);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`\x1b[31m✗ ${msg}\x1b[0m\n`);
+      const suggestion = await suggestAppOrSkill(client, app, "", apiKey);
+      if (suggestion) console.error(`${suggestion}\n`);
+      console.error(`List all apps: openmates apps list`);
+      process.exit(1);
     }
     return;
   }
@@ -1168,6 +1273,87 @@ function buildSkillInput(
   const inlineText = inlineTokens.join(" ").trim();
   if (inlineText) return { requests: [{ query: inlineText }] };
   return {};
+}
+
+/**
+ * Suggest the closest app or skill name when a 404 occurs.
+ * Uses Levenshtein distance for fuzzy matching against available apps/skills.
+ */
+async function suggestAppOrSkill(
+  client: OpenMatesClient,
+  app: string,
+  skill: string,
+  apiKey?: string,
+): Promise<string | null> {
+  try {
+    const data = (await client.listApps(apiKey)) as {
+      apps?: Array<{ id: string; skills?: Array<{ id: string }> }>;
+    };
+    const apps = data.apps ?? [];
+    const appIds = apps.map((a) => a.id);
+
+    // Check if app exists
+    const matchedApp = apps.find((a) => a.id === app);
+    if (!matchedApp) {
+      // Suggest closest app name
+      const closest = findClosestMatch(app, appIds);
+      if (closest) {
+        const suffix = skill ? ` ${skill}` : "";
+        return `Did you mean: openmates apps ${closest}${suffix}`;
+      }
+      return `Available apps: ${appIds.join(", ")}`;
+    }
+
+    // App exists but skill not found — suggest closest skill
+    const skillIds = (matchedApp.skills ?? []).map((s) => s.id);
+    const closest = findClosestMatch(skill, skillIds);
+    if (closest) {
+      return `Did you mean: openmates apps ${app} ${closest}`;
+    }
+    if (skillIds.length > 0) {
+      return `Available skills for '${app}': ${skillIds.join(", ")}`;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/** Simple Levenshtein distance for short CLI names. */
+function levenshtein(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, () =>
+    Array(n + 1).fill(0) as number[],
+  );
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] =
+        a[i - 1] === b[j - 1]
+          ? dp[i - 1][j - 1]
+          : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    }
+  }
+  return dp[m][n];
+}
+
+/** Find the closest match within a reasonable edit distance (max 3). */
+function findClosestMatch(
+  input: string,
+  candidates: string[],
+): string | null {
+  let best: string | null = null;
+  let bestDist = 4; // max acceptable distance
+  for (const candidate of candidates) {
+    const dist = levenshtein(input.toLowerCase(), candidate.toLowerCase());
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = candidate;
+    }
+  }
+  return best;
 }
 
 // ---------------------------------------------------------------------------
