@@ -65,6 +65,17 @@ export async function extractMentionedSettingsMemoriesCleartext(
   const state = get(appSettingsMemoriesStore);
   const { entriesByApp, decryptedEntries } = state;
 
+  // Debug: log what we're working with
+  const hasEntryMention = content.includes("@memory-entry:");
+  const hasMemoryMention = content.includes("@memory:");
+  if (hasEntryMention || hasMemoryMention) {
+    console.warn(
+      `[MentionedCleartext] Extracting from content (${content.length} chars). ` +
+        `Has @memory-entry: ${hasEntryMention}, @memory: ${hasMemoryMention}. ` +
+        `Store: ${decryptedEntries.size} decrypted entries, ${entriesByApp.size} apps.`,
+    );
+  }
+
   // Collect category keys from @memory-entry (app_id, category_id, entry_id)
   const entryMatches = Array.from(content.matchAll(MEMORY_ENTRY_PATTERN));
   const seenEntryIds = new Set<string>();
@@ -166,6 +177,14 @@ export async function extractMentionedSettingsMemoriesCleartext(
         err,
       );
     }
+  }
+
+  const resultKeys = Object.keys(result);
+  if (hasEntryMention || hasMemoryMention) {
+    console.warn(
+      `[MentionedCleartext] Result: ${resultKeys.length} key(s): ${resultKeys.join(", ") || "(empty)"}. ` +
+        `Entry regex matches: ${entryMatches.length}, Memory regex matches: ${memoryMatches.length}.`,
+    );
   }
 
   return result;
