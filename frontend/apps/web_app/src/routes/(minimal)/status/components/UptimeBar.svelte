@@ -49,6 +49,7 @@
 		height: 1.1rem;
 		border-radius: 3px;
 		overflow: hidden;
+		background: var(--color-grey-15, #e5e7eb);
 	}
 	.segment {
 		flex: 1;
@@ -56,11 +57,10 @@
 		border: none;
 		padding: 0;
 		cursor: pointer;
-		opacity: 0.85;
 		transition: opacity 0.15s;
 	}
 	.segment:hover {
-		opacity: 1;
+		opacity: 0.7;
 	}
 	.tooltip {
 		position: absolute;
@@ -68,7 +68,7 @@
 		left: 50%;
 		transform: translateX(-50%);
 		background: var(--color-grey-90, #1f2937);
-		color: #fff;
+		color: var(--color-grey-0, #fff);
 		font-size: 0.7rem;
 		padding: 0.15rem 0.4rem;
 		border-radius: 4px;

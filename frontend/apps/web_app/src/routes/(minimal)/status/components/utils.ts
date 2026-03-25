@@ -10,7 +10,7 @@ export function statusColor(status: ServiceStatus | string): string {
 		case 'operational': return 'var(--color-success, #22c55e)';
 		case 'degraded': return 'var(--color-warning, #eab308)';
 		case 'down': return 'var(--color-error, #ef4444)';
-		default: return 'var(--color-grey-50, #9ca3af)';
+		default: return 'var(--color-grey-30, #d1d5db)';
 	}
 }
 

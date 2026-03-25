@@ -283,54 +283,104 @@ async def get_status_intraday(
 
 # ── Data loading helpers ──────────────────────────────────────────────
 
+# Test results are stored at the project root /test-results/ (host-mounted into
+# the API container as /app/test-results/). Files:
+#   last-run.json — latest run summary (may be partial, e.g. single re-run)
+#   daily-run-YYYY-MM-DD.json — full daily run with all suites
+# Format: { suites: { playwright: { tests: [...] }, vitest: { tests: [...] } } }
+
+TEST_RESULTS_PATHS = [
+    Path("/app/test-results"),              # Docker container mount
+    Path("/home/superdev/projects/OpenMates/test-results"),  # Dev server host
+]
+
+
+def _find_test_results_dir() -> Optional[Path]:
+    """Find the test results directory."""
+    for p in TEST_RESULTS_PATHS:
+        if p.exists():
+            return p
+    return None
+
+
+def _extract_playwright_tests(run_data: Dict) -> list[Dict[str, Any]]:
+    """Extract Playwright test specs from a run file (handles nested suite format)."""
+    # New format: suites.playwright.tests
+    suites = run_data.get("suites", {})
+    pw_suite = suites.get("playwright", {})
+    tests = pw_suite.get("tests", [])
+
+    # Fallback: flat tests array (old format)
+    if not tests:
+        tests = run_data.get("tests", [])
+
+    return tests
+
+
 def _load_test_results() -> Dict[str, Any]:
     """Load E2E test results from JSON files, grouped by category."""
-    results_dir = Path("/app/data/test-results")
-    if not results_dir.exists():
-        results_dir = Path(__file__).parent.parent.parent.parent.parent / "data" / "test-results"
+    results_dir = _find_test_results_dir()
+    if not results_dir:
+        return {"total": 0, "passed": 0, "failed": 0, "last_run": None, "categories": []}
 
     specs: list[Dict[str, Any]] = []
     last_run_time = None
 
-    last_run_file = results_dir / "last-run.json"
-    if last_run_file.exists():
-        try:
-            with open(last_run_file) as f:
-                run_data = json.load(f)
-            last_run_time = run_data.get("timestamp") or run_data.get("started_at")
-            for test in run_data.get("tests", []):
-                name = test.get("name", test.get("file", ""))
-                spec_name = Path(name).stem if "/" in name else name
-                spec_name = spec_name.replace(".spec", "")
-                specs.append({
-                    "name": spec_name,
-                    "status": "passed" if test.get("status") == "passed" else "failed",
-                    "error": test.get("error") if test.get("status") != "passed" else None,
-                    "duration_s": test.get("duration"),
-                })
-        except (json.JSONDecodeError, OSError):
-            pass
+    # Find the latest daily run file (most complete data)
+    now = datetime.now(timezone.utc)
+    latest_run_data = None
+    for i in range(7):  # Check last 7 days
+        date_str = (now - timedelta(days=i)).strftime("%Y-%m-%d")
+        day_file = results_dir / f"daily-run-{date_str}.json"
+        if day_file.exists():
+            try:
+                with open(day_file) as f:
+                    latest_run_data = json.load(f)
+                last_run_time = latest_run_data.get("run_id", date_str)
+                break
+            except (json.JSONDecodeError, OSError):
+                continue
 
-    # 30-day history
-    history_dir = results_dir / "history"
+    # Fallback to last-run.json
+    if not latest_run_data:
+        last_run_file = results_dir / "last-run.json"
+        if last_run_file.exists():
+            try:
+                with open(last_run_file) as f:
+                    latest_run_data = json.load(f)
+                last_run_time = latest_run_data.get("run_id") or latest_run_data.get("timestamp")
+            except (json.JSONDecodeError, OSError):
+                pass
+
+    if latest_run_data:
+        tests = _extract_playwright_tests(latest_run_data)
+        for test in tests:
+            name = test.get("name", test.get("file", ""))
+            spec_name = name.replace(".spec.ts", "").replace(".spec", "")
+            specs.append({
+                "name": spec_name,
+                "status": "passed" if test.get("status") == "passed" else "failed",
+                "error": test.get("error") if test.get("status") != "passed" else None,
+                "duration_s": test.get("duration_seconds", test.get("duration")),
+            })
+
+    # 30-day history from daily-run files
     spec_timelines: Dict[str, list[Dict[str, str]]] = {}
-    if history_dir.exists():
-        now = datetime.now(timezone.utc)
-        for i in range(30):
-            date_str = (now - timedelta(days=29 - i)).strftime("%Y-%m-%d")
-            day_file = history_dir / f"{date_str}.json"
-            if day_file.exists():
-                try:
-                    with open(day_file) as f:
-                        day_data = json.load(f)
-                    for test in day_data.get("tests", []):
-                        sname = Path(test.get("file", test.get("name", ""))).stem.replace(".spec", "")
-                        spec_timelines.setdefault(sname, []).append({
-                            "date": date_str,
-                            "status": "passed" if test.get("status") == "passed" else "failed",
-                        })
-                except (json.JSONDecodeError, OSError):
-                    pass
+    for i in range(30):
+        date_str = (now - timedelta(days=29 - i)).strftime("%Y-%m-%d")
+        day_file = results_dir / f"daily-run-{date_str}.json"
+        if day_file.exists():
+            try:
+                with open(day_file) as f:
+                    day_data = json.load(f)
+                for test in _extract_playwright_tests(day_data):
+                    sname = test.get("name", test.get("file", "")).replace(".spec.ts", "").replace(".spec", "")
+                    spec_timelines.setdefault(sname, []).append({
+                        "date": date_str,
+                        "status": "passed" if test.get("status") == "passed" else "failed",
+                    })
+            except (json.JSONDecodeError, OSError):
+                pass
 
     for spec in specs:
         spec["timeline_30d"] = spec_timelines.get(spec["name"], [])
@@ -379,32 +429,31 @@ def _load_test_results() -> Dict[str, Any]:
 
 def _load_test_intraday(spec_name: str, date: str) -> list[Dict[str, Any]]:
     """Load test run details for a specific spec on a specific date."""
-    results_dir = Path("/app/data/test-results")
-    if not results_dir.exists():
-        results_dir = Path(__file__).parent.parent.parent.parent.parent / "data" / "test-results"
+    results_dir = _find_test_results_dir()
+    if not results_dir:
+        return []
 
-    runs_dir = results_dir / "runs" / date
     runs: list[Dict[str, Any]] = []
+    day_file = results_dir / f"daily-run-{date}.json"
 
-    if runs_dir.exists():
-        for run_file in sorted(runs_dir.glob("*.json")):
-            try:
-                with open(run_file) as f:
-                    run_data = json.load(f)
-                for test in run_data.get("tests", []):
-                    test_name = Path(test.get("file", test.get("name", ""))).stem.replace(".spec", "")
-                    if test_name == spec_name or spec_name in test_name:
-                        time_str = run_data.get("timestamp", "")
-                        if "T" in time_str:
-                            time_str = time_str.split("T")[1][:8]
-                        runs.append({
-                            "time": time_str,
-                            "status": "passed" if test.get("status") == "passed" else "failed",
-                            "duration_s": test.get("duration"),
-                            "error": test.get("error") if test.get("status") != "passed" else None,
-                        })
-            except (json.JSONDecodeError, OSError):
-                continue
+    if day_file.exists():
+        try:
+            with open(day_file) as f:
+                run_data = json.load(f)
+            for test in _extract_playwright_tests(run_data):
+                test_name = test.get("name", test.get("file", "")).replace(".spec.ts", "").replace(".spec", "")
+                if test_name == spec_name or spec_name in test_name:
+                    time_str = run_data.get("run_id", "")
+                    if "T" in time_str:
+                        time_str = time_str.split("T")[1][:8]
+                    runs.append({
+                        "time": time_str,
+                        "status": "passed" if test.get("status") == "passed" else "failed",
+                        "duration_s": test.get("duration_seconds", test.get("duration")),
+                        "error": test.get("error") if test.get("status") != "passed" else None,
+                    })
+        except (json.JSONDecodeError, OSError):
+            pass
 
     return runs
 
