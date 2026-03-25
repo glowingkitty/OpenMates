@@ -56,7 +56,9 @@ class NewsSearchRequestItem(BaseModel):
     )
     freshness: Optional[str] = Field(
         default=None,
-        description="Filter by recency: 'pd' (past day), 'pw' (past week), 'pm' (past month).",
+        description="Filter by recency: 'pd' (past day), 'pw' (past week), 'pm' (past month), "
+        "'py' (past year), or a custom date range 'YYYY-MM-DDtoYYYY-MM-DD' "
+        "(e.g. '2026-01-01to2026-01-31' for January 2026).",
     )
 
 

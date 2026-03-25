@@ -96,6 +96,12 @@ class WebSearchRequestItem(BaseModel):
         default=None,
         description="Safe search setting: 'off', 'moderate', or 'strict'.",
     )
+    freshness: Optional[str] = Field(
+        default=None,
+        description="Filter by recency: 'pd' (past day), 'pw' (past week), 'pm' (past month), "
+        "'py' (past year), or a custom date range 'YYYY-MM-DDtoYYYY-MM-DD' "
+        "(e.g. '2026-01-01to2026-01-31' for January 2026).",
+    )
 
 
 class SearchRequest(BaseModel):
@@ -379,6 +385,7 @@ class SearchSkill(BaseSkill):
                     f"(id: {request_id}). Valid values: {sorted(VALID_SAFESEARCH_VALUES)}. Falling back to 'moderate'."
                 )
             req_safesearch = "moderate"
+        req_freshness = req.get("freshness") or None
         # Default to web articles only (excludes news, videos, discussions, etc.)
         req_result_filter = req.get("result_filter") or "web"
         # Tabloid/boulevard domain filtering — enabled by default
@@ -472,6 +479,7 @@ class SearchSkill(BaseSkill):
                 search_lang=req_lang,
                 safesearch=req_safesearch,
                 extra_snippets=True,  # Enable extra snippets for richer results
+                freshness=req_freshness,
                 result_filter=req_result_filter,  # Filter to web articles by default
                 sanitize_output=True  # Enable sanitization for user-facing requests (default)
             )

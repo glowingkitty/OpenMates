@@ -58,6 +58,12 @@ class MapSearchRequestItem(BaseModel):
         default=None,
         description="If true, include reviews in the results.",
     )
+    priceLevels: Optional[List[str]] = Field(
+        default=None,
+        description="Filter by price level. Array of: 'PRICE_LEVEL_FREE', "
+        "'PRICE_LEVEL_INEXPENSIVE', 'PRICE_LEVEL_MODERATE', "
+        "'PRICE_LEVEL_EXPENSIVE', 'PRICE_LEVEL_VERY_EXPENSIVE'.",
+    )
 
 
 class SearchRequest(BaseModel):
@@ -329,6 +335,7 @@ class SearchSkill(BaseSkill):
         req_open_now = _raw_open_now if _raw_open_now is not None else False
         _raw_include_reviews = req.get("includeReviews")
         req_include_reviews = _raw_include_reviews if _raw_include_reviews is not None else False
+        req_price_levels = req.get("priceLevels")
         
         logger.debug(f"Executing place search (id: {request_id}): query='{search_query}', page_size={req_page_size}")
         
@@ -393,7 +400,8 @@ class SearchSkill(BaseSkill):
                 included_type=req_included_type if req_included_type else None,
                 min_rating=req_min_rating if req_min_rating is not None else None,
                 open_now=req_open_now if req_open_now else None,
-                include_reviews=req_include_reviews
+                include_reviews=req_include_reviews,
+                price_levels=req_price_levels,
             )
             
             if search_result.get("error"):

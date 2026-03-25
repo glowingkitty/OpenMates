@@ -46,6 +46,12 @@ class VideoSearchRequestItem(BaseModel):
         default=None,
         description="Safe search setting: 'off', 'moderate', or 'strict'.",
     )
+    freshness: Optional[str] = Field(
+        default=None,
+        description="Filter by recency: 'pd' (past day), 'pw' (past week), 'pm' (past month), "
+        "'py' (past year), or a custom date range 'YYYY-MM-DDtoYYYY-MM-DD' "
+        "(e.g. '2026-01-01to2026-01-31' for January 2026).",
+    )
 
 
 class SearchRequest(BaseModel):
@@ -321,6 +327,7 @@ class SearchSkill(BaseSkill):
             req_count = 20
         req_country_raw = req.get("country") or "us"
         req_lang = req.get("search_lang") or "en"
+        req_freshness = req.get("freshness") or None
         _raw_safesearch = req.get("safesearch") or None
         # Validate safesearch — Brave Videos API rejects anything except 'off', 'moderate', 'strict'.
         VALID_SAFESEARCH_VALUES = {"off", "moderate", "strict"}
@@ -411,6 +418,7 @@ class SearchSkill(BaseSkill):
                 country=req_country,
                 search_lang=req_lang,
                 safesearch=req_safesearch,
+                freshness=req_freshness,
                 sanitize_output=True
             )
             

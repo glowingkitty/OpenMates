@@ -202,7 +202,8 @@ async def search_places(
     min_rating: Optional[float] = None,
     open_now: Optional[bool] = None,
     field_mask: Optional[List[str]] = None,
-    include_reviews: bool = False  # If True, include reviews in response (significantly increases response size)
+    include_reviews: bool = False,  # If True, include reviews in response (significantly increases response size)
+    price_levels: Optional[List[str]] = None,  # Filter by price level (e.g. ['PRICE_LEVEL_INEXPENSIVE', 'PRICE_LEVEL_MODERATE'])
 ) -> Dict[str, Any]:
     """
     Performs a place search using the Google Places API (New) Text Search endpoint.
@@ -274,6 +275,9 @@ async def search_places(
     
     if open_now is not None:
         payload["openNow"] = open_now
+
+    if price_levels:
+        payload["priceLevels"] = price_levels
     
     # Build full URL
     url = f"{GOOGLE_PLACES_API_BASE_URL}/places:searchText"

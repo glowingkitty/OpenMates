@@ -364,6 +364,12 @@ class SerpApiProvider(BaseTransportProvider):
         max_results: int,
         non_stop_only: bool,
         currency: str,
+        children: int = 0,
+        infants_in_seat: int = 0,
+        infants_on_lap: int = 0,
+        max_stops: Optional[int] = None,
+        include_airlines: Optional[List[str]] = None,
+        exclude_airlines: Optional[List[str]] = None,
     ) -> List[ConnectionResult]:
         """
         Search for flight connections via the SerpAPI Google Flights engine.
@@ -406,18 +412,27 @@ class SerpApiProvider(BaseTransportProvider):
             return await self._search_one_way(
                 api_key, resolved_legs[0], legs[0],
                 passengers, travel_class, max_results, non_stop_only, currency,
+                children=children, infants_in_seat=infants_in_seat,
+                infants_on_lap=infants_on_lap, max_stops=max_stops,
+                include_airlines=include_airlines, exclude_airlines=exclude_airlines,
             )
         elif num_legs == 2:
             # Round-trip search
             return await self._search_round_trip(
                 api_key, resolved_legs, legs,
                 passengers, travel_class, max_results, non_stop_only, currency,
+                children=children, infants_in_seat=infants_in_seat,
+                infants_on_lap=infants_on_lap, max_stops=max_stops,
+                include_airlines=include_airlines, exclude_airlines=exclude_airlines,
             )
         else:
             # Multi-city search (3+ legs)
             return await self._search_multi_city(
                 api_key, resolved_legs, legs,
                 passengers, travel_class, max_results, non_stop_only, currency,
+                children=children, infants_in_seat=infants_in_seat,
+                infants_on_lap=infants_on_lap, max_stops=max_stops,
+                include_airlines=include_airlines, exclude_airlines=exclude_airlines,
             )
 
     # ------------------------------------------------------------------
@@ -434,6 +449,12 @@ class SerpApiProvider(BaseTransportProvider):
         max_results: int,
         non_stop_only: bool,
         currency: str,
+        children: int = 0,
+        infants_in_seat: int = 0,
+        infants_on_lap: int = 0,
+        max_stops: Optional[int] = None,
+        include_airlines: Optional[List[str]] = None,
+        exclude_airlines: Optional[List[str]] = None,
     ) -> List[ConnectionResult]:
         """Search for one-way flights. Costs 1 SerpAPI credit.
         Booking URLs are fetched on-demand via the /v1/apps/travel/booking-link
@@ -455,8 +476,21 @@ class SerpApiProvider(BaseTransportProvider):
             "travel_class": _TRAVEL_CLASS_MAP.get(travel_class, "1"),
             "deep_search": "true",
         }
-        if non_stop_only:
+        if children > 0:
+            params["children"] = str(children)
+        if infants_in_seat > 0:
+            params["infants_in_seat"] = str(infants_in_seat)
+        if infants_on_lap > 0:
+            params["infants_on_lap"] = str(infants_on_lap)
+        # max_stops overrides non_stop_only when set
+        if max_stops is not None:
+            params["stops"] = str(max_stops + 1)  # SerpAPI: 1=non-stop, 2=≤1 stop, 3=≤2 stops
+        elif non_stop_only:
             params["stops"] = "1"  # Non-stop only
+        if include_airlines:
+            params["include_airlines"] = ",".join(include_airlines)
+        elif exclude_airlines:
+            params["exclude_airlines"] = ",".join(exclude_airlines)
 
         data = await self._serpapi_get(params)
         if not data:
@@ -511,6 +545,12 @@ class SerpApiProvider(BaseTransportProvider):
         max_results: int,
         non_stop_only: bool,
         currency: str,
+        children: int = 0,
+        infants_in_seat: int = 0,
+        infants_on_lap: int = 0,
+        max_stops: Optional[int] = None,
+        include_airlines: Optional[List[str]] = None,
+        exclude_airlines: Optional[List[str]] = None,
     ) -> List[ConnectionResult]:
         """
         Search for round-trip flights. Costs 1 SerpAPI credit.
@@ -541,8 +581,20 @@ class SerpApiProvider(BaseTransportProvider):
             "travel_class": _TRAVEL_CLASS_MAP.get(travel_class, "1"),
             "deep_search": "true",
         }
-        if non_stop_only:
+        if children > 0:
+            params["children"] = str(children)
+        if infants_in_seat > 0:
+            params["infants_in_seat"] = str(infants_in_seat)
+        if infants_on_lap > 0:
+            params["infants_on_lap"] = str(infants_on_lap)
+        if max_stops is not None:
+            params["stops"] = str(max_stops + 1)
+        elif non_stop_only:
             params["stops"] = "1"
+        if include_airlines:
+            params["include_airlines"] = ",".join(include_airlines)
+        elif exclude_airlines:
+            params["exclude_airlines"] = ",".join(exclude_airlines)
 
         data = await self._serpapi_get(params)
         if not data:
@@ -595,6 +647,12 @@ class SerpApiProvider(BaseTransportProvider):
         max_results: int,
         non_stop_only: bool,
         currency: str,
+        children: int = 0,
+        infants_in_seat: int = 0,
+        infants_on_lap: int = 0,
+        max_stops: Optional[int] = None,
+        include_airlines: Optional[List[str]] = None,
+        exclude_airlines: Optional[List[str]] = None,
     ) -> List[ConnectionResult]:
         """
         Search for multi-city flights. Costs 1 SerpAPI credit.
@@ -629,8 +687,20 @@ class SerpApiProvider(BaseTransportProvider):
             "travel_class": _TRAVEL_CLASS_MAP.get(travel_class, "1"),
             "deep_search": "true",
         }
-        if non_stop_only:
+        if children > 0:
+            params["children"] = str(children)
+        if infants_in_seat > 0:
+            params["infants_in_seat"] = str(infants_in_seat)
+        if infants_on_lap > 0:
+            params["infants_on_lap"] = str(infants_on_lap)
+        if max_stops is not None:
+            params["stops"] = str(max_stops + 1)
+        elif non_stop_only:
             params["stops"] = "1"
+        if include_airlines:
+            params["include_airlines"] = ",".join(include_airlines)
+        elif exclude_airlines:
+            params["exclude_airlines"] = ",".join(exclude_airlines)
 
         data = await self._serpapi_get(params)
         if not data:

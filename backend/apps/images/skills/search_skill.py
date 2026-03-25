@@ -86,6 +86,19 @@ class ImageSearchRequestItem(BaseModel):
     count: int = Field(default=10, description="Number of image results to return (default 10, max 20).")
     country: str = Field(default="us", description="Country code for localised results (default 'us').")
     search_lang: str = Field(default="en", description="Language code for search (default 'en').")
+    size: Optional[str] = Field(
+        default=None,
+        description="Filter by image size: 'small', 'medium', 'large', 'wallpaper'.",
+    )
+    image_type: Optional[str] = Field(
+        default=None,
+        description="Filter by image type: 'photo', 'clipart', 'gif', 'transparent', 'line'.",
+    )
+    color: Optional[str] = Field(
+        default=None,
+        description="Filter by dominant color: 'red', 'orange', 'yellow', 'green', 'blue', "
+        "'purple', 'pink', 'brown', 'black', 'gray', 'white', 'coloronly', 'monochrome'.",
+    )
 
 
 class SearchRequest(BaseModel):
@@ -385,6 +398,9 @@ class SearchSkill(BaseSkill):
         count: int = DEFAULT_IMAGE_RESULTS,
         country: str = "us",
         search_lang: str = "en",
+        size: Optional[str] = None,
+        image_type: Optional[str] = None,
+        color: Optional[str] = None,
     ) -> tuple[List[Dict[str, Any]], str]:
         """
         Search for images via Brave Search Images API.
@@ -399,6 +415,9 @@ class SearchSkill(BaseSkill):
             count=min(count, MAX_IMAGE_RESULTS),
             country=country,
             search_lang=search_lang,
+            size=size,
+            image_type=image_type,
+            color=color,
         )
 
         if response.get("error"):
@@ -533,6 +552,9 @@ class SearchSkill(BaseSkill):
                     count=count,
                     country=country,
                     search_lang=search_lang,
+                    size=req.get("size"),
+                    image_type=req.get("image_type"),
+                    color=req.get("color"),
                 )
             else:
                 raise ValueError("Each request must have either 'query' or 'file_path'")

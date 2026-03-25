@@ -52,6 +52,12 @@ class ImageGenerationRequestItem(BaseModel):
         default="default",
         description="Quality/model tier: 'default' or 'max'. Only relevant for svg and recraft raster models.",
     )
+    style: Optional[str] = Field(
+        default=None,
+        description="Artistic style for Recraft models (svg and recraft raster): "
+        "'realistic_image', 'digital_illustration', 'vector_illustration', 'icon'. "
+        "Only applies to Recraft-based generation.",
+    )
     reference_images: Optional[List[str]] = Field(
         default=None,
         description="List of embed_ref filenames to use as visual references (enables image-to-image editing).",
@@ -240,6 +246,7 @@ class GenerateSkill(BaseSkill):
                 "aspect_ratio": req.get("aspect_ratio", "1:1"),
                 "output_filetype": output_filetype,
                 "quality": quality,
+                "style": req.get("style"),
                 "user_id": user_id,
                 "chat_id": self._current_chat_id,
                 "message_id": self._current_message_id,

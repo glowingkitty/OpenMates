@@ -804,6 +804,9 @@ async def search_images(
     country: str = "us",
     search_lang: str = "en",
     safesearch: str = "strict",
+    size: Optional[str] = None,
+    image_type: Optional[str] = None,
+    color: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Performs an image search using the Brave Search Images API.
@@ -847,6 +850,12 @@ async def search_images(
         "safesearch": safesearch,
         "spellcheck": "1",
     }
+    if size:
+        params["size"] = size
+    if image_type:
+        params["type"] = image_type
+    if color:
+        params["color"] = color
 
     url = f"{BRAVE_API_BASE_URL}/images/search"
     headers = {

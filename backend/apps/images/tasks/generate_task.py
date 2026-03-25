@@ -424,6 +424,8 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         output_filetype = str(arguments.get("output_filetype", "png")).lower()
         # quality: "default" or "max" — only used when output_filetype="svg"
         quality = str(arguments.get("quality", "default")).lower()
+        # style: Recraft artistic style (e.g. "realistic_image", "digital_illustration")
+        style = arguments.get("style")
         # Reference images for image-to-image generation (resolved embed IDs from skill layer)
         reference_image_embed_ids: List[str] = arguments.get("reference_image_embed_ids") or []
         user_vault_key_id: Optional[str] = arguments.get("user_vault_key_id")
@@ -500,6 +502,7 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
                 secrets_manager=task._secrets_manager,
                 model_id=recraft_model_id,
                 size=aspect_ratio,  # Recraft accepts "w:h" format natively
+                style_id=style,
             )
             actual_model = f"Recraft {recraft_model_id}"
             display_model_id = recraft_model_id
@@ -520,6 +523,7 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
                 secrets_manager=task._secrets_manager,
                 model_id=recraft_raster_model_id,
                 size=aspect_ratio,  # Recraft accepts "w:h" format natively
+                style_id=style,
             )
             actual_model = f"Recraft {recraft_raster_model_id}"
             display_model_id = recraft_raster_model_id

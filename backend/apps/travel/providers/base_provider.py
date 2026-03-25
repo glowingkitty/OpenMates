@@ -135,6 +135,12 @@ class BaseTransportProvider(ABC):
         max_results: int,
         non_stop_only: bool,
         currency: str,
+        children: int = 0,
+        infants_in_seat: int = 0,
+        infants_on_lap: int = 0,
+        max_stops: Optional[int] = None,
+        include_airlines: Optional[List[str]] = None,
+        exclude_airlines: Optional[List[str]] = None,
     ) -> List[ConnectionResult]:
         """
         Search for transport connections matching the given criteria.
@@ -147,6 +153,12 @@ class BaseTransportProvider(ABC):
             max_results: Maximum number of connection options to return.
             non_stop_only: If True, only return direct/non-stop connections.
             currency: Preferred currency for prices (ISO 4217 code).
+            children: Number of child passengers (ages 2-11).
+            infants_in_seat: Number of infants with own seat (under 2).
+            infants_on_lap: Number of lap infants (under 2).
+            max_stops: Maximum stops allowed (0/1/2). Overrides non_stop_only when set.
+            include_airlines: Only show flights from these airlines (IATA codes).
+            exclude_airlines: Exclude flights from these airlines (IATA codes).
 
         Returns:
             List of ConnectionResult objects in the unified format.

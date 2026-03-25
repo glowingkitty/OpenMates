@@ -63,6 +63,18 @@ class SearchConnectionsRequestItem(BaseModel):
         "Future: 'train', 'bus', 'boat'.",
     )
     passengers: int = Field(default=1, description="Number of adult passengers.")
+    children: int = Field(
+        default=0,
+        description="Number of child passengers (ages 2-11).",
+    )
+    infants_in_seat: int = Field(
+        default=0,
+        description="Number of infant passengers with their own seat (under 2).",
+    )
+    infants_on_lap: int = Field(
+        default=0,
+        description="Number of lap infants (under 2, seated on adult's lap).",
+    )
     travel_class: str = Field(
         default="economy",
         description="Cabin class for flights. One of: economy, premium_economy, business, first.",
@@ -74,6 +86,21 @@ class SearchConnectionsRequestItem(BaseModel):
     non_stop_only: bool = Field(
         default=False,
         description="If true, only return direct/non-stop connections.",
+    )
+    max_stops: Optional[int] = Field(
+        default=None,
+        description="Maximum number of stops allowed: 0 (non-stop only), 1 (up to 1 stop), "
+        "2 (up to 2 stops). When set, overrides non_stop_only.",
+    )
+    include_airlines: Optional[List[str]] = Field(
+        default=None,
+        description="Only show flights from these airlines (IATA codes, e.g. ['LH', 'BA']). "
+        "Cannot be combined with exclude_airlines.",
+    )
+    exclude_airlines: Optional[List[str]] = Field(
+        default=None,
+        description="Exclude flights from these airlines (IATA codes, e.g. ['FR', 'W6']). "
+        "Cannot be combined with include_airlines.",
     )
     currency: str = Field(
         default="EUR",
@@ -275,9 +302,15 @@ class SearchConnectionsSkill(BaseSkill):
         legs = req.get("legs", [])
         transport_methods = req.get("transport_methods", ["airplane"])
         passengers = req.get("passengers", 1)
+        children = req.get("children", 0)
+        infants_in_seat = req.get("infants_in_seat", 0)
+        infants_on_lap = req.get("infants_on_lap", 0)
         travel_class = req.get("travel_class", "economy")
         max_results = req.get("max_results", 5)
         non_stop_only = req.get("non_stop_only", False)
+        max_stops = req.get("max_stops")
+        include_airlines = req.get("include_airlines")
+        exclude_airlines = req.get("exclude_airlines")
         currency = req.get("currency", "EUR")
         sort_by = req.get("sort_by", "price_asc")
 
@@ -313,9 +346,15 @@ class SearchConnectionsSkill(BaseSkill):
                 connections = await provider.search_connections(
                     legs=legs,
                     passengers=passengers,
+                    children=children,
+                    infants_in_seat=infants_in_seat,
+                    infants_on_lap=infants_on_lap,
                     travel_class=travel_class,
                     max_results=max_results,
                     non_stop_only=non_stop_only,
+                    max_stops=max_stops,
+                    include_airlines=include_airlines,
+                    exclude_airlines=exclude_airlines,
                     currency=currency,
                 )
                 all_connections.extend(connections)
